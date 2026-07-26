@@ -6,6 +6,7 @@ import {
   type ReferenceDiscoveryResult,
   type ReferenceDiscoveryType,
 } from "../domain/reference-discovery";
+import { expectOk, jsonFetch } from "./http";
 
 export const libraryDiscoveryResultsEvent = "library-discovery-results";
 
@@ -96,12 +97,7 @@ export class LibraryDiscoverySearch extends LitElement {
     this.status = "Searching scholarly indexes…";
     this.emitResults([]);
     try {
-      const response = await fetch("/api/library/discovery", {
-        body: JSON.stringify(this.query),
-        credentials: "same-origin",
-        headers: { "content-type": "application/json" },
-        method: "POST",
-      });
+      const response = await jsonFetch("/api/library/discovery", this.query);
       await expectOk(response);
       const value: unknown = await response.json();
       if (!isReferenceDiscoveryResults(value)) throw new Error("Reference provider returned invalid discovery results");
@@ -138,14 +134,6 @@ export class LibraryDiscoverySearch extends LitElement {
     if (!select) throw new Error(`Library discovery select ${id} is unavailable`);
     return select;
   }
-}
-
-async function expectOk(response: Response): Promise<void> {
-  if (response.ok) return;
-  const value: unknown = await response.json().catch(() => null);
-  throw new Error(
-    typeof value === "object" && value !== null && "error" in value && typeof value.error === "string" ? value.error : "Request failed",
-  );
 }
 
 if (typeof customElements !== "undefined" && !customElements.get("library-discovery-search")) {

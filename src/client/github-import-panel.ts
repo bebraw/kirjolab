@@ -12,6 +12,7 @@ import {
   type GitHubRepositoryOption,
 } from "./app-contracts";
 import { formatBytes } from "./format";
+import { errorMessage, expectOk } from "./http";
 
 export interface GitHubImportSelection {
   readonly installationId: number | null;
@@ -533,20 +534,6 @@ async function requestGitHubJson<T>(url: string, guard: ValueGuard<T>, invalidMe
 
 function jsonRequest(body: object): RequestInit {
   return { body: JSON.stringify(body), headers: { "content-type": "application/json" }, method: "POST" };
-}
-
-async function expectOk(response: Response): Promise<void> {
-  if (response.ok) return;
-  const value: unknown = await response.json().catch(() => null);
-  throw new Error(
-    typeof value === "object" && value !== null && "error" in value && typeof value.error === "string"
-      ? value.error
-      : `Request failed (${response.status})`,
-  );
-}
-
-function errorMessage(error: unknown, fallback: string): string {
-  return error instanceof Error ? error.message : fallback;
 }
 
 if (!customElements.get("github-import-panel")) {

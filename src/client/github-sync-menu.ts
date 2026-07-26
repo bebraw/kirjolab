@@ -1,6 +1,7 @@
 import { html, LitElement, type TemplateResult } from "lit";
 import { isGitHubSyncState } from "./app-contracts";
 import { gitHubSyncPresentation, isGitHubSyncStatus, type GitHubSyncStatus } from "./github-sync-status";
+import { expectOk } from "./http";
 
 export interface GitHubSyncConnectionPresentation {
   readonly owner: string;
@@ -174,16 +175,6 @@ export class GitHubSyncMenu extends LitElement {
       }),
     );
   }
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-async function expectOk(response: Response): Promise<void> {
-  if (response.ok) return;
-  const value: unknown = await response.json().catch(() => null);
-  throw new Error(isRecord(value) && typeof value.error === "string" ? value.error : `Request failed (${response.status})`);
 }
 
 if (!customElements.get("github-sync-menu")) {

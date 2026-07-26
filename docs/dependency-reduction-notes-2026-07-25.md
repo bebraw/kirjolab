@@ -3626,3 +3626,27 @@ direct and unique production package counts remain unchanged at 135,411 B raw /
 
 Full native CI passes all 1,438 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
+
+## Shared Client HTTP Contract
+
+A 24-line client HTTP adapter now owns same-origin JSON request construction,
+supported write methods, unsuccessful-response parsing, Valibot validation of
+the bounded `{ error: string }` API contract, status-aware fallback errors, and
+caught-value message normalization. `WorkspaceApp`, the review-study workflow,
+and eight request-owning Lit components now import that contract instead of
+maintaining local variants.
+
+This checkpoint reduces `src/client/app.ts` from 5,906 to 5,892 lines (-14)
+and removes 132 lines from the ten existing runtime modules. Including the new
+24-line shared adapter, runtime source decreases by 108 lines. Focused coverage
+passes JSON method, body, header and credential construction, successful
+responses, validated API errors, malformed and non-JSON fallbacks, and caught
+value normalization; existing request-component suites remain green.
+
+The browser application artifact changes from 798,376 B raw / 215,938 B gzip
+to 795,979 B raw / 215,271 B gzip (-2,397 B raw / -667 B gzip). Styles and
+direct and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,442 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.

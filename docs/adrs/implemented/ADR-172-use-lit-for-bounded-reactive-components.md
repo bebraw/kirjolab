@@ -203,6 +203,10 @@ The adopted components own bounded presentation:
   archive and template visibility, modal lifecycle, the nested GitHub-sync
   presentation boundary, and typed navigation, catalog-refresh, and
   save-as-template outcomes.
+- One shared client HTTP adapter owns same-origin JSON serialization, supported
+  write methods, non-success parsing, Valibot validation of the bounded API
+  error contract, and caught-value fallback messages used by request-owning
+  components and the application coordinator.
 - The reference Library filter panel owns query, type, reading,
   organization, project-linkage, completeness, and sort values, dynamic type
   choices, result counts, reset behavior, and a typed filter-change intent.
@@ -479,6 +483,9 @@ reason to wrap static markup mechanically.
   coordinator request methods and owns destructive confirmation while leaving
   navigation, catalog refresh, save-as-template, GitHub synchronization, and
   global toast policy in the application coordinator.
+- The shared client HTTP adapter replaces ten copies of response-status and API
+  error parsing plus four repeated JSON request constructions. This keeps
+  request-owning Lit components small without introducing another dependency.
 - The reference Library filter panel replaces eight internal element references,
   seven control listeners, filter-value validation, dynamic type-option
   rendering, and result-count updates while leaving canonical filtering,

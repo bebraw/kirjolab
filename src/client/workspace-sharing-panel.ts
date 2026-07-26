@@ -1,6 +1,7 @@
 import { html, LitElement, type TemplateResult } from "lit";
 import { isWorkspaceMembers, type WorkspaceMember } from "../domain/workspace";
 import { isShareLinkResult, isShareLinkStatus, type ShareLinkStatus } from "./app-contracts";
+import { errorMessage, expectOk, jsonFetch } from "./http";
 
 export type WorkspaceShareKind = "read-only" | "edit";
 
@@ -253,12 +254,7 @@ export class WorkspaceSharingPanel extends LitElement {
 
   protected async invite(): Promise<void> {
     try {
-      const response = await fetch(`${this.apiBase}/members`, {
-        body: JSON.stringify({ email: this.inviteEmail }),
-        credentials: "same-origin",
-        headers: { "content-type": "application/json" },
-        method: "POST",
-      });
+      const response = await jsonFetch(`${this.apiBase}/members`, { email: this.inviteEmail });
       await expectOk(response);
       this.inviteEmail = "";
       await this.refreshMembers();
@@ -282,18 +278,6 @@ export class WorkspaceSharingPanel extends LitElement {
 
 function shareEndpoint(kind: WorkspaceShareKind): "share-link" | "edit-link" {
   return kind === "read-only" ? "share-link" : "edit-link";
-}
-
-async function expectOk(response: Response): Promise<void> {
-  if (response.ok) return;
-  const value: unknown = await response.json().catch(() => null);
-  throw new Error(
-    typeof value === "object" && value !== null && "error" in value && typeof value.error === "string" ? value.error : "Request failed",
-  );
-}
-
-function errorMessage(error: unknown, fallback: string): string {
-  return error instanceof Error ? error.message : fallback;
 }
 
 export function shareLinkDescription(kind: WorkspaceShareKind, status: ShareLinkStatus): string {

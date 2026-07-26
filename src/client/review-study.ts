@@ -44,6 +44,7 @@ import {
   type ScreeningModelResult,
 } from "../domain/review-model";
 import { OpenAICompatibleBrowserProvider, type ModelReasoningEffort } from "./model-provider";
+import { expectOk } from "./http";
 import {
   assertPublicationTarget,
   latestExtractionValue,
@@ -1973,16 +1974,6 @@ function isProtocolImpactStage(value: string): value is NonNullable<ReviewProtoc
     value === "extraction" ||
     value === "synthesis" ||
     value === "reporting"
-  );
-}
-
-async function expectOk(response: Response): Promise<void> {
-  if (response.ok) return;
-  const value: unknown = await response.json().catch(() => null);
-  throw new Error(
-    typeof value === "object" && value !== null && "error" in value && typeof value.error === "string"
-      ? value.error
-      : `Request failed (${response.status})`,
   );
 }
 

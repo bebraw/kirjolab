@@ -49,6 +49,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   archive/restore, duplication, permanent-deletion confirmation and request
   lifecycles, plus their local busy and failure state. Emit only navigation,
   catalog-refresh, or save-as-template outcomes to the application coordinator.
+- Route same-origin JSON writes and non-success response handling through the
+  shared client HTTP adapter. Validate the bounded `{ error: string }` response
+  contract with Valibot there instead of repeating parsing and fallback policy
+  in each Lit component or application workflow.
 - Keep the browser shell's required-element lookup in one typed registry whose
   return shape is inferred from its constructors. Do not duplicate that shape
   in a manually synchronized application interface.

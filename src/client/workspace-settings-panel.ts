@@ -1,6 +1,7 @@
 import { html, LitElement, type TemplateResult } from "lit";
 import { isWorkspaceSummaries, type ProjectPublicationProfile } from "../domain/workspace";
 import { GitHubSyncReview } from "./github-sync-review";
+import { expectOk, jsonFetch } from "./http";
 
 export const workspaceSettingsActionEvent = "workspace-settings-action";
 
@@ -262,7 +263,7 @@ export class WorkspaceSettingsPanel extends LitElement {
     const value = this.value;
     await this.runRequest(async () => {
       await expectOk(
-        await jsonRequest(
+        await jsonFetch(
           `${this.gitHubApiBase}/settings`,
           {
             title: value.title,
@@ -280,7 +281,7 @@ export class WorkspaceSettingsPanel extends LitElement {
 
   protected async toggleArchive(): Promise<void> {
     await this.runRequest(async () => {
-      await expectOk(await jsonRequest(`${this.gitHubApiBase}/settings`, { archived: !this.view.archived }, "PATCH"));
+      await expectOk(await jsonFetch(`${this.gitHubApiBase}/settings`, { archived: !this.view.archived }, "PATCH"));
       this.close();
       this.emit({ action: "catalog-refresh" });
     });
@@ -290,7 +291,7 @@ export class WorkspaceSettingsPanel extends LitElement {
     const title = prompt("Title for the duplicate", `${this.titleInput.value} copy`)?.trim();
     if (!title) return;
     await this.runRequest(async () => {
-      const response = await jsonRequest(`${this.gitHubApiBase}/duplicate`, { title });
+      const response = await jsonFetch(`${this.gitHubApiBase}/duplicate`, { title });
       await expectOk(response);
       const values: unknown[] = [await response.json()];
       if (!isWorkspaceSummaries(values) || !values[0]) throw new Error("Project duplicate returned invalid data");
@@ -342,23 +343,6 @@ export class WorkspaceSettingsPanel extends LitElement {
     if (!select) throw new Error(`Workspace settings select ${id} is unavailable`);
     return select;
   }
-}
-
-function jsonRequest(url: string, body: unknown, method: "POST" | "PATCH" = "POST"): Promise<Response> {
-  return fetch(url, {
-    body: JSON.stringify(body),
-    credentials: "same-origin",
-    headers: { "content-type": "application/json" },
-    method,
-  });
-}
-
-async function expectOk(response: Response): Promise<void> {
-  if (response.ok) return;
-  const value: unknown = await response.json().catch(() => null);
-  throw new Error(
-    typeof value === "object" && value !== null && "error" in value && typeof value.error === "string" ? value.error : "Request failed",
-  );
 }
 
 if (typeof customElements !== "undefined" && !customElements.get("workspace-settings-panel")) {

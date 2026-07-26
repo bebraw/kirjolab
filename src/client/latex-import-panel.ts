@@ -1,6 +1,7 @@
 import { html, LitElement, nothing, type TemplateResult } from "lit";
 import { isLatexImportPreview, isLatexImportResult, type LatexImportPreview } from "./app-contracts";
 import { formatBytes } from "./format";
+import { errorMessage, expectOk } from "./http";
 
 export const latexImportActionEvent = "latex-import-action";
 
@@ -303,20 +304,6 @@ ${file.content.length > 1_200 ? `${file.content.slice(0, 1_200)}\n…` : file.co
     if (!(dialog instanceof HTMLDialogElement)) throw new Error("LaTeX import panel requires a dialog parent");
     return dialog;
   }
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-async function expectOk(response: Response): Promise<void> {
-  if (response.ok) return;
-  const value: unknown = await response.json().catch(() => null);
-  throw new Error(isRecord(value) && typeof value.error === "string" ? value.error : `Request failed (${response.status})`);
-}
-
-function errorMessage(error: unknown, fallback: string): string {
-  return error instanceof Error ? error.message : fallback;
 }
 
 function blockingDiagnosticCount(conversion: LatexConversion): number {

@@ -69,6 +69,7 @@ import { projectHistoryOpenEvent } from "./project-history-trigger";
 import { editorInsertActionEvent, type EditorInsertAction, type EditorSyntaxKind } from "./editor-insert-menu";
 import { sourceSpanAt } from "./composition-source-map";
 import type { AppToastOptions } from "./app-toast";
+import { expectOk, jsonFetch } from "./http";
 import { workspaceSwitchEvent } from "./workspace-switcher";
 import { sourceCompletionActionEvent, type SourceCompletionAction, type SourceCompletionIntent } from "./source-completion";
 import { gitHubImportCancelEvent, gitHubImportCompleteEvent } from "./github-import-panel";
@@ -5824,21 +5825,6 @@ function researchTabRouteLocation(tab: ResearchContextState["tabs"][number] | un
   if (tab?.kind !== "pdf" && tab?.kind !== "library-pdf") return {};
   if (tab.kind === "pdf" && tab.focusedAnnotationId) return { page: tab.page, annotationId: tab.focusedAnnotationId };
   return { page: tab.page };
-}
-
-async function jsonFetch(url: string, body: object, method: "POST" | "PUT" | "PATCH" = "POST"): Promise<Response> {
-  return await fetch(url, {
-    method,
-    credentials: "same-origin",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(body),
-  });
-}
-
-async function expectOk(response: Response): Promise<void> {
-  if (response.ok) return;
-  const value: unknown = await response.json().catch(() => null);
-  throw new Error(isRecord(value) && typeof value.error === "string" ? value.error : `Request failed (${response.status})`);
 }
 
 function downloadTextFile(name: string, content: string): void {

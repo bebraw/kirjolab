@@ -2,6 +2,7 @@ import { html, LitElement, nothing, type TemplateResult } from "lit";
 import { isProjectTemplateSummaries, type ProjectTemplateSummary } from "../domain/project-templates";
 import { demoWorkspaceId, isWorkspaceSummaries, type WorkspaceSummary } from "../domain/workspace";
 import { formatCalendarDate } from "./format";
+import { errorMessage, expectOk, jsonFetch } from "./http";
 
 export type StartingPointAction = { readonly action: "cancel" | "import-github" | "import-latex" };
 
@@ -224,14 +225,9 @@ export class ProjectStartingPointBrowser extends LitElement {
     this.busy = true;
     try {
       const sourceWorkspaceId = this.selectedKey.startsWith("project:") ? this.selectedKey.slice("project:".length) : null;
-      const response = await fetch("/api/workspaces", {
-        body: JSON.stringify({
-          title: this.projectTitle,
-          ...(sourceWorkspaceId ? { sourceWorkspaceId } : { templateId: this.selectedKey }),
-        }),
-        credentials: "same-origin",
-        headers: { "content-type": "application/json" },
-        method: "POST",
+      const response = await jsonFetch("/api/workspaces", {
+        title: this.projectTitle,
+        ...(sourceWorkspaceId ? { sourceWorkspaceId } : { templateId: this.selectedKey }),
       });
       await expectOk(response);
       const values: unknown[] = [await response.json()];
@@ -510,18 +506,6 @@ function startingPointKey(template: ProjectTemplateSummary): string {
 
 function currentWorkspaceId(): string {
   return document.body.dataset.workspaceId ?? "";
-}
-
-async function expectOk(response: Response): Promise<void> {
-  if (response.ok) return;
-  const value: unknown = await response.json().catch(() => null);
-  throw new Error(
-    typeof value === "object" && value !== null && "error" in value && typeof value.error === "string" ? value.error : "Request failed",
-  );
-}
-
-function errorMessage(error: unknown, fallback: string): string {
-  return error instanceof Error ? error.message : fallback;
 }
 
 if (!customElements.get("project-starting-point-browser")) {

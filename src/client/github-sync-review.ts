@@ -1,5 +1,6 @@
 import { html, LitElement, nothing, type TemplateResult } from "lit";
 import { isGitHubPublishPreview, isGitHubPullPreview, type GitHubPublishPreview, type GitHubPullPreview } from "./app-contracts";
+import { errorMessage, expectOk, jsonFetch } from "./http";
 
 export interface GitHubPullResolutionSelection {
   readonly conflict: number;
@@ -346,12 +347,7 @@ export class GitHubSyncReview extends LitElement {
   }
 
   private async post(operation: string, body: object): Promise<unknown> {
-    const response = await fetch(`${this.apiBase}/github-sync/${operation}`, {
-      body: JSON.stringify(body),
-      credentials: "same-origin",
-      headers: { "content-type": "application/json" },
-      method: "POST",
-    });
+    const response = await jsonFetch(`${this.apiBase}/github-sync/${operation}`, body);
     await expectOk(response);
     return response.json();
   }
@@ -363,16 +359,6 @@ export class GitHubSyncReview extends LitElement {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-async function expectOk(response: Response): Promise<void> {
-  if (response.ok) return;
-  const value: unknown = await response.json().catch(() => null);
-  throw new Error(isRecord(value) && typeof value.error === "string" ? value.error : `Request failed (${response.status})`);
-}
-
-function errorMessage(error: unknown, fallback: string): string {
-  return error instanceof Error ? error.message : fallback;
 }
 
 function validConflictChoice(value: string): value is "local" | "remote" {
