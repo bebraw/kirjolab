@@ -1,6 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { WorkspaceSummary } from "../domain/workspace";
-import { WorkspaceSwitcher, workspaceSwitchEvent } from "./workspace-switcher";
+import { WorkspaceSwitcher } from "./workspace-switcher";
 
 class TestWorkspaceSwitcher extends WorkspaceSwitcher {
   renderForTest() {
@@ -12,7 +12,7 @@ class TestWorkspaceSwitcher extends WorkspaceSwitcher {
   }
 
   emitForTest(workspaceId: string): void {
-    this.emitSelection({ currentTarget: { value: workspaceId } } as unknown as Event);
+    this.selectWorkspace({ currentTarget: { value: workspaceId } } as unknown as Event);
   }
 }
 
@@ -34,14 +34,16 @@ describe("workspace switcher", () => {
     expect(switcher.renderForTest()).toBeDefined();
   });
 
-  it("emits only a different non-empty project selection", () => {
+  it("navigates only to a different catalog project", () => {
+    const assign = vi.fn();
+    vi.stubGlobal("location", { assign });
     const switcher = new TestWorkspaceSwitcher();
     switcher.setData([workspace("active"), workspace("next")], "active");
-    const selections: string[] = [];
-    switcher.addEventListener(workspaceSwitchEvent, (event) => selections.push((event as CustomEvent<string>).detail));
     switcher.emitForTest("");
     switcher.emitForTest("active");
+    switcher.emitForTest("missing");
     switcher.emitForTest("next");
-    expect(selections).toEqual(["next"]);
+    expect(assign.mock.calls).toEqual([["/editor/next"]]);
+    vi.unstubAllGlobals();
   });
 });

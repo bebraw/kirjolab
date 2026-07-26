@@ -5705,6 +5705,26 @@ component members.
 Full native CI passes all 1,583 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Workspace Switcher Navigation
+
+`WorkspaceSwitcher` now resolves a changed selection against its supplied
+authorized catalog and navigates through that entry's canonical href. The
+selection event and `WorkspaceApp` listener are removed, along with duplicate
+route construction; empty, active, and non-catalog values remain inert.
+
+This checkpoint reduces `src/client/app.ts` from 3,957 to 3,953 lines (-4).
+Runtime and focused test source across the three changed files decreases by
+three lines. Two focused and four affected tests pass alongside strict types.
+
+The browser application artifact changes from 823,738 B raw / 222,983 B gzip
+to 823,593 B raw / 222,967 B gzip (-145 B raw / -16 B gzip). Styles, direct and
+unique production package counts, and the readability audit remain unchanged
+at 135,411 B raw / 23,373 B gzip, 18, 150, and 250 externally visible low-level
+component members.
+
+Full native CI passes all 1,583 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Assistant Evidence Projection
 
 `AssistantWorkflowStatus` now resolves its ordered selected evidence keys

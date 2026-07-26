@@ -50,7 +50,6 @@ import { editorInsertActionEvent, type EditorInsertAction, type EditorSyntaxKind
 import { sourceSpanAt } from "./composition-source-map";
 import type { AppToastOptions } from "./app-toast";
 import { expectOk, jsonFetch } from "./http";
-import { workspaceSwitchEvent } from "./workspace-switcher";
 import { sourceCompletionActionEvent, type SourceCompletionAction, type SourceCompletionIntent } from "./source-completion";
 import { gitHubImportCompleteEvent } from "./github-import-panel";
 import {
@@ -475,9 +474,6 @@ class WorkspaceApp {
       void this.#clearOfflineBrowserData()
         .then(() => location.assign(href))
         .catch((error: unknown) => this.#showToast(error instanceof Error ? error.message : "Could not clear offline data"));
-    });
-    this.#elements.workspaceSwitcher.addEventListener(workspaceSwitchEvent, (event) => {
-      location.assign(`/editor/${encodeURIComponent((event as CustomEvent<string>).detail)}`);
     });
     this.#elements.workspaceLayout.configure(workspaceId);
     this.#elements.workspaceLayout.addEventListener(workspaceLayoutChangeEvent, (event) => {

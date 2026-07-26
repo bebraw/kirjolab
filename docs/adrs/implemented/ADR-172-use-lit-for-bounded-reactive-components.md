@@ -370,7 +370,8 @@ The adopted components own bounded presentation:
   timers, one-shot callback lifecycle, pinned fallback restoration, modal
   reparenting, popover visibility, and typed action and dismissal intents.
 - The workspace switcher owns project option rendering, archived-current
-  handling, selected state, focus entry, and a typed navigation intent.
+  handling, selected state, focus entry, canonical-href resolution, and
+  navigation for authorized catalog selections.
 - The research diary summary owns missing and existing diary presentation,
   derived entry, question, and action counts, action copy, and a typed open
   intent.
@@ -763,8 +764,9 @@ reason to wrap static markup mechanically.
   supplies authorized effects and retains deferred-deletion authority, offline
   persistence, and notification policy.
 - The workspace switcher replaces the final feature-level imperative option
-  renderer plus its native change and focus coordination. The application
-  coordinator retains catalog fetching and navigation authority.
+  renderer plus its native change and focus coordination. It navigates through
+  the selected authorized catalog entry's canonical href; the application
+  coordinator retains catalog fetching and supplies the authorized entries.
 - The research diary summary replaces three internal element references and
   coordinator-owned summary adaptation and copy. The application coordinator
   retains file lookup, creation, selection, and editor focus.

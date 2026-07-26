@@ -34,10 +34,13 @@ making the storage term `workspace` the primary browser hierarchy.
 - The application shell pairs a compact current-project selector with a
   labelled Projects browser. The browser filters the authorized catalog by
   title, marks the current project, and links directly to stable project URLs.
+  The compact selector resolves selections only against its supplied authorized
+  catalog and navigates through the selected entry's canonical href.
 - A bounded catalog component owns the Projects browser's filter, result and
   empty-state presentation, project metadata labels, and close intent. The
   application coordinator retains catalog fetching, response validation, the
-  compact current-project selector, and navigation authority.
+  compact current-project selector's authorized inputs, and Projects-browser
+  navigation authority.
 - Unknown browser routes render the shared responsive visual shell, identify
   the missing path, and provide a direct return to the dashboard.
 

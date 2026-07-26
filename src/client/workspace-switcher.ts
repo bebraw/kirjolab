@@ -1,8 +1,6 @@
 import { html, LitElement, type TemplateResult } from "lit";
 import type { WorkspaceSummary } from "../domain/workspace";
 
-export const workspaceSwitchEvent = "kirjolab-workspace-switch";
-
 export class WorkspaceSwitcher extends LitElement {
   static override properties = {
     workspaces: { state: true },
@@ -27,10 +25,11 @@ export class WorkspaceSwitcher extends LitElement {
     this.querySelector<HTMLSelectElement>("select")?.focus();
   }
 
-  protected emitSelection(event: Event): void {
+  protected selectWorkspace(event: Event): void {
     const workspaceId = (event.currentTarget as HTMLSelectElement).value;
-    if (!workspaceId || workspaceId === this.activeWorkspaceId) return;
-    this.dispatchEvent(new CustomEvent<string>(workspaceSwitchEvent, { bubbles: true, composed: true, detail: workspaceId }));
+    const workspace = this.workspaces.find(({ id }) => id === workspaceId);
+    if (!workspace || workspace.id === this.activeWorkspaceId) return;
+    location.assign(workspace.href);
   }
 
   override connectedCallback(): void {
@@ -45,7 +44,7 @@ export class WorkspaceSwitcher extends LitElement {
   protected override render(): TemplateResult {
     const available = this.workspaces.filter((workspace) => !workspace.archivedAt || workspace.id === this.activeWorkspaceId);
     return html`<label class="sr-only" for="workspace-switcher">Current project</label>
-      <select class="workspace-switcher" id="workspace-switcher" @change=${this.emitSelection}>
+      <select class="workspace-switcher" id="workspace-switcher" @change=${this.selectWorkspace}>
         ${available.length === 0
           ? html`<option value=${this.activeWorkspaceId}>Loading project…</option>`
           : available.map(

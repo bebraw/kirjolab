@@ -190,6 +190,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Let the Preview DOM adapter resolve safe relative Markdown image targets
   through canonical file/source-map and authorized asset inputs. Keep hidden
   deletion state and workspace authorization in the application coordinator.
+- Let the compact workspace-switcher Lit owner navigate only through canonical
+  hrefs from its coordinator-supplied authorized catalog. Ignore empty, active,
+  or non-catalog selections instead of reconstructing routes in the application
+  coordinator.
 - Represent reusable project templates as versioned sanitized seeds containing
   only Markdown files, folders, portable BibTeX, and publication settings.
   Store personal templates in a separate owner-keyed authority; never use a
