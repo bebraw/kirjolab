@@ -210,6 +210,11 @@ collaboration.
   target, its full tooltip, and online or offline save-state presentation. The
   application coordinator supplies target and save-state values from the
   current selection and collaboration workflows.
+- **Project evidence mutations:** The bounded Project evidence panel owns
+  guarded PDF and annotation removal plus annotation-passage-link transport
+  from a coordinator-validated typed passage. The coordinator retains Yjs
+  selection stability, PDF interaction, canonical refresh, and notification
+  policy.
 - **Access control:** Verified Cloudflare Access identities or loopback-local
   identities resolve explicit owner/member roles before workspace state.
 - **Schema lifecycle:** Every SQLite-backed document, catalog, and access

@@ -2,6 +2,7 @@ import { html, LitElement, nothing, type TemplateResult } from "lit";
 import type {
   AnnotationResource,
   ClaimEvidenceLink,
+  CreatePassageLinkInput,
   ManuscriptAnchorSelector,
   PassageLink,
   PdfResource,
@@ -9,7 +10,7 @@ import type {
   PublicationPdfLink,
 } from "../domain/workspace";
 import { formatBytes } from "./format";
-import { errorMessage, expectOk } from "./http";
+import { errorMessage, expectOk, jsonFetch } from "./http";
 import { focusFirstModelEvidence } from "./model-evidence-focus";
 import { adjustSelectionRects, type HighlightGeometryAdjustment } from "./pdf-selection";
 import { accessibleEvidenceExcerpt, anchorActionLabel, anchorMatchState, modelEvidenceKey } from "./research-resource-presentation";
@@ -17,6 +18,7 @@ import { accessibleEvidenceExcerpt, anchorActionLabel, anchorMatchState, modelEv
 export const projectEvidenceActionEvent = "project-evidence-action";
 
 export type ProjectEvidenceAction =
+  | { readonly action: "annotation-linked"; readonly message: string }
   | { readonly action: "annotation-removed"; readonly annotationId: string; readonly message: string }
   | { readonly action: "edit-annotation"; readonly annotation: AnnotationResource }
   | { readonly action: "evidence"; readonly key: string; readonly selected: boolean }
@@ -90,6 +92,18 @@ export class ProjectEvidencePanel extends LitElement {
 
   focusEvidence(): boolean {
     return focusFirstModelEvidence(this);
+  }
+
+  async linkPassage(input: CreatePassageLinkInput): Promise<void> {
+    this.status = "Linking highlight to passage…";
+    try {
+      const response = await jsonFetch(`${this.apiBase}/links`, input);
+      await expectOk(response);
+      this.status = "";
+      this.emit({ action: "annotation-linked", message: "Annotation linked to the selected passage." });
+    } catch (error) {
+      this.status = errorMessage(error, "Could not link the annotation to the selected passage.");
+    }
   }
 
   override connectedCallback(): void {

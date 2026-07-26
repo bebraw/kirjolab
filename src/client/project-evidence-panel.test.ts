@@ -234,6 +234,46 @@ describe("project evidence panel", () => {
     ]);
   });
 
+  it("owns passage-link persistence and emits the completed outcome", async () => {
+    const panel = new TestProjectEvidencePanel();
+    const actions: ProjectEvidenceAction[] = [];
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 200 }));
+    panel.configure("/api/workspaces/workspace");
+    panel.addEventListener(projectEvidenceActionEvent, (event) => actions.push((event as CustomEvent<ProjectEvidenceAction>).detail));
+    const input = {
+      annotationId: "annotation/1",
+      fileId: "main",
+      start: 0,
+      end: 16,
+      excerpt: "Selected passage",
+      sourceRevision: 4,
+    };
+
+    await panel.linkPassage(input);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/workspaces/workspace/links",
+      expect.objectContaining({ body: JSON.stringify(input), method: "POST" }),
+    );
+    expect(actions).toEqual([{ action: "annotation-linked", message: "Annotation linked to the selected passage." }]);
+  });
+
+  it("keeps failed passage linking local and retryable", async () => {
+    const panel = new TestProjectEvidencePanel();
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(Response.json({ error: "Denied" }, { status: 403 }))
+      .mockResolvedValueOnce(new Response(null, { status: 200 }));
+    panel.configure("/api/workspaces/workspace");
+    const input = { annotationId: "annotation-1", fileId: "main", start: 0, end: 16, excerpt: "Selected passage", sourceRevision: 4 };
+
+    await panel.linkPassage(input);
+    expect(panel.renderForTest()).toBeDefined();
+    await panel.linkPassage(input);
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
   it("blocks removal while highlights or reference links remain", async () => {
     const panel = new TestProjectEvidencePanel();
     const fetchMock = vi.spyOn(globalThis, "fetch");

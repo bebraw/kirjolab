@@ -785,11 +785,11 @@ class WorkspaceApp {
         this.#elements.projectAnnotationForm.selectPdf(detail.pdf.id);
         void this.#showPaper(detail.pdf, detail.page, detail.annotationId);
       } else if (detail.action === "notice") this.#showToast(detail.message);
-      else if (detail.action === "pdf-removed")
+      else if (detail.action === "annotation-linked" || detail.action === "pdf-removed")
         void this.#resourceRefresh
           .request()
           .then(() => this.#showToast(detail.message))
-          .catch(() => this.#showToast("The PDF was removed, but project resources could not be refreshed."));
+          .catch(() => this.#showToast("The project changed, but project resources could not be refreshed."));
       else if (detail.action === "evidence") this.#setModelEvidenceSelected(detail.key, detail.selected);
       else if (detail.action === "link-annotation") void this.#linkAnnotation(detail.annotationId);
       else if (detail.action === "edit-annotation") this.#editAnnotation(detail.annotation);
@@ -3430,7 +3430,7 @@ class WorkspaceApp {
       this.#showToast("Select manuscript text before linking an annotation.");
       return;
     }
-    const response = await jsonFetch(`${apiBase}/links`, {
+    await this.#elements.projectEvidencePanel.linkPassage({
       annotationId,
       fileId: passage.fileId,
       start: passage.start,
@@ -3438,9 +3438,6 @@ class WorkspaceApp {
       excerpt: passage.excerpt,
       sourceRevision: this.#revision,
     });
-    await expectOk(response);
-    await this.#resourceRefresh.request();
-    this.#showToast("Annotation linked to the selected passage.");
   }
 
   #selectedAuthoringPassage(): AuthoringPassage | null {

@@ -4605,6 +4605,30 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,539 unit/coverage tests, 120 Workers-
 runtime tests, and 74 browser tests.
 
+## Continued Lit Ownership: Annotation Passage Links
+
+`ProjectEvidencePanel` now owns annotation-passage-link transport alongside
+its guarded PDF and annotation removals. The coordinator retains Yjs stability
+checks and derives the typed `CreatePassageLinkInput`; the Lit owner handles
+request status, retryable local failures, and a completed link outcome.
+Canonical refresh, notification, PDF interaction, editor form state, grounding
+selection, and navigation remain coordinator-owned.
+
+This checkpoint reduces `src/client/app.ts` from 4,756 to 4,753 lines (-3) and
+grows the evidence owner from 450 to 464 lines. Runtime source across those two
+files increases by 11 lines while removing the evidence panel's final
+coordinator link request. Focused coverage passes the typed request payload,
+completed outcome, local failure and retry, guarded removals, fragment actions,
+and the remaining selection and navigation intents.
+
+The browser application artifact changes from 819,440 B raw / 221,853 B gzip
+to 819,721 B raw / 221,801 B gzip (+281 B raw / -52 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,541 unit/coverage tests, 120 Workers-
+runtime tests, and 74 browser tests.
+
 ## Coordinator Simplification: Single-Use Projections
 
 `WorkspaceApp` now reads the active rail, settled Library list, and empty PDF

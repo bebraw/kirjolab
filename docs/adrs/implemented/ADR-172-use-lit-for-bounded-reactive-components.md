@@ -124,9 +124,10 @@ The adopted components own bounded presentation:
 - The project evidence panel owns project-PDF and annotation grouping, counts,
   expanded state, grounding selection, live passage-resolution presentation,
   grounding-choice focus, stroke controls, guarded legacy PDF and annotation
-  removal transport, a shared duplicate-submit gate, pending and retryable
-  failure state, and typed navigation, mutation, notice, and completed-removal
-  outcomes.
+  removal transport, annotation-passage-link transport from a coordinator-
+  validated typed passage, a shared duplicate-removal gate, pending and
+  retryable failure state, and typed navigation, mutation, notice, and
+  completed outcomes.
 - The project tree panel owns path filtering, sorted folder, file, and image
   rows, active and entry presentation, the workspace quick-open shortcut and
   selection, action menus, listener teardown, and typed file, folder, image,
@@ -452,9 +453,10 @@ reason to wrap static markup mechanically.
 - The project evidence panel replaces five internal element references and the
   imperative PDF, annotation, grouping, count, passage-link, and stroke-control
   renderers plus the coordinator PDF- and annotation-removal methods while
-  leaving editor-dependent API mutations, editor selection, grounding
-  authority, PDF navigation, form reset, canonical refresh, and toast policy in
-  the application coordinator.
+  also replacing the annotation-passage-link request. It leaves Yjs selection
+  validation, other editor-dependent mutations, grounding authority, PDF
+  navigation, form reset, canonical refresh, and toast policy in the
+  application coordinator.
 - The project tree panel replaces three internal element references and the
   imperative filter, hierarchy, row, and action-menu renderers while leaving
   file and folder mutations, editor rebinding, image operations, include
