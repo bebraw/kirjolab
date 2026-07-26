@@ -4967,3 +4967,26 @@ and unique production package counts remain unchanged at 135,411 B raw /
 
 Full native CI passes all 1,564 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Lit Ownership: Clarity Provider Requests
+
+`AssistantResultPanel` now owns both clarity-drill provider requests alongside
+the captured passage, evidence, question, answer input, continuation provider,
+and rewrite presentation they serve. `WorkspaceApp` retains empty-answer and
+stale-workflow gates, XState transitions, shared progress and failure status,
+candidate persistence, and manuscript authority.
+
+This checkpoint reduces `src/client/app.ts` from 4,594 to 4,579 lines (-15) and
+grows the assistant result owner from 394 to 418 lines. Runtime source across
+those two files increases by 9 lines while removing both provider request shapes
+and result-to-view handoffs from the coordinator. Focused coverage passes exact
+question and continuation payloads, rewrite presentation, existing result
+intents, workflow-state contracts, application contracts, and strict types.
+
+The browser application artifact changes from 823,602 B raw / 222,224 B gzip
+to 823,738 B raw / 222,271 B gzip (+136 B raw / +47 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,565 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.

@@ -72,11 +72,11 @@ The adopted components own bounded presentation:
   open, download, and source-selection intents.
 - The assistant result panel owns validated-table previews, clarity input,
   transient revision choices and their captured passage, source-revision,
-  evidence, provider-continuation, or table-target context, reference-discovery
-  query formulation and registry transport, validated cards, the shared CSL
-  import adapter, duplicate-submit gating, local save progress and retryable
-  failures, refresh-pending state, and complete typed continuation, selection,
-  insertion, and canonical-refresh outcomes.
+  evidence, provider-continuation, or table-target context, both clarity provider
+  requests, reference-discovery query formulation and registry transport,
+  validated cards, the shared CSL import adapter, duplicate-submit gating, local
+  save progress and retryable failures, refresh-pending state, and complete typed
+  continuation, selection, insertion, and canonical-refresh outcomes.
 - The project map panel owns provenance-lane rendering, measured SVG connector
   geometry, responsive relayout, focus and hover emphasis, and a typed resource
   selection intent.
@@ -425,11 +425,12 @@ reason to wrap static markup mechanically.
 - The assistant result panel replaces six imperative result renderers and their
   local event bindings. It also removes the coordinator's parallel transient-
   result discriminator and context cache by emitting the context retained with
-  the visible result. The result owner performs reference-query formulation,
-  registry discovery and validation, and local discovered-reference import.
-  Other model requests, workflow state, candidate-input derivation, document
-  edits, canonical refresh, and cross-panel status remain in the application
-  coordinator; the candidate list persists candidate resources.
+  the visible result. The result owner performs clarity-question and rewrite
+  requests, reference-query formulation, registry discovery and validation, and
+  local discovered-reference import. Other model requests, workflow state,
+  candidate-input derivation, document edits, canonical refresh, and cross-panel
+  status remain in the application coordinator; the candidate list persists
+  candidate resources.
 - The project map panel replaces three internal element references, two
   coordinator fields, and imperative node, connector, resize, focus, and hover
   management while leaving graph derivation and resource navigation in the

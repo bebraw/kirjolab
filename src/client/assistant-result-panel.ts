@@ -125,6 +125,18 @@ export class AssistantResultPanel extends LitElement {
     });
   }
 
+  async startClarityDrill(
+    provider: Pick<ModelProvider, "startClarityDrill" | "continueClarityDrill">,
+    context: AssistantRevisionContext,
+  ): Promise<void> {
+    const question = await provider.startClarityDrill({
+      selectedPassage: context.passage.excerpt,
+      instruction: context.instruction,
+      evidence: context.evidence.items,
+    });
+    this.showClarityQuestion({ ...context, provider, question });
+  }
+
   showIdeas(context: AssistantRevisionContext, result: ModelIdeas): void {
     this.view = {
       context,
@@ -185,6 +197,18 @@ export class AssistantResultPanel extends LitElement {
         text: rewrite.text,
       })),
     };
+  }
+
+  async completeClarityDrill(context: AssistantClarityContext, answer: string): Promise<void> {
+    const result = await context.provider.continueClarityDrill({
+      selectedPassage: context.passage.excerpt,
+      instruction: context.instruction,
+      evidence: context.evidence.items,
+      issue: context.question.issue,
+      question: context.question.question,
+      answer,
+    });
+    this.showClarityRewrites(context, answer, result);
   }
 
   showReferences(query: string, rationale: string, results: readonly ReferenceDiscoveryResult[]): void {

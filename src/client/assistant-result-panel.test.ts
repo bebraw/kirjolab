@@ -116,6 +116,33 @@ describe("assistant result panel", () => {
     expect(panel.renderForTest()).toBeDefined();
   });
 
+  it("owns clarity question and rewrite provider requests", async () => {
+    const panel = new TestAssistantResultPanel();
+    const startClarityDrill = vi.fn().mockResolvedValue(clarityContext.question);
+    const continueClarityDrill = vi.fn().mockResolvedValue({
+      ...provenance,
+      rewrites: [{ rationale: "Names the actor.", text: "Editors perform the review." }],
+    });
+    const provider = { startClarityDrill, continueClarityDrill };
+
+    await panel.startClarityDrill(provider, { ...revisionContext, instruction: "Clarify" });
+    expect(startClarityDrill).toHaveBeenCalledWith({
+      selectedPassage: passage.excerpt,
+      instruction: "Clarify",
+      evidence: [],
+    });
+    await panel.completeClarityDrill({ ...clarityContext, provider }, "Editors perform it.");
+    expect(continueClarityDrill).toHaveBeenCalledWith({
+      selectedPassage: passage.excerpt,
+      instruction: revisionContext.instruction,
+      evidence: [],
+      issue: clarityContext.question.issue,
+      question: clarityContext.question.question,
+      answer: "Editors perform it.",
+    });
+    expect(panel.renderForTest()).toBeDefined();
+  });
+
   it("renders reference results and verification links", () => {
     const panel = new TestAssistantResultPanel();
     panel.showReferences("review time", "Find direct measurements.", [reference]);

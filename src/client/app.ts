@@ -3717,18 +3717,11 @@ class WorkspaceApp {
   }
 
   async #generateClarityQuestion(input: AssistantGenerationContext, passage: AuthoringPassage): Promise<void> {
-    const question = await input.provider.startClarityDrill({
-      selectedPassage: passage.excerpt,
-      instruction: input.instruction,
-      evidence: input.evidence.items,
-    });
-    this.#elements.assistantInteractiveResult.showClarityQuestion({
-      provider: input.provider,
+    await this.#elements.assistantInteractiveResult.startClarityDrill(input.provider, {
       passage,
       evidence: input.evidence,
       instruction: input.instruction,
       sourceRevision: input.sourceRevision,
-      question,
     });
     this.#elements.assistantWorkflowStatus.status = "Answer one focused question to make the intended meaning explicit.";
     this.#assistantWorkflow.send({ type: "AWAIT_INPUT" });
@@ -3806,15 +3799,7 @@ class WorkspaceApp {
     this.#updateModelAvailability();
     this.#elements.assistantWorkflowStatus.status = "Turning that meaning into a few precise alternatives…";
     try {
-      const result = await input.provider.continueClarityDrill({
-        selectedPassage: input.passage.excerpt,
-        instruction: input.instruction,
-        evidence: input.evidence.items,
-        issue: input.question.issue,
-        question: input.question.question,
-        answer,
-      });
-      this.#elements.assistantInteractiveResult.showClarityRewrites(input, answer, result);
+      await this.#elements.assistantInteractiveResult.completeClarityDrill(input, answer);
       this.#elements.assistantWorkflowStatus.status = "Choose the wording that best matches your meaning; it will still open for review.";
       this.#assistantWorkflow.send({ type: "REVIEW" });
     } catch (error) {
