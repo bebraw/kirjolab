@@ -3,7 +3,7 @@ import "./action-menu-controller";
 import { collectAppElements } from "./app-elements";
 import { bibTeXDisplayText } from "../domain/bibliography";
 import { buildWorkspaceKnowledgeGraph, isKnowledgeSearchResults, type WorkspaceKnowledgeGraph } from "../domain/knowledge";
-import { isReferenceDiscoveryResults, type ReferenceDiscoveryResult } from "../domain/reference-discovery";
+import { isReferenceDiscoveryResults, referenceDiscoveryCslRecord, type ReferenceDiscoveryResult } from "../domain/reference-discovery";
 import { reviewerResponseLetter, reviewerResponsePath, reviewerResponseTemplate } from "../domain/reviewer-response";
 import {
   collaborationProtocolVersion,
@@ -107,7 +107,6 @@ import {
 import { researchDiaryOpenEvent } from "./research-diary-summary";
 import {
   assistantResultActionEvent,
-  referenceDiscoveryIdentifierUrl,
   type AssistantAuthoringPassage as AuthoringPassage,
   type AssistantClarityContext as ClarityDrillContext,
   type AssistantResultActionDetail,
@@ -182,7 +181,7 @@ import { projectFileActionEvent, type ProjectFileAction } from "./project-file-a
 import { projectTemplateSavedEvent, type ProjectTemplateSaved } from "./project-template-save-dialog";
 import { projectTreeActionEvent, type ProjectTreeAction } from "./project-tree-panel";
 import { manuscriptMapSelectEvent, type ManuscriptMapSelection } from "./manuscript-map-panel";
-import { libraryDiscoverySaveEvent, type LibraryDiscoverySaveDetail } from "./library-discovery-results";
+import { libraryDiscoveryRefreshEvent, type LibraryDiscoveryRefresh } from "./library-discovery-results";
 import { libraryDiscoveryResultsEvent } from "./library-discovery-search";
 import { referenceLibraryFilterChangeEvent } from "./reference-library-filters";
 import { libraryPdfUploadRevealEvent } from "./library-pdf-upload-status";
@@ -586,9 +585,11 @@ class WorkspaceApp {
     this.#elements.libraryDiscoverySearch.addEventListener(libraryDiscoveryResultsEvent, (event) => {
       this.#elements.libraryDiscoveryResults.setResults((event as CustomEvent<readonly ReferenceDiscoveryResult[]>).detail);
     });
-    this.#elements.libraryDiscoveryResults.addEventListener(libraryDiscoverySaveEvent, (event) => {
-      const { index, result } = (event as CustomEvent<LibraryDiscoverySaveDetail>).detail;
-      void this.#saveLibraryDiscoveredReference(result, index);
+    this.#elements.libraryDiscoveryResults.addEventListener(libraryDiscoveryRefreshEvent, (event) => {
+      const detail = (event as CustomEvent<LibraryDiscoveryRefresh>).detail;
+      void this.#completeLibraryRefresh(detail.message, "The reference was saved, but the refreshed Library could not be loaded.", {
+        complete: () => this.#elements.libraryDiscoveryResults.complete(detail.index, detail.requestId),
+      });
     });
     this.#elements.libraryReferenceImport.addEventListener(libraryReferenceImportRefreshEvent, (event) => {
       const detail = (event as CustomEvent<LibraryReferenceImportRefresh>).detail;
@@ -4069,43 +4070,15 @@ class WorkspaceApp {
     }
   }
 
-  async #saveLibraryDiscoveredReference(result: ReferenceDiscoveryResult, index: number): Promise<void> {
-    this.#elements.libraryDiscoveryResults.setSaveState(index, "saving");
-    try {
-      await this.#importDiscoveredReference(result);
-      this.#elements.libraryDiscoveryResults.setSaveState(index, "saved");
-    } catch (error) {
-      this.#elements.libraryDiscoveryResults.setSaveState(index, "idle");
-      this.#elements.libraryDiscoverySearch.showError(error instanceof Error ? error.message : "Could not save the reference");
-    }
-  }
-
   async #importDiscoveredReference(result: ReferenceDiscoveryResult): Promise<void> {
     const response = await fetch("/api/library/import/csl-json", {
       method: "POST",
       credentials: "same-origin",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify([this.#referenceDiscoveryCslRecord(result)]),
+      body: JSON.stringify([referenceDiscoveryCslRecord(result)]),
     });
     await expectOk(response);
     await this.#refreshReferenceLibrary();
-  }
-
-  #referenceDiscoveryCslRecord(result: ReferenceDiscoveryResult): Record<string, unknown> {
-    const metadata = result.metadata;
-    const primaryIdentifier = result.identifiers[0]!;
-    const record: Record<string, unknown> = {
-      id: metadata.doi || `${primaryIdentifier.scheme}:${primaryIdentifier.value}`,
-      type: metadata.type === "article" ? "article-journal" : metadata.type,
-      title: metadata.title,
-      author: metadata.authors.map((literal) => ({ literal })),
-      URL: metadata.url || referenceDiscoveryIdentifierUrl(primaryIdentifier),
-    };
-    if (metadata.year) record.issued = { "date-parts": [[metadata.year]] };
-    if (metadata.venue) record["container-title"] = metadata.venue;
-    if (metadata.doi) record.DOI = metadata.doi;
-    if (metadata.abstract) record.abstract = metadata.abstract;
-    return record;
   }
 
   async #continueClarityDrill(input: ClarityDrillContext, rawAnswer: string): Promise<void> {

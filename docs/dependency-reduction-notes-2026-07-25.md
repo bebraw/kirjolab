@@ -3962,3 +3962,31 @@ and unique production package counts remain unchanged at 135,411 B raw /
 
 Full native CI passes all 1,471 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Lit Ownership: Discovery Result Persistence
+
+`LibraryDiscoveryResults` now owns discovered-metadata CSL projection, import
+transport, per-result duplicate-submit gating, local save progress and
+retryable failure state, stale-response rejection, and refresh-pending
+acknowledgment. Shared CSL projection and identifier verification URLs moved
+to the reference-discovery domain so the Library and assistant surfaces no
+longer depend on one UI component for another component's rules.
+`WorkspaceApp` retains the assistant-result import workflow plus canonical
+Library refresh and toast policy.
+
+This checkpoint reduces `src/client/app.ts` from 5,201 to 5,174 lines (-27),
+reduces the assistant result panel from 343 to 335 lines, grows the Library
+results panel from 105 to 141 lines, and grows the shared discovery domain from
+203 to 228 lines. Runtime source across those files increases by 26 lines while
+removing a cross-component dependency and the Library-specific coordinator
+mutation. Focused coverage passes CSL payload projection, all verification URL
+schemes, successful and failed imports, duplicate submission, stale refresh
+acknowledgment, and replaced-result response rejection.
+
+The browser application artifact changes from 803,860 B raw / 218,031 B gzip
+to 804,525 B raw / 218,170 B gzip (+665 B raw / +139 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,475 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.

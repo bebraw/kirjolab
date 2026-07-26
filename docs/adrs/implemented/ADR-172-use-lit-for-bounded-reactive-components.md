@@ -129,7 +129,9 @@ The adopted components own bounded presentation:
   cues, local editing-pass selection, editing cues, and typed source-range
   selection intents.
 - The Library discovery results panel owns provider, metadata, verification,
-  and local save-progress presentation with typed save intents.
+  metadata-to-CSL projection, import transport, duplicate-submit gating, local
+  save progress and retryable failures, refresh-pending state, and a typed
+  refresh outcome.
 - The citation network panel owns manual source and relationship choices, graph
   geometry, source and edge cards, assertion provenance and review controls,
   snowball candidates, and local candidate-save progress with typed record,
@@ -420,9 +422,9 @@ reason to wrap static markup mechanically.
   leaving composed-source derivation and file-qualified editor focus in the
   application coordinator.
 - The Library discovery results panel replaces its imperative result-card and
-  save-button renderer while leaving provider requests, response validation,
-  CSL import, Library refreshes, and status policy in the application
-  coordinator.
+  save-button renderer while leaving provider requests and response validation
+  in its search sibling. It owns CSL import and its local lifecycle while the
+  application coordinator retains canonical Library refresh and toast policy.
 - The citation network panel replaces six internal element references,
   assertion-form binding and option rendering, plus the imperative SVG graph,
   node, edge, assertion, expansion, candidate, and progress renderers while

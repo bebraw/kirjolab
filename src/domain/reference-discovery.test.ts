@@ -3,7 +3,10 @@ import {
   isReferenceDiscoveryQuery,
   isReferenceDiscoveryResults,
   mergeReferenceDiscoveryCandidates,
+  referenceDiscoveryCslRecord,
+  referenceDiscoveryIdentifierUrl,
   referenceDiscoveryTypes,
+  type ReferenceDiscoveryResult,
 } from "./reference-discovery";
 
 describe("reference discovery results", () => {
@@ -20,10 +23,34 @@ describe("reference discovery results", () => {
       url: "https://doi.org/10.1000/example",
       abstract: "A verified registry record.",
     },
-  };
+  } satisfies ReferenceDiscoveryResult;
 
   it("accepts bounded provider records with DOI identity", () => {
     expect(isReferenceDiscoveryResults([result])).toBe(true);
+  });
+
+  it("projects discovered metadata into CSL JSON", () => {
+    expect(referenceDiscoveryCslRecord(result)).toEqual({
+      id: "10.1000/example",
+      type: "article-journal",
+      title: "Inspectable evidence",
+      author: [{ literal: "Doe, Jane" }],
+      URL: "https://doi.org/10.1000/example",
+      issued: { "date-parts": [["2026"]] },
+      "container-title": "Research Systems",
+      DOI: "10.1000/example",
+      abstract: "A verified registry record.",
+    });
+  });
+
+  it("resolves verification URLs for every supported identifier", () => {
+    expect(referenceDiscoveryIdentifierUrl({ scheme: "doi", value: "10.1/test" })).toBe("https://doi.org/10.1/test");
+    expect(referenceDiscoveryIdentifierUrl({ scheme: "openalex", value: "W1" })).toBe("https://openalex.org/W1");
+    expect(referenceDiscoveryIdentifierUrl({ scheme: "semantic-scholar", value: "paper/id" })).toBe(
+      "https://www.semanticscholar.org/paper/paper%2Fid",
+    );
+    expect(referenceDiscoveryIdentifierUrl({ scheme: "arxiv", value: "1234/5" })).toBe("https://arxiv.org/abs/1234%2F5");
+    expect(referenceDiscoveryIdentifierUrl({ scheme: "pmid", value: "123" })).toBe("https://pubmed.ncbi.nlm.nih.gov/123/");
   });
 
   it("rejects invented or incomplete result shapes", () => {

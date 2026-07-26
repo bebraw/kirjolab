@@ -92,9 +92,11 @@ memory and makes citation aliases compete with stable source identity.
   linked to a project.
 - One bounded discovery-search component owns query inputs, publication-type
   choices, the provider request, response validation, search progress,
-  result-count copy, and typed validated-result events. The workspace
-  coordinator routes results to their sibling presentation and retains import
-  mutation and Library refresh policy.
+  result-count copy, and typed validated-result events. Its bounded sibling
+  owns result presentation, metadata-to-CSL projection, import transport,
+  per-result duplicate-submit gating, local progress and retryable failures,
+  refresh-pending state, and a typed refresh outcome. The workspace coordinator
+  routes results and retains canonical Library refresh and toast policy.
 - One bounded filter component owns Library query and facet values, dynamic
   type choices, validated defaults, result counts, and reset behavior. The
   workspace coordinator retains canonical reference filtering,

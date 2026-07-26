@@ -34,6 +34,31 @@ export interface ReferenceDiscoveryResult {
   readonly metadata: PublicationEnrichment;
 }
 
+export function referenceDiscoveryIdentifierUrl(identifier: ReferenceDiscoveryIdentifier): string {
+  if (identifier.scheme === "doi") return `https://doi.org/${identifier.value}`;
+  if (identifier.scheme === "openalex") return `https://openalex.org/${identifier.value}`;
+  if (identifier.scheme === "semantic-scholar") return `https://www.semanticscholar.org/paper/${encodeURIComponent(identifier.value)}`;
+  if (identifier.scheme === "arxiv") return `https://arxiv.org/abs/${encodeURIComponent(identifier.value)}`;
+  return `https://pubmed.ncbi.nlm.nih.gov/${encodeURIComponent(identifier.value)}/`;
+}
+
+export function referenceDiscoveryCslRecord(result: ReferenceDiscoveryResult): Record<string, unknown> {
+  const metadata = result.metadata;
+  const primaryIdentifier = result.identifiers[0]!;
+  const record: Record<string, unknown> = {
+    id: metadata.doi || `${primaryIdentifier.scheme}:${primaryIdentifier.value}`,
+    type: metadata.type === "article" ? "article-journal" : metadata.type,
+    title: metadata.title,
+    author: metadata.authors.map((literal) => ({ literal })),
+    URL: metadata.url || referenceDiscoveryIdentifierUrl(primaryIdentifier),
+  };
+  if (metadata.year) record.issued = { "date-parts": [[metadata.year]] };
+  if (metadata.venue) record["container-title"] = metadata.venue;
+  if (metadata.doi) record.DOI = metadata.doi;
+  if (metadata.abstract) record.abstract = metadata.abstract;
+  return record;
+}
+
 export function isReferenceDiscoveryQuery(value: unknown): value is ReferenceDiscoveryQuery {
   return (
     isRecord(value) &&

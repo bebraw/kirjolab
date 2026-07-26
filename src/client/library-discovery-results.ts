@@ -1,12 +1,13 @@
 import { html, LitElement, type TemplateResult } from "lit";
-import type { ReferenceDiscoveryResult } from "../domain/reference-discovery";
-import { referenceDiscoveryIdentifierUrl } from "./assistant-result-panel";
+import { referenceDiscoveryCslRecord, referenceDiscoveryIdentifierUrl, type ReferenceDiscoveryResult } from "../domain/reference-discovery";
+import { errorMessage, expectOk } from "./http";
 
-export const libraryDiscoverySaveEvent = "library-discovery-save";
+export const libraryDiscoveryRefreshEvent = "library-discovery-refresh";
 
-export interface LibraryDiscoverySaveDetail {
+export interface LibraryDiscoveryRefresh {
   readonly index: number;
-  readonly result: ReferenceDiscoveryResult;
+  readonly message: string;
+  readonly requestId: number;
 }
 
 type SaveState = "idle" | "saving" | "saved";
@@ -15,20 +16,27 @@ export class LibraryDiscoveryResults extends LitElement {
   static override properties = {
     results: { state: true },
     saveStates: { state: true },
+    status: { state: true },
   };
 
   declare private results: readonly ReferenceDiscoveryResult[];
   declare private saveStates: ReadonlyMap<number, SaveState>;
+  declare private status: string;
+  private readonly requestIds = new Map<number, number>();
+  private nextRequestId = 0;
 
   constructor() {
     super();
     this.results = [];
     this.saveStates = new Map();
+    this.status = "";
   }
 
   setResults(results: readonly ReferenceDiscoveryResult[]): void {
     this.results = results;
     this.saveStates = new Map();
+    this.requestIds.clear();
+    this.status = "";
   }
 
   setSaveState(index: number, state: SaveState): void {
@@ -37,6 +45,12 @@ export class LibraryDiscoveryResults extends LitElement {
     if (state === "idle") next.delete(index);
     else next.set(index, state);
     this.saveStates = next;
+  }
+
+  complete(index: number, requestId: number): void {
+    if (this.requestIds.get(index) !== requestId) return;
+    this.requestIds.delete(index);
+    this.setSaveState(index, "saved");
   }
 
   override connectedCallback(): void {
@@ -49,20 +63,42 @@ export class LibraryDiscoveryResults extends LitElement {
   }
 
   protected override render(): TemplateResult {
-    return html`${this.results.map((result, index) => this.renderResult(result, index))}`;
+    return html`
+      ${this.results.map((result, index) => this.renderResult(result, index))}
+      <p class="status-line" role="status" ?hidden=${!this.status}>${this.status}</p>
+    `;
   }
 
-  protected save(event: Event): void {
+  protected async save(event: Event): Promise<void> {
     const index = Number((event.currentTarget as HTMLButtonElement).dataset.resultIndex);
     const result = this.results[index];
     if (!result || !Number.isSafeInteger(index) || this.saveStates.get(index) !== undefined) return;
-    this.dispatchEvent(
-      new CustomEvent<LibraryDiscoverySaveDetail>(libraryDiscoverySaveEvent, {
-        bubbles: true,
-        composed: true,
-        detail: { index, result },
-      }),
-    );
+    const requestId = ++this.nextRequestId;
+    this.requestIds.set(index, requestId);
+    this.setSaveState(index, "saving");
+    this.status = "";
+    try {
+      const response = await fetch("/api/library/import/csl-json", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify([referenceDiscoveryCslRecord(result)]),
+      });
+      await expectOk(response);
+      if (this.requestIds.get(index) !== requestId) return;
+      this.dispatchEvent(
+        new CustomEvent<LibraryDiscoveryRefresh>(libraryDiscoveryRefreshEvent, {
+          bubbles: true,
+          composed: true,
+          detail: { index, message: "Reference saved to the private Library.", requestId },
+        }),
+      );
+    } catch (error) {
+      if (this.requestIds.get(index) !== requestId) return;
+      this.requestIds.delete(index);
+      this.setSaveState(index, "idle");
+      this.status = errorMessage(error, "Could not save the reference.");
+    }
   }
 
   private renderResult(result: ReferenceDiscoveryResult, index: number): TemplateResult {

@@ -1,6 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ReferenceDiscoveryResult } from "../domain/reference-discovery";
-import { LibraryDiscoveryResults, libraryDiscoverySaveEvent, type LibraryDiscoverySaveDetail } from "./library-discovery-results";
+import { LibraryDiscoveryResults, libraryDiscoveryRefreshEvent, type LibraryDiscoveryRefresh } from "./library-discovery-results";
 
 const result: ReferenceDiscoveryResult = {
   identifiers: [{ scheme: "doi", value: "10.5555/result" }],
@@ -26,8 +26,8 @@ class TestLibraryDiscoveryResults extends LibraryDiscoveryResults {
     return this.createRenderRoot();
   }
 
-  saveForTest(index: string): void {
-    this.save(eventWithTarget({ dataset: { resultIndex: index } }));
+  saveForTest(index: string): Promise<void> {
+    return this.save(eventWithTarget({ dataset: { resultIndex: index } }));
   }
 }
 
@@ -36,6 +36,8 @@ function eventWithTarget(target: object): Event {
   Object.defineProperty(event, "currentTarget", { value: target });
   return event;
 }
+
+afterEach(() => vi.restoreAllMocks());
 
 describe("library discovery results", () => {
   it("renders provider combinations and all save states", () => {
@@ -60,23 +62,74 @@ describe("library discovery results", () => {
     expect(panel.rootForTest()).toBe(panel);
   });
 
-  it("emits only idle, known result selections", () => {
+  it("persists only idle, known results and requests a refresh", async () => {
     const panel = new TestLibraryDiscoveryResults();
-    const actions: LibraryDiscoverySaveDetail[] = [];
-    panel.addEventListener(libraryDiscoverySaveEvent, (event) => actions.push((event as CustomEvent<LibraryDiscoverySaveDetail>).detail));
+    const refreshes: LibraryDiscoveryRefresh[] = [];
+    panel.addEventListener(libraryDiscoveryRefreshEvent, (event) => refreshes.push((event as CustomEvent<LibraryDiscoveryRefresh>).detail));
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 200 }));
     panel.setResults([result]);
 
-    panel.saveForTest("missing");
-    panel.saveForTest("4");
-    panel.saveForTest("0");
-    panel.setSaveState(0, "saving");
-    panel.saveForTest("0");
-    panel.setSaveState(0, "idle");
-    panel.saveForTest("0");
+    await panel.saveForTest("missing");
+    await panel.saveForTest("4");
+    await panel.saveForTest("0");
+    await panel.saveForTest("0");
 
-    expect(actions).toEqual([
-      { index: 0, result },
-      { index: 0, result },
-    ]);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/library/import/csl-json",
+      expect.objectContaining({
+        body: JSON.stringify([
+          {
+            id: "10.5555/result",
+            type: "article-journal",
+            title: "A discovered paper",
+            author: [{ literal: "Ada Author" }],
+            URL: "https://doi.org/10.5555/result",
+            issued: { "date-parts": [["2026"]] },
+            "container-title": "Journal",
+            DOI: "10.5555/result",
+          },
+        ]),
+        method: "POST",
+      }),
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(refreshes).toEqual([{ index: 0, message: "Reference saved to the private Library.", requestId: 1 }]);
+    panel.complete(0, 0);
+    panel.complete(0, 1);
+    expect(panel.renderForTest()).toBeDefined();
+  });
+
+  it("reports failed imports and permits a retry", async () => {
+    const panel = new TestLibraryDiscoveryResults();
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response("Unavailable", { status: 503 }))
+      .mockResolvedValueOnce(new Response(null, { status: 200 }));
+    panel.setResults([result]);
+
+    await panel.saveForTest("0");
+    expect(panel.renderForTest()).toBeDefined();
+    await panel.saveForTest("0");
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("ignores a completed request after results are replaced", async () => {
+    const panel = new TestLibraryDiscoveryResults();
+    const refreshes: LibraryDiscoveryRefresh[] = [];
+    let respond = (_response: Response): void => undefined;
+    const pendingResponse = new Promise<Response>((resolve) => {
+      respond = resolve;
+    });
+    vi.spyOn(globalThis, "fetch").mockReturnValue(pendingResponse);
+    panel.addEventListener(libraryDiscoveryRefreshEvent, (event) => refreshes.push((event as CustomEvent<LibraryDiscoveryRefresh>).detail));
+    panel.setResults([result]);
+
+    const save = panel.saveForTest("0");
+    panel.setResults([result]);
+    respond(new Response(null, { status: 200 }));
+    await save;
+
+    expect(refreshes).toEqual([]);
   });
 });

@@ -2,13 +2,12 @@ import { describe, expect, it } from "vitest";
 import {
   AssistantResultPanel,
   assistantResultActionEvent,
-  referenceDiscoveryIdentifierUrl,
   type AssistantClarityContext,
   type AssistantResultActionDetail,
   type AssistantRevisionContext,
   type AssistantTableContext,
 } from "./assistant-result-panel";
-import type { ReferenceDiscoveryResult } from "../domain/reference-discovery";
+import { referenceDiscoveryIdentifierUrl, type ReferenceDiscoveryResult } from "../domain/reference-discovery";
 
 class TestAssistantResultPanel extends AssistantResultPanel {
   renderForTest() {

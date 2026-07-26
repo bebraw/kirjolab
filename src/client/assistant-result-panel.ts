@@ -8,7 +8,7 @@ import type {
   ModelProvider,
 } from "./model-provider";
 import type { PhrasingPurpose } from "../domain/phrasing-guidance";
-import type { ReferenceDiscoveryResult } from "../domain/reference-discovery";
+import { referenceDiscoveryIdentifierUrl, type ReferenceDiscoveryResult } from "../domain/reference-discovery";
 import type { ModelEvidenceReference } from "../domain/workspace";
 
 export interface AssistantAuthoringPassage {
@@ -316,14 +316,6 @@ export class AssistantResultPanel extends LitElement {
       }),
     );
   }
-}
-
-export function referenceDiscoveryIdentifierUrl(identifier: ReferenceDiscoveryResult["identifiers"][number]): string {
-  if (identifier.scheme === "doi") return `https://doi.org/${identifier.value}`;
-  if (identifier.scheme === "openalex") return `https://openalex.org/${identifier.value}`;
-  if (identifier.scheme === "semantic-scholar") return `https://www.semanticscholar.org/paper/${encodeURIComponent(identifier.value)}`;
-  if (identifier.scheme === "arxiv") return `https://arxiv.org/abs/${encodeURIComponent(identifier.value)}`;
-  return `https://pubmed.ncbi.nlm.nih.gov/${encodeURIComponent(identifier.value)}/`;
 }
 
 function referenceProviderLabel(result: ReferenceDiscoveryResult): string {

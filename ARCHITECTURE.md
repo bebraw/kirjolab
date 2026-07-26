@@ -45,8 +45,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   to its interaction and whose outward effects are typed outcomes.
 - Let the bounded Library discovery search own its provider request, response
   validation, duplicate-submit guard, and status lifecycle. Route only its
-  validated result list to the sibling results component; keep shared reference
-  import and Library refresh policy in the application coordinator.
+  validated result list to the sibling results component. Let that result owner
+  project validated metadata to CSL JSON and own its import transport, local
+  save progress, retryable failures, and refresh-pending state. Keep canonical
+  Library refresh and toast policy in the application coordinator.
 - Let the workspace-settings Lit component own project settings persistence,
   archive/restore, duplication, permanent-deletion confirmation and request
   lifecycles, plus their local busy and failure state. Emit only navigation,
