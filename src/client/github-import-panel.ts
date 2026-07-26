@@ -2,6 +2,8 @@ import { html, LitElement, type TemplateResult } from "lit";
 import {
   isGitHubBranchList,
   isGitHubConnectionState,
+  isGitHubImportPreview,
+  isGitHubImportResult,
   isGitHubInstallationList,
   isGitHubRepositoryList,
   type GitHubBranchOption,
@@ -24,10 +26,8 @@ export interface GitHubConnectionPresentation {
   readonly message: string;
 }
 
-export const gitHubImportPreviewEvent = "github-import-preview";
-export const gitHubImportConfirmEvent = "github-import-confirm";
+export const gitHubImportCompleteEvent = "github-import-complete";
 export const gitHubImportCancelEvent = "github-import-cancel";
-export const gitHubDisconnectEvent = "github-disconnect";
 
 export class GitHubImportPanel extends LitElement {
   static override properties = {
@@ -327,12 +327,10 @@ export class GitHubImportPanel extends LitElement {
           <a class="button-secondary" href="/api/github/install?returnTo=%2F%3FgithubImport%3D1" ?hidden=${!this.connected}
             >Manage repository access</a
           >
-          <button class="button-secondary" type="button" ?hidden=${!this.connected} @click=${this.requestDisconnect}>
-            Disconnect account
-          </button>
+          <button class="button-secondary" type="button" ?hidden=${!this.connected} @click=${this.disconnect}>Disconnect account</button>
         </div>
       </section>
-      <form id="github-import-form" @submit=${this.requestPreview}>
+      <form id="github-import-form" @submit=${this.previewImport}>
         <div class="mt-5 grid gap-3 sm:grid-cols-2">
           <label class="field-label"
             >Project title<input
@@ -423,7 +421,7 @@ export class GitHubImportPanel extends LitElement {
           <button class="button-secondary" id="preview-github-import" type="submit" ?disabled=${!ready || this.working}>
             Preview import
           </button>
-          <button class="button-primary" type="button" ?disabled=${!this.canConfirm || this.working} @click=${this.requestConfirm}>
+          <button class="button-primary" type="button" ?disabled=${!this.canConfirm || this.working} @click=${this.confirmImport}>
             Create project
           </button>
         </div>
@@ -463,20 +461,57 @@ export class GitHubImportPanel extends LitElement {
     this.dispatchEvent(new CustomEvent(gitHubImportCancelEvent));
   }
 
-  protected requestPreview(event: SubmitEvent): void {
+  protected async previewImport(event: SubmitEvent): Promise<void> {
     event.preventDefault();
     this.beginPreview();
-    this.dispatchEvent(new CustomEvent(gitHubImportPreviewEvent));
+    try {
+      const selection = this.selection;
+      const repository = selection.repository;
+      if (selection.installationId === null) throw new Error("Choose a GitHub account");
+      if (!repository) throw new Error("Choose a GitHub repository");
+      const value = await requestGitHubJson(
+        "/api/github/import-previews",
+        isGitHubImportPreview,
+        "GitHub returned an invalid import preview",
+        jsonRequest({
+          installationId: selection.installationId,
+          owner: repository.owner,
+          repository: repository.name,
+          branch: selection.branch,
+          rootPath: selection.rootPath,
+          ...(selection.entryPath ? { entryPath: selection.entryPath } : {}),
+        }),
+      );
+      this.showPreview(value);
+    } catch (error) {
+      this.showPreviewError(errorMessage(error, "Could not preview GitHub import."));
+    }
   }
 
-  protected requestConfirm(): void {
+  protected async confirmImport(): Promise<void> {
     if (!this.preview) return;
     this.beginCreation();
-    this.dispatchEvent(new CustomEvent<string>(gitHubImportConfirmEvent, { detail: this.preview.id }));
+    try {
+      const value = await requestGitHubJson(
+        "/api/github/imports",
+        isGitHubImportResult,
+        "GitHub import returned invalid project data",
+        jsonRequest({ previewId: this.preview.id, title: this.projectTitle }),
+      );
+      this.dispatchEvent(new CustomEvent<string>(gitHubImportCompleteEvent, { detail: value.workspace.href }));
+    } catch (error) {
+      this.showCreationError(errorMessage(error, "Could not import the project."));
+    }
   }
 
-  protected requestDisconnect(): void {
-    this.dispatchEvent(new CustomEvent(gitHubDisconnectEvent));
+  protected async disconnect(): Promise<void> {
+    if (!confirm("Disconnect your GitHub account from Kirjolab? Existing project files and repositories will not be deleted.")) return;
+    try {
+      await expectOk(await fetch("/api/github/connection", { method: "DELETE", credentials: "same-origin" }));
+      await this.refreshConnection();
+    } catch (error) {
+      this.setConnectionMessage(errorMessage(error, "Could not disconnect GitHub."));
+    }
   }
 
   private get dialog(): HTMLDialogElement {
@@ -488,19 +523,30 @@ export class GitHubImportPanel extends LitElement {
 
 type ValueGuard<T> = (value: unknown) => value is T;
 
-async function requestGitHubJson<T>(url: string, guard: ValueGuard<T>, invalidMessage: string): Promise<T> {
-  const response = await fetch(url, { credentials: "same-origin" });
-  if (!response.ok) {
-    const value: unknown = await response.json().catch(() => null);
-    const message =
-      typeof value === "object" && value !== null && "error" in value && typeof value.error === "string"
-        ? value.error
-        : `Request failed (${response.status})`;
-    throw new Error(message);
-  }
+async function requestGitHubJson<T>(url: string, guard: ValueGuard<T>, invalidMessage: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(url, { credentials: "same-origin", ...init });
+  await expectOk(response);
   const value: unknown = await response.json();
   if (!guard(value)) throw new Error(invalidMessage);
   return value;
+}
+
+function jsonRequest(body: object): RequestInit {
+  return { body: JSON.stringify(body), headers: { "content-type": "application/json" }, method: "POST" };
+}
+
+async function expectOk(response: Response): Promise<void> {
+  if (response.ok) return;
+  const value: unknown = await response.json().catch(() => null);
+  throw new Error(
+    typeof value === "object" && value !== null && "error" in value && typeof value.error === "string"
+      ? value.error
+      : `Request failed (${response.status})`,
+  );
+}
+
+function errorMessage(error: unknown, fallback: string): string {
+  return error instanceof Error ? error.message : fallback;
 }
 
 if (!customElements.get("github-import-panel")) {

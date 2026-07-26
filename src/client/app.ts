@@ -71,7 +71,7 @@ import { sourceSpanAt } from "./composition-source-map";
 import type { AppToastOptions } from "./app-toast";
 import { workspaceSwitchEvent } from "./workspace-switcher";
 import { sourceCompletionActionEvent, type SourceCompletionAction, type SourceCompletionIntent } from "./source-completion";
-import { gitHubDisconnectEvent, gitHubImportCancelEvent, gitHubImportConfirmEvent, gitHubImportPreviewEvent } from "./github-import-panel";
+import { gitHubImportCancelEvent, gitHubImportCompleteEvent } from "./github-import-panel";
 import {
   gitHubSyncCheckEvent,
   gitHubSyncPullEvent,
@@ -237,7 +237,7 @@ import {
 } from "./pdf-highlight-import-panel";
 import { uploadPdfBatch, type ExistingPdfUpload } from "./pdf-upload-queue";
 import { bindThemePreference } from "./theme";
-import { isCreatedAnnotation, isGitHubImportPreview, isShareLinkStatus, isWebSnapshotComparisonResponse } from "./app-contracts";
+import { isCreatedAnnotation, isShareLinkStatus, isWebSnapshotComparisonResponse } from "./app-contracts";
 import {
   OpenAICompatibleBrowserProvider,
   type ModelClarityRewrites,
@@ -567,13 +567,10 @@ class WorkspaceApp {
       if (action.action === "cancel") this.#elements.latexImportPanel.close();
       else location.assign(action.href);
     });
-    this.#elements.gitHubImportPanel.addEventListener(gitHubImportPreviewEvent, () => void this.#previewGitHubImport());
     this.#elements.gitHubImportPanel.addEventListener(gitHubImportCancelEvent, () => this.#elements.gitHubImportPanel.close());
-    this.#elements.gitHubImportPanel.addEventListener(
-      gitHubImportConfirmEvent,
-      (event) => void this.#confirmGitHubImport((event as CustomEvent<string>).detail),
-    );
-    this.#elements.gitHubImportPanel.addEventListener(gitHubDisconnectEvent, () => void this.#disconnectGitHubAccount());
+    this.#elements.gitHubImportPanel.addEventListener(gitHubImportCompleteEvent, (event) => {
+      location.assign((event as CustomEvent<string>).detail);
+    });
     this.#elements.workspaceSettingsPanel.configureGitHub(apiBase);
     this.#elements.workspaceSettingsPanel.addEventListener(gitHubSyncMutationEvent, (event) => {
       void this.#handleGitHubSyncMutation((event as CustomEvent<GitHubSyncMutation>).detail);
@@ -1219,54 +1216,6 @@ class WorkspaceApp {
     this.#elements.newWorkspaceStartingPoints.close();
     this.#elements.gitHubImportPanel.open();
     void this.#elements.gitHubImportPanel.refreshConnection();
-  }
-
-  async #previewGitHubImport(): Promise<void> {
-    try {
-      const selection = this.#elements.gitHubImportPanel.selection;
-      const repository = selection.repository;
-      const installationId = selection.installationId;
-      if (installationId === null) throw new Error("Choose a GitHub account");
-      if (!repository) throw new Error("Choose a GitHub repository");
-      const response = await jsonFetch("/api/github/import-previews", {
-        installationId,
-        owner: repository.owner,
-        repository: repository.name,
-        branch: selection.branch,
-        rootPath: selection.rootPath,
-        ...(selection.entryPath ? { entryPath: selection.entryPath } : {}),
-      });
-      await expectOk(response);
-      const value: unknown = await response.json();
-      if (!isGitHubImportPreview(value)) throw new Error("GitHub returned an invalid import preview");
-      this.#elements.gitHubImportPanel.showPreview(value);
-    } catch (error) {
-      this.#elements.gitHubImportPanel.showPreviewError(error instanceof Error ? error.message : "Could not preview GitHub import.");
-    }
-  }
-
-  async #disconnectGitHubAccount(): Promise<void> {
-    if (!confirm("Disconnect your GitHub account from Kirjolab? Existing project files and repositories will not be deleted.")) return;
-    const response = await fetch("/api/github/connection", { method: "DELETE", credentials: "same-origin" });
-    await expectOk(response);
-    await this.#elements.gitHubImportPanel.refreshConnection();
-  }
-
-  async #confirmGitHubImport(previewId: string): Promise<void> {
-    try {
-      const response = await jsonFetch("/api/github/imports", {
-        previewId,
-        title: this.#elements.gitHubImportPanel.projectTitle,
-      });
-      await expectOk(response);
-      const value: unknown = await response.json();
-      if (!isRecord(value) || !isRecord(value.workspace) || typeof value.workspace.href !== "string") {
-        throw new Error("GitHub import returned invalid project data");
-      }
-      location.assign(value.workspace.href);
-    } catch (error) {
-      this.#elements.gitHubImportPanel.showCreationError(error instanceof Error ? error.message : "Could not import the project.");
-    }
   }
 
   async #openWorkspaceSettings(checkGitHub = true): Promise<void> {

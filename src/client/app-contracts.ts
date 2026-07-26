@@ -67,6 +67,9 @@ const gitHubImportPreviewSchema = v.object({
   entryPath: v.string(),
   files: v.array(v.object({ path: v.string(), bytes: v.number() })),
 });
+const gitHubImportResultSchema = v.object({
+  workspace: v.object({ href: v.string() }),
+});
 const gitHubSyncStateSchema = v.object({
   owner: v.string(),
   repository: v.string(),
@@ -202,6 +205,10 @@ export function isGitHubBranchList(value: unknown): value is v.InferInput<typeof
 
 export function isGitHubImportPreview(value: unknown): value is v.InferInput<typeof gitHubImportPreviewSchema> {
   return v.is(gitHubImportPreviewSchema, value);
+}
+
+export function isGitHubImportResult(value: unknown): value is v.InferInput<typeof gitHubImportResultSchema> {
+  return v.is(gitHubImportResultSchema, value);
 }
 
 export function isGitHubSyncState(value: unknown): value is v.InferInput<typeof gitHubSyncStateSchema> {

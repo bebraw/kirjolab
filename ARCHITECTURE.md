@@ -68,15 +68,16 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   Keep opaque Import, Pull, and Publish preview identities and confirmation
   working state inside their owning Lit panels. Let the GitHub import panel own
   its read-only connection, installation, repository, and branch discovery
-  lifecycle plus stale-request protection. Let the sync menu likewise own its
-  bounded connection and status refresh interval, validation, stale-request
-  guard, and primary presentation, then emit one state event for the settings
-  mirror. Let the detailed sync review own its Pull, Publish, and disconnect
-  requests because their validation, payloads, progress, and results are local
-  to that review. Emit completed synchronization mutations so the application
-  coordinator can refresh canonical project and cross-component status state;
-  retain page-level refresh pause policy, import mutations, project refresh,
-  and navigation in the coordinator.
+  lifecycle plus stale-request protection, import preview and creation requests,
+  account disconnection, Valibot response validation, and local progress and
+  failure presentation. Let the sync menu likewise own its bounded connection
+  and status refresh interval, validation, stale-request guard, and primary
+  presentation, then emit one state event for the settings mirror. Let the
+  detailed sync review own its Pull, Publish, and disconnect requests because
+  their validation, payloads, progress, and results are local to that review.
+  Emit completed synchronization mutations so the application coordinator can
+  refresh canonical project and cross-component status state; retain page-level
+  refresh pause policy, project refresh, and navigation in the coordinator.
   Delegate GitHub App JWT signing and private-key handling to pinned
   `@octokit/auth-app`, but keep installation-token exchange bounded and
   request-scoped. Do not retain request-bound installation authentication

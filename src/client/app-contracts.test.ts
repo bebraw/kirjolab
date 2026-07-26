@@ -3,6 +3,7 @@ import {
   isCreatedAnnotation,
   isGitHubBranchList,
   isGitHubConnectionState,
+  isGitHubImportResult,
   isGitHubImportPreview,
   isGitHubInstallationList,
   isGitHubPublishPreview,
@@ -75,6 +76,8 @@ describe("app response contracts", () => {
       isGitHubImportPreview({ id: "preview", commitSha: "abc", entryPath: "paper.md", files: [{ path: "paper.md", bytes: 10 }] }),
     ).toBe(true);
     expect(isGitHubImportPreview({ id: "preview", commitSha: "abc", entryPath: "paper.md", files: [{ path: "paper.md" }] })).toBe(false);
+    expect(isGitHubImportResult({ workspace: { href: "/editor/project" } })).toBe(true);
+    expect(isGitHubImportResult({ workspace: { href: 1 } })).toBe(false);
     expect(isGitHubSyncState({ owner: "openai", repository: "kirjolab", branch: "main", rootPath: "", commitSha: "abc" })).toBe(true);
     expect(isGitHubSyncState({ owner: "openai", repository: "kirjolab", branch: "main", rootPath: "" })).toBe(false);
   });

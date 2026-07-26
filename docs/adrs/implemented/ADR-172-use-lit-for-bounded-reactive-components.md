@@ -34,8 +34,9 @@ The adopted components own bounded presentation:
 - The import panel owns connected and disconnected account presentation,
   reactive account actions, local field values, account/repository/branch
   discovery requests, validation, stale-request guards, option rendering, form
-  submission, readiness, preview/status rendering, native dialog lifecycle, and
-  typed Disconnect, Preview, Cancel, and Confirm intents.
+  submission, readiness, import preview and creation requests, account
+  disconnection, preview/status rendering, native dialog lifecycle, and typed
+  Cancel and completed-navigation events.
 - The workspace sync menu owns repository status, relationship tone, Pull and
   Push availability, its bounded read-only connection and status refresh
   lifecycle, interval, validation and stale-request guard, typed Check, Pull,
@@ -151,15 +152,15 @@ The adopted components own bounded presentation:
   and completed-navigation intents.
 - The GitHub import and detailed sync-review panels own their opaque preview
   identities and confirmation working state. The import panel additionally
-  owns its read-only connection and repository-picker discovery lifecycle. The
+  owns its read-only connection and repository-picker discovery lifecycle plus
+  import preview, creation, and account-disconnection requests because their
+  payloads, validation, progress, and results are local to that component. The
   sync menu owns its read-only connection and status request lifecycle because
   its interval, validation, stale-request protection, and primary result
   presentation are local to that component. The sync review owns its Pull,
-  Publish, and disconnect request lifecycle because their payload, validation,
-  progress, and result presentation are local to the component. It emits only
+  Publish, and disconnect request lifecycle for the same reason. It emits only
   completed mutations; the application coordinator retains page-level refresh
-  pause policy and canonical project refresh. Import mutations, project
-  refresh, and navigation remain coordinator-owned.
+  pause policy, canonical project refresh, and navigation.
 - The export statistics panel owns loading, total, file, heading, and
   empty-group presentation for the live publication word-count projection.
 - The project export dialog progressively enhances the server-rendered export

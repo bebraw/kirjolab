@@ -1,11 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import {
-  GitHubImportPanel,
-  gitHubDisconnectEvent,
-  gitHubImportCancelEvent,
-  gitHubImportConfirmEvent,
-  gitHubImportPreviewEvent,
-} from "./github-import-panel";
+import { GitHubImportPanel, gitHubImportCancelEvent, gitHubImportCompleteEvent } from "./github-import-panel";
 
 class TestGitHubImportPanel extends GitHubImportPanel {
   focusCount = 0;
@@ -18,20 +12,20 @@ class TestGitHubImportPanel extends GitHubImportPanel {
     return this.createRenderRoot();
   }
 
-  previewForTest(): void {
-    this.requestPreview(new Event("submit") as SubmitEvent);
+  previewForTest(): Promise<void> {
+    return this.previewImport(new Event("submit") as SubmitEvent);
   }
 
   cancelForTest(): void {
     this.requestCancel();
   }
 
-  confirmForTest(): void {
-    this.requestConfirm();
+  confirmForTest(): Promise<void> {
+    return this.confirmImport();
   }
 
-  disconnectForTest(): void {
-    this.requestDisconnect();
+  disconnectForTest(): Promise<void> {
+    return this.disconnect();
   }
 
   override focusTitle(): void {
@@ -52,7 +46,10 @@ class FakeDialog extends EventTarget {
   }
 }
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 
 const installation = {
   id: 7,
@@ -199,27 +196,52 @@ describe("GitHub import panel", () => {
     expect(panel.renderForTest()).toBeDefined();
   });
 
-  it("emits preview, cancel, and confirmation intents", () => {
+  it("owns import preview and creation requests", async () => {
+    const panel = new TestGitHubImportPanel();
+    panel.setInstallations([installation]);
+    panel.setRepositories([repository]);
+    panel.setBranches([{ name: "main", protected: true }], "main");
+    const completed: string[] = [];
+    panel.addEventListener(gitHubImportCompleteEvent, (event) => completed.push((event as CustomEvent<string>).detail));
+    const fetcher = vi
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse({ id: "preview-1", commitSha: "1234567890abcdef", entryPath: "main.md", files: [{ path: "main.md", bytes: 10 }] }),
+      )
+      .mockResolvedValueOnce(jsonResponse({ workspace: { href: "/editor/project" } }));
+    vi.stubGlobal("fetch", fetcher);
+
+    await panel.previewForTest();
+    await panel.confirmForTest();
+
+    expect(completed).toEqual(["/editor/project"]);
+    expect(JSON.parse(fetcher.mock.calls[0]?.[1]?.body as string)).toEqual({
+      installationId: 7,
+      owner: "research-lab",
+      repository: "paper",
+      branch: "main",
+      rootPath: "",
+    });
+    expect(JSON.parse(fetcher.mock.calls[1]?.[1]?.body as string)).toEqual({ previewId: "preview-1", title: "paper" });
+  });
+
+  it("emits cancellation and owns account disconnection", async () => {
     const panel = new TestGitHubImportPanel();
     const actions: string[] = [];
-    let previewId: string | null = null;
-    for (const eventName of [gitHubImportPreviewEvent, gitHubImportCancelEvent, gitHubDisconnectEvent]) {
-      panel.addEventListener(eventName, () => actions.push(eventName));
-    }
-    panel.addEventListener(gitHubImportConfirmEvent, (event) => {
-      actions.push(gitHubImportConfirmEvent);
-      previewId = (event as CustomEvent<string>).detail;
-    });
+    panel.addEventListener(gitHubImportCancelEvent, () => actions.push(gitHubImportCancelEvent));
+    const fetcher = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(null, { status: 204 }))
+      .mockResolvedValueOnce(jsonResponse({ connected: false }));
+    vi.stubGlobal("fetch", fetcher);
+    vi.stubGlobal("confirm", () => true);
 
-    panel.previewForTest();
     panel.cancelForTest();
-    panel.confirmForTest();
-    panel.showPreview({ id: "preview-1", commitSha: "1234567890abcdef", entryPath: "main.md", files: [] });
-    panel.confirmForTest();
-    panel.disconnectForTest();
+    await panel.disconnectForTest();
 
-    expect(actions).toEqual([gitHubImportPreviewEvent, gitHubImportCancelEvent, gitHubImportConfirmEvent, gitHubDisconnectEvent]);
-    expect(previewId).toBe("preview-1");
+    expect(actions).toEqual([gitHubImportCancelEvent]);
+    expect(fetcher).toHaveBeenNthCalledWith(1, "/api/github/connection", { credentials: "same-origin", method: "DELETE" });
+    expect(panel.selection.installationId).toBeNull();
   });
 
   it("owns its native dialog lifecycle", () => {

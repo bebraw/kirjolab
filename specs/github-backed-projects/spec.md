@@ -25,9 +25,10 @@ incoming and outgoing mutation.
 - The GitHub import panel owns its read-only connection, installation,
   repository, and branch discovery sequence, including response validation,
   sorting, loading and failure presentation, and request-generation guards. It
-  emits only preview, confirmation, cancellation, and disconnection intents;
-  import preview, creation, and account-disconnection mutations remain in the
-  application coordinator.
+  also owns import preview and creation requests, confirmation payload
+  construction, account-disconnection confirmation and request, shared Valibot
+  response validation, and operation progress. It emits only cancellation or a
+  completed workspace href; navigation remains in the application coordinator.
 - One deployment-wide GitHub App is authorized per Kirjolab owner through the
   GitHub App user OAuth flow. One-time callback state is owner-scoped, user and
   refresh tokens are encrypted at rest, and installation ids are never trusted
@@ -124,12 +125,11 @@ incoming and outgoing mutation.
 - One light-DOM GitHub import component owns account connection presentation,
   action visibility, local field values, account/repository/branch options,
   form submission, readiness, preview/status rendering, native dialog
-  lifecycle, and typed Disconnect, Preview, Cancel, and Confirm intents. The
-  application coordinator retains connection and picker requests, payload
-  validation, confirmation requests, and project creation, while the component
-  retains the opaque preview identity and confirmation working state and emits
-  the current preview ID with an enabled Confirm intent. The Worker retains
-  initial fallback markup.
+  lifecycle, discovery, import preview and creation requests, disconnect
+  confirmation and request, payload construction, Valibot response validation,
+  opaque preview identity, and operation progress. It emits typed Cancel or
+  completed-navigation events. The application coordinator retains browser
+  navigation, while the Worker retains initial fallback markup.
 - The workspace sync menu is a light-DOM Lit component that owns repository
   status presentation, relationship tone, Pull and Push availability, and
   typed Check, Pull, Push, and Settings intents. It also owns the bounded

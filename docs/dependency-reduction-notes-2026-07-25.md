@@ -3497,3 +3497,30 @@ direct and unique production package counts remain unchanged at 135,411 B raw /
 
 Full native CI passes all 1,429 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Lit Ownership: GitHub Import Mutations
+
+`GitHubImportPanel` now owns the complete picker-local workflow: connection and
+repository discovery, import preview, reviewed project creation, and account
+disconnection. It constructs request payloads from the installation,
+repository, branch, root, entry, preview identity, and title already held by the
+component; validates created-workspace responses through a shared Valibot
+contract; and presents request progress and failures locally. The application
+coordinator receives only cancellation or the completed workspace href and
+retains browser navigation.
+
+This checkpoint reduces `src/client/app.ts` from 6,150 to 6,099 lines (-51)
+and grows the GitHub import panel from 514 to 560 lines. Including the seven-line
+shared result contract, runtime source across those files increases by two
+lines while removing three coordinator-only request methods and two event
+bridges. Focused coverage passes discovery, stale discovery rejection, import
+payloads, reviewed creation, account disconnection and refresh, Valibot result
+validation, dialog lifecycle, and typed cancellation and navigation.
+
+The browser application artifact changes from 797,241 B raw / 215,470 B gzip
+to 796,925 B raw / 215,353 B gzip (-316 B raw / -117 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,430 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
