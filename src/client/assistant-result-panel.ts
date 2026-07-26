@@ -10,6 +10,8 @@ import type {
 import type { PhrasingPurpose } from "../domain/phrasing-guidance";
 import { referenceDiscoveryIdentifierUrl, type ReferenceDiscoveryResult } from "../domain/reference-discovery";
 import type { ModelEvidenceReference } from "../domain/workspace";
+import { errorMessage } from "./http";
+import { importDiscoveredReference } from "./reference-discovery-import";
 
 export interface AssistantAuthoringPassage {
   readonly fileId: string;
@@ -47,10 +49,16 @@ export interface AssistantRevisionChoice {
 export type AssistantResultActionDetail =
   | { readonly action: "continue-clarity"; readonly answer: string; readonly context: AssistantClarityContext }
   | { readonly action: "insert-table"; readonly context: AssistantTableContext; readonly markdown: string }
-  | { readonly action: "choose-revision"; readonly choice: AssistantRevisionChoice; readonly context: AssistantRevisionContext }
-  | { readonly action: "save-reference"; readonly index: number; readonly result: ReferenceDiscoveryResult };
+  | { readonly action: "choose-revision"; readonly choice: AssistantRevisionChoice; readonly context: AssistantRevisionContext };
 
 export const assistantResultActionEvent = "assistant-result-action";
+export const assistantReferenceRefreshEvent = "assistant-reference-refresh";
+
+export interface AssistantReferenceRefresh {
+  readonly index: number;
+  readonly message: string;
+  readonly requestId: number;
+}
 
 interface RevisionOption {
   readonly choice: AssistantRevisionChoice;
@@ -81,20 +89,27 @@ type AssistantResultView =
 export class AssistantResultPanel extends LitElement {
   static override properties = {
     referenceSaveState: { state: true },
+    referenceStatus: { state: true },
     view: { state: true },
   };
 
   declare private referenceSaveState: ReadonlyMap<number, "saving" | "saved">;
+  declare private referenceStatus: string;
   declare private view: AssistantResultView;
+  private readonly referenceRequestIds = new Map<number, number>();
+  private nextReferenceRequestId = 0;
 
   constructor() {
     super();
     this.referenceSaveState = new Map();
+    this.referenceStatus = "";
     this.view = { kind: "empty" };
   }
 
   clear(): void {
     this.referenceSaveState = new Map();
+    this.referenceRequestIds.clear();
+    this.referenceStatus = "";
     this.view = { kind: "empty" };
   }
 
@@ -173,14 +188,22 @@ export class AssistantResultPanel extends LitElement {
 
   showReferences(query: string, rationale: string, results: readonly ReferenceDiscoveryResult[]): void {
     this.referenceSaveState = new Map();
+    this.referenceRequestIds.clear();
+    this.referenceStatus = "";
     this.view = { kind: "references", query, rationale, results };
   }
 
-  setReferenceSaveState(index: number, state: "idle" | "saving" | "saved"): void {
+  private setReferenceSaveState(index: number, state: "idle" | "saving" | "saved"): void {
     const next = new Map(this.referenceSaveState);
     if (state === "idle") next.delete(index);
     else next.set(index, state);
     this.referenceSaveState = next;
+  }
+
+  completeReferenceSave(index: number, requestId: number): void {
+    if (this.referenceRequestIds.get(index) !== requestId) return;
+    this.referenceRequestIds.delete(index);
+    this.setReferenceSaveState(index, "saved");
   }
 
   override connectedCallback(): void {
@@ -271,11 +294,35 @@ export class AssistantResultPanel extends LitElement {
     if (option) this.dispatchAction({ action: "choose-revision", choice: option.choice, context: this.view.context });
   }
 
-  protected saveReference(event: Event): void {
+  protected async saveReference(event: Event): Promise<void> {
     if (this.view.kind !== "references") return;
     const index = Number((event.currentTarget as HTMLButtonElement).dataset.index);
     const result = this.view.results[index];
-    if (result) this.dispatchAction({ action: "save-reference", index, result });
+    if (!result || this.referenceSaveState.has(index)) return;
+    const requestId = ++this.nextReferenceRequestId;
+    this.referenceRequestIds.set(index, requestId);
+    this.setReferenceSaveState(index, "saving");
+    this.referenceStatus = "";
+    try {
+      await importDiscoveredReference(result);
+      if (this.referenceRequestIds.get(index) !== requestId) return;
+      this.dispatchEvent(
+        new CustomEvent<AssistantReferenceRefresh>(assistantReferenceRefreshEvent, {
+          bubbles: true,
+          composed: true,
+          detail: {
+            index,
+            message: "Reference saved. Use its Library card to add it to this project before citing.",
+            requestId,
+          },
+        }),
+      );
+    } catch (error) {
+      if (this.referenceRequestIds.get(index) !== requestId) return;
+      this.referenceRequestIds.delete(index);
+      this.setReferenceSaveState(index, "idle");
+      this.referenceStatus = errorMessage(error, "Could not save the reference.");
+    }
   }
 
   private renderReferences(view: Extract<AssistantResultView, { kind: "references" }>): TemplateResult {
@@ -304,6 +351,7 @@ export class AssistantResultPanel extends LitElement {
           </div>
         </article>`;
       })}
+      <p class="status-line" role="status" ?hidden=${!this.referenceStatus}>${this.referenceStatus}</p>
     </div>`;
   }
 

@@ -72,8 +72,9 @@ The adopted components own bounded presentation:
 - The assistant result panel owns validated-table previews, clarity input,
   transient revision choices and their captured passage, source-revision,
   evidence, provider-continuation, or table-target context, reference-discovery
-  cards, local save progress, and complete typed continuation, selection,
-  insertion, and save intents.
+  cards, the shared CSL import adapter, duplicate-submit gating, local save progress and
+  retryable failures, refresh-pending state, and complete typed continuation,
+  selection, insertion, and canonical-refresh outcomes.
 - The project map panel owns provenance-lane rendering, measured SVG connector
   geometry, responsive relayout, focus and hover emphasis, and a typed resource
   selection intent.
@@ -361,7 +362,9 @@ reason to wrap static markup mechanically.
   local event bindings. It also removes the coordinator's parallel transient-
   result discriminator and context cache by emitting the context retained with
   the visible result. Model requests, workflow state, candidate persistence,
-  document edits, and Library imports remain in the application coordinator.
+  document edits, canonical Library refresh, and cross-panel status remain in
+  the application coordinator; the result owner performs its local discovered-
+  reference import.
 - The project map panel replaces three internal element references, two
   coordinator fields, and imperative node, connector, resize, focus, and hover
   management while leaving graph derivation and resource navigation in the

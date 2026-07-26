@@ -1,7 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   AssistantResultPanel,
+  assistantReferenceRefreshEvent,
   assistantResultActionEvent,
+  type AssistantReferenceRefresh,
   type AssistantClarityContext,
   type AssistantResultActionDetail,
   type AssistantRevisionContext,
@@ -32,10 +34,10 @@ class TestAssistantResultPanel extends AssistantResultPanel {
     this.chooseRevision(event);
   }
 
-  saveForTest(index: string): void {
+  saveForTest(index: string): Promise<void> {
     const event = new Event("click");
     Object.defineProperty(event, "currentTarget", { value: { dataset: { index } } });
-    this.saveReference(event);
+    return this.saveReference(event);
   }
 }
 
@@ -73,6 +75,8 @@ const reference: ReferenceDiscoveryResult = {
     { provider: "semantic-scholar", score: 8 },
   ],
 };
+
+afterEach(() => vi.restoreAllMocks());
 
 describe("assistant result panel", () => {
   it("renders empty, table, and clarity-question states", () => {
@@ -112,15 +116,9 @@ describe("assistant result panel", () => {
     expect(panel.renderForTest()).toBeDefined();
   });
 
-  it("renders reference results and their local save progress", () => {
+  it("renders reference results and verification links", () => {
     const panel = new TestAssistantResultPanel();
     panel.showReferences("review time", "Find direct measurements.", [reference]);
-    expect(panel.renderForTest()).toBeDefined();
-    panel.setReferenceSaveState(0, "saving");
-    expect(panel.renderForTest()).toBeDefined();
-    panel.setReferenceSaveState(0, "saved");
-    expect(panel.renderForTest()).toBeDefined();
-    panel.setReferenceSaveState(0, "idle");
     expect(panel.renderForTest()).toBeDefined();
 
     expect(referenceDiscoveryIdentifierUrl(reference.identifiers[0]!)).toBe("https://doi.org/10.5555/result");
@@ -151,12 +149,6 @@ describe("assistant result panel", () => {
     panel.continueForTest();
     panel.showClarityQuestion(clarityContext);
     panel.continueForTest();
-    panel.showReferences("query", "reason", [reference]);
-    panel.saveForTest("0");
-    panel.saveForTest("9");
-    panel.clear();
-    panel.saveForTest("0");
-
     expect(actions).toEqual([
       { action: "insert-table", context: tableContext, markdown: "| A |" },
       {
@@ -172,7 +164,87 @@ describe("assistant result panel", () => {
         context: revisionContext,
       },
       { action: "continue-clarity", answer: "", context: clarityContext },
-      { action: "save-reference", index: 0, result: reference },
     ]);
+  });
+
+  it("persists assistant references and requests a canonical refresh", async () => {
+    const panel = new TestAssistantResultPanel();
+    const refreshes: AssistantReferenceRefresh[] = [];
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 200 }));
+    panel.addEventListener(assistantReferenceRefreshEvent, (event) =>
+      refreshes.push((event as CustomEvent<AssistantReferenceRefresh>).detail),
+    );
+    panel.showReferences("query", "reason", [reference]);
+
+    await panel.saveForTest("9");
+    await panel.saveForTest("0");
+    await panel.saveForTest("0");
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/library/import/csl-json",
+      expect.objectContaining({
+        body: JSON.stringify([
+          {
+            id: "10.5555/result",
+            type: "article-journal",
+            title: "Verified result",
+            author: [{ literal: "Doe, Jane" }],
+            URL: "https://doi.org/10.5555/result",
+            issued: { "date-parts": [["2026"]] },
+            "container-title": "Research Systems",
+            DOI: "10.5555/result",
+            abstract: "A result.",
+          },
+        ]),
+        method: "POST",
+      }),
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(refreshes).toEqual([
+      {
+        index: 0,
+        message: "Reference saved. Use its Library card to add it to this project before citing.",
+        requestId: 1,
+      },
+    ]);
+    panel.completeReferenceSave(0, 0);
+    panel.completeReferenceSave(0, 1);
+    expect(panel.renderForTest()).toBeDefined();
+  });
+
+  it("reports failed reference imports and permits a retry", async () => {
+    const panel = new TestAssistantResultPanel();
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response("Unavailable", { status: 503 }))
+      .mockResolvedValueOnce(new Response(null, { status: 200 }));
+    panel.showReferences("query", "reason", [reference]);
+
+    await panel.saveForTest("0");
+    expect(panel.renderForTest()).toBeDefined();
+    await panel.saveForTest("0");
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("ignores a reference import completed after the panel is cleared", async () => {
+    const panel = new TestAssistantResultPanel();
+    const refreshes: AssistantReferenceRefresh[] = [];
+    let respond = (_response: Response): void => undefined;
+    const pendingResponse = new Promise<Response>((resolve) => {
+      respond = resolve;
+    });
+    vi.spyOn(globalThis, "fetch").mockReturnValue(pendingResponse);
+    panel.addEventListener(assistantReferenceRefreshEvent, (event) =>
+      refreshes.push((event as CustomEvent<AssistantReferenceRefresh>).detail),
+    );
+    panel.showReferences("query", "reason", [reference]);
+
+    const save = panel.saveForTest("0");
+    panel.clear();
+    respond(new Response(null, { status: 200 }));
+    await save;
+
+    expect(refreshes).toEqual([]);
   });
 });

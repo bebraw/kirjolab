@@ -3990,3 +3990,30 @@ and unique production package counts remain unchanged at 135,411 B raw /
 
 Full native CI passes all 1,475 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Lit Ownership: Assistant Reference Persistence
+
+`AssistantResultPanel` now owns discovered-reference import requests,
+per-result duplicate-submit gating, local save progress and retryable failures,
+stale-response rejection, and refresh-pending acknowledgment. Both assistant
+and Library discovery cards use a new 12-line `importDiscoveredReference`
+adapter for the shared CSL JSON endpoint instead of maintaining parallel
+request protocols. `WorkspaceApp` retains canonical Library refresh and the
+assistant workflow-status projection.
+
+This checkpoint reduces `src/client/app.ts` from 5,174 to 5,164 lines (-10),
+grows the assistant result panel from 335 to 383 lines, reduces the Library
+discovery results panel from 141 to 136 lines, and adds the 12-line shared
+adapter. Runtime source across those files increases by 45 lines while removing
+the coordinator import lifecycle and duplicate transport implementations.
+Focused coverage passes the CSL payload, successful refresh outcome,
+duplicate submission, stale acknowledgment, retryable provider failure, and
+cleared-result response rejection.
+
+The browser application artifact changes from 804,525 B raw / 218,170 B gzip
+to 805,267 B raw / 218,149 B gzip (+742 B raw / -21 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,478 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.

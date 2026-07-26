@@ -1,6 +1,7 @@
 import { html, LitElement, type TemplateResult } from "lit";
-import { referenceDiscoveryCslRecord, referenceDiscoveryIdentifierUrl, type ReferenceDiscoveryResult } from "../domain/reference-discovery";
-import { errorMessage, expectOk } from "./http";
+import { referenceDiscoveryIdentifierUrl, type ReferenceDiscoveryResult } from "../domain/reference-discovery";
+import { errorMessage } from "./http";
+import { importDiscoveredReference } from "./reference-discovery-import";
 
 export const libraryDiscoveryRefreshEvent = "library-discovery-refresh";
 
@@ -78,13 +79,7 @@ export class LibraryDiscoveryResults extends LitElement {
     this.setSaveState(index, "saving");
     this.status = "";
     try {
-      const response = await fetch("/api/library/import/csl-json", {
-        method: "POST",
-        credentials: "same-origin",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify([referenceDiscoveryCslRecord(result)]),
-      });
-      await expectOk(response);
+      await importDiscoveredReference(result);
       if (this.requestIds.get(index) !== requestId) return;
       this.dispatchEvent(
         new CustomEvent<LibraryDiscoveryRefresh>(libraryDiscoveryRefreshEvent, {

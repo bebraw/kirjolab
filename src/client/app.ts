@@ -3,7 +3,7 @@ import "./action-menu-controller";
 import { collectAppElements } from "./app-elements";
 import { bibTeXDisplayText } from "../domain/bibliography";
 import { buildWorkspaceKnowledgeGraph, isKnowledgeSearchResults, type WorkspaceKnowledgeGraph } from "../domain/knowledge";
-import { isReferenceDiscoveryResults, referenceDiscoveryCslRecord, type ReferenceDiscoveryResult } from "../domain/reference-discovery";
+import { isReferenceDiscoveryResults, type ReferenceDiscoveryResult } from "../domain/reference-discovery";
 import { reviewerResponseLetter, reviewerResponsePath, reviewerResponseTemplate } from "../domain/reviewer-response";
 import {
   collaborationProtocolVersion,
@@ -107,6 +107,8 @@ import {
 import { researchDiaryOpenEvent } from "./research-diary-summary";
 import {
   assistantResultActionEvent,
+  assistantReferenceRefreshEvent,
+  type AssistantReferenceRefresh,
   type AssistantAuthoringPassage as AuthoringPassage,
   type AssistantClarityContext as ClarityDrillContext,
   type AssistantResultActionDetail,
@@ -972,6 +974,14 @@ class WorkspaceApp {
     });
     this.#elements.assistantInteractiveResult.addEventListener(assistantResultActionEvent, (event) => {
       void this.#handleAssistantResultAction((event as CustomEvent<AssistantResultActionDetail>).detail);
+    });
+    this.#elements.assistantInteractiveResult.addEventListener(assistantReferenceRefreshEvent, (event) => {
+      const detail = (event as CustomEvent<AssistantReferenceRefresh>).detail;
+      void this.#completeLibraryRefresh(detail.message, "The reference was saved, but the refreshed Library could not be loaded.", {
+        complete: () => this.#elements.assistantInteractiveResult.completeReferenceSave(detail.index, detail.requestId),
+        failure: (message) => (this.#elements.assistantWorkflowStatus.status = message),
+        success: (message) => (this.#elements.assistantWorkflowStatus.status = message),
+      });
     });
     this.#elements.assistantTaskPanel.addEventListener(assistantTaskChangeEvent, (event) => {
       const change = (event as CustomEvent<AssistantTaskChange>).detail;
@@ -2398,13 +2408,20 @@ class WorkspaceApp {
   async #completeLibraryRefresh(
     message: string,
     fallback: string,
-    options: { readonly complete?: () => void; readonly refresh?: () => Promise<void> } = {},
+    options: {
+      readonly complete?: () => void;
+      readonly failure?: (message: string) => void;
+      readonly refresh?: () => Promise<void>;
+      readonly success?: (message: string) => void;
+    } = {},
   ): Promise<void> {
     try {
       await (options.refresh?.() ?? this.#refreshReferenceLibrary());
-      this.#showToast(message);
+      if (options.success) options.success(message);
+      else this.#showToast(message);
     } catch {
-      this.#showToast(fallback);
+      if (options.failure) options.failure(fallback);
+      else this.#showToast(fallback);
     } finally {
       options.complete?.();
     }
@@ -4001,10 +4018,6 @@ class WorkspaceApp {
   }
 
   async #handleAssistantResultAction(detail: AssistantResultActionDetail): Promise<void> {
-    if (detail.action === "save-reference") {
-      await this.#saveDiscoveredReference(detail.result, detail.index);
-      return;
-    }
     if (detail.action === "insert-table") {
       this.#insertGeneratedTable(detail.context.target, detail.context.sourceRevision, detail.markdown);
       return;
@@ -4056,29 +4069,6 @@ class WorkspaceApp {
 
   #renderReferenceDiscovery(query: string, rationale: string, results: readonly ReferenceDiscoveryResult[]): void {
     this.#elements.assistantInteractiveResult.showReferences(query, rationale, results);
-  }
-
-  async #saveDiscoveredReference(result: ReferenceDiscoveryResult, index: number): Promise<void> {
-    this.#elements.assistantInteractiveResult.setReferenceSaveState(index, "saving");
-    try {
-      await this.#importDiscoveredReference(result);
-      this.#elements.assistantInteractiveResult.setReferenceSaveState(index, "saved");
-      this.#elements.assistantWorkflowStatus.status = "Reference saved. Use its Library card to add it to this project before citing.";
-    } catch (error) {
-      this.#elements.assistantInteractiveResult.setReferenceSaveState(index, "idle");
-      this.#elements.assistantWorkflowStatus.status = error instanceof Error ? error.message : "Could not save the reference";
-    }
-  }
-
-  async #importDiscoveredReference(result: ReferenceDiscoveryResult): Promise<void> {
-    const response = await fetch("/api/library/import/csl-json", {
-      method: "POST",
-      credentials: "same-origin",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify([referenceDiscoveryCslRecord(result)]),
-    });
-    await expectOk(response);
-    await this.#refreshReferenceLibrary();
   }
 
   async #continueClarityDrill(input: ClarityDrillContext, rawAnswer: string): Promise<void> {
