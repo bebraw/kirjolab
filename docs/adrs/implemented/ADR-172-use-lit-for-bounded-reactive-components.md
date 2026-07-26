@@ -462,10 +462,11 @@ reason to wrap static markup mechanically.
 - The model provider settings panel replaces six internal element references,
   duplicate preference listeners and status synchronization, stored-value
   validation, and imperative model-option rendering. It also removes the
-  coordinator's preferences-host reference and split open/focus coordination
-  while leaving provider discovery, local persistence, request construction,
-  generation workflows, and assistant status policy in the application
-  coordinator.
+  coordinator's preferences-host reference and split open/focus coordination,
+  and owns its browser-local discovery request, overlap guard, busy state,
+  result selection, and failure status. The application coordinator retains
+  cross-feature discovery availability, local persistence, generation request
+  construction, generation workflows, and assistant status mirroring.
 - The claim dialog replaces eight internal element references, one coordinator
   field, imperative evidence-option rendering, DOM-based selection collection,
   and modal configuration while leaving evidence prerequisites, API mutation,
@@ -562,7 +563,8 @@ reason to wrap static markup mechanically.
 - The assistant workflow status replaces four internal element references,
   two native action bindings, operation-specific status copy, and attribution
   visibility. The application coordinator retains evidence navigation,
-  settings authority, provider discovery, generation, and status policy.
+  settings availability, generation, discovery-status mirroring, and status
+  policy.
 - The workspace rail tabs replace five internal element references, four
   native action bindings, four ARIA-selection mutations, and DOM-derived active
   mode. The application coordinator retains panel visibility, guide rendering,

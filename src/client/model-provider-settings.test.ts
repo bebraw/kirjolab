@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ModelProviderSettings, modelProviderChangeEvent, modelProviderDiscoveryEvent } from "./model-provider-settings";
+import { ModelProviderSettings, modelProviderChangeEvent } from "./model-provider-settings";
 
 class TestModelProviderSettings extends ModelProviderSettings {
   focusCount = 0;
@@ -18,10 +18,6 @@ class TestModelProviderSettings extends ModelProviderSettings {
     else if (field === "endpoint") this.changeEndpoint(event);
     else if (field === "model") this.changeModel(event);
     else this.changeReasoningEffort(event);
-  }
-
-  discoverForTest(): void {
-    this.discover();
   }
 
   override focusConnection(): void {
@@ -58,30 +54,20 @@ describe("model provider settings", () => {
       model: "saved-local",
       reasoningEffort: "low",
     });
-    panel.setModels([" qwen/local ", "qwen/local", "gemma/local"], "missing");
-    expect(panel.value.model).toBe("qwen/local");
-    panel.setStatus("Ready");
-    panel.setBusy(true);
     expect(panel.renderForTest()).toBeDefined();
   });
 
-  it("normalizes changes and emits status and discovery intents", () => {
+  it("normalizes changes and emits status intents", () => {
     const panel = new TestModelProviderSettings();
     const statuses: Array<string | null> = [];
-    let discoveries = 0;
     panel.addEventListener(modelProviderChangeEvent, (event) => {
       statuses.push((event as CustomEvent<string | null>).detail);
-    });
-    panel.addEventListener(modelProviderDiscoveryEvent, () => {
-      discoveries += 1;
     });
 
     panel.changeForTest("connection", "companion");
     panel.changeForTest("endpoint", "http://127.0.0.1:9999/v1/chat/completions");
     panel.changeForTest("model", "qwen-local");
     panel.changeForTest("reasoning", "invalid");
-    panel.discoverForTest();
-
     expect(panel.value).toEqual({
       connection: "companion",
       endpoint: "http://127.0.0.1:9999/v1/chat/completions",
@@ -94,7 +80,60 @@ describe("model provider settings", () => {
       "Using qwen-local for new writing assistant requests.",
       null,
     ]);
-    expect(discoveries).toBe(1);
+  });
+
+  it("owns successful model discovery and ignores overlapping requests", async () => {
+    const panel = new TestModelProviderSettings();
+    const statuses: Array<string | null> = [];
+    panel.addEventListener(modelProviderChangeEvent, (event) => {
+      statuses.push((event as CustomEvent<string | null>).detail);
+    });
+    let resolveModels: (models: readonly string[]) => void = () => undefined;
+    const discovery = vi.fn(
+      async () =>
+        await new Promise<readonly string[]>((resolve) => {
+          resolveModels = resolve;
+        }),
+    );
+
+    const pending = panel.discoverModels(discovery);
+    const overlapping = panel.discoverModels(discovery);
+    expect(panel.discoveryBusy).toBe(true);
+    expect(statuses).toEqual(["Checking the local provider for loaded models…"]);
+    resolveModels([" qwen/local ", "qwen/local", "gemma/local"]);
+    await Promise.all([pending, overlapping]);
+
+    expect(discovery).toHaveBeenCalledOnce();
+    expect(panel.discoveryBusy).toBe(false);
+    expect(panel.value.model).toBe("qwen/local");
+    expect(statuses.at(-1)).toBe("Found 3 loaded models. Using qwen/local.");
+  });
+
+  it("owns discovery failures and clears busy state", async () => {
+    const panel = new TestModelProviderSettings();
+    const statuses: Array<string | null> = [];
+    panel.addEventListener(modelProviderChangeEvent, (event) => {
+      statuses.push((event as CustomEvent<string | null>).detail);
+    });
+
+    await panel.discoverModels(async () => {
+      throw new Error("Provider unavailable");
+    });
+
+    expect(panel.discoveryBusy).toBe(false);
+    expect(statuses).toEqual(["Checking the local provider for loaded models…", "Provider unavailable"]);
+  });
+
+  it("honors coordinator discovery availability", async () => {
+    const panel = new TestModelProviderSettings();
+    const discovery = vi.fn(async () => ["qwen/local"]);
+    panel.setDiscoveryAvailable(false);
+
+    await panel.discoverModels(discovery);
+
+    expect(discovery).not.toHaveBeenCalled();
+    expect(panel.discoveryBusy).toBe(false);
+    expect(panel.renderForTest()).toBeDefined();
   });
 
   it("opens its preferences host and focuses the connection control", () => {

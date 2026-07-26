@@ -3215,3 +3215,26 @@ and unique production package counts remain unchanged at 135,411 B raw /
 
 Full native CI passes all 1,413 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Lit Ownership: Model Discovery Lifecycle
+
+`ModelProviderSettings` now owns its browser-local model discovery request,
+overlapping-request guard, busy presentation, normalized result selection, and
+failure recovery. Its existing typed change stream reports starting and final
+status to `WorkspaceApp`, which retains assistant-workflow availability,
+browser-local preference persistence, generation requests, and status mirroring
+without a second busy field or discovery method.
+
+This checkpoint reduces `src/client/app.ts` from 6,539 to 6,511 lines (-28) and
+grows the settings component from 225 to 247 lines, reducing runtime source by
+six lines overall. Focused component coverage passes successful, overlapping,
+failed, and coordinator-disabled discovery plus preference normalization and
+presentation.
+
+The browser application artifact changes from 797,139 B raw / 214,746 B gzip
+to 796,767 B raw / 214,985 B gzip (-372 B raw / +239 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,416 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.

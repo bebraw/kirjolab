@@ -207,7 +207,7 @@ import { referenceLibraryFilterChangeEvent } from "./reference-library-filters";
 import { libraryPdfUploadRetryEvent, libraryPdfUploadRevealEvent } from "./library-pdf-upload-status";
 import { libraryPdfUploadActionEvent, type LibraryPdfUploadAction } from "./library-pdf-upload-control";
 import { libraryToolsActionEvent, type LibraryToolsAction } from "./library-tools-menu";
-import { modelProviderChangeEvent, modelProviderDiscoveryEvent } from "./model-provider-settings";
+import { modelProviderChangeEvent } from "./model-provider-settings";
 import { webSourceCaptureEvent } from "./web-source-panels";
 import { citationNetworkActionEvent, type CitationNetworkAction } from "./citation-network-panel";
 import { citationNetworkFilterEvent } from "./citation-network-workspace";
@@ -253,7 +253,6 @@ import {
   type LatexImportPreview,
 } from "./app-contracts";
 import {
-  discoverOpenAICompatibleModels,
   maximumModelEvidenceItems,
   OpenAICompatibleBrowserProvider,
   type ModelClarityQuestion,
@@ -460,7 +459,6 @@ class WorkspaceApp {
   #selectionBroadcastTimer: number | undefined;
   readonly #remoteSelections = new Map<string, RemoteCollaboratorSelection>();
   #renderSourceEditorHighlight: () => void = () => undefined;
-  #modelDiscoveryBusy = false;
   #hasBootstrapSnapshot = false;
   readonly #hiddenProjectFileIds = new Set<string>();
   readonly #hiddenProjectFolderIds = new Set<string>();
@@ -1054,7 +1052,6 @@ class WorkspaceApp {
       this.#updateModelAvailability();
       this.#saveModelPreferences();
     });
-    this.#elements.modelProviderSettings.addEventListener(modelProviderDiscoveryEvent, () => void this.#discoverLlmModels());
     this.#elements.assistantWorkflowStatus.addEventListener(assistantWorkflowActionEvent, (event) => {
       const action = (event as CustomEvent<AssistantWorkflowAction>).detail;
       if (action === "choose-evidence") this.#chooseModelEvidence();
@@ -2111,12 +2108,14 @@ class WorkspaceApp {
   #updateModelAvailability(): void {
     const stable = this.#hasStableDocumentBase();
     const assistant = this.#assistantWorkflow.getSnapshot();
-    this.#elements.assistantTaskPanel.setGenerateDisabled(this.#candidateGenerationDisabled(stable, assistantWorkflowBusy(assistant)));
+    const assistantBusy = assistantWorkflowBusy(assistant);
+    this.#elements.modelProviderSettings.setDiscoveryAvailable(!assistantBusy);
+    this.#elements.assistantTaskPanel.setGenerateDisabled(this.#candidateGenerationDisabled(stable, assistantBusy));
     this.#elements.candidateReviewPanel.setAvailability(stable, assistant.context.candidateDecision !== null);
   }
 
   #candidateGenerationDisabled(stable: boolean, assistantBusy: boolean): boolean {
-    if (this.#modelDiscoveryBusy || assistantBusy) return true;
+    if (this.#elements.modelProviderSettings.discoveryBusy || assistantBusy) return true;
     if (!this.#draftsClaim() && !stable) return true;
     return !this.#canGenerateCandidate();
   }
@@ -2217,33 +2216,6 @@ class WorkspaceApp {
       model: preferences.model,
       reasoningEffort: preferences.reasoningEffort,
     });
-  }
-
-  async #discoverLlmModels(): Promise<void> {
-    if (this.#modelDiscoveryBusy || assistantWorkflowBusy(this.#assistantWorkflow.getSnapshot())) return;
-    this.#modelDiscoveryBusy = true;
-    this.#elements.modelProviderSettings.setBusy(true);
-    this.#updateModelAvailability();
-    this.#elements.assistantWorkflowStatus.status = "Checking the local provider for loaded models…";
-    this.#elements.modelProviderSettings.setStatus(this.#elements.assistantWorkflowStatus.status);
-    try {
-      const selectedModel = this.#elements.modelProviderSettings.value.model.trim();
-      const models = await discoverOpenAICompatibleModels(this.#elements.modelProviderSettings.value.endpoint);
-      this.#elements.modelProviderSettings.setModels(models, models.includes(selectedModel) ? selectedModel : (models[0] ?? selectedModel));
-      this.#elements.assistantWorkflowStatus.status = models.length
-        ? `Found ${models.length} loaded model${models.length === 1 ? "" : "s"}. Using ${this.#elements.modelProviderSettings.value.model}.`
-        : "The local provider is reachable but reports no loaded models.";
-      this.#elements.modelProviderSettings.setStatus(this.#elements.assistantWorkflowStatus.status);
-      this.#saveModelPreferences();
-    } catch (error) {
-      this.#elements.assistantWorkflowStatus.status =
-        error instanceof Error ? error.message : "Could not discover models from the local provider.";
-      this.#elements.modelProviderSettings.setStatus(this.#elements.assistantWorkflowStatus.status);
-    } finally {
-      this.#modelDiscoveryBusy = false;
-      this.#elements.modelProviderSettings.setBusy(false);
-      this.#updateModelAvailability();
-    }
   }
 
   async #renderPreview(bibliography = this.#bibliography.toString()): Promise<void> {

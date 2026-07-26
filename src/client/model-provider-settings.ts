@@ -1,8 +1,7 @@
 import { html, LitElement, type TemplateResult } from "lit";
-import type { ModelReasoningEffort } from "./model-provider";
+import { discoverOpenAICompatibleModels, type ModelReasoningEffort } from "./model-provider";
 
 export const modelProviderChangeEvent = "model-provider-change";
-export const modelProviderDiscoveryEvent = "model-provider-discovery";
 
 export interface ModelProviderPreferences {
   readonly connection: "companion" | "direct";
@@ -24,12 +23,14 @@ const initialPreferences: ModelProviderPreferences = {
 export class ModelProviderSettings extends LitElement {
   static override properties = {
     busy: { state: true },
+    discoveryAvailable: { state: true },
     models: { state: true },
     preferences: { state: true },
     status: { state: true },
   };
 
   declare private busy: boolean;
+  declare private discoveryAvailable: boolean;
   declare private models: readonly string[];
   declare private preferences: ModelProviderPreferences;
   declare private status: string;
@@ -37,6 +38,7 @@ export class ModelProviderSettings extends LitElement {
   constructor() {
     super();
     this.busy = false;
+    this.discoveryAvailable = true;
     this.models = [];
     this.preferences = initialPreferences;
     this.status = "Connection details stay on this device.";
@@ -46,11 +48,35 @@ export class ModelProviderSettings extends LitElement {
     return this.preferences;
   }
 
-  setBusy(busy: boolean): void {
-    this.busy = busy;
+  get discoveryBusy(): boolean {
+    return this.busy;
   }
 
-  setModels(models: readonly string[], selectedModel: string): void {
+  setDiscoveryAvailable(available: boolean): void {
+    this.discoveryAvailable = available;
+  }
+
+  async discoverModels(discover: (endpoint: string) => Promise<readonly string[]> = discoverOpenAICompatibleModels): Promise<void> {
+    if (this.busy || !this.discoveryAvailable) return;
+    this.busy = true;
+    this.status = "Checking the local provider for loaded models…";
+    this.emitChange(this.status);
+    try {
+      const selectedModel = this.preferences.model.trim();
+      const models = await discover(this.preferences.endpoint);
+      this.setModels(models, models.includes(selectedModel) ? selectedModel : (models[0] ?? selectedModel));
+      this.status = models.length
+        ? `Found ${models.length} loaded model${models.length === 1 ? "" : "s"}. Using ${this.preferences.model}.`
+        : "The local provider is reachable but reports no loaded models.";
+    } catch (error) {
+      this.status = error instanceof Error ? error.message : "Could not discover models from the local provider.";
+    } finally {
+      this.busy = false;
+      this.emitChange(this.status);
+    }
+  }
+
+  private setModels(models: readonly string[], selectedModel: string): void {
     const selected = selectedModel.trim();
     this.models = [...new Set(models.map((model) => model.trim()).filter(Boolean))];
     const options = this.modelOptions(selected);
@@ -58,10 +84,6 @@ export class ModelProviderSettings extends LitElement {
       ...this.preferences,
       model: options.includes(selected) ? selected : (options[0] ?? ""),
     };
-  }
-
-  setStatus(status: string): void {
-    this.status = status;
   }
 
   restore(stored: Record<string, unknown>): void {
@@ -142,7 +164,7 @@ export class ModelProviderSettings extends LitElement {
             class="button-secondary justify-center"
             id="discover-llm-models"
             type="button"
-            ?disabled=${this.busy}
+            ?disabled=${this.busy || !this.discoveryAvailable}
             @click=${this.discover}
           >
             ${this.busy ? "Finding models…" : "Find loaded models"}
@@ -187,7 +209,7 @@ export class ModelProviderSettings extends LitElement {
   }
 
   protected discover(): void {
-    if (!this.busy) this.dispatchEvent(new CustomEvent(modelProviderDiscoveryEvent, { bubbles: true }));
+    void this.discoverModels();
   }
 
   private emitChange(status: string | null = null): void {

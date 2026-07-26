@@ -185,6 +185,11 @@ collaboration.
   A bounded light-DOM Vim control owns stored enablement, mode presentation,
   modal keyboard and pointer-selection behavior, and editor-listener teardown;
   the coordinator supplies only the source textarea and its visual shell.
+- **Model provider settings:** A bounded light-DOM component owns browser-local
+  provider preferences, model options, discovery requests, overlapping-request
+  suppression, busy and result status, and failure recovery. The application
+  coordinator supplies cross-feature discovery availability, mirrors status to
+  the assistant workflow, persists preferences, and retains generation.
 - **Assistant task setup:** A bounded light-DOM component owns local operation,
   target scope, instruction, claim relation, rhetorical purpose, structured
   table requirements, operation-specific copy and visibility, target-preview
