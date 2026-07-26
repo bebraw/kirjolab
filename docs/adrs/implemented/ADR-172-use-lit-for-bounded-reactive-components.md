@@ -64,8 +64,9 @@ The adopted components own bounded presentation:
 - The project history dialog composes the server-rendered modal and reactive
   history panel and owns its XState actor, modal lifecycle, timeline and
   operation requests, response validation, confirmations, request generations,
-  stale-response rejection, busy and error state, and typed notice, navigation,
-  reload, and close outcomes.
+  stale-response rejection, busy and error state, canonical successful branch
+  navigation, post-restore reload, and typed notice outcomes. Its modal close
+  lifecycle is internal and emits no unused external event.
 - The project history trigger owns revision-badge presentation and emits one
   typed open intent. The application coordinator retains revision authority,
   toast presentation, and browser navigation policy.
@@ -452,8 +453,9 @@ reason to wrap static markup mechanically.
   one component reference and consolidates panel-close, native-dialog-close,
   loading, busy, timeline, inspection, and comparison presentation. It also
   removes the coordinator actor and eleven request, operation, and failure
-  methods while leaving toast, reload, and navigation outcomes in the
-  application coordinator.
+  methods while leaving only toast notices in the application coordinator. The
+  dialog now owns validated successful branch navigation and post-restore
+  reload directly and removes its unused close event.
 - The writing-workflow panels replace five internal element references and two
   parallel imperative list renderers. The reviewer-response panel also replaces
   the coordinator's response-letter derivation and download helper while

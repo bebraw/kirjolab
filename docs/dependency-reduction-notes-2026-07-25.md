@@ -5705,6 +5705,29 @@ component members.
 Full native CI passes all 1,583 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Project History Browser Effects
+
+`ProjectHistoryDialog` now owns canonical successful branch navigation and
+post-restore reload after its existing request validation and local state
+updates. It emits only user-facing notices for `WorkspaceApp` to present as
+global toasts, and its internal close lifecycle no longer dispatches an unused
+external event.
+
+This checkpoint reduces `src/client/app.ts` from 3,897 to 3,891 lines (-6), the
+project-history dialog from 221 to 215 lines (-6), and its focused test from 216
+to 206 lines (-10). Runtime and focused test source across the three changed
+files decreases by 22 lines. Five focused and seven related tests pass through
+the affected guardrails alongside formatting, lint, and strict types.
+
+The browser application artifact changes from 823,042 B raw / 222,819 B gzip
+to 822,705 B raw / 222,768 B gzip (-337 B raw / -51 B gzip). Styles, direct and
+unique production package counts, and the readability audit remain unchanged
+at 135,411 B raw / 23,373 B gzip, 18, 150, and 249 externally visible low-level
+component members.
+
+Full native CI passes all 1,583 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Reviewer-Response Export
 
 `WritingWorkflowPanel` now derives the response-to-reviewers letter from its

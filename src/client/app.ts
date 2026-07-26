@@ -208,7 +208,7 @@ import { pdfHighlightImportOutcomeEvent, type PdfHighlightImportOutcome } from "
 import type { ExistingPdfUpload } from "./pdf-upload-queue";
 import { bindThemePreference } from "./theme";
 import { OpenAICompatibleBrowserProvider } from "./model-provider";
-import { projectHistoryOutcomeEvent, type ProjectHistoryOutcome } from "./project-history-dialog";
+import { projectHistoryOutcomeEvent } from "./project-history-dialog";
 import {
   activateResearchTab,
   closeResearchTab,
@@ -689,13 +689,7 @@ class WorkspaceApp {
     this.#elements.projectHistoryDialog.configure(apiBase);
     this.#elements.projectHistoryTrigger.addEventListener(projectHistoryOpenEvent, () => void this.#elements.projectHistoryDialog.open());
     this.#elements.projectHistoryDialog.addEventListener(projectHistoryOutcomeEvent, (event) => {
-      const outcome = (event as CustomEvent<ProjectHistoryOutcome>).detail;
-      if (outcome.action === "notice") this.#showToast(outcome.message);
-      else if (outcome.action === "navigate") window.location.assign(outcome.href);
-      else {
-        this.#showToast(outcome.message);
-        window.location.reload();
-      }
+      this.#showToast((event as CustomEvent<string>).detail);
     });
     this.#elements.manuscriptCommentListPanel.configure(apiBase);
     this.#elements.manuscriptCommentListPanel.addEventListener(manuscriptCommentCreateEvent, (event) => {

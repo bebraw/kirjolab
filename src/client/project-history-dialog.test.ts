@@ -1,12 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ProjectRevisionContent, ProjectRevisionDiff, ProjectRevisionSummary } from "../domain/project-history";
 import type { ProjectHistoryOperation } from "./project-history-machine";
-import {
-  ProjectHistoryDialog,
-  projectHistoryDialogCloseEvent,
-  projectHistoryOutcomeEvent,
-  type ProjectHistoryOutcome,
-} from "./project-history-dialog";
+import { ProjectHistoryDialog, projectHistoryOutcomeEvent } from "./project-history-dialog";
 
 const revisions: readonly ProjectRevisionSummary[] = [
   { createdAt: "t2", fileCount: 1, milestones: [], reason: "checkpoint", revision: 2, title: "Paper" },
@@ -96,10 +91,6 @@ describe("project history dialog", () => {
   it("loads and owns the modal timeline lifecycle", async () => {
     const { control, dialog, panel } = controls();
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(json(revisions)));
-    let closed = false;
-    control.addEventListener(projectHistoryDialogCloseEvent, () => {
-      closed = true;
-    });
 
     await control.open();
     expect(control.renderForTest()).toBeDefined();
@@ -110,7 +101,6 @@ describe("project history dialog", () => {
     control.closeFromPanelForTest();
     control.closeDialogForTest();
     expect(dialog.close).toHaveBeenCalledOnce();
-    expect(closed).toBe(true);
   });
 
   it("owns inspect, compare, milestone, restore, and branch requests", async () => {
@@ -128,13 +118,16 @@ describe("project history dialog", () => {
       return Promise.resolve(json(revisions));
     });
     vi.stubGlobal("fetch", fetchMock);
+    const assign = vi.fn();
+    const reload = vi.fn();
     vi.stubGlobal("window", {
       confirm: vi.fn().mockReturnValue(true),
+      location: { assign, reload },
       prompt: vi.fn().mockReturnValueOnce("Submitted").mockReturnValueOnce("Final version").mockReturnValueOnce("Branch project"),
     });
-    const outcomes: ProjectHistoryOutcome[] = [];
+    const outcomes: string[] = [];
     control.addEventListener(projectHistoryOutcomeEvent, (event) => {
-      outcomes.push((event as CustomEvent<ProjectHistoryOutcome>).detail);
+      outcomes.push((event as CustomEvent<string>).detail);
     });
 
     await control.open();
@@ -146,11 +139,9 @@ describe("project history dialog", () => {
 
     expect(panel.showRevision).toHaveBeenCalledWith(content);
     expect(panel.showComparison).toHaveBeenCalledWith(comparison);
-    expect(outcomes).toEqual([
-      { action: "notice", message: "Milestone “Submitted” now identifies v2." },
-      { action: "reload", message: "Restored v2 as a new head." },
-      { action: "navigate", href: "/workspaces/branch" },
-    ]);
+    expect(outcomes).toEqual(["Milestone “Submitted” now identifies v2.", "Restored v2 as a new head."]);
+    expect(reload).toHaveBeenCalledOnce();
+    expect(assign).toHaveBeenCalledWith("/workspaces/branch");
     expect(fetchMock).toHaveBeenCalledWith("/api/workspaces/workspace-1/history/2/milestones", {
       body: JSON.stringify({ name: "Submitted", description: "Final version" }),
       credentials: "same-origin",
@@ -161,8 +152,8 @@ describe("project history dialog", () => {
 
   it("keeps provider and malformed failures local and reports notices", async () => {
     const { control, panel } = controls();
-    const outcomes: ProjectHistoryOutcome[] = [];
-    control.addEventListener(projectHistoryOutcomeEvent, (event) => outcomes.push((event as CustomEvent<ProjectHistoryOutcome>).detail));
+    const outcomes: string[] = [];
+    control.addEventListener(projectHistoryOutcomeEvent, (event) => outcomes.push((event as CustomEvent<string>).detail));
     vi.stubGlobal(
       "fetch",
       vi
@@ -176,15 +167,13 @@ describe("project history dialog", () => {
     await control.open();
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(json({ error: "Revision unavailable" }, 404)));
     await control.actionForTest({ kind: "inspect", revision: 2 });
-    expect(outcomes).toEqual([
-      { action: "notice", message: "Project history returned an invalid timeline" },
-      { action: "notice", message: "Revision unavailable" },
-    ]);
+    expect(outcomes).toEqual(["Project history returned an invalid timeline", "Revision unavailable"]);
   });
 
   it("keeps an accepted mutation consequence after the dialog closes", async () => {
     const { control } = controls();
-    vi.stubGlobal("window", { confirm: vi.fn().mockReturnValue(true) });
+    const reload = vi.fn();
+    vi.stubGlobal("window", { confirm: vi.fn().mockReturnValue(true), location: { reload } });
     vi.stubGlobal("fetch", vi.fn().mockResolvedValueOnce(json(revisions)));
     await control.open();
     let resolveResponse = (_response: Response): void => undefined;
@@ -192,15 +181,16 @@ describe("project history dialog", () => {
       resolveResponse = resolve;
     });
     vi.stubGlobal("fetch", vi.fn().mockReturnValue(pendingResponse));
-    const outcomes: ProjectHistoryOutcome[] = [];
-    control.addEventListener(projectHistoryOutcomeEvent, (event) => outcomes.push((event as CustomEvent<ProjectHistoryOutcome>).detail));
+    const outcomes: string[] = [];
+    control.addEventListener(projectHistoryOutcomeEvent, (event) => outcomes.push((event as CustomEvent<string>).detail));
 
     const restore = control.actionForTest({ kind: "restore", revision: 1 });
     control.closeDialogForTest();
     resolveResponse(new Response(null, { status: 204 }));
     await restore;
 
-    expect(outcomes).toEqual([{ action: "reload", message: "Restored v1 as a new head." }]);
+    expect(outcomes).toEqual(["Restored v1 as a new head."]);
+    expect(reload).toHaveBeenCalledOnce();
   });
 
   it("tolerates unavailable server-rendered children", async () => {

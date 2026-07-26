@@ -5,13 +5,7 @@ import { errorMessage, expectOk, jsonFetch } from "./http";
 import { createProjectHistoryActor, projectHistoryBusy, type ProjectHistoryOperation } from "./project-history-machine";
 import { ProjectHistoryPanel, projectHistoryActionEvent, projectHistoryCloseEvent } from "./project-history-panel";
 
-export const projectHistoryDialogCloseEvent = "project-history-dialog-close";
 export const projectHistoryOutcomeEvent = "project-history-outcome";
-
-export type ProjectHistoryOutcome =
-  | { readonly action: "notice"; readonly message: string }
-  | { readonly action: "navigate"; readonly href: string }
-  | { readonly action: "reload"; readonly message: string };
 
 export class ProjectHistoryDialog extends LitElement {
   private readonly workflow = createProjectHistoryActor();
@@ -42,7 +36,7 @@ export class ProjectHistoryDialog extends LitElement {
       this.workflow.send({ type: "TIMELINE_FAILED", requestId, message });
       if (this.workflow.getSnapshot().matches("failed")) {
         this.panel()?.showError(message);
-        this.emitOutcome({ action: "notice", message });
+        this.emitNotice(message);
       }
     } finally {
       this.syncBusy();
@@ -78,7 +72,6 @@ export class ProjectHistoryDialog extends LitElement {
   protected readonly handleDialogClose = (): void => {
     this.workflow.send({ type: "CLOSE" });
     this.syncBusy();
-    this.dispatchEvent(new CustomEvent(projectHistoryDialogCloseEvent, { bubbles: true, composed: true }));
   };
 
   protected readonly handlePanelActionEvent = (event: Event): void => {
@@ -112,7 +105,7 @@ export class ProjectHistoryDialog extends LitElement {
     this.workflow.send({ type: "OPERATION_FAILED", requestId, message });
     this.syncBusy();
     const history = this.workflow.getSnapshot();
-    if (history.matches("ready") && history.context.requestId === requestId) this.emitOutcome({ action: "notice", message });
+    if (history.matches("ready") && history.context.requestId === requestId) this.emitNotice(message);
   }
 
   private async inspect(revision: number): Promise<void> {
@@ -154,7 +147,7 @@ export class ProjectHistoryDialog extends LitElement {
     try {
       await expectOk(await jsonFetch(`${this.apiBase}/history/${revision}/milestones`, { name, description }));
       this.finishOperation(requestId);
-      this.emitOutcome({ action: "notice", message: `Milestone “${name}” now identifies v${revision}.` });
+      this.emitNotice(`Milestone “${name}” now identifies v${revision}.`);
       if (this.isOpen()) await this.open();
     } catch (error) {
       this.failOperation(requestId, error, "Could not name the milestone");
@@ -168,7 +161,8 @@ export class ProjectHistoryDialog extends LitElement {
     try {
       await expectOk(await jsonFetch(`${this.apiBase}/history/${revision}/restore`, {}));
       this.finishOperation(requestId);
-      this.emitOutcome({ action: "reload", message: `Restored v${revision} as a new head.` });
+      this.emitNotice(`Restored v${revision} as a new head.`);
+      window.location.reload();
     } catch (error) {
       this.failOperation(requestId, error, "Could not restore the revision");
     }
@@ -185,7 +179,7 @@ export class ProjectHistoryDialog extends LitElement {
       const value: unknown[] = [await response.json()];
       if (!isWorkspaceSummaries(value) || !value[0]) throw new Error("Project branch returned an invalid workspace");
       this.finishOperation(requestId);
-      this.emitOutcome({ action: "navigate", href: value[0].href });
+      window.location.assign(value[0].href);
     } catch (error) {
       this.failOperation(requestId, error, "Could not branch from the revision");
     }
@@ -197,8 +191,8 @@ export class ProjectHistoryDialog extends LitElement {
     this.panel()?.setBusy(busy);
   }
 
-  private emitOutcome(outcome: ProjectHistoryOutcome): void {
-    this.dispatchEvent(new CustomEvent<ProjectHistoryOutcome>(projectHistoryOutcomeEvent, { bubbles: true, detail: outcome }));
+  private emitNotice(message: string): void {
+    this.dispatchEvent(new CustomEvent<string>(projectHistoryOutcomeEvent, { bubbles: true, detail: message }));
   }
 
   private dialog(): HTMLDialogElement | null {

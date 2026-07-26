@@ -480,8 +480,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   additions/removals without interpreting correctness.
 - Keep the browser-local history actor, timeline and operation requests,
   response guards, confirmations, busy state, and stale-response rejection in
-  the project-history Lit dialog. Let the application coordinator consume only
-  typed toast, navigation, and reload outcomes.
+  the project-history Lit dialog. Let it own canonical successful branch
+  navigation and post-restore reload, and emit only typed notices to the
+  application coordinator for global toast policy.
 - Treat project unlink, library archive, share revocation, and permanent owner
   deletion as distinct operations. Revocation is forward-only; deletion keeps
   only the tombstoned provenance needed by historical project revisions.
