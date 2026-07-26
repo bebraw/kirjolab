@@ -536,6 +536,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   coalesced authorized metadata refresh rather than replacing live editor
   state from a workspace snapshot.
 - Treat claims as stable, human-authored propositions; store their evidence and manuscript usage as typed links so editing or deleting a claim never mutates its source annotations or authored prose.
+- Let the bounded claim dialog own its stable create/edit target, proposition,
+  note, evidence selections and relations, mutation transport, duplicate-submit
+  gating, and retryable local failures. Emit only a successful project-resource
+  refresh outcome; keep evidence availability, canonical refresh, and toast
+  policy in the application coordinator.
 - Treat authoring and research context as the two primary workspace surfaces.
   Keep a permanent manuscript Preview in a keyboard-operable right-hand tab
   pane, and address publication, PDF, and model-candidate tabs by stable

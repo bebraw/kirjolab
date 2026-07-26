@@ -158,7 +158,7 @@ import { citationPageFromLocator, createCitationInsertion, parseCitationKeys, ty
 import { loadMarkdownRuntime, type MarkdownRuntime } from "./markdown-runtime";
 import { projectMapResourceSelectEvent, projectMapSearchEvent } from "./project-map-workspace";
 import { claimListActionEvent, type ClaimListAction } from "./claim-list-panel";
-import { claimDialogSaveEvent, type ClaimDialogSave } from "./claim-dialog";
+import { claimDialogSavedEvent } from "./claim-dialog";
 import { manuscriptCommentActionEvent, manuscriptCommentCreateEvent, type ManuscriptCommentAction } from "./manuscript-comment-list";
 import { publicationListActionEvent, type PublicationListAction } from "./publication-list-panel";
 import { candidateListOpenEvent } from "./candidate-list-panel";
@@ -893,8 +893,13 @@ class WorkspaceApp {
     this.#elements.candidateListPanel.addEventListener(candidateListOpenEvent, (event) => {
       this.#openCandidateContext((event as CustomEvent<ModelCandidate>).detail);
     });
-    this.#elements.claimDialog.addEventListener(claimDialogSaveEvent, (event) => {
-      void this.#saveClaim((event as CustomEvent<ClaimDialogSave>).detail);
+    this.#elements.claimDialog.configure(apiBase);
+    this.#elements.claimDialog.addEventListener(claimDialogSavedEvent, (event) => {
+      const message = (event as CustomEvent<string>).detail;
+      void this.#resourceRefresh
+        .request()
+        .then(() => this.#showToast(message))
+        .catch(() => this.#showToast("The claim was saved, but project resources could not be refreshed."));
     });
     this.#elements.workspaceSurfaceSwitcher.addEventListener(workspaceSurfaceChangeEvent, (event) => {
       this.#showWorkspaceSurface((event as CustomEvent<WorkspaceSurface>).detail);
@@ -2665,23 +2670,6 @@ class WorkspaceApp {
     }
     const evidence = claim ? snapshot.claimEvidenceLinks.filter((link) => link.claimId === claim.id) : [];
     this.#elements.claimDialog.open(claim, snapshot.annotations, evidence);
-  }
-
-  async #saveClaim(detail: ClaimDialogSave): Promise<void> {
-    if (detail.evidence.length === 0) {
-      this.#showToast("Select at least one source annotation.");
-      return;
-    }
-    const response = await fetch(detail.claimId ? `${apiBase}/claims/${detail.claimId}` : `${apiBase}/claims`, {
-      method: detail.claimId ? "PUT" : "POST",
-      credentials: "same-origin",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ text: detail.text, note: detail.note, evidence: detail.evidence }),
-    });
-    await expectOk(response);
-    this.#elements.claimDialog.close();
-    await this.#resourceRefresh.request();
-    this.#showToast("Claim and evidence relationships saved.");
   }
 
   async #deleteClaim(claim: ClaimResource): Promise<void> {

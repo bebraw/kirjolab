@@ -226,8 +226,9 @@ The adopted components own bounded presentation:
   discovery progress, status presentation, opening and focusing its preferences
   host, and typed change and discovery intents.
 - The claim dialog owns create and edit presentation, proposition and note
-  values, evidence-relation and annotation selection, modal lifecycle, and a
-  typed save intent.
+  values, evidence-relation and annotation selection, stable claim identity,
+  modal lifecycle, mutation transport, duplicate-submit gating, local busy and
+  retryable failure state, and a typed successful-refresh outcome.
 - The Library PDF upload control owns file selection, drag-and-drop acceptance,
   ordered batch execution, upload transport and response validation, partial
   failure and refresh-pending state, duplicate-submit gating, drag and busy
@@ -531,8 +532,9 @@ reason to wrap static markup mechanically.
   construction, generation workflows, and assistant status mirroring.
 - The claim dialog replaces eight internal element references, one coordinator
   field, imperative evidence-option rendering, DOM-based selection collection,
-  and modal configuration while leaving evidence prerequisites, API mutation,
-  refreshes, and toast policy in the application coordinator.
+  modal configuration, and the coordinator mutation method while leaving
+  evidence availability, canonical project refresh, and toast policy in the
+  application coordinator.
 - The Library PDF upload control replaces two raw element references, four
   native file and drag bindings, coordinator-owned drag presentation, input
   reset and disabling, duplicate busy state, batch execution, upload transport,

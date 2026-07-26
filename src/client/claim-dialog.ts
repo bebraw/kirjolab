@@ -1,18 +1,12 @@
 import { html, LitElement, type TemplateResult } from "lit";
 import type { AnnotationResource, ClaimEvidenceRelation, ClaimResource } from "../domain/workspace";
+import { errorMessage, expectOk } from "./http";
 
-export const claimDialogSaveEvent = "claim-dialog-save";
+export const claimDialogSavedEvent = "claim-dialog-saved";
 
 export interface ClaimDialogEvidence {
   readonly annotationId: string;
   readonly relation: ClaimEvidenceRelation;
-}
-
-export interface ClaimDialogSave {
-  readonly claimId?: string;
-  readonly evidence: readonly ClaimDialogEvidence[];
-  readonly note: string;
-  readonly text: string;
 }
 
 export class ClaimDialog extends LitElement {
@@ -21,7 +15,9 @@ export class ClaimDialog extends LitElement {
     claimId: { state: true },
     note: { state: true },
     relation: { state: true },
+    saving: { state: true },
     selected: { state: true },
+    status: { state: true },
     text: { state: true },
   };
 
@@ -29,8 +25,11 @@ export class ClaimDialog extends LitElement {
   declare private claimId: string | undefined;
   declare private note: string;
   declare private relation: ClaimEvidenceRelation;
+  declare private saving: boolean;
   declare private selected: ReadonlySet<string>;
+  declare private status: string;
   declare private text: string;
+  private apiBase = "";
 
   constructor() {
     super();
@@ -38,8 +37,14 @@ export class ClaimDialog extends LitElement {
     this.claimId = undefined;
     this.note = "";
     this.relation = "supports";
+    this.saving = false;
     this.selected = new Set();
+    this.status = "";
     this.text = "";
+  }
+
+  configure(apiBase: string): void {
+    this.apiBase = apiBase;
   }
 
   open(claim: ClaimResource | undefined, annotations: readonly AnnotationResource[], evidence: readonly ClaimDialogEvidence[]): void {
@@ -47,7 +52,9 @@ export class ClaimDialog extends LitElement {
     this.claimId = claim?.id;
     this.note = claim?.note ?? "";
     this.relation = evidence[0]?.relation ?? "supports";
+    this.saving = false;
     this.selected = new Set(evidence.map(({ annotationId }) => annotationId));
+    this.status = "";
     this.text = claim?.text ?? "";
     void this.updateComplete.then(() => {
       const dialog = this.querySelector<HTMLDialogElement>("#claim-dialog");
@@ -132,8 +139,9 @@ export class ClaimDialog extends LitElement {
           </fieldset>
           <div class="mt-5 flex justify-end gap-2">
             <button class="button-secondary" id="cancel-claim" type="button" @click=${this.close}>Cancel</button>
-            <button class="button-primary" type="submit">Save claim</button>
+            <button class="button-primary" type="submit" ?disabled=${this.saving}>${this.saving ? "Saving…" : "Save claim"}</button>
           </div>
+          <p class="status-line" role="status" ?hidden=${!this.status}>${this.status}</p>
         </form>
       </dialog>
     `;
@@ -159,20 +167,36 @@ export class ClaimDialog extends LitElement {
     this.selected = selected;
   }
 
-  protected save(event: Event): void {
+  protected async save(event: Event): Promise<void> {
     event.preventDefault();
-    const claim = this.claimId ? { claimId: this.claimId } : {};
-    this.dispatchEvent(
-      new CustomEvent<ClaimDialogSave>(claimDialogSaveEvent, {
-        bubbles: true,
-        detail: {
-          ...claim,
-          evidence: [...this.selected].map((annotationId) => ({ annotationId, relation: this.relation })),
-          note: this.note,
+    if (this.saving) return;
+    if (this.selected.size === 0) {
+      this.status = "Select at least one source annotation.";
+      return;
+    }
+    this.saving = true;
+    this.status = "";
+    try {
+      const response = await fetch(this.claimId ? `${this.apiBase}/claims/${encodeURIComponent(this.claimId)}` : `${this.apiBase}/claims`, {
+        method: this.claimId ? "PUT" : "POST",
+        credentials: "same-origin",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
           text: this.text,
-        },
-      }),
-    );
+          note: this.note,
+          evidence: [...this.selected].map((annotationId) => ({ annotationId, relation: this.relation })),
+        }),
+      });
+      await expectOk(response);
+      this.close();
+      this.dispatchEvent(
+        new CustomEvent<string>(claimDialogSavedEvent, { bubbles: true, detail: "Claim and evidence relationships saved." }),
+      );
+    } catch (error) {
+      this.status = errorMessage(error, "Could not save the claim.");
+    } finally {
+      this.saving = false;
+    }
   }
 }
 

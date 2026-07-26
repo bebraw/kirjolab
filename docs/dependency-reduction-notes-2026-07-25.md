@@ -4069,3 +4069,25 @@ direct and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,483 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests, including workspace layout switching and reload
 restoration.
+
+## Continued Lit Ownership: Claim Persistence
+
+`ClaimDialog` now owns create and edit transport, stable encoded claim targets,
+request validation, evidence preconditions, duplicate-submit gating, local busy
+and retryable failure state, modal completion, and the successful-save outcome.
+`WorkspaceApp` retains claim-list refresh and workspace-level toast policy.
+
+This checkpoint reduces `src/client/app.ts` from 5,137 to 5,125 lines (-12)
+and grows the claim dialog from 196 to 220 lines. Runtime source across those
+files increases by 12 lines while removing the coordinator save method and its
+request-payload projection. Focused coverage passes create and edit requests,
+encoded identities, missing evidence, retryable provider failures, successful
+completion, and duplicate submissions.
+
+The browser application artifact changes from 807,357 B raw / 218,919 B gzip
+to 807,832 B raw / 219,045 B gzip (+475 B raw / +126 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,486 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
