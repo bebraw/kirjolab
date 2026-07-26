@@ -63,6 +63,16 @@ export class LatexImportPanel extends LitElement {
     this.bibliographyPath = null;
   }
 
+  open(): void {
+    this.reset();
+    this.dialog.showModal();
+    this.focusTitle();
+  }
+
+  close(): void {
+    this.dialog.close();
+  }
+
   focusTitle(): void {
     void this.updateComplete.then(() => this.querySelector<HTMLInputElement>("#latex-import-title")?.focus());
   }
@@ -269,6 +279,12 @@ ${file.content.length > 1_200 ? `${file.content.slice(0, 1_200)}\n…` : file.co
 
   private emit(detail: LatexImportAction): void {
     this.dispatchEvent(new CustomEvent(latexImportActionEvent, { bubbles: true, composed: true, detail }));
+  }
+
+  private get dialog(): HTMLDialogElement {
+    const dialog = this.closest("dialog");
+    if (!(dialog instanceof HTMLDialogElement)) throw new Error("LaTeX import panel requires a dialog parent");
+    return dialog;
   }
 }
 

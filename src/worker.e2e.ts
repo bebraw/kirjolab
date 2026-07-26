@@ -4341,6 +4341,13 @@ test("starts from built-in and promoted personal project templates", async ({ pa
   await expect(page.locator(".header-action-menu summary")).toBeFocused();
   await page.locator(".header-action-menu summary").click();
   await page.getByRole("button", { name: "New project" }).click();
+  await page.getByRole("button", { name: "Import LaTeX" }).click();
+  await expect(page.locator("#latex-import-dialog")).toBeVisible();
+  await expect(page.locator("#latex-import-title")).toBeFocused();
+  await page.getByRole("button", { name: "Cancel" }).click();
+  await expect(page.locator("#latex-import-dialog")).toBeHidden();
+  await page.locator(".header-action-menu summary").click();
+  await page.getByRole("button", { name: "New project" }).click();
   await page.setViewportSize({ width: 1024, height: 768 });
   const desktopBrowser = await page.locator(".template-browser").evaluate((browser) => {
     const index = browser.querySelector<HTMLElement>(".template-browser-index")!.getBoundingClientRect();

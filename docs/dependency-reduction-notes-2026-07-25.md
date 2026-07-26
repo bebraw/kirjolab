@@ -2146,6 +2146,26 @@ and unique production package counts remain unchanged at 135,411 B raw /
 23,373 B gzip and 18 and 150. Full native CI passes all 1,386 unit/coverage
 tests, 120 Workers-runtime tests, and 74 browser tests.
 
+## Continued Lit Ownership: LaTeX Import Dialog
+
+The existing `LatexImportPanel` now owns reset, native modal opening and
+closing, and initial title focus alongside its archive, preview, diagnostic,
+and confirmation state. `WorkspaceApp` retains authenticated conversion and
+creation requests, response validation, and navigation.
+
+This checkpoint reduces `src/client/app.ts` from 7,372 to 7,368 lines (-4) and
+removes the separate dialog reference plus split reset/open/focus coordination.
+Focused unit and browser coverage passes modal opening, initial focus,
+cancellation, and reopening through the New project workflow.
+
+The browser application artifact changes from 789,139 B raw / 213,062 B gzip
+to 789,241 B raw / 212,982 B gzip (+102 B raw / -80 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,387 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Coordinator Reduction: PDF Viewer Shell
 
 `PdfEvidenceViewer` now resolves its bounded canvas, page, link, text,

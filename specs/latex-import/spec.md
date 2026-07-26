@@ -14,9 +14,10 @@ not translate cleanly.
 - The New project surface offers **Import LaTeX archive** beside template and
   GitHub import workflows.
 - A bounded light-DOM component owns the import form's archive, title, selected
-  root, reviewed conversion, preview digest, status, and busy presentation. It
-  emits typed preview, confirmation, and cancel intents; the application
-  coordinator retains authenticated requests and navigation.
+  root, reviewed conversion, preview digest, status, busy presentation, and
+  native dialog lifecycle. It emits typed preview, confirmation, and cancel
+  intents; the application coordinator retains authenticated requests and
+  navigation.
 - Archive inspection and conservative conversion run in the authenticated
   Worker. Uploaded ZIP bytes are transient request data and are never stored.
 - The importer accepts one bounded ZIP, rejects encrypted entries, traversal,

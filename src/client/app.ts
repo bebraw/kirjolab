@@ -440,7 +440,6 @@ interface Elements {
   workspaceCatalogPanel: WorkspaceCatalogPanel;
   newWorkspace: HTMLButtonElement;
   newWorkspaceStartingPoints: ProjectStartingPointBrowser;
-  latexImportDialog: HTMLDialogElement;
   latexImportPanel: LatexImportPanel;
   gitHubImportPanel: GitHubImportPanel;
   gitHubSyncMenu: GitHubSyncMenu;
@@ -903,7 +902,7 @@ class WorkspaceApp {
     });
     this.#elements.latexImportPanel.addEventListener(latexImportActionEvent, (event) => {
       const action = (event as CustomEvent<LatexImportAction>).detail;
-      if (action.action === "cancel") this.#elements.latexImportDialog.close();
+      if (action.action === "cancel") this.#elements.latexImportPanel.close();
       else if (action.action === "preview") void this.#previewLatexImport(action.archive, action.root);
       else void this.#confirmLatexImport(action);
     });
@@ -1563,9 +1562,7 @@ class WorkspaceApp {
 
   #openLatexImportDialog(): void {
     this.#elements.newWorkspaceStartingPoints.close();
-    this.#elements.latexImportPanel.reset();
-    this.#elements.latexImportDialog.showModal();
-    this.#elements.latexImportPanel.focusTitle();
+    this.#elements.latexImportPanel.open();
   }
 
   #openGitHubImportDialog(): void {
@@ -7170,7 +7167,6 @@ function collectElements(): Elements {
     workspaceCatalogPanel: requiredElement("workspace-catalog-panel", WorkspaceCatalogPanel),
     newWorkspace: requiredElement("new-workspace", HTMLButtonElement),
     newWorkspaceStartingPoints: requiredElement("project-starting-point-browser", ProjectStartingPointBrowser),
-    latexImportDialog: requiredElement("latex-import-dialog", HTMLDialogElement),
     latexImportPanel: requiredElement("latex-import-panel", LatexImportPanel),
     gitHubImportPanel: requiredElement("github-import-panel", GitHubImportPanel),
     gitHubSyncMenu: requiredElement("github-sync-control", GitHubSyncMenu),

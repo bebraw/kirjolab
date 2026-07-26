@@ -129,7 +129,8 @@ The adopted components own bounded presentation:
   typed preview, accept, cancel, and reference-opening intents.
 - The LaTeX import panel owns archive, title, and root input, bounded client
   validation, converted-file and diagnostic review, preview identity, busy and
-  status presentation, and typed preview, confirmation, and cancel intents.
+  status presentation, native dialog lifecycle, and typed preview,
+  confirmation, and cancel intents.
 - The export statistics panel owns loading, total, file, heading, and
   empty-group presentation for the live publication word-count projection.
 - The project export dialog progressively enhances the server-rendered export
@@ -353,8 +354,9 @@ reason to wrap static markup mechanically.
   coordinator.
 - The LaTeX import panel replaces ten internal element references, two
   coordinator fields, and imperative root-option, converted-file, diagnostic,
-  readiness, status, and busy rendering while leaving validated preview and
-  creation requests plus navigation in the application coordinator.
+  readiness, status, and busy rendering. It also replaces the separate native
+  dialog reference while leaving validated preview and creation requests plus
+  navigation in the application coordinator.
 - The export statistics panel replaces the imperative total, explanatory,
   group, row, and empty-state renderers while leaving composition and the
   canonical word-count projection in the application coordinator and domain.
