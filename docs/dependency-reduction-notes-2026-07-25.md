@@ -3147,3 +3147,26 @@ and unique production package counts remain unchanged at 135,411 B raw /
 
 Full native CI passes all 1,411 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Lit Ownership: Preview Source Map
+
+`PreviewSyncControls` now owns the current composition source map and resolves
+both Preview-to-source and source-to-Preview offsets for the directional
+intents it presents. `WorkspaceApp` retains active-file and editor-offset
+selection, caret placement, scrolling, focus, and Preview document navigation
+without caching the map or maintaining a separate offset helper.
+
+This checkpoint reduces `src/client/app.ts` from 6,803 to 6,797 lines (-6) and
+grows the synchronization control from 62 to 78 lines, for ten additional
+runtime lines overall. Focused component coverage passes source-map updates and
+both resolution directions. Two browser workflows pass clicked and centered
+Preview-to-source navigation plus explicit and automatic source-to-Preview
+synchronization.
+
+The browser application artifact changes from 797,102 B raw / 214,617 B gzip
+to 797,274 B raw / 214,638 B gzip (+172 B raw / +21 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,411 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.

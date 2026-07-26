@@ -32,7 +32,13 @@ describe("preview sync controls", () => {
     controls.syncForTest("source-to-preview");
     controls.syncForTest("preview-to-source");
 
+    controls.setSourceMap([
+      { fileId: "part", includeChain: [], outputEnd: 15, outputStart: 5, path: "part.md", sourceEnd: 20, sourceStart: 10 },
+    ]);
+
     expect(actions).toEqual(["source-to-preview", "preview-to-source"]);
+    expect(controls.sourceLocation(9)).toEqual({ fileId: "part", offset: 14 });
+    expect(controls.previewOffsets("part", 14)).toEqual([9]);
     expect(controls.renderForTest()).toBeDefined();
     expect(controls.rootForTest()).toBe(controls);
   });

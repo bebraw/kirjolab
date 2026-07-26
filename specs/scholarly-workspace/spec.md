@@ -80,9 +80,10 @@ collaboration.
   the source caret and rendered passage in either direction. Preview content
   clicks navigate to source, while deliberate source navigation follows in
   Preview without moving the pane during ordinary typing. A bounded light-DOM
-  control owns its directional actions and Preview-context visibility; the
-  coordinator retains source-map resolution, caret placement, scrolling, and
-  focus policy.
+  control owns its directional actions, Preview-context visibility, current
+  composition source map, and bidirectional offset resolution. The coordinator
+  retains active-file and editor-offset selection, caret placement, scrolling,
+  and focus policy.
   A bounded progressive Lit control owns browser-local top-navigation
   visibility, persistence, toggle and restore copy, ARIA presentation, and
   focus handoff. In workspace mode the toggle follows Preview availability;

@@ -1,11 +1,27 @@
 import { html, LitElement, type TemplateResult } from "lit";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
+import type { CompositionSourceSpan } from "../domain/project-files";
 import { renderIcon } from "../ui/icons";
+import { previewOffsetsForSourceLocation, sourceLocationForPreviewOffset, type PreviewSourceLocation } from "./source-preview-sync";
 
 export const previewSyncActionEvent = "preview-sync-action";
 export type PreviewSyncAction = "preview-to-source" | "source-to-preview";
 
 export class PreviewSyncControls extends LitElement {
+  #sourceMap: readonly CompositionSourceSpan[] = [];
+
+  setSourceMap(sourceMap: readonly CompositionSourceSpan[]): void {
+    this.#sourceMap = sourceMap;
+  }
+
+  sourceLocation(previewOffset: number): PreviewSourceLocation | null {
+    return sourceLocationForPreviewOffset(this.#sourceMap, previewOffset);
+  }
+
+  previewOffsets(fileId: string, sourceOffset: number): readonly number[] {
+    return previewOffsetsForSourceLocation(this.#sourceMap, fileId, sourceOffset);
+  }
+
   setVisible(visible: boolean): void {
     this.hidden = !visible;
   }

@@ -324,7 +324,6 @@ import { parseTableRequirements, tableMarkdown, type TableRequirements } from ".
 import { createProjectHistoryActor, projectHistoryBusy, type ProjectHistoryOperation } from "./project-history-machine";
 import { projectHistoryActionEvent } from "./project-history-panel";
 import { ProjectHistoryDialog, projectHistoryDialogCloseEvent } from "./project-history-dialog";
-import { previewOffsetsForSourceLocation, sourceLocationForPreviewOffset } from "./source-preview-sync";
 import { PreviewNavigationControl } from "./preview-navigation-control";
 import {
   activateResearchTab,
@@ -639,7 +638,6 @@ class WorkspaceApp {
   #gitHubSyncRequest = 0;
   #gitHubSyncCheckedAt = 0;
   #previewRenderVersion = 0;
-  #previewSourceMap: readonly CompositionSourceSpan[] = [];
   #offlineSaveTimer: number | undefined;
   #offlineSaveVersion = 0;
   #offlineSaveChain: Promise<void> = Promise.resolve();
@@ -2467,7 +2465,7 @@ class WorkspaceApp {
 
   #renderMarkdownPreview(rendered: RenderedDocument, inputs: PreviewInputs): void {
     this.#previewDocument.showHtml(rendered.html);
-    this.#previewSourceMap = inputs.filePreview?.sourceMap ?? [];
+    this.#elements.previewSyncControls.setSourceMap(inputs.filePreview?.sourceMap ?? []);
     this.#resolveProjectPreviewImages(inputs.renderedSource, inputs.filePreview?.sourceMap ?? []);
   }
 
@@ -2630,7 +2628,7 @@ class WorkspaceApp {
   #syncSourceFromPreviewElement(target: HTMLElement, centerEditor = false): void {
     const previewOffset = Number.parseInt(target.dataset.sourceFrom ?? "", 10);
     if (!Number.isSafeInteger(previewOffset)) return;
-    const location = sourceLocationForPreviewOffset(this.#previewSourceMap, previewOffset);
+    const location = this.#elements.previewSyncControls.sourceLocation(previewOffset);
     if (!location) return;
     this.#showWorkspaceSurface("authoring");
     this.#focusProjectRange(location.fileId, location.offset, location.offset);
@@ -2648,7 +2646,9 @@ class WorkspaceApp {
 
   #syncPreviewFromSource(explicit = true): void {
     if (!this.#previewSyncAvailable(explicit)) return;
-    const offsets = this.#previewSyncOffsets(explicit);
+    const fileId = this.#activeFileId ?? this.#snapshot?.entryFileId ?? "";
+    const sourceOffset = explicit ? this.#sourceOffsetAtEditorCenter() : this.#elements.source.selectionEnd;
+    const offsets = this.#elements.previewSyncControls.previewOffsets(fileId, sourceOffset);
     if (offsets.length === 0) return;
     const target = this.#previewDocument.nearestSourceElement(offsets);
     if (!target) return;
@@ -2659,12 +2659,6 @@ class WorkspaceApp {
   #previewSyncAvailable(explicit: boolean): boolean {
     const automaticSyncAvailable = explicit || this.#automaticPreviewSyncAvailable();
     return automaticSyncAvailable && this.#contextState.activeKey === RESEARCH_PREVIEW_KEY;
-  }
-
-  #previewSyncOffsets(explicit: boolean): readonly number[] {
-    const fileId = this.#activeFileId ?? this.#snapshot?.entryFileId ?? "";
-    const sourceOffset = explicit ? this.#sourceOffsetAtEditorCenter() : this.#elements.source.selectionEnd;
-    return previewOffsetsForSourceLocation(this.#previewSourceMap, fileId, sourceOffset);
   }
 
   #sourceOffsetAtEditorCenter(): number {

@@ -587,9 +587,10 @@ reason to wrap static markup mechanically.
   textarea fallback behavior. The application coordinator supplies the active
   build version and retains toast presentation for the typed copy notice.
 - The preview synchronization control replaces its container and two button
-  references, owns Preview-context visibility, and emits one typed directional
-  action stream. The application coordinator retains source-map resolution,
-  caret selection, scrolling, and focus policy.
+  references, owns Preview-context visibility, the current composition source
+  map, bidirectional offset resolution, and one typed directional action stream.
+  The application coordinator retains active-file and editor-offset selection,
+  caret placement, scrolling, and focus policy.
 - The preview navigation control owns browser-local top-navigation visibility,
   stored restoration, toggle and restore presentation, ARIA and title copy,
   restricted-Preview availability, and focus handoff. The application
