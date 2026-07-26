@@ -342,8 +342,9 @@ collaboration.
   rejection, pixel-space shape recognition, and adjustment back to normalized
   page points. The layer schedules and cancels delayed recognition, updates the
   live draft, and emits a typed recognition intent; the coordinator retains
-  gesture and recognized shape state, workflow transitions, persistence, and
-  inspector messaging.
+  gesture validation, workflow transitions, persistence, and inspector
+  messaging. Subsequent pointer movement is adjusted inside the layer and
+  emitted as normalized page points without exposing pixel-space shape state.
 - **Web sources:** Public HTTP(S) pages are captured through bounded,
   redirect-controlled Worker retrieval into immutable owner-private raw and
   readable R2 objects. Project citations pin one exact access timestamp and

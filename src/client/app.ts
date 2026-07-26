@@ -112,8 +112,10 @@ import {
 import {
   LibraryPdfMarkupLayer,
   libraryPdfMarkupLayerActionEvent,
+  libraryPdfShapeAdjustedEvent,
   libraryPdfShapeRecognizedEvent,
   type LibraryPdfMarkupLayerAction,
+  type LibraryPdfShapeAdjustment,
   type LibraryPdfShapeRecognition,
 } from "./library-pdf-markup-layer";
 import { LibraryPdfProjectUse, libraryPdfProjectUseActionEvent, type LibraryPdfProjectUseAction } from "./library-pdf-project-use";
@@ -216,7 +218,6 @@ import { AssistantTaskPanel, assistantTaskChangeEvent, assistantTaskGenerateEven
 import { AssistantWorkflowStatus, assistantWorkflowActionEvent, type AssistantWorkflowAction } from "./assistant-workflow-status";
 import { assistantWorkflowBusy, createAssistantWorkflowActor } from "./assistant-workflow-machine";
 import { citationPageFromLocator, createCitationInsertion, parseCitationKeys, type CitationContext } from "./citations";
-import type { RecognizedDrawnShape } from "./drawn-shape-recognition";
 import { loadMarkdownRuntime, type MarkdownRuntime } from "./markdown-runtime";
 import { createMetadataRefinementActor } from "./metadata-refinement-machine";
 import { ProjectMapWorkspace, projectMapResourceSelectEvent, projectMapSearchEvent } from "./project-map-workspace";
@@ -646,7 +647,6 @@ class WorkspaceApp {
   #projectFileIncludeFromPath: string | null = null;
   #librarySnapshot: ReferenceLibrarySnapshot | null = null;
   #projectReferencePdfs: readonly ProjectReferencePdf[] = [];
-  #pdfDrawingShape: RecognizedDrawnShape | null = null;
   #libraryHighlightRects: PdfSelectionCapture["rects"] = [];
   #editingLibraryHighlightId: string | null = null;
   #pdfHighlightDetectionArtifactId: string | null = null;
@@ -1188,12 +1188,15 @@ class WorkspaceApp {
       this.#elements.paperMarkups.focusNote(noteId);
     });
     this.#elements.paperMarkups.addEventListener(libraryPdfShapeRecognizedEvent, (event) => {
-      const { pointerId, points, shape } = (event as CustomEvent<LibraryPdfShapeRecognition>).detail;
+      const { kind, pointerId, points } = (event as CustomEvent<LibraryPdfShapeRecognition>).detail;
       if (this.#pdfDrawingPointer() !== pointerId || !this.#pdfDrawingDraft()) return;
-      this.#pdfDrawingShape = shape;
       this.#pdfAnnotation.send({ type: "SNAP_DRAWING_SHAPE", pointerId, points });
-      const label = { line: "Line", ellipse: "Circle", rectangle: "Rectangle", triangle: "Triangle" }[shape.kind];
+      const label = { line: "Line", ellipse: "Circle", rectangle: "Rectangle", triangle: "Triangle" }[kind];
       this.#elements.libraryPdfInspector.setStatus(`${label} snapped into place. Keep dragging to adjust it, or lift to save.`);
+    });
+    this.#elements.paperMarkups.addEventListener(libraryPdfShapeAdjustedEvent, (event) => {
+      const { pointerId, points } = (event as CustomEvent<LibraryPdfShapeAdjustment>).detail;
+      this.#pdfAnnotation.send({ type: "ADJUST_DRAWING_SHAPE", pointerId, points });
     });
     this.#elements.claimListPanel.addEventListener(claimListActionEvent, (event) => {
       const detail = (event as CustomEvent<ClaimListAction>).detail;
@@ -6250,10 +6253,7 @@ class WorkspaceApp {
     }
     const draft = this.#pdfDrawingDraft();
     if (this.#pdfDrawingPointer() !== event.pointerId || !draft) return;
-    if (this.#pdfDrawingShape) {
-      this.#adjustLibraryPdfDrawingShape(event);
-      return;
-    }
+    if (this.#elements.paperMarkups.adjustRecognizedShape(event)) return;
     this.#appendLibraryPdfDrawingPoints(event, draft);
   }
 
@@ -6275,16 +6275,6 @@ class WorkspaceApp {
     this.#pdfAnnotation.send({ type: "ADD_DRAWING_POINTS", pointerId: event.pointerId, points: update.additions });
     this.#elements.paperMarkups.updateDraft(update.points);
     this.#elements.paperMarkups.scheduleShapeRecognition(event.pointerId, update.points);
-  }
-
-  #adjustLibraryPdfDrawingShape(event: PointerEvent): void {
-    const shape = this.#pdfDrawingShape;
-    if (!shape) return;
-    const points = this.#elements.paperMarkups.adjustShape(shape, event);
-    if (!points) return;
-    event.preventDefault();
-    this.#pdfAnnotation.send({ type: "ADJUST_DRAWING_SHAPE", pointerId: event.pointerId, points });
-    this.#elements.paperMarkups.updateDraft(points);
   }
 
   async #finishLibraryPdfDrawing(event: PointerEvent): Promise<void> {
@@ -6338,7 +6328,6 @@ class WorkspaceApp {
 
   #clearLibraryPdfShapeRecognition(): void {
     this.#elements.paperMarkups.cancelShapeRecognition();
-    this.#pdfDrawingShape = null;
   }
 
   async #saveLibraryPdfNote(body: string): Promise<void> {

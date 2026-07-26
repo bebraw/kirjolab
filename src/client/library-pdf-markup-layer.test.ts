@@ -3,8 +3,10 @@ import type { LibraryPdfDrawing, LibraryPdfNote } from "../domain/reference-libr
 import {
   LibraryPdfMarkupLayer,
   libraryPdfMarkupLayerActionEvent,
+  libraryPdfShapeAdjustedEvent,
   libraryPdfShapeRecognizedEvent,
   type LibraryPdfMarkupLayerAction,
+  type LibraryPdfShapeAdjustment,
   type LibraryPdfShapeRecognition,
 } from "./library-pdf-markup-layer";
 
@@ -162,18 +164,28 @@ describe("library PDF markup layer", () => {
     vi.advanceTimersByTime(1);
     expect(recognized).toEqual([
       {
+        kind: "line",
         pointerId: 7,
         points: [
           { x: 0.1, y: 0.2 },
           { x: 0.8, y: 0.2 },
         ],
-        shape: expect.objectContaining({ kind: "line" }),
       },
     ]);
+
+    const adjusted: LibraryPdfShapeAdjustment[] = [];
+    layer.addEventListener(libraryPdfShapeAdjustedEvent, (event) => {
+      adjusted.push((event as CustomEvent<LibraryPdfShapeAdjustment>).detail);
+    });
+    const preventDefault = vi.fn();
+    expect(layer.adjustRecognizedShape({ clientX: 210, clientY: 220, pointerId: 7, preventDefault })).toBe(true);
+    expect(preventDefault).toHaveBeenCalledOnce();
+    expect(adjusted).toEqual([{ pointerId: 7, points: expect.any(Array) }]);
 
     layer.scheduleShapeRecognition(8, drawing.points);
     layer.cancelShapeRecognition();
     vi.runAllTimers();
     expect(recognized).toHaveLength(1);
+    expect(layer.adjustRecognizedShape({ clientX: 0, clientY: 0, pointerId: 8, preventDefault })).toBe(false);
   });
 });

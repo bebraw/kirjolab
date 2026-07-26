@@ -216,7 +216,7 @@ The adopted components own bounded presentation:
   focus restoration, active interaction attributes, pointer normalization to
   page coordinates, coalesced-sample accumulation and deduplication,
   delayed pixel-space shape recognition and adjustment, recognition-timer
-  cleanup, and typed recognition and note-card close intents.
+  cleanup, and typed recognition, shape-adjustment, and note-card close intents.
 - The Library PDF project-use block owns unidentified, unlinked, and linked
   presentation, capability-boundary copy, citation preview, and a typed
   reference-link intent.
@@ -499,9 +499,9 @@ reason to wrap static markup mechanically.
   note-focus queries. It also owns page-relative pointer normalization and its
   interaction attributes, coalesced drawing-sample accumulation, and
   bound-dependent shape recognition and adjustment, including recognition
-  scheduling and cancellation. The application coordinator retains pointer
-  capture, gesture and recognized shape state, persistence, inspector policy,
-  and annotation workflow transitions.
+  scheduling, transient recognized-shape state, manipulation, and cancellation.
+  The application coordinator retains pointer capture, gesture validation,
+  persistence, inspector policy, and annotation workflow transitions.
 - The Library PDF project-use block replaces its imperative renderer and four
   one-off DOM-construction helpers. The application coordinator retains
   canonical reference and project-link lookup, the linking mutation, snapshot

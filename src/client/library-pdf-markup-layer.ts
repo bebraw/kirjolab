@@ -30,8 +30,15 @@ export interface LibraryPdfRecognizedShape {
   readonly shape: RecognizedDrawnShape;
 }
 
-export interface LibraryPdfShapeRecognition extends LibraryPdfRecognizedShape {
+export interface LibraryPdfShapeRecognition {
+  readonly kind: RecognizedDrawnShape["kind"];
   readonly pointerId: number;
+  readonly points: readonly LibraryPdfPoint[];
+}
+
+export interface LibraryPdfShapeAdjustment {
+  readonly pointerId: number;
+  readonly points: readonly LibraryPdfPoint[];
 }
 
 interface DrawingPointerSample {
@@ -43,18 +50,25 @@ interface DrawingPointerEvent extends DrawingPointerSample {
   readonly getCoalescedEvents?: () => readonly DrawingPointerSample[];
 }
 
+interface DrawingAdjustmentEvent extends DrawingPointerSample {
+  readonly pointerId: number;
+  preventDefault(): void;
+}
+
 export interface LibraryPdfDrawingUpdate {
   readonly additions: readonly LibraryPdfPoint[];
   readonly points: readonly LibraryPdfPoint[];
 }
 
 export const libraryPdfMarkupLayerActionEvent = "library-pdf-markup-layer-action";
+export const libraryPdfShapeAdjustedEvent = "library-pdf-shape-adjusted";
 export const libraryPdfShapeRecognizedEvent = "library-pdf-shape-recognized";
 
 export class LibraryPdfMarkupLayer extends LitElement {
   static override properties = { data: { state: true } };
 
   declare private data: LibraryPdfMarkupLayerData | null;
+  private recognizedShape: RecognizedDrawnShape | null = null;
   private recognitionTimer: ReturnType<typeof globalThis.setTimeout> | undefined;
 
   constructor() {
@@ -108,11 +122,12 @@ export class LibraryPdfMarkupLayer extends LitElement {
       this.recognitionTimer = undefined;
       const recognized = this.recognizeShape(points);
       if (!recognized) return;
+      this.recognizedShape = recognized.shape;
       this.updateDraft(recognized.points);
       this.dispatchEvent(
         new CustomEvent<LibraryPdfShapeRecognition>(libraryPdfShapeRecognizedEvent, {
           bubbles: true,
-          detail: { pointerId, ...recognized },
+          detail: { kind: recognized.shape.kind, pointerId, points: recognized.points },
         }),
       );
     }, 850);
@@ -121,6 +136,7 @@ export class LibraryPdfMarkupLayer extends LitElement {
   cancelShapeRecognition(): void {
     if (this.recognitionTimer !== undefined) globalThis.clearTimeout(this.recognitionTimer);
     this.recognitionTimer = undefined;
+    this.recognizedShape = null;
   }
 
   adjustShape(shape: RecognizedDrawnShape, event: Pick<PointerEvent, "clientX" | "clientY">): readonly LibraryPdfPoint[] | null {
@@ -128,6 +144,22 @@ export class LibraryPdfMarkupLayer extends LitElement {
     if (rect.width <= 0 || rect.height <= 0) return null;
     const adjusted = manipulateRecognizedShape(shape, { x: event.clientX - rect.left, y: event.clientY - rect.top });
     return relativePoints(adjusted, rect);
+  }
+
+  adjustRecognizedShape(event: DrawingAdjustmentEvent): boolean {
+    const shape = this.recognizedShape;
+    if (!shape) return false;
+    const points = this.adjustShape(shape, event);
+    if (!points) return true;
+    event.preventDefault();
+    this.updateDraft(points);
+    this.dispatchEvent(
+      new CustomEvent<LibraryPdfShapeAdjustment>(libraryPdfShapeAdjustedEvent, {
+        bubbles: true,
+        detail: { pointerId: event.pointerId, points },
+      }),
+    );
+    return true;
   }
 
   updateDraft(points: readonly LibraryPdfPoint[]): void {
