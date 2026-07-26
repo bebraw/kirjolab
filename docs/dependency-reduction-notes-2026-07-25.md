@@ -3052,3 +3052,26 @@ and unique production package counts remain unchanged at 135,411 B raw /
 
 Full native CI passes all 1,410 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Lit Ownership: Residual Component State
+
+`LibraryPdfUploadStatus` now owns the ephemeral failed-file retry selection and
+emits it only from a guarded retry intent. `LibraryToolsMenu` is the canonical
+owner of archived-reference visibility, which `WorkspaceApp` reads when loading
+the Library. `ProjectExportDialog` retains the latest word-statistics projection
+it already synchronizes across the badge and nested statistics panel.
+
+This checkpoint reduces `src/client/app.ts` from 6,858 to 6,848 lines (-10),
+grows the upload status from 122 to 125 lines and the tools menu from 86 to 90,
+and removes three runtime lines overall. Focused component coverage passes
+guarded failed-file retry details and archived-visibility reads. Three browser
+workflows pass partial PDF retry, archived duplicate reveal, and live export
+statistics.
+
+The browser application artifact changes from 796,904 B raw / 214,612 B gzip
+to 797,057 B raw / 214,636 B gzip (+153 B raw / +24 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,410 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.

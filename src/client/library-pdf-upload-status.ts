@@ -77,7 +77,10 @@ export class LibraryPdfUploadStatus extends LitElement {
   }
 
   protected retry(): void {
-    this.dispatchEvent(new CustomEvent(libraryPdfUploadRetryEvent, { bubbles: true }));
+    const files = this.snapshot?.items.filter((item) => item.state === "failed").map((item) => item.file) ?? [];
+    if (files.length > 0) {
+      this.dispatchEvent(new CustomEvent<readonly File[]>(libraryPdfUploadRetryEvent, { bubbles: true, detail: files }));
+    }
   }
 
   protected reveal(existing: ExistingPdfUpload): void {

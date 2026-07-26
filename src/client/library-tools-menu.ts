@@ -17,6 +17,10 @@ export class LibraryToolsMenu extends LitElement {
     this.showArchived = false;
   }
 
+  get includesArchivedReferences(): boolean {
+    return this.showArchived;
+  }
+
   setShowArchived(show: boolean): void {
     this.showArchived = show;
   }

@@ -55,17 +55,27 @@ describe("library PDF upload status", () => {
 
   it("emits retry and duplicate reveal intents", () => {
     const panel = new TestLibraryPdfUploadStatus();
-    let retries = 0;
+    const failedFile = new File(["pdf"], "failed.pdf", { type: "application/pdf" });
+    let retried: readonly File[] | undefined;
     let revealed: ExistingPdfUpload | undefined;
-    panel.addEventListener(libraryPdfUploadRetryEvent, () => {
-      retries += 1;
+    panel.addEventListener(libraryPdfUploadRetryEvent, (event) => {
+      retried = (event as CustomEvent<readonly File[]>).detail;
     });
     panel.addEventListener(libraryPdfUploadRevealEvent, (event) => {
       revealed = (event as CustomEvent<ExistingPdfUpload>).detail;
     });
     panel.retryForTest();
+    panel.showProgress(
+      {
+        completed: 2,
+        items: [{ file: failedFile, state: "failed" }, item("added.pdf", "added")],
+        total: 2,
+      },
+      true,
+    );
+    panel.retryForTest();
     panel.revealForTest(existing);
-    expect(retries).toBe(1);
+    expect(retried).toEqual([failedFile]);
     expect(revealed).toEqual(existing);
   });
 });

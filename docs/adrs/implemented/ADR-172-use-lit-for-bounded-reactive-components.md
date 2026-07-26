@@ -194,11 +194,11 @@ The adopted components own bounded presentation:
 - The Library PDF upload control owns file selection, drag-and-drop acceptance,
   drag and busy presentation, input reset and disabling, and typed file and
   busy-drop intents. Its companion status owns queue progress, file outcomes,
-  duplicate actions, retry availability, busy and error presentation, and typed
-  retry and reveal intents.
+  duplicate actions, retry availability, the ephemeral failed-file selection,
+  busy and error presentation, and typed retry and reveal intents.
 - The Library tools menu owns archive-file selection and reset, citation-network
-  and archived-reference controls, archived-state presentation, export links,
-  and typed restore, navigation, and filter intents.
+  and archived-reference controls, canonical archived-reference visibility,
+  export links, and typed restore, navigation, and filter intents.
 - The web source panels own URL capture and reset state plus readable-text
   snapshot comparison presentation.
 - The project annotation form owns its complete composer: visibility,
@@ -396,13 +396,13 @@ reason to wrap static markup mechanically.
   dialog reference while leaving validated preview and creation requests plus
   navigation in the application coordinator.
 - The export statistics panel replaces the imperative total, explanatory,
-  group, row, and empty-state renderers while leaving composition and the
-  canonical word-count projection in the application coordinator and domain.
+  group, row, and empty-state renderers while leaving composition and canonical
+  word-count derivation in the application coordinator and domain.
 - The project export dialog replaces separate dialog, close-action, and
   statistics-panel references plus both external trigger references with one
   component reference. It removes the coordinator's trigger and close bindings
-  plus word-count badge mutation. The application coordinator retains only the
-  canonical word-count projection.
+  plus word-count badge mutation and owns the latest statistics projection. The
+  application coordinator retains only canonical word-count derivation.
 - The knowledge connections panel replaces two internal element references and
   imperative edge-card and resource-link rendering while leaving graph
   derivation and cross-resource navigation in the application coordinator.
@@ -469,13 +469,15 @@ reason to wrap static markup mechanically.
   native file and drag bindings, coordinator-owned drag presentation, input
   reset and disabling, and duplicate busy state. Its companion status replaces
   imperative progress, outcome-row, error, duplicate-action, and retry
-  rendering. Queue execution, upload transport, failed-file ownership, Library
-  refreshes, and toast policy remain in the application coordinator.
+  rendering and owns the ephemeral failed-file retry selection. Queue execution,
+  upload transport, Library refreshes, and toast policy remain in the
+  application coordinator.
 - The Library tools menu replaces three raw element references, three native
   bindings, archive-file DOM reads and reset, and scattered archived-button
   presentation while leaving archive transport, citation-network loading,
-  canonical filter state, Library refreshes, and toast policy in the
-  application coordinator.
+  Library refreshes, and toast policy in the application coordinator. The
+  coordinator reads the component's canonical archived visibility when loading
+  the Library.
 - The web source panels replace three internal element references, submit
   binding, URL reset, comparison heading selection, and diff-hunk rendering
   while leaving capture and comparison requests, response validation, Library

@@ -35,7 +35,7 @@ import {
   type ProjectFilePreview,
 } from "../domain/project-files";
 import type { Diagnostic, RenderedDocument } from "../domain/markdown";
-import { publicationWordStatistics, type PublicationWordStatistics } from "../domain/publication-statistics";
+import { publicationWordStatistics } from "../domain/publication-statistics";
 import { suggestCitationKey } from "../domain/publication-intake";
 import { isPhrasingPurposeId, phrasingPatternsForPurpose, phrasingPurposes, type PhrasingPurpose } from "../domain/phrasing-guidance";
 import { researchQuestionsPath, researchQuestionsTemplate } from "../domain/research-questions";
@@ -644,11 +644,8 @@ class WorkspaceApp {
   #libraryHighlightRects: PdfSelectionCapture["rects"] = [];
   #editingLibraryHighlightId: string | null = null;
   #pdfHighlightDetectionArtifactId: string | null = null;
-  #failedLibraryPdfUploads: readonly File[] = [];
-  #showArchivedReferences = false;
   #citationNetwork: CitationNetwork | null = null;
   #citationExpansion: CitationExpansionResult | null = null;
-  #wordStatistics: PublicationWordStatistics | null = null;
   #workspaceCatalog: WorkspaceSummary[] = [];
   #gitHubPickerRequest = 0;
   #gitHubSyncRequest = 0;
@@ -878,8 +875,8 @@ class WorkspaceApp {
       }
       void this.#uploadLibraryPdfs(action.files);
     });
-    this.#elements.libraryPdfUploadStatus.addEventListener(libraryPdfUploadRetryEvent, () => {
-      void this.#uploadLibraryPdfs(this.#failedLibraryPdfUploads);
+    this.#elements.libraryPdfUploadStatus.addEventListener(libraryPdfUploadRetryEvent, (event) => {
+      void this.#uploadLibraryPdfs((event as CustomEvent<readonly File[]>).detail);
     });
     this.#elements.libraryPdfUploadStatus.addEventListener(libraryPdfUploadRevealEvent, (event) => {
       void this.#revealExistingPdfReference((event as CustomEvent<ExistingPdfUpload>).detail);
@@ -892,7 +889,6 @@ class WorkspaceApp {
       if (action.action === "open-citation-network") void this.#openCitationNetwork();
       else if (action.action === "restore-archive") void this.#importLibraryArchive(action.file);
       else {
-        this.#showArchivedReferences = action.show;
         this.#elements.libraryToolsMenu.setShowArchived(action.show);
         void this.#refreshReferenceLibrary();
       }
@@ -2458,8 +2454,7 @@ class WorkspaceApp {
       filePreview ? `${filePreview.path} · ${filePreview.mode === "composed" ? "composed paper" : "isolated file"}` : "Preview",
     );
     if (publicationComposition && this.#snapshot) {
-      this.#wordStatistics = publicationWordStatistics(publicationComposition, inputs.files);
-      this.#renderExportStatistics();
+      this.#elements.exportDialog.setStatistics(publicationWordStatistics(publicationComposition, inputs.files));
     }
   }
 
@@ -3115,10 +3110,6 @@ class WorkspaceApp {
     this.#elements.projectHistoryDialog.setBusy(busy);
   }
 
-  #renderExportStatistics(): void {
-    this.#elements.exportDialog.setStatistics(this.#wordStatistics);
-  }
-
   async #inspectProjectRevision(revision: number): Promise<void> {
     const requestId = this.#startProjectHistoryOperation({ kind: "inspect", revision });
     if (requestId === null) return;
@@ -3255,8 +3246,10 @@ class WorkspaceApp {
   }
 
   async #focusReferenceLibraryEntry(referenceId: string): Promise<boolean> {
-    if (!this.#librarySnapshot?.references.some((reference) => reference.id === referenceId) && !this.#showArchivedReferences) {
-      this.#showArchivedReferences = true;
+    if (
+      !this.#librarySnapshot?.references.some((reference) => reference.id === referenceId) &&
+      !this.#elements.libraryToolsMenu.includesArchivedReferences
+    ) {
       this.#elements.libraryToolsMenu.setShowArchived(true);
       await this.#refreshReferenceLibrary();
     }
@@ -3270,7 +3263,7 @@ class WorkspaceApp {
   }
 
   async #refreshReferenceLibrary(): Promise<void> {
-    const response = await fetch(`/api/library${this.#showArchivedReferences ? "?archived=include" : ""}`, {
+    const response = await fetch(`/api/library${this.#elements.libraryToolsMenu.includesArchivedReferences ? "?archived=include" : ""}`, {
       credentials: "same-origin",
     });
     await expectOk(response);
@@ -3465,7 +3458,6 @@ class WorkspaceApp {
         (file) => this.#uploadLibraryPdf(file),
         (snapshot) => this.#elements.libraryPdfUploadStatus.showProgress(snapshot, false),
       );
-      this.#failedLibraryPdfUploads = result.failed;
       if (result.added.length > 0 || result.existing.length > 0) await this.#refreshReferenceLibrary();
       this.#elements.libraryPdfUploadStatus.showProgress(
         { items: result.items, completed: result.items.length, total: result.items.length },
@@ -3484,7 +3476,6 @@ class WorkspaceApp {
   #beginLibraryPdfUpload(): void {
     this.#elements.libraryPdfUploadControl.setBusy(true);
     this.#elements.libraryPdfUploadStatus.setBusy(true);
-    this.#failedLibraryPdfUploads = [];
   }
 
   async #uploadLibraryPdf(
@@ -3518,8 +3509,7 @@ class WorkspaceApp {
   }
 
   async #revealExistingPdfReference(existing: ExistingPdfUpload): Promise<void> {
-    if (existing.archived && !this.#showArchivedReferences) {
-      this.#showArchivedReferences = true;
+    if (existing.archived && !this.#elements.libraryToolsMenu.includesArchivedReferences) {
       this.#elements.libraryToolsMenu.setShowArchived(true);
       await this.#refreshReferenceLibrary();
     }

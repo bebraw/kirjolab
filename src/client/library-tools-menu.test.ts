@@ -19,6 +19,7 @@ describe("library tools menu", () => {
   it("owns archived-reference presentation", () => {
     const menu = new TestLibraryToolsMenu();
     menu.setShowArchived(true);
+    expect(menu.includesArchivedReferences).toBe(true);
     expect(menu.renderForTest()).toBeDefined();
   });
 

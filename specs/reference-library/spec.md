@@ -58,20 +58,21 @@ memory and makes citation aliases compete with stable source identity.
   and busy presentation, input reset and disabling, and typed file and
   busy-drop intents. Its companion status component owns queue progress,
   per-file outcomes, duplicate-source reveal actions, retry availability, busy
-  state, and error presentation. The workspace coordinator retains queue
-  execution, upload transport, failed-file ownership, Library refreshes, and
-  toast policy.
+  state, error presentation, and the ephemeral failed-file retry selection,
+  which is emitted with a guarded retry intent. The workspace coordinator
+  retains queue execution, upload transport, Library refreshes, and toast
+  policy.
 - A bounded light-DOM queue owns the count, visibility, reference choices, and
   typed identification intents for legacy PDF artifacts that are not attached
   to a source. The workspace coordinator retains the identification mutation,
   Library refresh, and toast policy. New uploads still create their provisional
   source atomically and normally bypass this compatibility queue.
 - A bounded Library tools menu owns portable-archive file selection and reset,
-  export links, citation-network and archived-reference controls,
-  archived-state presentation, and typed restore, navigation, and filter
-  intents. The workspace coordinator retains archive transport,
-  citation-network loading, canonical filter state, Library refreshes, and
-  notifications.
+  export links, citation-network and archived-reference controls, canonical
+  archived-reference visibility, and typed restore, navigation, and filter
+  intents. The workspace coordinator reads that visibility when loading the
+  Library and retains archive transport, citation-network loading, Library
+  refreshes, and notifications.
 - Linked PDF records may preview bounded, provider-specific OpenAlex, Crossref,
   DataCite, and Semantic Scholar candidates inline according to configured
   provider order. Records are grouped by normalized DOI before the researcher
