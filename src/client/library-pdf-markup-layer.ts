@@ -71,6 +71,7 @@ interface ActiveDrawing {
 }
 
 export interface LibraryPdfNoteDragResult {
+  readonly id: string;
   readonly moved: boolean;
   readonly point: LibraryPdfPoint | null;
 }
@@ -279,15 +280,15 @@ export class LibraryPdfMarkupLayer extends LitElement {
     return hadDrawing;
   }
 
-  continueNoteDrag(event: ActivePointerEvent, noteId: string): boolean {
+  continueNoteDrag(event: ActivePointerEvent): boolean {
     const drag = this.noteDrag;
-    if (!drag || drag.id !== noteId || drag.pointerId !== event.pointerId) return false;
+    if (!drag || drag.pointerId !== event.pointerId) return false;
     const point = this.point(event);
-    if (!point) return false;
+    if (!point) return true;
     drag.moved ||= Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) > 5;
-    if (!drag.moved) return false;
+    if (!drag.moved) return true;
     event.preventDefault();
-    this.moveNote(noteId, point);
+    this.moveNote(drag.id, point);
     return true;
   }
 
@@ -295,7 +296,7 @@ export class LibraryPdfMarkupLayer extends LitElement {
     const drag = this.noteDrag;
     if (!drag || drag.pointerId !== event.pointerId) return null;
     this.noteDrag = null;
-    return { moved: drag.moved, point: this.point(event) };
+    return { id: drag.id, moved: drag.moved, point: this.point(event) };
   }
 
   cancelNoteDrag(): boolean {

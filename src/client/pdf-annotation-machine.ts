@@ -10,17 +10,11 @@ interface PdfAnnotationNoteDraft {
   readonly editingId: string | null;
 }
 
-interface PdfAnnotationNoteDrag {
-  readonly id: string;
-  readonly pointerId: number;
-}
-
 interface PdfAnnotationContext {
   readonly selectedHighlightId: string | null;
   readonly selectedMarkupId: string | null;
   readonly openNoteId: string | null;
   readonly note: PdfAnnotationNoteDraft | null;
-  readonly noteDrag: PdfAnnotationNoteDrag | null;
 }
 
 type PdfAnnotationEvent =
@@ -34,29 +28,19 @@ type PdfAnnotationEvent =
   | { readonly type: "SELECT_MARKUP"; readonly id: string }
   | { readonly type: "CLEAR_SELECTION" }
   | { readonly type: "TOGGLE_NOTE_CARD"; readonly id: string }
-  | { readonly type: "CLOSE_NOTE_CARD" }
-  | { readonly type: "START_NOTE_DRAG"; readonly id: string; readonly pointerId: number }
-  | { readonly type: "FINISH_NOTE_DRAG"; readonly pointerId: number }
-  | { readonly type: "CANCEL_POINTER" };
+  | { readonly type: "CLOSE_NOTE_CARD" };
 
 const initialContext: PdfAnnotationContext = {
   selectedHighlightId: null,
   selectedMarkupId: null,
   openNoteId: null,
   note: null,
-  noteDrag: null,
 };
 
 const pdfAnnotationMachine = setup({
   types: {
     context: {} as PdfAnnotationContext,
     events: {} as PdfAnnotationEvent,
-  },
-  guards: {
-    usesNotePointer: ({ context, event }) => {
-      assertEvent(event, "FINISH_NOTE_DRAG");
-      return context.noteDrag?.pointerId === event.pointerId;
-    },
   },
   actions: {
     resetInteraction: assign(() => initialContext),
@@ -71,7 +55,6 @@ const pdfAnnotationMachine = setup({
         selectedMarkupId: event.id,
         openNoteId: null,
         note: { page: event.page, ...event.point, editingId: event.id },
-        noteDrag: null,
       };
     }),
     clearNote: assign({ note: null }),
@@ -89,15 +72,6 @@ const pdfAnnotationMachine = setup({
       return { openNoteId: context.openNoteId === event.id ? null : event.id };
     }),
     closeNoteCard: assign({ openNoteId: null }),
-    startNoteDrag: assign(({ event }) => {
-      assertEvent(event, "START_NOTE_DRAG");
-      return {
-        selectedHighlightId: null,
-        selectedMarkupId: event.id,
-        noteDrag: { id: event.id, pointerId: event.pointerId },
-      };
-    }),
-    clearNoteDrag: assign({ noteDrag: null }),
   },
 }).createMachine({
   id: "pdfAnnotation",
@@ -121,13 +95,6 @@ const pdfAnnotationMachine = setup({
       on: {
         SELECT_HIGHLIGHT: { actions: "selectHighlight" },
         SELECT_MARKUP: { actions: "selectMarkup" },
-        START_NOTE_DRAG: { target: "draggingNote", actions: "startNoteDrag" },
-      },
-    },
-    draggingNote: {
-      on: {
-        FINISH_NOTE_DRAG: { guard: "usesNotePointer", target: "selectIdle", actions: "clearNoteDrag" },
-        CANCEL_POINTER: { target: "selectIdle", actions: "clearNoteDrag" },
       },
     },
     editingNote: {
@@ -160,7 +127,7 @@ export function createPdfAnnotationActor(): PdfAnnotationActor {
 }
 
 export function pdfAnnotationTool(snapshot: PdfAnnotationSnapshot): PdfAnnotationTool {
-  if (snapshot.value === "selectIdle" || snapshot.value === "draggingNote" || snapshot.value === "editingNote") return "select";
+  if (snapshot.value === "selectIdle" || snapshot.value === "editingNote") return "select";
   if (snapshot.value === "noteIdle" || snapshot.value === "composingNote") return "note";
   return snapshot.value === "drawIdle" ? "draw" : "text";
 }

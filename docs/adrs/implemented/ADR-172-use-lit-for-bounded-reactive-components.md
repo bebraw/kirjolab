@@ -514,13 +514,13 @@ reason to wrap static markup mechanically.
   finishes. The annotation state machine no longer duplicates drawing pointer,
   point, or shape-manipulation state. Note dragging likewise keeps its start
   coordinates, movement threshold, native-default suppression, normalized
-  preview position, and transient DOM update inside the layer. The state machine
-  retains only the active note and pointer identity, while the application
-  coordinator retains state-machine transitions, persistence, inspector policy,
-  and notifications. A prospective note placement similarly remains layer-local
-  until a stationary pointer release; only then does the coordinator send the
-  durable `PLACE_NOTE` workflow transition. The annotation machine no longer
-  models a transient note-press state.
+  preview position, note identity, pointer identity, completion result, and
+  transient DOM update inside the layer. The annotation state machine retains
+  tool mode, selection, and note composition or editing workflow, but no pointer
+  gesture state. The application coordinator retains state-machine transitions,
+  persistence, inspector policy, and notifications. A prospective note placement
+  similarly remains layer-local until a stationary pointer release; only then
+  does the coordinator send the durable `PLACE_NOTE` workflow transition.
 - The Library PDF project-use block replaces its imperative renderer and four
   one-off DOM-construction helpers. The application coordinator retains
   canonical reference and project-link lookup, the linking mutation, snapshot

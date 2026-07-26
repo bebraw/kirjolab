@@ -114,6 +114,7 @@ import {
   libraryPdfMarkupLayerActionEvent,
   libraryPdfShapeRecognizedEvent,
   type LibraryPdfMarkupLayerAction,
+  type LibraryPdfNoteDragResult,
   type LibraryPdfShapeRecognition,
 } from "./library-pdf-markup-layer";
 import { LibraryPdfProjectUse, libraryPdfProjectUseActionEvent, type LibraryPdfProjectUseAction } from "./library-pdf-project-use";
@@ -703,10 +704,6 @@ class WorkspaceApp {
     return this.#pdfAnnotationSnapshot().context.note;
   }
 
-  #pdfNoteDrag() {
-    return this.#pdfAnnotationSnapshot().context.noteDrag;
-  }
-
   #selectedLibraryPdfMarkupId(): string | null {
     return this.#pdfAnnotationSnapshot().context.selectedMarkupId;
   }
@@ -1163,12 +1160,12 @@ class WorkspaceApp {
       else this.#pdfHighlightDetectionArtifactId = null;
     });
     this.#elements.paperMarkups.addEventListener("pointerdown", (event) => this.#startLibraryPdfMarkup(event));
-    this.#elements.paperMarkups.addEventListener("pointermove", (event) => this.#continueLibraryPdfDrawing(event));
-    this.#elements.paperMarkups.addEventListener("pointerup", (event) => void this.#finishLibraryPdfDrawing(event));
+    this.#elements.paperMarkups.addEventListener("pointermove", (event) => this.#continueLibraryPdfMarkup(event));
+    this.#elements.paperMarkups.addEventListener("pointerup", (event) => void this.#finishLibraryPdfMarkup(event));
     this.#elements.paperMarkups.addEventListener("pointercancel", () => {
       const movedNote = this.#elements.paperMarkups.cancelNoteDrag();
       const hadDrawing = this.#elements.paperMarkups.cancelDrawing();
-      this.#cancelLibraryPdfDrawing();
+      this.#elements.paperMarkups.setInteraction(this.#libraryPdfTool());
       if (movedNote || hadDrawing) this.#renderPdfMarkups();
     });
     this.#elements.paperMarkups.addEventListener(libraryPdfMarkupLayerActionEvent, (event) => {
@@ -6169,7 +6166,6 @@ class WorkspaceApp {
     const action = this.#elements.paperMarkups.pointerAction(event);
     if (action?.kind === "note") {
       this.#selectLibraryPdfMarkup(action.id);
-      this.#pdfAnnotation.send({ type: "START_NOTE_DRAG", id: action.id, pointerId: event.pointerId });
       return;
     }
     if (action?.kind === "drawing") {
@@ -6185,24 +6181,21 @@ class WorkspaceApp {
     }
   }
 
-  #continueLibraryPdfDrawing(event: PointerEvent): void {
+  #continueLibraryPdfMarkup(event: PointerEvent): void {
     if (this.#elements.paperMarkups.continueNotePress(event)) return;
-    const drag = this.#pdfNoteDrag();
-    if (drag?.pointerId === event.pointerId) {
-      this.#elements.paperMarkups.continueNoteDrag(event, drag.id);
-      return;
-    }
+    if (this.#elements.paperMarkups.continueNoteDrag(event)) return;
     this.#elements.paperMarkups.continueDrawing(event);
   }
 
-  async #finishLibraryPdfDrawing(event: PointerEvent): Promise<void> {
+  async #finishLibraryPdfMarkup(event: PointerEvent): Promise<void> {
     const notePress = this.#elements.paperMarkups.finishNotePress(event.pointerId);
     if (notePress) {
       if (notePress.point) this.#finishLibraryPdfNotePress(notePress.point);
       return;
     }
-    if (this.#pdfNoteDrag()?.pointerId === event.pointerId) {
-      await this.#finishLibraryPdfNoteDrag(event);
+    const noteDrag = this.#elements.paperMarkups.finishNoteDrag(event);
+    if (noteDrag) {
+      await this.#finishLibraryPdfNoteDrag(noteDrag);
       return;
     }
     const points = this.#elements.paperMarkups.finishDrawing(event.pointerId);
@@ -6233,11 +6226,6 @@ class WorkspaceApp {
     await expectOk(response);
     await this.#refreshReferenceLibrary();
     this.#showToast("Drawing saved privately.");
-  }
-
-  #cancelLibraryPdfDrawing(): void {
-    this.#pdfAnnotation.send({ type: "CANCEL_POINTER" });
-    this.#elements.paperMarkups.setInteraction(this.#libraryPdfTool());
   }
 
   async #saveLibraryPdfNote(body: string): Promise<void> {
@@ -6402,21 +6390,13 @@ class WorkspaceApp {
     if (drawing) await this.#deleteLibraryPdfMarkup(drawing);
   }
 
-  async #finishLibraryPdfNoteDrag(event: PointerEvent): Promise<void> {
-    const drag = this.#pdfNoteDrag();
-    if (!drag) return;
-    const result = this.#elements.paperMarkups.finishNoteDrag(event);
-    this.#pdfAnnotation.send({ type: "FINISH_NOTE_DRAG", pointerId: event.pointerId });
-    if (!result) return this.#renderPdfMarkups();
-    if (!result.moved) {
-      this.#pdfAnnotation.send({ type: "TOGGLE_NOTE_CARD", id: drag.id });
+  async #finishLibraryPdfNoteDrag({ id, moved, point }: LibraryPdfNoteDragResult): Promise<void> {
+    if (!moved) {
+      this.#pdfAnnotation.send({ type: "TOGGLE_NOTE_CARD", id });
       this.#renderPdfMarkups();
       return;
     }
-    const point = result.point;
-    const note = (this.#librarySnapshot?.pdfMarkups ?? []).find(
-      (item): item is LibraryPdfNote => item.kind === "note" && item.id === drag.id,
-    );
+    const note = (this.#librarySnapshot?.pdfMarkups ?? []).find((item): item is LibraryPdfNote => item.kind === "note" && item.id === id);
     if (!point || !note) return this.#renderPdfMarkups();
     const response = await fetch(
       `/api/library/references/${encodeURIComponent(note.referenceId)}/pdf-markups/${encodeURIComponent(note.id)}`,

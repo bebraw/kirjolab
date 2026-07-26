@@ -357,8 +357,9 @@ collaboration.
   annotation state machine does not duplicate drawing gesture state. For a
   selected note, the layer owns drag start coordinates, the five-pixel movement
   threshold, native-default suppression, normalized preview geometry, and the
-  transient pin position. The annotation state machine retains active note and
-  pointer identity, and the coordinator persists the final normalized position.
+  transient pin position. A matching release returns note identity, movement
+  state, and final normalized position for coordinator-owned click handling or
+  persistence. The annotation state machine does not duplicate note-drag state.
   Prospective note placement stays within the layer through its eight-pixel
   stationary-press threshold; only a stationary release sends the normalized
   start point into the annotation composition workflow.

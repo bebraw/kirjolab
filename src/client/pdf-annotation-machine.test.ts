@@ -32,7 +32,6 @@ describe("PDF annotation interaction machine", () => {
       selectedMarkupId: null,
       openNoteId: null,
       note: null,
-      noteDrag: null,
     });
     value.send({ type: "RESET" });
     expect(pdfAnnotationTool(value.getSnapshot())).toBe("text");
@@ -76,7 +75,7 @@ describe("PDF annotation interaction machine", () => {
     expect(value.getSnapshot().context.openNoteId).toBeNull();
   });
 
-  it("keeps selection and note dragging within select mode", () => {
+  it("keeps highlight and markup selection within select mode", () => {
     const value = actor();
     value.send({ type: "CHOOSE_TOOL", tool: "select" });
     expect(pdfAnnotationTool(value.getSnapshot())).toBe("select");
@@ -85,25 +84,13 @@ describe("PDF annotation interaction machine", () => {
     value.send({ type: "SELECT_MARKUP", id: "note-1" });
     expect(value.getSnapshot().context).toMatchObject({ selectedHighlightId: null, selectedMarkupId: "note-1" });
 
-    value.send({ type: "START_NOTE_DRAG", id: "note-1", pointerId: 2 });
-    expect(pdfAnnotationTool(value.getSnapshot())).toBe("select");
-    value.send({ type: "FINISH_NOTE_DRAG", pointerId: 3 });
-    expect(value.getSnapshot().value).toBe("draggingNote");
-    value.send({ type: "FINISH_NOTE_DRAG", pointerId: 2 });
-    expect(value.getSnapshot()).toMatchObject({ value: "selectIdle", context: { noteDrag: null } });
-
     value.send({ type: "CLEAR_SELECTION" });
     expect(value.getSnapshot().context).toMatchObject({ selectedHighlightId: null, selectedMarkupId: null });
-
-    value.send({ type: "START_NOTE_DRAG", id: "note-2", pointerId: 4 });
-    value.send({ type: "CANCEL_POINTER" });
-    expect(value.getSnapshot()).toMatchObject({ value: "selectIdle", context: { noteDrag: null } });
   });
 
   it("ignores interaction events that do not belong to the active tool", () => {
     const value = actor();
     value.send({ type: "PLACE_NOTE", page: 1, point });
-    value.send({ type: "START_NOTE_DRAG", id: "note-1", pointerId: 1 });
-    expect(value.getSnapshot()).toMatchObject({ value: "text", context: { note: null, noteDrag: null } });
+    expect(value.getSnapshot()).toMatchObject({ value: "text", context: { note: null } });
   });
 });

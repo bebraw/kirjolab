@@ -2931,3 +2931,28 @@ direct and unique production package counts remain unchanged at 135,411 B raw /
 
 Full native CI passes all 1,412 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Lit Ownership: Complete PDF Note Dragging
+
+`LibraryPdfMarkupLayer` now owns note identity and pointer identity for the full
+drag lifecycle in addition to its existing threshold, preview, completion, and
+cancellation behavior. Its completion result gives `WorkspaceApp` everything
+needed to toggle a stationary note or persist a moved note. The PDF annotation
+machine no longer models `draggingNote`, note-drag context, pointer guards, or
+drag lifecycle events, leaving it responsible for tool, selection, and note
+composition or editing workflow only.
+
+This checkpoint reduces `src/client/app.ts` from 6,958 to 6,938 lines (-20), the
+PDF annotation machine from 166 to 133 lines (-33), and the three runtime files
+by 52 lines overall. Focused unit coverage passes stationary and moved previews,
+mismatched pointers, completion identity, and cancellation. The private-PDF
+browser flow passes note selection, opening, editing, movement, and persistence
+before drawing, recognition, rendering, and annotated export.
+
+The browser application artifact changes from 798,434 B raw / 215,245 B gzip
+to 797,474 B raw / 214,991 B gzip (-960 B raw / -254 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,412 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
