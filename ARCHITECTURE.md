@@ -685,9 +685,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Let the claim list own confirmed deletion transport, stable encoded claim
   targets, duplicate-submit gating, and retryable local failures. Given a
   coordinator-validated current passage, let it also own claim-passage link
-  transport and its completed mutation outcome. Keep Yjs selection validation,
-  canonical refresh, and workspace notification policy in the application
-  coordinator.
+  transport and its completed mutation outcome. Let it project its claims,
+  annotations, evidence links, and passage links directly from the canonical
+  workspace snapshot plus coordinator-supplied browser-local evidence selection.
+  Keep Yjs selection validation, canonical refresh, and workspace notification
+  policy in the application coordinator.
 - Let the project evidence panel own project-PDF file-input state, validation,
   import transport, guarded project-PDF and annotation removal transport, and
   highlight-fragment update and deletion transport, fragment-input validation,

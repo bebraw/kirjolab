@@ -129,7 +129,6 @@ import {
   isWorkspaceSnapshot,
   isWorkspaceSummaries,
   type AnnotationResource,
-  type ClaimPassageLink,
   type ClaimResource,
   type ManuscriptComment,
   type ModelCandidate,
@@ -2226,7 +2225,7 @@ class WorkspaceApp {
       projectReferences: this.#snapshot.projectReferences,
       publications: this.#snapshot.publications,
     });
-    this.#renderClaims(this.#snapshot.claims, this.#snapshot.claimLinks);
+    this.#elements.claimListPanel.setWorkspace(this.#snapshot, this.#elements.assistantWorkflowStatus.selectedEvidenceKeys);
     this.#renderManuscriptComments(this.#snapshot.comments);
     this.#elements.candidateListPanel.setCandidates(this.#snapshot.candidates);
     this.#pdfViewer.updateAnnotations(
@@ -2276,17 +2275,6 @@ class WorkspaceApp {
   #editAnnotation(annotation: AnnotationResource): void {
     this.#elements.projectAnnotationForm.showAnnotation(annotation);
     this.#openAnnotationEvidence(annotation);
-  }
-
-  #renderClaims(claims: ClaimResource[], links: ClaimPassageLink[]): void {
-    if (!this.#snapshot) return;
-    this.#elements.claimListPanel.setClaims({
-      annotations: this.#snapshot.annotations,
-      claims,
-      evidenceLinks: this.#snapshot.claimEvidenceLinks,
-      passageLinks: links,
-      selectedEvidenceKeys: this.#elements.assistantWorkflowStatus.selectedEvidenceKeys,
-    });
   }
 
   #renderManuscriptComments(comments: ManuscriptComment[]): void {

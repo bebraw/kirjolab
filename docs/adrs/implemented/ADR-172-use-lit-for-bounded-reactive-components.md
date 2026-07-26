@@ -105,11 +105,12 @@ The adopted components own bounded presentation:
   and search lifecycle because the same state controls graph-overview visibility.
 - The claim list panel owns the Claims collection shell and count, claim,
   evidence-link, passage-link, grounding selection, create availability,
-  live passage-resolution presentation, grounding-choice focus, empty-state,
-  action presentation, confirmed deletion and claim-passage-link transport,
-  duplicate-delete gating, local pending and retryable failure state, and typed
-  create, claim, completed mutation, and navigation outcomes. The coordinator
-  supplies the link workflow with a Yjs-validated typed passage input.
+  canonical snapshot projection, live passage-resolution presentation,
+  grounding-choice focus, empty-state, action presentation, confirmed deletion
+  and claim-passage-link transport, duplicate-delete gating, local pending and
+  retryable failure state, and typed create, claim, completed mutation, and
+  navigation outcomes. The coordinator supplies browser-local evidence selection
+  and the link workflow's Yjs-validated typed passage input.
 - The manuscript comment panel owns composer body and status state plus comment,
   anchor-status, empty-state, and action presentation with typed create, open,
   and re-anchor intents. Given a coordinator-validated current passage, it owns
@@ -484,10 +485,10 @@ reason to wrap static markup mechanically.
 - The claim list panel replaces one internal list reference and five imperative
   claim render helpers. It also replaces the separate create-button reference,
   native binding, availability update, count reference, count mutation, and
-  coordinator deletion and passage-link request methods while leaving Yjs
-  selection validation, evidence-selection state, dialogs, canonical refresh,
-  notification policy, passage navigation, and annotation navigation in the
-  application coordinator.
+  coordinator deletion, passage-link request, and canonical claim-projection
+  methods while leaving Yjs selection validation, evidence-selection state,
+  dialogs, canonical refresh, notification policy, passage navigation, and
+  annotation navigation in the application coordinator.
 - The manuscript comment panel replaces three composer element references,
   submit binding, reset and saved-status updates, one internal list reference,
   its imperative card renderer, and all three coordinator comment request

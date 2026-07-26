@@ -5556,6 +5556,29 @@ visible low-level component member after removing the separate restore API.
 Full native CI passes all 1,583 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Claim Snapshot Projection
+
+`ClaimListPanel` now projects its claim, annotation, evidence-link, and passage-
+link collections directly from the canonical workspace snapshot plus the
+browser-local evidence selection. `WorkspaceApp` retains selection mutation,
+dialogs, navigation, canonical refresh, and notification policy without its
+claim-projection wrapper or `ClaimPassageLink` import.
+
+This checkpoint reduces `src/client/app.ts` from 4,006 to 3,994 lines (-12) and
+grows the claim-list owner from 264 to 274 lines. Runtime source across those
+two files decreases by two lines while replacing the intermediate five-field
+data object with one canonical snapshot boundary. Eight focused and ten
+affected tests pass alongside strict types.
+
+The browser application artifact changes from 824,675 B raw / 223,048 B gzip
+to 824,635 B raw / 223,088 B gzip (-40 B raw / +40 B gzip). Styles, direct and
+unique production package counts, and the readability audit remain unchanged at
+135,411 B raw / 23,373 B gzip, 18, 150, and 254 externally visible low-level
+component members.
+
+Full native CI passes all 1,583 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Assistant Evidence Projection
 
 `AssistantWorkflowStatus` now resolves its ordered selected evidence keys

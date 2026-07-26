@@ -92,13 +92,15 @@ describe("claim list panel", () => {
   it("renders empty and populated claim states", () => {
     const panel = new TestClaimListPanel();
     expect(panel.renderForTest()).toBeDefined();
-    panel.setClaims({
-      annotations: [annotation],
-      claims: [claim, { ...claim, id: "claim:2", note: "" }],
-      evidenceLinks: [evidenceLink, { ...evidenceLink, annotationId: "missing", claimId: "claim:2", id: "claim-evidence:2" }],
-      passageLinks: [passageLink],
-      selectedEvidenceKeys: new Set(["claim:1"]),
-    });
+    panel.setWorkspace(
+      {
+        annotations: [annotation],
+        claims: [claim, { ...claim, id: "claim:2", note: "" }],
+        claimEvidenceLinks: [evidenceLink, { ...evidenceLink, annotationId: "missing", claimId: "claim:2", id: "claim-evidence:2" }],
+        claimLinks: [passageLink],
+      },
+      new Set(["claim:1"]),
+    );
     expect(panel.renderForTest()).toBeDefined();
     expect(panel.rootForTest()).toBe(panel);
   });
@@ -122,13 +124,10 @@ describe("claim list panel", () => {
     const panel = new TestClaimListPanel();
     const actions: ClaimListAction[] = [];
     panel.addEventListener(claimListActionEvent, (event) => actions.push((event as CustomEvent<ClaimListAction>).detail));
-    panel.setClaims({
-      annotations: [annotation],
-      claims: [claim],
-      evidenceLinks: [evidenceLink],
-      passageLinks: [passageLink],
-      selectedEvidenceKeys: new Set(),
-    });
+    panel.setWorkspace(
+      { annotations: [annotation], claims: [claim], claimEvidenceLinks: [evidenceLink], claimLinks: [passageLink] },
+      new Set(),
+    );
 
     panel.createForTest();
     panel.evidenceForTest();

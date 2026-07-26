@@ -428,7 +428,10 @@ collaboration.
   coordinator retains graph derivation and navigation authority.
 - **Claims:** Human-authored propositions connect annotations to manuscript
   passages through explicit `supports`, `contradicts`, `extends`, and `used-in`
-  relationships.
+  relationships. The bounded claim list projects claims, annotations, evidence
+  links, and passage links directly from the canonical workspace snapshot plus
+  browser-local evidence selection; the coordinator retains selection mutation,
+  dialogs, navigation, refresh, and notification policy.
 - **Manuscript anchors:** New annotation, claim passage links, and comments verify the
   current source revision and exact requested range, then store version 1 Yjs
   relative positions (start association `0`, end association `-1`), stable file

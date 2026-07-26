@@ -6,6 +6,7 @@ import type {
   ClaimResource,
   CreateClaimPassageLinkInput,
   ManuscriptAnchorSelector,
+  WorkspaceSnapshot,
 } from "../domain/workspace";
 import { errorMessage, expectOk, jsonFetch } from "./http";
 import { focusFirstModelEvidence } from "./model-evidence-focus";
@@ -53,8 +54,17 @@ export class ClaimListPanel extends LitElement {
     this.apiBase = apiBase;
   }
 
-  setClaims(data: ClaimListData): void {
-    this.data = data;
+  setWorkspace(
+    snapshot: Pick<WorkspaceSnapshot, "annotations" | "claims" | "claimEvidenceLinks" | "claimLinks">,
+    selectedEvidenceKeys: ReadonlySet<string>,
+  ): void {
+    this.data = {
+      annotations: snapshot.annotations,
+      claims: snapshot.claims,
+      evidenceLinks: snapshot.claimEvidenceLinks,
+      passageLinks: snapshot.claimLinks,
+      selectedEvidenceKeys,
+    };
   }
 
   setPassageLinks(passageLinks: readonly ClaimPassageLink[]): void {
