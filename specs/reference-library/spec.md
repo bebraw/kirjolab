@@ -45,6 +45,11 @@ memory and makes citation aliases compete with stable source identity.
   rails and never becomes an editable library authority.
 - Existing workspace BibTeX migrates lazily and idempotently into the owner
   library, then becomes project links and derived bibliography.
+- A bounded light-DOM reference-import control owns BibTeX and CSL JSON file
+  selection, file reads, import transport, duplicate-submit gating, local
+  failures, input reset, and refresh-pending state. It emits a typed successful
+  refresh request; the workspace coordinator refreshes the canonical Library,
+  applies toast policy, and acknowledges completion before another import.
 - A PDF upload creates a provisional `misc` source immediately, derives only a
   title from its filename, assigns its provisional reference key, and attaches
   the private artifact atomically. Researchers may enrich metadata later;

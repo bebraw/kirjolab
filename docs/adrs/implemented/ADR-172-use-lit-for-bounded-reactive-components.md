@@ -230,6 +230,10 @@ The adopted components own bounded presentation:
   outcomes. Its bound companion status owns queue progress, file outcomes,
   duplicate actions, retry availability, the ephemeral failed-file selection,
   busy and error presentation, and typed retry and reveal intents.
+- The Library reference-import control owns BibTeX and CSL JSON file selection,
+  file reads, import transport, duplicate-submit gating, local busy and failure
+  presentation, input reset, refresh-pending state, and one typed refresh
+  outcome.
 - The Library tools menu owns archive-file selection and reset, citation-network
   and archived-reference controls, canonical archived-reference visibility,
   export links, and typed restore, navigation, and filter intents.
@@ -527,6 +531,10 @@ reason to wrap static markup mechanically.
   duplicate-action, and retry rendering and owns the ephemeral failed-file
   retry selection. Canonical Library refreshes, duplicate-source navigation,
   and toast policy remain in the application coordinator.
+- The Library reference-import control replaces two raw file-input references,
+  native change bindings, file reads, transport methods, input reset, and
+  duplicate-submit state with one typed refresh-pending boundary. Canonical
+  Library refresh and toast policy remain in the application coordinator.
 - The Library tools menu replaces three raw element references, three native
   bindings, archive-file DOM reads and reset, and scattered archived-button
   presentation while leaving archive transport, citation-network loading,

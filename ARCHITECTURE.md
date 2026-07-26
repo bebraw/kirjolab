@@ -327,6 +327,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Treat CSL JSON and portable library ZIPs as bounded interchange adapters,
   not canonical storage. Metadata archives omit private binary artifacts unless
   a future explicit rights-aware contract says otherwise.
+- Keep BibTeX and CSL JSON file selection, file reads, import transport,
+  duplicate-submit gating, local error state, and refresh-pending state in the
+  Lit reference-import control. Keep canonical Library refresh and toast policy
+  in the application coordinator.
 - Model each web source as one stable owner-library identity with append-only,
   timestamped captures. Retrieve only bounded public HTTP(S) content through
   manually validated redirects, store raw/readable representations privately

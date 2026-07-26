@@ -356,6 +356,7 @@ describe("renderHomePage", () => {
     const html = renderHomePage(exampleRoutes);
 
     expect(html).toContain('<summary class="button-primary">Add reference</summary>');
+    expect(html).toContain('<library-reference-import-control class="contents" id="library-reference-import-control">');
     expect(html).toContain('placeholder="Search references…"');
     expect(html).toContain('<reference-library-filters class="contents" id="reference-library-filters">');
     expect(html).toContain('<library-discovery-search id="library-discovery-search">');

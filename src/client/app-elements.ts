@@ -28,6 +28,7 @@ import { LibraryPdfProjectUse } from "./library-pdf-project-use";
 import { LibraryPdfUploadControl } from "./library-pdf-upload-control";
 import { LibraryPdfUploadStatus } from "./library-pdf-upload-status";
 import { LibraryReferenceList } from "./library-reference-list";
+import { LibraryReferenceImportControl } from "./library-reference-import-control";
 import { LibraryToolsMenu } from "./library-tools-menu";
 import { ManuscriptCommentList } from "./manuscript-comment-list";
 import { ManuscriptMapPanel } from "./manuscript-map-panel";
@@ -88,8 +89,7 @@ export function collectAppElements(requireElement = requiredAppElement) {
     referenceLibraryList: requireElement("reference-library-list", LibraryReferenceList),
     libraryDiscoverySearch: requireElement("library-discovery-search", LibraryDiscoverySearch),
     libraryDiscoveryResults: requireElement("library-discovery-results", LibraryDiscoveryResults),
-    libraryBibliographyUpload: requireElement("library-bibliography-upload", HTMLInputElement),
-    libraryCslUpload: requireElement("library-csl-upload", HTMLInputElement),
+    libraryReferenceImport: requireElement("library-reference-import-control", LibraryReferenceImportControl),
     libraryToolsMenu: requireElement("library-tools-menu", LibraryToolsMenu),
     libraryPdfUploadControl: requireElement("library-pdf-upload-control", LibraryPdfUploadControl),
     libraryPdfUploadStatus: requireElement("library-pdf-upload-status", LibraryPdfUploadStatus),

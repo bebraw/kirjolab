@@ -84,6 +84,7 @@ import { workspaceSharingNoticeEvent } from "./workspace-sharing-panel";
 import { WorkspaceLayoutManager } from "./workspace-layout-manager";
 import { unidentifiedPdfIdentifyEvent, type UnidentifiedPdfSelection } from "./unidentified-pdf-list";
 import { libraryReferenceSummaryActionEvent, type LibraryReferenceSummaryAction } from "./library-reference-summary";
+import { libraryReferenceImportRefreshEvent, type LibraryReferenceImportRefresh } from "./library-reference-import-control";
 import { libraryReferencePersonalRefreshEvent } from "./library-reference-personal-fields";
 import {
   LibraryReferenceMetadataEditor,
@@ -584,8 +585,9 @@ class WorkspaceApp {
       const { index, result } = (event as CustomEvent<LibraryDiscoverySaveDetail>).detail;
       void this.#saveLibraryDiscoveredReference(result, index);
     });
-    this.#elements.libraryBibliographyUpload.addEventListener("change", () => void this.#importIntoReferenceLibrary());
-    this.#elements.libraryCslUpload.addEventListener("change", () => void this.#importCslJson());
+    this.#elements.libraryReferenceImport.addEventListener(libraryReferenceImportRefreshEvent, (event) => {
+      void this.#completeReferenceImport((event as CustomEvent<LibraryReferenceImportRefresh>).detail);
+    });
     this.#elements.libraryPdfUploadControl.bindStatus(this.#elements.libraryPdfUploadStatus);
     this.#elements.libraryPdfUploadControl.addEventListener(libraryPdfUploadOutcomeEvent, (event) => {
       const outcome = (event as CustomEvent<LibraryPdfUploadOutcome>).detail;
@@ -2371,29 +2373,15 @@ class WorkspaceApp {
     }
   }
 
-  async #importIntoReferenceLibrary(): Promise<void> {
-    const file = this.#elements.libraryBibliographyUpload.files?.[0];
-    if (!file) return;
-    const response = await jsonFetch("/api/library/import", { bibtex: await file.text() });
-    await expectOk(response);
-    this.#elements.libraryBibliographyUpload.value = "";
-    await this.#refreshReferenceLibrary();
-    this.#showToast("References imported into your private library. Add only the ones this project uses.");
-  }
-
-  async #importCslJson(): Promise<void> {
-    const file = this.#elements.libraryCslUpload.files?.[0];
-    if (!file) return;
-    const response = await fetch("/api/library/import/csl-json", {
-      method: "POST",
-      credentials: "same-origin",
-      headers: { "content-type": "application/json" },
-      body: await file.text(),
-    });
-    await expectOk(response);
-    this.#elements.libraryCslUpload.value = "";
-    await this.#refreshReferenceLibrary();
-    this.#showToast("CSL JSON imported into the canonical library.");
+  async #completeReferenceImport(detail: LibraryReferenceImportRefresh): Promise<void> {
+    try {
+      await this.#refreshReferenceLibrary();
+      this.#showToast(detail.message);
+    } catch {
+      this.#showToast("References were imported, but the refreshed Library could not be loaded.");
+    } finally {
+      this.#elements.libraryReferenceImport.complete(detail.requestId);
+    }
   }
 
   async #importLibraryArchive(file: File): Promise<void> {

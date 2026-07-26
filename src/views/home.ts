@@ -377,8 +377,10 @@ export function renderHomePage(
                   </web-source-capture>
                   <div class="library-menu-divider"></div>
                   <p class="eyebrow px-3 pt-2">Import reference file</p>
-                  <label class="library-menu-action" title="Import references from a BibTeX file"><span><strong>Bibliography file</strong><small>BibTeX (.bib)</small></span><input class="sr-only" id="library-bibliography-upload" type="file" accept=".bib,application/x-bibtex,text/plain"></label>
-                  <label class="library-menu-action" title="Import references from a CSL JSON file"><span><strong>Reference data file</strong><small>CSL JSON (.json)</small></span><input class="sr-only" id="library-csl-upload" type="file" accept=".json,application/json"></label>
+                  <library-reference-import-control class="contents" id="library-reference-import-control">
+                    <label class="library-menu-action" title="Import references from a BibTeX file"><span><strong>Bibliography file</strong><small>BibTeX (.bib)</small></span><input class="sr-only" id="library-bibliography-upload" type="file" accept=".bib,application/x-bibtex,text/plain"></label>
+                    <label class="library-menu-action" title="Import references from a CSL JSON file"><span><strong>Reference data file</strong><small>CSL JSON (.json)</small></span><input class="sr-only" id="library-csl-upload" type="file" accept=".json,application/json"></label>
+                  </library-reference-import-control>
                 </div>
               </details>
             </header>

@@ -3889,3 +3889,27 @@ and unique production package counts remain unchanged at 135,411 B raw /
 
 Full native CI passes all 1,465 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Lit Ownership: Reference File Imports
+
+The new `LibraryReferenceImportControl` progressively enhances the existing
+BibTeX and CSL JSON inputs and owns file selection and reset, file reads, both
+import transports, duplicate-submit gating, local busy and retryable failure
+state, and refresh-pending acknowledgment. `WorkspaceApp` retains canonical
+Library refresh and toast policy.
+
+This checkpoint reduces `src/client/app.ts` from 5,246 to 5,234 lines (-12),
+replaces two raw application element references with one component, and adds a
+124-line component. Runtime source across the shell and new component increases
+by 112 lines; most of that fixed cost is the accessible light-DOM fallback
+template and direct transport coverage. Focused coverage passes both request
+formats and success messages, refresh-pending gating, stale acknowledgment,
+provider failure, and concurrent-import rejection.
+
+The browser application artifact changes from 800,799 B raw / 217,499 B gzip
+to 802,484 B raw / 217,790 B gzip (+1,685 B raw / +291 B gzip). Styles and
+direct and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,468 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
