@@ -30,6 +30,20 @@ export interface LibraryPdfRecognizedShape {
   readonly shape: RecognizedDrawnShape;
 }
 
+interface DrawingPointerSample {
+  readonly clientX: number;
+  readonly clientY: number;
+}
+
+interface DrawingPointerEvent extends DrawingPointerSample {
+  readonly getCoalescedEvents?: () => readonly DrawingPointerSample[];
+}
+
+export interface LibraryPdfDrawingUpdate {
+  readonly additions: readonly LibraryPdfPoint[];
+  readonly points: readonly LibraryPdfPoint[];
+}
+
 export const libraryPdfMarkupLayerActionEvent = "library-pdf-markup-layer-action";
 
 export class LibraryPdfMarkupLayer extends LitElement {
@@ -60,6 +74,19 @@ export class LibraryPdfMarkupLayer extends LitElement {
       x: Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width)),
       y: Math.max(0, Math.min(1, (event.clientY - rect.top) / rect.height)),
     };
+  }
+
+  extendDrawing(event: DrawingPointerEvent, draft: readonly LibraryPdfPoint[]): LibraryPdfDrawingUpdate | null {
+    const points = [...draft];
+    const additions: LibraryPdfPoint[] = [];
+    for (const sample of event.getCoalescedEvents?.() ?? [event]) {
+      const point = this.point(sample);
+      const previous = points.at(-1);
+      if (!point || (previous && Math.hypot(point.x - previous.x, point.y - previous.y) < 0.0015)) continue;
+      points.push(point);
+      additions.push(point);
+    }
+    return additions.length > 0 ? { additions, points } : null;
   }
 
   recognizeShape(points: readonly LibraryPdfPoint[]): LibraryPdfRecognizedShape | null {

@@ -6257,19 +6257,10 @@ class WorkspaceApp {
     // Safari can otherwise promote an active Apple Pencil stroke to a native
     // scroll once the zoomed page starts moving, despite cancelling pointerdown.
     event.preventDefault();
-    const samples = event.getCoalescedEvents?.() ?? [event];
-    const points = [...draft];
-    const additions: LibraryPdfPoint[] = [];
-    for (const sample of samples) {
-      const point = this.#elements.paperMarkups.point(sample);
-      const previous = points.at(-1);
-      if (!point || (previous && Math.hypot(point.x - previous.x, point.y - previous.y) < 0.0015)) continue;
-      points.push(point);
-      additions.push(point);
-    }
-    if (additions.length === 0) return;
-    this.#pdfAnnotation.send({ type: "ADD_DRAWING_POINTS", pointerId: event.pointerId, points: additions });
-    this.#elements.paperMarkups.updateDraft(points);
+    const update = this.#elements.paperMarkups.extendDrawing(event, draft);
+    if (!update) return;
+    this.#pdfAnnotation.send({ type: "ADD_DRAWING_POINTS", pointerId: event.pointerId, points: update.additions });
+    this.#elements.paperMarkups.updateDraft(update.points);
     this.#scheduleLibraryPdfShapeRecognition(event.pointerId);
   }
 

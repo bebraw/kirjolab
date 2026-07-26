@@ -2648,6 +2648,27 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,413 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: PDF Drawing Samples
+
+`LibraryPdfMarkupLayer` now owns expansion of coalesced pointer samples into
+clamped page points, rejection of near-duplicate additions, and assembly of the
+next draft geometry. `WorkspaceApp` retains Safari scroll cancellation,
+annotation-machine updates, recognition scheduling, and persistence.
+
+This checkpoint reduces `src/client/app.ts` from 7,087 to 7,078 lines (-9)
+and removes its local sample loop and distance filtering. Focused unit and
+browser coverage passes coalesced samples, duplicate rejection, a real mouse
+stroke, shape recognition, private persistence, rendering, and annotated
+export.
+
+The browser application artifact changes from 799,932 B raw / 215,491 B gzip
+to 800,029 B raw / 215,499 B gzip (+97 B raw / +8 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,413 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: PDF Shape Geometry
 
 `LibraryPdfMarkupLayer` now owns the rendered-bound conversions required to

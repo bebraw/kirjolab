@@ -94,6 +94,26 @@ describe("library PDF markup layer", () => {
     expect(dataset).toEqual({ drawingActive: "true", tool: "draw" });
     expect(layer.point({ clientX: 210, clientY: 120 })).toEqual({ x: 0.5, y: 0.5 });
     expect(layer.point({ clientX: -10, clientY: 300 })).toEqual({ x: 0, y: 1 });
+    expect(
+      layer.extendDrawing(
+        {
+          clientX: 210,
+          clientY: 120,
+          getCoalescedEvents: () => [
+            { clientX: 50, clientY: 60 },
+            { clientX: 210, clientY: 120 },
+          ],
+        },
+        [{ x: 0.1, y: 0.2 }],
+      ),
+    ).toEqual({
+      additions: [{ x: 0.5, y: 0.5 }],
+      points: [
+        { x: 0.1, y: 0.2 },
+        { x: 0.5, y: 0.5 },
+      ],
+    });
+    expect(layer.extendDrawing({ clientX: 50, clientY: 60 }, [{ x: 0.1, y: 0.2 }])).toBeNull();
     const recognized = layer.recognizeShape([
       { x: 0.1, y: 0.2 },
       { x: 0.8, y: 0.2 },
