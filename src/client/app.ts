@@ -646,7 +646,12 @@ class WorkspaceApp {
       void this.#completeLibraryRefresh(
         (event as CustomEvent<string>).detail,
         "Metadata was applied, but the refreshed Library could not be loaded.",
-        { refresh: () => this.#refreshBibliographicMetadata() },
+        {
+          refresh: async () => {
+            await this.#refreshReferenceLibrary();
+            await this.#refreshSnapshot();
+          },
+        },
       );
     });
     this.#elements.referenceLibraryList.addEventListener(libraryReferencePdfActionEvent, (event) => {
@@ -1190,7 +1195,7 @@ class WorkspaceApp {
     const tabLocation = researchTabRouteLocation(activeTab);
     const next = workspaceUiRouteUrl(current, {
       ...activeWorkspaceFileRoute(this.#activeFileId, this.#snapshot?.entryFileId),
-      rail: this.#activeWorkspaceRail(),
+      rail: this.#elements.workspaceRailTabs.mode,
       mode: this.#elements.authoringModeTabs.mode,
       surface: this.#elements.workspaceSurfaces.dataset.activeSurface === "context" ? "context" : "authoring",
       layout: this.#elements.workspaceLayout.value,
@@ -1201,10 +1206,6 @@ class WorkspaceApp {
     if (next === currentRelative) return;
     if (mode === "push") history.pushState({ view: "workspace" }, "", next);
     else history.replaceState(history.state, "", next);
-  }
-
-  #activeWorkspaceRail(): WorkspaceRail {
-    return this.#elements.workspaceRailTabs.mode;
   }
 
   #openLatexImportDialog(): void {
@@ -2373,7 +2374,7 @@ class WorkspaceApp {
     await this.#refreshProjectReferencePdfs(false);
     this.#contextState = reconcileResearchContext(this.#contextState, this.#researchContextAuthorization());
     this.#renderReferenceLibrary();
-    await this.#referenceLibraryRenderComplete();
+    await this.#elements.referenceLibraryList.settled();
     this.#renderResearchContext();
     this.#syncWorkspaceRoute("replace");
   }
@@ -2398,10 +2399,6 @@ class WorkspaceApp {
 
     const unidentified = library.artifacts.filter((artifact) => artifact.referenceId === null);
     this.#elements.unidentifiedPdfList.setData(unidentified, library.references);
-  }
-
-  async #referenceLibraryRenderComplete(): Promise<void> {
-    await this.#elements.referenceLibraryList.settled();
   }
 
   async #completeLibraryRefresh(
@@ -2436,11 +2433,6 @@ class WorkspaceApp {
     if (!(await this.#elements.referenceLibraryList.focusReference(existing.referenceId, { block: "nearest" }))) {
       this.#showToast(`Library source ${existing.referenceKey} is not available.`);
     }
-  }
-
-  async #refreshBibliographicMetadata(): Promise<void> {
-    await this.#refreshReferenceLibrary();
-    await this.#refreshSnapshot();
   }
 
   async #acceptWorkspaceMutation(result: Response | WorkspaceSnapshot): Promise<void> {
@@ -4294,11 +4286,7 @@ class WorkspaceApp {
     this.#elements.libraryPdfInspector.setStatus(status);
     if (tool !== "note") this.#clearLibraryPdfNoteDraft();
     if (tool !== "select") this.#clearLibraryPdfMarkupSelection();
-    if (this.#libraryPdfInspectorEmpty()) this.#setLibraryPdfInspector(false);
-  }
-
-  #libraryPdfInspectorEmpty(): boolean {
-    return this.#elements.libraryPdfAnnotationForms.empty;
+    if (this.#elements.libraryPdfAnnotationForms.empty) this.#setLibraryPdfInspector(false);
   }
 
   #startLibraryPdfMarkup(event: PointerEvent): void {

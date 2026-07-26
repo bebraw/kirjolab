@@ -4556,3 +4556,20 @@ and unique production package counts remain unchanged at 135,411 B raw /
 
 Full native CI passes all 1,535 unit/coverage tests, 120 Workers-
 runtime tests, and 74 browser tests.
+
+## Coordinator Simplification: Single-Use Projections
+
+`WorkspaceApp` now reads the active rail, settled Library list, and empty PDF
+inspector state directly from their existing Lit owners. The one-off
+bibliographic refresh adapter is inlined at its sole metadata-completion call
+site. Four single-use forwarding methods are gone without moving transport,
+domain state, or notification policy.
+
+This checkpoint reduces `src/client/app.ts` from 4,778 to 4,766 lines (-12)
+with no compensating runtime source growth. The browser application artifact
+changes from 819,001 B raw / 221,705 B gzip to 818,910 B raw / 221,674 B gzip
+(-91 B raw / -31 B gzip). Styles and direct and unique production package
+counts remain unchanged at 135,411 B raw / 23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,535 unit/coverage tests, 120 Workers-
+runtime tests, and 74 browser tests.
