@@ -5108,3 +5108,28 @@ and unique production package counts remain unchanged at 135,411 B raw /
 
 Full native CI passes all 1,570 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Completion Ownership: Canonical Citation Adaptation
+
+The pure citation-completion module now adapts canonical project references and
+available unlinked Library references into its own candidate contract. It owns
+duplicate, archived, and deleted Library exclusion alongside the existing
+context, ranking, and replacement rules. `WorkspaceApp` retains canonical
+reference sets, Library loading, authorization, linking, Yjs insertion, and
+caret restoration.
+
+This checkpoint reduces `src/client/app.ts` from 4,507 to 4,487 lines (-20) and
+grows the citation-completion domain module from 74 to 110 lines. Runtime source
+across those two files increases by 16 lines, trading an application-specific
+27-line mapper for one independently tested completion-domain adapter. Focused
+coverage passes project-only candidates, linked/archived/deleted exclusion,
+available Library candidates, existing context and ranking behavior,
+application contracts, and strict types.
+
+The browser application artifact changes from 824,294 B raw / 222,451 B gzip
+to 824,259 B raw / 222,443 B gzip (-35 B raw / -8 B gzip). Styles and direct and
+unique production package counts remain unchanged at 135,411 B raw / 23,373 B
+gzip and 18 and 150.
+
+Full native CI passes all 1,571 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.

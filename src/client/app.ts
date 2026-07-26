@@ -257,7 +257,7 @@ import { workspaceRailChangeEvent } from "./workspace-rail-tabs";
 import { authoringModeChangeEvent } from "./authoring-mode-tabs";
 import type { EditorPresenceRange } from "./editor-presence";
 import { bindYText, captureRelativeSelection, type RelativeEditorSelection } from "./source-editor-adapter";
-import { citationCompletionContext, type CitationCompletionCandidate } from "./citation-completions";
+import { citationCompletionCandidates, citationCompletionContext } from "./citation-completions";
 import { includeCompletionContext, type IncludeCompletionContext } from "./include-completions";
 
 interface PreviewInputs {
@@ -2967,7 +2967,15 @@ class WorkspaceApp {
       this.#citationLibraryLoading = true;
       void this.#loadCitationCompletionLibrary();
     }
-    this.#elements.sourceCompletion.showCitations(this.#citationCandidates(), context, this.#elements.source);
+    const snapshot = this.#snapshot;
+    this.#elements.sourceCompletion.showCitations(
+      citationCompletionCandidates(
+        snapshot?.projectReferences ?? [],
+        this.#elements.sourceCompletion.scope === "library" ? (this.#librarySnapshot?.references ?? []) : [],
+      ),
+      context,
+      this.#elements.source,
+    );
   }
 
   async #loadCitationCompletionLibrary(): Promise<void> {
@@ -2983,34 +2991,6 @@ class WorkspaceApp {
     } finally {
       this.#citationLibraryLoading = false;
     }
-  }
-
-  #citationCandidates(): CitationCompletionCandidate[] {
-    const snapshot = this.#snapshot;
-    if (!snapshot) return [];
-    const projectCandidates = snapshot.projectReferences.map((reference) => ({
-      key: reference.citationAlias,
-      title: reference.snapshot.title,
-      authors: reference.snapshot.authors,
-      year: reference.snapshot.year,
-      scope: "project" as const,
-      referenceId: reference.referenceId,
-    }));
-    if (this.#elements.sourceCompletion.scope !== "library" || !this.#librarySnapshot) return projectCandidates;
-    const linked = new Set(snapshot.projectReferences.map((reference) => reference.referenceId));
-    return [
-      ...projectCandidates,
-      ...this.#librarySnapshot.references
-        .filter((reference) => !linked.has(reference.id) && reference.archivedAt === null && reference.deletedAt === null)
-        .map((reference) => ({
-          key: reference.referenceKey,
-          title: reference.title,
-          authors: reference.authors,
-          year: reference.year,
-          scope: "library" as const,
-          referenceId: reference.id,
-        })),
-    ];
   }
 
   async #acceptCitationCompletion({ candidate, context }: Extract<SourceCompletionIntent, { kind: "citation" }>): Promise<void> {

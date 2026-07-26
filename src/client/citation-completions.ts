@@ -1,3 +1,6 @@
+import type { BibliographicRecord } from "../domain/reference-library";
+import type { BibliographicSnapshot, ProjectReferenceLink } from "../domain/workspace";
+
 export interface CitationCompletionContext {
   readonly query: string;
   readonly start: number;
@@ -11,6 +14,39 @@ export interface CitationCompletionCandidate {
   readonly year: string;
   readonly scope: "project" | "library";
   readonly referenceId: string;
+}
+
+export function citationCompletionCandidates(
+  projectReferences: readonly (Pick<ProjectReferenceLink, "citationAlias" | "referenceId"> & {
+    readonly snapshot: Pick<BibliographicSnapshot, "authors" | "title" | "year">;
+  })[],
+  libraryReferences: readonly Pick<
+    BibliographicRecord,
+    "archivedAt" | "authors" | "deletedAt" | "id" | "referenceKey" | "title" | "year"
+  >[] = [],
+): CitationCompletionCandidate[] {
+  const project = projectReferences.map((reference) => ({
+    key: reference.citationAlias,
+    title: reference.snapshot.title,
+    authors: reference.snapshot.authors,
+    year: reference.snapshot.year,
+    scope: "project" as const,
+    referenceId: reference.referenceId,
+  }));
+  const linked = new Set(projectReferences.map((reference) => reference.referenceId));
+  return [
+    ...project,
+    ...libraryReferences
+      .filter((reference) => !linked.has(reference.id) && reference.archivedAt === null && reference.deletedAt === null)
+      .map((reference) => ({
+        key: reference.referenceKey,
+        title: reference.title,
+        authors: reference.authors,
+        year: reference.year,
+        scope: "library" as const,
+        referenceId: reference.id,
+      })),
+  ];
 }
 
 export function citationCompletionContext(source: string, position: number): CitationCompletionContext | null {

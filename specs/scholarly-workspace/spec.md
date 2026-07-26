@@ -283,10 +283,11 @@ collaboration.
   state, selected-option scrolling, editor keyboard and blur binding, browser-
   local citation-scope persistence, dismissal, and typed acceptance or scope-
   change intents. Acceptance carries the selected citation or include candidate
-  together with its replacement context. The workspace coordinator retains
-  context detection, canonical candidate derivation, private-Library linking,
-  collaborative edits, and caret restoration without caching the visible
-  options or completion kind.
+  together with its replacement context. The pure citation-completion adapter
+  derives project and available unlinked Library candidates from canonical
+  reference inputs. The workspace coordinator retains those canonical reference
+  sets, context detection, private-Library linking, collaborative edits, and
+  caret restoration without caching the visible options or completion kind.
 - **Source citation action:** One bounded light-DOM control derives the citation
   context at the current source caret, owns action availability, and emits the
   resolved citation keys and locator. The workspace coordinator retains

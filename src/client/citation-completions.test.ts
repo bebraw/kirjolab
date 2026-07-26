@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   applyCitationCompletion,
+  citationCompletionCandidates,
   citationCompletionContext,
   rankCitationCompletionCandidates,
   type CitationCompletionCandidate,
@@ -20,6 +21,22 @@ const candidates: CitationCompletionCandidate[] = [
 ];
 
 describe("citation completion", () => {
+  it("adapts project and available unlinked Library references", () => {
+    const project = [{ citationAlias: "linked2024", referenceId: "linked", snapshot: { authors: ["A"], title: "Linked", year: "2024" } }];
+    const library = [
+      { id: "linked", referenceKey: "duplicate", authors: ["A"], title: "Duplicate", year: "2024", archivedAt: null, deletedAt: null },
+      { id: "open", referenceKey: "open2025", authors: ["B"], title: "Open", year: "2025", archivedAt: null, deletedAt: null },
+      { id: "archived", referenceKey: "old", authors: [], title: "Old", year: "", archivedAt: "2025-01-01", deletedAt: null },
+      { id: "deleted", referenceKey: "gone", authors: [], title: "Gone", year: "", archivedAt: null, deletedAt: "2025-01-01" },
+    ];
+
+    expect(citationCompletionCandidates(project).map((candidate) => candidate.key)).toEqual(["linked2024"]);
+    expect(citationCompletionCandidates(project, library).map((candidate) => [candidate.key, candidate.scope])).toEqual([
+      ["linked2024", "project"],
+      ["open2025", "library"],
+    ]);
+  });
+
   it("finds the active token in citation aliases and grouped citations", () => {
     expect(citationCompletionContext(":cite[mer", 9)).toEqual({ query: "mer", start: 6, end: 9 });
     expect(citationCompletionContext(":citet[smith2024, mer]", 21)).toEqual({ query: "mer", start: 18, end: 21 });
