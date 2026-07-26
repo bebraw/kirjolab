@@ -1,7 +1,8 @@
 import { html, LitElement, type TemplateResult } from "lit";
 import type { AnnotationResource, PdfResource } from "../domain/workspace";
+import { errorMessage, expectOk, jsonFetch } from "./http";
 
-export const projectAnnotationSaveEvent = "project-annotation-save";
+export const projectAnnotationSavedEvent = "project-annotation-saved";
 export const projectAnnotationActionEvent = "project-annotation-action";
 
 export type ProjectHighlightTool = "paint" | "erase";
@@ -10,10 +11,10 @@ export type ProjectAnnotationAction =
   | { readonly action: "undo-highlight"; readonly annotationId: string; readonly fragmentId: string }
   | { readonly action: "cite-page" };
 
-export interface ProjectAnnotationSave {
-  readonly annotationId: string | null;
-  readonly comment: string;
+export interface ProjectAnnotationSaved {
+  readonly annotationId: string;
   readonly link: boolean;
+  readonly message: string;
 }
 
 type AnnotationDraft = Pick<AnnotationResource, "comment" | "id" | "page" | "prefix" | "quote" | "suffix">;
@@ -49,6 +50,7 @@ export class ProjectAnnotationForm extends LitElement {
   declare private undoStroke: UndoStroke | null;
   declare private visible: boolean;
   declare private quoteSuffix: string;
+  private apiBase = "";
 
   constructor() {
     super();
@@ -69,6 +71,10 @@ export class ProjectAnnotationForm extends LitElement {
   setPdfs(pdfs: readonly PdfChoice[], selectedPdfId = this.selectedPdfId): void {
     this.pdfs = pdfs;
     this.selectedPdfId = pdfs.some((pdf) => pdf.id === selectedPdfId) ? selectedPdfId : (pdfs[0]?.id ?? "");
+  }
+
+  configure(apiBase: string): void {
+    this.apiBase = apiBase;
   }
 
   selectPdf(pdfId: string): void {
@@ -271,18 +277,28 @@ export class ProjectAnnotationForm extends LitElement {
     this.dispatchEvent(new CustomEvent<ProjectAnnotationAction>(projectAnnotationActionEvent, { bubbles: true, detail }));
   }
 
-  protected save(event: SubmitEvent): void {
+  protected async save(event: SubmitEvent): Promise<void> {
     event.preventDefault();
-    this.dispatchEvent(
-      new CustomEvent<ProjectAnnotationSave>(projectAnnotationSaveEvent, {
-        bubbles: true,
-        detail: {
-          annotationId: this.editingAnnotationId,
-          comment: this.comment,
-          link: (event.submitter as HTMLElement | null)?.id === "save-and-link-annotation",
-        },
-      }),
-    );
+    const annotationId = this.editingAnnotationId;
+    if (!annotationId) {
+      this.status = "Paint a highlight in the PDF before adding a note or manuscript link.";
+      return;
+    }
+    this.status = "Saving highlight note…";
+    try {
+      const response = await jsonFetch(`${this.apiBase}/annotations/${encodeURIComponent(annotationId)}`, { comment: this.comment }, "PUT");
+      await expectOk(response);
+      const message = "Highlight note saved.";
+      this.status = message;
+      this.dispatchEvent(
+        new CustomEvent<ProjectAnnotationSaved>(projectAnnotationSavedEvent, {
+          bubbles: true,
+          detail: { annotationId, link: (event.submitter as HTMLElement | null)?.id === "save-and-link-annotation", message },
+        }),
+      );
+    } catch (error) {
+      this.status = errorMessage(error, "Could not save the highlight note.");
+    }
   }
 
   protected changeComment(event: Event): void {

@@ -4629,6 +4629,30 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,541 unit/coverage tests, 120 Workers-
 runtime tests, and 74 browser tests.
 
+## Continued Lit Ownership: Project Annotation Notes
+
+`ProjectAnnotationForm` now owns optional highlight-note persistence from its
+existing stable annotation identity and comment value. It handles the encoded
+PUT target, local saving and retryable failure status, and a typed completed
+save outcome. `WorkspaceApp` retains canonical resource refresh and the
+optional Yjs-dependent annotation-link continuation.
+
+This checkpoint reduces `src/client/app.ts` from 4,753 to 4,742 lines (-11)
+and grows the annotation form from 317 to 333 lines. Runtime source across
+those two files increases by 5 lines while removing the coordinator note-save
+request, raw form-value outcome, and missing-target branch. Focused coverage
+passes the stable note target and payload, save-and-link outcome, missing
+target, local failure and retry, form state, and remaining toolbar and citation
+intents.
+
+The browser application artifact changes from 819,721 B raw / 221,801 B gzip
+to 819,852 B raw / 221,855 B gzip (+131 B raw / +54 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,542 unit/coverage tests, 120 Workers-
+runtime tests, and 74 browser tests.
+
 ## Coordinator Simplification: Single-Use Projections
 
 `WorkspaceApp` now reads the active rail, settled Library list, and empty PDF

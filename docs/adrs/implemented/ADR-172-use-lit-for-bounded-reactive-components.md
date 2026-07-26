@@ -266,8 +266,9 @@ The adopted components own bounded presentation:
 - The project annotation form owns its complete composer: visibility,
   publication-intake composition, citation availability, highlight-tool and
   undo state and presentation, active annotation identity, visible-PDF choices,
-  captured quotation fields, optional note input, selection status, and typed
-  tool, complete undo, citation, save, and link intents.
+  captured quotation fields, optional note input and persistence, local save
+  status and retryable failures, selection status, and typed tool, complete
+  undo, citation, completed save, and link outcomes or intents.
 - The Library PDF annotation forms own private-highlight, page-note, and
   selected-markup composer visibility and values, private-highlight geometry
   and optional editing identity, private-highlight create and comment-update
@@ -601,9 +602,9 @@ reason to wrap static markup mechanically.
   four direct toolbar and citation bindings, imperative composer visibility,
   citation and tool presentation, PDF-option and captured-selection updates,
   status rendering, submitter detection, editing identity, selected-tool state,
-  and last-stroke undo state while leaving highlight geometry and persistence,
-  manuscript linking, refreshes, and toast policy in the application
-  coordinator.
+  last-stroke undo state, and coordinator note-update transport. It leaves
+  highlight geometry persistence, manuscript linking, canonical refreshes, and
+  toast policy in the application coordinator.
 - The Library PDF annotation forms replace seventeen internal element
   references, three submit bindings, cancel and selected-markup action bindings,
   composer visibility updates, DOM-based value collection, and the coordinator's

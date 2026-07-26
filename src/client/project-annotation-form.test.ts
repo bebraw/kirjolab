@@ -1,10 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   ProjectAnnotationForm,
   projectAnnotationActionEvent,
-  projectAnnotationSaveEvent,
+  projectAnnotationSavedEvent,
   type ProjectAnnotationAction,
-  type ProjectAnnotationSave,
+  type ProjectAnnotationSaved,
   type ProjectHighlightTool,
 } from "./project-annotation-form";
 
@@ -26,12 +26,12 @@ class TestProjectAnnotationForm extends ProjectAnnotationForm {
     else this.changeSuffix(event);
   }
 
-  saveForTest(link: boolean): void {
+  saveForTest(link: boolean): Promise<void> {
     const event = new Event("submit") as SubmitEvent;
     Object.defineProperty(event, "submitter", {
       value: link ? { id: "save-and-link-annotation" } : null,
     });
-    this.save(event);
+    return this.save(event);
   }
 
   actionForTest(action: "cite" | "undo" | ProjectHighlightTool): void {
@@ -40,6 +40,8 @@ class TestProjectAnnotationForm extends ProjectAnnotationForm {
     else this.chooseTool(action);
   }
 }
+
+afterEach(() => vi.restoreAllMocks());
 
 describe("project annotation form", () => {
   it("owns a light-DOM form with empty and populated PDF choices", () => {
@@ -72,20 +74,39 @@ describe("project annotation form", () => {
     expect(panel.renderForTest()).toBeDefined();
   });
 
-  it("emits save and link intents with the current comment", () => {
+  it("owns note persistence and emits completed save and link outcomes", async () => {
     const panel = new TestProjectAnnotationForm();
-    const intents: ProjectAnnotationSave[] = [];
-    panel.addEventListener(projectAnnotationSaveEvent, (event) => {
-      intents.push((event as CustomEvent<ProjectAnnotationSave>).detail);
+    const outcomes: ProjectAnnotationSaved[] = [];
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 200 }));
+    panel.configure("/api/workspaces/workspace");
+    panel.addEventListener(projectAnnotationSavedEvent, (event) => {
+      outcomes.push((event as CustomEvent<ProjectAnnotationSaved>).detail);
     });
     panel.changeForTest("comment", "Use this");
-    panel.saveForTest(false);
+    await panel.saveForTest(false);
     panel.showAnnotation({ id: "annotation-1", comment: "Use this", page: 1, prefix: "", quote: "Evidence", suffix: "" });
-    panel.saveForTest(true);
-    expect(intents).toEqual([
-      { annotationId: null, comment: "Use this", link: false },
-      { annotationId: "annotation-1", comment: "Use this", link: true },
-    ]);
+    await panel.saveForTest(true);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/workspaces/workspace/annotations/annotation-1",
+      expect.objectContaining({ body: JSON.stringify({ comment: "Use this" }), method: "PUT" }),
+    );
+    expect(outcomes).toEqual([{ annotationId: "annotation-1", link: true, message: "Highlight note saved." }]);
+  });
+
+  it("keeps failed note saves local and retryable", async () => {
+    const panel = new TestProjectAnnotationForm();
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(Response.json({ error: "Denied" }, { status: 403 }))
+      .mockResolvedValueOnce(new Response(null, { status: 200 }));
+    panel.configure("/api/workspaces/workspace");
+    panel.showAnnotation({ id: "annotation-1", comment: "Use this", page: 1, prefix: "", quote: "Evidence", suffix: "" });
+
+    await panel.saveForTest(false);
+    expect(panel.renderForTest()).toBeDefined();
+    await panel.saveForTest(false);
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it("emits bounded toolbar and citation intents", () => {

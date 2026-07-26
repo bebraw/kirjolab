@@ -173,9 +173,9 @@ import { contextPrimaryTabActionEvent, type ContextPrimaryTabAction } from "./co
 import { projectEvidenceActionEvent, type ProjectEvidenceAction } from "./project-evidence-panel";
 import {
   projectAnnotationActionEvent,
-  projectAnnotationSaveEvent,
+  projectAnnotationSavedEvent,
   type ProjectAnnotationAction,
-  type ProjectAnnotationSave,
+  type ProjectAnnotationSaved,
   type ProjectHighlightTool,
 } from "./project-annotation-form";
 import {
@@ -830,8 +830,9 @@ class WorkspaceApp {
           .then(() => this.#showToast(detail.message))
           .catch(() => this.#showToast("The reference was enriched, but project resources could not be refreshed."));
     });
-    this.#elements.projectAnnotationForm.addEventListener(projectAnnotationSaveEvent, (event) => {
-      void this.#createAnnotation((event as CustomEvent<ProjectAnnotationSave>).detail);
+    this.#elements.projectAnnotationForm.configure(apiBase);
+    this.#elements.projectAnnotationForm.addEventListener(projectAnnotationSavedEvent, (event) => {
+      void this.#completeAnnotationSave((event as CustomEvent<ProjectAnnotationSaved>).detail);
     });
     this.#elements.projectAnnotationForm.addEventListener(projectAnnotationActionEvent, (event) => {
       const action = (event as CustomEvent<ProjectAnnotationAction>).detail;
@@ -3402,22 +3403,10 @@ class WorkspaceApp {
     this.#showToast("PDF imported without modifying the source file.");
   }
 
-  async #createAnnotation(detail: ProjectAnnotationSave): Promise<void> {
-    const annotationId = detail.annotationId;
-    if (!annotationId) {
-      this.#showToast("Paint a highlight in the PDF before adding a note or manuscript link.");
-      return;
-    }
-    const response = await fetch(`${apiBase}/annotations/${encodeURIComponent(annotationId)}`, {
-      method: "PUT",
-      credentials: "same-origin",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ comment: detail.comment }),
-    });
-    await expectOk(response);
+  async #completeAnnotationSave(detail: ProjectAnnotationSaved): Promise<void> {
     await this.#resourceRefresh.request();
-    if (detail.link) await this.#linkAnnotation(annotationId);
-    else this.#showToast("Highlight note saved.");
+    if (detail.link) await this.#linkAnnotation(detail.annotationId);
+    else this.#showToast(detail.message);
   }
 
   async #linkAnnotation(annotationId: string): Promise<void> {
