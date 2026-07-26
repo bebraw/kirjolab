@@ -246,7 +246,9 @@ memory and makes citation aliases compete with stable source identity.
   adjusted shape, while an uncertain, open, or undersized stroke remains
   freehand. Recognition runs in page-pixel coordinates, makes no network
   request, and persists the result through the existing normalized drawing
-  contract rather than introducing editable shape records.
+  contract rather than introducing editable shape records. The markup surface
+  emits its own touch-versus-drawing and recognized-shape guidance as one typed
+  status outcome for presentation by the inspector.
   Note placement is committed only after a stationary pointer gesture ends;
   movement that becomes a scroll or page swipe cancels the pending note.
   Notes and strokes use normalized page coordinates so they remain aligned when

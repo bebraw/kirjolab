@@ -25,10 +25,6 @@ export interface LibraryPdfRecognizedShape {
   readonly shape: RecognizedDrawnShape;
 }
 
-export interface LibraryPdfShapeRecognition {
-  readonly kind: RecognizedDrawnShape["kind"];
-}
-
 interface DrawingPointerSample {
   readonly clientX: number;
   readonly clientY: number;
@@ -85,7 +81,6 @@ interface MarkupTargetElement {
   closest(selector: string): Pick<Element, "getAttribute"> | null;
 }
 
-export const libraryPdfShapeRecognizedEvent = "library-pdf-shape-recognized";
 export const libraryPdfMarkupActionEvent = "library-pdf-markup-action";
 
 export type LibraryPdfMarkupAction =
@@ -96,7 +91,7 @@ export type LibraryPdfMarkupAction =
       readonly action: "place-note";
       readonly draft: LibraryPdfNoteDraft & { readonly artifactId: string; readonly referenceId: string };
     }
-  | { readonly action: "touch-drawing" };
+  | { readonly action: "status"; readonly message: string };
 
 export class LibraryPdfMarkupLayer extends LitElement {
   static override properties = { data: { state: true }, savingDrawing: { state: true }, status: { state: true } };
@@ -338,12 +333,8 @@ export class LibraryPdfMarkupLayer extends LitElement {
       if (!recognized) return;
       this.recognizedShape = recognized.shape;
       this.updateDrawing(recognized.points);
-      this.dispatchEvent(
-        new CustomEvent<LibraryPdfShapeRecognition>(libraryPdfShapeRecognizedEvent, {
-          bubbles: true,
-          detail: { kind: recognized.shape.kind },
-        }),
-      );
+      const label = { line: "Line", ellipse: "Circle", rectangle: "Rectangle", triangle: "Triangle" }[recognized.shape.kind];
+      this.emitAction({ action: "status", message: `${label} snapped into place. Keep dragging to adjust it, or lift to save.` });
     }, 850);
   }
 
@@ -557,7 +548,7 @@ export class LibraryPdfMarkupLayer extends LitElement {
     if (action?.kind === "note" || action?.kind === "drawing") {
       this.emitAction({ action: "select-markup", id: action.id });
     } else if (action?.kind === "touch-drawing") {
-      this.emitAction({ action: "touch-drawing" });
+      this.emitAction({ action: "status", message: "Use Apple Pencil or a mouse to draw; touch gestures pan and zoom the page." });
     }
   };
 

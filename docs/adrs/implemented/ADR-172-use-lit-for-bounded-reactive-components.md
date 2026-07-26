@@ -356,8 +356,9 @@ The adopted components own bounded presentation:
   interpretation, raw host pointer-event routing, local pointer capture,
   note-placement press and note-drag thresholds, note-drag preview state,
   drawing activation and continuation, cancellation recovery, typed selection,
-  stationary-note, touch-warning, recognition, and completed-mutation intents,
-  local note-card dismissal, completed note-move transport, stable encoded note
+  stationary-note, interaction-status, and completed-mutation intents, local
+  touch-versus-drawing and recognized-shape guidance, local note-card
+  dismissal, completed note-move transport, stable encoded note
   targets, overlapping-move suppression, retryable local failures, and typed
   completed-move outcomes.
   Given stable active artifact and reference identities, it also owns completed

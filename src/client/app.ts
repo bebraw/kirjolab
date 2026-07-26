@@ -62,12 +62,7 @@ import {
 import { gitHubSyncMutationEvent, type GitHubSyncMutation } from "./github-sync-review";
 import { libraryPdfAnnotationActionEvent, type LibraryPdfAnnotationAction } from "./library-pdf-annotation-forms";
 import { libraryPdfAnnotationListActionEvent, type LibraryPdfAnnotationListAction } from "./library-pdf-annotation-list";
-import {
-  libraryPdfMarkupActionEvent,
-  libraryPdfShapeRecognizedEvent,
-  type LibraryPdfMarkupAction,
-  type LibraryPdfShapeRecognition,
-} from "./library-pdf-markup-layer";
+import { libraryPdfMarkupActionEvent, type LibraryPdfMarkupAction } from "./library-pdf-markup-layer";
 import { libraryPdfToolbarActionEvent, type LibraryPdfToolbarAction } from "./library-pdf-annotation-toolbar";
 import { libraryPdfInspectorCloseEvent } from "./library-pdf-inspector";
 import { startingPointActionEvent, startingPointTemplateDeleteEvent, type StartingPointAction } from "./project-starting-point-browser";
@@ -814,19 +809,13 @@ class WorkspaceApp {
       const { count } = (event as CustomEvent<PdfHighlightImportOutcome>).detail;
       void this.#completePdfHighlightImport(count);
     });
-    this.#elements.paperMarkups.addEventListener(libraryPdfShapeRecognizedEvent, (event) => {
-      const { kind } = (event as CustomEvent<LibraryPdfShapeRecognition>).detail;
-      const label = { line: "Line", ellipse: "Circle", rectangle: "Rectangle", triangle: "Triangle" }[kind];
-      this.#elements.libraryPdfInspector.setStatus(`${label} snapped into place. Keep dragging to adjust it, or lift to save.`);
-    });
     this.#elements.paperMarkups.addEventListener(libraryPdfMarkupActionEvent, (event) => {
       const detail = (event as CustomEvent<LibraryPdfMarkupAction>).detail;
       if (detail.action === "drawing-saved" || detail.action === "note-moved") {
         this.#completeLibraryPdfMarkup(detail.action === "drawing-saved" ? "Drawing saved privately." : "Note moved.");
       } else if (detail.action === "select-markup") this.#selectLibraryPdfMarkup(detail.id);
-      else if (detail.action === "touch-drawing") {
-        this.#elements.libraryPdfInspector.setStatus("Use Apple Pencil or a mouse to draw; touch gestures pan and zoom the page.");
-      } else {
+      else if (detail.action === "status") this.#elements.libraryPdfInspector.setStatus(detail.message);
+      else {
         this.#elements.libraryPdfAnnotationForms.showNote("", detail.draft);
         this.#setLibraryPdfInspector(true);
         this.#elements.libraryPdfAnnotationForms.focusNote();

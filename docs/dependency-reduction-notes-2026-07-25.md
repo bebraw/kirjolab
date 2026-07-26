@@ -5705,6 +5705,28 @@ component members.
 Full native CI passes all 1,583 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: PDF Markup Guidance
+
+`LibraryPdfMarkupLayer` now owns touch-versus-drawing and recognized-shape
+guidance and emits both through its existing typed action stream. `WorkspaceApp`
+retains inspector status routing, canonical refreshes, saved-selection handling,
+note composition, and completion notification policy.
+
+This checkpoint reduces `src/client/app.ts` from 3,810 to 3,799 lines (-11) and
+the markup owner from 692 to 683 lines (-9), for a 20-line runtime source
+reduction. Its focused test decreases from 478 to 475 lines while asserting the
+status-bearing action contract. Eight focused and ten related tests pass through
+the affected guardrails alongside formatting, lint, and strict types.
+
+The browser application artifact changes from 822,140 B raw / 222,608 B gzip
+to 821,989 B raw / 222,563 B gzip (-151 B raw / -45 B gzip). Styles, direct and
+unique production package counts, and the readability audit remain unchanged
+at 135,411 B raw / 23,373 B gzip, 18, 150, and 249 externally visible low-level
+component members.
+
+Full native CI passes all 1,584 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Editor Syntax Templates
 
 `EditorInsertMenu` now owns the scholarly syntax templates it displays and

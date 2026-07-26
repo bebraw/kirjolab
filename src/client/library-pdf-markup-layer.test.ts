@@ -1,12 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { LibraryPdfDrawing, LibraryPdfNote } from "../domain/reference-library";
-import {
-  LibraryPdfMarkupLayer,
-  libraryPdfMarkupActionEvent,
-  libraryPdfShapeRecognizedEvent,
-  type LibraryPdfMarkupAction,
-  type LibraryPdfShapeRecognition,
-} from "./library-pdf-markup-layer";
+import { LibraryPdfMarkupLayer, libraryPdfMarkupActionEvent, type LibraryPdfMarkupAction } from "./library-pdf-markup-layer";
 
 class TestMarkupLayer extends LibraryPdfMarkupLayer {
   renderForTest() {
@@ -283,7 +277,10 @@ describe("library PDF markup layer", () => {
 
     layer.chooseTool("draw");
     layer.dispatchEvent(pointerEvent("pointerdown", { clientX: 210, clientY: 120, pointerId: 8, pointerType: "touch" }));
-    expect(actions.at(-1)).toEqual({ action: "touch-drawing" });
+    expect(actions.at(-1)).toEqual({
+      action: "status",
+      message: "Use Apple Pencil or a mouse to draw; touch gestures pan and zoom the page.",
+    });
     layer.dispatchEvent(pointerEvent("pointercancel", { clientX: 210, clientY: 120, pointerId: 8, pointerType: "touch" }));
 
     markupTarget = ".pdf-ink-stroke";
@@ -434,9 +431,9 @@ describe("library PDF markup layer", () => {
         target: new EventTarget(),
       }),
     ).toEqual({ kind: "start-drawing" });
-    const recognized: LibraryPdfShapeRecognition[] = [];
-    layer.addEventListener(libraryPdfShapeRecognizedEvent, (event) => {
-      recognized.push((event as CustomEvent<LibraryPdfShapeRecognition>).detail);
+    const actions: LibraryPdfMarkupAction[] = [];
+    layer.addEventListener(libraryPdfMarkupActionEvent, (event) => {
+      actions.push((event as CustomEvent<LibraryPdfMarkupAction>).detail);
     });
 
     layer.scheduleShapeRecognition([
@@ -444,9 +441,9 @@ describe("library PDF markup layer", () => {
       { x: 0.8, y: 0.2 },
     ]);
     vi.advanceTimersByTime(849);
-    expect(recognized).toEqual([]);
+    expect(actions).toEqual([]);
     vi.advanceTimersByTime(1);
-    expect(recognized).toEqual([{ kind: "line" }]);
+    expect(actions).toEqual([{ action: "status", message: "Line snapped into place. Keep dragging to adjust it, or lift to save." }]);
 
     const preventDefault = vi.fn();
     expect(layer.adjustRecognizedShape({ clientX: 210, clientY: 220, pointerId: 7, preventDefault })).toBe(true);
@@ -465,7 +462,7 @@ describe("library PDF markup layer", () => {
     layer.scheduleShapeRecognition(drawing.points);
     layer.cancelShapeRecognition();
     vi.runAllTimers();
-    expect(recognized).toHaveLength(1);
+    expect(actions).toHaveLength(1);
     expect(layer.adjustRecognizedShape({ clientX: 0, clientY: 0, pointerId: 8, preventDefault })).toBe(false);
     expect(layer.cancelDrawing()).toBe(true);
   });
