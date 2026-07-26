@@ -41,7 +41,7 @@ describe("library PDF annotation forms", () => {
     expect(forms.rootForTest()).toBe(forms);
     expect(forms.empty).toBe(true);
 
-    forms.showHighlight({ page: 3, quote: "evidence", comment: "private", editing: false });
+    forms.showHighlight({ highlightId: null, page: 3, quote: "evidence", comment: "private", rects: [] });
     expect(forms.highlightOpen).toBe(true);
     expect(forms.empty).toBe(false);
     expect(forms.renderForTest()).toBeDefined();
@@ -66,7 +66,8 @@ describe("library PDF annotation forms", () => {
       actions.push((event as CustomEvent<LibraryPdfAnnotationAction>).detail);
     });
 
-    forms.showHighlight({ page: 5, quote: "  selected claim  ", comment: "", editing: true });
+    const rects = [{ height: 0.1, width: 0.4, x: 0.1, y: 0.2 }];
+    forms.showHighlight({ highlightId: "highlight-1", page: 5, quote: "  selected claim  ", comment: "", rects });
     forms.changeForTest("comment", "Explain this");
     forms.submitForTest("highlight");
     forms.showNote();
@@ -78,7 +79,7 @@ describe("library PDF annotation forms", () => {
     forms.submitForTest("drawing");
 
     expect(actions).toEqual([
-      { action: "save-highlight", page: 5, quote: "selected claim", comment: "Explain this" },
+      { action: "save-highlight", highlightId: "highlight-1", page: 5, quote: "selected claim", comment: "Explain this", rects },
       { action: "save-note", body: "Margin note" },
       { action: "apply-drawing", color: "#abcdef", width: 12 },
     ]);

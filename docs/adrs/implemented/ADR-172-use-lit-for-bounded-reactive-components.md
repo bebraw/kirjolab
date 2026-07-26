@@ -209,8 +209,9 @@ The adopted components own bounded presentation:
   note input, selection status, and typed tool, undo, citation, save, and link
   intents.
 - The Library PDF annotation forms own private-highlight, page-note, and
-  selected-markup composer visibility and values plus typed save, cancel, edit,
-  delete, and drawing-style intents.
+  selected-markup composer visibility and values, private-highlight geometry
+  and optional editing identity, plus typed save, cancel, edit, delete, and
+  drawing-style intents.
 - The Library PDF annotation toolbar owns tool and drawing-style controls,
   per-tool guidance, annotation availability and inspector state, and typed
   tool, undo, export, and inspector intents.
@@ -494,9 +495,10 @@ reason to wrap static markup mechanically.
   toast policy in the application coordinator.
 - The Library PDF annotation forms replace seventeen internal element
   references, three submit bindings, cancel and selected-markup action bindings,
-  composer visibility updates, and DOM-based value collection while leaving the
-  markup layer's interaction state and geometry separate from coordinator-owned
-  mutations, refreshes, inspector policy, and toasts.
+  composer visibility updates, DOM-based value collection, and the coordinator's
+  duplicate highlight-rectangle and editing-identity fields. The markup layer's
+  interaction state and drawing geometry remain separate from
+  coordinator-owned mutations, refreshes, inspector policy, and toasts.
 - The Library PDF annotation toolbar replaces twelve internal element
   references, tool, input, undo, export, and inspector bindings, and imperative
   active-tool, width-label, availability, count, and expanded-state updates. It

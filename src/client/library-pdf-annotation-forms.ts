@@ -1,10 +1,12 @@
 import { html, LitElement, type TemplateResult } from "lit";
+import type { PdfSelectionRect } from "../domain/workspace";
 
 export interface LibraryHighlightDraft {
+  readonly highlightId: string | null;
   readonly page: number;
   readonly quote: string;
   readonly comment: string;
-  readonly editing: boolean;
+  readonly rects: readonly PdfSelectionRect[];
 }
 
 export interface LibraryDrawingSelection {
@@ -15,7 +17,14 @@ export interface LibraryDrawingSelection {
 }
 
 export type LibraryPdfAnnotationAction =
-  | { readonly action: "save-highlight"; readonly page: number; readonly quote: string; readonly comment: string }
+  | {
+      readonly action: "save-highlight";
+      readonly highlightId: string | null;
+      readonly page: number;
+      readonly quote: string;
+      readonly comment: string;
+      readonly rects: readonly PdfSelectionRect[];
+    }
   | { readonly action: "cancel-highlight" }
   | { readonly action: "save-note"; readonly body: string }
   | { readonly action: "cancel-note" }
@@ -29,7 +38,6 @@ export class LibraryPdfAnnotationForms extends LitElement {
     highlightPage: { state: true },
     highlightQuote: { state: true },
     highlightComment: { state: true },
-    highlightEditing: { state: true },
     highlightVisible: { state: true },
     noteBody: { state: true },
     noteVisible: { state: true },
@@ -43,7 +51,6 @@ export class LibraryPdfAnnotationForms extends LitElement {
   declare private highlightPage: number;
   declare private highlightQuote: string;
   declare private highlightComment: string;
-  declare private highlightEditing: boolean;
   declare private highlightVisible: boolean;
   declare private noteBody: string;
   declare private noteVisible: boolean;
@@ -52,13 +59,14 @@ export class LibraryPdfAnnotationForms extends LitElement {
   declare private drawingColor: string;
   declare private drawingWidth: number;
   declare private markupVisible: boolean;
+  #highlightId: string | null = null;
+  #highlightRects: readonly PdfSelectionRect[] = [];
 
   constructor() {
     super();
     this.highlightPage = 1;
     this.highlightQuote = "";
     this.highlightComment = "";
-    this.highlightEditing = false;
     this.highlightVisible = false;
     this.noteBody = "";
     this.noteVisible = false;
@@ -86,18 +94,20 @@ export class LibraryPdfAnnotationForms extends LitElement {
   }
 
   showHighlight(draft: LibraryHighlightDraft): void {
+    this.#highlightId = draft.highlightId;
+    this.#highlightRects = draft.rects;
     this.highlightPage = draft.page;
     this.highlightQuote = draft.quote;
     this.highlightComment = draft.comment;
-    this.highlightEditing = draft.editing;
     this.highlightVisible = true;
   }
 
   clearHighlight(page: number): void {
+    this.#highlightId = null;
+    this.#highlightRects = [];
     this.highlightPage = page;
     this.highlightQuote = "";
     this.highlightComment = "";
-    this.highlightEditing = false;
     this.highlightVisible = false;
   }
 
@@ -158,7 +168,7 @@ export class LibraryPdfAnnotationForms extends LitElement {
           .value=${this.highlightComment}
           @input=${this.updateHighlightComment}
         />
-        <button class="button-primary" id="save-library-highlight" type="submit">${this.highlightEditing ? "Save note" : "Save"}</button>
+        <button class="button-primary" id="save-library-highlight" type="submit">${this.#highlightId ? "Save note" : "Save"}</button>
         <button
           class="button-secondary"
           id="cancel-library-highlight"
@@ -259,9 +269,11 @@ export class LibraryPdfAnnotationForms extends LitElement {
     event.preventDefault();
     this.emitAction({
       action: "save-highlight",
+      highlightId: this.#highlightId,
       page: this.highlightPage,
       quote: this.highlightQuote.trim(),
       comment: this.highlightComment,
+      rects: this.#highlightRects,
     });
   }
 

@@ -631,8 +631,6 @@ class WorkspaceApp {
   #projectFileIncludeFromPath: string | null = null;
   #librarySnapshot: ReferenceLibrarySnapshot | null = null;
   #projectReferencePdfs: readonly ProjectReferencePdf[] = [];
-  #libraryHighlightRects: PdfSelectionCapture["rects"] = [];
-  #editingLibraryHighlightId: string | null = null;
   #workspaceCatalog: WorkspaceSummary[] = [];
   #gitHubPickerRequest = 0;
   #gitHubSyncRequest = 0;
@@ -5807,13 +5805,12 @@ class WorkspaceApp {
       const artifact = this.#librarySnapshot?.artifacts.find((item) => item.id === activeTab.id);
       if (!artifact) return;
       this.#elements.libraryPdfInspector.setArtifact(artifact.id);
-      this.#libraryHighlightRects = capture.rects;
-      this.#editingLibraryHighlightId = null;
       this.#elements.libraryPdfAnnotationForms.showHighlight({
+        highlightId: null,
         page: capture.page,
         quote: capture.quote,
         comment: "",
-        editing: false,
+        rects: capture.rects,
       });
       this.#elements.libraryPdfInspector.setStatus(`Page ${capture.page} selection ready.`);
       this.#setLibraryPdfInspector(true);
@@ -5856,7 +5853,6 @@ class WorkspaceApp {
     this.#resetPdfHighlightImport();
     this.#elements.paperMarkups.cancelShapeRecognition();
     this.#elements.libraryPdfInspector.setArtifact(artifactId);
-    this.#editingLibraryHighlightId = null;
     this.#elements.paperMarkups.resetState();
     this.#elements.libraryPdfAnnotationForms.clearHighlight(1);
     this.#elements.libraryPdfAnnotationForms.clearNote();
@@ -5930,8 +5926,8 @@ class WorkspaceApp {
     const artifact = this.#activeLibraryPdf();
     const quote = action.quote;
     if (!artifact?.referenceId || !quote) return;
-    if (this.#editingLibraryHighlightId) {
-      await this.#updateLibraryHighlightNote(artifact.referenceId, this.#editingLibraryHighlightId, action.comment);
+    if (action.highlightId) {
+      await this.#updateLibraryHighlightNote(artifact.referenceId, action.highlightId, action.comment);
       return;
     }
     await this.#createLibraryHighlight(artifact, artifact.referenceId, action);
@@ -5958,14 +5954,14 @@ class WorkspaceApp {
     referenceId: string,
     action: Extract<LibraryPdfAnnotationAction, { action: "save-highlight" }>,
   ): Promise<void> {
-    const { page, quote, comment } = action;
-    const extendsExisting = this.#libraryHighlightExtendsExisting(artifact.id, page);
+    const { page, quote, comment, rects } = action;
+    const extendsExisting = this.#libraryHighlightExtendsExisting(artifact.id, page, rects);
     const response = await jsonFetch(`/api/library/references/${encodeURIComponent(referenceId)}/highlights`, {
       artifactId: artifact.id,
       page,
       quote,
       comment,
-      rects: this.#libraryHighlightRects,
+      rects,
     });
     await expectOk(response);
     this.#clearLibraryHighlightDraft(
@@ -5982,20 +5978,15 @@ class WorkspaceApp {
     this.#showToast(extendsExisting ? "Existing private highlight extended." : "Private highlight saved to your library.");
   }
 
-  #libraryHighlightExtendsExisting(artifactId: string, page: number): boolean {
+  #libraryHighlightExtendsExisting(artifactId: string, page: number, rects: readonly PdfSelectionRect[]): boolean {
     return (
       this.#librarySnapshot?.highlights.some(
-        (highlight) =>
-          highlight.artifactId === artifactId &&
-          highlight.page === page &&
-          libraryPdfRectsOverlap(highlight.rects, this.#libraryHighlightRects),
+        (highlight) => highlight.artifactId === artifactId && highlight.page === page && libraryPdfRectsOverlap(highlight.rects, rects),
       ) ?? false
     );
   }
 
   #clearLibraryHighlightDraft(message = "Selection cancelled. Nothing was saved."): void {
-    this.#libraryHighlightRects = [];
-    this.#editingLibraryHighlightId = null;
     this.#elements.libraryPdfAnnotationForms.clearHighlight(this.#pdfViewer.currentPage);
     this.#elements.libraryPdfInspector.setStatus(message);
     this.#pdfViewer.clearDraftSelection();
@@ -6006,13 +5997,12 @@ class WorkspaceApp {
     if (this.#elements.paperMarkups.tool !== "select") this.#setLibraryPdfTool("select");
     this.#elements.paperMarkups.selectHighlight(highlight.id);
     this.#pdfViewer.setPrivateHighlightSelection(true, highlight.id);
-    this.#editingLibraryHighlightId = highlight.id;
-    this.#libraryHighlightRects = [...highlight.rects];
     this.#elements.libraryPdfAnnotationForms.showHighlight({
+      highlightId: highlight.id,
       page: highlight.page,
       quote: highlight.quote,
       comment: highlight.comment,
-      editing: true,
+      rects: highlight.rects,
     });
     this.#elements.libraryPdfInspector.setStatus(`Editing the note for page ${highlight.page}.`);
     this.#setLibraryPdfInspector(true);

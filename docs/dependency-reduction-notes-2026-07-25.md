@@ -3170,3 +3170,26 @@ and unique production package counts remain unchanged at 135,411 B raw /
 
 Full native CI passes all 1,411 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Lit Ownership: Private Highlight Draft
+
+`LibraryPdfAnnotationForms` now owns the complete private-highlight draft:
+page, quotation, comment, captured rectangles, and optional editing identity.
+Its typed save intent carries that reviewed draft to `WorkspaceApp`, which
+retains active-resource validation, overlap policy, persistence, refreshes, and
+notifications without caching geometry or editing state.
+
+This checkpoint reduces `src/client/app.ts` from 6,797 to 6,787 lines (-10) and
+grows the annotation forms from 295 to 307 lines, for two additional runtime
+lines overall while deleting two coordinator fields. Focused component coverage
+passes complete create and edit draft payloads plus composer cancellation. Two
+browser workflows pass private-highlight creation, extension, note editing,
+erasing, deletion, detected import, and annotated export.
+
+The browser application artifact changes from 797,274 B raw / 214,638 B gzip
+to 797,182 B raw / 214,623 B gzip (-92 B raw / -15 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,411 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
