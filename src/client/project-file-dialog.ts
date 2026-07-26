@@ -1,4 +1,5 @@
 import { html, LitElement, type TemplateResult } from "lit";
+import type { ProjectFile } from "../domain/project-files";
 import { isWorkspaceSnapshot, type WorkspaceSnapshot } from "../domain/workspace";
 import { errorMessage, expectOk, jsonFetch } from "./http";
 
@@ -81,6 +82,15 @@ export class ProjectFileDialog extends LitElement {
     });
     await expectOk(response);
     return this.workspace(response);
+  }
+
+  async createFile(path: string, content: string): Promise<ProjectFile> {
+    const response = await jsonFetch(`${this.apiBase}/files`, { path, content });
+    await expectOk(response);
+    const snapshot = await this.workspace(response);
+    const created = snapshot.files.find((file) => file.path === path);
+    if (!created) throw new Error("Project file operation did not create the requested path");
+    return created;
   }
 
   override connectedCallback(): void {

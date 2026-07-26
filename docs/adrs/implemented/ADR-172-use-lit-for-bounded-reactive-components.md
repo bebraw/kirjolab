@@ -221,12 +221,13 @@ The adopted components own bounded presentation:
   and emits only a typed completed-import outcome.
 - The project file dialog owns file and folder operation copy, initial path,
   active operation mode and stable mutation target, focus, cancellation,
-  create and rename transport, file deletion transport, shared response
-  validation, duplicate-submit gating, local busy and retryable failure state,
-  and typed completed outcomes carrying the mode, path, message, and validated
-  workspace snapshot together. The coordinator retains the deletion grace
-  period, optimistic hiding, Undo restoration, snapshot application, rendering,
-  and notification.
+  create and rename transport, file deletion transport, content-bearing
+  workflow-file creation, shared response validation, created-path verification,
+  duplicate-submit gating, local busy and retryable failure state, and typed
+  completed outcomes carrying the mode, path, message, and validated workspace
+  snapshot together. The coordinator retains workflow-template selection and
+  navigation, the deletion grace period, optimistic hiding, Undo restoration,
+  snapshot application, rendering, and notification.
 - Reused project-file action components own the rail and editor-menu action
   presentation, entry-file delete availability, and one typed create, include,
   rename, delete, folder-create, or image-upload intent contract.
@@ -412,8 +413,10 @@ reason to wrap static markup mechanically.
   methods while leaving toast, reload, and navigation outcomes in the
   application coordinator.
 - The writing-workflow panels replace five internal element references and two
-  parallel imperative list renderers while leaving file creation, response
-  export, and source navigation in the application coordinator.
+  parallel imperative list renderers while leaving workflow-template choice,
+  response export, and source navigation in the application coordinator. The
+  shared project-file owner performs their content-bearing file creation and
+  created-path verification.
 - The assistant result panel replaces six imperative result renderers and their
   local event bindings. It also removes the coordinator's parallel transient-
   result discriminator and context cache by emitting the context retained with

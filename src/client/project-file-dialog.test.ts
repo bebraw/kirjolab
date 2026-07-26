@@ -138,6 +138,28 @@ describe("project file dialog", () => {
     });
   });
 
+  it("owns content-bearing file creation and returns the created stable file", async () => {
+    const panel = new TestProjectFileDialog();
+    const created = { ...snapshot.files[0]!, content: "# Questions", id: "file-2", path: "research-questions.md" };
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(Response.json({ ...snapshot, files: [...snapshot.files, created] }));
+    panel.configureApi("/api/workspaces/workspace");
+
+    await expect(panel.createFile(created.path, created.content)).resolves.toEqual(created);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/workspaces/workspace/files",
+      expect.objectContaining({ body: JSON.stringify({ path: created.path, content: created.content }), method: "POST" }),
+    );
+  });
+
+  it("rejects content-bearing creation without the requested file", async () => {
+    const panel = new TestProjectFileDialog();
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(Response.json(snapshot));
+    panel.configureApi("/api/workspaces/workspace");
+
+    await expect(panel.createFile("missing.md", "# Missing")).rejects.toThrow("Project file operation did not create the requested path");
+  });
+
   it("rejects malformed file deletion workspaces", async () => {
     const panel = new TestProjectFileDialog();
     vi.spyOn(globalThis, "fetch").mockResolvedValue(Response.json({ invalid: true }));

@@ -4870,3 +4870,28 @@ and unique production package counts remain unchanged at 135,411 B raw /
 
 Full native CI passes all 1,558 unit/coverage tests, 120 Workers-
 runtime tests, and 74 browser tests.
+
+## Continued Lit Ownership: Workflow File Creation
+
+`ProjectFileDialog` now owns content-bearing project-file creation alongside its
+interactive create, rename, and delete transport. It sends the workflow path and
+template content, reuses shared workspace validation, verifies the requested path
+exists in the returned snapshot, and returns the created stable file.
+`WorkspaceApp` retains research-diary, research-question, or reviewer-response
+template choice and route navigation.
+
+This checkpoint reduces `src/client/app.ts` from 4,627 to 4,622 lines (-5) and
+grows the project-file owner from 204 to 214 lines. Runtime source across those
+two files increases by 5 lines while removing coordinator request, response
+parsing, workspace validation, and created-path lookup branches. Focused
+coverage passes content payloads, stable created-file return, missing-path
+rejection, existing create/rename/delete behavior, application contracts, and
+strict types.
+
+The browser application artifact changes from 823,543 B raw / 222,216 B gzip
+to 823,581 B raw / 222,239 B gzip (+38 B raw / +23 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,560 unit/coverage tests, 120 Workers-
+runtime tests, and 74 browser tests.

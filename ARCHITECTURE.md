@@ -143,11 +143,13 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   anchors by file identity.
 - Let the project-file dialog retain the stable mutation target associated with
   its active operation and own file/folder create and rename transport, file
-  deletion transport, shared response validation, duplicate-submit gating, and
-  retryable local failures. Emit or return the validated workspace snapshot.
-  Keep collaborative caret capture, Yjs insertion, optimistic hiding, Undo
-  timing, snapshot application, selection, rendering, and toast policy in the
-  workspace coordinator.
+  deletion transport, content-bearing workflow-file creation, shared response
+  validation, created-path verification, duplicate-submit gating, and retryable
+  local failures. Emit or return the validated workspace snapshot or created
+  stable file. Keep workflow-template selection and navigation, collaborative
+  caret capture, Yjs insertion, optimistic hiding, Undo timing, snapshot
+  application, selection, rendering, and toast policy in the workspace
+  coordinator.
 - Let the project-image upload control own file-input state, sequential upload
   transport, response validation, duplicate-submit gating, and retryable local
   status. Emit only the final validated workspace snapshot and completion

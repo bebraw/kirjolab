@@ -1901,12 +1901,7 @@ class WorkspaceApp {
   }
 
   async #createWorkflowFile(path: string, content: string): Promise<void> {
-    const response = await jsonFetch(`${apiBase}/files`, { path, content });
-    await expectOk(response);
-    const value: unknown = await response.json();
-    if (!isWorkspaceSnapshot(value)) throw new Error("Writing workflow returned an invalid workspace");
-    const created = value.files.find((file) => file.path === path);
-    if (!created) throw new Error("Writing workflow file was not created");
+    const created = await this.#elements.projectFileDialog.createFile(path, content);
     const next = new URL(location.href);
     next.searchParams.set("file", created.id);
     next.searchParams.set("rail", "guide");

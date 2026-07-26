@@ -16,7 +16,10 @@ survive outside Kirjolab and remain available to collaborators.
   checklist items under Open questions and Next actions.
 - One bounded light-DOM summary owns missing and existing diary presentation,
   derived counts, singular and plural copy, and a typed open intent. The
-  workspace coordinator retains file creation, selection, and editor focus.
+  shared project-file owner performs content-bearing file creation, validates
+  the returned workspace, and returns the created stable file. The workspace
+  coordinator retains diary-template choice, navigation, selection, and editor
+  focus.
 
 ### Anti-Patterns
 
