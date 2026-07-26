@@ -188,8 +188,9 @@ The adopted components own bounded presentation:
   presentation, entry-file delete availability, and one typed create, include,
   rename, delete, folder-create, or image-upload intent contract.
 - The project template save dialog owns replacement choices, local name and
-  description values, loading and replacement copy, focus, cancellation, and
-  typed save intents.
+  description values, loading and replacement copy, focus, cancellation,
+  promotion requests, response validation, local busy and error state, and
+  typed validated completion outcomes.
 - The project starting-point browser owns project title, template and existing
   project choices, catalog loading, project-preview loading, project creation,
   response validation, preview and loading state, create readiness and status,
@@ -467,8 +468,8 @@ reason to wrap static markup mechanically.
 - The project template save dialog replaces seven internal element references
   and imperative replacement-option, value, status, focus, and cancellation
   handling while consuming the starting-point browser's visible template view.
-  The application coordinator retains catalog refresh, seed capture,
-  persistence, and toast policy.
+  It also replaces the coordinator's promotion request and response guard. The
+  application coordinator retains catalog refresh and toast policy.
 - The project starting-point browser replaces seven internal form and action
   element references, coordinator submit, selection-change, cancel, and import
   bindings, title and selection collection, readiness, loading, and error

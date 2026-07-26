@@ -41,7 +41,7 @@ import { suggestCitationKey } from "../domain/publication-intake";
 import { isPhrasingPurposeId, phrasingPatternsForPurpose, phrasingPurposes, type PhrasingPurpose } from "../domain/phrasing-guidance";
 import { researchQuestionsPath, researchQuestionsTemplate } from "../domain/research-questions";
 import { researchDiaryPath, researchDiaryTemplate } from "../domain/writing-workflows";
-import { isProjectTemplateSummaries, type ProjectTemplateSummary } from "../domain/project-templates";
+import type { ProjectTemplateSummary } from "../domain/project-templates";
 import {
   isMetadataRefinementPreview,
   isPdfDraftResult,
@@ -192,7 +192,7 @@ import {
   type ProjectFileSave,
 } from "./project-file-dialog";
 import { projectFileActionEvent, type ProjectFileAction } from "./project-file-actions";
-import { projectTemplateSaveEvent, type ProjectTemplateSave } from "./project-template-save-dialog";
+import { projectTemplateSavedEvent, type ProjectTemplateSaved } from "./project-template-save-dialog";
 import { projectTreeActionEvent, type ProjectTreeAction } from "./project-tree-panel";
 import { manuscriptMapSelectEvent, type ManuscriptMapSelection } from "./manuscript-map-panel";
 import { libraryDiscoverySaveEvent, type LibraryDiscoverySaveDetail } from "./library-discovery-results";
@@ -583,10 +583,10 @@ class WorkspaceApp {
       this.#openGitHubImportDialog();
       history.replaceState(history.state, "", location.pathname);
     }
-    this.#elements.saveTemplateDialog.addEventListener(
-      projectTemplateSaveEvent,
-      (event) => void this.#saveProjectTemplate((event as CustomEvent<ProjectTemplateSave>).detail),
-    );
+    this.#elements.saveTemplateDialog.configure(apiBase);
+    this.#elements.saveTemplateDialog.addEventListener(projectTemplateSavedEvent, (event) => {
+      void this.#completeProjectTemplateSave((event as CustomEvent<ProjectTemplateSaved>).detail);
+    });
     this.#elements.workspaceRailTabs.addEventListener(workspaceRailChangeEvent, (event) => {
       this.#showRail((event as CustomEvent<WorkspaceRail>).detail);
     });
@@ -1280,19 +1280,9 @@ class WorkspaceApp {
     this.#elements.saveTemplateDialog.setTemplates(this.#elements.newWorkspaceStartingPoints.availableTemplates);
   }
 
-  async #saveProjectTemplate({ name, description, templateId }: ProjectTemplateSave): Promise<void> {
-    const response = await jsonFetch(`${apiBase}/template`, {
-      name,
-      description,
-      ...(templateId ? { templateId } : {}),
-    });
-    await expectOk(response);
-    const value: unknown[] = [await response.json()];
-    if (!isProjectTemplateSummaries(value) || !value[0]) throw new Error("Saved project template returned invalid data");
-    const template = value[0];
-    this.#elements.saveTemplateDialog.close();
+  async #completeProjectTemplateSave({ replaced, template }: ProjectTemplateSaved): Promise<void> {
     await this.#refreshProjectTemplates();
-    this.#showToast(templateId ? `Replaced template “${template.name}”.` : `Saved “${template.name}” as a personal template.`);
+    this.#showToast(replaced ? `Replaced template “${template.name}”.` : `Saved “${template.name}” as a personal template.`);
   }
 
   #syncCollaborationQueue(): void {

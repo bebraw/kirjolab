@@ -56,7 +56,11 @@ without copying private research or creating a live dependency on the source.
   preview and loading presentation, create readiness and status, native modal
   opening and closing, focus containment and restoration, and typed cancel,
   import, completion, and template-delete events. `WorkspaceApp` retains
-  deferred deletion, template promotion, import workflows, and navigation.
+  deferred deletion, import workflows, and navigation.
+- The template-save Lit dialog owns create-or-replace form state, promotion
+  requests, saved-summary validation, duplicate-submit gating, local progress
+  and error presentation, and typed validated completion outcomes.
+  `WorkspaceApp` refreshes the shared catalog and presents the resulting toast.
 - The modal keeps Tab focus within its enabled controls. Cancel or Escape
   returns focus to the Project disclosure; transferring into an import modal
   gives focus to that import's first required field instead.
@@ -135,6 +139,8 @@ without copying private research or creating a live dependency on the source.
   replacement, deletion, and independent template instantiation.
 - Browser coverage creates projects from built-in and personal templates and
   verifies the promotion workflow.
+- Component coverage verifies promotion payloads, validated create and replace
+  outcomes, and provider or malformed-response failures.
 
 ### Scenarios
 

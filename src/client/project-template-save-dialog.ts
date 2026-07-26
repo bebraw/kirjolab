@@ -1,7 +1,8 @@
 import { html, LitElement, type TemplateResult } from "lit";
-import type { ProjectTemplateSummary } from "../domain/project-templates";
+import { isProjectTemplateSummaries, type ProjectTemplateSummary } from "../domain/project-templates";
+import { errorMessage, expectOk, jsonFetch } from "./http";
 
-export const projectTemplateSaveEvent = "project-template-save";
+export const projectTemplateSavedEvent = "project-template-saved";
 
 export interface ProjectTemplateSave {
   readonly description: string;
@@ -9,9 +10,15 @@ export interface ProjectTemplateSave {
   readonly templateId?: string;
 }
 
+export interface ProjectTemplateSaved {
+  readonly replaced: boolean;
+  readonly template: ProjectTemplateSummary;
+}
+
 export class ProjectTemplateSaveDialog extends LitElement {
   static override properties = {
     description: { state: true },
+    busy: { state: true },
     name: { state: true },
     selectedTemplateId: { state: true },
     status: { state: true },
@@ -19,18 +26,25 @@ export class ProjectTemplateSaveDialog extends LitElement {
   };
 
   declare private description: string;
+  declare private busy: boolean;
   declare private name: string;
   declare private selectedTemplateId: string;
   declare private status: string;
   declare private templates: readonly ProjectTemplateSummary[];
+  private apiBase = "";
 
   constructor() {
     super();
     this.description = "";
+    this.busy = false;
     this.name = "";
     this.selectedTemplateId = "";
     this.status = "";
     this.templates = [];
+  }
+
+  configure(apiBase: string): void {
+    this.apiBase = apiBase;
   }
 
   get value(): ProjectTemplateSave {
@@ -86,7 +100,13 @@ export class ProjectTemplateSaveDialog extends LitElement {
           <h2 class="mt-1 text-xl font-semibold tracking-[-0.035em]">Reuse this project structure</h2>
           <label class="field-label mt-5"
             >Save action
-            <select class="field" id="save-template-target" .value=${this.selectedTemplateId} @change=${this.selectTemplate}>
+            <select
+              class="field"
+              id="save-template-target"
+              .value=${this.selectedTemplateId}
+              ?disabled=${this.busy}
+              @change=${this.selectTemplate}
+            >
               <option value="">Create a new template</option>
               ${this.templates.map((template) => html`<option value=${template.id}>Replace ${template.name}</option>`)}
             </select>
@@ -100,6 +120,7 @@ export class ProjectTemplateSaveDialog extends LitElement {
               required
               placeholder="Lab article"
               .value=${this.name}
+              ?disabled=${this.busy}
               @input=${this.changeName}
             />
           </label>
@@ -111,6 +132,7 @@ export class ProjectTemplateSaveDialog extends LitElement {
               maxlength="500"
               placeholder="When should this template be used?"
               .value=${this.description}
+              ?disabled=${this.busy}
               @input=${this.changeDescription}
             ></textarea>
           </label>
@@ -120,8 +142,10 @@ export class ProjectTemplateSaveDialog extends LitElement {
           </p>
           <p class="mt-2 text-xs leading-5 text-app-text-soft" id="save-template-status" role="status">${this.status}</p>
           <div class="mt-5 flex justify-end gap-2">
-            <button class="button-secondary" id="cancel-save-template" type="button" @click=${this.cancel}>Cancel</button>
-            <button class="button-primary" type="submit">Save template</button>
+            <button class="button-secondary" id="cancel-save-template" type="button" ?disabled=${this.busy} @click=${this.cancel}>
+              Cancel
+            </button>
+            <button class="button-primary" type="submit" ?disabled=${this.busy}>${this.busy ? "Saving…" : "Save template"}</button>
           </div>
         </form>
       </dialog>
@@ -145,14 +169,30 @@ export class ProjectTemplateSaveDialog extends LitElement {
     this.description = (event.currentTarget as HTMLTextAreaElement).value;
   }
 
-  protected save(event: SubmitEvent): void {
+  protected async save(event: SubmitEvent): Promise<void> {
     event.preventDefault();
-    this.dispatchEvent(
-      new CustomEvent<ProjectTemplateSave>(projectTemplateSaveEvent, {
-        bubbles: true,
-        detail: this.value,
-      }),
-    );
+    if (this.busy) return;
+    const value = this.value;
+    this.busy = true;
+    this.status = value.templateId ? "Replacing personal template…" : "Saving personal template…";
+    try {
+      if (!this.apiBase) throw new Error("Project template save is not configured");
+      const response = await jsonFetch(`${this.apiBase}/template`, value);
+      await expectOk(response);
+      const templates: unknown[] = [await response.json()];
+      if (!isProjectTemplateSummaries(templates) || !templates[0]) throw new Error("Saved project template returned invalid data");
+      this.close();
+      this.dispatchEvent(
+        new CustomEvent<ProjectTemplateSaved>(projectTemplateSavedEvent, {
+          bubbles: true,
+          detail: { replaced: Boolean(value.templateId), template: templates[0] },
+        }),
+      );
+    } catch (error) {
+      this.status = errorMessage(error, "Could not save personal template.");
+    } finally {
+      this.busy = false;
+    }
   }
 
   protected cancel(): void {

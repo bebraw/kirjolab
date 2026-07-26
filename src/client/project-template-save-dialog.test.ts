@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { ProjectTemplateSaveDialog, projectTemplateSaveEvent, type ProjectTemplateSave } from "./project-template-save-dialog";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { ProjectTemplateSaveDialog, projectTemplateSavedEvent, type ProjectTemplateSaved } from "./project-template-save-dialog";
 
 const personalTemplates = [
   {
@@ -66,8 +66,8 @@ class TestProjectTemplateSaveDialog extends ProjectTemplateSaveDialog {
     this.changeDescription(eventWithValue(value));
   }
 
-  saveForTest(): void {
-    this.save(new Event("submit") as SubmitEvent);
+  saveForTest(): Promise<void> {
+    return this.save(new Event("submit") as SubmitEvent);
   }
 
   cancelForTest(): void {
@@ -104,6 +104,10 @@ function eventWithValue(value: string): Event {
 }
 
 describe("project template save dialog", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   it("renders loading, ready, error, and replacement states", () => {
     const dialog = new TestProjectTemplateSaveDialog();
     expect(dialog.rootForTest()).toBe(dialog);
@@ -115,21 +119,73 @@ describe("project template save dialog", () => {
     expect(dialog.renderForTest()).toBeDefined();
   });
 
-  it("owns values and emits create and replacement save intents", () => {
+  it("owns create and replacement requests and emits validated results", async () => {
     const dialog = new TestProjectTemplateSaveDialog();
-    const saves: ProjectTemplateSave[] = [];
-    dialog.addEventListener(projectTemplateSaveEvent, (event) => saves.push((event as CustomEvent<ProjectTemplateSave>).detail));
+    const fetchMock = vi
+      .fn()
+      .mockImplementation(() => Promise.resolve(new Response(JSON.stringify(personalTemplates[0]), { status: 200 })));
+    vi.stubGlobal("fetch", fetchMock);
+    dialog.configure("/api/workspaces/workspace-1");
+    const saves: ProjectTemplateSaved[] = [];
+    dialog.addEventListener(projectTemplateSavedEvent, (event) => saves.push((event as CustomEvent<ProjectTemplateSaved>).detail));
     dialog.nameForTest("New template");
     dialog.descriptionForTest("New description");
-    dialog.saveForTest();
+    await dialog.saveForTest();
     dialog.setTemplates(personalTemplates);
     dialog.selectForTest("template-1");
-    dialog.saveForTest();
+    await dialog.saveForTest();
 
     expect(saves).toEqual([
-      { description: "New description", name: "New template" },
-      { description: "Reusable review flow", name: "Lab review", templateId: "template-1" },
+      { replaced: false, template: personalTemplates[0] },
+      { replaced: true, template: personalTemplates[0] },
     ]);
+    expect(fetchMock).toHaveBeenNthCalledWith(1, "/api/workspaces/workspace-1/template", {
+      body: JSON.stringify({ description: "New description", name: "New template" }),
+      credentials: "same-origin",
+      headers: { "content-type": "application/json" },
+      method: "POST",
+    });
+    expect(fetchMock).toHaveBeenNthCalledWith(2, "/api/workspaces/workspace-1/template", {
+      body: JSON.stringify({ description: "Reusable review flow", name: "Lab review", templateId: "template-1" }),
+      credentials: "same-origin",
+      headers: { "content-type": "application/json" },
+      method: "POST",
+    });
+  });
+
+  it("keeps the dialog open and reports request and response failures", async () => {
+    const dialog = new TestProjectTemplateSaveDialog();
+    dialog.configure("/api/workspaces/workspace-1");
+    dialog.nameForTest("New template");
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ error: "Template limit reached" }), { status: 409 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ unexpected: true }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await dialog.saveForTest();
+    expect(dialog.renderForTest()).toBeDefined();
+    await dialog.saveForTest();
+    expect(dialog.renderForTest()).toBeDefined();
+    expect(dialog.modal.open).toBe(false);
+  });
+
+  it("ignores a duplicate submission while a save is pending", async () => {
+    const dialog = new TestProjectTemplateSaveDialog();
+    dialog.configure("/api/workspaces/workspace-1");
+    dialog.nameForTest("New template");
+    let resolveResponse = (_response: Response): void => undefined;
+    const pendingResponse = new Promise<Response>((resolve) => {
+      resolveResponse = resolve;
+    });
+    const fetchMock = vi.fn().mockReturnValue(pendingResponse);
+    vi.stubGlobal("fetch", fetchMock);
+
+    const firstSave = dialog.saveForTest();
+    await dialog.saveForTest();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    resolveResponse(new Response(JSON.stringify(personalTemplates[0]), { status: 200 }));
+    await firstSave;
   });
 
   it("opens loading state, focuses ready state, and cancels", async () => {

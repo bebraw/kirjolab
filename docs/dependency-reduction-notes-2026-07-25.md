@@ -3677,3 +3677,26 @@ direct and unique production package counts remain unchanged at 135,411 B raw /
 
 Full native CI passes all 1,445 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Lit Ownership: Project Template Promotion
+
+`ProjectTemplateSaveDialog` now owns create-or-replace promotion requests,
+saved-summary validation, duplicate-submit gating, progress, local request and
+response errors, disabled controls, modal completion, and a typed validated
+result. `WorkspaceApp` retains only the shared template-catalog refresh and
+cross-feature toast after a successful save.
+
+This checkpoint reduces `src/client/app.ts` from 5,774 to 5,764 lines (-10)
+and grows the save dialog from 183 to 223 lines. Runtime source across those
+files increases by 30 lines while removing the remaining raw save intent and
+coordinator-only promotion method. Focused coverage passes create and replace
+payloads and outcomes, request errors, malformed successful responses, loading,
+focus, cancellation, replacement values, and missing-control errors.
+
+The browser application artifact changes from 795,747 B raw / 216,404 B gzip
+to 796,405 B raw / 216,512 B gzip (+658 B raw / +108 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,447 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.

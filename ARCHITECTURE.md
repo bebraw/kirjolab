@@ -148,8 +148,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Keep template-catalog loading, existing-project preview loading, project
   creation, fetched catalog state, optimistic hidden-template state, and the
   derived visible-template view inside the starting-point Lit component. The
-  application coordinator retains navigation, deferred deletion, and template
-  promotion mutations.
+  template-save Lit dialog owns promotion requests, response validation, and
+  local busy and error presentation. The application coordinator retains
+  navigation, deferred deletion, post-promotion catalog refresh, and toast
+  policy.
 - Require every composition result to retain source-map spans back to file
   identity, source range, output range, and include chain. Reject unsafe paths,
   cycles, missing files, and resource-limit violations with navigable
