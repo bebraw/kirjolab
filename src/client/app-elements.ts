@@ -59,6 +59,7 @@ import { UnidentifiedPdfList } from "./unidentified-pdf-list";
 import { VimModeControl } from "./vim-mode-control";
 import { WebSnapshotComparisonPanel, WebSourceCapture } from "./web-source-panels";
 import { WorkspaceCatalogPanel } from "./workspace-catalog-panel";
+import { WorkspaceLayoutControl } from "./workspace-layout-control";
 import { WorkspaceRailTabs } from "./workspace-rail-tabs";
 import { WorkspaceSettingsPanel } from "./workspace-settings-panel";
 import { WorkspaceSharingPanel } from "./workspace-sharing-panel";
@@ -73,7 +74,7 @@ export function collectAppElements(requireElement = requiredAppElement) {
     citationCompletionScope: requireElement("citation-completion-scope", HTMLSelectElement),
     collaboratorSelections: requireElement("collaborator-selections", CollaboratorSelectionList),
     workspaceSwitcher: requireElement("workspace-switcher-control", WorkspaceSwitcher),
-    workspaceLayout: requireElement("workspace-layout", HTMLSelectElement),
+    workspaceLayout: requireElement("workspace-layout-control", WorkspaceLayoutControl),
     manageWorkspaces: requireElement("manage-workspaces", HTMLButtonElement),
     workspaceSettings: requireElement("workspace-settings", HTMLButtonElement),
     workspaceSettingsPanel: requireElement("workspace-settings-panel", WorkspaceSettingsPanel),

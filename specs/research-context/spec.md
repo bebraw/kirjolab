@@ -150,8 +150,11 @@ changing their canonical data, selector, authorization, or rendering contracts.
 - In workspace mode, a desktop view control switches among Split, Editor only,
   Context only, and PDF only. The standalone Library does not expose this
   project-layout control because its reader already owns the full content area.
-  The workspace choice is local, survives reload, never enters collaborative
-  state, and triggers PDF rerendering after geometry changes.
+  A bounded light-DOM component owns option presentation, normalization,
+  selection, workspace-scoped resilient local persistence, and a typed change
+  outcome. The choice survives reload, never enters collaborative state, and
+  the workspace coordinator retains surface mutation, PDF activation, URL
+  synchronization, and PDF rerendering after geometry changes.
 - PDF only activates an open PDF or the first project PDF when available; an
   empty project explains that a PDF must be added instead of showing a broken
   viewer.

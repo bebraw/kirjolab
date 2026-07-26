@@ -4043,3 +4043,29 @@ and unique production package counts remain unchanged at 135,411 B raw /
 
 Full native CI passes all 1,480 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Lit Ownership: Workspace Layout Selection
+
+The new `WorkspaceLayoutControl` progressively enhances the server-rendered
+project-view selector and owns its four-option template, normalized selected
+value, workspace-scoped local persistence, storage-failure tolerance, and typed
+change outcome. `WorkspaceApp` retains surface mutation, PDF activation, resize
+notification, and URL synchronization.
+
+This checkpoint reduces `src/client/app.ts` from 5,141 to 5,137 lines (-4),
+replaces one raw select registry entry with the typed component, and adds a
+110-line component. Runtime source across the app, component registry, view
+fallback, and component increases by 107 lines; this is the fixed cost of
+moving the complete responsive selector template and resilient storage contract
+behind a typed owner. Focused coverage passes normalization, workspace-scoped
+persistence, unavailable storage, typed changes, both server fallbacks, and the
+required-element registry.
+
+The browser application artifact changes from 805,757 B raw / 218,496 B gzip
+to 807,357 B raw / 218,919 B gzip (+1,600 B raw / +423 B gzip). Styles and
+direct and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,483 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests, including workspace layout switching and reload
+restoration.

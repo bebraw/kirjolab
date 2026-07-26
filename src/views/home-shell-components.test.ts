@@ -7,6 +7,7 @@ describe("renderWorkspaceLayoutControl", () => {
     const html = renderWorkspaceLayoutControl("workspace");
 
     expect(html).toContain('<label class="project-view-control');
+    expect(html).toContain('<workspace-layout-control id="workspace-layout-control" mode="workspace">');
     expect(html).toContain('id="workspace-layout" aria-label="Project view"');
     expect(html).toContain('<option value="split">Split</option>');
     expect(html).toContain('<option value="editor">Editor only</option>');
@@ -18,9 +19,8 @@ describe("renderWorkspaceLayoutControl", () => {
   it("preserves the layout state hook without showing a project control in library mode", () => {
     const html = renderWorkspaceLayoutControl("library");
 
-    expect(html).toBe(
-      '<select id="workspace-layout" hidden aria-hidden="true" tabindex="-1"><option value="split">Split</option><option value="editor">Editor only</option>\n              <option value="context">Context only</option><option value="pdf">PDF only</option></select>',
-    );
+    expect(html).toContain('<workspace-layout-control id="workspace-layout-control" mode="library">');
+    expect(html).toContain('<select id="workspace-layout" hidden aria-hidden="true" tabindex="-1">');
   });
 });
 

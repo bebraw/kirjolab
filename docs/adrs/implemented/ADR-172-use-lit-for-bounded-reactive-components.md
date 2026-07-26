@@ -681,6 +681,11 @@ reason to wrap static markup mechanically.
 - The workspace surface switcher replaces two button references, native action
   bindings, and ARIA-state mutations. The application coordinator retains
   responsive surface visibility and URL synchronization.
+- The workspace layout control replaces the raw select reference and
+  coordinator-owned normalization and local-storage access. It owns the
+  four-option template, selected value, workspace-scoped resilient persistence,
+  and typed layout changes while the coordinator retains surface mutation, PDF
+  activation, resize notification, and URL synchronization.
 - The workspace rail tabs derive their four controlled panel targets from the
   existing `aria-controls` contract and own active-panel visibility alongside
   tab selection and comment-count presentation. The application coordinator

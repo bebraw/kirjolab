@@ -82,6 +82,7 @@ import {
 } from "./project-starting-point-browser";
 import { workspaceSharingNoticeEvent } from "./workspace-sharing-panel";
 import { WorkspaceLayoutManager } from "./workspace-layout-manager";
+import { workspaceLayoutChangeEvent } from "./workspace-layout-control";
 import { unidentifiedPdfRefreshEvent, type UnidentifiedPdfRefresh } from "./unidentified-pdf-list";
 import { libraryReferenceSummaryActionEvent, type LibraryReferenceSummaryAction } from "./library-reference-summary";
 import { libraryReferenceImportRefreshEvent, type LibraryReferenceImportRefresh } from "./library-reference-import-control";
@@ -499,7 +500,10 @@ class WorkspaceApp {
     this.#elements.workspaceSwitcher.addEventListener(workspaceSwitchEvent, (event) => {
       location.assign(`/editor/${encodeURIComponent((event as CustomEvent<string>).detail)}`);
     });
-    this.#elements.workspaceLayout.addEventListener("change", () => void this.#setWorkspaceLayout(this.#elements.workspaceLayout.value));
+    this.#elements.workspaceLayout.configure(workspaceId);
+    this.#elements.workspaceLayout.addEventListener(workspaceLayoutChangeEvent, (event) => {
+      void this.#applyWorkspaceLayout((event as CustomEvent<WorkspaceLayout>).detail, false);
+    });
     this.#elements.manageWorkspaces.addEventListener("click", () => {
       void this.#elements.workspaceCatalogPanel.open();
     });
@@ -1062,15 +1066,12 @@ class WorkspaceApp {
   }
 
   #restoreWorkspaceLayout(): void {
-    const stored = localStorage.getItem(`kirjolab:layout:${workspaceId}`) ?? "split";
-    void this.#setWorkspaceLayout(stored, false);
+    void this.#applyWorkspaceLayout(this.#elements.workspaceLayout.restore(), false);
   }
 
-  async #setWorkspaceLayout(value: string, persist = true): Promise<void> {
-    const layout = normalizeWorkspaceLayout(value);
-    this.#elements.workspaceLayout.value = layout;
+  async #applyWorkspaceLayout(value: string, persist = true): Promise<void> {
+    const layout = this.#elements.workspaceLayout.setLayout(value, persist);
     this.#elements.workspaceSurfaces.dataset.layout = layout;
-    if (persist) localStorage.setItem(`kirjolab:layout:${workspaceId}`, layout);
     if (layout === "pdf") await this.#ensurePdfLayoutResource();
     window.dispatchEvent(new Event("resize"));
     this.#syncWorkspaceRoute("replace");
@@ -1093,7 +1094,7 @@ class WorkspaceApp {
     if (url.searchParams.has("mode")) this.#setAuthoringMode(route.mode);
     if (route.fileId && this.#snapshot?.files.some((file) => file.id === route.fileId)) this.#selectProjectFile(route.fileId);
     if (url.searchParams.has("context")) await this.#restoreWorkspaceContext(route);
-    if (route.layout) await this.#setWorkspaceLayout(route.layout, false);
+    if (route.layout) await this.#applyWorkspaceLayout(route.layout, false);
     if (url.searchParams.has("surface")) this.#showWorkspaceSurface(route.surface);
     this.#workspaceRouteReady = true;
     this.#syncWorkspaceRoute("replace");
@@ -1157,7 +1158,7 @@ class WorkspaceApp {
       rail: this.#activeWorkspaceRail(),
       mode: this.#elements.authoringModeTabs.mode,
       surface: this.#elements.workspaceSurfaces.dataset.activeSurface === "context" ? "context" : "authoring",
-      layout: this.#elements.workspaceLayout.value as WorkspaceLayout,
+      layout: this.#elements.workspaceLayout.value,
       contextKey: this.#contextState.activeKey,
       ...tabLocation,
     });
@@ -5059,11 +5060,6 @@ class WorkspaceApp {
 
 function lineNumberAt(source: string, offset: number): number {
   return source.slice(0, Math.max(0, Math.min(offset, source.length))).split(/\r\n|\r|\n/u).length;
-}
-
-function normalizeWorkspaceLayout(value: string): WorkspaceLayout {
-  if (value === "editor" || value === "context" || value === "pdf") return value;
-  return "split";
 }
 
 function activeWorkspaceFileRoute(activeFileId: string | null, entryFileId: string | undefined): { fileId: string } | object {

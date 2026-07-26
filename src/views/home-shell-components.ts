@@ -9,12 +9,12 @@ const workspaceLayoutOptions = `<option value="split">Split</option><option valu
 
 export function renderWorkspaceLayoutControl(appMode: HomeAppMode): string {
   return appMode === "library"
-    ? `<select id="workspace-layout" hidden aria-hidden="true" tabindex="-1">${workspaceLayoutOptions}</select>`
-    : `<label class="project-view-control hidden items-center gap-2 font-sans text-xs text-app-text-soft min-[72rem]:flex">View
+    ? `<workspace-layout-control id="workspace-layout-control" mode="library"><select id="workspace-layout" hidden aria-hidden="true" tabindex="-1">${workspaceLayoutOptions}</select></workspace-layout-control>`
+    : `<workspace-layout-control id="workspace-layout-control" mode="workspace"><label class="project-view-control hidden items-center gap-2 font-sans text-xs text-app-text-soft min-[72rem]:flex">View
             <select class="workspace-switcher" id="workspace-layout" aria-label="Project view">
               ${workspaceLayoutOptions}
             </select>
-          </label>`;
+          </label></workspace-layout-control>`;
 }
 
 export function renderContextTabs(): string {
