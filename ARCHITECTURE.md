@@ -676,7 +676,13 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   coordinator.
 - Refine tablet highlight strokes through bounded normalized geometry and quotation updates; preserve annotation/stroke identity and imported PDF immutability.
 - Retain the active manuscript caret or selection as Yjs-relative positions, render that local target after editor blur, and resolve it before any contextual insertion or replacement.
-- Keep standalone private PDF locations routable in browser history, coalesce selected PDF text into normalized visual-line rectangles, and export each saved highlight as one interoperable multi-quad PDF annotation without mutating source bytes.
+- Keep standalone private PDF locations routable in browser history. Parse and
+  write their canonical Library root, addressed-reference, artifact, and page
+  locations through one pure route adapter; keep history mutation,
+  authorization checks, navigation, and notices in the application coordinator.
+  Coalesce selected PDF text into normalized visual-line rectangles, and export
+  each saved highlight as one interoperable multi-quad PDF annotation without
+  mutating source bytes.
 - Merge overlapping private highlight saves at the owner-library authority and update private highlight comments or page-note bodies in place; preserve annotation identity and treat project shares as immutable snapshots.
 - Let the Library PDF annotation forms own private-highlight and page-note
   create and update transport, stable encoded reference and annotation targets,

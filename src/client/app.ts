@@ -50,6 +50,7 @@ import { libraryPdfAnnotationListActionEvent, type LibraryPdfAnnotationListActio
 import { libraryPdfMarkupActionEvent, type LibraryPdfMarkupAction } from "./library-pdf-markup-layer";
 import { libraryPdfToolbarActionEvent, type LibraryPdfToolbarAction } from "./library-pdf-annotation-toolbar";
 import { libraryPdfInspectorCloseEvent } from "./library-pdf-inspector";
+import { libraryPdfRoute, readLibraryUiRoute } from "./library-ui-route";
 import { startingPointActionEvent, startingPointTemplateDeleteEvent, type StartingPointAction } from "./project-starting-point-browser";
 import { workspaceSharingNoticeEvent } from "./workspace-sharing-panel";
 import { WorkspaceLayoutManager } from "./workspace-layout-manager";
@@ -2793,7 +2794,7 @@ class WorkspaceApp {
     const key = this.#preparePdfContext({ kind: "library-pdf", id: artifact.id }, page === undefined ? {} : { page });
     if (appMode === "library" && updateHistory) {
       const active = this.#contextState.tabs.find((tab) => tab.key === key);
-      const route = this.#libraryPdfRoute(artifact.id, page ?? (active?.kind === "library-pdf" ? active.page : 1));
+      const route = libraryPdfRoute(artifact.id, page ?? (active?.kind === "library-pdf" ? active.page : 1));
       history.pushState({ view: "library-pdf", artifactId: artifact.id }, "", route);
     }
     if (appMode === "workspace") this.#syncWorkspaceRoute("push");
@@ -2820,34 +2821,22 @@ class WorkspaceApp {
   }
 
   async #restoreLibraryRoute(): Promise<void> {
-    const match = /^\/library\/pdfs\/([^/]+)$/u.exec(location.pathname);
-    if (!match?.[1]) {
+    const route = readLibraryUiRoute(new URL(location.href));
+    if (route.kind === "library") {
       if (this.#contextState.activeKey !== RESEARCH_LIBRARY_KEY) this.#activateContext(RESEARCH_LIBRARY_KEY);
-      const referenceId = new URL(location.href).searchParams.get("reference");
-      if (!referenceId) return;
-      if (!(await this.#focusReferenceLibraryEntry(referenceId))) {
+      if (!route.referenceId) return;
+      if (!(await this.#focusReferenceLibraryEntry(route.referenceId))) {
         history.replaceState({ view: "library" }, "", "/library");
       }
       return;
     }
-    let artifactId: string;
-    try {
-      artifactId = decodeURIComponent(match[1]);
-    } catch {
-      artifactId = "";
-    }
-    const artifact = this.#librarySnapshot?.artifacts.find((item) => item.id === artifactId);
+    const artifact = this.#librarySnapshot?.artifacts.find((item) => item.id === route.artifactId);
     if (!artifact) {
       history.replaceState({ view: "library" }, "", "/library");
       this.#showToast("That PDF is no longer in the library.");
       return;
     }
-    const requestedPage = Number.parseInt(new URLSearchParams(location.search).get("page") ?? "1", 10);
-    await this.#openLibraryPdf(artifact, Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage : 1, false);
-  }
-
-  #libraryPdfRoute(artifactId: string, page: number): string {
-    return `/library/pdfs/${encodeURIComponent(artifactId)}${page > 1 ? `?page=${page}` : ""}`;
+    await this.#openLibraryPdf(artifact, route.page, false);
   }
 
   #handlePdfPageChange(page: number): void {
@@ -2859,7 +2848,7 @@ class WorkspaceApp {
     }
     const artifact = this.#activeLibraryPdf();
     if (appMode === "library" && artifact && location.pathname.startsWith("/library/pdfs/")) {
-      history.replaceState(history.state, "", this.#libraryPdfRoute(artifact.id, page));
+      history.replaceState(history.state, "", libraryPdfRoute(artifact.id, page));
     }
   }
 

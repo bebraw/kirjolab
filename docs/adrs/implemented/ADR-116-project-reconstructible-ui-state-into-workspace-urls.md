@@ -40,6 +40,10 @@ URL.
   resizing, ARIA values, context-specific storage keys, and PDF resize
   notification. The application coordinator retains routable layout selection,
   context identity, and PDF-only resource opening.
+- One pure Library route adapter reads root, addressed-reference, artifact, and
+  bounded page locations and writes canonical encoded private-PDF URLs. The
+  application coordinator retains history mutation, snapshot authorization,
+  resource navigation, canonical fallback, and notices.
 
 ## Consequences
 

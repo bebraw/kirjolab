@@ -5391,6 +5391,27 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,611 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Library UI Route Projection
+
+`readLibraryUiRoute` and `libraryPdfRoute` now own pure parsing and construction
+for the Library root, addressed-reference links, encoded private-PDF artifacts,
+and bounded page locations. `WorkspaceApp` retains browser-history mutation,
+authorized artifact lookup, focus and PDF navigation, canonical fallback, and
+notification policy.
+
+This checkpoint reduces `src/client/app.ts` from 3,292 to 3,281 lines (-11)
+and adds a 25-line route adapter. Four focused cases cover root and addressed
+references, encoded PDF artifacts, invalid pages, malformed encoding, and
+canonical URL writing alongside strict client and Workers types.
+
+The browser application artifact changes from 827,688 B raw / 223,953 B gzip
+to 827,817 B raw / 223,956 B gzip (+129 B raw / +3 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,615 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,
