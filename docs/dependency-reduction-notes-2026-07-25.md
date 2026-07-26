@@ -3346,3 +3346,26 @@ and unique production package counts remain unchanged at 135,411 B raw /
 
 Full native CI passes all 1,416 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Lit Ownership: Assistant Evidence Selection
+
+`AssistantWorkflowStatus` now owns browser-local annotation and claim selection,
+valid-key reconciliation, readonly selection snapshots, and the existing count
+or limit status copy associated with **Choose evidence**. `WorkspaceApp` still
+resolves selected keys against canonical workspace snapshots and enforces
+generation policy, but no longer stores or formats a parallel selection set.
+
+This checkpoint reduces `src/client/app.ts` from 6,431 to 6,422 lines (-9) and
+grows the workflow-status component from 90 to 110 lines, increasing runtime
+source by eleven lines overall while removing one coordinator field. Focused
+coverage passes invalid-key rejection, annotation and claim selection, readonly
+selection exposure, reconciliation, deselection, limit status, operation copy,
+and typed workflow actions.
+
+The browser application artifact changes from 796,773 B raw / 214,895 B gzip
+to 797,222 B raw / 214,811 B gzip (+449 B raw / -84 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,417 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.

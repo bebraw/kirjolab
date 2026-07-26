@@ -84,9 +84,11 @@ All mutation operations preserve a human review boundary.
   request construction, generation workflows, and assistant status policy.
 - One bounded assistant workflow status component owns operation-specific
   attribution and initial status copy, subsequent live status presentation,
-  and typed evidence and connection intents. The workspace coordinator retains
-  evidence navigation, settings authority, provider discovery, generation, and
-  the policy that selects subsequent status messages.
+  selected evidence keys and their count or limit status, reconciliation
+  against the current allowed key set, and typed evidence and connection
+  intents. The workspace coordinator retains evidence resolution and
+  navigation, settings authority, provider discovery, generation, and the
+  policy that selects subsequent status messages.
 - Connection diagnostics distinguish a direct browser/CORS failure from an
   unavailable companion. Bounded companion error details and targeted guidance
   for origin rejection or an incomplete chat-completions URL remain visible in

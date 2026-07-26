@@ -248,8 +248,8 @@ The adopted components own bounded presentation:
   derived entry, question, and action counts, action copy, and a typed open
   intent.
 - The assistant workflow status owns operation-specific attribution and status
-  copy, live status presentation, evidence and connection actions, and their
-  typed intents.
+  copy, live status presentation, selected evidence keys, selection count and
+  limit copy, evidence and connection actions, and their typed intents.
 - The workspace rail tabs own active-tab and open-comment-count presentation
   plus a typed navigation intent.
 - The authoring mode tabs own Write and Map active-state presentation,
@@ -567,9 +567,11 @@ reason to wrap static markup mechanically.
   retains file lookup, creation, selection, and editor focus.
 - The assistant workflow status replaces four internal element references,
   two native action bindings, operation-specific status copy, and attribution
-  visibility. The application coordinator retains evidence navigation,
-  settings availability, generation, discovery-status mirroring, and status
-  policy.
+  visibility. It also removes the coordinator's selected-evidence set and count
+  formatting while exposing readonly keys for snapshot resolution and
+  generation policy. The application coordinator retains evidence navigation,
+  settings availability, generation, discovery-status mirroring, and broader
+  status policy.
 - The workspace rail tabs replace five internal element references, four
   native action bindings, four ARIA-selection mutations, and DOM-derived active
   mode. The application coordinator retains panel visibility, guide rendering,

@@ -33,6 +33,24 @@ describe("assistant workflow status", () => {
     expect(panel.status).toBe("Choose a target and the required evidence, then generate a reviewable draft.");
   });
 
+  it("owns selected evidence and its live count status", () => {
+    const panel = new TestAssistantWorkflowStatus();
+    panel.setEvidenceSelected("invalid", true);
+    panel.setEvidenceSelected("annotation:1", true);
+    panel.setEvidenceSelected("claim:1", true);
+    expect(panel.selectedEvidenceKeys).toEqual(new Set(["annotation:1", "claim:1"]));
+    expect(panel.status).toBe("2 resources selected for grounding.");
+
+    panel.reconcileEvidence(new Set(["claim:1"]));
+    expect(panel.selectedEvidenceKeys).toEqual(new Set(["claim:1"]));
+    panel.setEvidenceSelected("claim:1", false);
+    expect(panel.status).toBe("0 resources selected for grounding.");
+
+    for (let index = 0; index < 13; index += 1) panel.setEvidenceSelected(`annotation:${index}`, true);
+    expect(panel.selectedEvidenceKeys.size).toBe(13);
+    expect(panel.status).toBe("Choose no more than 12 evidence resources.");
+  });
+
   it("emits typed workflow actions", () => {
     const panel = new TestAssistantWorkflowStatus();
     const actions: AssistantWorkflowAction[] = [];

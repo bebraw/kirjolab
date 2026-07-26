@@ -211,6 +211,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   complete typed context with table, clarity, or revision intents while leaving
   provider requests, workflow state, persistence, and Yjs edits in the
   application coordinator.
+- Keep browser-local assistant evidence selection and its count or limit status
+  inside the Lit workflow-status owner. The coordinator may resolve those keys
+  against current snapshots and enforce generation policy, but must not keep a
+  parallel selected-key set.
 - Back up reviews independently of projects. Owner backup schema v3 stores each
   review's catalog record and locator, access state, complete active and
   unlinked project-link ledger, revision seed, and a bounded canonical

@@ -260,13 +260,13 @@ import {
   type LatexImportPreview,
 } from "./app-contracts";
 import {
-  maximumModelEvidenceItems,
   OpenAICompatibleBrowserProvider,
   type ModelClarityRewrites,
   type ModelIdeas,
   type ModelPhrasingAlternatives,
   type ModelTable,
   type ModelEvidenceItem,
+  maximumModelEvidenceItems,
 } from "./model-provider";
 import { parseTableRequirements, tableMarkdown, type TableRequirements } from "./structured-syntax";
 import { createProjectHistoryActor, projectHistoryBusy, type ProjectHistoryOperation } from "./project-history-machine";
@@ -439,7 +439,6 @@ class WorkspaceApp {
   #renderedPdfContextKey: ResearchContextKey | undefined;
   #contextState: ResearchContextState = createResearchContext();
   #authoringSelection: RelativeEditorSelection | null = null;
-  #modelEvidenceSelection = new Set<string>();
   #activeFileId: string | null = null;
   #activeFileText = this.#source;
   readonly #editorUndoManagers = new Map<Y.Text, Y.UndoManager>();
@@ -2087,7 +2086,7 @@ class WorkspaceApp {
     const selectedEvidence = this.#modelEvidence();
     return (
       this.#assistantEvidenceValid(operation.evidence, selectedEvidence.items) &&
-      this.#modelEvidenceSelection.size <= maximumModelEvidenceItems &&
+      this.#elements.assistantWorkflowStatus.selectedEvidenceKeys.size <= maximumModelEvidenceItems &&
       Boolean(this.#elements.modelProviderSettings.value.model.trim()) &&
       this.#assistantTargetValid(operation.id, selectedEvidence.items) &&
       Boolean(instruction.trim())
@@ -3577,9 +3576,7 @@ class WorkspaceApp {
       ...this.#snapshot.annotations.map((annotation) => modelEvidenceKey("annotation", annotation.id)),
       ...this.#snapshot.claims.map((claim) => modelEvidenceKey("claim", claim.id)),
     ]);
-    for (const key of this.#modelEvidenceSelection) {
-      if (!validModelEvidence.has(key)) this.#modelEvidenceSelection.delete(key);
-    }
+    this.#elements.assistantWorkflowStatus.reconcileEvidence(validModelEvidence);
     this.#renderProjectEvidence();
     this.#renderPublications(this.#snapshot.publications);
     this.#renderClaims(this.#snapshot.claims, this.#snapshot.claimLinks);
@@ -3617,7 +3614,7 @@ class WorkspaceApp {
       annotations,
       links,
       pdfs,
-      selectedEvidenceKeys: this.#modelEvidenceSelection,
+      selectedEvidenceKeys: this.#elements.assistantWorkflowStatus.selectedEvidenceKeys,
     });
     this.#elements.projectAnnotationForm.setPdfs(pdfs, this.#renderedPdfId ?? "");
   }
@@ -3682,7 +3679,7 @@ class WorkspaceApp {
       claims,
       evidenceLinks: this.#snapshot.claimEvidenceLinks,
       passageLinks: links,
-      selectedEvidenceKeys: this.#modelEvidenceSelection,
+      selectedEvidenceKeys: this.#elements.assistantWorkflowStatus.selectedEvidenceKeys,
     });
   }
 
@@ -4901,13 +4898,7 @@ class WorkspaceApp {
   }
 
   #setModelEvidenceSelected(key: string, selected: boolean): void {
-    if (!/^(?:annotation|claim):[^:]+$/u.test(key)) return;
-    if (selected) this.#modelEvidenceSelection.add(key);
-    else this.#modelEvidenceSelection.delete(key);
-    this.#elements.assistantWorkflowStatus.status =
-      this.#modelEvidenceSelection.size > maximumModelEvidenceItems
-        ? `Choose no more than ${maximumModelEvidenceItems} evidence resources.`
-        : `${this.#modelEvidenceSelection.size} ${this.#modelEvidenceSelection.size === 1 ? "resource" : "resources"} selected for grounding.`;
+    this.#elements.assistantWorkflowStatus.setEvidenceSelected(key, selected);
     this.#updateModelAvailability();
   }
 
@@ -4926,7 +4917,7 @@ class WorkspaceApp {
     if (!this.#snapshot) return { items: [], references: [] };
     const items: ModelEvidenceItem[] = [];
     const references: ModelEvidenceReference[] = [];
-    for (const key of this.#modelEvidenceSelection) {
+    for (const key of this.#elements.assistantWorkflowStatus.selectedEvidenceKeys) {
       const [kind, id] = parseModelEvidenceKey(key);
       if (kind === "annotation") {
         this.#appendAnnotationModelEvidence(id, items, references);

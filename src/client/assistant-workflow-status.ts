@@ -1,4 +1,5 @@
 import { html, LitElement, type TemplateResult } from "lit";
+import { maximumModelEvidenceItems } from "./model-provider";
 
 export const assistantWorkflowActionEvent = "kirjolab-assistant-workflow-action";
 export type AssistantWorkflowAction = "choose-evidence" | "open-settings";
@@ -11,6 +12,7 @@ export class AssistantWorkflowStatus extends LitElement {
 
   declare operationId: string;
   declare status: string;
+  private evidenceKeys = new Set<string>();
 
   constructor() {
     super();
@@ -26,6 +28,24 @@ export class AssistantWorkflowStatus extends LitElement {
         : operationId === "phrase-passage"
           ? "Choose a rhetorical purpose, then compare contextual alternatives before opening exact review."
           : "Choose a target and the required evidence, then generate a reviewable draft.";
+  }
+
+  get selectedEvidenceKeys(): ReadonlySet<string> {
+    return new Set(this.evidenceKeys);
+  }
+
+  setEvidenceSelected(key: string, selected: boolean): void {
+    if (!/^(?:annotation|claim):[^:]+$/u.test(key)) return;
+    if (selected) this.evidenceKeys.add(key);
+    else this.evidenceKeys.delete(key);
+    this.status =
+      this.evidenceKeys.size > maximumModelEvidenceItems
+        ? `Choose no more than ${maximumModelEvidenceItems} evidence resources.`
+        : `${this.evidenceKeys.size} ${this.evidenceKeys.size === 1 ? "resource" : "resources"} selected for grounding.`;
+  }
+
+  reconcileEvidence(validKeys: ReadonlySet<string>): void {
+    this.evidenceKeys = new Set([...this.evidenceKeys].filter((key) => validKeys.has(key)));
   }
 
   protected emitAction(action: AssistantWorkflowAction): void {
