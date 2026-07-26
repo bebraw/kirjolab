@@ -40,6 +40,11 @@ Adopted boundaries are:
   and branch structures share bounded schemas while OAuth inputs, response-byte
   limits, pagination ceilings, token expiry projection, and stable integration
   errors remain explicit transport policy.
+- GitHub App repository responses: repository identity, ref and commit SHAs,
+  commit metadata, recursive tree entries, created Git objects, and blob
+  envelopes use bounded schemas while subtree normalization, Markdown and byte
+  limits, LFS detection, optimistic concurrency, and stable integration errors
+  remain explicit orchestration policy.
 - GitHub synchronization status: one inferred browser-side schema replaces the
   parallel serialized-status interface, relationship membership check, and
   non-negative integer predicates while presentation remains explicit UI

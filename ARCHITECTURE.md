@@ -22,6 +22,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   predicates merely for consistency. At the GitHub user boundary, schemas own
   external identity, installation, repository, and branch response structure;
   bounded reads, pagination, OAuth policy, and domain error mapping stay explicit.
+  At the GitHub App repository boundary, schemas own repository, ref, commit,
+  tree-entry, created-object, and blob response structure; subtree policy,
+  Markdown and byte bounds, LFS handling, optimistic concurrency, and stable
+  integration errors stay explicit.
 - Read bounded external response bodies through stateless, request-local
   helpers that enforce both declared and observed byte limits. Keep byte
   ceilings, errors, response-shape validation, and domain mapping explicit at

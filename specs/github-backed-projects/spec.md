@@ -96,7 +96,11 @@ incoming and outgoing mutation.
   orchestration receive only its request-scoped installation requester.
 - GitHub App and user clients share one stateless streamed response reader that
   enforces both declared and observed byte limits before JSON parsing. Each
-  client retains its own ceiling and typed provider-error projection.
+  client retains its own ceiling and typed provider-error projection. The
+  repository client validates repository, ref, commit, recursive-tree,
+  created-object, and blob response envelopes with bounded Valibot schemas;
+  subtree policy, Markdown and aggregate-byte limits, LFS detection, optimistic
+  concurrency, and stable GitHub error mapping remain explicit.
 
 ### API Contracts
 

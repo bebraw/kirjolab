@@ -5257,6 +5257,28 @@ and four directly affected session tests.
 Full native CI passes all 1,601 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Valibot Adoption: GitHub App Responses
+
+The GitHub App repository client now validates repository identity, refs,
+commits, recursive tree entries, created Git objects, and blob envelopes with
+named Valibot schemas. Subtree normalization, Markdown and aggregate-byte
+bounds, LFS detection, optimistic concurrency, bounded reads, and stable error
+mapping remain explicit.
+
+The file remains 344 lines: schema declarations replace the same amount of
+handwritten record, integer, SHA, nested-object, tree-entry, and blob guarding.
+The readability audit lowers `readMarkdownSnapshot` from cyclomatic 29 /
+cognitive 33 / estimated CRAP 210.7 to 23 / 30 / 137.3 and removes one duplicate
+clone group. Browser application and style artifacts remain unchanged at
+825,900 B raw / 223,595 B gzip and 135,411 B raw / 23,373 B gzip because this
+boundary is Worker-side. Direct and unique production package counts remain 18
+and 150; Valibot was already pinned.
+
+All 20 direct GitHub App cases pass. The affected guardrails pass formatting,
+lint, strict types, 85 related integration tests, and all 120 Workers-runtime
+tests. Full native CI passes all 1,601 unit/coverage tests, 120 Workers-runtime
+tests, and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

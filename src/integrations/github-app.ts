@@ -1,3 +1,4 @@
+import * as v from "valibot";
 import {
   GitHubAppTransport,
   GitHubClientError,
@@ -49,6 +50,26 @@ type FetchExternal = (input: RequestInfo | URL, init?: RequestInit) => Promise<R
 
 const maximumMarkdownFiles = 512;
 const maximumMarkdownBytes = 2 * 1024 * 1024;
+const positiveIntegerSchema = v.pipe(v.number(), v.safeInteger(), v.minValue(1));
+const nonNegativeIntegerSchema = v.pipe(v.number(), v.safeInteger(), v.minValue(0));
+const commitShaSchema = v.pipe(v.string(), v.regex(/^[a-f0-9]{40,64}$/iu));
+const repositoryResponseSchema = v.object({ id: positiveIntegerSchema });
+const gitObjectResponseSchema = v.object({ object: v.object({ sha: commitShaSchema }) });
+const directShaResponseSchema = v.object({ sha: commitShaSchema });
+const treeShaResponseSchema = v.object({ tree: v.object({ sha: commitShaSchema }) });
+const commitResponseSchema = v.object({
+  message: v.pipe(v.string(), v.maxLength(10_000)),
+  tree: v.object({ sha: commitShaSchema }),
+});
+const treeEntrySchema = v.object({
+  path: v.string(),
+  type: v.string(),
+  mode: v.optional(v.string()),
+  sha: v.optional(v.string()),
+  size: v.optional(nonNegativeIntegerSchema),
+});
+const treeResponseSchema = v.object({ truncated: v.optional(v.boolean()), tree: v.array(v.unknown()) });
+const blobResponseSchema = v.object({ encoding: v.literal("base64"), content: v.string(), size: nonNegativeIntegerSchema });
 
 export class GitHubAppClient {
   readonly #transport: GitHubAppTransport;
@@ -61,7 +82,7 @@ export class GitHubAppClient {
     const normalized = validateSelection(selection);
     const request = await this.#transport.forInstallation(normalized.installationId, normalized.repositoryId);
     const repository = await request(`/repos/${segment(normalized.owner)}/${segment(normalized.repository)}`);
-    if (!isRecord(repository) || !isPositiveInteger(repository.id)) throw invalidResponse("GitHub repository metadata is invalid");
+    if (!v.is(repositoryResponseSchema, repository)) throw invalidResponse("GitHub repository metadata is invalid");
     if (normalized.repositoryId !== undefined && repository.id !== normalized.repositoryId) {
       throw new GitHubClientError("forbidden", "GitHub repository is outside the authorized user selection", 403);
     }
@@ -70,32 +91,31 @@ export class GitHubAppClient {
     );
     const commitSha = gitObjectSha(ref, "GitHub branch response is invalid");
     const commit = await request(`/repos/${segment(normalized.owner)}/${segment(normalized.repository)}/git/commits/${segment(commitSha)}`);
-    const treeSha = nestedSha(commit, "tree", "GitHub commit response is invalid");
-    if (!isRecord(commit) || typeof commit.message !== "string" || commit.message.length > 10_000) {
-      throw invalidResponse("GitHub commit response is invalid");
-    }
+    if (!v.is(commitResponseSchema, commit)) throw invalidResponse("GitHub commit response is invalid");
+    const treeSha = commit.tree.sha;
     const tree = await request(
       `/repos/${segment(normalized.owner)}/${segment(normalized.repository)}/git/trees/${segment(treeSha)}?recursive=1`,
     );
-    if (!isRecord(tree) || tree.truncated === true || !Array.isArray(tree.tree)) {
+    if (!v.is(treeResponseSchema, tree) || tree.truncated === true) {
       throw new GitHubClientError("bounds", "GitHub returned a truncated or invalid repository tree");
     }
 
     const blobs: Array<{ path: string; sha: string; size: number }> = [];
     const skipped: GitHubSkippedEntry[] = [];
     for (const value of tree.tree) {
-      if (!isRecord(value) || typeof value.path !== "string" || typeof value.type !== "string") continue;
-      const relative = relativeToRoot(value.path, normalized.rootPath);
+      const entry = v.safeParse(treeEntrySchema, value);
+      if (!entry.success) continue;
+      const relative = relativeToRoot(entry.output.path, normalized.rootPath);
       if (relative === null) continue;
       if (!relative.toLocaleLowerCase().endsWith(".md")) {
         if (relative) skipped.push({ path: relative, reason: "unsupported-type" });
         continue;
       }
-      if (value.type !== "blob" || value.mode !== "100644" || typeof value.sha !== "string" || !isNonNegativeInteger(value.size)) {
+      if (entry.output.type !== "blob" || entry.output.mode !== "100644" || !entry.output.sha || entry.output.size === undefined) {
         skipped.push({ path: relative, reason: "unsupported-mode" });
         continue;
       }
-      blobs.push({ path: relative, sha: value.sha, size: value.size });
+      blobs.push({ path: relative, sha: entry.output.sha, size: entry.output.size });
     }
     blobs.sort((left, right) => compareText(left.path, right.path));
     if (blobs.length === 0) throw new GitHubClientError("bounds", "The selected GitHub folder contains no supported Markdown files");
@@ -141,7 +161,7 @@ export class GitHubAppClient {
   ): Promise<string> {
     const normalized = validateSelection(selection);
     if (
-      !isCommitSha(expectedHead) ||
+      !v.is(commitShaSchema, expectedHead) ||
       !message.trim() ||
       message.length > 1_000 ||
       changes.length === 0 ||
@@ -166,7 +186,8 @@ export class GitHubAppClient {
     const currentHead = gitObjectSha(await request(refPath), "GitHub branch response is invalid");
     if (currentHead !== expectedHead) throw new GitHubClientError("remote-changed", "The GitHub branch changed after preview");
     const commit = await request(`${repositoryPath}/git/commits/${segment(currentHead)}`);
-    const baseTree = nestedSha(commit, "tree", "GitHub commit response is invalid");
+    if (!v.is(treeShaResponseSchema, commit)) throw invalidResponse("GitHub commit response is invalid");
+    const baseTree = commit.tree.sha;
     const entries = await Promise.all(
       changes.map(async (change) => ({
         path: joinRoot(normalized.rootPath, change.path),
@@ -220,7 +241,7 @@ export class GitHubAppClient {
     expectedSize: number,
   ): Promise<string> {
     const value = await request(`/repos/${segment(owner)}/${segment(repository)}/git/blobs/${segment(sha)}`);
-    if (!isRecord(value) || value.encoding !== "base64" || typeof value.content !== "string" || value.size !== expectedSize) {
+    if (!v.is(blobResponseSchema, value) || value.size !== expectedSize) {
       throw invalidResponse("GitHub blob response is invalid");
     }
     let bytes: Uint8Array;
@@ -249,8 +270,8 @@ export function normalizeGitHubRoot(value: string): string | null {
 function validateSelection(selection: GitHubRepositorySelection): GitHubRepositorySelection {
   const rootPath = normalizeGitHubRoot(selection.rootPath);
   if (
-    !isPositiveInteger(selection.installationId) ||
-    (selection.repositoryId !== undefined && !isPositiveInteger(selection.repositoryId)) ||
+    !v.is(positiveIntegerSchema, selection.installationId) ||
+    (selection.repositoryId !== undefined && !v.is(positiveIntegerSchema, selection.repositoryId)) ||
     !repositoryPart(selection.owner) ||
     !repositoryPart(selection.repository) ||
     !selection.branch.trim() ||
@@ -300,22 +321,13 @@ function pathSegment(value: string): string {
 }
 
 function gitObjectSha(value: unknown, message: string): string {
-  if (!isRecord(value) || !isRecord(value.object) || !isCommitSha(value.object.sha)) throw invalidResponse(message);
+  if (!v.is(gitObjectResponseSchema, value)) throw invalidResponse(message);
   return value.object.sha;
 }
 
-function nestedSha(value: unknown, key: string, message: string): string {
-  if (!isRecord(value) || !isRecord(value[key]) || !isCommitSha(value[key].sha)) throw invalidResponse(message);
-  return value[key].sha;
-}
-
 function directSha(value: unknown, message: string): string {
-  if (!isRecord(value) || !isCommitSha(value.sha)) throw invalidResponse(message);
+  if (!v.is(directShaResponseSchema, value)) throw invalidResponse(message);
   return value.sha;
-}
-
-function isCommitSha(value: unknown): value is string {
-  return typeof value === "string" && /^[a-f0-9]{40,64}$/iu.test(value);
 }
 
 function decodeBase64(value: string): Uint8Array {
@@ -329,16 +341,4 @@ function compareText(left: string, right: string): number {
 
 function isGitLfsPointer(value: string): boolean {
   return /^version https:\/\/git-lfs\.github\.com\/spec\/v1\r?\noid sha256:[a-f0-9]{64}\r?\nsize \d+(?:\r?\n)?$/iu.test(value);
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
-}
-
-function isPositiveInteger(value: unknown): value is number {
-  return typeof value === "number" && Number.isSafeInteger(value) && value > 0;
-}
-
-function isNonNegativeInteger(value: unknown): value is number {
-  return typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
 }
