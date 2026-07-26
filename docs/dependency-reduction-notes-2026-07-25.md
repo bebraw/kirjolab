@@ -4091,3 +4091,26 @@ and unique production package counts remain unchanged at 135,411 B raw /
 
 Full native CI passes all 1,486 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Lit Ownership: Comment Resolution
+
+`ManuscriptCommentList` now owns self-contained resolution transport, stable
+encoded comment targets, request validation, duplicate-submit gating, pending
+and retryable failure state, and the typed completed-resolution outcome on its
+existing action channel. `WorkspaceApp` retains selection-dependent comment
+creation and re-anchoring, project-resource refresh, toast policy, and passage
+navigation.
+
+This checkpoint reduces `src/client/app.ts` from 5,125 to 5,120 lines (-5) and
+grows the manuscript comment list from 147 to 177 lines. Runtime source across
+those files increases by 25 lines while removing the coordinator resolution
+method. Focused coverage passes stable encoded targets, successful completion,
+provider failure and retry, and duplicate resolution submissions.
+
+The browser application artifact changes from 807,832 B raw / 219,045 B gzip
+to 808,450 B raw / 219,265 B gzip (+618 B raw / +220 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,489 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.

@@ -744,6 +744,7 @@ class WorkspaceApp {
         window.location.reload();
       }
     });
+    this.#elements.manuscriptCommentListPanel.configure(apiBase);
     this.#elements.manuscriptCommentListPanel.addEventListener(manuscriptCommentCreateEvent, (event) => {
       void this.#createManuscriptComment((event as CustomEvent<string>).detail);
     });
@@ -751,7 +752,11 @@ class WorkspaceApp {
       const detail = (event as CustomEvent<ManuscriptCommentAction>).detail;
       if (detail.action === "open") this.#showPassage(detail.anchor);
       else if (detail.action === "reanchor") void this.#reanchorManuscriptComment(detail.commentId);
-      else void this.#resolveManuscriptComment(detail.commentId);
+      else
+        void this.#resourceRefresh
+          .request()
+          .then(() => this.#showToast(detail.message))
+          .catch(() => this.#showToast("The comment was resolved, but project resources could not be refreshed."));
     });
     for (const eventName of ["focus", "input", "keyup", "select", "click"] as const) {
       this.#elements.source.addEventListener(eventName, () => {
@@ -2631,16 +2636,6 @@ class WorkspaceApp {
     this.#elements.manuscriptCommentListPanel.markSaved();
     await this.#resourceRefresh.request();
     this.#showToast("Comment anchored to the selected passage.");
-  }
-
-  async #resolveManuscriptComment(commentId: string): Promise<void> {
-    const response = await fetch(`${apiBase}/comments/${encodeURIComponent(commentId)}/resolve`, {
-      method: "POST",
-      credentials: "same-origin",
-    });
-    await expectOk(response);
-    await this.#resourceRefresh.request();
-    this.#showToast("Comment resolved; its revision history is preserved.");
   }
 
   async #reanchorManuscriptComment(commentId: string): Promise<void> {

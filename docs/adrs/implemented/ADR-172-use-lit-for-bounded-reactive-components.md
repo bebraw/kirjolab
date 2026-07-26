@@ -96,7 +96,9 @@ The adopted components own bounded presentation:
   and action presentation with typed create, claim, and navigation intents.
 - The manuscript comment panel owns composer body and status state plus comment,
   anchor-status, empty-state, and action presentation with typed create, open,
-  re-anchor, and resolve intents.
+  and re-anchor intents. It also owns self-contained resolution transport,
+  duplicate-submit gating, pending and retryable failure state, and the typed
+  completed-resolution outcome.
 - The project publication list owns the References collection shell and count,
   reference metadata, alias and DOI labels, empty-state, and action
   presentation with typed open, manage, and enrich intents.
@@ -395,9 +397,9 @@ reason to wrap static markup mechanically.
   navigation, and annotation navigation in the application coordinator.
 - The manuscript comment panel replaces three composer element references,
   submit binding, reset and saved-status updates, one internal list reference,
-  and its imperative card renderer while leaving anchor selection, mutations,
-  refreshes, notifications, and passage navigation in the application
-  coordinator.
+  its imperative card renderer, and the coordinator resolution method. It
+  leaves selection-dependent creation and re-anchoring, refreshes,
+  notifications, and passage navigation in the application coordinator.
 - The project publication list replaces one internal list reference and its
   imperative card renderer. It also replaces the separate count reference and
   mutation while leaving context navigation, Library management, metadata

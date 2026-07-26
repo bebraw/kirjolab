@@ -1,5 +1,6 @@
 import { html, LitElement, type TemplateResult } from "lit";
 import type { ManuscriptAnchorSelector, ManuscriptComment } from "../domain/workspace";
+import { errorMessage, expectOk } from "./http";
 import { anchorActionLabel } from "./research-resource-presentation";
 
 export const manuscriptCommentActionEvent = "manuscript-comment-action";
@@ -7,24 +8,33 @@ export const manuscriptCommentCreateEvent = "manuscript-comment-create";
 
 export type ManuscriptCommentAction =
   | { readonly action: "open"; readonly anchor: ManuscriptAnchorSelector }
-  | { readonly action: "reanchor" | "resolve"; readonly commentId: string };
+  | { readonly action: "reanchor"; readonly commentId: string }
+  | { readonly action: "resolved"; readonly message: string };
 
 export class ManuscriptCommentList extends LitElement {
   static override properties = {
     body: { state: true },
     comments: { state: true },
+    resolvingCommentId: { state: true },
     status: { state: true },
   };
 
   declare private body: string;
   declare private comments: readonly ManuscriptComment[];
+  declare private resolvingCommentId: string;
   declare private status: string;
+  private apiBase = "";
 
   constructor() {
     super();
     this.body = "";
     this.comments = [];
+    this.resolvingCommentId = "";
     this.status = "Comments stay outside the Markdown source.";
+  }
+
+  configure(apiBase: string): void {
+    this.apiBase = apiBase;
   }
 
   setComments(comments: readonly ManuscriptComment[]): void {
@@ -100,9 +110,10 @@ export class ManuscriptCommentList extends LitElement {
                           class="button-secondary"
                           data-comment-id=${comment.id}
                           data-comment-action="resolve"
+                          ?disabled=${this.resolvingCommentId === comment.id}
                           @click=${this.act}
                         >
-                          Resolve
+                          ${this.resolvingCommentId === comment.id ? "Resolving…" : "Resolve"}
                         </button>`
                       : ""}
                   </div>
@@ -128,7 +139,26 @@ export class ManuscriptCommentList extends LitElement {
     if (!comment) return;
     const action = button.dataset.commentAction;
     if (action === "open") this.emit({ action, anchor: comment.anchor });
-    else if (action === "reanchor" || action === "resolve") this.emit({ action, commentId: comment.id });
+    else if (action === "reanchor") this.emit({ action, commentId: comment.id });
+    else if (action === "resolve") void this.resolve(comment.id);
+  }
+
+  protected async resolve(commentId: string): Promise<void> {
+    if (this.resolvingCommentId) return;
+    this.resolvingCommentId = commentId;
+    this.status = "Resolving comment…";
+    try {
+      const response = await fetch(`${this.apiBase}/comments/${encodeURIComponent(commentId)}/resolve`, {
+        method: "POST",
+        credentials: "same-origin",
+      });
+      await expectOk(response);
+      this.emit({ action: "resolved", message: "Comment resolved; its revision history is preserved." });
+    } catch (error) {
+      this.status = errorMessage(error, "Could not resolve the comment.");
+    } finally {
+      this.resolvingCommentId = "";
+    }
   }
 
   private emit(detail: ManuscriptCommentAction): void {

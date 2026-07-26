@@ -29,9 +29,11 @@ ephemeral rather than a scholarly resource.
   stale status, and navigates only a resolved range.
 - A bounded light-DOM panel owns composer body, reset and saved status plus
   comment, anchor-status, empty-state, and action presentation. It emits typed
-  create, open, re-anchor, and resolve intents while anchor selection,
-  mutations, refreshes, notifications, and passage navigation remain with the
-  application coordinator.
+  create, open, and re-anchor intents. The panel owns resolution transport,
+  pending and retryable failure state, and its completed outcome; anchor
+  selection, selection-dependent creation and re-anchoring, refreshes,
+  notifications, and passage navigation remain with the application
+  coordinator.
 - The left project rail exposes Comments as a peer of Files and Research. Its
   local mode contains the selected-passage composer, open-comment count, and
   open/resolved history without reducing the manuscript editor height.
@@ -91,6 +93,9 @@ ephemeral rather than a scholarly resource.
 - Invalid client metadata must never be persisted or rebroadcast.
 - Switching the local left-rail mode must not mutate Markdown, comments, Yjs
   state, or collaboration messages.
+- Duplicate resolution submissions must collapse to one request, provider
+  failures must remain retryable in the comment panel, and stable comment ids
+  must be URL encoded before transport.
 
 ### Scenarios
 
