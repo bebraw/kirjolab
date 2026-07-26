@@ -58,7 +58,9 @@ elements stay outside those actors.
 The collaboration actor is composed by a typed browser session alongside its
 ordered update queue and Yjs server shadow. Those remain ordinary TypeScript
 authorities outside the actor even though the session presents their combined
-protocol operations to the application coordinator.
+protocol operations to a typed socket authority. The socket authority keeps
+WebSocket instances and timers outside the actor while owning their protocol
+lifecycle and reporting application consequences through explicit callbacks.
 
 Future adoption requires the same bounded-workflow test: a machine must remove
 invalid combinations or materially clarify event ordering. XState will not

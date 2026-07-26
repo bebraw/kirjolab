@@ -268,11 +268,14 @@ collaboration.
   instances, retry timers, Yjs documents and updates, and IndexedDB records
   remain outside the actor. A typed collaboration session composes that actor
   with the ordered pending-update queue, Yjs server-shadow document,
-  acknowledged server vector, and offline-delta reconstruction. WebSocket and
-  retry timing, editor-selection restoration, revision effects, resource
-  refresh, and UI projection remain coordinator-owned. One bounded light-DOM
-  component presents the actor-derived label and connected tone together and
-  also owns the equivalent private-Library status presentation.
+  acknowledged server vector, and offline-delta reconstruction. One typed
+  socket authority around the session owns WebSocket creation, reconnect and
+  selection timers, strict control routing, binary-update application, queue
+  flushing, reset cleanup, and reload sequencing. The workspace coordinator
+  supplies editor-selection restoration, revision effects, resource refresh,
+  collaborator presentation, and UI projection through explicit callbacks. One
+  bounded light-DOM component presents the actor-derived label and connected
+  tone together and also owns the equivalent private-Library status presentation.
 - **Editor ownership:** After `sync`, source and bibliography inputs derive from
   `Y.Text`; server collaboration controls own the displayed revision. REST
   workspace refreshes cannot assign those values. The editor reports `Saved`

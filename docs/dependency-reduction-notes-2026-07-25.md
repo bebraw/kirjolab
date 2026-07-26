@@ -5320,6 +5320,30 @@ boundary is Worker-side. Direct and unique production package counts remain 18
 and 150; Valibot and Octokit were already pinned. Full native CI passes all
 1,604 unit/coverage tests, 120 Workers-runtime tests, and 74 browser tests.
 
+## Continued Coordinator Extraction: Collaboration Socket
+
+A typed `CollaborationSocket` now composes the existing session with WebSocket
+creation, reconnect and selection timers, strict JSON control routing, binary
+Yjs update application, ordered queue flushing, reset cleanup, and reload
+sequencing. `WorkspaceApp` supplies editor-selection preservation, canonical
+revision effects, resource refresh, collaborator presentation, and connection
+UI through explicit callbacks.
+
+This checkpoint reduces `src/client/app.ts` from 3,458 to 3,322 lines (-136).
+The independently tested socket authority is 228 lines, so runtime source across
+the two files grows by 92 lines while removing three coordinator fields and ten
+transport/protocol methods. The browser application artifact changes from
+826,411 B raw / 223,595 B gzip to 827,405 B raw / 223,826 B gzip (+994 B raw /
++231 B gzip). Styles and direct and unique production package counts remain
+unchanged at 135,411 B raw / 23,373 B gzip, 18, and 150.
+
+Seven focused tests across the socket and session cover online and offline
+connection, synchronization, acknowledgements, revision and presence controls,
+remote selections, resource invalidation, binary updates, queued sends,
+selection debounce, invalid-frame closes, reconnect, reset cleanup, and reload.
+Full native CI passes all 1,607 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,
