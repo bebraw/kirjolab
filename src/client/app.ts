@@ -513,7 +513,10 @@ class WorkspaceApp {
     this.#elements.workspaceRailTabs.addEventListener(workspaceRailChangeEvent, (event) => {
       this.#showRail((event as CustomEvent<WorkspaceRail>).detail);
     });
-    this.#elements.researchDiaryPanel.addEventListener(researchDiaryOpenEvent, () => void this.#openResearchDiary());
+    this.#elements.researchDiaryPanel.addEventListener(
+      researchDiaryOpenEvent,
+      () => void this.#openWorkflowFile(researchDiaryPath, () => researchDiaryTemplate(new Date().toISOString().slice(0, 10))),
+    );
     this.#elements.manuscriptMapPanel.addEventListener(manuscriptMapSelectEvent, (event) => {
       const { from, to } = (event as CustomEvent<ManuscriptMapSelection>).detail;
       this.#focusComposedRange(from, to);
@@ -1657,35 +1660,14 @@ class WorkspaceApp {
       : this.#source.toString();
   }
 
-  async #openResearchDiary(): Promise<void> {
-    const existing = this.#snapshot?.files.find((file) => file.path === researchDiaryPath);
+  async #openWorkflowFile(path: string, content: () => string): Promise<void> {
+    const existing = this.#snapshot?.files.find((file) => file.path === path);
     if (existing) {
       this.#selectProjectFile(existing.id);
       this.#elements.source.focus();
       return;
     }
-    const date = new Date().toISOString().slice(0, 10);
-    await this.#createWorkflowFile(researchDiaryPath, researchDiaryTemplate(date));
-  }
-
-  async #openResearchQuestions(): Promise<void> {
-    const existing = this.#snapshot?.files.find((file) => file.path === researchQuestionsPath);
-    if (existing) {
-      this.#selectProjectFile(existing.id);
-      this.#elements.source.focus();
-      return;
-    }
-    await this.#createWorkflowFile(researchQuestionsPath, researchQuestionsTemplate());
-  }
-
-  async #openReviewerResponse(): Promise<void> {
-    const existing = this.#snapshot?.files.find((file) => file.path === reviewerResponsePath);
-    if (existing) {
-      this.#selectProjectFile(existing.id);
-      this.#elements.source.focus();
-      return;
-    }
-    await this.#createWorkflowFile(reviewerResponsePath, reviewerResponseTemplate());
+    await this.#createWorkflowFile(path, content());
   }
 
   async #handleWritingWorkflowAction(detail: WritingWorkflowActionDetail): Promise<void> {
@@ -1697,8 +1679,10 @@ class WorkspaceApp {
       this.#showToast(detail.message);
       return;
     }
-    if (detail.kind === "research-questions") await this.#openResearchQuestions();
-    else await this.#openReviewerResponse();
+    await this.#openWorkflowFile(
+      detail.kind === "research-questions" ? researchQuestionsPath : reviewerResponsePath,
+      detail.kind === "research-questions" ? researchQuestionsTemplate : reviewerResponseTemplate,
+    );
   }
 
   async #createWorkflowFile(path: string, content: string): Promise<void> {

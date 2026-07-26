@@ -5705,6 +5705,26 @@ component members.
 Full native CI passes all 1,583 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Shared Workflow File Opening
+
+`WorkspaceApp` now uses one lazy workflow-file opener for the research diary,
+research questions, and reviewer-response ledger. Existing files still select
+and focus directly, while missing files defer template construction until the
+shared project-file creation and navigation path needs it.
+
+This checkpoint reduces `src/client/app.ts` from 3,844 to 3,828 lines (-16)
+without changing another source or test module. The affected guardrails pass
+formatting, lint, strict types, and all 1,584 unit/coverage tests.
+
+The browser application artifact changes from 822,468 B raw / 222,699 B gzip
+to 822,241 B raw / 222,667 B gzip (-227 B raw / -32 B gzip). Styles, direct and
+unique production package counts, and the readability audit remain unchanged
+at 135,411 B raw / 23,373 B gzip, 18, 150, and 249 externally visible low-level
+component members.
+
+Full native CI passes all 1,584 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
+
 ## Workspace Coordinator One-Use Derivations
 
 `WorkspaceApp` now keeps four bounded expressions at their only call sites:
