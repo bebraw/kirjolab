@@ -12,6 +12,7 @@ export interface WorkspaceSettingsValue {
 }
 
 export type WorkspaceSettingsAction = { readonly action: "catalog-refresh" } | { readonly action: "save-template" };
+export type GitHubSyncPreview = "pull" | "push";
 
 export interface WorkspaceSettingsView extends WorkspaceSettingsValue {
   readonly archived: boolean;
@@ -76,6 +77,10 @@ export class WorkspaceSettingsPanel extends LitElement {
     return review;
   }
 
+  get hasActiveGitHubPreview(): boolean {
+    return this.gitHubReview.hasActivePreview;
+  }
+
   async show(view: WorkspaceSettingsView): Promise<void> {
     this.setView(view);
     this.status = "";
@@ -89,6 +94,20 @@ export class WorkspaceSettingsPanel extends LitElement {
 
   setGitHubStatus(status: string): void {
     this.gitHubStatus = status;
+  }
+
+  setGitHubConnection(connected: boolean, status: string): void {
+    this.gitHubReview.setConnected(connected);
+    this.setGitHubStatus(status);
+  }
+
+  resetGitHubReview(): void {
+    this.gitHubReview.reset();
+  }
+
+  async previewGitHub(operation: GitHubSyncPreview): Promise<void> {
+    if (operation === "pull") await this.gitHubReview.previewPull();
+    else await this.gitHubReview.previewPublish();
   }
 
   configureGitHub(apiBase: string): void {

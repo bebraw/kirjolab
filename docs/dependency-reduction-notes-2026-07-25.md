@@ -5279,6 +5279,30 @@ lint, strict types, 85 related integration tests, and all 120 Workers-runtime
 tests. Full native CI passes all 1,601 unit/coverage tests, 120 Workers-runtime
 tests, and 74 browser tests.
 
+## Continued Lit Ownership: GitHub Sync Coordination
+
+`GitHubSyncMenu` now binds the workspace-settings review and owns online and
+active-review polling pauses, Check/Pull/Push/Settings routing, settings-status
+mirroring, preview entry, canonical project refresh after Pull, and menu-status
+refresh after every completed mutation. `WorkspaceApp` retains canonical
+settings-view preparation and project fetching without knowing the review's
+local working state.
+
+This checkpoint reduces `src/client/app.ts` from 3,498 to 3,458 lines (-40).
+The menu grows from 188 to 234 lines and the settings owner from 353 to 372
+lines, so runtime source across the three files grows by 25 lines while deleting
+five coordinator event bindings and three GitHub refresh-routing methods. The
+browser application artifact changes from 825,900 B raw / 223,595 B gzip to
+826,411 B raw / 223,595 B gzip (+511 B raw / unchanged gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Focused menu and settings coverage passes 11 cases, including review pauses,
+preview routing, mutation refresh, settings mirroring, and the existing request
+and lifecycle behavior. Strict client and Workers types pass. Full native CI
+passes all 1,604 unit/coverage tests, 120 Workers-runtime tests, and 74 browser
+tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

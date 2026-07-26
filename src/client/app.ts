@@ -50,15 +50,6 @@ import { collaboratorSelectionChangeEvent } from "./collaborator-selection-list"
 import type { AppToastOptions } from "./app-toast";
 import { expectOk, jsonFetch } from "./http";
 import { sourceCompletionActionEvent, type SourceCompletionIntent } from "./source-completion";
-import {
-  gitHubSyncCheckEvent,
-  gitHubSyncPullEvent,
-  gitHubSyncPushEvent,
-  gitHubSyncSettingsEvent,
-  gitHubSyncStateEvent,
-  type GitHubSyncStateDetail,
-} from "./github-sync-menu";
-import { gitHubSyncMutationEvent, type GitHubSyncMutation } from "./github-sync-review";
 import { libraryPdfAnnotationActionEvent, type LibraryPdfAnnotationAction } from "./library-pdf-annotation-forms";
 import { libraryPdfAnnotationListActionEvent, type LibraryPdfAnnotationListAction } from "./library-pdf-annotation-list";
 import { libraryPdfMarkupActionEvent, type LibraryPdfMarkupAction } from "./library-pdf-markup-layer";
@@ -377,7 +368,7 @@ class WorkspaceApp {
       this.#renderCollaborationWorkflow();
     }
     await this.#restoreWorkspaceRoute();
-    void this.#refreshGitHubSyncState(true);
+    void this.#elements.gitHubSyncMenu.refreshWorkspace(true);
     this.#connect();
     if (new URL(location.href).searchParams.get("create") === "1") {
       history.replaceState(history.state, "", location.pathname);
@@ -392,13 +383,13 @@ class WorkspaceApp {
     this.#elements.collaboratorSelections.addEventListener(collaboratorSelectionChangeEvent, () => this.#renderSourceEditorHighlight());
     window.addEventListener("online", () => {
       this.#connect();
-      if (appMode === "workspace") void this.#refreshGitHubSyncState(true);
+      if (appMode === "workspace") void this.#elements.gitHubSyncMenu.refreshWorkspace(true);
     });
     window.addEventListener("focus", () => {
-      if (appMode === "workspace") void this.#refreshGitHubSyncState();
+      if (appMode === "workspace") void this.#elements.gitHubSyncMenu.refreshWorkspace();
     });
     document.addEventListener("visibilitychange", () => {
-      if (appMode === "workspace" && document.visibilityState === "visible") void this.#refreshGitHubSyncState();
+      if (appMode === "workspace" && document.visibilityState === "visible") void this.#elements.gitHubSyncMenu.refreshWorkspace();
     });
     window.addEventListener("offline", () => {
       this.#collaboration.goOffline();
@@ -441,24 +432,11 @@ class WorkspaceApp {
     this.#elements.newWorkspaceStartingPoints.addEventListener(startingPointTemplateDeleteEvent, (event) => {
       this.#deleteProjectTemplate((event as CustomEvent<ProjectTemplateSummary>).detail);
     });
-    this.#elements.workspaceSettingsPanel.configureGitHub(apiBase);
-    this.#elements.workspaceSettingsPanel.addEventListener(gitHubSyncMutationEvent, (event) => {
-      void this.#handleGitHubSyncMutation((event as CustomEvent<GitHubSyncMutation>).detail);
+    this.#elements.gitHubSyncMenu.bindWorkspace(apiBase, {
+      settings: this.#elements.workspaceSettingsPanel,
+      openSettings: async (checkGitHub) => await this.#openWorkspaceSettings(checkGitHub),
+      refreshProject: async () => await this.#resourceRefresh.request(),
     });
-    this.#elements.gitHubSyncMenu.addEventListener(gitHubSyncCheckEvent, () => void this.#refreshGitHubSyncState(true));
-    this.#elements.gitHubSyncMenu.configure(apiBase);
-    this.#elements.gitHubSyncMenu.addEventListener(gitHubSyncStateEvent, (event) => {
-      const { connected, message } = (event as CustomEvent<GitHubSyncStateDetail>).detail;
-      this.#elements.workspaceSettingsPanel.gitHubReview.setConnected(connected);
-      this.#elements.workspaceSettingsPanel.setGitHubStatus(message);
-    });
-    this.#elements.gitHubSyncMenu.addEventListener(gitHubSyncPullEvent, () => {
-      void this.#openWorkspaceSettings(false).then(() => this.#elements.workspaceSettingsPanel.gitHubReview.previewPull());
-    });
-    this.#elements.gitHubSyncMenu.addEventListener(gitHubSyncPushEvent, () => {
-      void this.#openWorkspaceSettings(false).then(() => this.#elements.workspaceSettingsPanel.gitHubReview.previewPublish());
-    });
-    this.#elements.gitHubSyncMenu.addEventListener(gitHubSyncSettingsEvent, () => void this.#openWorkspaceSettings());
     const githubResult = new URL(location.href).searchParams.get("github");
     if (githubResult === "connected" || githubResult === "installed") {
       this.#openGitHubImportDialog();
@@ -1076,30 +1054,12 @@ class WorkspaceApp {
       templateAllowed: workspaceId !== "demo",
       title: current?.title ?? "",
     });
-    if (checkGitHub) void this.#refreshGitHubSyncState(true);
+    if (checkGitHub) void this.#elements.gitHubSyncMenu.refreshWorkspace(true);
   }
 
   async #handleWorkspaceSettingsResult(detail: WorkspaceSettingsAction): Promise<void> {
     if (detail.action === "save-template") await this.#openSaveTemplate();
     else await this.#refreshCatalog();
-  }
-
-  async #refreshGitHubSyncState(force = false, resetReview = true): Promise<void> {
-    if (!navigator.onLine) return;
-    if (!force && (this.#elements.workspaceSettingsPanel.gitHubReview.hasActivePreview || this.#elements.workspaceSettingsPanel.open))
-      return;
-    if (!this.#elements.gitHubSyncMenu.refreshDue(force)) return;
-    if (resetReview) this.#resetGitHubSyncReview();
-    await this.#elements.gitHubSyncMenu.refresh();
-  }
-
-  #resetGitHubSyncReview(): void {
-    this.#elements.workspaceSettingsPanel.gitHubReview.reset();
-  }
-
-  async #handleGitHubSyncMutation(mutation: GitHubSyncMutation): Promise<void> {
-    if (mutation === "pull") await this.#resourceRefresh.request();
-    await this.#refreshGitHubSyncState(true, false);
   }
 
   async #openNewWorkspace(): Promise<void> {

@@ -85,6 +85,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   lifecycles, their canonical successful-result navigation, and local busy and
   failure state. Emit only catalog-refresh or save-as-template outcomes to the
   application coordinator.
+- Let the GitHub sync-menu Lit component bind the workspace-settings review,
+  own online and active-review refresh policy, route Check/Pull/Push/Settings
+  actions, and refresh both canonical project data after Pull and menu status
+  after every completed mutation. Keep settings-view preparation and canonical
+  project fetching in their existing authorities.
 - Route same-origin JSON writes and non-success response handling through the
   shared client HTTP adapter. Validate the bounded `{ error: string }` response
   contract with Valibot there instead of repeating parsing and fallback policy

@@ -1,7 +1,9 @@
 import { html, LitElement, type TemplateResult } from "lit";
 import { isGitHubSyncState } from "./app-contracts";
 import { gitHubSyncPresentation, isGitHubSyncStatus, type GitHubSyncStatus } from "./github-sync-status";
+import { gitHubSyncMutationEvent, type GitHubSyncMutation } from "./github-sync-review";
 import { expectOk } from "./http";
+import type { WorkspaceSettingsPanel } from "./workspace-settings-panel";
 
 export interface GitHubSyncConnectionPresentation {
   readonly owner: string;
@@ -18,6 +20,12 @@ export const gitHubSyncStateEvent = "github-sync-state";
 export interface GitHubSyncStateDetail {
   readonly connected: boolean;
   readonly message: string;
+}
+
+export interface GitHubSyncWorkspaceBinding {
+  readonly settings: WorkspaceSettingsPanel;
+  readonly openSettings: (checkGitHub?: boolean) => Promise<void>;
+  readonly refreshProject: () => Promise<void>;
 }
 
 export class GitHubSyncMenu extends LitElement {
@@ -41,6 +49,7 @@ export class GitHubSyncMenu extends LitElement {
   private apiBase = "";
   private refreshRequest = 0;
   private refreshedAt = 0;
+  private workspace: GitHubSyncWorkspaceBinding | null = null;
 
   constructor() {
     super();
@@ -55,6 +64,31 @@ export class GitHubSyncMenu extends LitElement {
 
   configure(apiBase: string): void {
     this.apiBase = apiBase;
+  }
+
+  bindWorkspace(apiBase: string, workspace: GitHubSyncWorkspaceBinding): void {
+    this.configure(apiBase);
+    workspace.settings.configureGitHub(apiBase);
+    this.workspace = workspace;
+    workspace.settings.addEventListener(gitHubSyncMutationEvent, (event) => {
+      void this.handleMutation((event as CustomEvent<GitHubSyncMutation>).detail);
+    });
+    this.addEventListener(gitHubSyncCheckEvent, () => void this.refreshWorkspace(true));
+    this.addEventListener(gitHubSyncStateEvent, (event) => {
+      const { connected, message } = (event as CustomEvent<GitHubSyncStateDetail>).detail;
+      workspace.settings.setGitHubConnection(connected, message);
+    });
+    this.addEventListener(gitHubSyncPullEvent, () => void this.openPreview("pull"));
+    this.addEventListener(gitHubSyncPushEvent, () => void this.openPreview("push"));
+    this.addEventListener(gitHubSyncSettingsEvent, () => void workspace.openSettings());
+  }
+
+  async refreshWorkspace(force = false, resetReview = true): Promise<void> {
+    if (!navigator.onLine || !this.workspace) return;
+    if (!force && (this.workspace.settings.hasActiveGitHubPreview || this.workspace.settings.open)) return;
+    if (!this.refreshDue(force)) return;
+    if (resetReview) this.workspace.settings.resetGitHubReview();
+    await this.refresh();
   }
 
   refreshDue(force = false): boolean {
@@ -166,6 +200,18 @@ export class GitHubSyncMenu extends LitElement {
 
   private requestSettings(): void {
     this.dispatchEvent(new CustomEvent(gitHubSyncSettingsEvent));
+  }
+
+  private async openPreview(operation: "pull" | "push"): Promise<void> {
+    if (!this.workspace) return;
+    await this.workspace.openSettings(false);
+    await this.workspace.settings.previewGitHub(operation);
+  }
+
+  private async handleMutation(mutation: GitHubSyncMutation): Promise<void> {
+    if (!this.workspace) return;
+    if (mutation === "pull") await this.workspace.refreshProject();
+    await this.refreshWorkspace(true, false);
   }
 
   private emitState(message: string): void {

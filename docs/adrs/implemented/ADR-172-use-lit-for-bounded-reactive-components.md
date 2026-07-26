@@ -41,7 +41,8 @@ The adopted components own bounded presentation:
 - The workspace sync menu owns repository status, relationship tone, Pull and
   Push availability, its bounded read-only connection and status refresh
   lifecycle, interval, validation and stale-request guard, typed Check, Pull,
-  Push, and Settings intents, and one typed state event for the settings mirror.
+  Push, and Settings intents, online and active-review refresh policy, settings
+  mirroring and preview routing, and completed-mutation refresh coordination.
 - The workspace sync review owns Pull and Publish requests and diff rendering,
   conflict choices, commit-message input, disconnect confirmation, response
   validation, readiness, progress, and one typed completed-mutation event.
@@ -237,8 +238,10 @@ The adopted components own bounded presentation:
   its interval, validation, stale-request protection, and primary result
   presentation are local to that component. The sync review owns its Pull,
   Publish, and disconnect request lifecycle for the same reason. It emits only
-  completed mutations; the application coordinator retains page-level refresh
-  pause policy, canonical project refresh, and navigation.
+  completed mutations; the sync menu's explicit workspace binding owns refresh
+  pause policy, preview entry points, canonical project refresh after Pull, and
+  status refresh after every mutation. The application coordinator retains the
+  settings view and canonical project-fetch implementation.
 - The export statistics panel owns loading, total, file, heading, and
   empty-group presentation for the live publication word-count projection.
 - The project export dialog progressively enhances the server-rendered export
@@ -447,7 +450,9 @@ reason to wrap static markup mechanically.
 - The application coordinator addresses one typed presentation component
   instead of managing its internal elements independently.
 - The sync menu removes eight internal elements plus their presentation updates
-  from the application coordinator's registry.
+  from the application coordinator's registry. Its workspace binding also
+  removes the coordinator's GitHub action listeners and three refresh-routing
+  methods without hiding project-data or settings-view authority.
 - The import picker replaces ten internal element references, the coordinator's
   repository-option cache, outer form reference and submit binding, and its
   imperative option and preview DOM assembly. It also absorbs the former
@@ -955,8 +960,9 @@ reason to wrap static markup mechanically.
 
 **Neutral:**
 
-- Network requests, GitHub and workspace-access contracts, authorization
-  handling, and disconnect confirmation remain in `WorkspaceApp`.
+- GitHub and workspace-access contracts, authorization handling, canonical
+  project fetching, and settings-view preparation remain outside presentation
+  state.
 - The visual language and server-rendered application shell are unchanged.
 
 ## Alternatives Considered

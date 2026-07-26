@@ -143,20 +143,21 @@ incoming and outgoing mutation.
   fallback markup.
 - The workspace sync menu is a light-DOM Lit component that owns repository
   status presentation, relationship tone, Pull and Push availability, and
-  typed Check, Pull, Push, and Settings intents. It also owns the bounded
-  read-only connection and status requests, refresh interval, response
-  validation, stale-request guard, and one typed state event for the settings
-  mirror. The application coordinator retains page-level online and active-review
-  pause policy, canonical refresh after mutations, preview entry points, and
-  settings dialogs, while the Worker retains initial fallback markup.
+  typed Check, Pull, Push, and Settings intents. Its workspace binding owns the
+  bounded read-only connection and status requests, refresh interval, response
+  validation, stale-request guard, online and active-review pause policy,
+  settings-status mirroring, preview entry points, canonical project refresh
+  after Pull, and status refresh after each completed mutation. The application
+  coordinator retains canonical settings-view preparation and project fetching,
+  while the Worker retains initial fallback markup.
 - The detailed sync review is a light-DOM Lit component that owns diff and
   conflict presentation, local resolution choices, commit-message input,
   action readiness, Pull and Publish preview and confirmation requests,
   disconnect confirmation and request, response validation, and operation
   progress. It retains the opaque preview identities, constructs confirmation
   payloads from its current resolution and commit-message state, and emits one
-  completed-mutation event. The application coordinator retains canonical
-  project refresh and cross-component status refresh after that event.
+  completed-mutation event. The sync menu's workspace binding routes canonical
+  project and cross-component status refresh after that event.
 - `POST /api/workspaces/{id}/github-sync/pull-previews` returns a non-mutating
   three-way incoming diff and conflicts.
 - `POST /api/workspaces/{id}/github-sync/pulls` consumes a current pull preview

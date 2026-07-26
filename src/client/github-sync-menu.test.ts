@@ -1,5 +1,14 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { GitHubSyncMenu, gitHubSyncStateEvent, type GitHubSyncStateDetail } from "./github-sync-menu";
+import {
+  GitHubSyncMenu,
+  gitHubSyncPullEvent,
+  gitHubSyncPushEvent,
+  gitHubSyncSettingsEvent,
+  gitHubSyncStateEvent,
+  type GitHubSyncStateDetail,
+} from "./github-sync-menu";
+import { gitHubSyncMutationEvent } from "./github-sync-review";
+import { WorkspaceSettingsPanel, type GitHubSyncPreview } from "./workspace-settings-panel";
 
 const connection = {
   owner: "bebraw",
@@ -9,8 +18,94 @@ const connection = {
   commitSha: "a".repeat(40),
 };
 
+class TestWorkspaceSettings extends WorkspaceSettingsPanel {
+  activePreview = false;
+  dialogOpen = false;
+  configuredWith = "";
+  connections: Array<{ connected: boolean; status: string }> = [];
+  previews: GitHubSyncPreview[] = [];
+  resetCount = 0;
+
+  override get open(): boolean {
+    return this.dialogOpen;
+  }
+
+  override get hasActiveGitHubPreview(): boolean {
+    return this.activePreview;
+  }
+
+  override configureGitHub(apiBase: string): void {
+    this.configuredWith = apiBase;
+  }
+
+  override setGitHubConnection(connected: boolean, status: string): void {
+    this.connections.push({ connected, status });
+  }
+
+  override resetGitHubReview(): void {
+    this.resetCount += 1;
+  }
+
+  override async previewGitHub(operation: GitHubSyncPreview): Promise<void> {
+    this.previews.push(operation);
+  }
+}
+
 describe("GitHub sync menu", () => {
-  afterEach(() => vi.restoreAllMocks());
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  it("coordinates workspace settings, previews, and mutation refreshes", async () => {
+    const menu = new GitHubSyncMenu();
+    const settings = new TestWorkspaceSettings();
+    const openSettings = vi.fn(async () => undefined);
+    const refreshProject = vi.fn(async () => undefined);
+    vi.stubGlobal("navigator", { onLine: true });
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(Response.json(null));
+    menu.bindWorkspace("/api/workspaces/project", { settings, openSettings, refreshProject });
+
+    menu.dispatchEvent(new CustomEvent<GitHubSyncStateDetail>(gitHubSyncStateEvent, { detail: { connected: true, message: "Synced" } }));
+    menu.dispatchEvent(new CustomEvent(gitHubSyncPullEvent));
+    menu.dispatchEvent(new CustomEvent(gitHubSyncPushEvent));
+    menu.dispatchEvent(new CustomEvent(gitHubSyncSettingsEvent));
+    settings.dispatchEvent(new CustomEvent(gitHubSyncMutationEvent, { detail: "pull" }));
+    await vi.waitFor(() => expect(refreshProject).toHaveBeenCalledOnce());
+    await vi.waitFor(() => expect(settings.connections).toHaveLength(2));
+
+    expect(settings.configuredWith).toBe("/api/workspaces/project");
+    expect(settings.connections).toEqual([
+      { connected: true, status: "Synced" },
+      { connected: false, status: "This project is not connected to GitHub." },
+    ]);
+    expect(openSettings.mock.calls).toEqual([[false], [false], []]);
+    expect(settings.previews).toEqual(["pull", "push"]);
+    expect(settings.resetCount).toBe(0);
+  });
+
+  it("pauses ambient workspace refreshes during review", async () => {
+    const menu = new GitHubSyncMenu();
+    const settings = new TestWorkspaceSettings();
+    vi.stubGlobal("navigator", { onLine: true });
+    const refresh = vi.spyOn(menu, "refresh").mockResolvedValue();
+    menu.bindWorkspace("/api/workspaces/project", {
+      settings,
+      openSettings: async () => undefined,
+      refreshProject: async () => undefined,
+    });
+
+    settings.activePreview = true;
+    await menu.refreshWorkspace();
+    settings.activePreview = false;
+    settings.dialogOpen = true;
+    await menu.refreshWorkspace();
+    settings.dialogOpen = false;
+    await menu.refreshWorkspace();
+
+    expect(refresh).toHaveBeenCalledOnce();
+    expect(settings.resetCount).toBe(1);
+  });
 
   it("owns connection and status refresh presentation", async () => {
     const menu = new GitHubSyncMenu();

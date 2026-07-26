@@ -225,6 +225,24 @@ describe("workspace settings panel", () => {
     expect(panel.open).toBe(false);
   });
 
+  it("owns its GitHub review presentation and preview actions", async () => {
+    const panel = new LifecycleWorkspaceSettingsPanel();
+    const connected = vi.spyOn(panel.review, "setConnected");
+    const reset = vi.spyOn(panel.review, "reset");
+    const previewPull = vi.spyOn(panel.review, "previewPull").mockResolvedValue();
+    const previewPublish = vi.spyOn(panel.review, "previewPublish").mockResolvedValue();
+
+    panel.setGitHubConnection(true, "Synced");
+    panel.resetGitHubReview();
+    await panel.previewGitHub("pull");
+    await panel.previewGitHub("push");
+
+    expect(connected).toHaveBeenCalledWith(true);
+    expect(reset).toHaveBeenCalledOnce();
+    expect(previewPull).toHaveBeenCalledOnce();
+    expect(previewPublish).toHaveBeenCalledOnce();
+  });
+
   it("reports missing internal controls clearly", () => {
     const panel = new MissingWorkspaceSettingsElements();
     expect(() => panel.dialogForTest()).toThrow("Workspace settings dialog is unavailable");
