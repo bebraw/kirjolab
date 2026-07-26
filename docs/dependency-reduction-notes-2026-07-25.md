@@ -2185,3 +2185,25 @@ to 789,338 B raw / 213,050 B gzip (-48 B raw / +39 B gzip). Styles and direct
 and unique production package counts remain unchanged at 135,411 B raw /
 23,373 B gzip and 18 and 150. Full native CI passes all 1,385 unit/coverage
 tests, 120 Workers-runtime tests, and 74 browser tests.
+
+## Continued Lit Ownership: Catalog and Sharing Dialogs
+
+The existing `WorkspaceCatalogPanel` and `WorkspaceSharingPanel` now own their
+native parent dialogs' opening and closing. The catalog panel also owns its
+open-time filter reset and focus. `WorkspaceApp` retains catalog fetching,
+navigation, membership and capability-link requests, authorization outcomes,
+and toast policy.
+
+This checkpoint reduces `src/client/app.ts` from 7,368 to 7,360 lines (-8),
+removes two separate dialog references, and deletes both synthetic close-event
+bridges. Focused unit coverage passes each native dialog lifecycle, while the
+existing browser coverage passes project catalog and sharing opening, closing,
+and reopening.
+
+The browser application artifact changes from 789,241 B raw / 212,982 B gzip
+to 789,120 B raw / 212,922 B gzip (-121 B raw / -60 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,389 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.

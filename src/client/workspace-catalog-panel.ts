@@ -2,8 +2,6 @@ import { html, LitElement, type TemplateResult } from "lit";
 import type { WorkspaceSummary } from "../domain/workspace";
 import { formatCalendarDate } from "./format";
 
-export const workspaceCatalogCloseEvent = "workspace-catalog-close";
-
 export class WorkspaceCatalogPanel extends LitElement {
   static override properties = {
     currentWorkspaceId: { state: true },
@@ -25,6 +23,11 @@ export class WorkspaceCatalogPanel extends LitElement {
   setData(workspaces: readonly WorkspaceSummary[], currentWorkspaceId: string): void {
     this.workspaces = workspaces;
     this.currentWorkspaceId = currentWorkspaceId;
+  }
+
+  async open(): Promise<void> {
+    this.dialog.showModal();
+    await this.resetFilter();
   }
 
   async resetFilter(): Promise<void> {
@@ -90,8 +93,14 @@ export class WorkspaceCatalogPanel extends LitElement {
     this.query = (event.currentTarget as HTMLInputElement).value;
   }
 
-  private close(): void {
-    this.dispatchEvent(new CustomEvent(workspaceCatalogCloseEvent, { bubbles: true, composed: true }));
+  close(): void {
+    this.dialog.close();
+  }
+
+  private get dialog(): HTMLDialogElement {
+    const dialog = this.closest("dialog");
+    if (!(dialog instanceof HTMLDialogElement)) throw new Error("Workspace catalog panel requires a dialog parent");
+    return dialog;
   }
 }
 

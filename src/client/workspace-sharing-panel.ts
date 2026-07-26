@@ -11,7 +11,6 @@ export interface WorkspaceSharingActionDetail {
 }
 
 export const workspaceSharingActionEvent = "workspace-sharing-action";
-export const workspaceSharingCloseEvent = "workspace-sharing-close";
 export const workspaceSharingInviteEvent = "workspace-sharing-invite";
 export const workspaceSharingNoticeEvent = "workspace-sharing-notice";
 
@@ -74,6 +73,10 @@ export class WorkspaceSharingPanel extends LitElement {
 
   clearInvite(): void {
     this.inviteEmail = "";
+  }
+
+  open(): void {
+    this.dialog.showModal();
   }
 
   override connectedCallback(): void {
@@ -190,8 +193,14 @@ export class WorkspaceSharingPanel extends LitElement {
     );
   }
 
-  private close(): void {
-    this.dispatchEvent(new CustomEvent(workspaceSharingCloseEvent, { bubbles: true, composed: true }));
+  close(): void {
+    this.dialog.close();
+  }
+
+  private get dialog(): HTMLDialogElement {
+    const dialog = this.closest("dialog");
+    if (!(dialog instanceof HTMLDialogElement)) throw new Error("Workspace sharing panel requires a dialog parent");
+    return dialog;
   }
 
   private requestShareAction(kind: WorkspaceShareKind, action: WorkspaceShareAction): void {

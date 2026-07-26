@@ -1,12 +1,33 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { WorkspaceSummary } from "../domain/workspace";
 import { filterWorkspaceCatalog, workspaceCatalogMeta, WorkspaceCatalogPanel } from "./workspace-catalog-panel";
 
 class TestWorkspaceCatalogPanel extends WorkspaceCatalogPanel {
+  resetCount = 0;
+
   renderForTest() {
     return this.render();
   }
+
+  override async resetFilter(): Promise<void> {
+    this.resetCount += 1;
+  }
 }
+
+class FakeDialog extends EventTarget {
+  closeCount = 0;
+  modalCount = 0;
+
+  close(): void {
+    this.closeCount += 1;
+  }
+
+  showModal(): void {
+    this.modalCount += 1;
+  }
+}
+
+afterEach(() => vi.unstubAllGlobals());
 
 const current: WorkspaceSummary = {
   archivedAt: null,
@@ -44,5 +65,19 @@ describe("workspace catalog presentation", () => {
     panel.setData([current, archived], current.id);
     expect(panel.renderForTest()).toBeDefined();
     expect(panel).toBeInstanceOf(WorkspaceCatalogPanel);
+  });
+
+  it("owns its native dialog lifecycle", async () => {
+    const panel = new TestWorkspaceCatalogPanel();
+    const dialog = new FakeDialog();
+    vi.stubGlobal("HTMLDialogElement", FakeDialog);
+    Object.defineProperty(panel, "closest", { value: () => dialog });
+
+    await panel.open();
+    panel.close();
+
+    expect(dialog.modalCount).toBe(1);
+    expect(dialog.closeCount).toBe(1);
+    expect(panel.resetCount).toBe(1);
   });
 });

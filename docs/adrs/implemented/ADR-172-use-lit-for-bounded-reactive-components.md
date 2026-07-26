@@ -42,10 +42,11 @@ The adopted components own bounded presentation:
   groups, local selection and preview state, bounded preview rendering, and
   typed selection, project-load, and template-delete intents.
 - The workspace sharing panel owns member and capability-link presentation,
-  invitation input, clipboard interaction, and typed close, invite, share-link,
-  and notice intents.
+  invitation input, clipboard interaction, native parent-dialog lifecycle, and
+  typed invite, share-link, and notice intents.
 - The workspace catalog panel owns project filtering, result and empty-state
-  rendering, metadata labels, focus reset, and a typed close intent.
+  rendering, metadata labels, filter focus reset, and native parent-dialog
+  lifecycle.
 - The project history panel owns timeline, comparison controls, busy and error
   states, revision cards, inspectors, and typed revision-operation intents.
 - The project history dialog composes the server-rendered modal and reactive
@@ -249,12 +250,13 @@ reason to wrap static markup mechanically.
   imperative option and preview DOM assembly. It also absorbs the former
   connection panel and separate native-dialog reference.
 - The sharing panel replaces fifteen internal element references and the
-  coordinator's member/link DOM assembly while leaving membership, capability,
+  coordinator's member/link DOM assembly. It also removes the separate native
+  dialog reference and close-event bridge while leaving membership, capability,
   and authorization requests in the application coordinator.
 - The catalog panel replaces three internal element references and the
-  coordinator's filter/result DOM assembly while leaving catalog fetching,
-  workspace switching, and navigation authority in the application
-  coordinator.
+  coordinator's filter/result DOM assembly. It also removes the separate native
+  dialog reference and close-event bridge while leaving catalog fetching,
+  workspace switching, and navigation authority in the application coordinator.
 - The history panel replaces six internal element references and the
   coordinator's timeline/inspector DOM assembly while leaving its XState actor,
   fetches, confirmations, mutations, reloads, and navigation in the

@@ -41,6 +41,13 @@ collaboration.
   option rendering, archived-current handling, selected state, and focus entry,
   then emits a typed navigation intent. The workspace coordinator retains
   catalog fetching and canonical route navigation.
+- **Project catalog:** One bounded light-DOM panel owns filtering, result and
+  empty-state presentation, native modal lifecycle, and initial filter focus.
+  The workspace coordinator retains catalog fetching and navigation authority.
+- **Project sharing:** One bounded light-DOM panel owns collaborator and
+  capability-link presentation, invitation input, clipboard interaction, and
+  native modal lifecycle. The workspace coordinator retains membership and
+  capability-link requests, authorization outcomes, and toast policy.
 - **Browser runtime loading:** The generated application module is minified and
   excludes the Markdown pipeline and PDF.js. Content-fingerprinted immutable
   Markdown and PDF.js runtime URLs are compiled into each application build.

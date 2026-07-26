@@ -119,12 +119,11 @@ import {
 import {
   WorkspaceSharingPanel,
   workspaceSharingActionEvent,
-  workspaceSharingCloseEvent,
   workspaceSharingInviteEvent,
   workspaceSharingNoticeEvent,
   type WorkspaceSharingActionDetail,
 } from "./workspace-sharing-panel";
-import { WorkspaceCatalogPanel, workspaceCatalogCloseEvent } from "./workspace-catalog-panel";
+import { WorkspaceCatalogPanel } from "./workspace-catalog-panel";
 import { WorkspaceLayoutManager } from "./workspace-layout-manager";
 import { UnidentifiedPdfList, unidentifiedPdfIdentifyEvent, type UnidentifiedPdfSelection } from "./unidentified-pdf-list";
 import { libraryReferenceSummaryActionEvent, type LibraryReferenceSummaryAction } from "./library-reference-summary";
@@ -436,7 +435,6 @@ interface Elements {
   manageWorkspaces: HTMLButtonElement;
   workspaceSettings: HTMLButtonElement;
   workspaceSettingsPanel: WorkspaceSettingsPanel;
-  workspaceCatalogDialog: HTMLDialogElement;
   workspaceCatalogPanel: WorkspaceCatalogPanel;
   newWorkspace: HTMLButtonElement;
   newWorkspaceStartingPoints: ProjectStartingPointBrowser;
@@ -445,7 +443,6 @@ interface Elements {
   gitHubSyncMenu: GitHubSyncMenu;
   saveTemplateDialog: ProjectTemplateSaveDialog;
   shareWorkspace: HTMLButtonElement;
-  shareWorkspaceDialog: HTMLDialogElement;
   workspaceSharingPanel: WorkspaceSharingPanel;
   referenceLibraryList: LibraryReferenceList;
   libraryDiscoverySearch: LibraryDiscoverySearch;
@@ -877,15 +874,13 @@ class WorkspaceApp {
     });
     this.#elements.workspaceLayout.addEventListener("change", () => void this.#setWorkspaceLayout(this.#elements.workspaceLayout.value));
     this.#elements.manageWorkspaces.addEventListener("click", () => {
-      this.#elements.workspaceCatalogDialog.showModal();
-      void this.#elements.workspaceCatalogPanel.resetFilter();
+      void this.#elements.workspaceCatalogPanel.open();
     });
     this.#elements.workspaceSettings.addEventListener("click", () => void this.#openWorkspaceSettings());
     this.#elements.workspaceSettingsPanel.addEventListener(
       workspaceSettingsActionEvent,
       (event) => void this.#handleWorkspaceSettingsAction((event as CustomEvent<WorkspaceSettingsAction>).detail),
     );
-    this.#elements.workspaceCatalogPanel.addEventListener(workspaceCatalogCloseEvent, () => this.#elements.workspaceCatalogDialog.close());
     this.#elements.newWorkspace.addEventListener("click", () => void this.#openNewWorkspace());
     this.#elements.newWorkspaceStartingPoints.addEventListener(startingPointActionEvent, (event) => {
       const action = (event as CustomEvent<StartingPointAction>).detail;
@@ -948,7 +943,6 @@ class WorkspaceApp {
       });
     }
     this.#elements.shareWorkspace.addEventListener("click", () => void this.#openSharing());
-    this.#elements.workspaceSharingPanel.addEventListener(workspaceSharingCloseEvent, () => this.#elements.shareWorkspaceDialog.close());
     this.#elements.workspaceSharingPanel.addEventListener(workspaceSharingInviteEvent, (event) => {
       void this.#inviteMember((event as CustomEvent<string>).detail);
     });
@@ -2058,7 +2052,7 @@ class WorkspaceApp {
   }
 
   async #openSharing(): Promise<void> {
-    this.#elements.shareWorkspaceDialog.showModal();
+    this.#elements.workspaceSharingPanel.open();
     await Promise.all([this.#refreshMembers(), this.#refreshReadOnlyShare(), this.#refreshEditShare()]);
   }
 
@@ -7163,7 +7157,6 @@ function collectElements(): Elements {
     manageWorkspaces: requiredElement("manage-workspaces", HTMLButtonElement),
     workspaceSettings: requiredElement("workspace-settings", HTMLButtonElement),
     workspaceSettingsPanel: requiredElement("workspace-settings-panel", WorkspaceSettingsPanel),
-    workspaceCatalogDialog: requiredElement("workspace-catalog-dialog", HTMLDialogElement),
     workspaceCatalogPanel: requiredElement("workspace-catalog-panel", WorkspaceCatalogPanel),
     newWorkspace: requiredElement("new-workspace", HTMLButtonElement),
     newWorkspaceStartingPoints: requiredElement("project-starting-point-browser", ProjectStartingPointBrowser),
@@ -7172,7 +7165,6 @@ function collectElements(): Elements {
     gitHubSyncMenu: requiredElement("github-sync-control", GitHubSyncMenu),
     saveTemplateDialog: requiredElement("project-template-save-dialog", ProjectTemplateSaveDialog),
     shareWorkspace: requiredElement("share-workspace", HTMLButtonElement),
-    shareWorkspaceDialog: requiredElement("share-workspace-dialog", HTMLDialogElement),
     workspaceSharingPanel: requiredElement("workspace-sharing-panel", WorkspaceSharingPanel),
     referenceLibraryList: requiredElement("reference-library-list", LibraryReferenceList),
     libraryDiscoverySearch: requiredElement("library-discovery-search", LibraryDiscoverySearch),

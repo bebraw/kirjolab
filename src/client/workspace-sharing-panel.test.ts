@@ -1,5 +1,20 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { shareLinkDescription, WorkspaceSharingPanel } from "./workspace-sharing-panel";
+
+class FakeDialog extends EventTarget {
+  closeCount = 0;
+  modalCount = 0;
+
+  close(): void {
+    this.closeCount += 1;
+  }
+
+  showModal(): void {
+    this.modalCount += 1;
+  }
+}
+
+afterEach(() => vi.unstubAllGlobals());
 
 describe("workspace sharing presentation", () => {
   it("describes retrievable links by their capability", () => {
@@ -27,5 +42,18 @@ describe("workspace sharing presentation", () => {
     panel.clearInvite();
 
     expect(panel).toBeInstanceOf(WorkspaceSharingPanel);
+  });
+
+  it("owns its native dialog lifecycle", () => {
+    const panel = new WorkspaceSharingPanel();
+    const dialog = new FakeDialog();
+    vi.stubGlobal("HTMLDialogElement", FakeDialog);
+    Object.defineProperty(panel, "closest", { value: () => dialog });
+
+    panel.open();
+    panel.close();
+
+    expect(dialog.modalCount).toBe(1);
+    expect(dialog.closeCount).toBe(1);
   });
 });
