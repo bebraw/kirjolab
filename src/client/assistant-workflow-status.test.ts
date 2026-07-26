@@ -48,6 +48,13 @@ describe("assistant workflow status", () => {
     expect(panel.status).toBe("Select at least one annotation to ground the claim draft.");
     panel.setOperation("build-table");
     expect(panel.status).toBe("Choose a target and the required evidence, then generate a reviewable draft.");
+
+    panel.generationStarted("draft-claim");
+    expect(panel.status).toBe("Asking the local model for one grounded claim draft…");
+    panel.generationStarted("clarity-drill");
+    expect(panel.status).toBe("Finding the single ambiguity that matters most…");
+    panel.generationStarted("revise-selection");
+    expect(panel.status).toBe("Asking the local model for a grounded candidate…");
   });
 
   it("owns selected evidence and its live count status", () => {

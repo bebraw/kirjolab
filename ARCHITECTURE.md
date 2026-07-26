@@ -306,10 +306,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Keep browser-local assistant evidence selection, count or limit status, and
   ordered annotation-or-claim model-evidence projection inside the Lit
   workflow-status owner, including the annotation-only item and version subsets
-  required by claim drafting. The coordinator supplies canonical snapshot
-  collections and enforces generation policy, but must not parse the selected
-  keys, re-filter projected evidence, duplicate prompt wording, or keep a
-  parallel selected-key set.
+  required by claim drafting and operation-specific generation-start copy. The
+  coordinator supplies canonical snapshot collections, enforces generation
+  policy, and selects result-specific status; it must not parse the selected
+  keys, re-filter projected evidence, duplicate start or evidence prompt
+  wording, or keep a parallel selected-key set.
 - Back up reviews independently of projects. Owner backup schema v3 stores each
   review's catalog record and locator, access state, complete active and
   unlinked project-link ledger, revision seed, and a bounded canonical

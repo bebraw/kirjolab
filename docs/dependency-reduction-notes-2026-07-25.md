@@ -5230,6 +5230,28 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,574 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Assistant Start Status
+
+`AssistantWorkflowStatus` now owns operation-specific generation-start wording
+for claim drafting, clarity drills, and the remaining candidate operations.
+`WorkspaceApp` retains workflow transitions, generation dispatch, failure
+handling, and result-specific status policy.
+
+This checkpoint reduces `src/client/app.ts` from 4,336 to 4,330 lines (-6) and
+grows the assistant workflow-status owner from 162 to 172 lines. Runtime source
+across those two files increases by four lines while deleting the
+coordinator-only start-message helper. Focused coverage passes all three start
+wording branches, existing operation and evidence presentation, application
+contracts, and strict types.
+
+The browser application artifact changes from 824,460 B raw / 222,664 B gzip
+to 824,481 B raw / 222,688 B gzip (+21 B raw / +24 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,574 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Annotation Evidence Subsets
 
 `AssistantWorkflowStatus` now returns the ordered annotation-only prompt items

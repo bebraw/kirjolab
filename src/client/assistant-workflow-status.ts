@@ -1,5 +1,6 @@
 import { html, LitElement, type TemplateResult } from "lit";
 import type { AnnotationResource, ClaimResource, ModelEvidenceReference } from "../domain/workspace";
+import type { AssistantOperationId } from "./assistant-operations";
 import { maximumModelEvidenceItems, type ModelEvidenceItem } from "./model-provider";
 
 export const assistantWorkflowActionEvent = "kirjolab-assistant-workflow-action";
@@ -36,6 +37,15 @@ export class AssistantWorkflowStatus extends LitElement {
         : operationId === "phrase-passage"
           ? "Choose a rhetorical purpose, then compare contextual alternatives before opening exact review."
           : "Choose a target and the required evidence, then generate a reviewable draft.";
+  }
+
+  generationStarted(operationId: AssistantOperationId): void {
+    this.status =
+      operationId === "draft-claim"
+        ? "Asking the local model for one grounded claim draft…"
+        : operationId === "clarity-drill"
+          ? "Finding the single ambiguity that matters most…"
+          : "Asking the local model for a grounded candidate…";
   }
 
   get selectedEvidenceKeys(): ReadonlySet<string> {

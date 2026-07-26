@@ -361,7 +361,8 @@ The adopted components own bounded presentation:
   copy, live status presentation, selected evidence keys, selection count and
   limit copy, ordered annotation-or-claim model-evidence projection from
   canonical collections, annotation-only claim-drafting subsets, evidence and
-  connection actions, and their typed intents.
+  connection actions, operation-specific generation-start copy, and their typed
+  intents.
 - The workspace rail tabs own active-tab and open-comment-count presentation
   plus a typed navigation intent.
 - The authoring mode tabs own Write and Map active-state presentation,

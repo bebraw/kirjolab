@@ -3336,7 +3336,7 @@ class WorkspaceApp {
     if (!input) return;
     this.#assistantWorkflow.send({ type: "START", operation: input.operation.id, sourceRevision: input.sourceRevision });
     this.#updateModelAvailability();
-    this.#elements.assistantWorkflowStatus.status = this.#assistantGenerationStartMessage(input.operation.id);
+    this.#elements.assistantWorkflowStatus.generationStarted(input.operation.id);
     try {
       await this.#runAssistantGeneration(input);
     } catch (error) {
@@ -3409,12 +3409,6 @@ class WorkspaceApp {
       this.#elements.assistantWorkflowStatus.status = error instanceof Error ? error.message : "Enter a valid local model endpoint.";
       return null;
     }
-  }
-
-  #assistantGenerationStartMessage(operation: AssistantGenerationContext["operation"]["id"]): string {
-    if (operation === "draft-claim") return "Asking the local model for one grounded claim draft…";
-    if (operation === "clarity-drill") return "Finding the single ambiguity that matters most…";
-    return "Asking the local model for a grounded candidate…";
   }
 
   async #runAssistantGeneration(input: AssistantGenerationContext): Promise<void> {
