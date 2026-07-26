@@ -313,8 +313,10 @@ memory and makes citation aliases compete with stable source identity.
   horizontal swipe begun on the fitted page or its surround changes page,
   except when it begins on an interactive PDF link or saved annotation. A
   two-finger gesture zooms the PDF rather than the application, anchored at the
-  pinch midpoint; trackpad zoom is anchored at the pointer. Live ink updates
-  one draft path between saves.
+  pinch midpoint; trackpad zoom is anchored at the pointer. The reader preserves
+  its scrollbar-free fitted width across buffered zoom renders and remeasures it
+  only after document or layout changes, so returning to fitted zoom cannot
+  leave the page narrower. Live ink updates one draft path between saves.
 - The active PDF page exposes standard PDF link annotations. Internal
   destinations stay in the reader and restore the destination page and
   position; external URLs open in a protected new tab.

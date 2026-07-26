@@ -76,6 +76,7 @@ export class PdfEvidenceViewer {
   #selectedPrivateHighlightId: string | null = null;
   #zoom = 1;
   #renderedZoom = 1;
+  #fittedWidth: number | null = null;
   #pinchStart: { distance: number; zoom: number } | null = null;
   #touchPanStart: PdfTouchPanStart | null = null;
   #swipeStart: { x: number; y: number; startedAt: number; edges: ReturnType<typeof pdfHorizontalPageEdges> } | null = null;
@@ -167,6 +168,7 @@ export class PdfEvidenceViewer {
     this.#mode = options.mode ?? "evidence";
     this.#zoom = 1;
     this.#renderedZoom = 1;
+    this.#fittedWidth = null;
     this.#zoomAnchor = null;
     this.#renderedViewport = null;
     this.#wheelPagingState = initialPdfWheelPagingState();
@@ -251,6 +253,7 @@ export class PdfEvidenceViewer {
   async resize(): Promise<void> {
     window.clearTimeout(this.#wheelZoomRenderTimer);
     this.#wheelZoomRenderTimer = undefined;
+    this.#fittedWidth = null;
     await this.#renderPage();
   }
 
@@ -326,7 +329,8 @@ export class PdfEvidenceViewer {
     const readerStyle = window.getComputedStyle(this.#elements.reader);
     const horizontalPadding = (Number.parseFloat(readerStyle.paddingLeft) || 0) + (Number.parseFloat(readerStyle.paddingRight) || 0);
     const readerWidth = this.#elements.reader.clientWidth || 760;
-    const availableWidth = Math.max(320, Math.min(900, readerWidth - horizontalPadding));
+    const availableWidth = this.#fittedWidth ?? Math.max(320, Math.min(900, readerWidth - horizontalPadding));
+    this.#fittedWidth = availableWidth;
     const renderedZoom = this.#zoom;
     const viewport = page.getViewport({ scale: (availableWidth / unscaled.width) * renderedZoom });
     const outputScale = window.devicePixelRatio || 1;

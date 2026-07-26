@@ -22,8 +22,12 @@ state together after both renders complete.
 
 Invalidate an in-flight buffered render when a newer zoom gesture begins.
 Navigation, resize, and document changes cancel any pending trackpad debounce
-before starting their own render. Preserve the text layer's active pointer
-behavior when swapping its buffered contents.
+before starting their own render. Preserve the scrollbar-free fitted width
+across buffered zoom renders, and invalidate that measurement only when a
+document opens or the reader resizes; measuring while the transformed preview
+still forces scrollbars can otherwise make fitted zoom permanently narrower.
+Preserve the text layer's active pointer behavior when swapping its buffered
+contents.
 
 ## Consequences
 
@@ -33,6 +37,8 @@ behavior when swapping its buffered contents.
 - Continuous pinch input produces one final high-resolution PDF.js render
   instead of clearing and repainting the live canvas for every event.
 - Page navigation also swaps completed frames without exposing an empty canvas.
+- Returning to fitted zoom restores the same page width instead of fitting to a
+  transient scrollbar-narrowed content box.
 
 **Negative:**
 
