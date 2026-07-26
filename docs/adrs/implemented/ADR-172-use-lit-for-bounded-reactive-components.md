@@ -168,8 +168,9 @@ The adopted components own bounded presentation:
 - The source completion list owns citation and include option presentation,
   bound-editor citation and include context detection, candidate ranking and
   display adaptation, empty-state hiding, popup positioning, hover and keyboard
-  selection, active-descendant state, selected-option scrolling, dismissal, and
-  typed acceptance intents. Its pure citation-completion domain adapter owns
+  selection, active-descendant state, selected-option scrolling, local Escape
+  and blur dismissal, and typed acceptance intents. Its pure
+  citation-completion domain adapter owns
   project and available unlinked Library candidate construction from canonical
   reference inputs, while the component owns project-relative include candidate
   construction from canonical files and the active file id.
@@ -872,8 +873,9 @@ reason to wrap static markup mechanically.
 - The source completion list replaces imperative option construction, per-row
   pointer handlers, selection rendering, keyboard movement and acceptance, and
   source-editor ARIA synchronization. It also binds the editor keyboard and
-  blur lifecycle, owns browser-local citation-scope persistence, and emits a
-  typed scope-change intent. Acceptance now carries the component-selected
+  blur lifecycle, dismisses locally without an external intent, owns
+  browser-local citation-scope persistence, and emits a typed scope-change
+  intent. Acceptance now carries the component-selected
   candidate and replacement context, removing five coordinator caches and the
   completion-kind discriminator. It also replaces two coordinator context-
   detection and presentation methods plus both candidate projections. The

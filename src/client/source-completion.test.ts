@@ -51,15 +51,14 @@ describe("source completion", () => {
     expect(source.removeAttribute).toHaveBeenCalledWith("aria-activedescendant");
   });
 
-  it("emits acceptance and dismissal intents", () => {
+  it("emits acceptance intents", () => {
     const completion = new TestSourceCompletion();
     const actions: SourceCompletionAction[] = [];
     completion.addEventListener(sourceCompletionActionEvent, (event) => {
       actions.push((event as CustomEvent<SourceCompletionAction>).detail);
     });
     completion.emitForTest({ action: "accept", intent: includeIntent });
-    completion.emitForTest({ action: "dismiss" });
-    expect(actions).toEqual([{ action: "accept", intent: includeIntent }, { action: "dismiss" }]);
+    expect(actions).toEqual([{ action: "accept", intent: includeIntent }]);
   });
 
   it("owns keyboard selection and acceptance", () => {
@@ -76,7 +75,8 @@ describe("source completion", () => {
     expect(completion.handleKey(key("Escape"))).toBe(true);
     expect(completion.handleKey(key("x"))).toBe(false);
     expect(completion.handleKey(key("Enter", true))).toBe(false);
-    expect(actions).toEqual([{ action: "accept", intent: includeIntent }, { action: "dismiss" }]);
+    expect(actions).toEqual([{ action: "accept", intent: includeIntent }]);
+    expect(completion.hidden).toBe(true);
   });
 
   it("ranks and presents include and citation candidates beside their token", () => {
@@ -189,8 +189,8 @@ describe("source completion", () => {
     expect(actions).toEqual([
       { action: "accept", intent: includeIntent },
       { action: "scope-change", scope: "project" },
-      { action: "dismiss" },
     ]);
+    expect(completion.hidden).toBe(true);
     vi.useRealTimers();
   });
 });

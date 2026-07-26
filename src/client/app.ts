@@ -701,8 +701,7 @@ class WorkspaceApp {
     });
     this.#elements.sourceCompletion.addEventListener(sourceCompletionActionEvent, (event) => {
       const detail = (event as CustomEvent<SourceCompletionAction>).detail;
-      if (detail.action === "dismiss") this.#hideSourceCompletion();
-      else if (detail.action === "scope-change") this.#renderSourceCompletion();
+      if (detail.action === "scope-change") this.#renderSourceCompletion();
       else if (detail.intent.kind === "citation") void this.#acceptCitationCompletion(detail.intent);
       else this.#acceptIncludeCompletion(detail.intent);
     });
@@ -2687,7 +2686,7 @@ class WorkspaceApp {
   }
 
   #applySourceCompletion(start: number, end: number, value: string): void {
-    this.#hideSourceCompletion();
+    this.#elements.sourceCompletion.hide();
     this.#document.transact(() => {
       if (end > start) this.#activeFileText.delete(start, end - start);
       this.#activeFileText.insert(start, value);
@@ -2696,10 +2695,6 @@ class WorkspaceApp {
     this.#elements.source.focus();
     this.#elements.source.setSelectionRange(caret, caret);
     this.#rememberAuthoringSelection();
-  }
-
-  #hideSourceCompletion(): void {
-    this.#elements.sourceCompletion.hide();
   }
 
   #rememberAuthoringSelection(): void {

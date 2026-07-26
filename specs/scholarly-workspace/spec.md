@@ -293,7 +293,8 @@ collaboration.
   display adaptation, option markup, empty-state hiding, popup positioning,
   hover and keyboard selection, active-descendant state, selected-option
   scrolling, editor keyboard and blur binding, browser-local citation-scope
-  persistence, dismissal, and typed acceptance or scope-change intents.
+  persistence, local Escape and blur dismissal, and typed acceptance or
+  scope-change intents.
   Acceptance carries the selected citation or include candidate together with
   its replacement context. The pure citation-completion adapter derives project
   and available unlinked Library candidates from canonical reference inputs;

@@ -38,7 +38,6 @@ export interface SourceCompletionInputs {
 
 export type SourceCompletionAction =
   | { readonly action: "accept"; readonly intent: SourceCompletionIntent }
-  | { readonly action: "dismiss" }
   | { readonly action: "scope-change"; readonly scope: CitationCompletionScope };
 
 export const sourceCompletionActionEvent = "source-completion-action";
@@ -163,7 +162,7 @@ export class SourceCompletion extends LitElement {
     }
     if (event.key === "Escape") {
       event.preventDefault();
-      this.emitAction({ action: "dismiss" });
+      this.hide();
       return true;
     }
     return false;
@@ -241,7 +240,7 @@ export class SourceCompletion extends LitElement {
   };
 
   private readonly handleEditorBlur = (): void => {
-    this.dismissTimer = window.setTimeout(() => this.emitAction({ action: "dismiss" }), 0);
+    this.dismissTimer = window.setTimeout(() => this.hide(), 0);
   };
 
   private readonly handleScopeChange = (): void => {

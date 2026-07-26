@@ -5685,6 +5685,26 @@ visible low-level component member.
 Full native CI passes all 1,583 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Source Completion Dismissal
+
+`SourceCompletion` now hides itself on Escape and bound-editor blur instead of
+emitting a dismissal action solely for `WorkspaceApp` to call `hide()` back on
+the same component. Its external action contract now contains only accepted
+candidates and citation-scope changes.
+
+This checkpoint reduces `src/client/app.ts` from 3,962 to 3,957 lines (-5).
+Runtime and focused test source across the three changed files decreases by six
+lines. Six focused and eight affected tests pass alongside strict types.
+
+The browser application artifact changes from 823,835 B raw / 223,024 B gzip
+to 823,738 B raw / 222,983 B gzip (-97 B raw / -41 B gzip). Styles, direct and
+unique production package counts, and the readability audit remain unchanged
+at 135,411 B raw / 23,373 B gzip, 18, 150, and 250 externally visible low-level
+component members.
+
+Full native CI passes all 1,583 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Assistant Evidence Projection
 
 `AssistantWorkflowStatus` now resolves its ordered selected evidence keys

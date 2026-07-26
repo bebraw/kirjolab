@@ -584,8 +584,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   editor keyboard and blur behavior there, persist citation suggestion scope
   there, detect citation and include contexts from the bound editor there, rank
   and adapt candidates there, own empty-state hiding and popup positioning
-  there, and emit the selected candidate with its replacement context as one
-  typed intent. Derive citation and project-relative include candidates there
+  there, dismiss locally on Escape or editor blur, and emit the selected
+  candidate with its replacement context as one typed intent. Derive citation
+  and project-relative include candidates there
   from coordinator-supplied canonical project files, reference links, and
   available Library references. The application coordinator retains active-file
   identity, private-Library loading, collaborative edits, and private-Library
