@@ -1,7 +1,7 @@
 import { html, LitElement, nothing, type TemplateResult } from "lit";
 import type { LibraryPdfDrawing, LibraryPdfNote, LibraryPdfPoint } from "../domain/reference-library";
 import { manipulateRecognizedShape, recognizeDrawnShape, type RecognizedDrawnShape } from "./drawn-shape-recognition";
-import { errorMessage, expectOk } from "./http";
+import { errorMessage, expectOk, jsonFetch } from "./http";
 
 export type PdfAnnotationTool = "select" | "text" | "note" | "draw";
 
@@ -14,6 +14,7 @@ interface PdfNoteDraft {
 
 export interface LibraryPdfMarkupLayerData {
   readonly drawingStyle: Pick<LibraryPdfDrawing, "color" | "width">;
+  readonly drawingTarget: { readonly artifactId: string; readonly referenceId: string } | null;
   readonly drawings: readonly LibraryPdfDrawing[];
   readonly notes: readonly LibraryPdfNote[];
   readonly page: number;
@@ -63,6 +64,11 @@ interface ActiveDrawing {
   readonly points: readonly LibraryPdfPoint[];
 }
 
+interface DrawingSave extends Pick<LibraryPdfDrawing, "color" | "page" | "points" | "width"> {
+  readonly artifactId: string;
+  readonly referenceId: string;
+}
+
 export interface LibraryPdfNotePressResult {
   readonly point: LibraryPdfPoint | null;
 }
@@ -83,15 +89,17 @@ export const libraryPdfShapeRecognizedEvent = "library-pdf-shape-recognized";
 export const libraryPdfMarkupActionEvent = "library-pdf-markup-action";
 
 export interface LibraryPdfMarkupAction {
-  readonly action: "note-moved";
+  readonly action: "drawing-saved" | "note-moved";
 }
 
 export class LibraryPdfMarkupLayer extends LitElement {
-  static override properties = { data: { state: true }, status: { state: true } };
+  static override properties = { data: { state: true }, savingDrawing: { state: true }, status: { state: true } };
 
   declare private data: LibraryPdfMarkupLayerData | null;
+  declare private savingDrawing: boolean;
   declare private status: string;
   private drawing: ActiveDrawing | null = null;
+  private failedDrawing: DrawingSave | null = null;
   private interactionTool: PdfAnnotationTool = "text";
   private noteDraftValue: PdfNoteDraft | null = null;
   private noteDrag: ActiveNoteDrag | null = null;
@@ -107,11 +115,16 @@ export class LibraryPdfMarkupLayer extends LitElement {
   constructor() {
     super();
     this.data = null;
+    this.savingDrawing = false;
     this.status = "";
   }
 
   setData(data: LibraryPdfMarkupLayerData): void {
     this.data = data;
+    if (this.failedDrawing && (this.failedDrawing.artifactId !== data.drawingTarget?.artifactId || this.failedDrawing.page !== data.page)) {
+      this.failedDrawing = null;
+      this.status = "";
+    }
     if (!this.movingNoteId) this.noteMovePreview = null;
     if (this.isConnected) this.performUpdate();
   }
@@ -143,6 +156,8 @@ export class LibraryPdfMarkupLayer extends LitElement {
     this.openNoteId = null;
     this.selectedHighlightIdValue = null;
     this.selectedMarkupIdValue = null;
+    this.failedDrawing = null;
+    this.status = "";
     this.requestUpdate();
   }
 
@@ -261,7 +276,10 @@ export class LibraryPdfMarkupLayer extends LitElement {
     }
     if (this.interactionTool !== "draw") return null;
     if (event.pointerType === "touch") return { kind: "touch-drawing" };
+    if (this.savingDrawing) return null;
     event.preventDefault();
+    this.failedDrawing = null;
+    this.status = "";
     this.cancelShapeRecognition();
     this.drawing = { pointerId: event.pointerId, points: [point] };
     this.setPointerCapture(event.pointerId);
@@ -342,14 +360,16 @@ export class LibraryPdfMarkupLayer extends LitElement {
     return true;
   }
 
-  finishDrawing(pointerId: number): readonly LibraryPdfPoint[] | null {
+  async finishDrawing(pointerId: number): Promise<void> {
     const drawing = this.drawing;
-    if (!drawing || drawing.pointerId !== pointerId) return null;
+    if (!drawing || drawing.pointerId !== pointerId) return;
     const points = drawing.points;
     this.drawing = null;
     this.setInteraction("draw");
     this.requestUpdate();
-    return points;
+    const data = this.data;
+    if (!data?.drawingTarget || points.length < 2) return;
+    await this.persistDrawing({ ...data.drawingTarget, ...data.drawingStyle, page: data.page, points });
   }
 
   cancelDrawing(): boolean {
@@ -481,11 +501,12 @@ export class LibraryPdfMarkupLayer extends LitElement {
     const data = this.data;
     if (!data) return html``;
     const draft = this.noteDraft;
+    const drawingDraft = this.drawing ? { ...data.drawingStyle, points: this.drawing.points } : this.failedDrawing;
     return html`
-      ${data.drawings.length > 0 || this.drawing
+      ${data.drawings.length > 0 || drawingDraft
         ? html`<svg class="pdf-ink-layer" viewBox="0 0 1000 1000" preserveAspectRatio="none">
             ${data.drawings.map((drawing) => this.renderDrawing(drawing, drawing.id === this.selectedMarkupId))}
-            ${this.drawing ? this.renderDrawing({ id: "draft", points: this.drawing.points, ...data.drawingStyle }, false) : nothing}
+            ${drawingDraft ? this.renderDrawing({ id: "draft", ...drawingDraft }, false) : nothing}
           </svg>`
         : nothing}
       ${draft?.page === data.page && !draft.editingId
@@ -499,7 +520,54 @@ export class LibraryPdfMarkupLayer extends LitElement {
         : nothing}
       ${data.notes.map((note) => this.renderNote(note))}
       <p class="status-line" role="status" ?hidden=${!this.status}>${this.status}</p>
+      ${this.failedDrawing
+        ? html`<div class="library-context-actions">
+            <button class="button-primary" type="button" ?disabled=${this.savingDrawing} @click=${this.retryDrawing}>
+              ${this.savingDrawing ? "Saving…" : "Retry drawing"}
+            </button>
+            <button class="button-secondary" type="button" ?disabled=${this.savingDrawing} @click=${this.discardFailedDrawing}>
+              Discard
+            </button>
+          </div>`
+        : nothing}
     `;
+  }
+
+  protected async retryDrawing(): Promise<void> {
+    if (this.failedDrawing) await this.persistDrawing(this.failedDrawing);
+  }
+
+  protected discardFailedDrawing(): void {
+    this.failedDrawing = null;
+    this.status = "";
+    this.requestUpdate();
+  }
+
+  private async persistDrawing(drawing: DrawingSave): Promise<void> {
+    if (this.savingDrawing) return;
+    this.savingDrawing = true;
+    this.status = "Saving private drawing…";
+    try {
+      const { referenceId, ...body } = drawing;
+      const response = await jsonFetch(`/api/library/references/${encodeURIComponent(referenceId)}/pdf-markups`, {
+        kind: "drawing",
+        ...body,
+      });
+      await expectOk(response);
+      this.failedDrawing = null;
+      this.status = "";
+      this.dispatchEvent(
+        new CustomEvent<LibraryPdfMarkupAction>(libraryPdfMarkupActionEvent, {
+          bubbles: true,
+          detail: { action: "drawing-saved" },
+        }),
+      );
+    } catch (error) {
+      this.failedDrawing = drawing;
+      this.status = errorMessage(error, "Could not save the private drawing.");
+    } finally {
+      this.savingDrawing = false;
+    }
   }
 
   private renderDrawing(drawing: Pick<LibraryPdfDrawing, "color" | "id" | "points" | "width">, selected: boolean): TemplateResult {

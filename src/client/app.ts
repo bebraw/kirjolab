@@ -907,7 +907,8 @@ class WorkspaceApp {
     });
     this.#elements.paperMarkups.addEventListener(libraryPdfMarkupActionEvent, (event) => {
       const { action } = (event as CustomEvent<LibraryPdfMarkupAction>).detail;
-      if (action === "note-moved") void this.#completeLibraryPdfNoteMove();
+      if (action === "drawing-saved") void this.#completeLibraryPdfDrawingSave();
+      else void this.#completeLibraryPdfNoteMove();
     });
     this.#elements.claimListPanel.configure(apiBase);
     this.#elements.claimListPanel.addEventListener(claimListActionEvent, (event) => {
@@ -4470,9 +4471,7 @@ class WorkspaceApp {
       return;
     }
     if (await this.#elements.paperMarkups.finishNoteDrag(event)) return;
-    const points = this.#elements.paperMarkups.finishDrawing(event.pointerId);
-    if (!points) return;
-    await this.#persistLibraryPdfDrawing(points);
+    await this.#elements.paperMarkups.finishDrawing(event.pointerId);
   }
 
   #finishLibraryPdfNotePress(point: LibraryPdfPoint): void {
@@ -4490,19 +4489,7 @@ class WorkspaceApp {
     this.#elements.libraryPdfAnnotationForms.focusNote();
   }
 
-  async #persistLibraryPdfDrawing(points: readonly LibraryPdfPoint[]): Promise<void> {
-    const artifact = this.#activeLibraryPdf();
-    if (!artifact?.referenceId || points.length < 2) return this.#renderPdfMarkups();
-    const { color, width } = this.#elements.libraryPdfAnnotationToolbar.drawingStyle;
-    const response = await jsonFetch(`/api/library/references/${encodeURIComponent(artifact.referenceId)}/pdf-markups`, {
-      kind: "drawing",
-      artifactId: artifact.id,
-      page: this.#pdfViewer.currentPage,
-      color,
-      width,
-      points,
-    });
-    await expectOk(response);
+  async #completeLibraryPdfDrawingSave(): Promise<void> {
     await this.#refreshReferenceLibrary();
     this.#showToast("Drawing saved privately.");
   }
@@ -4594,6 +4581,7 @@ class WorkspaceApp {
     const drawings = markups.filter((item): item is LibraryPdfDrawing => item.kind === "drawing");
     this.#elements.paperMarkups.setData({
       drawingStyle: this.#elements.libraryPdfAnnotationToolbar.drawingStyle,
+      drawingTarget: artifact?.referenceId ? { artifactId: artifact.id, referenceId: artifact.referenceId } : null,
       drawings,
       notes: markups.filter((item): item is LibraryPdfNote => item.kind === "note"),
       page,

@@ -276,10 +276,13 @@ memory and makes citation aliases compete with stable source identity.
   shape-recognition gestures, note-card dismissal, and focus restoration. It
   persists a completed note move from the saved note's stable identities,
   suppresses overlapping move gestures, restores canonical geometry after a
-  retryable failure, and emits a typed completed-move outcome. The annotation
-  forms own page-note composition persistence; the application coordinator
-  retains normalized durable drawing results and their persistence, canonical
-  refreshes, inspector policy, and notifications.
+  retryable failure, and emits a typed completed-move outcome. Given the active
+  artifact and reference identities, it also persists a completed normalized
+  drawing with the style captured at pointer release. A failed drawing remains
+  visible for explicit retry or discard, and a pending save suppresses a new
+  stroke. The annotation forms own page-note composition persistence; the
+  application coordinator retains canonical refreshes, inspector policy, and
+  notifications.
 - A bounded light-DOM annotation list owns the private reader's saved highlight
   and markup cards, empty state, comments, share and citation availability, and
   typed navigation, edit, cite, share, revoke, and delete intents. The

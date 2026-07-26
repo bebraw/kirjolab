@@ -290,6 +290,9 @@ The adopted components own bounded presentation:
   typed recognition intents, local note-card dismissal, completed note-move
   transport, stable encoded note targets, overlapping-move suppression,
   retryable local failures, and typed completed-move outcomes.
+  Given stable active artifact and reference identities, it also owns completed
+  drawing transport, style and page capture, pending-state suppression, and a
+  visible failed draft with explicit retry and discard actions.
 - The Library PDF project-use block owns unidentified, unlinked, and linked
   presentation, capability-boundary copy, citation preview, and a typed
   reference-link intent.
@@ -623,20 +626,20 @@ reason to wrap static markup mechanically.
   start. During continuation it owns native scroll suppression, coalesced sample
   expansion, reactive draft updates, recognition scheduling, snapped-shape
   replacement, manipulation, pointer validation, cancellation, and completion.
-  It returns the final normalized points only when the active drawing pointer
-  finishes. No separate state owner duplicates drawing pointer, point, or
-  shape-manipulation state. Note dragging likewise keeps its start
+  It durably saves the final normalized points only when the active drawing
+  pointer finishes. No separate state owner duplicates drawing pointer, point,
+  or shape-manipulation state. Note dragging likewise keeps its start
   coordinates, movement threshold, native-default suppression, normalized
   preview position, note identity, pointer identity, completion result,
   transient DOM update, durable move request, pending state, and retryable
   rollback inside the layer. Tool mode, saved-resource selection, note
   composition or editing, and open-card state now live in the same layer,
   eliminating the separate annotation state machine, coordinator-owned
-  transitions, and coordinator note-move adapter. The application coordinator
-  retains drawing persistence, inspector policy, canonical refreshes, and
-  notifications. A prospective note placement similarly remains layer-local
-  until a stationary pointer release, when the annotation forms own its durable
-  save.
+  transitions, coordinator note-move adapter, and coordinator drawing-save
+  adapter. The application coordinator retains inspector policy, canonical
+  refreshes, and notifications. A prospective note placement similarly remains
+  layer-local until a stationary pointer release, when the annotation forms own
+  its durable save.
 - The Library PDF project-use block replaces its imperative renderer and four
   one-off DOM-construction helpers. The application coordinator retains
   canonical reference and project-link lookup, the linking mutation, snapshot

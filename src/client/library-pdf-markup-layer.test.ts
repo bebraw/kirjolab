@@ -16,6 +16,14 @@ class TestMarkupLayer extends LibraryPdfMarkupLayer {
   rootForTest(): HTMLElement {
     return this.createRenderRoot();
   }
+
+  async retryDrawingForTest(): Promise<void> {
+    await this.retryDrawing();
+  }
+
+  discardDrawingForTest(): void {
+    this.discardFailedDrawing();
+  }
 }
 
 const drawing: LibraryPdfDrawing = {
@@ -60,6 +68,7 @@ describe("library PDF markup layer", () => {
     expect(layer.renderForTest()).toBeDefined();
     layer.setData({
       drawingStyle: { color: "#000000", width: 3 },
+      drawingTarget: null,
       drawings: [drawing, { ...drawing, id: "draft" }],
       notes: [note],
       page: 2,
@@ -72,6 +81,7 @@ describe("library PDF markup layer", () => {
     expect(layer.renderForTest()).toBeDefined();
     layer.setData({
       drawingStyle: { color: "#000000", width: 3 },
+      drawingTarget: null,
       drawings: [],
       notes: [note],
       page: 2,
@@ -176,7 +186,7 @@ describe("library PDF markup layer", () => {
       querySelectorAll: { value: () => [pin] },
       setPointerCapture: { value: vi.fn() },
     });
-    layer.setData({ drawingStyle: { color: "#000000", width: 3 }, drawings: [], notes: [note], page: 2 });
+    layer.setData({ drawingStyle: { color: "#000000", width: 3 }, drawingTarget: null, drawings: [], notes: [note], page: 2 });
     layer.addEventListener(libraryPdfMarkupActionEvent, (event) => actions.push((event as CustomEvent<LibraryPdfMarkupAction>).detail));
     const target = (selector: string, id: string | null) =>
       Object.assign(new EventTarget(), {
@@ -232,11 +242,8 @@ describe("library PDF markup layer", () => {
     expect(layer.pointerAction(pointer(new EventTarget()))).toEqual({ kind: "start-drawing" });
     expect(layer.continueDrawing({ clientX: 250, clientY: 120, pointerId: 8, preventDefault })).toBe(false);
     expect(layer.continueDrawing({ clientX: 250, clientY: 120, pointerId: 7, preventDefault })).toBe(true);
-    expect(layer.finishDrawing(8)).toBeNull();
-    expect(layer.finishDrawing(7)).toEqual([
-      { x: 0.5, y: 0.5 },
-      { x: 0.6, y: 0.5 },
-    ]);
+    await layer.finishDrawing(8);
+    await layer.finishDrawing(7);
     expect(layer.cancelDrawing()).toBe(false);
     expect(preventDefault).toHaveBeenCalledTimes(4);
     expect(layer.setPointerCapture).toHaveBeenCalledTimes(2);
@@ -259,7 +266,7 @@ describe("library PDF markup layer", () => {
       querySelectorAll: { value: () => [] },
       setPointerCapture: { value: vi.fn() },
     });
-    layer.setData({ drawingStyle: { color: "#000000", width: 3 }, drawings: [], notes: [note], page: 2 });
+    layer.setData({ drawingStyle: { color: "#000000", width: 3 }, drawingTarget: null, drawings: [], notes: [note], page: 2 });
     layer.chooseTool("select");
     const target = Object.assign(new EventTarget(), {
       closest: (selector: string) => (selector === ".pdf-note-pin" ? { getAttribute: () => note.id } : null),
@@ -288,7 +295,75 @@ describe("library PDF markup layer", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
-  it("owns delayed shape recognition and cancellation", () => {
+  it("owns drawing persistence, overlap suppression, retry, and discard", async () => {
+    const layer = new TestMarkupLayer();
+    const actions: LibraryPdfMarkupAction[] = [];
+    let respond = (_response: Response): void => undefined;
+    const pendingResponse = new Promise<Response>((resolve) => {
+      respond = resolve;
+    });
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockReturnValueOnce(pendingResponse)
+      .mockResolvedValueOnce(new Response("Unavailable", { status: 503 }))
+      .mockResolvedValueOnce(new Response(null, { status: 200 }));
+    Object.defineProperties(layer, {
+      dataset: { value: {} },
+      getBoundingClientRect: { value: () => ({ height: 200, left: 0, top: 0, width: 400 }) },
+      querySelector: { value: () => null },
+      setPointerCapture: { value: vi.fn() },
+    });
+    layer.setData({
+      drawingStyle: { color: "#123456", width: 7 },
+      drawingTarget: { artifactId: "artifact:1", referenceId: "reference/1" },
+      drawings: [],
+      notes: [],
+      page: 3,
+    });
+    layer.addEventListener(libraryPdfMarkupActionEvent, (event) => actions.push((event as CustomEvent<LibraryPdfMarkupAction>).detail));
+    const pointer = (clientX: number, pointerId: number) => ({
+      clientX,
+      clientY: 40,
+      pointerId,
+      pointerType: "mouse",
+      preventDefault: vi.fn(),
+      target: new EventTarget(),
+    });
+    layer.chooseTool("draw");
+    layer.pointerAction(pointer(40, 7));
+    layer.continueDrawing(pointer(200, 7));
+
+    const first = layer.finishDrawing(7);
+    expect(layer.pointerAction(pointer(40, 8))).toBeNull();
+    respond(new Response("Unavailable", { status: 503 }));
+    await first;
+    expect(layer.renderForTest()).toBeDefined();
+    await layer.retryDrawingForTest();
+    layer.discardDrawingForTest();
+
+    layer.pointerAction(pointer(40, 8));
+    layer.continueDrawing(pointer(200, 8));
+    await layer.finishDrawing(8);
+
+    const [url, init] = fetchMock.mock.calls[0] ?? [];
+    expect(url).toBe("/api/library/references/reference%2F1/pdf-markups");
+    expect(init).toEqual(expect.objectContaining({ method: "POST" }));
+    expect(JSON.parse(String(init?.body))).toEqual({
+      kind: "drawing",
+      artifactId: "artifact:1",
+      color: "#123456",
+      page: 3,
+      points: [
+        { x: 0.1, y: 0.2 },
+        { x: 0.5, y: 0.2 },
+      ],
+      width: 7,
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(actions).toEqual([{ action: "drawing-saved" }]);
+  });
+
+  it("owns delayed shape recognition and cancellation", async () => {
     vi.useFakeTimers();
     const layer = new TestMarkupLayer();
     Object.defineProperties(layer, {
@@ -325,7 +400,7 @@ describe("library PDF markup layer", () => {
     const preventDefault = vi.fn();
     expect(layer.adjustRecognizedShape({ clientX: 210, clientY: 220, pointerId: 7, preventDefault })).toBe(true);
     expect(preventDefault).toHaveBeenCalledOnce();
-    expect(layer.finishDrawing(7)).toEqual(expect.any(Array));
+    await layer.finishDrawing(7);
 
     layer.setInteraction("draw");
     layer.pointerAction({

@@ -4333,3 +4333,27 @@ and unique production package counts remain unchanged at 135,411 B raw /
 
 Full native CI passes all 1,515 unit/coverage tests, 120 Workers-
 runtime tests, and 74 browser tests.
+
+## Continued Lit Ownership: Private Drawing Creation
+
+`LibraryPdfMarkupLayer` now owns completed-drawing transport from its normalized
+stroke, current style, page, and stable active artifact and reference target.
+It suppresses new strokes during a request and retains a failed draft with
+local status plus explicit retry and discard controls. `WorkspaceApp` retains
+only canonical Library refresh and the successful-save toast.
+
+This checkpoint reduces `src/client/app.ts` from 4,987 to 4,975 lines (-12)
+and grows the Library PDF markup layer from 583 to 651 lines. Runtime source
+across those files increases by 56 lines while removing the coordinator's
+drawing-target resolution, payload assembly, request, and draft-reset adapter.
+Focused coverage passes normalized points, captured style and page, stable
+encoded targets, typed success, short and mismatched strokes, provider failure,
+overlap suppression, retry, and discard.
+
+The browser application artifact changes from 814,936 B raw / 220,555 B gzip
+to 816,280 B raw / 220,865 B gzip (+1,344 B raw / +310 B gzip). Styles and
+direct and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,516 unit/coverage tests, 120 Workers-
+runtime tests, and 74 browser tests.
