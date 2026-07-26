@@ -5343,6 +5343,33 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,579 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: PDF Markup Pointer Routing
+
+`LibraryPdfMarkupLayer` now binds and routes its own host pointer-down, move,
+up, and cancellation events through the note-press, note-drag, and drawing state
+it already owns. It emits typed saved-markup selection, completed
+note-placement, touch-drawing warning, note-move, and drawing-save outcomes.
+`WorkspaceApp` retains inspector and annotation-form policy, canonical
+refreshes, and notices, but no longer replays the layer's local gesture
+lifecycle across four methods.
+
+This checkpoint reduces `src/client/app.ts` from 4,176 to 4,125 lines (-51) and
+grows the markup-layer owner from 651 to 692 lines. Runtime source across those
+two files decreases by ten lines while removing four raw event bindings, four
+coordinator gesture methods, and eight externally visible low-level component
+members from the readability audit. Focused coverage passes host note
+placement, saved-markup selection, touch handling, drawing continuation and
+persistence, cancellation, existing gesture primitives, application contracts,
+and strict types.
+
+The browser application artifact changes from 824,899 B raw / 223,034 B gzip
+to 824,834 B raw / 222,999 B gzip (-65 B raw / -35 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,580 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Assistant Evidence Projection
 
 `AssistantWorkflowStatus` now resolves its ordered selected evidence keys

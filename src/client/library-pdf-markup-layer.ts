@@ -5,7 +5,7 @@ import { errorMessage, expectOk, jsonFetch } from "./http";
 
 export type PdfAnnotationTool = "select" | "text" | "note" | "draw";
 
-interface PdfNoteDraft {
+export interface LibraryPdfNoteDraft {
   readonly editingId: string | null;
   readonly page: number;
   readonly x: number;
@@ -88,9 +88,15 @@ interface MarkupTargetElement {
 export const libraryPdfShapeRecognizedEvent = "library-pdf-shape-recognized";
 export const libraryPdfMarkupActionEvent = "library-pdf-markup-action";
 
-export interface LibraryPdfMarkupAction {
-  readonly action: "drawing-saved" | "note-moved";
-}
+export type LibraryPdfMarkupAction =
+  | { readonly action: "drawing-saved" }
+  | { readonly action: "note-moved" }
+  | { readonly action: "select-markup"; readonly id: string }
+  | {
+      readonly action: "place-note";
+      readonly draft: LibraryPdfNoteDraft & { readonly artifactId: string; readonly referenceId: string };
+    }
+  | { readonly action: "touch-drawing" };
 
 export class LibraryPdfMarkupLayer extends LitElement {
   static override properties = { data: { state: true }, savingDrawing: { state: true }, status: { state: true } };
@@ -101,7 +107,7 @@ export class LibraryPdfMarkupLayer extends LitElement {
   private drawing: ActiveDrawing | null = null;
   private failedDrawing: DrawingSave | null = null;
   private interactionTool: PdfAnnotationTool = "text";
-  private noteDraftValue: PdfNoteDraft | null = null;
+  private noteDraftValue: LibraryPdfNoteDraft | null = null;
   private noteDrag: ActiveNoteDrag | null = null;
   private noteMovePreview: { readonly id: string; readonly point: LibraryPdfPoint } | null = null;
   private notePress: ActiveNotePress | null = null;
@@ -117,6 +123,10 @@ export class LibraryPdfMarkupLayer extends LitElement {
     this.data = null;
     this.savingDrawing = false;
     this.status = "";
+    this.addEventListener("pointerdown", this.handlePointerDown);
+    this.addEventListener("pointermove", this.handlePointerMove);
+    this.addEventListener("pointerup", this.handlePointerUp);
+    this.addEventListener("pointercancel", this.handlePointerCancel);
   }
 
   setData(data: LibraryPdfMarkupLayerData): void {
@@ -129,7 +139,7 @@ export class LibraryPdfMarkupLayer extends LitElement {
     if (this.isConnected) this.performUpdate();
   }
 
-  get noteDraft(): PdfNoteDraft | null {
+  get noteDraft(): LibraryPdfNoteDraft | null {
     return this.noteDraftValue;
   }
 
@@ -421,12 +431,7 @@ export class LibraryPdfMarkupLayer extends LitElement {
       );
       await expectOk(response);
       this.status = "";
-      this.dispatchEvent(
-        new CustomEvent<LibraryPdfMarkupAction>(libraryPdfMarkupActionEvent, {
-          bubbles: true,
-          detail: { action: "note-moved" },
-        }),
-      );
+      this.emitAction({ action: "note-moved" });
     } catch (error) {
       this.noteMovePreview = null;
       this.status = errorMessage(error, "Could not move the private note.");
@@ -440,6 +445,10 @@ export class LibraryPdfMarkupLayer extends LitElement {
   cancelNoteDrag(): boolean {
     const moved = this.noteDrag?.moved ?? false;
     this.noteDrag = null;
+    if (moved) {
+      this.noteMovePreview = null;
+      this.requestUpdate();
+    }
     return moved;
   }
 
@@ -543,6 +552,43 @@ export class LibraryPdfMarkupLayer extends LitElement {
     this.requestUpdate();
   }
 
+  private readonly handlePointerDown = (event: PointerEvent): void => {
+    const action = this.pointerAction(event);
+    if (action?.kind === "note" || action?.kind === "drawing") {
+      this.emitAction({ action: "select-markup", id: action.id });
+    } else if (action?.kind === "touch-drawing") {
+      this.emitAction({ action: "touch-drawing" });
+    }
+  };
+
+  private readonly handlePointerMove = (event: PointerEvent): void => {
+    if (this.continueNotePress(event) || this.continueNoteDrag(event)) return;
+    this.continueDrawing(event);
+  };
+
+  private readonly handlePointerUp = async (event: PointerEvent): Promise<void> => {
+    const notePress = this.finishNotePress(event.pointerId);
+    if (notePress) {
+      const target = this.data?.drawingTarget;
+      if (notePress.point && target && this.data) {
+        this.placeNote(this.data.page, notePress.point);
+        const draft = this.noteDraft;
+        if (draft) this.emitAction({ action: "place-note", draft: { ...target, ...draft } });
+      }
+      return;
+    }
+    if (await this.finishNoteDrag(event)) return;
+    await this.finishDrawing(event.pointerId);
+  };
+
+  private readonly handlePointerCancel = (): void => {
+    this.setInteraction(this.tool);
+  };
+
+  private emitAction(detail: LibraryPdfMarkupAction): void {
+    this.dispatchEvent(new CustomEvent<LibraryPdfMarkupAction>(libraryPdfMarkupActionEvent, { bubbles: true, detail }));
+  }
+
   private async persistDrawing(drawing: DrawingSave): Promise<void> {
     if (this.savingDrawing) return;
     this.savingDrawing = true;
@@ -556,12 +602,7 @@ export class LibraryPdfMarkupLayer extends LitElement {
       await expectOk(response);
       this.failedDrawing = null;
       this.status = "";
-      this.dispatchEvent(
-        new CustomEvent<LibraryPdfMarkupAction>(libraryPdfMarkupActionEvent, {
-          bubbles: true,
-          detail: { action: "drawing-saved" },
-        }),
-      );
+      this.emitAction({ action: "drawing-saved" });
     } catch (error) {
       this.failedDrawing = drawing;
       this.status = errorMessage(error, "Could not save the private drawing.");

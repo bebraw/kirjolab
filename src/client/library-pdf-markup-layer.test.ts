@@ -249,6 +249,57 @@ describe("library PDF markup layer", () => {
     expect(layer.setPointerCapture).toHaveBeenCalledTimes(2);
   });
 
+  it("owns host pointer-event routing and emits completed local intents", async () => {
+    const layer = new TestMarkupLayer();
+    let markupTarget: string | null = null;
+    Object.defineProperties(layer, {
+      closest: {
+        value: (selector: string) =>
+          selector === markupTarget ? { getAttribute: (name: string) => (name === "data-markup-id" ? "drawing-1" : null) } : null,
+      },
+      dataset: { value: {} },
+      getBoundingClientRect: { value: () => ({ height: 200, left: 10, top: 20, width: 400 }) },
+      setPointerCapture: { value: vi.fn() },
+    });
+    layer.setData({
+      drawingStyle: { color: "#000000", width: 3 },
+      drawingTarget: { artifactId: "artifact-1", referenceId: "reference-1" },
+      drawings: [],
+      notes: [],
+      page: 2,
+    });
+    const actions: LibraryPdfMarkupAction[] = [];
+    layer.addEventListener(libraryPdfMarkupActionEvent, (event) => {
+      actions.push((event as CustomEvent<LibraryPdfMarkupAction>).detail);
+    });
+    layer.chooseTool("note");
+    layer.dispatchEvent(pointerEvent("pointerdown", { clientX: 210, clientY: 120, pointerId: 7, pointerType: "mouse" }));
+    layer.dispatchEvent(pointerEvent("pointerup", { clientX: 210, clientY: 120, pointerId: 7, pointerType: "mouse" }));
+    await vi.waitFor(() => expect(actions).toHaveLength(1));
+    expect(actions[0]).toEqual({
+      action: "place-note",
+      draft: { artifactId: "artifact-1", editingId: null, page: 2, referenceId: "reference-1", x: 0.5, y: 0.5 },
+    });
+
+    layer.chooseTool("draw");
+    layer.dispatchEvent(pointerEvent("pointerdown", { clientX: 210, clientY: 120, pointerId: 8, pointerType: "touch" }));
+    expect(actions.at(-1)).toEqual({ action: "touch-drawing" });
+    layer.dispatchEvent(pointerEvent("pointercancel", { clientX: 210, clientY: 120, pointerId: 8, pointerType: "touch" }));
+
+    markupTarget = ".pdf-ink-stroke";
+    layer.chooseTool("select");
+    layer.dispatchEvent(pointerEvent("pointerdown", { clientX: 210, clientY: 120, pointerId: 9, pointerType: "mouse" }));
+    expect(actions.at(-1)).toEqual({ action: "select-markup", id: "drawing-1" });
+
+    markupTarget = null;
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 200 }));
+    layer.chooseTool("draw");
+    layer.dispatchEvent(pointerEvent("pointerdown", { clientX: 210, clientY: 120, pointerId: 10, pointerType: "mouse" }));
+    layer.dispatchEvent(pointerEvent("pointermove", { clientX: 250, clientY: 120, pointerId: 10, pointerType: "mouse" }));
+    layer.dispatchEvent(pointerEvent("pointerup", { clientX: 250, clientY: 120, pointerId: 10, pointerType: "mouse" }));
+    await vi.waitFor(() => expect(actions.at(-1)).toEqual({ action: "drawing-saved" }));
+  });
+
   it("reports note-move failures, blocks overlap, and permits retry", async () => {
     const layer = new TestMarkupLayer();
     let respond = (_response: Response): void => undefined;
@@ -419,3 +470,9 @@ describe("library PDF markup layer", () => {
     expect(layer.cancelDrawing()).toBe(true);
   });
 });
+
+function pointerEvent(type: string, values: Record<string, number | string>): Event {
+  const event = new Event(type);
+  Object.defineProperties(event, Object.fromEntries(Object.entries(values).map(([key, value]) => [key, { configurable: true, value }])));
+  return event;
+}

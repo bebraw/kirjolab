@@ -335,11 +335,13 @@ The adopted components own bounded presentation:
   coalesced-sample accumulation and deduplication;
   delayed pixel-space shape recognition and adjustment, recognition-timer
   cleanup, note-pin and drawing-stroke hit-testing, tool-aware pointer-down
-  interpretation, local pointer capture, note-placement press and note-drag
-  thresholds, note-drag preview state, drawing activation and continuation,
-  typed recognition intents, local note-card dismissal, completed note-move
-  transport, stable encoded note targets, overlapping-move suppression,
-  retryable local failures, and typed completed-move outcomes.
+  interpretation, raw host pointer-event routing, local pointer capture,
+  note-placement press and note-drag thresholds, note-drag preview state,
+  drawing activation and continuation, cancellation recovery, typed selection,
+  stationary-note, touch-warning, recognition, and completed-mutation intents,
+  local note-card dismissal, completed note-move transport, stable encoded note
+  targets, overlapping-move suppression, retryable local failures, and typed
+  completed-move outcomes.
   Given stable active artifact and reference identities, it also owns completed
   drawing transport, style and page capture, pending-state suppression, and a
   visible failed draft with explicit retry and discard actions.
@@ -728,9 +730,9 @@ reason to wrap static markup mechanically.
   eliminating the separate annotation state machine, coordinator-owned
   transitions, coordinator note-move adapter, and coordinator drawing-save
   adapter. The application coordinator retains inspector policy, canonical
-  refreshes, and notifications. A prospective note placement similarly remains
-  layer-local until a stationary pointer release, when the annotation forms own
-  its durable save.
+  refreshes, and notifications. Note placement remains layer-local until a
+  stationary pointer release; the layer then emits the complete typed draft for
+  annotation-form persistence.
 - The Library PDF project-use block replaces its imperative renderer and four
   one-off DOM-construction helpers, then absorbs its remaining canonical
   reference and project-link lookup projection. The application coordinator

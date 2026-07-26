@@ -288,6 +288,10 @@ memory and makes citation aliases compete with stable source identity.
   tool and saved-resource selection state, note composition, open note cards,
   live draft geometry updates, pointer capture, note movement, drawing and
   shape-recognition gestures, note-card dismissal, and focus restoration. It
+  binds its host pointer-down, move, up, and cancellation events, routes them
+  through that local gesture state, restores canonical note geometry after a
+  cancelled drag, and emits typed selection, stationary-note, touch-warning,
+  and completed-mutation outcomes. It
   persists a completed note move from the saved note's stable identities,
   suppresses overlapping move gestures, restores canonical geometry after a
   retryable failure, and emits a typed completed-move outcome. Given the active

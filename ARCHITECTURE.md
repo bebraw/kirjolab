@@ -614,6 +614,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   coordinator.
 - Keep private-PDF tool, selection, note-composition, open-card, and pointer-
   gesture state inside the bounded light-DOM markup layer that presents it.
+  Bind raw host pointer events there and emit typed selection, stationary-note,
+  touch-warning, and completed-mutation outcomes; the coordinator must not
+  replay the layer's gesture state machine.
   Let that layer persist completed note moves from its stable saved-note
   context, suppress overlapping moves, and restore canonical geometry after a
   retryable failure. Let the layer also persist completed drawings from its
