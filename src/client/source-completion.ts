@@ -1,7 +1,14 @@
 import { html, LitElement, nothing, type TemplateResult } from "lit";
+import type { CitationCompletionCandidate, CitationCompletionContext } from "./citation-completions";
+import type { IncludeCompletionCandidate, IncludeCompletionContext } from "./include-completions";
+
+export type SourceCompletionIntent =
+  | { readonly kind: "citation"; readonly context: CitationCompletionContext; readonly candidate: CitationCompletionCandidate }
+  | { readonly kind: "include"; readonly context: IncludeCompletionContext; readonly candidate: IncludeCompletionCandidate };
 
 export interface SourceCompletionOption {
   readonly action?: string;
+  readonly intent: SourceCompletionIntent;
   readonly metadata: string;
   readonly value: string;
 }
@@ -9,7 +16,7 @@ export interface SourceCompletionOption {
 export type CitationCompletionScope = "library" | "project";
 
 export type SourceCompletionAction =
-  | { readonly action: "accept"; readonly index: number }
+  | { readonly action: "accept"; readonly intent: SourceCompletionIntent }
   | { readonly action: "dismiss" }
   | { readonly action: "scope-change"; readonly scope: CitationCompletionScope };
 
@@ -74,7 +81,7 @@ export class SourceCompletion extends LitElement {
     }
     if (event.key === "Enter" || event.key === "Tab") {
       event.preventDefault();
-      this.emitAction({ action: "accept", index: this.selectedIndex });
+      this.accept(this.selectedIndex);
       return true;
     }
     if (event.key === "Escape") {
@@ -109,7 +116,7 @@ export class SourceCompletion extends LitElement {
           role="option"
           aria-selected=${String(index === this.selectedIndex)}
           @pointerdown=${(event: PointerEvent) => event.preventDefault()}
-          @click=${() => this.emitAction({ action: "accept", index })}
+          @click=${() => this.accept(index)}
           @mousemove=${() => {
             this.selectedIndex = index;
           }}
@@ -132,6 +139,11 @@ export class SourceCompletion extends LitElement {
 
   protected emitAction(action: SourceCompletionAction): void {
     this.dispatchEvent(new CustomEvent<SourceCompletionAction>(sourceCompletionActionEvent, { bubbles: true, detail: action }));
+  }
+
+  private accept(index: number): void {
+    const option = this.options[index];
+    if (option) this.emitAction({ action: "accept", intent: option.intent });
   }
 
   private readonly handleEditorKey = (event: KeyboardEvent): void => {

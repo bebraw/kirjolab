@@ -70,7 +70,7 @@ import { editorInsertActionEvent, type EditorInsertAction, type EditorSyntaxKind
 import { sourceSpanAt } from "./composition-source-map";
 import type { AppToastOptions } from "./app-toast";
 import { workspaceSwitchEvent } from "./workspace-switcher";
-import { sourceCompletionActionEvent, type SourceCompletionAction } from "./source-completion";
+import { sourceCompletionActionEvent, type SourceCompletionAction, type SourceCompletionIntent } from "./source-completion";
 import {
   gitHubDisconnectEvent,
   gitHubImportCancelEvent,
@@ -298,18 +298,8 @@ import { workspaceRailChangeEvent } from "./workspace-rail-tabs";
 import { authoringModeChangeEvent } from "./authoring-mode-tabs";
 import type { EditorPresenceRange } from "./editor-presence";
 import { bindYText, captureRelativeSelection, positionSourceCompletion, type RelativeEditorSelection } from "./source-editor-adapter";
-import {
-  citationCompletionContext,
-  rankCitationCompletionCandidates,
-  type CitationCompletionCandidate,
-  type CitationCompletionContext,
-} from "./citation-completions";
-import {
-  includeCompletionContext,
-  rankIncludeCompletionCandidates,
-  type IncludeCompletionCandidate,
-  type IncludeCompletionContext,
-} from "./include-completions";
+import { citationCompletionContext, rankCitationCompletionCandidates, type CitationCompletionCandidate } from "./citation-completions";
+import { includeCompletionContext, rankIncludeCompletionCandidates, type IncludeCompletionContext } from "./include-completions";
 
 type GuardResult<T> = T extends (value: unknown) => value is infer Result ? Result : never;
 type GitHubSyncConnection = GuardResult<typeof isGitHubSyncState>;
@@ -491,11 +481,6 @@ class WorkspaceApp {
   #offlineSaveVersion = 0;
   #offlineSaveChain: Promise<void> = Promise.resolve();
   #workspaceRouteReady = false;
-  #citationCompletionContext: CitationCompletionContext | null = null;
-  #citationCompletionCandidates: readonly CitationCompletionCandidate[] = [];
-  #includeCompletionContext: IncludeCompletionContext | null = null;
-  #includeCompletionCandidates: readonly IncludeCompletionCandidate[] = [];
-  #sourceCompletionKind: "citation" | "include" | null = null;
   #citationLibraryRequest = 0;
   #citationLibraryLoading = false;
   readonly #layout: WorkspaceLayoutManager;
@@ -819,8 +804,8 @@ class WorkspaceApp {
       const detail = (event as CustomEvent<SourceCompletionAction>).detail;
       if (detail.action === "dismiss") this.#hideSourceCompletion();
       else if (detail.action === "scope-change") void this.#renderSourceCompletion();
-      else if (this.#sourceCompletionKind === "citation") void this.#acceptCitationCompletion(detail.index);
-      else if (this.#sourceCompletionKind === "include") this.#acceptIncludeCompletion(detail.index);
+      else if (detail.intent.kind === "citation") void this.#acceptCitationCompletion(detail.intent);
+      else this.#acceptIncludeCompletion(detail.intent);
     });
     this.#elements.authoringModeTabs.addEventListener(authoringModeChangeEvent, (event) => {
       this.#setAuthoringMode((event as CustomEvent<AuthoringMode>).detail);
@@ -4392,13 +4377,12 @@ class WorkspaceApp {
       this.#hideSourceCompletion();
       return;
     }
-    this.#sourceCompletionKind = "include";
-    this.#includeCompletionContext = context;
-    this.#includeCompletionCandidates = candidates;
-    this.#citationCompletionContext = null;
-    this.#citationCompletionCandidates = [];
     this.#elements.sourceCompletion.show(
-      candidates.map((candidate) => ({ value: candidate.reference, metadata: `Project file · ${candidate.path}` })),
+      candidates.map((candidate) => ({
+        value: candidate.reference,
+        metadata: `Project file · ${candidate.path}`,
+        intent: { kind: "include", context, candidate },
+      })),
       this.#elements.source,
     );
     positionSourceCompletion(this.#elements.source, this.#elements.sourceCompletion, context.start);
@@ -4424,16 +4408,12 @@ class WorkspaceApp {
       this.#hideSourceCompletion();
       return;
     }
-    this.#citationCompletionContext = context;
-    this.#citationCompletionCandidates = candidates;
-    this.#sourceCompletionKind = "citation";
-    this.#includeCompletionContext = null;
-    this.#includeCompletionCandidates = [];
     this.#elements.sourceCompletion.show(
       candidates.map((candidate) => ({
         value: candidate.key,
         metadata: [candidate.authors.join("; "), candidate.title, candidate.year].filter(Boolean).join(" · "),
         ...(candidate.scope === "library" ? { action: "Add and cite" } : {}),
+        intent: { kind: "citation", context, candidate },
       })),
       this.#elements.source,
     );
@@ -4484,10 +4464,7 @@ class WorkspaceApp {
     ];
   }
 
-  async #acceptCitationCompletion(index: number): Promise<void> {
-    const candidate = this.#citationCompletionCandidates[index];
-    const context = this.#citationCompletionContext;
-    if (!candidate || !context) return;
+  async #acceptCitationCompletion({ candidate, context }: Extract<SourceCompletionIntent, { kind: "citation" }>): Promise<void> {
     this.#hideSourceCompletion();
     let start = context.start;
     let end = context.end;
@@ -4514,10 +4491,7 @@ class WorkspaceApp {
     if (candidate.scope === "library") this.#showToast(`Added and cited ${candidate.key}.`);
   }
 
-  #acceptIncludeCompletion(index: number): void {
-    const candidate = this.#includeCompletionCandidates[index];
-    const context = this.#includeCompletionContext;
-    if (!candidate || !context) return;
+  #acceptIncludeCompletion({ candidate, context }: Extract<SourceCompletionIntent, { kind: "include" }>): void {
     this.#hideSourceCompletion();
     this.#document.transact(() => {
       if (context.end > context.start) this.#activeFileText.delete(context.start, context.end - context.start);
@@ -4530,11 +4504,6 @@ class WorkspaceApp {
   }
 
   #hideSourceCompletion(): void {
-    this.#sourceCompletionKind = null;
-    this.#citationCompletionContext = null;
-    this.#citationCompletionCandidates = [];
-    this.#includeCompletionContext = null;
-    this.#includeCompletionCandidates = [];
     this.#elements.sourceCompletion.hide();
   }
 

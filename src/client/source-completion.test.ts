@@ -1,5 +1,21 @@
 import { describe, expect, it, vi } from "vitest";
-import { SourceCompletion, sourceCompletionActionEvent, type SourceCompletionAction } from "./source-completion";
+import {
+  SourceCompletion,
+  sourceCompletionActionEvent,
+  type SourceCompletionAction,
+  type SourceCompletionIntent,
+  type SourceCompletionOption,
+} from "./source-completion";
+
+const includeIntent: SourceCompletionIntent = {
+  kind: "include",
+  context: { query: "chap", start: 10, end: 14 },
+  candidate: { reference: "chapters/method.md", path: "chapters/method.md" },
+};
+
+function option(value: string, metadata: string, action?: string): SourceCompletionOption {
+  return { value, metadata, intent: includeIntent, ...(action ? { action } : {}) };
+}
 
 class TestSourceCompletion extends SourceCompletion {
   renderForTest() {
@@ -21,13 +37,7 @@ describe("source completion", () => {
     expect(completion.rootForTest()).toBe(completion);
     expect(completion.renderForTest()).toBeDefined();
     const source = { setAttribute: vi.fn(), removeAttribute: vi.fn() } as unknown as HTMLTextAreaElement;
-    completion.show(
-      [
-        { value: "paper2026", metadata: "Paper" },
-        { value: "library2026", metadata: "Library paper", action: "Add and cite" },
-      ],
-      source,
-    );
+    completion.show([option("paper2026", "Paper"), option("library2026", "Library paper", "Add and cite")], source);
     expect(completion.renderForTest()).toBeDefined();
     expect(source.setAttribute).toHaveBeenCalledWith("aria-expanded", "true");
     completion.hide();
@@ -40,9 +50,9 @@ describe("source completion", () => {
     completion.addEventListener(sourceCompletionActionEvent, (event) => {
       actions.push((event as CustomEvent<SourceCompletionAction>).detail);
     });
-    completion.emitForTest({ action: "accept", index: 1 });
+    completion.emitForTest({ action: "accept", intent: includeIntent });
     completion.emitForTest({ action: "dismiss" });
-    expect(actions).toEqual([{ action: "accept", index: 1 }, { action: "dismiss" }]);
+    expect(actions).toEqual([{ action: "accept", intent: includeIntent }, { action: "dismiss" }]);
   });
 
   it("owns keyboard selection and acceptance", () => {
@@ -52,20 +62,14 @@ describe("source completion", () => {
     completion.addEventListener(sourceCompletionActionEvent, (event) => {
       actions.push((event as CustomEvent<SourceCompletionAction>).detail);
     });
-    completion.show(
-      [
-        { value: "first", metadata: "First" },
-        { value: "second", metadata: "Second" },
-      ],
-      source,
-    );
+    completion.show([option("first", "First"), option("second", "Second")], source);
     const key = (value: string, isComposing = false) => ({ key: value, isComposing, preventDefault: vi.fn() }) as unknown as KeyboardEvent;
     expect(completion.handleKey(key("ArrowDown"))).toBe(true);
     expect(completion.handleKey(key("Enter"))).toBe(true);
     expect(completion.handleKey(key("Escape"))).toBe(true);
     expect(completion.handleKey(key("x"))).toBe(false);
     expect(completion.handleKey(key("Enter", true))).toBe(false);
-    expect(actions).toEqual([{ action: "accept", index: 1 }, { action: "dismiss" }]);
+    expect(actions).toEqual([{ action: "accept", intent: includeIntent }, { action: "dismiss" }]);
   });
 
   it("binds editor interaction and persisted citation scope", () => {
@@ -90,7 +94,7 @@ describe("source completion", () => {
     completion.bindEditor(source, scope);
     expect(completion.scope).toBe("library");
     expect(scope.value).toBe("library");
-    completion.show([{ value: "paper", metadata: "Paper" }], source);
+    completion.show([option("paper", "Paper")], source);
     const enter = Object.assign(new Event("keydown", { cancelable: true }), { isComposing: false, key: "Enter" });
     source.dispatchEvent(enter);
     scope.value = "project";
@@ -99,7 +103,11 @@ describe("source completion", () => {
     vi.runAllTimers();
 
     expect(localStorage.setItem).toHaveBeenCalledWith("kirjolab:citation-completion-scope", "project");
-    expect(actions).toEqual([{ action: "accept", index: 0 }, { action: "scope-change", scope: "project" }, { action: "dismiss" }]);
+    expect(actions).toEqual([
+      { action: "accept", intent: includeIntent },
+      { action: "scope-change", scope: "project" },
+      { action: "dismiss" },
+    ]);
     vi.useRealTimers();
   });
 });

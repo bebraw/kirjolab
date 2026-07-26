@@ -388,8 +388,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   coordinator retains document, workflow, and navigation authority.
 - Keep source-completion interaction in its bounded light-DOM component: bind
   editor keyboard and blur behavior there, persist citation suggestion scope
-  there, and emit typed intents. The application coordinator retains candidate
-  generation, collaborative edits, and private-Library mutations.
+  there, and emit the selected candidate with its replacement context as one
+  typed intent. The application coordinator retains candidate generation,
+  collaborative edits, and private-Library mutations without caching menu
+  candidates or kind state.
 - Implement optional editor keymaps as bounded textarea command adapters that
   emit ordinary input changes. Keep keymap preference browser-local, preserve
   IME and modified browser shortcuts, and never create a second document model.

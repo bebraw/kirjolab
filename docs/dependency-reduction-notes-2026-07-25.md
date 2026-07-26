@@ -3238,3 +3238,27 @@ and unique production package counts remain unchanged at 135,411 B raw /
 
 Full native CI passes all 1,416 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Lit Ownership: Complete Source-Completion Intent
+
+`SourceCompletion` now emits the selected citation or include candidate together
+with its replacement context instead of reporting only a row index. The
+component already owns option ordering and keyboard or pointer selection, so
+the complete typed intent removes two context fields, two candidate arrays, and
+the completion-kind discriminator from `WorkspaceApp`. The coordinator retains
+candidate generation, private-Library linking, Yjs mutation, caret restoration,
+and menu placement.
+
+This checkpoint reduces `src/client/app.ts` from 6,511 to 6,480 lines (-31) and
+grows the completion component from 170 to 182 lines, reducing runtime source
+by 19 lines overall. Focused component coverage passes pointer-independent typed
+acceptance, keyboard selection, dismissal, scope persistence, and option
+presentation.
+
+The browser application artifact changes from 796,767 B raw / 214,985 B gzip
+to 796,585 B raw / 214,960 B gzip (-182 B raw / -25 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,416 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.

@@ -650,7 +650,9 @@ reason to wrap static markup mechanically.
   pointer handlers, selection rendering, keyboard movement and acceptance, and
   source-editor ARIA synchronization. It also binds the editor keyboard and
   blur lifecycle, owns browser-local citation-scope persistence, and emits a
-  typed scope-change intent. The application coordinator retains context
+  typed scope-change intent. Acceptance now carries the component-selected
+  candidate and replacement context, removing five coordinator caches and the
+  completion-kind discriminator. The application coordinator retains context
   detection, candidate ranking, private-Library linking, Yjs edits, caret
   restoration, and menu positioning.
 - The source citation control owns caret-context parsing and action
