@@ -19,12 +19,9 @@ import { GitHubSyncMenu } from "./github-sync-menu";
 import { LatexImportPanel } from "./latex-import-panel";
 import { LibraryDiscoveryResults } from "./library-discovery-results";
 import { LibraryDiscoverySearch } from "./library-discovery-search";
-import { LibraryPdfAnnotationForms } from "./library-pdf-annotation-forms";
-import { LibraryPdfAnnotationList } from "./library-pdf-annotation-list";
 import { LibraryPdfAnnotationToolbar } from "./library-pdf-annotation-toolbar";
 import { LibraryPdfInspector } from "./library-pdf-inspector";
 import { LibraryPdfMarkupLayer } from "./library-pdf-markup-layer";
-import { LibraryPdfProjectUse } from "./library-pdf-project-use";
 import { LibraryPdfUploadControl } from "./library-pdf-upload-control";
 import { LibraryPdfUploadStatus } from "./library-pdf-upload-status";
 import { LibraryReferenceList } from "./library-reference-list";
@@ -33,7 +30,6 @@ import { LibraryToolsMenu } from "./library-tools-menu";
 import { ManuscriptCommentList } from "./manuscript-comment-list";
 import { ManuscriptMapPanel } from "./manuscript-map-panel";
 import { ModelProviderSettings } from "./model-provider-settings";
-import { PdfHighlightImportPanel } from "./pdf-highlight-import-panel";
 import { PreviewNavigationControl } from "./preview-navigation-control";
 import { PreviewContextStatus } from "./preview-presentation";
 import { PreviewSyncControls } from "./preview-sync-controls";
@@ -142,11 +138,7 @@ export function collectAppElements(requireElement = requiredAppElement) {
     claimDialog: requireElement("claim-dialog-panel", ClaimDialog),
     projectAnnotationForm: requireElement("project-annotation-form", ProjectAnnotationForm),
     libraryPdfInspector: requireElement("library-pdf-inspector", LibraryPdfInspector),
-    pdfHighlightImportPanel: requireElement("pdf-highlight-import-panel", PdfHighlightImportPanel),
-    libraryPdfAnnotationForms: requireElement("library-pdf-annotation-forms", LibraryPdfAnnotationForms),
     libraryPdfAnnotationToolbar: requireElement("library-pdf-annotation-toolbar", LibraryPdfAnnotationToolbar),
-    libraryProjectUse: requireElement("library-project-use", LibraryPdfProjectUse),
-    libraryHighlightList: requireElement("library-highlight-list", LibraryPdfAnnotationList),
     paperMarkups: requireElement("paper-markups", LibraryPdfMarkupLayer),
     paperReader: requireElement("paper-reader", HTMLElement),
     publicationIntakePanel: requireElement("publication-intake-panel", PublicationIntakePanel),

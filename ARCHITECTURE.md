@@ -654,6 +654,12 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   classification, duplicate-submit gating, and retryable local failures. Keep
   canonical Library refresh, PDF draft and selection clearing, inspector
   guidance, and toast policy in the application coordinator.
+- Let the Library PDF inspector own the projection and artifact-change reset
+  lifecycle for its annotation forms, imported-highlight review, saved
+  annotation list, and project-use block. Supply one canonical artifact,
+  project, reference, and Library snapshot from the application coordinator;
+  keep PDF viewer state, navigation, mutations, canonical refreshes, and toast
+  policy in that coordinator.
 - Let the PDF highlight import panel own bounded client-side detection,
   saved-highlight overlap filtering, reviewed candidate state, stable encoded
   import transport, duplicate-submit gating, and retryable local failures. Keep

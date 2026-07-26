@@ -284,8 +284,12 @@ memory and makes citation aliases compete with stable source identity.
 - A bounded light-DOM inspector component composes the annotation forms,
   imported-highlight review, saved annotation list, and project-use block. It
   owns shell visibility, active-artifact identity, status presentation,
-  expanded state, annotation-details opening, and a typed close intent. The
-  application coordinator retains persistence, close policy, and refreshes.
+  expanded state, annotation-details opening, and a typed close intent. Given
+  one canonical artifact, project, reference, and Library snapshot, it derives
+  and projects each child component's context and resets child presentation
+  state when the active artifact changes. The application coordinator retains
+  PDF viewer state, navigation, persistence, close policy, canonical refreshes,
+  and notifications.
 - A bounded light-DOM markup layer owns saved and draft drawing SVG, note pins,
   tool and saved-resource selection state, note composition, open note cards,
   live draft geometry updates, pointer capture, note movement, drawing and

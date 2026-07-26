@@ -742,7 +742,7 @@ class WorkspaceApp {
       else if (action.action === "undo-highlight") void this.#undoLastHighlightStroke(action.annotationId, action.fragmentId);
       else this.#citeActivePdf();
     });
-    this.#elements.libraryPdfAnnotationForms.addEventListener(libraryPdfAnnotationActionEvent, (event) => {
+    this.#elements.libraryPdfInspector.addEventListener(libraryPdfAnnotationActionEvent, (event) => {
       const action = (event as CustomEvent<LibraryPdfAnnotationAction>).detail;
       if (action.action === "highlight-saved") void this.#completeLibraryHighlightSave(action.kind);
       else if (action.action === "cancel-highlight") this.#clearLibraryHighlightDraft();
@@ -752,7 +752,7 @@ class WorkspaceApp {
       else if (action.action === "edit-note") this.#editSelectedLibraryPdfNote();
       else this.#clearLibraryPdfMarkupSelection();
     });
-    this.#elements.libraryHighlightList.addEventListener(libraryPdfAnnotationListActionEvent, (event) => {
+    this.#elements.libraryPdfInspector.addEventListener(libraryPdfAnnotationListActionEvent, (event) => {
       const detail = (event as CustomEvent<LibraryPdfAnnotationListAction>).detail;
       if (detail.action === "open-highlight") void this.#openLibraryHighlight(detail.highlight);
       else if (detail.action === "edit-highlight") this.#editLibraryHighlight(detail.highlight);
@@ -761,7 +761,7 @@ class WorkspaceApp {
       else if (detail.action === "edit-note") this.#editLibraryPdfNote(detail.note);
       else this.#completeLibraryPdfMarkup("Private annotation deleted.");
     });
-    for (const target of [this.#elements.referenceLibraryList, this.#elements.libraryProjectUse]) {
+    for (const target of [this.#elements.referenceLibraryList, this.#elements.libraryPdfInspector]) {
       target.addEventListener(projectReferenceChangedEvent, (event) => {
         const { message, snapshot } = (event as CustomEvent<ProjectReferenceChanged>).detail;
         void this.#acceptWorkspaceMutation(snapshot).then(() => {
@@ -770,7 +770,7 @@ class WorkspaceApp {
         });
       });
     }
-    for (const target of [this.#elements.referenceLibraryList, this.#elements.libraryHighlightList]) {
+    for (const target of [this.#elements.referenceLibraryList, this.#elements.libraryPdfInspector]) {
       target.addEventListener(projectResearchChangedEvent, (event) => {
         const { message, snapshot } = (event as CustomEvent<ProjectResearchChanged>).detail;
         void this.#acceptWorkspaceMutation(snapshot).then(() => {
@@ -787,7 +787,7 @@ class WorkspaceApp {
       else this.#setLibraryPdfInspector(true, true);
     });
     this.#elements.libraryPdfInspector.addEventListener(libraryPdfInspectorCloseEvent, () => this.#closeLibraryPdfInspector());
-    this.#elements.pdfHighlightImportPanel.addEventListener(pdfHighlightImportOutcomeEvent, (event) => {
+    this.#elements.libraryPdfInspector.addEventListener(pdfHighlightImportOutcomeEvent, (event) => {
       const { count } = (event as CustomEvent<PdfHighlightImportOutcome>).detail;
       void this.#completePdfHighlightImport(count);
     });
@@ -798,9 +798,8 @@ class WorkspaceApp {
       } else if (detail.action === "select-markup") this.#selectLibraryPdfMarkup(detail.id);
       else if (detail.action === "status") this.#elements.libraryPdfInspector.setStatus(detail.message);
       else {
-        this.#elements.libraryPdfAnnotationForms.showNote("", detail.draft);
+        this.#elements.libraryPdfInspector.beginNote(detail.draft);
         this.#setLibraryPdfInspector(true);
-        this.#elements.libraryPdfAnnotationForms.focusNote();
       }
     });
     this.#elements.claimListPanel.configure(apiBase);
@@ -3168,15 +3167,13 @@ class WorkspaceApp {
     if (activeTab?.kind === "library-pdf") {
       const artifact = this.#librarySnapshot?.artifacts.find((item) => item.id === activeTab.id);
       if (!artifact) return;
-      this.#elements.libraryPdfInspector.setArtifact(artifact.id);
-      this.#elements.libraryPdfAnnotationForms.showHighlight({
+      this.#elements.libraryPdfInspector.beginHighlight(artifact.id, {
         highlightId: null,
         page: capture.page,
         quote: capture.quote,
         comment: "",
         rects: capture.rects,
       });
-      this.#elements.libraryPdfInspector.setStatus(`Page ${capture.page} selection ready.`);
       this.#setLibraryPdfInspector(true);
       return;
     }
@@ -3188,49 +3185,22 @@ class WorkspaceApp {
 
   #renderLibraryHighlightComposer(artifact: LibraryPdfArtifact | undefined): void {
     if (!artifact || !this.#librarySnapshot) return;
-    if (!this.#elements.libraryPdfInspector.showsArtifact(artifact.id)) this.#resetLibraryHighlightComposer(artifact.id);
-    this.#elements.libraryProjectUse.setContext({
+    const { artifactChanged, highlights, markups } = this.#elements.libraryPdfInspector.setContext({
       artifact,
+      library: this.#librarySnapshot,
       projectApiBase: appMode === "workspace" ? apiBase : null,
       projectReferences: this.#snapshot?.projectReferences ?? [],
-      references: this.#librarySnapshot.references,
-    });
-    const highlights = this.#librarySnapshot.highlights.filter((highlight) => highlight.artifactId === artifact.id);
-    this.#elements.pdfHighlightImportPanel.setContext(
-      artifact.referenceId ? { artifactId: artifact.id, highlights, referenceId: artifact.referenceId } : null,
-    );
-    if (artifact.referenceId) {
-      this.#elements.libraryPdfAnnotationForms.setHighlightContext({
-        artifactId: artifact.id,
-        highlights,
-        referenceId: artifact.referenceId,
-      });
-    }
-    this.#pdfViewer.updatePrivateHighlights(highlights);
-    const markups = (this.#librarySnapshot.pdfMarkups ?? []).filter((markup) => markup.artifactId === artifact.id);
-    this.#elements.libraryPdfAnnotationToolbar.setAnnotationAvailability(highlights.length + markups.length);
-    this.#elements.libraryPdfAnnotationToolbar.setExportArtifact(artifact);
-    this.#elements.libraryHighlightList.setData({
-      artifact,
-      highlights,
-      linkedReferenceIds: new Set(this.#snapshot?.projectReferences.map((item) => item.referenceId) ?? []),
-      markups,
-      projectApiBase: appMode === "workspace" ? apiBase : null,
       researchShares: this.#snapshot?.researchShares ?? [],
     });
+    if (artifactChanged) {
+      this.#elements.paperMarkups.cancelShapeRecognition();
+      this.#elements.paperMarkups.resetState();
+      this.#setLibraryPdfInspector(false);
+    }
+    this.#pdfViewer.updatePrivateHighlights(highlights);
+    this.#elements.libraryPdfAnnotationToolbar.setAnnotationAvailability(highlights.length + markups.length);
+    this.#elements.libraryPdfAnnotationToolbar.setExportArtifact(artifact);
     this.#renderPdfMarkups();
-  }
-
-  #resetLibraryHighlightComposer(artifactId: string): void {
-    this.#elements.pdfHighlightImportPanel.reset();
-    this.#elements.paperMarkups.cancelShapeRecognition();
-    this.#elements.libraryPdfInspector.setArtifact(artifactId);
-    this.#elements.paperMarkups.resetState();
-    this.#elements.libraryPdfAnnotationForms.clearHighlight(1);
-    this.#elements.libraryPdfAnnotationForms.clearNote();
-    this.#elements.libraryPdfAnnotationForms.clearMarkup();
-    this.#elements.libraryPdfInspector.setStatus("Select text to highlight.");
-    this.#setLibraryPdfInspector(false);
   }
 
   async #completePdfHighlightImport(count: number): Promise<void> {
@@ -3256,8 +3226,7 @@ class WorkspaceApp {
   }
 
   #clearLibraryHighlightDraft(message = "Selection cancelled. Nothing was saved."): void {
-    this.#elements.libraryPdfAnnotationForms.clearHighlight(this.#pdfViewer.currentPage);
-    this.#elements.libraryPdfInspector.setStatus(message);
+    this.#elements.libraryPdfInspector.clearHighlight(this.#pdfViewer.currentPage, message);
     this.#pdfViewer.clearDraftSelection();
   }
 
@@ -3266,16 +3235,8 @@ class WorkspaceApp {
     if (this.#elements.paperMarkups.tool !== "select") this.#setLibraryPdfTool("select");
     this.#elements.paperMarkups.selectHighlight(highlight.id);
     this.#pdfViewer.setPrivateHighlightSelection(true, highlight.id);
-    this.#elements.libraryPdfAnnotationForms.showHighlight({
-      highlightId: highlight.id,
-      page: highlight.page,
-      quote: highlight.quote,
-      comment: highlight.comment,
-      rects: highlight.rects,
-    });
-    this.#elements.libraryPdfInspector.setStatus(`Editing the note for page ${highlight.page}.`);
+    this.#elements.libraryPdfInspector.editHighlight(highlight);
     this.#setLibraryPdfInspector(true);
-    this.#elements.libraryPdfAnnotationForms.focusHighlightComment();
   }
 
   #setLibraryPdfInspector(open: boolean, showAnnotations = false): void {
@@ -3284,9 +3245,10 @@ class WorkspaceApp {
   }
 
   #closeLibraryPdfInspector(): void {
-    if (this.#elements.libraryPdfAnnotationForms.highlightOpen) this.#clearLibraryHighlightDraft();
-    if (this.#elements.libraryPdfAnnotationForms.noteOpen) this.#clearLibraryPdfNoteDraft();
-    if (this.#elements.libraryPdfAnnotationForms.markupOpen) this.#clearLibraryPdfMarkupSelection();
+    const drafts = this.#elements.libraryPdfInspector.draftState;
+    if (drafts.highlight) this.#clearLibraryHighlightDraft();
+    if (drafts.note) this.#clearLibraryPdfNoteDraft();
+    if (drafts.markup) this.#clearLibraryPdfMarkupSelection();
     this.#setLibraryPdfInspector(false);
     this.#elements.libraryPdfAnnotationToolbar.focusInspectorButton();
   }
@@ -3299,7 +3261,8 @@ class WorkspaceApp {
     this.#elements.libraryPdfInspector.setStatus(status);
     if (tool !== "note") this.#clearLibraryPdfNoteDraft();
     if (tool !== "select") this.#clearLibraryPdfMarkupSelection();
-    if (this.#elements.libraryPdfAnnotationForms.empty) this.#setLibraryPdfInspector(false);
+    const drafts = this.#elements.libraryPdfInspector.draftState;
+    if (!drafts.highlight && !drafts.markup && !drafts.note) this.#setLibraryPdfInspector(false);
   }
 
   async #completeLibraryPdfNoteSave(kind: "created" | "updated"): Promise<void> {
@@ -3311,23 +3274,14 @@ class WorkspaceApp {
 
   #clearLibraryPdfNoteDraft(): void {
     this.#elements.paperMarkups.clearNote();
-    this.#elements.libraryPdfAnnotationForms.clearNote();
+    this.#elements.libraryPdfInspector.clearNote();
   }
 
   #editLibraryPdfNote(note: LibraryPdfNote): void {
     if (this.#elements.paperMarkups.tool !== "select") this.#setLibraryPdfTool("select");
     this.#elements.paperMarkups.editNote(note);
-    this.#elements.libraryPdfAnnotationForms.showNote(note.body, {
-      artifactId: note.artifactId,
-      editingId: note.id,
-      page: note.page,
-      referenceId: note.referenceId,
-      x: note.x,
-      y: note.y,
-    });
-    this.#elements.libraryPdfInspector.setStatus(`Editing the note on page ${note.page}.`);
+    this.#elements.libraryPdfInspector.editNote(note);
     this.#setLibraryPdfInspector(true);
-    this.#elements.libraryPdfAnnotationForms.focusNote();
   }
 
   #selectLibraryHighlight(highlightId: string): void {
@@ -3340,27 +3294,16 @@ class WorkspaceApp {
   #selectLibraryPdfMarkup(markupId: string): void {
     const markup = (this.#librarySnapshot?.pdfMarkups ?? []).find((item) => item.id === markupId);
     if (!markup) return;
-    if (this.#elements.libraryPdfAnnotationForms.highlightOpen) this.#clearLibraryHighlightDraft();
+    if (this.#elements.libraryPdfInspector.draftState.highlight) this.#clearLibraryHighlightDraft();
     this.#elements.paperMarkups.selectMarkup(markup.id);
     this.#pdfViewer.setPrivateHighlightSelection(true);
-    this.#elements.libraryPdfAnnotationForms.showMarkup({
-      id: markup.id,
-      label: markup.kind === "note" ? `Note on page ${markup.page} · drag its pin to move` : `Line on page ${markup.page}`,
-      kind: markup.kind,
-      referenceId: markup.referenceId,
-      ...(markup.kind === "drawing" ? { color: markup.color, width: markup.width } : {}),
-    });
-    this.#elements.libraryPdfInspector.setStatus(
-      markup.kind === "note"
-        ? "Note selected. Drag the pin to move it, or edit its text below."
-        : "Line selected. Adjust its style or delete it.",
-    );
+    this.#elements.libraryPdfInspector.selectMarkup(markup);
     this.#setLibraryPdfInspector(true);
   }
 
   #clearLibraryPdfMarkupSelection(): void {
     this.#elements.paperMarkups.clearSelection();
-    this.#elements.libraryPdfAnnotationForms.clearMarkup();
+    this.#elements.libraryPdfInspector.clearMarkup();
     this.#pdfViewer.setPrivateHighlightSelection(this.#elements.paperMarkups.tool === "select");
   }
 

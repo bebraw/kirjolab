@@ -451,7 +451,7 @@ export class LibraryPdfAnnotationForms extends LitElement {
   }
 
   protected emitAction(action: LibraryPdfAnnotationAction): void {
-    this.dispatchEvent(new CustomEvent(libraryPdfAnnotationActionEvent, { detail: action }));
+    this.dispatchEvent(new CustomEvent(libraryPdfAnnotationActionEvent, { bubbles: true, composed: true, detail: action }));
   }
 }
 

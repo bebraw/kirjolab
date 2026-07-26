@@ -1,6 +1,44 @@
 import { html, LitElement, type TemplateResult } from "lit";
+import type {
+  LibraryHighlight,
+  LibraryPdfArtifact,
+  LibraryPdfMarkup,
+  LibraryPdfNote,
+  ReferenceLibrarySnapshot,
+  ResearchShareSnapshot,
+} from "../domain/reference-library";
+import type { ProjectReferenceLink } from "../domain/workspace";
+import type { LibraryHighlightDraft, LibraryPdfAnnotationForms } from "./library-pdf-annotation-forms";
+import "./library-pdf-annotation-forms";
+import type { LibraryPdfAnnotationList } from "./library-pdf-annotation-list";
+import "./library-pdf-annotation-list";
+import type { LibraryPdfNoteDraft } from "./library-pdf-markup-layer";
+import type { LibraryPdfProjectUse } from "./library-pdf-project-use";
+import "./library-pdf-project-use";
+import type { PdfHighlightImportPanel } from "./pdf-highlight-import-panel";
+import "./pdf-highlight-import-panel";
 
 export const libraryPdfInspectorCloseEvent = "library-pdf-inspector-close";
+
+export interface LibraryPdfInspectorContext {
+  readonly artifact: LibraryPdfArtifact;
+  readonly library: ReferenceLibrarySnapshot;
+  readonly projectApiBase: string | null;
+  readonly projectReferences: readonly Pick<ProjectReferenceLink, "citationAlias" | "referenceId">[];
+  readonly researchShares: readonly ResearchShareSnapshot[];
+}
+
+export interface LibraryPdfInspectorProjection {
+  readonly artifactChanged: boolean;
+  readonly highlights: readonly LibraryHighlight[];
+  readonly markups: readonly LibraryPdfMarkup[];
+}
+
+export interface LibraryPdfInspectorDraftState {
+  readonly highlight: boolean;
+  readonly markup: boolean;
+  readonly note: boolean;
+}
 
 export class LibraryPdfInspector extends LitElement {
   static override properties = {
@@ -23,11 +61,11 @@ export class LibraryPdfInspector extends LitElement {
     this.visible = false;
   }
 
-  setArtifact(artifactId: string): void {
+  protected setArtifact(artifactId: string): void {
     this.artifactId = artifactId;
   }
 
-  showsArtifact(artifactId: string): boolean {
+  protected showsArtifact(artifactId: string): boolean {
     return this.artifactId === artifactId;
   }
 
@@ -42,6 +80,112 @@ export class LibraryPdfInspector extends LitElement {
   setInspectorOpen(open: boolean, showAnnotations = false): void {
     this.inspectorOpen = open;
     if (showAnnotations) this.querySelector<HTMLDetailsElement>("#library-annotation-details")?.setAttribute("open", "");
+  }
+
+  setContext(context: LibraryPdfInspectorContext): LibraryPdfInspectorProjection {
+    const { artifact, library, projectApiBase, projectReferences, researchShares } = context;
+    const artifactChanged = !this.showsArtifact(artifact.id);
+    if (artifactChanged) this.resetArtifact(artifact.id);
+    this.projectUse.setContext({ artifact, projectApiBase, projectReferences, references: library.references });
+    const highlights = library.highlights.filter((highlight) => highlight.artifactId === artifact.id);
+    this.highlightImport.setContext(
+      artifact.referenceId ? { artifactId: artifact.id, highlights, referenceId: artifact.referenceId } : null,
+    );
+    if (artifact.referenceId) {
+      this.annotationForms.setHighlightContext({ artifactId: artifact.id, highlights, referenceId: artifact.referenceId });
+    }
+    const markups = (library.pdfMarkups ?? []).filter((markup) => markup.artifactId === artifact.id);
+    this.annotationList.setData({
+      artifact,
+      highlights,
+      linkedReferenceIds: new Set(projectReferences.map((item) => item.referenceId)),
+      markups,
+      projectApiBase,
+      researchShares,
+    });
+    return { artifactChanged, highlights, markups };
+  }
+
+  beginHighlight(artifactId: string, draft: LibraryHighlightDraft): void {
+    this.setArtifact(artifactId);
+    this.annotationForms.showHighlight(draft);
+    this.setStatus(`Page ${draft.page} selection ready.`);
+  }
+
+  editHighlight(highlight: LibraryHighlight): void {
+    this.annotationForms.showHighlight({
+      highlightId: highlight.id,
+      page: highlight.page,
+      quote: highlight.quote,
+      comment: highlight.comment,
+      rects: highlight.rects,
+    });
+    this.setStatus(`Editing the note for page ${highlight.page}.`);
+    this.annotationForms.focusHighlightComment();
+  }
+
+  clearHighlight(page: number, message = "Selection cancelled. Nothing was saved."): void {
+    this.annotationForms.clearHighlight(page);
+    this.setStatus(message);
+  }
+
+  beginNote(draft: LibraryPdfNoteDraft & { readonly artifactId: string; readonly referenceId: string }): void {
+    this.annotationForms.showNote("", draft);
+    this.annotationForms.focusNote();
+  }
+
+  editNote(note: LibraryPdfNote): void {
+    this.annotationForms.showNote(note.body, {
+      artifactId: note.artifactId,
+      editingId: note.id,
+      page: note.page,
+      referenceId: note.referenceId,
+      x: note.x,
+      y: note.y,
+    });
+    this.setStatus(`Editing the note on page ${note.page}.`);
+    this.annotationForms.focusNote();
+  }
+
+  selectMarkup(markup: LibraryPdfMarkup): void {
+    this.annotationForms.showMarkup({
+      id: markup.id,
+      label: markup.kind === "note" ? `Note on page ${markup.page} · drag its pin to move` : `Line on page ${markup.page}`,
+      kind: markup.kind,
+      referenceId: markup.referenceId,
+      ...(markup.kind === "drawing" ? { color: markup.color, width: markup.width } : {}),
+    });
+    this.setStatus(
+      markup.kind === "note"
+        ? "Note selected. Drag the pin to move it, or edit its text below."
+        : "Line selected. Adjust its style or delete it.",
+    );
+  }
+
+  clearNote(): void {
+    this.annotationForms.clearNote();
+  }
+
+  clearMarkup(): void {
+    this.annotationForms.clearMarkup();
+  }
+
+  get draftState(): LibraryPdfInspectorDraftState {
+    return {
+      highlight: this.annotationForms.highlightOpen,
+      markup: this.annotationForms.markupOpen,
+      note: this.annotationForms.noteOpen,
+    };
+  }
+
+  private resetArtifact(artifactId: string): void {
+    this.highlightImport.reset();
+    this.setArtifact(artifactId);
+    this.annotationForms.clearHighlight(1);
+    this.annotationForms.clearNote();
+    this.annotationForms.clearMarkup();
+    this.setStatus("Select text to highlight.");
+    this.setInspectorOpen(false);
   }
 
   /* v8 ignore start -- exercised by browser fallback rendering */
@@ -102,6 +246,30 @@ export class LibraryPdfInspector extends LitElement {
         </details>
       </aside>
     `;
+  }
+
+  protected get annotationForms(): LibraryPdfAnnotationForms {
+    const forms = this.querySelector<LibraryPdfAnnotationForms>("#library-pdf-annotation-forms");
+    if (!forms) throw new Error("Library PDF annotation forms are unavailable");
+    return forms;
+  }
+
+  protected get annotationList(): LibraryPdfAnnotationList {
+    const list = this.querySelector<LibraryPdfAnnotationList>("#library-highlight-list");
+    if (!list) throw new Error("Library PDF annotation list is unavailable");
+    return list;
+  }
+
+  protected get highlightImport(): PdfHighlightImportPanel {
+    const panel = this.querySelector<PdfHighlightImportPanel>("#pdf-highlight-import-panel");
+    if (!panel) throw new Error("PDF highlight import panel is unavailable");
+    return panel;
+  }
+
+  protected get projectUse(): LibraryPdfProjectUse {
+    const projectUse = this.querySelector<LibraryPdfProjectUse>("#library-project-use");
+    if (!projectUse) throw new Error("Library PDF project use is unavailable");
+    return projectUse;
   }
 
   protected close(): void {

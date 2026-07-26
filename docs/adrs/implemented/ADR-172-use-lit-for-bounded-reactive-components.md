@@ -739,6 +739,13 @@ reason to wrap static markup mechanically.
   expansion, and details mutations while leaving interactions in the markup
   layer and mutations, refreshes, and close policy in the application
   coordinator.
+- The Library PDF inspector also owns its annotation forms, imported-highlight
+  review, saved annotation list, and project-use children. It projects one
+  coordinator-supplied canonical context into those children and resets their
+  local presentation state when the active artifact changes, replacing four
+  global registry entries and the coordinator's direct child orchestration.
+  PDF viewer state, navigation, mutations, canonical refreshes, and
+  notifications remain in the application coordinator.
 - The Library PDF annotation list replaces five imperative highlight and markup
   render helpers plus their per-card handlers with one delegated typed action
   stream. It also removes the generic coordinator markup-deletion request by

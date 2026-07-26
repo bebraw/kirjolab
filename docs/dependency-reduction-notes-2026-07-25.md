@@ -5705,6 +5705,36 @@ component members.
 Full native CI passes all 1,583 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Library PDF Inspector Children
+
+`library-pdf-inspector` now owns the annotation forms, imported-highlight
+review, saved annotation list, and project-use components that it already
+composes. It projects one canonical artifact context into those children and
+resets their local presentation state when the active artifact changes.
+`WorkspaceApp` retains canonical Library refresh, PDF viewer state, navigation,
+mutations, and notification policy.
+
+This checkpoint reduces `src/client/app.ts` from 3,662 to 3,605 lines (-57) and
+removes four global registry entries. The inspector grows from 105 to 288 lines,
+so client runtime source grows by 118 lines overall while concentrating the
+child-component lifecycle at its existing owner. The browser application
+artifact changes from 823,387 B raw / 222,874 B gzip to 824,276 B raw /
+223,155 B gzip (+889 B raw / +281 B gzip). Styles and direct and unique
+production package counts remain unchanged at 135,411 B raw / 23,373 B gzip,
+18, and 150. The readability audit reports 261 externally visible low-level
+component members, six more than the prior checkpoint for the typed ownership
+boundary.
+
+Focused inspector, forms, import, list, project-use, and registry coverage
+passes 57 tests, including explicit owned-child registration and bubbled action
+contracts. The affected guardrails pass formatting, lint, strict types, and 20
+tests across three directly related test files. Three private-PDF browser
+scenarios cover PDF rendering, links, annotation persistence, and project
+sharing after the ownership move.
+
+Full native CI passes all 1,592 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Workspace Preview
 
 `workspace-preview` now owns the light-DOM preview article and diagnostic

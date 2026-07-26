@@ -56,6 +56,21 @@ const highlight: LibraryHighlight = {
 afterEach(() => vi.restoreAllMocks());
 
 describe("library PDF annotation forms", () => {
+  it("emits actions configured to cross its inspector owner", () => {
+    const forms = new TestLibraryPdfAnnotationForms();
+    const received: CustomEvent<LibraryPdfAnnotationAction>[] = [];
+    forms.addEventListener(libraryPdfAnnotationActionEvent, (event) => {
+      received.push(event as CustomEvent<LibraryPdfAnnotationAction>);
+    });
+
+    forms.emitForTest({ action: "cancel-highlight" });
+
+    expect(received).toHaveLength(1);
+    expect(received[0]?.detail).toEqual({ action: "cancel-highlight" });
+    expect(received[0]?.bubbles).toBe(true);
+    expect(received[0]?.composed).toBe(true);
+  });
+
   it("owns bounded light-DOM composer visibility", () => {
     const forms = new TestLibraryPdfAnnotationForms();
     expect(forms.rootForTest()).toBe(forms);
