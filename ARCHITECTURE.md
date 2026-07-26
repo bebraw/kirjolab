@@ -36,11 +36,13 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Use pinned Lit for bounded reactive browser components that own a cohesive
   local template, presentation state, and typed intent events. Keep network
   workflows in a component only when their complete request lifecycle and
-  response validation serve that component's local interaction. Keep Yjs and
-  XState state, persisted domain data, project refresh, navigation, and
-  cross-feature coordination in the existing application authorities; do not
+  response validation serve that component's local interaction. Keep Yjs
+  state, persisted domain data, project refresh, navigation, and cross-feature
+  coordination in the existing application authorities; do not
   wrap static server-rendered markup mechanically or turn Lit into the
-  application shell.
+  application shell. Keep Yjs and cross-feature XState actors in application
+  authorities; a component may own an actor whose full lifecycle is confined
+  to its interaction and whose outward effects are typed outcomes.
 - Let the bounded Library discovery search own its provider request, response
   validation, duplicate-submit guard, and status lifecycle. Route only its
   validated result list to the sibling results component; keep shared reference
@@ -285,6 +287,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Project reviewed metadata alternatives beneath their corresponding canonical
   editor inputs, but keep manual save, PDF acceptance, and provider acceptance
   as explicit provenance-preserving operations.
+- Keep the browser-local metadata-refinement actor, PDF extraction, provider
+  preview and acceptance requests, response guards, stale-response rejection,
+  busy state, and retryable errors in the Lit metadata editor. Emit only manual
+  save, canonical-refresh, and notice outcomes to the application coordinator.
 - Keep provider-preview reuse bounded, short-lived, owner-scoped, and ephemeral
   in Reference Library Durable Object memory. Never let cached preview data
   bypass acceptance-time provider refetch or fingerprint verification.

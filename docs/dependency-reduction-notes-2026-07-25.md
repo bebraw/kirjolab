@@ -3724,3 +3724,28 @@ and unique production package counts remain unchanged at 135,411 B raw /
 
 Full native CI passes all 1,449 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Lit Ownership: Metadata Refinement Workflow
+
+`LibraryReferenceMetadataEditor` now owns its browser-local XState actor,
+bounded PDF extraction, provider preview and acceptance requests, response
+validation, request supersession, busy and retryable error state, PDF metadata
+acceptance, and validated refresh or notice outcomes. `WorkspaceApp` retains
+manual metadata persistence, canonical Library/project refresh, and toast
+policy.
+
+This checkpoint reduces `src/client/app.ts` from 5,601 to 5,497 lines (-104)
+and grows the metadata editor from 437 to 548 lines. Runtime source across
+those files increases by 7 lines while removing one coordinator actor and five
+request, payload, apply, and failure methods. Focused coverage passes local
+extraction and preview payloads, cache presentation, provider and malformed
+fallback, PDF and mixed-provider acceptance payloads, retry after fingerprint
+failure, and delayed extraction rejection after the editor switches sources.
+
+The browser application artifact changes from 796,874 B raw / 216,369 B gzip
+to 797,869 B raw / 216,598 B gzip (+995 B raw / +229 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,454 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.

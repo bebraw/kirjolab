@@ -1,10 +1,18 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { BibliographicRecord, LibraryPdfArtifact, MetadataRefinementPreview } from "../domain/reference-library";
+import { extractPdfMetadata } from "./pdf-metadata";
 import {
   LibraryReferenceMetadataEditor,
   libraryReferenceMetadataActionEvent,
+  libraryReferenceMetadataNoticeEvent,
+  libraryReferenceMetadataRefreshEvent,
   type LibraryReferenceMetadataAction,
 } from "./library-reference-metadata-editor";
+
+vi.mock("./pdf-metadata", async () => {
+  const actual = await vi.importActual<typeof import("./pdf-metadata")>("./pdf-metadata");
+  return { ...actual, extractPdfMetadata: vi.fn() };
+});
 
 class TestLibraryReferenceMetadataEditor extends LibraryReferenceMetadataEditor {
   renderForTest() {
@@ -19,16 +27,16 @@ class TestLibraryReferenceMetadataEditor extends LibraryReferenceMetadataEditor 
     this.save();
   }
 
-  refineForTest(): void {
-    this.refine();
+  refineForTest(): Promise<void> {
+    return this.refine();
   }
 
-  applyPdfForTest(): void {
-    this.applyPdf();
+  applyPdfForTest(): Promise<void> {
+    return this.applyPdf();
   }
 
-  applyProviderForTest(): void {
-    this.applyProvider();
+  applyProviderForTest(): Promise<void> {
+    return this.applyProvider();
   }
 }
 
@@ -89,12 +97,33 @@ const preview = {
         url: "https://example.test/paper",
         abstract: "Provider abstract",
       },
-      metadataFingerprint: "provider-fingerprint",
+      metadataFingerprint: "a".repeat(64),
     },
   ],
 } satisfies MetadataRefinementPreview;
 
+function json(value: unknown, status = 200, headers: Record<string, string> = {}): Response {
+  return new Response(JSON.stringify(value), { headers: { "content-type": "application/json", ...headers }, status });
+}
+
+function configuredEditor(): TestLibraryReferenceMetadataEditor {
+  const editor = new TestLibraryReferenceMetadataEditor();
+  editor.setData(reference, "Current title", artifact);
+  return editor;
+}
+
+async function openReview(editor: TestLibraryReferenceMetadataEditor, fetchMock = vi.fn().mockResolvedValue(json(preview))): Promise<void> {
+  vi.mocked(extractPdfMetadata).mockResolvedValue(local);
+  vi.stubGlobal("fetch", fetchMock);
+  await editor.refineForTest();
+}
+
 describe("library reference metadata editor", () => {
+  afterEach(() => {
+    vi.clearAllMocks();
+    vi.unstubAllGlobals();
+  });
+
   it("owns manual, progress, and review presentation in light DOM", () => {
     const editor = new TestLibraryReferenceMetadataEditor();
     expect(editor.rootForTest()).toBe(editor);
@@ -107,29 +136,144 @@ describe("library reference metadata editor", () => {
     expect(editor.renderForTest()).toBeDefined();
   });
 
-  it("emits save, refine, PDF, and provider application actions", () => {
-    const editor = new TestLibraryReferenceMetadataEditor();
+  it("emits only the remaining manual-save action", () => {
+    const editor = configuredEditor();
     const actions: LibraryReferenceMetadataAction[] = [];
     editor.addEventListener(libraryReferenceMetadataActionEvent, (event) => {
       actions.push((event as CustomEvent<LibraryReferenceMetadataAction>).detail);
     });
-    editor.setData(reference, "Current title", artifact);
+
     editor.saveForTest();
-    editor.refineForTest();
-    editor.showReview(artifact, local, preview);
-    editor.applyPdfForTest();
-    editor.applyProviderForTest();
-    expect(actions.map(({ action }) => action)).toEqual(["save", "refine", "apply-pdf", "apply-provider"]);
-    expect(actions[2]).toMatchObject({
-      action: "apply-pdf",
-      artifactId: "pdf-1",
-      fields: { title: "Suggested title", year: "2026" },
-      referenceId: "ref-1",
+
+    expect(actions).toEqual([
+      {
+        action: "save",
+        referenceId: "ref-1",
+        value: {
+          abstract: "",
+          authors: "Jane Doe",
+          doi: "10.1000/current",
+          title: "Current title",
+          type: "article",
+          url: "",
+          venue: "Journal",
+          year: "2025",
+        },
+      },
+    ]);
+  });
+
+  it("owns local extraction, provider preview, validation, and cache presentation", async () => {
+    const editor = configuredEditor();
+    const fetchMock = vi.fn().mockResolvedValue(json(preview, 200, { "x-kirjolab-metadata-cache": "hit" }));
+
+    await openReview(editor, fetchMock);
+
+    expect(extractPdfMetadata).toHaveBeenCalledWith("/api/library/pdfs/pdf-1");
+    expect(fetchMock).toHaveBeenCalledWith("/api/library/references/ref-1/metadata-refinement/preview", {
+      body: JSON.stringify({
+        artifactId: "pdf-1",
+        candidates: { title: local.title, authors: local.authors, year: local.year, doi: local.doi },
+      }),
+      credentials: "same-origin",
+      headers: { "content-type": "application/json" },
+      method: "POST",
     });
-    expect(actions[3]).toMatchObject({
-      action: "apply-provider",
-      referenceId: "ref-1",
-      selections: expect.arrayContaining([{ candidateIndex: 0, fields: expect.arrayContaining(["title", "year"]) }]),
+    expect(editor.renderForTest()).toBeDefined();
+  });
+
+  it("retains local suggestions after provider or malformed preview failures", async () => {
+    const editor = configuredEditor();
+    vi.mocked(extractPdfMetadata).mockResolvedValue(local);
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(json({ error: "Provider unavailable" }, 503))
+      .mockResolvedValueOnce(json({ invalid: true }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await editor.refineForTest();
+    expect(editor.renderForTest()).toBeDefined();
+    await editor.refineForTest();
+    expect(editor.renderForTest()).toBeDefined();
+  });
+
+  it("owns PDF and provider acceptance payloads and emits refresh outcomes", async () => {
+    const editor = configuredEditor();
+    await openReview(editor);
+    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 204 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const refreshes: string[] = [];
+    editor.addEventListener(libraryReferenceMetadataRefreshEvent, (event) => refreshes.push((event as CustomEvent<string>).detail));
+
+    await editor.applyPdfForTest();
+    await editor.applyProviderForTest();
+
+    expect(refreshes).toEqual([
+      "Selected PDF metadata applied with provenance.",
+      "Scholarly metadata applied with field-level provenance.",
+    ]);
+    expect(fetchMock).toHaveBeenNthCalledWith(1, "/api/library/references/ref-1/pdf-metadata", {
+      body: JSON.stringify({
+        artifactId: "pdf-1",
+        fields: { title: "Suggested title", authors: ["Jane Doe", "John Roe"], year: "2026", doi: "10.1000/suggested" },
+      }),
+      credentials: "same-origin",
+      headers: { "content-type": "application/json" },
+      method: "POST",
     });
+    expect(fetchMock).toHaveBeenNthCalledWith(2, "/api/library/references/ref-1/metadata-refinement/accept", {
+      body: JSON.stringify({
+        selections: [
+          {
+            provider: "crossref",
+            doi: "10.1000/suggested",
+            metadataFingerprint: "a".repeat(64),
+            fields: ["title", "year", "venue", "doi", "url", "abstract"],
+          },
+        ],
+      }),
+      credentials: "same-origin",
+      headers: { "content-type": "application/json" },
+      method: "POST",
+    });
+  });
+
+  it("reports acceptance failures and keeps the active provider review retryable", async () => {
+    const editor = configuredEditor();
+    await openReview(editor);
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(json({ error: "Fingerprint changed" }, 409))
+      .mockResolvedValueOnce(new Response(null, { status: 204 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const notices: string[] = [];
+    const refreshes: string[] = [];
+    editor.addEventListener(libraryReferenceMetadataNoticeEvent, (event) => notices.push((event as CustomEvent<string>).detail));
+    editor.addEventListener(libraryReferenceMetadataRefreshEvent, (event) => refreshes.push((event as CustomEvent<string>).detail));
+
+    await editor.applyProviderForTest();
+    await editor.applyProviderForTest();
+
+    expect(notices).toEqual(["Fingerprint changed"]);
+    expect(refreshes).toEqual(["Scholarly metadata applied with field-level provenance."]);
+  });
+
+  it("rejects a delayed extraction after the editor switches references", async () => {
+    const editor = configuredEditor();
+    let resolveCandidates = (_value: typeof local): void => undefined;
+    vi.mocked(extractPdfMetadata).mockReturnValue(
+      new Promise((resolve) => {
+        resolveCandidates = resolve;
+      }),
+    );
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const refinement = editor.refineForTest();
+    editor.setData({ ...reference, id: "ref-2" }, "Another paper", { ...artifact, id: "pdf-2", referenceId: "ref-2" });
+    resolveCandidates(local);
+    await refinement;
+
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

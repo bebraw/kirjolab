@@ -1,6 +1,7 @@
 import { html, LitElement, nothing, type TemplateResult } from "lit";
 import {
   crossrefMetadataFields,
+  isMetadataRefinementPreview,
   type BibliographicRecord,
   type CrossrefMetadataField,
   type LibraryPdfArtifact,
@@ -8,33 +9,22 @@ import {
   type MetadataRefinementPreview,
   type ReferenceMetadataField,
 } from "../domain/reference-library";
+import { errorMessage, expectOk, jsonFetch } from "./http";
+import { createMetadataRefinementActor, metadataRefinementBusy } from "./metadata-refinement-machine";
 import { groupMetadataCandidates, metadataFieldValue } from "./metadata-refinement";
-import type { PdfMetadataCandidates } from "./pdf-metadata";
+import { extractPdfMetadata, type PdfMetadataCandidates } from "./pdf-metadata";
 
 export type LibraryReferenceMetadataValue = Readonly<Record<ReferenceMetadataField, string>>;
 
-export interface ProviderMetadataSelection {
-  readonly candidateIndex: number;
-  readonly fields: readonly CrossrefMetadataField[];
-}
-
-export type LibraryReferenceMetadataAction =
-  | { readonly action: "save"; readonly referenceId: string; readonly value: LibraryReferenceMetadataValue }
-  | { readonly action: "refine"; readonly reference: BibliographicRecord; readonly artifact: LibraryPdfArtifact }
-  | {
-      readonly action: "apply-pdf";
-      readonly artifactId: string;
-      readonly fields: Readonly<Partial<Record<ReferenceMetadataField, string | readonly string[]>>>;
-      readonly referenceId: string;
-    }
-  | {
-      readonly action: "apply-provider";
-      readonly candidates: readonly MetadataRefinementCandidate[];
-      readonly referenceId: string;
-      readonly selections: readonly ProviderMetadataSelection[];
-    };
+export type LibraryReferenceMetadataAction = {
+  readonly action: "save";
+  readonly referenceId: string;
+  readonly value: LibraryReferenceMetadataValue;
+};
 
 export const libraryReferenceMetadataActionEvent = "library-reference-metadata-action";
+export const libraryReferenceMetadataNoticeEvent = "library-reference-metadata-notice";
+export const libraryReferenceMetadataRefreshEvent = "library-reference-metadata-refresh";
 
 interface MetadataReview {
   readonly kind: "review";
@@ -66,26 +56,32 @@ const pdfFields = ["title", "authors", "year", "doi"] as const;
 
 export class LibraryReferenceMetadataEditor extends LitElement {
   static override properties = {
+    busy: { state: true },
     value: { state: true },
     refinement: { state: true },
   };
 
-  declare private value: LibraryReferenceMetadataValue;
+  declare private busy: boolean;
   declare private refinement: RefinementPresentation;
+  declare private value: LibraryReferenceMetadataValue;
   private reference: BibliographicRecord | null = null;
   private primaryArtifact: LibraryPdfArtifact | null = null;
   private displayTitle = "";
   private selectedWork = 0;
   private readonly pdfSelections = new Set<CrossrefMetadataField>();
   private readonly providerSelections = new Map<CrossrefMetadataField, number | null>();
+  private readonly refinementWorkflow = createMetadataRefinementActor();
 
   constructor() {
     super();
+    this.busy = false;
     this.value = emptyValue;
     this.refinement = { kind: "hidden" };
   }
 
   setData(reference: BibliographicRecord, displayTitle: string, primaryArtifact: LibraryPdfArtifact | null): void {
+    this.refinementWorkflow.send({ type: "CANCEL" });
+    this.syncBusy();
     this.reference = reference;
     this.displayTitle = displayTitle;
     this.primaryArtifact = primaryArtifact;
@@ -100,6 +96,26 @@ export class LibraryReferenceMetadataEditor extends LitElement {
       abstract: reference.abstract,
     };
     this.refinement = { kind: "hidden" };
+  }
+
+  async refineMetadata(reference: BibliographicRecord, artifact: LibraryPdfArtifact): Promise<void> {
+    this.refinementWorkflow.send({ type: "START", referenceId: reference.id, artifactId: artifact.id });
+    const requestId = this.refinementWorkflow.getSnapshot().context.requestId;
+    this.showStatus("Refine metadata", "Step 1 of 2 · Reading embedded metadata and opening pages…");
+    this.syncBusy();
+    try {
+      const candidates = await extractPdfMetadata(`/api/library/pdfs/${encodeURIComponent(artifact.id)}`);
+      this.refinementWorkflow.send({ type: "LOCAL_READY", requestId, local: candidates });
+      if (!this.refinementWorkflow.getSnapshot().matches("discovering")) return;
+      this.showStatus("Refine metadata", "Step 2 of 2 · Searching scholarly metadata…");
+      await this.discoverMetadata(reference, artifact, candidates, requestId);
+    } catch (error) {
+      const message = error instanceof Error ? `Metadata could not be refined: ${error.message}` : "Metadata could not be refined.";
+      this.refinementWorkflow.send({ type: "FAIL", requestId, message });
+      if (this.refinementWorkflow.getSnapshot().matches("failed")) this.showStatus("Refine metadata", message);
+    } finally {
+      this.syncBusy();
+    }
   }
 
   showStatus(label: string, message: string): void {
@@ -140,9 +156,11 @@ export class LibraryReferenceMetadataEditor extends LitElement {
       ${textFields.map((field) => this.renderField(field, referenceId))} ${this.renderField("abstract", referenceId)}
       ${this.renderRefinement()}
       <div class="mt-2 flex flex-wrap gap-2">
-        <button class="button-primary" type="button" @click=${() => this.save()}>Save details</button>
+        <button class="button-primary" type="button" ?disabled=${this.busy} @click=${() => this.save()}>Save details</button>
         ${this.primaryArtifact
-          ? html`<button class="button-secondary" type="button" @click=${() => this.refine()}>Refine metadata</button>`
+          ? html`<button class="button-secondary" type="button" ?disabled=${this.busy} @click=${() => void this.refine()}>
+              Refine metadata
+            </button>`
           : nothing}
       </div>
     `;
@@ -156,14 +174,15 @@ export class LibraryReferenceMetadataEditor extends LitElement {
     if (this.reference) this.emitAction({ action: "save", referenceId: this.reference.id, value: this.value });
   }
 
-  protected refine(): void {
+  protected refine(): Promise<void> {
     if (this.reference && this.primaryArtifact) {
-      this.emitAction({ action: "refine", reference: this.reference, artifact: this.primaryArtifact });
+      return this.refineMetadata(this.reference, this.primaryArtifact);
     }
+    return Promise.resolve();
   }
 
-  protected applyPdf(): void {
-    if (!this.reference || this.refinement.kind !== "review") return;
+  protected async applyPdf(): Promise<void> {
+    if (this.busy || !this.reference || this.refinement.kind !== "review") return;
     const fields: Partial<Record<ReferenceMetadataField, string | readonly string[]>> = {};
     for (const field of this.pdfSelections) {
       const candidate = pdfCandidateValue(this.refinement.local, field);
@@ -176,16 +195,28 @@ export class LibraryReferenceMetadataEditor extends LitElement {
               .filter(Boolean)
           : candidate.trim();
     }
-    this.emitAction({
-      action: "apply-pdf",
-      artifactId: this.refinement.artifact.id,
-      fields,
-      referenceId: this.reference.id,
-    });
+    if (Object.keys(fields).length === 0) {
+      this.emitNotice("Select at least one PDF metadata field to apply.");
+      return;
+    }
+    this.busy = true;
+    try {
+      await expectOk(
+        await jsonFetch(`/api/library/references/${encodeURIComponent(this.reference.id)}/pdf-metadata`, {
+          artifactId: this.refinement.artifact.id,
+          fields,
+        }),
+      );
+      this.emitRefresh("Selected PDF metadata applied with provenance.");
+    } catch (error) {
+      this.emitNotice(errorMessage(error, "Could not apply PDF metadata"));
+    } finally {
+      this.busy = false;
+    }
   }
 
-  protected applyProvider(): void {
-    if (!this.reference || this.refinement.kind !== "review") return;
+  protected async applyProvider(): Promise<void> {
+    if (this.busy || !this.reference || this.refinement.kind !== "review") return;
     const group = this.selectedProviderGroup();
     if (!group) return;
     const fields = new Map<number, CrossrefMetadataField[]>();
@@ -195,12 +226,43 @@ export class LibraryReferenceMetadataEditor extends LitElement {
       if (selected) selected.push(field);
       else fields.set(index, [field]);
     }
-    this.emitAction({
-      action: "apply-provider",
-      candidates: group.candidates,
-      referenceId: this.reference.id,
-      selections: [...fields].map(([candidateIndex, selectedFields]) => ({ candidateIndex, fields: selectedFields })),
-    });
+    const selections = [...fields].map(([candidateIndex, selectedFields]) => ({
+      candidateIndex,
+      fields: selectedFields,
+    }));
+    if (selections.length === 0) {
+      this.emitNotice("Select at least one provider metadata field to apply.");
+      return;
+    }
+    this.refinementWorkflow.send({ type: "APPLY", referenceId: this.reference.id });
+    if (!this.refinementWorkflow.getSnapshot().matches("applying")) {
+      this.emitNotice("This metadata preview is no longer active. Refine the PDF again.");
+      return;
+    }
+    this.syncBusy();
+    try {
+      await expectOk(
+        await jsonFetch(`/api/library/references/${encodeURIComponent(this.reference.id)}/metadata-refinement/accept`, {
+          selections: selections.map(({ candidateIndex, fields: selectedFields }) => {
+            const candidate = group.candidates[candidateIndex]!;
+            return {
+              provider: candidate.provider,
+              doi: candidate.metadata.doi,
+              metadataFingerprint: candidate.metadataFingerprint,
+              fields: selectedFields,
+            };
+          }),
+        }),
+      );
+      this.refinementWorkflow.send({ type: "APPLIED" });
+      this.emitRefresh("Scholarly metadata applied with field-level provenance.");
+    } catch (error) {
+      const message = errorMessage(error, "Could not apply scholarly metadata");
+      this.refinementWorkflow.send({ type: "APPLY_FAILED", message });
+      this.emitNotice(message);
+    } finally {
+      this.syncBusy();
+    }
   }
 
   protected selectWork(event: Event): void {
@@ -225,6 +287,43 @@ export class LibraryReferenceMetadataEditor extends LitElement {
     this.dispatchEvent(
       new CustomEvent<LibraryReferenceMetadataAction>(libraryReferenceMetadataActionEvent, { bubbles: true, detail: action }),
     );
+  }
+
+  private async discoverMetadata(
+    reference: BibliographicRecord,
+    artifact: LibraryPdfArtifact,
+    candidates: PdfMetadataCandidates,
+    requestId: number,
+  ): Promise<void> {
+    try {
+      const response = await jsonFetch(`/api/library/references/${encodeURIComponent(reference.id)}/metadata-refinement/preview`, {
+        artifactId: artifact.id,
+        candidates: pdfMetadataCandidatePayload(candidates),
+      });
+      await expectOk(response);
+      const preview: unknown = await response.json();
+      if (!isMetadataRefinementPreview(preview)) throw new Error("Metadata providers returned an invalid preview");
+      this.refinementWorkflow.send({ type: "DISCOVERY_READY", requestId, preview });
+      if (!this.refinementWorkflow.getSnapshot().matches("reviewing")) return;
+      this.showReview(artifact, candidates, preview, "", response.headers.get("x-kirjolab-metadata-cache") === "hit");
+    } catch (error) {
+      const message = errorMessage(error, "Provider lookup failed.");
+      this.refinementWorkflow.send({ type: "DISCOVERY_FAILED", requestId, message });
+      if (!this.refinementWorkflow.getSnapshot().matches("reviewing")) return;
+      this.showReview(artifact, candidates, { referenceId: reference.id, artifactId: artifact.id, candidates: [] }, message);
+    }
+  }
+
+  private syncBusy(): void {
+    this.busy = metadataRefinementBusy(this.refinementWorkflow.getSnapshot());
+  }
+
+  private emitNotice(message: string): void {
+    this.dispatchEvent(new CustomEvent<string>(libraryReferenceMetadataNoticeEvent, { bubbles: true, detail: message }));
+  }
+
+  private emitRefresh(message: string): void {
+    this.dispatchEvent(new CustomEvent<string>(libraryReferenceMetadataRefreshEvent, { bubbles: true, detail: message }));
   }
 
   private renderField(field: ReferenceMetadataField, referenceId: string): TemplateResult {
@@ -321,7 +420,9 @@ export class LibraryReferenceMetadataEditor extends LitElement {
           <p class="resource-label">PDF suggestions</p>
           ${local.diagnostics.map((diagnostic) => html`<p class="status-text">${diagnostic}</p>`)}
           ${hasPdfSuggestions
-            ? html`<button class="button-primary mt-3" type="button" @click=${() => this.applyPdf()}>Apply selected metadata</button>`
+            ? html`<button class="button-primary mt-3" type="button" ?disabled=${this.busy} @click=${() => void this.applyPdf()}>
+                Apply selected metadata
+              </button>`
             : html`<p class="status-text">No new metadata suggestions are available.</p>`}
         </section>
         ${this.renderProviderSection()}
@@ -375,7 +476,9 @@ export class LibraryReferenceMetadataEditor extends LitElement {
         <div><p class="status-text">${group.doi} · compare ${sourceNames.join(", ")}</p></div>
         ${selectedCount === 0
           ? html`<p class="status-text">These provider records match the current library metadata.</p>`
-          : html`<button class="button-primary mt-3" type="button" @click=${() => this.applyProvider()}>${title}</button>`}
+          : html`<button class="button-primary mt-3" type="button" ?disabled=${this.busy} @click=${() => void this.applyProvider()}>
+              ${title}
+            </button>`}
       </section>
     `;
   }
@@ -434,4 +537,12 @@ declare global {
   interface HTMLElementTagNameMap {
     "library-reference-metadata-editor": LibraryReferenceMetadataEditor;
   }
+}
+function pdfMetadataCandidatePayload(candidates: PdfMetadataCandidates): Partial<PdfMetadataCandidates> {
+  return {
+    ...(candidates.title ? { title: candidates.title } : {}),
+    ...(candidates.authors.length > 0 ? { authors: candidates.authors } : {}),
+    ...(candidates.year ? { year: candidates.year } : {}),
+    ...(candidates.doi ? { doi: candidates.doi } : {}),
+  };
 }

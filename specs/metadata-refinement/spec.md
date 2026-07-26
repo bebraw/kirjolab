@@ -15,8 +15,11 @@ enough to overwrite canonical metadata without review.
 - One browser-local XState actor coordinates the active reference's extraction,
   provider discovery, review, apply, failure, and supersession phases. It owns
   only transient candidates, preview data, errors, and request generation;
-  PDF.js, provider requests, canonical metadata, and DOM elements remain
-  outside the actor.
+  canonical metadata remains outside the actor.
+- The Lit metadata editor owns that actor, bounded PDF.js extraction, provider
+  preview and acceptance requests, response validation, request supersession,
+  local busy and retryable failure state, and PDF-metadata acceptance. It emits
+  only manual-save, canonical-refresh, and notice outcomes to `WorkspaceApp`.
 - The owner-scoped Reference Library Durable Object may reuse at most sixteen
   provider previews for five minutes, keyed by reference, artifact, effective
   bounded lookup hints, and enabled providers. The cache exists only in Durable
@@ -121,6 +124,9 @@ enough to overwrite canonical metadata without review.
 - Late extraction or discovery results from a cancelled or superseded reference
   must not replace the active review, and apply failure must retain that review
   for correction or retry.
+- Component tests must retain extraction and preview payloads, malformed and
+  provider-failure fallback, PDF and provider acceptance payloads, apply retry,
+  and delayed-extraction supersession coverage.
 
 ### Scenarios
 

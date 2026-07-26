@@ -36,19 +36,16 @@ import { researchQuestionsPath, researchQuestionsTemplate } from "../domain/rese
 import { researchDiaryPath, researchDiaryTemplate } from "../domain/writing-workflows";
 import type { ProjectTemplateSummary } from "../domain/project-templates";
 import {
-  isMetadataRefinementPreview,
   isPdfDraftResult,
   isProjectReferencePdfs,
   isReferenceLibrarySnapshot,
   libraryPdfRectsOverlap,
-  type BibliographicRecord,
   type LibraryHighlight,
   type LibraryPdfDrawing,
   type LibraryPdfMarkup,
   type LibraryPdfNote,
   type LibraryPdfPoint,
   type LibraryPdfArtifact,
-  type MetadataRefinementCandidate,
   type ProjectReferencePdf,
   type ReferenceLibrarySnapshot,
 } from "../domain/reference-library";
@@ -96,9 +93,10 @@ import { libraryReferencePersonalActionEvent, type LibraryReferencePersonalActio
 import {
   LibraryReferenceMetadataEditor,
   libraryReferenceMetadataActionEvent,
+  libraryReferenceMetadataNoticeEvent,
+  libraryReferenceMetadataRefreshEvent,
   type LibraryReferenceMetadataAction,
   type LibraryReferenceMetadataValue,
-  type ProviderMetadataSelection,
 } from "./library-reference-metadata-editor";
 import { libraryReferencePdfActionEvent, type LibraryReferencePdfAction } from "./library-reference-pdf-rows";
 import { libraryReferenceResearchActionEvent, type LibraryReferenceResearchAction } from "./library-reference-research-rows";
@@ -159,7 +157,6 @@ import { assistantWorkflowActionEvent, type AssistantWorkflowAction } from "./as
 import { assistantWorkflowBusy, createAssistantWorkflowActor } from "./assistant-workflow-machine";
 import { citationPageFromLocator, createCitationInsertion, parseCitationKeys, type CitationContext } from "./citations";
 import { loadMarkdownRuntime, type MarkdownRuntime } from "./markdown-runtime";
-import { createMetadataRefinementActor } from "./metadata-refinement-machine";
 import { projectMapResourceSelectEvent, projectMapSearchEvent } from "./project-map-workspace";
 import { claimListActionEvent, type ClaimListAction } from "./claim-list-panel";
 import { claimDialogSaveEvent, type ClaimDialogSave } from "./claim-dialog";
@@ -214,7 +211,6 @@ import {
   type OfflineWorkspaceStore,
 } from "./offline-workspace";
 import { PdfEvidenceViewer, type PdfSelectionCapture } from "./pdf-viewer";
-import { extractPdfMetadata, type PdfMetadataCandidates } from "./pdf-metadata";
 import { detectImportedPdfHighlights } from "./pdf-highlight-import";
 import {
   pdfHighlightImportActionEvent,
@@ -378,7 +374,6 @@ class WorkspaceApp {
   readonly #resourceRefresh = new CoalescedRefresh(async () => this.#refreshSnapshot());
   readonly #assistantWorkflow = createAssistantWorkflowActor();
   readonly #collaborationWorkflow = createCollaborationWorkflowActor();
-  readonly #metadataRefinement = createMetadataRefinementActor();
   readonly #offlineSaves = new DebouncedAsyncQueue(
     async () => await this.#persistOfflineWorkspace(),
     (version) => {
@@ -658,12 +653,13 @@ class WorkspaceApp {
     });
     this.#elements.referenceLibraryList.addEventListener(libraryReferenceMetadataActionEvent, (event) => {
       const detail = (event as CustomEvent<LibraryReferenceMetadataAction>).detail;
-      const editor = event.target;
-      if (!(editor instanceof LibraryReferenceMetadataEditor)) return;
-      if (detail.action === "save") void this.#saveReferenceMetadata(detail.referenceId, detail.value);
-      else if (detail.action === "refine") void this.#refinePdfMetadata(detail.reference, detail.artifact, editor);
-      else if (detail.action === "apply-pdf") void this.#applyPdfMetadata(detail.referenceId, detail.artifactId, detail.fields);
-      else void this.#applyProviderMetadata(detail.referenceId, detail.candidates, detail.selections);
+      void this.#saveReferenceMetadata(detail.referenceId, detail.value);
+    });
+    this.#elements.referenceLibraryList.addEventListener(libraryReferenceMetadataNoticeEvent, (event) => {
+      this.#showToast((event as CustomEvent<string>).detail);
+    });
+    this.#elements.referenceLibraryList.addEventListener(libraryReferenceMetadataRefreshEvent, (event) => {
+      void this.#completeMetadataRefinement((event as CustomEvent<string>).detail);
     });
     this.#elements.referenceLibraryList.addEventListener(libraryReferencePdfActionEvent, (event) => {
       const detail = (event as CustomEvent<LibraryReferencePdfAction>).detail;
@@ -673,7 +669,7 @@ class WorkspaceApp {
         const editor = (event.target as Element)
           .closest(".library-reference-row")
           ?.querySelector<LibraryReferenceMetadataEditor>("library-reference-metadata-editor");
-        if (editor) void this.#refinePdfMetadata(detail.reference, detail.artifact, editor);
+        if (editor) void editor.refineMetadata(detail.reference, detail.artifact);
       }
     });
     this.#elements.referenceLibraryList.addEventListener(libraryReferenceResearchActionEvent, (event) => {
@@ -2589,115 +2585,6 @@ class WorkspaceApp {
     }
   }
 
-  async #refinePdfMetadata(
-    reference: BibliographicRecord,
-    artifact: LibraryPdfArtifact,
-    editor: LibraryReferenceMetadataEditor,
-  ): Promise<void> {
-    this.#metadataRefinement.send({ type: "START", referenceId: reference.id, artifactId: artifact.id });
-    const requestId = this.#metadataRefinement.getSnapshot().context.requestId;
-    editor.showStatus("Refine metadata", "Step 1 of 2 · Reading embedded metadata and opening pages…");
-    try {
-      const candidates = await extractPdfMetadata(`/api/library/pdfs/${encodeURIComponent(artifact.id)}`);
-      this.#metadataRefinement.send({ type: "LOCAL_READY", requestId, local: candidates });
-      if (!this.#metadataRefinement.getSnapshot().matches("discovering")) return;
-      editor.showStatus("Refine metadata", "Step 2 of 2 · Searching scholarly metadata…");
-      await this.#discoverPdfMetadata(reference, artifact, candidates, editor, requestId);
-    } catch (error) {
-      const message = error instanceof Error ? `Metadata could not be refined: ${error.message}` : "Metadata could not be refined.";
-      this.#metadataRefinement.send({ type: "FAIL", requestId, message });
-      if (!this.#metadataRefinement.getSnapshot().matches("failed")) return;
-      editor.showStatus("Refine metadata", message);
-    }
-  }
-
-  async #discoverPdfMetadata(
-    reference: BibliographicRecord,
-    artifact: LibraryPdfArtifact,
-    candidates: PdfMetadataCandidates,
-    editor: LibraryReferenceMetadataEditor,
-    requestId: number,
-  ): Promise<void> {
-    try {
-      const response = await jsonFetch(`/api/library/references/${encodeURIComponent(reference.id)}/metadata-refinement/preview`, {
-        artifactId: artifact.id,
-        candidates: this.#pdfMetadataCandidatePayload(candidates),
-      });
-      await expectOk(response);
-      const preview: unknown = await response.json();
-      if (!isMetadataRefinementPreview(preview)) throw new Error("Metadata providers returned an invalid preview");
-      this.#metadataRefinement.send({ type: "DISCOVERY_READY", requestId, preview });
-      if (!this.#metadataRefinement.getSnapshot().matches("reviewing")) return;
-      editor.showReview(artifact, candidates, preview, "", response.headers.get("x-kirjolab-metadata-cache") === "hit");
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Provider lookup failed.";
-      this.#metadataRefinement.send({ type: "DISCOVERY_FAILED", requestId, message });
-      if (!this.#metadataRefinement.getSnapshot().matches("reviewing")) return;
-      editor.showReview(artifact, candidates, { referenceId: reference.id, artifactId: artifact.id, candidates: [] }, message);
-    }
-  }
-
-  #pdfMetadataCandidatePayload(candidates: PdfMetadataCandidates): Partial<PdfMetadataCandidates> {
-    return {
-      ...(candidates.title ? { title: candidates.title } : {}),
-      ...(candidates.authors.length > 0 ? { authors: candidates.authors } : {}),
-      ...(candidates.year ? { year: candidates.year } : {}),
-      ...(candidates.doi ? { doi: candidates.doi } : {}),
-    };
-  }
-
-  async #applyProviderMetadata(
-    referenceId: string,
-    candidates: readonly MetadataRefinementCandidate[],
-    selections: readonly ProviderMetadataSelection[],
-  ): Promise<void> {
-    if (selections.length === 0) {
-      this.#showToast("Select at least one provider metadata field to apply.");
-      return;
-    }
-    this.#metadataRefinement.send({ type: "APPLY", referenceId });
-    if (!this.#metadataRefinement.getSnapshot().matches("applying")) {
-      this.#showToast("This metadata preview is no longer active. Refine the PDF again.");
-      return;
-    }
-    try {
-      const response = await jsonFetch(`/api/library/references/${encodeURIComponent(referenceId)}/metadata-refinement/accept`, {
-        selections: selections.map(({ candidateIndex, fields }) => {
-          const candidate = candidates[candidateIndex]!;
-          return {
-            provider: candidate.provider,
-            doi: candidate.metadata.doi,
-            metadataFingerprint: candidate.metadataFingerprint,
-            fields,
-          };
-        }),
-      });
-      await expectOk(response);
-      this.#metadataRefinement.send({ type: "APPLIED" });
-      await this.#refreshBibliographicMetadata();
-      this.#showToast("Scholarly metadata applied with field-level provenance.");
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Could not apply scholarly metadata";
-      this.#metadataRefinement.send({ type: "APPLY_FAILED", message });
-      this.#showToast(message);
-    }
-  }
-
-  async #applyPdfMetadata(
-    referenceId: string,
-    artifactId: string,
-    fields: Readonly<Partial<Record<string, string | readonly string[]>>>,
-  ): Promise<void> {
-    if (Object.keys(fields).length === 0) {
-      this.#showToast("Select at least one PDF metadata field to apply.");
-      return;
-    }
-    const response = await jsonFetch(`/api/library/references/${encodeURIComponent(referenceId)}/pdf-metadata`, { artifactId, fields });
-    await expectOk(response);
-    await this.#refreshBibliographicMetadata();
-    this.#showToast("Selected PDF metadata applied with provenance.");
-  }
-
   async #captureWebSource(url: string): Promise<void> {
     await this.#captureWebSourceInput(url);
     this.#elements.webSourceCapture.clear();
@@ -2776,6 +2663,15 @@ class WorkspaceApp {
     await expectOk(await jsonFetch(`/api/library/references/${encodeURIComponent(referenceId)}/collections`, { collections }, "PUT"));
     await this.#refreshReferenceLibrary();
     this.#showToast("Collections saved.");
+  }
+
+  async #completeMetadataRefinement(message: string): Promise<void> {
+    try {
+      await this.#refreshBibliographicMetadata();
+      this.#showToast(message);
+    } catch {
+      this.#showToast("Metadata was applied, but the refreshed Library could not be loaded.");
+    }
   }
 
   async #saveReferenceMetadata(referenceId: string, value: LibraryReferenceMetadataValue): Promise<void> {
