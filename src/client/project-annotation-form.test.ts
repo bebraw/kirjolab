@@ -61,10 +61,19 @@ describe("project annotation form", () => {
 
   it("presents captured and saved annotation values", () => {
     const panel = new TestProjectAnnotationForm();
-    panel.showCapture({ page: 3, prefix: "before", quote: "evidence", suffix: "after" });
+    panel.showCapture({
+      page: 3,
+      prefix: "before",
+      quote: "evidence",
+      rects: [{ height: 0.1, width: 0.2, x: 0.1, y: 0.2 }],
+      suffix: "after",
+    });
+    expect(panel.renderForTest().values).toContain("Captured 1 line from page 3. Saving automatically…");
+    panel.setTool("erase");
+    panel.showCapture({ page: 4, prefix: "", quote: "evidence", rects: [], suffix: "" });
+    expect(panel.renderForTest().values).toContain("Erasing overlapping highlight strokes…");
     panel.setStatus("Selection saved.");
     panel.setVisible(false);
-    panel.setTool("erase");
     panel.setUndoStroke({ annotationId: "annotation-1", fragmentId: "fragment-1" });
     panel.setCitationCount(2);
     panel.showAnnotation({ id: "annotation-1", comment: "Important", page: 4, prefix: "left", quote: "claim", suffix: "right" });

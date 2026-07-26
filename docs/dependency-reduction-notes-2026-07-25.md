@@ -5206,6 +5206,27 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,573 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Annotation Capture Feedback
+
+`ProjectAnnotationForm` now derives paint-versus-erase selection feedback,
+captured line count, and page wording from its local tool and canonical capture.
+`WorkspaceApp` retains PDF gesture routing, overlap derivation, persistence,
+viewer draft clearing, canonical refresh, and notification policy.
+
+This checkpoint reduces `src/client/app.ts` from 4,397 to 4,392 lines (-5) and
+grows the project-annotation owner from 358 to 362 lines. Runtime source across
+those two files decreases by one line while deleting the coordinator's tool and
+pluralization presentation branch. Focused coverage passes paint, erase,
+existing capture and save behavior, application contracts, and strict types.
+
+The browser application artifact changes from 824,595 B raw / 222,606 B gzip
+to 824,533 B raw / 222,600 B gzip (-62 B raw / -6 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,573 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Authoring Target Status
 
 `EditorStatus` now owns bounded line counting and file, line-range, caret, and

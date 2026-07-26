@@ -3829,11 +3829,6 @@ class WorkspaceApp {
     if (activeTab?.kind !== "pdf") return;
     if (this.#renderedPdfId) this.#elements.projectAnnotationForm.selectPdf(this.#renderedPdfId);
     this.#elements.projectAnnotationForm.showCapture(capture);
-    this.#elements.projectAnnotationForm.setStatus(
-      this.#elements.projectAnnotationForm.selectedTool === "erase"
-        ? "Erasing overlapping highlight strokes…"
-        : `Captured ${capture.rects.length} ${capture.rects.length === 1 ? "line" : "lines"} from page ${capture.page}. Saving automatically…`,
-    );
     void this.#persistPdfSelection(capture);
   }
 

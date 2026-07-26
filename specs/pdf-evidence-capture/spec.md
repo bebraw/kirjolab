@@ -37,9 +37,10 @@ with an authored passage.
   publication-intake composition, visibility, visible-PDF choices, captured
   page and quotation context, the optional note, selection status, citation
   availability, highlight-tool and undo presentation, and typed tool, undo,
-  citation, save, and link intents. The workspace coordinator retains highlight
-  geometry and persistence, annotation identity, manuscript selection,
-  refreshes, and user notifications.
+  citation, save, and link intents. It derives paint-versus-erase selection
+  feedback from its local tool and the canonical capture. The workspace
+  coordinator retains highlight geometry and persistence, annotation identity,
+  manuscript selection, refreshes, and user notifications.
 - `POST /api/workspaces/{id}/annotation-links` validates an annotation and
   current manuscript selection before atomically inserting both the annotation
   and its passage link.

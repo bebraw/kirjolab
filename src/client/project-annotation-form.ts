@@ -83,9 +83,13 @@ export class ProjectAnnotationForm extends LitElement {
     if (this.pdfs.some((pdf) => pdf.id === pdfId)) this.selectedPdfId = pdfId;
   }
 
-  showCapture(capture: Pick<AnnotationDraft, "page" | "prefix" | "quote" | "suffix">): void {
+  showCapture(capture: AnnotationCapture): void {
     this.editingAnnotationId = null;
     this.applyCapture(capture);
+    this.status =
+      this.tool === "erase"
+        ? "Erasing overlapping highlight strokes…"
+        : `Captured ${capture.rects.length} ${capture.rects.length === 1 ? "line" : "lines"} from page ${capture.page}. Saving automatically…`;
   }
 
   private applyCapture(capture: Pick<AnnotationDraft, "page" | "prefix" | "quote" | "suffix">): void {
