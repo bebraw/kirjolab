@@ -5206,6 +5206,30 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,573 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Assistant Evidence Projection
+
+`AssistantWorkflowStatus` now resolves its ordered selected evidence keys
+against canonical annotations and claims and projects the model prompt items and
+version references. `WorkspaceApp` retains canonical snapshot availability,
+operation policy, provider requests, workflow transitions, and candidate
+persistence.
+
+This checkpoint reduces `src/client/app.ts` from 4,389 to 4,345 lines (-44) and
+grows the assistant workflow-status owner from 110 to 154 lines. Runtime source
+across those two files is unchanged while deleting two coordinator-only append
+methods and the global evidence-key parser. Focused coverage passes selection
+order, annotation and claim wording, optional context and notes, missing
+resources, reconciliation, existing presentation, application contracts, and
+strict types.
+
+The browser application artifact changes from 824,520 B raw / 222,614 B gzip
+to 824,436 B raw / 222,650 B gzip (-84 B raw / +36 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,574 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: PDF Citation Availability
 
 `ProjectAnnotationForm` now derives its citation count, label, and availability

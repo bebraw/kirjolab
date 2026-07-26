@@ -1,8 +1,14 @@
 import { html, LitElement, type TemplateResult } from "lit";
-import { maximumModelEvidenceItems } from "./model-provider";
+import type { AnnotationResource, ClaimResource, ModelEvidenceReference } from "../domain/workspace";
+import { maximumModelEvidenceItems, type ModelEvidenceItem } from "./model-provider";
 
 export const assistantWorkflowActionEvent = "kirjolab-assistant-workflow-action";
 export type AssistantWorkflowAction = "choose-evidence" | "open-settings";
+
+export interface SelectedModelEvidence {
+  readonly items: ModelEvidenceItem[];
+  readonly references: ModelEvidenceReference[];
+}
 
 export class AssistantWorkflowStatus extends LitElement {
   static override properties = {
@@ -46,6 +52,44 @@ export class AssistantWorkflowStatus extends LitElement {
 
   reconcileEvidence(validKeys: ReadonlySet<string>): void {
     this.evidenceKeys = new Set([...this.evidenceKeys].filter((key) => validKeys.has(key)));
+  }
+
+  modelEvidence(annotations: readonly AnnotationResource[], claims: readonly ClaimResource[]): SelectedModelEvidence {
+    const items: ModelEvidenceItem[] = [];
+    const references: ModelEvidenceReference[] = [];
+    for (const key of this.evidenceKeys) {
+      if (key.startsWith("annotation:")) {
+        const id = key.slice("annotation:".length);
+        const annotation = annotations.find((item) => item.id === id);
+        if (!annotation) continue;
+        references.push({ kind: "annotation", id, version: annotation.updatedAt });
+        items.push({
+          kind: "annotation",
+          id,
+          label: `PDF annotation on page ${annotation.page}`,
+          content: [
+            `Quote: ${annotation.quote}`,
+            annotation.prefix ? `Context before: ${annotation.prefix}` : "",
+            annotation.suffix ? `Context after: ${annotation.suffix}` : "",
+            annotation.comment ? `Researcher note: ${annotation.comment}` : "",
+          ]
+            .filter(Boolean)
+            .join("\n"),
+        });
+        continue;
+      }
+      const id = key.slice("claim:".length);
+      const claim = claims.find((item) => item.id === id);
+      if (!claim) continue;
+      references.push({ kind: "claim", id, version: claim.updatedAt });
+      items.push({
+        kind: "claim",
+        id,
+        label: "Researcher-authored claim",
+        content: [`Claim: ${claim.text}`, claim.note ? `Working note: ${claim.note}` : ""].filter(Boolean).join("\n"),
+      });
+    }
+    return { items, references };
   }
 
   protected emitAction(action: AssistantWorkflowAction): void {

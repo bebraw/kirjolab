@@ -303,10 +303,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   while owning duplicate-submit gating, local retryable failures, and refresh-
   pending state; retain canonical Library refresh and cross-panel workflow status
   in the coordinator.
-- Keep browser-local assistant evidence selection and its count or limit status
-  inside the Lit workflow-status owner. The coordinator may resolve those keys
-  against current snapshots and enforce generation policy, but must not keep a
-  parallel selected-key set.
+- Keep browser-local assistant evidence selection, count or limit status, and
+  ordered annotation-or-claim model-evidence projection inside the Lit
+  workflow-status owner. The coordinator supplies canonical snapshot
+  collections and enforces generation policy, but must not parse the selected
+  keys, duplicate prompt wording, or keep a parallel selected-key set.
 - Back up reviews independently of projects. Owner backup schema v3 stores each
   review's catalog record and locator, access state, complete active and
   unlinked project-link ledger, revision seed, and a bounded canonical

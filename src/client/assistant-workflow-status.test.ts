@@ -1,5 +1,22 @@
 import { describe, expect, it, vi } from "vitest";
+import type { AnnotationResource, ClaimResource } from "../domain/workspace";
 import { AssistantWorkflowStatus, assistantWorkflowActionEvent, type AssistantWorkflowAction } from "./assistant-workflow-status";
+
+const timestamp = "2026-07-25T00:00:00.000Z";
+const annotation: AnnotationResource = {
+  comment: "Research note",
+  createdAt: timestamp,
+  fragments: [],
+  id: "1",
+  page: 3,
+  pdfId: "pdf:1",
+  prefix: "Before",
+  quote: "Evidence",
+  rects: [],
+  suffix: "After",
+  updatedAt: timestamp,
+};
+const claim: ClaimResource = { createdAt: timestamp, id: "1", note: "Working note", text: "Claim text", updatedAt: timestamp };
 
 class TestAssistantWorkflowStatus extends AssistantWorkflowStatus {
   renderForTest() {
@@ -49,6 +66,44 @@ describe("assistant workflow status", () => {
     for (let index = 0; index < 13; index += 1) panel.setEvidenceSelected(`annotation:${index}`, true);
     expect(panel.selectedEvidenceKeys.size).toBe(13);
     expect(panel.status).toBe("Choose no more than 12 evidence resources.");
+  });
+
+  it("projects ordered selected annotations and claims for model grounding", () => {
+    const panel = new TestAssistantWorkflowStatus();
+    panel.setEvidenceSelected("annotation:missing", true);
+    panel.setEvidenceSelected("annotation:1", true);
+    panel.setEvidenceSelected("claim:1", true);
+    panel.setEvidenceSelected("claim:missing", true);
+
+    expect(panel.modelEvidence([annotation], [claim])).toEqual({
+      items: [
+        {
+          content: "Quote: Evidence\nContext before: Before\nContext after: After\nResearcher note: Research note",
+          id: "1",
+          kind: "annotation",
+          label: "PDF annotation on page 3",
+        },
+        {
+          content: "Claim: Claim text\nWorking note: Working note",
+          id: "1",
+          kind: "claim",
+          label: "Researcher-authored claim",
+        },
+      ],
+      references: [
+        { id: "1", kind: "annotation", version: timestamp },
+        { id: "1", kind: "claim", version: timestamp },
+      ],
+    });
+
+    const minimal = new TestAssistantWorkflowStatus();
+    minimal.setEvidenceSelected("annotation:1", true);
+    minimal.setEvidenceSelected("claim:1", true);
+    expect(
+      minimal
+        .modelEvidence([{ ...annotation, comment: "", prefix: "", suffix: "" }], [{ ...claim, note: "" }])
+        .items.map((item) => item.content),
+    ).toEqual(["Quote: Evidence", "Claim: Claim text"]);
   });
 
   it("emits typed workflow actions", () => {

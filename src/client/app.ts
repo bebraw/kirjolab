@@ -3327,49 +3327,9 @@ class WorkspaceApp {
   }
 
   #modelEvidence(): { items: ModelEvidenceItem[]; references: ModelEvidenceReference[] } {
-    if (!this.#snapshot) return { items: [], references: [] };
-    const items: ModelEvidenceItem[] = [];
-    const references: ModelEvidenceReference[] = [];
-    for (const key of this.#elements.assistantWorkflowStatus.selectedEvidenceKeys) {
-      const [kind, id] = parseModelEvidenceKey(key);
-      if (kind === "annotation") {
-        this.#appendAnnotationModelEvidence(id, items, references);
-        continue;
-      }
-      this.#appendClaimModelEvidence(id, items, references);
-    }
-    return { items, references };
-  }
-
-  #appendAnnotationModelEvidence(id: string, items: ModelEvidenceItem[], references: ModelEvidenceReference[]): void {
-    const annotation = this.#snapshot?.annotations.find((item) => item.id === id);
-    if (!annotation) return;
-    references.push({ kind: "annotation", id, version: annotation.updatedAt });
-    items.push({
-      kind: "annotation",
-      id,
-      label: `PDF annotation on page ${annotation.page}`,
-      content: [
-        `Quote: ${annotation.quote}`,
-        annotation.prefix ? `Context before: ${annotation.prefix}` : "",
-        annotation.suffix ? `Context after: ${annotation.suffix}` : "",
-        annotation.comment ? `Researcher note: ${annotation.comment}` : "",
-      ]
-        .filter(Boolean)
-        .join("\n"),
-    });
-  }
-
-  #appendClaimModelEvidence(id: string, items: ModelEvidenceItem[], references: ModelEvidenceReference[]): void {
-    const claim = this.#snapshot?.claims.find((item) => item.id === id);
-    if (!claim) return;
-    references.push({ kind: "claim", id, version: claim.updatedAt });
-    items.push({
-      kind: "claim",
-      id,
-      label: "Researcher-authored claim",
-      content: [`Claim: ${claim.text}`, claim.note ? `Working note: ${claim.note}` : ""].filter(Boolean).join("\n"),
-    });
+    return this.#snapshot
+      ? this.#elements.assistantWorkflowStatus.modelEvidence(this.#snapshot.annotations, this.#snapshot.claims)
+      : { items: [], references: [] };
   }
 
   async #generateCandidate(): Promise<void> {
@@ -4347,10 +4307,6 @@ function selectionRectsOverlap(left: PdfSelectionRect, right: PdfSelectionRect):
 function readClaimEvidenceRelation(value: string): ClaimEvidenceRelation {
   if (value === "contradicts" || value === "extends") return value;
   return "supports";
-}
-
-function parseModelEvidenceKey(value: string): ["annotation" | "claim", string] {
-  return value.startsWith("claim:") ? ["claim", value.slice("claim:".length)] : ["annotation", value.slice("annotation:".length)];
 }
 
 function excerptForToast(value: string): string {
