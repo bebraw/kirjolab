@@ -56,9 +56,9 @@ without copying private research or creating a live dependency on the source.
   hidden-template state, its derived visible-template view, local selection,
   preview and loading presentation, create readiness and status, native modal
   opening and closing, focus containment and restoration, local cancellation,
-  pre-import dismissal, and typed import, completion, and template-delete
-  events. `WorkspaceApp` retains the
-  deferred-deletion timer and undo policy, import workflows, and navigation.
+  pre-import dismissal, canonical successful-result navigation, and typed
+  import and template-delete events. `WorkspaceApp` retains the
+  deferred-deletion timer and undo policy plus import workflows.
 - The template-save Lit dialog owns create-or-replace form state, promotion
   requests, saved-summary validation, duplicate-submit gating, local progress
   and error presentation, and typed validated completion outcomes.

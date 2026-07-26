@@ -5705,6 +5705,28 @@ component members.
 Full native CI passes all 1,583 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Starting-Point Navigation
+
+`ProjectStartingPointBrowser` now navigates directly to the validated project-
+creation response's canonical workspace href. The completion event and
+`WorkspaceApp` listener are removed; import handoff, deferred deletion and Undo,
+and cross-feature policy remain coordinated outside the component.
+
+This checkpoint reduces `src/client/app.ts` from 3,945 to 3,937 lines (-8), the
+starting-point browser from 518 to 517 lines (-1), and its focused test from 328
+to 323 lines (-5). Runtime and focused test source across the three changed
+files decreases by fourteen lines. Eight focused and ten affected tests pass
+alongside strict types.
+
+The browser application artifact changes from 823,275 B raw / 222,921 B gzip
+to 823,127 B raw / 222,905 B gzip (-148 B raw / -16 B gzip). Styles, direct and
+unique production package counts, and the readability audit remain unchanged
+at 135,411 B raw / 23,373 B gzip, 18, 150, and 250 externally visible low-level
+component members.
+
+Full native CI passes all 1,583 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: GitHub Import Navigation
 
 `GitHubImportPanel` now navigates directly to the successful import response's

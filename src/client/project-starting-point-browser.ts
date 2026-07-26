@@ -7,7 +7,6 @@ import { errorMessage, expectOk, jsonFetch } from "./http";
 export type StartingPointAction = "import-github" | "import-latex";
 
 export const startingPointActionEvent = "starting-point-action";
-export const startingPointCompleteEvent = "starting-point-complete";
 export const startingPointTemplateDeleteEvent = "starting-point-template-delete";
 
 export class ProjectStartingPointBrowser extends LitElement {
@@ -230,7 +229,7 @@ export class ProjectStartingPointBrowser extends LitElement {
       await expectOk(response);
       const values: unknown[] = [await response.json()];
       if (!isWorkspaceSummaries(values) || !values[0]) throw new Error("Project catalog returned invalid data");
-      this.dispatchEvent(new CustomEvent<string>(startingPointCompleteEvent, { detail: values[0].href }));
+      location.assign(values[0].href);
     } catch (error) {
       this.showError(errorMessage(error, "Could not create the project."));
     }

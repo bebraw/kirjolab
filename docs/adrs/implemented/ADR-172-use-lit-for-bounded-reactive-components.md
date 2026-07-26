@@ -51,7 +51,8 @@ The adopted components own bounded presentation:
   catalog refresh, the fetched catalog, and optimistic
   hidden-template state, the derived visible-template view, local selection
   and preview state, bounded preview rendering, local dismissal and import
-  handoff, and typed completion and template-delete events.
+  handoff, canonical successful-result navigation, and typed template-delete
+  events.
 - The workspace sharing panel owns member and capability-link requests,
   response validation and presentation, invitation input and submission,
   clipboard interaction, native parent-dialog lifecycle, and typed notices.
@@ -262,8 +263,8 @@ The adopted components own bounded presentation:
   project choices, catalog loading, project-preview loading, project creation,
   personal-template deletion, response validation, post-delete catalog refresh,
   preview and loading state, create readiness and status, local cancel and
-  pre-handoff dismissal, and typed import, completion, and template-delete
-  events. It also owns
+  pre-handoff dismissal, canonical successful-result navigation, and typed
+  import and template-delete events. It also owns
   its native parent-dialog opening, closing, focus containment, listener
   teardown, and return-focus lifecycle.
 - The Library discovery search owns query inputs, publication-type choices,
@@ -623,9 +624,9 @@ reason to wrap static markup mechanically.
   element references, coordinator submit, selection-change, cancel, and import
   bindings, title and selection collection, readiness, loading, and error
   updates. It also replaces the coordinator's duplicate template array and
-  hidden-ID set while leaving template and project-preview requests, deferred
-  deletion, project and import workflows, and navigation in the application
-  coordinator.
+  hidden-ID set plus template-catalog, project-preview, and project-creation
+  requests while leaving deferred deletion and import workflows in the
+  application coordinator.
 - The Library discovery search replaces six internal element references and
   imperative form-value, submit-state, progress, count, empty, and error
   handling plus the provider request and response validation. The application

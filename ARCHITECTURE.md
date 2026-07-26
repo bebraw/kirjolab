@@ -207,11 +207,12 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   creation, personal-template deletion, fetched catalog state, optimistic
   hidden-template state, and the derived visible-template view inside the
   starting-point Lit component. Let it own Cancel and close itself before
-  handing either import choice to the coordinator. The
+  handing either import choice to the coordinator, and let it navigate to the
+  validated project-creation response's canonical workspace href. The
   template-save Lit dialog owns promotion requests, response validation, and
   local busy and error presentation. The application coordinator retains
-  navigation, deferred-deletion timing and undo policy, post-promotion catalog
-  refresh, and toast policy.
+  deferred-deletion timing and undo policy, post-promotion catalog refresh, and
+  toast policy.
 - Require every composition result to retain source-map spans back to file
   identity, source range, output range, and include chain. Reject unsafe paths,
   cycles, missing files, and resource-limit violations with navigable

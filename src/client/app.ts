@@ -70,12 +70,7 @@ import {
 } from "./library-pdf-markup-layer";
 import { libraryPdfToolbarActionEvent, type LibraryPdfToolbarAction } from "./library-pdf-annotation-toolbar";
 import { libraryPdfInspectorCloseEvent } from "./library-pdf-inspector";
-import {
-  startingPointActionEvent,
-  startingPointCompleteEvent,
-  startingPointTemplateDeleteEvent,
-  type StartingPointAction,
-} from "./project-starting-point-browser";
+import { startingPointActionEvent, startingPointTemplateDeleteEvent, type StartingPointAction } from "./project-starting-point-browser";
 import { workspaceSharingNoticeEvent } from "./workspace-sharing-panel";
 import { WorkspaceLayoutManager } from "./workspace-layout-manager";
 import { workspaceLayoutChangeEvent } from "./workspace-layout-control";
@@ -490,9 +485,6 @@ class WorkspaceApp {
       const action = (event as CustomEvent<StartingPointAction>).detail;
       if (action === "import-latex") this.#openLatexImportDialog();
       else this.#openGitHubImportDialog();
-    });
-    this.#elements.newWorkspaceStartingPoints.addEventListener(startingPointCompleteEvent, (event) => {
-      location.assign((event as CustomEvent<string>).detail);
     });
     this.#elements.newWorkspaceStartingPoints.addEventListener(startingPointTemplateDeleteEvent, (event) => {
       this.#deleteProjectTemplate((event as CustomEvent<ProjectTemplateSummary>).detail);

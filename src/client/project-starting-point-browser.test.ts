@@ -4,7 +4,6 @@ import type { WorkspaceSummary } from "../domain/workspace";
 import {
   ProjectStartingPointBrowser,
   startingPointActionEvent,
-  startingPointCompleteEvent,
   startingPointTemplateDeleteEvent,
   type StartingPointAction,
 } from "./project-starting-point-browser";
@@ -184,14 +183,12 @@ describe("project starting point browser", () => {
   it("creates a project from the local title and selection", async () => {
     const browser = new TestProjectStartingPointBrowser();
     const actions: StartingPointAction[] = [];
-    const completed: string[] = [];
+    const assign = vi.fn();
     const fetchMock = vi.fn().mockResolvedValue(Response.json(workspace));
     vi.stubGlobal("fetch", fetchMock);
+    vi.stubGlobal("location", { assign });
     browser.addEventListener(startingPointActionEvent, (event) => {
       actions.push((event as CustomEvent<StartingPointAction>).detail);
-    });
-    browser.addEventListener(startingPointCompleteEvent, (event) => {
-      completed.push((event as CustomEvent<string>).detail);
     });
     browser.setData([builtIn], []);
     browser.changeTitleForTest("Focused inquiry");
@@ -199,7 +196,7 @@ describe("project starting point browser", () => {
     expect(actions).toEqual([]);
     browser.chooseTemplateForTest(builtIn);
     await browser.createForTest();
-    expect(completed).toEqual([workspace.href]);
+    expect(assign.mock.calls).toEqual([[workspace.href]]);
     expect(fetchMock).toHaveBeenCalledWith(
       "/api/workspaces",
       expect.objectContaining({ body: JSON.stringify({ title: "Focused inquiry", templateId: "builtin-guided" }), method: "POST" }),
@@ -217,16 +214,14 @@ describe("project starting point browser", () => {
   it("loads project sources, creates from them, and requests personal-template deletion", async () => {
     const browser = new TestProjectStartingPointBrowser();
     const deleted: ProjectTemplateSummary[] = [];
-    const completed: string[] = [];
+    const assign = vi.fn();
     const fetchMock = vi.fn(async (input: string | URL | Request) =>
       Response.json(String(input).endsWith("/template-preview") ? projectTemplate : workspace),
     );
     vi.stubGlobal("fetch", fetchMock);
+    vi.stubGlobal("location", { assign });
     browser.addEventListener(startingPointTemplateDeleteEvent, (event) => {
       deleted.push((event as CustomEvent<ProjectTemplateSummary>).detail);
-    });
-    browser.addEventListener(startingPointCompleteEvent, (event) => {
-      completed.push((event as CustomEvent<string>).detail);
     });
     browser.setData([builtIn, personal], [workspace]);
     await browser.chooseProjectForTest(workspace);
@@ -235,7 +230,7 @@ describe("project starting point browser", () => {
     await browser.createForTest();
     browser.deleteForTest(personal);
     expect(deleted).toEqual([personal]);
-    expect(completed).toEqual([workspace.href]);
+    expect(assign.mock.calls).toEqual([[workspace.href]]);
     expect(fetchMock).toHaveBeenLastCalledWith(
       "/api/workspaces",
       expect.objectContaining({ body: JSON.stringify({ title: "Copied project", sourceWorkspaceId: "workspace-1" }), method: "POST" }),
