@@ -1,6 +1,7 @@
 import * as Y from "yjs";
 import "./action-menu-controller";
 import { collectAppElements } from "./app-elements";
+import { activePdfLoadContext, type ActivePdfLoadContext } from "./active-pdf-context";
 import { bibTeXDisplayText } from "../domain/bibliography";
 import { buildWorkspaceKnowledgeGraph } from "../domain/knowledge";
 import type { ReferenceDiscoveryResult } from "../domain/reference-discovery";
@@ -245,15 +246,6 @@ interface AssistantGenerationContext {
   readonly insertionTarget: AuthoringPassage | null;
   readonly instruction: string;
   readonly sourceRevision: number;
-}
-
-interface ActivePdfLoadContext {
-  readonly tab: Extract<ResearchResourceTab, { kind: "pdf" | "library-pdf" }>;
-  readonly workspacePdf: PdfResource | undefined;
-  readonly libraryPdf: LibraryPdfArtifact | undefined;
-  readonly annotations: AnnotationResource[];
-  readonly privateHighlights: LibraryHighlight[];
-  readonly url: string;
 }
 
 interface OverlappingPdfFragment {
@@ -2318,8 +2310,17 @@ class WorkspaceApp {
   }
 
   async #loadActivePdf(force: boolean): Promise<void> {
-    const context = this.#activePdfLoadContext();
+    const context = activePdfLoadContext({
+      activeTab: this.#activeResourceTab(),
+      annotations: this.#snapshot?.annotations ?? [],
+      apiBase,
+      libraryArtifacts: this.#librarySnapshot?.artifacts ?? [],
+      libraryHighlights: this.#librarySnapshot?.highlights ?? [],
+      projectReferencePdfs: this.#projectReferencePdfs,
+      workspacePdfs: this.#snapshot?.pdfs ?? [],
+    });
     if (!context) return;
+    if (context.workspacePdf) this.#elements.projectAnnotationForm.selectPdf(context.workspacePdf.id);
     this.#pdfViewer.updateAnnotations(context.annotations);
     this.#pdfViewer.updatePrivateHighlights(context.privateHighlights);
     if (!force && this.#renderedPdfContextKey === context.tab.key) {
@@ -2327,29 +2328,6 @@ class WorkspaceApp {
       return;
     }
     await this.#openActivePdf(context);
-  }
-
-  #activePdfLoadContext(): ActivePdfLoadContext | null {
-    const tab = this.#activeResourceTab();
-    if (tab?.kind !== "pdf" && tab?.kind !== "library-pdf") return null;
-    const workspacePdf = tab.kind === "pdf" ? this.#snapshot?.pdfs.find((item) => item.id === tab.id) : undefined;
-    const libraryPdf = tab.kind === "library-pdf" ? this.#librarySnapshot?.artifacts.find((item) => item.id === tab.id) : undefined;
-    const projectReferencePdf = tab.kind === "library-pdf" && !libraryPdf ? this.#projectReferencePdf(tab.id) : undefined;
-    if (!workspacePdf && !libraryPdf && !projectReferencePdf) return null;
-    if (workspacePdf) this.#elements.projectAnnotationForm.selectPdf(workspacePdf.id);
-    const annotations = workspacePdf ? (this.#snapshot?.annotations.filter((item) => item.pdfId === workspacePdf.id) ?? []) : [];
-    const privateHighlights = libraryPdf
-      ? (this.#librarySnapshot?.highlights.filter((item) => item.artifactId === libraryPdf.id) ?? [])
-      : [];
-    const url = workspacePdf
-      ? `${apiBase}/pdfs/${encodeURIComponent(workspacePdf.id)}`
-      : libraryPdf
-        ? `/api/library/pdfs/${encodeURIComponent(libraryPdf.id)}`
-        : projectReferencePdf
-          ? `${apiBase}/reference-pdfs/${encodeURIComponent(projectReferencePdf.id)}`
-          : null;
-    if (!url) return null;
-    return { tab, workspacePdf, libraryPdf, annotations, privateHighlights, url };
   }
 
   async #openActivePdf(context: ActivePdfLoadContext): Promise<void> {

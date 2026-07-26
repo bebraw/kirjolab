@@ -27,6 +27,12 @@ and Library page-control sets from the document shell. The application
 coordinator supplies only typed selection, highlight, and page-change hooks;
 viewer-internal elements do not enter its global element registry.
 
+Derive the active load context with one pure projection over the active typed
+tab and authorized project PDFs, annotations, private Library artifacts and
+highlights, and shared-reference PDFs. The application coordinator applies the
+result to the viewer and form; resource selection and URL construction do not
+become viewer state.
+
 Store each selection as one or more rectangles normalized to the rendered page
 in top-left coordinates, with every `x`, `y`, `width`, and `height` value in the
 inclusive zero-to-one page space. Retain the exact quote and normalized prefix

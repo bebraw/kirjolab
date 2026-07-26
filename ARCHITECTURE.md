@@ -730,6 +730,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Resolve project submission layouts from bounded versioned presets; never execute uploaded TeX, scripts, remote assets, or arbitrary template paths in the export pipeline.
 - Keep reference-library search, facets, and sorting as ephemeral local projections over the authorized private snapshot; never persist private search intent into project or collaboration state.
 - Render only the active PDF page through the PDF.js display layer; keep its worker version matched with the pinned display dependency.
+- Derive each active PDF load context through one pure projection over the
+  active typed context tab and authorized project, Library, and shared-reference
+  snapshots. Keep viewer mutation, form selection, routing, and failure
+  presentation in their existing browser authorities.
 - Project standard PDF link geometry from the pinned PDF.js display data into the active-page interaction layer; keep internal destinations inside the reader and isolate external navigation.
 - Expose scholarly entities through stable resource identities and typed relationships rather than citation keys or filenames alone.
 - Give workspace people opaque stored identities independent of email. Derive

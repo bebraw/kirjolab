@@ -5369,6 +5369,28 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,607 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Active PDF Load Projection
+
+`activePdfLoadContext` now derives the active project, private-Library, or
+shared-reference PDF, its encoded authorized URL, matching annotations, and
+private highlights from canonical inputs. `WorkspaceApp` retains viewer
+mutation, project-annotation selection, routing, stale-load rejection, scroll
+restoration, and failure presentation.
+
+This checkpoint reduces `src/client/app.ts` from 3,314 to 3,292 lines (-22)
+and adds a 48-line pure projection, moving the coordinator's 21-branch hotspot
+behind four focused cases for inactive and missing resources, project evidence,
+private highlights, and shared-reference reading. Strict client and Workers
+types pass.
+
+The browser application artifact changes from 827,435 B raw / 223,883 B gzip
+to 827,688 B raw / 223,953 B gzip (+253 B raw / +70 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,611 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

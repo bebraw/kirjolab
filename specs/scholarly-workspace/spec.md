@@ -394,6 +394,10 @@ collaboration.
   authorization remain owner-private. Selection creates only an ephemeral
   draft; explicit save may create a library-owned page-and-quote highlight,
   while navigation never creates project evidence or sharing state.
+  One pure active-load projection resolves project evidence, private Library,
+  or shared-reference input and its authorized URL from the active typed tab
+  and canonical snapshots. The coordinator retains viewer updates, form
+  selection, routing, and failure handling.
   A dedicated Select tool makes saved highlights, freehand lines, and note pins
   directly actionable on the page. Highlight comments, line color/width, and
   note text remain editable; selected notes may be dragged to a new normalized
