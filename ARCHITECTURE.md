@@ -72,6 +72,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   shared client HTTP adapter. Validate the bounded `{ error: string }` response
   contract with Valibot there instead of repeating parsing and fallback policy
   in each Lit component or application workflow.
+- Let the bounded Preview status owner derive composed-versus-isolated file
+  labels and combined composition and renderer issue summaries from canonical
+  preview inputs. Keep composition, renderer loading and recovery, rendered
+  output, source maps, and diagnostic navigation in the application
+  coordinator.
 - Keep the DOI publication-intake XState actor, preview and acceptance
   requests, stale-response guards, local status, and focus lifecycle inside the
   bounded intake Lit component. Let that component also derive the active PDF's

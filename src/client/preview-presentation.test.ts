@@ -67,9 +67,15 @@ describe("preview presentation", () => {
   it("renders default and updated context status", () => {
     const status = new TestPreviewContextStatus();
     expect(status.renderForTest()).toBeDefined();
-    status.setContext("nested.md · isolated file");
-    status.setSummary("2 issues");
-    expect(status.renderForTest()).toBeDefined();
+    status.setFile(filePreview);
+    status.setDiagnostics([], filePreview);
+    expect(status.renderForTest().values).toEqual(["main.md · composed paper", "main.md · composed paper", "1 issue"]);
+    status.setDiagnostics([{ from: 1, message: "Renderer issue", severity: "error", to: 2 }], filePreview);
+    expect(status.renderForTest().values.at(-1)).toBe("2 issues");
+    status.setDiagnostics([], null);
+    expect(status.renderForTest().values.at(-1)).toBe("No syntax errors");
+    status.showUnavailable();
+    expect(status.renderForTest().values.at(-1)).toBe("Preview unavailable");
   });
 
   it("renders unavailable, project, mapped renderer, and fallback renderer diagnostics", () => {

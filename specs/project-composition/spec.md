@@ -54,6 +54,10 @@ collaborative, and unambiguous about what preview and export mean.
   bounded list. Diagnostic selection emits a file-qualified authored range
   resolved from the active preview source map; the workspace coordinator owns
   file switching and editor focus.
+- The bounded Preview status owner derives composed-versus-isolated file labels
+  and the combined composition and Markdown-renderer issue count from canonical
+  preview and diagnostic inputs. It also owns the unavailable summary; the
+  coordinator owns renderer loading and recovery.
 - A file move or rename updates affected include paths in the same revision. A
   folder move atomically changes its descendant folder and file paths and
   rewrites includes and project image references relative to both moved sources

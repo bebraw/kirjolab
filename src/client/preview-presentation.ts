@@ -30,12 +30,20 @@ export class PreviewContextStatus extends LitElement {
     this.data = { context: "main.md · composed paper", summary: "Validating…" };
   }
 
-  setContext(context: string): void {
+  setFile(filePreview: ProjectFilePreview | null): void {
+    const context = filePreview
+      ? `${filePreview.path} · ${filePreview.mode === "composed" ? "composed paper" : "isolated file"}`
+      : "Preview";
     this.data = { ...this.data, context };
   }
 
-  setSummary(summary: string): void {
-    this.data = { ...this.data, summary };
+  setDiagnostics(diagnostics: readonly Diagnostic[], filePreview: ProjectFilePreview | null): void {
+    const count = diagnostics.length + (filePreview?.diagnostics.length ?? 0);
+    this.data = { ...this.data, summary: count === 0 ? "No syntax errors" : `${count} ${count === 1 ? "issue" : "issues"}` };
+  }
+
+  showUnavailable(): void {
+    this.data = { ...this.data, summary: "Preview unavailable" };
   }
 
   override connectedCallback(): void {

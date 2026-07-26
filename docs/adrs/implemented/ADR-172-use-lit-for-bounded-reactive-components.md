@@ -184,9 +184,10 @@ The adopted components own bounded presentation:
   candidate acceptance, prompts, local progress and failures, the latest
   network and expansion snapshots, close behavior, reference synchronization,
   and typed notice or Library-refresh outcomes.
-- The Preview context status and diagnostics panels own file-mode and
-  validation status, unavailable-state presentation, composition and renderer
-  diagnostic cards, source-map resolution, and typed source-range intents.
+- The Preview context status and diagnostics panels derive file-mode and issue
+  summaries from canonical preview and diagnostic inputs, and own
+  unavailable-state presentation, composition and renderer diagnostic cards,
+  source-map resolution, and typed source-range intents.
 - The preview navigation control owns browser-local top-navigation visibility,
   storage restoration, toggle and restore presentation, active-context
   availability, and focus handoff between its spatially separated controls.

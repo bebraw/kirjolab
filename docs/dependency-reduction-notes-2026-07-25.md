@@ -5272,3 +5272,26 @@ Valibot was already pinned and shipped elsewhere.
 
 Full native CI passes all 1,571 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Lit Ownership: Preview Status Projection
+
+`PreviewContextStatus` now derives composed-versus-isolated file labels,
+combined composition and Markdown-renderer issue counts, and unavailable-state
+wording from canonical preview inputs. `WorkspaceApp` retains composition,
+renderer loading and recovery, rendered output, source maps, and diagnostic
+navigation coordination.
+
+This checkpoint reduces `src/client/app.ts` from 4,402 to 4,397 lines (-5) and
+grows the shared preview-presentation owner from 154 to 162 lines. Runtime
+source across those two files increases by three lines while deleting three
+coordinator presentation branches. Focused coverage passes composed, singular,
+plural, clean, unavailable, mapped and fallback diagnostic states, application
+contracts, and strict types.
+
+The browser application artifact changes from 824,524 B raw / 222,609 B gzip
+to 824,595 B raw / 222,606 B gzip (+71 B raw / -3 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,573 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.

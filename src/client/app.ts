@@ -1720,9 +1720,7 @@ class WorkspaceApp {
   #preparePreviewContext(inputs: PreviewInputs): void {
     this.#renderManuscriptMap(inputs.publicationComposition?.content ?? inputs.renderedSource);
     const { filePreview, publicationComposition } = inputs;
-    this.#elements.previewContextControls.setContext(
-      filePreview ? `${filePreview.path} · ${filePreview.mode === "composed" ? "composed paper" : "isolated file"}` : "Preview",
-    );
+    this.#elements.previewContextControls.setFile(filePreview);
     if (publicationComposition && this.#snapshot) {
       this.#elements.exportDialog.setStatistics(publicationWordStatistics(publicationComposition, inputs.files));
     }
@@ -1739,7 +1737,7 @@ class WorkspaceApp {
 
   #renderPreviewUnavailable(renderedSource: string, error: unknown): void {
     this.#previewDocument.showSource(renderedSource);
-    this.#elements.previewContextControls.setSummary("Preview unavailable");
+    this.#elements.previewContextControls.showUnavailable();
     this.#elements.diagnostics.showUnavailable(error instanceof Error ? error.message : "The Markdown renderer could not be loaded");
   }
 
@@ -1764,10 +1762,7 @@ class WorkspaceApp {
   }
 
   #renderPreviewDiagnostics(diagnostics: readonly Diagnostic[], filePreview: ProjectFilePreview | null): void {
-    const diagnosticCount = diagnostics.length + (filePreview?.diagnostics.length ?? 0);
-    this.#elements.previewContextControls.setSummary(
-      diagnosticCount === 0 ? "No syntax errors" : `${diagnosticCount} ${diagnosticCount === 1 ? "issue" : "issues"}`,
-    );
+    this.#elements.previewContextControls.setDiagnostics(diagnostics, filePreview);
     this.#elements.diagnostics.setDiagnostics(diagnostics, filePreview);
   }
 
