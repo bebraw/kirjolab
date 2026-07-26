@@ -5159,6 +5159,28 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,572 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Authoring Target Status
+
+`EditorStatus` now owns bounded line counting and file, line-range, caret, and
+selection wording from canonical source and resolved target inputs.
+`WorkspaceApp` retains Yjs relative-position resolution, editor highlighting,
+assistant target refresh, collaboration interpretation, and offline-save policy.
+
+This checkpoint reduces `src/client/app.ts` from 4,449 to 4,432 lines (-17) and
+grows the editor-status owner from 53 to 70 lines. Runtime source across those
+two files is unchanged while deleting the coordinator-only line-count helper and
+all authoring-status presentation branches. Focused coverage passes no-target,
+single-line caret, multi-line selection, existing save presentation, application
+contracts, and strict types.
+
+The browser application artifact changes from 824,420 B raw / 222,534 B gzip
+to 824,369 B raw / 222,551 B gzip (-51 B raw / +17 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,572 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Publication Paper Projection
 
 `PublicationContextPanel` now derives available project PDFs and ordered

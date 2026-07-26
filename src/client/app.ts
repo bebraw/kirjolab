@@ -3016,20 +3016,7 @@ class WorkspaceApp {
   #renderAuthoringTarget(): void {
     const target = this.#resolvedAuthoringTarget();
     const file = this.#snapshot?.files.find((item) => item.id === this.#activeFileId);
-    if (!target) {
-      const status = `${file?.path ?? "Manuscript"} · no target`;
-      this.#elements.editorStatus.setTarget(status);
-      this.#renderSourceEditorHighlight();
-      this.#renderAssistantTargetPreview();
-      return;
-    }
-    const source = this.#activeFileText.toString();
-    const startLine = lineNumberAt(source, target.start);
-    const endLine = lineNumberAt(source, target.end);
-    const location = startLine === endLine ? `line ${startLine}` : `lines ${startLine}–${endLine}`;
-    const selection = target.start === target.end ? "caret" : `${target.end - target.start} characters selected`;
-    const status = `${file?.path ?? "Manuscript"} · ${location} · ${selection}`;
-    this.#elements.editorStatus.setTarget(status);
+    this.#elements.editorStatus.setAuthoringTarget(file?.path ?? "Manuscript", this.#activeFileText.toString(), target);
     this.#renderSourceEditorHighlight();
     this.#renderAssistantTargetPreview();
   }
@@ -4373,10 +4360,6 @@ class WorkspaceApp {
   #showToast(message: string, options?: AppToastOptions): void {
     this.#elements.toast.show(message, options);
   }
-}
-
-function lineNumberAt(source: string, offset: number): number {
-  return source.slice(0, Math.max(0, Math.min(offset, source.length))).split(/\r\n|\r|\n/u).length;
 }
 
 function activeWorkspaceFileRoute(activeFileId: string | null, entryFileId: string | undefined): { fileId: string } | object {

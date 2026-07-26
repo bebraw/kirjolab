@@ -753,9 +753,11 @@ reason to wrap static markup mechanically.
   The application coordinator retains editor focus policy and URL
   synchronization.
 - The editor status component replaces separate target and save-status element
-  references and owns their text and target-tooltip presentation. The
-  application coordinator retains authoring-target resolution, collaboration
-  and offline-save policy, and the status values those workflows select.
+  references and owns their text and target-tooltip presentation, including
+  bounded line counting and file, line-range, caret, and selection wording from
+  canonical inputs. The application coordinator retains Yjs authoring-target
+  resolution, editor highlighting, assistant refresh, collaboration and offline-
+  save policy, and the save-status values those workflows select.
 - The connection status component replaces separate label and tone element
   references and owns their synchronized presentation. The application
   coordinator retains collaboration-state interpretation and Library-mode

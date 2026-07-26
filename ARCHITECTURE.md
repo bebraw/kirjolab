@@ -534,6 +534,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   Yjs synchronization and history, highlight and presence mirroring, completion
   geometry, relative selections, and optional keymap binding. The application
   coordinator retains document, workflow, and navigation authority.
+- Let the editor-status Lit owner derive file, line-range, caret, and selection
+  wording from coordinator-supplied canonical source and resolved target values.
+  Keep Yjs relative-position resolution, editor highlighting, assistant refresh,
+  collaboration interpretation, and offline-save policy in their authorities.
 - Keep source-completion interaction in its bounded light-DOM component: bind
   editor keyboard and blur behavior there, persist citation suggestion scope
   there, rank and adapt citation and include candidates there, own empty-state

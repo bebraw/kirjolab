@@ -9,6 +9,10 @@ class TestEditorStatus extends EditorStatus {
   rootForTest(): HTMLElement {
     return this.createRenderRoot();
   }
+
+  targetForTest(): string {
+    return this.target;
+  }
 }
 
 describe("editor status", () => {
@@ -16,7 +20,12 @@ describe("editor status", () => {
     const status = new TestEditorStatus();
     expect(status.renderForTest()).toBeDefined();
 
-    status.setTarget("chapter.md · line 4 · 12 characters selected");
+    status.setAuthoringTarget("chapter.md", "one\ntwo\nthree", null);
+    expect(status.targetForTest()).toBe("chapter.md · no target");
+    status.setAuthoringTarget("chapter.md", "one\ntwo\nthree", { start: 4, end: 4 });
+    expect(status.targetForTest()).toBe("chapter.md · line 2 · caret");
+    status.setAuthoringTarget("chapter.md", "one\ntwo\nthree", { start: 2, end: 12 });
+    expect(status.targetForTest()).toBe("chapter.md · lines 1–3 · 10 characters selected");
     status.setSave("Saved offline");
 
     expect(status.renderForTest()).toBeDefined();
