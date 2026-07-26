@@ -10,6 +10,7 @@ import {
   isGitHubRepositoryList,
   isGitHubSyncState,
   isLatexImportPreview,
+  isLatexImportResult,
   isShareLinkStatus,
   isWebSnapshotComparisonResponse,
 } from "./app-contracts";
@@ -144,6 +145,12 @@ describe("app response contracts", () => {
         conversion: { ...value.conversion, report: { ...value.conversion.report, diagnostics: [{ severity: "fatal", message: "No" }] } },
       }),
     ).toBe(false);
+  });
+
+  it("validates created LaTeX workspace navigation", () => {
+    expect(isLatexImportResult({ workspace: { href: "/editor/project" } })).toBe(true);
+    expect(isLatexImportResult({ workspace: { href: 1 } })).toBe(false);
+    expect(isLatexImportResult({ workspace: null })).toBe(false);
   });
 
   it("validates created annotation resources", () => {

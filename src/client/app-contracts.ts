@@ -140,6 +140,9 @@ const latexImportPreviewSchema = v.object({
   archive: latexArchiveSchema,
   conversion: v.nullable(latexConversionSchema),
 });
+const latexImportResultSchema = v.object({
+  workspace: v.object({ href: v.string() }),
+});
 const createdAnnotationSchema = v.object({
   id: v.string(),
   pdfId: v.string(),
@@ -215,6 +218,10 @@ export function isGitHubPublishPreview(value: unknown): value is v.InferInput<ty
 
 export function isLatexImportPreview(value: unknown): value is LatexImportPreview {
   return v.is(latexImportPreviewSchema, value);
+}
+
+export function isLatexImportResult(value: unknown): value is v.InferInput<typeof latexImportResultSchema> {
+  return v.is(latexImportResultSchema, value);
 }
 
 export function isCreatedAnnotation(value: unknown): value is AnnotationResource {

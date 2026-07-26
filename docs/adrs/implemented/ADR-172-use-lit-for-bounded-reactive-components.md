@@ -146,8 +146,9 @@ The adopted components own bounded presentation:
   typed preview, accept, cancel, and reference-opening intents.
 - The LaTeX import panel owns archive, title, and root input, bounded client
   validation, converted-file and diagnostic review, preview identity, busy and
-  status presentation, native dialog lifecycle, and typed preview,
-  confirmation, and cancel intents.
+  status presentation, native dialog lifecycle, authenticated preview and
+  creation request lifecycles, Valibot response validation, and typed cancel
+  and completed-navigation intents.
 - The GitHub import and detailed sync-review panels own their opaque preview
   identities and confirmation working state. The import panel additionally
   owns its read-only connection and repository-picker discovery lifecycle. The
@@ -412,8 +413,9 @@ reason to wrap static markup mechanically.
 - The LaTeX import panel replaces ten internal element references, two
   coordinator fields, and imperative root-option, converted-file, diagnostic,
   readiness, status, and busy rendering. It also replaces the separate native
-  dialog reference while leaving validated preview and creation requests plus
-  navigation in the application coordinator.
+  dialog reference and owns the validated preview and creation requests because
+  their payload, progress, validation, and result presentation use only local
+  reviewed state. Navigation remains in the application coordinator.
 - The export statistics panel replaces the imperative total, explanatory,
   group, row, and empty-state renderers while leaving composition and canonical
   word-count derivation in the application coordinator and domain.

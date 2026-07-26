@@ -34,12 +34,12 @@ class TestLatexImportPanel extends LatexImportPanel {
     return this.createRenderRoot();
   }
 
-  previewForTest(): void {
-    this.preview(new Event("submit") as SubmitEvent);
+  previewForTest(): Promise<void> {
+    return this.preview(new Event("submit") as SubmitEvent);
   }
 
-  confirmForTest(): void {
-    this.confirm();
+  confirmForTest(): Promise<void> {
+    return this.confirm();
   }
 
   cancelForTest(): void {
@@ -81,7 +81,10 @@ class FakeDialog extends EventTarget {
   }
 }
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 
 function eventWithTarget(target: object): Event {
   const event = new Event("test");
@@ -115,36 +118,33 @@ describe("LaTeX import panel", () => {
     expect(panel.renderForTest()).toBeDefined();
   });
 
-  it("owns local values and emits bounded preview, confirm, and cancel intents", () => {
+  it("owns preview and creation requests and emits complete navigation", async () => {
     const panel = new TestLatexImportPanel();
     const archive = new File(["zip"], "my-paper.zip", { type: "application/zip" });
     const actions: LatexImportAction[] = [];
     panel.addEventListener(latexImportActionEvent, (event) => actions.push((event as CustomEvent<LatexImportAction>).detail));
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(Response.json(preview))
+      .mockResolvedValueOnce(Response.json({ workspace: { href: "/editor/project" } }));
 
     panel.archiveFile = archive;
     panel.archiveChangedForTest(archive);
-    panel.previewForTest();
-    panel.previewSucceeded(preview);
+    await panel.previewForTest();
     panel.titleForTest("Reviewed paper");
-    panel.confirmForTest();
-    panel.confirmFailed("Try again");
+    await panel.confirmForTest();
     panel.cancelForTest();
 
-    expect(actions).toEqual([
-      { action: "preview", archive, root: "" },
-      {
-        action: "confirm",
-        archive,
-        bibliographyPath: "references.bib",
-        previewDigest: "a".repeat(64),
-        root: "paper.tex",
-        title: "Reviewed paper",
-      },
-      { action: "cancel" },
-    ]);
+    expect(actions).toEqual([{ action: "complete", href: "/editor/project" }]);
+    expect(fetchMock).toHaveBeenNthCalledWith(1, "/api/latex-import-previews", expect.objectContaining({ body: archive, method: "POST" }));
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      `/api/latex-imports?title=Reviewed+paper&previewDigest=${"a".repeat(64)}&root=paper.tex&bibliography=references.bib`,
+      expect.objectContaining({ body: archive, method: "POST" }),
+    );
   });
 
-  it("requires re-preview after root changes and rejects oversized archives locally", () => {
+  it("requires re-preview after root changes and rejects oversized archives locally", async () => {
     const panel = new TestLatexImportPanel();
     const archive = new File(["zip"], "paper.zip", { type: "application/zip" });
     const actions: LatexImportAction[] = [];
@@ -153,11 +153,27 @@ describe("LaTeX import panel", () => {
     panel.archiveFile = archive;
     panel.previewSucceeded(preview);
     panel.rootChangedForTest("other.tex");
-    panel.confirmForTest();
+    await panel.confirmForTest();
     panel.archiveFile = { name: "large.zip", size: 20 * 1024 * 1024 + 1 } as File;
-    panel.previewForTest();
+    await panel.previewForTest();
 
     expect(actions).toEqual([]);
+  });
+
+  it("presents preview and creation response failures", async () => {
+    const panel = new TestLatexImportPanel();
+    panel.archiveFile = new File(["zip"], "paper.zip", { type: "application/zip" });
+    vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(Response.json({ invalid: true }))
+      .mockResolvedValueOnce(Response.json(preview))
+      .mockResolvedValueOnce(Response.json({ workspace: null }));
+
+    await panel.previewForTest();
+    await panel.previewForTest();
+    panel.titleForTest("Paper");
+    await panel.confirmForTest();
+
+    expect(panel.renderForTest()).toBeDefined();
   });
 
   it("owns its native dialog lifecycle", () => {

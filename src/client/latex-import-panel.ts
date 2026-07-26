@@ -1,20 +1,10 @@
 import { html, LitElement, nothing, type TemplateResult } from "lit";
-import type { LatexImportPreview } from "./app-contracts";
+import { isLatexImportPreview, isLatexImportResult, type LatexImportPreview } from "./app-contracts";
 import { formatBytes } from "./format";
 
 export const latexImportActionEvent = "latex-import-action";
 
-export type LatexImportAction =
-  | { readonly action: "cancel" }
-  | {
-      readonly action: "confirm";
-      readonly archive: File;
-      readonly bibliographyPath: string | null;
-      readonly previewDigest: string;
-      readonly root: string;
-      readonly title: string;
-    }
-  | { readonly action: "preview"; readonly archive: File; readonly root: string };
+export type LatexImportAction = { readonly action: "cancel" } | { readonly action: "complete"; readonly href: string };
 
 type LatexImportBusyState = "confirm" | "preview" | null;
 type LatexConversion = NonNullable<LatexImportPreview["conversion"]>;
@@ -185,7 +175,7 @@ export class LatexImportPanel extends LitElement {
     `;
   }
 
-  protected preview(event: SubmitEvent): void {
+  protected async preview(event: SubmitEvent): Promise<void> {
     event.preventDefault();
     if (this.busy) return;
     const archive = this.archive();
@@ -197,22 +187,49 @@ export class LatexImportPanel extends LitElement {
     this.clearPreview();
     this.busy = "preview";
     this.status = "Inspecting and converting the archive on the server…";
-    this.emit({ action: "preview", archive, root: this.selectedRoot });
+    try {
+      const query = new URLSearchParams();
+      if (this.selectedRoot) query.set("root", this.selectedRoot);
+      const response = await fetch(`/api/latex-import-previews${query.size ? `?${query.toString()}` : ""}`, {
+        body: archive,
+        credentials: "same-origin",
+        headers: { "content-type": "application/zip" },
+        method: "POST",
+      });
+      await expectOk(response);
+      const value: unknown = await response.json();
+      if (!isLatexImportPreview(value)) throw new Error("LaTeX import returned an invalid preview");
+      this.previewSucceeded(value);
+    } catch (error) {
+      this.previewFailed(errorMessage(error, "Could not preview the LaTeX archive."));
+    }
   }
 
-  protected confirm(): void {
+  protected async confirm(): Promise<void> {
     const archive = this.archive();
     if (this.busy || !archive || !this.previewDigest || !this.conversion || blockingDiagnosticCount(this.conversion) > 0) return;
     this.busy = "confirm";
     this.status = "Repeating conversion and creating the project…";
-    this.emit({
-      action: "confirm",
-      archive,
-      bibliographyPath: this.bibliographyPath,
+    const query = new URLSearchParams({
+      title: this.projectTitle,
       previewDigest: this.previewDigest,
       root: this.selectedRoot,
-      title: this.projectTitle,
     });
+    if (this.bibliographyPath) query.set("bibliography", this.bibliographyPath);
+    try {
+      const response = await fetch(`/api/latex-imports?${query.toString()}`, {
+        body: archive,
+        credentials: "same-origin",
+        headers: { "content-type": "application/zip" },
+        method: "POST",
+      });
+      await expectOk(response);
+      const value: unknown = await response.json();
+      if (!isLatexImportResult(value)) throw new Error("LaTeX import returned invalid project data");
+      this.emit({ action: "complete", href: value.workspace.href });
+    } catch (error) {
+      this.confirmFailed(errorMessage(error, "Could not import the LaTeX project."));
+    }
   }
 
   protected cancel(): void {
@@ -286,6 +303,20 @@ ${file.content.length > 1_200 ? `${file.content.slice(0, 1_200)}\n…` : file.co
     if (!(dialog instanceof HTMLDialogElement)) throw new Error("LaTeX import panel requires a dialog parent");
     return dialog;
   }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+async function expectOk(response: Response): Promise<void> {
+  if (response.ok) return;
+  const value: unknown = await response.json().catch(() => null);
+  throw new Error(isRecord(value) && typeof value.error === "string" ? value.error : `Request failed (${response.status})`);
+}
+
+function errorMessage(error: unknown, fallback: string): string {
+  return error instanceof Error ? error.message : fallback;
 }
 
 function blockingDiagnosticCount(conversion: LatexConversion): number {

@@ -237,14 +237,7 @@ import {
 } from "./pdf-highlight-import-panel";
 import { uploadPdfBatch, type ExistingPdfUpload } from "./pdf-upload-queue";
 import { bindThemePreference } from "./theme";
-import {
-  isCreatedAnnotation,
-  isGitHubImportPreview,
-  isLatexImportPreview,
-  isShareLinkStatus,
-  isWebSnapshotComparisonResponse,
-  type LatexImportPreview,
-} from "./app-contracts";
+import { isCreatedAnnotation, isGitHubImportPreview, isShareLinkStatus, isWebSnapshotComparisonResponse } from "./app-contracts";
 import {
   OpenAICompatibleBrowserProvider,
   type ModelClarityRewrites,
@@ -572,8 +565,7 @@ class WorkspaceApp {
     this.#elements.latexImportPanel.addEventListener(latexImportActionEvent, (event) => {
       const action = (event as CustomEvent<LatexImportAction>).detail;
       if (action.action === "cancel") this.#elements.latexImportPanel.close();
-      else if (action.action === "preview") void this.#previewLatexImport(action.archive, action.root);
-      else void this.#confirmLatexImport(action);
+      else location.assign(action.href);
     });
     this.#elements.gitHubImportPanel.addEventListener(gitHubImportPreviewEvent, () => void this.#previewGitHubImport());
     this.#elements.gitHubImportPanel.addEventListener(gitHubImportCancelEvent, () => this.#elements.gitHubImportPanel.close());
@@ -1227,58 +1219,6 @@ class WorkspaceApp {
     this.#elements.newWorkspaceStartingPoints.close();
     this.#elements.gitHubImportPanel.open();
     void this.#elements.gitHubImportPanel.refreshConnection();
-  }
-
-  async #previewLatexImport(archive: File, root: string): Promise<void> {
-    try {
-      this.#elements.latexImportPanel.previewSucceeded(await this.#requestLatexImportPreview(archive, root));
-    } catch (error) {
-      this.#elements.latexImportPanel.previewFailed(error instanceof Error ? error.message : "Could not preview the LaTeX archive.");
-    }
-  }
-
-  async #requestLatexImportPreview(archive: File, root: string): Promise<LatexImportPreview> {
-    const query = new URLSearchParams();
-    if (root) query.set("root", root);
-    const response = await fetch(`/api/latex-import-previews${query.size ? `?${query.toString()}` : ""}`, {
-      method: "POST",
-      credentials: "same-origin",
-      headers: { "content-type": "application/zip" },
-      body: archive,
-    });
-    await expectOk(response);
-    const value: unknown = await response.json();
-    if (!isLatexImportPreview(value)) throw new Error("LaTeX import returned an invalid preview");
-    return value;
-  }
-
-  async #confirmLatexImport(action: Extract<LatexImportAction, { action: "confirm" }>): Promise<void> {
-    try {
-      location.assign(await this.#createLatexWorkspace(action));
-    } catch (error) {
-      this.#elements.latexImportPanel.confirmFailed(error instanceof Error ? error.message : "Could not import the LaTeX project.");
-    }
-  }
-
-  async #createLatexWorkspace(action: Extract<LatexImportAction, { action: "confirm" }>): Promise<string> {
-    const query = new URLSearchParams({
-      title: action.title,
-      previewDigest: action.previewDigest,
-      root: action.root,
-    });
-    if (action.bibliographyPath) query.set("bibliography", action.bibliographyPath);
-    const response = await fetch(`/api/latex-imports?${query.toString()}`, {
-      method: "POST",
-      credentials: "same-origin",
-      headers: { "content-type": "application/zip" },
-      body: action.archive,
-    });
-    await expectOk(response);
-    const value: unknown = await response.json();
-    if (!isRecord(value) || !isRecord(value.workspace) || typeof value.workspace.href !== "string") {
-      throw new Error("LaTeX import returned invalid project data");
-    }
-    return value.workspace.href;
   }
 
   async #previewGitHubImport(): Promise<void> {

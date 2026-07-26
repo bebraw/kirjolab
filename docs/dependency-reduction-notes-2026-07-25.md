@@ -3471,3 +3471,29 @@ and unique production package counts remain unchanged at 135,411 B raw /
 
 Full native CI passes all 1,427 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Lit Ownership: LaTeX Import Requests
+
+`LatexImportPanel` now owns both authenticated phases of its local workflow:
+bounded archive preview and reviewed project creation. It constructs each
+request from the archive, selected root, preview digest, bibliography choice,
+and title already held by the component; validates preview and created-workspace
+responses through shared Valibot contracts; presents request failures; and
+emits only cancel or completed-navigation actions. `WorkspaceApp` retains the
+browser navigation authority.
+
+This checkpoint reduces `src/client/app.ts` from 6,210 to 6,150 lines (-60)
+and grows the LaTeX import panel from 309 to 340 lines. Including the seven-line
+shared result contract, runtime source across those files increases by two
+lines while removing four coordinator-only request and adaptation methods.
+Focused coverage passes request URLs and archive bodies, reviewed confirmation
+parameters, malformed preview and creation responses, local bounds, component
+state transitions, and typed completed navigation.
+
+The browser application artifact changes from 797,320 B raw / 215,470 B gzip
+to 797,241 B raw / 215,470 B gzip (-79 B raw / unchanged gzip). Styles and
+direct and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,429 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.

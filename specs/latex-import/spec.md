@@ -15,8 +15,10 @@ not translate cleanly.
   GitHub import workflows.
 - A bounded light-DOM component owns the import form's archive, title, selected
   root, reviewed conversion, preview digest, status, busy presentation, and
-  native dialog lifecycle. It emits typed preview, confirmation, and cancel
-  intents; the application coordinator retains authenticated requests and
+  native dialog lifecycle. It also owns the authenticated preview and creation
+  requests, constructs them from its current reviewed state, validates both
+  responses with the shared Valibot boundary contracts, and emits typed cancel
+  or completed-navigation intents. The application coordinator retains browser
   navigation.
 - Archive inspection and conservative conversion run in the authenticated
   Worker. Uploaded ZIP bytes are transient request data and are never stored.
