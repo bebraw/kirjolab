@@ -11,10 +11,7 @@ export interface WorkspaceSettingsValue {
   readonly title: string;
 }
 
-export type WorkspaceSettingsAction =
-  | { readonly action: "catalog-refresh" }
-  | { readonly action: "navigate"; readonly href: string }
-  | { readonly action: "save-template" };
+export type WorkspaceSettingsAction = { readonly action: "catalog-refresh" } | { readonly action: "save-template" };
 
 export interface WorkspaceSettingsView extends WorkspaceSettingsValue {
   readonly archived: boolean;
@@ -275,7 +272,7 @@ export class WorkspaceSettingsPanel extends LitElement {
       );
       const next = new URL(location.href);
       next.searchParams.set("file", value.entryFileId);
-      this.emit({ action: "navigate", href: `${next.pathname}${next.search}${next.hash}` });
+      location.assign(`${next.pathname}${next.search}${next.hash}`);
     });
   }
 
@@ -295,7 +292,7 @@ export class WorkspaceSettingsPanel extends LitElement {
       await expectOk(response);
       const values: unknown[] = [await response.json()];
       if (!isWorkspaceSummaries(values) || !values[0]) throw new Error("Project duplicate returned invalid data");
-      this.emit({ action: "navigate", href: values[0].href });
+      location.assign(values[0].href);
     });
   }
 
@@ -305,7 +302,7 @@ export class WorkspaceSettingsPanel extends LitElement {
     if (confirmation !== "DELETE") return;
     await this.runRequest(async () => {
       await expectOk(await fetch(`${this.gitHubApiBase}/settings`, { method: "DELETE", credentials: "same-origin" }));
-      this.emit({ action: "navigate", href: "/" });
+      location.assign("/");
     });
   }
 

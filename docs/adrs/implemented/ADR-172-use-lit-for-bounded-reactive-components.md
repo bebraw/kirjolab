@@ -274,8 +274,8 @@ The adopted components own bounded presentation:
   values, settings persistence, archive/restore, duplication and permanent
   deletion requests, destructive confirmation, local busy and error state,
   archive and template visibility, modal lifecycle, the nested GitHub-sync
-  presentation boundary, and typed navigation, catalog-refresh, and
-  save-as-template outcomes.
+  presentation boundary, canonical post-request navigation, and typed catalog-
+  refresh and save-as-template outcomes.
 - One shared client HTTP adapter owns same-origin JSON serialization, supported
   write methods, non-success parsing, Valibot validation of the bounded API
   error contract, and caught-value fallback messages used by request-owning
@@ -635,9 +635,10 @@ reason to wrap static markup mechanically.
 - The workspace settings panel replaces fifteen internal element references and
   imperative entry-file option, profile-value, archive-label, template
   visibility, modal, and nested GitHub-review coordination. It also removes four
-  coordinator request methods and owns destructive confirmation while leaving
-  navigation, catalog refresh, save-as-template, GitHub synchronization, and
-  global toast policy in the application coordinator.
+  coordinator request methods and owns destructive confirmation plus canonical
+  post-request navigation while leaving catalog refresh, save-as-template,
+  GitHub synchronization, and global toast policy in the application
+  coordinator.
 - The shared client HTTP adapter replaces ten copies of response-status and API
   error parsing plus four repeated JSON request constructions. This keeps
   request-owning Lit components small without introducing another dependency.

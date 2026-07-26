@@ -5705,6 +5705,28 @@ component members.
 Full native CI passes all 1,583 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Workspace Settings Navigation
+
+`WorkspaceSettingsPanel` now owns navigation after its settings-save,
+duplication, and permanent-deletion requests. Its typed outcome union retains
+only save-as-template and catalog-refresh work that genuinely crosses component
+boundaries, removing the coordinator's navigation branch.
+
+This checkpoint reduces `src/client/app.ts` from 3,937 to 3,936 lines (-1), the
+workspace settings panel from 356 to 353 lines (-3), and its focused test from
+239 to 235 lines (-4). Runtime and focused test source across the three changed
+files decreases by eight lines. Five focused and seven affected tests pass
+alongside strict types.
+
+The browser application artifact changes from 823,127 B raw / 222,905 B gzip
+to 823,017 B raw / 222,877 B gzip (-110 B raw / -28 B gzip). Styles, direct and
+unique production package counts, and the readability audit remain unchanged
+at 135,411 B raw / 23,373 B gzip, 18, 150, and 250 externally visible low-level
+component members.
+
+Full native CI passes all 1,583 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Starting-Point Navigation
 
 `ProjectStartingPointBrowser` now navigates directly to the validated project-

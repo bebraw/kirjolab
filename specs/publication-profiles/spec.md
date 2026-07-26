@@ -27,9 +27,9 @@ changing its canonical Markdown or shared references.
   publication-profile values and persistence, project lifecycle requests,
   destructive confirmation, local busy and error state, archive and template
   visibility, modal lifecycle, nested GitHub-sync presentation boundary, and
-  typed navigation, catalog-refresh, and save-as-template outcomes. The
-  workspace coordinator retains navigation, synchronization, template, catalog
-  refresh, and toast policy.
+  canonical post-request navigation plus typed catalog-refresh and save-as-
+  template outcomes. The workspace coordinator retains synchronization,
+  template, catalog refresh, and toast policy.
 
 ### Security and Validation
 

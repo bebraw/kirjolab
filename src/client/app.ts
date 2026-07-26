@@ -1146,8 +1146,7 @@ class WorkspaceApp {
 
   async #handleWorkspaceSettingsResult(detail: WorkspaceSettingsAction): Promise<void> {
     if (detail.action === "save-template") await this.#openSaveTemplate();
-    else if (detail.action === "catalog-refresh") await this.#refreshCatalog();
-    else location.assign(detail.href);
+    else await this.#refreshCatalog();
   }
 
   async #refreshGitHubSyncState(force = false, resetReview = true): Promise<void> {

@@ -147,6 +147,7 @@ describe("workspace settings panel", () => {
   it("owns save and project lifecycle requests", async () => {
     const panel = new TestWorkspaceSettingsPanel();
     const actions: WorkspaceSettingsAction[] = [];
+    const assign = vi.fn();
     const duplicate = {
       archivedAt: null,
       createdAt: "2026-07-25",
@@ -162,7 +163,7 @@ describe("workspace settings panel", () => {
       .mockResolvedValueOnce(new Response(null, { status: 204 }))
       .mockResolvedValueOnce(new Response(null, { status: 204 }));
     vi.stubGlobal("fetch", fetchMock);
-    vi.stubGlobal("location", { href: "https://example.test/editor/study?mode=source" });
+    vi.stubGlobal("location", { assign, href: "https://example.test/editor/study?mode=source" });
     vi.stubGlobal("prompt", vi.fn().mockReturnValueOnce("Study copy").mockReturnValueOnce("DELETE"));
     panel.configureGitHub("/api/workspaces/study");
     panel.setViewForTest(view);
@@ -174,13 +175,8 @@ describe("workspace settings panel", () => {
     await panel.actionForTest("archive");
     await panel.actionForTest("delete");
 
-    expect(actions).toEqual([
-      { action: "navigate", href: "/editor/study?mode=source&file=file-2" },
-      { action: "save-template" },
-      { action: "navigate", href: "/editor/copy" },
-      { action: "catalog-refresh" },
-      { action: "navigate", href: "/" },
-    ]);
+    expect(actions).toEqual([{ action: "save-template" }, { action: "catalog-refresh" }]);
+    expect(assign.mock.calls).toEqual([["/editor/study?mode=source&file=file-2"], ["/editor/copy"], ["/"]]);
     expect(fetchMock).toHaveBeenCalledTimes(4);
     expect(panel.closeCount).toBe(1);
   });

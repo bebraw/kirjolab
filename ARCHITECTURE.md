@@ -73,8 +73,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   composition, navigation, mutations, and refresh policy in their authorities.
 - Let the workspace-settings Lit component own project settings persistence,
   archive/restore, duplication, permanent-deletion confirmation and request
-  lifecycles, plus their local busy and failure state. Emit only navigation,
-  catalog-refresh, or save-as-template outcomes to the application coordinator.
+  lifecycles, their canonical successful-result navigation, and local busy and
+  failure state. Emit only catalog-refresh or save-as-template outcomes to the
+  application coordinator.
 - Route same-origin JSON writes and non-success response handling through the
   shared client HTTP adapter. Validate the bounded `{ error: string }` response
   contract with Valibot there instead of repeating parsing and fallback policy
