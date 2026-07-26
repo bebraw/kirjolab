@@ -1,6 +1,7 @@
 import { html, LitElement, nothing, type TemplateResult } from "lit";
-import type { CitationCompletionCandidate, CitationCompletionContext } from "./citation-completions";
-import type { IncludeCompletionCandidate, IncludeCompletionContext } from "./include-completions";
+import { rankCitationCompletionCandidates, type CitationCompletionCandidate, type CitationCompletionContext } from "./citation-completions";
+import { rankIncludeCompletionCandidates, type IncludeCompletionCandidate, type IncludeCompletionContext } from "./include-completions";
+import { positionSourceCompletion } from "./source-editor-adapter";
 
 export type SourceCompletionIntent =
   | { readonly kind: "citation"; readonly context: CitationCompletionContext; readonly candidate: CitationCompletionCandidate }
@@ -61,6 +62,31 @@ export class SourceCompletion extends LitElement {
     this.source = source;
     this.hidden = false;
     source.setAttribute("aria-expanded", "true");
+  }
+
+  showIncludes(candidates: readonly IncludeCompletionCandidate[], context: IncludeCompletionContext, source: HTMLTextAreaElement): void {
+    this.present(
+      rankIncludeCompletionCandidates(candidates, context.query).map((candidate) => ({
+        value: candidate.reference,
+        metadata: `Project file · ${candidate.path}`,
+        intent: { kind: "include", context, candidate },
+      })),
+      source,
+      context.start,
+    );
+  }
+
+  showCitations(candidates: readonly CitationCompletionCandidate[], context: CitationCompletionContext, source: HTMLTextAreaElement): void {
+    this.present(
+      rankCitationCompletionCandidates(candidates, context.query).map((candidate) => ({
+        value: candidate.key,
+        metadata: [candidate.authors.join("; "), candidate.title, candidate.year].filter(Boolean).join(" · "),
+        ...(candidate.scope === "library" ? { action: "Add and cite" } : {}),
+        intent: { kind: "citation", context, candidate },
+      })),
+      source,
+      context.start,
+    );
   }
 
   hide(): void {
@@ -139,6 +165,19 @@ export class SourceCompletion extends LitElement {
 
   protected emitAction(action: SourceCompletionAction): void {
     this.dispatchEvent(new CustomEvent<SourceCompletionAction>(sourceCompletionActionEvent, { bubbles: true, detail: action }));
+  }
+
+  protected position(source: HTMLTextAreaElement, start: number): void {
+    positionSourceCompletion(source, this, start);
+  }
+
+  private present(options: readonly SourceCompletionOption[], source: HTMLTextAreaElement, start: number): void {
+    if (options.length === 0) {
+      this.hide();
+      return;
+    }
+    this.show(options, source);
+    this.position(source, start);
   }
 
   private accept(index: number): void {

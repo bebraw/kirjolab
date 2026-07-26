@@ -261,9 +261,9 @@ import {
 import { workspaceRailChangeEvent } from "./workspace-rail-tabs";
 import { authoringModeChangeEvent } from "./authoring-mode-tabs";
 import type { EditorPresenceRange } from "./editor-presence";
-import { bindYText, captureRelativeSelection, positionSourceCompletion, type RelativeEditorSelection } from "./source-editor-adapter";
-import { citationCompletionContext, rankCitationCompletionCandidates, type CitationCompletionCandidate } from "./citation-completions";
-import { includeCompletionContext, rankIncludeCompletionCandidates, type IncludeCompletionContext } from "./include-completions";
+import { bindYText, captureRelativeSelection, type RelativeEditorSelection } from "./source-editor-adapter";
+import { citationCompletionContext, type CitationCompletionCandidate } from "./citation-completions";
+import { includeCompletionContext, type IncludeCompletionContext } from "./include-completions";
 
 interface PreviewInputs {
   readonly files: readonly ProjectFile[];
@@ -2970,25 +2970,13 @@ class WorkspaceApp {
       this.#hideSourceCompletion();
       return;
     }
-    const candidates = rankIncludeCompletionCandidates(
+    this.#elements.sourceCompletion.showIncludes(
       snapshot.files
         .filter((file) => file.id !== activeFile.id)
         .map((file) => ({ reference: relativeProjectPath(activeFile.path, file.path), path: file.path })),
-      context.query,
-    );
-    if (candidates.length === 0) {
-      this.#hideSourceCompletion();
-      return;
-    }
-    this.#elements.sourceCompletion.show(
-      candidates.map((candidate) => ({
-        value: candidate.reference,
-        metadata: `Project file · ${candidate.path}`,
-        intent: { kind: "include", context, candidate },
-      })),
+      context,
       this.#elements.source,
     );
-    positionSourceCompletion(this.#elements.source, this.#elements.sourceCompletion, context.start);
   }
 
   async #renderCitationCompletion(): Promise<void> {
@@ -3005,21 +2993,7 @@ class WorkspaceApp {
       this.#citationLibraryLoading = true;
       void this.#loadCitationCompletionLibrary();
     }
-    const candidates = rankCitationCompletionCandidates(this.#citationCandidates(), context.query);
-    if (candidates.length === 0) {
-      this.#hideSourceCompletion();
-      return;
-    }
-    this.#elements.sourceCompletion.show(
-      candidates.map((candidate) => ({
-        value: candidate.key,
-        metadata: [candidate.authors.join("; "), candidate.title, candidate.year].filter(Boolean).join(" · "),
-        ...(candidate.scope === "library" ? { action: "Add and cite" } : {}),
-        intent: { kind: "citation", context, candidate },
-      })),
-      this.#elements.source,
-    );
-    positionSourceCompletion(this.#elements.source, this.#elements.sourceCompletion, context.start);
+    this.#elements.sourceCompletion.showCitations(this.#citationCandidates(), context, this.#elements.source);
   }
 
   async #loadCitationCompletionLibrary(): Promise<void> {

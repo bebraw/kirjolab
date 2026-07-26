@@ -18,6 +18,8 @@ function option(value: string, metadata: string, action?: string): SourceComplet
 }
 
 class TestSourceCompletion extends SourceCompletion {
+  positions: number[] = [];
+
   renderForTest() {
     return this.render();
   }
@@ -28,6 +30,10 @@ class TestSourceCompletion extends SourceCompletion {
 
   emitForTest(action: SourceCompletionAction): void {
     this.emitAction(action);
+  }
+
+  protected override position(_source: HTMLTextAreaElement, start: number): void {
+    this.positions.push(start);
   }
 }
 
@@ -70,6 +76,31 @@ describe("source completion", () => {
     expect(completion.handleKey(key("x"))).toBe(false);
     expect(completion.handleKey(key("Enter", true))).toBe(false);
     expect(actions).toEqual([{ action: "accept", intent: includeIntent }, { action: "dismiss" }]);
+  });
+
+  it("ranks and presents include and citation candidates beside their token", () => {
+    const completion = new TestSourceCompletion();
+    const source = { setAttribute: vi.fn(), removeAttribute: vi.fn() } as unknown as HTMLTextAreaElement;
+
+    completion.showIncludes(
+      [
+        { path: "notes/method.md", reference: "notes/method.md" },
+        { path: "results.md", reference: "results.md" },
+      ],
+      { end: 9, query: "meth", start: 5 },
+      source,
+    );
+    expect(completion.renderForTest()).toBeDefined();
+    completion.showCitations(
+      [{ authors: ["Doe"], key: "doe2026", referenceId: "reference:1", scope: "library", title: "Result", year: "2026" }],
+      { end: 12, query: "doe", start: 9 },
+      source,
+    );
+    expect(completion.renderForTest()).toBeDefined();
+    expect(completion.positions).toEqual([5, 9]);
+
+    completion.showIncludes([], { end: 3, query: "missing", start: 0 }, source);
+    expect(source.removeAttribute).toHaveBeenCalledWith("aria-activedescendant");
   });
 
   it("binds editor interaction and persisted citation scope", () => {

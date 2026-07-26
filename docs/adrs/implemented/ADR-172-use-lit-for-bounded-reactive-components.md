@@ -159,8 +159,9 @@ The adopted components own bounded presentation:
   include-file intents. The application coordinator retains collaborative
   selection resolution and Yjs edits.
 - The source completion list owns citation and include option presentation,
-  hover and keyboard selection, active-descendant state, selected-option
-  scrolling, dismissal, and typed acceptance intents.
+  candidate ranking and display adaptation, empty-state hiding, popup
+  positioning, hover and keyboard selection, active-descendant state,
+  selected-option scrolling, dismissal, and typed acceptance intents.
 - The manuscript map panel owns summary metrics, heading outline, structural
   cues, local editing-pass selection, editing cues, and typed source-range
   selection intents.
@@ -831,8 +832,8 @@ reason to wrap static markup mechanically.
   typed scope-change intent. Acceptance now carries the component-selected
   candidate and replacement context, removing five coordinator caches and the
   completion-kind discriminator. The application coordinator retains context
-  detection, candidate ranking, private-Library linking, Yjs edits, caret
-  restoration, and menu positioning.
+  detection, canonical candidate derivation, private-Library linking, Yjs edits,
+  and caret restoration.
 - The source citation control owns caret-context parsing and action
   availability and emits one typed resolved-citation intent. The application
   coordinator retains publication resolution, grouped-citation policy, and

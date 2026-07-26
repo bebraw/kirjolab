@@ -277,13 +277,14 @@ collaboration.
   replaces only the path inside the directive in one collaborative text
   transaction.
 - **Completion presentation:** One bounded light-DOM component owns citation
-  and include option markup, hover and keyboard selection, active-descendant
+  and include candidate ranking, display adaptation, option markup, empty-state
+  hiding, popup positioning, hover and keyboard selection, active-descendant
   state, selected-option scrolling, editor keyboard and blur binding, browser-
   local citation-scope persistence, dismissal, and typed acceptance or scope-
   change intents. Acceptance carries the selected citation or include candidate
   together with its replacement context. The workspace coordinator retains
-  context detection, candidate ranking, private-Library linking, collaborative
-  edits, caret restoration, and menu positioning without caching the visible
+  context detection, canonical candidate derivation, private-Library linking,
+  collaborative edits, and caret restoration without caching the visible
   options or completion kind.
 - **Source citation action:** One bounded light-DOM control derives the citation
   context at the current source caret, owns action availability, and emits the

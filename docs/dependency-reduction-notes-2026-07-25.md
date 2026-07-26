@@ -5062,3 +5062,27 @@ and unique production package counts remain unchanged at 135,411 B raw /
 
 Full native CI passes all 1,568 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Lit Ownership: Source Completion Presentation
+
+`SourceCompletion` now owns citation and include candidate ranking, display-
+option adaptation, empty-result hiding, and popup positioning alongside its
+scope, keyboard, hover, active-descendant, and selection state. `WorkspaceApp`
+retains context detection, canonical project and Library candidate derivation,
+private-Library linking, Yjs edits, and caret restoration.
+
+This checkpoint reduces `src/client/app.ts` from 4,559 to 4,533 lines (-26) and
+grows the source-completion owner from 182 to 221 lines. Runtime source across
+those two files increases by 13 lines while removing two parallel ranking,
+mapping, empty-state, and positioning paths from the coordinator. Focused
+coverage passes ranked include and citation presentation, Library action labels,
+token-relative positioning, empty results, existing keyboard and scope behavior,
+application contracts, and strict types.
+
+The browser application artifact changes from 824,310 B raw / 222,370 B gzip
+to 824,348 B raw / 222,440 B gzip (+38 B raw / +70 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,569 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
