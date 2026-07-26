@@ -70,7 +70,12 @@ import { gitHubSyncMutationEvent, type GitHubSyncMutation } from "./github-sync-
 import { latexImportActionEvent, type LatexImportAction } from "./latex-import-panel";
 import { libraryPdfAnnotationActionEvent, type LibraryPdfAnnotationAction } from "./library-pdf-annotation-forms";
 import { libraryPdfAnnotationListActionEvent, type LibraryPdfAnnotationListAction } from "./library-pdf-annotation-list";
-import { libraryPdfShapeRecognizedEvent, type LibraryPdfNoteDragResult, type LibraryPdfShapeRecognition } from "./library-pdf-markup-layer";
+import {
+  libraryPdfMarkupActionEvent,
+  libraryPdfShapeRecognizedEvent,
+  type LibraryPdfMarkupAction,
+  type LibraryPdfShapeRecognition,
+} from "./library-pdf-markup-layer";
 import { libraryPdfProjectUseActionEvent, type LibraryPdfProjectUseAction } from "./library-pdf-project-use";
 import { libraryPdfToolbarActionEvent, type LibraryPdfToolbarAction } from "./library-pdf-annotation-toolbar";
 import { libraryPdfInspectorCloseEvent } from "./library-pdf-inspector";
@@ -899,6 +904,10 @@ class WorkspaceApp {
       const { kind } = (event as CustomEvent<LibraryPdfShapeRecognition>).detail;
       const label = { line: "Line", ellipse: "Circle", rectangle: "Rectangle", triangle: "Triangle" }[kind];
       this.#elements.libraryPdfInspector.setStatus(`${label} snapped into place. Keep dragging to adjust it, or lift to save.`);
+    });
+    this.#elements.paperMarkups.addEventListener(libraryPdfMarkupActionEvent, (event) => {
+      const { action } = (event as CustomEvent<LibraryPdfMarkupAction>).detail;
+      if (action === "note-moved") void this.#completeLibraryPdfNoteMove();
     });
     this.#elements.claimListPanel.configure(apiBase);
     this.#elements.claimListPanel.addEventListener(claimListActionEvent, (event) => {
@@ -4460,11 +4469,7 @@ class WorkspaceApp {
       if (notePress.point) this.#finishLibraryPdfNotePress(notePress.point);
       return;
     }
-    const noteDrag = this.#elements.paperMarkups.finishNoteDrag(event);
-    if (noteDrag) {
-      await this.#finishLibraryPdfNoteDrag(noteDrag);
-      return;
-    }
+    if (await this.#elements.paperMarkups.finishNoteDrag(event)) return;
     const points = this.#elements.paperMarkups.finishDrawing(event.pointerId);
     if (!points) return;
     await this.#persistLibraryPdfDrawing(points);
@@ -4612,23 +4617,7 @@ class WorkspaceApp {
     if (drawing) await this.#deleteLibraryPdfMarkup(drawing);
   }
 
-  async #finishLibraryPdfNoteDrag({ id, moved, point }: LibraryPdfNoteDragResult): Promise<void> {
-    if (!moved) {
-      this.#elements.paperMarkups.toggleNoteCard(id);
-      return;
-    }
-    const note = (this.#librarySnapshot?.pdfMarkups ?? []).find((item): item is LibraryPdfNote => item.kind === "note" && item.id === id);
-    if (!point || !note) return this.#renderPdfMarkups();
-    const response = await fetch(
-      `/api/library/references/${encodeURIComponent(note.referenceId)}/pdf-markups/${encodeURIComponent(note.id)}`,
-      {
-        method: "PATCH",
-        credentials: "same-origin",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(point),
-      },
-    );
-    await expectOk(response);
+  async #completeLibraryPdfNoteMove(): Promise<void> {
     await this.#refreshReferenceLibrary();
     this.#showToast("Note moved.");
   }

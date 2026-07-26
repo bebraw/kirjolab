@@ -1,6 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { LibraryPdfDrawing, LibraryPdfNote } from "../domain/reference-library";
-import { LibraryPdfMarkupLayer, libraryPdfShapeRecognizedEvent, type LibraryPdfShapeRecognition } from "./library-pdf-markup-layer";
+import {
+  LibraryPdfMarkupLayer,
+  libraryPdfMarkupActionEvent,
+  libraryPdfShapeRecognizedEvent,
+  type LibraryPdfMarkupAction,
+  type LibraryPdfShapeRecognition,
+} from "./library-pdf-markup-layer";
 
 class TestMarkupLayer extends LibraryPdfMarkupLayer {
   renderForTest() {
@@ -42,7 +48,10 @@ const note: LibraryPdfNote = {
 };
 
 describe("library PDF markup layer", () => {
-  afterEach(() => vi.useRealTimers());
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.useRealTimers();
+  });
 
   it("owns empty, drawing, draft, selected-note, and open-note presentation", () => {
     const layer = new TestMarkupLayer();
@@ -152,8 +161,10 @@ describe("library PDF markup layer", () => {
     expect(recognized && layer.adjustShape(recognized.shape, { clientX: 0, clientY: 0 })).toBeNull();
   });
 
-  it("resolves markup targets without exposing component selectors", () => {
+  it("resolves markup targets and persists note moves without exposing component selectors", async () => {
     const layer = new TestMarkupLayer();
+    const actions: LibraryPdfMarkupAction[] = [];
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 200 }));
     const pin = { dataset: { markupId: "note-1" }, style: { left: "", top: "" } };
     Object.defineProperties(layer, {
       dataset: { value: {} },
@@ -165,6 +176,8 @@ describe("library PDF markup layer", () => {
       querySelectorAll: { value: () => [pin] },
       setPointerCapture: { value: vi.fn() },
     });
+    layer.setData({ drawingStyle: { color: "#000000", width: 3 }, drawings: [], notes: [note], page: 2 });
+    layer.addEventListener(libraryPdfMarkupActionEvent, (event) => actions.push((event as CustomEvent<LibraryPdfMarkupAction>).detail));
     const target = (selector: string, id: string | null) =>
       Object.assign(new EventTarget(), {
         closest: (candidate: string) =>
@@ -190,12 +203,13 @@ describe("library PDF markup layer", () => {
     expect(layer.continueNoteDrag({ clientX: 213, clientY: 120, pointerId: 7, preventDefault })).toBe(true);
     expect(layer.continueNoteDrag({ clientX: 220, clientY: 120, pointerId: 7, preventDefault })).toBe(true);
     expect(pin.style).toEqual({ left: "52.5%", top: "50%" });
-    expect(layer.finishNoteDrag({ clientX: 220, clientY: 120, pointerId: 8 })).toBeNull();
-    expect(layer.finishNoteDrag({ clientX: 220, clientY: 120, pointerId: 7 })).toEqual({
-      id: "note-1",
-      moved: true,
-      point: { x: 0.525, y: 0.5 },
-    });
+    await expect(layer.finishNoteDrag({ clientX: 220, clientY: 120, pointerId: 8 })).resolves.toBe(false);
+    await expect(layer.finishNoteDrag({ clientX: 220, clientY: 120, pointerId: 7 })).resolves.toBe(true);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/library/references/reference-1/pdf-markups/note-1",
+      expect.objectContaining({ body: JSON.stringify({ x: 0.525, y: 0.5 }), method: "PATCH" }),
+    );
+    expect(actions).toEqual([{ action: "note-moved" }]);
     expect(layer.cancelNoteDrag()).toBe(false);
     expect(layer.pointerAction(pointer(target(".pdf-note-pin", null)))).toBeNull();
     expect(layer.pointerAction(pointer(target(".pdf-ink-stroke", "drawing-1")))).toEqual({ id: "drawing-1", kind: "drawing" });
@@ -226,6 +240,52 @@ describe("library PDF markup layer", () => {
     expect(layer.cancelDrawing()).toBe(false);
     expect(preventDefault).toHaveBeenCalledTimes(4);
     expect(layer.setPointerCapture).toHaveBeenCalledTimes(2);
+  });
+
+  it("reports note-move failures, blocks overlap, and permits retry", async () => {
+    const layer = new TestMarkupLayer();
+    let respond = (_response: Response): void => undefined;
+    const pendingResponse = new Promise<Response>((resolve) => {
+      respond = resolve;
+    });
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockReturnValueOnce(pendingResponse)
+      .mockResolvedValueOnce(new Response(null, { status: 200 }));
+    Object.defineProperties(layer, {
+      dataset: { value: {} },
+      getBoundingClientRect: { value: () => ({ height: 200, left: 10, top: 20, width: 400 }) },
+      querySelector: { value: () => null },
+      querySelectorAll: { value: () => [] },
+      setPointerCapture: { value: vi.fn() },
+    });
+    layer.setData({ drawingStyle: { color: "#000000", width: 3 }, drawings: [], notes: [note], page: 2 });
+    layer.chooseTool("select");
+    const target = Object.assign(new EventTarget(), {
+      closest: (selector: string) => (selector === ".pdf-note-pin" ? { getAttribute: () => note.id } : null),
+    });
+    const pointer = (clientX: number, pointerId: number) => ({
+      clientX,
+      clientY: 120,
+      pointerId,
+      pointerType: "mouse",
+      preventDefault: vi.fn(),
+      target,
+    });
+
+    expect(layer.pointerAction(pointer(210, 7))).toEqual({ id: note.id, kind: "note" });
+    layer.continueNoteDrag(pointer(220, 7));
+    const first = layer.finishNoteDrag(pointer(220, 7));
+    expect(layer.pointerAction(pointer(220, 8))).toBeNull();
+    respond(new Response("Unavailable", { status: 503 }));
+    await first;
+    expect(layer.renderForTest()).toBeDefined();
+
+    expect(layer.pointerAction(pointer(220, 8))).toEqual({ id: note.id, kind: "note" });
+    layer.continueNoteDrag(pointer(230, 8));
+    await layer.finishNoteDrag(pointer(230, 8));
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it("owns delayed shape recognition and cancellation", () => {

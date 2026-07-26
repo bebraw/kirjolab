@@ -1,6 +1,7 @@
 import { html, LitElement, nothing, type TemplateResult } from "lit";
 import type { LibraryPdfDrawing, LibraryPdfNote, LibraryPdfPoint } from "../domain/reference-library";
 import { manipulateRecognizedShape, recognizeDrawnShape, type RecognizedDrawnShape } from "./drawn-shape-recognition";
+import { errorMessage, expectOk } from "./http";
 
 export type PdfAnnotationTool = "select" | "text" | "note" | "draw";
 
@@ -62,12 +63,6 @@ interface ActiveDrawing {
   readonly points: readonly LibraryPdfPoint[];
 }
 
-export interface LibraryPdfNoteDragResult {
-  readonly id: string;
-  readonly moved: boolean;
-  readonly point: LibraryPdfPoint | null;
-}
-
 export interface LibraryPdfNotePressResult {
   readonly point: LibraryPdfPoint | null;
 }
@@ -85,16 +80,24 @@ interface MarkupTargetElement {
 }
 
 export const libraryPdfShapeRecognizedEvent = "library-pdf-shape-recognized";
+export const libraryPdfMarkupActionEvent = "library-pdf-markup-action";
+
+export interface LibraryPdfMarkupAction {
+  readonly action: "note-moved";
+}
 
 export class LibraryPdfMarkupLayer extends LitElement {
-  static override properties = { data: { state: true } };
+  static override properties = { data: { state: true }, status: { state: true } };
 
   declare private data: LibraryPdfMarkupLayerData | null;
+  declare private status: string;
   private drawing: ActiveDrawing | null = null;
   private interactionTool: PdfAnnotationTool = "text";
   private noteDraftValue: PdfNoteDraft | null = null;
   private noteDrag: ActiveNoteDrag | null = null;
+  private noteMovePreview: { readonly id: string; readonly point: LibraryPdfPoint } | null = null;
   private notePress: ActiveNotePress | null = null;
+  private movingNoteId: string | null = null;
   private openNoteId: string | null = null;
   private recognizedShape: RecognizedDrawnShape | null = null;
   private recognitionTimer: ReturnType<typeof globalThis.setTimeout> | undefined;
@@ -104,10 +107,12 @@ export class LibraryPdfMarkupLayer extends LitElement {
   constructor() {
     super();
     this.data = null;
+    this.status = "";
   }
 
   setData(data: LibraryPdfMarkupLayerData): void {
     this.data = data;
+    if (!this.movingNoteId) this.noteMovePreview = null;
     if (this.isConnected) this.performUpdate();
   }
 
@@ -226,7 +231,7 @@ export class LibraryPdfMarkupLayer extends LitElement {
     if (isMarkupTargetElement(event.target)) {
       const target = this.markupTarget(event.target);
       if (target?.kind === "note") {
-        if (!target.id || this.interactionTool !== "select") return null;
+        if (!target.id || this.interactionTool !== "select" || this.movingNoteId) return null;
         this.noteDrag = {
           id: target.id,
           pointerId: event.pointerId,
@@ -367,11 +372,49 @@ export class LibraryPdfMarkupLayer extends LitElement {
     return true;
   }
 
-  finishNoteDrag(event: Pick<PointerEvent, "clientX" | "clientY" | "pointerId">): LibraryPdfNoteDragResult | null {
+  async finishNoteDrag(event: Pick<PointerEvent, "clientX" | "clientY" | "pointerId">): Promise<boolean> {
     const drag = this.noteDrag;
-    if (!drag || drag.pointerId !== event.pointerId) return null;
+    if (!drag || drag.pointerId !== event.pointerId) return false;
     this.noteDrag = null;
-    return { id: drag.id, moved: drag.moved, point: this.point(event) };
+    if (!drag.moved) {
+      this.toggleNoteCard(drag.id);
+      return true;
+    }
+    const note = this.data?.notes.find((item) => item.id === drag.id);
+    const point = this.point(event);
+    if (!note || !point) {
+      this.requestUpdate();
+      return true;
+    }
+    this.movingNoteId = note.id;
+    this.noteMovePreview = { id: note.id, point };
+    this.status = "Moving private note…";
+    try {
+      const response = await fetch(
+        `/api/library/references/${encodeURIComponent(note.referenceId)}/pdf-markups/${encodeURIComponent(note.id)}`,
+        {
+          method: "PATCH",
+          credentials: "same-origin",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(point),
+        },
+      );
+      await expectOk(response);
+      this.status = "";
+      this.dispatchEvent(
+        new CustomEvent<LibraryPdfMarkupAction>(libraryPdfMarkupActionEvent, {
+          bubbles: true,
+          detail: { action: "note-moved" },
+        }),
+      );
+    } catch (error) {
+      this.noteMovePreview = null;
+      this.status = errorMessage(error, "Could not move the private note.");
+      this.requestUpdate();
+    } finally {
+      this.movingNoteId = null;
+    }
+    return true;
   }
 
   cancelNoteDrag(): boolean {
@@ -455,6 +498,7 @@ export class LibraryPdfMarkupLayer extends LitElement {
           ></span>`
         : nothing}
       ${data.notes.map((note) => this.renderNote(note))}
+      <p class="status-line" role="status" ?hidden=${!this.status}>${this.status}</p>
     `;
   }
 
@@ -474,20 +518,21 @@ export class LibraryPdfMarkupLayer extends LitElement {
   }
 
   private renderNote(note: LibraryPdfNote): TemplateResult {
+    const point = this.noteMovePreview?.id === note.id ? this.noteMovePreview.point : note;
     return html`
       <button
         class="pdf-note-pin"
         type="button"
         data-markup-id=${note.id}
         data-selected=${note.id === this.selectedMarkupId ? "true" : nothing}
-        style=${`left: ${note.x * 100}%; top: ${note.y * 100}%`}
+        style=${`left: ${point.x * 100}%; top: ${point.y * 100}%`}
         aria-label=${`Open note on page ${note.page}`}
         title=${this.tool === "select" ? "Tap to select; drag to move" : "Choose Select to edit this note"}
       ></button>
       ${this.openNoteId === note.id
         ? html`<aside
             class="pdf-note-card"
-            style=${`left: ${Math.min(note.x * 100, 70)}%; top: ${Math.min(note.y * 100, 82)}%`}
+            style=${`left: ${Math.min(point.x * 100, 70)}%; top: ${Math.min(point.y * 100, 82)}%`}
             aria-label=${`Note on page ${note.page}`}
           >
             <p>${note.body}</p>

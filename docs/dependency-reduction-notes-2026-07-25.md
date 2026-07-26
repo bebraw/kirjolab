@@ -4310,3 +4310,26 @@ and unique production package counts remain unchanged at 135,411 B raw /
 
 Full native CI passes all 1,514 unit/coverage tests, 120 Workers-
 runtime tests, and 74 browser tests.
+
+## Continued Lit Ownership: Private Note Movement
+
+`LibraryPdfMarkupLayer` now resolves a completed note drag against its saved
+note data and owns stable encoded move transport, pending state, overlap
+suppression, local failure status, and canonical-position restoration. A click
+without movement remains a local note-card toggle. `WorkspaceApp` retains only
+the successful-move refresh and toast outcome.
+
+This checkpoint reduces `src/client/app.ts` from 4,998 to 4,987 lines (-11)
+and grows the Library PDF markup layer from 538 to 583 lines. Runtime source
+across those files increases by 34 lines while removing the coordinator note-
+move resolution and request adapter. Focused coverage passes normalized move
+payloads, stable encoded targets, typed success, unmatched pointers, provider
+failure and retry, canonical rollback, and overlapping-gesture suppression.
+
+The browser application artifact changes from 814,245 B raw / 220,404 B gzip
+to 814,936 B raw / 220,555 B gzip (+691 B raw / +151 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,515 unit/coverage tests, 120 Workers-
+runtime tests, and 74 browser tests.

@@ -273,9 +273,12 @@ memory and makes citation aliases compete with stable source identity.
 - A bounded light-DOM markup layer owns saved and draft drawing SVG, note pins,
   tool and saved-resource selection state, note composition, open note cards,
   live draft geometry updates, pointer capture, note movement, drawing and
-  shape-recognition gestures, note-card dismissal, and focus restoration. The
-  annotation forms own page-note persistence; the application coordinator
-  retains normalized durable drawing and moved-note results, their persistence,
+  shape-recognition gestures, note-card dismissal, and focus restoration. It
+  persists a completed note move from the saved note's stable identities,
+  suppresses overlapping move gestures, restores canonical geometry after a
+  retryable failure, and emits a typed completed-move outcome. The annotation
+  forms own page-note composition persistence; the application coordinator
+  retains normalized durable drawing results and their persistence, canonical
   refreshes, inspector policy, and notifications.
 - A bounded light-DOM annotation list owns the private reader's saved highlight
   and markup cards, empty state, comments, share and citation availability, and

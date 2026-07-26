@@ -533,9 +533,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   guidance, and toast policy in the application coordinator.
 - Keep private-PDF tool, selection, note-composition, open-card, and pointer-
   gesture state inside the bounded light-DOM markup layer that presents it.
-  The annotation forms own page-note persistence; the application coordinator
-  retains drawing and geometry persistence, refresh, inspector, and
-  notification policy.
+  Let that layer persist completed note moves from its stable saved-note
+  context, suppress overlapping moves, and restore canonical geometry after a
+  retryable failure. The annotation forms own page-note composition
+  persistence; the application coordinator retains drawing persistence,
+  canonical refresh, inspector, and notification policy.
 - Keep citation style and locale as versioned project publication settings consumed by preview and export; never rewrite canonical Markdown or shared bibliographic records when they change.
 - Resolve project submission layouts from bounded versioned presets; never execute uploaded TeX, scripts, remote assets, or arbitrary template paths in the export pipeline.
 - Keep reference-library search, facets, and sorting as ephemeral local projections over the authorized private snapshot; never persist private search intent into project or collaboration state.
