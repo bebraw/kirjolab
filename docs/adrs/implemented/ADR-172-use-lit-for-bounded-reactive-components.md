@@ -164,8 +164,8 @@ The adopted components own bounded presentation:
   opaque artifact identity associated with its current result. Its guarded
   import intent carries that identity with typed reviewed candidates.
 - The project file dialog owns file and folder operation copy, initial path,
-  active operation mode, focus, cancellation, and typed save intents carrying
-  the mode and path together.
+  active operation mode and stable mutation target, focus, cancellation, and
+  typed save intents carrying the mode, path, and target identity together.
 - Reused project-file action components own the rail and editor-menu action
   presentation, entry-file delete availability, and one typed create, include,
   rename, delete, folder-create, or image-upload intent contract.
@@ -428,9 +428,10 @@ reason to wrap static markup mechanically.
   deletion, and toast policy.
 - The project file dialog replaces seven internal element references and
   imperative file and folder operation configuration. Its save intent also
-  removes the coordinator's duplicate operation-mode field while leaving
-  resource availability, include-target capture, persistence, selection,
-  refresh, and toast policy in the application coordinator.
+  removes the coordinator's duplicate operation-mode and folder-target fields
+  while leaving resource availability, collaborative include-target capture,
+  persistence, selection, refresh, and toast policy in the application
+  coordinator.
 - The project template save dialog replaces seven internal element references
   and imperative replacement-option, value, status, focus, and cancellation
   handling while consuming the starting-point browser's visible template view.

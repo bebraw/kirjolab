@@ -3300,3 +3300,25 @@ and unique production package counts remain unchanged at 135,411 B raw /
 
 Full native CI passes all 1,416 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Lit Ownership: Complete Project-File Save Intent
+
+`ProjectFileDialog` now retains the stable file or folder target associated with
+its active operation and emits that identity with the mode and submitted path.
+`WorkspaceApp` no longer caches a duplicate folder target or reconstructs the
+mutation target from ambient selection; it continues to own the live Yjs
+include continuation and persistence.
+
+This checkpoint reduces `src/client/app.ts` from 6,466 to 6,462 lines (-4) and
+grows the project-file dialog from 142 to 144 lines, reducing runtime source by
+two lines overall and removing one coordinator field. Focused component
+coverage passes operation classification, complete trimmed save intent,
+presentation, focus, reuse, and cancellation.
+
+The browser application artifact changes from 796,895 B raw / 214,967 B gzip
+to 796,941 B raw / 214,964 B gzip (+46 B raw / -3 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,416 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.

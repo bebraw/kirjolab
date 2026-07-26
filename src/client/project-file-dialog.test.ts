@@ -40,8 +40,8 @@ class TestProjectFileDialog extends ProjectFileDialog {
     return this.createRenderRoot();
   }
 
-  configureForTest(mode: ProjectFileDialogMode, path = ""): void {
-    this.configure(mode, path);
+  configureForTest(mode: ProjectFileDialogMode, path = "", targetId: string | null = null): void {
+    this.configure(mode, path, targetId);
   }
 
   saveForTest(): void {
@@ -83,12 +83,12 @@ describe("project file dialog", () => {
     const panel = new TestProjectFileDialog();
     const saves: ProjectFileSave[] = [];
     panel.addEventListener(projectFileSaveEvent, (event) => saves.push((event as CustomEvent<ProjectFileSave>).detail));
-    panel.configureForTest("create-and-include");
+    panel.configureForTest("create-and-include", "", "file-1");
     panel.input.value = "  chapters/method.md  ";
 
     panel.saveForTest();
 
-    expect(saves).toEqual([{ mode: "create-and-include", path: "chapters/method.md" }]);
+    expect(saves).toEqual([{ mode: "create-and-include", path: "chapters/method.md", targetId: "file-1" }]);
   });
 
   it("opens, focuses, reuses, and cancels its modal", async () => {

@@ -120,6 +120,10 @@ collaborative, and unambiguous about what preview and export mean.
   paths from the active project file, then emits a typed include intent. It
   owns menu presentation and closing, while the workspace coordinator owns the
   remembered collaborative caret and Yjs insertion.
+- The project-file dialog retains the stable file or folder identity associated
+  with its active operation and emits that target together with the operation
+  mode and submitted path. The workspace coordinator must not reconstruct the
+  dialog's mutation target from mutable ambient selection.
 - Publication exports consume the versioned source-mapped intermediate defined
   by `specs/export-pipeline/spec.md`; no target may reimplement include
   expansion or front-matter offset handling.

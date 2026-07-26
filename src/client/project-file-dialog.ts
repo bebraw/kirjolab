@@ -7,6 +7,7 @@ export type ProjectFileDialogMode = "create" | "create-and-include" | "rename" |
 export interface ProjectFileSave {
   readonly mode: ProjectFileDialogMode;
   readonly path: string;
+  readonly targetId: string | null;
 }
 
 export function projectFileDialogIsFolder(mode: ProjectFileDialogMode): boolean {
@@ -39,6 +40,7 @@ export class ProjectFileDialog extends LitElement {
 
   declare private initialPath: string;
   declare private mode: ProjectFileDialogMode;
+  private targetId: string | null = null;
 
   constructor() {
     super();
@@ -46,9 +48,8 @@ export class ProjectFileDialog extends LitElement {
     this.mode = "create";
   }
 
-  async show(mode: ProjectFileDialogMode, initialPath = ""): Promise<void> {
-    this.mode = mode;
-    this.initialPath = initialPath;
+  async show(mode: ProjectFileDialogMode, initialPath = "", targetId: string | null = null): Promise<void> {
+    this.configure(mode, initialPath, targetId);
     await this.updateComplete;
     const dialog = this.dialog;
     if (!dialog.open) dialog.showModal();
@@ -99,9 +100,10 @@ export class ProjectFileDialog extends LitElement {
     `;
   }
 
-  protected configure(mode: ProjectFileDialogMode, initialPath = ""): void {
+  protected configure(mode: ProjectFileDialogMode, initialPath = "", targetId: string | null = null): void {
     this.mode = mode;
     this.initialPath = initialPath;
+    this.targetId = targetId;
   }
 
   protected save(event: SubmitEvent): void {
@@ -109,7 +111,7 @@ export class ProjectFileDialog extends LitElement {
     this.dispatchEvent(
       new CustomEvent<ProjectFileSave>(projectFileSaveEvent, {
         bubbles: true,
-        detail: { mode: this.mode, path: this.pathInput.value.trim() },
+        detail: { mode: this.mode, path: this.pathInput.value.trim(), targetId: this.targetId },
       }),
     );
   }

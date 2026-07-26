@@ -464,7 +464,6 @@ class WorkspaceApp {
   readonly #editorUndoManagers = new Map<Y.Text, Y.UndoManager>();
   #unbindSourceEditor: () => void = () => undefined;
   #unbindAssistantSourceStale: () => void = () => undefined;
-  #projectFolderId: string | null = null;
   #projectFileIncludeTarget: RelativeEditorSelection | null = null;
   #projectFileIncludeFromPath: string | null = null;
   #librarySnapshot: ReferenceLibrarySnapshot | null = null;
@@ -2563,9 +2562,9 @@ class WorkspaceApp {
     const file = this.#snapshot?.files.find((item) => item.id === this.#activeFileId);
     const folder = this.#snapshot?.folders.find((item) => item.id === folderId);
     if (!this.#projectFileDialogResourcesAvailable(mode, file, folder)) return;
-    this.#projectFolderId = folder?.id ?? null;
     this.#rememberProjectFileIncludeTarget(mode, file);
-    void this.#elements.projectFileDialog.show(mode, this.#projectFileDialogPath(mode, file, folder));
+    const targetId = projectFileDialogIsCreating(mode) ? null : (folder?.id ?? file?.id ?? null);
+    void this.#elements.projectFileDialog.show(mode, this.#projectFileDialogPath(mode, file, folder), targetId);
   }
 
   #projectFileDialogResourcesAvailable(
@@ -2594,11 +2593,9 @@ class WorkspaceApp {
     return "";
   }
 
-  async #saveProjectFile({ mode, path }: ProjectFileSave): Promise<void> {
-    const activeId = this.#activeFileId;
+  async #saveProjectFile({ mode, path, targetId }: ProjectFileSave): Promise<void> {
     const folderMode = projectFileDialogIsFolder(mode);
     const creating = projectFileDialogIsCreating(mode);
-    const targetId = folderMode ? this.#projectFolderId : activeId;
     if (!creating && !targetId) return;
     const response = await this.#requestProjectFileSave(path, folderMode, creating, targetId);
     await expectOk(response);
@@ -2632,7 +2629,6 @@ class WorkspaceApp {
   #resetProjectFileDialogState(): void {
     this.#projectFileIncludeTarget = null;
     this.#projectFileIncludeFromPath = null;
-    this.#projectFolderId = null;
   }
 
   #deleteProjectFile(): void {
