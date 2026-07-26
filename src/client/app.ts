@@ -2384,22 +2384,13 @@ class WorkspaceApp {
     const stable = this.#hasStableDocumentBase();
     const assistant = this.#assistantWorkflow.getSnapshot();
     this.#elements.assistantTaskPanel.setGenerateDisabled(this.#candidateGenerationDisabled(stable, assistantWorkflowBusy(assistant)));
-    this.#updateCandidateApplyButtons(stable, assistant.context.candidateDecision !== null);
+    this.#elements.candidateReviewPanel.setAvailability(stable, assistant.context.candidateDecision !== null);
   }
 
   #candidateGenerationDisabled(stable: boolean, assistantBusy: boolean): boolean {
     if (this.#modelDiscoveryBusy || assistantBusy) return true;
     if (!this.#draftsClaim() && !stable) return true;
     return !this.#canGenerateCandidate();
-  }
-
-  #updateCandidateApplyButtons(stable: boolean, candidateDecided: boolean): void {
-    for (const apply of document.querySelectorAll<HTMLButtonElement>('[data-candidate-action="apply"]')) {
-      const candidate = this.#snapshot?.candidates.find((item) => item.id === apply.dataset.candidateId);
-      const applicable = candidate ? this.#candidateApplicable(candidate) : false;
-      apply.dataset.candidateApplicable = String(applicable);
-      apply.disabled = candidateDecided || (candidate?.operation !== "draft-claim" && !stable) || !applicable;
-    }
   }
 
   #canGenerateCandidate(): boolean {

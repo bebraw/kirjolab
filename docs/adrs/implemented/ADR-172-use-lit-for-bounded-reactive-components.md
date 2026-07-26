@@ -69,8 +69,8 @@ The adopted components own bounded presentation:
   mode visibility, focus entry, and one typed resource-selection stream; and
   exposes one graph-presentation boundary to the application coordinator.
 - The candidate review panel owns before/after and provenance rendering,
-  decision availability and progress, local scroll state, and typed apply,
-  reject, and evidence-navigation intents.
+  live collaboration and workflow decision availability, progress, local
+  scroll state, and typed apply, reject, and evidence-navigation intents.
 - The publication context panel owns scholarly metadata, linked-paper and
   project-PDF option rendering, citation readiness, local scroll state, and
   typed citation, paper, link, and unlink intents.

@@ -86,6 +86,7 @@ describe("candidate review panel", () => {
     const panel = new TestCandidateReviewPanel();
     expect(panel.renderForTest()).toBeDefined();
     panel.setCandidate(data());
+    panel.setAvailability(false, true);
     expect(panel.renderForTest()).toBeDefined();
     panel.setCandidate(data(revision, { applicable: false, currentAction: "apply", decisionBusy: true, stableDocument: false }));
     expect(panel.renderForTest()).toBeDefined();

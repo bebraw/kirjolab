@@ -2523,3 +2523,24 @@ and unique production package counts remain unchanged at 135,411 B raw /
 
 Full native CI passes all 1,407 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
+
+## Completed Lit Candidate Availability Ownership
+
+`CandidateReviewPanel` now owns live Apply availability updates when document
+stability or assistant decision state changes, while preserving its current
+candidate, failure, and scroll presentation. `WorkspaceApp` retains canonical
+candidate applicability and workflow state.
+
+This checkpoint reduces `src/client/app.ts` from 7,166 to 7,157 lines (-9) and
+removes the stale document-wide query for legacy candidate Apply buttons that
+the Lit panel no longer renders. Focused unit and browser coverage passes live
+availability changes, stale-candidate rejection, and reviewed evidence-backed
+candidate decisions.
+
+The browser application artifact changes from 798,937 B raw / 215,080 B gzip
+to 798,805 B raw / 215,044 B gzip (-132 B raw / -36 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,407 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.

@@ -33,6 +33,11 @@ export class CandidateReviewPanel extends LitElement {
     this.failure = null;
   }
 
+  setAvailability(stableDocument: boolean, decisionBusy: boolean): void {
+    if (!this.data) return;
+    this.data = { ...this.data, decisionBusy, stableDocument };
+  }
+
   showFailure(message: string): void {
     this.failure = message;
   }
