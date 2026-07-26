@@ -1,4 +1,5 @@
 import { createAppAuth } from "@octokit/auth-app";
+import * as v from "valibot";
 import { parseResponseJson, readBoundedResponseText } from "./bounded-response";
 
 export interface GitHubAppConfig {
@@ -34,6 +35,9 @@ type FetchExternal = (input: RequestInfo | URL, init?: RequestInit) => Promise<R
 
 const maximumJsonBytes = 8 * 1024 * 1024;
 const githubApiVersion = "2022-11-28";
+const positiveIntegerSchema = v.pipe(v.number(), v.safeInteger(), v.minValue(1));
+const installationTokenSchema = v.object({ token: v.pipe(v.string(), v.minLength(20)) });
+const providerErrorSchema = v.object({ message: v.pipe(v.string(), v.maxLength(500)) });
 
 export class GitHubAppTransport {
   readonly #config: GitHubAppConfig;
@@ -50,8 +54,8 @@ export class GitHubAppTransport {
   }
 
   async forInstallation(installationId: number, repositoryId?: number): Promise<GitHubInstallationRequest> {
-    if (!isPositiveInteger(installationId)) throw new GitHubClientError("bounds", "GitHub installation id is invalid");
-    if (repositoryId !== undefined && !isPositiveInteger(repositoryId)) {
+    if (!v.is(positiveIntegerSchema, installationId)) throw new GitHubClientError("bounds", "GitHub installation id is invalid");
+    if (repositoryId !== undefined && !v.is(positiveIntegerSchema, repositoryId)) {
       throw new GitHubClientError("bounds", "GitHub repository id is invalid");
     }
     let jwt: string;
@@ -64,7 +68,7 @@ export class GitHubAppTransport {
       method: "POST",
       ...(repositoryId === undefined ? {} : { body: JSON.stringify({ repository_ids: [repositoryId] }) }),
     });
-    if (!isRecord(value) || typeof value.token !== "string" || value.token.length < 20) {
+    if (!v.is(installationTokenSchema, value)) {
       throw new GitHubClientError("authentication", "GitHub installation token response is invalid");
     }
     const token = value.token;
@@ -110,7 +114,7 @@ function githubResponseError(status: number, body: string): GitHubClientError {
   let message = "GitHub request failed";
   try {
     const value: unknown = JSON.parse(body);
-    if (isRecord(value) && typeof value.message === "string" && value.message.length <= 500) message = value.message;
+    if (v.is(providerErrorSchema, value)) message = value.message;
   } catch {
     // Keep the bounded generic message for non-JSON error bodies.
   }
@@ -122,12 +126,4 @@ function githubResponseError(status: number, body: string): GitHubClientError {
 function headersRecord(value: HeadersInit | undefined): Record<string, string> {
   if (!value) return {};
   return Object.fromEntries(new Headers(value).entries());
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
-}
-
-function isPositiveInteger(value: unknown): value is number {
-  return typeof value === "number" && Number.isSafeInteger(value) && value > 0;
 }

@@ -100,7 +100,10 @@ incoming and outgoing mutation.
   repository client validates repository, ref, commit, recursive-tree,
   created-object, and blob response envelopes with bounded Valibot schemas;
   subtree policy, Markdown and aggregate-byte limits, LFS detection, optimistic
-  concurrency, and stable GitHub error mapping remain explicit.
+  concurrency, and stable GitHub error mapping remain explicit. Its
+  Octokit-authenticated transport validates installation-token and bounded
+  provider-error envelopes with Valibot while retaining explicit response-size
+  and HTTP-status mapping.
 
 ### API Contracts
 

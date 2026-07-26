@@ -5303,6 +5303,23 @@ and lifecycle behavior. Strict client and Workers types pass. Full native CI
 passes all 1,604 unit/coverage tests, 120 Workers-runtime tests, and 74 browser
 tests.
 
+## Continued Valibot Adoption: GitHub App Transport
+
+The Octokit-authenticated GitHub App transport now validates installation-token
+and bounded provider-error envelopes with named Valibot schemas. Response-byte
+limits, JSON parsing, HTTP-status mapping, configuration validation, and stable
+integration errors remain explicit.
+
+This checkpoint reduces `src/integrations/github-app-transport.ts` from 130 to
+129 lines, replacing the final generic record and positive-integer predicates
+plus their inline token and error-message structure checks. The 20-case GitHub
+App integration suite now also covers a non-string token and rejection of an
+oversized provider message. Browser and style artifacts remain unchanged at
+826,411 B raw / 223,595 B gzip and 135,411 B raw / 23,373 B gzip because this
+boundary is Worker-side. Direct and unique production package counts remain 18
+and 150; Valibot and Octokit were already pinned. Full native CI passes all
+1,604 unit/coverage tests, 120 Workers-runtime tests, and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

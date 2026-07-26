@@ -233,6 +233,12 @@ describe("GitHub App integration", () => {
         "authentication",
         "GitHub installation token response is invalid",
       ],
+      [
+        "/app/installations/7/access_tokens",
+        () => Response.json({ token: null }),
+        "authentication",
+        "GitHub installation token response is invalid",
+      ],
       ["/repos/bebraw/scalability_book", () => Response.json({ id: 0 }), "invalid-response", "GitHub repository metadata is invalid"],
       [
         "/repos/bebraw/scalability_book",
@@ -337,6 +343,12 @@ describe("GitHub App integration", () => {
       const client = new GitHubAppClient({ appId: "12345", privateKey, apiBase: "https://github.test" }, fetcher);
       await expect(client.readMarkdownSnapshot(selection)).rejects.toMatchObject({ code, status, message: "Provider message" });
     }
+    const oversizedMessage = snapshotFetcher({
+      "/app/installations/7/access_tokens": () => Response.json({ message: "x".repeat(501) }, { status: 500 }),
+    });
+    await expect(
+      new GitHubAppClient({ appId: "12345", privateKey, apiBase: "https://github.test" }, oversizedMessage).readMarkdownSnapshot(selection),
+    ).rejects.toMatchObject({ code: "invalid-response", message: "GitHub request failed" });
     const invalidJson = snapshotFetcher({
       "/app/installations/7/access_tokens": () => new Response("{", { status: 200 }),
     });

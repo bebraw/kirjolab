@@ -25,7 +25,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   At the GitHub App repository boundary, schemas own repository, ref, commit,
   tree-entry, created-object, and blob response structure; subtree policy,
   Markdown and byte bounds, LFS handling, optimistic concurrency, and stable
-  integration errors stay explicit.
+  integration errors stay explicit. At its Octokit-authenticated transport,
+  schemas also own installation-token and bounded provider-error envelopes while
+  HTTP status mapping and response-size policy stay explicit.
 - Read bounded external response bodies through stateless, request-local
   helpers that enforce both declared and observed byte limits. Keep byte
   ceilings, errors, response-shape validation, and domain mapping explicit at
