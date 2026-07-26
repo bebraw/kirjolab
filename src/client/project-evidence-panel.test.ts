@@ -140,6 +140,9 @@ describe("project evidence panel", () => {
     panel.annotationForTest("delete");
     panel.passageForTest("missing");
     panel.passageForTest();
+    const changedAnchor = { ...link.anchor, exact: "Changed passage" };
+    panel.setPassageLinks([{ ...link, anchor: changedAnchor }]);
+    panel.passageForTest();
 
     expect(actions).toEqual([
       { action: "open-pdf", pdf },
@@ -150,6 +153,7 @@ describe("project evidence panel", () => {
       { action: "link-annotation", annotationId: annotation.id },
       { action: "delete-annotation", annotation },
       { action: "open-passage", anchor: link.anchor },
+      { action: "open-passage", anchor: changedAnchor },
     ]);
   });
 

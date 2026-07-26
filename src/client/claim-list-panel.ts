@@ -37,6 +37,10 @@ export class ClaimListPanel extends LitElement {
     this.data = data;
   }
 
+  setPassageLinks(passageLinks: readonly ClaimPassageLink[]): void {
+    this.data = { ...this.data, passageLinks };
+  }
+
   override connectedCallback(): void {
     if (!this.hasUpdated) this.replaceChildren();
     super.connectedCallback();

@@ -363,7 +363,9 @@ collaboration.
   rather than top-level current offsets. Version 1 resolves only through its
   relative positions. A one-time migration derives endpoints for still-valid
   offset rows; unconvertible legacy rows retain null endpoints and remain
-  explicitly stale under the version 1 selector contract.
+  explicitly stale under the version 1 selector contract. The bounded Claims
+  and Project evidence panels own live resolved, changed, and unavailable
+  action presentation when the composed manuscript changes.
 - **Manuscript comments:** Comments are attributed to stable workspace-person
   ids and stored outside Markdown with a version 1 manuscript anchor, body,
   lifecycle status, and timestamps. Creation and resolution are explicit

@@ -60,6 +60,10 @@ export class ProjectEvidencePanel extends LitElement {
     this.expandedPdfs = new Set([...this.expandedPdfs].filter((id) => pdfIds.has(id)));
   }
 
+  setPassageLinks(links: readonly PassageLink[]): void {
+    this.data = { ...this.data, links };
+  }
+
   override connectedCallback(): void {
     if (!this.hasUpdated) this.replaceChildren();
     super.connectedCallback();

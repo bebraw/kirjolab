@@ -265,7 +265,7 @@ import {
   type PreviewDiagnosticSelection,
 } from "./preview-presentation";
 import { PublicationIntakePanel, publicationIntakeActionEvent, type PublicationIntakeAction } from "./publication-intake-panel";
-import { anchorActionLabel, anchorMatchState, modelEvidenceKey } from "./research-resource-presentation";
+import { modelEvidenceKey } from "./research-resource-presentation";
 import {
   applicationVersion,
   cacheOfflineNavigation,
@@ -2595,7 +2595,8 @@ class WorkspaceApp {
         ...link,
         resolution: resolveManuscriptAnchor(this.#document, link.anchor),
       }));
-      this.#updateAnchorActions([...links, ...claimLinks]);
+      this.#elements.projectEvidencePanel.setPassageLinks(links);
+      this.#elements.claimListPanel.setPassageLinks(claimLinks);
       this.#renderManuscriptComments(
         snapshot.comments.map((comment) => ({
           ...comment,
@@ -2799,17 +2800,6 @@ class WorkspaceApp {
       this.#elements.workspaceSurfaces.dataset.layout === "split" &&
       this.#contextState.activeKey === RESEARCH_PREVIEW_KEY
     );
-  }
-
-  #updateAnchorActions(links: Array<PassageLink | ClaimPassageLink>): void {
-    for (const link of links) {
-      for (const action of document.querySelectorAll<HTMLButtonElement>(`[data-anchor-link-id="${CSS.escape(link.id)}"]`)) {
-        action.disabled = link.resolution.status !== "resolved";
-        action.dataset.anchorStatus = link.resolution.status;
-        action.dataset.anchorMatch = anchorMatchState(link.resolution);
-        action.textContent = anchorActionLabel(link.resolution);
-      }
-    }
   }
 
   #liveProjectFiles(): ProjectFile[] {

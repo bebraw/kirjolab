@@ -2565,3 +2565,23 @@ and unique production package counts remain unchanged at 135,411 B raw /
 
 Full native CI passes all 1,407 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Lit Ownership: Passage Resolution
+
+`ClaimListPanel` and `ProjectEvidencePanel` now own live passage-resolution
+updates for the links they render. `WorkspaceApp` supplies refreshed typed link
+data after Preview composition and no longer scans the document or mutates
+button labels, availability, or data attributes outside those components.
+
+This checkpoint reduces `src/client/app.ts` from 7,139 to 7,129 lines (-10)
+and removes the coordinator's last selector dependency on passage-action
+markup. Focused unit and browser coverage passes refreshed claim and annotation
+passage navigation, changed-match presentation, and stale-link availability.
+
+The browser application artifact changes from 799,411 B raw / 215,061 B gzip
+to 799,325 B raw / 214,992 B gzip (-86 B raw / -69 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,410 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.

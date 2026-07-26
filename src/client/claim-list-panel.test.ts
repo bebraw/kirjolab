@@ -118,6 +118,9 @@ describe("claim list panel", () => {
     panel.annotationForTest(annotation.id);
     panel.passageForTest("missing");
     panel.passageForTest();
+    const changedAnchor = { ...anchor, exact: "Changed passage" };
+    panel.setPassageLinks([{ ...passageLink, anchor: changedAnchor }]);
+    panel.passageForTest();
 
     expect(actions).toEqual([
       { action: "create" },
@@ -127,6 +130,7 @@ describe("claim list panel", () => {
       { action: "link-passage", claimId: claim.id },
       { action: "open-annotation", annotationId: annotation.id },
       { action: "open-passage", anchor },
+      { action: "open-passage", anchor: changedAnchor },
     ]);
   });
 });
