@@ -3,7 +3,7 @@ import "./action-menu-controller";
 import { collectAppElements } from "./app-elements";
 import { bibTeXDisplayText } from "../domain/bibliography";
 import { buildWorkspaceKnowledgeGraph } from "../domain/knowledge";
-import { isReferenceDiscoveryResults, type ReferenceDiscoveryResult } from "../domain/reference-discovery";
+import type { ReferenceDiscoveryResult } from "../domain/reference-discovery";
 import { reviewerResponseLetter, reviewerResponsePath, reviewerResponseTemplate } from "../domain/reviewer-response";
 import {
   collaborationProtocolVersion,
@@ -3691,18 +3691,13 @@ class WorkspaceApp {
   }
 
   async #generateReferenceDiscovery(input: AssistantGenerationContext, passage: AuthoringPassage): Promise<void> {
-    const formulated = await input.provider.formulateReferenceQuery({
+    const count = await this.#elements.assistantInteractiveResult.discoverReferences(input.provider, {
       selectedPassage: passage.excerpt,
       instruction: input.instruction,
       evidence: input.evidence.items,
     });
-    const response = await jsonFetch("/api/library/discovery", { query: formulated.query });
-    await expectOk(response);
-    const value: unknown = await response.json();
-    if (!isReferenceDiscoveryResults(value)) throw new Error("Reference provider returned invalid discovery results");
-    this.#elements.assistantInteractiveResult.showReferences(formulated.query, formulated.rationale, value);
-    this.#elements.assistantWorkflowStatus.status = value.length
-      ? `Found ${value.length} verifiable registry record${value.length === 1 ? "" : "s"}. Review before saving.`
+    this.#elements.assistantWorkflowStatus.status = count
+      ? `Found ${count} verifiable registry record${count === 1 ? "" : "s"}. Review before saving.`
       : "No verifiable registry records matched this query. Refine the search focus and try again.";
     this.#assistantWorkflow.send({ type: "REVIEW" });
   }

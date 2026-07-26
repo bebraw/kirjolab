@@ -4943,3 +4943,27 @@ and unique production package counts remain unchanged at 135,411 B raw /
 
 Full native CI passes all 1,562 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Lit Ownership: Assistant Reference Discovery
+
+`AssistantResultPanel` now owns local-model reference-query formulation,
+registry discovery transport, response validation, and result presentation
+alongside its existing discovered-reference import lifecycle. `WorkspaceApp`
+supplies the authorized passage, instruction, and evidence and retains XState
+transitions, cross-panel status, and canonical Library refresh policy.
+
+This checkpoint reduces `src/client/app.ts` from 4,599 to 4,594 lines (-5) and
+grows the assistant result owner from 383 to 394 lines. Runtime source across
+those two files increases by 6 lines while removing registry endpoint details,
+response parsing, and the Valibot-backed result guard from the coordinator.
+Focused coverage passes provider request context, discovery payloads, validated
+result counts and rendering, malformed responses, existing transient-result
+workflows, application contracts, and strict types.
+
+The browser application artifact changes from 823,536 B raw / 222,208 B gzip
+to 823,602 B raw / 222,224 B gzip (+66 B raw / +16 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,564 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.

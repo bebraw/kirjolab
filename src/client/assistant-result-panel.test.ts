@@ -128,6 +128,41 @@ describe("assistant result panel", () => {
     expect(referenceDiscoveryIdentifierUrl({ scheme: "pmid", value: "123" })).toContain("pubmed.ncbi.nlm.nih.gov/123");
   });
 
+  it("owns model-formulated reference discovery and validates results", async () => {
+    const panel = new TestAssistantResultPanel();
+    const formulateReferenceQuery = vi.fn().mockResolvedValue({ ...provenance, query: "review time", rationale: "Measure duration." });
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(Response.json([reference]));
+
+    const count = await panel.discoverReferences(
+      { formulateReferenceQuery },
+      { selectedPassage: passage.excerpt, instruction: "Find evidence", evidence: [] },
+    );
+
+    expect(formulateReferenceQuery).toHaveBeenCalledWith({
+      selectedPassage: passage.excerpt,
+      instruction: "Find evidence",
+      evidence: [],
+    });
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/library/discovery",
+      expect.objectContaining({ body: JSON.stringify({ query: "review time" }), method: "POST" }),
+    );
+    expect(count).toBe(1);
+    expect(panel.renderForTest()).toBeDefined();
+  });
+
+  it("rejects malformed assistant discovery results", async () => {
+    const panel = new TestAssistantResultPanel();
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(Response.json({ results: [reference] }));
+
+    await expect(
+      panel.discoverReferences(
+        { formulateReferenceQuery: async () => ({ ...provenance, query: "review time", rationale: "Measure duration." }) },
+        { selectedPassage: passage.excerpt, instruction: "Find evidence", evidence: [] },
+      ),
+    ).rejects.toThrow("Reference provider returned invalid discovery results");
+  });
+
   it("emits bounded table, answer, and revision intents", () => {
     const panel = new TestAssistantResultPanel();
     const actions: AssistantResultActionDetail[] = [];

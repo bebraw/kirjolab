@@ -6,11 +6,12 @@ import type {
   ModelIdeas,
   ModelPhrasingAlternatives,
   ModelProvider,
+  ReferenceQueryRequest,
 } from "./model-provider";
 import type { PhrasingPurpose } from "../domain/phrasing-guidance";
-import { referenceDiscoveryIdentifierUrl, type ReferenceDiscoveryResult } from "../domain/reference-discovery";
+import { isReferenceDiscoveryResults, referenceDiscoveryIdentifierUrl, type ReferenceDiscoveryResult } from "../domain/reference-discovery";
 import type { ModelEvidenceReference } from "../domain/workspace";
-import { errorMessage } from "./http";
+import { errorMessage, expectOk, jsonFetch } from "./http";
 import { importDiscoveredReference } from "./reference-discovery-import";
 
 export interface AssistantAuthoringPassage {
@@ -191,6 +192,16 @@ export class AssistantResultPanel extends LitElement {
     this.referenceRequestIds.clear();
     this.referenceStatus = "";
     this.view = { kind: "references", query, rationale, results };
+  }
+
+  async discoverReferences(provider: Pick<ModelProvider, "formulateReferenceQuery">, request: ReferenceQueryRequest): Promise<number> {
+    const formulated = await provider.formulateReferenceQuery(request);
+    const response = await jsonFetch("/api/library/discovery", { query: formulated.query });
+    await expectOk(response);
+    const value: unknown = await response.json();
+    if (!isReferenceDiscoveryResults(value)) throw new Error("Reference provider returned invalid discovery results");
+    this.showReferences(formulated.query, formulated.rationale, value);
+    return value.length;
   }
 
   private setReferenceSaveState(index: number, state: "idle" | "saving" | "saved"): void {

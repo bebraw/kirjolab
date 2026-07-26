@@ -272,8 +272,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   disposition; model candidates remain inert until explicit acceptance.
 - Keep each transient assistant result's captured passage, source revision,
   evidence, and continuation authority inside its Lit result owner. Emit that
-  complete typed context with table, clarity, or revision intents while leaving
-  provider requests, workflow state, and Yjs edits in the application
+  complete typed context with table, clarity, or revision intents. Let the same
+  result owner perform reference-query formulation, registry discovery,
+  response validation, and local reference import because that complete
+  lifecycle serves its reference results. Keep other provider requests,
+  workflow state, canonical refresh, and Yjs edits in the application
   coordinator. Let the candidate-list Lit owner persist typed revision and claim
   drafts, derive fixed adapter and prompt-version fields, and validate the
   operation-specific response. Keep authorized target and evidence derivation,
