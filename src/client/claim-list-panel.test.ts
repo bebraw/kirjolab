@@ -94,6 +94,21 @@ describe("claim list panel", () => {
     expect(panel.rootForTest()).toBe(panel);
   });
 
+  it("opens and focuses its first grounding choice", () => {
+    const panel = new TestClaimListPanel();
+    const calls: string[] = [];
+    Object.defineProperty(panel, "querySelector", {
+      value: () => ({
+        closest: () => ({ setAttribute: () => calls.push("open") }),
+        focus: () => calls.push("focus"),
+        scrollIntoView: () => calls.push("scroll"),
+      }),
+    });
+
+    expect(panel.focusEvidence()).toBe(true);
+    expect(calls).toEqual(["open", "scroll", "focus"]);
+  });
+
   it("emits bounded claim and navigation intents", () => {
     const panel = new TestClaimListPanel();
     const actions: ClaimListAction[] = [];

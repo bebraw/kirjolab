@@ -78,8 +78,8 @@ The adopted components own bounded presentation:
   presentation, and typed search and resource-selection intents.
 - The claim list panel owns the Claims collection shell and count, claim,
   evidence-link, passage-link, grounding selection, create availability,
-  live passage-resolution presentation, empty-state, and action presentation
-  with typed create, claim, and navigation intents.
+  live passage-resolution presentation, grounding-choice focus, empty-state,
+  and action presentation with typed create, claim, and navigation intents.
 - The manuscript comment panel owns composer body and status state plus comment,
   anchor-status, empty-state, and action presentation with typed create, open,
   re-anchor, and resolve intents.
@@ -99,7 +99,8 @@ The adopted components own bounded presentation:
   intents.
 - The project evidence panel owns project-PDF and annotation grouping, counts,
   expanded state, grounding selection, live passage-resolution presentation,
-  stroke controls, and typed navigation and mutation intents.
+  grounding-choice focus, stroke controls, and typed navigation and mutation
+  intents.
 - The project tree panel owns path filtering, sorted folder, file, and image
   rows, active and entry presentation, the workspace quick-open shortcut and
   selection, action menus, listener teardown, and typed file, folder, image,

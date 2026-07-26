@@ -1,5 +1,6 @@
 import { html, LitElement, nothing, type TemplateResult } from "lit";
 import type { AnnotationResource, ClaimEvidenceLink, ClaimPassageLink, ClaimResource, ManuscriptAnchorSelector } from "../domain/workspace";
+import { focusFirstModelEvidence } from "./model-evidence-focus";
 import { accessibleEvidenceExcerpt, anchorActionLabel, anchorMatchState, modelEvidenceKey } from "./research-resource-presentation";
 
 export const claimListActionEvent = "claim-list-action";
@@ -39,6 +40,10 @@ export class ClaimListPanel extends LitElement {
 
   setPassageLinks(passageLinks: readonly ClaimPassageLink[]): void {
     this.data = { ...this.data, passageLinks };
+  }
+
+  focusEvidence(): boolean {
+    return focusFirstModelEvidence(this);
   }
 
   override connectedCallback(): void {

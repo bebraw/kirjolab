@@ -190,7 +190,10 @@ collaboration.
   presentation, and generation readiness. It emits typed task-change and
   generation intents; the application coordinator retains editor target
   resolution, evidence, model requests, workflow state, results, and status
-  policy.
+  policy. When evidence selection is requested, the bounded Project evidence
+  and Claims panels own collection opening, scrolling, and focus for the first
+  available grounding choice; the coordinator retains rail selection and
+  empty-evidence messaging.
 - **Editor status:** One bounded light-DOM component owns the visible authoring
   target, its full tooltip, and online or offline save-state presentation. The
   application coordinator supplies target and save-state values from the

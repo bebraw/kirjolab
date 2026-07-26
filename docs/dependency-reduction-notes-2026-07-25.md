@@ -2605,3 +2605,24 @@ and unique production package counts remain unchanged at 135,411 B raw /
 
 Full native CI passes all 1,411 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Lit Ownership: Grounding Choice Focus
+
+`ProjectEvidencePanel` and `ClaimListPanel` now own opening, scrolling, and
+focusing their first available model-grounding choice through one shared DOM
+primitive. `WorkspaceApp` retains Research-rail selection, panel priority,
+workflow status, and empty-evidence notification policy without querying panel
+markup.
+
+This checkpoint reduces `src/client/app.ts` from 7,116 to 7,111 lines (-5)
+and removes its last document-wide model-evidence query. Focused unit and
+browser coverage passes positive and empty focus discovery, collection opening,
+focus placement, and the concurrent-edit rejection workflow.
+
+The browser application artifact changes from 799,504 B raw / 215,054 B gzip
+to 799,651 B raw / 215,110 B gzip (+147 B raw / +56 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,412 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.

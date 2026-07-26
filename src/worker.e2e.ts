@@ -5064,6 +5064,11 @@ test("rejects a delayed model candidate after a concurrent manuscript edit", asy
   await page.goto(path);
   await expect(page.getByText(/Live · 1 writer/)).toBeVisible();
   await expect(page.locator("#annotation-list")).toContainText("Model grounding");
+  await openWritingAssistant(page, true);
+  await page.getByRole("button", { name: "Choose evidence" }).click();
+  const firstEvidence = page.locator("[data-model-evidence-key]").first();
+  await expect(firstEvidence).toBeFocused();
+  await expect(firstEvidence.locator("xpath=ancestor::details[1]")).toHaveAttribute("open", "");
   const editor = page.locator("#source-editor");
   const baseSource = "## Model boundary {#model-boundary}\n\nThis paragraph is grounded in visible evidence.\n";
   await editor.fill(baseSource);

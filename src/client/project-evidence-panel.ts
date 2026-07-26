@@ -1,6 +1,7 @@
 import { html, LitElement, nothing, type TemplateResult } from "lit";
 import type { AnnotationResource, ManuscriptAnchorSelector, PassageLink, PdfResource, PdfSelectionRect } from "../domain/workspace";
 import { formatBytes } from "./format";
+import { focusFirstModelEvidence } from "./model-evidence-focus";
 import { adjustSelectionRects, type HighlightGeometryAdjustment } from "./pdf-selection";
 import { accessibleEvidenceExcerpt, anchorActionLabel, anchorMatchState, modelEvidenceKey } from "./research-resource-presentation";
 
@@ -62,6 +63,10 @@ export class ProjectEvidencePanel extends LitElement {
 
   setPassageLinks(links: readonly PassageLink[]): void {
     this.data = { ...this.data, links };
+  }
+
+  focusEvidence(): boolean {
+    return focusFirstModelEvidence(this);
   }
 
   override connectedCallback(): void {

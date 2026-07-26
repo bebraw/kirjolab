@@ -104,6 +104,8 @@ function eventWithTarget(target: object): Event {
 describe("project evidence panel", () => {
   it("renders empty, assigned, unassigned, linked, and selected states", () => {
     const panel = new TestProjectEvidencePanel();
+    Object.defineProperty(panel, "querySelector", { value: () => null });
+    expect(panel.focusEvidence()).toBe(false);
     expect(panel.renderForTest()).toBeDefined();
     panel.setEvidence({
       annotations: [annotation, { ...annotation, id: "annotation:2", pdfId: "missing" }],

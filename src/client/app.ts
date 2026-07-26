@@ -5265,16 +5265,11 @@ class WorkspaceApp {
 
   #chooseModelEvidence(): void {
     this.#showRail("research");
-    const control = document.querySelector<HTMLInputElement>("[data-model-evidence-key]");
-    if (!control) {
+    if (!this.#elements.projectEvidencePanel.focusEvidence() && !this.#elements.claimListPanel.focusEvidence()) {
       this.#elements.assistantWorkflowStatus.status = "Add a PDF highlight or researcher-authored claim before choosing model evidence.";
       this.#showToast("No project evidence is available yet.");
       return;
     }
-    const collection = control.closest("details");
-    if (collection instanceof HTMLDetailsElement) collection.open = true;
-    control.scrollIntoView({ behavior: "smooth", block: "center" });
-    control.focus({ preventScroll: true });
     this.#elements.assistantWorkflowStatus.status =
       "Choose one or more evidence resources in the Research rail, then return to the assistant.";
   }
