@@ -103,14 +103,17 @@ collaborative, and unambiguous about what preview and export mean.
   practical research workflow. The guide is visible in Files but remains out
   of manuscript preview and publication exports.
 - The Files rail accepts multiple PNG, JPEG, GIF, WebP, AVIF, or constrained SVG
-  images of at most 20 MiB each. It inserts a relative Markdown image reference
-  at the collaborative caret. Preview resolves that path relative to the
-  originating source-map span, including references authored in supporting
-  files. Project-tree action menus remain within the rail so every image and
-  folder action label stays visible and interactive. Deleting a supporting
-  file, an empty folder, or an image hides it immediately but delays the server
-  operation for six seconds; an announced message offers **Undo** throughout
-  that grace period.
+  images of at most 20 MiB each. A bounded Lit upload control owns the file
+  input, sequential upload requests, response validation, duplicate-submit
+  gating, and retryable local status, then returns the final validated workspace
+  snapshot to the coordinator for application and rendering. The editor inserts
+  a relative Markdown image reference at the collaborative caret. Preview
+  resolves that path relative to the originating source-map span, including
+  references authored in supporting files. Project-tree action menus remain
+  within the rail so every image and folder action label stays visible and
+  interactive. Deleting a supporting file, an empty folder, or an image hides
+  it immediately but delays the server operation for six seconds; an announced
+  message offers **Undo** throughout that grace period.
 - The authoring toolbar inserts an existing file with a path relative to the
   active file. **Create and include** creates a supporting file and inserts its
   directive at the remembered collaborative caret, so authors do not have to

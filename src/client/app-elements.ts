@@ -44,6 +44,7 @@ import { ProjectFileActions } from "./project-file-actions";
 import { ProjectFileDialog } from "./project-file-dialog";
 import { ProjectHistoryDialog } from "./project-history-dialog";
 import { ProjectHistoryTrigger } from "./project-history-trigger";
+import { ProjectImageUploadControl } from "./project-image-upload-control";
 import { ProjectMapWorkspace } from "./project-map-workspace";
 import { ProjectStartingPointBrowser } from "./project-starting-point-browser";
 import { ProjectTemplateSaveDialog } from "./project-template-save-dialog";
@@ -105,7 +106,7 @@ export function collectAppElements(requireElement = requiredAppElement) {
     researchQuestionPanel: requireElement("research-question-panel", WritingWorkflowPanel),
     reviewerResponsePanel: requireElement("reviewer-response-panel", WritingWorkflowPanel),
     projectFileRailActions: requireElement("project-file-rail-actions", ProjectFileActions),
-    projectImageUpload: requireElement("project-image-upload", HTMLInputElement),
+    projectImageUpload: requireElement("project-image-upload-control", ProjectImageUploadControl),
     projectTreePanel: requireElement("project-tree-panel", ProjectTreePanel),
     projectFileMenuActions: requireElement("project-file-menu-actions", ProjectFileActions),
     projectFileDialog: requireElement("project-file-dialog-panel", ProjectFileDialog),

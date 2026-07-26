@@ -4557,6 +4557,31 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,535 unit/coverage tests, 120 Workers-
 runtime tests, and 74 browser tests.
 
+## Continued Lit Ownership: Project Image Uploads
+
+`ProjectImageUploadControl` now owns the Files rail's image input, sequential
+upload transport, response validation, duplicate-submit gating, progress, and
+retryable local failures. It emits the final validated workspace snapshot and
+completion message only after the full selected batch succeeds. `WorkspaceApp`
+retains snapshot application, project-tree and preview rendering, collaborative
+image insertion, deferred deletion, and toast policy.
+
+This checkpoint reduces `src/client/app.ts` from 4,742 to 4,730 lines (-12).
+The new 119-line upload owner replaces the coordinator's raw input binding and
+upload loop, for a 107-line increase across those two runtime files while
+isolating the complete request lifecycle behind a typed outcome. Focused
+coverage passes sequential encoded upload targets and payloads, final-snapshot
+delivery, invalid-response containment, retry, shell registration, and the
+remaining application contracts.
+
+The browser application artifact changes from 819,852 B raw / 221,855 B gzip
+to 821,362 B raw / 222,222 B gzip (+1,510 B raw / +367 B gzip). Styles and
+direct and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,544 unit/coverage tests, 120 Workers-
+runtime tests, and 74 browser tests.
+
 ## Continued Lit Ownership: Manuscript Comment Mutations
 
 `ManuscriptCommentList` now owns create and re-anchor transport alongside its

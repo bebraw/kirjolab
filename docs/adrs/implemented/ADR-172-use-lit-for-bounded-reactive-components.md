@@ -132,6 +132,12 @@ The adopted components own bounded presentation:
   rows, active and entry presentation, the workspace quick-open shortcut and
   selection, action menus, listener teardown, and typed file, folder, image,
   and quick-open intents.
+- The project image upload control owns the image file input, sequential upload
+  transport, response validation, duplicate-submit gating, local progress and
+  retryable failure state, and a typed completed outcome carrying the final
+  validated workspace snapshot. The coordinator retains snapshot application,
+  project-tree and preview rendering, image insertion and deletion, and toast
+  policy.
 - The editor Insert menu owns scholarly-syntax choices, relative include-file
   option rendering, empty state, and local menu closing with typed syntax and
   include-file intents. The application coordinator retains collaborative
@@ -459,9 +465,12 @@ reason to wrap static markup mechanically.
   navigation, form reset, canonical refresh, and toast policy in the
   application coordinator.
 - The project tree panel replaces three internal element references and the
-  imperative filter, hierarchy, row, and action-menu renderers while leaving
-  file and folder mutations, editor rebinding, image operations, include
-  insertion, and API authority in the application coordinator.
+  imperative filter, hierarchy, row, and action-menu renderers. Its companion
+  image upload control also replaces the coordinator file-input listener and
+  sequential upload request. File and folder mutations, editor rebinding,
+  validated snapshot application, image insertion and deferred deletion,
+  include insertion, and cross-feature rendering remain in the application
+  coordinator.
 - The manuscript map panel replaces seven internal element references and the
   imperative metric, outline, structural-cue, and editing-cue renderers while
   leaving composed-source derivation and file-qualified editor focus in the

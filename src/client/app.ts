@@ -185,6 +185,7 @@ import {
   type ProjectFileSaved,
 } from "./project-file-dialog";
 import { projectFileActionEvent, type ProjectFileAction } from "./project-file-actions";
+import { projectImagesUploadedEvent, type ProjectImagesUploaded } from "./project-image-upload-control";
 import { projectTemplateSavedEvent, type ProjectTemplateSaved } from "./project-template-save-dialog";
 import { projectTreeActionEvent, type ProjectTreeAction } from "./project-tree-panel";
 import { manuscriptMapSelectEvent, type ManuscriptMapSelection } from "./manuscript-map-panel";
@@ -686,7 +687,7 @@ class WorkspaceApp {
     for (const actions of [this.#elements.projectFileRailActions, this.#elements.projectFileMenuActions]) {
       actions.addEventListener(projectFileActionEvent, (event) => {
         const action = (event as CustomEvent<ProjectFileAction>).detail;
-        if (action === "upload-images") this.#elements.projectImageUpload.click();
+        if (action === "upload-images") this.#elements.projectImageUpload.choose();
         else if (action === "delete") this.#deleteProjectFile();
         else this.#openProjectFileDialog(action);
       });
@@ -705,7 +706,10 @@ class WorkspaceApp {
       else if (detail.action === "insert-asset") this.#insertProjectImage(detail.asset);
       else void this.#deleteProjectImage(detail.asset);
     });
-    this.#elements.projectImageUpload.addEventListener("change", () => void this.#uploadProjectImages());
+    this.#elements.projectImageUpload.configure(apiBase);
+    this.#elements.projectImageUpload.addEventListener(projectImagesUploadedEvent, (event) => {
+      this.#completeProjectImageUpload((event as CustomEvent<ProjectImagesUploaded>).detail);
+    });
     this.#elements.projectFileDialog.configureApi(apiBase);
     this.#elements.projectFileDialog.addEventListener(projectFileSavedEvent, (event) => {
       this.#completeProjectFileSave((event as CustomEvent<ProjectFileSaved>).detail);
@@ -2179,27 +2183,11 @@ class WorkspaceApp {
     });
   }
 
-  async #uploadProjectImages(): Promise<void> {
-    const files = [...(this.#elements.projectImageUpload.files ?? [])];
-    this.#elements.projectImageUpload.value = "";
-    if (files.length === 0) return;
-    let uploaded = 0;
-    for (const file of files) {
-      const response = await fetch(`${apiBase}/assets`, {
-        method: "POST",
-        credentials: "same-origin",
-        headers: { "content-type": file.type, "x-file-path": encodeURIComponent(`figures/${file.name}`) },
-        body: file,
-      });
-      await expectOk(response);
-      const value: unknown = await response.json();
-      if (!isWorkspaceSnapshot(value)) throw new Error("Image upload returned an invalid workspace");
-      this.#snapshot = value;
-      uploaded += 1;
-    }
+  #completeProjectImageUpload({ message, snapshot }: ProjectImagesUploaded): void {
+    this.#snapshot = snapshot;
     this.#renderProjectFiles();
     void this.#renderPreview();
-    this.#showToast(`Added ${uploaded} ${uploaded === 1 ? "image" : "images"} to figures/.`);
+    this.#showToast(message);
   }
 
   #insertProjectImage(asset: ProjectAsset): void {

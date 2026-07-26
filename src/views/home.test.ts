@@ -25,6 +25,7 @@ describe("renderHomePage", () => {
     expect(html).toContain('<meta name="color-scheme" content="light dark">');
     expect(html).toContain('<link rel="icon" href="/favicon.svg" type="image/svg+xml">');
     expect(html).toContain('accept="image/png,image/jpeg,image/gif,image/webp,image/avif,image/svg+xml"');
+    expect(html).toContain('<project-image-upload-control id="project-image-upload-control">');
     expect(html).toContain('id="theme-preference" aria-label="Appearance"');
     expect(html).toContain('id="preferences-menu" data-settings-menu');
     expect(html).toContain('id="citation-completion-scope" aria-label="Citation suggestion scope"');

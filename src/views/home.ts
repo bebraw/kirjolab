@@ -134,7 +134,9 @@ export function renderHomePage(
             <p class="project-file-filter-status" id="project-file-filter-status" aria-live="polite">Loading project files…</p>
             <div class="mt-2 grid gap-1" id="project-file-list"><div class="empty-state">Loading project files…</div></div>
           </project-tree-panel>
-          <input class="sr-only" id="project-image-upload" type="file" multiple accept="image/png,image/jpeg,image/gif,image/webp,image/avif,image/svg+xml">
+          <project-image-upload-control id="project-image-upload-control">
+            <input class="sr-only" id="project-image-upload" type="file" multiple accept="image/png,image/jpeg,image/gif,image/webp,image/avif,image/svg+xml">
+          </project-image-upload-control>
           <textarea id="bibliography-editor" hidden aria-hidden="true" readonly></textarea>
         </section>
 
