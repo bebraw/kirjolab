@@ -3,7 +3,10 @@ import {
   AssistantResultPanel,
   assistantResultActionEvent,
   referenceDiscoveryIdentifierUrl,
+  type AssistantClarityContext,
   type AssistantResultActionDetail,
+  type AssistantRevisionContext,
+  type AssistantTableContext,
 } from "./assistant-result-panel";
 import type { ReferenceDiscoveryResult } from "../domain/reference-discovery";
 
@@ -38,6 +41,21 @@ class TestAssistantResultPanel extends AssistantResultPanel {
 }
 
 const provenance = { adapter: "openai-compatible" as const, model: "local-model", providerLabel: "Local model" };
+const passage = { end: 12, excerpt: "Selected text", fileId: "file-1", start: 0 };
+const revisionContext: AssistantRevisionContext = {
+  evidence: { items: [], references: [] },
+  instruction: "Explore",
+  passage,
+  sourceRevision: 3,
+};
+const clarityContext: AssistantClarityContext = {
+  ...revisionContext,
+  provider: {
+    continueClarityDrill: async () => ({ ...provenance, rewrites: [] }),
+  },
+  question: { ...provenance, issue: "The subject is vague.", question: "Who performs the review?" },
+};
+const tableContext: AssistantTableContext = { sourceRevision: 3, target: passage };
 const reference: ReferenceDiscoveryResult = {
   identifiers: [{ scheme: "doi", value: "10.5555/result" }],
   metadata: {
@@ -61,11 +79,11 @@ describe("assistant result panel", () => {
   it("renders empty, table, and clarity-question states", () => {
     const panel = new TestAssistantResultPanel();
     expect(panel.renderForTest()).toBeDefined();
-    panel.showTable("| A |\n| - |", false);
+    panel.showTable("| A |\n| - |", { ...tableContext, target: { ...passage, end: 0, excerpt: "" } });
     expect(panel.renderForTest()).toBeDefined();
-    panel.showTable("| B |\n| - |", true);
+    panel.showTable("| B |\n| - |", tableContext);
     expect(panel.renderForTest()).toBeDefined();
-    panel.showClarityQuestion("The subject is vague.", "Who performs the review?");
+    panel.showClarityQuestion(clarityContext);
     expect(panel.renderForTest()).toBeDefined();
     panel.clear();
     expect(panel.renderForTest()).toBeDefined();
@@ -74,13 +92,13 @@ describe("assistant result panel", () => {
 
   it("adapts idea, phrasing, and clarity results into choices", () => {
     const panel = new TestAssistantResultPanel();
-    panel.showIdeas("Explore", {
+    panel.showIdeas(revisionContext, {
       ...provenance,
       ideas: [{ direction: "Compare duration.", draft: "Review was faster.", title: "Measure time" }],
     });
     expect(panel.renderForTest()).toBeDefined();
     panel.showPhrasingAlternatives(
-      "Qualify",
+      { ...revisionContext, instruction: "Qualify" },
       { description: "Keep uncertainty explicit.", id: "qualify-claim", label: "Qualify a claim" },
       {
         ...provenance,
@@ -88,7 +106,7 @@ describe("assistant result panel", () => {
       },
     );
     expect(panel.renderForTest()).toBeDefined();
-    panel.showClarityRewrites("Clarify", "Editors perform it.", {
+    panel.showClarityRewrites({ ...revisionContext, instruction: "Clarify" }, "Editors perform it.", {
       ...provenance,
       rewrites: [{ rationale: "Names the actor.", text: "Editors perform the review." }],
     });
@@ -121,9 +139,9 @@ describe("assistant result panel", () => {
     });
 
     panel.insertForTest();
-    panel.showTable("| A |", false);
+    panel.showTable("| A |", tableContext);
     panel.insertForTest();
-    panel.showIdeas("Explore", {
+    panel.showIdeas(revisionContext, {
       ...provenance,
       ideas: [{ direction: "Compare.", draft: "A draft.", title: "Direction" }],
     });
@@ -132,6 +150,8 @@ describe("assistant result panel", () => {
     panel.clear();
     panel.chooseForTest("0");
     panel.continueForTest();
+    panel.showClarityQuestion(clarityContext);
+    panel.continueForTest();
     panel.showReferences("query", "reason", [reference]);
     panel.saveForTest("0");
     panel.saveForTest("9");
@@ -139,7 +159,7 @@ describe("assistant result panel", () => {
     panel.saveForTest("0");
 
     expect(actions).toEqual([
-      { action: "insert-table", markdown: "| A |" },
+      { action: "insert-table", context: tableContext, markdown: "| A |" },
       {
         action: "choose-revision",
         choice: {
@@ -150,8 +170,9 @@ describe("assistant result panel", () => {
           replacement: "A draft.",
           successMessage: "Idea draft ready for exact before-and-after review.",
         },
+        context: revisionContext,
       },
-      { action: "continue-clarity", answer: "" },
+      { action: "continue-clarity", answer: "", context: clarityContext },
       { action: "save-reference", index: 0, result: reference },
     ]);
   });

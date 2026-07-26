@@ -61,8 +61,10 @@ The adopted components own bounded presentation:
   Markdown-to-item adaptation, counts, empty states, action labels, and typed
   open, download, and source-selection intents.
 - The assistant result panel owns validated-table previews, clarity input,
-  transient revision choices, reference-discovery cards, local save progress,
-  and typed continuation, selection, insertion, and save intents.
+  transient revision choices and their captured passage, source-revision,
+  evidence, provider-continuation, or table-target context, reference-discovery
+  cards, local save progress, and complete typed continuation, selection,
+  insertion, and save intents.
 - The project map panel owns provenance-lane rendering, measured SVG connector
   geometry, responsive relayout, focus and hover emphasis, and a typed resource
   selection intent.
@@ -308,9 +310,10 @@ reason to wrap static markup mechanically.
   parallel imperative list renderers while leaving file creation, response
   export, and source navigation in the application coordinator.
 - The assistant result panel replaces six imperative result renderers and their
-  local event bindings while leaving model requests, workflow state, candidate
-  persistence, document edits, and Library imports in the application
-  coordinator.
+  local event bindings. It also removes the coordinator's parallel transient-
+  result discriminator and context cache by emitting the context retained with
+  the visible result. Model requests, workflow state, candidate persistence,
+  document edits, and Library imports remain in the application coordinator.
 - The project map panel replaces three internal element references, two
   coordinator fields, and imperative node, connector, resize, focus, and hover
   management while leaving graph derivation and resource navigation in the

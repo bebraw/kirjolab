@@ -206,6 +206,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Keep local-model review assistance browser-to-loopback. Store the operation,
   provider, model, prompt version, authorized source scope, result, and human
   disposition; model candidates remain inert until explicit acceptance.
+- Keep each transient assistant result's captured passage, source revision,
+  evidence, and continuation authority inside its Lit result owner. Emit that
+  complete typed context with table, clarity, or revision intents while leaving
+  provider requests, workflow state, persistence, and Yjs edits in the
+  application coordinator.
 - Back up reviews independently of projects. Owner backup schema v3 stores each
   review's catalog record and locator, access state, complete active and
   unlinked project-link ledger, revision seed, and a bounded canonical

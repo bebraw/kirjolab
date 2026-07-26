@@ -127,7 +127,14 @@ import {
   type WritingWorkflowActionDetail,
 } from "./writing-workflow-panel";
 import { researchDiaryOpenEvent } from "./research-diary-summary";
-import { assistantResultActionEvent, referenceDiscoveryIdentifierUrl, type AssistantResultActionDetail } from "./assistant-result-panel";
+import {
+  assistantResultActionEvent,
+  referenceDiscoveryIdentifierUrl,
+  type AssistantAuthoringPassage as AuthoringPassage,
+  type AssistantClarityContext as ClarityDrillContext,
+  type AssistantResultActionDetail,
+  type AssistantRevisionContext as AssistantDraftContext,
+} from "./assistant-result-panel";
 import { candidateDecisionEvent, candidateEvidenceEvent } from "./candidate-review-panel";
 import { publicationContextActionEvent, type PublicationContextAction, type PublicationPaperOption } from "./publication-context-panel";
 import { isGitHubSyncStatus, type GitHubSyncStatus } from "./github-sync-status";
@@ -255,7 +262,6 @@ import {
 import {
   maximumModelEvidenceItems,
   OpenAICompatibleBrowserProvider,
-  type ModelClarityQuestion,
   type ModelClarityRewrites,
   type ModelIdeas,
   type ModelPhrasingAlternatives,
@@ -359,23 +365,9 @@ interface PendingDeletion {
 
 type RemoteCollaboratorSelection = Extract<ServerCollaborationMessage, { type: "selection" }>;
 
-interface AuthoringPassage {
-  readonly fileId: string;
-  readonly start: number;
-  readonly end: number;
-  readonly excerpt: string;
-}
-
 interface ResolvedAuthoringTarget {
   readonly start: number;
   readonly end: number;
-}
-
-interface AssistantDraftContext {
-  readonly passage: AuthoringPassage;
-  readonly evidence: { readonly items: ModelEvidenceItem[]; readonly references: ModelEvidenceReference[] };
-  readonly instruction: string;
-  readonly sourceRevision: number;
 }
 
 interface AssistantGenerationContext {
@@ -410,16 +402,6 @@ interface OverlappingPdfFragment {
   readonly fragment: AnnotationResource["fragments"][number];
 }
 
-interface ClarityDrillContext extends AssistantDraftContext {
-  readonly provider: OpenAICompatibleBrowserProvider;
-  readonly question: ModelClarityQuestion;
-}
-
-type AssistantResultContext =
-  | { readonly input: AssistantDraftContext; readonly kind: "revision" }
-  | { readonly input: ClarityDrillContext; readonly kind: "clarity-question" }
-  | { readonly kind: "table"; readonly sourceRevision: number; readonly target: AuthoringPassage };
-
 class WorkspaceApp {
   readonly #elements = collectAppElements();
   readonly #pdfViewer: PdfEvidenceViewer;
@@ -435,7 +417,6 @@ class WorkspaceApp {
   );
   readonly #resourceRefresh = new CoalescedRefresh(async () => this.#refreshSnapshot());
   readonly #assistantWorkflow = createAssistantWorkflowActor();
-  #assistantResultContext: AssistantResultContext | null = null;
   readonly #publicationIntake = createPublicationIntakeActor();
   readonly #collaborationWorkflow = createCollaborationWorkflowActor();
   readonly #metadataRefinement = createMetadataRefinementActor();
@@ -2136,7 +2117,6 @@ class WorkspaceApp {
     const operation = this.#elements.assistantTaskPanel.value.operation;
     this.#elements.assistantWorkflowStatus.setOperation(operation.id);
     if (resetInstruction) {
-      this.#assistantResultContext = null;
       this.#elements.assistantInteractiveResult.clear();
     }
     this.#renderAssistantTargetPreview();
@@ -5213,8 +5193,7 @@ class WorkspaceApp {
 
   #renderGeneratedTable(target: AuthoringPassage, sourceRevision: number, table: ModelTable): void {
     const markdown = tableMarkdown(table);
-    this.#assistantResultContext = { kind: "table", sourceRevision, target };
-    this.#elements.assistantInteractiveResult.showTable(markdown, target.start !== target.end);
+    this.#elements.assistantInteractiveResult.showTable(markdown, { sourceRevision, target });
   }
 
   async #handleAssistantResultAction(detail: AssistantResultActionDetail): Promise<void> {
@@ -5222,20 +5201,15 @@ class WorkspaceApp {
       await this.#saveDiscoveredReference(detail.result, detail.index);
       return;
     }
-    const context = this.#assistantResultContext;
-    if (!context) return;
-    if (detail.action === "insert-table" && context.kind === "table") {
-      this.#insertGeneratedTable(context.target, context.sourceRevision, detail.markdown);
+    if (detail.action === "insert-table") {
+      this.#insertGeneratedTable(detail.context.target, detail.context.sourceRevision, detail.markdown);
       return;
     }
-    if (detail.action === "continue-clarity" && context.kind === "clarity-question") {
-      await this.#continueClarityDrill(context.input, detail.answer);
+    if (detail.action === "continue-clarity") {
+      await this.#continueClarityDrill(detail.context, detail.answer);
       return;
     }
-    if (detail.action === "choose-revision" && context.kind === "revision") {
-      await this.#chooseAssistantRevision(context.input, detail.choice);
-      return;
-    }
+    await this.#chooseAssistantRevision(detail.context, detail.choice);
   }
 
   #insertGeneratedTable(target: AuthoringPassage, sourceRevision: number, markdown: string): void {
@@ -5265,22 +5239,18 @@ class WorkspaceApp {
   }
 
   #renderClarityQuestion(input: ClarityDrillContext): void {
-    this.#assistantResultContext = { input, kind: "clarity-question" };
-    this.#elements.assistantInteractiveResult.showClarityQuestion(input.question.issue, input.question.question);
+    this.#elements.assistantInteractiveResult.showClarityQuestion(input);
   }
 
   #renderIdeas(input: AssistantDraftContext, result: ModelIdeas): void {
-    this.#assistantResultContext = { input, kind: "revision" };
-    this.#elements.assistantInteractiveResult.showIdeas(input.instruction, result);
+    this.#elements.assistantInteractiveResult.showIdeas(input, result);
   }
 
   #renderPhrasingAlternatives(input: AssistantDraftContext, purpose: PhrasingPurpose, result: ModelPhrasingAlternatives): void {
-    this.#assistantResultContext = { input, kind: "revision" };
-    this.#elements.assistantInteractiveResult.showPhrasingAlternatives(input.instruction, purpose, result);
+    this.#elements.assistantInteractiveResult.showPhrasingAlternatives(input, purpose, result);
   }
 
   #renderReferenceDiscovery(query: string, rationale: string, results: readonly ReferenceDiscoveryResult[]): void {
-    this.#assistantResultContext = null;
     this.#elements.assistantInteractiveResult.showReferences(query, rationale, results);
   }
 
@@ -5369,8 +5339,7 @@ class WorkspaceApp {
   }
 
   #renderClarityRewrites(input: ClarityDrillContext, answer: string, result: ModelClarityRewrites): void {
-    this.#assistantResultContext = { input, kind: "revision" };
-    this.#elements.assistantInteractiveResult.showClarityRewrites(input.instruction, answer, result);
+    this.#elements.assistantInteractiveResult.showClarityRewrites(input, answer, result);
   }
 
   async #chooseAssistantRevision(

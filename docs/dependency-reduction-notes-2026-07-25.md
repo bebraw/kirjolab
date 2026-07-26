@@ -3322,3 +3322,27 @@ and unique production package counts remain unchanged at 135,411 B raw /
 
 Full native CI passes all 1,416 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Lit Ownership: Complete Assistant Result Context
+
+`AssistantResultPanel` now retains the captured passage, source revision,
+evidence, provider continuation, or table target associated with the transient
+result it presents. Table insertion, clarity continuation, and revision choice
+events carry that complete typed context, so `WorkspaceApp` no longer stores a
+parallel result discriminator or context cache. The panel also derives whether
+a table replaces a selection from its target instead of storing a second flag.
+
+This checkpoint reduces `src/client/app.ts` from 6,462 to 6,431 lines (-31) and
+grows the assistant result panel from 305 to 343 lines, increasing runtime
+source by seven lines overall while removing one coordinator field and four
+coordinator-only context types. Focused coverage passes empty and guarded
+actions, table and clarity presentation, complete table/clarity/revision
+intents, transient result adaptation, and reference-save progress.
+
+The browser application artifact changes from 796,941 B raw / 214,964 B gzip
+to 796,773 B raw / 214,895 B gzip (-168 B raw / -69 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,416 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.

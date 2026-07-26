@@ -1,7 +1,39 @@
 import { html, LitElement, nothing, type TemplateResult } from "lit";
-import type { ModelClarityRewrites, ModelIdeas, ModelPhrasingAlternatives } from "./model-provider";
+import type {
+  ModelClarityQuestion,
+  ModelClarityRewrites,
+  ModelEvidenceItem,
+  ModelIdeas,
+  ModelPhrasingAlternatives,
+  ModelProvider,
+} from "./model-provider";
 import type { PhrasingPurpose } from "../domain/phrasing-guidance";
 import type { ReferenceDiscoveryResult } from "../domain/reference-discovery";
+import type { ModelEvidenceReference } from "../domain/workspace";
+
+export interface AssistantAuthoringPassage {
+  readonly fileId: string;
+  readonly start: number;
+  readonly end: number;
+  readonly excerpt: string;
+}
+
+export interface AssistantRevisionContext {
+  readonly passage: AssistantAuthoringPassage;
+  readonly evidence: { readonly items: ModelEvidenceItem[]; readonly references: ModelEvidenceReference[] };
+  readonly instruction: string;
+  readonly sourceRevision: number;
+}
+
+export interface AssistantClarityContext extends AssistantRevisionContext {
+  readonly provider: Pick<ModelProvider, "continueClarityDrill">;
+  readonly question: ModelClarityQuestion;
+}
+
+export interface AssistantTableContext {
+  readonly sourceRevision: number;
+  readonly target: AssistantAuthoringPassage;
+}
 
 export interface AssistantRevisionChoice {
   readonly failureMessage: string;
@@ -13,9 +45,9 @@ export interface AssistantRevisionChoice {
 }
 
 export type AssistantResultActionDetail =
-  | { readonly action: "continue-clarity"; readonly answer: string }
-  | { readonly action: "insert-table"; readonly markdown: string }
-  | { readonly action: "choose-revision"; readonly choice: AssistantRevisionChoice }
+  | { readonly action: "continue-clarity"; readonly answer: string; readonly context: AssistantClarityContext }
+  | { readonly action: "insert-table"; readonly context: AssistantTableContext; readonly markdown: string }
+  | { readonly action: "choose-revision"; readonly choice: AssistantRevisionChoice; readonly context: AssistantRevisionContext }
   | { readonly action: "save-reference"; readonly index: number; readonly result: ReferenceDiscoveryResult };
 
 export const assistantResultActionEvent = "assistant-result-action";
@@ -30,9 +62,9 @@ interface RevisionOption {
 
 type AssistantResultView =
   | { readonly kind: "empty" }
-  | { readonly kind: "table"; readonly markdown: string; readonly replacesSelection: boolean }
-  | { readonly issue: string; readonly kind: "clarity-question"; readonly question: string }
-  | { readonly kind: "ideas"; readonly options: readonly RevisionOption[] }
+  | { readonly context: AssistantTableContext; readonly kind: "table"; readonly markdown: string }
+  | { readonly context: AssistantClarityContext; readonly kind: "clarity-question" }
+  | { readonly context: AssistantRevisionContext; readonly kind: "ideas"; readonly options: readonly RevisionOption[] }
   | {
       readonly kind: "references";
       readonly query: string;
@@ -41,6 +73,7 @@ type AssistantResultView =
     }
   | {
       readonly actionLabel: string;
+      readonly context: AssistantRevisionContext;
       readonly kind: "revision-options";
       readonly options: readonly RevisionOption[];
     };
@@ -65,24 +98,25 @@ export class AssistantResultPanel extends LitElement {
     this.view = { kind: "empty" };
   }
 
-  showTable(markdown: string, replacesSelection: boolean): void {
-    this.view = { kind: "table", markdown, replacesSelection };
+  showTable(markdown: string, context: AssistantTableContext): void {
+    this.view = { context, kind: "table", markdown };
   }
 
-  showClarityQuestion(issue: string, question: string): void {
-    this.view = { issue, kind: "clarity-question", question };
+  showClarityQuestion(context: AssistantClarityContext): void {
+    this.view = { context, kind: "clarity-question" };
     void this.updateComplete.then(() => {
       if (typeof this.querySelector === "function") this.querySelector<HTMLTextAreaElement>("textarea")?.focus();
     });
   }
 
-  showIdeas(instruction: string, result: ModelIdeas): void {
+  showIdeas(context: AssistantRevisionContext, result: ModelIdeas): void {
     this.view = {
+      context,
       kind: "ideas",
       options: result.ideas.map((idea) => ({
         choice: {
           failureMessage: "Could not save the idea draft",
-          instruction: `${instruction}\nChosen direction: ${idea.title}. ${idea.direction}`.slice(0, 4_000),
+          instruction: `${context.instruction}\nChosen direction: ${idea.title}. ${idea.direction}`.slice(0, 4_000),
           model: result.model,
           providerLabel: result.providerLabel,
           replacement: idea.draft,
@@ -95,14 +129,15 @@ export class AssistantResultPanel extends LitElement {
     };
   }
 
-  showPhrasingAlternatives(instruction: string, purpose: PhrasingPurpose, result: ModelPhrasingAlternatives): void {
+  showPhrasingAlternatives(context: AssistantRevisionContext, purpose: PhrasingPurpose, result: ModelPhrasingAlternatives): void {
     this.view = {
       actionLabel: "Review this alternative",
+      context,
       kind: "revision-options",
       options: result.alternatives.map((alternative, index) => ({
         choice: {
           failureMessage: "Could not save the phrasing alternative",
-          instruction: `${instruction}\nRhetorical purpose: ${purpose.label}`.slice(0, 4_000),
+          instruction: `${context.instruction}\nRhetorical purpose: ${purpose.label}`.slice(0, 4_000),
           model: result.model,
           providerLabel: result.providerLabel,
           replacement: alternative.text,
@@ -115,14 +150,15 @@ export class AssistantResultPanel extends LitElement {
     };
   }
 
-  showClarityRewrites(instruction: string, answer: string, result: ModelClarityRewrites): void {
+  showClarityRewrites(context: AssistantRevisionContext, answer: string, result: ModelClarityRewrites): void {
     this.view = {
       actionLabel: "Review this revision",
+      context,
       kind: "revision-options",
       options: result.rewrites.map((rewrite, index) => ({
         choice: {
           failureMessage: "Could not save the clarity revision",
-          instruction: `${instruction}\nClarification: ${answer}`.slice(0, 4_000),
+          instruction: `${context.instruction}\nClarification: ${answer}`.slice(0, 4_000),
           model: result.model,
           providerLabel: result.providerLabel,
           replacement: rewrite.text,
@@ -164,7 +200,7 @@ export class AssistantResultPanel extends LitElement {
           <p class="eyebrow">Validated GFM table</p>
           <pre class="mt-3 overflow-x-auto whitespace-pre text-xs">${this.view.markdown}</pre>
           <button class="button-primary mt-3" type="button" @click=${this.insertTable}>
-            ${this.view.replacesSelection ? "Replace selection with table" : "Insert table"}
+            ${this.view.context.target.start !== this.view.context.target.end ? "Replace selection with table" : "Insert table"}
           </button>
         </section>
       `;
@@ -173,8 +209,8 @@ export class AssistantResultPanel extends LitElement {
       return html`
         <section class="resource-card">
           <p class="eyebrow">One ambiguity</p>
-          <p class="mt-2 text-sm text-app-text-soft">${this.view.issue}</p>
-          <h3 class="mt-3 text-base font-semibold">${this.view.question}</h3>
+          <p class="mt-2 text-sm text-app-text-soft">${this.view.context.question.issue}</p>
+          <h3 class="mt-3 text-base font-semibold">${this.view.context.question.question}</h3>
           <textarea class="field mt-3 w-full" rows="3" maxlength="4000" placeholder="State the concrete meaning you intend…"></textarea>
           <button class="button-primary mt-3" type="button" @click=${this.continueClarity}>Show precise rewrites</button>
         </section>
@@ -218,19 +254,21 @@ export class AssistantResultPanel extends LitElement {
   }
 
   protected continueClarity(): void {
+    if (this.view.kind !== "clarity-question") return;
     const answer = typeof this.querySelector === "function" ? (this.querySelector<HTMLTextAreaElement>("textarea")?.value ?? "") : "";
-    this.dispatchAction({ action: "continue-clarity", answer });
+    this.dispatchAction({ action: "continue-clarity", answer, context: this.view.context });
   }
 
   protected insertTable(): void {
-    if (this.view.kind === "table") this.dispatchAction({ action: "insert-table", markdown: this.view.markdown });
+    if (this.view.kind === "table")
+      this.dispatchAction({ action: "insert-table", context: this.view.context, markdown: this.view.markdown });
   }
 
   protected chooseRevision(event: Event): void {
     if (this.view.kind !== "ideas" && this.view.kind !== "revision-options") return;
     const index = Number((event.currentTarget as HTMLButtonElement).dataset.index);
     const option = this.view.options[index];
-    if (option) this.dispatchAction({ action: "choose-revision", choice: option.choice });
+    if (option) this.dispatchAction({ action: "choose-revision", choice: option.choice, context: this.view.context });
   }
 
   protected saveReference(event: Event): void {

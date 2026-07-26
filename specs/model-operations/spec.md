@@ -20,6 +20,11 @@ All mutation operations preserve a human review boundary.
   clients, manuscript/Yjs data, persisted candidates, and DOM rendering remain
   outside the actor. A change to the captured active manuscript file makes an
   awaiting or reviewable transient result stale before it can continue.
+- The assistant result panel retains the captured context for the transient
+  table, clarity question, idea, phrasing, or rewrite it presents and emits that
+  same context with a guarded continuation, insertion, or revision-choice
+  intent. The application coordinator must not maintain a parallel current-
+  result discriminator or reconstruct the context from later editor state.
 - A non-empty manuscript selection always resolves exactly. Otherwise the
   remembered Yjs-relative caret expands deterministically to the configured
   sentence, paragraph, or Markdown section, or remains an insertion point.
