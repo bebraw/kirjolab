@@ -669,8 +669,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   source is reviewed.
 - Let the publication-context Lit panel own explicit project PDF link and
   unlink transport, stable encoded link targets, duplicate-submit gating, and
-  retryable local failures. Keep canonical refresh, citation insertion, paper
-  navigation, and workspace notifications in the application coordinator.
+  retryable local failures. Let it derive available project PDFs and ordered
+  private-Library, shared-reference, and project paper options from canonical
+  inputs. Keep canonical refresh, citation insertion, paper navigation, and
+  workspace notifications in the application coordinator.
 - Collapse the two-surface workspace to an explicit Authoring/Context switch
   when both surfaces cannot retain readable measures; preserve editor and
   per-context local state while either surface is hidden.

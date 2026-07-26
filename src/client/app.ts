@@ -2845,33 +2845,14 @@ class WorkspaceApp {
     const publication = this.#snapshot.publications.find((item) => item.id === tab.id);
     if (!publication) return;
 
-    const papers = this.#publicationPaperOptions(publication.id);
-    const linkedIds = new Set(
-      this.#snapshot.publicationPdfLinks.filter((link) => link.publicationId === publication.id).map((link) => link.pdfId),
-    );
-    this.#elements.publicationContextPanel.setContext({
-      availablePdfs: this.#snapshot.pdfs.filter((pdf) => !linkedIds.has(pdf.id)),
-      papers,
+    this.#elements.publicationContextPanel.setPublication({
+      libraryArtifacts: this.#librarySnapshot?.artifacts ?? [],
+      pdfs: this.#snapshot.pdfs,
       publication,
+      publicationPdfLinks: this.#snapshot.publicationPdfLinks,
+      referencePdfs: this.#projectReferencePdfs,
     });
     this.#updateCitationInsertionAvailability();
-  }
-
-  #publicationPaperOptions(publicationId: string): PublicationPaperOption[] {
-    if (!this.#snapshot) return [];
-    const projectPapers = this.#snapshot.publicationPdfLinks.flatMap((link) => {
-      if (link.publicationId !== publicationId) return [];
-      const pdf = this.#snapshot?.pdfs.find((item) => item.id === link.pdfId);
-      return pdf ? [{ kind: "project" as const, pdf, linkId: link.id }] : [];
-    });
-    const libraryPapers = (this.#librarySnapshot?.artifacts ?? [])
-      .filter((artifact) => artifact.referenceId === publicationId)
-      .map((artifact) => ({ kind: "library" as const, artifact }));
-    const localArtifactIds = new Set(libraryPapers.map((paper) => paper.artifact.id));
-    const linkedReferencePapers = this.#projectReferencePdfs
-      .filter((pdf) => pdf.referenceId === publicationId && !localArtifactIds.has(pdf.id))
-      .map((pdf) => ({ kind: "reference" as const, pdf }));
-    return [...libraryPapers, ...linkedReferencePapers, ...projectPapers];
   }
 
   #projectReferencePdf(resourceId: string): ProjectReferencePdf | undefined {

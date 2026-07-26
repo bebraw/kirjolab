@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { LibraryPdfArtifact, ProjectReferencePdf } from "../domain/reference-library";
-import type { PublicationResource } from "../domain/workspace";
+import type { PdfResource, PublicationPdfLink, PublicationResource } from "../domain/workspace";
 import {
   PublicationContextPanel,
   publicationContextActionEvent,
@@ -38,6 +38,24 @@ const projectPaper: Extract<PublicationPaperOption, { kind: "project" }> = {
   },
 };
 
+function setPublication(
+  panel: PublicationContextPanel,
+  options: {
+    libraryArtifacts?: readonly LibraryPdfArtifact[];
+    pdfs?: readonly PdfResource[];
+    publicationPdfLinks?: readonly PublicationPdfLink[];
+    referencePdfs?: readonly ProjectReferencePdf[];
+  } = {},
+): void {
+  panel.setPublication({
+    libraryArtifacts: options.libraryArtifacts ?? [],
+    pdfs: options.pdfs ?? [],
+    publication,
+    publicationPdfLinks: options.publicationPdfLinks ?? [],
+    referencePdfs: options.referencePdfs ?? [],
+  });
+}
+
 class TestPublicationContextPanel extends PublicationContextPanel {
   renderForTest() {
     return this.render();
@@ -45,6 +63,10 @@ class TestPublicationContextPanel extends PublicationContextPanel {
 
   rootForTest(): HTMLElement {
     return this.createRenderRoot();
+  }
+
+  papersForTest(): readonly PublicationPaperOption[] {
+    return this.data?.papers ?? [];
   }
 
   insertForTest(): void {
@@ -80,9 +102,14 @@ describe("publication context panel", () => {
   it("renders fallback, publication, paper, and citation states", () => {
     const panel = new TestPublicationContextPanel();
     expect(panel.renderForTest()).toBeDefined();
-    panel.setContext({ availablePdfs: [], papers: [], publication });
+    setPublication(panel);
     expect(panel.renderForTest()).toBeDefined();
-    panel.setContext({ availablePdfs: [projectPaper.pdf], papers: [projectPaper], publication });
+    setPublication(panel, {
+      pdfs: [projectPaper.pdf],
+      publicationPdfLinks: [
+        { id: projectPaper.linkId, publicationId: publication.id, pdfId: projectPaper.pdf.id, createdAt: publication.createdAt },
+      ],
+    });
     panel.setCitationAvailable(true);
     expect(panel.renderForTest()).toBeDefined();
     expect(panel.rootForTest()).toBe(panel);
@@ -107,16 +134,11 @@ describe("publication context panel", () => {
       referenceId: publication.id,
       size: 4096,
     };
+    const duplicateReference = { ...reference, id: artifact.id };
     const panel = new TestPublicationContextPanel();
-    panel.setContext({
-      availablePdfs: [],
-      papers: [
-        { artifact, kind: "library" },
-        { kind: "reference", pdf: reference },
-      ],
-      publication,
-    });
+    setPublication(panel, { libraryArtifacts: [artifact], referencePdfs: [reference, duplicateReference] });
     expect(panel.renderForTest()).toBeDefined();
+    expect(panel.papersForTest().map((paper) => paper.kind)).toEqual(["library", "reference"]);
     panel.openOnlyForTest();
   });
 
@@ -124,7 +146,12 @@ describe("publication context panel", () => {
     const panel = new TestPublicationContextPanel();
     const actions: PublicationContextAction[] = [];
     panel.addEventListener(publicationContextActionEvent, (event) => actions.push((event as CustomEvent<PublicationContextAction>).detail));
-    panel.setContext({ availablePdfs: [], papers: [projectPaper], publication });
+    setPublication(panel, {
+      pdfs: [projectPaper.pdf],
+      publicationPdfLinks: [
+        { id: projectPaper.linkId, publicationId: publication.id, pdfId: projectPaper.pdf.id, createdAt: publication.createdAt },
+      ],
+    });
 
     panel.insertForTest();
     panel.openOnlyForTest();
@@ -154,7 +181,12 @@ describe("publication context panel", () => {
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 200 }));
     panel.addEventListener(publicationContextActionEvent, (event) => actions.push((event as CustomEvent<PublicationContextAction>).detail));
     panel.configure("/api/workspaces/workspace");
-    panel.setContext({ availablePdfs: [projectPaper.pdf], papers: [projectPaper], publication });
+    setPublication(panel, {
+      pdfs: [projectPaper.pdf],
+      publicationPdfLinks: [
+        { id: projectPaper.linkId, publicationId: publication.id, pdfId: projectPaper.pdf.id, createdAt: publication.createdAt },
+      ],
+    });
     Object.defineProperty(panel, "querySelector", { value: () => ({ value: "pdf:1" }) });
 
     await panel.linkForTest();

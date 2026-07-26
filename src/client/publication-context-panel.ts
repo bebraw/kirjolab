@@ -1,7 +1,7 @@
 import { html, LitElement, type TemplateResult } from "lit";
 import { bibTeXDisplayText } from "../domain/bibliography";
 import type { LibraryPdfArtifact, ProjectReferencePdf } from "../domain/reference-library";
-import type { PdfResource, PublicationResource } from "../domain/workspace";
+import type { PdfResource, PublicationPdfLink, PublicationResource } from "../domain/workspace";
 import { formatBytes } from "./format";
 import { errorMessage, expectOk, jsonFetch } from "./http";
 
@@ -23,6 +23,14 @@ interface PublicationContextData {
   readonly publication: PublicationResource;
 }
 
+export interface PublicationContextSources {
+  readonly libraryArtifacts: readonly LibraryPdfArtifact[];
+  readonly pdfs: readonly PdfResource[];
+  readonly publication: PublicationResource;
+  readonly publicationPdfLinks: readonly PublicationPdfLink[];
+  readonly referencePdfs: readonly ProjectReferencePdf[];
+}
+
 export class PublicationContextPanel extends LitElement {
   static override properties = {
     busy: { state: true },
@@ -33,7 +41,7 @@ export class PublicationContextPanel extends LitElement {
 
   declare private busy: boolean;
   declare private citationAvailable: boolean;
-  declare private data: PublicationContextData | null;
+  declare protected data: PublicationContextData | null;
   declare private status: string;
   private apiBase = "";
 
@@ -49,8 +57,25 @@ export class PublicationContextPanel extends LitElement {
     this.apiBase = apiBase;
   }
 
-  setContext(data: PublicationContextData): void {
-    this.data = data;
+  setPublication({ libraryArtifacts, pdfs, publication, publicationPdfLinks, referencePdfs }: PublicationContextSources): void {
+    const links = publicationPdfLinks.filter((link) => link.publicationId === publication.id);
+    const linkedIds = new Set(links.map((link) => link.pdfId));
+    const projectPapers = links.flatMap((link) => {
+      const pdf = pdfs.find((item) => item.id === link.pdfId);
+      return pdf ? [{ kind: "project" as const, pdf, linkId: link.id }] : [];
+    });
+    const libraryPapers = libraryArtifacts
+      .filter((artifact) => artifact.referenceId === publication.id)
+      .map((artifact) => ({ kind: "library" as const, artifact }));
+    const localArtifactIds = new Set(libraryPapers.map((paper) => paper.artifact.id));
+    const linkedReferencePapers = referencePdfs
+      .filter((pdf) => pdf.referenceId === publication.id && !localArtifactIds.has(pdf.id))
+      .map((pdf) => ({ kind: "reference" as const, pdf }));
+    this.data = {
+      availablePdfs: pdfs.filter((pdf) => !linkedIds.has(pdf.id)),
+      papers: [...libraryPapers, ...linkedReferencePapers, ...projectPapers],
+      publication,
+    };
   }
 
   setCitationAvailable(available: boolean): void {

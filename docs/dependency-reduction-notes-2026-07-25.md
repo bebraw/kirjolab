@@ -5134,6 +5134,30 @@ gzip and 18 and 150.
 Full native CI passes all 1,571 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Publication Paper Projection
+
+`PublicationContextPanel` now derives available project PDFs and ordered
+private-Library, shared-reference, and project paper options from canonical
+inputs. It also owns duplicate shared-reference suppression when the same
+private artifact is locally available. `WorkspaceApp` retains canonical
+snapshots, authorization, refresh, citation insertion, paper navigation, and
+workspace notification policy.
+
+This checkpoint reduces `src/client/app.ts` from 4,487 to 4,468 lines (-19) and
+grows the publication-context owner from 259 to 284 lines. Runtime source across
+those two files increases by six lines while deleting the coordinator's
+publication-specific paper mapper. Focused coverage passes project-only,
+private-Library, shared-reference, duplicate-suppression, availability, existing
+mutation and presentation behavior, application contracts, and strict types.
+
+The browser application artifact changes from 824,259 B raw / 222,443 B gzip
+to 824,296 B raw / 222,485 B gzip (+37 B raw / +42 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,571 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Valibot Adoption: GitHub User Responses
 
 The GitHub user client now validates external identity, installation/account,

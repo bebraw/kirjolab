@@ -92,10 +92,11 @@ The adopted components own bounded presentation:
   and evidence-navigation outcomes. The coordinator retains assistant workflow
   transitions, canonical refresh, tab movement, and notification policy.
 - The publication context panel owns scholarly metadata, linked-paper and
-  project-PDF option rendering, citation readiness, local scroll state, and
-  explicit project-PDF link and unlink transport, duplicate-submit gating,
-  pending and retryable failure state, and typed citation, paper-navigation,
-  and completed-relationship outcomes.
+  project-PDF option derivation and rendering from canonical reference inputs,
+  citation readiness, local scroll state, and explicit project-PDF link and
+  unlink transport, duplicate-submit gating, pending and retryable failure
+  state, and typed citation, paper-navigation, and completed-relationship
+  outcomes.
 - The knowledge search panel owns query capture, empty, result, and error
   presentation, and typed search and resource-selection intents. Its enclosing
   project-map workspace owns the authorized search request, response validation,
@@ -453,9 +454,10 @@ reason to wrap static markup mechanically.
   notification policy, and evidence navigation in the application coordinator.
 - The publication context panel replaces eight internal element references and
   imperative metadata, paper-row, and link-form renderers plus two coordinator
-  relationship-mutation methods while leaving manuscript insertion, PDF
-  navigation, canonical refresh, and workspace notification policy in the
-  application coordinator.
+  relationship-mutation methods. It also replaces the coordinator's parallel
+  available-PDF and private-Library, shared-reference, and project paper-option
+  mapper while leaving canonical inputs, manuscript insertion, PDF navigation,
+  refresh, and workspace notification policy in the application coordinator.
 - The knowledge search panel replaces three internal element references and
   imperative result-card rendering. Its project-map workspace also replaces the
   coordinator's authorized search fetch and response validation while leaving

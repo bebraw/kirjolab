@@ -349,7 +349,10 @@ memory and makes citation aliases compete with stable source identity.
   for the stable reference identity. The owner sees attached private-library
   PDFs without converting them into project resources; active artifact shares
   appear to project members as read-only shared PDFs; legacy project-local PDFs
-  remain explicitly connectable and disconnectable. Labels distinguish these
+  remain explicitly connectable and disconnectable. Its bounded presentation
+  owner derives this ordered paper list and available project-PDF choices from
+  coordinator-supplied canonical inputs, preferring a local private artifact
+  over its duplicate shared-reference projection. Labels distinguish these
   scopes, and opening a private PDF never shares it implicitly.
 - In a project, each saved private text highlight exposes **Cite in manuscript**.
   The action uses the remembered manuscript caret, links only the bibliographic
