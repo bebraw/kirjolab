@@ -213,7 +213,8 @@ The adopted components own bounded presentation:
   edit, cite, share, revoke, and delete intents.
 - The Library PDF markup layer owns saved and draft drawing SVG, note pins,
   selected state, open note cards, live draft geometry updates, note movement,
-  focus restoration, and a typed note-card close intent.
+  focus restoration, active interaction attributes, pointer normalization to
+  page coordinates, and a typed note-card close intent.
 - The Library PDF project-use block owns unidentified, unlinked, and linked
   presentation, capability-boundary copy, citation preview, and a typed
   reference-link intent.
@@ -493,9 +494,10 @@ reason to wrap static markup mechanically.
   notification policy.
 - The Library PDF markup layer replaces imperative SVG, polyline, draft-pin,
   saved-pin, and note-card construction plus coordinator-owned draft-line and
-  note-focus queries. The application coordinator retains pointer capture,
-  gesture state, shape recognition, normalized geometry, persistence, and
-  annotation workflow transitions.
+  note-focus queries. It also owns page-relative pointer normalization and its
+  interaction attributes. The application coordinator retains pointer capture,
+  gesture state, shape recognition, persistence, and annotation workflow
+  transitions.
 - The Library PDF project-use block replaces its imperative renderer and four
   one-off DOM-construction helpers. The application coordinator retains
   canonical reference and project-link lookup, the linking mutation, snapshot

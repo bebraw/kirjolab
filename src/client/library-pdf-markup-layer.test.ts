@@ -81,4 +81,23 @@ describe("library PDF markup layer", () => {
     layer.emitForTest({ action: "close-note", noteId: note.id });
     expect(actions).toEqual([{ action: "close-note", noteId: note.id }]);
   });
+
+  it("owns interaction state and normalized pointer geometry", () => {
+    const layer = new TestMarkupLayer();
+    const dataset: Record<string, string> = {};
+    Object.defineProperties(layer, {
+      dataset: { value: dataset },
+      getBoundingClientRect: { configurable: true, value: () => ({ height: 200, left: 10, top: 20, width: 400 }) },
+    });
+
+    layer.setInteraction("draw", true);
+    expect(dataset).toEqual({ drawingActive: "true", tool: "draw" });
+    expect(layer.point({ clientX: 210, clientY: 120 })).toEqual({ x: 0.5, y: 0.5 });
+    expect(layer.point({ clientX: -10, clientY: 300 })).toEqual({ x: 0, y: 1 });
+    layer.setInteraction("select");
+    expect(dataset).toEqual({ tool: "select" });
+
+    Object.defineProperty(layer, "getBoundingClientRect", { value: () => ({ height: 0, left: 0, top: 0, width: 0 }) });
+    expect(layer.point({ clientX: 0, clientY: 0 })).toBeNull();
+  });
 });

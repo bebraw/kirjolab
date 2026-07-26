@@ -2626,3 +2626,24 @@ and unique production package counts remain unchanged at 135,411 B raw /
 
 Full native CI passes all 1,412 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Lit Ownership: PDF Markup Geometry
+
+`LibraryPdfMarkupLayer` now owns clamped pointer normalization against its page
+bounds and the active-tool and drawing data attributes used by its interaction
+styles. `WorkspaceApp` retains pointer capture, annotation state transitions,
+shape recognition, persistence, and inspector policy without calculating the
+layer's local coordinates or mutating its attributes.
+
+This checkpoint reduces `src/client/app.ts` from 7,111 to 7,101 lines (-10)
+and removes its duplicated markup-bound geometry helper. Focused unit and
+browser coverage passes centered, clamped, and unavailable geometry, tool and
+drawing state, plus the complete PDF annotation interaction lifecycle.
+
+The browser application artifact changes from 799,651 B raw / 215,110 B gzip
+to 799,775 B raw / 215,172 B gzip (+124 B raw / +62 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,413 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.

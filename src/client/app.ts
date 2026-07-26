@@ -6152,8 +6152,7 @@ class WorkspaceApp {
   #setLibraryPdfTool(tool: "select" | "text" | "note" | "draw"): void {
     if (tool !== "draw") this.#clearLibraryPdfShapeRecognition();
     this.#pdfAnnotation.send({ type: "CHOOSE_TOOL", tool });
-    if (tool !== "draw") delete this.#elements.paperMarkups.dataset.drawingActive;
-    this.#elements.paperMarkups.dataset.tool = tool;
+    this.#elements.paperMarkups.setInteraction(tool);
     this.#pdfViewer.setTextSelectionEnabled(tool === "text");
     this.#elements.libraryPdfAnnotationToolbar.setTool(tool);
     this.#pdfViewer.setPrivateHighlightSelection(tool === "select", this.#selectedLibraryHighlightId());
@@ -6183,7 +6182,7 @@ class WorkspaceApp {
       this.#selectLibraryPdfMarkup(drawing.dataset.markupId);
       return;
     }
-    const point = this.#normalizedPdfPoint(event);
+    const point = this.#elements.paperMarkups.point(event);
     if (!point) return;
     if (this.#libraryPdfTool() === "note") {
       this.#startLibraryPdfNote(event, point);
@@ -6221,7 +6220,7 @@ class WorkspaceApp {
     this.#clearLibraryPdfShapeRecognition();
     this.#pdfAnnotation.send({ type: "START_DRAWING", pointerId: event.pointerId, point });
     this.#elements.paperMarkups.setPointerCapture(event.pointerId);
-    this.#elements.paperMarkups.dataset.drawingActive = "true";
+    this.#elements.paperMarkups.setInteraction("draw", true);
     this.#renderPdfMarkups();
   }
 
@@ -6246,7 +6245,7 @@ class WorkspaceApp {
   }
 
   #continueLibraryPdfNoteDrag(event: PointerEvent, noteId: string): void {
-    const point = this.#normalizedPdfPoint(event);
+    const point = this.#elements.paperMarkups.point(event);
     if (!point) return;
     this.#pdfAnnotation.send({ type: "MOVE_NOTE_DRAG", pointerId: event.pointerId, x: event.clientX, y: event.clientY });
     if (!this.#pdfNoteDrag()?.moved) return;
@@ -6262,7 +6261,7 @@ class WorkspaceApp {
     const points = [...draft];
     const additions: LibraryPdfPoint[] = [];
     for (const sample of samples) {
-      const point = this.#normalizedPdfPoint(sample);
+      const point = this.#elements.paperMarkups.point(sample);
       const previous = points.at(-1);
       if (!point || (previous && Math.hypot(point.x - previous.x, point.y - previous.y) < 0.0015)) continue;
       points.push(point);
@@ -6293,7 +6292,7 @@ class WorkspaceApp {
   }
 
   #adjustLibraryPdfDrawingShape(event: PointerEvent): void {
-    const point = this.#normalizedPdfPoint(event);
+    const point = this.#elements.paperMarkups.point(event);
     const shape = this.#pdfDrawingShape;
     const rect = this.#elements.paperMarkups.getBoundingClientRect();
     if (!point || !shape || rect.width <= 0 || rect.height <= 0) return;
@@ -6360,7 +6359,7 @@ class WorkspaceApp {
   #cancelLibraryPdfDrawing(): void {
     this.#pdfAnnotation.send({ type: "CANCEL_POINTER" });
     this.#clearLibraryPdfShapeRecognition();
-    delete this.#elements.paperMarkups.dataset.drawingActive;
+    this.#elements.paperMarkups.setInteraction(this.#libraryPdfTool());
   }
 
   #clearLibraryPdfShapeRecognition(): void {
@@ -6495,15 +6494,6 @@ class WorkspaceApp {
     return tab?.kind === "library-pdf" ? this.#librarySnapshot?.artifacts.find((item) => item.id === tab.id) : undefined;
   }
 
-  #normalizedPdfPoint(event: PointerEvent): LibraryPdfPoint | null {
-    const rect = this.#elements.paperMarkups.getBoundingClientRect();
-    if (rect.width <= 0 || rect.height <= 0) return null;
-    return {
-      x: Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width)),
-      y: Math.max(0, Math.min(1, (event.clientY - rect.top) / rect.height)),
-    };
-  }
-
   #renderPdfMarkups(): void {
     const artifact = this.#activeLibraryPdf();
     const page = this.#pdfViewer.currentPage;
@@ -6566,7 +6556,7 @@ class WorkspaceApp {
       this.#renderPdfMarkups();
       return;
     }
-    const point = this.#normalizedPdfPoint(event);
+    const point = this.#elements.paperMarkups.point(event);
     const note = (this.#librarySnapshot?.pdfMarkups ?? []).find(
       (item): item is LibraryPdfNote => item.kind === "note" && item.id === drag.id,
     );

@@ -336,7 +336,10 @@ collaboration.
   note text remain editable; selected notes may be dragged to a new normalized
   page position. A pending note renders its anchor while its body is composed.
   On touch hardware, fingers pan and pinch-zoom even while Draw is active;
-  Apple Pencil and mouse pointers create ink.
+  Apple Pencil and mouse pointers create ink. The bounded markup layer owns
+  active-tool and drawing attributes plus clamped pointer normalization against
+  its rendered page bounds; the coordinator retains gesture transitions, shape
+  recognition, and persistence.
 - **Web sources:** Public HTTP(S) pages are captured through bounded,
   redirect-controlled Worker retrieval into immutable owner-private raw and
   readable R2 objects. Project citations pin one exact access timestamp and

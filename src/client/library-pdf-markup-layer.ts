@@ -41,6 +41,21 @@ export class LibraryPdfMarkupLayer extends LitElement {
     if (this.isConnected) this.performUpdate();
   }
 
+  setInteraction(tool: PdfAnnotationTool, drawingActive = false): void {
+    this.dataset.tool = tool;
+    if (drawingActive) this.dataset.drawingActive = "true";
+    else delete this.dataset.drawingActive;
+  }
+
+  point(event: Pick<PointerEvent, "clientX" | "clientY">): LibraryPdfPoint | null {
+    const rect = this.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) return null;
+    return {
+      x: Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width)),
+      y: Math.max(0, Math.min(1, (event.clientY - rect.top) / rect.height)),
+    };
+  }
+
   updateDraft(points: readonly LibraryPdfPoint[]): void {
     this.querySelector<SVGPolylineElement>('.pdf-ink-stroke[data-markup-id="draft"]')?.setAttribute("points", drawingPoints(points));
   }
