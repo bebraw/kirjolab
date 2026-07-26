@@ -201,7 +201,8 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Keep template-catalog loading, existing-project preview loading, project
   creation, personal-template deletion, fetched catalog state, optimistic
   hidden-template state, and the derived visible-template view inside the
-  starting-point Lit component. The
+  starting-point Lit component. Let it own Cancel and close itself before
+  handing either import choice to the coordinator. The
   template-save Lit dialog owns promotion requests, response validation, and
   local busy and error presentation. The application coordinator retains
   navigation, deferred-deletion timing and undo policy, post-promotion catalog

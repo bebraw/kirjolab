@@ -494,9 +494,8 @@ class WorkspaceApp {
     this.#elements.newWorkspace.addEventListener("click", () => void this.#openNewWorkspace());
     this.#elements.newWorkspaceStartingPoints.addEventListener(startingPointActionEvent, (event) => {
       const action = (event as CustomEvent<StartingPointAction>).detail;
-      if (action.action === "import-latex") this.#openLatexImportDialog();
-      else if (action.action === "import-github") this.#openGitHubImportDialog();
-      else this.#elements.newWorkspaceStartingPoints.close();
+      if (action === "import-latex") this.#openLatexImportDialog();
+      else this.#openGitHubImportDialog();
     });
     this.#elements.newWorkspaceStartingPoints.addEventListener(startingPointCompleteEvent, (event) => {
       location.assign((event as CustomEvent<string>).detail);
@@ -1147,12 +1146,10 @@ class WorkspaceApp {
   }
 
   #openLatexImportDialog(): void {
-    this.#elements.newWorkspaceStartingPoints.close();
     this.#elements.latexImportPanel.open();
   }
 
   #openGitHubImportDialog(): void {
-    this.#elements.newWorkspaceStartingPoints.close();
     this.#elements.gitHubImportPanel.open();
     void this.#elements.gitHubImportPanel.refreshConnection();
   }

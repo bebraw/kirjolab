@@ -49,8 +49,8 @@ The adopted components own bounded presentation:
   creation, personal-template deletion, response validation, post-delete
   catalog refresh, the fetched catalog, and optimistic
   hidden-template state, the derived visible-template view, local selection
-  and preview state, bounded preview rendering, and typed completion and
-  template-delete events.
+  and preview state, bounded preview rendering, local dismissal and import
+  handoff, and typed completion and template-delete events.
 - The workspace sharing panel owns member and capability-link requests,
   response validation and presentation, invitation input and submission,
   clipboard interaction, native parent-dialog lifecycle, and typed notices.
@@ -259,8 +259,9 @@ The adopted components own bounded presentation:
 - The project starting-point browser owns project title, template and existing
   project choices, catalog loading, project-preview loading, project creation,
   personal-template deletion, response validation, post-delete catalog refresh,
-  preview and loading state, create readiness and status, and typed cancel,
-  import, completion, and template-delete events. It also owns
+  preview and loading state, create readiness and status, local cancel and
+  pre-handoff dismissal, and typed import, completion, and template-delete
+  events. It also owns
   its native parent-dialog opening, closing, focus containment, listener
   teardown, and return-focus lifecycle.
 - The Library discovery search owns query inputs, publication-type choices,

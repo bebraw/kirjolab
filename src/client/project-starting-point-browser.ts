@@ -4,7 +4,7 @@ import { demoWorkspaceId, isWorkspaceSummaries, type WorkspaceSummary } from "..
 import { formatCalendarDate } from "./format";
 import { errorMessage, expectOk, jsonFetch } from "./http";
 
-export type StartingPointAction = { readonly action: "cancel" | "import-github" | "import-latex" };
+export type StartingPointAction = "import-github" | "import-latex";
 
 export const startingPointActionEvent = "starting-point-action";
 export const startingPointCompleteEvent = "starting-point-complete";
@@ -198,25 +198,13 @@ export class ProjectStartingPointBrowser extends LitElement {
         <footer class="template-browser-footer">
           <p class="ui-status" id="new-workspace-template-status" role="status">${this.status}</p>
           <div class="ui-cluster justify-end">
-            <button
-              class="button-secondary"
-              id="open-latex-import"
-              type="button"
-              @click=${() => this.emitAction({ action: "import-latex" })}
-            >
+            <button class="button-secondary" id="open-latex-import" type="button" @click=${() => this.openImport("import-latex")}>
               Import LaTeX
             </button>
-            <button
-              class="button-secondary"
-              id="open-github-import"
-              type="button"
-              @click=${() => this.emitAction({ action: "import-github" })}
-            >
+            <button class="button-secondary" id="open-github-import" type="button" @click=${() => this.openImport("import-github")}>
               Import GitHub
             </button>
-            <button class="button-secondary" id="cancel-new-workspace" type="button" @click=${() => this.emitAction({ action: "cancel" })}>
-              Cancel
-            </button>
+            <button class="button-secondary" id="cancel-new-workspace" type="button" @click=${this.close}>Cancel</button>
             <button class="button-primary" id="create-workspace" type="submit" ?disabled=${!this.selectedKey || this.busy}>
               Create project
             </button>
@@ -252,7 +240,8 @@ export class ProjectStartingPointBrowser extends LitElement {
     this.projectTitle = (event.currentTarget as HTMLInputElement).value;
   }
 
-  protected emitAction(detail: StartingPointAction): void {
+  protected openImport(detail: StartingPointAction): void {
+    this.close();
     this.dispatchEvent(new CustomEvent<StartingPointAction>(startingPointActionEvent, { detail }));
   }
 

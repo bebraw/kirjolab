@@ -89,8 +89,12 @@ class TestProjectStartingPointBrowser extends ProjectStartingPointBrowser {
     await this.create(new Event("submit"));
   }
 
-  actionForTest(action: "cancel" | "import-github" | "import-latex"): void {
-    this.emitAction({ action });
+  cancelForTest(): void {
+    this.close();
+  }
+
+  importForTest(action: StartingPointAction): void {
+    this.openImport(action);
   }
 
   cycleFocusForTest(backward: boolean): void {
@@ -200,10 +204,11 @@ describe("project starting point browser", () => {
       "/api/workspaces",
       expect.objectContaining({ body: JSON.stringify({ title: "Focused inquiry", templateId: "builtin-guided" }), method: "POST" }),
     );
-    browser.actionForTest("cancel");
-    browser.actionForTest("import-github");
-    browser.actionForTest("import-latex");
-    expect(actions).toEqual([{ action: "cancel" }, { action: "import-github" }, { action: "import-latex" }]);
+    browser.cancelForTest();
+    browser.importForTest("import-github");
+    browser.importForTest("import-latex");
+    expect(actions).toEqual(["import-github", "import-latex"]);
+    expect(browser.closeCount).toBe(3);
     browser.reset();
     browser.setData([], []);
     expect(browser.renderForTest()).toBeDefined();

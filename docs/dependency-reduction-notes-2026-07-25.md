@@ -5644,6 +5644,27 @@ visible low-level component members after dialog closing becomes internal.
 Full native CI passes all 1,583 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Starting-Point Dismissal
+
+`ProjectStartingPointBrowser` now closes its own modal for Cancel and before
+handing either import choice to `WorkspaceApp`. Its external action contract
+contains only the two import choices instead of wrapping them with a redundant
+action field or exposing local cancellation.
+
+This checkpoint reduces `src/client/app.ts` from 3,972 to 3,969 lines (-3).
+Runtime and focused test source across the three changed files decreases by
+nine lines. Eight focused and ten affected tests pass alongside strict types.
+
+The browser application artifact changes from 824,333 B raw / 223,058 B gzip
+to 823,963 B raw / 223,031 B gzip (-370 B raw / -27 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150. The readability audit reports one fewer externally
+visible low-level component member after starting-point closing becomes
+internal.
+
+Full native CI passes all 1,583 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Assistant Evidence Projection
 
 `AssistantWorkflowStatus` now resolves its ordered selected evidence keys
