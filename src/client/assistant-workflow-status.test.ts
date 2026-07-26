@@ -122,7 +122,7 @@ describe("assistant workflow status", () => {
     expect(panel.selectedEvidenceKeys).toEqual(new Set(["annotation:1", "claim:1"]));
     expect(panel.status).toBe("2 resources selected for grounding.");
 
-    panel.reconcileEvidence(new Set(["claim:1"]));
+    panel.reconcileEvidence([], [claim]);
     expect(panel.selectedEvidenceKeys).toEqual(new Set(["claim:1"]));
     panel.setEvidenceSelected("claim:1", false);
     expect(panel.status).toBe("0 resources selected for grounding.");

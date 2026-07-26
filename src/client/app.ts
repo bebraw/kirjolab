@@ -201,7 +201,6 @@ import { webSourceCapturedEvent } from "./web-source-panels";
 import { citationNetworkOutcomeEvent, type CitationNetworkOutcome } from "./citation-network-workspace";
 import { previewDiagnosticSelectEvent, type PreviewDiagnosticSelection } from "./preview-presentation";
 import { publicationIntakeActionEvent, type PublicationIntakeAction } from "./publication-intake-panel";
-import { modelEvidenceKey } from "./research-resource-presentation";
 import {
   applicationVersion,
   cacheOfflineNavigation,
@@ -2243,11 +2242,7 @@ class WorkspaceApp {
     if (!this.#snapshot) return;
     this.#captureActiveContextState();
     this.#contextState = reconcileResearchContext(this.#contextState, this.#researchContextAuthorization());
-    const validModelEvidence = new Set([
-      ...this.#snapshot.annotations.map((annotation) => modelEvidenceKey("annotation", annotation.id)),
-      ...this.#snapshot.claims.map((claim) => modelEvidenceKey("claim", claim.id)),
-    ]);
-    this.#elements.assistantWorkflowStatus.reconcileEvidence(validModelEvidence);
+    this.#elements.assistantWorkflowStatus.reconcileEvidence(this.#snapshot.annotations, this.#snapshot.claims);
     this.#renderProjectEvidence();
     this.#elements.publicationListPanel.setPublications({
       projectReferences: this.#snapshot.projectReferences,

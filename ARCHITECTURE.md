@@ -307,10 +307,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   pending state; retain canonical Library refresh and cross-panel workflow status
   in the coordinator.
 - Keep browser-local assistant evidence selection, count or limit status, and
-  ordered annotation-or-claim model-evidence projection inside the Lit
-  workflow-status owner, including the annotation-only item and version subsets
-  required by claim drafting, operation-specific target and evidence
-  requirement validation, synchronization guidance, and generation-start copy.
+  reconciliation against canonical annotations and claims plus ordered
+  annotation-or-claim model-evidence projection inside the Lit workflow-status
+  owner, including the annotation-only item and version subsets required by
+  claim drafting, operation-specific target and evidence requirement
+  validation, synchronization guidance, and generation-start copy.
   The coordinator supplies canonical snapshot collections, resolved target
   availability, document stability, and result-specific status; it must not
   parse selected keys, re-filter projected evidence, duplicate requirement or

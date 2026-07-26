@@ -5485,6 +5485,28 @@ component members.
 Full native CI passes all 1,582 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Assistant Evidence Reconciliation
+
+`AssistantWorkflowStatus` now derives valid annotation and claim evidence keys
+from the canonical collections while reconciling the browser-local selection it
+already owns. `WorkspaceApp` supplies those collections without importing the
+evidence-key adapter or constructing a temporary parallel set.
+
+This checkpoint reduces `src/client/app.ts` from 4,037 to 4,032 lines (-5) and
+grows the assistant workflow-status owner from 200 to 205 lines. Runtime source
+across those two files is unchanged while removing one coordinator-only
+projection and import. All five focused and seven affected tests pass alongside
+strict types.
+
+The browser application artifact changes from 824,419 B raw / 223,107 B gzip
+to 824,415 B raw / 223,055 B gzip (-4 B raw / -52 B gzip). Styles, direct and
+unique production package counts, and the readability audit remain unchanged at
+135,411 B raw / 23,373 B gzip, 18, 150, and 256 externally visible low-level
+component members.
+
+Full native CI passes all 1,582 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Assistant Evidence Projection
 
 `AssistantWorkflowStatus` now resolves its ordered selected evidence keys

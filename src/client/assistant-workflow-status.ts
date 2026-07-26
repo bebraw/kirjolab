@@ -2,6 +2,7 @@ import { html, LitElement, type TemplateResult } from "lit";
 import type { AnnotationResource, ClaimResource, ModelEvidenceReference } from "../domain/workspace";
 import type { AssistantOperationDefinition, AssistantOperationId } from "./assistant-operations";
 import { maximumModelEvidenceItems, type ModelEvidenceItem } from "./model-provider";
+import { modelEvidenceKey } from "./research-resource-presentation";
 
 export const assistantWorkflowActionEvent = "kirjolab-assistant-workflow-action";
 export type AssistantWorkflowAction = "choose-evidence" | "open-settings";
@@ -90,7 +91,11 @@ export class AssistantWorkflowStatus extends LitElement {
         : `${this.evidenceKeys.size} ${this.evidenceKeys.size === 1 ? "resource" : "resources"} selected for grounding.`;
   }
 
-  reconcileEvidence(validKeys: ReadonlySet<string>): void {
+  reconcileEvidence(annotations: readonly AnnotationResource[], claims: readonly ClaimResource[]): void {
+    const validKeys = new Set([
+      ...annotations.map((annotation) => modelEvidenceKey("annotation", annotation.id)),
+      ...claims.map((claim) => modelEvidenceKey("claim", claim.id)),
+    ]);
     this.evidenceKeys = new Set([...this.evidenceKeys].filter((key) => validKeys.has(key)));
   }
 

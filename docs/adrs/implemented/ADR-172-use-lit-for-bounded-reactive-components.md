@@ -365,12 +365,12 @@ The adopted components own bounded presentation:
   derived entry, question, and action counts, action copy, and a typed open
   intent.
 - The assistant workflow status owns operation-specific attribution and status
-  copy, live status presentation, selected evidence keys, selection count and
-  limit copy, ordered annotation-or-claim model-evidence projection from
-  canonical collections, annotation-only claim-drafting subsets, evidence and
-  connection actions, operation-specific target and evidence requirement
-  validation, synchronization guidance, generation-start copy, and their typed
-  intents.
+  copy, live status presentation, selected evidence keys, reconciliation
+  against canonical annotations and claims, selection count and limit copy,
+  ordered annotation-or-claim model-evidence projection from canonical
+  collections, annotation-only claim-drafting subsets, evidence and connection
+  actions, operation-specific target and evidence requirement validation,
+  synchronization guidance, generation-start copy, and their typed intents.
 - The workspace rail tabs own active-tab and open-comment-count presentation
   plus a typed navigation intent.
 - The authoring mode tabs own Write and Map active-state presentation,
