@@ -5984,7 +5984,7 @@ class WorkspaceApp {
 
   #resetLibraryHighlightComposer(artifactId: string): void {
     this.#resetPdfHighlightImport();
-    this.#clearLibraryPdfShapeRecognition();
+    this.#elements.paperMarkups.cancelShapeRecognition();
     this.#elements.libraryPdfInspector.setArtifact(artifactId);
     this.#editingLibraryHighlightId = null;
     this.#pdfAnnotation.send({ type: "CHOOSE_TOOL", tool: this.#libraryPdfTool() });
@@ -6166,7 +6166,6 @@ class WorkspaceApp {
   }
 
   #setLibraryPdfTool(tool: "select" | "text" | "note" | "draw"): void {
-    if (tool !== "draw") this.#clearLibraryPdfShapeRecognition();
     this.#pdfAnnotation.send({ type: "CHOOSE_TOOL", tool });
     this.#elements.paperMarkups.setInteraction(tool);
     this.#pdfViewer.setTextSelectionEnabled(tool === "text");
@@ -6286,12 +6285,7 @@ class WorkspaceApp {
 
   #cancelLibraryPdfDrawing(): void {
     this.#pdfAnnotation.send({ type: "CANCEL_POINTER" });
-    this.#clearLibraryPdfShapeRecognition();
     this.#elements.paperMarkups.setInteraction(this.#libraryPdfTool());
-  }
-
-  #clearLibraryPdfShapeRecognition(): void {
-    this.#elements.paperMarkups.cancelShapeRecognition();
   }
 
   async #saveLibraryPdfNote(body: string): Promise<void> {

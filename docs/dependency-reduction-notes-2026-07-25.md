@@ -2839,3 +2839,23 @@ gzip and 18 and 150.
 
 Full native CI passes all 1,415 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Lit Ownership: PDF Interaction Cleanup
+
+`LibraryPdfMarkupLayer.setInteraction` now treats every inactive interaction as
+a recognition-cleanup boundary. Tool changes and pointer cancellation no longer
+require coordinator-owned timer or shape cleanup, while the separate composer
+reset can still cancel recognition directly before changing other UI state.
+
+This checkpoint reduces `src/client/app.ts` from 7,027 to 7,021 lines (-6) and
+removes its shape-recognition cleanup wrapper. Focused unit and private-PDF
+browser coverage passes tool changes, cancellation, drawing recognition,
+persistence, rendering, and annotated export.
+
+The browser application artifact changes from 801,313 B raw / 215,902 B gzip
+to 801,295 B raw / 215,875 B gzip (-18 B raw / -27 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,415 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.

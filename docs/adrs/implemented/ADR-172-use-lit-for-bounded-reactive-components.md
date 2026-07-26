@@ -507,7 +507,8 @@ reason to wrap static markup mechanically.
   typed pointer actions. The layer also owns native-default suppression, pointer
   capture, recognition cancellation, and active-drawing presentation at gesture
   start. During continuation it owns native scroll suppression, coalesced sample
-  expansion, draft updates, and recognition scheduling. The application
+  expansion, draft updates, and recognition scheduling. Returning to an inactive
+  interaction clears recognition state within the layer. The application
   coordinator retains state-machine transitions, persistence, inspector policy,
   and notifications.
 - The Library PDF project-use block replaces its imperative renderer and four

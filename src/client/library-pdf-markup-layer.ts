@@ -102,6 +102,7 @@ export class LibraryPdfMarkupLayer extends LitElement {
   }
 
   setInteraction(tool: PdfAnnotationTool, drawingActive = false): void {
+    if (!drawingActive) this.cancelShapeRecognition();
     this.interactionTool = tool;
     this.dataset.tool = tool;
     if (drawingActive) this.dataset.drawingActive = "true";

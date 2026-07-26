@@ -353,7 +353,8 @@ collaboration.
   retains annotation-machine transitions and persistence. During a freehand
   gesture, the layer suppresses native scrolling, expands coalesced samples,
   updates the live draft, schedules recognition, and returns only new normalized
-  points for the coordinator's drawing-state transition.
+  points for the coordinator's drawing-state transition. Any transition back to
+  inactive layer interaction clears pending and recognized shape state.
   The annotation toolbar owns the guidance associated with each tool, while
   the coordinator decides when that guidance is presented in the inspector.
 - **Web sources:** Public HTTP(S) pages are captured through bounded,
