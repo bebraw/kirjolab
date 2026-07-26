@@ -2713,6 +2713,27 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,414 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: PDF Markup Hit-Testing
+
+`LibraryPdfMarkupLayer` now resolves note-pin and drawing-stroke pointer targets
+to typed kind and identifier data. `WorkspaceApp` no longer queries component
+selectors or reads markup IDs from the layer's light DOM; it retains tool
+validation, annotation-machine transitions, pointer capture, and persistence.
+Draft note pins remain consumed without starting a second page placement.
+
+This checkpoint reduces `src/client/app.ts` from 7,063 to 7,061 lines (-2).
+Focused unit coverage passes saved-note, draft-note, drawing, and empty target
+resolution, while the private-PDF browser workflow passes note placement and
+movement, drawing selection, persistence, rendering, and annotated export.
+
+The browser application artifact changes from 800,734 B raw / 215,735 B gzip
+to 800,894 B raw / 215,757 B gzip (+160 B raw / +22 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,415 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: PDF Shape Manipulation
 
 `LibraryPdfMarkupLayer` now keeps recognized pixel-space shape state private,

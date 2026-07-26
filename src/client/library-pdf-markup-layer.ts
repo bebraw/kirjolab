@@ -60,6 +60,14 @@ export interface LibraryPdfDrawingUpdate {
   readonly points: readonly LibraryPdfPoint[];
 }
 
+export type LibraryPdfMarkupTarget =
+  | { readonly id: string | null; readonly kind: "note" }
+  | { readonly id: string; readonly kind: "drawing" };
+
+interface MarkupTargetElement {
+  closest(selector: string): Pick<Element, "getAttribute"> | null;
+}
+
 export const libraryPdfMarkupLayerActionEvent = "library-pdf-markup-layer-action";
 export const libraryPdfShapeAdjustedEvent = "library-pdf-shape-adjusted";
 export const libraryPdfShapeRecognizedEvent = "library-pdf-shape-recognized";
@@ -94,6 +102,13 @@ export class LibraryPdfMarkupLayer extends LitElement {
       x: Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width)),
       y: Math.max(0, Math.min(1, (event.clientY - rect.top) / rect.height)),
     };
+  }
+
+  markupTarget(target: MarkupTargetElement): LibraryPdfMarkupTarget | null {
+    const note = target.closest(".pdf-note-pin");
+    if (note) return { id: note.getAttribute("data-markup-id"), kind: "note" };
+    const drawingId = target.closest(".pdf-ink-stroke")?.getAttribute("data-markup-id");
+    return drawingId ? { id: drawingId, kind: "drawing" } : null;
   }
 
   extendDrawing(event: DrawingPointerEvent, draft: readonly LibraryPdfPoint[]): LibraryPdfDrawingUpdate | null {

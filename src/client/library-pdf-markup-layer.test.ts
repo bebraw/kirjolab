@@ -143,6 +143,19 @@ describe("library PDF markup layer", () => {
     expect(recognized && layer.adjustShape(recognized.shape, { clientX: 0, clientY: 0 })).toBeNull();
   });
 
+  it("resolves markup targets without exposing component selectors", () => {
+    const layer = new TestMarkupLayer();
+    const target = (selector: string, id: string | null) => ({
+      closest: (candidate: string) =>
+        candidate === selector ? { getAttribute: (name: string) => (name === "data-markup-id" ? id : null) } : null,
+    });
+
+    expect(layer.markupTarget(target(".pdf-note-pin", "note-1"))).toEqual({ id: "note-1", kind: "note" });
+    expect(layer.markupTarget(target(".pdf-note-pin", null))).toEqual({ id: null, kind: "note" });
+    expect(layer.markupTarget(target(".pdf-ink-stroke", "drawing-1"))).toEqual({ id: "drawing-1", kind: "drawing" });
+    expect(layer.markupTarget(target(".pdf-ink-stroke", null))).toBeNull();
+  });
+
   it("owns delayed shape recognition and cancellation", () => {
     vi.useFakeTimers();
     const layer = new TestMarkupLayer();

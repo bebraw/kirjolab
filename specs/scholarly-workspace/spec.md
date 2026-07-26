@@ -345,6 +345,8 @@ collaboration.
   gesture validation, workflow transitions, persistence, and inspector
   messaging. Subsequent pointer movement is adjusted inside the layer and
   emitted as normalized page points without exposing pixel-space shape state.
+  Note-pin and drawing-stroke hit-testing is likewise component-owned; the
+  coordinator receives only typed target kind and identifier data.
 - **Web sources:** Public HTTP(S) pages are captured through bounded,
   redirect-controlled Worker retrieval into immutable owner-private raw and
   readable R2 objects. Project citations pin one exact access timestamp and

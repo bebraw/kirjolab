@@ -6190,12 +6190,11 @@ class WorkspaceApp {
   }
 
   #startLibraryPdfMarkup(event: PointerEvent): void {
-    const note = (event.target as Element).closest<HTMLButtonElement>(".pdf-note-pin");
-    if (note) return this.#startLibraryPdfNoteDrag(note, event);
-    const drawing = (event.target as Element).closest<SVGElement>(".pdf-ink-stroke");
-    if (drawing?.dataset.markupId && this.#libraryPdfTool() === "select") {
+    const target = this.#elements.paperMarkups.markupTarget(event.target as Element);
+    if (target?.kind === "note") return this.#startLibraryPdfNoteDrag(target.id, event);
+    if (target?.kind === "drawing" && this.#libraryPdfTool() === "select") {
       event.preventDefault();
-      this.#selectLibraryPdfMarkup(drawing.dataset.markupId);
+      this.#selectLibraryPdfMarkup(target.id);
       return;
     }
     const point = this.#elements.paperMarkups.point(event);
@@ -6212,8 +6211,7 @@ class WorkspaceApp {
     this.#startLibraryPdfDrawing(event, point);
   }
 
-  #startLibraryPdfNoteDrag(note: HTMLButtonElement, event: PointerEvent): void {
-    const id = note.dataset.markupId;
+  #startLibraryPdfNoteDrag(id: string | null, event: PointerEvent): void {
     if (!id || this.#libraryPdfTool() !== "select") return;
     this.#selectLibraryPdfMarkup(id);
     this.#pdfAnnotation.send({ type: "START_NOTE_DRAG", id, pointerId: event.pointerId, x: event.clientX, y: event.clientY });
