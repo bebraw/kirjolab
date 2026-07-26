@@ -16,13 +16,14 @@ continues to use a narrow source revision for stale-selection checks.
 - One browser-local XState actor coordinates timeline loading and mutually
   exclusive inspect, compare, milestone, branch, and restore operations. It
   owns only active-operation identity, request generation, and transient
-  failure state; retained revisions, fetched projections, confirmation prompts,
-  navigation, and server mutations remain outside the actor.
+  failure state; retained revisions and fetched projections remain outside the
+  actor.
 - A bounded history presentation component owns timeline cards, comparison
   controls, busy and error states, read-only inspectors, and typed
-  revision-operation intents. The application coordinator retains the XState
-  actor, response validation, confirmations, fetches, mutations, reloads, and
-  navigation.
+  revision-operation intents. Its enclosing Lit dialog owns the XState actor,
+  response validation, confirmations, fetches, mutations, stale-response
+  rejection, and local failure presentation. The application coordinator
+  retains toast, reload, and navigation policy through typed outcomes.
 - Every retained snapshot stores the exact Yjs update plus workspace settings
   and the rows for project files, references, research shares, PDFs,
   annotations, claims, manuscript comments, and their typed relationships in
@@ -104,6 +105,8 @@ continues to use a narrow source revision for stale-selection checks.
 - History response schema changes must retain malformed-field tests for
   summaries, files, folders, assets, relationship counts, and comparison
   arithmetic.
+- Component tests must retain timeline, inspect, compare, milestone, restore,
+  and branch payload coverage plus malformed and provider-failure outcomes.
 
 ## Current Milestone
 

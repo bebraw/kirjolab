@@ -3700,3 +3700,27 @@ and unique production package counts remain unchanged at 135,411 B raw /
 
 Full native CI passes all 1,447 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Lit Ownership: Project History Workflow
+
+`ProjectHistoryDialog` now owns the browser-local XState actor, timeline,
+inspect, compare, milestone, restore, and branch requests, response validation,
+confirmations, request generations, stale-response rejection, busy and error
+state, and modal lifecycle. It emits only typed notice, navigation, reload, and
+close outcomes. `WorkspaceApp` retains toast and browser-navigation policy.
+
+This checkpoint reduces `src/client/app.ts` from 5,764 to 5,601 lines (-163)
+and grows the history dialog from 80 to 221 lines. Runtime source across those
+files decreases by 22 lines while removing one coordinator actor and eleven
+request, operation, availability, and failure methods. Focused coverage passes
+timeline loading, inspect and compare projections, milestone payload and
+refresh, restore and branch outcomes, provider and malformed failures, modal
+lifecycle, and missing server-rendered children.
+
+The browser application artifact changes from 796,405 B raw / 216,512 B gzip
+to 796,874 B raw / 216,369 B gzip (+469 B raw / -143 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,449 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.

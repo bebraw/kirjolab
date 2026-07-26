@@ -339,6 +339,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Compare project revisions by stable file and binary identity. Treat path
   changes as renames, compose `main.md` at both endpoints, and report neutral
   additions/removals without interpreting correctness.
+- Keep the browser-local history actor, timeline and operation requests,
+  response guards, confirmations, busy state, and stale-response rejection in
+  the project-history Lit dialog. Let the application coordinator consume only
+  typed toast, navigation, and reload outcomes.
 - Treat project unlink, library archive, share revocation, and permanent owner
   deletion as distinct operations. Revocation is forward-only; deletion keeps
   only the tombstoned provenance needed by historical project revisions.
