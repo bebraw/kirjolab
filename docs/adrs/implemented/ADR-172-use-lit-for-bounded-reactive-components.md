@@ -212,14 +212,15 @@ The adopted components own bounded presentation:
   empty state, comments, share and citation availability, and typed navigation,
   edit, cite, share, revoke, and delete intents.
 - The Library PDF markup layer owns saved and draft drawing SVG, note pins,
-  selected state, open note cards, live draft geometry updates, note movement,
-  focus restoration, active interaction attributes, pointer normalization to
-  page coordinates, coalesced-sample accumulation and deduplication,
+  tool, saved-resource selection, note-composition, and open-note-card state;
+  live draft geometry updates; note movement and focus restoration; active
+  interaction attributes; pointer normalization to page coordinates;
+  coalesced-sample accumulation and deduplication;
   delayed pixel-space shape recognition and adjustment, recognition-timer
   cleanup, note-pin and drawing-stroke hit-testing, tool-aware pointer-down
   interpretation, local pointer capture, note-placement press and note-drag
-  thresholds, note-drag preview state, drawing activation and continuation, and
-  typed recognition and note-card close intents.
+  thresholds, note-drag preview state, drawing activation and continuation,
+  typed recognition intents, and local note-card dismissal.
 - The Library PDF project-use block owns unidentified, unlinked, and linked
   presentation, capability-boundary copy, citation preview, and a typed
   reference-link intent.
@@ -479,18 +480,18 @@ reason to wrap static markup mechanically.
 - The Library PDF annotation forms replace seventeen internal element
   references, three submit bindings, cancel and selected-markup action bindings,
   composer visibility updates, and DOM-based value collection while leaving the
-  PDF interaction state machine, selection and drawing geometry, mutations,
-  refreshes, inspector policy, and toasts in the application coordinator.
+  markup layer's interaction state and geometry separate from coordinator-owned
+  mutations, refreshes, inspector policy, and toasts.
 - The Library PDF annotation toolbar replaces twelve internal element
   references, tool, input, undo, export, and inspector bindings, and imperative
   active-tool, width-label, availability, count, and expanded-state updates. It
-  also owns the guidance associated with each tool while leaving gestures, the
-  annotation state machine, drawing persistence, annotated export, inspector
-  policy, and toasts in the application coordinator.
+  also owns the guidance associated with each tool while leaving gestures in
+  the markup layer and drawing persistence, annotated export, inspector policy,
+  and toasts in the application coordinator.
 - The Library PDF inspector replaces four shell element references, the direct
   close binding, artifact dataset comparisons, and repeated visibility, status,
-  expansion, and details mutations while leaving gestures, annotation state,
-  mutations, refreshes, close policy, and focus restoration in the application
+  expansion, and details mutations while leaving interactions in the markup
+  layer and mutations, refreshes, and close policy in the application
   coordinator.
 - The Library PDF annotation list replaces five imperative highlight and markup
   render helpers plus their per-card handlers with one delegated typed action
@@ -511,16 +512,17 @@ reason to wrap static markup mechanically.
   expansion, reactive draft updates, recognition scheduling, snapped-shape
   replacement, manipulation, pointer validation, cancellation, and completion.
   It returns the final normalized points only when the active drawing pointer
-  finishes. The annotation state machine no longer duplicates drawing pointer,
-  point, or shape-manipulation state. Note dragging likewise keeps its start
+  finishes. No separate state owner duplicates drawing pointer, point, or
+  shape-manipulation state. Note dragging likewise keeps its start
   coordinates, movement threshold, native-default suppression, normalized
   preview position, note identity, pointer identity, completion result, and
-  transient DOM update inside the layer. The annotation state machine retains
-  tool mode, selection, and note composition or editing workflow, but no pointer
-  gesture state. The application coordinator retains state-machine transitions,
-  persistence, inspector policy, and notifications. A prospective note placement
-  similarly remains layer-local until a stationary pointer release; only then
-  does the coordinator send the durable `PLACE_NOTE` workflow transition.
+  transient DOM update inside the layer. Tool mode, saved-resource selection,
+  note composition or editing, and open-card state now live in the same layer,
+  eliminating the separate annotation state machine and coordinator-owned
+  transitions. The application coordinator retains persistence, inspector
+  policy, refreshes, and notifications. A prospective note placement similarly
+  remains layer-local until a stationary pointer release, when the layer opens
+  its local note-composition state for a coordinator-owned durable save.
 - The Library PDF project-use block replaces its imperative renderer and four
   one-off DOM-construction helpers. The application coordinator retains
   canonical reference and project-link lookup, the linking mutation, snapshot

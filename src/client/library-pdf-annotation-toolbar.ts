@@ -1,7 +1,7 @@
 import { html, LitElement, type TemplateResult } from "lit";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { renderIcon, type IconName } from "../ui/icons";
-import type { PdfAnnotationTool } from "./pdf-annotation-machine";
+import type { PdfAnnotationTool } from "./library-pdf-markup-layer";
 
 export type LibraryPdfToolbarAction =
   | { readonly action: "choose-tool"; readonly tool: PdfAnnotationTool }

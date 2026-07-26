@@ -1,12 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { LibraryPdfDrawing, LibraryPdfNote } from "../domain/reference-library";
-import {
-  LibraryPdfMarkupLayer,
-  libraryPdfMarkupLayerActionEvent,
-  libraryPdfShapeRecognizedEvent,
-  type LibraryPdfMarkupLayerAction,
-  type LibraryPdfShapeRecognition,
-} from "./library-pdf-markup-layer";
+import { LibraryPdfMarkupLayer, libraryPdfShapeRecognizedEvent, type LibraryPdfShapeRecognition } from "./library-pdf-markup-layer";
 
 class TestMarkupLayer extends LibraryPdfMarkupLayer {
   renderForTest() {
@@ -15,10 +9,6 @@ class TestMarkupLayer extends LibraryPdfMarkupLayer {
 
   rootForTest(): HTMLElement {
     return this.createRenderRoot();
-  }
-
-  emitForTest(action: LibraryPdfMarkupLayerAction): void {
-    this.emitAction(action);
   }
 }
 
@@ -56,40 +46,57 @@ describe("library PDF markup layer", () => {
 
   it("owns empty, drawing, draft, selected-note, and open-note presentation", () => {
     const layer = new TestMarkupLayer();
+    Object.defineProperty(layer, "dataset", { value: {} });
     expect(layer.rootForTest()).toBe(layer);
     expect(layer.renderForTest()).toBeDefined();
     layer.setData({
       drawingStyle: { color: "#000000", width: 3 },
       drawings: [drawing, { ...drawing, id: "draft" }],
-      noteDraft: { page: 2, x: 0.2, y: 0.3, editingId: null },
       notes: [note],
-      openNoteId: note.id,
       page: 2,
-      selectedMarkupId: note.id,
-      tool: "select",
     });
+    layer.chooseTool("note");
+    layer.placeNote(2, { x: 0.2, y: 0.3 });
+    layer.chooseTool("select");
+    layer.selectMarkup(note.id);
+    layer.toggleNoteCard(note.id);
     expect(layer.renderForTest()).toBeDefined();
     layer.setData({
       drawingStyle: { color: "#000000", width: 3 },
       drawings: [],
-      noteDraft: { page: 1, x: 0.2, y: 0.3, editingId: note.id },
       notes: [note],
-      openNoteId: null,
       page: 2,
-      selectedMarkupId: null,
-      tool: "draw",
     });
+    layer.editNote(note);
     expect(layer.renderForTest()).toBeDefined();
   });
 
-  it("emits a typed note-card close intent", () => {
+  it("owns tool, selection, note composition, and note-card state", () => {
     const layer = new TestMarkupLayer();
-    const actions: LibraryPdfMarkupLayerAction[] = [];
-    layer.addEventListener(libraryPdfMarkupLayerActionEvent, (event) => {
-      actions.push((event as CustomEvent<LibraryPdfMarkupLayerAction>).detail);
-    });
-    layer.emitForTest({ action: "close-note", noteId: note.id });
-    expect(actions).toEqual([{ action: "close-note", noteId: note.id }]);
+    Object.defineProperty(layer, "dataset", { value: {} });
+    expect(layer.tool).toBe("text");
+    layer.placeNote(2, { x: 0.2, y: 0.3 });
+    expect(layer.noteDraft).toBeNull();
+    layer.chooseTool("note");
+    layer.placeNote(2, { x: 0.2, y: 0.3 });
+    expect(layer.noteDraft).toEqual({ page: 2, x: 0.2, y: 0.3, editingId: null });
+    layer.clearNote();
+    expect(layer.noteDraft).toBeNull();
+
+    layer.chooseTool("select");
+    layer.selectHighlight("highlight-1");
+    expect(layer.selectedHighlightId).toBe("highlight-1");
+    layer.selectMarkup(note.id);
+    expect(layer.selectedHighlightId).toBeNull();
+    expect(layer.selectedMarkupId).toBe(note.id);
+    layer.toggleNoteCard(note.id);
+    layer.toggleNoteCard(note.id);
+    layer.editNote(note);
+    expect(layer.noteDraft).toEqual({ page: 2, x: 0.4, y: 0.5, editingId: note.id });
+    layer.clearSelection();
+    expect(layer.selectedMarkupId).toBeNull();
+    layer.resetState();
+    expect(layer.tool).toBe("select");
   });
 
   it("owns interaction state and normalized pointer geometry", () => {

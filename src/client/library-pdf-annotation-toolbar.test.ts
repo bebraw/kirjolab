@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { LibraryPdfAnnotationToolbar, libraryPdfToolbarActionEvent, type LibraryPdfToolbarAction } from "./library-pdf-annotation-toolbar";
-import type { PdfAnnotationTool } from "./pdf-annotation-machine";
+import type { PdfAnnotationTool } from "./library-pdf-markup-layer";
 
 class TestLibraryPdfAnnotationToolbar extends LibraryPdfAnnotationToolbar {
   renderForTest() {

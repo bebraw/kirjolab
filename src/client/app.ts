@@ -111,9 +111,7 @@ import {
 } from "./library-pdf-annotation-list";
 import {
   LibraryPdfMarkupLayer,
-  libraryPdfMarkupLayerActionEvent,
   libraryPdfShapeRecognizedEvent,
-  type LibraryPdfMarkupLayerAction,
   type LibraryPdfNoteDragResult,
   type LibraryPdfShapeRecognition,
 } from "./library-pdf-markup-layer";
@@ -285,7 +283,6 @@ import {
   type OfflineWorkspaceStore,
 } from "./offline-workspace";
 import { PdfEvidenceViewer, type PdfSelectionCapture } from "./pdf-viewer";
-import { createPdfAnnotationActor, pdfAnnotationTool, type PdfAnnotationSnapshot, type PdfAnnotationTool } from "./pdf-annotation-machine";
 import { createPublicationIntakeActor, publicationIntakeBusy } from "./publication-intake-machine";
 import { extractPdfMetadata, type PdfMetadataCandidates } from "./pdf-metadata";
 import { detectImportedPdfHighlights } from "./pdf-highlight-import";
@@ -603,7 +600,6 @@ class WorkspaceApp {
     workspaceId,
   );
   readonly #resourceRefresh = new CoalescedRefresh(async () => this.#refreshSnapshot());
-  readonly #pdfAnnotation = createPdfAnnotationActor();
   readonly #assistantWorkflow = createAssistantWorkflowActor();
   #assistantResultContext: AssistantResultContext | null = null;
   readonly #publicationIntake = createPublicationIntakeActor();
@@ -689,26 +685,6 @@ class WorkspaceApp {
       paneStorageKey: () => `kirjolab:authoring-pane:${workspaceId}:${this.#activeResourceTab()?.kind ?? "preview"}`,
       resizePdf: () => void this.#pdfViewer.resize(),
     });
-  }
-
-  #pdfAnnotationSnapshot(): PdfAnnotationSnapshot {
-    return this.#pdfAnnotation.getSnapshot();
-  }
-
-  #libraryPdfTool(): PdfAnnotationTool {
-    return pdfAnnotationTool(this.#pdfAnnotationSnapshot());
-  }
-
-  #pendingPdfNote() {
-    return this.#pdfAnnotationSnapshot().context.note;
-  }
-
-  #selectedLibraryPdfMarkupId(): string | null {
-    return this.#pdfAnnotationSnapshot().context.selectedMarkupId;
-  }
-
-  #selectedLibraryHighlightId(): string | null {
-    return this.#pdfAnnotationSnapshot().context.selectedHighlightId;
   }
 
   async start(): Promise<void> {
@@ -1158,14 +1134,8 @@ class WorkspaceApp {
     this.#elements.paperMarkups.addEventListener("pointercancel", () => {
       const movedNote = this.#elements.paperMarkups.cancelNoteDrag();
       const hadDrawing = this.#elements.paperMarkups.cancelDrawing();
-      this.#elements.paperMarkups.setInteraction(this.#libraryPdfTool());
+      this.#elements.paperMarkups.setInteraction(this.#elements.paperMarkups.tool);
       if (movedNote || hadDrawing) this.#renderPdfMarkups();
-    });
-    this.#elements.paperMarkups.addEventListener(libraryPdfMarkupLayerActionEvent, (event) => {
-      const { noteId } = (event as CustomEvent<LibraryPdfMarkupLayerAction>).detail;
-      this.#pdfAnnotation.send({ type: "CLOSE_NOTE_CARD" });
-      this.#renderPdfMarkups();
-      this.#elements.paperMarkups.focusNote(noteId);
     });
     this.#elements.paperMarkups.addEventListener(libraryPdfShapeRecognizedEvent, (event) => {
       const { kind } = (event as CustomEvent<LibraryPdfShapeRecognition>).detail;
@@ -5956,7 +5926,7 @@ class WorkspaceApp {
     this.#elements.paperMarkups.cancelShapeRecognition();
     this.#elements.libraryPdfInspector.setArtifact(artifactId);
     this.#editingLibraryHighlightId = null;
-    this.#pdfAnnotation.send({ type: "CHOOSE_TOOL", tool: this.#libraryPdfTool() });
+    this.#elements.paperMarkups.resetState();
     this.#elements.libraryPdfAnnotationForms.clearHighlight(1);
     this.#elements.libraryPdfAnnotationForms.clearNote();
     this.#elements.libraryPdfAnnotationForms.clearMarkup();
@@ -6104,9 +6074,9 @@ class WorkspaceApp {
   }
 
   #editLibraryHighlight(highlight: LibraryHighlight): void {
-    if (this.#selectedLibraryPdfMarkupId()) this.#clearLibraryPdfMarkupSelection(false);
-    if (this.#libraryPdfTool() !== "select") this.#setLibraryPdfTool("select");
-    this.#pdfAnnotation.send({ type: "SELECT_HIGHLIGHT", id: highlight.id });
+    if (this.#elements.paperMarkups.selectedMarkupId) this.#clearLibraryPdfMarkupSelection();
+    if (this.#elements.paperMarkups.tool !== "select") this.#setLibraryPdfTool("select");
+    this.#elements.paperMarkups.selectHighlight(highlight.id);
     this.#pdfViewer.setPrivateHighlightSelection(true, highlight.id);
     this.#editingLibraryHighlightId = highlight.id;
     this.#libraryHighlightRects = [...highlight.rects];
@@ -6135,14 +6105,13 @@ class WorkspaceApp {
   }
 
   #setLibraryPdfTool(tool: "select" | "text" | "note" | "draw"): void {
-    this.#pdfAnnotation.send({ type: "CHOOSE_TOOL", tool });
-    this.#elements.paperMarkups.setInteraction(tool);
+    this.#elements.paperMarkups.chooseTool(tool);
     this.#pdfViewer.setTextSelectionEnabled(tool === "text");
     const status = this.#elements.libraryPdfAnnotationToolbar.setTool(tool);
-    this.#pdfViewer.setPrivateHighlightSelection(tool === "select", this.#selectedLibraryHighlightId());
+    this.#pdfViewer.setPrivateHighlightSelection(tool === "select", this.#elements.paperMarkups.selectedHighlightId);
     this.#elements.libraryPdfInspector.setStatus(status);
-    if (tool !== "note") this.#clearLibraryPdfNoteDraft(false);
-    if (tool !== "select") this.#clearLibraryPdfMarkupSelection(false);
+    if (tool !== "note") this.#clearLibraryPdfNoteDraft();
+    if (tool !== "select") this.#clearLibraryPdfMarkupSelection();
     if (this.#libraryPdfInspectorEmpty()) this.#setLibraryPdfInspector(false);
   }
 
@@ -6192,10 +6161,9 @@ class WorkspaceApp {
   }
 
   #finishLibraryPdfNotePress(point: LibraryPdfPoint): void {
-    this.#pdfAnnotation.send({ type: "PLACE_NOTE", page: this.#pdfViewer.currentPage, point });
+    this.#elements.paperMarkups.placeNote(this.#pdfViewer.currentPage, point);
     this.#elements.libraryPdfAnnotationForms.showNote();
     this.#setLibraryPdfInspector(true);
-    this.#renderPdfMarkups();
     this.#elements.libraryPdfAnnotationForms.focusNote();
   }
 
@@ -6218,7 +6186,7 @@ class WorkspaceApp {
 
   async #saveLibraryPdfNote(body: string): Promise<void> {
     const artifact = this.#activeLibraryPdf();
-    const noteDraft = this.#pendingPdfNote();
+    const noteDraft = this.#elements.paperMarkups.noteDraft;
     if (!artifact?.referenceId || !noteDraft || !body) return;
     const { editingId, ...anchor } = noteDraft;
     if (editingId) {
@@ -6232,7 +6200,7 @@ class WorkspaceApp {
         },
       );
       await expectOk(response);
-      this.#clearLibraryPdfNoteDraft(true, true);
+      this.#clearLibraryPdfNoteDraft();
       await this.#refreshReferenceLibrary();
       this.#setLibraryPdfInspector(false);
       this.#showToast("Private note updated.");
@@ -6245,22 +6213,20 @@ class WorkspaceApp {
       body,
     });
     await expectOk(response);
-    this.#clearLibraryPdfNoteDraft(true, true);
+    this.#clearLibraryPdfNoteDraft();
     await this.#refreshReferenceLibrary();
     this.#setLibraryPdfInspector(false);
     this.#showToast("Note attached privately.");
   }
 
-  #clearLibraryPdfNoteDraft(render = true, saved = false): void {
-    this.#pdfAnnotation.send({ type: saved ? "NOTE_SAVED" : "CANCEL_NOTE" });
+  #clearLibraryPdfNoteDraft(): void {
+    this.#elements.paperMarkups.clearNote();
     this.#elements.libraryPdfAnnotationForms.clearNote();
-    if (render) this.#renderPdfMarkups();
   }
 
   #editLibraryPdfNote(note: LibraryPdfNote): void {
-    if (this.#libraryPdfTool() !== "select") this.#setLibraryPdfTool("select");
-    this.#pdfAnnotation.send({ type: "EDIT_NOTE", id: note.id, page: note.page, point: { x: note.x, y: note.y } });
-    this.#renderPdfMarkups();
+    if (this.#elements.paperMarkups.tool !== "select") this.#setLibraryPdfTool("select");
+    this.#elements.paperMarkups.editNote(note);
     this.#elements.libraryPdfAnnotationForms.showNote(note.body);
     this.#elements.libraryPdfInspector.setStatus(`Editing the note on page ${note.page}.`);
     this.#setLibraryPdfInspector(true);
@@ -6270,7 +6236,7 @@ class WorkspaceApp {
   #selectLibraryHighlight(highlightId: string): void {
     const highlight = this.#librarySnapshot?.highlights.find((item) => item.id === highlightId);
     if (!highlight) return;
-    this.#clearLibraryPdfMarkupSelection(false);
+    this.#clearLibraryPdfMarkupSelection();
     this.#editLibraryHighlight(highlight);
   }
 
@@ -6278,7 +6244,7 @@ class WorkspaceApp {
     const markup = (this.#librarySnapshot?.pdfMarkups ?? []).find((item) => item.id === markupId);
     if (!markup) return;
     if (this.#elements.libraryPdfAnnotationForms.highlightOpen) this.#clearLibraryHighlightDraft();
-    this.#pdfAnnotation.send({ type: "SELECT_MARKUP", id: markup.id });
+    this.#elements.paperMarkups.selectMarkup(markup.id);
     this.#pdfViewer.setPrivateHighlightSelection(true);
     this.#elements.libraryPdfAnnotationForms.showMarkup({
       label: markup.kind === "note" ? `Note on page ${markup.page} · drag its pin to move` : `Line on page ${markup.page}`,
@@ -6291,26 +6257,24 @@ class WorkspaceApp {
         : "Line selected. Adjust its style or delete it.",
     );
     this.#setLibraryPdfInspector(true);
-    this.#renderPdfMarkups();
   }
 
-  #clearLibraryPdfMarkupSelection(render = true): void {
-    this.#pdfAnnotation.send({ type: "CLEAR_SELECTION" });
+  #clearLibraryPdfMarkupSelection(): void {
+    this.#elements.paperMarkups.clearSelection();
     this.#elements.libraryPdfAnnotationForms.clearMarkup();
-    this.#pdfViewer.setPrivateHighlightSelection(this.#libraryPdfTool() === "select");
-    if (render) this.#renderPdfMarkups();
+    this.#pdfViewer.setPrivateHighlightSelection(this.#elements.paperMarkups.tool === "select");
   }
 
   #editSelectedLibraryPdfNote(): void {
     const note = (this.#librarySnapshot?.pdfMarkups ?? []).find(
-      (item): item is LibraryPdfNote => item.kind === "note" && item.id === this.#selectedLibraryPdfMarkupId(),
+      (item): item is LibraryPdfNote => item.kind === "note" && item.id === this.#elements.paperMarkups.selectedMarkupId,
     );
     if (note) this.#editLibraryPdfNote(note);
   }
 
   async #updateSelectedLibraryDrawing(action: Extract<LibraryPdfAnnotationAction, { action: "apply-drawing" }>): Promise<void> {
     const drawing = (this.#librarySnapshot?.pdfMarkups ?? []).find(
-      (item): item is LibraryPdfDrawing => item.kind === "drawing" && item.id === this.#selectedLibraryPdfMarkupId(),
+      (item): item is LibraryPdfDrawing => item.kind === "drawing" && item.id === this.#elements.paperMarkups.selectedMarkupId,
     );
     if (!drawing) return;
     const response = await fetch(
@@ -6331,9 +6295,9 @@ class WorkspaceApp {
   }
 
   async #deleteSelectedLibraryPdfMarkup(): Promise<void> {
-    const markup = (this.#librarySnapshot?.pdfMarkups ?? []).find((item) => item.id === this.#selectedLibraryPdfMarkupId());
+    const markup = (this.#librarySnapshot?.pdfMarkups ?? []).find((item) => item.id === this.#elements.paperMarkups.selectedMarkupId);
     if (!markup) return;
-    this.#clearLibraryPdfMarkupSelection(false);
+    this.#clearLibraryPdfMarkupSelection();
     await this.#deleteLibraryPdfMarkup(markup);
   }
 
@@ -6345,19 +6309,13 @@ class WorkspaceApp {
   #renderPdfMarkups(): void {
     const artifact = this.#activeLibraryPdf();
     const page = this.#pdfViewer.currentPage;
-    const noteDraft = this.#pendingPdfNote();
-    const selectedMarkupId = this.#selectedLibraryPdfMarkupId();
     const markups = this.#visibleLibraryPdfMarkups(artifact, page);
     const drawings = markups.filter((item): item is LibraryPdfDrawing => item.kind === "drawing");
     this.#elements.paperMarkups.setData({
       drawingStyle: this.#elements.libraryPdfAnnotationToolbar.drawingStyle,
       drawings,
-      noteDraft,
       notes: markups.filter((item): item is LibraryPdfNote => item.kind === "note"),
-      openNoteId: this.#pdfAnnotationSnapshot().context.openNoteId,
       page,
-      selectedMarkupId,
-      tool: this.#libraryPdfTool(),
     });
     this.#elements.libraryPdfAnnotationToolbar.setUndoAvailable(markups.some((item) => item.kind === "drawing"));
   }
@@ -6380,8 +6338,7 @@ class WorkspaceApp {
 
   async #finishLibraryPdfNoteDrag({ id, moved, point }: LibraryPdfNoteDragResult): Promise<void> {
     if (!moved) {
-      this.#pdfAnnotation.send({ type: "TOGGLE_NOTE_CARD", id });
-      this.#renderPdfMarkups();
+      this.#elements.paperMarkups.toggleNoteCard(id);
       return;
     }
     const note = (this.#librarySnapshot?.pdfMarkups ?? []).find((item): item is LibraryPdfNote => item.kind === "note" && item.id === id);

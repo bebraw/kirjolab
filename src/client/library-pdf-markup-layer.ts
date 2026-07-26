@@ -1,7 +1,8 @@
 import { html, LitElement, nothing, type TemplateResult } from "lit";
 import type { LibraryPdfDrawing, LibraryPdfNote, LibraryPdfPoint } from "../domain/reference-library";
 import { manipulateRecognizedShape, recognizeDrawnShape, type RecognizedDrawnShape } from "./drawn-shape-recognition";
-import type { PdfAnnotationTool } from "./pdf-annotation-machine";
+
+export type PdfAnnotationTool = "select" | "text" | "note" | "draw";
 
 interface PdfNoteDraft {
   readonly editingId: string | null;
@@ -13,17 +14,8 @@ interface PdfNoteDraft {
 export interface LibraryPdfMarkupLayerData {
   readonly drawingStyle: Pick<LibraryPdfDrawing, "color" | "width">;
   readonly drawings: readonly LibraryPdfDrawing[];
-  readonly noteDraft: PdfNoteDraft | null;
   readonly notes: readonly LibraryPdfNote[];
-  readonly openNoteId: string | null;
   readonly page: number;
-  readonly selectedMarkupId: string | null;
-  readonly tool: PdfAnnotationTool;
-}
-
-export interface LibraryPdfMarkupLayerAction {
-  readonly action: "close-note";
-  readonly noteId: string;
 }
 
 export interface LibraryPdfRecognizedShape {
@@ -92,7 +84,6 @@ interface MarkupTargetElement {
   closest(selector: string): Pick<Element, "getAttribute"> | null;
 }
 
-export const libraryPdfMarkupLayerActionEvent = "library-pdf-markup-layer-action";
 export const libraryPdfShapeRecognizedEvent = "library-pdf-shape-recognized";
 
 export class LibraryPdfMarkupLayer extends LitElement {
@@ -101,10 +92,14 @@ export class LibraryPdfMarkupLayer extends LitElement {
   declare private data: LibraryPdfMarkupLayerData | null;
   private drawing: ActiveDrawing | null = null;
   private interactionTool: PdfAnnotationTool = "text";
+  private noteDraftValue: PdfNoteDraft | null = null;
   private noteDrag: ActiveNoteDrag | null = null;
   private notePress: ActiveNotePress | null = null;
+  private openNoteId: string | null = null;
   private recognizedShape: RecognizedDrawnShape | null = null;
   private recognitionTimer: ReturnType<typeof globalThis.setTimeout> | undefined;
+  private selectedHighlightIdValue: string | null = null;
+  private selectedMarkupIdValue: string | null = null;
 
   constructor() {
     super();
@@ -113,8 +108,88 @@ export class LibraryPdfMarkupLayer extends LitElement {
 
   setData(data: LibraryPdfMarkupLayerData): void {
     this.data = data;
-    this.interactionTool = data.tool;
     if (this.isConnected) this.performUpdate();
+  }
+
+  get noteDraft(): PdfNoteDraft | null {
+    return this.noteDraftValue;
+  }
+
+  get selectedHighlightId(): string | null {
+    return this.selectedHighlightIdValue;
+  }
+
+  get selectedMarkupId(): string | null {
+    return this.selectedMarkupIdValue;
+  }
+
+  get tool(): PdfAnnotationTool {
+    return this.interactionTool;
+  }
+
+  chooseTool(tool: PdfAnnotationTool): void {
+    this.resetState();
+    this.setInteraction(tool);
+  }
+
+  resetState(): void {
+    this.setInteraction(this.tool);
+    this.noteDraftValue = null;
+    this.openNoteId = null;
+    this.selectedHighlightIdValue = null;
+    this.selectedMarkupIdValue = null;
+    this.requestUpdate();
+  }
+
+  placeNote(page: number, point: LibraryPdfPoint): void {
+    if (this.tool !== "note") return;
+    this.noteDraftValue = { page, ...point, editingId: null };
+    this.requestUpdate();
+  }
+
+  editNote(note: Pick<LibraryPdfNote, "id" | "page" | "x" | "y">): void {
+    this.setInteraction("select");
+    this.selectedHighlightIdValue = null;
+    this.selectedMarkupIdValue = note.id;
+    this.openNoteId = null;
+    this.noteDraftValue = { page: note.page, x: note.x, y: note.y, editingId: note.id };
+    this.requestUpdate();
+  }
+
+  clearNote(): void {
+    this.noteDraftValue = null;
+    this.requestUpdate();
+  }
+
+  selectHighlight(id: string): void {
+    if (this.tool !== "select") return;
+    this.selectedHighlightIdValue = id;
+    this.selectedMarkupIdValue = null;
+    this.requestUpdate();
+  }
+
+  selectMarkup(id: string): void {
+    if (this.tool !== "select") return;
+    this.selectedHighlightIdValue = null;
+    this.selectedMarkupIdValue = id;
+    this.requestUpdate();
+  }
+
+  clearSelection(): void {
+    this.selectedHighlightIdValue = null;
+    this.selectedMarkupIdValue = null;
+    this.requestUpdate();
+  }
+
+  toggleNoteCard(id: string): void {
+    this.openNoteId = this.openNoteId === id ? null : id;
+    this.requestUpdate();
+  }
+
+  closeNoteCard(id: string): void {
+    this.openNoteId = null;
+    this.requestUpdate();
+    void this.updateComplete.then(() => this.focusNote(id));
   }
 
   setInteraction(tool: PdfAnnotationTool, drawingActive = false): void {
@@ -362,11 +437,11 @@ export class LibraryPdfMarkupLayer extends LitElement {
   protected override render(): TemplateResult {
     const data = this.data;
     if (!data) return html``;
-    const draft = data.noteDraft;
+    const draft = this.noteDraft;
     return html`
       ${data.drawings.length > 0 || this.drawing
         ? html`<svg class="pdf-ink-layer" viewBox="0 0 1000 1000" preserveAspectRatio="none">
-            ${data.drawings.map((drawing) => this.renderDrawing(drawing, drawing.id === data.selectedMarkupId))}
+            ${data.drawings.map((drawing) => this.renderDrawing(drawing, drawing.id === this.selectedMarkupId))}
             ${this.drawing ? this.renderDrawing({ id: "draft", points: this.drawing.points, ...data.drawingStyle }, false) : nothing}
           </svg>`
         : nothing}
@@ -379,12 +454,8 @@ export class LibraryPdfMarkupLayer extends LitElement {
             title="New note location"
           ></span>`
         : nothing}
-      ${data.notes.map((note) => this.renderNote(data, note))}
+      ${data.notes.map((note) => this.renderNote(note))}
     `;
-  }
-
-  protected emitAction(action: LibraryPdfMarkupLayerAction): void {
-    this.dispatchEvent(new CustomEvent<LibraryPdfMarkupLayerAction>(libraryPdfMarkupLayerActionEvent, { bubbles: true, detail: action }));
   }
 
   private renderDrawing(drawing: Pick<LibraryPdfDrawing, "color" | "id" | "points" | "width">, selected: boolean): TemplateResult {
@@ -402,18 +473,18 @@ export class LibraryPdfMarkupLayer extends LitElement {
     ></polyline>`;
   }
 
-  private renderNote(data: LibraryPdfMarkupLayerData, note: LibraryPdfNote): TemplateResult {
+  private renderNote(note: LibraryPdfNote): TemplateResult {
     return html`
       <button
         class="pdf-note-pin"
         type="button"
         data-markup-id=${note.id}
-        data-selected=${note.id === data.selectedMarkupId ? "true" : nothing}
+        data-selected=${note.id === this.selectedMarkupId ? "true" : nothing}
         style=${`left: ${note.x * 100}%; top: ${note.y * 100}%`}
         aria-label=${`Open note on page ${note.page}`}
-        title=${data.tool === "select" ? "Tap to select; drag to move" : "Choose Select to edit this note"}
+        title=${this.tool === "select" ? "Tap to select; drag to move" : "Choose Select to edit this note"}
       ></button>
-      ${data.openNoteId === note.id
+      ${this.openNoteId === note.id
         ? html`<aside
             class="pdf-note-card"
             style=${`left: ${Math.min(note.x * 100, 70)}%; top: ${Math.min(note.y * 100, 82)}%`}
@@ -427,7 +498,7 @@ export class LibraryPdfMarkupLayer extends LitElement {
               title="Close note"
               @click=${(event: MouseEvent) => {
                 event.stopPropagation();
-                this.emitAction({ action: "close-note", noteId: note.id });
+                this.closeNoteCard(note.id);
               }}
             >
               ×

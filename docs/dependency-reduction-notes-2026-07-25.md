@@ -2979,3 +2979,28 @@ and unique production package counts remain unchanged at 135,411 B raw /
 
 Full native CI passes all 1,413 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Lit Ownership: Complete PDF Annotation State
+
+`LibraryPdfMarkupLayer` now owns the remaining private-PDF interaction state:
+active tool, saved-highlight or markup selection, note composition or editing,
+and the open note card. Note-card dismissal and focus restoration are local to
+the layer. `WorkspaceApp` retains authorized persistence, refreshes, inspector
+policy, and notifications, and the separate PDF annotation XState machine is
+deleted.
+
+This checkpoint reduces `src/client/app.ts` from 6,926 to 6,883 lines (-43),
+deletes the 133-line annotation machine, and grows the markup layer from 467 to
+538 lines (+71), for 105 fewer runtime lines overall. Focused component coverage
+passes tool changes, guarded note placement, selection exclusivity, note
+composition and editing, card toggling, pointer gestures, and shape recognition.
+The private-PDF browser flow passes note placement, editing, movement, drawing,
+recognition, persistence, rendering, and annotated export.
+
+The browser application artifact changes from 798,193 B raw / 215,085 B gzip
+to 796,823 B raw / 214,550 B gzip (-1,370 B raw / -535 B gzip). Styles and
+direct and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,408 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.

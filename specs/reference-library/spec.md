@@ -199,9 +199,9 @@ memory and makes citation aliases compete with stable source identity.
   refresh, and toast policy.
 - The private reader stays focused on the page: its idle annotation surface is
   a compact Select, Text, Note, and Draw toolbar. One typed interaction
-  transition authority keeps tool selection, note composition, saved-resource
-  selection, note dragging, and drawing mutually exclusive. Changing tools or
-  cancelling a pointer interaction clears its transient draft. Text selection
+  owner keeps tool selection, note composition, saved-resource selection, note
+  dragging, and drawing mutually exclusive. Changing tools or cancelling a
+  pointer interaction clears its transient draft. Text selection
   opens a contextual save row; Note places a page-anchored private note; Draw
   captures Apple Pencil or mouse strokes with red as the default color and an
   adjustable 1–24 pixel width while touch remains available for pan and zoom.
@@ -227,24 +227,24 @@ memory and makes citation aliases compete with stable source identity.
 - One bounded light-DOM component owns the private-highlight, page-note, and
   selected-markup composer values and visibility. It emits typed save, cancel,
   edit, delete, and drawing-style intents. The application coordinator retains
-  the annotation interaction state machine, captured geometry, active resource
-  identity, persistence, refreshes, inspector policy, and toasts.
+  captured geometry, active resource identity, persistence, refreshes,
+  inspector policy, and toasts.
 - A companion light-DOM toolbar component owns active-tool presentation,
   drawing color and width, undo and export availability, annotation count, and
   inspector-expanded state. It emits typed tool, undo, export, and inspector
-  intents. The application coordinator retains gestures, annotation state,
-  drawing persistence, annotated export, and inspector policy.
+  intents. The application coordinator retains drawing persistence, annotated
+  export, and inspector policy.
 - A bounded light-DOM inspector component composes the annotation forms,
   imported-highlight review, saved annotation list, and project-use block. It
   owns shell visibility, active-artifact identity, status presentation,
   expanded state, annotation-details opening, and a typed close intent. The
-  application coordinator retains gestures, annotation state, persistence,
-  close policy, refreshes, and focus restoration.
+  application coordinator retains persistence, close policy, and refreshes.
 - A bounded light-DOM markup layer owns saved and draft drawing SVG, note pins,
-  selected state, open note cards, live draft geometry updates, note movement,
-  focus restoration, and a typed note-card close intent. The application
-  coordinator retains pointer capture, gesture state, shape recognition,
-  normalized geometry, persistence, and annotation workflow transitions.
+  tool and saved-resource selection state, note composition, open note cards,
+  live draft geometry updates, pointer capture, note movement, drawing and
+  shape-recognition gestures, note-card dismissal, and focus restoration. The
+  application coordinator retains normalized durable results, persistence,
+  refreshes, inspector policy, and notifications.
 - A bounded light-DOM annotation list owns the private reader's saved highlight
   and markup cards, empty state, comments, share and citation availability, and
   typed navigation, edit, cite, share, revoke, and delete intents. The
