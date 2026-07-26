@@ -1,5 +1,6 @@
 import { html, LitElement, type TemplateResult } from "lit";
 import type { AuthoringMode } from "./workspace-ui-route";
+import type { ProjectMapWorkspace } from "./project-map-workspace";
 
 export const authoringModeChangeEvent = "kirjolab-authoring-mode-change";
 
@@ -15,6 +16,13 @@ export class AuthoringModeTabs extends LitElement {
 
   setMode(mode: AuthoringMode): void {
     this.mode = mode;
+    if (typeof document === "undefined") return;
+    const writing = mode === "write";
+    const editor = document.getElementById("source-editor-shell");
+    const actions = document.getElementById("editor-write-actions");
+    if (editor) editor.hidden = !writing;
+    if (actions) actions.hidden = !writing;
+    document.querySelector<ProjectMapWorkspace>("#project-map")?.setVisible(!writing);
   }
 
   protected select(event: Event): void {

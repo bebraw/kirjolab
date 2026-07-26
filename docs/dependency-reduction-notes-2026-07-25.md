@@ -2400,6 +2400,26 @@ direct and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,401 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Authoring Mode Surfaces
+
+`AuthoringModeTabs` now owns the editor shell, write-only toolbar, and composed
+map workspace visibility alongside Write/Map selection and ARIA presentation.
+`WorkspaceApp` retains canonical route state and editor focus policy.
+
+This checkpoint reduces `src/client/app.ts` from 7,231 to 7,226 lines (-5),
+removes the write-action element reference and three coordinator-owned
+visibility mutations. Focused unit and browser coverage passes both controlled
+surface states, map layout refresh and focus entry, resource rendering, and the
+return-to-Write workflow.
+
+The browser application artifact changes from 797,884 B raw / 214,806 B gzip
+to 797,956 B raw / 214,835 B gzip (+72 B raw / +29 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,402 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Project Export Entry
 
 `ProjectExportDialog` now owns both spatially separate export triggers and the

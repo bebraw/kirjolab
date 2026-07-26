@@ -104,8 +104,9 @@ collaboration.
   with a read-only derived evidence graph, bounded project search, and an
   accessible typed-connection list. Navigation into manuscript source returns
   to Write; changing modes never changes canonical or collaborative state. A
-  bounded light-DOM tab component owns active-mode and ARIA presentation plus a
-  typed mode-change intent. One composed light-DOM map workspace owns its
+  bounded light-DOM tab component owns active-mode and ARIA presentation plus
+  controlled editor, write-action, and map visibility and a typed mode-change
+  intent. One composed light-DOM map workspace owns its
   resource and link totals, search and overview presentation, graph and
   connection-panel synchronization, visibility, focus entry, and one typed
   resource-selection stream. The application coordinator retains authorized

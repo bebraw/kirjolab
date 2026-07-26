@@ -485,7 +485,6 @@ interface Elements {
   sourceEditorShell: HTMLElement;
   sourceCompletion: SourceCompletion;
   authoringModeTabs: AuthoringModeTabs;
-  editorWriteActions: HTMLElement;
   projectMap: ProjectMapWorkspace;
   vimModeControl: VimModeControl;
   editorInsertMenu: EditorInsertMenu;
@@ -4303,9 +4302,6 @@ class WorkspaceApp {
 
   #setAuthoringMode(mode: AuthoringMode): void {
     const writing = mode === "write";
-    this.#elements.sourceEditorShell.hidden = !writing;
-    this.#elements.projectMap.setVisible(!writing);
-    this.#elements.editorWriteActions.hidden = !writing;
     this.#elements.authoringModeTabs.setMode(mode);
     if (writing) this.#elements.source.focus();
     this.#syncWorkspaceRoute("replace");
@@ -7095,7 +7091,6 @@ function collectElements(): Elements {
     sourceEditorShell: requiredElement("source-editor-shell", HTMLElement),
     sourceCompletion: requiredElement("source-completion", SourceCompletion),
     authoringModeTabs: requiredElement("authoring-mode-tabs", AuthoringModeTabs),
-    editorWriteActions: requiredElement("editor-write-actions", HTMLElement),
     projectMap: requiredElement("project-map", ProjectMapWorkspace),
     vimModeControl: requiredElement("vim-mode-control", VimModeControl),
     editorInsertMenu: requiredElement("editor-insert-menu-component", EditorInsertMenu),
