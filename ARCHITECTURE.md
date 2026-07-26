@@ -567,6 +567,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   send speculative browser state on connection open.
 - Retain ordered browser updates until the document room acknowledges durable
   handling; after reconnect, replay only updates that were not acknowledged.
+- Keep the browser collaboration XState actor, ordered update queue, Yjs server
+  shadow, acknowledged server vector, and offline-delta reconstruction behind
+  one typed session authority. Keep WebSocket creation and retry timing,
+  editor-selection preservation, canonical revision effects, resource refresh,
+  and UI projection in the application coordinator.
 - Keep a validated, identity-and-workspace-scoped browser copy of the latest
   authorized snapshot, full Yjs document state, and acknowledged server state
   vector so existing Markdown files remain editable offline. Reconstruct only

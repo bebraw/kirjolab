@@ -5232,6 +5232,31 @@ and two directly affected tests.
 Full native CI passes all 1,597 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Coordinator Extraction: Collaboration Session
+
+A typed `CollaborationSession` now composes the connection XState actor,
+ordered pending-update queue, Yjs server-shadow document, acknowledged server
+state vector, and offline-delta reconstruction. `WorkspaceApp` retains the
+actual WebSocket and retry timer, editor selection restoration, canonical
+revision consequences, resource refresh, and UI projection.
+
+This checkpoint reduces `src/client/app.ts` from 3,553 to 3,498 lines (-55).
+The new session is 158 lines, so runtime source across the two files grows by
+103 lines while concentrating the protocol invariants behind one independently
+tested authority. The browser application artifact changes from 824,976 B raw /
+223,413 B gzip to 825,900 B raw / 223,595 B gzip (+924 B raw / +182 B gzip).
+Styles and direct and unique production package counts remain unchanged at
+135,411 B raw / 23,373 B gzip, 18, and 150.
+
+Nineteen focused tests across the session, workflow actor, and queue cover
+connection phases, presence, offline availability, ordered send and
+acknowledgement, server-shadow updates, remote-revision stability, and offline
+delta recovery. The affected guardrails pass formatting, lint, strict types,
+and four directly affected session tests.
+
+Full native CI passes all 1,601 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

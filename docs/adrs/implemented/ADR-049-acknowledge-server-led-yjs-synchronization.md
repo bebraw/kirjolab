@@ -47,6 +47,14 @@ or after recognizing that a replay is already reflected there. On reconnect,
 the browser resets only unacknowledged queue entries for replay after the new
 server-led synchronization boundary.
 
+Implement the browser-side protocol state through one typed collaboration
+session. The session composes the connection XState actor, pending-update FIFO,
+Yjs server-shadow document, acknowledged server state vector, and offline delta
+reconstruction. The application coordinator owns the actual WebSocket and retry
+timer plus editor selection restoration, revision consequences, resource
+refresh, and presentation. This keeps protocol invariants independently tested
+without turning the session into a DOM or navigation authority.
+
 Determine whether an update is new from Yjs update integration, not from a
 visible-string comparison. Causally new state is persisted and materialized,
 advances the workspace revision once, and is broadcast to collaborators. A

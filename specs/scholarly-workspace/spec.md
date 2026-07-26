@@ -266,9 +266,13 @@ collaboration.
   reset phases. It tracks queued-update count, the remote-revision boundary,
   collaborator count, and whether an authorized offline copy exists. WebSocket
   instances, retry timers, Yjs documents and updates, and IndexedDB records
-  remain outside the actor. One bounded light-DOM component presents the
-  actor-derived label and connected tone together and also owns the equivalent
-  private-Library status presentation.
+  remain outside the actor. A typed collaboration session composes that actor
+  with the ordered pending-update queue, Yjs server-shadow document,
+  acknowledged server vector, and offline-delta reconstruction. WebSocket and
+  retry timing, editor-selection restoration, revision effects, resource
+  refresh, and UI projection remain coordinator-owned. One bounded light-DOM
+  component presents the actor-derived label and connected tone together and
+  also owns the equivalent private-Library status presentation.
 - **Editor ownership:** After `sync`, source and bibliography inputs derive from
   `Y.Text`; server collaboration controls own the displayed revision. REST
   workspace refreshes cannot assign those values. The editor reports `Saved`

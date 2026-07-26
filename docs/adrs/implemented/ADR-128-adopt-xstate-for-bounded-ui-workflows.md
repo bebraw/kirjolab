@@ -55,6 +55,11 @@ Provider clients, PDF.js objects, WebSockets, timers, Yjs data and update
 payloads, IndexedDB, persisted candidates, publications and revisions, and DOM
 elements stay outside those actors.
 
+The collaboration actor is composed by a typed browser session alongside its
+ordered update queue and Yjs server shadow. Those remain ordinary TypeScript
+authorities outside the actor even though the session presents their combined
+protocol operations to the application coordinator.
+
 Future adoption requires the same bounded-workflow test: a machine must remove
 invalid combinations or materially clarify event ordering. XState will not
 become a global store, and existing pure reducers will not be migrated merely
