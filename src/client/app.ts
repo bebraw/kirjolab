@@ -3777,7 +3777,12 @@ class WorkspaceApp {
   #renderLibraryHighlightComposer(artifact: LibraryPdfArtifact | undefined): void {
     if (!artifact || !this.#librarySnapshot) return;
     if (!this.#elements.libraryPdfInspector.showsArtifact(artifact.id)) this.#resetLibraryHighlightComposer(artifact.id);
-    this.#renderLibraryProjectUse(artifact);
+    this.#elements.libraryProjectUse.setContext({
+      artifact,
+      projectApiBase: appMode === "workspace" ? apiBase : null,
+      projectReferences: this.#snapshot?.projectReferences ?? [],
+      references: this.#librarySnapshot.references,
+    });
     const highlights = this.#librarySnapshot.highlights.filter((highlight) => highlight.artifactId === artifact.id);
     this.#elements.pdfHighlightImportPanel.setContext(
       artifact.referenceId ? { artifactId: artifact.id, highlights, referenceId: artifact.referenceId } : null,
@@ -3819,18 +3824,6 @@ class WorkspaceApp {
   async #completePdfHighlightImport(count: number): Promise<void> {
     await this.#refreshReferenceLibrary();
     this.#showToast(`${count} PDF ${count === 1 ? "highlight" : "highlights"} imported to your library.`);
-  }
-
-  #renderLibraryProjectUse(artifact: LibraryPdfArtifact): void {
-    const reference = this.#librarySnapshot?.references.find((item) => item.id === artifact.referenceId);
-    const linkedCitationAlias = reference
-      ? (this.#snapshot?.projectReferences.find((item) => item.referenceId === reference.id)?.citationAlias ?? null)
-      : null;
-    this.#elements.libraryProjectUse.setData({
-      linkedCitationAlias,
-      projectApiBase: appMode === "workspace" ? apiBase : null,
-      reference: reference ?? null,
-    });
   }
 
   async #completeLibraryHighlightSave(kind: "created" | "extended" | "updated"): Promise<void> {

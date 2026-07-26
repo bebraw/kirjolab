@@ -5206,6 +5206,28 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,573 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Library PDF Project Use Projection
+
+`LibraryPdfProjectUse` now resolves the active bibliographic record and matching
+project citation alias from coordinator-supplied canonical artifact, Library,
+and workspace inputs. `WorkspaceApp` retains canonical snapshot application,
+project-PDF refreshes, workspace outcomes, and notification policy.
+
+This checkpoint reduces `src/client/app.ts` from 4,330 to 4,323 lines (-7) and
+grows the project-use owner from 79 to 94 lines. Runtime source across those two
+files increases by eight lines while deleting the coordinator-only lookup
+method. Focused coverage passes unidentified, unavailable, unlinked, linked,
+successful mutation, retryable failure, application contracts, and strict
+types.
+
+The browser application artifact changes from 824,481 B raw / 222,688 B gzip
+to 824,581 B raw / 222,702 B gzip (+100 B raw / +14 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,574 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Assistant Evidence Projection
 
 `AssistantWorkflowStatus` now resolves its ordered selected evidence keys

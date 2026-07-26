@@ -342,9 +342,10 @@ memory and makes citation aliases compete with stable source identity.
   highlight retains a separate share or revoke action.
 - A bounded light-DOM project-use block owns unidentified, unlinked, and linked
   PDF presentation, capability-boundary copy, citation preview, project-link
-  transport, canonical workspace-response validation, and a typed completed
-  mutation outcome. The workspace coordinator retains canonical lookup,
-  snapshot application, project-PDF refreshes, and notification policy.
+  transport, canonical workspace-response validation, active bibliographic
+  record and project-link projection, and a typed completed mutation outcome.
+  The workspace coordinator supplies canonical snapshots and retains snapshot
+  application, project-PDF refreshes, and notification policy.
 - A project publication context resolves every authorized paper representation
   for the stable reference identity. The owner sees attached private-library
   PDFs without converting them into project resources; active artifact shares

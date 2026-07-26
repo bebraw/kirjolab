@@ -342,10 +342,11 @@ The adopted components own bounded presentation:
   drawing transport, style and page capture, pending-state suppression, and a
   visible failed draft with explicit retry and discard actions.
 - The Library PDF project-use block owns unidentified, unlinked, and linked
-  presentation, capability-boundary copy, citation preview, and a typed
-  completed reference-link mutation outcome. It shares project-reference
-  transport and canonical workspace-response validation with the Library
-  reference summary.
+  presentation, capability-boundary copy, citation preview, matching
+  bibliographic-record and project-alias projection from canonical inputs, and
+  a typed completed reference-link mutation outcome. It shares
+  project-reference transport and canonical workspace-response validation with
+  the Library reference summary.
 - The collaborator selection list owns current-revision and current-file
   filtering, caret and range presentation, accessible excerpts, and missing-file
   fallbacks for remote editor presence.
@@ -725,9 +726,10 @@ reason to wrap static markup mechanically.
   layer-local until a stationary pointer release, when the annotation forms own
   its durable save.
 - The Library PDF project-use block replaces its imperative renderer and four
-  one-off DOM-construction helpers. The application coordinator retains
-  canonical reference and project-link lookup, snapshot application, project-
-  PDF refreshes, and notification policy.
+  one-off DOM-construction helpers, then absorbs its remaining canonical
+  reference and project-link lookup projection. The application coordinator
+  supplies snapshots and retains snapshot application, project-PDF refreshes,
+  and notification policy.
 - The collaborator selection list replaces imperative remote-presence rendering
   and consolidates revision and file filtering for both the list and editor
   overlay. The application coordinator retains local-author selection,

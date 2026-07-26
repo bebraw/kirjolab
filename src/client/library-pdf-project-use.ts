@@ -1,8 +1,16 @@
 import { html, nothing, type TemplateResult } from "lit";
-import type { BibliographicRecord } from "../domain/reference-library";
+import type { BibliographicRecord, LibraryPdfArtifact } from "../domain/reference-library";
+import type { ProjectReferenceLink } from "../domain/workspace";
 import { ProjectReferenceMutationElement } from "./project-reference-mutation";
 
-export interface LibraryPdfProjectUseData {
+export interface LibraryPdfProjectUseContext {
+  readonly artifact: Pick<LibraryPdfArtifact, "referenceId">;
+  readonly projectApiBase: string | null;
+  readonly projectReferences: readonly Pick<ProjectReferenceLink, "citationAlias" | "referenceId">[];
+  readonly references: readonly BibliographicRecord[];
+}
+
+interface LibraryPdfProjectUseData {
   readonly linkedCitationAlias: string | null;
   readonly projectApiBase: string | null;
   readonly reference: BibliographicRecord | null;
@@ -18,8 +26,15 @@ export class LibraryPdfProjectUse extends ProjectReferenceMutationElement {
     this.data = null;
   }
 
-  setData(data: LibraryPdfProjectUseData): void {
-    this.data = data;
+  setContext(context: LibraryPdfProjectUseContext): void {
+    const reference = context.references.find((item) => item.id === context.artifact.referenceId) ?? null;
+    this.data = {
+      linkedCitationAlias: reference
+        ? (context.projectReferences.find((item) => item.referenceId === reference.id)?.citationAlias ?? null)
+        : null,
+      projectApiBase: context.projectApiBase,
+      reference,
+    };
   }
 
   override connectedCallback(): void {

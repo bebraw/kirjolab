@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { BibliographicRecord } from "../domain/reference-library";
 import type { WorkspaceSnapshot } from "../domain/workspace";
 import { workspaceSnapshotFixture } from "../test-support/workspace-fixture";
-import { LibraryPdfProjectUse, type LibraryPdfProjectUseData } from "./library-pdf-project-use";
+import { LibraryPdfProjectUse, type LibraryPdfProjectUseContext } from "./library-pdf-project-use";
 import { projectReferenceChangedEvent, type ProjectReferenceChanged, type ProjectReferenceMutation } from "./project-reference-mutation";
 
 class TestProjectUse extends LibraryPdfProjectUse {
@@ -49,10 +49,11 @@ const reference: BibliographicRecord = {
   updatedAt: "updated",
 };
 
-const data = (overrides: Partial<LibraryPdfProjectUseData> = {}): LibraryPdfProjectUseData => ({
-  linkedCitationAlias: null,
+const context = (overrides: Partial<LibraryPdfProjectUseContext> = {}): LibraryPdfProjectUseContext => ({
+  artifact: { referenceId: reference.id },
   projectApiBase: "/api/workspaces/workspace",
-  reference,
+  projectReferences: [],
+  references: [reference],
   ...overrides,
 });
 
@@ -61,13 +62,13 @@ describe("library PDF project use", () => {
     const projectUse = new TestProjectUse();
     expect(projectUse.rootForTest()).toBe(projectUse);
     expect(projectUse.renderForTest()).toBeDefined();
-    projectUse.setData(data({ reference: null }));
+    projectUse.setContext(context({ artifact: { referenceId: null } }));
     expect(projectUse.renderForTest()).toBeDefined();
-    projectUse.setData(data({ projectApiBase: null }));
+    projectUse.setContext(context({ projectApiBase: null }));
     expect(projectUse.renderForTest()).toBeDefined();
-    projectUse.setData(data());
+    projectUse.setContext(context());
     expect(projectUse.renderForTest()).toBeDefined();
-    projectUse.setData(data({ linkedCitationAlias: "source" }));
+    projectUse.setContext(context({ projectReferences: [{ citationAlias: "source", referenceId: reference.id }] }));
     expect(projectUse.renderForTest()).toBeDefined();
   });
 
@@ -77,7 +78,7 @@ describe("library PDF project use", () => {
     projectUse.addEventListener(projectReferenceChangedEvent, (event) => {
       outcomes.push((event as CustomEvent<ProjectReferenceChanged>).detail);
     });
-    projectUse.setData(data());
+    projectUse.setContext(context());
 
     await projectUse.linkForTest();
 
@@ -97,9 +98,9 @@ describe("library PDF project use", () => {
 
   it("keeps failures retryable and ignores unavailable targets", async () => {
     const projectUse = new TestProjectUse();
-    projectUse.setData(data({ projectApiBase: null }));
+    projectUse.setContext(context({ projectApiBase: null }));
     await projectUse.linkForTest();
-    projectUse.setData(data());
+    projectUse.setContext(context());
     projectUse.requestError = new Error("Denied");
     await expect(projectUse.linkForTest()).rejects.toThrow("Denied");
     projectUse.requestError = null;
