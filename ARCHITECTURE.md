@@ -335,6 +335,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   candidate only after a fingerprint-verified provider refetch, then create or
   reuse its library identity and extracted citation assertion atomically. A
   project id narrows the private projection but never grants library access.
+- Let the citation-network Lit workspace own loading, project filtering,
+  request generations, response guards, manual assertion and review mutations,
+  expansion and candidate acceptance, local progress, and retryable failures.
+  Emit only notice and canonical Library-refresh outcomes to the application
+  coordinator.
 - Retain immutable project-wide logical revisions separately from the
   manuscript concurrency revision. Each history snapshot must atomically
   preserve the exact Yjs state, stable file tree, aliases, pinned source and

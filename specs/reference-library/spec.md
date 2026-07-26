@@ -148,9 +148,10 @@ memory and makes citation aliases compete with stable source identity.
 - The bounded citation-network panel owns manual source and relationship
   choices, network and assertion presentation, and typed record and review
   intents. Its containing workspace owns the latest validated network and
-  expansion presentation snapshots while composing the shell and panel. The
-  workspace coordinator retains validation, provenance-bearing mutations,
-  network requests and refreshes, prompts, and notification policy.
+  expansion snapshots, loading, filtering, request generations, validation,
+  prompts, provenance-bearing mutations, and local failures while composing the
+  shell and panel. The workspace coordinator retains canonical Library refresh
+  and notification policy through typed outcomes.
 - The library is a permanent, non-closable tab beside Preview in the project's
   research-context pane. Activating it refreshes the authorized owner snapshot
   without opening a modal or mutating project state.

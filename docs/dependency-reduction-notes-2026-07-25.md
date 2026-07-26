@@ -3773,3 +3773,27 @@ and unique production package counts remain unchanged at 135,411 B raw /
 
 Full native CI passes all 1,456 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Lit Ownership: Citation Network Workflow
+
+`CitationNetworkWorkspace` now owns network loading and project filtering,
+request generations, response guards, manual assertion and review mutations,
+Crossref expansion, candidate acceptance, prompts, local progress and retryable
+failures, and typed notice or Library-refresh outcomes. `WorkspaceApp` retains
+only canonical Library refresh and toast policy.
+
+This checkpoint reduces `src/client/app.ts` from 5,484 to 5,399 lines (-85)
+and grows the workspace from 130 to 268 lines. Runtime source across those
+files increases by 53 lines while removing six coordinator request and mutation
+methods plus two event adapters. Focused coverage passes load and project-filter
+URLs, stale-response rejection, assertion and review payloads, expansion,
+candidate acceptance, invalid selections, malformed representations, provider
+errors, visibility, and nested panel synchronization.
+
+The browser application artifact changes from 798,749 B raw / 216,769 B gzip
+to 799,986 B raw / 217,066 B gzip (+1,237 B raw / +297 B gzip). Styles and
+direct and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,459 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.

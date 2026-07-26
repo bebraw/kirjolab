@@ -40,8 +40,11 @@ provider result, extraction, or model suggestion as equally trustworthy.
   remains sufficient; the layout is derived browser state.
 - One bounded reactive view owns graph geometry, accessible node and edge
   cards, assertion provenance, review controls, expansion candidates, and
-  local save progress. It emits typed intents; the application coordinator
-  retains prompts, requests, mutations, validation, refreshes, and notices.
+  local save progress. Its enclosing Lit workspace owns network loading,
+  current-project filtering, request generations, response validation, prompts,
+  assertion and review mutations, expansion, candidate acceptance, and local
+  failures. The application coordinator retains canonical Library refresh and
+  notice presentation through typed outcomes.
 
 ### API Contracts
 
@@ -113,6 +116,11 @@ provider result, extraction, or model suggestion as equally trustworthy.
 - A project filter must not turn a private library endpoint into a collaborator
   endpoint.
 - Expansion must remain one level, researcher-triggered, and bounded.
+- A delayed unfiltered network must not replace a newer project-filtered
+  projection, and candidate failure must restore retry availability.
+- Component tests must retain load and filter URLs, manual assertion and review
+  payloads, expansion and candidate acceptance, malformed and provider errors,
+  and delayed-response rejection.
 
 ### Scenarios
 

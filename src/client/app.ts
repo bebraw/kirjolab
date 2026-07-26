@@ -3,10 +3,6 @@ import "./action-menu-controller";
 import { collectAppElements } from "./app-elements";
 import { bibTeXDisplayText } from "../domain/bibliography";
 import { buildWorkspaceKnowledgeGraph, isKnowledgeSearchResults, type WorkspaceKnowledgeGraph } from "../domain/knowledge";
-import { isCitationNetwork } from "../domain/citation-assertions";
-import { isCitationCandidateAcceptance } from "../domain/citation-expansion-acceptance";
-import { isCitationExpansionResult } from "../domain/citation-expansion";
-import type { CitationExpansionCandidate, CitationExpansionResult } from "../domain/citation-expansion-types";
 import { isReferenceDiscoveryResults, type ReferenceDiscoveryResult } from "../domain/reference-discovery";
 import { reviewerResponseLetter, reviewerResponsePath, reviewerResponseTemplate } from "../domain/reviewer-response";
 import {
@@ -193,8 +189,7 @@ import { libraryPdfUploadActionEvent, type LibraryPdfUploadAction } from "./libr
 import { libraryToolsActionEvent, type LibraryToolsAction } from "./library-tools-menu";
 import { modelProviderChangeEvent } from "./model-provider-settings";
 import { webSourceCapturedEvent } from "./web-source-panels";
-import { citationNetworkActionEvent, type CitationNetworkAction } from "./citation-network-panel";
-import { citationNetworkFilterEvent } from "./citation-network-workspace";
+import { citationNetworkOutcomeEvent, type CitationNetworkOutcome } from "./citation-network-workspace";
 import { previewDiagnosticSelectEvent, type PreviewDiagnosticSelection } from "./preview-presentation";
 import { publicationIntakeActionEvent, type PublicationIntakeAction } from "./publication-intake-panel";
 import { modelEvidenceKey } from "./research-resource-presentation";
@@ -618,22 +613,16 @@ class WorkspaceApp {
     });
     this.#elements.libraryToolsMenu.addEventListener(libraryToolsActionEvent, (event) => {
       const action = (event as CustomEvent<LibraryToolsAction>).detail;
-      if (action.action === "open-citation-network") void this.#openCitationNetwork();
+      if (action.action === "open-citation-network") void this.#elements.citationNetwork.open();
       else if (action.action === "restore-archive") void this.#importLibraryArchive(action.file);
       else {
         this.#elements.libraryToolsMenu.setShowArchived(action.show);
         void this.#refreshReferenceLibrary();
       }
     });
-    this.#elements.citationNetwork.addEventListener(citationNetworkFilterEvent, (event) => {
-      void this.#refreshCitationNetwork((event as CustomEvent<boolean>).detail);
-    });
-    this.#elements.citationNetwork.addEventListener(citationNetworkActionEvent, (event) => {
-      const detail = (event as CustomEvent<CitationNetworkAction>).detail;
-      if (detail.action === "expand") void this.#expandCitationReference(detail.referenceId);
-      else if (detail.action === "record") void this.#recordCitationAssertion(detail);
-      else if (detail.action === "review") void this.#reviewCitationAssertion(detail.assertionId, detail.decision);
-      else void this.#acceptCitationCandidate(detail.expansion, detail.candidate);
+    this.#elements.citationNetwork.configure(workspaceId);
+    this.#elements.citationNetwork.addEventListener(citationNetworkOutcomeEvent, (event) => {
+      void this.#completeCitationNetworkOutcome((event as CustomEvent<CitationNetworkOutcome>).detail);
     });
     this.#elements.referenceLibraryFilters.addEventListener(referenceLibraryFilterChangeEvent, () => this.#renderReferenceLibrary());
     this.#elements.referenceLibraryList.addEventListener(libraryReferenceSummaryActionEvent, (event) => {
@@ -2390,90 +2379,16 @@ class WorkspaceApp {
     await this.#elements.referenceLibraryList.settled();
   }
 
-  async #openCitationNetwork(): Promise<void> {
-    this.#elements.citationNetwork.show();
-    await this.#refreshCitationNetwork();
-    this.#elements.citationNetwork.bringIntoView();
-  }
-
-  async #refreshCitationNetwork(filterProject = this.#elements.citationNetwork.filterProject): Promise<void> {
-    const filter = filterProject ? `?projectId=${encodeURIComponent(workspaceId)}` : "";
-    const response = await fetch(`/api/library/citation-network${filter}`, { credentials: "same-origin" });
-    await expectOk(response);
-    const value: unknown = await response.json();
-    if (!isCitationNetwork(value)) throw new Error("Citation network returned an invalid representation");
-    this.#elements.citationNetwork.setNetwork(
-      value,
-      Object.fromEntries((this.#librarySnapshot?.references ?? []).map(({ id, title }) => [id, title])),
-    );
-  }
-
-  async #recordCitationAssertion(detail: Extract<CitationNetworkAction, { readonly action: "record" }>): Promise<void> {
-    const { citedReferenceId, citingReferenceId, polarity } = detail;
-    if (!citingReferenceId || !citedReferenceId || citingReferenceId === citedReferenceId) {
-      this.#showToast("Choose two different sources for the citation assertion.");
+  async #completeCitationNetworkOutcome(outcome: CitationNetworkOutcome): Promise<void> {
+    if (outcome.action === "notice") {
+      this.#showToast(outcome.message);
       return;
     }
-    const response = await jsonFetch("/api/library/citation-assertions", {
-      citingReferenceId,
-      citedReferenceId,
-      polarity,
-      evidenceState: "confirmed",
-      method: "manual",
-      observedAt: new Date().toISOString(),
-      sourceKind: "researcher",
-      sourceId: `manual:${crypto.randomUUID()}`,
-      sourceLocator: "Kirjolab researcher assertion",
-      confidence: null,
-    });
-    await expectOk(response);
-    await this.#refreshCitationNetwork();
-    this.#showToast("Citation assertion recorded with researcher provenance.");
-  }
-
-  async #reviewCitationAssertion(assertionId: string, decision: "confirmed" | "rejected"): Promise<void> {
-    const note = window.prompt(`${decision === "confirmed" ? "Confirmation" : "Rejection"} note (optional)`) ?? "";
-    const response = await jsonFetch(`/api/library/citation-assertions/${encodeURIComponent(assertionId)}/review`, { decision, note });
-    await expectOk(response);
-    await this.#refreshCitationNetwork();
-    this.#showToast(`Citation assertion ${decision}.`);
-  }
-
-  async #expandCitationReference(referenceId: string): Promise<void> {
-    const response = await jsonFetch(`/api/library/references/${encodeURIComponent(referenceId)}/citation-expansions`, {});
-    await expectOk(response);
-    const value: unknown = await response.json();
-    if (!isCitationExpansionResult(value)) throw new Error("Citation expansion returned an invalid representation");
-    this.#elements.citationNetwork.setExpansion(value);
-    await this.#refreshCitationNetwork();
-    this.#showToast(
-      value.unmatched.length > 0
-        ? `Review ${value.unmatched.length} new reference${value.unmatched.length === 1 ? "" : "s"} from this seed.`
-        : "Known Crossref relationships added to the shared citation network.",
-    );
-  }
-
-  async #acceptCitationCandidate(expansion: CitationExpansionResult, candidate: CitationExpansionCandidate): Promise<void> {
-    this.#elements.citationNetwork.setCandidateSaving(candidate.doi, true);
     try {
-      const response = await jsonFetch(`/api/library/references/${encodeURIComponent(expansion.seedReferenceId)}/citation-candidates`, {
-        doi: candidate.doi,
-        responseId: expansion.responseId,
-      });
-      await expectOk(response);
-      const value: unknown = await response.json();
-      if (!isCitationCandidateAcceptance(value)) throw new Error("Citation candidate returned an invalid representation");
-      this.#elements.citationNetwork.setExpansion({
-        ...expansion,
-        assertions: [...expansion.assertions, value.assertion],
-        unmatched: expansion.unmatched.filter((item) => item.doi !== candidate.doi),
-      });
       await this.#refreshReferenceLibrary();
-      await this.#refreshCitationNetwork();
-      this.#showToast(value.created ? "Reference saved with its discovery trail." : "Existing reference linked to its discovery trail.");
-    } catch (error) {
-      this.#elements.citationNetwork.setCandidateSaving(candidate.doi, false);
-      this.#showToast(error instanceof Error ? error.message : "Could not save citation candidate");
+      this.#showToast(outcome.message);
+    } catch {
+      this.#showToast("The citation candidate was saved, but the refreshed Library could not be loaded.");
     }
   }
 

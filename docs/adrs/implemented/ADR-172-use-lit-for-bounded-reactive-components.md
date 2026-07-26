@@ -135,10 +135,11 @@ The adopted components own bounded presentation:
   snowball candidates, and local candidate-save progress with typed record,
   expansion, review, and save intents.
 - The citation network workspace composes that panel with its Reference trail
-  shell, owns visibility, current-project filter state, the latest validated
-  network and expansion presentation snapshots, ARIA presentation, close
-  behavior, reference synchronization, and candidate-save delegation, and emits
-  one typed filter-change intent.
+  shell and owns visibility, current-project filter state, loading, request
+  generations, response validation, assertion recording and review, expansion,
+  candidate acceptance, prompts, local progress and failures, the latest
+  network and expansion snapshots, close behavior, reference synchronization,
+  and typed notice or Library-refresh outcomes.
 - The Preview context status and diagnostics panels own file-mode and
   validation status, unavailable-state presentation, composition and renderer
   diagnostic cards, source-map resolution, and typed source-range intents.
@@ -413,13 +414,12 @@ reason to wrap static markup mechanically.
 - The citation network panel replaces six internal element references,
   assertion-form binding and option rendering, plus the imperative SVG graph,
   node, edge, assertion, expansion, candidate, and progress renderers while
-  leaving network requests, prompts, mutations, validation, refreshes, and
-  toast policy in the application coordinator.
+  delegating its typed intents to the enclosing workspace.
 - The citation network workspace replaces four shell and panel references plus
   three coordinator presentation fields with one component reference. It
   removes native filter and close bindings plus the coordinator's snapshot
-  assembly helper while leaving authorized network requests, validation,
-  prompts, mutations, refreshes, and toast policy in the application
+  assembly helper, six request and mutation methods, and two intent adapters.
+  Canonical Library refreshes and toast policy remain in the application
   coordinator.
 - The Preview presentation panels replace three internal element references,
   three imperative diagnostic renderers, and the coordinator-local source-map
