@@ -120,6 +120,25 @@ describe("claim list panel", () => {
     expect(calls).toEqual(["open", "scroll", "focus"]);
   });
 
+  it("owns claim card reveal and optional focus", () => {
+    const panel = new TestClaimListPanel();
+    const calls: string[] = [];
+    Object.defineProperty(panel, "querySelectorAll", {
+      value: () => [
+        {
+          dataset: { claimResourceId: claim.id },
+          focus: () => calls.push("focus"),
+          scrollIntoView: () => calls.push("scroll"),
+        },
+      ],
+    });
+
+    expect(panel.revealClaim(claim.id)).toBe(true);
+    expect(panel.revealClaim(claim.id, true)).toBe(true);
+    expect(panel.revealClaim("missing")).toBe(false);
+    expect(calls).toEqual(["scroll", "focus", "scroll"]);
+  });
+
   it("emits bounded claim and navigation intents", () => {
     const panel = new TestClaimListPanel();
     const actions: ClaimListAction[] = [];

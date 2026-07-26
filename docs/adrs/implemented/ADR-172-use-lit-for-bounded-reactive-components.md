@@ -114,8 +114,9 @@ The adopted components own bounded presentation:
   grounding-choice focus, empty-state, action presentation, confirmed deletion
   and claim-passage-link transport, duplicate-delete gating, local pending and
   retryable failure state, and typed create, claim, completed mutation, and
-  navigation outcomes. The coordinator supplies browser-local evidence selection
-  and the link workflow's Yjs-validated typed passage input.
+  navigation outcomes. It also owns addressed-card reveal and optional focus.
+  The coordinator supplies browser-local evidence selection and the link
+  workflow's Yjs-validated typed passage input.
 - The manuscript comment panel owns composer body and status state plus comment,
   anchor-status, empty-state, action presentation, and open-comment count
   derivation with typed create, open, and re-anchor intents. Given a
@@ -152,7 +153,7 @@ The adopted components own bounded presentation:
   navigation, mutation, notice, and completed outcomes. It projects its PDFs,
   annotations, claim-evidence links, passage links, and publication-PDF links
   directly from the canonical workspace snapshot plus browser-local evidence
-  selection.
+  selection, and owns addressed annotation-card reveal.
 - The project tree panel owns path filtering, sorted folder, file, and image
   rows, active and entry presentation, the workspace quick-open shortcut and
   selection, action menus, listener teardown, encoded empty-folder and image

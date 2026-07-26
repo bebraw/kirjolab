@@ -160,8 +160,10 @@ collaboration.
   after claim evidence is absent. It derives passage-link confirmation counts,
   owns stable encoded targets, one shared duplicate-submit gate, pending state,
   retryable failures, notices, and completed-removal outcomes. Canonical
-  refresh, annotation-form reset, and notification policy remain in the
-  workspace coordinator. New PDF intake remains in Library → Add reference.
+  resource navigation asks the panel to reveal its addressed annotation card;
+  the coordinator does not query that internal DOM. Canonical refresh,
+  annotation-form reset, and notification policy remain in the workspace
+  coordinator. New PDF intake remains in Library → Add reference.
 - **Workspace navigation:** `WorkspaceCatalog` lists and creates stable
   workspace resources while each `DocumentRoom` retains isolated coordination.
   Dashboard and Projects-browser links use `/editor/{workspaceId}`; creating or

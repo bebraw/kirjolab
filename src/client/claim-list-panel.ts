@@ -75,6 +75,16 @@ export class ClaimListPanel extends LitElement {
     return focusFirstModelEvidence(this);
   }
 
+  revealClaim(claimId: string, focus = false): boolean {
+    const card = [...this.querySelectorAll<HTMLElement>("[data-claim-resource-id]")].find(
+      ({ dataset }) => dataset.claimResourceId === claimId,
+    );
+    if (!card) return false;
+    if (focus) card.focus({ preventScroll: true });
+    card.scrollIntoView({ behavior: "smooth", block: "center" });
+    return true;
+  }
+
   async linkPassage(input: CreateClaimPassageLinkInput): Promise<void> {
     this.status = "Linking claim to passage…";
     try {

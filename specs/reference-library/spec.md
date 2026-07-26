@@ -124,8 +124,9 @@ memory and makes citation aliases compete with stable source identity.
   signed-in member access context, rights choices, primary-versus-secondary
   refinement availability, rights persistence, duplicate-submit gating, local
   retryable failures, and typed navigation, refinement, and refresh outcomes.
-  The workspace coordinator retains PDF presentation, extraction, refinement
-  state, canonical Library refreshes, and notification policy.
+  The enclosing reference list routes a refinement intent to the metadata
+  editor in that same reference row. The workspace coordinator retains PDF
+  presentation, canonical Library refreshes, and notification policy.
 - A bounded light-DOM research-row component composes attached PDFs with
   private notes, highlights, and web captures; owns share state, capture
   diagnostics, downloads, comparisons, project-pin availability, recapture
@@ -137,8 +138,9 @@ memory and makes citation aliases compete with stable source identity.
 - A bounded light-DOM reference-list component owns result and empty-state
   rendering, per-reference detail expansion, composition of summary, metadata,
   personal-field, PDF, and research rows, nested update settlement, and
-  addressed-card focus. Child action events continue bubbling to the workspace
-  coordinator, which retains canonical filtering, mutations, requests,
+  addressed-card focus. It handles row-local PDF refinement without exposing
+  the row or metadata editor DOM. Cross-feature child actions continue bubbling
+  to the workspace coordinator, which retains canonical filtering, requests,
   refreshes, and notification policy.
 - Tags, notes, highlights, reading state, artifact rights, archive state, and
   deletion impact remain library-owned.

@@ -5183,6 +5183,31 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,572 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Internal Resource DOM
+
+The Library reference list now routes secondary-PDF refinement to the metadata
+editor in its own reference row. The claim list and project-evidence panels now
+own addressed-card lookup, scrolling, and optional claim focus. `WorkspaceApp`
+retains PDF presentation, canonical refresh, and cross-feature resource
+navigation without knowing the three components' internal card structure.
+
+This checkpoint reduces `src/client/app.ts` from 3,592 to 3,568 lines (-24).
+Runtime source across the four changed components and coordinator grows by
+seven lines while removing every feature-level `querySelector` and `closest`
+call from the coordinator. The browser application artifact changes from
+824,268 B raw / 223,159 B gzip to 824,517 B raw / 223,290 B gzip (+249 B raw /
++131 B gzip). Styles and direct and unique production package counts remain
+unchanged at 135,411 B raw / 23,373 B gzip, 18, and 150. The readability audit
+reports 263 externally visible low-level component members, two more for the
+explicit reveal APIs.
+
+Focused reference-list, claim-list, and project-evidence coverage passes 29
+tests. The affected guardrails pass formatting, lint, strict types, 31 related
+tests, and 29 directly affected tests.
+
+Full native CI passes all 1,596 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

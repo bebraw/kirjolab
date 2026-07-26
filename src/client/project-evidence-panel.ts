@@ -95,6 +95,15 @@ export class ProjectEvidencePanel extends LitElement {
     return focusFirstModelEvidence(this);
   }
 
+  revealAnnotation(annotationId: string): boolean {
+    const card = [...this.querySelectorAll<HTMLElement>("[data-annotation-resource-id]")].find(
+      ({ dataset }) => dataset.annotationResourceId === annotationId,
+    );
+    if (!card) return false;
+    card.scrollIntoView({ behavior: "smooth", block: "center" });
+    return true;
+  }
+
   async linkPassage(input: CreatePassageLinkInput): Promise<void> {
     this.status = "Linking highlight to passage…";
     try {

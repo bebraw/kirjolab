@@ -208,6 +208,18 @@ describe("project evidence panel", () => {
     ]);
   });
 
+  it("owns annotation card reveal", () => {
+    const panel = new TestProjectEvidencePanel();
+    const scrollIntoView = vi.fn();
+    Object.defineProperty(panel, "querySelectorAll", {
+      value: () => [{ dataset: { annotationResourceId: annotation.id }, scrollIntoView }],
+    });
+
+    expect(panel.revealAnnotation(annotation.id)).toBe(true);
+    expect(panel.revealAnnotation("missing")).toBe(false);
+    expect(scrollIntoView).toHaveBeenCalledWith({ behavior: "smooth", block: "center" });
+  });
+
   it("owns adjusted fragment persistence and emits completed or removal outcomes", async () => {
     const panel = new TestProjectEvidencePanel();
     const actions: ProjectEvidenceAction[] = [];

@@ -73,11 +73,7 @@ import { projectReferenceChangedEvent, type ProjectReferenceChanged } from "./pr
 import { projectResearchChangedEvent, type ProjectResearchChanged } from "./project-research-mutation";
 import { libraryReferenceImportRefreshEvent, type LibraryReferenceImportRefresh } from "./library-reference-import-control";
 import { libraryReferencePersonalRefreshEvent } from "./library-reference-personal-fields";
-import {
-  LibraryReferenceMetadataEditor,
-  libraryReferenceMetadataNoticeEvent,
-  libraryReferenceMetadataRefreshEvent,
-} from "./library-reference-metadata-editor";
+import { libraryReferenceMetadataNoticeEvent, libraryReferenceMetadataRefreshEvent } from "./library-reference-metadata-editor";
 import {
   libraryReferencePdfActionEvent,
   libraryReferencePdfRefreshEvent,
@@ -591,12 +587,6 @@ class WorkspaceApp {
     this.#elements.referenceLibraryList.addEventListener(libraryReferencePdfActionEvent, (event) => {
       const detail = (event as CustomEvent<LibraryReferencePdfAction>).detail;
       if (detail.action === "open") void this.#openLibraryPdf(detail.artifact);
-      else {
-        const editor = (event.target as Element)
-          .closest(".library-reference-row")
-          ?.querySelector<LibraryReferenceMetadataEditor>("library-reference-metadata-editor");
-        if (editor) void editor.refineMetadata(detail.reference, detail.artifact);
-      }
     });
     this.#elements.referenceLibraryList.addEventListener(libraryReferencePdfRefreshEvent, () => {
       void this.#refreshReferenceLibrary();
@@ -812,7 +802,7 @@ class WorkspaceApp {
       else if (detail.action === "mutated")
         this.#refreshResourcesWithNotice(detail.message, "The claim was deleted, but project resources could not be refreshed.");
       else if (detail.action === "link-passage") void this.#linkClaim(detail.claimId);
-      else if (detail.action === "open-annotation") this.#focusAnnotationCard(detail.annotationId);
+      else if (detail.action === "open-annotation") this.#elements.projectEvidencePanel.revealAnnotation(detail.annotationId);
       else this.#showPassage(detail.anchor);
     });
     this.#elements.candidateListPanel.configure(apiBase);
@@ -897,7 +887,7 @@ class WorkspaceApp {
         const annotation = this.#snapshot?.annotations.find((item) => item.id === evidence.id);
         if (pdf && annotation) void this.#showPaper(pdf, evidence.page, evidence.id);
       } else if (this.#snapshot?.claims.some((claim) => claim.id === evidence.id)) {
-        this.#focusClaimCard(evidence.id);
+        this.#elements.claimListPanel.revealClaim(evidence.id, true);
       }
     });
     this.#elements.modelProviderSettings.addEventListener(modelProviderChangeEvent, (event) => {
@@ -2180,10 +2170,7 @@ class WorkspaceApp {
         const pdf = annotation ? this.#snapshot?.pdfs.find((item) => item.id === annotation.pdfId) : undefined;
         if (annotation && pdf) void this.#showPaper(pdf, annotation.page, annotation.id);
       },
-      claim: (id) =>
-        document
-          .querySelector<HTMLElement>(`[data-claim-resource-id="${CSS.escape(id)}"]`)
-          ?.scrollIntoView({ behavior: "smooth", block: "center" }),
+      claim: (id) => this.#elements.claimListPanel.revealClaim(id),
       pdf: (id) => {
         const pdf = this.#snapshot?.pdfs.find((item) => item.id === id);
         if (pdf) void this.#showPaper(pdf);
@@ -3400,7 +3387,7 @@ class WorkspaceApp {
     const annotation = this.#snapshot?.annotations.find((item) => item.id === annotationId);
     if (!annotation) return;
     this.#elements.projectAnnotationForm.showAnnotation(annotation);
-    this.#focusAnnotationCard(annotationId);
+    this.#elements.projectEvidencePanel.revealAnnotation(annotationId);
   }
 
   async #removeHighlightFragment(annotationId: string, fragmentId: string, announce: boolean): Promise<boolean> {
@@ -3416,17 +3403,6 @@ class WorkspaceApp {
     if (!(await this.#removeHighlightFragment(annotationId, fragmentId, false))) return;
     this.#elements.projectAnnotationForm.setUndoStroke(null);
     this.#showToast("Last highlight stroke undone.");
-  }
-
-  #focusAnnotationCard(annotationId: string): void {
-    const card = document.querySelector<HTMLElement>(`[data-annotation-resource-id="${CSS.escape(annotationId)}"]`);
-    card?.scrollIntoView({ behavior: "smooth", block: "center" });
-  }
-
-  #focusClaimCard(claimId: string): void {
-    const card = document.querySelector<HTMLElement>(`[data-claim-resource-id="${CSS.escape(claimId)}"]`);
-    card?.focus({ preventScroll: true });
-    card?.scrollIntoView({ behavior: "smooth", block: "center" });
   }
 
   #showPassage(anchor: PassageLink["anchor"]): void {

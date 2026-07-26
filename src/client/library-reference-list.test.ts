@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import type { BibliographicRecord, ReferenceLibrarySnapshot } from "../domain/reference-library";
+import { describe, expect, it, vi } from "vitest";
+import type { BibliographicRecord, LibraryPdfArtifact, ReferenceLibrarySnapshot } from "../domain/reference-library";
 import { LibraryReferenceList } from "./library-reference-list";
 
 class TestReferenceList extends LibraryReferenceList {
@@ -9,6 +9,16 @@ class TestReferenceList extends LibraryReferenceList {
 
   rootForTest(): HTMLElement {
     return this.createRenderRoot();
+  }
+
+  refinePdfForTest(
+    detail: object,
+    editor: { refineMetadata: (reference: BibliographicRecord, artifact: LibraryPdfArtifact) => void } | null,
+  ) {
+    const event = new CustomEvent("library-reference-pdf-action", { detail });
+    Object.defineProperty(event, "currentTarget", { value: { querySelector: () => editor } });
+    this.refinePdf(event);
+    return event;
   }
 }
 
@@ -43,6 +53,18 @@ const library: ReferenceLibrarySnapshot = {
   reading: [],
 };
 
+const artifact: LibraryPdfArtifact = {
+  contentType: "application/pdf",
+  createdAt: "created",
+  fingerprint: "fingerprint",
+  id: "pdf-1",
+  name: "paper.pdf",
+  objectKey: "pdfs/paper.pdf",
+  referenceId: reference.id,
+  rights: "private",
+  size: 1024,
+};
+
 describe("library reference list", () => {
   it("owns loading, empty, filtered, and populated list presentation", () => {
     const list = new TestReferenceList();
@@ -66,5 +88,18 @@ describe("library reference list", () => {
       researchShares: [],
     });
     expect(list.renderForTest()).toBeDefined();
+  });
+
+  it("keeps PDF metadata refinement inside the owning reference row", () => {
+    const list = new TestReferenceList();
+    const refineMetadata = vi.fn();
+    const refined = list.refinePdfForTest({ action: "refine", artifact, reference }, { refineMetadata });
+    const opened = list.refinePdfForTest({ action: "open", artifact }, { refineMetadata });
+    list.refinePdfForTest({ action: "refine", artifact, reference }, null);
+
+    expect(refineMetadata).toHaveBeenCalledOnce();
+    expect(refineMetadata).toHaveBeenCalledWith(reference, artifact);
+    expect(refined.cancelBubble).toBe(true);
+    expect(opened.cancelBubble).toBe(false);
   });
 });

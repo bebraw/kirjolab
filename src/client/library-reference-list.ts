@@ -3,6 +3,7 @@ import { bibTeXDisplayText } from "../domain/bibliography";
 import type { BibliographicRecord, ReferenceLibrarySnapshot, ResearchShareSnapshot } from "../domain/reference-library";
 import type { ProjectReferenceLink } from "../domain/workspace";
 import { LibraryReferenceMetadataEditor } from "./library-reference-metadata-editor";
+import type { LibraryReferencePdfAction } from "./library-reference-pdf-rows";
 import { LibraryReferencePersonalFields } from "./library-reference-personal-fields";
 import { LibraryReferenceResearchRows } from "./library-reference-research-rows";
 import { LibraryReferenceSummary } from "./library-reference-summary";
@@ -124,8 +125,17 @@ export class LibraryReferenceList extends LitElement {
     }
   }
 
+  protected refinePdf(event: Event): void {
+    const detail = (event as CustomEvent<LibraryReferencePdfAction>).detail;
+    if (detail.action !== "refine") return;
+    const editor = (event.currentTarget as HTMLElement).querySelector<LibraryReferenceMetadataEditor>("library-reference-metadata-editor");
+    if (!editor) return;
+    event.stopImmediatePropagation();
+    void editor.refineMetadata(detail.reference, detail.artifact);
+  }
+
   private renderReference(reference: BibliographicRecord): TemplateResult {
-    return html`<article class="library-reference-row" data-reference-id=${reference.id}>
+    return html`<article class="library-reference-row" data-reference-id=${reference.id} @library-reference-pdf-action=${this.refinePdf}>
       <library-reference-summary class="contents"></library-reference-summary>
       <details
         class="library-reference-details"

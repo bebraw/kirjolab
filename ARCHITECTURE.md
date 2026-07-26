@@ -71,6 +71,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   the canonical Library snapshot, its local filter state, and coordinator-
   supplied linked-reference ids. Keep canonical snapshot loading, result-card
   composition, navigation, mutations, and refresh policy in their authorities.
+- Keep resource-card lookup, scrolling, and focus inside the Lit component that
+  renders those cards. Let the Library reference-list owner route a PDF
+  refinement intent to the metadata editor in the same reference row. The
+  application coordinator should receive cross-feature navigation and mutation
+  outcomes, not traverse feature-owned DOM.
 - Let the workspace-settings Lit component own project settings persistence,
   archive/restore, duplication, permanent-deletion confirmation and request
   lifecycles, their canonical successful-result navigation, and local busy and
