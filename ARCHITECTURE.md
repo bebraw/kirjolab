@@ -19,7 +19,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   boundaries when one schema replaces duplicated structural types and runtime
   predicates. Keep authorization, cross-record invariants, canonicalization,
   and stateful business rules in explicit domain functions; do not migrate
-  predicates merely for consistency.
+  predicates merely for consistency. At the GitHub user boundary, schemas own
+  external identity, installation, repository, and branch response structure;
+  bounded reads, pagination, OAuth policy, and domain error mapping stay explicit.
 - Read bounded external response bodies through stateless, request-local
   helpers that enforce both declared and observed byte limits. Keep byte
   ceilings, errors, response-shape validation, and domain mapping explicit at

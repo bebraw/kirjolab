@@ -32,7 +32,10 @@ incoming and outgoing mutation.
 - One deployment-wide GitHub App is authorized per Kirjolab owner through the
   GitHub App user OAuth flow. One-time callback state is owner-scoped, user and
   refresh tokens are encrypted at rest, and installation ids are never trusted
-  without checking them against the connected GitHub user.
+  without checking them against the connected GitHub user. Bounded Valibot
+  schemas validate GitHub identity, installation/account, repository, and branch
+  responses before domain projection; response-byte and pagination ceilings,
+  OAuth input policy, and stable error mapping remain explicit transport rules.
 - Import, Pull, and Publish are two-phase operations: a read-only preview is
   followed by an explicit confirmation carrying an opaque, expiring preview
   identity. Confirmation fails if the project revision, binding, remote head,

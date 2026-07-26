@@ -1,3 +1,6 @@
+import * as v from "valibot";
+import { parseResponseJson, readBoundedResponseText } from "./bounded-response";
+
 export interface GitHubUserClientConfig {
   readonly clientId: string;
   readonly clientSecret: string;
@@ -43,6 +46,27 @@ type FetchExternal = (input: RequestInfo | URL, init?: RequestInit) => Promise<R
 const maximumJsonBytes = 2 * 1024 * 1024;
 const maximumPages = 5;
 const githubApiVersion = "2022-11-28";
+const positiveIntegerSchema = v.pipe(v.number(), v.safeInteger(), v.minValue(1));
+const gitHubIdSchema = v.union([positiveIntegerSchema, v.pipe(v.string(), v.regex(/^\d{1,30}$/u))]);
+const loginSchema = v.pipe(v.string(), v.regex(/^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$/u));
+const repositoryNameSchema = v.pipe(v.string(), v.regex(/^[A-Za-z0-9_.-]{1,100}$/u));
+const branchNameSchema = v.pipe(v.string(), v.minLength(1), v.maxLength(255));
+const userIdentitySchema = v.object({ id: gitHubIdSchema, login: loginSchema });
+const installationSchema = v.object({
+  id: positiveIntegerSchema,
+  account: v.object({ id: gitHubIdSchema, login: loginSchema, type: v.picklist(["Organization", "User"]) }),
+});
+const repositorySchema = v.object({
+  id: positiveIntegerSchema,
+  owner: v.object({ login: loginSchema }),
+  name: repositoryNameSchema,
+  full_name: v.string(),
+  private: v.boolean(),
+  default_branch: branchNameSchema,
+});
+const branchSchema = v.object({ name: branchNameSchema, protected: v.boolean() });
+const installationListSchema = v.object({ installations: v.array(installationSchema) });
+const repositoryListSchema = v.object({ repositories: v.array(repositorySchema) });
 
 export class GitHubUserClient {
   readonly #config: GitHubUserClientConfig;
@@ -74,61 +98,66 @@ export class GitHubUserClient {
 
   async getUser(accessToken: string): Promise<GitHubUserIdentity> {
     const value = await this.#apiRequest(accessToken, "/user");
-    if (!isRecord(value) || !isGitHubId(value.id) || !isLogin(value.login)) {
-      throw new GitHubUserError("invalid-response", "GitHub user response is invalid");
-    }
-    return { id: String(value.id), login: value.login };
+    const parsed = v.safeParse(userIdentitySchema, value);
+    if (!parsed.success) throw new GitHubUserError("invalid-response", "GitHub user response is invalid");
+    return { id: String(parsed.output.id), login: parsed.output.login };
   }
 
   async listInstallations(accessToken: string): Promise<GitHubUserInstallation[]> {
     const installations: GitHubUserInstallation[] = [];
     for (let page = 1; page <= maximumPages; page += 1) {
       const value = await this.#apiRequest(accessToken, `/user/installations?per_page=100&page=${page}`);
-      if (!isRecord(value) || !Array.isArray(value.installations)) {
-        throw new GitHubUserError("invalid-response", "GitHub installation response is invalid");
+      const parsed = v.safeParse(installationListSchema, value);
+      if (!parsed.success) throw new GitHubUserError("invalid-response", "GitHub installation response is invalid");
+      for (const installation of parsed.output.installations) {
+        installations.push({
+          id: installation.id,
+          accountId: String(installation.account.id),
+          accountLogin: installation.account.login,
+          accountType: installation.account.type,
+        });
       }
-      for (const installation of value.installations) installations.push(parseInstallation(installation));
-      if (value.installations.length < 100) return installations;
+      if (parsed.output.installations.length < 100) return installations;
     }
     throw new GitHubUserError("bounds", "GitHub installation list exceeds supported bounds");
   }
 
   async listRepositories(accessToken: string, installationId: number): Promise<GitHubUserRepository[]> {
-    if (!isPositiveInteger(installationId)) throw new GitHubUserError("bounds", "GitHub installation id is invalid");
+    if (!v.is(positiveIntegerSchema, installationId)) throw new GitHubUserError("bounds", "GitHub installation id is invalid");
     const repositories: GitHubUserRepository[] = [];
     for (let page = 1; page <= maximumPages; page += 1) {
       const value = await this.#apiRequest(accessToken, `/user/installations/${installationId}/repositories?per_page=100&page=${page}`);
-      if (!isRecord(value) || !Array.isArray(value.repositories)) {
-        throw new GitHubUserError("invalid-response", "GitHub repository response is invalid");
-      }
-      for (const repository of value.repositories) repositories.push(parseRepository(repository));
-      if (value.repositories.length < 100) return repositories;
+      const parsed = v.safeParse(repositoryListSchema, value);
+      if (!parsed.success) throw new GitHubUserError("invalid-response", "GitHub repository response is invalid");
+      repositories.push(
+        ...parsed.output.repositories.map((repository) => ({
+          id: repository.id,
+          owner: repository.owner.login,
+          name: repository.name,
+          fullName: repository.full_name,
+          private: repository.private,
+          defaultBranch: repository.default_branch,
+        })),
+      );
+      if (parsed.output.repositories.length < 100) return repositories;
     }
     throw new GitHubUserError("bounds", "GitHub repository list exceeds supported bounds");
   }
 
   async listBranches(accessToken: string, owner: string, repository: string): Promise<GitHubRepositoryBranch[]> {
-    if (!isLogin(owner) || !isRepositoryName(repository)) throw new GitHubUserError("bounds", "GitHub repository identity is invalid");
+    if (!v.is(loginSchema, owner) || !v.is(repositoryNameSchema, repository)) {
+      throw new GitHubUserError("bounds", "GitHub repository identity is invalid");
+    }
     const branches: GitHubRepositoryBranch[] = [];
     for (let page = 1; page <= maximumPages; page += 1) {
       const value = await this.#apiRequest(
         accessToken,
         `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repository)}/branches?per_page=100&page=${page}`,
       );
-      if (!Array.isArray(value)) throw new GitHubUserError("invalid-response", "GitHub branch response is invalid");
-      for (const branch of value) {
-        if (
-          !isRecord(branch) ||
-          typeof branch.name !== "string" ||
-          !branch.name ||
-          branch.name.length > 255 ||
-          typeof branch.protected !== "boolean"
-        ) {
-          throw new GitHubUserError("invalid-response", "GitHub branch response is invalid");
-        }
-        branches.push({ name: branch.name, protected: branch.protected });
-      }
-      if (value.length < 100) return branches;
+      const parsed = v.safeParse(v.array(branchSchema), value);
+      if (!parsed.success) throw new GitHubUserError("invalid-response", "GitHub branch response is invalid");
+      branches.push(...parsed.output);
+      if (parsed.output.length < 100) return branches;
     }
     throw new GitHubUserError("bounds", "GitHub branch list exceeds supported bounds");
   }
@@ -206,50 +235,6 @@ function requireOAuthConfiguration(config: GitHubUserClientConfig): void {
   }
 }
 
-function parseInstallation(value: unknown): GitHubUserInstallation {
-  if (
-    !isRecord(value) ||
-    !isPositiveInteger(value.id) ||
-    !isRecord(value.account) ||
-    !isGitHubId(value.account.id) ||
-    !isLogin(value.account.login) ||
-    (value.account.type !== "Organization" && value.account.type !== "User")
-  ) {
-    throw new GitHubUserError("invalid-response", "GitHub installation response is invalid");
-  }
-  return {
-    id: value.id,
-    accountId: String(value.account.id),
-    accountLogin: value.account.login,
-    accountType: value.account.type,
-  };
-}
-
-function parseRepository(value: unknown): GitHubUserRepository {
-  if (
-    !isRecord(value) ||
-    !isPositiveInteger(value.id) ||
-    !isRecord(value.owner) ||
-    !isLogin(value.owner.login) ||
-    !isRepositoryName(value.name) ||
-    typeof value.full_name !== "string" ||
-    typeof value.private !== "boolean" ||
-    typeof value.default_branch !== "string" ||
-    !value.default_branch ||
-    value.default_branch.length > 255
-  ) {
-    throw new GitHubUserError("invalid-response", "GitHub repository response is invalid");
-  }
-  return {
-    id: value.id,
-    owner: value.owner.login,
-    name: value.name,
-    fullName: value.full_name,
-    private: value.private,
-    defaultBranch: value.default_branch,
-  };
-}
-
 async function responseJson(response: Response): Promise<unknown> {
   const text = await readBoundedResponseText(
     response,
@@ -271,25 +256,6 @@ function optionalPositiveNumber(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) && value > 0 ? value : null;
 }
 
-function isGitHubId(value: unknown): value is string | number {
-  return (
-    (typeof value === "number" && Number.isSafeInteger(value) && value > 0) || (typeof value === "string" && /^\d{1,30}$/u.test(value))
-  );
-}
-
-function isPositiveInteger(value: unknown): value is number {
-  return typeof value === "number" && Number.isSafeInteger(value) && value > 0;
-}
-
-function isLogin(value: unknown): value is string {
-  return typeof value === "string" && /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$/u.test(value);
-}
-
-function isRepositoryName(value: unknown): value is string {
-  return typeof value === "string" && /^[A-Za-z0-9_.-]{1,100}$/u.test(value);
-}
-
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
-import { parseResponseJson, readBoundedResponseText } from "./bounded-response";

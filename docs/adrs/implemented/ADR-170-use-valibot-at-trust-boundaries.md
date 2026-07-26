@@ -36,6 +36,10 @@ Adopted boundaries are:
 - Review-model boundaries: candidate creation requests and persisted candidate
   snapshots share operation, stage, provenance, disposition, and result-envelope
   schemas while result-specific evidence rules remain explicit domain logic.
+- GitHub user responses: external identity, installation/account, repository,
+  and branch structures share bounded schemas while OAuth inputs, response-byte
+  limits, pagination ceilings, token expiry projection, and stable integration
+  errors remain explicit transport policy.
 
 Schemas validate local structure only. Stateful invariants, authorization,
 deduplication, provenance, canonicalization, and relationships between records

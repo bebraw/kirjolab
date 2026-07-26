@@ -5133,3 +5133,24 @@ gzip and 18 and 150.
 
 Full native CI passes all 1,571 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Valibot Adoption: GitHub User Responses
+
+The GitHub user client now validates external identity, installation/account,
+repository, and branch payloads with named Valibot schemas. The transport keeps
+bounded response reads, pagination ceilings, OAuth input rules, token-expiry
+projection, and stable integration error mapping explicit.
+
+This checkpoint reduces `src/integrations/github-user.ts` from 295 to 261 lines
+(-34), replacing four nested handwritten response guards, two structural
+parsers, and four primitive predicates. The existing focused suite passes all
+14 direct GitHub-user cases; affected integration coverage passes 79 tests and
+all 120 Workers-runtime tests alongside strict types.
+
+Browser application and style artifacts remain unchanged at 824,259 B raw /
+222,443 B gzip and 135,411 B raw / 23,373 B gzip because this boundary is
+server-side. Direct and unique production package counts remain 18 and 150;
+Valibot was already pinned and shipped elsewhere.
+
+Full native CI passes all 1,571 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
