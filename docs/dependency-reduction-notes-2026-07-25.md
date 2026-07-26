@@ -4472,3 +4472,21 @@ counts remain unchanged at 135,411 B raw / 23,373 B gzip and 18 and 150.
 
 Full native CI passes all 1,526 unit/coverage tests, 120 Workers-
 runtime tests, and 74 browser tests.
+
+## Coordinator Simplification: Assistant Result Forwarders
+
+`WorkspaceApp` now sends generated tables, phrasing alternatives, reference
+results, ideas, clarity questions, and clarity rewrites directly to the
+existing `AssistantInteractiveResult` Lit owner. Six single-use forwarding
+methods and four now-unused model-result type imports are gone; assistant
+workflow, model requests, source validation, and status policy remain in the
+coordinator.
+
+This checkpoint reduces `src/client/app.ts` from 4,861 to 4,834 lines (-27)
+with no compensating runtime source growth. The browser application artifact
+changes from 817,787 B raw / 221,306 B gzip to 817,629 B raw / 221,248 B gzip
+(-158 B raw / -58 B gzip). Styles and direct and unique production package
+counts remain unchanged at 135,411 B raw / 23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,526 unit/coverage tests, 120 Workers-
+runtime tests, and 74 browser tests.

@@ -221,15 +221,7 @@ import { pdfHighlightImportOutcomeEvent, type PdfHighlightImportOutcome } from "
 import type { ExistingPdfUpload } from "./pdf-upload-queue";
 import { bindThemePreference } from "./theme";
 import { isCreatedAnnotation } from "./app-contracts";
-import {
-  OpenAICompatibleBrowserProvider,
-  type ModelClarityRewrites,
-  type ModelIdeas,
-  type ModelPhrasingAlternatives,
-  type ModelTable,
-  type ModelEvidenceItem,
-  maximumModelEvidenceItems,
-} from "./model-provider";
+import { OpenAICompatibleBrowserProvider, type ModelEvidenceItem, maximumModelEvidenceItems } from "./model-provider";
 import { parseTableRequirements, tableMarkdown, type TableRequirements } from "./structured-syntax";
 import { projectHistoryOutcomeEvent, type ProjectHistoryOutcome } from "./project-history-dialog";
 import {
@@ -3839,7 +3831,10 @@ class WorkspaceApp {
     const table = await input.provider.buildTable({ instruction: input.instruction, ...requirements, manuscriptContext });
     if (table.columns.length !== requirements.columns.length || table.rows.length !== requirements.rows.length)
       throw new Error("Local model changed the requested table shape");
-    this.#renderGeneratedTable(input.insertionTarget, input.sourceRevision, table);
+    this.#elements.assistantInteractiveResult.showTable(tableMarkdown(table), {
+      sourceRevision: input.sourceRevision,
+      target: input.insertionTarget,
+    });
     this.#elements.assistantWorkflowStatus.status = "Table syntax ready. Review it before inserting at the visible target.";
     this.#assistantWorkflow.send({ type: "REVIEW" });
   }
@@ -3853,7 +3848,7 @@ class WorkspaceApp {
       purpose,
       patterns: phrasingPatternsForPurpose(purpose.id),
     });
-    this.#renderPhrasingAlternatives(
+    this.#elements.assistantInteractiveResult.showPhrasingAlternatives(
       { passage, evidence: input.evidence, instruction: input.instruction, sourceRevision: input.sourceRevision },
       purpose,
       result,
@@ -3872,7 +3867,7 @@ class WorkspaceApp {
     await expectOk(response);
     const value: unknown = await response.json();
     if (!isReferenceDiscoveryResults(value)) throw new Error("Reference provider returned invalid discovery results");
-    this.#renderReferenceDiscovery(formulated.query, formulated.rationale, value);
+    this.#elements.assistantInteractiveResult.showReferences(formulated.query, formulated.rationale, value);
     this.#elements.assistantWorkflowStatus.status = value.length
       ? `Found ${value.length} verifiable registry record${value.length === 1 ? "" : "s"}. Review before saving.`
       : "No verifiable registry records matched this query. Refine the search focus and try again.";
@@ -3885,7 +3880,10 @@ class WorkspaceApp {
       instruction: input.instruction,
       evidence: input.evidence.items,
     });
-    this.#renderIdeas({ passage, evidence: input.evidence, instruction: input.instruction, sourceRevision: input.sourceRevision }, result);
+    this.#elements.assistantInteractiveResult.showIdeas(
+      { passage, evidence: input.evidence, instruction: input.instruction, sourceRevision: input.sourceRevision },
+      result,
+    );
     this.#elements.assistantWorkflowStatus.status = "Choose a direction to open its complete draft for exact review.";
     this.#assistantWorkflow.send({ type: "REVIEW" });
   }
@@ -3896,7 +3894,7 @@ class WorkspaceApp {
       instruction: input.instruction,
       evidence: input.evidence.items,
     });
-    this.#renderClarityQuestion({
+    this.#elements.assistantInteractiveResult.showClarityQuestion({
       provider: input.provider,
       passage,
       evidence: input.evidence,
@@ -3925,11 +3923,6 @@ class WorkspaceApp {
     });
     this.#elements.assistantWorkflowStatus.status = "Candidate ready. Review its exact replacement and evidence in Context.";
     this.#assistantWorkflow.send({ type: "COMPLETE" });
-  }
-
-  #renderGeneratedTable(target: AuthoringPassage, sourceRevision: number, table: ModelTable): void {
-    const markdown = tableMarkdown(table);
-    this.#elements.assistantInteractiveResult.showTable(markdown, { sourceRevision, target });
   }
 
   async #handleAssistantResultAction(detail: AssistantResultActionDetail): Promise<void> {
@@ -3970,22 +3963,6 @@ class WorkspaceApp {
     this.#elements.assistantWorkflowStatus.status = "Table inserted into the manuscript.";
   }
 
-  #renderClarityQuestion(input: ClarityDrillContext): void {
-    this.#elements.assistantInteractiveResult.showClarityQuestion(input);
-  }
-
-  #renderIdeas(input: AssistantDraftContext, result: ModelIdeas): void {
-    this.#elements.assistantInteractiveResult.showIdeas(input, result);
-  }
-
-  #renderPhrasingAlternatives(input: AssistantDraftContext, purpose: PhrasingPurpose, result: ModelPhrasingAlternatives): void {
-    this.#elements.assistantInteractiveResult.showPhrasingAlternatives(input, purpose, result);
-  }
-
-  #renderReferenceDiscovery(query: string, rationale: string, results: readonly ReferenceDiscoveryResult[]): void {
-    this.#elements.assistantInteractiveResult.showReferences(query, rationale, results);
-  }
-
   async #continueClarityDrill(input: ClarityDrillContext, rawAnswer: string): Promise<void> {
     const answer = rawAnswer.trim();
     const workflow = this.#assistantWorkflow.getSnapshot();
@@ -4009,7 +3986,7 @@ class WorkspaceApp {
         question: input.question.question,
         answer,
       });
-      this.#renderClarityRewrites(input, answer, result);
+      this.#elements.assistantInteractiveResult.showClarityRewrites(input, answer, result);
       this.#elements.assistantWorkflowStatus.status = "Choose the wording that best matches your meaning; it will still open for review.";
       this.#assistantWorkflow.send({ type: "REVIEW" });
     } catch (error) {
@@ -4017,10 +3994,6 @@ class WorkspaceApp {
     } finally {
       this.#updateModelAvailability();
     }
-  }
-
-  #renderClarityRewrites(input: ClarityDrillContext, answer: string, result: ModelClarityRewrites): void {
-    this.#elements.assistantInteractiveResult.showClarityRewrites(input, answer, result);
   }
 
   async #chooseAssistantRevision(
