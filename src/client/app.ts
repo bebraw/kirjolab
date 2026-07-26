@@ -659,7 +659,6 @@ class WorkspaceApp {
   readonly #editorUndoManagers = new Map<Y.Text, Y.UndoManager>();
   #unbindSourceEditor: () => void = () => undefined;
   #unbindAssistantSourceStale: () => void = () => undefined;
-  #projectFileDialogMode: ProjectFileDialogMode = "create";
   #projectFolderId: string | null = null;
   #projectFileIncludeTarget: RelativeEditorSelection | null = null;
   #projectFileIncludeFromPath: string | null = null;
@@ -2989,7 +2988,6 @@ class WorkspaceApp {
     const file = this.#snapshot?.files.find((item) => item.id === this.#activeFileId);
     const folder = this.#snapshot?.folders.find((item) => item.id === folderId);
     if (!this.#projectFileDialogResourcesAvailable(mode, file, folder)) return;
-    this.#projectFileDialogMode = mode;
     this.#projectFolderId = folder?.id ?? null;
     this.#rememberProjectFileIncludeTarget(mode, file);
     void this.#elements.projectFileDialog.show(mode, this.#projectFileDialogPath(mode, file, folder));
@@ -3021,9 +3019,8 @@ class WorkspaceApp {
     return "";
   }
 
-  async #saveProjectFile({ path }: ProjectFileSave): Promise<void> {
+  async #saveProjectFile({ mode, path }: ProjectFileSave): Promise<void> {
     const activeId = this.#activeFileId;
-    const mode = this.#projectFileDialogMode;
     const folderMode = projectFileDialogIsFolder(mode);
     const creating = projectFileDialogIsCreating(mode);
     const targetId = folderMode ? this.#projectFolderId : activeId;

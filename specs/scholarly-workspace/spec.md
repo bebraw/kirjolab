@@ -210,6 +210,11 @@ collaboration.
   supporting Markdown files through bounded relative `::include[path]`
   directives. Preview and export use the composed source while diagnostics and
   durable anchors retain file-qualified source provenance.
+- **Project-file operations:** One bounded light-DOM dialog owns the selected
+  file or folder operation, operation-specific copy, initial path, focus, and
+  cancellation. Its typed save intent carries the operation mode and submitted
+  path together; the workspace coordinator retains resource checks, target and
+  include capture, persistence, selection, refresh, and toast policy.
 - **Collaboration:** `DocumentRoom` is a SQLite-backed Durable Object for each
   composed project. On a hibernatable WebSocket connection it sends full binary Yjs
   state followed by a versioned `sync` control. The browser sends no state on

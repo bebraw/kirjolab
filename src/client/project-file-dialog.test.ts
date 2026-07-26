@@ -83,11 +83,12 @@ describe("project file dialog", () => {
     const panel = new TestProjectFileDialog();
     const saves: ProjectFileSave[] = [];
     panel.addEventListener(projectFileSaveEvent, (event) => saves.push((event as CustomEvent<ProjectFileSave>).detail));
+    panel.configureForTest("create-and-include");
     panel.input.value = "  chapters/method.md  ";
 
     panel.saveForTest();
 
-    expect(saves).toEqual([{ path: "chapters/method.md" }]);
+    expect(saves).toEqual([{ mode: "create-and-include", path: "chapters/method.md" }]);
   });
 
   it("opens, focuses, reuses, and cancels its modal", async () => {

@@ -5,6 +5,7 @@ export const projectFileSaveEvent = "project-file-save";
 export type ProjectFileDialogMode = "create" | "create-and-include" | "rename" | "create-folder" | "rename-folder";
 
 export interface ProjectFileSave {
+  readonly mode: ProjectFileDialogMode;
   readonly path: string;
 }
 
@@ -108,7 +109,7 @@ export class ProjectFileDialog extends LitElement {
     this.dispatchEvent(
       new CustomEvent<ProjectFileSave>(projectFileSaveEvent, {
         bubbles: true,
-        detail: { path: this.pathInput.value.trim() },
+        detail: { mode: this.mode, path: this.pathInput.value.trim() },
       }),
     );
   }
