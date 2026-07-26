@@ -4490,3 +4490,20 @@ counts remain unchanged at 135,411 B raw / 23,373 B gzip and 18 and 150.
 
 Full native CI passes all 1,526 unit/coverage tests, 120 Workers-
 runtime tests, and 74 browser tests.
+
+## Coordinator Simplification: Presentation Forwarders
+
+`WorkspaceApp` now supplies manuscript workflow cards, publication cards,
+candidate cards, and the knowledge graph directly to their existing Lit
+owners. Six single-use presentation forwarding methods and the unused graph
+type import are gone. The manuscript map still owns the orchestration point
+that derives all four workflow projections from one project-file snapshot.
+
+This checkpoint reduces `src/client/app.ts` from 4,834 to 4,808 lines (-26)
+with no compensating runtime source growth. The browser application artifact
+changes from 817,629 B raw / 221,248 B gzip to 817,482 B raw / 221,178 B gzip
+(-147 B raw / -70 B gzip). Styles and direct and unique production package
+counts remain unchanged at 135,411 B raw / 23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,526 unit/coverage tests, 120 Workers-
+runtime tests, and 74 browser tests.

@@ -2,7 +2,7 @@ import * as Y from "yjs";
 import "./action-menu-controller";
 import { collectAppElements } from "./app-elements";
 import { bibTeXDisplayText } from "../domain/bibliography";
-import { buildWorkspaceKnowledgeGraph, isKnowledgeSearchResults, type WorkspaceKnowledgeGraph } from "../domain/knowledge";
+import { buildWorkspaceKnowledgeGraph, isKnowledgeSearchResults } from "../domain/knowledge";
 import { isReferenceDiscoveryResults, type ReferenceDiscoveryResult } from "../domain/reference-discovery";
 import { reviewerResponseLetter, reviewerResponsePath, reviewerResponseTemplate } from "../domain/reviewer-response";
 import {
@@ -1804,7 +1804,7 @@ class WorkspaceApp {
           resolution: resolveManuscriptAnchor(this.#document, comment.anchor),
         })),
       );
-      this.#renderKnowledgeGraph(
+      this.#elements.projectMap.setGraph(
         buildWorkspaceKnowledgeGraph({
           ...snapshot,
           source: publicationComposition?.content ?? snapshot.composition.content,
@@ -1818,30 +1818,16 @@ class WorkspaceApp {
 
   #renderManuscriptMap(source = this.#currentComposedSource()): void {
     this.#elements.manuscriptMapPanel.setSource(source);
-    this.#renderResearchDiarySummary();
-    this.#renderResearchQuestions();
-    this.#renderReviewerResponses();
-  }
-
-  #renderReviewerResponses(): void {
-    const file = this.#previewProjectFiles().find((candidate) => candidate.path === reviewerResponsePath);
-    this.#elements.reviewerResponsePanel.setData(reviewerResponseWorkflowData(file));
+    const files = this.#previewProjectFiles();
+    this.#elements.researchDiaryPanel.setContent(files.find((file) => file.path === researchDiaryPath)?.content ?? null);
+    this.#elements.researchQuestionPanel.setData(researchQuestionWorkflowData(files.find((file) => file.path === researchQuestionsPath)));
+    this.#elements.reviewerResponsePanel.setData(reviewerResponseWorkflowData(files.find((file) => file.path === reviewerResponsePath)));
   }
 
   #currentComposedSource(): string {
     return this.#snapshot
       ? composeProject(this.#previewProjectFiles(), this.#snapshot.entryFileId, {}, this.#snapshot.reviewArtifactPins).content
       : this.#source.toString();
-  }
-
-  #renderResearchQuestions(): void {
-    const file = this.#previewProjectFiles().find((candidate) => candidate.path === researchQuestionsPath);
-    this.#elements.researchQuestionPanel.setData(researchQuestionWorkflowData(file));
-  }
-
-  #renderResearchDiarySummary(): void {
-    const diary = this.#previewProjectFiles().find((file) => file.path === researchDiaryPath);
-    this.#elements.researchDiaryPanel.setContent(diary?.content ?? null);
   }
 
   async #openResearchDiary(): Promise<void> {
@@ -2525,10 +2511,13 @@ class WorkspaceApp {
     ]);
     this.#elements.assistantWorkflowStatus.reconcileEvidence(validModelEvidence);
     this.#renderProjectEvidence();
-    this.#renderPublications(this.#snapshot.publications);
+    this.#elements.publicationListPanel.setPublications({
+      projectReferences: this.#snapshot.projectReferences,
+      publications: this.#snapshot.publications,
+    });
     this.#renderClaims(this.#snapshot.claims, this.#snapshot.claimLinks);
     this.#renderManuscriptComments(this.#snapshot.comments);
-    this.#renderCandidates(this.#snapshot.candidates);
+    this.#elements.candidateListPanel.setCandidates(this.#snapshot.candidates);
     this.#pdfViewer.updateAnnotations(
       this.#renderedPdfId ? this.#snapshot.annotations.filter((annotation) => annotation.pdfId === this.#renderedPdfId) : [],
     );
@@ -2566,13 +2555,6 @@ class WorkspaceApp {
       selectedEvidenceKeys: this.#elements.assistantWorkflowStatus.selectedEvidenceKeys,
     });
     this.#elements.projectAnnotationForm.setPdfs(pdfs, this.#renderedPdfId ?? "");
-  }
-
-  #renderPublications(publications: PublicationResource[]): void {
-    this.#elements.publicationListPanel.setPublications({
-      projectReferences: this.#snapshot?.projectReferences ?? [],
-      publications,
-    });
   }
 
   #openAnnotationEvidence(annotation: AnnotationResource): void {
@@ -2671,10 +2653,6 @@ class WorkspaceApp {
     this.#showToast("Claim linked to the selected manuscript passage.");
   }
 
-  #renderCandidates(candidates: ModelCandidate[]): void {
-    this.#elements.candidateListPanel.setCandidates(candidates);
-  }
-
   async #searchKnowledge(query: string): Promise<void> {
     if (!query) {
       this.#elements.projectMap.clearSearch();
@@ -2689,10 +2667,6 @@ class WorkspaceApp {
     } catch (error) {
       this.#elements.projectMap.showSearchError(error instanceof Error ? error.message : "Project search failed");
     }
-  }
-
-  #renderKnowledgeGraph(graph: WorkspaceKnowledgeGraph): void {
-    this.#elements.projectMap.setGraph(graph);
   }
 
   #focusKnowledgeResource(resourceId: string): void {
