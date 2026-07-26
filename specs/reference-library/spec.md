@@ -214,11 +214,12 @@ memory and makes citation aliases compete with stable source identity.
   uploads page pixels, silently saves a candidate, shares research, or mutates a
   project. A scan reads at most 200 pages and returns at most 128 candidates.
   A bounded light-DOM component owns detection, empty, mixed-source, error,
-  review-selection, private-note, busy, completion presentation, and the opaque
-  artifact identity associated with the current detection result. Its guarded
-  import intent carries that identity with the reviewed candidates. The
-  application coordinator retains PDF inspection, duplicate filtering,
-  active-reader validation, mutation, refresh, and toast policy.
+  saved-highlight overlap filtering, review-selection, private-note, stable
+  import transport, busy, retryable failure, and completion presentation. It
+  accepts explicit artifact, reference, and saved-highlight context, ignores
+  stale asynchronous results after that identity changes, and emits only a
+  typed completed-import outcome. The application coordinator retains
+  canonical Library refresh and completion toast policy.
 - The private reader stays focused on the page: its idle annotation surface is
   a compact Select, Text, Note, and Draw toolbar. One typed interaction
   owner keeps tool selection, note composition, saved-resource selection, note

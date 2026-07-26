@@ -4431,3 +4431,28 @@ and unique production package counts remain unchanged at 135,411 B raw /
 
 Full native CI passes all 1,523 unit/coverage tests, 120 Workers-
 runtime tests, and 74 browser tests.
+
+## Continued Lit Ownership: Detected PDF Highlight Imports
+
+`PdfHighlightImportPanel` now owns bounded PDF inspection, saved-highlight
+overlap filtering, review state, stable encoded bulk-import transport,
+duplicate-submit suppression, retryable local failures, completion copy, and
+stale-result rejection when the active artifact identity changes. Its typed
+outcome carries only the successful import count. `WorkspaceApp` retains
+canonical Library refresh and completion toast policy.
+
+This checkpoint reduces `src/client/app.ts` from 4,930 to 4,878 lines (-52)
+and grows the PDF highlight import panel from 215 to 275 lines. Runtime source
+across those files increases by 8 lines while removing the coordinator's scan,
+duplicate-filter, selection-validation, import-request, busy-state, and reset
+adapter methods. Focused coverage passes stable encoded detection and import
+targets, duplicate filtering, edited review values, empty selection, provider
+failure and retry, typed completion, identity changes, and local cancellation.
+
+The browser application artifact changes from 817,848 B raw / 221,036 B gzip
+to 817,854 B raw / 221,266 B gzip (+6 B raw / +230 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,526 unit/coverage tests, 120 Workers-
+runtime tests, and 74 browser tests.

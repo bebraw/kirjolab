@@ -531,6 +531,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   classification, duplicate-submit gating, and retryable local failures. Keep
   canonical Library refresh, PDF draft and selection clearing, inspector
   guidance, and toast policy in the application coordinator.
+- Let the PDF highlight import panel own bounded client-side detection,
+  saved-highlight overlap filtering, reviewed candidate state, stable encoded
+  import transport, duplicate-submit gating, and retryable local failures. Keep
+  canonical Library refresh and completion toast policy in the application
+  coordinator.
 - Keep private-PDF tool, selection, note-composition, open-card, and pointer-
   gesture state inside the bounded light-DOM markup layer that presents it.
   Let that layer persist completed note moves from its stable saved-note

@@ -1,13 +1,19 @@
 import { html, LitElement, type TemplateResult } from "lit";
-import type { PdfHighlightDetection, PdfHighlightImportCandidate } from "./pdf-highlight-import";
+import { libraryPdfRectsOverlap, type LibraryHighlight, type LibraryHighlightImportCandidate } from "../domain/reference-library";
+import { expectOk, jsonFetch } from "./http";
+import { detectImportedPdfHighlights, type PdfHighlightDetection, type PdfHighlightImportCandidate } from "./pdf-highlight-import";
 
-export const pdfHighlightImportActionEvent = "pdf-highlight-import-action";
+export const pdfHighlightImportOutcomeEvent = "pdf-highlight-import-outcome";
 
-export type ReviewedPdfHighlightImport = PdfHighlightImportCandidate & { readonly comment: string };
-export type PdfHighlightImportAction =
-  | { readonly action: "cancel" }
-  | { readonly action: "detect" }
-  | { readonly action: "import"; readonly artifactId: string; readonly candidates: readonly ReviewedPdfHighlightImport[] };
+export interface PdfHighlightImportOutcome {
+  readonly count: number;
+}
+
+export interface PdfHighlightImportContext {
+  readonly artifactId: string;
+  readonly highlights: readonly LibraryHighlight[];
+  readonly referenceId: string;
+}
 
 interface CandidateReview {
   readonly candidate: PdfHighlightImportCandidate;
@@ -27,7 +33,7 @@ export class PdfHighlightImportPanel extends LitElement {
   declare private reviews: readonly CandidateReview[];
   declare private scanning: boolean;
   declare private status: string;
-  #artifactId: string | null = null;
+  #context: PdfHighlightImportContext | null = null;
 
   constructor() {
     super();
@@ -37,8 +43,13 @@ export class PdfHighlightImportPanel extends LitElement {
     this.status = defaultStatus;
   }
 
-  showResult(artifactId: string, result: PdfHighlightDetection): void {
-    this.#artifactId = artifactId;
+  setContext(context: PdfHighlightImportContext | null): void {
+    const identityChanged = context?.artifactId !== this.#context?.artifactId || context?.referenceId !== this.#context?.referenceId;
+    this.#context = context;
+    if (identityChanged) this.reset();
+  }
+
+  protected showResult(result: PdfHighlightDetection): void {
     this.scanning = false;
     this.reviews = result.candidates.map((candidate) => ({ candidate, comment: candidate.comment, selected: true }));
     if (result.candidates.length === 0) {
@@ -57,18 +68,12 @@ export class PdfHighlightImportPanel extends LitElement {
       .join(" · ");
   }
 
-  showError(message: string): void {
-    this.#artifactId = null;
+  protected showError(message: string): void {
     this.scanning = false;
     this.status = message;
   }
 
-  setImporting(importing: boolean): void {
-    this.importing = importing;
-  }
-
   reset(message = defaultStatus): void {
-    this.#artifactId = null;
     this.importing = false;
     this.reviews = [];
     this.scanning = false;
@@ -155,32 +160,72 @@ export class PdfHighlightImportPanel extends LitElement {
     `;
   }
 
-  protected detect(): void {
-    if (this.scanning || this.importing) return;
-    this.#artifactId = null;
+  protected async detect(): Promise<void> {
+    const context = this.#context;
+    if (!context || this.scanning || this.importing) return;
     this.scanning = true;
     this.reviews = [];
     this.status = "Scanning PDF annotations and page highlights…";
-    this.emit({ action: "detect" });
+    try {
+      const result = await this.scan(`/api/library/pdfs/${encodeURIComponent(context.artifactId)}`);
+      const current = this.currentContext(context);
+      if (!current) return;
+      this.showResult({
+        ...result,
+        candidates: result.candidates.filter(
+          (candidate) =>
+            !current.highlights.some(
+              (highlight) => highlight.page === candidate.page && libraryPdfRectsOverlap(highlight.rects, candidate.rects),
+            ),
+        ),
+      });
+    } catch (error) {
+      if (this.currentContext(context)) {
+        this.showError(error instanceof Error ? `Could not inspect this PDF: ${error.message}` : "Could not inspect this PDF.");
+      }
+    }
   }
 
-  protected importSelected(event: SubmitEvent): void {
+  protected async importSelected(event: SubmitEvent): Promise<void> {
     event.preventDefault();
-    if (this.scanning || this.importing || !this.#artifactId) return;
-    this.emit({
-      action: "import",
-      artifactId: this.#artifactId,
-      candidates: this.reviews
-        .filter(({ selected }) => selected)
-        .map(({ candidate, comment }) => ({ ...candidate, comment: comment.trim() })),
-    });
+    const context = this.#context;
+    if (!context || this.scanning || this.importing) return;
+    const candidates = this.reviews
+      .filter(({ selected }) => selected)
+      .map(({ candidate, comment }) => ({
+        page: candidate.page,
+        quote: candidate.quote,
+        comment: comment.trim(),
+        rects: candidate.rects,
+      }));
+    if (candidates.length === 0) {
+      this.status = "Select at least one detected highlight to import.";
+      return;
+    }
+    this.importing = true;
+    try {
+      await this.save(context, candidates);
+      if (!this.currentContext(context)) return;
+      const count = candidates.length;
+      this.reset(`${count} ${highlightNoun(count)} imported privately.`);
+      this.dispatchEvent(
+        new CustomEvent<PdfHighlightImportOutcome>(pdfHighlightImportOutcomeEvent, {
+          bubbles: true,
+          composed: true,
+          detail: { count },
+        }),
+      );
+    } catch (error) {
+      if (this.currentContext(context)) {
+        this.status = error instanceof Error ? `Could not import highlights: ${error.message}` : "Could not import highlights.";
+      }
+    } finally {
+      if (this.currentContext(context)) this.importing = false;
+    }
   }
 
   protected cancel(): void {
-    if (!this.importing) {
-      this.reset();
-      this.emit({ action: "cancel" });
-    }
+    if (!this.importing) this.reset();
   }
 
   protected changeSelection(event: Event): void {
@@ -197,12 +242,27 @@ export class PdfHighlightImportPanel extends LitElement {
     if (id) this.reviews = this.reviews.map((review) => (review.candidate.id === id ? update(review, input) : review));
   }
 
-  private emit(detail: PdfHighlightImportAction): void {
-    this.dispatchEvent(new CustomEvent(pdfHighlightImportActionEvent, { bubbles: true, composed: true, detail }));
+  private currentContext(expected: PdfHighlightImportContext): PdfHighlightImportContext | null {
+    const current = this.#context;
+    return current?.artifactId === expected.artifactId && current.referenceId === expected.referenceId ? current : null;
+  }
+
+  protected scan(url: string): Promise<PdfHighlightDetection> {
+    return detectImportedPdfHighlights(url);
+  }
+
+  protected async save(context: PdfHighlightImportContext, candidates: readonly LibraryHighlightImportCandidate[]): Promise<void> {
+    await expectOk(
+      await jsonFetch(`/api/library/references/${encodeURIComponent(context.referenceId)}/highlight-imports`, {
+        artifactId: context.artifactId,
+        candidates,
+      }),
+    );
   }
 }
 
 const defaultStatus = "Detect native annotations and flattened yellow highlights for review.";
+const highlightNoun = (count: number): string => (count === 1 ? "highlight" : "highlights");
 
 if (typeof customElements !== "undefined" && !customElements.get("pdf-highlight-import-panel")) {
   customElements.define("pdf-highlight-import-panel", PdfHighlightImportPanel);

@@ -34,7 +34,6 @@ import type { ProjectTemplateSummary } from "../domain/project-templates";
 import {
   isProjectReferencePdfs,
   isReferenceLibrarySnapshot,
-  libraryPdfRectsOverlap,
   type LibraryHighlight,
   type LibraryPdfDrawing,
   type LibraryPdfMarkup,
@@ -218,12 +217,7 @@ import {
   type OfflineWorkspaceStore,
 } from "./offline-workspace";
 import { PdfEvidenceViewer, type PdfSelectionCapture } from "./pdf-viewer";
-import { detectImportedPdfHighlights } from "./pdf-highlight-import";
-import {
-  pdfHighlightImportActionEvent,
-  type PdfHighlightImportAction,
-  type ReviewedPdfHighlightImport,
-} from "./pdf-highlight-import-panel";
+import { pdfHighlightImportOutcomeEvent, type PdfHighlightImportOutcome } from "./pdf-highlight-import-panel";
 import type { ExistingPdfUpload } from "./pdf-upload-queue";
 import { bindThemePreference } from "./theme";
 import { isCreatedAnnotation } from "./app-contracts";
@@ -886,10 +880,9 @@ class WorkspaceApp {
       else this.#setLibraryPdfInspector(true, true);
     });
     this.#elements.libraryPdfInspector.addEventListener(libraryPdfInspectorCloseEvent, () => this.#closeLibraryPdfInspector());
-    this.#elements.pdfHighlightImportPanel.addEventListener(pdfHighlightImportActionEvent, (event) => {
-      const action = (event as CustomEvent<PdfHighlightImportAction>).detail;
-      if (action.action === "detect") void this.#detectLibraryPdfHighlights();
-      else if (action.action === "import") void this.#importDetectedPdfHighlights(action.artifactId, action.candidates);
+    this.#elements.pdfHighlightImportPanel.addEventListener(pdfHighlightImportOutcomeEvent, (event) => {
+      const { count } = (event as CustomEvent<PdfHighlightImportOutcome>).detail;
+      void this.#completePdfHighlightImport(count);
     });
     this.#elements.paperMarkups.addEventListener("pointerdown", (event) => this.#startLibraryPdfMarkup(event));
     this.#elements.paperMarkups.addEventListener("pointermove", (event) => this.#continueLibraryPdfMarkup(event));
@@ -4274,6 +4267,9 @@ class WorkspaceApp {
     if (!this.#elements.libraryPdfInspector.showsArtifact(artifact.id)) this.#resetLibraryHighlightComposer(artifact.id);
     this.#renderLibraryProjectUse(artifact);
     const highlights = this.#librarySnapshot.highlights.filter((highlight) => highlight.artifactId === artifact.id);
+    this.#elements.pdfHighlightImportPanel.setContext(
+      artifact.referenceId ? { artifactId: artifact.id, highlights, referenceId: artifact.referenceId } : null,
+    );
     if (artifact.referenceId) {
       this.#elements.libraryPdfAnnotationForms.setHighlightContext({
         artifactId: artifact.id,
@@ -4297,7 +4293,7 @@ class WorkspaceApp {
   }
 
   #resetLibraryHighlightComposer(artifactId: string): void {
-    this.#resetPdfHighlightImport();
+    this.#elements.pdfHighlightImportPanel.reset();
     this.#elements.paperMarkups.cancelShapeRecognition();
     this.#elements.libraryPdfInspector.setArtifact(artifactId);
     this.#elements.paperMarkups.resetState();
@@ -4308,57 +4304,9 @@ class WorkspaceApp {
     this.#setLibraryPdfInspector(false);
   }
 
-  async #detectLibraryPdfHighlights(): Promise<void> {
-    const artifact = this.#activeLibraryPdf();
-    if (!artifact?.referenceId) return;
-    try {
-      const result = await detectImportedPdfHighlights(`/api/library/pdfs/${encodeURIComponent(artifact.id)}`);
-      if (this.#activeLibraryPdf()?.id !== artifact.id) {
-        this.#resetPdfHighlightImport();
-        return;
-      }
-      const saved = this.#librarySnapshot?.highlights.filter((highlight) => highlight.artifactId === artifact.id) ?? [];
-      const candidates = result.candidates.filter(
-        (candidate) =>
-          !saved.some((highlight) => highlight.page === candidate.page && libraryPdfRectsOverlap(highlight.rects, candidate.rects)),
-      );
-      const reviewed = { ...result, candidates };
-      this.#elements.pdfHighlightImportPanel.showResult(artifact.id, reviewed);
-    } catch (error) {
-      this.#elements.pdfHighlightImportPanel.showError(
-        error instanceof Error ? `Could not inspect this PDF: ${error.message}` : "Could not inspect this PDF.",
-      );
-    }
-  }
-
-  async #importDetectedPdfHighlights(detectedArtifactId: string, selected: readonly ReviewedPdfHighlightImport[]): Promise<void> {
-    const artifact = this.#activeLibraryPdf();
-    if (!artifact?.referenceId || detectedArtifactId !== artifact.id) return;
-    if (selected.length === 0) {
-      this.#showToast("Select at least one detected highlight to import.");
-      return;
-    }
-    this.#elements.pdfHighlightImportPanel.setImporting(true);
-    try {
-      const response = await jsonFetch(`/api/library/references/${encodeURIComponent(artifact.referenceId)}/highlight-imports`, {
-        artifactId: artifact.id,
-        candidates: selected.map(({ page, quote, comment, rects }) => ({ page, quote, comment, rects })),
-      });
-      await expectOk(response);
-      this.#resetPdfHighlightImport(`${selected.length} ${this.#pdfHighlightImportNoun(selected.length)} imported privately.`);
-      await this.#refreshReferenceLibrary();
-      this.#showToast(`${selected.length} PDF ${this.#pdfHighlightImportNoun(selected.length)} imported to your library.`);
-    } finally {
-      this.#elements.pdfHighlightImportPanel.setImporting(false);
-    }
-  }
-
-  #pdfHighlightImportNoun(count: number): string {
-    return count === 1 ? "highlight" : "highlights";
-  }
-
-  #resetPdfHighlightImport(message = "Detect native annotations and flattened yellow highlights for review."): void {
-    this.#elements.pdfHighlightImportPanel.reset(message);
+  async #completePdfHighlightImport(count: number): Promise<void> {
+    await this.#refreshReferenceLibrary();
+    this.#showToast(`${count} PDF ${count === 1 ? "highlight" : "highlights"} imported to your library.`);
   }
 
   #renderLibraryProjectUse(artifact: LibraryPdfArtifact): void {

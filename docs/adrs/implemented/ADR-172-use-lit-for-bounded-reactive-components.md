@@ -194,9 +194,11 @@ The adopted components own bounded presentation:
   visibility, target-preview presentation, readiness, and typed change and
   generation intents.
 - The PDF highlight import panel owns detection, empty, mixed-source, error,
-  review, selection, private-note, busy and completion presentation, plus the
-  opaque artifact identity associated with its current result. Its guarded
-  import intent carries that identity with typed reviewed candidates.
+  saved-highlight overlap filtering, review, selection, private-note, stable
+  encoded import transport, duplicate-submit suppression, retryable failure,
+  busy and completion presentation, plus its explicit artifact and reference
+  context. It ignores stale asynchronous results after that identity changes
+  and emits only a typed completed-import outcome.
 - The project file dialog owns file and folder operation copy, initial path,
   active operation mode and stable mutation target, focus, cancellation,
   mutation transport, response validation, duplicate-submit gating, local busy
@@ -503,9 +505,10 @@ reason to wrap static markup mechanically.
 - The PDF highlight import panel replaces five internal element references,
   imperative candidate-card rendering, DOM-based review collection, and scan
   and import busy updates. It also replaces the coordinator's duplicate
-  detection-artifact field while leaving PDF inspection, duplicate filtering,
-  active-reader validation, mutation, refresh, and toast policy in the
-  application coordinator.
+  detection-artifact field, PDF inspection and duplicate filtering workflow,
+  active-reader validation, import request, and import failure handling. The
+  application coordinator retains canonical Library refresh and completion
+  toast policy.
 - The project-file action components replace seven button references, seven
   direct bindings, and coordinator-owned delete availability with two component
   references and one typed event protocol. The coordinator retains active-file
