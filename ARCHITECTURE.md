@@ -40,8 +40,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   component state and canonical inputs, and typed intent events. Keep network
   workflows in a component only when their complete request lifecycle and
   response validation serve that component's local interaction. Keep Yjs
-  state, persisted domain data, project refresh, navigation, and cross-feature
-  coordination in the existing application authorities; do not
+  state, persisted domain data, project refresh, cross-feature navigation, and
+  cross-feature coordination in the existing application authorities. A bounded
+  component may navigate only to a canonical href supplied through its own
+  authorized inputs or validated request result; do not
   wrap static server-rendered markup mechanically or turn Lit into the
   application shell. Keep Yjs and cross-feature XState actors in application
   authorities; a component may own an actor whose full lifecycle is confined
@@ -118,8 +120,8 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   its read-only connection, installation, repository, and branch discovery
   lifecycle plus stale-request protection, import preview and creation requests,
   account disconnection, Valibot response validation, and local progress and
-  failure presentation. Let the import panel close its own dialog; expose only
-  successful workspace navigation to the application coordinator. Let the sync
+  failure presentation. Let the import panel close its own dialog and navigate
+  to the validated successful response's canonical workspace href. Let the sync
   menu likewise own its bounded connection
   and status refresh interval, validation, stale-request guard, and primary
   presentation, then emit one state event for the settings mirror. Let the

@@ -51,7 +51,6 @@ import { sourceSpanAt } from "./composition-source-map";
 import type { AppToastOptions } from "./app-toast";
 import { expectOk, jsonFetch } from "./http";
 import { sourceCompletionActionEvent, type SourceCompletionAction, type SourceCompletionIntent } from "./source-completion";
-import { gitHubImportCompleteEvent } from "./github-import-panel";
 import {
   gitHubSyncCheckEvent,
   gitHubSyncPullEvent,
@@ -497,9 +496,6 @@ class WorkspaceApp {
     });
     this.#elements.newWorkspaceStartingPoints.addEventListener(startingPointTemplateDeleteEvent, (event) => {
       this.#deleteProjectTemplate((event as CustomEvent<ProjectTemplateSummary>).detail);
-    });
-    this.#elements.gitHubImportPanel.addEventListener(gitHubImportCompleteEvent, (event) => {
-      location.assign((event as CustomEvent<string>).detail);
     });
     this.#elements.workspaceSettingsPanel.configureGitHub(apiBase);
     this.#elements.workspaceSettingsPanel.addEventListener(gitHubSyncMutationEvent, (event) => {

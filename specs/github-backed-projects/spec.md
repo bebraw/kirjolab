@@ -27,8 +27,8 @@ incoming and outgoing mutation.
   sorting, loading and failure presentation, and request-generation guards. It
   also owns import preview and creation requests, confirmation payload
   construction, account-disconnection confirmation and request, shared Valibot
-  response validation, operation progress, and local dismissal. It emits only a
-  completed workspace href; navigation remains in the application coordinator.
+  response validation, operation progress, local dismissal, and navigation to the
+  validated successful response's canonical workspace href.
 - One deployment-wide GitHub App is authorized per Kirjolab owner through the
   GitHub App user OAuth flow. One-time callback state is owner-scoped, user and
   refresh tokens are encrypted at rest, and installation ids are never trusted
@@ -130,9 +130,9 @@ incoming and outgoing mutation.
   form submission, readiness, preview/status rendering, native dialog
   lifecycle, discovery, import preview and creation requests, disconnect
   confirmation and request, payload construction, Valibot response validation,
-  opaque preview identity, and operation progress. It emits typed Cancel or
-  completed-navigation events. The application coordinator retains browser
-  navigation, while the Worker retains initial fallback markup.
+  opaque preview identity, operation progress, and navigation to the validated
+  successful response's canonical workspace href. The Worker retains initial
+  fallback markup.
 - The workspace sync menu is a light-DOM Lit component that owns repository
   status presentation, relationship tone, Pull and Push availability, and
   typed Check, Pull, Push, and Settings intents. It also owns the bounded

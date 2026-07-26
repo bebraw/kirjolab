@@ -27,8 +27,6 @@ export interface GitHubConnectionPresentation {
   readonly message: string;
 }
 
-export const gitHubImportCompleteEvent = "github-import-complete";
-
 export class GitHubImportPanel extends LitElement {
   static override properties = {
     projectTitleValue: { state: true },
@@ -498,7 +496,7 @@ export class GitHubImportPanel extends LitElement {
         "GitHub import returned invalid project data",
         jsonRequest({ previewId: this.preview.id, title: this.projectTitle }),
       );
-      this.dispatchEvent(new CustomEvent<string>(gitHubImportCompleteEvent, { detail: value.workspace.href }));
+      location.assign(value.workspace.href);
     } catch (error) {
       this.showCreationError(errorMessage(error, "Could not import the project."));
     }

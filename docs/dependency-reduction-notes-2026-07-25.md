@@ -5705,6 +5705,27 @@ component members.
 Full native CI passes all 1,583 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: GitHub Import Navigation
+
+`GitHubImportPanel` now navigates directly to the successful import response's
+canonical workspace href after validating that response through the existing
+Valibot boundary. The completion event and `WorkspaceApp` listener are removed;
+the coordinator continues to own opening the workflow and cross-feature policy.
+
+This checkpoint reduces `src/client/app.ts` from 3,949 to 3,945 lines (-4) and
+the GitHub import panel from 546 to 544 lines (-2). Runtime and focused test
+source across the three changed files decreases by six lines. Eight focused and
+ten affected tests pass alongside strict types.
+
+The browser application artifact changes from 823,413 B raw / 222,946 B gzip
+to 823,275 B raw / 222,921 B gzip (-138 B raw / -25 B gzip). Styles, direct and
+unique production package counts, and the readability audit remain unchanged
+at 135,411 B raw / 23,373 B gzip, 18, 150, and 250 externally visible low-level
+component members.
+
+Full native CI passes all 1,583 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: LaTeX Import Navigation
 
 `LatexImportPanel` now navigates directly to the successful import response's

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { GitHubImportPanel, gitHubImportCompleteEvent } from "./github-import-panel";
+import { GitHubImportPanel } from "./github-import-panel";
 
 class TestGitHubImportPanel extends GitHubImportPanel {
   focusCount = 0;
@@ -196,13 +196,13 @@ describe("GitHub import panel", () => {
     expect(panel.renderForTest()).toBeDefined();
   });
 
-  it("owns import preview and creation requests", async () => {
+  it("owns import preview, creation, and canonical project navigation", async () => {
     const panel = new TestGitHubImportPanel();
     panel.setInstallations([installation]);
     panel.setRepositories([repository]);
     panel.setBranches([{ name: "main", protected: true }], "main");
-    const completed: string[] = [];
-    panel.addEventListener(gitHubImportCompleteEvent, (event) => completed.push((event as CustomEvent<string>).detail));
+    const assign = vi.fn();
+    vi.stubGlobal("location", { assign });
     const fetcher = vi
       .fn()
       .mockResolvedValueOnce(
@@ -214,7 +214,7 @@ describe("GitHub import panel", () => {
     await panel.previewForTest();
     await panel.confirmForTest();
 
-    expect(completed).toEqual(["/editor/project"]);
+    expect(assign.mock.calls).toEqual([["/editor/project"]]);
     expect(JSON.parse(fetcher.mock.calls[0]?.[1]?.body as string)).toEqual({
       installationId: 7,
       owner: "research-lab",

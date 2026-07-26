@@ -24,10 +24,11 @@ Use pinned Lit for bounded reactive browser components whose local template,
 presentation state, element references, and DOM events can leave
 `WorkspaceApp`. Components emit typed intent or completion events; the existing
 application coordinator retains cross-feature network workflows, canonical
-project refresh, navigation, Yjs and XState actors, and persisted domain state.
-A component may own a bounded request workflow when its complete lifecycle,
-payload, validation, progress, and result serve only that component's local
-interaction.
+project refresh, cross-feature navigation, Yjs and XState actors, and persisted
+domain state. A component may own a bounded request workflow when its complete
+lifecycle, payload, validation, progress, and result serve only that component's
+local interaction. It may navigate only to a canonical href supplied through
+its own authorized inputs or validated request result.
 
 The adopted components own bounded presentation:
 
@@ -36,7 +37,7 @@ The adopted components own bounded presentation:
   discovery requests, validation, stale-request guards, option rendering, form
   submission, readiness, import preview and creation requests, account
   disconnection, preview/status rendering, native dialog lifecycle, and typed
-  Cancel and completed-navigation events.
+  Cancel intent plus canonical successful-result navigation.
 - The workspace sync menu owns repository status, relationship tone, Pull and
   Push availability, its bounded read-only connection and status refresh
   lifecycle, interval, validation and stale-request guard, typed Check, Pull,
@@ -213,7 +214,7 @@ The adopted components own bounded presentation:
   owns its read-only connection and repository-picker discovery lifecycle plus
   import preview, creation, and account-disconnection requests because their
   payloads, validation, progress, and results are local to that component. The
-  import panel closes its own dialog and emits only successful navigation. The
+  import panel closes its own dialog and owns successful-result navigation. The
   sync menu owns its read-only connection and status request lifecycle because
   its interval, validation, stale-request protection, and primary result
   presentation are local to that component. The sync review owns its Pull,
