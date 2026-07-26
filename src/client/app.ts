@@ -219,7 +219,7 @@ import { PdfEvidenceViewer, type PdfSelectionCapture } from "./pdf-viewer";
 import { pdfHighlightImportOutcomeEvent, type PdfHighlightImportOutcome } from "./pdf-highlight-import-panel";
 import type { ExistingPdfUpload } from "./pdf-upload-queue";
 import { bindThemePreference } from "./theme";
-import { OpenAICompatibleBrowserProvider, type ModelEvidenceItem, maximumModelEvidenceItems } from "./model-provider";
+import { OpenAICompatibleBrowserProvider } from "./model-provider";
 import { projectHistoryOutcomeEvent, type ProjectHistoryOutcome } from "./project-history-dialog";
 import {
   activateResearchTab,
@@ -1569,47 +1569,19 @@ class WorkspaceApp {
     const assistant = this.#assistantWorkflow.getSnapshot();
     const assistantBusy = assistantWorkflowBusy(assistant);
     this.#elements.modelProviderSettings.setDiscoveryAvailable(!assistantBusy);
-    this.#elements.assistantTaskPanel.setGenerateDisabled(this.#candidateGenerationDisabled(stable, assistantBusy));
+    const evidence = this.#modelEvidence();
+    this.#elements.assistantTaskPanel.setGenerationAvailability({
+      annotationEvidenceCount: evidence.annotationItems.length,
+      discoveryBusy: this.#elements.modelProviderSettings.discoveryBusy,
+      evidenceCount: evidence.items.length,
+      hasInsertionTarget: this.#assistantInsertionTarget() !== null,
+      hasPassage: this.#assistantAuthoringPassage() !== null,
+      modelAvailable: Boolean(this.#elements.modelProviderSettings.value.model.trim()),
+      selectedEvidenceCount: this.#elements.assistantWorkflowStatus.selectedEvidenceKeys.size,
+      stableDocument: stable,
+      workflowBusy: assistantBusy,
+    });
     this.#elements.candidateReviewPanel.setAvailability(stable, assistant.context.candidateDecision !== null);
-  }
-
-  #candidateGenerationDisabled(stable: boolean, assistantBusy: boolean): boolean {
-    if (this.#elements.modelProviderSettings.discoveryBusy || assistantBusy) return true;
-    if (!this.#draftsClaim() && !stable) return true;
-    return !this.#canGenerateCandidate();
-  }
-
-  #canGenerateCandidate(): boolean {
-    const { instruction, operation } = this.#elements.assistantTaskPanel.value;
-    if (!operation.enabled) return false;
-    const selectedEvidence = this.#modelEvidence();
-    return (
-      this.#assistantEvidenceValid(operation.evidence, selectedEvidence.items) &&
-      this.#elements.assistantWorkflowStatus.selectedEvidenceKeys.size <= maximumModelEvidenceItems &&
-      Boolean(this.#elements.modelProviderSettings.value.model.trim()) &&
-      this.#assistantTargetValid(operation.id, selectedEvidence.items) &&
-      Boolean(instruction.trim())
-    );
-  }
-
-  #assistantEvidenceValid(
-    requirement: ReturnType<typeof assistantOperationDefinition>["evidence"],
-    evidence: readonly ModelEvidenceItem[],
-  ): boolean {
-    if (requirement === "none" || requirement === "optional") return true;
-    if (requirement === "annotations") return evidence.some((item) => item.kind === "annotation");
-    return evidence.length > 0;
-  }
-
-  #assistantTargetValid(operationId: string, evidence: readonly ModelEvidenceItem[]): boolean {
-    if (operationId === "build-table")
-      return this.#assistantInsertionTarget() !== null && this.#elements.assistantTaskPanel.tableRequirementsValid;
-    if (operationId === "draft-claim") return evidence.some((item) => item.kind === "annotation");
-    return this.#assistantAuthoringPassage() !== null;
-  }
-
-  #draftsClaim(): boolean {
-    return this.#elements.assistantTaskPanel.value.operation.id === "draft-claim";
   }
 
   #updateModelTask(resetInstruction = false): void {

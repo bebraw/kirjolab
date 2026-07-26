@@ -8,6 +8,7 @@ import {
   type AssistantOperationDefinition,
   type AssistantTargetScope,
 } from "./assistant-operations";
+import { maximumModelEvidenceItems } from "./model-provider";
 import { parseTableRequirements, type TableRequirements } from "./structured-syntax";
 
 export const assistantTaskChangeEvent = "assistant-task-change";
@@ -29,6 +30,18 @@ export interface AssistantTargetPreview {
   readonly passage: string | null;
   readonly scope: AssistantTargetScope;
   readonly target: { readonly start: number; readonly end: number } | null;
+}
+
+export interface AssistantGenerationAvailability {
+  readonly annotationEvidenceCount: number;
+  readonly discoveryBusy: boolean;
+  readonly evidenceCount: number;
+  readonly hasInsertionTarget: boolean;
+  readonly hasPassage: boolean;
+  readonly modelAvailable: boolean;
+  readonly selectedEvidenceCount: number;
+  readonly stableDocument: boolean;
+  readonly workflowBusy: boolean;
 }
 
 export class AssistantTaskPanel extends LitElement {
@@ -108,8 +121,27 @@ export class AssistantTaskPanel extends LitElement {
     }
   }
 
-  setGenerateDisabled(disabled: boolean): void {
-    this.generateDisabled = disabled;
+  setGenerationAvailability(availability: AssistantGenerationAvailability): void {
+    const operation = assistantOperationDefinition(this.operationId);
+    const evidenceAvailable =
+      operation.evidence === "none" || operation.evidence === "optional"
+        ? true
+        : operation.evidence === "annotations"
+          ? availability.annotationEvidenceCount > 0
+          : availability.evidenceCount > 0;
+    const targetAvailable =
+      operation.id === "draft-claim" ||
+      (operation.id === "build-table" ? availability.hasInsertionTarget && this.tableRequirementsValid : availability.hasPassage);
+    this.generateDisabled =
+      availability.discoveryBusy ||
+      availability.workflowBusy ||
+      (!availability.stableDocument && operation.id !== "draft-claim") ||
+      !operation.enabled ||
+      !evidenceAvailable ||
+      availability.selectedEvidenceCount > maximumModelEvidenceItems ||
+      !availability.modelAvailable ||
+      !targetAvailable ||
+      !this.instruction.trim();
   }
 
   showTarget({ passage, scope, target }: AssistantTargetPreview): void {

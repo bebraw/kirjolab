@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { AssistantTaskPanel, assistantTaskChangeEvent, assistantTaskGenerateEvent, type AssistantTaskChange } from "./assistant-task-panel";
+import {
+  AssistantTaskPanel,
+  assistantTaskChangeEvent,
+  assistantTaskGenerateEvent,
+  type AssistantGenerationAvailability,
+  type AssistantTaskChange,
+} from "./assistant-task-panel";
 
 class TestAssistantTaskPanel extends AssistantTaskPanel {
   renderForTest() {
@@ -51,6 +57,19 @@ function eventWithTarget(target: object): Event {
   return event;
 }
 
+const available = (overrides: Partial<AssistantGenerationAvailability> = {}): AssistantGenerationAvailability => ({
+  annotationEvidenceCount: 1,
+  discoveryBusy: false,
+  evidenceCount: 1,
+  hasInsertionTarget: true,
+  hasPassage: true,
+  modelAvailable: true,
+  selectedEvidenceCount: 1,
+  stableDocument: true,
+  workflowBusy: false,
+  ...overrides,
+});
+
 describe("assistant task panel", () => {
   it("renders every operation-specific presentation state", () => {
     const panel = new TestAssistantTaskPanel();
@@ -61,7 +80,6 @@ describe("assistant task panel", () => {
       expect(panel.renderForTest()).toBeDefined();
     }
     panel.showTarget({ passage: "Reviewed passage", scope: "sentence", target: { start: 4, end: 4 } });
-    panel.setGenerateDisabled(false);
     expect(panel.renderForTest()).toBeDefined();
   });
 
@@ -98,7 +116,7 @@ describe("assistant task panel", () => {
     panel.relationForTest("extends");
     panel.purposeForTest("contrast-findings");
     panel.tableForTest("Results", "Method\nScore", "A | 1");
-    panel.setGenerateDisabled(false);
+    panel.setGenerationAvailability(available());
     panel.generateForTest();
 
     expect(panel.value).toMatchObject({
@@ -133,5 +151,44 @@ describe("assistant task panel", () => {
     expect(panel.phrasingPurpose).toBeDefined();
     expect(panel.tableRequirementsValid).toBe(false);
     expect(() => panel.tableRequirements).toThrow("between 2 and 8");
+  });
+
+  it("owns operation-specific generation readiness", () => {
+    const panel = new TestAssistantTaskPanel();
+    let generations = 0;
+    panel.addEventListener(assistantTaskGenerateEvent, () => (generations += 1));
+
+    panel.setGenerationAvailability(available());
+    panel.generateForTest();
+    for (const unavailable of [
+      { discoveryBusy: true },
+      { evidenceCount: 0 },
+      { hasPassage: false },
+      { modelAvailable: false },
+      { selectedEvidenceCount: 13 },
+      { stableDocument: false },
+      { workflowBusy: true },
+    ]) {
+      panel.setGenerationAvailability(available(unavailable));
+      panel.generateForTest();
+    }
+
+    panel.operationForTest("draft-claim");
+    panel.setGenerationAvailability(available({ stableDocument: false }));
+    panel.generateForTest();
+    panel.setGenerationAvailability(available({ annotationEvidenceCount: 0 }));
+    panel.generateForTest();
+
+    panel.operationForTest("build-table");
+    panel.tableForTest("Results", "Method\nScore", "A | 1");
+    panel.setGenerationAvailability(available());
+    panel.generateForTest();
+    panel.setGenerationAvailability(available({ hasInsertionTarget: false }));
+    panel.generateForTest();
+    panel.tableForTest("", "Only one", "value");
+    panel.setGenerationAvailability(available());
+    panel.generateForTest();
+
+    expect(generations).toBe(3);
   });
 });

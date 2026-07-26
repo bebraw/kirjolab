@@ -319,6 +319,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   structured-table parsing, and non-throwing table readiness inside the Lit
   task owner that stores those raw fields. The coordinator consumes typed task
   projections when dispatching model operations and must not re-parse them.
+- Keep operation-specific generation readiness inside that task owner. The
+  coordinator supplies canonical stability, evidence counts, target
+  availability, provider availability, and workflow activity; it must not
+  duplicate the operation policy that combines those inputs.
 - Back up reviews independently of projects. Owner backup schema v3 stores each
   review's catalog record and locator, access state, complete active and
   unlinked project-link ledger, revision seed, and a bounded canonical

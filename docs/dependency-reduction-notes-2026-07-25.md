@@ -5319,6 +5319,30 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,578 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Assistant Generation Readiness
+
+`AssistantTaskPanel` now combines canonical document stability, evidence
+counts, selected-evidence limits, target availability, provider availability,
+and discovery and workflow activity with its owned operation, instruction, and
+table state. `WorkspaceApp` supplies those canonical inputs but no longer
+duplicates task-specific evidence, target, or generation-gating policy.
+
+This checkpoint reduces `src/client/app.ts` from 4,204 to 4,176 lines (-28) and
+grows the task owner from 313 to 345 lines. Runtime source across those two
+files grows by four lines while deleting five coordinator helpers and the
+panel's imperative enable/disable escape hatch. Focused coverage passes every
+shared availability constraint plus draft-claim and structured-table target
+rules, existing task presentation and intents, application contracts, and
+strict types.
+
+The browser application artifact changes from 824,825 B raw / 222,976 B gzip
+to 824,899 B raw / 223,034 B gzip (+74 B raw / +58 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,579 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Assistant Evidence Projection
 
 `AssistantWorkflowStatus` now resolves its ordered selected evidence keys

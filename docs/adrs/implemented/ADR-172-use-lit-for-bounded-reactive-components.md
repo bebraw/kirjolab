@@ -223,9 +223,10 @@ The adopted components own bounded presentation:
   relationship labels, empty state, and typed resource-selection intents.
 - The assistant task panel owns operation, scope, instruction, claim relation,
   phrasing purpose, structured-table inputs and their typed normalization,
-  parsing, and readiness, operation-specific copy and visibility,
-  target-preview wording and truncation from canonical target inputs, and typed
-  change and generation intents.
+  parsing, operation-specific generation readiness from canonical availability
+  inputs, operation-specific copy and visibility, target-preview wording and
+  truncation from canonical target inputs, and typed change and generation
+  intents.
 - The PDF highlight import panel owns detection, empty, mixed-source, error,
   saved-highlight overlap filtering, review, selection, private-note, stable
   encoded import transport, duplicate-submit suppression, retryable failure,
@@ -573,9 +574,10 @@ reason to wrap static markup mechanically.
   imperative operation, scope, purpose, copy, visibility, instruction-default,
   target-preview, and readiness updates. It also replaces coordinator adapters
   for claim-relation normalization, phrasing-purpose lookup, and structured
-  table parsing. The application coordinator retains editor target, passage,
-  and scope resolution, evidence selection, model requests, workflow state,
-  results, and status policy.
+  table parsing plus operation-specific generation gating. The application
+  coordinator retains canonical editor target, passage, scope, stability,
+  evidence, provider, and workflow-state derivation, model requests, results,
+  and status policy.
 - The PDF highlight import panel replaces five internal element references,
   imperative candidate-card rendering, DOM-based review collection, and scan
   and import busy updates. It also replaces the coordinator's duplicate

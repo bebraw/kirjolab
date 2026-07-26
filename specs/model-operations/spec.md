@@ -61,8 +61,11 @@ All mutation operations preserve a human review boundary.
   manuscript revision and target still match.
 - The bounded assistant task owner normalizes claim relations, resolves the
   selected reviewed phrasing purpose, parses structured-table fields, and
-  exposes non-throwing table readiness. Generation orchestration consumes those
-  typed projections rather than re-reading raw form strings.
+  exposes non-throwing table readiness. It combines canonical stability,
+  evidence-count, target, provider, and workflow inputs with operation policy
+  to own generation readiness. Generation orchestration consumes those typed
+  projections and availability inputs rather than re-reading raw form strings
+  or duplicating task policy.
 - `find-references` lets the model formulate one bounded search query and a
   rationale from the visible claim, but never accepts model-authored citation
   records. The query is executed against configured OpenAlex, Crossref, and
