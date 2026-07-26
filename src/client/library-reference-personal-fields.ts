@@ -1,5 +1,6 @@
 import { html, LitElement, type TemplateResult } from "lit";
 import type { ReadingState } from "../domain/reference-library";
+import { errorMessage, expectOk, jsonFetch } from "./http";
 
 type PersonalTextField = "collections" | "note" | "tags";
 
@@ -12,24 +13,12 @@ export interface LibraryReferencePersonalFieldsData {
   readonly tags: readonly string[];
 }
 
-export type LibraryReferencePersonalAction =
-  | { readonly action: "save-tags"; readonly referenceId: string; readonly value: string }
-  | { readonly action: "save-collections"; readonly referenceId: string; readonly value: string }
-  | { readonly action: "set-archived"; readonly archived: boolean; readonly referenceId: string; readonly title: string }
-  | {
-      readonly action: "save-reading";
-      readonly priority: ReadingState["priority"];
-      readonly rating: number | null;
-      readonly referenceId: string;
-      readonly status: ReadingState["status"];
-    }
-  | { readonly action: "save-note"; readonly body: string; readonly referenceId: string };
-
-export const libraryReferencePersonalActionEvent = "library-reference-personal-action";
+export const libraryReferencePersonalRefreshEvent = "library-reference-personal-refresh";
 
 export class LibraryReferencePersonalFields extends LitElement {
   static override properties = {
     archived: { state: true },
+    busy: { state: true },
     collections: { state: true },
     displayTitle: { state: true },
     note: { state: true },
@@ -37,10 +26,12 @@ export class LibraryReferencePersonalFields extends LitElement {
     rating: { state: true },
     readingStatus: { state: true },
     referenceId: { state: true },
+    status: { state: true },
     tags: { state: true },
   };
 
   declare private archived: boolean;
+  declare private busy: boolean;
   declare private collections: string;
   declare private displayTitle: string;
   declare private note: string;
@@ -48,11 +39,13 @@ export class LibraryReferencePersonalFields extends LitElement {
   declare private rating: string;
   declare private readingStatus: ReadingState["status"];
   declare private referenceId: string;
+  declare private status: string;
   declare private tags: string;
 
   constructor() {
     super();
     this.archived = false;
+    this.busy = false;
     this.collections = "";
     this.displayTitle = "";
     this.note = "";
@@ -60,11 +53,13 @@ export class LibraryReferencePersonalFields extends LitElement {
     this.rating = "";
     this.readingStatus = "unread";
     this.referenceId = "";
+    this.status = "";
     this.tags = "";
   }
 
   setData(data: LibraryReferencePersonalFieldsData): void {
     this.archived = data.archived;
+    this.busy = false;
     this.collections = data.collections.join(", ");
     this.displayTitle = data.displayTitle;
     this.note = "";
@@ -72,6 +67,7 @@ export class LibraryReferencePersonalFields extends LitElement {
     this.rating = data.reading?.rating === null || data.reading === null ? "" : String(data.reading.rating);
     this.readingStatus = data.reading?.status ?? "unread";
     this.referenceId = data.referenceId;
+    this.status = "";
     this.tags = data.tags.join(", ");
   }
 
@@ -106,26 +102,11 @@ export class LibraryReferencePersonalFields extends LitElement {
         @input=${(event: Event) => this.updateText("collections", event)}
       />
       <div class="mt-2 flex flex-wrap gap-2">
-        <button class="button-secondary" type="button" @click=${() => this.emitAction({ action: "save-tags", value: this.tags })}>
-          Save tags
-        </button>
-        <button
-          class="button-secondary"
-          type="button"
-          @click=${() => this.emitAction({ action: "save-collections", value: this.collections })}
-        >
+        <button class="button-secondary" type="button" ?disabled=${this.busy} @click=${() => void this.saveTags()}>Save tags</button>
+        <button class="button-secondary" type="button" ?disabled=${this.busy} @click=${() => void this.saveCollections()}>
           Save collections
         </button>
-        <button
-          class="button-secondary"
-          type="button"
-          @click=${() =>
-            this.emitAction({
-              action: "set-archived",
-              archived: !this.archived,
-              title: this.displayTitle,
-            })}
-        >
+        <button class="button-secondary" type="button" ?disabled=${this.busy} @click=${() => void this.setArchived(!this.archived)}>
           ${this.archived ? "Restore" : "Archive"}
         </button>
       </div>
@@ -170,7 +151,9 @@ export class LibraryReferencePersonalFields extends LitElement {
         <option value="">No rating</option>
         ${[1, 2, 3, 4, 5].map((value) => html`<option value=${String(value)}>${value} star${value === 1 ? "" : "s"}</option>`)}
       </select>
-      <button class="button-secondary mt-2" type="button" @click=${() => this.emitReading()}>Save reading state</button>
+      <button class="button-secondary mt-2" type="button" ?disabled=${this.busy} @click=${() => void this.saveReading()}>
+        Save reading state
+      </button>
       <textarea
         class="field mt-3 min-h-16"
         id=${`${fieldPrefix}-private-note`}
@@ -181,9 +164,10 @@ export class LibraryReferencePersonalFields extends LitElement {
         maxlength="20000"
         @input=${(event: Event) => this.updateText("note", event)}
       ></textarea>
-      <button class="button-secondary mt-2" type="button" @click=${() => this.emitAction({ action: "save-note", body: this.note })}>
+      <button class="button-secondary mt-2" type="button" ?disabled=${this.busy} @click=${() => void this.saveNote()}>
         Save private note
       </button>
+      ${this.status ? html`<p class="status-text mt-2" role="status">${this.status}</p>` : ""}
     `;
   }
 
@@ -191,34 +175,86 @@ export class LibraryReferencePersonalFields extends LitElement {
     this[field] = (event.currentTarget as HTMLInputElement | HTMLTextAreaElement).value;
   }
 
-  protected emitReading(): void {
-    this.emitAction({
-      action: "save-reading",
-      priority: this.priority,
-      rating: this.rating ? Number(this.rating) : null,
-      status: this.readingStatus,
-    });
-  }
-
-  protected emitAction(
-    action:
-      | { readonly action: "save-tags" | "save-collections"; readonly value: string }
-      | { readonly action: "set-archived"; readonly archived: boolean; readonly title: string }
-      | {
-          readonly action: "save-reading";
-          readonly priority: ReadingState["priority"];
-          readonly rating: number | null;
-          readonly status: ReadingState["status"];
-        }
-      | { readonly action: "save-note"; readonly body: string },
-  ): void {
-    this.dispatchEvent(
-      new CustomEvent<LibraryReferencePersonalAction>(libraryReferencePersonalActionEvent, {
-        bubbles: true,
-        detail: { ...action, referenceId: this.referenceId } as LibraryReferencePersonalAction,
-      }),
+  protected saveTags(): Promise<void> {
+    return this.mutate(
+      () =>
+        jsonFetch(`/api/library/references/${encodeURIComponent(this.referenceId)}/tags`, { tags: commaSeparatedValues(this.tags) }, "PUT"),
+      "Private tags saved.",
+      "Could not save private tags.",
     );
   }
+
+  protected saveCollections(): Promise<void> {
+    return this.mutate(
+      () =>
+        jsonFetch(
+          `/api/library/references/${encodeURIComponent(this.referenceId)}/collections`,
+          { collections: commaSeparatedValues(this.collections) },
+          "PUT",
+        ),
+      "Collections saved.",
+      "Could not save collections.",
+    );
+  }
+
+  protected saveReading(): Promise<void> {
+    return this.mutate(
+      () =>
+        jsonFetch(
+          `/api/library/references/${encodeURIComponent(this.referenceId)}/reading`,
+          {
+            status: this.readingStatus,
+            rating: this.rating ? Number(this.rating) : null,
+            priority: this.priority,
+          },
+          "PUT",
+        ),
+      "Reading state saved.",
+      "Could not save reading state.",
+    );
+  }
+
+  protected saveNote(): Promise<void> {
+    if (!this.note.trim()) return Promise.resolve();
+    return this.mutate(
+      () => jsonFetch(`/api/library/references/${encodeURIComponent(this.referenceId)}/notes`, { body: this.note }),
+      "Private note saved. It is not visible to project collaborators.",
+      "Could not save private note.",
+    );
+  }
+
+  protected setArchived(archived: boolean): Promise<void> {
+    if (archived && !window.confirm(`Archive “${this.displayTitle}”? It will be hidden from the active Library until you restore it.`)) {
+      return Promise.resolve();
+    }
+    return this.mutate(
+      () => jsonFetch(`/api/library/references/${encodeURIComponent(this.referenceId)}`, { archived }, "PATCH"),
+      archived ? "Reference archived." : "Reference restored.",
+      archived ? "Could not archive reference." : "Could not restore reference.",
+    );
+  }
+
+  private async mutate(request: () => Promise<Response>, success: string, failure: string): Promise<void> {
+    if (this.busy || !this.referenceId) return;
+    this.busy = true;
+    this.status = "Saving…";
+    try {
+      await expectOk(await request());
+      this.status = "";
+      this.dispatchEvent(new CustomEvent<string>(libraryReferencePersonalRefreshEvent, { bubbles: true, detail: success }));
+    } catch (error) {
+      this.status = errorMessage(error, failure);
+    } finally {
+      this.busy = false;
+    }
+  }
+}
+
+function commaSeparatedValues(value: string): string[] {
+  return value
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
 }
 
 if (typeof customElements !== "undefined" && !customElements.get("library-reference-personal-fields")) {

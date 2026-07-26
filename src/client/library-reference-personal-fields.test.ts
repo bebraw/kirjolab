@@ -1,9 +1,5 @@
-import { describe, expect, it } from "vitest";
-import {
-  LibraryReferencePersonalFields,
-  libraryReferencePersonalActionEvent,
-  type LibraryReferencePersonalAction,
-} from "./library-reference-personal-fields";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { LibraryReferencePersonalFields, libraryReferencePersonalRefreshEvent } from "./library-reference-personal-fields";
 
 class TestLibraryReferencePersonalFields extends LibraryReferencePersonalFields {
   renderForTest() {
@@ -20,16 +16,32 @@ class TestLibraryReferencePersonalFields extends LibraryReferencePersonalFields 
     this.updateText(field, event);
   }
 
-  emitForTest(action: Parameters<LibraryReferencePersonalFields["emitAction"]>[0]): void {
-    this.emitAction(action);
+  saveTagsForTest(): Promise<void> {
+    return this.saveTags();
   }
 
-  emitReadingForTest(): void {
-    this.emitReading();
+  saveCollectionsForTest(): Promise<void> {
+    return this.saveCollections();
+  }
+
+  saveReadingForTest(): Promise<void> {
+    return this.saveReading();
+  }
+
+  saveNoteForTest(): Promise<void> {
+    return this.saveNote();
+  }
+
+  setArchivedForTest(archived: boolean): Promise<void> {
+    return this.setArchived(archived);
   }
 }
 
 describe("library reference personal fields", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   it("owns empty and populated light-DOM form state", () => {
     const fields = new TestLibraryReferencePersonalFields();
     expect(fields.rootForTest()).toBe(fields);
@@ -45,12 +57,13 @@ describe("library reference personal fields", () => {
     expect(fields.renderForTest()).toBeDefined();
   });
 
-  it("emits organization, archive, reading, and note actions", () => {
+  it("owns organization, archive, reading, and note requests", async () => {
     const fields = new TestLibraryReferencePersonalFields();
-    const actions: LibraryReferencePersonalAction[] = [];
-    fields.addEventListener(libraryReferencePersonalActionEvent, (event) => {
-      actions.push((event as CustomEvent<LibraryReferencePersonalAction>).detail);
-    });
+    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 204 }));
+    vi.stubGlobal("fetch", fetchMock);
+    vi.stubGlobal("window", { confirm: vi.fn().mockReturnValue(true) });
+    const outcomes: string[] = [];
+    fields.addEventListener(libraryReferencePersonalRefreshEvent, (event) => outcomes.push((event as CustomEvent<string>).detail));
     fields.setData({
       archived: false,
       collections: [],
@@ -62,17 +75,78 @@ describe("library reference personal fields", () => {
     fields.updateForTest("tags", "important");
     fields.updateForTest("collections", "Methods");
     fields.updateForTest("note", "Private observation");
-    fields.emitForTest({ action: "save-tags", value: "important" });
-    fields.emitForTest({ action: "save-collections", value: "Methods" });
-    fields.emitForTest({ action: "set-archived", archived: true, title: "Useful Paper" });
-    fields.emitReadingForTest();
-    fields.emitForTest({ action: "save-note", body: "Private observation" });
-    expect(actions).toEqual([
-      { action: "save-tags", referenceId: "ref-1", value: "important" },
-      { action: "save-collections", referenceId: "ref-1", value: "Methods" },
-      { action: "set-archived", archived: true, referenceId: "ref-1", title: "Useful Paper" },
-      { action: "save-reading", priority: "normal", rating: null, referenceId: "ref-1", status: "unread" },
-      { action: "save-note", body: "Private observation", referenceId: "ref-1" },
+    await fields.saveTagsForTest();
+    await fields.saveCollectionsForTest();
+    await fields.saveReadingForTest();
+    await fields.saveNoteForTest();
+    await fields.setArchivedForTest(true);
+
+    expect(fetchMock.mock.calls).toEqual([
+      ["/api/library/references/ref-1/tags", request("PUT", { tags: ["important"] })],
+      ["/api/library/references/ref-1/collections", request("PUT", { collections: ["Methods"] })],
+      ["/api/library/references/ref-1/reading", request("PUT", { status: "unread", rating: null, priority: "normal" })],
+      ["/api/library/references/ref-1/notes", request("POST", { body: "Private observation" })],
+      ["/api/library/references/ref-1", request("PATCH", { archived: true })],
+    ]);
+    expect(outcomes).toEqual([
+      "Private tags saved.",
+      "Collections saved.",
+      "Reading state saved.",
+      "Private note saved. It is not visible to project collaborators.",
+      "Reference archived.",
     ]);
   });
+
+  it("keeps failures local and ignores duplicate submissions", async () => {
+    const fields = new TestLibraryReferencePersonalFields();
+    fields.setData({
+      archived: false,
+      collections: [],
+      displayTitle: "Useful Paper",
+      reading: null,
+      referenceId: "ref-1",
+      tags: ["important"],
+    });
+    let resolveResponse = (_response: Response): void => undefined;
+    const pendingResponse = new Promise<Response>((resolve) => {
+      resolveResponse = resolve;
+    });
+    const fetchMock = vi.fn().mockReturnValue(pendingResponse);
+    vi.stubGlobal("fetch", fetchMock);
+
+    const first = fields.saveTagsForTest();
+    await fields.saveCollectionsForTest();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    resolveResponse(new Response(JSON.stringify({ error: "Private fields unavailable" }), { status: 503 }));
+    await first;
+    expect(fields.renderForTest()).toBeDefined();
+  });
+
+  it("does not submit empty notes or cancelled archives", async () => {
+    const fields = new TestLibraryReferencePersonalFields();
+    fields.setData({
+      archived: false,
+      collections: [],
+      displayTitle: "Useful Paper",
+      reading: null,
+      referenceId: "ref-1",
+      tags: [],
+    });
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    vi.stubGlobal("window", { confirm: vi.fn().mockReturnValue(false) });
+
+    await fields.saveNoteForTest();
+    await fields.setArchivedForTest(true);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
 });
+
+function request(method: string, body: unknown): RequestInit {
+  return {
+    body: JSON.stringify(body),
+    credentials: "same-origin",
+    headers: { "content-type": "application/json" },
+    method,
+  };
+}

@@ -94,9 +94,11 @@ memory and makes citation aliases compete with stable source identity.
   workspace coordinator retains PDF presentation, link mutations, metadata
   editing and refinement, and Library refresh policy.
 - A bounded light-DOM personal-fields block owns each source's tag, collection,
-  reading-state, archive-state, and private-note form values and typed save
-  intents. The workspace coordinator retains persistence, archive confirmation,
-  Library refreshes, and notification policy.
+  reading-state, archive-state, and private-note form values; their request
+  payloads and lifecycles; archive confirmation; duplicate-submit gating; and
+  local retryable failures. It emits a typed successful-refresh outcome. The
+  workspace coordinator retains canonical Library refreshes and notification
+  policy.
 - A bounded light-DOM metadata editor owns manual bibliographic values,
   refinement progress, PDF suggestions, grouped scholarly-provider matches,
   work and field selections, PDF extraction, provider preview and acceptance,

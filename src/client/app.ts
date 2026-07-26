@@ -85,7 +85,7 @@ import { workspaceSharingNoticeEvent } from "./workspace-sharing-panel";
 import { WorkspaceLayoutManager } from "./workspace-layout-manager";
 import { unidentifiedPdfIdentifyEvent, type UnidentifiedPdfSelection } from "./unidentified-pdf-list";
 import { libraryReferenceSummaryActionEvent, type LibraryReferenceSummaryAction } from "./library-reference-summary";
-import { libraryReferencePersonalActionEvent, type LibraryReferencePersonalAction } from "./library-reference-personal-fields";
+import { libraryReferencePersonalRefreshEvent } from "./library-reference-personal-fields";
 import {
   LibraryReferenceMetadataEditor,
   libraryReferenceMetadataActionEvent,
@@ -631,14 +631,8 @@ class WorkspaceApp {
       else if (detail.action === "link") void this.#linkLibraryReference(detail.referenceId, detail.referenceKey);
       else void this.#unlinkProjectReference(detail.referenceId);
     });
-    this.#elements.referenceLibraryList.addEventListener(libraryReferencePersonalActionEvent, (event) => {
-      const detail = (event as CustomEvent<LibraryReferencePersonalAction>).detail;
-      if (detail.action === "save-tags") void this.#saveReferenceTags(detail.referenceId, detail.value);
-      else if (detail.action === "save-collections") void this.#saveReferenceCollections(detail.referenceId, detail.value);
-      else if (detail.action === "set-archived") void this.#setReferenceArchived(detail.referenceId, detail.archived, detail.title);
-      else if (detail.action === "save-reading")
-        void this.#saveReadingState(detail.referenceId, detail.status, detail.rating, detail.priority);
-      else void this.#createReferenceNote(detail.referenceId, detail.body);
+    this.#elements.referenceLibraryList.addEventListener(libraryReferencePersonalRefreshEvent, (event) => {
+      void this.#completePersonalReferenceMutation((event as CustomEvent<string>).detail);
     });
     this.#elements.referenceLibraryList.addEventListener(libraryReferenceMetadataActionEvent, (event) => {
       const detail = (event as CustomEvent<LibraryReferenceMetadataAction>).detail;
@@ -2541,30 +2535,13 @@ class WorkspaceApp {
     this.#showToast("Reference removed from this project; the private library record remains.");
   }
 
-  async #saveReferenceTags(referenceId: string, value: string): Promise<void> {
-    const response = await jsonFetch(
-      `/api/library/references/${encodeURIComponent(referenceId)}/tags`,
-      {
-        tags: value
-          .split(",")
-          .map((tag) => tag.trim())
-          .filter(Boolean),
-      },
-      "PUT",
-    );
-    await expectOk(response);
-    await this.#refreshReferenceLibrary();
-    this.#showToast("Private tags saved.");
-  }
-
-  async #saveReferenceCollections(referenceId: string, value: string): Promise<void> {
-    const collections = value
-      .split(",")
-      .map((item) => item.trim())
-      .filter(Boolean);
-    await expectOk(await jsonFetch(`/api/library/references/${encodeURIComponent(referenceId)}/collections`, { collections }, "PUT"));
-    await this.#refreshReferenceLibrary();
-    this.#showToast("Collections saved.");
+  async #completePersonalReferenceMutation(message: string): Promise<void> {
+    try {
+      await this.#refreshReferenceLibrary();
+      this.#showToast(message);
+    } catch {
+      this.#showToast("The private reference was updated, but the refreshed Library could not be loaded.");
+    }
   }
 
   async #completeMetadataRefinement(message: string): Promise<void> {
@@ -2604,35 +2581,6 @@ class WorkspaceApp {
     await this.#refreshSnapshot();
   }
 
-  async #saveReadingState(
-    referenceId: string,
-    status: ReferenceLibrarySnapshot["reading"][number]["status"],
-    rating: number | null,
-    priority: ReferenceLibrarySnapshot["reading"][number]["priority"],
-  ): Promise<void> {
-    await expectOk(
-      await jsonFetch(
-        `/api/library/references/${encodeURIComponent(referenceId)}/reading`,
-        {
-          status,
-          rating,
-          priority,
-        },
-        "PUT",
-      ),
-    );
-    await this.#refreshReferenceLibrary();
-    this.#showToast("Reading state saved.");
-  }
-
-  async #createReferenceNote(referenceId: string, body: string): Promise<void> {
-    if (!body.trim()) return;
-    const response = await jsonFetch(`/api/library/references/${encodeURIComponent(referenceId)}/notes`, { body });
-    await expectOk(response);
-    await this.#refreshReferenceLibrary();
-    this.#showToast("Private note saved. It is not visible to project collaborators.");
-  }
-
   async #setArtifactRights(artifactId: string, rightsValue: string): Promise<void> {
     if (rightsValue !== "private" && rightsValue !== "unknown" && rightsValue !== "shareable") return;
     const response = await jsonFetch(`/api/library/pdfs/${encodeURIComponent(artifactId)}/rights`, { rights: rightsValue }, "PUT");
@@ -2655,14 +2603,6 @@ class WorkspaceApp {
     await this.#acceptWorkspaceMutation(response);
     this.#renderReferenceLibrary();
     this.#showToast("Share revoked for future project access; prior revision history remains intact.");
-  }
-
-  async #setReferenceArchived(referenceId: string, archived: boolean, title: string): Promise<void> {
-    if (archived && !window.confirm(`Archive “${title}”? It will be hidden from the active Library until you restore it.`)) return;
-    const response = await jsonFetch(`/api/library/references/${encodeURIComponent(referenceId)}`, { archived }, "PATCH");
-    await expectOk(response);
-    await this.#refreshReferenceLibrary();
-    this.#showToast(archived ? "Reference archived." : "Reference restored.");
   }
 
   async #acceptWorkspaceMutation(response: Response): Promise<void> {

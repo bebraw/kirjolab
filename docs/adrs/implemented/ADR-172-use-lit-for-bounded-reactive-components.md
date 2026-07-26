@@ -290,8 +290,10 @@ The adopted components own bounded presentation:
 - The Library reference summary owns title and metadata presentation, PDF and
   project-link actions, and their accessible labels.
 - The Library reference personal-fields block owns tags, collections,
-  archive-state presentation, reading state, private-note composition, and
-  typed save intents.
+  archive-state presentation, reading state, private-note composition, all five
+  persistence requests, payload normalization, archive confirmation,
+  duplicate-submit gating, local failure state, and one typed successful-refresh
+  outcome.
 - The Library reference metadata editor owns manual field values, PDF and
   provider suggestions, work and field selections, refinement progress, and
   typed save, refine, and application intents.
