@@ -53,7 +53,6 @@ import type { AppToastOptions } from "./app-toast";
 import { expectOk, jsonFetch } from "./http";
 import { workspaceSwitchEvent } from "./workspace-switcher";
 import { sourceCompletionActionEvent, type SourceCompletionAction, type SourceCompletionIntent } from "./source-completion";
-import { citationCompletionCandidates } from "./citation-completions";
 import { gitHubImportCancelEvent, gitHubImportCompleteEvent } from "./github-import-panel";
 import {
   gitHubSyncCheckEvent,
@@ -2700,19 +2699,12 @@ class WorkspaceApp {
 
   #renderSourceCompletion(): void {
     const snapshot = this.#snapshot;
-    const activeFile = snapshot?.files.find((file) => file.id === this.#activeFileId);
     const sourceCompletion = this.#elements.sourceCompletion;
-    const libraryScope = sourceCompletion.scope === "library";
     const needsLibrary = sourceCompletion.refresh({
-      citations: citationCompletionCandidates(
-        snapshot?.projectReferences ?? [],
-        libraryScope ? (this.#librarySnapshot?.references ?? []) : [],
-      ),
-      includes: activeFile
-        ? (snapshot?.files ?? [])
-            .filter((file) => file.id !== activeFile.id)
-            .map((file) => ({ reference: relativeProjectPath(activeFile.path, file.path), path: file.path }))
-        : [],
+      activeFileId: this.#activeFileId,
+      files: snapshot?.files ?? [],
+      libraryReferences: this.#librarySnapshot?.references ?? [],
+      projectReferences: snapshot?.projectReferences ?? [],
       workspace: appMode === "workspace",
     });
     if (needsLibrary && !this.#librarySnapshot && !this.#citationLibraryLoading) {

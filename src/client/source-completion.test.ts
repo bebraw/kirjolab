@@ -115,8 +115,23 @@ describe("source completion", () => {
     Reflect.set(completion, "source", source);
     vi.stubGlobal("document", { activeElement: source });
     const inputs = {
-      citations: [{ authors: ["Doe"], key: "doe2026", referenceId: "reference-1", scope: "library", title: "Result", year: "2026" }],
-      includes: [{ path: "chapters/method.md", reference: "chapters/method.md" }],
+      activeFileId: "file-1",
+      files: [
+        { id: "file-1", path: "manuscript.md" },
+        { id: "file-2", path: "chapters/method.md" },
+      ],
+      libraryReferences: [
+        {
+          archivedAt: null,
+          authors: ["Doe"],
+          deletedAt: null,
+          id: "reference-1",
+          referenceKey: "doe2026",
+          title: "Result",
+          year: "2026",
+        },
+      ],
+      projectReferences: [],
       workspace: true,
     } satisfies SourceCompletionInputs;
 

@@ -167,7 +167,8 @@ The adopted components own bounded presentation:
   selection, active-descendant state, selected-option scrolling, dismissal, and
   typed acceptance intents. Its pure citation-completion domain adapter owns
   project and available unlinked Library candidate construction from canonical
-  reference inputs.
+  reference inputs, while the component owns project-relative include candidate
+  construction from canonical files and the active file id.
 - The manuscript map panel owns summary metrics, heading outline, structural
   cues, local editing-pass selection, editing cues, and typed source-range
   selection intents.
@@ -863,9 +864,9 @@ reason to wrap static markup mechanically.
   typed scope-change intent. Acceptance now carries the component-selected
   candidate and replacement context, removing five coordinator caches and the
   completion-kind discriminator. It also replaces two coordinator context-
-  detection and presentation methods. The application coordinator retains
-  canonical project-file and reference candidate projection, private-Library
-  loading and linking, Yjs edits, and caret restoration.
+  detection and presentation methods plus both candidate projections. The
+  application coordinator supplies canonical files and references and retains
+  private-Library loading and linking, Yjs edits, and caret restoration.
 - The source citation control owns caret-context parsing and action
   availability and emits one typed resolved-citation intent. The application
   coordinator retains publication resolution, grouped-citation policy, and

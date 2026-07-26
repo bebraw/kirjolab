@@ -572,10 +572,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   there, detect citation and include contexts from the bound editor there, rank
   and adapt candidates there, own empty-state hiding and popup positioning
   there, and emit the selected candidate with its replacement context as one
-  typed intent. Derive canonical citation and include candidates from
-  coordinator-supplied project and Library inputs. The application coordinator
-  retains collaborative edits and private-Library mutations without caching
-  menu candidates or kind state.
+  typed intent. Derive citation and project-relative include candidates there
+  from coordinator-supplied canonical project files, reference links, and
+  available Library references. The application coordinator retains active-file
+  identity, private-Library loading, collaborative edits, and private-Library
+  mutations without caching menu candidates or kind state.
 - Implement optional editor keymaps as bounded textarea command adapters that
   emit ordinary input changes. Keep keymap preference browser-local, preserve
   IME and modified browser shortcuts, and never create a second document model.

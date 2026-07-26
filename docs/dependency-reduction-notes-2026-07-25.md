@@ -5462,6 +5462,29 @@ translation while the coordinator loses both private viewport algorithms.
 Full native CI passes all 1,582 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Source Completion Candidates
+
+`SourceCompletion` now derives project and available unlinked Library citation
+candidates plus project-relative include candidates from canonical reference,
+file, and active-file inputs. `WorkspaceApp` retains private-Library loading and
+linking, Yjs replacement, and caret restoration without importing or building
+completion candidates.
+
+This checkpoint reduces `src/client/app.ts` from 4,045 to 4,037 lines (-8) and
+grows the source-completion owner from 258 to 272 lines. Runtime source across
+those two files grows by six lines while removing completion-specific candidate
+construction and its citation adapter import from the coordinator. All six
+focused and eight affected tests pass alongside strict types.
+
+The browser application artifact changes from 824,363 B raw / 223,076 B gzip
+to 824,419 B raw / 223,107 B gzip (+56 B raw / +31 B gzip). Styles, direct and
+unique production package counts, and the readability audit remain unchanged at
+135,411 B raw / 23,373 B gzip, 18, 150, and 256 externally visible low-level
+component members.
+
+Full native CI passes all 1,582 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Assistant Evidence Projection
 
 `AssistantWorkflowStatus` now resolves its ordered selected evidence keys

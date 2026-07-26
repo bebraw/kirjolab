@@ -267,7 +267,7 @@ collaboration.
   synchronization and history, syntax and presence mirroring, scroll alignment,
   completion geometry, and relative selection capture.
   The workspace coordinator retains document identity, collaboration workflow,
-  completion candidates, authoring targets, and navigation authority.
+  canonical completion inputs, authoring targets, and navigation authority.
 - **Citation completion:** With the caret in a `:cite`, `:citet`, or `:citep`
   key, the source editor ranks matching project aliases by key, author, and
   title and shows key, author, title, and year metadata. A browser-local
@@ -288,11 +288,11 @@ collaboration.
   persistence, dismissal, and typed acceptance or scope-change intents.
   Acceptance carries the selected citation or include candidate together with
   its replacement context. The pure citation-completion adapter derives project
-  and available unlinked Library candidates from canonical reference inputs.
-  The workspace coordinator retains canonical project-file and reference
-  candidate projection, private-Library loading and linking, collaborative
-  edits, and caret restoration without caching visible options or completion
-  kind.
+  and available unlinked Library candidates from canonical reference inputs;
+  the component derives project-relative include candidates from canonical
+  files and the active file id. The workspace coordinator retains
+  private-Library loading and linking, collaborative edits, and caret restoration
+  without caching candidates, visible options, or completion kind.
 - **Source citation action:** One bounded light-DOM control derives the citation
   context at the current source caret, owns action availability, and emits the
   resolved citation keys and locator. The workspace coordinator retains

@@ -1,5 +1,7 @@
 import { html, LitElement, nothing, type TemplateResult } from "lit";
+import { relativeProjectPath, type ProjectFile } from "../domain/project-files";
 import {
+  citationCompletionCandidates,
   citationCompletionContext,
   rankCitationCompletionCandidates,
   type CitationCompletionCandidate,
@@ -27,8 +29,10 @@ export interface SourceCompletionOption {
 export type CitationCompletionScope = "library" | "project";
 
 export interface SourceCompletionInputs {
-  readonly citations: readonly CitationCompletionCandidate[];
-  readonly includes: readonly IncludeCompletionCandidate[];
+  readonly activeFileId: string | null;
+  readonly files: readonly Pick<ProjectFile, "id" | "path">[];
+  readonly libraryReferences: NonNullable<Parameters<typeof citationCompletionCandidates>[1]>;
+  readonly projectReferences: Parameters<typeof citationCompletionCandidates>[0];
   readonly workspace: boolean;
 }
 
@@ -113,7 +117,13 @@ export class SourceCompletion extends LitElement {
     }
     const includeContext = includeCompletionContext(source.value, source.selectionEnd);
     if (includeContext) {
-      this.showIncludes(inputs.includes, includeContext, source);
+      const activeFile = inputs.files.find((file) => file.id === inputs.activeFileId);
+      const includes = activeFile
+        ? inputs.files
+            .filter((file) => file.id !== activeFile.id)
+            .map((file) => ({ reference: relativeProjectPath(activeFile.path, file.path), path: file.path }))
+        : [];
+      this.showIncludes(includes, includeContext, source);
       return false;
     }
     const citationContext = citationCompletionContext(source.value, source.selectionEnd);
@@ -122,7 +132,11 @@ export class SourceCompletion extends LitElement {
       return false;
     }
     const libraryScope = this.scope === "library";
-    this.showCitations(inputs.citations, citationContext, source);
+    this.showCitations(
+      citationCompletionCandidates(inputs.projectReferences, libraryScope ? inputs.libraryReferences : []),
+      citationContext,
+      source,
+    );
     return libraryScope;
   }
 
