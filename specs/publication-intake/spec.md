@@ -12,10 +12,16 @@ association, and manuscript citation.
 ### Architecture
 
 - DOI preview is bounded, Crossref-backed, and non-mutating.
-- One browser-local XState actor owns the active PDF identity, request
-  generation, preview/review state, acceptance state, cancellation, and
-  transient preview payload. Changing PDF context or cancelling invalidates
-  late responses without placing workflow state in the document room.
+- The bounded publication-intake Lit component owns one browser-local XState
+  actor, active PDF identity, request generation, preview/review state,
+  acceptance state, cancellation, transient preview payload, preview and
+  acceptance requests, response validation, status, and focus. Changing PDF
+  context or cancelling invalidates late responses without placing workflow
+  state in the document room.
+- A successful acceptance request stays pending until the workspace coordinator
+  refreshes the canonical project snapshot and finds the accepted DOI. The
+  component advances to idle only after that acknowledgement; refresh failure
+  returns it to review with the failure visible.
 - `POST /api/workspaces/{id}/publication-intake/preview` accepts a known PDF
   id and DOI, then returns mapped metadata, its SHA-256 review fingerprint, an
   existing publication id when applicable, and a collision-aware key.

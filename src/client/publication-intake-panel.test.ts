@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { PublicationIntakePreview, PublicationResource } from "../domain/workspace";
 import { PublicationIntakePanel, publicationIntakeActionEvent, type PublicationIntakeAction } from "./publication-intake-panel";
 
@@ -45,12 +45,12 @@ class TestPublicationIntakePanel extends PublicationIntakePanel {
     return this.createRenderRoot();
   }
 
-  previewForTest(): void {
-    this.preview(new Event("submit") as SubmitEvent);
+  async previewForTest(): Promise<void> {
+    await this.preview(new Event("submit") as SubmitEvent);
   }
 
-  acceptForTest(): void {
-    this.accept();
+  async acceptForTest(): Promise<void> {
+    await this.accept();
   }
 
   cancelForTest(): void {
@@ -77,46 +77,132 @@ function eventWithTarget(target: object): Event {
 }
 
 describe("publication intake panel", () => {
-  it("renders lookup, review, busy, existing, and linked states", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("renders lookup and linked states", () => {
     const panel = new TestPublicationIntakePanel();
     expect(panel.renderForTest()).toBeDefined();
-    panel.setStatus("Looking up DOI metadata…");
-    panel.setView({ busy: true, preview, publications: [] });
-    expect(panel.renderForTest()).toBeDefined();
-    panel.setView({
-      busy: false,
-      preview: { ...preview, existingPublicationId: publication.id },
-      publications: [],
-    });
-    expect(panel.renderForTest()).toBeDefined();
-    panel.setView({ busy: false, preview: null, publications: [publication] });
+    panel.setContext(preview.pdfId, [publication]);
     expect(panel.renderForTest()).toBeDefined();
     expect(panel.rootForTest()).toBe(panel);
   });
 
-  it("emits only available actions with current local values", () => {
+  it("owns preview, acceptance, cancellation, and navigation intents", async () => {
     const panel = new TestPublicationIntakePanel();
     const actions: PublicationIntakeAction[] = [];
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(Response.json(preview))
+      .mockResolvedValueOnce(new Response(null, { status: 204 }))
+      .mockResolvedValueOnce(Response.json({ ...preview, existingPublicationId: publication.id }));
+    vi.stubGlobal("fetch", fetchMock);
+    panel.configure("/api/workspaces/workspace-1");
+    panel.setContext(preview.pdfId, []);
     panel.addEventListener(publicationIntakeActionEvent, (event) => actions.push((event as CustomEvent<PublicationIntakeAction>).detail));
 
-    panel.previewForTest();
     panel.doiForTest("10.5555/intake");
-    panel.previewForTest();
-    panel.setView({ busy: false, preview, publications: [] });
+    await panel.previewForTest();
+    expect(panel.renderForTest()).toBeDefined();
     panel.keyForTest("custom2026");
-    panel.acceptForTest();
+    await panel.acceptForTest();
+    const accepted = actions[0];
+    if (accepted?.action !== "accepted") throw new Error("Expected accepted intake action");
+    expect(panel.completeAcceptance(accepted.requestId)).toBe(true);
+    await panel.previewForTest();
     panel.cancelForTest();
     panel.openForTest(publication.id);
     panel.openForTest();
-    panel.setView({ busy: true, preview, publications: [] });
-    panel.acceptForTest();
-    panel.cancelForTest();
 
     expect(actions).toEqual([
-      { action: "preview", doi: "10.5555/intake" },
-      { action: "accept", citationKey: "custom2026" },
-      { action: "cancel" },
+      { action: "accepted", doi: "10.5555/intake", requestId: accepted.requestId },
       { action: "open-reference", publicationId: publication.id },
     ]);
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      "/api/workspaces/workspace-1/publication-intake/preview",
+      expect.objectContaining({ body: JSON.stringify({ pdfId: "pdf:1", doi: "10.5555/intake" }) }),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      "/api/workspaces/workspace-1/publication-intake/accept",
+      expect.objectContaining({
+        body: JSON.stringify({
+          pdfId: "pdf:1",
+          doi: "10.5555/intake",
+          citationKey: "custom2026",
+          metadataFingerprint: "a".repeat(64),
+        }),
+      }),
+    );
+  });
+
+  it("contains failed and malformed previews", async () => {
+    const panel = new TestPublicationIntakePanel();
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(Response.json({ error: "DOI unavailable" }, { status: 503 }))
+      .mockResolvedValueOnce(Response.json({ doi: "10.5555/intake" }));
+    vi.stubGlobal("fetch", fetchMock);
+    panel.configure("/api/workspaces/workspace-1");
+    panel.setContext(preview.pdfId, []);
+    panel.doiForTest(preview.doi);
+
+    await panel.previewForTest();
+    await panel.previewForTest();
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(panel.renderForTest()).toBeDefined();
+  });
+
+  it("returns a refresh-rejected acceptance to review", async () => {
+    const panel = new TestPublicationIntakePanel();
+    const actions: PublicationIntakeAction[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValueOnce(Response.json(preview))
+        .mockResolvedValueOnce(new Response(null, { status: 204 })),
+    );
+    panel.configure("/api/workspaces/workspace-1");
+    panel.setContext(preview.pdfId, []);
+    panel.doiForTest(preview.doi);
+    panel.addEventListener(publicationIntakeActionEvent, (event) => actions.push((event as CustomEvent<PublicationIntakeAction>).detail));
+
+    await panel.previewForTest();
+    await panel.acceptForTest();
+    const accepted = actions[0];
+    if (accepted?.action !== "accepted") throw new Error("Expected accepted intake action");
+    panel.failAcceptance(accepted.requestId, new Error("Snapshot refresh failed"));
+
+    expect(panel.completeAcceptance(accepted.requestId)).toBe(false);
+    expect(panel.renderForTest()).toBeDefined();
+  });
+
+  it("rejects a delayed preview after the active PDF changes", async () => {
+    const panel = new TestPublicationIntakePanel();
+    const actions: PublicationIntakeAction[] = [];
+    let resolvePreview: ((response: Response) => void) | undefined;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        () =>
+          new Promise<Response>((resolve) => {
+            resolvePreview = resolve;
+          }),
+      ),
+    );
+    panel.configure("/api/workspaces/workspace-1");
+    panel.setContext(preview.pdfId, []);
+    panel.doiForTest(preview.doi);
+    panel.addEventListener(publicationIntakeActionEvent, (event) => actions.push((event as CustomEvent<PublicationIntakeAction>).detail));
+
+    const request = panel.previewForTest();
+    panel.setContext("pdf:2", []);
+    resolvePreview?.(Response.json(preview));
+    await request;
+
+    await panel.acceptForTest();
+    expect(actions).toEqual([]);
   });
 });

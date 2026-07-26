@@ -1,14 +1,14 @@
 import { html, LitElement, nothing, type TemplateResult } from "lit";
-import type { PublicationIntakePreview, PublicationResource } from "../domain/workspace";
+import { isPublicationIntakePreview, type PublicationIntakePreview, type PublicationResource } from "../domain/workspace";
 import { bibTeXDisplayText } from "../domain/bibliography";
+import { errorMessage, expectOk, jsonFetch } from "./http";
+import { createPublicationIntakeActor, publicationIntakeBusy } from "./publication-intake-machine";
 
 export const publicationIntakeActionEvent = "publication-intake-action";
 
 export type PublicationIntakeAction =
-  | { readonly action: "accept"; readonly citationKey: string }
-  | { readonly action: "cancel" }
-  | { readonly action: "open-reference"; readonly publicationId: string }
-  | { readonly action: "preview"; readonly doi: string };
+  | { readonly action: "accepted"; readonly doi: string; readonly requestId: number }
+  | { readonly action: "open-reference"; readonly publicationId: string };
 
 interface PublicationIntakeView {
   readonly busy: boolean;
@@ -28,7 +28,9 @@ export class PublicationIntakePanel extends LitElement {
   declare private doi: string;
   declare private status: string;
   declare private view: PublicationIntakeView;
+  private apiBase = "";
   private previewFingerprint: string | null;
+  private readonly workflow = createPublicationIntakeActor();
 
   constructor() {
     super();
@@ -39,23 +41,48 @@ export class PublicationIntakePanel extends LitElement {
     this.previewFingerprint = null;
   }
 
-  setView(view: PublicationIntakeView): void {
+  configure(apiBase: string): void {
+    this.apiBase = apiBase;
+  }
+
+  setContext(pdfId: string, publications: readonly PublicationResource[]): void {
+    if (this.workflow.getSnapshot().context.pdfId !== pdfId) this.workflow.send({ type: "OPEN", pdfId });
+    this.syncView(publications);
+    if (publications.length > 0) {
+      this.status = `${publications.length} ${publications.length === 1 ? "reference is" : "references are"} connected to this PDF.`;
+    }
+  }
+
+  private setView(view: PublicationIntakeView): void {
     const fingerprint = view.preview?.metadataFingerprint ?? null;
     if (fingerprint && fingerprint !== this.previewFingerprint) this.citationKey = view.preview?.citationKey ?? "";
     this.previewFingerprint = fingerprint;
     this.view = view;
   }
 
-  setStatus(status: string): void {
-    this.status = status;
-  }
-
-  focusCitationKey(): void {
+  private focusCitationKey(): void {
     void this.updateComplete.then(() => this.querySelector<HTMLInputElement>("#publication-intake-key")?.focus());
   }
 
-  focusDoi(): void {
+  private focusDoi(): void {
     void this.updateComplete.then(() => this.querySelector<HTMLInputElement>("#publication-intake-doi")?.focus());
+  }
+
+  completeAcceptance(requestId: number): boolean {
+    this.workflow.send({ type: "ACCEPTED", requestId });
+    if (!this.workflow.getSnapshot().matches("idle")) return false;
+    this.status = "Reference added and PDF connected. Citation remains a separate action.";
+    this.syncView();
+    return true;
+  }
+
+  failAcceptance(requestId: number, error: unknown): void {
+    const message = errorMessage(error, "Publication intake failed");
+    this.workflow.send({ type: "ACCEPT_FAILED", requestId, message });
+    if (!this.workflow.getSnapshot().matches("reviewing")) return;
+    this.status = message;
+    this.syncView();
+    this.focusCitationKey();
   }
 
   override connectedCallback(): void {
@@ -166,17 +193,67 @@ export class PublicationIntakePanel extends LitElement {
     `;
   }
 
-  protected preview(event: SubmitEvent): void {
+  protected async preview(event: SubmitEvent): Promise<void> {
     event.preventDefault();
-    if (!this.view.busy && this.doi.trim()) this.emit({ action: "preview", doi: this.doi });
+    const pdfId = this.workflow.getSnapshot().context.pdfId;
+    if (this.view.busy || !this.doi.trim() || !pdfId) return;
+    this.workflow.send({ type: "START_PREVIEW" });
+    const requestId = this.workflow.getSnapshot().context.requestId;
+    this.status = "Looking up DOI metadata…";
+    this.syncView();
+    try {
+      const response = await jsonFetch(`${this.apiBase}/publication-intake/preview`, { pdfId, doi: this.doi });
+      await expectOk(response);
+      const value: unknown = await response.json();
+      if (!isPublicationIntakePreview(value)) throw new Error("Publication intake returned an invalid preview");
+      this.workflow.send({ type: "PREVIEW_READY", requestId, preview: value });
+      const current = this.workflow.getSnapshot();
+      if (!current.matches("reviewing") || current.context.preview !== value) return;
+      this.status = value.existingPublicationId
+        ? "This DOI is already in the library. Review the existing key, then connect this PDF."
+        : "Review the metadata and citation key before adding it.";
+      this.syncView();
+      this.focusCitationKey();
+    } catch (error) {
+      const message = errorMessage(error, "DOI lookup failed");
+      this.workflow.send({ type: "PREVIEW_FAILED", requestId, message });
+      if (this.workflow.getSnapshot().matches("failed")) this.status = message;
+    } finally {
+      this.syncView();
+    }
   }
 
-  protected accept(): void {
-    if (!this.view.busy && this.view.preview) this.emit({ action: "accept", citationKey: this.citationKey });
+  protected async accept(): Promise<void> {
+    const preview = this.workflow.getSnapshot().context.preview;
+    if (this.view.busy || !preview) return;
+    this.workflow.send({ type: "ACCEPT" });
+    const requestId = this.workflow.getSnapshot().context.requestId;
+    this.status = "Adding the reference and connecting this PDF…";
+    this.syncView();
+    try {
+      const response = await jsonFetch(`${this.apiBase}/publication-intake/accept`, {
+        pdfId: preview.pdfId,
+        doi: preview.doi,
+        citationKey: this.citationKey,
+        metadataFingerprint: preview.metadataFingerprint,
+      });
+      await expectOk(response);
+      const current = this.workflow.getSnapshot();
+      if (!current.matches("accepting") || current.context.pdfId !== preview.pdfId || current.context.requestId !== requestId) return;
+      this.emit({ action: "accepted", doi: preview.doi, requestId });
+    } catch (error) {
+      this.failAcceptance(requestId, error);
+    } finally {
+      this.syncView();
+    }
   }
 
   protected cancel(): void {
-    if (!this.view.busy && this.view.preview) this.emit({ action: "cancel" });
+    if (this.view.busy || !this.view.preview) return;
+    this.workflow.send({ type: "CANCEL" });
+    this.status = "Lookup cancelled. The library and PDF are unchanged.";
+    this.syncView();
+    this.focusDoi();
   }
 
   protected openReference(event: Event): void {
@@ -194,6 +271,15 @@ export class PublicationIntakePanel extends LitElement {
 
   private emit(detail: PublicationIntakeAction): void {
     this.dispatchEvent(new CustomEvent(publicationIntakeActionEvent, { bubbles: true, composed: true, detail }));
+  }
+
+  private syncView(publications = this.view.publications): void {
+    const snapshot = this.workflow.getSnapshot();
+    this.setView({
+      busy: publicationIntakeBusy(snapshot),
+      preview: snapshot.context.preview,
+      publications,
+    });
   }
 }
 

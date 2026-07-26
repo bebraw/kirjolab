@@ -53,6 +53,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   shared client HTTP adapter. Validate the bounded `{ error: string }` response
   contract with Valibot there instead of repeating parsing and fallback policy
   in each Lit component or application workflow.
+- Keep the DOI publication-intake XState actor, preview and acceptance
+  requests, stale-response guards, local status, and focus lifecycle inside the
+  bounded intake Lit component. Hold acceptance pending until the application
+  coordinator acknowledges canonical snapshot refresh, then emit only the
+  publication DOI or reference-navigation intent.
 - Keep the browser shell's required-element lookup in one typed registry whose
   return shape is inferred from its constructors. Do not duplicate that shape
   in a manually synchronized application interface.

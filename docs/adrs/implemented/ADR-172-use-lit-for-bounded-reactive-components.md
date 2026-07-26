@@ -144,8 +144,10 @@ The adopted components own bounded presentation:
   storage restoration, toggle and restore presentation, active-context
   availability, and focus handoff between its spatially separated controls.
 - The publication intake panel owns DOI and citation-key input, reviewed
-  metadata, linked-reference rows, status, busy state, focus transitions, and
-  typed preview, accept, cancel, and reference-opening intents.
+  metadata, linked-reference rows, its XState workflow actor, preview and
+  acceptance requests, response validation, stale-response guards, status,
+  busy state, focus transitions, and typed refresh-pending acceptance and
+  reference-opening outcomes.
 - The LaTeX import panel owns archive, title, and root input, bounded client
   validation, converted-file and diagnostic review, preview identity, busy and
   status presentation, native dialog lifecycle, authenticated preview and
@@ -418,9 +420,11 @@ reason to wrap static markup mechanically.
   derivation, editor focus, and file selection in the application coordinator.
 - The publication intake panel replaces eleven internal element references and
   its imperative linked-reference, metadata-review, visibility, availability,
-  status, and focus updates while leaving the XState workflow, DOI requests,
-  acceptance mutation, refreshes, and navigation in the application
-  coordinator.
+  status, and focus updates. It also removes the coordinator's XState actor and
+  seven request/workflow methods while leaving canonical snapshot refresh,
+  publication navigation, and global toast presentation in the application
+  coordinator. Acceptance stays in the machine's accepting state until that
+  refresh is acknowledged or rejected.
 - The LaTeX import panel replaces ten internal element references, two
   coordinator fields, and imperative root-option, converted-file, diagnostic,
   readiness, status, and busy rendering. It also replaces the separate native

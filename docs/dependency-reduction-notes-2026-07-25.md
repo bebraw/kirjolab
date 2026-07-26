@@ -3650,3 +3650,30 @@ direct and unique production package counts remain unchanged at 135,411 B raw /
 
 Full native CI passes all 1,442 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Lit Ownership: Publication Intake Workflow
+
+`PublicationIntakePanel` now owns the complete browser-local DOI workflow: its
+XState actor, active-PDF identity, preview and acceptance requests, response
+validation, request generations, stale-response rejection, cancellation,
+status, busy state, and focus handoff. A successful acceptance remains in the
+machine's accepting state until `WorkspaceApp` refreshes the canonical snapshot
+and acknowledges the accepted DOI; refresh failure returns the panel to review.
+The coordinator retains only that canonical refresh, publication navigation,
+and toast presentation.
+
+This checkpoint reduces `src/client/app.ts` from 5,892 to 5,774 lines (-118)
+and grows the intake panel from 208 to 294 lines. Runtime source across those
+files decreases by 32 lines while removing one coordinator actor and seven
+request, stale-response, and presentation methods. Focused coverage passes
+preview and acceptance payloads, cancellation, linked presentation, provider
+and malformed failures, delayed preview rejection after PDF changes, refresh
+acknowledgement, and typed navigation outcomes.
+
+The browser application artifact changes from 795,979 B raw / 215,271 B gzip
+to 795,747 B raw / 216,404 B gzip (-232 B raw / +1,133 B gzip). Styles and
+direct and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,445 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
