@@ -6170,19 +6170,12 @@ class WorkspaceApp {
     this.#pdfAnnotation.send({ type: "CHOOSE_TOOL", tool });
     this.#elements.paperMarkups.setInteraction(tool);
     this.#pdfViewer.setTextSelectionEnabled(tool === "text");
-    this.#elements.libraryPdfAnnotationToolbar.setTool(tool);
+    const status = this.#elements.libraryPdfAnnotationToolbar.setTool(tool);
     this.#pdfViewer.setPrivateHighlightSelection(tool === "select", this.#selectedLibraryHighlightId());
-    this.#elements.libraryPdfInspector.setStatus(this.#libraryPdfToolStatus(tool));
+    this.#elements.libraryPdfInspector.setStatus(status);
     if (tool !== "note") this.#clearLibraryPdfNoteDraft(false);
     if (tool !== "select") this.#clearLibraryPdfMarkupSelection(false);
     if (this.#libraryPdfInspectorEmpty()) this.#setLibraryPdfInspector(false);
-  }
-
-  #libraryPdfToolStatus(tool: PdfAnnotationTool): string {
-    if (tool === "select") return "Tap an existing highlight, line, or note to edit it. Drag a selected note to move it.";
-    if (tool === "text") return "Select text to highlight.";
-    if (tool === "note") return "Tap the page to place a note.";
-    return "Draw with Apple Pencil or a mouse. Touch gestures pan and zoom.";
   }
 
   #libraryPdfInspectorEmpty(): boolean {

@@ -2713,6 +2713,28 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,414 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: PDF Shape Manipulation
+
+`LibraryPdfMarkupLayer` now keeps recognized pixel-space shape state private,
+handles subsequent pointer movement, updates the live draft, and emits typed
+normalized adjustment intents. `WorkspaceApp` no longer imports the recognition
+model or stores and routes a component-internal shape; it retains pointer and
+workflow validation, annotation-machine transitions, persistence, and inspector
+messaging.
+
+This checkpoint reduces `src/client/app.ts` from 7,074 to 7,063 lines (-11).
+Focused unit coverage passes recognized and inactive adjustment behavior, while
+the real held-pointer private-PDF browser flow passes recognition, adjustment,
+persistence, rendering, and annotated export.
+
+The browser application artifact changes from 800,454 B raw / 215,695 B gzip
+to 800,734 B raw / 215,735 B gzip (+280 B raw / +40 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,414 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: PDF Markup Hit-Testing
 
 `LibraryPdfMarkupLayer` now resolves note-pin and drawing-stroke pointer targets
@@ -2734,24 +2756,22 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,415 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
-## Continued Lit Ownership: PDF Shape Manipulation
+## Continued Lit Ownership: PDF Tool Guidance
 
-`LibraryPdfMarkupLayer` now keeps recognized pixel-space shape state private,
-handles subsequent pointer movement, updates the live draft, and emits typed
-normalized adjustment intents. `WorkspaceApp` no longer imports the recognition
-model or stores and routes a component-internal shape; it retains pointer and
-workflow validation, annotation-machine transitions, persistence, and inspector
-messaging.
+`LibraryPdfAnnotationToolbar` now owns the exact guidance copy associated with
+its Select, Text, Note, and Draw tools. `WorkspaceApp` retains tool workflow,
+PDF viewer configuration, inspector visibility, and the decision to present
+the returned guidance.
 
-This checkpoint reduces `src/client/app.ts` from 7,074 to 7,063 lines (-11).
-Focused unit coverage passes recognized and inactive adjustment behavior, while
-the real held-pointer private-PDF browser flow passes recognition, adjustment,
-persistence, rendering, and annotated export.
+This checkpoint reduces `src/client/app.ts` from 7,061 to 7,054 lines (-7).
+Focused unit coverage passes all four tool messages, and the private-PDF browser
+workflow passes tool switching, note and drawing interaction, persistence, and
+annotated export.
 
-The browser application artifact changes from 800,454 B raw / 215,695 B gzip
-to 800,734 B raw / 215,735 B gzip (+280 B raw / +40 B gzip). Styles and direct
-and unique production package counts remain unchanged at 135,411 B raw /
-23,373 B gzip and 18 and 150.
+The browser application artifact changes from 800,894 B raw / 215,757 B gzip
+to 800,885 B raw / 215,763 B gzip (-9 B raw / +6 B gzip). Styles and direct and
+unique production package counts remain unchanged at 135,411 B raw / 23,373 B
+gzip and 18 and 150.
 
-Full native CI passes all 1,414 unit/coverage tests, 120 Workers-runtime tests,
+Full native CI passes all 1,415 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.

@@ -347,6 +347,8 @@ collaboration.
   emitted as normalized page points without exposing pixel-space shape state.
   Note-pin and drawing-stroke hit-testing is likewise component-owned; the
   coordinator receives only typed target kind and identifier data.
+  The annotation toolbar owns the guidance associated with each tool, while
+  the coordinator decides when that guidance is presented in the inspector.
 - **Web sources:** Public HTTP(S) pages are captured through bounded,
   redirect-controlled Worker retrieval into immutable owner-private raw and
   readable R2 objects. Project citations pin one exact access timestamp and

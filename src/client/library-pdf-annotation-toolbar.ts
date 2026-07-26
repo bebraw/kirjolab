@@ -43,8 +43,9 @@ export class LibraryPdfAnnotationToolbar extends LitElement {
     return { color: this.drawingColor, width: this.drawingWidth };
   }
 
-  setTool(tool: PdfAnnotationTool): void {
+  setTool(tool: PdfAnnotationTool): string {
     this.tool = tool;
+    return toolStatus[tool];
   }
 
   setAnnotationAvailability(count: number, drawingCount: number): void {
@@ -180,6 +181,13 @@ function icon(name: IconName) {
 function inputValue(event: Event): string {
   return (event.currentTarget as HTMLInputElement).value;
 }
+
+const toolStatus: Readonly<Record<PdfAnnotationTool, string>> = {
+  select: "Tap an existing highlight, line, or note to edit it. Drag a selected note to move it.",
+  text: "Select text to highlight.",
+  note: "Tap the page to place a note.",
+  draw: "Draw with Apple Pencil or a mouse. Touch gestures pan and zoom.",
+};
 
 if (typeof customElements !== "undefined" && !customElements.get("library-pdf-annotation-toolbar")) {
   customElements.define("library-pdf-annotation-toolbar", LibraryPdfAnnotationToolbar);
