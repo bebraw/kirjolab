@@ -601,6 +601,10 @@ reason to wrap static markup mechanically.
   source-editor ARIA synchronization. The application coordinator retains
   context detection, candidate ranking, private-Library linking, Yjs edits,
   caret restoration, and menu positioning.
+- The source citation control owns caret-context parsing and action
+  availability and emits one typed resolved-citation intent. The application
+  coordinator retains publication resolution, grouped-citation policy, and
+  context navigation.
 - Related template, visibility rules, and local event binding now have one
   browser owner.
 - Later bounded extractions can reuse the same reactive component model without

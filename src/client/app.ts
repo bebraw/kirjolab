@@ -64,6 +64,7 @@ import { ConnectionStatus } from "./connection-status";
 import { VimModeControl } from "./vim-mode-control";
 import { ApplicationVersionControl, applicationVersionNoticeEvent } from "./application-version-control";
 import { PreviewSyncControls, previewSyncActionEvent, type PreviewSyncAction } from "./preview-sync-controls";
+import { SourceCitationControl, sourceCitationOpenEvent } from "./source-citation-control";
 import { WorkspaceSurfaceSwitcher, workspaceSurfaceChangeEvent } from "./workspace-surface-switcher";
 import { ProjectHistoryTrigger, projectHistoryOpenEvent } from "./project-history-trigger";
 import { EditorInsertMenu, editorInsertActionEvent, type EditorInsertAction, type EditorSyntaxKind } from "./editor-insert-menu";
@@ -206,13 +207,7 @@ import {
 import { AssistantTaskPanel, assistantTaskChangeEvent, assistantTaskGenerateEvent, type AssistantTaskChange } from "./assistant-task-panel";
 import { AssistantWorkflowStatus, assistantWorkflowActionEvent, type AssistantWorkflowAction } from "./assistant-workflow-status";
 import { assistantWorkflowBusy, createAssistantWorkflowActor } from "./assistant-workflow-machine";
-import {
-  citationContextAtPosition,
-  citationKeysAtPosition,
-  citationPageFromLocator,
-  createCitationInsertion,
-  parseCitationKeys,
-} from "./citations";
+import { citationPageFromLocator, createCitationInsertion, parseCitationKeys, type CitationContext } from "./citations";
 import { manipulateRecognizedShape, recognizeDrawnShape, type RecognizedDrawnShape } from "./drawn-shape-recognition";
 import { loadMarkdownRuntime, type MarkdownRuntime } from "./markdown-runtime";
 import { createMetadataRefinementActor } from "./metadata-refinement-machine";
@@ -493,7 +488,7 @@ interface Elements {
   workspaceSurfaces: HTMLElement;
   previewSyncControls: PreviewSyncControls;
   workspaceSurfaceSwitcher: WorkspaceSurfaceSwitcher;
-  openSourceCitation: HTMLButtonElement;
+  sourceCitationControl: SourceCitationControl;
   contextTabStrip: ContextTabStrip;
   previewContextControls: PreviewContextStatus;
   previewNavigationControl: PreviewNavigationControl;
@@ -1265,7 +1260,9 @@ class WorkspaceApp {
       if (action === "source-to-preview") this.#syncPreviewFromSource();
       else this.#syncSourceFromPreviewCenter();
     });
-    this.#elements.openSourceCitation.addEventListener("click", () => this.#openCitationAtCaret());
+    this.#elements.sourceCitationControl.addEventListener(sourceCitationOpenEvent, (event) => {
+      this.#openCitation((event as CustomEvent<CitationContext>).detail);
+    });
     this.#elements.publicationContextPanel.addEventListener(publicationContextActionEvent, (event) => {
       const detail = (event as CustomEvent<PublicationContextAction>).detail;
       if (detail.action === "insert-citation") this.#insertActivePublicationCitation();
@@ -4723,12 +4720,7 @@ class WorkspaceApp {
     return true;
   }
 
-  #openCitationAtCaret(): void {
-    const citation = citationContextAtPosition(this.#activeFileText.toString(), this.#elements.source.selectionEnd);
-    if (!citation) {
-      this.#showToast("Place the cursor inside a citation directive first.");
-      return;
-    }
+  #openCitation(citation: CitationContext): void {
     if (citation.keys.length > 1) {
       this.#showToast("Open this grouped citation from Preview to choose a reference.");
       return;
@@ -4934,9 +4926,7 @@ class WorkspaceApp {
 
   #rememberAuthoringSelection(): void {
     this.#authoringSelection = captureRelativeSelection(this.#elements.source, this.#activeFileText);
-    const citationAtCaret = citationKeysAtPosition(this.#activeFileText.toString(), this.#elements.source.selectionEnd).length > 0;
-    this.#elements.openSourceCitation.disabled = !citationAtCaret;
-    this.#elements.openSourceCitation.classList.toggle("hidden", !citationAtCaret);
+    this.#elements.sourceCitationControl.setCaret(this.#activeFileText.toString(), this.#elements.source.selectionEnd);
     this.#renderAuthoringTarget();
     this.#updateCitationInsertionAvailability();
   }
@@ -7099,7 +7089,7 @@ function collectElements(): Elements {
     workspaceSurfaces: requiredElement("workspace-surfaces", HTMLElement),
     previewSyncControls: requiredElement("preview-sync-controls", PreviewSyncControls),
     workspaceSurfaceSwitcher: requiredElement("workspace-surface-switcher", WorkspaceSurfaceSwitcher),
-    openSourceCitation: requiredElement("open-source-citation", HTMLButtonElement),
+    sourceCitationControl: requiredElement("source-citation-control", SourceCitationControl),
     contextTabStrip: requiredElement("context-tab-strip", ContextTabStrip),
     previewContextControls: requiredElement("preview-context-controls", PreviewContextStatus),
     previewNavigationControl: requiredElement("preview-navigation-control", PreviewNavigationControl),

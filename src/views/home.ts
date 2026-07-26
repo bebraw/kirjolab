@@ -286,7 +286,9 @@ export function renderHomePage(
                 </div>
               </details>
             </editor-insert-menu>
-            <button class="button-secondary hidden" id="open-source-citation" type="button" title="View the citation at the caret" disabled>View cited source</button>
+            <source-citation-control class="contents" id="source-citation-control">
+              <button class="button-secondary hidden" id="open-source-citation" type="button" title="View the citation at the caret" disabled>View cited source</button>
+            </source-citation-control>
             <editor-status class="contents" id="editor-status">
               <p class="editor-target-status" id="editor-target-status" title="main.md · line 1 · caret">main.md · line 1 · caret</p>
               <p class="text-xs text-app-text-soft" id="save-status">Opening…</p>

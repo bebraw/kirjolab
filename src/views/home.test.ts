@@ -159,6 +159,7 @@ describe("renderHomePage", () => {
     expect(html).not.toContain('id="derived-project-bibliography"');
     expect(html).toContain('id="bibliography-editor" hidden aria-hidden="true" readonly');
     expect(html).toContain('class="button-secondary hidden" id="open-source-citation"');
+    expect(html).toContain('<source-citation-control class="contents" id="source-citation-control">');
     expect(html).toContain('class="editor-toolbar ui-toolbar"');
     expect(html.match(/class="editor-toolbar-group"/gu)).toHaveLength(2);
     expect(html).not.toContain('id="project-file-switcher"');

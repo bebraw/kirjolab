@@ -259,6 +259,10 @@ collaboration.
   The workspace coordinator retains context detection, candidate ranking,
   private-Library linking, collaborative edits, caret restoration, and menu
   positioning.
+- **Source citation action:** One bounded light-DOM control derives the citation
+  context at the current source caret, owns action availability, and emits the
+  resolved citation keys and locator. The workspace coordinator retains
+  publication resolution, grouped-citation policy, and context navigation.
 - **Offline authoring:** A service worker retains the allowlisted authoring
   shell and previously authorized canonical editor navigation. IndexedDB
   stores the current Yjs document, last acknowledged server vector, and last

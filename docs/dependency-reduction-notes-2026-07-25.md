@@ -2440,3 +2440,24 @@ and unique production package counts remain unchanged at 135,411 B raw /
 
 Full native CI passes all 1,401 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Lit Ownership: Source Citation Action
+
+`SourceCitationControl` now derives citation context from the active source
+caret once, owns the contextual action's availability, and emits one typed
+resolved-citation intent. `WorkspaceApp` retains publication lookup,
+grouped-citation policy, PDF-locator navigation, and notification policy.
+
+This checkpoint reduces `src/client/app.ts` from 7,226 to 7,216 lines (-10),
+replaces one raw button reference and direct click binding, and removes
+duplicated citation parsing plus scattered disabled and visibility mutations.
+Focused unit and browser coverage passes citation and non-citation caret state,
+locator propagation, toolbar fit, and citation navigation.
+
+The browser application artifact changes from 797,956 B raw / 214,835 B gzip
+to 798,490 B raw / 214,795 B gzip (+534 B raw / -40 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,404 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
