@@ -186,9 +186,16 @@ describe("candidate review panel", () => {
     });
 
     await panel.decide("apply");
+    panel.setCandidate(data({ ...claim, status: "pending" }));
+    await panel.decide("apply");
+    await panel.decide("reject");
 
     expect(fetchMock).toHaveBeenCalledWith("/api/workspaces/workspace/candidates/candidate%2F1/apply", { method: "POST" });
-    expect(outcomes).toEqual([{ action: "apply", candidateId: "candidate/1", failure: null }]);
+    expect(outcomes.map(({ action, message }) => ({ action, message }))).toEqual([
+      { action: "apply", message: "Candidate applied to canonical Markdown." },
+      { action: "apply", message: "Evidence-backed claim created." },
+      { action: "reject", message: "Claim draft rejected; no claim created." },
+    ]);
   });
 
   it("keeps decision failures local across same-candidate refresh and permits retry", async () => {
@@ -210,8 +217,16 @@ describe("candidate review panel", () => {
     await panel.decide("reject");
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(outcomes[0]).toEqual({ action: "reject", candidateId: revision.id, failure: "Denied" });
-    expect(outcomes[1]).toEqual({ action: "reject", candidateId: revision.id, failure: null });
+    expect(outcomes[0]).toEqual({
+      action: "reject",
+      failure: "Denied",
+      message: "Candidate rejected; manuscript unchanged.",
+    });
+    expect(outcomes[1]).toEqual({
+      action: "reject",
+      failure: null,
+      message: "Candidate rejected; manuscript unchanged.",
+    });
   });
 
   it("owns its nested scroll position", () => {

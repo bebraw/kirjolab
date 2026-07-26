@@ -93,8 +93,9 @@ The adopted components own bounded presentation:
   evidence-link availability, local revision and claim-draft applicability from
   canonical inputs, live collaboration and workflow decision availability,
   decision gating, encoded apply and reject transport, retryable same-candidate
-  failure state, progress, local scroll state, and typed decision-start,
-  completed-decision, and evidence-navigation outcomes. The coordinator retains
+  failure state, progress, local scroll state, decision-specific completion
+  wording, and typed decision-start, completed-decision, and evidence-navigation
+  outcomes. The coordinator retains
   assistant workflow transitions, canonical refresh, tab movement, and
   notification policy; the server remains authoritative for mutation safety.
 - The publication context panel owns scholarly metadata, linked-paper and

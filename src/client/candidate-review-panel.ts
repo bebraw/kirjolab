@@ -15,8 +15,8 @@ export interface CandidateDecisionRequest {
 
 export interface CandidateDecisionOutcome {
   readonly action: CandidateDecision;
-  readonly candidateId: string;
   readonly failure: string | null;
+  readonly message: string;
 }
 
 export interface CandidateReviewData {
@@ -113,7 +113,11 @@ export class CandidateReviewPanel extends LitElement {
     this.dispatchEvent(
       new CustomEvent<CandidateDecisionOutcome>(candidateDecisionOutcomeEvent, {
         bubbles: true,
-        detail: { action, candidateId: candidate.id, failure },
+        detail: {
+          action,
+          failure,
+          message: candidateDecisionMessage(action, candidate.operation),
+        },
       }),
     );
   }
@@ -281,6 +285,12 @@ ${candidate
       </article>
     `;
   }
+}
+
+function candidateDecisionMessage(action: CandidateDecision, operation: ModelCandidate["operation"]): string {
+  if (action === "apply")
+    return operation === "draft-claim" ? "Evidence-backed claim created." : "Candidate applied to canonical Markdown.";
+  return operation === "draft-claim" ? "Claim draft rejected; no claim created." : "Candidate rejected; manuscript unchanged.";
 }
 
 function candidateStatusText(data: CandidateReviewData): string {

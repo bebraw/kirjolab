@@ -319,8 +319,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   Let the candidate-review Lit owner derive evidence availability and local
   applicability from canonical candidate, evidence-version, source-revision,
   anchor-resolution, document-stability, and busy inputs; gate decisions; own
-  encoded apply/reject transport and retryable same-candidate failures; and emit
-  typed start and completed outcomes. The server independently revalidates every
+  encoded apply/reject transport, retryable same-candidate failures, and
+  decision-specific completion wording; and emit typed start and completed
+  outcomes. The server independently revalidates every
   canonical mutation. Keep cross-feature workflow transitions, canonical
   refresh, tab movement, and toast policy in the coordinator.
   Let reference-discovery cards use the shared CSL projection and import adapter

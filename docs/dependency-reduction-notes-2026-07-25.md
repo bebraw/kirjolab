@@ -5705,6 +5705,31 @@ component members.
 Full native CI passes all 1,583 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Candidate Decision Outcomes
+
+`CandidateReviewPanel` now derives revision-versus-claim completion wording and
+emits it with its typed decision outcome. The outcome also drops the candidate
+identifier that no completion consumer needed. `WorkspaceApp` retains canonical
+refresh, assistant workflow transitions, tab movement, failure recovery, and
+toast presentation policy.
+
+This checkpoint reduces `src/client/app.ts` from 3,794 to 3,788 lines (-6) and
+grows the candidate-review owner from 312 to 322 lines (+10), for four added
+runtime lines while deleting the coordinator-only candidate lookup and decision
+message helper. Its focused test grows from 225 to 240 lines to cover revision
+and claim apply/reject wording through the transport outcome. Seven focused and
+nine related tests pass through the affected guardrails alongside formatting,
+lint, and strict types.
+
+The browser application artifact changes from 821,960 B raw / 222,577 B gzip
+to 821,919 B raw / 222,544 B gzip (-41 B raw / -33 B gzip). Styles, direct and
+unique production package counts, and the readability audit remain unchanged
+at 135,411 B raw / 23,373 B gzip, 18, 150, and 249 externally visible low-level
+component members.
+
+Full native CI passes all 1,584 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Project Highlight Tool Guidance
 
 `ProjectAnnotationForm` now derives Paint and Erase guidance when its local tool

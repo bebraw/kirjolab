@@ -3178,7 +3178,6 @@ class WorkspaceApp {
   }
 
   async #completeCandidateRequest(detail: CandidateDecisionOutcome): Promise<void> {
-    const candidate = this.#snapshot?.candidates.find((item) => item.id === detail.candidateId);
     let failure = detail.failure;
     if (failure) {
       await this.#resourceRefresh.request().catch(() => undefined);
@@ -3187,7 +3186,7 @@ class WorkspaceApp {
       try {
         await this.#resourceRefresh.request();
         if (detail.action === "reject") this.#contextState = activateResearchTab(this.#contextState, RESEARCH_ASSISTANT_KEY);
-        this.#showToast(this.#candidateDecisionMessage(detail.action, candidate?.operation === "draft-claim"));
+        this.#showToast(detail.message);
       } catch (error) {
         failure = error instanceof Error ? error.message : "Candidate decision failed";
         await this.#resourceRefresh.request().catch(() => undefined);
@@ -3195,11 +3194,6 @@ class WorkspaceApp {
       }
     }
     this.#completeCandidateDecision(detail.action, failure);
-  }
-
-  #candidateDecisionMessage(action: "apply" | "reject", draftsClaim: boolean): string {
-    if (action === "apply") return draftsClaim ? "Evidence-backed claim created." : "Candidate applied to canonical Markdown.";
-    return draftsClaim ? "Claim draft rejected; no claim created." : "Candidate rejected; manuscript unchanged.";
   }
 
   #completeCandidateDecision(action: "apply" | "reject", failure: string | null): void {
