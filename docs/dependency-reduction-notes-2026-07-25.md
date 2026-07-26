@@ -5531,6 +5531,31 @@ visible low-level component member.
 Full native CI passes all 1,582 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit and Valibot Ownership: Model Preferences
+
+`ModelProviderSettings` now restores and persists its browser-local connection,
+endpoint, model, and reasoning-effort values within its own lifecycle. A bounded
+Valibot schema preserves per-field fallbacks for missing, malformed, or
+oversized stored values; unavailable browser storage leaves the current-page
+preferences usable. `WorkspaceApp` retains discovery availability, assistant
+status mirroring, and model generation without owning preference storage.
+
+This checkpoint reduces `src/client/app.ts` from 4,027 to 4,006 lines (-21) and
+grows the model-provider settings owner from 247 to 268 lines. Runtime source
+across those two files is unchanged while deleting the coordinator storage key,
+restore/save methods, record guard, initialization call, and change-listener
+persistence call. Seven focused and nine affected tests pass alongside strict
+types.
+
+The browser application artifact changes from 824,356 B raw / 222,964 B gzip
+to 824,675 B raw / 223,048 B gzip (+319 B raw / +84 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150. The readability audit reports one fewer externally
+visible low-level component member after removing the separate restore API.
+
+Full native CI passes all 1,583 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Assistant Evidence Projection
 
 `AssistantWorkflowStatus` now resolves its ordered selected evidence keys

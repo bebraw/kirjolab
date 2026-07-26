@@ -270,7 +270,6 @@ const catalogBase = "/api/workspaces";
 const apiBase = `${catalogBase}/${workspaceId}`;
 const remoteOrigin = Symbol("remote");
 const offlineOrigin = Symbol("offline");
-const modelPreferencesStorageKey = "kirjolab:model-preferences";
 const deferredDeleteGraceMs = 6_000;
 
 interface DeferredDeletion {
@@ -445,7 +444,6 @@ class WorkspaceApp {
   }
 
   #bindUi(): void {
-    this.#restoreModelPreferences();
     this.#elements.applicationVersion.addEventListener(applicationVersionNoticeEvent, (event) => {
       this.#showToast((event as CustomEvent<string>).detail);
     });
@@ -972,7 +970,6 @@ class WorkspaceApp {
       const status = (event as CustomEvent<string | null>).detail;
       if (status) this.#elements.assistantWorkflowStatus.status = status;
       this.#updateModelAvailability();
-      this.#saveModelPreferences();
     });
     this.#elements.assistantWorkflowStatus.addEventListener(assistantWorkflowActionEvent, (event) => {
       const action = (event as CustomEvent<AssistantWorkflowAction>).detail;
@@ -1576,20 +1573,6 @@ class WorkspaceApp {
       scope: target && target.start !== target.end ? "selection" : this.#assistantTargetScope(),
       target,
     });
-  }
-
-  #restoreModelPreferences(): void {
-    try {
-      const stored: unknown = JSON.parse(localStorage.getItem(modelPreferencesStorageKey) ?? "null");
-      if (!isRecord(stored)) return;
-      this.#elements.modelProviderSettings.restore(stored);
-    } catch {
-      localStorage.removeItem(modelPreferencesStorageKey);
-    }
-  }
-
-  #saveModelPreferences(): void {
-    localStorage.setItem(modelPreferencesStorageKey, JSON.stringify(this.#elements.modelProviderSettings.value));
   }
 
   #modelProvider(): OpenAICompatibleBrowserProvider {
@@ -3994,10 +3977,6 @@ function selectionRectsOverlap(left: PdfSelectionRect, right: PdfSelectionRect):
 function excerptForToast(value: string): string {
   const compact = value.replaceAll(/\s+/gu, " ").trim();
   return compact.length <= 240 ? compact : `${compact.slice(0, 239).trimEnd()}…`;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function readWorkspaceId(): string {

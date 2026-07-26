@@ -831,9 +831,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   same-origin `/models` route, keep reasoning effort explicit, and constrain
   writing-operation output with task-specific JSON Schemas before mapping it
   into provider-neutral candidates.
-- Keep browser-local model discovery requests and their busy, result, and error
-  state in the bounded model settings component. Keep generation requests and
-  cross-feature discovery availability in the application coordinator.
+- Keep browser-local model preference persistence, bounded Valibot restoration,
+  and discovery requests plus their busy, result, and error state in the model
+  settings component. Keep generation requests and cross-feature discovery
+  availability in the application coordinator.
 - Verify Cloudflare Access JWT signatures and claims inside the Worker for hosted identity; never trust caller-supplied identity headers alone.
 - Authorize every workspace data representation, API operation, PDF stream, and WebSocket upgrade through explicit owner/member state.
 - Authorize every library operation through its verified owner identity. Never

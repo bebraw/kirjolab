@@ -276,7 +276,8 @@ The adopted components own bounded presentation:
   choices, canonical filtering and sorting, result counts, reset behavior, and
   a typed filter-change intent.
 - The model provider settings panel owns connection, endpoint, model, and
-  reasoning-effort values, saved-value validation, dynamic model choices,
+  reasoning-effort values, browser-local persistence, Valibot-backed saved-value
+  restoration with bounded per-field fallbacks, dynamic model choices,
   discovery progress, status presentation, opening and focusing its preferences
   host, and typed change and discovery intents.
 - The claim dialog owns create and edit presentation, proposition and note
@@ -636,8 +637,9 @@ reason to wrap static markup mechanically.
 - The model provider settings panel replaces six internal element references,
   duplicate preference listeners and status synchronization, stored-value
   validation, and imperative model-option rendering. It also removes the
-  coordinator's preferences-host reference and split open/focus coordination,
-  and owns its browser-local discovery request, overlap guard, busy state,
+  coordinator's preference storage key, restore/save methods, record guard,
+  preferences-host reference, and split open/focus coordination, and owns its
+  browser-local discovery request, overlap guard, busy state,
   result selection, and failure status. The application coordinator retains
   cross-feature discovery availability, local persistence, generation request
   construction, generation workflows, and assistant status mirroring.

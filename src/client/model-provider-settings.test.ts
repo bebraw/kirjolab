@@ -23,6 +23,10 @@ class TestModelProviderSettings extends ModelProviderSettings {
   override focusConnection(): void {
     this.focusCount += 1;
   }
+
+  restoreStoredForTest(): void {
+    this.restoreStoredPreferences();
+  }
 }
 
 class FakeDetails extends EventTarget {
@@ -39,15 +43,22 @@ function eventWithValue(value: string): Event {
 
 describe("model provider settings", () => {
   it("owns restored values and bounded model options", () => {
+    vi.stubGlobal("localStorage", {
+      getItem: vi.fn(() =>
+        JSON.stringify({
+          connection: "companion",
+          endpoint: "http://127.0.0.1:8790/v1/chat/completions",
+          model: "saved-local",
+          reasoningEffort: "low",
+        }),
+      ),
+      removeItem: vi.fn(),
+      setItem: vi.fn(),
+    });
     const panel = new TestModelProviderSettings();
     expect(panel.rootForTest()).toBe(panel);
     expect(panel.value.reasoningEffort).toBe("none");
-    panel.restore({
-      connection: "companion",
-      endpoint: "http://127.0.0.1:8790/v1/chat/completions",
-      model: "saved-local",
-      reasoningEffort: "low",
-    });
+    panel.restoreStoredForTest();
     expect(panel.value).toEqual({
       connection: "companion",
       endpoint: "http://127.0.0.1:8790/v1/chat/completions",
@@ -55,6 +66,40 @@ describe("model provider settings", () => {
       reasoningEffort: "low",
     });
     expect(panel.renderForTest()).toBeDefined();
+  });
+
+  it("owns browser-local preference restoration and persistence", () => {
+    const stored = new Map([
+      [
+        "kirjolab:model-preferences",
+        JSON.stringify({
+          connection: "companion",
+          endpoint: "http://127.0.0.1:8790/v1/chat/completions",
+          model: "stored-local",
+          reasoningEffort: "medium",
+        }),
+      ],
+    ]);
+    vi.stubGlobal("localStorage", {
+      getItem: vi.fn((key: string) => stored.get(key) ?? null),
+      removeItem: vi.fn((key: string) => stored.delete(key)),
+      setItem: vi.fn((key: string, value: string) => stored.set(key, value)),
+    });
+    const panel = new TestModelProviderSettings();
+
+    panel.restoreStoredForTest();
+    expect(panel.value.model).toBe("stored-local");
+    panel.changeForTest("model", "updated-local");
+
+    expect(JSON.parse(stored.get("kirjolab:model-preferences") ?? "null")).toMatchObject({
+      connection: "companion",
+      model: "updated-local",
+      reasoningEffort: "medium",
+    });
+
+    stored.set("kirjolab:model-preferences", "{");
+    panel.restoreStoredForTest();
+    expect(localStorage.removeItem).toHaveBeenCalledWith("kirjolab:model-preferences");
   });
 
   it("normalizes changes and emits status intents", () => {

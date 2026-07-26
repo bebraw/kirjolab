@@ -1,3 +1,4 @@
+import * as v from "valibot";
 import { html, LitElement, type TemplateResult } from "lit";
 import { discoverOpenAICompatibleModels, type ModelReasoningEffort } from "./model-provider";
 
@@ -12,6 +13,7 @@ export interface ModelProviderPreferences {
 
 const directEndpoint = "http://127.0.0.1:1234/v1/chat/completions";
 const companionEndpoint = "http://127.0.0.1:8790/v1/chat/completions";
+const preferencesStorageKey = "kirjolab:model-preferences";
 
 const initialPreferences: ModelProviderPreferences = {
   connection: "direct",
@@ -19,6 +21,13 @@ const initialPreferences: ModelProviderPreferences = {
   model: "",
   reasoningEffort: "none",
 };
+
+const storedPreferencesSchema = v.object({
+  connection: v.fallback(v.picklist(["companion", "direct"]), initialPreferences.connection),
+  endpoint: v.fallback(v.pipe(v.string(), v.maxLength(2_048)), initialPreferences.endpoint),
+  model: v.fallback(v.pipe(v.string(), v.maxLength(256)), initialPreferences.model),
+  reasoningEffort: v.fallback(v.picklist(["provider-default", "none", "low", "medium", "high"]), initialPreferences.reasoningEffort),
+});
 
 export class ModelProviderSettings extends LitElement {
   static override properties = {
@@ -86,17 +95,6 @@ export class ModelProviderSettings extends LitElement {
     };
   }
 
-  restore(stored: Record<string, unknown>): void {
-    const connection =
-      stored.connection === "direct" || stored.connection === "companion" ? stored.connection : this.preferences.connection;
-    const endpoint = typeof stored.endpoint === "string" && stored.endpoint.length <= 2_048 ? stored.endpoint : this.preferences.endpoint;
-    const model = typeof stored.model === "string" && stored.model.length <= 256 ? stored.model : this.preferences.model;
-    const reasoningEffort =
-      typeof stored.reasoningEffort === "string" ? readModelReasoningEffort(stored.reasoningEffort) : this.preferences.reasoningEffort;
-    this.preferences = { connection, endpoint, model, reasoningEffort };
-    this.setModels([], model);
-  }
-
   focusConnection(): void {
     void this.updateComplete.then(() => this.select("llm-connection").focus());
   }
@@ -109,7 +107,10 @@ export class ModelProviderSettings extends LitElement {
   }
 
   override connectedCallback(): void {
-    if (!this.hasUpdated) this.replaceChildren();
+    if (!this.hasUpdated) {
+      this.restoreStoredPreferences();
+      this.replaceChildren();
+    }
     super.connectedCallback();
   }
 
@@ -213,7 +214,27 @@ export class ModelProviderSettings extends LitElement {
   }
 
   private emitChange(status: string | null = null): void {
+    this.persistPreferences();
     this.dispatchEvent(new CustomEvent<string | null>(modelProviderChangeEvent, { bubbles: true, detail: status }));
+  }
+
+  protected restoreStoredPreferences(): void {
+    try {
+      const stored = v.safeParse(storedPreferencesSchema, JSON.parse(localStorage.getItem(preferencesStorageKey) ?? "null"));
+      if (!stored.success) return;
+      this.preferences = stored.output;
+      this.setModels([], stored.output.model);
+    } catch {
+      localStorage.removeItem(preferencesStorageKey);
+    }
+  }
+
+  private persistPreferences(): void {
+    try {
+      localStorage.setItem(preferencesStorageKey, JSON.stringify(this.preferences));
+    } catch {
+      // Local preferences remain usable for this page when storage is unavailable.
+    }
   }
 
   private modelOptions(selected: string): readonly string[] {
