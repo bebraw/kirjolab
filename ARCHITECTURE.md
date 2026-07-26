@@ -315,6 +315,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   availability, document stability, and result-specific status; it must not
   parse selected keys, re-filter projected evidence, duplicate requirement or
   start wording, or keep a parallel selected-key set.
+- Keep assistant claim-relation normalization, rhetorical-purpose resolution,
+  structured-table parsing, and non-throwing table readiness inside the Lit
+  task owner that stores those raw fields. The coordinator consumes typed task
+  projections when dispatching model operations and must not re-parse them.
 - Back up reviews independently of projects. Owner backup schema v3 stores each
   review's catalog record and locator, access state, complete active and
   unlinked project-link ledger, revision seed, and a bounded canonical

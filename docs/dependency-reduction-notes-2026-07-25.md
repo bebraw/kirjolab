@@ -5296,6 +5296,29 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,577 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Typed Assistant Task Inputs
+
+`AssistantTaskPanel` now normalizes claim relations, resolves reviewed phrasing
+purposes, parses structured table requirements, and exposes non-throwing table
+readiness from the raw fields it owns. `WorkspaceApp` consumes these typed
+projections during availability and generation orchestration.
+
+This checkpoint reduces `src/client/app.ts` from 4,231 to 4,204 lines (-27) and
+grows the task owner from 287 to 313 lines. Runtime source across those two
+files decreases by one line while deleting three coordinator adapters and one
+free normalization helper. Focused coverage passes valid and fallback claim
+relations, valid and fallback phrasing purposes, valid and invalid table
+requirements, existing task presentation and intents, application contracts,
+and strict types.
+
+The browser application artifact changes from 824,645 B raw / 222,950 B gzip
+to 824,825 B raw / 222,976 B gzip (+180 B raw / +26 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,578 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Assistant Evidence Projection
 
 `AssistantWorkflowStatus` now resolves its ordered selected evidence keys

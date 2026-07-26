@@ -96,7 +96,7 @@ describe("assistant task panel", () => {
     panel.scopeForTest("selection");
     panel.instructionForTest("Build a comparison");
     panel.relationForTest("extends");
-    panel.purposeForTest("establish-territory");
+    panel.purposeForTest("contrast-findings");
     panel.tableForTest("Results", "Method\nScore", "A | 1");
     panel.setGenerateDisabled(false);
     panel.generateForTest();
@@ -104,7 +104,7 @@ describe("assistant task panel", () => {
     expect(panel.value).toMatchObject({
       instruction: "Build a comparison",
       operation: { id: "build-table" },
-      phrasingPurposeId: "establish-territory",
+      phrasingPurposeId: "contrast-findings",
       relation: "extends",
       tableCaption: "Results",
       tableColumns: "Method\nScore",
@@ -113,5 +113,25 @@ describe("assistant task panel", () => {
     });
     expect(changes).toEqual(["operation", "target", "input", "input", "input", "input", "input", "input"]);
     expect(generations).toBe(1);
+  });
+
+  it("projects typed claim, phrasing, and table inputs", () => {
+    const panel = new TestAssistantTaskPanel();
+    panel.relationForTest("extends");
+    panel.purposeForTest("contrast-findings");
+    panel.tableForTest("Results", "Method\nScore", "A | 1");
+
+    expect(panel.claimEvidenceRelation).toBe("extends");
+    expect(panel.phrasingPurpose.id).toBe("contrast-findings");
+    expect(panel.tableRequirements).toEqual({ caption: "Results", columns: ["Method", "Score"], rows: [["A", "1"]] });
+    expect(panel.tableRequirementsValid).toBe(true);
+
+    panel.relationForTest("invalid");
+    panel.purposeForTest("invalid");
+    panel.tableForTest("", "Only one", "value");
+    expect(panel.claimEvidenceRelation).toBe("supports");
+    expect(panel.phrasingPurpose).toBeDefined();
+    expect(panel.tableRequirementsValid).toBe(false);
+    expect(() => panel.tableRequirements).toThrow("between 2 and 8");
   });
 });

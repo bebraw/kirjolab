@@ -1,5 +1,6 @@
 import { html, LitElement, type TemplateResult } from "lit";
-import { phrasingPurposes } from "../domain/phrasing-guidance";
+import { isPhrasingPurposeId, phrasingPurposes, type PhrasingPurpose } from "../domain/phrasing-guidance";
+import type { ClaimEvidenceRelation } from "../domain/workspace";
 import {
   assistantOperationDefinition,
   assistantOperationDefinitions,
@@ -7,6 +8,7 @@ import {
   type AssistantOperationDefinition,
   type AssistantTargetScope,
 } from "./assistant-operations";
+import { parseTableRequirements, type TableRequirements } from "./structured-syntax";
 
 export const assistantTaskChangeEvent = "assistant-task-change";
 export const assistantTaskGenerateEvent = "assistant-task-generate";
@@ -80,6 +82,30 @@ export class AssistantTaskPanel extends LitElement {
       tableRows: this.tableRows,
       targetScope: this.targetScope,
     };
+  }
+
+  get claimEvidenceRelation(): ClaimEvidenceRelation {
+    return this.relation === "contradicts" || this.relation === "extends" ? this.relation : "supports";
+  }
+
+  get phrasingPurpose(): PhrasingPurpose {
+    const purposes = phrasingPurposes();
+    return (
+      (isPhrasingPurposeId(this.phrasingPurposeId) ? purposes.find(({ id }) => id === this.phrasingPurposeId) : undefined) ?? purposes[0]!
+    );
+  }
+
+  get tableRequirements(): TableRequirements {
+    return parseTableRequirements(this.tableCaption, this.tableColumns, this.tableRows);
+  }
+
+  get tableRequirementsValid(): boolean {
+    try {
+      void this.tableRequirements;
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   setGenerateDisabled(disabled: boolean): void {

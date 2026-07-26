@@ -59,6 +59,10 @@ All mutation operations preserve a human review boundary.
   the shape and serializes portable GFM deterministically. The researcher sees
   the exact syntax and explicitly inserts or replaces it only while the captured
   manuscript revision and target still match.
+- The bounded assistant task owner normalizes claim relations, resolves the
+  selected reviewed phrasing purpose, parses structured-table fields, and
+  exposes non-throwing table readiness. Generation orchestration consumes those
+  typed projections rather than re-reading raw form strings.
 - `find-references` lets the model formulate one bounded search query and a
   rationale from the visible claim, but never accepts model-authored citation
   records. The query is executed against configured OpenAlex, Crossref, and

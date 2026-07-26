@@ -26,7 +26,6 @@ import {
 import type { Diagnostic, RenderedDocument } from "../domain/markdown";
 import { publicationWordStatistics } from "../domain/publication-statistics";
 import { suggestCitationKey } from "../domain/publication-intake";
-import { isPhrasingPurposeId, phrasingPurposes, type PhrasingPurpose } from "../domain/phrasing-guidance";
 import { researchQuestionsPath, researchQuestionsTemplate } from "../domain/research-questions";
 import { researchDiaryPath, researchDiaryTemplate } from "../domain/writing-workflows";
 import type { ProjectTemplateSummary } from "../domain/project-templates";
@@ -132,7 +131,6 @@ import {
   isWorkspaceSnapshot,
   isWorkspaceSummaries,
   type AnnotationResource,
-  type ClaimEvidenceRelation,
   type ClaimPassageLink,
   type ClaimResource,
   type ManuscriptComment,
@@ -222,7 +220,6 @@ import { pdfHighlightImportOutcomeEvent, type PdfHighlightImportOutcome } from "
 import type { ExistingPdfUpload } from "./pdf-upload-queue";
 import { bindThemePreference } from "./theme";
 import { OpenAICompatibleBrowserProvider, type ModelEvidenceItem, maximumModelEvidenceItems } from "./model-provider";
-import { parseTableRequirements, type TableRequirements } from "./structured-syntax";
 import { projectHistoryOutcomeEvent, type ProjectHistoryOutcome } from "./project-history-dialog";
 import {
   activateResearchTab,
@@ -1605,7 +1602,8 @@ class WorkspaceApp {
   }
 
   #assistantTargetValid(operationId: string, evidence: readonly ModelEvidenceItem[]): boolean {
-    if (operationId === "build-table") return this.#assistantInsertionTarget() !== null && this.#validTableRequirements();
+    if (operationId === "build-table")
+      return this.#assistantInsertionTarget() !== null && this.#elements.assistantTaskPanel.tableRequirementsValid;
     if (operationId === "draft-claim") return evidence.some((item) => item.kind === "annotation");
     return this.#assistantAuthoringPassage() !== null;
   }
@@ -3165,26 +3163,6 @@ class WorkspaceApp {
     };
   }
 
-  #tableRequirements(): TableRequirements {
-    const { tableCaption, tableColumns, tableRows } = this.#elements.assistantTaskPanel.value;
-    return parseTableRequirements(tableCaption, tableColumns, tableRows);
-  }
-
-  #phrasingPurpose(): PhrasingPurpose {
-    const value = this.#elements.assistantTaskPanel.value.phrasingPurposeId;
-    const purposes = phrasingPurposes();
-    return (isPhrasingPurposeId(value) ? purposes.find(({ id }) => id === value) : undefined) ?? purposes[0]!;
-  }
-
-  #validTableRequirements(): boolean {
-    try {
-      this.#tableRequirements();
-      return true;
-    } catch {
-      return false;
-    }
-  }
-
   #insertSourceSyntax(kind: EditorSyntaxKind): void {
     const passage = this.#selectedAuthoringPassage();
     const caret = this.#resolvedAuthoringCaret() ?? this.#elements.source.selectionEnd;
@@ -3331,7 +3309,7 @@ class WorkspaceApp {
   }
 
   async #generateClaimCandidate(input: AssistantGenerationContext): Promise<void> {
-    const relation = readClaimEvidenceRelation(this.#elements.assistantTaskPanel.value.relation);
+    const relation = this.#elements.assistantTaskPanel.claimEvidenceRelation;
     const value = await this.#elements.candidateListPanel.generateClaim(input.provider, {
       evidence: input.evidence.annotationReferences,
       instruction: input.instruction,
@@ -3345,7 +3323,7 @@ class WorkspaceApp {
 
   async #generateTableCandidate(input: AssistantGenerationContext): Promise<void> {
     if (!input.insertionTarget) throw new Error("Place the manuscript caret first");
-    const requirements = this.#tableRequirements();
+    const requirements = this.#elements.assistantTaskPanel.tableRequirements;
     const source = this.#activeFileText.toString();
     const manuscriptContext = resolveAssistantTarget(source, input.insertionTarget.end, input.insertionTarget.end, "paragraph").text;
     await this.#elements.assistantInteractiveResult.generateTable(
@@ -3358,7 +3336,7 @@ class WorkspaceApp {
   }
 
   async #generatePhrasingCandidate(input: AssistantGenerationContext, passage: AuthoringPassage): Promise<void> {
-    const purpose = this.#phrasingPurpose();
+    const purpose = this.#elements.assistantTaskPanel.phrasingPurpose;
     await this.#elements.assistantInteractiveResult.generatePhrasing(
       input.provider,
       { passage, evidence: input.evidence, instruction: input.instruction, sourceRevision: input.sourceRevision },
@@ -4188,11 +4166,6 @@ function selectionRectsOverlap(left: PdfSelectionRect, right: PdfSelectionRect):
   return (
     left.x < right.x + right.width && left.x + left.width > right.x && left.y < right.y + right.height && left.y + left.height > right.y
   );
-}
-
-function readClaimEvidenceRelation(value: string): ClaimEvidenceRelation {
-  if (value === "contradicts" || value === "extends") return value;
-  return "supports";
 }
 
 function excerptForToast(value: string): string {
