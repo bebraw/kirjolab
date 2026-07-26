@@ -544,6 +544,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   gating, and retryable local failures. Emit only a successful project-resource
   refresh outcome; keep evidence availability, canonical refresh, and toast
   policy in the application coordinator.
+- Let the claim list own confirmed deletion transport, stable encoded claim
+  targets, duplicate-submit gating, and retryable local failures. Keep
+  canonical refresh and workspace notification policy in the application
+  coordinator.
 - Treat authoring and research context as the two primary workspace surfaces.
   Keep a permanent manuscript Preview in a keyboard-operable right-hand tab
   pane, and address publication, PDF, and model-candidate tabs by stable

@@ -4114,3 +4114,25 @@ and unique production package counts remain unchanged at 135,411 B raw /
 
 Full native CI passes all 1,489 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Lit Ownership: Claim Deletion
+
+`ClaimListPanel` now owns confirmation, deletion transport, stable encoded
+claim targets, request validation, duplicate-submit gating, pending and
+retryable failure state, and the typed completed-deletion outcome on its
+existing action channel. `WorkspaceApp` retains canonical project-resource
+refresh, toast policy, evidence selection, and editor-dependent claim links.
+
+This checkpoint reduces `src/client/app.ts` from 5,120 to 5,117 lines (-3) and
+grows the claim list from 210 to 245 lines. Runtime source across those files
+increases by 32 lines while removing the coordinator deletion method. Focused
+coverage passes cancellation, stable encoded targets, successful completion,
+provider failure and retry, and duplicate deletion submissions.
+
+The browser application artifact changes from 808,450 B raw / 219,265 B gzip
+to 809,178 B raw / 219,449 B gzip (+728 B raw / +184 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,492 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.

@@ -28,13 +28,15 @@ must show where a claim enters authored prose.
   and manuscript-link actions within the existing visual system.
 - A bounded light-DOM list component owns claim, evidence-link, passage-link,
   grounding-selection, the complete Claims collection shell and count,
-  create-action availability, and action presentation. A separate bounded
-  dialog component owns create and edit copy, proposition and note values,
-  evidence relation and annotation selection, stable create/edit identity,
-  modal lifecycle, mutation transport, duplicate-submit gating, local busy and
-  retryable failure state, and a typed successful-refresh outcome. Evidence
-  availability, canonical project refresh, navigation, and toast policy remain
-  with the application coordinator.
+  create-action availability, action presentation, confirmed deletion
+  transport, stable encoded delete targets, duplicate-submit gating, pending
+  and retryable failure state, and the typed deletion outcome. A separate
+  bounded dialog component owns create and edit copy, proposition and note
+  values, evidence relation and annotation selection, stable create/edit
+  identity, modal lifecycle, mutation transport, duplicate-submit gating,
+  local busy and retryable failure state, and a typed successful-refresh
+  outcome. Evidence availability, canonical project refresh, navigation, and
+  toast policy remain with the application coordinator.
 
 ### API Contracts
 

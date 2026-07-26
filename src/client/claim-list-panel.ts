@@ -1,5 +1,6 @@
 import { html, LitElement, nothing, type TemplateResult } from "lit";
 import type { AnnotationResource, ClaimEvidenceLink, ClaimPassageLink, ClaimResource, ManuscriptAnchorSelector } from "../domain/workspace";
+import { errorMessage, expectOk } from "./http";
 import { focusFirstModelEvidence } from "./model-evidence-focus";
 import { accessibleEvidenceExcerpt, anchorActionLabel, anchorMatchState, modelEvidenceKey } from "./research-resource-presentation";
 
@@ -7,7 +8,7 @@ export const claimListActionEvent = "claim-list-action";
 
 export type ClaimListAction =
   | { readonly action: "create" }
-  | { readonly action: "delete"; readonly claim: ClaimResource }
+  | { readonly action: "deleted"; readonly message: string }
   | { readonly action: "edit"; readonly claim: ClaimResource }
   | { readonly action: "evidence"; readonly key: string; readonly selected: boolean }
   | { readonly action: "link-passage"; readonly claimId: string }
@@ -25,13 +26,24 @@ interface ClaimListData {
 export class ClaimListPanel extends LitElement {
   static override properties = {
     data: { state: true },
+    deletingClaimId: { state: true },
+    status: { state: true },
   };
 
   declare private data: ClaimListData;
+  declare private deletingClaimId: string;
+  declare private status: string;
+  private apiBase = "";
 
   constructor() {
     super();
     this.data = { annotations: [], claims: [], evidenceLinks: [], passageLinks: [], selectedEvidenceKeys: new Set() };
+    this.deletingClaimId = "";
+    this.status = "";
+  }
+
+  configure(apiBase: string): void {
+    this.apiBase = apiBase;
   }
 
   setClaims(data: ClaimListData): void {
@@ -76,6 +88,7 @@ export class ClaimListPanel extends LitElement {
             ? html`<div class="empty-state">Evidence-backed claims appear here.</div>`
             : this.data.claims.map((claim) => this.renderClaim(claim, annotations))}
         </div>
+        <p class="status-line px-1" role="status" ?hidden=${!this.status}>${this.status}</p>
       </details>
     `;
   }
@@ -95,8 +108,29 @@ export class ClaimListPanel extends LitElement {
     const claim = this.data.claims.find((item) => item.id === button.dataset.claimId);
     if (!claim) return;
     const action = button.dataset.claimAction;
-    if (action === "edit" || action === "delete") this.emit({ action, claim });
+    if (action === "edit") this.emit({ action, claim });
+    else if (action === "delete") void this.deleteClaim(claim);
     else if (action === "link-passage") this.emit({ action, claimId: claim.id });
+  }
+
+  protected async deleteClaim(claim: ClaimResource): Promise<void> {
+    if (this.deletingClaimId || !globalThis.confirm("Delete this claim and its links? Source annotations and manuscript text will remain."))
+      return;
+    this.deletingClaimId = claim.id;
+    this.status = "Deleting claim…";
+    try {
+      const response = await fetch(`${this.apiBase}/claims/${encodeURIComponent(claim.id)}`, {
+        method: "DELETE",
+        credentials: "same-origin",
+      });
+      await expectOk(response);
+      this.status = "";
+      this.emit({ action: "deleted", message: "Claim removed; source evidence remains intact." });
+    } catch (error) {
+      this.status = errorMessage(error, "Could not delete the claim.");
+    } finally {
+      this.deletingClaimId = "";
+    }
   }
 
   protected openAnnotation(event: Event): void {
@@ -163,9 +197,10 @@ export class ClaimListPanel extends LitElement {
             class="button-secondary justify-center"
             data-claim-id=${claim.id}
             data-claim-action="delete"
+            ?disabled=${Boolean(this.deletingClaimId)}
             @click=${this.actOnClaim}
           >
-            Delete
+            ${this.deletingClaimId === claim.id ? "Deleting…" : "Delete"}
           </button>
           <button
             type="button"

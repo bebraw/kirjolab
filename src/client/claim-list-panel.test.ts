@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AnnotationResource, ClaimEvidenceLink, ClaimPassageLink, ClaimResource, ManuscriptAnchorSelector } from "../domain/workspace";
 import { ClaimListPanel, claimListActionEvent, type ClaimListAction } from "./claim-list-panel";
 
@@ -71,6 +71,10 @@ class TestClaimListPanel extends ClaimListPanel {
   passageForTest(claimId = claim.id): void {
     this.openPassage(eventWithTarget({ dataset: { claimId } }));
   }
+
+  deleteForTest(value: ClaimResource = claim): Promise<void> {
+    return this.deleteClaim(value);
+  }
 }
 
 function eventWithTarget(target: object): Event {
@@ -78,6 +82,11 @@ function eventWithTarget(target: object): Event {
   Object.defineProperty(event, "currentTarget", { value: target });
   return event;
 }
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 
 describe("claim list panel", () => {
   it("renders empty and populated claim states", () => {
@@ -127,7 +136,6 @@ describe("claim list panel", () => {
     panel.claimForTest("missing");
     panel.claimForTest("edit", "missing");
     panel.claimForTest("edit");
-    panel.claimForTest("delete");
     panel.claimForTest("link-passage");
     panel.annotationForTest();
     panel.annotationForTest(annotation.id);
@@ -141,11 +149,67 @@ describe("claim list panel", () => {
       { action: "create" },
       { action: "evidence", key: "claim:1", selected: false },
       { action: "edit", claim },
-      { action: "delete", claim },
       { action: "link-passage", claimId: claim.id },
       { action: "open-annotation", annotationId: annotation.id },
       { action: "open-passage", anchor },
       { action: "open-passage", anchor: changedAnchor },
     ]);
+  });
+
+  it("owns confirmed deletion persistence and emits the completed outcome", async () => {
+    const panel = new TestClaimListPanel();
+    const actions: ClaimListAction[] = [];
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 200 }));
+    vi.stubGlobal(
+      "confirm",
+      vi.fn(() => true),
+    );
+    panel.configure("/api/workspaces/workspace");
+    panel.addEventListener(claimListActionEvent, (event) => actions.push((event as CustomEvent<ClaimListAction>).detail));
+
+    await panel.deleteForTest({ ...claim, id: "claim/1" });
+
+    expect(fetchMock).toHaveBeenCalledWith("/api/workspaces/workspace/claims/claim%2F1", expect.objectContaining({ method: "DELETE" }));
+    expect(actions).toEqual([{ action: "deleted", message: "Claim removed; source evidence remains intact." }]);
+  });
+
+  it("honors cancellation and permits retry after a provider failure", async () => {
+    const panel = new TestClaimListPanel();
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response("Unavailable", { status: 503 }))
+      .mockResolvedValueOnce(new Response(null, { status: 200 }));
+    const confirmMock = vi.fn(() => false);
+    vi.stubGlobal("confirm", confirmMock);
+    panel.configure("/api/workspaces/workspace");
+
+    await panel.deleteForTest();
+    expect(fetchMock).not.toHaveBeenCalled();
+    confirmMock.mockReturnValue(true);
+    await panel.deleteForTest();
+    expect(panel.renderForTest()).toBeDefined();
+    await panel.deleteForTest();
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("ignores duplicate deletions while one is pending", async () => {
+    const panel = new TestClaimListPanel();
+    let respond = (_response: Response): void => undefined;
+    const pendingResponse = new Promise<Response>((resolve) => {
+      respond = resolve;
+    });
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockReturnValue(pendingResponse);
+    const confirmMock = vi.fn(() => true);
+    vi.stubGlobal("confirm", confirmMock);
+    panel.configure("/api/workspaces/workspace");
+
+    const first = panel.deleteForTest();
+    await panel.deleteForTest();
+    respond(new Response(null, { status: 200 }));
+    await first;
+
+    expect(confirmMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });

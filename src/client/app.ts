@@ -885,12 +885,17 @@ class WorkspaceApp {
       const label = { line: "Line", ellipse: "Circle", rectangle: "Rectangle", triangle: "Triangle" }[kind];
       this.#elements.libraryPdfInspector.setStatus(`${label} snapped into place. Keep dragging to adjust it, or lift to save.`);
     });
+    this.#elements.claimListPanel.configure(apiBase);
     this.#elements.claimListPanel.addEventListener(claimListActionEvent, (event) => {
       const detail = (event as CustomEvent<ClaimListAction>).detail;
       if (detail.action === "create") this.#openClaimDialog();
       else if (detail.action === "evidence") this.#setModelEvidenceSelected(detail.key, detail.selected);
       else if (detail.action === "edit") this.#openClaimDialog(detail.claim);
-      else if (detail.action === "delete") void this.#deleteClaim(detail.claim);
+      else if (detail.action === "deleted")
+        void this.#resourceRefresh
+          .request()
+          .then(() => this.#showToast(detail.message))
+          .catch(() => this.#showToast("The claim was deleted, but project resources could not be refreshed."));
       else if (detail.action === "link-passage") void this.#linkClaim(detail.claimId);
       else if (detail.action === "open-annotation") this.#focusAnnotationCard(detail.annotationId);
       else this.#showPassage(detail.anchor);
@@ -2665,14 +2670,6 @@ class WorkspaceApp {
     }
     const evidence = claim ? snapshot.claimEvidenceLinks.filter((link) => link.claimId === claim.id) : [];
     this.#elements.claimDialog.open(claim, snapshot.annotations, evidence);
-  }
-
-  async #deleteClaim(claim: ClaimResource): Promise<void> {
-    if (!window.confirm("Delete this claim and its links? Source annotations and manuscript text will remain.")) return;
-    const response = await fetch(`${apiBase}/claims/${claim.id}`, { method: "DELETE", credentials: "same-origin" });
-    await expectOk(response);
-    await this.#resourceRefresh.request();
-    this.#showToast("Claim removed; source evidence remains intact.");
   }
 
   async #linkClaim(claimId: string): Promise<void> {

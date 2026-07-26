@@ -93,7 +93,9 @@ The adopted components own bounded presentation:
 - The claim list panel owns the Claims collection shell and count, claim,
   evidence-link, passage-link, grounding selection, create availability,
   live passage-resolution presentation, grounding-choice focus, empty-state,
-  and action presentation with typed create, claim, and navigation intents.
+  action presentation, confirmed deletion transport, duplicate-submit gating,
+  pending and retryable failure state, and typed create, claim, deletion, and
+  navigation outcomes.
 - The manuscript comment panel owns composer body and status state plus comment,
   anchor-status, empty-state, and action presentation with typed create, open,
   and re-anchor intents. It also owns self-contained resolution transport,
@@ -392,9 +394,11 @@ reason to wrap static markup mechanically.
   validation, and resource navigation in the application coordinator.
 - The claim list panel replaces one internal list reference and five imperative
   claim render helpers. It also replaces the separate create-button reference,
-  native binding, availability update, count reference, and count mutation
-  while leaving evidence-selection state, dialogs, mutations, passage
-  navigation, and annotation navigation in the application coordinator.
+  native binding, availability update, count reference, count mutation, and
+  coordinator deletion method while leaving evidence-selection state, dialogs,
+  selection-dependent mutations, canonical refresh, notification policy,
+  passage navigation, and annotation navigation in the application
+  coordinator.
 - The manuscript comment panel replaces three composer element references,
   submit binding, reset and saved-status updates, one internal list reference,
   its imperative card renderer, and the coordinator resolution method. It
