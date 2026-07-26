@@ -186,6 +186,9 @@ The adopted components own bounded presentation:
   busy-drop intents. Its companion status owns queue progress, file outcomes,
   duplicate actions, retry availability, busy and error presentation, and typed
   retry and reveal intents.
+- The Library tools menu owns archive-file selection and reset, citation-network
+  and archived-reference controls, archived-state presentation, export links,
+  and typed restore, navigation, and filter intents.
 - The web source panels own URL capture and reset state plus readable-text
   snapshot comparison presentation.
 - The project annotation form owns its complete composer: visibility,
@@ -447,6 +450,11 @@ reason to wrap static markup mechanically.
   imperative progress, outcome-row, error, duplicate-action, and retry
   rendering. Queue execution, upload transport, failed-file ownership, Library
   refreshes, and toast policy remain in the application coordinator.
+- The Library tools menu replaces three raw element references, three native
+  bindings, archive-file DOM reads and reset, and scattered archived-button
+  presentation while leaving archive transport, citation-network loading,
+  canonical filter state, Library refreshes, and toast policy in the
+  application coordinator.
 - The web source panels replace three internal element references, submit
   binding, URL reset, comparison heading selection, and diff-hunk rendering
   while leaving capture and comparison requests, response validation, Library

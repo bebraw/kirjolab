@@ -414,6 +414,7 @@ export function renderHomePage(
                   </section>
                 </details>
               </reference-library-filters>
+              <library-tools-menu class="contents" id="library-tools-menu">
               <details class="action-menu library-tools-menu ui-menu" data-action-menu>
                 <summary class="button-secondary library-more-button" aria-label="Library tools" title="Library tools">•••</summary>
                 <div class="library-menu library-tools-list ui-menu-panel">
@@ -424,6 +425,7 @@ export function renderHomePage(
                   <button id="show-archived-references" type="button" aria-pressed="false">Show archived</button>
                 </div>
               </details>
+              </library-tools-menu>
             </div>
             <library-reference-list class="reference-library-list" id="reference-library-list"><div class="empty-state">Loading library…</div></library-reference-list>
             <web-snapshot-comparison class="mt-6 hidden border-t border-app-line pt-5" id="web-snapshot-comparison" aria-live="polite"></web-snapshot-comparison>

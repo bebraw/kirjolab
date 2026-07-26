@@ -66,6 +66,12 @@ memory and makes citation aliases compete with stable source identity.
   to a source. The workspace coordinator retains the identification mutation,
   Library refresh, and toast policy. New uploads still create their provisional
   source atomically and normally bypass this compatibility queue.
+- A bounded Library tools menu owns portable-archive file selection and reset,
+  export links, citation-network and archived-reference controls,
+  archived-state presentation, and typed restore, navigation, and filter
+  intents. The workspace coordinator retains archive transport,
+  citation-network loading, canonical filter state, Library refreshes, and
+  notifications.
 - Linked PDF records may preview bounded, provider-specific OpenAlex, Crossref,
   DataCite, and Semantic Scholar candidates inline according to configured
   provider order. Records are grouped by normalized DOI before the researcher

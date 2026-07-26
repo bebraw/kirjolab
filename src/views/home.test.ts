@@ -76,6 +76,7 @@ describe("renderHomePage", () => {
     expect(html).toContain('id="pdf-upload" type="file" accept="application/pdf" aria-label="Upload project PDF"');
     expect(html).not.toContain('aria-label="Import project BibTeX"');
     expect(html).toContain('id="open-citation-network"');
+    expect(html).toContain('<library-tools-menu class="contents" id="library-tools-menu">');
     expect(html).toContain('id="citation-network" aria-labelledby="citation-network-heading"');
     expect(html).toContain('id="filter-project-citations" type="button" aria-pressed="false"');
     expect(html).toContain('<citation-network-workspace class="mt-6 border-t border-app-line pt-5"');

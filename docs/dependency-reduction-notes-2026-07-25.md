@@ -2377,3 +2377,25 @@ direct and unique production package counts remain unchanged at 135,411 B raw /
 
 Full native CI passes all 1,399 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Lit Composition: Library Tools
+
+`LibraryToolsMenu` now owns portable-archive file selection and reset, Library
+export links, citation-network and archived-reference controls,
+archived-state presentation, and typed restore, navigation, and filter intents.
+`WorkspaceApp` retains archive transport, citation-network loading, canonical
+filter state, Library refreshes, and notification policy.
+
+This checkpoint reduces `src/client/app.ts` from 7,248 to 7,245 lines (-3),
+replaces three raw controls with one component reference, removes three native
+bindings, and deletes archive-file DOM reads and scattered archived-button
+mutations. Focused unit and browser coverage passes filter toggling, archived
+duplicate reveal, portable metadata restore, and citation-network review.
+
+The browser application artifact changes from 796,464 B raw / 214,497 B gzip
+to 797,955 B raw / 214,842 B gzip (+1,491 B raw / +345 B gzip). Styles and
+direct and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,401 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.

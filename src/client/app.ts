@@ -256,6 +256,7 @@ import { LibraryDiscoverySearch, libraryDiscoverySearchEvent } from "./library-d
 import { ReferenceLibraryFilterPanel, referenceLibraryFilterChangeEvent } from "./reference-library-filters";
 import { LibraryPdfUploadStatus, libraryPdfUploadRetryEvent, libraryPdfUploadRevealEvent } from "./library-pdf-upload-status";
 import { LibraryPdfUploadControl, libraryPdfUploadActionEvent, type LibraryPdfUploadAction } from "./library-pdf-upload-control";
+import { LibraryToolsMenu, libraryToolsActionEvent, type LibraryToolsAction } from "./library-tools-menu";
 import { ModelProviderSettings, modelProviderChangeEvent, modelProviderDiscoveryEvent } from "./model-provider-settings";
 import { WebSnapshotComparisonPanel, WebSourceCapture, webSourceCaptureEvent } from "./web-source-panels";
 import { citationNetworkActionEvent, type CitationNetworkAction } from "./citation-network-panel";
@@ -458,12 +459,10 @@ interface Elements {
   libraryDiscoveryResults: LibraryDiscoveryResults;
   libraryBibliographyUpload: HTMLInputElement;
   libraryCslUpload: HTMLInputElement;
-  libraryArchiveUpload: HTMLInputElement;
+  libraryToolsMenu: LibraryToolsMenu;
   libraryPdfUploadControl: LibraryPdfUploadControl;
   libraryPdfUploadStatus: LibraryPdfUploadStatus;
-  showArchivedReferences: HTMLButtonElement;
   referenceLibraryFilters: ReferenceLibraryFilterPanel;
-  openCitationNetwork: HTMLButtonElement;
   citationNetwork: CitationNetworkWorkspace;
   webSourceCapture: WebSourceCapture;
   webSnapshotComparison: WebSnapshotComparisonPanel;
@@ -946,7 +945,6 @@ class WorkspaceApp {
     });
     this.#elements.libraryBibliographyUpload.addEventListener("change", () => void this.#importIntoReferenceLibrary());
     this.#elements.libraryCslUpload.addEventListener("change", () => void this.#importCslJson());
-    this.#elements.libraryArchiveUpload.addEventListener("change", () => void this.#importLibraryArchive());
     this.#elements.libraryPdfUploadControl.addEventListener(libraryPdfUploadActionEvent, (event) => {
       const action = (event as CustomEvent<LibraryPdfUploadAction>).detail;
       if (action.action === "busy-drop") {
@@ -964,7 +962,16 @@ class WorkspaceApp {
     this.#elements.webSourceCapture.addEventListener(webSourceCaptureEvent, (event) => {
       void this.#captureWebSource((event as CustomEvent<string>).detail);
     });
-    this.#elements.openCitationNetwork.addEventListener("click", () => void this.#openCitationNetwork());
+    this.#elements.libraryToolsMenu.addEventListener(libraryToolsActionEvent, (event) => {
+      const action = (event as CustomEvent<LibraryToolsAction>).detail;
+      if (action.action === "open-citation-network") void this.#openCitationNetwork();
+      else if (action.action === "restore-archive") void this.#importLibraryArchive(action.file);
+      else {
+        this.#showArchivedReferences = action.show;
+        this.#elements.libraryToolsMenu.setShowArchived(action.show);
+        void this.#refreshReferenceLibrary();
+      }
+    });
     this.#elements.citationNetwork.addEventListener(citationNetworkFilterEvent, (event) => {
       void this.#refreshCitationNetwork((event as CustomEvent<boolean>).detail);
     });
@@ -974,11 +981,6 @@ class WorkspaceApp {
       else if (detail.action === "record") void this.#recordCitationAssertion(detail);
       else if (detail.action === "review") void this.#reviewCitationAssertion(detail.assertionId, detail.decision);
       else void this.#acceptCitationCandidate(detail.expansion, detail.candidate);
-    });
-    this.#elements.showArchivedReferences.addEventListener("click", () => {
-      this.#showArchivedReferences = !this.#showArchivedReferences;
-      this.#elements.showArchivedReferences.setAttribute("aria-pressed", String(this.#showArchivedReferences));
-      void this.#refreshReferenceLibrary();
     });
     this.#elements.referenceLibraryFilters.addEventListener(referenceLibraryFilterChangeEvent, () => this.#renderReferenceLibrary());
     this.#elements.referenceLibraryList.addEventListener(libraryReferenceSummaryActionEvent, (event) => {
@@ -3432,7 +3434,7 @@ class WorkspaceApp {
   async #focusReferenceLibraryEntry(referenceId: string): Promise<boolean> {
     if (!this.#librarySnapshot?.references.some((reference) => reference.id === referenceId) && !this.#showArchivedReferences) {
       this.#showArchivedReferences = true;
-      this.#elements.showArchivedReferences.setAttribute("aria-pressed", "true");
+      this.#elements.libraryToolsMenu.setShowArchived(true);
       await this.#refreshReferenceLibrary();
     }
     this.#elements.referenceLibraryFilters.reset();
@@ -3619,9 +3621,7 @@ class WorkspaceApp {
     this.#showToast("CSL JSON imported into the canonical library.");
   }
 
-  async #importLibraryArchive(): Promise<void> {
-    const file = this.#elements.libraryArchiveUpload.files?.[0];
-    if (!file) return;
+  async #importLibraryArchive(file: File): Promise<void> {
     const response = await fetch("/api/library/import/archive", {
       method: "POST",
       credentials: "same-origin",
@@ -3629,7 +3629,6 @@ class WorkspaceApp {
       body: file,
     });
     await expectOk(response);
-    this.#elements.libraryArchiveUpload.value = "";
     await this.#refreshReferenceLibrary();
     this.#showToast("Portable library metadata restored.");
   }
@@ -3698,7 +3697,7 @@ class WorkspaceApp {
   async #revealExistingPdfReference(existing: ExistingPdfUpload): Promise<void> {
     if (existing.archived && !this.#showArchivedReferences) {
       this.#showArchivedReferences = true;
-      this.#elements.showArchivedReferences.setAttribute("aria-pressed", "true");
+      this.#elements.libraryToolsMenu.setShowArchived(true);
       await this.#refreshReferenceLibrary();
     }
     this.#elements.referenceLibraryFilters.reset(existing.referenceKey);
@@ -7082,12 +7081,10 @@ function collectElements(): Elements {
     libraryDiscoveryResults: requiredElement("library-discovery-results", LibraryDiscoveryResults),
     libraryBibliographyUpload: requiredElement("library-bibliography-upload", HTMLInputElement),
     libraryCslUpload: requiredElement("library-csl-upload", HTMLInputElement),
-    libraryArchiveUpload: requiredElement("library-archive-upload", HTMLInputElement),
+    libraryToolsMenu: requiredElement("library-tools-menu", LibraryToolsMenu),
     libraryPdfUploadControl: requiredElement("library-pdf-upload-control", LibraryPdfUploadControl),
     libraryPdfUploadStatus: requiredElement("library-pdf-upload-status", LibraryPdfUploadStatus),
-    showArchivedReferences: requiredElement("show-archived-references", HTMLButtonElement),
     referenceLibraryFilters: requiredElement("reference-library-filters", ReferenceLibraryFilterPanel),
-    openCitationNetwork: requiredElement("open-citation-network", HTMLButtonElement),
     citationNetwork: requiredElement("citation-network", CitationNetworkWorkspace),
     webSourceCapture: requiredElement("web-source-capture", WebSourceCapture),
     webSnapshotComparison: requiredElement("web-snapshot-comparison", WebSnapshotComparisonPanel),
