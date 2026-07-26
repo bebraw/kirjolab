@@ -46,6 +46,7 @@ import { workspaceSurfaceChangeEvent } from "./workspace-surface-switcher";
 import { projectHistoryOpenEvent } from "./project-history-trigger";
 import { editorInsertActionEvent, type EditorInsertAction, type EditorSyntaxTemplate } from "./editor-insert-menu";
 import { sourceSpanAt } from "./composition-source-map";
+import { collaboratorSelectionChangeEvent } from "./collaborator-selection-list";
 import type { AppToastOptions } from "./app-toast";
 import { expectOk, jsonFetch } from "./http";
 import { sourceCompletionActionEvent, type SourceCompletionIntent } from "./source-completion";
@@ -256,8 +257,6 @@ interface PendingDeletion {
   readonly timer: number;
 }
 
-type RemoteCollaboratorSelection = Extract<ServerCollaborationMessage, { type: "selection" }>;
-
 interface ResolvedAuthoringTarget {
   readonly start: number;
   readonly end: number;
@@ -321,7 +320,6 @@ class WorkspaceApp {
   #serverStateVector = Y.encodeStateVector(this.#document);
   #reconnectTimer: number | undefined;
   #selectionBroadcastTimer: number | undefined;
-  readonly #remoteSelections = new Map<string, RemoteCollaboratorSelection>();
   #renderSourceEditorHighlight: () => void = () => undefined;
   #hasBootstrapSnapshot = false;
   readonly #hiddenProjectFileIds = new Set<string>();
@@ -405,6 +403,7 @@ class WorkspaceApp {
     this.#elements.applicationVersion.addEventListener(applicationVersionNoticeEvent, (event) => {
       this.#showToast((event as CustomEvent<string>).detail);
     });
+    this.#elements.collaboratorSelections.addEventListener(collaboratorSelectionChangeEvent, () => this.#renderSourceEditorHighlight());
     window.addEventListener("online", () => {
       this.#connect();
       if (appMode === "workspace") void this.#refreshGitHubSyncState(true);
@@ -1220,8 +1219,7 @@ class WorkspaceApp {
       this.#socket = null;
       this.#pendingUpdates.resetForReconnect();
       this.#syncCollaborationQueue();
-      this.#remoteSelections.clear();
-      this.#renderRemoteSelections();
+      this.#elements.collaboratorSelections.clear();
       this.#collaborationWorkflow.send({ type: "SOCKET_CLOSED", online: navigator.onLine });
       this.#renderCollaborationWorkflow();
       if (navigator.onLine) {
@@ -1288,8 +1286,7 @@ class WorkspaceApp {
         this.#handleRemoteSelection(value);
         break;
       case "selection-clear":
-        this.#remoteSelections.delete(value.collaboratorId);
-        this.#renderRemoteSelections();
+        this.#elements.collaboratorSelections.removeSelection(value.collaboratorId);
         break;
       case "resources":
         void this.#resourceRefresh.request().catch((error: unknown) => {
@@ -1345,8 +1342,7 @@ class WorkspaceApp {
   }
 
   #handleRemoteSelection(value: Extract<ServerCollaborationMessage, { readonly type: "selection" }>): void {
-    if (value.revision === this.#revision) this.#remoteSelections.set(value.collaboratorId, value);
-    this.#renderRemoteSelections();
+    this.#elements.collaboratorSelections.receive(value);
   }
 
   #flushPendingUpdates(): void {
@@ -1378,10 +1374,8 @@ class WorkspaceApp {
 
   #setRevision(revision: number): void {
     this.#revision = Math.max(this.#revision, revision);
-    for (const [collaboratorId, selection] of this.#remoteSelections) {
-      if (selection.revision !== this.#revision) this.#remoteSelections.delete(collaboratorId);
-    }
-    this.#renderRemoteSelections();
+    this.#elements.collaboratorSelections.setData({ files: this.#liveProjectFiles(), revision: this.#revision });
+    this.#renderSourceEditorHighlight();
     this.#updateRevision();
     this.#scheduleOfflineSave();
     const active = this.#activeResourceTab();
@@ -1411,15 +1405,6 @@ class WorkspaceApp {
         }),
       );
     }, 80);
-  }
-
-  #renderRemoteSelections(): void {
-    this.#elements.collaboratorSelections.setData({
-      files: this.#liveProjectFiles(),
-      revision: this.#revision,
-      selections: [...this.#remoteSelections.values()],
-    });
-    this.#renderSourceEditorHighlight();
   }
 
   #activeEditorPresence(): readonly EditorPresenceRange[] {

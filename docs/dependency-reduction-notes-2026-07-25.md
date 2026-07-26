@@ -5208,6 +5208,30 @@ tests, and 29 directly affected tests.
 Full native CI passes all 1,596 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Remote Collaborator Selections
+
+`CollaboratorSelectionList` now owns the ephemeral remote-selection map,
+same-collaborator replacement, departure and disconnect cleanup, stale-revision
+pruning, presentation, and editor-overlay range projection. `WorkspaceApp`
+retains collaboration transport, revision authority, the local-author range,
+and editor-highlight placement.
+
+This checkpoint reduces `src/client/app.ts` from 3,568 to 3,553 lines (-15)
+and grows the collaborator-selection owner from 69 to 96 lines. Runtime source
+across the two files grows by 12 lines while removing the coordinator's parallel
+selection collection and refresh method. The browser application artifact
+changes from 824,517 B raw / 223,290 B gzip to 824,976 B raw / 223,413 B gzip
+(+459 B raw / +123 B gzip). Styles and direct and unique production package
+counts remain unchanged at 135,411 B raw / 23,373 B gzip, 18, and 150.
+
+Focused coverage passes replacement, stale selection rejection, departure,
+disconnect clearing, revision pruning, presentation, and overlay-range behavior.
+The affected guardrails pass formatting, lint, strict types, four related tests,
+and two directly affected tests.
+
+Full native CI passes all 1,597 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

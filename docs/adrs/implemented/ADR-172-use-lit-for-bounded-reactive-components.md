@@ -385,8 +385,9 @@ The adopted components own bounded presentation:
   project-reference transport and canonical workspace-response validation with
   the Library reference summary.
 - The collaborator selection list owns current-revision and current-file
-  filtering, caret and range presentation, accessible excerpts, and missing-file
-  fallbacks for remote editor presence.
+  filtering; remote selection replacement, departure, clearing, and stale-
+  revision pruning; caret and range presentation; accessible excerpts; and
+  missing-file fallbacks for remote editor presence.
 - The application toast owns message and action presentation, replacement
   timers, one-shot callback lifecycle, pinned fallback restoration, modal
   reparenting, popover visibility, and typed action and dismissal intents.
@@ -788,9 +789,10 @@ reason to wrap static markup mechanically.
   supplies snapshots and retains snapshot application, project-PDF refreshes,
   and notification policy.
 - The collaborator selection list replaces imperative remote-presence rendering
-  and consolidates revision and file filtering for both the list and editor
-  overlay. The application coordinator retains local-author selection,
-  collaboration transport, revision authority, and editor-highlight placement.
+  and consolidates the browser-local remote selection collection plus revision
+  and file filtering for both the list and editor overlay. The application
+  coordinator retains local-author selection, collaboration transport, revision
+  authority, and editor-highlight placement.
 - The application toast replaces action-element construction, coordinator timer
   state, popover visibility, modal reparenting, action callback state, and the
   persistent-update reminder field and bindings. The application coordinator

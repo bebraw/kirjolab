@@ -6,16 +6,18 @@ import { accessibleEvidenceExcerpt } from "./research-resource-presentation";
 
 type RemoteSelection = Extract<ServerCollaborationMessage, { type: "selection" }>;
 
+export const collaboratorSelectionChangeEvent = "collaborator-selection-change";
+
 export interface CollaboratorSelectionListData {
   readonly files: readonly ProjectFile[];
   readonly revision: number;
-  readonly selections: readonly RemoteSelection[];
 }
 
 export class CollaboratorSelectionList extends LitElement {
   static override properties = { data: { state: true } };
 
   declare private data: CollaboratorSelectionListData | null;
+  private readonly selections = new Map<string, RemoteSelection>();
 
   constructor() {
     super();
@@ -24,12 +26,32 @@ export class CollaboratorSelectionList extends LitElement {
 
   setData(data: CollaboratorSelectionListData): void {
     this.data = data;
+    for (const [collaboratorId, selection] of this.selections) {
+      if (selection.revision !== data.revision) this.selections.delete(collaboratorId);
+    }
+  }
+
+  receive(selection: RemoteSelection): void {
+    if (selection.revision !== this.data?.revision) return;
+    this.selections.set(selection.collaboratorId, selection);
+    this.selectionChanged();
+  }
+
+  removeSelection(collaboratorId: string): void {
+    if (!this.selections.delete(collaboratorId)) return;
+    this.selectionChanged();
+  }
+
+  clear(): void {
+    if (this.selections.size === 0) return;
+    this.selections.clear();
+    this.selectionChanged();
   }
 
   rangesFor(fileId: string | null): readonly EditorPresenceRange[] {
     const data = this.data;
     if (!data) return [];
-    return data.selections
+    return [...this.selections.values()]
       .filter((selection) => selection.revision === data.revision && selection.fileId === fileId)
       .map(({ collaboratorId, end, start }) => ({ collaboratorId, end, start }));
   }
@@ -46,7 +68,7 @@ export class CollaboratorSelectionList extends LitElement {
   protected override render(): TemplateResult {
     const data = this.data;
     if (!data) return html``;
-    return html`${data.selections
+    return html`${[...this.selections.values()]
       .filter((selection) => selection.revision === data.revision)
       .map((selection) => {
         const file = data.files.find((candidate) => candidate.id === selection.fileId);
@@ -55,6 +77,11 @@ export class CollaboratorSelectionList extends LitElement {
         const excerpt = selected ? ` · “${accessibleEvidenceExcerpt(selected)}”` : "";
         return html`<span class="mr-4 inline-block">Collaborator · ${file?.path ?? "project file"} · ${range}${excerpt}</span>`;
       })}`;
+  }
+
+  private selectionChanged(): void {
+    this.requestUpdate();
+    this.dispatchEvent(new CustomEvent(collaboratorSelectionChangeEvent));
   }
 }
 
