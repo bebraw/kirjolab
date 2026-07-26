@@ -187,7 +187,12 @@ import { libraryDiscoveryResultsEvent } from "./library-discovery-search";
 import { referenceLibraryFilterChangeEvent } from "./reference-library-filters";
 import { libraryPdfUploadRevealEvent } from "./library-pdf-upload-status";
 import { libraryPdfUploadOutcomeEvent, type LibraryPdfUploadOutcome } from "./library-pdf-upload-control";
-import { libraryToolsActionEvent, type LibraryToolsAction } from "./library-tools-menu";
+import {
+  libraryToolsActionEvent,
+  libraryToolsArchiveRefreshEvent,
+  type LibraryToolsAction,
+  type LibraryToolsArchiveRefresh,
+} from "./library-tools-menu";
 import { modelProviderChangeEvent } from "./model-provider-settings";
 import { webSourceCapturedEvent } from "./web-source-panels";
 import { citationNetworkOutcomeEvent, type CitationNetworkOutcome } from "./citation-network-workspace";
@@ -586,32 +591,52 @@ class WorkspaceApp {
       void this.#saveLibraryDiscoveredReference(result, index);
     });
     this.#elements.libraryReferenceImport.addEventListener(libraryReferenceImportRefreshEvent, (event) => {
-      void this.#completeReferenceImport((event as CustomEvent<LibraryReferenceImportRefresh>).detail);
+      const detail = (event as CustomEvent<LibraryReferenceImportRefresh>).detail;
+      void this.#completeLibraryRefresh(detail.message, "References were imported, but the refreshed Library could not be loaded.", {
+        complete: () => this.#elements.libraryReferenceImport.complete(detail.requestId),
+      });
     });
     this.#elements.libraryPdfUploadControl.bindStatus(this.#elements.libraryPdfUploadStatus);
     this.#elements.libraryPdfUploadControl.addEventListener(libraryPdfUploadOutcomeEvent, (event) => {
       const outcome = (event as CustomEvent<LibraryPdfUploadOutcome>).detail;
       if (outcome.action === "notice") this.#showToast(outcome.message);
-      else void this.#completeLibraryPdfUpload(outcome);
+      else
+        void this.#completeLibraryRefresh(outcome.message, "PDF intake completed, but the refreshed Library could not be loaded.", {
+          complete: () => this.#elements.libraryPdfUploadControl.complete(outcome.requestId),
+        });
     });
     this.#elements.libraryPdfUploadStatus.addEventListener(libraryPdfUploadRevealEvent, (event) => {
       void this.#revealExistingPdfReference((event as CustomEvent<ExistingPdfUpload>).detail);
     });
     this.#elements.webSourceCapture.addEventListener(webSourceCapturedEvent, (event) => {
-      void this.#completeWebSourceCapture((event as CustomEvent<string>).detail);
+      void this.#completeLibraryRefresh(
+        (event as CustomEvent<string>).detail,
+        "The web source was captured, but the refreshed Library could not be loaded.",
+      );
     });
     this.#elements.libraryToolsMenu.addEventListener(libraryToolsActionEvent, (event) => {
       const action = (event as CustomEvent<LibraryToolsAction>).detail;
       if (action.action === "open-citation-network") void this.#elements.citationNetwork.open();
-      else if (action.action === "restore-archive") void this.#importLibraryArchive(action.file);
       else {
         this.#elements.libraryToolsMenu.setShowArchived(action.show);
         void this.#refreshReferenceLibrary();
       }
     });
+    this.#elements.libraryToolsMenu.addEventListener(libraryToolsArchiveRefreshEvent, (event) => {
+      const detail = (event as CustomEvent<LibraryToolsArchiveRefresh>).detail;
+      void this.#completeLibraryRefresh(detail.message, "The archive was restored, but the refreshed Library could not be loaded.", {
+        complete: () => this.#elements.libraryToolsMenu.completeArchiveRestore(detail.requestId),
+      });
+    });
     this.#elements.citationNetwork.configure(workspaceId);
     this.#elements.citationNetwork.addEventListener(citationNetworkOutcomeEvent, (event) => {
-      void this.#completeCitationNetworkOutcome((event as CustomEvent<CitationNetworkOutcome>).detail);
+      const outcome = (event as CustomEvent<CitationNetworkOutcome>).detail;
+      if (outcome.action === "notice") this.#showToast(outcome.message);
+      else
+        void this.#completeLibraryRefresh(
+          outcome.message,
+          "The citation candidate was saved, but the refreshed Library could not be loaded.",
+        );
     });
     this.#elements.referenceLibraryFilters.addEventListener(referenceLibraryFilterChangeEvent, () => this.#renderReferenceLibrary());
     this.#elements.referenceLibraryList.addEventListener(libraryReferenceSummaryActionEvent, (event) => {
@@ -621,13 +646,20 @@ class WorkspaceApp {
       else void this.#unlinkProjectReference(detail.referenceId);
     });
     this.#elements.referenceLibraryList.addEventListener(libraryReferencePersonalRefreshEvent, (event) => {
-      void this.#completePersonalReferenceMutation((event as CustomEvent<string>).detail);
+      void this.#completeLibraryRefresh(
+        (event as CustomEvent<string>).detail,
+        "The private reference was updated, but the refreshed Library could not be loaded.",
+      );
     });
     this.#elements.referenceLibraryList.addEventListener(libraryReferenceMetadataNoticeEvent, (event) => {
       this.#showToast((event as CustomEvent<string>).detail);
     });
     this.#elements.referenceLibraryList.addEventListener(libraryReferenceMetadataRefreshEvent, (event) => {
-      void this.#completeMetadataRefinement((event as CustomEvent<string>).detail);
+      void this.#completeLibraryRefresh(
+        (event as CustomEvent<string>).detail,
+        "Metadata was applied, but the refreshed Library could not be loaded.",
+        { refresh: () => this.#refreshBibliographicMetadata() },
+      );
     });
     this.#elements.referenceLibraryList.addEventListener(libraryReferencePdfActionEvent, (event) => {
       const detail = (event as CustomEvent<LibraryReferencePdfAction>).detail;
@@ -2360,50 +2392,18 @@ class WorkspaceApp {
     await this.#elements.referenceLibraryList.settled();
   }
 
-  async #completeCitationNetworkOutcome(outcome: CitationNetworkOutcome): Promise<void> {
-    if (outcome.action === "notice") {
-      this.#showToast(outcome.message);
-      return;
-    }
+  async #completeLibraryRefresh(
+    message: string,
+    fallback: string,
+    options: { readonly complete?: () => void; readonly refresh?: () => Promise<void> } = {},
+  ): Promise<void> {
     try {
-      await this.#refreshReferenceLibrary();
-      this.#showToast(outcome.message);
+      await (options.refresh?.() ?? this.#refreshReferenceLibrary());
+      this.#showToast(message);
     } catch {
-      this.#showToast("The citation candidate was saved, but the refreshed Library could not be loaded.");
-    }
-  }
-
-  async #completeReferenceImport(detail: LibraryReferenceImportRefresh): Promise<void> {
-    try {
-      await this.#refreshReferenceLibrary();
-      this.#showToast(detail.message);
-    } catch {
-      this.#showToast("References were imported, but the refreshed Library could not be loaded.");
+      this.#showToast(fallback);
     } finally {
-      this.#elements.libraryReferenceImport.complete(detail.requestId);
-    }
-  }
-
-  async #importLibraryArchive(file: File): Promise<void> {
-    const response = await fetch("/api/library/import/archive", {
-      method: "POST",
-      credentials: "same-origin",
-      headers: { "content-type": "application/zip" },
-      body: file,
-    });
-    await expectOk(response);
-    await this.#refreshReferenceLibrary();
-    this.#showToast("Portable library metadata restored.");
-  }
-
-  async #completeLibraryPdfUpload(outcome: Extract<LibraryPdfUploadOutcome, { readonly action: "refresh" }>): Promise<void> {
-    try {
-      await this.#refreshReferenceLibrary();
-      this.#showToast(outcome.message);
-    } catch {
-      this.#showToast("PDF intake completed, but the refreshed Library could not be loaded.");
-    } finally {
-      this.#elements.libraryPdfUploadControl.complete(outcome.requestId);
+      options.complete?.();
     }
   }
 
@@ -2416,15 +2416,6 @@ class WorkspaceApp {
     this.#renderReferenceLibrary();
     if (!(await this.#elements.referenceLibraryList.focusReference(existing.referenceId, { block: "nearest" }))) {
       this.#showToast(`Library source ${existing.referenceKey} is not available.`);
-    }
-  }
-
-  async #completeWebSourceCapture(message: string): Promise<void> {
-    try {
-      await this.#refreshReferenceLibrary();
-      this.#showToast(message);
-    } catch {
-      this.#showToast("The web source was captured, but the refreshed Library could not be loaded.");
     }
   }
 
@@ -2458,24 +2449,6 @@ class WorkspaceApp {
     await this.#acceptWorkspaceMutation(response);
     this.#renderReferenceLibrary();
     this.#showToast("Reference removed from this project; the private library record remains.");
-  }
-
-  async #completePersonalReferenceMutation(message: string): Promise<void> {
-    try {
-      await this.#refreshReferenceLibrary();
-      this.#showToast(message);
-    } catch {
-      this.#showToast("The private reference was updated, but the refreshed Library could not be loaded.");
-    }
-  }
-
-  async #completeMetadataRefinement(message: string): Promise<void> {
-    try {
-      await this.#refreshBibliographicMetadata();
-      this.#showToast(message);
-    } catch {
-      this.#showToast("Metadata was applied, but the refreshed Library could not be loaded.");
-    }
   }
 
   async #refreshBibliographicMetadata(): Promise<void> {

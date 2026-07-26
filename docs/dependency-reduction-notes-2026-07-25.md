@@ -3913,3 +3913,29 @@ direct and unique production package counts remain unchanged at 135,411 B raw /
 
 Full native CI passes all 1,468 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Lit Ownership: Archive Restore and Refresh Policy
+
+`LibraryToolsMenu` now owns portable-archive restore transport,
+duplicate-submit gating, local busy and retryable failure state, and
+refresh-pending acknowledgment. `WorkspaceApp` also consolidates the repeated
+canonical Library refresh, success/fallback toast, optional component
+acknowledgment, and alternate bibliographic-refresh policy used by PDF intake,
+reference-file imports, archive restore, web capture, personal fields, metadata
+refinement, and citation candidates.
+
+This checkpoint reduces `src/client/app.ts` from 5,234 to 5,207 lines (-27)
+and grows the tools menu from 90 to 145 lines. Runtime source across those files
+increases by 28 lines while removing archive transport plus six duplicated
+refresh-completion methods or branches. Focused coverage passes archive request
+headers and body, successful acknowledgment, stale acknowledgment,
+duplicate-submit gating, provider failure, and all existing refresh-producing
+component outcomes.
+
+The browser application artifact changes from 802,484 B raw / 217,790 B gzip
+to 803,246 B raw / 217,909 B gzip (+762 B raw / +119 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,470 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
