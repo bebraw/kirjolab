@@ -75,4 +75,6 @@ Preview offset may belong to a supporting file.
 
 - Implemented: bidirectional explicit Sync, Preview-to-source click navigation,
   conservative desktop source following, composed-file mapping, and transient
-  target highlighting.
+  target highlighting. The same bounded DOM adapter resolves authorized local
+  project images relative to their canonical source-file mapping while leaving
+  external and optimistically hidden assets untouched.

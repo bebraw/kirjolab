@@ -18,8 +18,6 @@ import {
   projectFileCollaborationTextName,
   previewProjectFile,
   relativeProjectPath,
-  resolveProjectPath,
-  type CompositionSourceSpan,
   type ProjectComposition,
   type ProjectAsset,
   type ProjectFile,
@@ -1730,7 +1728,15 @@ class WorkspaceApp {
   #renderMarkdownPreview(rendered: RenderedDocument, inputs: PreviewInputs): void {
     this.#previewDocument.showHtml(rendered.html);
     this.#elements.previewSyncControls.setSourceMap(inputs.filePreview?.sourceMap ?? []);
-    this.#resolveProjectPreviewImages(inputs.renderedSource, inputs.filePreview?.sourceMap ?? []);
+    if (this.#snapshot) {
+      this.#previewDocument.resolveProjectImages({
+        apiBase,
+        hiddenAssetIds: this.#hiddenProjectImageIds,
+        snapshot: this.#snapshot,
+        source: inputs.renderedSource,
+        sourceMap: inputs.filePreview?.sourceMap ?? [],
+      });
+    }
   }
 
   #renderPreviewDiagnostics(diagnostics: readonly Diagnostic[], filePreview: ProjectFilePreview | null): void {
@@ -2172,44 +2178,6 @@ class WorkspaceApp {
       pending.deletion.restore();
       this.#showToast(pending.deletion.failedMessage);
     }
-  }
-
-  #resolveProjectPreviewImages(source: string, sourceMap: readonly CompositionSourceSpan[]): void {
-    const snapshot = this.#snapshot;
-    if (!snapshot || snapshot.assets.length === 0) return;
-    const matches = [...source.matchAll(/!\[[^\]\r\n]*\]\((?<path><[^>\r\n]+>|[^\s)\r\n]+)(?:[ \t]+(?:"[^"]*"|'[^']*'|\([^)]*\)))?\)/gu)];
-    const images = this.#previewDocument.images();
-    images.forEach((image, index) => this.#resolveProjectPreviewImage(image, matches[index], sourceMap, snapshot));
-  }
-
-  #resolveProjectPreviewImage(
-    image: HTMLImageElement,
-    match: RegExpMatchArray | undefined,
-    sourceMap: readonly CompositionSourceSpan[],
-    snapshot: WorkspaceSnapshot,
-  ): void {
-    const path = this.#projectPreviewImagePath(match, sourceMap, snapshot);
-    if (!path) return;
-    const asset = snapshot.assets.find((candidate) => candidate.path === path && !this.#hiddenProjectImageIds.has(candidate.id));
-    if (asset) image.src = `${apiBase}/assets/${encodeURIComponent(asset.id)}`;
-  }
-
-  #projectPreviewImagePath(
-    match: RegExpMatchArray | undefined,
-    sourceMap: readonly CompositionSourceSpan[],
-    snapshot: WorkspaceSnapshot,
-  ): string | null {
-    const requested = this.#requestedProjectPreviewImagePath(match);
-    if (!match || !requested) return null;
-    const span = sourceMap.length > 0 && match.index !== undefined ? sourceSpanAt(sourceMap, match.index) : undefined;
-    const fromPath = span?.path ?? snapshot.files.find((file) => file.id === snapshot.entryFileId)?.path ?? "";
-    return resolveProjectPath(fromPath, requested);
-  }
-
-  #requestedProjectPreviewImagePath(match: RegExpMatchArray | undefined): string | null {
-    const requested = match?.groups?.path?.replace(/^<|>$/gu, "");
-    if (!requested || /^(?:[a-z][a-z0-9+.-]*:|\/|#)/iu.test(requested)) return null;
-    return requested;
   }
 
   #focusProjectRange(fileId: string, from: number, to: number): void {

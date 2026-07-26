@@ -1,3 +1,15 @@
+import { resolveProjectPath, type CompositionSourceSpan } from "../domain/project-files";
+import type { WorkspaceSnapshot } from "../domain/workspace";
+import { sourceSpanAt } from "./composition-source-map";
+
+interface ProjectPreviewImageContext {
+  readonly apiBase: string;
+  readonly hiddenAssetIds: ReadonlySet<string>;
+  readonly snapshot: WorkspaceSnapshot;
+  readonly source: string;
+  readonly sourceMap: readonly CompositionSourceSpan[];
+}
+
 export class PreviewDocument {
   readonly #article: HTMLElement;
   readonly #viewport: HTMLElement;
@@ -70,6 +82,23 @@ export class PreviewDocument {
 
   images(): NodeListOf<HTMLImageElement> {
     return this.#article.querySelectorAll<HTMLImageElement>("img");
+  }
+
+  resolveProjectImages(context: ProjectPreviewImageContext): void {
+    if (context.snapshot.assets.length === 0) return;
+    const matches = [
+      ...context.source.matchAll(/!\[[^\]\r\n]*\]\((?<path><[^>\r\n]+>|[^\s)\r\n]+)(?:[ \t]+(?:"[^"]*"|'[^']*'|\([^)]*\)))?\)/gu),
+    ];
+    this.images().forEach((image, index) => {
+      const match = matches[index];
+      const requested = match?.groups?.path?.replace(/^<|>$/gu, "");
+      if (!match || !requested || /^(?:[a-z][a-z0-9+.-]*:|\/|#)/iu.test(requested)) return;
+      const span = context.sourceMap.length > 0 && match.index !== undefined ? sourceSpanAt(context.sourceMap, match.index) : undefined;
+      const fromPath = span?.path ?? context.snapshot.files.find((file) => file.id === context.snapshot.entryFileId)?.path ?? "";
+      const path = resolveProjectPath(fromPath, requested);
+      const asset = context.snapshot.assets.find((candidate) => candidate.path === path && !context.hiddenAssetIds.has(candidate.id));
+      if (asset) image.src = `${context.apiBase}/assets/${encodeURIComponent(asset.id)}`;
+    });
   }
 
   scrollToAnchor(id: string): void {

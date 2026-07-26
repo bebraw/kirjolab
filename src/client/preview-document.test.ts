@@ -1,4 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { WorkspaceSnapshot } from "../domain/workspace";
+import { workspaceSnapshotFixture } from "../test-support/workspace-fixture";
 import { PreviewDocument } from "./preview-document";
 
 interface Bounds {
@@ -18,6 +20,7 @@ class FakeElement extends EventTarget {
   clientHeight = 100;
   scrollTop = 0;
   scrolled = false;
+  src = "";
   #bounds: Bounds = { top: 0, left: 0, width: 100, height: 100 };
 
   setBounds(bounds: Bounds): void {
@@ -123,6 +126,54 @@ describe("preview document", () => {
     expect(preview.nearestSourceElement([30])).toBeNull();
     preview.center(broad as never);
     expect(viewport.scrollTop).toBe(-5);
+  });
+
+  it("resolves authorized project images relative to their source files", () => {
+    const article = new FakeElement();
+    const local = new FakeElement();
+    const hidden = new FakeElement();
+    const external = new FakeElement();
+    article.imageNodes.push(local, hidden, external);
+    const preview = new PreviewDocument(htmlElement(article), htmlElement(new FakeElement()));
+    const snapshot = {
+      ...workspaceSnapshotFixture,
+      entryFileId: "chapter",
+      files: [{ ...workspaceSnapshotFixture.files[0]!, id: "chapter", path: "chapters/method.md" }],
+      assets: [
+        {
+          id: "asset-1",
+          path: "figures/result.png",
+          mediaType: "image/png",
+          size: 10,
+          objectKey: "assets/result.png",
+          fingerprint: "result",
+          createdAt: "created",
+          updatedAt: "updated",
+        },
+        {
+          id: "asset-2",
+          path: "figures/hidden.png",
+          mediaType: "image/png",
+          size: 10,
+          objectKey: "assets/hidden.png",
+          fingerprint: "hidden",
+          createdAt: "created",
+          updatedAt: "updated",
+        },
+      ],
+    } satisfies WorkspaceSnapshot;
+
+    preview.resolveProjectImages({
+      apiBase: "/api/workspaces/workspace",
+      hiddenAssetIds: new Set(["asset-2"]),
+      snapshot,
+      source: "![Result](../figures/result.png)\n![Hidden](../figures/hidden.png)\n![Remote](https://example.org/x.png)",
+      sourceMap: [],
+    });
+
+    expect(local.src).toBe("/api/workspaces/workspace/assets/asset-1");
+    expect(hidden.src).toBe("");
+    expect(external.src).toBe("");
   });
 
   it("prefers the centered source element and replaces transient sync emphasis", () => {

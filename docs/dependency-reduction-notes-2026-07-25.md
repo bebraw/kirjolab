@@ -5250,6 +5250,28 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,575 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Preview Project-Image Lookup Ownership
+
+`PreviewDocument` now parses rendered Markdown image targets, resolves relative
+paths through canonical source maps, filters optimistic hidden assets, and
+updates matching Preview image nodes. `WorkspaceApp` supplies authorized
+canonical inputs and retains snapshot, deletion, and rendering policy.
+
+This checkpoint reduces `src/client/app.ts` from 4,283 to 4,251 lines (-32)
+and grows the Preview DOM adapter from 96 to 125 lines. Runtime source across
+those two files decreases by three lines while removing four coordinator-only
+image helpers. Focused coverage passes relative local images, external images,
+optimistically hidden assets, existing Preview mechanics, application
+contracts, and strict types.
+
+The browser application artifact changes from 824,410 B raw / 222,707 B gzip
+to 824,456 B raw / 222,788 B gzip (+46 B raw / +81 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,576 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Assistant Evidence Projection
 
 `AssistantWorkflowStatus` now resolves its ordered selected evidence keys

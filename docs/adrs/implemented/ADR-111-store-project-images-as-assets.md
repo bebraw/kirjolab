@@ -33,7 +33,9 @@ as SVG would create a same-origin content execution boundary.
 - The file rail uploads one or more images, displays thumbnails, inserts a
   relative Markdown image reference at the collaborative caret, opens the
   original, and deletes it. Live preview resolves relative image paths through
-  the composition source map.
+  the composition source map inside the bounded Preview DOM adapter. The
+  coordinator supplies canonical project state and optimistic hidden-asset
+  authorization rather than owning Markdown-image parsing or DOM lookup.
 - Logical backups reference current project asset objects. Source ZIP export
   copies current image bytes under `project-assets/{path}`.
 
