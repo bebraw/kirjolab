@@ -79,10 +79,10 @@ memory and makes citation aliases compete with stable source identity.
 - A bounded Library tools menu owns portable-archive file selection and reset,
   restore transport, duplicate-submit and refresh-pending state, local restore
   failures, export links, citation-network and archived-reference controls,
-  canonical archived-reference visibility, and typed refresh, navigation, and
-  filter outcomes. The workspace coordinator reads that visibility when loading
-  the Library and retains citation-network opening, canonical Library refresh,
-  and notification policy.
+  canonical archived-reference visibility and local toggling, and typed refresh,
+  navigation, and filter outcomes. The workspace coordinator reads that
+  visibility when loading the Library and retains citation-network opening,
+  canonical Library refresh, and notification policy.
 - Linked PDF records may preview bounded, provider-specific OpenAlex, Crossref,
   DataCite, and Semantic Scholar candidates inline according to configured
   provider order. Records are grouped by normalized DOI before the researcher

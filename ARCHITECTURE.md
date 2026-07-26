@@ -427,8 +427,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   in the application coordinator.
 - Keep portable-archive selection and restore transport, duplicate-submit
   gating, local error state, and refresh-pending state in the Lit Library tools
-  menu. Route successful component outcomes through one application-level
-  canonical Library refresh and toast policy.
+  menu. Let it apply archived-reference visibility locally and emit only the
+  need for canonical refresh. Route successful component outcomes through one
+  application-level canonical Library refresh and toast policy.
 - Model each web source as one stable owner-library identity with append-only,
   timestamped captures. Retrieve only bounded public HTTP(S) content through
   manually validated redirects, store raw/readable representations privately

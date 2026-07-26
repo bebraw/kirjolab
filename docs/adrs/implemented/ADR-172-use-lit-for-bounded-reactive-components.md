@@ -304,7 +304,8 @@ The adopted components own bounded presentation:
 - The Library tools menu owns archive-file selection and reset, restore
   transport, duplicate-submit and refresh-pending state, local restore failures,
   citation-network and archived-reference controls, canonical archived-reference
-  visibility, export links, and typed refresh, navigation, and filter outcomes.
+  visibility and its local toggling, export links, and typed refresh, navigation,
+  and filter outcomes.
 - The web source panels own URL capture and reset state, capture and comparison
   requests, comparison-response validation, duplicate-submit guards, local
   progress and failure state, readable-text comparison presentation, and a
@@ -670,7 +671,8 @@ reason to wrap static markup mechanically.
 - The Library tools menu replaces three raw element references, three native
   bindings, archive-file DOM reads and reset, and scattered archived-button
   presentation, and now owns archive restore transport, local failure and busy
-  state, and refresh acknowledgment. Citation-network opening, canonical
+  state, refresh acknowledgment, and archived-visibility mutation before
+  requesting a canonical refresh. Citation-network opening, canonical
   Library refreshes, and toast policy remain in the application coordinator. The
   coordinator reads the component's canonical archived visibility when loading
   the Library.

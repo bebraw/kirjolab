@@ -5665,6 +5665,26 @@ internal.
 Full native CI passes all 1,583 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Library Archive Visibility
+
+`LibraryToolsMenu` now applies its own archived-reference visibility toggle and
+emits only a canonical-refresh request. Its programmatic visibility setter
+reports whether state changed, removing duplicated read-then-write branches
+when `WorkspaceApp` reveals archived search or upload results.
+
+This checkpoint reduces `src/client/app.ts` from 3,969 to 3,962 lines (-7).
+Runtime and focused test source across the three changed files decreases by ten
+lines. Four focused and six affected tests pass alongside strict types.
+
+The browser application artifact changes from 823,963 B raw / 223,031 B gzip
+to 823,835 B raw / 223,024 B gzip (-128 B raw / -7 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150. The readability audit reports one fewer externally
+visible low-level component member.
+
+Full native CI passes all 1,583 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Assistant Evidence Projection
 
 `AssistantWorkflowStatus` now resolves its ordered selected evidence keys

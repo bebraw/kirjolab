@@ -45,11 +45,7 @@ describe("library tools menu", () => {
     menu.setShowArchived(true);
     menu.toggleForTest();
 
-    expect(actions).toEqual([
-      { action: "open-citation-network" },
-      { action: "show-archived", show: true },
-      { action: "show-archived", show: false },
-    ]);
+    expect(actions).toEqual(["open-citation-network", "archive-visibility-change", "archive-visibility-change"]);
   });
 
   it("owns archive restore transport and refresh acknowledgment", async () => {

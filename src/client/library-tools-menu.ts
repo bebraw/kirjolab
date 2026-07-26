@@ -9,9 +9,7 @@ export interface LibraryToolsArchiveRefresh {
   readonly requestId: number;
 }
 
-export type LibraryToolsAction =
-  | { readonly action: "open-citation-network" }
-  | { readonly action: "show-archived"; readonly show: boolean };
+export type LibraryToolsAction = "archive-visibility-change" | "open-citation-network";
 
 export class LibraryToolsMenu extends LitElement {
   static override properties = {
@@ -36,8 +34,10 @@ export class LibraryToolsMenu extends LitElement {
     return this.showArchived;
   }
 
-  setShowArchived(show: boolean): void {
+  setShowArchived(show: boolean): boolean {
+    if (show === this.showArchived) return false;
     this.showArchived = show;
+    return true;
   }
 
   completeArchiveRestore(requestId: number): void {
@@ -122,11 +122,12 @@ export class LibraryToolsMenu extends LitElement {
   }
 
   protected openCitationNetwork(): void {
-    this.emit({ action: "open-citation-network" });
+    this.emit("open-citation-network");
   }
 
   protected toggleArchived(): void {
-    this.emit({ action: "show-archived", show: !this.showArchived });
+    this.setShowArchived(!this.showArchived);
+    this.emit("archive-visibility-change");
   }
 
   private emit(detail: LibraryToolsAction): void {

@@ -589,11 +589,8 @@ class WorkspaceApp {
     });
     this.#elements.libraryToolsMenu.addEventListener(libraryToolsActionEvent, (event) => {
       const action = (event as CustomEvent<LibraryToolsAction>).detail;
-      if (action.action === "open-citation-network") void this.#elements.citationNetwork.open();
-      else {
-        this.#elements.libraryToolsMenu.setShowArchived(action.show);
-        void this.#refreshReferenceLibrary();
-      }
+      if (action === "open-citation-network") void this.#elements.citationNetwork.open();
+      else void this.#refreshReferenceLibrary();
     });
     this.#elements.libraryToolsMenu.addEventListener(libraryToolsArchiveRefreshEvent, (event) => {
       const detail = (event as CustomEvent<LibraryToolsArchiveRefresh>).detail;
@@ -2095,9 +2092,8 @@ class WorkspaceApp {
   async #focusReferenceLibraryEntry(referenceId: string): Promise<boolean> {
     if (
       !this.#librarySnapshot?.references.some((reference) => reference.id === referenceId) &&
-      !this.#elements.libraryToolsMenu.includesArchivedReferences
+      this.#elements.libraryToolsMenu.setShowArchived(true)
     ) {
-      this.#elements.libraryToolsMenu.setShowArchived(true);
       await this.#refreshReferenceLibrary();
     }
     this.#elements.referenceLibraryFilters.reset();
@@ -2174,10 +2170,7 @@ class WorkspaceApp {
   }
 
   async #revealExistingPdfReference(existing: ExistingPdfUpload): Promise<void> {
-    if (existing.archived && !this.#elements.libraryToolsMenu.includesArchivedReferences) {
-      this.#elements.libraryToolsMenu.setShowArchived(true);
-      await this.#refreshReferenceLibrary();
-    }
+    if (existing.archived && this.#elements.libraryToolsMenu.setShowArchived(true)) await this.#refreshReferenceLibrary();
     this.#elements.referenceLibraryFilters.reset(existing.referenceKey);
     this.#renderReferenceLibrary();
     if (!(await this.#elements.referenceLibraryList.focusReference(existing.referenceId, { block: "nearest" }))) {
