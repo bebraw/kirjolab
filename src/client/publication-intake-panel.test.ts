@@ -82,7 +82,11 @@ describe("publication intake panel", () => {
   it("renders lookup and linked states", () => {
     const panel = new TestPublicationIntakePanel();
     expect(panel.renderForTest()).toBeDefined();
-    panel.setContext(preview.pdfId, [publication]);
+    panel.setPdf(
+      preview.pdfId,
+      [publication],
+      [{ id: "link:1", publicationId: publication.id, pdfId: preview.pdfId, createdAt: publication.createdAt }],
+    );
     expect(panel.renderForTest()).toBeDefined();
     expect(panel.rootForTest()).toBe(panel);
   });
@@ -97,7 +101,7 @@ describe("publication intake panel", () => {
       .mockResolvedValueOnce(Response.json({ ...preview, existingPublicationId: publication.id }));
     vi.stubGlobal("fetch", fetchMock);
     panel.configure("/api/workspaces/workspace-1");
-    panel.setContext(preview.pdfId, []);
+    panel.setPdf(preview.pdfId, [], []);
     panel.addEventListener(publicationIntakeActionEvent, (event) => actions.push((event as CustomEvent<PublicationIntakeAction>).detail));
 
     panel.doiForTest("10.5555/intake");
@@ -144,7 +148,7 @@ describe("publication intake panel", () => {
       .mockResolvedValueOnce(Response.json({ doi: "10.5555/intake" }));
     vi.stubGlobal("fetch", fetchMock);
     panel.configure("/api/workspaces/workspace-1");
-    panel.setContext(preview.pdfId, []);
+    panel.setPdf(preview.pdfId, [], []);
     panel.doiForTest(preview.doi);
 
     await panel.previewForTest();
@@ -165,7 +169,7 @@ describe("publication intake panel", () => {
         .mockResolvedValueOnce(new Response(null, { status: 204 })),
     );
     panel.configure("/api/workspaces/workspace-1");
-    panel.setContext(preview.pdfId, []);
+    panel.setPdf(preview.pdfId, [], []);
     panel.doiForTest(preview.doi);
     panel.addEventListener(publicationIntakeActionEvent, (event) => actions.push((event as CustomEvent<PublicationIntakeAction>).detail));
 
@@ -193,12 +197,12 @@ describe("publication intake panel", () => {
       ),
     );
     panel.configure("/api/workspaces/workspace-1");
-    panel.setContext(preview.pdfId, []);
+    panel.setPdf(preview.pdfId, [], []);
     panel.doiForTest(preview.doi);
     panel.addEventListener(publicationIntakeActionEvent, (event) => actions.push((event as CustomEvent<PublicationIntakeAction>).detail));
 
     const request = panel.previewForTest();
-    panel.setContext("pdf:2", []);
+    panel.setPdf("pdf:2", [], []);
     resolvePreview?.(Response.json(preview));
     await request;
 

@@ -1,5 +1,10 @@
 import { html, LitElement, nothing, type TemplateResult } from "lit";
-import { isPublicationIntakePreview, type PublicationIntakePreview, type PublicationResource } from "../domain/workspace";
+import {
+  isPublicationIntakePreview,
+  type PublicationIntakePreview,
+  type PublicationPdfLink,
+  type PublicationResource,
+} from "../domain/workspace";
 import { bibTeXDisplayText } from "../domain/bibliography";
 import { errorMessage, expectOk, jsonFetch } from "./http";
 import { createPublicationIntakeActor, publicationIntakeBusy } from "./publication-intake-machine";
@@ -45,11 +50,14 @@ export class PublicationIntakePanel extends LitElement {
     this.apiBase = apiBase;
   }
 
-  setContext(pdfId: string, publications: readonly PublicationResource[]): void {
+  setPdf(pdfId: string, publications: readonly PublicationResource[], links: readonly PublicationPdfLink[]): void {
     if (this.workflow.getSnapshot().context.pdfId !== pdfId) this.workflow.send({ type: "OPEN", pdfId });
-    this.syncView(publications);
-    if (publications.length > 0) {
-      this.status = `${publications.length} ${publications.length === 1 ? "reference is" : "references are"} connected to this PDF.`;
+    const linked = links
+      .filter((link) => link.pdfId === pdfId)
+      .flatMap((link) => publications.filter((publication) => publication.id === link.publicationId));
+    this.syncView(linked);
+    if (linked.length > 0) {
+      this.status = `${linked.length} ${linked.length === 1 ? "reference is" : "references are"} connected to this PDF.`;
     }
   }
 

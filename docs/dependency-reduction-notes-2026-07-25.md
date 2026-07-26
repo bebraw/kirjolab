@@ -5134,6 +5134,30 @@ gzip and 18 and 150.
 Full native CI passes all 1,571 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Publication Intake Links
+
+`PublicationIntakePanel` now derives the active PDF's linked references from
+canonical publication and publication-PDF-link collections. `WorkspaceApp`
+retains canonical snapshot ownership, snapshot refresh after acceptance,
+navigation, and notification policy.
+
+This checkpoint reduces `src/client/app.ts` from 4,406 to 4,402 lines (-4) and
+grows the publication-intake owner from 294 to 302 lines. Runtime source across
+those two files increases by four lines while deleting the coordinator-only
+publication-link join. Focused coverage passes linked and lookup presentation,
+request ownership, stale-response rejection, application contracts, and strict
+types.
+
+The browser application artifact changes from 824,561 B raw / 222,605 B gzip
+to 824,524 B raw / 222,609 B gzip (-37 B raw / +4 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+The full native fast gate passes all 1,573 unit/coverage tests and 120
+Workers-runtime tests. Its first browser phase was invalidated by two concurrent
+local CI runners competing for the test server; the isolated retry passes all
+74 browser tests.
+
 ## Continued Lit Ownership: Candidate Applicability
 
 `CandidateReviewPanel` now derives evidence-link availability and local apply

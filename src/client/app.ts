@@ -2727,18 +2727,14 @@ class WorkspaceApp {
       this.#elements.candidateReviewPanel.scrollPosition = activeTab.scrollTop;
       return;
     }
-    if (activeTab.kind === "pdf") this.#renderPublicationIntake(activeTab.id);
+    if (activeTab.kind === "pdf") {
+      this.#elements.publicationIntakePanel.setPdf(
+        activeTab.id,
+        this.#snapshot?.publications ?? [],
+        this.#snapshot?.publicationPdfLinks ?? [],
+      );
+    }
     if (loadPdf) void this.#loadActivePdf(false);
-  }
-
-  #renderPublicationIntake(pdfId: string): void {
-    const snapshot = this.#snapshot;
-    if (!snapshot) return;
-    const publications = snapshot.publicationPdfLinks
-      .filter((link) => link.pdfId === pdfId)
-      .map((link) => snapshot.publications.find((publication) => publication.id === link.publicationId))
-      .filter((publication): publication is PublicationResource => Boolean(publication));
-    this.#elements.publicationIntakePanel.setContext(pdfId, publications);
   }
 
   async #completePublicationIntake(doi: string, requestId: number): Promise<void> {

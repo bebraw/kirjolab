@@ -15,9 +15,10 @@ association, and manuscript citation.
 - The bounded publication-intake Lit component owns one browser-local XState
   actor, active PDF identity, request generation, preview/review state,
   acceptance state, cancellation, transient preview payload, preview and
-  acceptance requests, response validation, status, and focus. Changing PDF
-  context or cancelling invalidates late responses without placing workflow
-  state in the document room.
+  acceptance requests, response validation, status, focus, and the linked
+  references derived for the active PDF from canonical publications and
+  publication-PDF links. Changing PDF context or cancelling invalidates late
+  responses without placing workflow state in the document room.
 - A successful acceptance request stays pending until the workspace coordinator
   refreshes the canonical project snapshot and finds the accepted DOI. The
   component advances to idle only after that acknowledgement; refresh failure
