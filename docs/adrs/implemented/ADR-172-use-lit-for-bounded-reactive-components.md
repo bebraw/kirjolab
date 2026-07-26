@@ -171,7 +171,8 @@ The adopted components own bounded presentation:
   bound-editor citation and include context detection, candidate ranking and
   display adaptation, empty-state hiding, popup positioning, hover and keyboard
   selection, active-descendant state, selected-option scrolling, local Escape
-  and blur dismissal, and typed acceptance intents. Its pure
+  and blur dismissal, private-Library loading and response validation for that
+  scope, and typed acceptance intents. Its pure
   citation-completion domain adapter owns
   project and available unlinked Library candidate construction from canonical
   reference inputs, while the component owns project-relative include candidate
@@ -879,13 +880,15 @@ reason to wrap static markup mechanically.
   pointer handlers, selection rendering, keyboard movement and acceptance, and
   source-editor ARIA synchronization. It also binds the editor keyboard and
   blur lifecycle, dismisses locally without an external intent, owns
-  browser-local citation-scope persistence, and emits a typed scope-change
-  intent. Acceptance now carries the component-selected
+  browser-local citation-scope persistence, rerenders locally when that scope
+  changes, and emits only a typed acceptance intent. Acceptance carries the component-selected
   candidate and replacement context, removing five coordinator caches and the
   completion-kind discriminator. It also replaces two coordinator context-
   detection and presentation methods plus both candidate projections. The
-  application coordinator supplies canonical files and references and retains
-  private-Library loading and linking, Yjs edits, and caret restoration.
+  component also replaces the coordinator's private-Library request, validation,
+  and duplicate-load guard. The application coordinator supplies canonical
+  project files and references and retains private-Library linking, Yjs edits,
+  and caret restoration.
 - The source citation control owns caret-context parsing and action
   availability and emits one typed resolved-citation intent. The application
   coordinator retains publication resolution, grouped-citation policy, and

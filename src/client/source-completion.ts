@@ -1,5 +1,6 @@
 import { html, LitElement, nothing, type TemplateResult } from "lit";
 import { relativeProjectPath, type ProjectFile } from "../domain/project-files";
+import { isReferenceLibrarySnapshot } from "../domain/reference-library";
 import {
   citationCompletionCandidates,
   citationCompletionContext,
@@ -13,6 +14,7 @@ import {
   type IncludeCompletionCandidate,
   type IncludeCompletionContext,
 } from "./include-completions";
+import { expectOk } from "./http";
 import { positionSourceCompletion } from "./source-editor-adapter";
 
 export type SourceCompletionIntent =
@@ -27,18 +29,14 @@ export interface SourceCompletionOption {
 }
 
 export type CitationCompletionScope = "library" | "project";
+type CitationCompletionReferences = NonNullable<Parameters<typeof citationCompletionCandidates>[1]>;
 
 export interface SourceCompletionInputs {
   readonly activeFileId: string | null;
   readonly files: readonly Pick<ProjectFile, "id" | "path">[];
-  readonly libraryReferences: NonNullable<Parameters<typeof citationCompletionCandidates>[1]>;
   readonly projectReferences: Parameters<typeof citationCompletionCandidates>[0];
   readonly workspace: boolean;
 }
-
-export type SourceCompletionAction =
-  | { readonly action: "accept"; readonly intent: SourceCompletionIntent }
-  | { readonly action: "scope-change"; readonly scope: CitationCompletionScope };
 
 export const sourceCompletionActionEvent = "source-completion-action";
 const scopeStorageKey = "kirjolab:citation-completion-scope";
@@ -53,6 +51,8 @@ export class SourceCompletion extends LitElement {
   declare private selectedIndex: number;
   private source: HTMLTextAreaElement | null = null;
   private scopeSelect: HTMLSelectElement | null = null;
+  private inputs: SourceCompletionInputs | null = null;
+  private libraryReferences: CitationCompletionReferences | null | undefined = null;
   private dismissTimer: number | undefined;
 
   constructor() {
@@ -108,11 +108,12 @@ export class SourceCompletion extends LitElement {
     );
   }
 
-  refresh(inputs: SourceCompletionInputs): boolean {
+  refresh(inputs: SourceCompletionInputs): void {
+    this.inputs = inputs;
     const source = this.source;
     if (!source || !inputs.workspace || document.activeElement !== source) {
       this.hide();
-      return false;
+      return;
     }
     const includeContext = includeCompletionContext(source.value, source.selectionEnd);
     if (includeContext) {
@@ -123,20 +124,20 @@ export class SourceCompletion extends LitElement {
             .map((file) => ({ reference: relativeProjectPath(activeFile.path, file.path), path: file.path }))
         : [];
       this.showIncludes(includes, includeContext, source);
-      return false;
+      return;
     }
     const citationContext = citationCompletionContext(source.value, source.selectionEnd);
     if (!citationContext) {
       this.hide();
-      return false;
+      return;
     }
     const libraryScope = this.scope === "library";
+    if (libraryScope && this.libraryReferences === null) void this.loadLibrary();
     this.showCitations(
-      citationCompletionCandidates(inputs.projectReferences, libraryScope ? inputs.libraryReferences : []),
+      citationCompletionCandidates(inputs.projectReferences, libraryScope ? (this.libraryReferences ?? []) : []),
       citationContext,
       source,
     );
-    return libraryScope;
   }
 
   hide(): void {
@@ -213,8 +214,8 @@ export class SourceCompletion extends LitElement {
     selected.scrollIntoView({ block: "nearest" });
   }
 
-  protected emitAction(action: SourceCompletionAction): void {
-    this.dispatchEvent(new CustomEvent<SourceCompletionAction>(sourceCompletionActionEvent, { bubbles: true, detail: action }));
+  protected emitIntent(intent: SourceCompletionIntent): void {
+    this.dispatchEvent(new CustomEvent<SourceCompletionIntent>(sourceCompletionActionEvent, { bubbles: true, detail: intent }));
   }
 
   protected position(source: HTMLTextAreaElement, start: number): void {
@@ -232,7 +233,21 @@ export class SourceCompletion extends LitElement {
 
   private accept(index: number): void {
     const option = this.options[index];
-    if (option) this.emitAction({ action: "accept", intent: option.intent });
+    if (option) this.emitIntent(option.intent);
+  }
+
+  private async loadLibrary(): Promise<void> {
+    this.libraryReferences = undefined;
+    try {
+      const response = await fetch("/api/library", { credentials: "same-origin" });
+      await expectOk(response);
+      const value: unknown = await response.json();
+      if (!isReferenceLibrarySnapshot(value)) throw new Error("Reference library returned an invalid snapshot");
+      this.libraryReferences = value.references;
+      if (this.inputs) this.refresh(this.inputs);
+    } catch {
+      this.libraryReferences = null;
+    }
   }
 
   private readonly handleEditorKey = (event: KeyboardEvent): void => {
@@ -244,9 +259,8 @@ export class SourceCompletion extends LitElement {
   };
 
   private readonly handleScopeChange = (): void => {
-    const scope = this.scope;
-    localStorage.setItem(scopeStorageKey, scope);
-    this.emitAction({ action: "scope-change", scope });
+    localStorage.setItem(scopeStorageKey, this.scope);
+    if (this.inputs) this.refresh(this.inputs);
   };
 
   private unbindEditor(): void {

@@ -5705,6 +5705,31 @@ component members.
 Full native CI passes all 1,583 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Source Completion Library Loading
+
+`SourceCompletion` now owns its private-Library request, response validation,
+duplicate-load guard, and successful-result cache when the browser-local Library
+scope is active. Scope changes rerender locally, so the component emits only the
+selected citation or include intent; `WorkspaceApp` retains private-Library
+linking, collaborative Yjs edits, caret restoration, and canonical project
+inputs.
+
+This checkpoint reduces `src/client/app.ts` from 3,936 to 3,913 lines (-23).
+Production source across the app and component decreases by nine lines. The
+focused test grows from 196 to 215 lines (+19) to cover the newly owned fetch,
+validation, and cache lifecycle, for a ten-line increase across all three files.
+Six focused and eight affected tests pass alongside strict types.
+
+The browser application artifact changes from 823,017 B raw / 222,877 B gzip
+to 823,008 B raw / 222,848 B gzip (-9 B raw / -29 B gzip). Styles and direct and
+unique production package counts remain unchanged at 135,411 B raw / 23,373 B
+gzip, 18, and 150. The readability audit improves from 250 to 249 externally
+visible low-level component members after the scope-change event contract is
+removed.
+
+Full native CI passes all 1,583 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Workspace Settings Navigation
 
 `WorkspaceSettingsPanel` now owns navigation after its settings-save,

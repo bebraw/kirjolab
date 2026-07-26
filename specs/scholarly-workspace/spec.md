@@ -293,15 +293,16 @@ collaboration.
   display adaptation, option markup, empty-state hiding, popup positioning,
   hover and keyboard selection, active-descendant state, selected-option
   scrolling, editor keyboard and blur binding, browser-local citation-scope
-  persistence, local Escape and blur dismissal, and typed acceptance or
-  scope-change intents.
-  Acceptance carries the selected citation or include candidate together with
-  its replacement context. The pure citation-completion adapter derives project
-  and available unlinked Library candidates from canonical reference inputs;
-  the component derives project-relative include candidates from canonical
-  files and the active file id. The workspace coordinator retains
-  private-Library loading and linking, collaborative edits, and caret restoration
-  without caching candidates, visible options, or completion kind.
+  persistence, local Escape and blur dismissal, private-Library loading and
+  response validation for that scope, and a typed acceptance intent. Acceptance
+  carries the selected citation or include candidate together with its
+  replacement context. The pure citation-completion adapter derives project and
+  available unlinked Library candidates from canonical reference inputs; the
+  component derives project-relative include candidates from canonical files
+  and the active file id. The workspace coordinator retains private-Library
+  linking, collaborative edits, and caret restoration without caching
+  candidates, visible options, completion kind, or completion-local loading
+  state.
 - **Source citation action:** One bounded light-DOM control derives the citation
   context at the current source caret, owns action availability, and emits the
   resolved citation keys and locator. The workspace coordinator retains

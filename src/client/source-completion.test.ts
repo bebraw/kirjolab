@@ -1,8 +1,7 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   SourceCompletion,
   sourceCompletionActionEvent,
-  type SourceCompletionAction,
   type SourceCompletionInputs,
   type SourceCompletionIntent,
   type SourceCompletionOption,
@@ -29,14 +28,12 @@ class TestSourceCompletion extends SourceCompletion {
     return this.createRenderRoot();
   }
 
-  emitForTest(action: SourceCompletionAction): void {
-    this.emitAction(action);
-  }
-
   protected override position(_source: HTMLTextAreaElement, start: number): void {
     this.positions.push(start);
   }
 }
+
+afterEach(() => vi.unstubAllGlobals());
 
 describe("source completion", () => {
   it("owns empty and action-labelled option presentation", () => {
@@ -51,22 +48,12 @@ describe("source completion", () => {
     expect(source.removeAttribute).toHaveBeenCalledWith("aria-activedescendant");
   });
 
-  it("emits acceptance intents", () => {
-    const completion = new TestSourceCompletion();
-    const actions: SourceCompletionAction[] = [];
-    completion.addEventListener(sourceCompletionActionEvent, (event) => {
-      actions.push((event as CustomEvent<SourceCompletionAction>).detail);
-    });
-    completion.emitForTest({ action: "accept", intent: includeIntent });
-    expect(actions).toEqual([{ action: "accept", intent: includeIntent }]);
-  });
-
   it("owns keyboard selection and acceptance", () => {
     const completion = new TestSourceCompletion();
     const source = { setAttribute: vi.fn(), removeAttribute: vi.fn() } as unknown as HTMLTextAreaElement;
-    const actions: SourceCompletionAction[] = [];
+    const intents: SourceCompletionIntent[] = [];
     completion.addEventListener(sourceCompletionActionEvent, (event) => {
-      actions.push((event as CustomEvent<SourceCompletionAction>).detail);
+      intents.push((event as CustomEvent<SourceCompletionIntent>).detail);
     });
     completion.show([option("first", "First"), option("second", "Second")], source);
     const key = (value: string, isComposing = false) => ({ key: value, isComposing, preventDefault: vi.fn() }) as unknown as KeyboardEvent;
@@ -75,7 +62,7 @@ describe("source completion", () => {
     expect(completion.handleKey(key("Escape"))).toBe(true);
     expect(completion.handleKey(key("x"))).toBe(false);
     expect(completion.handleKey(key("Enter", true))).toBe(false);
-    expect(actions).toEqual([{ action: "accept", intent: includeIntent }]);
+    expect(intents).toEqual([includeIntent]);
     expect(completion.hidden).toBe(true);
   });
 
@@ -120,39 +107,74 @@ describe("source completion", () => {
         { id: "file-1", path: "manuscript.md" },
         { id: "file-2", path: "chapters/method.md" },
       ],
-      libraryReferences: [
-        {
-          archivedAt: null,
-          authors: ["Doe"],
-          deletedAt: null,
-          id: "reference-1",
-          referenceKey: "doe2026",
-          title: "Result",
-          year: "2026",
-        },
-      ],
       projectReferences: [],
       workspace: true,
     } satisfies SourceCompletionInputs;
 
-    expect(completion.refresh(inputs)).toBe(false);
+    completion.refresh(inputs);
     expect(completion.positions).toEqual([10]);
 
     source.value = ":cite[doe";
     source.selectionEnd = 9;
     Reflect.set(completion, "scopeSelect", { value: "library" });
-    expect(completion.refresh(inputs)).toBe(true);
+    Reflect.set(completion, "libraryReferences", [
+      {
+        archivedAt: null,
+        authors: ["Doe"],
+        deletedAt: null,
+        id: "reference-1",
+        referenceKey: "doe2026",
+        title: "Result",
+        year: "2026",
+      },
+    ]);
+    completion.refresh(inputs);
     expect(completion.positions).toEqual([10, 6]);
 
     vi.stubGlobal("document", { activeElement: null });
-    expect(completion.refresh(inputs)).toBe(false);
+    completion.refresh(inputs);
     expect(source.removeAttribute).toHaveBeenCalledWith("aria-activedescendant");
     vi.stubGlobal("document", { activeElement: source });
-    expect(completion.refresh({ ...inputs, workspace: false })).toBe(false);
+    completion.refresh({ ...inputs, workspace: false });
     source.value = "Plain manuscript text";
     source.selectionEnd = source.value.length;
-    expect(completion.refresh(inputs)).toBe(false);
+    completion.refresh(inputs);
     vi.unstubAllGlobals();
+  });
+
+  it("loads and validates Library citations for its local scope", async () => {
+    const completion = new TestSourceCompletion();
+    const source = {
+      value: ":cite[doe",
+      selectionEnd: 9,
+      removeAttribute: vi.fn(),
+      setAttribute: vi.fn(),
+    };
+    const fetchMock = vi.fn().mockResolvedValue(
+      Response.json({
+        artifacts: [],
+        collections: {},
+        highlights: [],
+        notes: [],
+        reading: [],
+        referenceKeyStates: {},
+        references: [],
+        tags: {},
+        webSnapshots: [],
+        webSources: [],
+      }),
+    );
+    Reflect.set(completion, "source", source);
+    Reflect.set(completion, "scopeSelect", { value: "library" });
+    vi.stubGlobal("document", { activeElement: source });
+    vi.stubGlobal("fetch", fetchMock);
+
+    completion.refresh({ activeFileId: null, files: [], projectReferences: [], workspace: true });
+
+    await vi.waitFor(() => expect(Reflect.get(completion, "libraryReferences")).toEqual([]));
+    completion.refresh({ activeFileId: null, files: [], projectReferences: [], workspace: true });
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(fetchMock).toHaveBeenCalledWith("/api/library", { credentials: "same-origin" });
   });
 
   it("binds editor interaction and persisted citation scope", () => {
@@ -169,9 +191,9 @@ describe("source completion", () => {
       setAttribute: vi.fn(),
     }) as unknown as HTMLTextAreaElement;
     const scope = Object.assign(new EventTarget(), { value: "project" }) as unknown as HTMLSelectElement;
-    const actions: SourceCompletionAction[] = [];
+    const intents: SourceCompletionIntent[] = [];
     completion.addEventListener(sourceCompletionActionEvent, (event) => {
-      actions.push((event as CustomEvent<SourceCompletionAction>).detail);
+      intents.push((event as CustomEvent<SourceCompletionIntent>).detail);
     });
 
     completion.bindEditor(source, scope);
@@ -186,10 +208,7 @@ describe("source completion", () => {
     vi.runAllTimers();
 
     expect(localStorage.setItem).toHaveBeenCalledWith("kirjolab:citation-completion-scope", "project");
-    expect(actions).toEqual([
-      { action: "accept", intent: includeIntent },
-      { action: "scope-change", scope: "project" },
-    ]);
+    expect(intents).toEqual([includeIntent]);
     expect(completion.hidden).toBe(true);
     vi.useRealTimers();
   });

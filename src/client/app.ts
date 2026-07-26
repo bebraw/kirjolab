@@ -50,7 +50,7 @@ import { editorInsertActionEvent, type EditorInsertAction, type EditorSyntaxKind
 import { sourceSpanAt } from "./composition-source-map";
 import type { AppToastOptions } from "./app-toast";
 import { expectOk, jsonFetch } from "./http";
-import { sourceCompletionActionEvent, type SourceCompletionAction, type SourceCompletionIntent } from "./source-completion";
+import { sourceCompletionActionEvent, type SourceCompletionIntent } from "./source-completion";
 import {
   gitHubSyncCheckEvent,
   gitHubSyncPullEvent,
@@ -373,7 +373,6 @@ class WorkspaceApp {
   #workspaceCatalog: WorkspaceSummary[] = [];
   #previewRenderVersion = 0;
   #workspaceRouteReady = false;
-  #citationLibraryLoading = false;
   readonly #layout: WorkspaceLayoutManager;
 
   constructor() {
@@ -680,10 +679,9 @@ class WorkspaceApp {
       else this.#insertProjectIncludeFromMenu(detail.relativePath, detail.path);
     });
     this.#elements.sourceCompletion.addEventListener(sourceCompletionActionEvent, (event) => {
-      const detail = (event as CustomEvent<SourceCompletionAction>).detail;
-      if (detail.action === "scope-change") this.#renderSourceCompletion();
-      else if (detail.intent.kind === "citation") void this.#acceptCitationCompletion(detail.intent);
-      else this.#acceptIncludeCompletion(detail.intent);
+      const intent = (event as CustomEvent<SourceCompletionIntent>).detail;
+      if (intent.kind === "citation") void this.#acceptCitationCompletion(intent);
+      else this.#acceptIncludeCompletion(intent);
     });
     this.#elements.authoringModeTabs.addEventListener(authoringModeChangeEvent, (event) => {
       this.#setAuthoringMode((event as CustomEvent<AuthoringMode>).detail);
@@ -2612,33 +2610,12 @@ class WorkspaceApp {
 
   #renderSourceCompletion(): void {
     const snapshot = this.#snapshot;
-    const sourceCompletion = this.#elements.sourceCompletion;
-    const needsLibrary = sourceCompletion.refresh({
+    this.#elements.sourceCompletion.refresh({
       activeFileId: this.#activeFileId,
       files: snapshot?.files ?? [],
-      libraryReferences: this.#librarySnapshot?.references ?? [],
       projectReferences: snapshot?.projectReferences ?? [],
       workspace: appMode === "workspace",
     });
-    if (needsLibrary && !this.#librarySnapshot && !this.#citationLibraryLoading) {
-      this.#citationLibraryLoading = true;
-      void this.#loadCitationCompletionLibrary();
-    }
-  }
-
-  async #loadCitationCompletionLibrary(): Promise<void> {
-    try {
-      const response = await fetch("/api/library", { credentials: "same-origin" });
-      await expectOk(response);
-      const value: unknown = await response.json();
-      if (!isReferenceLibrarySnapshot(value)) throw new Error("Reference library returned an invalid snapshot");
-      this.#librarySnapshot = value;
-      this.#renderSourceCompletion();
-    } catch {
-      return;
-    } finally {
-      this.#citationLibraryLoading = false;
-    }
   }
 
   async #acceptCitationCompletion({ candidate, context }: Extract<SourceCompletionIntent, { kind: "citation" }>): Promise<void> {

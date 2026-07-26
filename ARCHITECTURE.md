@@ -593,11 +593,12 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   and adapt candidates there, own empty-state hiding and popup positioning
   there, dismiss locally on Escape or editor blur, and emit the selected
   candidate with its replacement context as one typed intent. Derive citation
-  and project-relative include candidates there
-  from coordinator-supplied canonical project files, reference links, and
-  available Library references. The application coordinator retains active-file
-  identity, private-Library loading, collaborative edits, and private-Library
-  mutations without caching menu candidates or kind state.
+  and project-relative include candidates there from coordinator-supplied
+  canonical project files and reference links. Let the component load, validate,
+  and cache its private-Library candidate input only when that local scope is
+  active. The application coordinator retains active-file identity,
+  collaborative edits, and private-Library linking mutations without caching
+  menu candidates, loading state, or kind state.
 - Implement optional editor keymaps as bounded textarea command adapters that
   emit ordinary input changes. Keep keymap preference browser-local, preserve
   IME and modified browser shortcuts, and never create a second document model.
