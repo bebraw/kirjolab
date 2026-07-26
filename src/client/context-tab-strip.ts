@@ -3,8 +3,11 @@ import type { LibraryPdfArtifact, ProjectReferencePdf } from "../domain/referenc
 import type { ModelCandidate, PdfResource, PublicationResource } from "../domain/workspace";
 import "./context-resource-tabs";
 import "./context-tab-overview";
+import "./preview-navigation-control";
 import { contextResourceTabId, type ContextResourceTabs } from "./context-resource-tabs";
 import { type ContextTabOverview } from "./context-tab-overview";
+import type { PreviewNavigationControl } from "./preview-navigation-control";
+import type { PreviewSyncControls } from "./preview-sync-controls";
 import type { ResearchContextKey, ResearchContextTab, ResearchResourceTab } from "./research-context";
 
 export const contextPrimaryTabActionEvent = "context-primary-tab-action";
@@ -59,14 +62,7 @@ export class ContextTabStrip extends LitElement {
       items: sources.tabs.map((tab) => ({ tab, title: this.tabTitle(tab, sources) })),
       standaloneLibrary: sources.standaloneLibrary,
     };
-    this.syncControlledPanels();
-  }
-
-  setPdfMode(libraryPdf: boolean, readonlyPdf: boolean): void {
-    const panel = this.controlledPanel("context-pdf-panel");
-    if (!panel) return;
-    panel.dataset.libraryPdf = String(libraryPdf);
-    panel.dataset.readonlyPdf = String(readonlyPdf);
+    this.syncControlledPanels(sources);
   }
 
   fixedScrollTop(key: ResearchContextKey): number | null {
@@ -157,10 +153,11 @@ export class ContextTabStrip extends LitElement {
     return panel instanceof HTMLElement ? panel : null;
   }
 
-  private syncControlledPanels(): void {
+  private syncControlledPanels(sources: ContextTabStripSources): void {
     const active = this.data.items.find((item) => item.tab.key === this.data.activeKey)?.tab;
+    const preview = this.data.activeKey === "preview";
     const states: readonly [id: string, selected: boolean][] = [
-      ["context-preview-panel", this.data.activeKey === "preview"],
+      ["context-preview-panel", preview],
       ["context-library-panel", this.data.activeKey === "library"],
       ["context-assistant-panel", this.data.activeKey === "assistant"],
       ["context-publication-panel", active?.kind === "publication"],
@@ -171,6 +168,18 @@ export class ContextTabStrip extends LitElement {
     for (const [id, selected] of states) {
       const panel = this.controlledPanel(id);
       if (panel) panel.hidden = !selected;
+    }
+    const previewStatus = this.controlledPanel("preview-context-controls");
+    if (previewStatus) previewStatus.hidden = !preview;
+    (this.controlledPanel("preview-sync-controls") as PreviewSyncControls | null)?.setVisible(preview);
+    (this.controlledPanel("preview-navigation-control") as PreviewNavigationControl | null)?.setPreviewActive(preview);
+    const pdfPanel = this.controlledPanel("context-pdf-panel");
+    if (pdfPanel) {
+      const libraryPdf = active?.kind === "library-pdf";
+      const privatePdf = libraryPdf && sources.libraryArtifacts.some(({ id }) => id === active.id);
+      const readonlyPdf = libraryPdf && !privatePdf && sources.referencePdfs.some(({ id }) => id === active.id);
+      pdfPanel.dataset.libraryPdf = String(libraryPdf);
+      pdfPanel.dataset.readonlyPdf = String(readonlyPdf);
     }
     if (active && active.kind !== "preview" && active.kind !== "library" && active.kind !== "assistant") {
       const panelId =

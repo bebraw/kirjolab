@@ -2017,19 +2017,12 @@ class WorkspaceApp {
     });
     const activeTab = this.#activeResourceTab();
     this.#layout.restorePaneWidth();
-    this.#renderContextPanelVisibility(activeKey, activeTab);
-    this.#renderActiveResearchContext(activeKey, activeTab, loadPdf);
-  }
-
-  #renderContextPanelVisibility(activeKey: ResearchContextKey, activeTab: ResearchResourceTab | undefined): void {
-    this.#elements.previewContextControls.hidden = activeKey !== RESEARCH_PREVIEW_KEY;
-    this.#elements.previewSyncControls.setVisible(activeKey === RESEARCH_PREVIEW_KEY);
-    this.#elements.previewNavigationControl.setPreviewActive(activeKey === RESEARCH_PREVIEW_KEY);
     this.#renderContextPdfVisibility(activeTab);
     this.#elements.projectAnnotationForm.setCitationContext(
       activeTab?.kind === "pdf" ? activeTab.id : null,
       this.#snapshot?.publicationPdfLinks ?? [],
     );
+    this.#renderActiveResearchContext(activeKey, activeTab, loadPdf);
   }
 
   #renderContextPdfVisibility(activeTab: ResearchResourceTab | undefined): void {
@@ -2038,7 +2031,6 @@ class WorkspaceApp {
     const activeProjectReferencePdf = Boolean(
       activeTab?.kind === "library-pdf" && !activeLibraryArtifact && this.#projectReferencePdf(activeTab.id),
     );
-    this.#elements.contextTabStrip.setPdfMode(activeTab?.kind === "library-pdf", activeProjectReferencePdf);
     this.#elements.projectAnnotationForm.setVisible(!activeLibraryPdf && !activeProjectReferencePdf);
     this.#elements.libraryPdfInspector.setVisible(activeLibraryPdf);
     if (!activeLibraryPdf) this.#setLibraryPdfInspector(false);

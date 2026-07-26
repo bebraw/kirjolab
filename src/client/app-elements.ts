@@ -30,7 +30,6 @@ import { LibraryToolsMenu } from "./library-tools-menu";
 import { ManuscriptCommentList } from "./manuscript-comment-list";
 import { ManuscriptMapPanel } from "./manuscript-map-panel";
 import { ModelProviderSettings } from "./model-provider-settings";
-import { PreviewNavigationControl } from "./preview-navigation-control";
 import { PreviewContextStatus } from "./preview-presentation";
 import { PreviewSyncControls } from "./preview-sync-controls";
 import { ProjectAnnotationForm } from "./project-annotation-form";
@@ -126,7 +125,6 @@ export function collectAppElements(requireElement = requiredAppElement) {
     sourceCitationControl: requireElement("source-citation-control", SourceCitationControl),
     contextTabStrip: requireElement("context-tab-strip", ContextTabStrip),
     previewContextControls: requireElement("preview-context-controls", PreviewContextStatus),
-    previewNavigationControl: requireElement("preview-navigation-control", PreviewNavigationControl),
     workspacePreview: requireElement("workspace-preview", WorkspacePreview),
     publicationContextPanel: requireElement("publication-context-panel", PublicationContextPanel),
     candidateReviewPanel: requireElement("candidate-review-panel", CandidateReviewPanel),

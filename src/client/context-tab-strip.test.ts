@@ -61,9 +61,13 @@ class TestContextTabStrip extends ContextTabStrip {
       dataset: Record<string, string>;
       hidden: boolean;
       labelledBy: string | null;
+      previewActive: boolean;
       scrollTop: number;
+      visible: boolean;
       removeAttribute(name: string): void;
+      setPreviewActive(active: boolean): void;
       setAttribute(name: string, value: string): void;
+      setVisible(visible: boolean): void;
     }
   >();
 
@@ -106,12 +110,20 @@ class TestContextTabStrip extends ContextTabStrip {
         dataset: {},
         hidden: false,
         labelledBy: null,
+        previewActive: false,
         scrollTop: 0,
+        visible: false,
         removeAttribute: (name) => {
           if (name === "aria-label") return;
         },
+        setPreviewActive: (active) => {
+          panel!.previewActive = active;
+        },
         setAttribute: (name, value) => {
           if (name === "aria-labelledby") panel!.labelledBy = value;
+        },
+        setVisible: (visible) => {
+          panel!.visible = visible;
         },
       };
       this.panels.set(id, panel);
@@ -148,6 +160,9 @@ describe("context tab strip", () => {
     strip.setTabs(sources("assistant"));
     expect(strip.panels.get("context-assistant-panel")?.hidden).toBe(false);
     expect(strip.panels.get("context-preview-panel")?.hidden).toBe(true);
+    expect(strip.panels.get("preview-context-controls")?.hidden).toBe(true);
+    expect(strip.panels.get("preview-sync-controls")?.visible).toBe(false);
+    expect(strip.panels.get("preview-navigation-control")?.previewActive).toBe(false);
     expect(strip.renderForTest()).toBeDefined();
     expect(strip.rootForTest()).toBe(strip);
     expect(replaced).toBe(true);
@@ -253,7 +268,6 @@ describe("context tab strip", () => {
     const publication = { id: "item", key: "publication:item" as const, kind: "publication" as const, scrollTop: 0 };
 
     strip.setTabs(sources(publication.key, [publication]));
-    strip.setPdfMode(true, false);
 
     expect(strip.panels.get("context-publication-panel")).toMatchObject({
       hidden: false,
@@ -268,12 +282,33 @@ describe("context tab strip", () => {
       focusedAnnotationId: null,
     };
     strip.setTabs(sources(pdf.key, [pdf]));
-    strip.setPdfMode(true, false);
     expect(strip.panels.get("context-pdf-panel")).toMatchObject({
       dataset: { libraryPdf: "true", readonlyPdf: "false" },
       hidden: false,
     });
     expect(strip.panels.get("pdf-context-controls")?.hidden).toBe(false);
+
+    const privatePdf = {
+      id: artifact.id,
+      key: `library-pdf:${artifact.id}` as const,
+      kind: "library-pdf" as const,
+      scrollTop: 0,
+      page: 1,
+      focusedAnnotationId: null,
+    };
+    strip.setTabs(sources(privatePdf.key, [privatePdf], { libraryArtifacts: [artifact] }));
+    expect(strip.panels.get("context-pdf-panel")?.dataset).toEqual({ libraryPdf: "true", readonlyPdf: "false" });
+
+    const readonlyPdf = {
+      id: referencePdf.id,
+      key: `library-pdf:${referencePdf.id}` as const,
+      kind: "library-pdf" as const,
+      scrollTop: 0,
+      page: 1,
+      focusedAnnotationId: null,
+    };
+    strip.setTabs(sources(readonlyPdf.key, [readonlyPdf], { referencePdfs: [referencePdf] }));
+    expect(strip.panels.get("context-pdf-panel")?.dataset).toEqual({ libraryPdf: "true", readonlyPdf: "true" });
   });
 
   it("captures and restores fixed-panel scroll positions", () => {

@@ -5344,6 +5344,31 @@ selection debounce, invalid-frame closes, reconnect, reset cleanup, and reload.
 Full native CI passes all 1,607 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Context Presentation
+
+`ContextTabStrip` now derives all controlled-panel visibility, Preview status,
+sync and navigation-control availability, active resource labels, and private-
+versus-read-only PDF presentation from its existing canonical inputs.
+`WorkspaceApp` retains active-context state, authorized loading, content
+rendering, routing, PDF-specific form and inspector visibility, and transitions.
+
+This checkpoint reduces `src/client/app.ts` from 3,322 to 3,314 lines (-8),
+grows the context-tab owner from 236 to 252 lines, and replaces the obsolete
+Preview-navigation entry in the application element registry with an explicit
+owner-side custom-element registration. Runtime source across those three files
+grows by six lines while deleting one coordinator presentation method and its
+imperative PDF-mode API. Fourteen focused tests cover fixed, publication,
+project-PDF, private-Library, shared-reference, Preview-control, registry, and
+existing component behavior alongside strict types.
+
+The browser application artifact changes from 827,405 B raw / 223,826 B gzip
+to 827,435 B raw / 223,883 B gzip (+30 B raw / +57 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,607 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

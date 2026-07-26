@@ -859,12 +859,14 @@ reason to wrap static markup mechanically.
 - The context tab strip replaces five shell references, three native primary
   action bindings, fixed-tab ARIA mutations, coordinator-owned roving focus,
   the separate overflow-tab renderer, seven controlled-panel references,
-  visibility mutations, resource labelling, PDF-mode presentation, and five
-  coordinator title helpers. It composes the existing dynamic resource tabs and
-  overflow overview from canonical tab and resource inputs while emitting their
-  typed intents. The application coordinator retains active-context state,
-  authorized Library loading, resource closure, route synchronization, content
-  rendering, and resource-panel scroll restoration.
+  visibility mutations, Preview sibling-control presentation, resource
+  labelling, PDF-mode presentation, and five coordinator title helpers. It
+  composes the existing dynamic resource tabs and overflow overview from
+  canonical tab and resource inputs while emitting their typed intents. The
+  application coordinator retains active-context state, authorized Library
+  loading, resource closure, route synchronization, content rendering,
+  PDF-specific form and inspector visibility, and resource-panel scroll
+  restoration.
 - The workspace surface switcher replaces two button references, native action
   bindings, and ARIA-state mutations. The application coordinator retains
   responsive surface visibility and URL synchronization.
