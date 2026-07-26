@@ -230,8 +230,10 @@ The adopted components own bounded presentation:
 - The Library tools menu owns archive-file selection and reset, citation-network
   and archived-reference controls, canonical archived-reference visibility,
   export links, and typed restore, navigation, and filter intents.
-- The web source panels own URL capture and reset state plus readable-text
-  snapshot comparison presentation.
+- The web source panels own URL capture and reset state, capture and comparison
+  requests, comparison-response validation, duplicate-submit guards, local
+  progress and failure state, readable-text comparison presentation, and a
+  typed captured outcome.
 - The project annotation form owns its complete composer: visibility,
   publication-intake composition, citation availability, highlight-tool and
   undo state and presentation, active annotation identity, visible-PDF choices,
@@ -527,8 +529,8 @@ reason to wrap static markup mechanically.
   the Library.
 - The web source panels replace three internal element references, submit
   binding, URL reset, comparison heading selection, and diff-hunk rendering
-  while leaving capture and comparison requests, response validation, Library
-  refreshes, and toast policy in the application coordinator.
+  plus the coordinator's capture and comparison requests and response guard.
+  Library refreshes and toast policy remain in the application coordinator.
 - The project annotation form replaces thirteen internal element references,
   four direct toolbar and citation bindings, imperative composer visibility,
   citation and tool presentation, PDF-option and captured-selection updates,
@@ -685,9 +687,9 @@ reason to wrap static markup mechanically.
 - The Library reference research rows compose attached PDFs with private notes,
   highlights, and immutable web captures; own share, revoke, download,
   comparison, pin, diagnostic, and recapture presentation; and emit one typed
-  action stream. The application coordinator retains persistence, capture and
-  comparison requests, project-pin mutations, refreshes, and notification
-  policy.
+  action stream. Capture and comparison intents delegate to the owning web
+  components; the application coordinator retains share and project-pin
+  mutations, refreshes, and notification policy.
 - The Library reference list replaces result-card, metadata-details, personal
   fields, and attached-research composition helpers plus coordinator-owned
   expansion and focus state. Nested typed actions continue bubbling to the

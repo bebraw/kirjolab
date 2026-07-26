@@ -32,6 +32,11 @@ event and captured content that supported the paper at that time.
 - Snapshot comparison is a neutral plain-text line comparison. It reports
   additions and removals without assigning truth, correctness, or authority to
   either capture.
+- The bounded Lit capture and comparison components own their request
+  lifecycles, same-origin credentials, duplicate-submit guards, local progress
+  and failure presentation, and Valibot validation of comparison responses.
+  The application coordinator refreshes canonical Library state after a typed
+  successful-capture outcome.
 
 ### Fetch and Security Boundary
 
@@ -95,6 +100,8 @@ event and captured content that supported the paper at that time.
   neutral text comparison.
 - API tests cover URL-only intake, owner routing, private-destination rejection,
   refinable bounded failures, and non-cacheable responses.
+- Component tests cover capture and comparison payloads, duplicate submission,
+  provider errors, malformed comparisons, and identical or changed results.
 - Real-`workerd` tests cover append-only capture rows, stable source identity,
   explicit web sharing, project pin preservation, repinning, migration, and
   derived access-date bibliography.

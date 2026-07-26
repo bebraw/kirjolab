@@ -99,10 +99,11 @@ memory and makes citation aliases compete with stable source identity.
   Library refreshes, and notification policy.
 - A bounded light-DOM metadata editor owns manual bibliographic values,
   refinement progress, PDF suggestions, grouped scholarly-provider matches,
-  work and field selections, and typed save, refine, and application intents.
-  The workspace coordinator retains PDF extraction, provider requests,
-  refinement workflow state, persistence, Library refreshes, and notification
-  policy; metadata components never receive or return raw DOM targets.
+  work and field selections, PDF extraction, provider preview and acceptance,
+  refinement workflow state, local persistence, and typed manual-save, refresh,
+  and notice outcomes. The workspace coordinator retains canonical refreshes
+  and notification policy; metadata components never receive or return raw DOM
+  targets.
 - A bounded light-DOM PDF-row component owns attached-artifact presentation,
   signed-in member access context, rights choices, primary-versus-secondary
   refinement availability, and typed actions. The workspace coordinator
@@ -136,9 +137,10 @@ memory and makes citation aliases compete with stable source identity.
   hash, retrieval metadata, diagnostics, and private raw/readable R2 objects.
   Existing project pins never advance during ordinary library refresh.
 - Bounded web source capture and snapshot-comparison components own local URL
-  input, reset behavior, and readable-text comparison presentation. The
-  workspace coordinator retains capture and comparison requests, response
-  validation, persistence refreshes, and user-notification policy.
+  input, reset behavior, capture and comparison requests, Valibot-backed
+  comparison-response validation, duplicate-submit state, progress and failure
+  presentation, and readable-text comparison presentation. The workspace
+  coordinator retains persistence refreshes and user-notification policy.
 - Source-to-source citation relationships are stored as provenance-bearing
   assertions between stable reference UUIDs. Confirmed, extracted, inferred,
   and conflicting derived states remain distinct from project manuscript

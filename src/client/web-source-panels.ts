@@ -1,22 +1,46 @@
 import { html, LitElement, type TemplateResult } from "lit";
 import type { WebSnapshotComparison } from "../domain/reference-library";
+import { isWebSnapshotComparisonResponse } from "./app-contracts";
+import { errorMessage, expectOk, jsonFetch } from "./http";
 
-export const webSourceCaptureEvent = "web-source-capture";
+export const webSourceCapturedEvent = "web-source-captured";
 
 export class WebSourceCapture extends LitElement {
   static override properties = {
+    busy: { state: true },
+    status: { state: true },
     url: { state: true },
   };
 
+  declare private busy: boolean;
+  declare private status: string;
   declare private url: string;
 
   constructor() {
     super();
+    this.busy = false;
+    this.status = "";
     this.url = "";
   }
 
   clear(): void {
     this.url = "";
+  }
+
+  async captureUrl(url: string): Promise<void> {
+    if (this.busy) return;
+    this.busy = true;
+    this.status = "Capturing web source…";
+    try {
+      await expectOk(await jsonFetch("/api/library/web-sources", { url }));
+      this.clear();
+      this.status = "Web source captured privately with an immutable access timestamp.";
+      this.dispatchEvent(new CustomEvent<string>(webSourceCapturedEvent, { bubbles: true, detail: this.status }));
+    } catch (error) {
+      this.status = errorMessage(error, "Could not capture the web source.");
+    } finally {
+      this.busy = false;
+    }
   }
 
   /* v8 ignore start -- exercised by browser fallback rendering */
@@ -43,16 +67,18 @@ export class WebSourceCapture extends LitElement {
           placeholder="https://…"
           title="Add a website by URL"
           .value=${this.url}
+          ?disabled=${this.busy}
           @input=${this.changeUrl}
         />
-        <button class="button-primary justify-center" type="submit">Add URL</button>
+        <button class="button-primary justify-center" type="submit" ?disabled=${this.busy}>${this.busy ? "Adding…" : "Add URL"}</button>
       </form>
+      <p class="status-text" role="status">${this.status}</p>
     `;
   }
 
   protected capture(event: Event): void {
     event.preventDefault();
-    this.dispatchEvent(new CustomEvent<string>(webSourceCaptureEvent, { bubbles: true, detail: this.url }));
+    void this.captureUrl(this.url);
   }
 
   protected changeUrl(event: Event): void {
@@ -62,18 +88,46 @@ export class WebSourceCapture extends LitElement {
 
 export class WebSnapshotComparisonPanel extends LitElement {
   static override properties = {
+    busy: { state: true },
     comparison: { state: true },
+    status: { state: true },
   };
 
+  declare private busy: boolean;
   declare private comparison: WebSnapshotComparison | null;
+  declare private status: string;
 
   constructor() {
     super();
+    this.busy = false;
     this.comparison = null;
+    this.status = "";
+  }
+
+  async compare(beforeId: string, afterId: string): Promise<void> {
+    if (this.busy) return;
+    this.busy = true;
+    this.comparison = null;
+    this.status = "Comparing captured snapshots…";
+    this.classList?.remove("hidden");
+    try {
+      const response = await fetch(`/api/library/web-snapshots/${encodeURIComponent(beforeId)}/compare/${encodeURIComponent(afterId)}`, {
+        credentials: "same-origin",
+      });
+      await expectOk(response);
+      const value: unknown = await response.json();
+      if (!isWebSnapshotComparisonResponse(value)) throw new Error("Web snapshot comparison returned an invalid result");
+      this.show(value.comparison);
+    } catch (error) {
+      this.status = errorMessage(error, "Could not compare web snapshots.");
+    } finally {
+      this.busy = false;
+    }
   }
 
   show(comparison: WebSnapshotComparison): void {
     this.comparison = comparison;
+    this.status = "";
     this.classList?.remove("hidden");
     void this.updateComplete.then(() => this.scrollIntoView?.({ block: "nearest" }));
   }
@@ -90,7 +144,7 @@ export class WebSnapshotComparisonPanel extends LitElement {
   }
 
   protected override render(): TemplateResult {
-    if (!this.comparison) return html``;
+    if (!this.comparison) return html`${this.status ? html`<p class="status-text" role="status">${this.status}</p>` : ""}`;
     return html`
       <p class="eyebrow">Neutral snapshot comparison</p>
       <h3 class="text-lg font-semibold tracking-[-0.025em]">

@@ -3749,3 +3749,27 @@ and unique production package counts remain unchanged at 135,411 B raw /
 
 Full native CI passes all 1,454 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Lit Ownership: Web Source Requests
+
+`WebSourceCapture` now owns URL capture requests, duplicate-submit gating,
+progress, local failures, reset, and a typed captured outcome shared by the
+top-level form and per-source recapture actions. `WebSnapshotComparisonPanel`
+owns comparison requests, Valibot-backed response validation, progress,
+failures, and neutral diff presentation. `WorkspaceApp` retains canonical
+Library refresh and toast policy.
+
+This checkpoint reduces `src/client/app.ts` from 5,497 to 5,484 lines (-13)
+and grows the two-panel module from 129 to 183 lines. Runtime source across
+those files increases by 41 lines while removing four coordinator capture and
+comparison methods or adapters. Focused coverage passes capture payloads,
+duplicate submission, provider errors, identical and changed comparisons,
+malformed comparison responses, and both light-DOM boundaries.
+
+The browser application artifact changes from 797,869 B raw / 216,598 B gzip
+to 798,749 B raw / 216,769 B gzip (+880 B raw / +171 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,456 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.

@@ -192,7 +192,7 @@ import { libraryPdfUploadRetryEvent, libraryPdfUploadRevealEvent } from "./libra
 import { libraryPdfUploadActionEvent, type LibraryPdfUploadAction } from "./library-pdf-upload-control";
 import { libraryToolsActionEvent, type LibraryToolsAction } from "./library-tools-menu";
 import { modelProviderChangeEvent } from "./model-provider-settings";
-import { webSourceCaptureEvent } from "./web-source-panels";
+import { webSourceCapturedEvent } from "./web-source-panels";
 import { citationNetworkActionEvent, type CitationNetworkAction } from "./citation-network-panel";
 import { citationNetworkFilterEvent } from "./citation-network-workspace";
 import { previewDiagnosticSelectEvent, type PreviewDiagnosticSelection } from "./preview-presentation";
@@ -219,7 +219,7 @@ import {
 } from "./pdf-highlight-import-panel";
 import { uploadPdfBatch, type ExistingPdfUpload } from "./pdf-upload-queue";
 import { bindThemePreference } from "./theme";
-import { isCreatedAnnotation, isWebSnapshotComparisonResponse } from "./app-contracts";
+import { isCreatedAnnotation } from "./app-contracts";
 import {
   OpenAICompatibleBrowserProvider,
   type ModelClarityRewrites,
@@ -613,8 +613,8 @@ class WorkspaceApp {
     this.#elements.libraryPdfUploadStatus.addEventListener(libraryPdfUploadRevealEvent, (event) => {
       void this.#revealExistingPdfReference((event as CustomEvent<ExistingPdfUpload>).detail);
     });
-    this.#elements.webSourceCapture.addEventListener(webSourceCaptureEvent, (event) => {
-      void this.#captureWebSource((event as CustomEvent<string>).detail);
+    this.#elements.webSourceCapture.addEventListener(webSourceCapturedEvent, (event) => {
+      void this.#completeWebSourceCapture((event as CustomEvent<string>).detail);
     });
     this.#elements.libraryToolsMenu.addEventListener(libraryToolsActionEvent, (event) => {
       const action = (event as CustomEvent<LibraryToolsAction>).detail;
@@ -674,8 +674,8 @@ class WorkspaceApp {
     });
     this.#elements.referenceLibraryList.addEventListener(libraryReferenceResearchActionEvent, (event) => {
       const detail = (event as CustomEvent<LibraryReferenceResearchAction>).detail;
-      if (detail.action === "capture") void this.#captureWebSourceInput(detail.canonicalUrl);
-      else if (detail.action === "compare") void this.#compareWebSnapshots(detail.priorId, detail.currentId);
+      if (detail.action === "capture") void this.#elements.webSourceCapture.captureUrl(detail.canonicalUrl);
+      else if (detail.action === "compare") void this.#elements.webSnapshotComparison.compare(detail.priorId, detail.currentId);
       else if (detail.action === "pin") void this.#pinProjectWebSnapshot(detail.referenceId, detail.snapshotId);
       else if (detail.action === "revoke") void this.#revokePrivateResearch(detail.shareId);
       else void this.#sharePrivateResearch(detail.referenceId, detail.kind, detail.resourceId);
@@ -2585,16 +2585,13 @@ class WorkspaceApp {
     }
   }
 
-  async #captureWebSource(url: string): Promise<void> {
-    await this.#captureWebSourceInput(url);
-    this.#elements.webSourceCapture.clear();
-  }
-
-  async #captureWebSourceInput(url: string): Promise<void> {
-    const response = await jsonFetch("/api/library/web-sources", { url });
-    await expectOk(response);
-    await this.#refreshReferenceLibrary();
-    this.#showToast("Web source captured privately with an immutable access timestamp.");
+  async #completeWebSourceCapture(message: string): Promise<void> {
+    try {
+      await this.#refreshReferenceLibrary();
+      this.#showToast(message);
+    } catch {
+      this.#showToast("The web source was captured, but the refreshed Library could not be loaded.");
+    }
   }
 
   async #pinProjectWebSnapshot(referenceId: string, snapshotId: string): Promise<void> {
@@ -2602,16 +2599,6 @@ class WorkspaceApp {
     await this.#acceptWorkspaceMutation(response);
     this.#renderReferenceLibrary();
     this.#showToast("This exact web capture is pinned to the project.");
-  }
-
-  async #compareWebSnapshots(beforeId: string, afterId: string): Promise<void> {
-    const response = await fetch(`/api/library/web-snapshots/${encodeURIComponent(beforeId)}/compare/${encodeURIComponent(afterId)}`, {
-      credentials: "same-origin",
-    });
-    await expectOk(response);
-    const value: unknown = await response.json();
-    if (!isWebSnapshotComparisonResponse(value)) throw new Error("Web snapshot comparison returned an invalid result");
-    this.#elements.webSnapshotComparison.show(value.comparison);
   }
 
   async #identifyLibraryPdf(artifactId: string, referenceId: string): Promise<void> {

@@ -321,6 +321,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Treat web-capture comparison as neutral readable-text change data. Never
   render fetched markup, silently move a project pin, or infer authority or
   correctness from a capture or diff.
+- Let the web-source capture and comparison Lit components own their request
+  lifecycles, Valibot-backed comparison-response guard, duplicate-submit state,
+  and local progress or failure presentation. Keep canonical Library refresh
+  and toast policy in the application coordinator.
 - Store source-to-source citations as owner-library assertions between stable
   reference identities, with direction, polarity, evidence state, source,
   retrieval time, method, confidence, and review. Derive conflicts without
