@@ -72,7 +72,7 @@ import { ProjectHistoryTrigger, projectHistoryOpenEvent } from "./project-histor
 import { EditorInsertMenu, editorInsertActionEvent, type EditorInsertAction, type EditorSyntaxKind } from "./editor-insert-menu";
 import { sourceSpanAt } from "./composition-source-map";
 import { CollaboratorSelectionList } from "./collaborator-selection-list";
-import { AppToast, appToastActionEvent, appToastDismissEvent } from "./app-toast";
+import { AppToast, type AppToastOptions } from "./app-toast";
 import { WorkspaceSwitcher, workspaceSwitchEvent } from "./workspace-switcher";
 import { SourceCompletion, sourceCompletionActionEvent, type SourceCompletionAction } from "./source-completion";
 import {
@@ -412,13 +412,6 @@ const offlineOrigin = Symbol("offline");
 const modelPreferencesStorageKey = "kirjolab:model-preferences";
 const deferredDeleteGraceMs = 6_000;
 
-interface ToastAction {
-  readonly label: string;
-  readonly run: () => void;
-  readonly durationMs?: number;
-  readonly persistent?: boolean;
-}
-
 interface DeferredDeletion {
   readonly key: string;
   readonly deletedMessage: string;
@@ -617,8 +610,6 @@ class WorkspaceApp {
   #renderSourceEditorHighlight: () => void = () => undefined;
   #modelDiscoveryBusy = false;
   #hasBootstrapSnapshot = false;
-  #toastAction: ToastAction | null = null;
-  #applicationUpdateAvailable = false;
   readonly #hiddenProjectFileIds = new Set<string>();
   readonly #hiddenProjectFolderIds = new Set<string>();
   readonly #hiddenProjectImageIds = new Set<string>();
@@ -721,15 +712,6 @@ class WorkspaceApp {
 
   #bindUi(): void {
     this.#restoreModelPreferences();
-    this.#elements.toast.addEventListener(appToastActionEvent, () => {
-      const action = this.#toastAction;
-      this.#toastAction = null;
-      action?.run();
-    });
-    this.#elements.toast.addEventListener(appToastDismissEvent, () => {
-      this.#toastAction = null;
-      if (this.#applicationUpdateAvailable) this.#showApplicationUpdate();
-    });
     this.#elements.applicationVersion.addEventListener(applicationVersionNoticeEvent, (event) => {
       this.#showToast((event as CustomEvent<string>).detail);
     });
@@ -2999,9 +2981,9 @@ class WorkspaceApp {
     const timer = window.setTimeout(() => void this.#commitDeferredDeletion(deletion.key), deferredDeleteGraceMs);
     this.#pendingDeletions.set(deletion.key, { deletion, timer });
     this.#showToast(deletion.deletedMessage, {
-      label: "Undo",
+      action: () => this.#undoDeferredDeletion(deletion.key),
+      actionLabel: "Undo",
       durationMs: deferredDeleteGraceMs,
-      run: () => this.#undoDeferredDeletion(deletion.key),
     });
   }
 
@@ -6586,8 +6568,10 @@ class WorkspaceApp {
   async #prepareOfflineShell(): Promise<void> {
     try {
       const registered = await registerOfflineServiceWorker(navigator.serviceWorker, () => {
-        this.#applicationUpdateAvailable = true;
-        this.#showApplicationUpdate();
+        this.#elements.toast.pin("A new version of Kirjolab is available.", {
+          action: () => void this.#persistOfflineWorkspace().finally(() => location.reload()),
+          actionLabel: "Refresh now",
+        });
       });
       if (!registered || appMode !== "workspace" || typeof caches === "undefined") return;
       if (await cacheOfflineNavigation(caches, fetch, location.href)) document.body.dataset.offlineReady = "true";
@@ -6618,24 +6602,8 @@ class WorkspaceApp {
     this.#elements.projectHistoryTrigger.setRevision(this.#revision);
   }
 
-  #showToast(message: string, action?: ToastAction): void {
-    this.#toastAction = action ?? null;
-    if (!action) return this.#elements.toast.show(message);
-    this.#elements.toast.show(message, {
-      actionLabel: action.label,
-      durationMs: action.durationMs,
-      persistent: action.persistent,
-    });
-  }
-
-  #showApplicationUpdate(): void {
-    this.#showToast("A new version of Kirjolab is available.", {
-      label: "Refresh now",
-      persistent: true,
-      run: () => {
-        void this.#persistOfflineWorkspace().finally(() => location.reload());
-      },
-    });
+  #showToast(message: string, options?: AppToastOptions): void {
+    this.#elements.toast.show(message, options);
   }
 }
 

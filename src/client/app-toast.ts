@@ -4,6 +4,7 @@ export const appToastActionEvent = "kirjolab-app-toast-action";
 export const appToastDismissEvent = "kirjolab-app-toast-dismiss";
 
 export interface AppToastOptions {
+  readonly action?: (() => void) | undefined;
   readonly actionLabel?: string | undefined;
   readonly durationMs?: number | undefined;
   readonly persistent?: boolean | undefined;
@@ -19,6 +20,7 @@ export class AppToast extends LitElement {
   declare private notice: AppToastNotice | null;
   #timer: number | undefined;
   #actionAvailable = false;
+  #pinnedNotice: AppToastNotice | null = null;
 
   constructor() {
     super();
@@ -26,19 +28,29 @@ export class AppToast extends LitElement {
   }
 
   show(message: string, options: AppToastOptions = {}): void {
+    this.#showNotice({ ...options, message });
+  }
+
+  pin(message: string, options: AppToastOptions): void {
+    this.#pinnedNotice = { ...options, message, persistent: true };
+    this.#showNotice(this.#pinnedNotice);
+  }
+
+  #showNotice(notice: AppToastNotice): void {
     window.clearTimeout(this.#timer);
-    this.notice = { ...options, message };
-    this.#actionAvailable = Boolean(options.actionLabel);
+    this.notice = notice;
+    this.#actionAvailable = Boolean(notice.actionLabel);
     this.dataset.visible = "true";
     this.#present();
-    if (options.persistent) return;
-    this.#timer = window.setTimeout(() => this.#dismiss(), options.durationMs ?? 3_200);
+    if (notice.persistent) return;
+    this.#timer = window.setTimeout(() => this.#dismiss(), notice.durationMs ?? 3_200);
   }
 
   protected emitAction(): void {
     if (!this.#actionAvailable) return;
     this.#actionAvailable = false;
     this.requestUpdate();
+    this.notice?.action?.();
     this.dispatchEvent(new CustomEvent(appToastActionEvent, { bubbles: true, composed: true }));
   }
 
@@ -62,6 +74,12 @@ export class AppToast extends LitElement {
   }
 
   #dismiss(): void {
+    const pinned = this.#pinnedNotice;
+    if (pinned && this.notice !== pinned) {
+      this.#showNotice(pinned);
+      this.dispatchEvent(new CustomEvent(appToastDismissEvent, { bubbles: true, composed: true }));
+      return;
+    }
     delete this.dataset.visible;
     if (this.matches(":popover-open")) this.hidePopover();
     this.dispatchEvent(new CustomEvent(appToastDismissEvent, { bubbles: true, composed: true }));

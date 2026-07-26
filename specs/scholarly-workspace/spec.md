@@ -286,9 +286,10 @@ collaboration.
   the user refreshes.
 - **Application notices:** One bounded light-DOM component owns transient and
   persistent message rendering, replacement timers, one-shot action
-  availability, modal reparenting, and popover visibility. The workspace
-  coordinator retains action effects, deferred-deletion authority, update
-  persistence, and notification policy.
+  availability and callback lifecycle, pinned fallback restoration, modal
+  reparenting, and popover visibility. The workspace coordinator supplies
+  authorized action effects and retains deferred-deletion authority, offline
+  persistence, and notification policy without caching notice state.
 - **Collaborator selections:** A client may send only an exact-key, bounded
   `protocol: 1` selection message for the current file and revision. The room
   supplies its socket identity, validates the range, broadcasts it only to

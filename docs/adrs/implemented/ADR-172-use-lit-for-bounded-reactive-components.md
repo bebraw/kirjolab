@@ -236,8 +236,8 @@ The adopted components own bounded presentation:
   filtering, caret and range presentation, accessible excerpts, and missing-file
   fallbacks for remote editor presence.
 - The application toast owns message and action presentation, replacement
-  timers, one-shot action availability, modal reparenting, popover visibility,
-  and typed action and dismissal intents.
+  timers, one-shot callback lifecycle, pinned fallback restoration, modal
+  reparenting, popover visibility, and typed action and dismissal intents.
 - The workspace switcher owns project option rendering, archived-current
   handling, selected state, focus entry, and a typed navigation intent.
 - The research diary summary owns missing and existing diary presentation,
@@ -545,9 +545,10 @@ reason to wrap static markup mechanically.
   overlay. The application coordinator retains local-author selection,
   collaboration transport, revision authority, and editor-highlight placement.
 - The application toast replaces action-element construction, coordinator timer
-  state, popover visibility, and modal reparenting. The application coordinator
-  retains deferred-deletion actions, update persistence, and notification
-  policy.
+  state, popover visibility, modal reparenting, action callback state, and the
+  persistent-update reminder field and bindings. The application coordinator
+  supplies authorized effects and retains deferred-deletion authority, offline
+  persistence, and notification policy.
 - The workspace switcher replaces the final feature-level imperative option
   renderer plus its native change and focus coordination. The application
   coordinator retains catalog fetching and navigation authority.

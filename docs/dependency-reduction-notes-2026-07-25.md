@@ -3099,3 +3099,27 @@ and unique production package counts remain unchanged at 135,411 B raw /
 
 Full native CI passes all 1,410 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Lit Ownership: Toast Action Lifecycle
+
+`AppToast` now owns one-shot action callbacks and a pinned fallback notice in
+addition to message rendering, timers, modal reparenting, and popover state.
+This keeps an activated application update available after transient notices
+without coordinator action or reminder fields. `WorkspaceApp` still supplies
+authorized effects and retains deferred-deletion authority, offline persistence,
+and notification policy.
+
+This checkpoint reduces `src/client/app.ts` from 6,840 to 6,808 lines (-32) and
+grows the toast component from 100 to 118 lines, for 14 fewer runtime lines
+overall. Focused component coverage passes one-shot callback execution,
+transient dismissal, and pinned-notice restoration. Four browser workflows pass
+project deletion, template deletion and replacement, and application-update
+retention in both workspace and Library modes.
+
+The browser application artifact changes from 797,142 B raw / 214,626 B gzip
+to 797,065 B raw / 214,599 B gzip (-77 B raw / -27 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,411 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.

@@ -41,12 +41,14 @@ describe("application toast", () => {
     expect(toast.rootForTest()).toBe(toast);
     expect(toast.renderForTest()).toBeDefined();
     const actions: string[] = [];
+    const run = vi.fn();
     toast.addEventListener(appToastActionEvent, () => actions.push("action"));
-    toast.show("Deleted", { actionLabel: "Undo", persistent: true });
+    toast.show("Deleted", { action: run, actionLabel: "Undo", persistent: true });
     expect(toast.renderForTest()).toBeDefined();
     toast.emitActionForTest();
     toast.emitActionForTest();
     expect(actions).toEqual(["action"]);
+    expect(run).toHaveBeenCalledOnce();
   });
 
   it("dismisses transient notices after their requested duration", () => {
@@ -61,5 +63,17 @@ describe("application toast", () => {
     vi.advanceTimersByTime(15);
     expect(toast.dataset.visible).toBeUndefined();
     expect(dismissals).toEqual(["dismissed"]);
+  });
+
+  it("restores a pinned notice after a transient notice dismisses", () => {
+    const toast = createToast();
+    const refresh = vi.fn();
+    toast.pin("Update available", { action: refresh, actionLabel: "Refresh" });
+    toast.show("Saved", { durationMs: 25 });
+
+    vi.advanceTimersByTime(25);
+    expect(toast.dataset.visible).toBe("true");
+    toast.emitActionForTest();
+    expect(refresh).toHaveBeenCalledOnce();
   });
 });
