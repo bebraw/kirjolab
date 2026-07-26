@@ -341,20 +341,20 @@ collaboration.
   its rendered page bounds, coalesced-sample accumulation and near-duplicate
   rejection, pixel-space shape recognition, and adjustment back to normalized
   page points. The layer schedules and cancels delayed recognition, updates the
-  live draft, and emits a typed recognition intent; the coordinator retains
-  gesture validation, workflow transitions, persistence, and inspector
-  messaging. Subsequent pointer movement is adjusted inside the layer and
-  emitted as normalized page points without exposing pixel-space shape state.
+  reactive live draft, and emits a typed recognition intent for inspector
+  messaging. Subsequent pointer movement is adjusted inside the layer without
+  exposing pixel-space shape state.
   Note-pin and drawing-stroke hit-testing is likewise component-owned; the
   layer combines those targets with page geometry and active tool state into
   typed note placement, drawing start, touch rejection, and selection actions.
   It performs local default suppression, pointer capture, shape cancellation,
-  and active-drawing presentation before returning an action. The coordinator
-  retains annotation-machine transitions and persistence. During a freehand
-  gesture, the layer suppresses native scrolling, expands coalesced samples,
-  updates the live draft, schedules recognition, and returns only new normalized
-  points for the coordinator's drawing-state transition. Any transition back to
-  inactive layer interaction clears pending and recognized shape state. For a
+  and active-drawing presentation before returning an action. During a freehand
+  gesture, the layer retains the active pointer and normalized points, suppresses
+  native scrolling, expands coalesced samples, updates the live draft, schedules
+  recognition, and applies snapped-shape adjustments. A matching pointer release
+  returns the final points for coordinator-owned persistence. Cancellation or an
+  inactive layer transition clears the draft and recognized shape. The
+  annotation state machine does not duplicate drawing gesture state. For a
   selected note, the layer owns drag start coordinates, the five-pixel movement
   threshold, native-default suppression, normalized preview geometry, and the
   transient pin position. The annotation state machine retains active note and

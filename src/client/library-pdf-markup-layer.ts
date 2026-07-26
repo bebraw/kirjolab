@@ -11,6 +11,7 @@ interface PdfNoteDraft {
 }
 
 export interface LibraryPdfMarkupLayerData {
+  readonly drawingStyle: Pick<LibraryPdfDrawing, "color" | "width">;
   readonly drawings: readonly LibraryPdfDrawing[];
   readonly noteDraft: PdfNoteDraft | null;
   readonly notes: readonly LibraryPdfNote[];
@@ -32,13 +33,6 @@ export interface LibraryPdfRecognizedShape {
 
 export interface LibraryPdfShapeRecognition {
   readonly kind: RecognizedDrawnShape["kind"];
-  readonly pointerId: number;
-  readonly points: readonly LibraryPdfPoint[];
-}
-
-export interface LibraryPdfShapeAdjustment {
-  readonly pointerId: number;
-  readonly points: readonly LibraryPdfPoint[];
 }
 
 interface DrawingPointerSample {
@@ -71,6 +65,11 @@ interface ActiveNotePress {
   moved: boolean;
 }
 
+interface ActiveDrawing {
+  readonly pointerId: number;
+  readonly points: readonly LibraryPdfPoint[];
+}
+
 export interface LibraryPdfNoteDragResult {
   readonly moved: boolean;
   readonly point: LibraryPdfPoint | null;
@@ -80,32 +79,26 @@ export interface LibraryPdfNotePressResult {
   readonly point: LibraryPdfPoint | null;
 }
 
-export interface LibraryPdfDrawingUpdate {
-  readonly additions: readonly LibraryPdfPoint[];
-  readonly points: readonly LibraryPdfPoint[];
-}
-
 export type LibraryPdfMarkupTarget =
   | { readonly id: string | null; readonly kind: "note" }
   | { readonly id: string; readonly kind: "drawing" };
 
 export type LibraryPdfPointerAction =
   | { readonly id: string; readonly kind: "note" | "drawing" }
-  | { readonly kind: "start-drawing"; readonly point: LibraryPdfPoint }
-  | { readonly kind: "start-note" | "touch-drawing" };
+  | { readonly kind: "start-drawing" | "start-note" | "touch-drawing" };
 
 interface MarkupTargetElement {
   closest(selector: string): Pick<Element, "getAttribute"> | null;
 }
 
 export const libraryPdfMarkupLayerActionEvent = "library-pdf-markup-layer-action";
-export const libraryPdfShapeAdjustedEvent = "library-pdf-shape-adjusted";
 export const libraryPdfShapeRecognizedEvent = "library-pdf-shape-recognized";
 
 export class LibraryPdfMarkupLayer extends LitElement {
   static override properties = { data: { state: true } };
 
   declare private data: LibraryPdfMarkupLayerData | null;
+  private drawing: ActiveDrawing | null = null;
   private interactionTool: PdfAnnotationTool = "text";
   private noteDrag: ActiveNoteDrag | null = null;
   private notePress: ActiveNotePress | null = null;
@@ -125,9 +118,9 @@ export class LibraryPdfMarkupLayer extends LitElement {
 
   setInteraction(tool: PdfAnnotationTool, drawingActive = false): void {
     if (!drawingActive) {
+      this.cancelDrawing();
       this.cancelNoteDrag();
       this.cancelNotePress();
-      this.cancelShapeRecognition();
     }
     this.interactionTool = tool;
     this.dataset.tool = tool;
@@ -189,33 +182,36 @@ export class LibraryPdfMarkupLayer extends LitElement {
     if (event.pointerType === "touch") return { kind: "touch-drawing" };
     event.preventDefault();
     this.cancelShapeRecognition();
+    this.drawing = { pointerId: event.pointerId, points: [point] };
     this.setPointerCapture(event.pointerId);
     this.setInteraction("draw", true);
-    return { kind: "start-drawing", point };
+    this.requestUpdate();
+    return { kind: "start-drawing" };
   }
 
-  extendDrawing(event: DrawingPointerEvent, draft: readonly LibraryPdfPoint[]): LibraryPdfDrawingUpdate | null {
+  extendDrawing(event: DrawingPointerEvent, draft: readonly LibraryPdfPoint[]): readonly LibraryPdfPoint[] | null {
     const points = [...draft];
-    const additions: LibraryPdfPoint[] = [];
     for (const sample of event.getCoalescedEvents?.() ?? [event]) {
       const point = this.point(sample);
       const previous = points.at(-1);
       if (!point || (previous && Math.hypot(point.x - previous.x, point.y - previous.y) < 0.0015)) continue;
       points.push(point);
-      additions.push(point);
     }
-    return additions.length > 0 ? { additions, points } : null;
+    return points.length > draft.length ? points : null;
   }
 
-  continueDrawing(event: ActivePointerEvent, draft: readonly LibraryPdfPoint[]): readonly LibraryPdfPoint[] | null {
+  continueDrawing(event: ActivePointerEvent): boolean {
+    const drawing = this.drawing;
+    if (!drawing || drawing.pointerId !== event.pointerId) return false;
+    if (this.adjustRecognizedShape(event)) return true;
     // Safari can otherwise promote an active Apple Pencil stroke to a native
     // scroll once the zoomed page starts moving, despite cancelling pointerdown.
     event.preventDefault();
-    const update = this.extendDrawing(event, draft);
-    if (!update) return null;
-    this.updateDraft(update.points);
-    this.scheduleShapeRecognition(event.pointerId, update.points);
-    return update.additions;
+    const points = this.extendDrawing(event, drawing.points);
+    if (!points) return true;
+    this.updateDrawing(points);
+    this.scheduleShapeRecognition(points);
+    return true;
   }
 
   recognizeShape(points: readonly LibraryPdfPoint[]): LibraryPdfRecognizedShape | null {
@@ -225,18 +221,18 @@ export class LibraryPdfMarkupLayer extends LitElement {
     return shape ? { points: relativePoints(shape.points, rect), shape } : null;
   }
 
-  scheduleShapeRecognition(pointerId: number, points: readonly LibraryPdfPoint[]): void {
+  scheduleShapeRecognition(points: readonly LibraryPdfPoint[]): void {
     this.cancelShapeRecognition();
     this.recognitionTimer = globalThis.setTimeout(() => {
       this.recognitionTimer = undefined;
       const recognized = this.recognizeShape(points);
       if (!recognized) return;
       this.recognizedShape = recognized.shape;
-      this.updateDraft(recognized.points);
+      this.updateDrawing(recognized.points);
       this.dispatchEvent(
         new CustomEvent<LibraryPdfShapeRecognition>(libraryPdfShapeRecognizedEvent, {
           bubbles: true,
-          detail: { kind: recognized.shape.kind, pointerId, points: recognized.points },
+          detail: { kind: recognized.shape.kind },
         }),
       );
     }, 850);
@@ -257,18 +253,30 @@ export class LibraryPdfMarkupLayer extends LitElement {
 
   adjustRecognizedShape(event: ActivePointerEvent): boolean {
     const shape = this.recognizedShape;
-    if (!shape) return false;
+    if (!shape || this.drawing?.pointerId !== event.pointerId) return false;
     const points = this.adjustShape(shape, event);
     if (!points) return true;
     event.preventDefault();
-    this.updateDraft(points);
-    this.dispatchEvent(
-      new CustomEvent<LibraryPdfShapeAdjustment>(libraryPdfShapeAdjustedEvent, {
-        bubbles: true,
-        detail: { pointerId: event.pointerId, points },
-      }),
-    );
+    this.updateDrawing(points);
     return true;
+  }
+
+  finishDrawing(pointerId: number): readonly LibraryPdfPoint[] | null {
+    const drawing = this.drawing;
+    if (!drawing || drawing.pointerId !== pointerId) return null;
+    const points = drawing.points;
+    this.drawing = null;
+    this.setInteraction("draw");
+    this.requestUpdate();
+    return points;
+  }
+
+  cancelDrawing(): boolean {
+    const hadDrawing = this.drawing !== null;
+    this.drawing = null;
+    this.cancelShapeRecognition();
+    if (hadDrawing) this.requestUpdate();
+    return hadDrawing;
   }
 
   continueNoteDrag(event: ActivePointerEvent, noteId: string): boolean {
@@ -314,8 +322,11 @@ export class LibraryPdfMarkupLayer extends LitElement {
     this.notePress = null;
   }
 
-  updateDraft(points: readonly LibraryPdfPoint[]): void {
-    this.querySelector<SVGPolylineElement>('.pdf-ink-stroke[data-markup-id="draft"]')?.setAttribute("points", drawingPoints(points));
+  updateDrawing(points: readonly LibraryPdfPoint[]): void {
+    const drawing = this.drawing;
+    if (!drawing) return;
+    this.drawing = { ...drawing, points };
+    this.requestUpdate();
   }
 
   moveNote(noteId: string, point: LibraryPdfPoint): void {
@@ -337,7 +348,9 @@ export class LibraryPdfMarkupLayer extends LitElement {
   }
 
   override disconnectedCallback(): void {
-    this.cancelShapeRecognition();
+    this.cancelDrawing();
+    this.cancelNoteDrag();
+    this.cancelNotePress();
     super.disconnectedCallback();
   }
 
@@ -350,23 +363,10 @@ export class LibraryPdfMarkupLayer extends LitElement {
     if (!data) return html``;
     const draft = data.noteDraft;
     return html`
-      ${data.drawings.length > 0
+      ${data.drawings.length > 0 || this.drawing
         ? html`<svg class="pdf-ink-layer" viewBox="0 0 1000 1000" preserveAspectRatio="none">
-            ${data.drawings.map(
-              (drawing) =>
-                html`<polyline
-                  class="pdf-ink-stroke"
-                  points=${drawingPoints(drawing.points)}
-                  fill="none"
-                  stroke=${drawing.color}
-                  stroke-width=${drawing.width}
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  vector-effect="non-scaling-stroke"
-                  data-markup-id=${drawing.id}
-                  data-selected=${drawing.id === data.selectedMarkupId ? "true" : nothing}
-                ></polyline>`,
-            )}
+            ${data.drawings.map((drawing) => this.renderDrawing(drawing, drawing.id === data.selectedMarkupId))}
+            ${this.drawing ? this.renderDrawing({ id: "draft", points: this.drawing.points, ...data.drawingStyle }, false) : nothing}
           </svg>`
         : nothing}
       ${draft?.page === data.page && !draft.editingId
@@ -384,6 +384,21 @@ export class LibraryPdfMarkupLayer extends LitElement {
 
   protected emitAction(action: LibraryPdfMarkupLayerAction): void {
     this.dispatchEvent(new CustomEvent<LibraryPdfMarkupLayerAction>(libraryPdfMarkupLayerActionEvent, { bubbles: true, detail: action }));
+  }
+
+  private renderDrawing(drawing: Pick<LibraryPdfDrawing, "color" | "id" | "points" | "width">, selected: boolean): TemplateResult {
+    return html`<polyline
+      class="pdf-ink-stroke"
+      points=${drawingPoints(drawing.points)}
+      fill="none"
+      stroke=${drawing.color}
+      stroke-width=${drawing.width}
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      vector-effect="non-scaling-stroke"
+      data-markup-id=${drawing.id}
+      data-selected=${selected ? "true" : nothing}
+    ></polyline>`;
   }
 
   private renderNote(data: LibraryPdfMarkupLayerData, note: LibraryPdfNote): TemplateResult {

@@ -2905,3 +2905,29 @@ and unique production package counts remain unchanged at 135,411 B raw /
 
 Full native CI passes all 1,414 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Lit Ownership: Complete PDF Drawing Gestures
+
+`LibraryPdfMarkupLayer` now owns the complete transient drawing gesture: active
+pointer identity, normalized points, coalesced-sample expansion, duplicate
+rejection, reactive draft rendering, recognition timing, snapped geometry,
+shape manipulation, cancellation, and completion. It returns final points only
+for coordinator-owned persistence. The PDF annotation machine no longer stores
+drawing geometry or models drawing and shape-manipulation states, and
+`WorkspaceApp` no longer mirrors draft geometry or routes incremental drawing
+events.
+
+This checkpoint reduces `src/client/app.ts` from 7,002 to 6,958 lines (-44), the
+PDF annotation machine from 221 to 166 lines (-55), and the three runtime files
+by 84 lines overall. Focused unit coverage passes active and mismatched pointers,
+coalesced samples, duplicate rejection, recognition, adjustment, completion,
+and cancellation. The private-PDF browser flow passes a real held-pointer stroke,
+recognition, persistence, rendering, and annotated export.
+
+The browser application artifact changes from 800,438 B raw / 215,744 B gzip
+to 798,434 B raw / 215,245 B gzip (-2,004 B raw / -499 B gzip). Styles and
+direct and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,412 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.

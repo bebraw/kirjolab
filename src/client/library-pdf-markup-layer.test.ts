@@ -3,10 +3,8 @@ import type { LibraryPdfDrawing, LibraryPdfNote } from "../domain/reference-libr
 import {
   LibraryPdfMarkupLayer,
   libraryPdfMarkupLayerActionEvent,
-  libraryPdfShapeAdjustedEvent,
   libraryPdfShapeRecognizedEvent,
   type LibraryPdfMarkupLayerAction,
-  type LibraryPdfShapeAdjustment,
   type LibraryPdfShapeRecognition,
 } from "./library-pdf-markup-layer";
 
@@ -61,6 +59,7 @@ describe("library PDF markup layer", () => {
     expect(layer.rootForTest()).toBe(layer);
     expect(layer.renderForTest()).toBeDefined();
     layer.setData({
+      drawingStyle: { color: "#000000", width: 3 },
       drawings: [drawing, { ...drawing, id: "draft" }],
       noteDraft: { page: 2, x: 0.2, y: 0.3, editingId: null },
       notes: [note],
@@ -71,6 +70,7 @@ describe("library PDF markup layer", () => {
     });
     expect(layer.renderForTest()).toBeDefined();
     layer.setData({
+      drawingStyle: { color: "#000000", width: 3 },
       drawings: [],
       noteDraft: { page: 1, x: 0.2, y: 0.3, editingId: note.id },
       notes: [note],
@@ -117,19 +117,14 @@ describe("library PDF markup layer", () => {
         },
         [{ x: 0.1, y: 0.2 }],
       ),
-    ).toEqual({
-      additions: [{ x: 0.5, y: 0.5 }],
-      points: [
-        { x: 0.1, y: 0.2 },
-        { x: 0.5, y: 0.5 },
-      ],
-    });
-    expect(layer.extendDrawing({ clientX: 50, clientY: 60 }, [{ x: 0.1, y: 0.2 }])).toBeNull();
-    const preventDefault = vi.fn();
-    expect(layer.continueDrawing({ clientX: 210, clientY: 120, pointerId: 9, preventDefault }, [{ x: 0.1, y: 0.2 }])).toEqual([
+    ).toEqual([
+      { x: 0.1, y: 0.2 },
       { x: 0.5, y: 0.5 },
     ]);
-    expect(preventDefault).toHaveBeenCalledOnce();
+    expect(layer.extendDrawing({ clientX: 50, clientY: 60 }, [{ x: 0.1, y: 0.2 }])).toBeNull();
+    const preventDefault = vi.fn();
+    expect(layer.continueDrawing({ clientX: 210, clientY: 120, pointerId: 9, preventDefault })).toBe(false);
+    expect(preventDefault).not.toHaveBeenCalled();
     layer.cancelShapeRecognition();
     const recognized = layer.recognizeShape([
       { x: 0.1, y: 0.2 },
@@ -159,6 +154,7 @@ describe("library PDF markup layer", () => {
         configurable: true,
         value: () => ({ height: 200, left: 10, top: 20, width: 400 }),
       },
+      querySelector: { value: () => null },
       querySelectorAll: { value: () => [pin] },
       setPointerCapture: { value: vi.fn() },
     });
@@ -211,8 +207,16 @@ describe("library PDF markup layer", () => {
     expect(layer.finishNotePress(7)).toBeNull();
     layer.setInteraction("draw");
     expect(layer.pointerAction(pointer(new EventTarget(), "touch"))).toEqual({ kind: "touch-drawing" });
-    expect(layer.pointerAction(pointer(new EventTarget()))).toEqual({ kind: "start-drawing", point: { x: 0.5, y: 0.5 } });
-    expect(preventDefault).toHaveBeenCalledTimes(3);
+    expect(layer.pointerAction(pointer(new EventTarget()))).toEqual({ kind: "start-drawing" });
+    expect(layer.continueDrawing({ clientX: 250, clientY: 120, pointerId: 8, preventDefault })).toBe(false);
+    expect(layer.continueDrawing({ clientX: 250, clientY: 120, pointerId: 7, preventDefault })).toBe(true);
+    expect(layer.finishDrawing(8)).toBeNull();
+    expect(layer.finishDrawing(7)).toEqual([
+      { x: 0.5, y: 0.5 },
+      { x: 0.6, y: 0.5 },
+    ]);
+    expect(layer.cancelDrawing()).toBe(false);
+    expect(preventDefault).toHaveBeenCalledTimes(4);
     expect(layer.setPointerCapture).toHaveBeenCalledTimes(2);
   });
 
@@ -220,45 +224,55 @@ describe("library PDF markup layer", () => {
     vi.useFakeTimers();
     const layer = new TestMarkupLayer();
     Object.defineProperties(layer, {
+      dataset: { value: {} },
       getBoundingClientRect: { configurable: true, value: () => ({ height: 200, left: 0, top: 0, width: 400 }) },
       querySelector: { configurable: true, value: () => null },
+      setPointerCapture: { value: vi.fn() },
     });
+    layer.setInteraction("draw");
+    expect(
+      layer.pointerAction({
+        clientX: 40,
+        clientY: 40,
+        pointerId: 7,
+        pointerType: "mouse",
+        preventDefault: vi.fn(),
+        target: new EventTarget(),
+      }),
+    ).toEqual({ kind: "start-drawing" });
     const recognized: LibraryPdfShapeRecognition[] = [];
     layer.addEventListener(libraryPdfShapeRecognizedEvent, (event) => {
       recognized.push((event as CustomEvent<LibraryPdfShapeRecognition>).detail);
     });
 
-    layer.scheduleShapeRecognition(7, [
+    layer.scheduleShapeRecognition([
       { x: 0.1, y: 0.2 },
       { x: 0.8, y: 0.2 },
     ]);
     vi.advanceTimersByTime(849);
     expect(recognized).toEqual([]);
     vi.advanceTimersByTime(1);
-    expect(recognized).toEqual([
-      {
-        kind: "line",
-        pointerId: 7,
-        points: [
-          { x: 0.1, y: 0.2 },
-          { x: 0.8, y: 0.2 },
-        ],
-      },
-    ]);
+    expect(recognized).toEqual([{ kind: "line" }]);
 
-    const adjusted: LibraryPdfShapeAdjustment[] = [];
-    layer.addEventListener(libraryPdfShapeAdjustedEvent, (event) => {
-      adjusted.push((event as CustomEvent<LibraryPdfShapeAdjustment>).detail);
-    });
     const preventDefault = vi.fn();
     expect(layer.adjustRecognizedShape({ clientX: 210, clientY: 220, pointerId: 7, preventDefault })).toBe(true);
     expect(preventDefault).toHaveBeenCalledOnce();
-    expect(adjusted).toEqual([{ pointerId: 7, points: expect.any(Array) }]);
+    expect(layer.finishDrawing(7)).toEqual(expect.any(Array));
 
-    layer.scheduleShapeRecognition(8, drawing.points);
+    layer.setInteraction("draw");
+    layer.pointerAction({
+      clientX: 40,
+      clientY: 40,
+      pointerId: 8,
+      pointerType: "mouse",
+      preventDefault: vi.fn(),
+      target: new EventTarget(),
+    });
+    layer.scheduleShapeRecognition(drawing.points);
     layer.cancelShapeRecognition();
     vi.runAllTimers();
     expect(recognized).toHaveLength(1);
     expect(layer.adjustRecognizedShape({ clientX: 0, clientY: 0, pointerId: 8, preventDefault })).toBe(false);
+    expect(layer.cancelDrawing()).toBe(true);
   });
 });

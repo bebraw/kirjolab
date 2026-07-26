@@ -219,7 +219,7 @@ The adopted components own bounded presentation:
   cleanup, note-pin and drawing-stroke hit-testing, tool-aware pointer-down
   interpretation, local pointer capture, note-placement press and note-drag
   thresholds, note-drag preview state, drawing activation and continuation, and
-  typed recognition, shape-adjustment, and note-card close intents.
+  typed recognition and note-card close intents.
 - The Library PDF project-use block owns unidentified, unlinked, and linked
   presentation, capability-boundary copy, citation preview, and a typed
   reference-link intent.
@@ -508,16 +508,19 @@ reason to wrap static markup mechanically.
   typed pointer actions. The layer also owns native-default suppression, pointer
   capture, recognition cancellation, and active-drawing presentation at gesture
   start. During continuation it owns native scroll suppression, coalesced sample
-  expansion, draft updates, and recognition scheduling. Returning to an inactive
-  interaction clears recognition state within the layer. Note dragging likewise
-  keeps its start coordinates, movement threshold, native-default suppression,
-  normalized preview position, and transient DOM update inside the layer. The
-  state machine retains only the active note and pointer identity, while the
-  application coordinator retains state-machine transitions, persistence,
-  inspector policy, and notifications. A prospective note placement similarly
-  remains layer-local until a stationary pointer release; only then does the
-  coordinator send the durable `PLACE_NOTE` workflow transition. The annotation
-  machine no longer models a transient note-press state.
+  expansion, reactive draft updates, recognition scheduling, snapped-shape
+  replacement, manipulation, pointer validation, cancellation, and completion.
+  It returns the final normalized points only when the active drawing pointer
+  finishes. The annotation state machine no longer duplicates drawing pointer,
+  point, or shape-manipulation state. Note dragging likewise keeps its start
+  coordinates, movement threshold, native-default suppression, normalized
+  preview position, and transient DOM update inside the layer. The state machine
+  retains only the active note and pointer identity, while the application
+  coordinator retains state-machine transitions, persistence, inspector policy,
+  and notifications. A prospective note placement similarly remains layer-local
+  until a stationary pointer release; only then does the coordinator send the
+  durable `PLACE_NOTE` workflow transition. The annotation machine no longer
+  models a transient note-press state.
 - The Library PDF project-use block replaces its imperative renderer and four
   one-off DOM-construction helpers. The application coordinator retains
   canonical reference and project-link lookup, the linking mutation, snapshot
