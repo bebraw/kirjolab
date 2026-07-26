@@ -5705,6 +5705,27 @@ component members.
 Full native CI passes all 1,583 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Workspace Coordinator One-Use Derivations
+
+`WorkspaceApp` now keeps four bounded expressions at their only call sites:
+automatic preview-sync availability, private-Library reference routing,
+project-reference PDF visibility, and active-PDF resource availability. This
+removes one-use class methods without changing component ownership or
+cross-feature coordination.
+
+This checkpoint reduces `src/client/app.ts` from 3,864 to 3,844 lines (-20)
+without changing another source or test module. The affected guardrails pass
+formatting, lint, strict types, and all 1,584 unit/coverage tests.
+
+The browser application artifact changes from 822,603 B raw / 222,746 B gzip
+to 822,468 B raw / 222,699 B gzip (-135 B raw / -47 B gzip). Styles, direct and
+unique production package counts, and the readability audit remain unchanged
+at 135,411 B raw / 23,373 B gzip, 18, 150, and 249 externally visible low-level
+component members.
+
+Full native CI passes all 1,584 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Project File Dialog Targets
 
 `ProjectFileDialog` now derives rename availability, initial paths, and stable

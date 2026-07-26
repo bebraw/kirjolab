@@ -1758,15 +1758,9 @@ class WorkspaceApp {
   }
 
   #previewSyncAvailable(explicit: boolean): boolean {
-    const automaticSyncAvailable = explicit || this.#automaticPreviewSyncAvailable();
-    return automaticSyncAvailable && this.#contextState.activeKey === RESEARCH_PREVIEW_KEY;
-  }
-
-  #automaticPreviewSyncAvailable(): boolean {
     return (
-      window.matchMedia("(min-width: 72rem)").matches &&
-      this.#elements.workspaceSurfaces.dataset.layout === "split" &&
-      this.#contextState.activeKey === RESEARCH_PREVIEW_KEY
+      this.#contextState.activeKey === RESEARCH_PREVIEW_KEY &&
+      (explicit || (window.matchMedia("(min-width: 72rem)").matches && this.#elements.workspaceSurfaces.dataset.layout === "split"))
     );
   }
 
@@ -2021,7 +2015,7 @@ class WorkspaceApp {
     await this.#openReferenceLibrary(false);
     const opened = await this.#focusReferenceLibraryEntry(referenceId);
     if (opened && appMode === "library" && updateHistory) {
-      history.pushState({ view: "library-reference", referenceId }, "", this.#libraryReferenceRoute(referenceId));
+      history.pushState({ view: "library-reference", referenceId }, "", `/library?reference=${encodeURIComponent(referenceId)}`);
     }
   }
 
@@ -2400,7 +2394,9 @@ class WorkspaceApp {
   #renderContextPdfVisibility(activeTab: ResearchResourceTab | undefined): void {
     const activeLibraryArtifact = this.#activeLibraryPdfArtifact(activeTab);
     const activeLibraryPdf = Boolean(activeLibraryArtifact);
-    const activeProjectReferencePdf = this.#activeProjectReferencePdf(activeTab, activeLibraryArtifact);
+    const activeProjectReferencePdf = Boolean(
+      activeTab?.kind === "library-pdf" && !activeLibraryArtifact && this.#projectReferencePdf(activeTab.id),
+    );
     this.#elements.contextTabStrip.setPdfMode(activeTab?.kind === "library-pdf", activeProjectReferencePdf);
     this.#elements.projectAnnotationForm.setVisible(!activeLibraryPdf && !activeProjectReferencePdf);
     this.#elements.libraryPdfInspector.setVisible(activeLibraryPdf);
@@ -2411,10 +2407,6 @@ class WorkspaceApp {
   #activeLibraryPdfArtifact(activeTab: ResearchResourceTab | undefined): LibraryPdfArtifact | undefined {
     if (activeTab?.kind !== "library-pdf") return undefined;
     return this.#librarySnapshot?.artifacts.find((artifact) => artifact.id === activeTab.id);
-  }
-
-  #activeProjectReferencePdf(activeTab: ResearchResourceTab | undefined, artifact: LibraryPdfArtifact | undefined): boolean {
-    return activeTab?.kind === "library-pdf" && !artifact && Boolean(this.#projectReferencePdf(activeTab.id));
   }
 
   #renderActiveResearchContext(activeKey: ResearchContextKey, activeTab: ResearchResourceTab | undefined, loadPdf: boolean): void {
@@ -2729,7 +2721,7 @@ class WorkspaceApp {
     const tab = this.#activePdfTab();
     if (!tab) return null;
     const { workspacePdf, libraryPdf, projectReferencePdf } = this.#activePdfResources(tab);
-    if (!this.#pdfResourceAvailable(workspacePdf, libraryPdf, projectReferencePdf)) return null;
+    if (!workspacePdf && !libraryPdf && !projectReferencePdf) return null;
     if (workspacePdf) this.#elements.projectAnnotationForm.selectPdf(workspacePdf.id);
     const annotations = this.#activePdfAnnotations(workspacePdf);
     const privateHighlights = this.#activePdfHighlights(libraryPdf);
@@ -2742,14 +2734,6 @@ class WorkspaceApp {
     const tab = this.#activeResourceTab();
     if (tab?.kind === "pdf" || tab?.kind === "library-pdf") return tab;
     return null;
-  }
-
-  #pdfResourceAvailable(
-    workspacePdf: PdfResource | undefined,
-    libraryPdf: LibraryPdfArtifact | undefined,
-    projectReferencePdf: ProjectReferencePdf | undefined,
-  ): boolean {
-    return Boolean(workspacePdf ?? libraryPdf ?? projectReferencePdf);
   }
 
   #activePdfResources(tab: ActivePdfLoadContext["tab"]): ActivePdfResources {
@@ -3341,10 +3325,6 @@ class WorkspaceApp {
 
   #libraryPdfRoute(artifactId: string, page: number): string {
     return `/library/pdfs/${encodeURIComponent(artifactId)}${page > 1 ? `?page=${page}` : ""}`;
-  }
-
-  #libraryReferenceRoute(referenceId: string): string {
-    return `/library?reference=${encodeURIComponent(referenceId)}`;
   }
 
   #handlePdfPageChange(page: number): void {
