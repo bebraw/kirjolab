@@ -511,7 +511,6 @@ interface Elements {
   libraryPdfAnnotationToolbar: LibraryPdfAnnotationToolbar;
   libraryProjectUse: LibraryPdfProjectUse;
   libraryHighlightList: LibraryPdfAnnotationList;
-  paperStatus: HTMLElement;
   paperTextLayer: HTMLElement;
   paperMarkups: LibraryPdfMarkupLayer;
   paperReader: HTMLElement;
@@ -5164,7 +5163,7 @@ class WorkspaceApp {
 
   #reportActivePdfError(tabKey: string, error: unknown): void {
     if (this.#activeResourceTab()?.key !== tabKey) return;
-    this.#elements.paperStatus.textContent = error instanceof Error ? error.message : "Could not render this PDF";
+    this.#pdfViewer.showError(error);
   }
 
   async #uploadPdf(): Promise<void> {
@@ -7112,7 +7111,6 @@ function collectElements(): Elements {
     libraryPdfAnnotationToolbar: requiredElement("library-pdf-annotation-toolbar", LibraryPdfAnnotationToolbar),
     libraryProjectUse: requiredElement("library-project-use", LibraryPdfProjectUse),
     libraryHighlightList: requiredElement("library-highlight-list", LibraryPdfAnnotationList),
-    paperStatus: requiredElement("paper-status", HTMLElement),
     paperTextLayer: requiredElement("paper-text-layer", HTMLElement),
     paperMarkups: requiredElement("paper-markups", LibraryPdfMarkupLayer),
     paperReader: requiredElement("paper-reader", HTMLElement),

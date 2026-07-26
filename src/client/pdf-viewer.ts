@@ -221,6 +221,10 @@ export class PdfEvidenceViewer {
     this.#renderHighlights();
   }
 
+  showError(error: unknown): void {
+    this.#elements.status.textContent = error instanceof Error ? error.message : "Could not render this PDF";
+  }
+
   clearDraftSelection(): void {
     window.clearTimeout(this.#selectionCaptureTimer);
     this.#clearNativeSelection();

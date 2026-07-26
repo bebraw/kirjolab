@@ -113,6 +113,9 @@ changing their canonical data, selector, authorization, or rendering contracts.
 - The semantic preview and `PdfEvidenceViewer` remain independent views behind
   one context-pane controller. Switching tabs must not recreate a resource
   identity or mutate the manuscript, PDF, or annotation records.
+- `PdfEvidenceViewer` owns loading, rendering, selection, mode, and failure
+  status presentation. The context-pane controller may report an active-load
+  failure through the viewer API but does not mutate the viewer's status DOM.
 - Active target, tab order, open/closed state, permanent-tab scroll,
   PDF page, PDF scroll, and focused annotation are local browser state.
   They must not be written to Yjs, the workspace snapshot, Durable Object

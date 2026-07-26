@@ -2461,3 +2461,23 @@ and unique production package counts remain unchanged at 135,411 B raw /
 
 Full native CI passes all 1,404 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued PDF Viewer Encapsulation: Status
+
+`PdfEvidenceViewer` now owns its complete loading, rendering, selection, mode,
+and failure status presentation. `WorkspaceApp` retains active-tab stale-load
+protection and reports only the active load failure through the viewer API.
+
+This checkpoint reduces `src/client/app.ts` from 7,216 to 7,214 lines (-2),
+removes the last raw PDF-status element reference, and leaves the separate text
+layer reference only for annotation-tool pointer routing. Focused private and
+project PDF browser workflows pass status, rendering, selection, annotation,
+and resource-context behavior.
+
+The browser application artifact changes from 798,490 B raw / 214,795 B gzip
+to 798,475 B raw / 214,784 B gzip (-15 B raw / -11 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,404 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
