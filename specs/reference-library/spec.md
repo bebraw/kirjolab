@@ -247,6 +247,10 @@ memory and makes citation aliases compete with stable source identity.
   movement that becomes a scroll or page swipe cancels the pending note.
   Notes and strokes use normalized page coordinates so they remain aligned when
   the page is resized. Saved annotations are collapsed by default.
+- Successful private drawing saves, drawing undo, note moves, and saved-markup
+  deletion converge through one canonical Library refresh. The completion
+  notice is shown after refresh, and refresh failure remains visible instead of
+  leaving an unhandled completion request.
 - One bounded light-DOM component owns the private-highlight, page-note, and
   selected-markup composer values and visibility. Its private-highlight draft
   includes captured rectangles and an optional editing identity. Given the

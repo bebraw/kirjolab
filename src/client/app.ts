@@ -866,7 +866,7 @@ class WorkspaceApp {
       else if (detail.action === "revoke-share") void this.#revokePrivateResearch(detail.shareId);
       else if (detail.action === "open-markup") void this.#openLibraryPdf(detail.artifact, detail.page);
       else if (detail.action === "edit-note") this.#editLibraryPdfNote(detail.note);
-      else void this.#completeLibraryPdfMarkupDeletion();
+      else this.#completeLibraryPdfMarkup("Private annotation deleted.");
     });
     this.#elements.libraryProjectUse.addEventListener(libraryPdfProjectUseActionEvent, (event) => {
       const { referenceId, referenceKey } = (event as CustomEvent<LibraryPdfProjectUseAction>).detail;
@@ -875,7 +875,7 @@ class WorkspaceApp {
     this.#elements.libraryPdfAnnotationToolbar.addEventListener(libraryPdfToolbarActionEvent, (event) => {
       const action = (event as CustomEvent<LibraryPdfToolbarAction>).detail;
       if (action.action === "choose-tool") this.#setLibraryPdfTool(action.tool);
-      else if (action.action === "drawing-undone") void this.#completeLibraryDrawingUndo();
+      else if (action.action === "drawing-undone") this.#completeLibraryPdfMarkup("Private annotation deleted.");
       else if (action.action === "export-status") this.#showToast(action.message);
       else this.#setLibraryPdfInspector(true, true);
     });
@@ -900,8 +900,7 @@ class WorkspaceApp {
     });
     this.#elements.paperMarkups.addEventListener(libraryPdfMarkupActionEvent, (event) => {
       const { action } = (event as CustomEvent<LibraryPdfMarkupAction>).detail;
-      if (action === "drawing-saved") void this.#completeLibraryPdfDrawingSave();
-      else void this.#completeLibraryPdfNoteMove();
+      this.#completeLibraryPdfMarkup(action === "drawing-saved" ? "Drawing saved privately." : "Note moved.");
     });
     this.#elements.claimListPanel.configure(apiBase);
     this.#elements.claimListPanel.addEventListener(claimListActionEvent, (event) => {
@@ -4435,11 +4434,6 @@ class WorkspaceApp {
     this.#elements.libraryPdfAnnotationForms.focusNote();
   }
 
-  async #completeLibraryPdfDrawingSave(): Promise<void> {
-    await this.#refreshReferenceLibrary();
-    this.#showToast("Drawing saved privately.");
-  }
-
   async #completeLibraryPdfNoteSave(kind: "created" | "updated"): Promise<void> {
     this.#elements.paperMarkups.clearNote();
     await this.#refreshReferenceLibrary();
@@ -4540,19 +4534,8 @@ class WorkspaceApp {
     return (this.#librarySnapshot?.pdfMarkups ?? []).filter((item) => item.artifactId === artifact.id && item.page === page);
   }
 
-  async #completeLibraryDrawingUndo(): Promise<void> {
-    await this.#refreshReferenceLibrary();
-    this.#showToast("Private annotation deleted.");
-  }
-
-  async #completeLibraryPdfNoteMove(): Promise<void> {
-    await this.#refreshReferenceLibrary();
-    this.#showToast("Note moved.");
-  }
-
-  async #completeLibraryPdfMarkupDeletion(): Promise<void> {
-    await this.#refreshReferenceLibrary();
-    this.#showToast("Private annotation deleted.");
+  #completeLibraryPdfMarkup(message: string): void {
+    void this.#completeLibraryRefresh(message, "The annotation changed, but the refreshed Library could not be loaded.");
   }
 
   async #openLibraryHighlight(highlight: LibraryHighlight): Promise<void> {

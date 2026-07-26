@@ -4456,3 +4456,19 @@ and unique production package counts remain unchanged at 135,411 B raw /
 
 Full native CI passes all 1,526 unit/coverage tests, 120 Workers-
 runtime tests, and 74 browser tests.
+
+## Coordinator Simplification: PDF Markup Completion
+
+`WorkspaceApp` now converges drawing saves, drawing undo, note moves, and saved
+markup deletion through one post-mutation Library refresh adapter. The shared
+path preserves each success notice and gives all four outcomes the same visible
+refresh-failure fallback instead of leaving rejected refreshes unhandled.
+
+This checkpoint reduces `src/client/app.ts` from 4,878 to 4,861 lines (-17)
+with no compensating runtime source growth. The browser application artifact
+changes from 817,854 B raw / 221,266 B gzip to 817,787 B raw / 221,306 B gzip
+(-67 B raw / +40 B gzip). Styles and direct and unique production package
+counts remain unchanged at 135,411 B raw / 23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,526 unit/coverage tests, 120 Workers-
+runtime tests, and 74 browser tests.
