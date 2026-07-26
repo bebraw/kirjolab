@@ -154,10 +154,12 @@ All mutation operations preserve a human review boundary.
   transport and response validation. Its discovery cards project validated
   results through the shared CSL projection and import adapter and own
   duplicate-submit gating, retryable failures, stale-response rejection, and
-  refresh-pending state. It emits typed intents or refresh outcomes;
-  canonical-result model I/O, XState transitions, candidate persistence,
-  canonical Markdown edits, canonical Library refresh, and cross-panel workflow
-  status remain with the application coordinator.
+  refresh-pending state. It emits typed intents or refresh outcomes. The
+  candidate-list component owns revision and claim-draft provider calls and
+  their typed persistence because those results immediately become candidate
+  resources. XState transitions, authorized target and evidence derivation,
+  canonical Markdown edits, canonical refresh, context navigation, and
+  cross-panel workflow status remain with the application coordinator.
 - The assistant keeps a visible **Choose evidence** action beside its status.
   It opens the Research rail, expands the collection containing the first
   available grounding control, and focuses that control; an empty project

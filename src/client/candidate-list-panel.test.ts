@@ -146,6 +146,46 @@ describe("candidate list panel", () => {
     );
   });
 
+  it("owns model generation before typed candidate persistence", async () => {
+    const panel = new TestCandidateListPanel();
+    panel.configure("/api/workspaces/workspace");
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(Response.json(revision))
+      .mockResolvedValueOnce(Response.json(claim));
+    const reviseSelection = vi.fn().mockResolvedValue({
+      adapter: "openai-compatible",
+      model: revision.model,
+      providerLabel: revision.providerLabel,
+      replacement: revision.proposedReplacement,
+    });
+    const draftClaim = vi.fn().mockResolvedValue({
+      adapter: "openai-compatible",
+      model: claim.model,
+      providerLabel: claim.providerLabel,
+      text: claim.proposedText,
+      note: claim.proposedNote,
+    });
+    const promptEvidence = [{ content: "Evidence", id: annotationEvidence.id, kind: "annotation" as const, label: "Page 2" }];
+    const target = { end: 16, excerpt: "Original passage", fileId: "main", sourceRevision: 3, start: 0 };
+    const evidence = [{ id: annotationEvidence.id, kind: annotationEvidence.kind, version: annotationEvidence.version }];
+
+    await expect(
+      panel.generateRevision({ reviseSelection }, { evidence, instruction: revision.instruction, promptEvidence, target }),
+    ).resolves.toEqual(revision);
+    await expect(
+      panel.generateClaim({ draftClaim }, { evidence, instruction: claim.instruction, promptEvidence, relation: claim.relation }),
+    ).resolves.toEqual(claim);
+
+    expect(reviseSelection).toHaveBeenCalledWith({
+      selectedPassage: target.excerpt,
+      instruction: revision.instruction,
+      evidence: promptEvidence,
+    });
+    expect(draftClaim).toHaveBeenCalledWith({ instruction: claim.instruction, relation: claim.relation, evidence: promptEvidence });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
   it("rejects malformed and mismatched candidate responses", async () => {
     const panel = new TestCandidateListPanel();
     panel.configure("/api/workspaces/workspace");

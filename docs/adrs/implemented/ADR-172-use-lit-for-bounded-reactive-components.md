@@ -119,11 +119,11 @@ The adopted components own bounded presentation:
   gating, pending and retryable failure state, and typed open, manage, and
   completed-enrichment outcomes.
 - The model candidate list owns revision and claim-draft summaries, empty-state,
-  typed creation transport, fixed adapter and prompt-version derivation,
-  operation-specific response validation, and a typed review-opening intent.
-  The coordinator retains provider calls, authorized target and evidence
-  derivation, canonical refresh, context navigation, workflow state, and
-  decisions.
+  revision and claim-draft provider requests, typed creation transport, fixed
+  adapter and prompt-version derivation, operation-specific response validation,
+  and a typed review-opening intent. The coordinator retains authorized target
+  and evidence derivation, canonical refresh, context navigation, workflow state,
+  and decisions.
 - The context-tab overview owns overflow visibility, counts, tab summaries, and
   typed activate and close intents.
 - The composed context tab strip owns fixed-tab presentation and keyboard
@@ -429,10 +429,10 @@ reason to wrap static markup mechanically.
   the visible result. The result owner performs table generation, shape
   validation, and serialization, clarity, ideation, and phrasing requests,
   reference-query formulation, registry discovery and validation, and local
-  discovered-reference import. Canonical-result model requests, workflow state,
-  candidate-input derivation, document edits, canonical refresh, and cross-panel
-  status remain in the application coordinator; the candidate list persists
-  candidate resources.
+  discovered-reference import. Workflow state, candidate-input derivation,
+  document edits, canonical refresh, and cross-panel status remain in the
+  application coordinator; the candidate list performs revision and claim-draft
+  generation and persists those candidate resources.
 - The project map panel replaces three internal element references, two
   coordinator fields, and imperative node, connector, resize, focus, and hover
   management while leaving graph derivation and resource navigation in the
@@ -477,7 +477,7 @@ reason to wrap static markup mechanically.
   in the application coordinator.
 - The model candidate list replaces one internal list reference and its
   imperative card renderer plus the coordinator's revision- and claim-candidate
-  requests and response guards. It leaves provider generation, authorized
+  requests, response guards, and provider generation. It leaves authorized
   target and evidence derivation, canonical candidate state, context navigation,
   applicability checks, workflow state, and decisions in the application
   coordinator.

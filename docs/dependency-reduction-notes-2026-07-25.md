@@ -5037,3 +5037,28 @@ and unique production package counts remain unchanged at 135,411 B raw /
 
 Full native CI passes all 1,567 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Lit Ownership: Canonical Candidate Generation
+
+`CandidateListPanel` now owns revision and claim-draft provider calls alongside
+the typed candidate persistence, fixed adapter and prompt-version derivation,
+and operation-specific response validation they immediately feed. Prompt
+evidence remains explicitly separate from versioned canonical evidence.
+`WorkspaceApp` retains authorized target and evidence derivation, canonical
+refresh, Context navigation, workflow status, and XState transitions.
+
+This checkpoint reduces `src/client/app.ts` from 4,567 to 4,559 lines (-8) and
+grows the candidate-list owner from 125 to 173 lines. Runtime source across
+those two files increases by 40 lines while removing the last direct model-
+provider calls from the coordinator and consolidating created-candidate refresh
+and navigation. Focused coverage passes exact revision and claim prompt payloads,
+typed persistence, canonical evidence, existing response guards and list
+behavior, application contracts, and strict types.
+
+The browser application artifact changes from 823,941 B raw / 222,271 B gzip
+to 824,310 B raw / 222,370 B gzip (+369 B raw / +99 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,568 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.

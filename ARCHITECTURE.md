@@ -276,12 +276,12 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   result owner perform table, clarity, ideation, and phrasing provider requests
   as well as reference-query formulation, registry discovery, response
   validation, and local reference import because those complete lifecycles serve
-  its transient results. Keep canonical-result provider requests, workflow state,
-  canonical refresh, and Yjs edits in the application coordinator. Let the candidate-list Lit owner
-  persist typed revision and claim
-  drafts, derive fixed adapter and prompt-version fields, and validate the
-  operation-specific response. Keep authorized target and evidence derivation,
-  canonical refresh, context navigation, and workflow status in the coordinator.
+  its transient results. Let the candidate-list Lit owner perform revision and
+  claim-draft provider requests, persist their typed candidates, derive fixed
+  adapter and prompt-version fields, and validate the operation-specific
+  response. Keep authorized target and evidence derivation, workflow state,
+  canonical refresh, context navigation, workflow status, and Yjs edits in the
+  coordinator.
   Let the candidate-review Lit owner gate decisions from its current candidate,
   applicability, document-stability, and busy state; own encoded apply/reject
   transport and retryable same-candidate failures; and emit typed start and

@@ -3640,18 +3640,13 @@ class WorkspaceApp {
 
   async #generateClaimCandidate(input: AssistantGenerationContext): Promise<void> {
     const relation = readClaimEvidenceRelation(this.#elements.assistantTaskPanel.value.relation);
-    const draft = await input.provider.draftClaim({ instruction: input.instruction, relation, evidence: input.annotationItems });
-    const value = await this.#elements.candidateListPanel.createClaim({
-      providerLabel: draft.providerLabel,
-      model: draft.model,
-      instruction: input.instruction,
-      relation,
+    const value = await this.#elements.candidateListPanel.generateClaim(input.provider, {
       evidence: input.annotationReferences,
-      proposedText: draft.text,
-      proposedNote: draft.note,
+      instruction: input.instruction,
+      promptEvidence: input.annotationItems,
+      relation,
     });
-    await this.#resourceRefresh.request();
-    this.#openCandidateContext(this.#snapshot?.candidates.find((item) => item.id === value.id) ?? value);
+    await this.#openCreatedCandidate(value);
     this.#elements.assistantWorkflowStatus.status = "Claim draft ready. Review its proposition, note, and annotation snapshots in Context.";
     this.#assistantWorkflow.send({ type: "COMPLETE" });
   }
@@ -3716,20 +3711,13 @@ class WorkspaceApp {
   }
 
   async #generateRevisionCandidate(input: AssistantGenerationContext, passage: AuthoringPassage): Promise<void> {
-    const revision = await input.provider.reviseSelection({
-      selectedPassage: passage.excerpt,
-      instruction: input.instruction,
-      evidence: input.evidence.items,
-    });
-    await this.#persistRevisionCandidate({
-      passage,
+    const value = await this.#elements.candidateListPanel.generateRevision(input.provider, {
       evidence: input.evidence.references,
       instruction: input.instruction,
-      sourceRevision: input.sourceRevision,
-      replacement: revision.replacement,
-      providerLabel: revision.providerLabel,
-      model: revision.model,
+      promptEvidence: input.evidence.items,
+      target: { ...passage, sourceRevision: input.sourceRevision },
     });
+    await this.#openCreatedCandidate(value);
     this.#elements.assistantWorkflowStatus.status = "Candidate ready. Review its exact replacement and evidence in Context.";
     this.#assistantWorkflow.send({ type: "COMPLETE" });
   }
@@ -3849,6 +3837,10 @@ class WorkspaceApp {
       evidence: [...input.evidence],
       proposedReplacement: input.replacement,
     });
+    await this.#openCreatedCandidate(value);
+  }
+
+  async #openCreatedCandidate(value: ModelCandidate): Promise<void> {
     await this.#resourceRefresh.request();
     this.#openCandidateContext(this.#snapshot?.candidates.find((item) => item.id === value.id) ?? value);
   }

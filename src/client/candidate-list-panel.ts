@@ -8,11 +8,26 @@ import {
   type ModelRevisionCandidate,
 } from "../domain/workspace";
 import { expectOk, jsonFetch } from "./http";
+import type { ModelEvidenceItem, ModelProvider } from "./model-provider";
 
 export const candidateListOpenEvent = "candidate-list-open";
 
 type RevisionCandidateDraft = Omit<CreateCandidateInput, "promptVersion" | "providerAdapter">;
 type ClaimCandidateDraft = Omit<CreateClaimCandidateInput, "promptVersion" | "providerAdapter">;
+
+interface RevisionGeneration {
+  readonly evidence: RevisionCandidateDraft["evidence"];
+  readonly instruction: string;
+  readonly promptEvidence: readonly ModelEvidenceItem[];
+  readonly target: RevisionCandidateDraft["target"];
+}
+
+interface ClaimGeneration {
+  readonly evidence: ClaimCandidateDraft["evidence"];
+  readonly instruction: string;
+  readonly promptEvidence: readonly ModelEvidenceItem[];
+  readonly relation: ClaimCandidateDraft["relation"];
+}
 
 export class CandidateListPanel extends LitElement {
   static override properties = {
@@ -45,6 +60,22 @@ export class CandidateListPanel extends LitElement {
     return candidate;
   }
 
+  async generateRevision(provider: Pick<ModelProvider, "reviseSelection">, input: RevisionGeneration): Promise<ModelRevisionCandidate> {
+    const revision = await provider.reviseSelection({
+      selectedPassage: input.target.excerpt,
+      instruction: input.instruction,
+      evidence: input.promptEvidence,
+    });
+    return this.createRevision({
+      evidence: input.evidence,
+      instruction: input.instruction,
+      model: revision.model,
+      proposedReplacement: revision.replacement,
+      providerLabel: revision.providerLabel,
+      target: input.target,
+    });
+  }
+
   async createClaim(input: ClaimCandidateDraft): Promise<ModelClaimCandidate> {
     const candidate = await this.create("claim-candidates", {
       ...input,
@@ -53,6 +84,23 @@ export class CandidateListPanel extends LitElement {
     });
     if (candidate.operation !== "draft-claim") throw new Error("Candidate endpoint returned an invalid claim draft");
     return candidate;
+  }
+
+  async generateClaim(provider: Pick<ModelProvider, "draftClaim">, input: ClaimGeneration): Promise<ModelClaimCandidate> {
+    const draft = await provider.draftClaim({
+      instruction: input.instruction,
+      relation: input.relation,
+      evidence: input.promptEvidence,
+    });
+    return this.createClaim({
+      evidence: input.evidence,
+      instruction: input.instruction,
+      model: draft.model,
+      proposedNote: draft.note,
+      proposedText: draft.text,
+      providerLabel: draft.providerLabel,
+      relation: input.relation,
+    });
   }
 
   override connectedCallback(): void {
