@@ -135,7 +135,6 @@ export function collectAppElements(requireElement = requiredAppElement) {
     diagnostics: requireElement("diagnostics", PreviewDiagnosticsPanel),
     connectionStatus: requireElement("connection-status-panel", ConnectionStatus),
     editorStatus: requireElement("editor-status", EditorStatus),
-    pdfUpload: requireElement("pdf-upload", HTMLInputElement),
     projectEvidencePanel: requireElement("project-evidence-panel", ProjectEvidencePanel),
     publicationListPanel: requireElement("publication-list-panel", PublicationListPanel),
     claimListPanel: requireElement("claim-list-panel", ClaimListPanel),

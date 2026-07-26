@@ -368,10 +368,11 @@ changing their canonical data, selector, authorization, or rendering contracts.
       routing, and transitions remain with the application coordinator.
 - [x] A bounded light-DOM project evidence panel owns project-PDF and annotation
       grouping, counts, expanded state, grounding selection, passage-link
-      presentation, stroke controls, guarded removal transport, and annotation-
-      passage-link transport from a coordinator-validated typed passage. Yjs
-      selection validation, grounding authority, PDF navigation, canonical
-      refreshes, and toast policy remain with the application coordinator.
+      presentation, stroke controls, project-PDF input validation and import
+      transport, guarded removal transport, and annotation-passage-link
+      transport from a coordinator-validated typed passage. Yjs selection
+      validation, grounding authority, PDF navigation, canonical refreshes, and
+      toast policy remain with the application coordinator.
 - [x] Narrow layouts expose an explicit Authoring/Context switch and preserve
       the hidden surface's local state.
 - [x] Refresh, copied URLs, and browser Back restore authorized file, view,

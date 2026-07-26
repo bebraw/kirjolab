@@ -123,11 +123,11 @@ The adopted components own bounded presentation:
   intents.
 - The project evidence panel owns project-PDF and annotation grouping, counts,
   expanded state, grounding selection, live passage-resolution presentation,
-  grounding-choice focus, stroke controls, guarded legacy PDF and annotation
-  removal transport, annotation-passage-link transport from a coordinator-
-  validated typed passage, a shared duplicate-removal gate, pending and
-  retryable failure state, and typed navigation, mutation, notice, and
-  completed outcomes.
+  grounding-choice focus, stroke controls, project-PDF file input, validation
+  and import transport, guarded legacy PDF and annotation removal transport,
+  annotation-passage-link transport from a coordinator-validated typed passage,
+  duplicate-mutation gates, pending and retryable failure state, and typed
+  navigation, mutation, notice, and completed outcomes.
 - The project tree panel owns path filtering, sorted folder, file, and image
   rows, active and entry presentation, the workspace quick-open shortcut and
   selection, action menus, listener teardown, and typed file, folder, image,
@@ -460,10 +460,11 @@ reason to wrap static markup mechanically.
 - The project evidence panel replaces five internal element references and the
   imperative PDF, annotation, grouping, count, passage-link, and stroke-control
   renderers plus the coordinator PDF- and annotation-removal methods while
-  also replacing the annotation-passage-link request. It leaves Yjs selection
+  also replacing the annotation-passage-link and project-PDF import requests
+  and the final raw project-PDF input reference. It leaves Yjs selection
   validation, other editor-dependent mutations, grounding authority, PDF
-  navigation, form reset, canonical refresh, and toast policy in the
-  application coordinator.
+  navigation, form reset, canonical refresh, and toast policy in the application
+  coordinator.
 - The project tree panel replaces three internal element references and the
   imperative filter, hierarchy, row, and action-menu renderers. Its companion
   image upload control also replaces the coordinator file-input listener and

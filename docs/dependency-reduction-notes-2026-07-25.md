@@ -4694,3 +4694,27 @@ counts remain unchanged at 135,411 B raw / 23,373 B gzip and 18 and 150.
 
 Full native CI passes all 1,535 unit/coverage tests, 120 Workers-
 runtime tests, and 74 browser tests.
+
+## Continued Lit Ownership: Project PDF Imports
+
+`ProjectEvidencePanel` now owns the legacy project-PDF input alongside its
+existing PDF removal workflow. The Lit owner validates the selected file,
+encodes and sends the import request, gates duplicate submissions, resets the
+input, keeps progress and retryable failures local, and emits a typed completed
+mutation. `WorkspaceApp` retains canonical resource refresh and toast policy.
+
+This checkpoint reduces `src/client/app.ts` from 4,730 to 4,713 lines (-17)
+and grows the evidence owner from 464 to 508 lines. Runtime source across those
+two files increases by 27 lines while removing the final raw project-PDF element
+reference and coordinator upload request. Focused coverage passes file-type
+validation, the encoded upload target and payload, completed outcome, local
+failure and retry, shell ownership, application contracts, and the panel's
+remaining evidence workflows.
+
+The browser application artifact changes from 821,362 B raw / 222,222 B gzip
+to 821,764 B raw / 222,287 B gzip (+402 B raw / +65 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,546 unit/coverage tests, 120 Workers-
+runtime tests, and 74 browser tests.

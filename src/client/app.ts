@@ -781,7 +781,6 @@ class WorkspaceApp {
       void this.#renderPreview();
       this.#flushPendingUpdates();
     });
-    this.#elements.pdfUpload.addEventListener("change", () => void this.#uploadPdf());
     this.#elements.projectEvidencePanel.configure(apiBase);
     this.#elements.projectEvidencePanel.addEventListener(projectEvidenceActionEvent, (event) => {
       const detail = (event as CustomEvent<ProjectEvidenceAction>).detail;
@@ -789,7 +788,7 @@ class WorkspaceApp {
         this.#elements.projectAnnotationForm.selectPdf(detail.pdf.id);
         void this.#showPaper(detail.pdf, detail.page, detail.annotationId);
       } else if (detail.action === "notice") this.#showToast(detail.message);
-      else if (detail.action === "annotation-linked" || detail.action === "pdf-removed")
+      else if (detail.action === "annotation-linked" || detail.action === "pdf-imported" || detail.action === "pdf-removed")
         void this.#resourceRefresh
           .request()
           .then(() => this.#showToast(detail.message))
@@ -3373,22 +3372,6 @@ class WorkspaceApp {
   #reportActivePdfError(tabKey: string, error: unknown): void {
     if (this.#activeResourceTab()?.key !== tabKey) return;
     this.#pdfViewer.showError(error);
-  }
-
-  async #uploadPdf(): Promise<void> {
-    const file = this.#elements.pdfUpload.files?.[0];
-    if (!file) return;
-    if (file.type !== "application/pdf") return this.#showToast("Choose a PDF file.");
-    this.#showToast(`Importing ${file.name}…`);
-    const response = await fetch(`${apiBase}/pdfs`, {
-      method: "POST",
-      headers: { "content-type": "application/pdf", "x-file-name": encodeURIComponent(file.name) },
-      body: file,
-    });
-    await expectOk(response);
-    this.#elements.pdfUpload.value = "";
-    await this.#resourceRefresh.request();
-    this.#showToast("PDF imported without modifying the source file.");
   }
 
   async #completeAnnotationSave(detail: ProjectAnnotationSaved): Promise<void> {

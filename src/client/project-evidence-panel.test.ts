@@ -258,6 +258,42 @@ describe("project evidence panel", () => {
     expect(actions).toEqual([{ action: "annotation-linked", message: "Annotation linked to the selected passage." }]);
   });
 
+  it("owns project PDF validation, persistence, and completed outcomes", async () => {
+    const panel = new TestProjectEvidencePanel();
+    const actions: ProjectEvidenceAction[] = [];
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 200 }));
+    panel.configure("/api/workspaces/workspace");
+    panel.addEventListener(projectEvidenceActionEvent, (event) => actions.push((event as CustomEvent<ProjectEvidenceAction>).detail));
+    const file = new File(["%PDF-1.7"], "paper draft.pdf", { type: "application/pdf" });
+
+    await panel.uploadPdf(new File(["image"], "figure.png", { type: "image/png" }));
+    await panel.uploadPdf(file);
+
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(fetchMock).toHaveBeenCalledWith("/api/workspaces/workspace/pdfs", {
+      body: file,
+      headers: { "content-type": "application/pdf", "x-file-name": "paper%20draft.pdf" },
+      method: "POST",
+    });
+    expect(actions).toEqual([{ action: "pdf-imported", message: "PDF imported without modifying the source file." }]);
+  });
+
+  it("keeps project PDF upload failures local and retryable", async () => {
+    const panel = new TestProjectEvidencePanel();
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(Response.json({ error: "Denied" }, { status: 403 }))
+      .mockResolvedValueOnce(new Response(null, { status: 200 }));
+    panel.configure("/api/workspaces/workspace");
+    const file = new File(["%PDF-1.7"], "paper.pdf", { type: "application/pdf" });
+
+    await panel.uploadPdf(file);
+    expect(panel.renderForTest()).toBeDefined();
+    await panel.uploadPdf(file);
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
   it("keeps failed passage linking local and retryable", async () => {
     const panel = new TestProjectEvidencePanel();
     const fetchMock = vi

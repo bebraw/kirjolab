@@ -147,6 +147,7 @@ export function renderHomePage(
           </a>
           <div class="research-inventory" id="research-inventory">
             <project-evidence-panel id="project-evidence-panel">
+              <input class="sr-only" id="pdf-upload" type="file" accept="application/pdf" aria-label="Upload project PDF">
               <details class="rail-collection" id="project-evidence" hidden>
                 <summary><span>Project evidence</span><span class="count-badge" id="project-evidence-count">0</span></summary>
                 <div class="rail-collection-body" id="annotation-list">
@@ -169,7 +170,6 @@ export function renderHomePage(
               </details>
             </publication-list-panel>
           </div>
-          <input class="sr-only" id="pdf-upload" type="file" accept="application/pdf" aria-label="Upload project PDF">
         </section>
 
         <section class="rail-panel px-4 py-5 lg:px-5" id="comments-rail-panel" role="tabpanel" aria-labelledby="show-comments-rail" hidden>

@@ -26,6 +26,7 @@ export type ProjectEvidenceAction =
   | { readonly action: "open-passage"; readonly anchor: ManuscriptAnchorSelector }
   | { readonly action: "open-pdf"; readonly annotationId?: string; readonly page?: number; readonly pdf: PdfResource }
   | { readonly action: "notice"; readonly message: string }
+  | { readonly action: "pdf-imported"; readonly message: string }
   | { readonly action: "remove-fragment"; readonly annotationId: string; readonly fragmentId: string }
   | { readonly action: "pdf-removed"; readonly message: string }
   | {
@@ -54,6 +55,7 @@ export class ProjectEvidencePanel extends LitElement {
     expandedPdfs: { state: true },
     removalKey: { state: true },
     status: { state: true },
+    uploadBusy: { state: true },
   };
 
   declare private data: ProjectEvidenceData;
@@ -61,6 +63,7 @@ export class ProjectEvidencePanel extends LitElement {
   declare private expandedPdfs: ReadonlySet<string>;
   declare private removalKey: string;
   declare private status: string;
+  declare private uploadBusy: boolean;
   private apiBase = "";
 
   constructor() {
@@ -70,6 +73,7 @@ export class ProjectEvidencePanel extends LitElement {
     this.expandedPdfs = new Set();
     this.removalKey = "";
     this.status = "";
+    this.uploadBusy = false;
   }
 
   configure(apiBase: string): void {
@@ -120,6 +124,15 @@ export class ProjectEvidencePanel extends LitElement {
     const assigned = new Set(this.data.pdfs.map((pdf) => pdf.id));
     const unassigned = this.data.annotations.filter((annotation) => !assigned.has(annotation.pdfId));
     return html`
+      <input
+        class="sr-only"
+        id="pdf-upload"
+        type="file"
+        accept="application/pdf"
+        aria-label="Upload project PDF"
+        ?disabled=${this.uploadBusy}
+        @change=${this.selectPdf}
+      />
       <details
         class="rail-collection"
         id="project-evidence"
@@ -144,9 +157,40 @@ export class ProjectEvidencePanel extends LitElement {
             ${unassigned.map((annotation) => this.renderAnnotation(annotation))}
           </div>
         </div>
-        <p class="status-line px-1" role="status" ?hidden=${!this.status}>${this.status}</p>
       </details>
+      <p class="status-line px-1" role="status" ?hidden=${!this.status}>${this.status}</p>
     `;
+  }
+
+  protected selectPdf(event: Event): void {
+    const input = event.currentTarget as HTMLInputElement;
+    void this.uploadPdf(input.files?.[0] ?? null).finally(() => {
+      input.value = "";
+    });
+  }
+
+  async uploadPdf(file: File | null): Promise<void> {
+    if (!file || this.uploadBusy) return;
+    if (file.type !== "application/pdf") {
+      this.status = "Choose a PDF file.";
+      return;
+    }
+    this.uploadBusy = true;
+    this.status = `Importing ${file.name}…`;
+    try {
+      const response = await fetch(`${this.apiBase}/pdfs`, {
+        method: "POST",
+        headers: { "content-type": "application/pdf", "x-file-name": encodeURIComponent(file.name) },
+        body: file,
+      });
+      await expectOk(response);
+      this.status = "";
+      this.emit({ action: "pdf-imported", message: "PDF imported without modifying the source file." });
+    } catch (error) {
+      this.status = errorMessage(error, `Could not import ${file.name}.`);
+    } finally {
+      this.uploadBusy = false;
+    }
   }
 
   protected toggleEvidence(event: Event): void {
