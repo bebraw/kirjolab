@@ -32,7 +32,6 @@ import { researchQuestionsPath, researchQuestionsTemplate } from "../domain/rese
 import { researchDiaryPath, researchDiaryTemplate } from "../domain/writing-workflows";
 import type { ProjectTemplateSummary } from "../domain/project-templates";
 import {
-  isPdfDraftResult,
   isProjectReferencePdfs,
   isReferenceLibrarySnapshot,
   libraryPdfRectsOverlap,
@@ -185,8 +184,8 @@ import { manuscriptMapSelectEvent, type ManuscriptMapSelection } from "./manuscr
 import { libraryDiscoverySaveEvent, type LibraryDiscoverySaveDetail } from "./library-discovery-results";
 import { libraryDiscoveryResultsEvent } from "./library-discovery-search";
 import { referenceLibraryFilterChangeEvent } from "./reference-library-filters";
-import { libraryPdfUploadRetryEvent, libraryPdfUploadRevealEvent } from "./library-pdf-upload-status";
-import { libraryPdfUploadActionEvent, type LibraryPdfUploadAction } from "./library-pdf-upload-control";
+import { libraryPdfUploadRevealEvent } from "./library-pdf-upload-status";
+import { libraryPdfUploadOutcomeEvent, type LibraryPdfUploadOutcome } from "./library-pdf-upload-control";
 import { libraryToolsActionEvent, type LibraryToolsAction } from "./library-tools-menu";
 import { modelProviderChangeEvent } from "./model-provider-settings";
 import { webSourceCapturedEvent } from "./web-source-panels";
@@ -213,7 +212,7 @@ import {
   type PdfHighlightImportAction,
   type ReviewedPdfHighlightImport,
 } from "./pdf-highlight-import-panel";
-import { uploadPdfBatch, type ExistingPdfUpload } from "./pdf-upload-queue";
+import type { ExistingPdfUpload } from "./pdf-upload-queue";
 import { bindThemePreference } from "./theme";
 import { isCreatedAnnotation } from "./app-contracts";
 import {
@@ -280,14 +279,6 @@ function projectFileSavedMessage(mode: ProjectFileDialogMode, path: string): str
   if (mode === "create-and-include") return `Created ${path} and included it at the remembered caret.`;
   if (mode === "create") return `Added ${path}.`;
   return `Renamed file to ${path}; inbound includes were updated.`;
-}
-
-function libraryPdfUploadMessage(added: number, existing: number, failed: number): string {
-  const addedLabel = `${added} PDF${added === 1 ? "" : "s"} added`;
-  const existingLabel = `${existing} already in library`;
-  if (failed > 0) return `${addedLabel}; ${existingLabel}; ${failed} failed.`;
-  if (existing > 0) return `${addedLabel}; ${existingLabel}.`;
-  return `${addedLabel}. Add metadata when ready.`;
 }
 
 const workspaceId = readWorkspaceId();
@@ -595,16 +586,11 @@ class WorkspaceApp {
     });
     this.#elements.libraryBibliographyUpload.addEventListener("change", () => void this.#importIntoReferenceLibrary());
     this.#elements.libraryCslUpload.addEventListener("change", () => void this.#importCslJson());
-    this.#elements.libraryPdfUploadControl.addEventListener(libraryPdfUploadActionEvent, (event) => {
-      const action = (event as CustomEvent<LibraryPdfUploadAction>).detail;
-      if (action.action === "busy-drop") {
-        this.#showToast("Finish the current PDF batch before adding another.");
-        return;
-      }
-      void this.#uploadLibraryPdfs(action.files);
-    });
-    this.#elements.libraryPdfUploadStatus.addEventListener(libraryPdfUploadRetryEvent, (event) => {
-      void this.#uploadLibraryPdfs((event as CustomEvent<readonly File[]>).detail);
+    this.#elements.libraryPdfUploadControl.bindStatus(this.#elements.libraryPdfUploadStatus);
+    this.#elements.libraryPdfUploadControl.addEventListener(libraryPdfUploadOutcomeEvent, (event) => {
+      const outcome = (event as CustomEvent<LibraryPdfUploadOutcome>).detail;
+      if (outcome.action === "notice") this.#showToast(outcome.message);
+      else void this.#completeLibraryPdfUpload(outcome);
     });
     this.#elements.libraryPdfUploadStatus.addEventListener(libraryPdfUploadRevealEvent, (event) => {
       void this.#revealExistingPdfReference((event as CustomEvent<ExistingPdfUpload>).detail);
@@ -2422,63 +2408,15 @@ class WorkspaceApp {
     this.#showToast("Portable library metadata restored.");
   }
 
-  async #uploadLibraryPdfs(files: readonly File[]): Promise<void> {
-    if (files.length === 0 || this.#elements.libraryPdfUploadControl.busy) return;
-    this.#beginLibraryPdfUpload();
+  async #completeLibraryPdfUpload(outcome: Extract<LibraryPdfUploadOutcome, { readonly action: "refresh" }>): Promise<void> {
     try {
-      const result = await uploadPdfBatch(
-        files,
-        (file) => this.#uploadLibraryPdf(file),
-        (snapshot) => this.#elements.libraryPdfUploadStatus.showProgress(snapshot, false),
-      );
-      if (result.added.length > 0 || result.existing.length > 0) await this.#refreshReferenceLibrary();
-      this.#elements.libraryPdfUploadStatus.showProgress(
-        { items: result.items, completed: result.items.length, total: result.items.length },
-        result.failed.length > 0,
-      );
-      this.#showToast(libraryPdfUploadMessage(result.added.length, result.existing.length, result.failed.length));
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "PDF intake failed";
-      this.#elements.libraryPdfUploadStatus.showError(message);
-      this.#showToast(message);
+      await this.#refreshReferenceLibrary();
+      this.#showToast(outcome.message);
+    } catch {
+      this.#showToast("PDF intake completed, but the refreshed Library could not be loaded.");
     } finally {
-      this.#finishLibraryPdfUpload();
+      this.#elements.libraryPdfUploadControl.complete(outcome.requestId);
     }
-  }
-
-  #beginLibraryPdfUpload(): void {
-    this.#elements.libraryPdfUploadControl.setBusy(true);
-    this.#elements.libraryPdfUploadStatus.setBusy(true);
-  }
-
-  async #uploadLibraryPdf(
-    file: File,
-  ): Promise<{ disposition: "created" } | { disposition: "existing"; referenceId: string; referenceKey: string; archived: boolean }> {
-    const response = await fetch("/api/library/pdfs", {
-      method: "POST",
-      headers: {
-        "content-type": "application/pdf",
-        "content-length": String(file.size),
-        "x-file-name": encodeURIComponent(file.name),
-      },
-      body: file,
-      credentials: "same-origin",
-    });
-    await expectOk(response);
-    const value: unknown = await response.json();
-    if (!isPdfDraftResult(value)) throw new Error("PDF intake returned an invalid result");
-    if (value.created) return { disposition: "created" };
-    return {
-      disposition: "existing",
-      referenceId: value.reference.id,
-      referenceKey: value.reference.referenceKey,
-      archived: value.reference.archivedAt !== null,
-    };
-  }
-
-  #finishLibraryPdfUpload(): void {
-    this.#elements.libraryPdfUploadControl.setBusy(false);
-    this.#elements.libraryPdfUploadStatus.setBusy(false);
   }
 
   async #revealExistingPdfReference(existing: ExistingPdfUpload): Promise<void> {

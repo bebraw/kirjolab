@@ -3864,3 +3864,28 @@ and unique production package counts remain unchanged at 135,411 B raw /
 
 Full native CI passes all 1,463 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Lit Ownership: PDF Batch Intake
+
+`LibraryPdfUploadControl` now binds its spatially separate status component and
+owns ordered batch execution, upload transport, response validation,
+partial-failure projection, retries, duplicate-submit gating, and
+refresh-pending state. It emits typed notice or refresh outcomes;
+`WorkspaceApp` retains only canonical Library refresh, refresh acknowledgment,
+duplicate-source navigation, and toast policy.
+
+This checkpoint reduces `src/client/app.ts` from 5,308 to 5,246 lines (-62)
+and grows the upload control from 120 to 199 lines. Runtime source across those
+files increases by 17 lines while removing the coordinator message helper,
+three upload lifecycle methods, transport/validation method, and retry/action
+adapters. Focused coverage passes created and existing payloads, malformed
+responses, all-failed batches, status-triggered retries, stale refresh
+acknowledgment, duplicate submissions, and refresh-pending gating.
+
+The browser application artifact changes from 800,470 B raw / 217,180 B gzip
+to 800,799 B raw / 217,499 B gzip (+329 B raw / +319 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,465 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.

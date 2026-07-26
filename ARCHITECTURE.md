@@ -281,6 +281,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Create a provisional `misc` library record when a PDF is uploaded, deriving
   only its title from the filename and attaching the private artifact in the
   same library transaction. Let researchers enrich metadata later.
+- Keep bounded PDF batch execution, upload transport and response guards,
+  partial-failure progress, ephemeral retries, duplicate-submit gating, and
+  refresh-pending state in the Lit upload control. The companion status owns
+  presentation; the application coordinator retains canonical Library refresh,
+  duplicate-source navigation, and toast policy.
 - Extract PDF metadata only as bounded, browser-local suggestions. Apply
   canonical library changes per field after the library authority verifies the
   artifact/reference relationship; never change the immutable reference key.

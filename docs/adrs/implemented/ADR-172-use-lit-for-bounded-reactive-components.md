@@ -224,8 +224,10 @@ The adopted components own bounded presentation:
   values, evidence-relation and annotation selection, modal lifecycle, and a
   typed save intent.
 - The Library PDF upload control owns file selection, drag-and-drop acceptance,
-  drag and busy presentation, input reset and disabling, and typed file and
-  busy-drop intents. Its companion status owns queue progress, file outcomes,
+  ordered batch execution, upload transport and response validation, partial
+  failure and refresh-pending state, duplicate-submit gating, drag and busy
+  presentation, input reset, guarded retries, and typed notice or refresh
+  outcomes. Its bound companion status owns queue progress, file outcomes,
   duplicate actions, retry availability, the ephemeral failed-file selection,
   busy and error presentation, and typed retry and reveal intents.
 - The Library tools menu owns archive-file selection and reset, citation-network
@@ -519,11 +521,12 @@ reason to wrap static markup mechanically.
   refreshes, and toast policy in the application coordinator.
 - The Library PDF upload control replaces two raw element references, four
   native file and drag bindings, coordinator-owned drag presentation, input
-  reset and disabling, and duplicate busy state. Its companion status replaces
-  imperative progress, outcome-row, error, duplicate-action, and retry
-  rendering and owns the ephemeral failed-file retry selection. Queue execution,
-  upload transport, Library refreshes, and toast policy remain in the
-  application coordinator.
+  reset and disabling, duplicate busy state, batch execution, upload transport,
+  response validation, partial-failure handling, and retry routing. Its
+  companion status replaces imperative progress, outcome-row, error,
+  duplicate-action, and retry rendering and owns the ephemeral failed-file
+  retry selection. Canonical Library refreshes, duplicate-source navigation,
+  and toast policy remain in the application coordinator.
 - The Library tools menu replaces three raw element references, three native
   bindings, archive-file DOM reads and reset, and scattered archived-button
   presentation while leaving archive transport, citation-network loading,

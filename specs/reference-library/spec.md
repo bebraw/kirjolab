@@ -54,14 +54,16 @@ memory and makes citation aliases compete with stable source identity.
   same atomic upload endpoint. Per-file failure does not stop later uploads;
   only failed files remain in an ephemeral retry queue. Batch intake performs no
   metadata extraction or provider lookup.
-- A bounded upload control owns file selection, drag-and-drop acceptance, drag
-  and busy presentation, input reset and disabling, and typed file and
-  busy-drop intents. Its companion status component owns queue progress,
-  per-file outcomes, duplicate-source reveal actions, retry availability, busy
-  state, error presentation, and the ephemeral failed-file retry selection,
-  which is emitted with a guarded retry intent. The workspace coordinator
-  retains queue execution, upload transport, Library refreshes, and toast
-  policy.
+- A bounded upload control owns file selection, drag-and-drop acceptance,
+  ordered batch execution, upload transport and response validation, partial
+  failure, duplicate-submit and refresh-pending state, input reset, and guarded
+  retries. Its bound companion status component owns queue progress, per-file
+  outcomes, duplicate-source reveal actions, retry availability, busy and error
+  presentation, and the ephemeral failed-file retry selection. The upload
+  control emits typed notice or refresh-pending outcomes. The workspace
+  coordinator retains canonical Library refreshes, duplicate-source navigation,
+  and toast policy, then acknowledges the upload control so another batch may
+  begin.
 - A bounded light-DOM queue owns the count, visibility, reference choices, and
   typed identification intents for legacy PDF artifacts that are not attached
   to a source. The workspace coordinator retains the identification mutation,
