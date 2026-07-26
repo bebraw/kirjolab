@@ -1,5 +1,6 @@
 import { html, LitElement, type TemplateResult } from "lit";
-import { gitHubSyncPresentation, type GitHubSyncStatus } from "./github-sync-status";
+import { isGitHubSyncState } from "./app-contracts";
+import { gitHubSyncPresentation, isGitHubSyncStatus, type GitHubSyncStatus } from "./github-sync-status";
 
 export interface GitHubSyncConnectionPresentation {
   readonly owner: string;
@@ -11,6 +12,12 @@ export const gitHubSyncCheckEvent = "github-sync-check";
 export const gitHubSyncPullEvent = "github-sync-pull";
 export const gitHubSyncPushEvent = "github-sync-push";
 export const gitHubSyncSettingsEvent = "github-sync-settings";
+export const gitHubSyncStateEvent = "github-sync-state";
+
+export interface GitHubSyncStateDetail {
+  readonly connected: boolean;
+  readonly message: string;
+}
 
 export class GitHubSyncMenu extends LitElement {
   static override properties = {
@@ -30,6 +37,9 @@ export class GitHubSyncMenu extends LitElement {
   declare private tone: "quiet" | "attention" | "warning";
   declare private canPull: boolean;
   declare private canPush: boolean;
+  private apiBase = "";
+  private refreshRequest = 0;
+  private refreshedAt = 0;
 
   constructor() {
     super();
@@ -40,6 +50,41 @@ export class GitHubSyncMenu extends LitElement {
     this.tone = "quiet";
     this.canPull = false;
     this.canPush = false;
+  }
+
+  configure(apiBase: string): void {
+    this.apiBase = apiBase;
+  }
+
+  refreshDue(force = false): boolean {
+    return force || Date.now() - this.refreshedAt >= 60_000;
+  }
+
+  async refresh(): Promise<void> {
+    const requestId = ++this.refreshRequest;
+    this.refreshedAt = Date.now();
+    try {
+      const connectionResponse = await fetch(`${this.apiBase}/github-sync`, { credentials: "same-origin" });
+      await expectOk(connectionResponse);
+      const value: unknown = await connectionResponse.json();
+      const connection = isGitHubSyncState(value) ? value : null;
+      if (requestId !== this.refreshRequest) return;
+      this.setConnection(connection);
+      if (!connection) {
+        this.emitState("This project is not connected to GitHub.");
+        return;
+      }
+      const statusResponse = await fetch(`${this.apiBase}/github-sync/status`, { credentials: "same-origin" });
+      await expectOk(statusResponse);
+      const statusValue: unknown = await statusResponse.json();
+      if (!isGitHubSyncStatus(statusValue)) throw new Error("GitHub returned an invalid synchronization status");
+      if (requestId === this.refreshRequest) this.emitState(this.setStatus(statusValue));
+    } catch (error) {
+      if (requestId !== this.refreshRequest) return;
+      const message = error instanceof Error ? error.message : "Could not load GitHub sync state.";
+      this.setError(message);
+      this.emitState(message);
+    }
   }
 
   setConnection(connection: GitHubSyncConnectionPresentation | null): void {
@@ -121,6 +166,24 @@ export class GitHubSyncMenu extends LitElement {
   private requestSettings(): void {
     this.dispatchEvent(new CustomEvent(gitHubSyncSettingsEvent));
   }
+
+  private emitState(message: string): void {
+    this.dispatchEvent(
+      new CustomEvent<GitHubSyncStateDetail>(gitHubSyncStateEvent, {
+        detail: { connected: this.connected, message },
+      }),
+    );
+  }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+async function expectOk(response: Response): Promise<void> {
+  if (response.ok) return;
+  const value: unknown = await response.json().catch(() => null);
+  throw new Error(isRecord(value) && typeof value.error === "string" ? value.error : `Request failed (${response.status})`);
 }
 
 if (!customElements.get("github-sync-menu")) {

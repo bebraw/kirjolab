@@ -72,7 +72,14 @@ import type { AppToastOptions } from "./app-toast";
 import { workspaceSwitchEvent } from "./workspace-switcher";
 import { sourceCompletionActionEvent, type SourceCompletionAction, type SourceCompletionIntent } from "./source-completion";
 import { gitHubDisconnectEvent, gitHubImportCancelEvent, gitHubImportConfirmEvent, gitHubImportPreviewEvent } from "./github-import-panel";
-import { gitHubSyncCheckEvent, gitHubSyncPullEvent, gitHubSyncPushEvent, gitHubSyncSettingsEvent } from "./github-sync-menu";
+import {
+  gitHubSyncCheckEvent,
+  gitHubSyncPullEvent,
+  gitHubSyncPushEvent,
+  gitHubSyncSettingsEvent,
+  gitHubSyncStateEvent,
+  type GitHubSyncStateDetail,
+} from "./github-sync-menu";
 import { gitHubSyncMutationEvent, type GitHubSyncMutation } from "./github-sync-review";
 import { latexImportActionEvent, type LatexImportAction } from "./latex-import-panel";
 import { libraryPdfAnnotationActionEvent, type LibraryPdfAnnotationAction } from "./library-pdf-annotation-forms";
@@ -124,7 +131,6 @@ import {
 } from "./assistant-result-panel";
 import { candidateDecisionEvent, candidateEvidenceEvent } from "./candidate-review-panel";
 import { publicationContextActionEvent, type PublicationContextAction, type PublicationPaperOption } from "./publication-context-panel";
-import { isGitHubSyncStatus, type GitHubSyncStatus } from "./github-sync-status";
 import {
   defaultProjectPublicationProfile,
   isModelCandidate,
@@ -234,7 +240,6 @@ import { bindThemePreference } from "./theme";
 import {
   isCreatedAnnotation,
   isGitHubImportPreview,
-  isGitHubSyncState,
   isLatexImportPreview,
   isShareLinkStatus,
   isWebSnapshotComparisonResponse,
@@ -289,7 +294,6 @@ import { citationCompletionContext, rankCitationCompletionCandidates, type Citat
 import { includeCompletionContext, rankIncludeCompletionCandidates, type IncludeCompletionContext } from "./include-completions";
 
 type GuardResult<T> = T extends (value: unknown) => value is infer Result ? Result : never;
-type GitHubSyncConnection = GuardResult<typeof isGitHubSyncState>;
 
 interface PreviewInputs {
   readonly files: readonly ProjectFile[];
@@ -430,8 +434,6 @@ class WorkspaceApp {
   #librarySnapshot: ReferenceLibrarySnapshot | null = null;
   #projectReferencePdfs: readonly ProjectReferencePdf[] = [];
   #workspaceCatalog: WorkspaceSummary[] = [];
-  #gitHubSyncRequest = 0;
-  #gitHubSyncCheckedAt = 0;
   #previewRenderVersion = 0;
   #offlineSaveTimer: number | undefined;
   #offlineSaveVersion = 0;
@@ -576,6 +578,12 @@ class WorkspaceApp {
       void this.#handleGitHubSyncMutation((event as CustomEvent<GitHubSyncMutation>).detail);
     });
     this.#elements.gitHubSyncMenu.addEventListener(gitHubSyncCheckEvent, () => void this.#refreshGitHubSyncState(true));
+    this.#elements.gitHubSyncMenu.configure(apiBase);
+    this.#elements.gitHubSyncMenu.addEventListener(gitHubSyncStateEvent, (event) => {
+      const { connected, message } = (event as CustomEvent<GitHubSyncStateDetail>).detail;
+      this.#elements.workspaceSettingsPanel.gitHubReview.setConnected(connected);
+      this.#elements.workspaceSettingsPanel.setGitHubStatus(message);
+    });
     this.#elements.gitHubSyncMenu.addEventListener(gitHubSyncPullEvent, () => {
       void this.#openWorkspaceSettings(false).then(() => this.#elements.workspaceSettingsPanel.gitHubReview.previewPull());
     });
@@ -1335,62 +1343,16 @@ class WorkspaceApp {
   }
 
   async #refreshGitHubSyncState(force = false, resetReview = true): Promise<void> {
-    if (!this.#shouldRefreshGitHubSync(force)) return;
-    const requestId = ++this.#gitHubSyncRequest;
-    this.#gitHubSyncCheckedAt = Date.now();
+    if (!navigator.onLine) return;
+    if (!force && (this.#elements.workspaceSettingsPanel.gitHubReview.hasActivePreview || this.#elements.workspaceSettingsPanel.open))
+      return;
+    if (!this.#elements.gitHubSyncMenu.refreshDue(force)) return;
     if (resetReview) this.#resetGitHubSyncReview();
-    try {
-      await this.#loadGitHubSyncState(requestId);
-    } catch (error) {
-      this.#renderGitHubSyncError(requestId, error);
-    }
-  }
-
-  #shouldRefreshGitHubSync(force: boolean): boolean {
-    if (!navigator.onLine) return false;
-    if (force) return true;
-    if (this.#elements.workspaceSettingsPanel.gitHubReview.hasActivePreview || this.#elements.workspaceSettingsPanel.open) return false;
-    return Date.now() - this.#gitHubSyncCheckedAt >= 60_000;
+    await this.#elements.gitHubSyncMenu.refresh();
   }
 
   #resetGitHubSyncReview(): void {
     this.#elements.workspaceSettingsPanel.gitHubReview.reset();
-  }
-
-  async #loadGitHubSyncState(requestId: number): Promise<void> {
-    const response = await fetch(`${apiBase}/github-sync`, { credentials: "same-origin" });
-    await expectOk(response);
-    const value: unknown = await response.json();
-    const connection = isGitHubSyncState(value) ? value : null;
-    if (requestId !== this.#gitHubSyncRequest) return;
-    this.#renderGitHubSyncConnection(connection);
-    if (!connection) return;
-    const statusResponse = await fetch(`${apiBase}/github-sync/status`, { credentials: "same-origin" });
-    await expectOk(statusResponse);
-    const statusValue: unknown = await statusResponse.json();
-    if (!isGitHubSyncStatus(statusValue)) throw new Error("GitHub returned an invalid synchronization status");
-    if (requestId === this.#gitHubSyncRequest) this.#renderGitHubSyncStatus(statusValue);
-  }
-
-  #renderGitHubSyncConnection(connection: GitHubSyncConnection | null): void {
-    const connected = connection !== null;
-    this.#elements.workspaceSettingsPanel.gitHubReview.setConnected(connected);
-    this.#elements.gitHubSyncMenu.setConnection(connection);
-    if (!connection) {
-      this.#elements.workspaceSettingsPanel.setGitHubStatus("This project is not connected to GitHub.");
-      return;
-    }
-  }
-
-  #renderGitHubSyncError(requestId: number, error: unknown): void {
-    if (requestId !== this.#gitHubSyncRequest) return;
-    const message = error instanceof Error ? error.message : "Could not load GitHub sync state.";
-    this.#elements.workspaceSettingsPanel.setGitHubStatus(message);
-    this.#elements.gitHubSyncMenu.setError(message);
-  }
-
-  #renderGitHubSyncStatus(status: GitHubSyncStatus): void {
-    this.#elements.workspaceSettingsPanel.setGitHubStatus(this.#elements.gitHubSyncMenu.setStatus(status));
   }
 
   async #handleGitHubSyncMutation(mutation: GitHubSyncMutation): Promise<void> {

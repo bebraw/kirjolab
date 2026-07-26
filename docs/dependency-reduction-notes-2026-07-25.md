@@ -3421,3 +3421,29 @@ and unique production package counts remain unchanged at 135,411 B raw /
 
 Full native CI passes all 1,421 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Lit Ownership: GitHub Sync Status Refresh
+
+`GitHubSyncMenu` now owns the bounded read-only project connection and status
+requests that feed its primary toolbar presentation, including the refresh
+interval, existing Valibot-backed connection validation, status validation,
+failure presentation, and stale-request rejection. It emits one typed state
+event for the settings mirror. `WorkspaceApp` retains online and active-review
+pause policy, explicit refresh triggers, canonical project refresh, and preview
+entry points, but no longer owns sync request counters or rendering adapters.
+
+This checkpoint reduces `src/client/app.ts` from 6,257 to 6,219 lines (-38)
+and grows the sync menu from 134 to 197 lines. Runtime source across those files
+increases by 25 lines while removing two coordinator fields and five
+coordinator-only request, validation, and presentation methods. Focused coverage
+passes interval gating, connected and disconnected presentation, request
+failure, and superseded-response rejection. All four GitHub browser scenarios
+also pass.
+
+The browser application artifact changes from 796,643 B raw / 215,299 B gzip
+to 797,130 B raw / 215,382 B gzip (+487 B raw / +83 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,424 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.

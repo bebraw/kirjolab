@@ -132,9 +132,12 @@ incoming and outgoing mutation.
   initial fallback markup.
 - The workspace sync menu is a light-DOM Lit component that owns repository
   status presentation, relationship tone, Pull and Push availability, and
-  typed Check, Pull, Push, and Settings intents. The application coordinator
-  retains refresh timing, network requests, preview workflows, and settings
-  dialogs, while the Worker retains initial fallback markup.
+  typed Check, Pull, Push, and Settings intents. It also owns the bounded
+  read-only connection and status requests, refresh interval, response
+  validation, stale-request guard, and one typed state event for the settings
+  mirror. The application coordinator retains page-level online and active-review
+  pause policy, canonical refresh after mutations, preview entry points, and
+  settings dialogs, while the Worker retains initial fallback markup.
 - The detailed sync review is a light-DOM Lit component that owns diff and
   conflict presentation, local resolution choices, commit-message input,
   action readiness, Pull and Publish preview and confirmation requests,
