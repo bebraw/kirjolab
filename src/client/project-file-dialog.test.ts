@@ -1,12 +1,13 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   ProjectFileDialog,
   projectFileDialogIsCreating,
   projectFileDialogIsFolder,
-  projectFileSaveEvent,
+  projectFileSavedEvent,
   type ProjectFileDialogMode,
-  type ProjectFileSave,
+  type ProjectFileSaved,
 } from "./project-file-dialog";
+import type { WorkspaceSnapshot } from "../domain/workspace";
 
 class TestProjectFileDialog extends ProjectFileDialog {
   focusCount = 0;
@@ -44,8 +45,8 @@ class TestProjectFileDialog extends ProjectFileDialog {
     this.configure(mode, path, targetId);
   }
 
-  saveForTest(): void {
-    this.save(new Event("submit") as SubmitEvent);
+  saveForTest(): Promise<void> {
+    return this.save(new Event("submit") as SubmitEvent);
   }
 
   cancelForTest(): void {
@@ -60,6 +61,44 @@ class TestProjectFileDialog extends ProjectFileDialog {
     return this.input as HTMLInputElement;
   }
 }
+
+const snapshot: WorkspaceSnapshot = {
+  id: "workspace",
+  title: "Study",
+  entryFileId: "file-1",
+  folders: [],
+  assets: [],
+  files: [
+    {
+      id: "file-1",
+      path: "chapters/method.md",
+      mediaType: "text/markdown",
+      content: "",
+      createdAt: "now",
+      updatedAt: "now",
+    },
+  ],
+  composition: { content: "", sourceMap: [], diagnostics: [], dependencies: {} },
+  source: "",
+  bibliography: "",
+  revision: 1,
+  publicationProfile: { citationStyle: "apa", locale: "en-US", submissionTemplate: "article", paperSize: "a4" },
+  pdfs: [],
+  publications: [],
+  projectReferences: [],
+  researchShares: [],
+  publicationPdfLinks: [],
+  annotations: [],
+  links: [],
+  claims: [],
+  claimEvidenceLinks: [],
+  claimLinks: [],
+  comments: [],
+  candidates: [],
+  reviewArtifactPins: [],
+};
+
+afterEach(() => vi.restoreAllMocks());
 
 describe("project file dialog", () => {
   it("classifies file and folder operations", () => {
@@ -79,16 +118,58 @@ describe("project file dialog", () => {
     }
   });
 
-  it("emits a trimmed save intent", () => {
+  it("persists a trimmed path and emits the validated workspace", async () => {
     const panel = new TestProjectFileDialog();
-    const saves: ProjectFileSave[] = [];
-    panel.addEventListener(projectFileSaveEvent, (event) => saves.push((event as CustomEvent<ProjectFileSave>).detail));
+    const saves: ProjectFileSaved[] = [];
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(Response.json(snapshot));
+    panel.addEventListener(projectFileSavedEvent, (event) => saves.push((event as CustomEvent<ProjectFileSaved>).detail));
+    panel.configureApi("/api/workspaces/workspace");
     panel.configureForTest("create-and-include", "", "file-1");
     panel.input.value = "  chapters/method.md  ";
 
-    panel.saveForTest();
+    await panel.saveForTest();
 
-    expect(saves).toEqual([{ mode: "create-and-include", path: "chapters/method.md", targetId: "file-1" }]);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/workspaces/workspace/files",
+      expect.objectContaining({ body: JSON.stringify({ path: "chapters/method.md" }), method: "POST" }),
+    );
+    expect(saves).toEqual([
+      {
+        message: "Created chapters/method.md and included it at the remembered caret.",
+        mode: "create-and-include",
+        path: "chapters/method.md",
+        snapshot,
+      },
+    ]);
+  });
+
+  it("uses the stable target for rename and permits retry after failure", async () => {
+    const panel = new TestProjectFileDialog();
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response("Unavailable", { status: 503 }))
+      .mockResolvedValueOnce(Response.json(snapshot));
+    panel.configureApi("/api/workspaces/workspace");
+    panel.configureForTest("rename", "main.md", "file/1");
+    panel.input.value = "chapters/method.md";
+
+    await panel.saveForTest();
+    expect(panel.renderForTest()).toBeDefined();
+    await panel.saveForTest();
+
+    expect(fetchMock).toHaveBeenLastCalledWith("/api/workspaces/workspace/files/file%2F1", expect.objectContaining({ method: "PATCH" }));
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("ignores mutation modes without their stable target", async () => {
+    const panel = new TestProjectFileDialog();
+    const fetchMock = vi.spyOn(globalThis, "fetch");
+    panel.configureForTest("rename");
+    panel.input.value = "main.md";
+
+    await panel.saveForTest();
+
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("opens, focuses, reuses, and cancels its modal", async () => {

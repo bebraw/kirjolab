@@ -1,13 +1,16 @@
 import { html, LitElement, type TemplateResult } from "lit";
+import { isWorkspaceSnapshot, type WorkspaceSnapshot } from "../domain/workspace";
+import { errorMessage, expectOk, jsonFetch } from "./http";
 
-export const projectFileSaveEvent = "project-file-save";
+export const projectFileSavedEvent = "project-file-saved";
 
 export type ProjectFileDialogMode = "create" | "create-and-include" | "rename" | "create-folder" | "rename-folder";
 
-export interface ProjectFileSave {
+export interface ProjectFileSaved {
+  readonly message: string;
   readonly mode: ProjectFileDialogMode;
   readonly path: string;
-  readonly targetId: string | null;
+  readonly snapshot: WorkspaceSnapshot;
 }
 
 export function projectFileDialogIsFolder(mode: ProjectFileDialogMode): boolean {
@@ -36,16 +39,27 @@ export class ProjectFileDialog extends LitElement {
   static override properties = {
     initialPath: { state: true },
     mode: { state: true },
+    saving: { state: true },
+    status: { state: true },
   };
 
   declare private initialPath: string;
   declare private mode: ProjectFileDialogMode;
+  declare private saving: boolean;
+  declare private status: string;
+  private apiBase = "";
   private targetId: string | null = null;
 
   constructor() {
     super();
     this.initialPath = "";
     this.mode = "create";
+    this.saving = false;
+    this.status = "";
+  }
+
+  configureApi(apiBase: string): void {
+    this.apiBase = apiBase;
   }
 
   async show(mode: ProjectFileDialogMode, initialPath = "", targetId: string | null = null): Promise<void> {
@@ -93,8 +107,11 @@ export class ProjectFileDialog extends LitElement {
           <p class="mt-2 text-xs leading-5 text-app-text-soft" id="project-file-dialog-help">${projectFileDialogHelp(this.mode)}</p>
           <div class="mt-5 flex justify-end gap-2">
             <button class="button-secondary" id="cancel-project-file" type="button" @click=${this.cancel}>Cancel</button>
-            <button class="button-primary" id="save-project-file" type="submit">${folderMode ? "Save folder" : "Save file"}</button>
+            <button class="button-primary" id="save-project-file" type="submit" ?disabled=${this.saving}>
+              ${this.saving ? "Saving…" : folderMode ? "Save folder" : "Save file"}
+            </button>
           </div>
+          <p class="status-line" role="status" ?hidden=${!this.status}>${this.status}</p>
         </form>
       </dialog>
     `;
@@ -104,16 +121,37 @@ export class ProjectFileDialog extends LitElement {
     this.mode = mode;
     this.initialPath = initialPath;
     this.targetId = targetId;
+    this.saving = false;
+    this.status = "";
   }
 
-  protected save(event: SubmitEvent): void {
+  protected async save(event: SubmitEvent): Promise<void> {
     event.preventDefault();
-    this.dispatchEvent(
-      new CustomEvent<ProjectFileSave>(projectFileSaveEvent, {
-        bubbles: true,
-        detail: { mode: this.mode, path: this.pathInput.value.trim(), targetId: this.targetId },
-      }),
-    );
+    const path = this.pathInput.value.trim();
+    const folder = projectFileDialogIsFolder(this.mode);
+    const creating = projectFileDialogIsCreating(this.mode);
+    if (this.saving || (!creating && !this.targetId)) return;
+    this.saving = true;
+    this.status = "";
+    try {
+      const resource = folder ? "folders" : "files";
+      const url = creating ? `${this.apiBase}/${resource}` : `${this.apiBase}/${resource}/${encodeURIComponent(this.targetId ?? "")}`;
+      const response = await jsonFetch(url, { path }, creating ? "POST" : "PATCH");
+      await expectOk(response);
+      const value: unknown = await response.json();
+      if (!isWorkspaceSnapshot(value)) throw new Error("Project file operation returned an invalid workspace");
+      this.close();
+      this.dispatchEvent(
+        new CustomEvent<ProjectFileSaved>(projectFileSavedEvent, {
+          bubbles: true,
+          detail: { message: projectFileSavedMessage(this.mode, path), mode: this.mode, path, snapshot: value },
+        }),
+      );
+    } catch (error) {
+      this.status = errorMessage(error, "Could not save the project path.");
+    } finally {
+      this.saving = false;
+    }
   }
 
   protected cancel(): void {
@@ -131,6 +169,14 @@ export class ProjectFileDialog extends LitElement {
     if (!input) throw new Error("Project file path is unavailable");
     return input;
   }
+}
+
+function projectFileSavedMessage(mode: ProjectFileDialogMode, path: string): string {
+  if (mode === "create-folder") return `Added ${path}.`;
+  if (mode === "rename-folder") return `Moved folder to ${path}; project paths and includes were updated.`;
+  if (mode === "create-and-include") return `Created ${path} and included it at the remembered caret.`;
+  if (mode === "create") return `Added ${path}.`;
+  return `Renamed file to ${path}; inbound includes were updated.`;
 }
 
 if (typeof customElements !== "undefined" && !customElements.get("project-file-dialog-panel")) {

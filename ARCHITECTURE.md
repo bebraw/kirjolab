@@ -134,8 +134,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   project-scoped `DocumentRoom`; qualify manuscript, evidence, and model
   anchors by file identity.
 - Let the project-file dialog retain the stable mutation target associated with
-  its active operation and include that identity in its typed save intent. Keep
-  collaborative caret capture and Yjs insertion in the workspace coordinator.
+  its active operation and own file/folder mutation transport, response
+  validation, duplicate-submit gating, and retryable local failures. Emit the
+  validated workspace snapshot with the completed operation. Keep collaborative
+  caret capture, Yjs insertion, snapshot application, selection, rendering, and
+  toast policy in the workspace coordinator.
 - Store project image metadata beside the durable file tree and keep its bytes
   as bounded, inert R2 objects under the reserved `figures/` path. Do not put
   uploaded image bytes in Yjs. Accept SVG only as validated UTF-8 image content

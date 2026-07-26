@@ -174,10 +174,9 @@ import {
 } from "./project-annotation-form";
 import {
   projectFileDialogIsCreating,
-  projectFileDialogIsFolder,
-  projectFileSaveEvent,
+  projectFileSavedEvent,
   type ProjectFileDialogMode,
-  type ProjectFileSave,
+  type ProjectFileSaved,
 } from "./project-file-dialog";
 import { projectFileActionEvent, type ProjectFileAction } from "./project-file-actions";
 import { projectTemplateSavedEvent, type ProjectTemplateSaved } from "./project-template-save-dialog";
@@ -278,14 +277,6 @@ interface PreviewInputs {
 interface SourceSyntaxTemplate {
   readonly text: string;
   readonly select?: string;
-}
-
-function projectFileSavedMessage(mode: ProjectFileDialogMode, path: string): string {
-  if (mode === "create-folder") return `Added ${path}.`;
-  if (mode === "rename-folder") return `Moved folder to ${path}; project paths and includes were updated.`;
-  if (mode === "create-and-include") return `Created ${path} and included it at the remembered caret.`;
-  if (mode === "create") return `Added ${path}.`;
-  return `Renamed file to ${path}; inbound includes were updated.`;
 }
 
 const workspaceId = readWorkspaceId();
@@ -719,10 +710,10 @@ class WorkspaceApp {
       else void this.#deleteProjectImage(detail.asset);
     });
     this.#elements.projectImageUpload.addEventListener("change", () => void this.#uploadProjectImages());
-    this.#elements.projectFileDialog.addEventListener(
-      projectFileSaveEvent,
-      (event) => void this.#saveProjectFile((event as CustomEvent<ProjectFileSave>).detail),
-    );
+    this.#elements.projectFileDialog.configureApi(apiBase);
+    this.#elements.projectFileDialog.addEventListener(projectFileSavedEvent, (event) => {
+      this.#completeProjectFileSave((event as CustomEvent<ProjectFileSaved>).detail);
+    });
     this.#elements.editorInsertMenu.addEventListener(editorInsertActionEvent, (event) => {
       const detail = (event as CustomEvent<EditorInsertAction>).detail;
       if (detail.action === "syntax") this.#insertSourceSyntax(detail.kind);
@@ -2077,28 +2068,14 @@ class WorkspaceApp {
     return "";
   }
 
-  async #saveProjectFile({ mode, path, targetId }: ProjectFileSave): Promise<void> {
-    const folderMode = projectFileDialogIsFolder(mode);
-    const creating = projectFileDialogIsCreating(mode);
-    if (!creating && !targetId) return;
-    const response = await this.#requestProjectFileSave(path, folderMode, creating, targetId);
-    await expectOk(response);
-    const value: unknown = await response.json();
-    if (!isWorkspaceSnapshot(value)) throw new Error("Project file operation returned an invalid workspace");
-    this.#snapshot = value;
-    this.#elements.projectFileDialog.close();
+  #completeProjectFileSave({ message, mode, path, snapshot }: ProjectFileSaved): void {
+    this.#snapshot = snapshot;
     this.#renderProjectFiles();
-    const selected = value.files.find((file) => file.path === path);
+    const selected = snapshot.files.find((file) => file.path === path);
     if (!this.#insertRememberedProjectInclude(mode, path) && selected) this.#selectProjectFile(selected.id);
     void this.#renderPreview();
-    this.#showToast(projectFileSavedMessage(mode, path));
+    this.#showToast(message);
     this.#resetProjectFileDialogState();
-  }
-
-  async #requestProjectFileSave(path: string, folderMode: boolean, creating: boolean, targetId: string | null): Promise<Response> {
-    const resource = folderMode ? "folders" : "files";
-    const url = creating ? `${apiBase}/${resource}` : `${apiBase}/${resource}/${encodeURIComponent(targetId ?? "")}`;
-    return await jsonFetch(url, { path }, creating ? "POST" : "PATCH");
   }
 
   #insertRememberedProjectInclude(mode: ProjectFileDialogMode, path: string): boolean {

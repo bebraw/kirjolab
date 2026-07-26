@@ -4017,3 +4017,29 @@ and unique production package counts remain unchanged at 135,411 B raw /
 
 Full native CI passes all 1,478 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Lit Ownership: Project File Operations
+
+`ProjectFileDialog` now owns file and folder mutation transport, endpoint
+derivation from its stable target, response validation, duplicate-submit
+gating, local busy and retryable failure state, modal completion, and operation
+messages. It emits the completed mode, path, message, and validated workspace
+snapshot. `WorkspaceApp` retains resource availability, collaborative include-
+caret capture and Yjs insertion, snapshot application, selection, rendering,
+and toast policy.
+
+This checkpoint reduces `src/client/app.ts` from 5,164 to 5,141 lines (-23)
+and grows the project-file dialog from 144 to 190 lines. Runtime source across
+those files increases by 23 lines while removing the coordinator message
+projection, request construction helper, response parsing, and dialog-close
+lifecycle. Focused coverage passes create and rename endpoints, trimmed payloads,
+stable encoded targets, validated snapshot outcomes, missing-target rejection,
+provider failures, and retries.
+
+The browser application artifact changes from 805,267 B raw / 218,149 B gzip
+to 805,757 B raw / 218,496 B gzip (+490 B raw / +347 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,480 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.

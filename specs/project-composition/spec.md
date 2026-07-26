@@ -83,10 +83,11 @@ collaborative, and unambiguous about what preview and export mean.
   three primary navigator creation actions use compact file, folder, and image
   icons with accessible names and native titles. The file toolbar labels its
   editable path action as **Move or rename file**. One bounded project-file
-  dialog owns file and folder operation copy, initial paths, focus, cancellation,
-  and typed save intents; the workspace coordinator retains resource
-  availability, include-caret capture, persistence, selection, and refresh
-  policy.
+  dialog owns file and folder operation copy, initial paths, focus,
+  cancellation, mutation transport, response validation, duplicate-submit
+  gating, retryable local failures, and typed completed outcomes. The workspace
+  coordinator retains resource availability, include-caret capture, validated
+  snapshot application, selection, rendering, and toast policy.
 - A visible, client-side Files filter matches complete file, folder, and asset
   paths without changing the project tree or include menu. `Command-P` or
   `Control-P` expands the desktop rail when necessary, activates Files, and
@@ -121,9 +122,10 @@ collaborative, and unambiguous about what preview and export mean.
   owns menu presentation and closing, while the workspace coordinator owns the
   remembered collaborative caret and Yjs insertion.
 - The project-file dialog retains the stable file or folder identity associated
-  with its active operation and emits that target together with the operation
-  mode and submitted path. The workspace coordinator must not reconstruct the
-  dialog's mutation target from mutable ambient selection.
+  with its active operation, derives the mutation endpoint from that identity,
+  and emits the completed mode, submitted path, message, and validated workspace
+  snapshot. The workspace coordinator must not reconstruct the mutation target
+  from mutable ambient selection.
 - Publication exports consume the versioned source-mapped intermediate defined
   by `specs/export-pipeline/spec.md`; no target may reimplement include
   expansion or front-matter offset handling.
