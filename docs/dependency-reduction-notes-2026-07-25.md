@@ -5705,6 +5705,28 @@ component members.
 Full native CI passes all 1,583 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Open Comment Count
+
+`ManuscriptCommentList` now derives and returns the open-comment count while
+accepting its canonical collection. `WorkspaceApp` routes that count to the
+rail in both snapshot projections without retaining a separate filter-and-fanout
+helper. The rail remains the presentation owner for the badge.
+
+This checkpoint reduces `src/client/app.ts` from 3,775 to 3,769 lines (-6) and
+grows the comment-list owner from 202 to 203 lines (+1), for a five-line runtime
+source reduction. Its focused test grows from 199 to 201 lines to cover mixed
+open and resolved comments. Eight focused and ten related tests pass through the
+affected guardrails alongside formatting, lint, and strict types.
+
+The browser application artifact changes from 822,123 B raw / 222,645 B gzip
+to 822,192 B raw / 222,638 B gzip (+69 B raw / -7 B gzip). Styles, direct and
+unique production package counts, and the readability audit remain unchanged
+at 135,411 B raw / 23,373 B gzip, 18, 150, and 249 externally visible low-level
+component members.
+
+Full native CI passes all 1,584 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Source Completion Refresh
 
 `SourceCompletion` now owns the five bound-editor events that refresh citation

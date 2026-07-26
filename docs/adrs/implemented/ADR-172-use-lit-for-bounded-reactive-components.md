@@ -117,11 +117,11 @@ The adopted components own bounded presentation:
   navigation outcomes. The coordinator supplies browser-local evidence selection
   and the link workflow's Yjs-validated typed passage input.
 - The manuscript comment panel owns composer body and status state plus comment,
-  anchor-status, empty-state, and action presentation with typed create, open,
-  and re-anchor intents. Given a coordinator-validated current passage, it owns
-  create and re-anchor transport, body reset, local retryable failure state,
-  self-contained resolution transport, duplicate-resolution gating, and typed
-  completed mutation outcomes.
+  anchor-status, empty-state, action presentation, and open-comment count
+  derivation with typed create, open, and re-anchor intents. Given a
+  coordinator-validated current passage, it owns create and re-anchor transport,
+  body reset, local retryable failure state, self-contained resolution transport,
+  duplicate-resolution gating, and typed completed mutation outcomes.
 - The project publication list owns the References collection shell and count,
   reference metadata, alias and DOI labels, empty-state, and action
   presentation. It also owns DOI-enrichment transport, duplicate-submit

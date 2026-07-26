@@ -66,11 +66,13 @@ describe("manuscript comment list", () => {
   it("renders empty, open, stale, and resolved states", () => {
     const list = new TestManuscriptCommentList();
     expect(list.renderForTest()).toBeDefined();
-    list.setComments([
-      comment,
-      { ...comment, id: "comment:2", resolution: { status: "stale" } },
-      { ...comment, id: "comment:3", status: "resolved" },
-    ]);
+    expect(
+      list.setComments([
+        comment,
+        { ...comment, id: "comment:2", resolution: { status: "stale" } },
+        { ...comment, id: "comment:3", status: "resolved" },
+      ]),
+    ).toBe(2);
     expect(list.renderForTest()).toBeDefined();
     expect(list.rootForTest()).toBe(list);
   });

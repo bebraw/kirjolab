@@ -42,8 +42,9 @@ export class ManuscriptCommentList extends LitElement {
     this.apiBase = apiBase;
   }
 
-  setComments(comments: readonly ManuscriptComment[]): void {
+  setComments(comments: readonly ManuscriptComment[]): number {
     this.comments = comments;
+    return comments.filter((comment) => comment.status === "open").length;
   }
 
   async createAt(input: CreateManuscriptCommentInput): Promise<void> {

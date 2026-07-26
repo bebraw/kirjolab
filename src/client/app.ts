@@ -117,7 +117,6 @@ import {
   isWorkspaceSummaries,
   type AnnotationResource,
   type ClaimResource,
-  type ManuscriptComment,
   type ModelCandidate,
   type ModelEvidence,
   type ModelEvidenceReference,
@@ -1615,7 +1614,7 @@ class WorkspaceApp {
       const resolved = resolveWorkspaceSnapshotAnchors(this.#document, snapshot);
       this.#elements.projectEvidencePanel.setPassageLinks(resolved.links);
       this.#elements.claimListPanel.setPassageLinks(resolved.claimLinks);
-      this.#renderManuscriptComments(resolved.comments);
+      this.#elements.workspaceRailTabs.setCommentCount(this.#elements.manuscriptCommentListPanel.setComments(resolved.comments));
       this.#elements.projectMap.setGraph(
         buildWorkspaceKnowledgeGraph({
           ...resolved,
@@ -2109,7 +2108,7 @@ class WorkspaceApp {
       publications: this.#snapshot.publications,
     });
     this.#elements.claimListPanel.setWorkspace(this.#snapshot, this.#elements.assistantWorkflowStatus.selectedEvidenceKeys);
-    this.#renderManuscriptComments(this.#snapshot.comments);
+    this.#elements.workspaceRailTabs.setCommentCount(this.#elements.manuscriptCommentListPanel.setComments(this.#snapshot.comments));
     this.#elements.candidateListPanel.setCandidates(this.#snapshot.candidates);
     this.#pdfViewer.updateAnnotations(
       this.#renderedPdfId ? this.#snapshot.annotations.filter((annotation) => annotation.pdfId === this.#renderedPdfId) : [],
@@ -2144,11 +2143,6 @@ class WorkspaceApp {
   #editAnnotation(annotation: AnnotationResource): void {
     this.#elements.projectAnnotationForm.showAnnotation(annotation);
     this.#openAnnotationEvidence(annotation);
-  }
-
-  #renderManuscriptComments(comments: ManuscriptComment[]): void {
-    this.#elements.workspaceRailTabs.setCommentCount(comments.filter((comment) => comment.status === "open").length);
-    this.#elements.manuscriptCommentListPanel.setComments(comments);
   }
 
   async #createManuscriptComment(body: string): Promise<void> {
