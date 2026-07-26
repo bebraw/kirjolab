@@ -317,10 +317,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   owner, including the annotation-only item and version subsets required by
   claim drafting, operation-specific target and evidence requirement
   validation, synchronization guidance, and generation-start copy.
-  The coordinator supplies canonical snapshot collections, resolved target
-  availability, document stability, and result-specific status; it must not
-  parse selected keys, re-filter projected evidence, duplicate requirement or
-  start wording, or keep a parallel selected-key set.
+  Retain the canonical collections supplied during reconciliation for later
+  projection. The coordinator supplies resolved target availability, document
+  stability, and result-specific status; it must not parse selected keys,
+  re-filter projected evidence, duplicate requirement or start wording, keep a
+  parallel selected-key set, or re-supply the same collections for projection.
 - Keep assistant claim-relation normalization, rhetorical-purpose resolution,
   structured-table parsing, and non-throwing table readiness inside the Lit
   task owner that stores those raw fields. The coordinator consumes typed task

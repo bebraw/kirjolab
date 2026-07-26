@@ -5602,6 +5602,27 @@ low-level component members.
 Full native CI passes all 1,583 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Assistant Evidence Lifecycle
+
+`AssistantWorkflowStatus` now retains the canonical annotation and claim
+collections supplied while reconciling its browser-local evidence selection.
+Its evidence projection no longer requires `WorkspaceApp` to re-supply the same
+collections or maintain an empty-snapshot fallback wrapper.
+
+This checkpoint reduces `src/client/app.ts` from 3,981 to 3,975 lines (-6) and
+grows the workflow-status owner from 205 to 209 lines. Runtime and focused test
+source across the three changed files decreases by three lines. Five focused
+and seven affected tests pass alongside strict types.
+
+The browser application artifact changes from 824,593 B raw / 223,088 B gzip
+to 824,576 B raw / 223,087 B gzip (-17 B raw / -1 B gzip). Styles, direct and
+unique production package counts, and the readability audit remain unchanged
+at 135,411 B raw / 23,373 B gzip, 18, 150, and 254 externally visible low-level
+component members.
+
+Full native CI passes all 1,583 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Assistant Evidence Projection
 
 `AssistantWorkflowStatus` now resolves its ordered selected evidence keys

@@ -40,7 +40,7 @@ class TestAssistantWorkflowStatus extends AssistantWorkflowStatus {
 describe("assistant workflow status", () => {
   it("owns operation-specific generation requirements and guidance", () => {
     const panel = new TestAssistantWorkflowStatus();
-    const evidence = panel.modelEvidence([], []);
+    const evidence = panel.modelEvidence();
     const requirements = {
       evidence,
       hasInsertionTarget: false,
@@ -56,7 +56,8 @@ describe("assistant workflow status", () => {
     expect(panel.status).toBe("Choose a valid manuscript target, then use Choose evidence for any required grounding.");
 
     panel.setEvidenceSelected("annotation:1", true);
-    const annotationEvidence = panel.modelEvidence([annotation], []);
+    panel.reconcileEvidence([annotation], []);
+    const annotationEvidence = panel.modelEvidence();
     expect(
       panel.validateGeneration({
         ...requirements,
@@ -138,8 +139,9 @@ describe("assistant workflow status", () => {
     panel.setEvidenceSelected("annotation:1", true);
     panel.setEvidenceSelected("claim:1", true);
     panel.setEvidenceSelected("claim:missing", true);
+    panel.reconcileEvidence([annotation], [claim]);
 
-    expect(panel.modelEvidence([annotation], [claim])).toEqual({
+    expect(panel.modelEvidence()).toEqual({
       annotationItems: [
         {
           content: "Quote: Evidence\nContext before: Before\nContext after: After\nResearcher note: Research note",
@@ -172,11 +174,8 @@ describe("assistant workflow status", () => {
     const minimal = new TestAssistantWorkflowStatus();
     minimal.setEvidenceSelected("annotation:1", true);
     minimal.setEvidenceSelected("claim:1", true);
-    expect(
-      minimal
-        .modelEvidence([{ ...annotation, comment: "", prefix: "", suffix: "" }], [{ ...claim, note: "" }])
-        .items.map((item) => item.content),
-    ).toEqual(["Quote: Evidence", "Claim: Claim text"]);
+    minimal.reconcileEvidence([{ ...annotation, comment: "", prefix: "", suffix: "" }], [{ ...claim, note: "" }]);
+    expect(minimal.modelEvidence().items.map((item) => item.content)).toEqual(["Quote: Evidence", "Claim: Claim text"]);
   });
 
   it("emits typed workflow actions", () => {

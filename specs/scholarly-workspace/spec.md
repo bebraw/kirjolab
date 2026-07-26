@@ -213,7 +213,9 @@ collaboration.
   available grounding choice; the coordinator retains rail selection and
   empty-evidence messaging. The bounded workflow-status owner reconciles its
   selected keys directly against coordinator-supplied canonical annotations and
-  claims; the coordinator does not construct or retain a parallel valid-key set.
+  claims, retains those collections for model-evidence projection, and exposes
+  the resulting evidence without requiring the coordinator to re-supply them;
+  the coordinator does not construct or retain a parallel valid-key set.
 - **Editor status:** One bounded light-DOM component owns the visible authoring
   target, bounded line counting, file, line-range, caret, and selection wording,
   its full tooltip, and online or offline save-state presentation. The

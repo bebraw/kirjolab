@@ -31,6 +31,8 @@ export class AssistantWorkflowStatus extends LitElement {
 
   declare operationId: string;
   declare status: string;
+  private annotations: readonly AnnotationResource[] = [];
+  private claims: readonly ClaimResource[] = [];
   private evidenceKeys = new Set<string>();
 
   constructor() {
@@ -92,6 +94,8 @@ export class AssistantWorkflowStatus extends LitElement {
   }
 
   reconcileEvidence(annotations: readonly AnnotationResource[], claims: readonly ClaimResource[]): void {
+    this.annotations = annotations;
+    this.claims = claims;
     const validKeys = new Set([
       ...annotations.map((annotation) => modelEvidenceKey("annotation", annotation.id)),
       ...claims.map((claim) => modelEvidenceKey("claim", claim.id)),
@@ -99,7 +103,7 @@ export class AssistantWorkflowStatus extends LitElement {
     this.evidenceKeys = new Set([...this.evidenceKeys].filter((key) => validKeys.has(key)));
   }
 
-  modelEvidence(annotations: readonly AnnotationResource[], claims: readonly ClaimResource[]): SelectedModelEvidence {
+  modelEvidence(): SelectedModelEvidence {
     const annotationItems: ModelEvidenceItem[] = [];
     const annotationReferences: Array<Extract<ModelEvidenceReference, { readonly kind: "annotation" }>> = [];
     const items: ModelEvidenceItem[] = [];
@@ -107,7 +111,7 @@ export class AssistantWorkflowStatus extends LitElement {
     for (const key of this.evidenceKeys) {
       if (key.startsWith("annotation:")) {
         const id = key.slice("annotation:".length);
-        const annotation = annotations.find((item) => item.id === id);
+        const annotation = this.annotations.find((item) => item.id === id);
         if (!annotation) continue;
         const reference = { kind: "annotation" as const, id, version: annotation.updatedAt };
         const item: ModelEvidenceItem = {
@@ -130,7 +134,7 @@ export class AssistantWorkflowStatus extends LitElement {
         continue;
       }
       const id = key.slice("claim:".length);
-      const claim = claims.find((item) => item.id === id);
+      const claim = this.claims.find((item) => item.id === id);
       if (!claim) continue;
       references.push({ kind: "claim", id, version: claim.updatedAt });
       items.push({

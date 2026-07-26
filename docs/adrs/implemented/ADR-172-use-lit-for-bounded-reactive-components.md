@@ -374,8 +374,9 @@ The adopted components own bounded presentation:
   copy, live status presentation, selected evidence keys, reconciliation
   against canonical annotations and claims, selection count and limit copy,
   ordered annotation-or-claim model-evidence projection from canonical
-  collections, annotation-only claim-drafting subsets, evidence and connection
-  actions, operation-specific target and evidence requirement validation,
+  collections retained during reconciliation, annotation-only claim-drafting
+  subsets, evidence and connection actions, operation-specific target and
+  evidence requirement validation,
   synchronization guidance, generation-start copy, and their typed intents.
 - The workspace rail tabs own active-tab and open-comment-count presentation
   plus a typed navigation intent.

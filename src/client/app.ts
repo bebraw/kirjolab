@@ -1539,7 +1539,7 @@ class WorkspaceApp {
     const assistant = this.#assistantWorkflow.getSnapshot();
     const assistantBusy = assistantWorkflowBusy(assistant);
     this.#elements.modelProviderSettings.setDiscoveryAvailable(!assistantBusy);
-    const evidence = this.#modelEvidence();
+    const evidence = this.#elements.assistantWorkflowStatus.modelEvidence();
     this.#elements.assistantTaskPanel.setGenerationAvailability({
       annotationEvidenceCount: evidence.annotationItems.length,
       discoveryBusy: this.#elements.modelProviderSettings.discoveryBusy,
@@ -3061,12 +3061,6 @@ class WorkspaceApp {
       "Choose one or more evidence resources in the Research rail, then return to the assistant.";
   }
 
-  #modelEvidence(): SelectedModelEvidence {
-    return this.#snapshot
-      ? this.#elements.assistantWorkflowStatus.modelEvidence(this.#snapshot.annotations, this.#snapshot.claims)
-      : { annotationItems: [], annotationReferences: [], items: [], references: [] };
-  }
-
   async #generateCandidate(): Promise<void> {
     if (assistantWorkflowBusy(this.#assistantWorkflow.getSnapshot())) return;
     const input = this.#assistantGenerationContext();
@@ -3092,7 +3086,7 @@ class WorkspaceApp {
   #assistantGenerationContext(): AssistantGenerationContext | null {
     const { instruction, operation } = this.#elements.assistantTaskPanel.value;
     const passage = this.#assistantAuthoringPassage();
-    const evidence = this.#modelEvidence();
+    const evidence = this.#elements.assistantWorkflowStatus.modelEvidence();
     const insertionTarget = operation.id === "build-table" ? this.#assistantInsertionTarget() : null;
     if (
       !this.#elements.assistantWorkflowStatus.validateGeneration({
