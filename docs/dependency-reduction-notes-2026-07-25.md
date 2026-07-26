@@ -5228,6 +5228,28 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,574 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Shared Workspace Anchor Projection
+
+`resolveWorkspaceSnapshotAnchors` now hydrates passage links, claim links,
+comments, and revision-candidate targets through one pure projection.
+`WorkspaceApp` reuses it for synchronized refresh, offline restore, and live
+preview instead of maintaining two resource-specific resolution paths.
+
+This checkpoint reduces `src/client/app.ts` from 4,323 to 4,283 lines (-40)
+and adds a 32-line shared projection. Runtime source across those two files
+decreases by eight lines while consolidating all manuscript-backed snapshot
+resources behind one tested rule. Focused coverage passes every projected
+resource family, draft-claim identity preservation, immutability, application
+contracts, strict types, and all 120 Workers-runtime tests.
+
+The browser application artifact changes from 824,581 B raw / 222,702 B gzip
+to 824,410 B raw / 222,707 B gzip (-171 B raw / +5 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,575 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Assistant Evidence Projection
 
 `AssistantWorkflowStatus` now resolves its ordered selected evidence keys

@@ -429,7 +429,9 @@ collaboration.
   offset rows; unconvertible legacy rows retain null endpoints and remain
   explicitly stale under the version 1 selector contract. The bounded Claims
   and Project evidence panels own live resolved, changed, and unavailable
-  action presentation when the composed manuscript changes.
+  action presentation when the composed manuscript changes. One pure snapshot
+  projection hydrates passage links, claim links, comments, and revision-model
+  targets for synchronized refresh, offline restore, and live preview.
 - **Manuscript comments:** Comments are attributed to stable workspace-person
   ids and stored outside Markdown with a version 1 manuscript anchor, body,
   lifecycle status, and timestamps. Creation and resolution are explicit
@@ -729,6 +731,8 @@ collaboration.
       provenance.
 - [x] Link representations distinguish immutable selectors from current
       resolution and expose stale anchors without silent relocation.
+- [x] Synchronized, offline, and live-preview snapshots resolve every
+      manuscript-backed resource through one shared projection.
 - [x] A one-time migration adds valid relative endpoints to offset-only links
       and leaves unconvertible legacy links explicitly stale with null
       endpoints.

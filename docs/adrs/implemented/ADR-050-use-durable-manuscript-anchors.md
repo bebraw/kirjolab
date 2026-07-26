@@ -93,6 +93,10 @@ type ManuscriptAnchorResolution =
 
 Passage-link resources expose the immutable selector and current resolution.
 They do not expose mutable current `start` or `end` values at the top level.
+The browser hydrates passage links, claim links, comments, and revision-model
+targets through one pure workspace-snapshot projection. Synchronized fetch,
+offline restore, and live preview reuse that projection rather than maintaining
+resource-specific resolution loops.
 Consumers navigate only a `resolved` result and present changed or stale states
 explicitly.
 
@@ -146,6 +150,9 @@ the intended traceable path from evidence and claims into authored prose.
   matching client bundle.
 - Each passage link stores more metadata and is resolved against current source
   when represented.
+- Every manuscript-backed workspace resource receives its current resolution
+  through the same snapshot projection, including offline and live-preview
+  paths.
 - Yjs relative-position encoding becomes part of the persisted version 1
   selector format.
 - A passage whose relative range survives but whose text changes needs an

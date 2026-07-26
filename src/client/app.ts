@@ -12,6 +12,7 @@ import {
   type ServerCollaborationMessage,
 } from "../domain/collaboration";
 import { resolveManuscriptAnchor } from "../domain/manuscript-anchor";
+import { resolveWorkspaceSnapshotAnchors } from "../domain/workspace-anchor-projection";
 import {
   composeProject,
   projectFileCollaborationTextName,
@@ -1040,7 +1041,9 @@ class WorkspaceApp {
     if (!response.ok) throw new Error("Could not load the project");
     const value: unknown = await response.json();
     if (!isWorkspaceSnapshot(value)) throw new Error("Project returned an invalid snapshot");
-    const snapshot = collaborationSynced(this.#collaborationWorkflow.getSnapshot()) ? this.#resolveSnapshotAnchors(value) : value;
+    const snapshot = collaborationSynced(this.#collaborationWorkflow.getSnapshot())
+      ? resolveWorkspaceSnapshotAnchors(this.#document, value)
+      : value;
     this.#snapshot = snapshot;
     if (!this.#hasBootstrapSnapshot) {
       this.#hasBootstrapSnapshot = true;
@@ -1056,35 +1059,6 @@ class WorkspaceApp {
     this.#renderResources();
     this.#scheduleOfflineSave();
     await this.#refreshProjectReferencePdfs();
-  }
-
-  #resolveSnapshotAnchors(snapshot: WorkspaceSnapshot): WorkspaceSnapshot {
-    return {
-      ...snapshot,
-      links: snapshot.links.map((link) => ({
-        ...link,
-        resolution: resolveManuscriptAnchor(this.#document, link.anchor),
-      })),
-      claimLinks: snapshot.claimLinks.map((link) => ({
-        ...link,
-        resolution: resolveManuscriptAnchor(this.#document, link.anchor),
-      })),
-      comments: snapshot.comments.map((comment) => ({
-        ...comment,
-        resolution: resolveManuscriptAnchor(this.#document, comment.anchor),
-      })),
-      candidates: snapshot.candidates.map((candidate) =>
-        candidate.operation === "draft-claim"
-          ? candidate
-          : {
-              ...candidate,
-              target: {
-                ...candidate.target,
-                resolution: resolveManuscriptAnchor(this.#document, candidate.target.anchor),
-              },
-            },
-      ),
-    };
   }
 
   async #refreshCatalog(): Promise<void> {
@@ -1767,29 +1741,15 @@ class WorkspaceApp {
   #renderPreviewWorkspaceContext(publicationComposition: ProjectComposition | null, bibliography: string): void {
     const snapshot = this.#snapshot;
     if (snapshot) {
-      const links = snapshot.links.map((link) => ({
-        ...link,
-        resolution: resolveManuscriptAnchor(this.#document, link.anchor),
-      }));
-      const claimLinks = snapshot.claimLinks.map((link) => ({
-        ...link,
-        resolution: resolveManuscriptAnchor(this.#document, link.anchor),
-      }));
-      this.#elements.projectEvidencePanel.setPassageLinks(links);
-      this.#elements.claimListPanel.setPassageLinks(claimLinks);
-      this.#renderManuscriptComments(
-        snapshot.comments.map((comment) => ({
-          ...comment,
-          resolution: resolveManuscriptAnchor(this.#document, comment.anchor),
-        })),
-      );
+      const resolved = resolveWorkspaceSnapshotAnchors(this.#document, snapshot);
+      this.#elements.projectEvidencePanel.setPassageLinks(resolved.links);
+      this.#elements.claimListPanel.setPassageLinks(resolved.claimLinks);
+      this.#renderManuscriptComments(resolved.comments);
       this.#elements.projectMap.setGraph(
         buildWorkspaceKnowledgeGraph({
-          ...snapshot,
+          ...resolved,
           source: publicationComposition?.content ?? snapshot.composition.content,
           bibliography,
-          links,
-          claimLinks,
         }),
       );
     }
@@ -4183,7 +4143,7 @@ class WorkspaceApp {
     const pending = offlineDocumentDelta(this.#document, this.#serverStateVector);
     if (pending) this.#pendingUpdates.enqueue(pending);
     this.#syncCollaborationQueue();
-    this.#snapshot = this.#resolveSnapshotAnchors(record.snapshot);
+    this.#snapshot = resolveWorkspaceSnapshotAnchors(this.#document, record.snapshot);
     this.#hasBootstrapSnapshot = true;
     this.#collaborationWorkflow.send({ type: "OFFLINE_AVAILABLE", available: true });
     this.#revision = record.snapshot.revision;

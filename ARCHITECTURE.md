@@ -722,6 +722,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   relative positions. Expose `resolved` or `stale` state; exact quote/context
   and original offsets remain provenance and must never act as runtime
   navigation fallback.
+- Hydrate current resolutions for passage links, claim links, comments, and
+  revision-candidate targets through one pure workspace-snapshot projection.
+  Reuse it for synchronized refreshes, offline restore, and live preview so
+  resource families cannot drift into different anchor-resolution behavior.
 - Keep current navigation offsets inside a derived anchor resolution, not as
   top-level durable link properties. Conservatively backfill a valid legacy
   offset row once; keep an unconvertible row explicitly stale with null
