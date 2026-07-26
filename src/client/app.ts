@@ -882,7 +882,7 @@ class WorkspaceApp {
       const action = (event as CustomEvent<LibraryPdfToolbarAction>).detail;
       if (action.action === "choose-tool") this.#setLibraryPdfTool(action.tool);
       else if (action.action === "drawing-undone") void this.#completeLibraryDrawingUndo();
-      else if (action.action === "export-annotated") void this.#downloadAnnotatedPdf();
+      else if (action.action === "export-status") this.#showToast(action.message);
       else this.#setLibraryPdfInspector(true, true);
     });
     this.#elements.libraryPdfInspector.addEventListener(libraryPdfInspectorCloseEvent, () => this.#closeLibraryPdfInspector());
@@ -4284,6 +4284,7 @@ class WorkspaceApp {
     this.#pdfViewer.updatePrivateHighlights(highlights);
     const markups = (this.#librarySnapshot.pdfMarkups ?? []).filter((markup) => markup.artifactId === artifact.id);
     this.#elements.libraryPdfAnnotationToolbar.setAnnotationAvailability(highlights.length + markups.length);
+    this.#elements.libraryPdfAnnotationToolbar.setExportArtifact(artifact);
     this.#elements.libraryHighlightList.setData({
       artifact,
       highlights,
@@ -4606,33 +4607,6 @@ class WorkspaceApp {
     this.#showToast("Private annotation deleted.");
   }
 
-  async #downloadAnnotatedPdf(): Promise<void> {
-    const artifact = this.#activeLibraryPdf();
-    if (!artifact) return;
-    const url = `/api/library/pdfs/${encodeURIComponent(artifact.id)}/annotated`;
-    const filename = artifact.name.replace(/\.pdf$/iu, "") + "-annotated.pdf";
-    if (installedWebApp() && typeof navigator.share === "function") {
-      try {
-        const response = await fetch(url, { credentials: "same-origin" });
-        await expectOk(response);
-        const file = new File([await response.blob()], filename, { type: "application/pdf" });
-        if (!navigator.canShare || navigator.canShare({ files: [file] })) {
-          this.#showToast("Choose Save to Files to keep the annotated PDF.");
-          await navigator.share({ files: [file], title: filename });
-          return;
-        }
-      } catch (error) {
-        if (error instanceof DOMException && error.name === "AbortError") return;
-        this.#showToast("Could not open the file saver. Downloading instead.");
-      }
-    }
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = filename;
-    link.click();
-    this.#showToast("Preparing annotated PDF…");
-  }
-
   async #openLibraryHighlight(highlight: LibraryHighlight): Promise<void> {
     const artifact = this.#librarySnapshot?.artifacts.find((item) => item.id === highlight.artifactId);
     if (!artifact) return;
@@ -4943,11 +4917,6 @@ function readIdentityEmail(): string {
 
 function readAppMode(): "workspace" | "library" {
   return document.body.dataset.appMode === "library" ? "library" : "workspace";
-}
-
-function installedWebApp(): boolean {
-  const iosNavigator = navigator as Navigator & { readonly standalone?: boolean };
-  return window.matchMedia("(display-mode: standalone)").matches || iosNavigator.standalone === true;
 }
 
 class WorkspaceAccessError extends Error {}

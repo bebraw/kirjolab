@@ -543,8 +543,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Let the Library PDF annotation toolbar derive the newest drawing on the
   active page and own undo deletion through its stable reference and markup
   identities, including pending suppression and retryable local failure state.
-  Keep canonical Library refresh and notification policy in the application
-  coordinator.
+  Let it also own annotated-PDF download and installed-app file-share mechanics
+  from the stable artifact identity and filename. Keep canonical Library refresh
+  and notification presentation in the application coordinator.
 - Let the Library PDF annotation list own deletion initiated from a saved
   markup card, including its stable encoded target, single-request lock, and
   retryable card-local failure state. Keep canonical Library refresh and toast

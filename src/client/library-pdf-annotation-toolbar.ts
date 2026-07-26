@@ -7,7 +7,8 @@ import type { PdfAnnotationTool } from "./library-pdf-markup-layer";
 
 export type LibraryPdfToolbarAction =
   | { readonly action: "choose-tool"; readonly tool: PdfAnnotationTool }
-  | { readonly action: "drawing-undone" | "export-annotated" | "open-inspector" };
+  | { readonly action: "drawing-undone" | "open-inspector" }
+  | { readonly action: "export-status"; readonly message: string };
 
 export const libraryPdfToolbarActionEvent = "library-pdf-toolbar-action";
 
@@ -20,7 +21,7 @@ export class LibraryPdfAnnotationToolbar extends LitElement {
     drawingWidth: { state: true },
     undoing: { state: true },
     undoStatus: { state: true },
-    exportAvailable: { state: true },
+    exporting: { state: true },
     annotationCount: { state: true },
     inspectorOpen: { state: true },
   };
@@ -30,10 +31,11 @@ export class LibraryPdfAnnotationToolbar extends LitElement {
   declare private drawingWidth: number;
   declare private undoing: boolean;
   declare private undoStatus: string;
-  declare private exportAvailable: boolean;
+  declare private exporting: boolean;
   declare private annotationCount: number;
   declare private inspectorOpen: boolean;
   private undoTarget: Pick<UndoDrawing, "id" | "referenceId"> | null = null;
+  private exportTarget: { readonly id: string; readonly name: string } | null = null;
 
   constructor() {
     super();
@@ -42,7 +44,7 @@ export class LibraryPdfAnnotationToolbar extends LitElement {
     this.drawingWidth = 4;
     this.undoing = false;
     this.undoStatus = "";
-    this.exportAvailable = false;
+    this.exporting = false;
     this.annotationCount = 0;
     this.inspectorOpen = false;
   }
@@ -58,7 +60,11 @@ export class LibraryPdfAnnotationToolbar extends LitElement {
 
   setAnnotationAvailability(count: number): void {
     this.annotationCount = count;
-    this.exportAvailable = count > 0;
+  }
+
+  setExportArtifact(artifact: { readonly id: string; readonly name: string } | null): void {
+    this.exportTarget = artifact ? { id: artifact.id, name: artifact.name } : null;
+    this.requestUpdate();
   }
 
   setUndoDrawings(drawings: readonly UndoDrawing[]): void {
@@ -132,12 +138,12 @@ export class LibraryPdfAnnotationToolbar extends LitElement {
           class="library-pdf-rail-button button-icon"
           id="export-library-annotated-pdf"
           type="button"
-          ?disabled=${!this.exportAvailable}
+          ?disabled=${this.annotationCount === 0 || !this.exportTarget || this.exporting}
           title="Download a copy with private notes and ink"
           data-touch-target="true"
-          @click=${() => this.emitAction({ action: "export-annotated" })}
+          @click=${this.exportAnnotated}
         >
-          ${icon("download")}<span class="sr-only">Export annotated</span>
+          ${icon("download")}<span class="sr-only">${this.exporting ? "Preparing annotated PDF" : "Export annotated"}</span>
         </button>
         <button
           class="library-pdf-rail-button library-pdf-annotations-button button-icon"
@@ -191,6 +197,38 @@ export class LibraryPdfAnnotationToolbar extends LitElement {
     }
   }
 
+  protected async exportAnnotated(): Promise<void> {
+    const target = this.exportTarget;
+    if (!target || this.exporting || this.annotationCount === 0) return;
+    this.exporting = true;
+    const url = `/api/library/pdfs/${encodeURIComponent(target.id)}/annotated`;
+    const filename = target.name.replace(/\.pdf$/iu, "") + "-annotated.pdf";
+    try {
+      if (installedWebApp() && typeof navigator.share === "function") {
+        try {
+          const response = await fetch(url, { credentials: "same-origin" });
+          await expectOk(response);
+          const file = new File([await response.blob()], filename, { type: "application/pdf" });
+          if (!navigator.canShare || navigator.canShare({ files: [file] })) {
+            this.emitAction({ action: "export-status", message: "Choose Save to Files to keep the annotated PDF." });
+            await navigator.share({ files: [file], title: filename });
+            return;
+          }
+        } catch (error) {
+          if (error instanceof DOMException && error.name === "AbortError") return;
+          this.emitAction({ action: "export-status", message: "Could not open the file saver. Downloading instead." });
+        }
+      }
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename;
+      link.click();
+      this.emitAction({ action: "export-status", message: "Preparing annotated PDF…" });
+    } finally {
+      this.exporting = false;
+    }
+  }
+
   protected emitAction(action: LibraryPdfToolbarAction): void {
     this.dispatchEvent(new CustomEvent(libraryPdfToolbarActionEvent, { detail: action }));
   }
@@ -226,6 +264,11 @@ const toolStatus: Readonly<Record<PdfAnnotationTool, string>> = {
   note: "Tap the page to place a note.",
   draw: "Draw with Apple Pencil or a mouse. Touch gestures pan and zoom.",
 };
+
+function installedWebApp(): boolean {
+  const iosNavigator = navigator as Navigator & { readonly standalone?: boolean };
+  return window.matchMedia("(display-mode: standalone)").matches || iosNavigator.standalone === true;
+}
 
 if (typeof customElements !== "undefined" && !customElements.get("library-pdf-annotation-toolbar")) {
   customElements.define("library-pdf-annotation-toolbar", LibraryPdfAnnotationToolbar);

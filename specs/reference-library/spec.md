@@ -265,8 +265,11 @@ memory and makes citation aliases compete with stable source identity.
   inspector-expanded state. From the active page drawings, it derives the
   newest stable undo target and owns its deletion, pending suppression,
   retryable local failure state, and typed completion outcome. It also emits
-  typed tool, export, and inspector intents. The application coordinator
-  retains canonical refresh, annotated export, inspector policy, and toasts.
+  typed tool and inspector intents. Given a stable artifact identity and
+  filename, it owns annotated-PDF download and installed-app file sharing,
+  including cancellation and download fallback, and emits typed status
+  outcomes. The application coordinator retains canonical refresh, inspector
+  policy, and toast presentation.
 - A bounded light-DOM inspector component composes the annotation forms,
   imported-highlight review, saved annotation list, and project-use block. It
   owns shell visibility, active-artifact identity, status presentation,
