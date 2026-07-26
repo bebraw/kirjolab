@@ -3323,6 +3323,15 @@ test("keeps resource-keyed research context beside authoring", async ({ page }) 
   });
   await expect(managedReference).toBeFocused();
   await expect(managedReference.locator(".library-reference-details")).toHaveAttribute("open", "");
+  const libraryScroll = page.locator("#context-library-scroll");
+  await libraryScroll.evaluate((element) => {
+    element.scrollTop = 120;
+  });
+  const libraryPosition = await libraryScroll.evaluate((element) => element.scrollTop);
+  expect(libraryPosition).toBeGreaterThan(0);
+  await page.getByRole("tab", { name: "The Normative Structure of Science" }).click();
+  await page.getByRole("tab", { name: "Library" }).click();
+  expect(await libraryScroll.evaluate((element) => element.scrollTop)).toBe(libraryPosition);
   await page.getByRole("tab", { name: "The Normative Structure of Science" }).click();
 
   await page.locator("#publication-pdf-link").selectOption({ label: "context-paper.pdf" });

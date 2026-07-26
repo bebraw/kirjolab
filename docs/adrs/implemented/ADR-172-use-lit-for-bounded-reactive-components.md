@@ -92,7 +92,8 @@ The adopted components own bounded presentation:
   typed activate and close intents.
 - The composed context tab strip owns fixed-tab presentation and keyboard
   focus, delegates resource and overview presentation, and derives visibility,
-  resource labels, and PDF-mode state for all controlled context panels.
+  resource labels, PDF-mode state, and fixed-panel scroll capture and
+  restoration for all controlled context panels.
 - The context resource-tab strip owns resource tab and close-action markup,
   active-state presentation, panel associations, and typed activate and close
   intents.
@@ -528,7 +529,7 @@ reason to wrap static markup mechanically.
   composes the existing dynamic resource tabs and overflow overview from one
   input while emitting their typed intents. The application coordinator retains
   active-context state, authorized Library loading, resource closure, route
-  synchronization, content rendering, and scroll restoration.
+  synchronization, content rendering, and resource-panel scroll restoration.
 - The workspace surface switcher replaces two button references, native action
   bindings, and ARIA-state mutations. The application coordinator retains
   responsive surface visibility and URL synchronization.

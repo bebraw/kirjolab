@@ -52,6 +52,17 @@ export class ContextTabStrip extends LitElement {
     panel.dataset.readonlyPdf = String(readonlyPdf);
   }
 
+  fixedScrollTop(key: ResearchContextKey): number | null {
+    return this.fixedScrollElement(key)?.scrollTop ?? null;
+  }
+
+  restoreFixedScroll(key: ResearchContextKey, scrollTop: number): boolean {
+    const scroll = this.fixedScrollElement(key);
+    if (!scroll) return false;
+    scroll.scrollTop = scrollTop;
+    return true;
+  }
+
   focusTab(key: ResearchContextKey): void {
     const id =
       key === "preview" || key === "library" || key === "assistant" ? `context-${key}-tab` : `context-tab-${key.replace(":", "-")}`;
@@ -155,6 +166,18 @@ export class ContextTabStrip extends LitElement {
       panel?.setAttribute("aria-labelledby", contextResourceTabId(active));
       panel?.removeAttribute("aria-label");
     }
+  }
+
+  private fixedScrollElement(key: ResearchContextKey): HTMLElement | null {
+    const id =
+      key === "preview"
+        ? "preview-scroll"
+        : key === "library"
+          ? "context-library-scroll"
+          : key === "assistant"
+            ? "context-assistant-scroll"
+            : null;
+    return id ? this.controlledPanel(id) : null;
   }
 
   private renderPrimaryTab(action: ContextPrimaryTabAction, label: string, panelId: string): TemplateResult {

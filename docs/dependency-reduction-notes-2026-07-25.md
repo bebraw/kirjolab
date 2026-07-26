@@ -2288,3 +2288,23 @@ and unique production package counts remain unchanged at 135,411 B raw /
 
 Full native CI passes all 1,393 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Lit Ownership: Fixed Context Scroll
+
+`ContextTabStrip` now resolves the Preview, Library, and Writing-assistant
+scroll containers controlled by its permanent tabs and owns their scroll
+capture and restoration. `WorkspaceApp` retains canonical tab state and the
+resource-specific publication, candidate, and PDF scroll contracts.
+
+This checkpoint reduces `src/client/app.ts` from 7,308 to 7,279 lines (-29),
+removes two scroll-element references, and deletes the coordinator's fixed-tab
+scroll selector and restorer table. Focused unit and browser coverage passes
+Preview and Library scroll retention plus resource-key rejection.
+
+The browser application artifact changes from 790,644 B raw / 213,368 B gzip
+to 790,503 B raw / 213,336 B gzip (-141 B raw / -32 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,394 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.

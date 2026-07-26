@@ -8,6 +8,7 @@ class TestContextTabStrip extends ContextTabStrip {
       dataset: Record<string, string>;
       hidden: boolean;
       labelledBy: string | null;
+      scrollTop: number;
       removeAttribute(name: string): void;
       setAttribute(name: string, value: string): void;
     }
@@ -48,6 +49,7 @@ class TestContextTabStrip extends ContextTabStrip {
         dataset: {},
         hidden: false,
         labelledBy: null,
+        scrollTop: 0,
         removeAttribute: (name) => {
           if (name === "aria-label") return;
         },
@@ -170,6 +172,17 @@ describe("context tab strip", () => {
       hidden: false,
     });
     expect(strip.panels.get("pdf-context-controls")?.hidden).toBe(false);
+  });
+
+  it("captures and restores fixed-panel scroll positions", () => {
+    const strip = new TestContextTabStrip();
+
+    expect(strip.restoreFixedScroll("library", 42)).toBe(true);
+    expect(strip.fixedScrollTop("library")).toBe(42);
+    expect(strip.restoreFixedScroll("assistant", 24)).toBe(true);
+    expect(strip.panels.get("context-assistant-scroll")?.scrollTop).toBe(24);
+    expect(strip.fixedScrollTop("publication:item")).toBeNull();
+    expect(strip.restoreFixedScroll("publication:item", 1)).toBe(false);
   });
 
   it("moves roving focus only for unmodified navigation keys", () => {

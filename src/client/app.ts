@@ -494,8 +494,6 @@ interface Elements {
   previewContextControls: PreviewContextStatus;
   previewNavigationControl: PreviewNavigationControl;
   previewScroll: HTMLElement;
-  contextLibraryScroll: HTMLElement;
-  contextAssistantScroll: HTMLElement;
   publicationContextPanel: PublicationContextPanel;
   candidateReviewPanel: CandidateReviewPanel;
   preview: HTMLElement;
@@ -4351,7 +4349,7 @@ class WorkspaceApp {
 
   #captureActiveContextState(): void {
     const key = this.#contextState.activeKey;
-    const fixedScrollTop = this.#fixedContextScrollTop(key);
+    const fixedScrollTop = this.#elements.contextTabStrip.fixedScrollTop(key);
     if (fixedScrollTop !== null) {
       this.#contextState = setResearchTabScroll(this.#contextState, key, fixedScrollTop);
       return;
@@ -4365,13 +4363,6 @@ class WorkspaceApp {
         ...(tab.kind === "pdf" ? { focusedAnnotationId: this.#pdfViewer.focusedAnnotationId } : {}),
       });
     }
-  }
-
-  #fixedContextScrollTop(key: ResearchContextKey): number | null {
-    if (key === RESEARCH_PREVIEW_KEY) return this.#elements.previewScroll.scrollTop;
-    if (key === RESEARCH_LIBRARY_KEY) return this.#elements.contextLibraryScroll.scrollTop;
-    if (key === RESEARCH_ASSISTANT_KEY) return this.#elements.contextAssistantScroll.scrollTop;
-    return null;
   }
 
   #resourceContextScrollTop(tab: ResearchContextTab): number {
@@ -4467,26 +4458,8 @@ class WorkspaceApp {
   }
 
   #restoreFixedResearchContext(activeKey: ResearchContextKey): boolean {
-    const restore = this.#fixedResearchContextRestorers()[activeKey];
-    if (!restore) return false;
-    restore();
-    return true;
-  }
-
-  #fixedResearchContextRestorers(): Readonly<Record<string, () => void>> {
-    return {
-      [RESEARCH_PREVIEW_KEY]: () => {
-        this.#elements.previewScroll.scrollTop = this.#contextState.tabs[0]?.scrollTop ?? 0;
-      },
-      [RESEARCH_LIBRARY_KEY]: () => {
-        const tab = this.#contextState.tabs.find((item) => item.key === RESEARCH_LIBRARY_KEY);
-        this.#elements.contextLibraryScroll.scrollTop = tab?.scrollTop ?? 0;
-      },
-      [RESEARCH_ASSISTANT_KEY]: () => {
-        const tab = this.#contextState.tabs.find((item) => item.key === RESEARCH_ASSISTANT_KEY);
-        this.#elements.contextAssistantScroll.scrollTop = tab?.scrollTop ?? 0;
-      },
-    };
+    const scrollTop = this.#contextState.tabs.find((item) => item.key === activeKey)?.scrollTop ?? 0;
+    return this.#elements.contextTabStrip.restoreFixedScroll(activeKey, scrollTop);
   }
 
   #renderActiveResourceContext(activeTab: ResearchResourceTab, loadPdf: boolean): void {
@@ -7176,8 +7149,6 @@ function collectElements(): Elements {
     previewContextControls: requiredElement("preview-context-controls", PreviewContextStatus),
     previewNavigationControl: requiredElement("preview-navigation-control", PreviewNavigationControl),
     previewScroll: requiredElement("preview-scroll", HTMLElement),
-    contextLibraryScroll: requiredElement("context-library-scroll", HTMLElement),
-    contextAssistantScroll: requiredElement("context-assistant-scroll", HTMLElement),
     publicationContextPanel: requiredElement("publication-context-panel", PublicationContextPanel),
     candidateReviewPanel: requiredElement("candidate-review-panel", CandidateReviewPanel),
     preview: requiredElement("preview", HTMLElement),

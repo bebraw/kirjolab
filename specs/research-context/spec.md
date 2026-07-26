@@ -159,8 +159,9 @@ changing their canonical data, selector, authorization, or rendering contracts.
 - The composed context tab strip derives the six controlled panel targets from
   the same canonical active-tab input used for fixed, resource, and overview
   presentation. It owns panel visibility, active resource labels, and PDF-mode
-  presentation while the workspace coordinator retains canonical tab state,
-  authorized content loading, content rendering, and scroll restoration.
+  presentation plus fixed-panel scroll capture and restoration. The workspace
+  coordinator retains canonical tab state, authorized content loading, content
+  rendering, and resource-panel scroll restoration.
 - Reconciliation authorizes `pdf:` tabs from the workspace snapshot and
   `library-pdf:` tabs from the current owner-library snapshot; neither scope
   grants the other.
@@ -345,9 +346,9 @@ changing their canonical data, selector, authorization, or rendering contracts.
       transitions remain with the application coordinator.
 - [x] The composed context tab strip owns fixed-tab keyboard presentation and
       all controlled-panel visibility, active resource labels, and PDF-mode
-      state while canonical context state, authorized loading, content rendering,
-      scroll restoration, routing, and transitions remain with the application
-      coordinator.
+      state plus fixed-panel scroll capture and restoration. Canonical context
+      state, authorized loading, content rendering, resource-panel scroll,
+      routing, and transitions remain with the application coordinator.
 - [x] A bounded light-DOM project evidence panel owns project-PDF and annotation
       grouping, counts, expanded state, grounding selection, passage-link
       presentation, stroke controls, and typed navigation and mutation intents.
