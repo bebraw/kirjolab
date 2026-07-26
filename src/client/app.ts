@@ -255,6 +255,7 @@ import { LibraryDiscoveryResults, libraryDiscoverySaveEvent, type LibraryDiscove
 import { LibraryDiscoverySearch, libraryDiscoverySearchEvent } from "./library-discovery-search";
 import { ReferenceLibraryFilterPanel, referenceLibraryFilterChangeEvent } from "./reference-library-filters";
 import { LibraryPdfUploadStatus, libraryPdfUploadRetryEvent, libraryPdfUploadRevealEvent } from "./library-pdf-upload-status";
+import { LibraryPdfUploadControl, libraryPdfUploadActionEvent, type LibraryPdfUploadAction } from "./library-pdf-upload-control";
 import { ModelProviderSettings, modelProviderChangeEvent, modelProviderDiscoveryEvent } from "./model-provider-settings";
 import { WebSnapshotComparisonPanel, WebSourceCapture, webSourceCaptureEvent } from "./web-source-panels";
 import { citationNetworkActionEvent, type CitationNetworkAction } from "./citation-network-panel";
@@ -458,8 +459,7 @@ interface Elements {
   libraryBibliographyUpload: HTMLInputElement;
   libraryCslUpload: HTMLInputElement;
   libraryArchiveUpload: HTMLInputElement;
-  libraryPdfUpload: HTMLInputElement;
-  libraryPdfDropzone: HTMLElement;
+  libraryPdfUploadControl: LibraryPdfUploadControl;
   libraryPdfUploadStatus: LibraryPdfUploadStatus;
   showArchivedReferences: HTMLButtonElement;
   referenceLibraryFilters: ReferenceLibraryFilterPanel;
@@ -650,7 +650,6 @@ class WorkspaceApp {
   #projectFileIncludeFromPath: string | null = null;
   #librarySnapshot: ReferenceLibrarySnapshot | null = null;
   #projectReferencePdfs: readonly ProjectReferencePdf[] = [];
-  #libraryPdfUploadBusy = false;
   #pdfDrawingShape: RecognizedDrawnShape | null = null;
   #pdfDrawingShapeTimer: number | undefined;
   #libraryHighlightRects: PdfSelectionCapture["rects"] = [];
@@ -948,26 +947,13 @@ class WorkspaceApp {
     this.#elements.libraryBibliographyUpload.addEventListener("change", () => void this.#importIntoReferenceLibrary());
     this.#elements.libraryCslUpload.addEventListener("change", () => void this.#importCslJson());
     this.#elements.libraryArchiveUpload.addEventListener("change", () => void this.#importLibraryArchive());
-    this.#elements.libraryPdfUpload.addEventListener("change", () => {
-      void this.#uploadLibraryPdfs(Array.from(this.#elements.libraryPdfUpload.files ?? []));
-    });
-    this.#elements.libraryPdfDropzone.addEventListener("dragover", (event) => {
-      if (this.#libraryPdfUploadBusy || !event.dataTransfer?.types.includes("Files")) return;
-      event.preventDefault();
-      event.dataTransfer.dropEffect = "copy";
-      this.#elements.libraryPdfDropzone.dataset.dragging = "true";
-    });
-    this.#elements.libraryPdfDropzone.addEventListener("dragleave", () => {
-      delete this.#elements.libraryPdfDropzone.dataset.dragging;
-    });
-    this.#elements.libraryPdfDropzone.addEventListener("drop", (event) => {
-      event.preventDefault();
-      delete this.#elements.libraryPdfDropzone.dataset.dragging;
-      if (this.#libraryPdfUploadBusy) {
+    this.#elements.libraryPdfUploadControl.addEventListener(libraryPdfUploadActionEvent, (event) => {
+      const action = (event as CustomEvent<LibraryPdfUploadAction>).detail;
+      if (action.action === "busy-drop") {
         this.#showToast("Finish the current PDF batch before adding another.");
         return;
       }
-      void this.#uploadLibraryPdfs(Array.from(event.dataTransfer?.files ?? []));
+      void this.#uploadLibraryPdfs(action.files);
     });
     this.#elements.libraryPdfUploadStatus.addEventListener(libraryPdfUploadRetryEvent, () => {
       void this.#uploadLibraryPdfs(this.#failedLibraryPdfUploads);
@@ -3649,7 +3635,7 @@ class WorkspaceApp {
   }
 
   async #uploadLibraryPdfs(files: readonly File[]): Promise<void> {
-    if (files.length === 0 || this.#libraryPdfUploadBusy) return;
+    if (files.length === 0 || this.#elements.libraryPdfUploadControl.busy) return;
     this.#beginLibraryPdfUpload();
     try {
       const result = await uploadPdfBatch(
@@ -3674,11 +3660,8 @@ class WorkspaceApp {
   }
 
   #beginLibraryPdfUpload(): void {
-    this.#elements.libraryPdfUpload.value = "";
-    this.#elements.libraryPdfUpload.disabled = true;
+    this.#elements.libraryPdfUploadControl.setBusy(true);
     this.#elements.libraryPdfUploadStatus.setBusy(true);
-    this.#elements.libraryPdfDropzone.dataset.busy = "true";
-    this.#libraryPdfUploadBusy = true;
     this.#failedLibraryPdfUploads = [];
   }
 
@@ -3708,10 +3691,8 @@ class WorkspaceApp {
   }
 
   #finishLibraryPdfUpload(): void {
-    this.#libraryPdfUploadBusy = false;
-    this.#elements.libraryPdfUpload.disabled = false;
+    this.#elements.libraryPdfUploadControl.setBusy(false);
     this.#elements.libraryPdfUploadStatus.setBusy(false);
-    delete this.#elements.libraryPdfDropzone.dataset.busy;
   }
 
   async #revealExistingPdfReference(existing: ExistingPdfUpload): Promise<void> {
@@ -7102,8 +7083,7 @@ function collectElements(): Elements {
     libraryBibliographyUpload: requiredElement("library-bibliography-upload", HTMLInputElement),
     libraryCslUpload: requiredElement("library-csl-upload", HTMLInputElement),
     libraryArchiveUpload: requiredElement("library-archive-upload", HTMLInputElement),
-    libraryPdfUpload: requiredElement("library-pdf-upload", HTMLInputElement),
-    libraryPdfDropzone: requiredElement("library-pdf-dropzone", HTMLElement),
+    libraryPdfUploadControl: requiredElement("library-pdf-upload-control", LibraryPdfUploadControl),
     libraryPdfUploadStatus: requiredElement("library-pdf-upload-status", LibraryPdfUploadStatus),
     showArchivedReferences: requiredElement("show-archived-references", HTMLButtonElement),
     referenceLibraryFilters: requiredElement("reference-library-filters", ReferenceLibraryFilterPanel),

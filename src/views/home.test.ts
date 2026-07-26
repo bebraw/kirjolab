@@ -338,6 +338,7 @@ describe("renderHomePage", () => {
     const html = renderHomePage(exampleRoutes);
 
     expect(html).toContain('id="library-pdf-dropzone" for="library-pdf-upload"');
+    expect(html).toContain('<library-pdf-upload-control class="contents" id="library-pdf-upload-control">');
     expect(html).toContain("Add reference");
     expect(html).toContain("Upload up to 20");
     expect(html).toContain(

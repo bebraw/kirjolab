@@ -2354,3 +2354,26 @@ direct and unique production package counts remain unchanged at 135,411 B raw /
 
 Full native CI passes all 1,397 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Lit Ownership: Library PDF Intake
+
+`LibraryPdfUploadControl` now owns file selection, drag-and-drop acceptance,
+drag and busy presentation, input reset and disabling, and typed file and
+busy-drop intents. `WorkspaceApp` retains ordered batch execution, upload
+transport, failed-file retry ownership, Library refreshes, duplicate handling,
+and notification policy.
+
+This checkpoint reduces `src/client/app.ts` from 7,268 to 7,248 lines (-20),
+replaces two raw element references with one component reference, removes four
+native file and drag listeners, and deletes duplicated upload-busy state.
+Focused unit and browser coverage passes empty and populated selection, busy
+presentation, partial batch success, retry, exact duplicate detection, and
+archived-reference reveal.
+
+The browser application artifact changes from 795,095 B raw / 214,163 B gzip
+to 796,464 B raw / 214,497 B gzip (+1,369 B raw / +334 B gzip). Styles and
+direct and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,399 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.

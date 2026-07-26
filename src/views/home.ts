@@ -360,10 +360,12 @@ export function renderHomePage(
               <details class="action-menu library-add-menu ui-menu" data-action-menu>
                 <summary class="button-primary">Add reference</summary>
                 <div class="library-menu library-add-reference-menu ui-menu-panel">
+                  <library-pdf-upload-control class="contents" id="library-pdf-upload-control">
                   <label class="library-menu-action" id="library-pdf-dropzone" for="library-pdf-upload" title="Choose or drop up to 20 PDF files">
                     <span><strong>PDF files</strong><small id="library-pdf-upload-help">Upload up to 20</small></span><span aria-hidden="true">↑</span>
                     <input class="sr-only" id="library-pdf-upload" type="file" accept="application/pdf" multiple aria-describedby="library-pdf-upload-help">
                   </label>
+                  </library-pdf-upload-control>
                   <web-source-capture id="web-source-capture">
                   <form class="library-url-form" id="web-source-form">
                     <label class="sr-only" for="web-source-url">Website URL</label>

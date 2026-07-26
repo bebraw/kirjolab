@@ -181,9 +181,11 @@ The adopted components own bounded presentation:
 - The claim dialog owns create and edit presentation, proposition and note
   values, evidence-relation and annotation selection, modal lifecycle, and a
   typed save intent.
-- The Library PDF upload status owns queue progress, file outcomes, duplicate
-  actions, retry availability, busy and error presentation, and typed retry and
-  reveal intents.
+- The Library PDF upload control owns file selection, drag-and-drop acceptance,
+  drag and busy presentation, input reset and disabling, and typed file and
+  busy-drop intents. Its companion status owns queue progress, file outcomes,
+  duplicate actions, retry availability, busy and error presentation, and typed
+  retry and reveal intents.
 - The web source panels own URL capture and reset state plus readable-text
   snapshot comparison presentation.
 - The project annotation form owns its complete composer: visibility,
@@ -439,10 +441,12 @@ reason to wrap static markup mechanically.
   field, imperative evidence-option rendering, DOM-based selection collection,
   and modal configuration while leaving evidence prerequisites, API mutation,
   refreshes, and toast policy in the application coordinator.
-- The Library PDF upload status replaces imperative progress, outcome-row,
-  error, duplicate-action, and retry rendering while leaving drag-and-drop,
-  queue execution, upload transport, failed-file ownership, Library refreshes,
-  and toast policy in the application coordinator.
+- The Library PDF upload control replaces two raw element references, four
+  native file and drag bindings, coordinator-owned drag presentation, input
+  reset and disabling, and duplicate busy state. Its companion status replaces
+  imperative progress, outcome-row, error, duplicate-action, and retry
+  rendering. Queue execution, upload transport, failed-file ownership, Library
+  refreshes, and toast policy remain in the application coordinator.
 - The web source panels replace three internal element references, submit
   binding, URL reset, comparison heading selection, and diff-hunk rendering
   while leaving capture and comparison requests, response validation, Library

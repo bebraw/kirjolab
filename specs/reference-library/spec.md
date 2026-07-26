@@ -54,9 +54,11 @@ memory and makes citation aliases compete with stable source identity.
   same atomic upload endpoint. Per-file failure does not stop later uploads;
   only failed files remain in an ephemeral retry queue. Batch intake performs no
   metadata extraction or provider lookup.
-- A bounded upload-status component owns queue progress, per-file outcomes,
-  duplicate-source reveal actions, retry availability, busy state, and error
-  presentation. The workspace coordinator retains file and drop input, queue
+- A bounded upload control owns file selection, drag-and-drop acceptance, drag
+  and busy presentation, input reset and disabling, and typed file and
+  busy-drop intents. Its companion status component owns queue progress,
+  per-file outcomes, duplicate-source reveal actions, retry availability, busy
+  state, and error presentation. The workspace coordinator retains queue
   execution, upload transport, failed-file ownership, Library refreshes, and
   toast policy.
 - A bounded light-DOM queue owns the count, visibility, reference choices, and
