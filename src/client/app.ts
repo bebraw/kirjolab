@@ -3592,11 +3592,6 @@ class WorkspaceApp {
   #setHighlightTool(tool: ProjectHighlightTool): void {
     this.#elements.projectAnnotationForm.setTool(tool);
     this.#pdfViewer.setTool(tool);
-    this.#elements.projectAnnotationForm.setStatus(
-      tool === "paint"
-        ? "Paint PDF text to save or extend a highlight."
-        : "Select across a saved highlight stroke or tap it to erase that content.",
-    );
   }
 
   async #activateHighlightFragment(annotationId: string, fragmentId: string): Promise<void> {

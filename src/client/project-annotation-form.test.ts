@@ -70,8 +70,11 @@ describe("project annotation form", () => {
     });
     expect(panel.renderForTest().values).toContain("Captured 1 line from page 3. Saving automatically…");
     panel.setTool("erase");
+    expect(panel.renderForTest().values).toContain("Select across a saved highlight stroke or tap it to erase that content.");
     panel.showCapture({ page: 4, prefix: "", quote: "evidence", rects: [], suffix: "" });
     expect(panel.renderForTest().values).toContain("Erasing overlapping highlight strokes…");
+    panel.setTool("paint");
+    expect(panel.renderForTest().values).toContain("Paint PDF text to save or extend a highlight.");
     panel.setStatus("Selection saved.");
     panel.setVisible(false);
     panel.setUndoStroke({ annotationId: "annotation-1", fragmentId: "fragment-1" });

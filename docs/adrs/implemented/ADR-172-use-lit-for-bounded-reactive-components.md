@@ -322,9 +322,10 @@ The adopted components own bounded presentation:
   undo state and presentation, active annotation identity, visible-PDF choices,
   captured quotation fields, highlight creation and stroke-extension transport,
   Valibot response validation, optional note input and persistence, local save
-  status and retryable failures, paint-versus-erase selection feedback derived
-  from its local tool and canonical capture, citation availability derived from
-  the active PDF and canonical publication-PDF links, and typed tool, complete
+  status and retryable failures, paint-versus-erase tool guidance and selection
+  feedback derived from its local tool and canonical capture, citation
+  availability derived from the active PDF and canonical publication-PDF
+  links, and typed tool, complete
   undo, citation, completed save, and link outcomes or intents.
 - The Library PDF annotation forms own private-highlight, page-note, and
   selected-markup composer visibility and values, private-highlight geometry

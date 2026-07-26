@@ -120,6 +120,10 @@ export class ProjectAnnotationForm extends LitElement {
 
   setTool(tool: ProjectHighlightTool): void {
     this.tool = tool;
+    this.status =
+      tool === "paint"
+        ? "Paint PDF text to save or extend a highlight."
+        : "Select across a saved highlight stroke or tap it to erase that content.";
   }
 
   get selectedTool(): ProjectHighlightTool {

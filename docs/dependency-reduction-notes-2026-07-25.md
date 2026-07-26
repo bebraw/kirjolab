@@ -5705,6 +5705,27 @@ component members.
 Full native CI passes all 1,583 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Project Highlight Tool Guidance
+
+`ProjectAnnotationForm` now derives Paint and Erase guidance when its local tool
+changes. `WorkspaceApp` retains viewer-tool synchronization, PDF gesture and
+overlap handling, persistence, canonical refreshes, and notification policy.
+
+This checkpoint reduces `src/client/app.ts` from 3,799 to 3,794 lines (-5) and
+grows the project annotation form from 362 to 366 lines (+4), for a one-line
+runtime source reduction. Its focused test grows from 212 to 215 lines to cover
+both guidance branches. Seven focused and nine related tests pass through the
+affected guardrails alongside formatting, lint, and strict types.
+
+The browser application artifact changes from 821,989 B raw / 222,563 B gzip
+to 821,960 B raw / 222,577 B gzip (-29 B raw / +14 B gzip). Styles, direct and
+unique production package counts, and the readability audit remain unchanged
+at 135,411 B raw / 23,373 B gzip, 18, 150, and 249 externally visible low-level
+component members.
+
+Full native CI passes all 1,584 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: PDF Markup Guidance
 
 `LibraryPdfMarkupLayer` now owns touch-versus-drawing and recognized-shape
