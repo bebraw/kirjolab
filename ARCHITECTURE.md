@@ -616,10 +616,12 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   coordinator.
 - Let the project evidence panel own project-PDF file-input state, validation,
   import transport, guarded project-PDF and annotation removal transport, and
-  retryable local status. Given a coordinator-validated current passage, let it
-  also own annotation-passage link transport and its completed mutation
-  outcome. Keep Yjs selection validation, PDF interaction, canonical refresh,
-  and notification policy in the application coordinator.
+  highlight-fragment update and deletion transport, fragment-input validation,
+  and retryable local status. Given a coordinator-validated current passage,
+  let it also own annotation-passage link transport and its completed mutation
+  outcome. Keep Yjs selection validation, PDF selection and undo coordination,
+  canonical refresh, annotation-form synchronization, and notification policy
+  in the application coordinator.
 - Treat authoring and research context as the two primary workspace surfaces.
   Keep a permanent manuscript Preview in a keyboard-operable right-hand tab
   pane, and address publication, PDF, and model-candidate tabs by stable

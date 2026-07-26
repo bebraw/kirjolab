@@ -6,8 +6,8 @@ import type {
   ManuscriptAnchorSelector,
   PassageLink,
   PdfResource,
-  PdfSelectionRect,
   PublicationPdfLink,
+  UpdateAnnotationFragmentInput,
 } from "../domain/workspace";
 import { formatBytes } from "./format";
 import { errorMessage, expectOk, jsonFetch } from "./http";
@@ -22,22 +22,14 @@ export type ProjectEvidenceAction =
   | { readonly action: "annotation-removed"; readonly annotationId: string; readonly message: string }
   | { readonly action: "edit-annotation"; readonly annotation: AnnotationResource }
   | { readonly action: "evidence"; readonly key: string; readonly selected: boolean }
+  | { readonly action: "fragment-updated"; readonly message: string }
   | { readonly action: "link-annotation"; readonly annotationId: string }
   | { readonly action: "open-passage"; readonly anchor: ManuscriptAnchorSelector }
   | { readonly action: "open-pdf"; readonly annotationId?: string; readonly page?: number; readonly pdf: PdfResource }
   | { readonly action: "notice"; readonly message: string }
   | { readonly action: "pdf-imported"; readonly message: string }
   | { readonly action: "remove-fragment"; readonly annotationId: string; readonly fragmentId: string }
-  | { readonly action: "pdf-removed"; readonly message: string }
-  | {
-      readonly action: "update-fragment";
-      readonly annotationId: string;
-      readonly fragmentId: string;
-      readonly prefix: string;
-      readonly quote: string;
-      readonly rects: readonly PdfSelectionRect[];
-      readonly suffix: string;
-    };
+  | { readonly action: "pdf-removed"; readonly message: string };
 
 interface ProjectEvidenceData {
   readonly annotations: readonly AnnotationResource[];
@@ -53,7 +45,7 @@ export class ProjectEvidencePanel extends LitElement {
     data: { state: true },
     evidenceOpen: { state: true },
     expandedPdfs: { state: true },
-    removalKey: { state: true },
+    mutationKey: { state: true },
     status: { state: true },
     uploadBusy: { state: true },
   };
@@ -61,7 +53,7 @@ export class ProjectEvidencePanel extends LitElement {
   declare private data: ProjectEvidenceData;
   declare private evidenceOpen: boolean;
   declare private expandedPdfs: ReadonlySet<string>;
-  declare private removalKey: string;
+  declare private mutationKey: string;
   declare private status: string;
   declare private uploadBusy: boolean;
   private apiBase = "";
@@ -71,7 +63,7 @@ export class ProjectEvidencePanel extends LitElement {
     this.data = { annotations: [], claimEvidenceLinks: [], links: [], pdfs: [], publicationPdfLinks: [], selectedEvidenceKeys: new Set() };
     this.evidenceOpen = false;
     this.expandedPdfs = new Set();
-    this.removalKey = "";
+    this.mutationKey = "";
     this.status = "";
     this.uploadBusy = false;
   }
@@ -107,6 +99,52 @@ export class ProjectEvidencePanel extends LitElement {
       this.emit({ action: "annotation-linked", message: "Annotation linked to the selected passage." });
     } catch (error) {
       this.status = errorMessage(error, "Could not link the annotation to the selected passage.");
+    }
+  }
+
+  async removeFragment(annotationId: string, fragmentId: string): Promise<{ readonly annotationDeleted: boolean } | null> {
+    if (this.mutationKey) return null;
+    this.mutationKey = `fragment:${fragmentId}`;
+    this.status = "Erasing highlight stroke…";
+    try {
+      const response = await fetch(
+        `${this.apiBase}/annotations/${encodeURIComponent(annotationId)}/fragments/${encodeURIComponent(fragmentId)}`,
+        { method: "DELETE", credentials: "same-origin" },
+      );
+      await expectOk(response);
+      this.status = "";
+      return { annotationDeleted: response.status === 204 };
+    } catch (error) {
+      this.status = errorMessage(error, "Could not erase the highlight stroke.");
+      return null;
+    } finally {
+      this.mutationKey = "";
+    }
+  }
+
+  async updateFragment(annotationId: string, fragmentId: string, input: UpdateAnnotationFragmentInput): Promise<boolean> {
+    const quote = input.quote.trim();
+    if (!quote) {
+      this.status = "A highlight stroke needs enough text to find the idea again.";
+      return false;
+    }
+    if (this.mutationKey) return false;
+    this.mutationKey = `fragment:${fragmentId}`;
+    this.status = "Adjusting highlight stroke…";
+    try {
+      const response = await jsonFetch(
+        `${this.apiBase}/annotations/${encodeURIComponent(annotationId)}/fragments/${encodeURIComponent(fragmentId)}`,
+        { ...input, quote },
+        "PUT",
+      );
+      await expectOk(response);
+      this.status = "";
+      return true;
+    } catch (error) {
+      this.status = errorMessage(error, "Could not adjust the highlight stroke.");
+      return false;
+    } finally {
+      this.mutationKey = "";
     }
   }
 
@@ -216,7 +254,7 @@ export class ProjectEvidencePanel extends LitElement {
   }
 
   protected async removePdf(pdf: PdfResource): Promise<void> {
-    if (this.removalKey) return;
+    if (this.mutationKey) return;
     const annotations = this.data.annotations.filter((annotation) => annotation.pdfId === pdf.id).length;
     const references = this.data.publicationPdfLinks.filter((link) => link.pdfId === pdf.id).length;
     if (annotations + references > 0) {
@@ -226,7 +264,7 @@ export class ProjectEvidencePanel extends LitElement {
       return;
     }
     if (!globalThis.confirm(`Remove ${pdf.name} from this project? The imported PDF bytes will be deleted.`)) return;
-    this.removalKey = `pdf:${pdf.id}`;
+    this.mutationKey = `pdf:${pdf.id}`;
     this.status = `Removing ${pdf.name}…`;
     try {
       const response = await fetch(`${this.apiBase}/pdfs/${encodeURIComponent(pdf.id)}`, {
@@ -239,7 +277,7 @@ export class ProjectEvidencePanel extends LitElement {
     } catch (error) {
       this.status = errorMessage(error, `Could not remove ${pdf.name}.`);
     } finally {
-      this.removalKey = "";
+      this.mutationKey = "";
     }
   }
 
@@ -264,7 +302,7 @@ export class ProjectEvidencePanel extends LitElement {
   }
 
   protected async removeAnnotation(annotation: AnnotationResource): Promise<void> {
-    if (this.removalKey) return;
+    if (this.mutationKey) return;
     const claims = this.data.claimEvidenceLinks.filter((link) => link.annotationId === annotation.id).length;
     if (claims > 0) {
       const message = `Remove this highlight from ${claims} claim(s) before deleting it.`;
@@ -274,7 +312,7 @@ export class ProjectEvidencePanel extends LitElement {
     }
     const passages = this.data.links.filter((link) => link.annotationId === annotation.id).length;
     if (!globalThis.confirm(`Delete this highlight and its ${passages} manuscript link(s)?`)) return;
-    this.removalKey = `annotation:${annotation.id}`;
+    this.mutationKey = `annotation:${annotation.id}`;
     this.status = "Deleting highlight…";
     try {
       const response = await fetch(`${this.apiBase}/annotations/${encodeURIComponent(annotation.id)}`, {
@@ -287,7 +325,7 @@ export class ProjectEvidencePanel extends LitElement {
     } catch (error) {
       this.status = errorMessage(error, "Could not delete the highlight.");
     } finally {
-      this.removalKey = "";
+      this.mutationKey = "";
     }
   }
 
@@ -297,7 +335,7 @@ export class ProjectEvidencePanel extends LitElement {
     if (link) this.emit({ action: "open-passage", anchor: link.anchor });
   }
 
-  protected actOnFragment(event: Event): void {
+  protected async actOnFragment(event: Event): Promise<void> {
     const button = event.currentTarget as HTMLButtonElement;
     const annotation = this.data.annotations.find((item) => item.id === button.dataset.annotationId);
     const fragment = annotation?.fragments.find((item) => item.id === button.dataset.fragmentId);
@@ -310,15 +348,13 @@ export class ProjectEvidencePanel extends LitElement {
       return;
     }
     const adjustment = button.dataset.fragmentAdjustment as HighlightGeometryAdjustment | undefined;
-    this.emit({
-      action: "update-fragment",
-      annotationId: annotation.id,
-      fragmentId: fragment.id,
+    const updated = await this.updateFragment(annotation.id, fragment.id, {
       prefix: fragment.prefix,
       quote,
-      rects: adjustment ? adjustSelectionRects(fragment.rects, adjustment) : fragment.rects,
+      rects: [...(adjustment ? adjustSelectionRects(fragment.rects, adjustment) : fragment.rects)],
       suffix: fragment.suffix,
     });
+    if (updated) this.emit({ action: "fragment-updated", message: "Highlight stroke adjusted." });
   }
 
   private renderPdf(pdf: PdfResource): TemplateResult {
@@ -337,10 +373,10 @@ export class ProjectEvidencePanel extends LitElement {
             data-pdf-action="remove"
             aria-label="Remove from project"
             title="Remove this legacy project PDF"
-            ?disabled=${Boolean(this.removalKey)}
+            ?disabled=${Boolean(this.mutationKey)}
             @click=${this.actOnPdf}
           >
-            ${this.removalKey === `pdf:${pdf.id}` ? "Removing…" : "Remove"}
+            ${this.mutationKey === `pdf:${pdf.id}` ? "Removing…" : "Remove"}
           </button>
         </div>
         <details
@@ -409,13 +445,13 @@ export class ProjectEvidencePanel extends LitElement {
   }
 
   private annotationButton(annotation: AnnotationResource, action: string, label: string): TemplateResult {
-    const removing = action === "delete" && this.removalKey === `annotation:${annotation.id}`;
+    const removing = action === "delete" && this.mutationKey === `annotation:${annotation.id}`;
     return html`<button
       type="button"
       class="button-secondary w-full justify-center"
       data-annotation-id=${annotation.id}
       data-annotation-action=${action}
-      ?disabled=${action === "delete" && Boolean(this.removalKey)}
+      ?disabled=${action === "delete" && Boolean(this.mutationKey)}
       @click=${this.actOnAnnotation}
     >
       ${removing ? "Deleting…" : label}

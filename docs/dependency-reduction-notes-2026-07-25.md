@@ -4816,3 +4816,30 @@ and unique production package counts remain unchanged at 135,411 B raw /
 
 Full native CI passes all 1,554 unit/coverage tests, 120 Workers-
 runtime tests, and 74 browser tests.
+
+## Continued Lit Ownership: Highlight Fragments
+
+`ProjectEvidencePanel` now owns highlight-fragment update and deletion
+transport alongside its fragment controls and broader annotation workflow. It
+trims and validates revised quotes, encodes annotation and fragment identities,
+shares its mutation gate, keeps progress and retryable failures local, performs
+UI-originated updates directly, and emits a completed update outcome.
+`WorkspaceApp` retains PDF selection and eraser coordination, annotation-form
+reset and undo state, canonical refresh, and toast policy.
+
+This checkpoint reduces `src/client/app.ts` from 4,670 to 4,642 lines (-28) and
+grows the project-evidence owner from 508 to 544 lines. Runtime source across
+those two files increases by 8 lines while removing the coordinator update
+method, quote-validation branch, both fragment requests, and the verbose update
+intent payload. Focused coverage passes UI-driven adjusted geometry, trimmed
+payloads, encoded update and delete targets, whole-annotation deletion signals,
+invalid input, local failure and retry, remaining evidence workflows,
+application contracts, and strict types.
+
+The browser application artifact changes from 822,763 B raw / 221,993 B gzip
+to 823,362 B raw / 222,132 B gzip (+599 B raw / +139 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,556 unit/coverage tests, 120 Workers-
+runtime tests, and 74 browser tests.

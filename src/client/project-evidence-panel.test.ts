@@ -98,8 +98,13 @@ class TestProjectEvidencePanel extends ProjectEvidencePanel {
     this.openPassage(eventWithTarget({ dataset: { annotationId } }));
   }
 
-  fragmentForTest(action?: string, adjustment?: string, annotationId = annotation.id, fragmentId = annotation.fragments[0]!.id): void {
-    this.actOnFragment(
+  fragmentForTest(
+    action?: string,
+    adjustment?: string,
+    annotationId = annotation.id,
+    fragmentId = annotation.fragments[0]!.id,
+  ): Promise<void> {
+    return this.actOnFragment(
       eventWithTarget({
         closest: () => ({ closest: () => null, querySelector: () => ({ value: "Revised evidence" }) }),
         dataset: { annotationId, fragmentAction: action, fragmentAdjustment: adjustment, fragmentId },
@@ -197,9 +202,11 @@ describe("project evidence panel", () => {
     ]);
   });
 
-  it("emits adjusted, saved, and removed fragment intents", () => {
+  it("owns adjusted fragment persistence and emits completed or removal outcomes", async () => {
     const panel = new TestProjectEvidencePanel();
     const actions: ProjectEvidenceAction[] = [];
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 200 }));
+    panel.configure("/api/workspaces/workspace");
     panel.addEventListener(projectEvidenceActionEvent, (event) => actions.push((event as CustomEvent<ProjectEvidenceAction>).detail));
     panel.setEvidence({
       annotations: [annotation],
@@ -210,28 +217,28 @@ describe("project evidence panel", () => {
       selectedEvidenceKeys: new Set(),
     });
 
-    panel.fragmentForTest("save", undefined, "missing");
-    panel.fragmentForTest("save");
-    panel.fragmentForTest(undefined, "right");
-    panel.fragmentForTest("remove");
+    await panel.fragmentForTest("save", undefined, "missing");
+    await panel.fragmentForTest("save");
+    await panel.fragmentForTest(undefined, "right");
+    await panel.fragmentForTest("remove");
 
     expect(actions).toEqual([
-      {
-        action: "update-fragment",
-        annotationId: annotation.id,
-        fragmentId: annotation.fragments[0]!.id,
-        prefix: "Before",
-        quote: "Revised evidence",
-        rects: annotation.fragments[0]!.rects,
-        suffix: "After",
-      },
-      expect.objectContaining({
-        action: "update-fragment",
-        annotationId: annotation.id,
-        rects: [{ height: 0.1, width: 0.2, x: 0.105, y: 0.2 }],
-      }),
+      { action: "fragment-updated", message: "Highlight stroke adjusted." },
+      { action: "fragment-updated", message: "Highlight stroke adjusted." },
       { action: "remove-fragment", annotationId: annotation.id, fragmentId: annotation.fragments[0]!.id },
     ]);
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      "/api/workspaces/workspace/annotations/annotation%3A1/fragments/fragment%3A1",
+      expect.objectContaining({
+        body: JSON.stringify({
+          prefix: "Before",
+          quote: "Revised evidence",
+          rects: [{ height: 0.1, width: 0.2, x: 0.105, y: 0.2 }],
+          suffix: "After",
+        }),
+      }),
+    );
   });
 
   it("owns passage-link persistence and emits the completed outcome", async () => {
@@ -306,6 +313,46 @@ describe("project evidence panel", () => {
     await panel.linkPassage(input);
     expect(panel.renderForTest()).toBeDefined();
     await panel.linkPassage(input);
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("owns highlight fragment update and deletion transport", async () => {
+    const panel = new TestProjectEvidencePanel();
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response(null, { status: 200 }))
+      .mockResolvedValueOnce(new Response(null, { status: 204 }));
+    panel.configure("/api/workspaces/workspace");
+    const input = { prefix: "Before", quote: "  Revised evidence  ", rects: annotation.fragments[0]!.rects, suffix: "After" };
+
+    await expect(panel.updateFragment("annotation/1", "fragment/1", input)).resolves.toBe(true);
+    await expect(panel.removeFragment("annotation/1", "fragment/1")).resolves.toEqual({ annotationDeleted: true });
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      "/api/workspaces/workspace/annotations/annotation%2F1/fragments/fragment%2F1",
+      expect.objectContaining({ body: JSON.stringify({ ...input, quote: "Revised evidence" }), method: "PUT" }),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(2, "/api/workspaces/workspace/annotations/annotation%2F1/fragments/fragment%2F1", {
+      credentials: "same-origin",
+      method: "DELETE",
+    });
+  });
+
+  it("keeps invalid and failed highlight fragment mutations local and retryable", async () => {
+    const panel = new TestProjectEvidencePanel();
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(Response.json({ error: "Denied" }, { status: 403 }))
+      .mockResolvedValueOnce(new Response(null, { status: 200 }));
+    panel.configure("/api/workspaces/workspace");
+    const input = { prefix: "", quote: "Evidence", rects: [], suffix: "" };
+
+    await expect(panel.updateFragment("annotation-1", "fragment-1", { ...input, quote: " " })).resolves.toBe(false);
+    await expect(panel.updateFragment("annotation-1", "fragment-1", input)).resolves.toBe(false);
+    expect(panel.renderForTest()).toBeDefined();
+    await expect(panel.updateFragment("annotation-1", "fragment-1", input)).resolves.toBe(true);
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });

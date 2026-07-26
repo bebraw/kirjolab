@@ -794,7 +794,12 @@ class WorkspaceApp {
         this.#elements.projectAnnotationForm.selectPdf(detail.pdf.id);
         void this.#showPaper(detail.pdf, detail.page, detail.annotationId);
       } else if (detail.action === "notice") this.#showToast(detail.message);
-      else if (detail.action === "annotation-linked" || detail.action === "pdf-imported" || detail.action === "pdf-removed")
+      else if (
+        detail.action === "annotation-linked" ||
+        detail.action === "fragment-updated" ||
+        detail.action === "pdf-imported" ||
+        detail.action === "pdf-removed"
+      )
         void this.#resourceRefresh
           .request()
           .then(() => this.#showToast(detail.message))
@@ -809,18 +814,7 @@ class WorkspaceApp {
           .then(() => this.#showToast(detail.message))
           .catch(() => this.#showToast("The highlight was deleted, but project resources could not be refreshed."));
       } else if (detail.action === "open-passage") this.#showPassage(detail.anchor);
-      else if (detail.action === "remove-fragment") {
-        void this.#removeHighlightFragment(detail.annotationId, detail.fragmentId, true);
-      } else {
-        void this.#updateHighlightFragment(
-          detail.annotationId,
-          detail.fragmentId,
-          detail.quote,
-          detail.prefix,
-          detail.suffix,
-          detail.rects,
-        );
-      }
+      else void this.#removeHighlightFragment(detail.annotationId, detail.fragmentId, true);
     });
     this.#elements.projectMap.addEventListener(projectMapSearchEvent, (event) => {
       void this.#searchKnowledge((event as CustomEvent<string>).detail);
@@ -4383,7 +4377,9 @@ class WorkspaceApp {
       this.#elements.projectAnnotationForm.setStatus("The eraser did not cross a saved highlight stroke.");
       return;
     }
-    for (const overlap of overlaps) await this.#removeHighlightFragment(overlap.annotation.id, overlap.fragment.id, false);
+    for (const overlap of overlaps) {
+      if (!(await this.#removeHighlightFragment(overlap.annotation.id, overlap.fragment.id, false))) return;
+    }
     this.#pdfViewer.clearDraftSelection();
     const noun = overlaps.length === 1 ? "stroke" : "strokes";
     this.#elements.projectAnnotationForm.setStatus(`Removed ${overlaps.length} overlapping highlight ${noun}.`);
@@ -4431,41 +4427,17 @@ class WorkspaceApp {
     this.#focusAnnotationCard(annotationId);
   }
 
-  async #removeHighlightFragment(annotationId: string, fragmentId: string, announce: boolean): Promise<void> {
-    const response = await fetch(`${apiBase}/annotations/${encodeURIComponent(annotationId)}/fragments/${encodeURIComponent(fragmentId)}`, {
-      method: "DELETE",
-      credentials: "same-origin",
-    });
-    await expectOk(response);
-    if (response.status === 204) this.#elements.projectAnnotationForm.clearAnnotation(annotationId);
+  async #removeHighlightFragment(annotationId: string, fragmentId: string, announce: boolean): Promise<boolean> {
+    const result = await this.#elements.projectEvidencePanel.removeFragment(annotationId, fragmentId);
+    if (!result) return false;
+    if (result.annotationDeleted) this.#elements.projectAnnotationForm.clearAnnotation(annotationId);
     await this.#resourceRefresh.request();
     if (announce) this.#showToast("Highlight stroke erased.");
-  }
-
-  async #updateHighlightFragment(
-    annotationId: string,
-    fragmentId: string,
-    quote: string,
-    prefix: string,
-    suffix: string,
-    rects: readonly PdfSelectionRect[],
-  ): Promise<void> {
-    if (!quote.trim()) {
-      this.#showToast("A highlight stroke needs enough text to find the idea again.");
-      return;
-    }
-    const response = await jsonFetch(
-      `${apiBase}/annotations/${encodeURIComponent(annotationId)}/fragments/${encodeURIComponent(fragmentId)}`,
-      { quote: quote.trim(), prefix, suffix, rects },
-      "PUT",
-    );
-    await expectOk(response);
-    await this.#resourceRefresh.request();
-    this.#showToast("Highlight stroke adjusted.");
+    return true;
   }
 
   async #undoLastHighlightStroke(annotationId: string, fragmentId: string): Promise<void> {
-    await this.#removeHighlightFragment(annotationId, fragmentId, false);
+    if (!(await this.#removeHighlightFragment(annotationId, fragmentId, false))) return;
     this.#elements.projectAnnotationForm.setUndoStroke(null);
     this.#showToast("Last highlight stroke undone.");
   }
