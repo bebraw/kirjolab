@@ -181,7 +181,7 @@ describe("renderHomePage", () => {
     expect(html).toContain('<project-map-panel class="project-map-canvas" id="project-map-canvas">');
     expect(html).toContain('<knowledge-connections-panel class="project-map-connections" id="knowledge-connections-panel"');
     expect(html).toContain("Browse, compare, restore, or branch from saved versions.");
-    expect(html).toContain('id="open-export" type="button">Export</button>');
+    expect(html).toContain('id="open-export" type="button" data-project-export-trigger>Export</button>');
     expect(html).toContain('id="share-workspace" type="button">Share project</button>');
     expect(html).toContain('id="word-count-badge"');
     expect(html).toContain('id="export-dialog"');

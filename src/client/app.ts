@@ -478,9 +478,7 @@ interface Elements {
   projectFileMenuActions: ProjectFileActions;
   projectFileDialog: ProjectFileDialog;
   projectHistoryTrigger: ProjectHistoryTrigger;
-  openExport: HTMLButtonElement;
   exportDialog: ProjectExportDialog;
-  wordCountBadge: HTMLButtonElement;
   projectHistoryDialog: ProjectHistoryDialog;
   source: HTMLTextAreaElement;
   sourceHighlight: HTMLElement;
@@ -1079,9 +1077,6 @@ class WorkspaceApp {
       this.#setAuthoringMode((event as CustomEvent<AuthoringMode>).detail);
     });
     this.#elements.projectHistoryTrigger.addEventListener(projectHistoryOpenEvent, () => void this.#openProjectHistory());
-    for (const button of [this.#elements.openExport, this.#elements.wordCountBadge]) {
-      button.addEventListener("click", () => this.#openExport());
-    }
     this.#elements.projectHistoryDialog.addEventListener(projectHistoryActionEvent, (event) => {
       void this.#handleProjectHistoryAction((event as CustomEvent<ProjectHistoryOperation>).detail);
     });
@@ -3285,15 +3280,8 @@ class WorkspaceApp {
     this.#elements.projectHistoryDialog.setBusy(busy);
   }
 
-  #openExport(): void {
-    this.#renderExportStatistics();
-    this.#elements.exportDialog.open(this.#wordStatistics);
-  }
-
   #renderExportStatistics(): void {
-    const statistics = this.#wordStatistics;
-    this.#elements.wordCountBadge.textContent = statistics ? `${statistics.totalWords.toLocaleString()} words` : "… words";
-    this.#elements.exportDialog.setStatistics(statistics);
+    this.#elements.exportDialog.setStatistics(this.#wordStatistics);
   }
 
   async #inspectProjectRevision(revision: number): Promise<void> {
@@ -7100,9 +7088,7 @@ function collectElements(): Elements {
     projectFileMenuActions: requiredElement("project-file-menu-actions", ProjectFileActions),
     projectFileDialog: requiredElement("project-file-dialog-panel", ProjectFileDialog),
     projectHistoryTrigger: requiredElement("project-history-trigger", ProjectHistoryTrigger),
-    openExport: requiredElement("open-export", HTMLButtonElement),
     exportDialog: requiredElement("export-dialog-control", ProjectExportDialog),
-    wordCountBadge: requiredElement("word-count-badge", HTMLButtonElement),
     projectHistoryDialog: requiredElement("project-history-dialog-control", ProjectHistoryDialog),
     source: requiredElement("source-editor", HTMLTextAreaElement),
     sourceHighlight: requiredElement("source-editor-highlight", HTMLElement),

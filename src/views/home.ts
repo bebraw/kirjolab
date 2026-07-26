@@ -103,7 +103,7 @@ export function renderHomePage(
             <span id="connection-status">Connecting</span>
           </connection-status-panel>
           <button class="button-secondary hidden sm:inline-flex" id="share-workspace" type="button"${appMode === "library" ? " hidden" : ""}>Share project</button>
-          <button class="button-primary" id="open-export" type="button">Export</button>
+          <button class="button-primary" id="open-export" type="button" data-project-export-trigger>Export</button>
         </div>
       </div>
       <collaborator-selection-list class="sr-only" id="collaborator-selections" aria-live="polite"></collaborator-selection-list>
@@ -252,7 +252,7 @@ export function renderHomePage(
               <button class="authoring-mode" id="show-write-mode" type="button" aria-pressed="true">Write</button>
               <button class="authoring-mode" id="show-map-mode" type="button" aria-pressed="false">Map</button>
             </authoring-mode-tabs>
-            <button class="count-badge" id="word-count-badge" type="button" title="Open publication statistics">… words</button>
+            <button class="count-badge" id="word-count-badge" type="button" title="Open publication statistics" data-project-export-trigger>… words</button>
             <details class="action-menu ui-menu" id="editor-more-menu" data-action-menu>
               <summary class="button-secondary">More</summary>
               <div class="editor-command-menu ui-menu-panel" aria-label="More editor actions">

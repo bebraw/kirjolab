@@ -40,9 +40,13 @@ describe("project export dialog", () => {
     Object.defineProperty(control, "querySelector", {
       value: (selector: string) => (selector === "#export-dialog" ? dialog : statisticsPanel),
     });
+    const openTarget = {
+      closest: (selector: string) => (selector === "[data-project-export-trigger]" ? openTarget : null),
+    } as unknown as Element;
     const closeTarget = { closest: (selector: string) => (selector === "#close-export" ? closeTarget : null) } as unknown as Element;
 
     control.setStatistics(statistics);
+    control.clickForTest(openTarget);
     control.open(statistics);
     control.open(statistics);
     control.clickForTest(closeTarget);

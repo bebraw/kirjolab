@@ -386,9 +386,9 @@ collaboration.
 - **Exports:** Dedicated endpoints return PDF, LaTeX, Markdown, source-bundle,
   BibTeX, and statistics artifacts with download metadata. One bounded Lit
   host progressively enhances the server-rendered export dialog, owns modal
-  lifecycle and its close action, and synchronizes the nested live publication
-  statistics. The application coordinator retains word-count derivation and
-  the header and editor-toolbar open triggers.
+  lifecycle, its header and editor-toolbar open triggers, the live word-count
+  badge, and its close action, and synchronizes the nested live publication
+  statistics. The application coordinator retains word-count derivation.
 
 ### API Contracts
 

@@ -139,9 +139,10 @@ The adopted components own bounded presentation:
 - The export statistics panel owns loading, total, file, heading, and
   empty-group presentation for the live publication word-count projection.
 - The project export dialog progressively enhances the server-rendered export
-  links, owns modal open and close lifecycle, and synchronizes the nested live
-  publication statistics without duplicating static export markup in the
-  browser bundle.
+  links, owns both spatially separate export triggers, word-count badge
+  presentation, modal open and close lifecycle, and synchronization of the
+  nested live publication statistics without duplicating static export markup
+  in the browser bundle.
 - The knowledge connections panel owns connection counts, typed edge cards,
   relationship labels, empty state, and typed resource-selection intents.
 - The assistant task panel owns operation, scope, instruction, claim relation,
@@ -381,9 +382,10 @@ reason to wrap static markup mechanically.
   group, row, and empty-state renderers while leaving composition and the
   canonical word-count projection in the application coordinator and domain.
 - The project export dialog replaces separate dialog, close-action, and
-  statistics-panel references with one component reference and removes the
-  coordinator's close binding. The application coordinator retains the two
-  spatially separate open triggers and canonical word-count projection.
+  statistics-panel references plus both external trigger references with one
+  component reference. It removes the coordinator's trigger and close bindings
+  plus word-count badge mutation. The application coordinator retains only the
+  canonical word-count projection.
 - The knowledge connections panel replaces two internal element references and
   imperative edge-card and resource-link rendering while leaving graph
   derivation and cross-resource navigation in the application coordinator.

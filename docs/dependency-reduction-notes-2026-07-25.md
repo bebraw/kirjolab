@@ -2399,3 +2399,24 @@ direct and unique production package counts remain unchanged at 135,411 B raw /
 
 Full native CI passes all 1,401 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Lit Ownership: Project Export Entry
+
+`ProjectExportDialog` now owns both spatially separate export triggers and the
+live word-count badge in addition to modal lifecycle, close handling, and its
+nested statistics panel. `WorkspaceApp` supplies only the canonical
+`PublicationWordStatistics` projection.
+
+This checkpoint reduces `src/client/app.ts` from 7,245 to 7,231 lines (-14),
+removes two raw trigger references, two direct bindings, the coordinator's
+open helper, and word-count badge mutation. Focused unit and browser coverage
+passes external trigger delegation, modal lifecycle, composed word-count
+presentation, statistics rendering, and export-link availability.
+
+The browser application artifact changes from 797,955 B raw / 214,842 B gzip
+to 797,884 B raw / 214,806 B gzip (-71 B raw / -36 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,401 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.

@@ -94,6 +94,9 @@ files.
   bibliography file under a collapsed **Interoperability files** section.
 - A live word-count badge opens the same dialog. Statistics show the composed
   total plus per-file and per-heading counts.
+- The export-dialog host owns both external trigger bindings and the badge's
+  formatted total. The application coordinator supplies only the canonical
+  statistics projection and does not address either trigger directly.
 - A bounded light-DOM component owns loading, total, per-file, per-heading, and
   empty-group presentation. The application coordinator supplies only the
   canonical `PublicationWordStatistics` projection.
