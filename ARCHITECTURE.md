@@ -45,6 +45,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   validation, duplicate-submit guard, and status lifecycle. Route only its
   validated result list to the sibling results component; keep shared reference
   import and Library refresh policy in the application coordinator.
+- Let the workspace-settings Lit component own project settings persistence,
+  archive/restore, duplication, permanent-deletion confirmation and request
+  lifecycles, plus their local busy and failure state. Emit only navigation,
+  catalog-refresh, or save-as-template outcomes to the application coordinator.
 - Keep the browser shell's required-element lookup in one typed registry whose
   return shape is inferred from its constructors. Do not duplicate that shape
   in a manually synchronized application interface.

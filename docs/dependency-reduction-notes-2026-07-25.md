@@ -3601,3 +3601,28 @@ and unique production package counts remain unchanged at 135,411 B raw /
 
 Full native CI passes all 1,437 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Lit Ownership: Workspace Settings Mutations
+
+`WorkspaceSettingsPanel` now owns title, entry-file, and publication-profile
+persistence plus archive/restore, duplication, and permanent deletion. It owns
+the destructive prompts, request overlap guard, disabled controls, local error
+presentation, and duplicate-response validation, and emits only navigation,
+catalog-refresh, or save-as-template outcomes. `WorkspaceApp` retains those
+cross-feature outcomes and GitHub synchronization.
+
+This checkpoint reduces `src/client/app.ts` from 5,949 to 5,906 lines (-43)
+and grows the settings panel from 274 to 372 lines. Runtime source across those
+files increases by 55 lines while removing four coordinator-only mutation
+methods and narrowing one five-way action adapter to three cross-feature
+outcomes. Focused coverage passes settings payloads, navigation targets,
+archive refresh, duplication, destructive confirmation, malformed responses,
+request failures and overlap, modal reuse, and missing-control errors.
+
+The browser application artifact changes from 797,265 B raw / 215,631 B gzip
+to 798,376 B raw / 215,938 B gzip (+1,111 B raw / +307 B gzip). Styles and
+direct and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,438 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.

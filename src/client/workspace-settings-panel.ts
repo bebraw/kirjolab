@@ -1,5 +1,5 @@
 import { html, LitElement, type TemplateResult } from "lit";
-import type { ProjectPublicationProfile } from "../domain/workspace";
+import { isWorkspaceSummaries, type ProjectPublicationProfile } from "../domain/workspace";
 import { GitHubSyncReview } from "./github-sync-review";
 
 export const workspaceSettingsActionEvent = "workspace-settings-action";
@@ -11,10 +11,8 @@ export interface WorkspaceSettingsValue {
 }
 
 export type WorkspaceSettingsAction =
-  | { readonly action: "archive" }
-  | { readonly action: "delete"; readonly title: string }
-  | { readonly action: "duplicate"; readonly title: string }
-  | { readonly action: "save"; readonly value: WorkspaceSettingsValue }
+  | { readonly action: "catalog-refresh" }
+  | { readonly action: "navigate"; readonly href: string }
   | { readonly action: "save-template" };
 
 export interface WorkspaceSettingsView extends WorkspaceSettingsValue {
@@ -25,17 +23,23 @@ export interface WorkspaceSettingsView extends WorkspaceSettingsValue {
 
 export class WorkspaceSettingsPanel extends LitElement {
   static override properties = {
+    busy: { state: true },
     gitHubStatus: { state: true },
+    status: { state: true },
     view: { state: true },
   };
 
+  declare private busy: boolean;
   declare private gitHubStatus: string;
+  declare private status: string;
   declare private view: WorkspaceSettingsView;
   private gitHubApiBase = "";
 
   constructor() {
     super();
+    this.busy = false;
     this.gitHubStatus = "Checking connection…";
+    this.status = "";
     this.view = {
       archived: false,
       entryFileId: "",
@@ -76,6 +80,7 @@ export class WorkspaceSettingsPanel extends LitElement {
 
   async show(view: WorkspaceSettingsView): Promise<void> {
     this.setView(view);
+    this.status = "";
     await this.updateComplete;
     if (!this.dialog.open) this.dialog.showModal();
   }
@@ -160,21 +165,32 @@ export class WorkspaceSettingsPanel extends LitElement {
             These settings affect preview and exports without changing the manuscript.
           </p>
           <div class="mt-5 flex flex-wrap gap-2">
-            <button class="button-primary" type="submit">Save title</button>
+            <button class="button-primary" type="submit" ?disabled=${this.busy}>Save title</button>
             <button
               class="button-secondary"
               id="save-workspace-template"
               type="button"
               ?hidden=${!this.view.templateAllowed}
+              ?disabled=${this.busy}
               @click=${this.saveTemplate}
             >
               Save as template
             </button>
-            <button class="button-secondary" id="duplicate-workspace" type="button" @click=${this.duplicate}>Duplicate</button>
-            <button class="button-secondary" id="archive-workspace" type="button" data-destructive="true" @click=${this.archive}>
+            <button class="button-secondary" id="duplicate-workspace" type="button" ?disabled=${this.busy} @click=${this.duplicate}>
+              Duplicate
+            </button>
+            <button
+              class="button-secondary"
+              id="archive-workspace"
+              type="button"
+              data-destructive="true"
+              ?disabled=${this.busy}
+              @click=${this.archive}
+            >
               ${this.view.archived ? "Restore" : "Archive"}
             </button>
           </div>
+          <p class="ui-status mt-3" role="status" aria-live="polite">${this.status}</p>
           <section class="mt-6 border-t border-app-line pt-5">
             <p class="eyebrow">GitHub sync</p>
             <p class="mt-2 text-sm leading-6 text-app-text-soft" id="github-sync-status">${this.gitHubStatus}</p>
@@ -206,6 +222,7 @@ export class WorkspaceSettingsPanel extends LitElement {
               id="delete-workspace"
               type="button"
               data-destructive="true"
+              ?disabled=${this.busy}
               @click=${this.deleteWorkspace}
             >
               Delete permanently
@@ -221,23 +238,87 @@ export class WorkspaceSettingsPanel extends LitElement {
 
   protected save(event: SubmitEvent): void {
     event.preventDefault();
-    this.emit({ action: "save", value: this.value });
+    void this.saveSettings();
   }
 
   protected saveTemplate(): void {
+    if (this.busy) return;
     this.emit({ action: "save-template" });
   }
 
   protected duplicate(): void {
-    this.emit({ action: "duplicate", title: this.titleInput.value });
+    void this.duplicateProject();
   }
 
   protected archive(): void {
-    this.emit({ action: "archive" });
+    void this.toggleArchive();
   }
 
   protected deleteWorkspace(): void {
-    this.emit({ action: "delete", title: this.titleInput.value });
+    void this.deleteProject();
+  }
+
+  protected async saveSettings(): Promise<void> {
+    const value = this.value;
+    await this.runRequest(async () => {
+      await expectOk(
+        await jsonRequest(
+          `${this.gitHubApiBase}/settings`,
+          {
+            title: value.title,
+            entryFileId: value.entryFileId,
+            publicationProfile: value.publicationProfile,
+          },
+          "PATCH",
+        ),
+      );
+      const next = new URL(location.href);
+      next.searchParams.set("file", value.entryFileId);
+      this.emit({ action: "navigate", href: `${next.pathname}${next.search}${next.hash}` });
+    });
+  }
+
+  protected async toggleArchive(): Promise<void> {
+    await this.runRequest(async () => {
+      await expectOk(await jsonRequest(`${this.gitHubApiBase}/settings`, { archived: !this.view.archived }, "PATCH"));
+      this.close();
+      this.emit({ action: "catalog-refresh" });
+    });
+  }
+
+  protected async duplicateProject(): Promise<void> {
+    const title = prompt("Title for the duplicate", `${this.titleInput.value} copy`)?.trim();
+    if (!title) return;
+    await this.runRequest(async () => {
+      const response = await jsonRequest(`${this.gitHubApiBase}/duplicate`, { title });
+      await expectOk(response);
+      const values: unknown[] = [await response.json()];
+      if (!isWorkspaceSummaries(values) || !values[0]) throw new Error("Project duplicate returned invalid data");
+      this.emit({ action: "navigate", href: values[0].href });
+    });
+  }
+
+  protected async deleteProject(): Promise<void> {
+    const title = this.titleInput.value;
+    const confirmation = prompt(`Type DELETE to permanently remove “${title}” and its project PDFs.`);
+    if (confirmation !== "DELETE") return;
+    await this.runRequest(async () => {
+      await expectOk(await fetch(`${this.gitHubApiBase}/settings`, { method: "DELETE", credentials: "same-origin" }));
+      this.emit({ action: "navigate", href: "/" });
+    });
+  }
+
+  private async runRequest(request: () => Promise<void>): Promise<void> {
+    if (this.busy) return;
+    this.busy = true;
+    this.status = "";
+    try {
+      await request();
+    } catch (error) {
+      this.status = error instanceof Error ? error.message : "Project settings request failed";
+    } finally {
+      this.busy = false;
+    }
   }
 
   protected emit(detail: WorkspaceSettingsAction): void {
@@ -261,6 +342,23 @@ export class WorkspaceSettingsPanel extends LitElement {
     if (!select) throw new Error(`Workspace settings select ${id} is unavailable`);
     return select;
   }
+}
+
+function jsonRequest(url: string, body: unknown, method: "POST" | "PATCH" = "POST"): Promise<Response> {
+  return fetch(url, {
+    body: JSON.stringify(body),
+    credentials: "same-origin",
+    headers: { "content-type": "application/json" },
+    method,
+  });
+}
+
+async function expectOk(response: Response): Promise<void> {
+  if (response.ok) return;
+  const value: unknown = await response.json().catch(() => null);
+  throw new Error(
+    typeof value === "object" && value !== null && "error" in value && typeof value.error === "string" ? value.error : "Request failed",
+  );
 }
 
 if (typeof customElements !== "undefined" && !customElements.get("workspace-settings-panel")) {

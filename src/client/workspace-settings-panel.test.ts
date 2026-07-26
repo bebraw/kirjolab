@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { GitHubSyncReview } from "./github-sync-review";
 import {
   WorkspaceSettingsPanel,
@@ -30,6 +30,7 @@ const view: WorkspaceSettingsView = {
 };
 
 class TestWorkspaceSettingsPanel extends WorkspaceSettingsPanel {
+  closeCount = 0;
   projectTitle = value.title;
 
   renderForTest() {
@@ -44,15 +45,19 @@ class TestWorkspaceSettingsPanel extends WorkspaceSettingsPanel {
     this.setView(next);
   }
 
-  saveForTest(): void {
-    this.save(new Event("submit") as SubmitEvent);
+  async saveForTest(): Promise<void> {
+    await this.saveSettings();
   }
 
-  actionForTest(action: "archive" | "delete" | "duplicate" | "save-template"): void {
-    if (action === "archive") this.archive();
-    else if (action === "delete") this.deleteWorkspace();
-    else if (action === "duplicate") this.duplicate();
+  async actionForTest(action: "archive" | "delete" | "duplicate" | "save-template"): Promise<void> {
+    if (action === "archive") await this.toggleArchive();
+    else if (action === "delete") await this.deleteProject();
+    else if (action === "duplicate") await this.duplicateProject();
     else this.saveTemplate();
+  }
+
+  override close(): void {
+    this.closeCount += 1;
   }
 
   protected override get titleInput(): HTMLInputElement {
@@ -92,6 +97,10 @@ class LifecycleWorkspaceSettingsPanel extends TestWorkspaceSettingsPanel {
     return this.review;
   }
 
+  override close(): void {
+    this.modal.close();
+  }
+
   firstUpdatedForTest(): void {
     this.firstUpdated();
   }
@@ -124,6 +133,8 @@ class MissingWorkspaceSettingsElements extends WorkspaceSettingsPanel {
 }
 
 describe("workspace settings panel", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
   it("renders active, archived, and demo-safe states", () => {
     const panel = new TestWorkspaceSettingsPanel();
     expect(panel.rootForTest()).toBe(panel);
@@ -133,24 +144,74 @@ describe("workspace settings panel", () => {
     expect(panel.renderForTest()).toBeDefined();
   });
 
-  it("emits typed save and project action intents", () => {
+  it("owns save and project lifecycle requests", async () => {
     const panel = new TestWorkspaceSettingsPanel();
     const actions: WorkspaceSettingsAction[] = [];
+    const duplicate = {
+      archivedAt: null,
+      createdAt: "2026-07-25",
+      href: "/editor/copy",
+      id: "copy",
+      title: "Study copy",
+      updatedAt: "2026-07-25",
+    };
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(null, { status: 204 }))
+      .mockResolvedValueOnce(Response.json(duplicate))
+      .mockResolvedValueOnce(new Response(null, { status: 204 }))
+      .mockResolvedValueOnce(new Response(null, { status: 204 }));
+    vi.stubGlobal("fetch", fetchMock);
+    vi.stubGlobal("location", { href: "https://example.test/editor/study?mode=source" });
+    vi.stubGlobal("prompt", vi.fn().mockReturnValueOnce("Study copy").mockReturnValueOnce("DELETE"));
+    panel.configureGitHub("/api/workspaces/study");
+    panel.setViewForTest(view);
     panel.addEventListener(workspaceSettingsActionEvent, (event) => actions.push((event as CustomEvent<WorkspaceSettingsAction>).detail));
 
-    panel.saveForTest();
-    panel.actionForTest("save-template");
-    panel.actionForTest("duplicate");
-    panel.actionForTest("archive");
-    panel.actionForTest("delete");
+    await panel.saveForTest();
+    await panel.actionForTest("save-template");
+    await panel.actionForTest("duplicate");
+    await panel.actionForTest("archive");
+    await panel.actionForTest("delete");
 
     expect(actions).toEqual([
-      { action: "save", value },
+      { action: "navigate", href: "/editor/study?mode=source&file=file-2" },
       { action: "save-template" },
-      { action: "duplicate", title: "Study" },
-      { action: "archive" },
-      { action: "delete", title: "Study" },
+      { action: "navigate", href: "/editor/copy" },
+      { action: "catalog-refresh" },
+      { action: "navigate", href: "/" },
     ]);
+    expect(fetchMock).toHaveBeenCalledTimes(4);
+    expect(panel.closeCount).toBe(1);
+  });
+
+  it("contains failed, malformed, cancelled, and overlapping requests", async () => {
+    const panel = new TestWorkspaceSettingsPanel();
+    let resolveSave: ((response: Response) => void) | undefined;
+    const fetchMock = vi
+      .fn()
+      .mockImplementationOnce(
+        () =>
+          new Promise<Response>((resolve) => {
+            resolveSave = resolve;
+          }),
+      )
+      .mockResolvedValueOnce(Response.json({ id: "invalid" }));
+    vi.stubGlobal("fetch", fetchMock);
+    vi.stubGlobal("location", { href: "https://example.test/editor/study" });
+    vi.stubGlobal("prompt", vi.fn().mockReturnValueOnce(null).mockReturnValueOnce("Study copy").mockReturnValueOnce("KEEP"));
+    panel.configureGitHub("/api/workspaces/study");
+
+    const save = panel.saveForTest();
+    await panel.actionForTest("archive");
+    resolveSave?.(Response.json({ error: "Denied" }, { status: 403 }));
+    await save;
+    await panel.actionForTest("duplicate");
+    await panel.actionForTest("duplicate");
+    await panel.actionForTest("delete");
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(panel.renderForTest()).toBeDefined();
   });
 
   it("opens, reuses, and closes", async () => {

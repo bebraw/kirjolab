@@ -109,7 +109,9 @@ without accidentally widening access to another resource.
   from one.
 - Project settings expose owner-only rename, archive/restore, current-revision
   duplication, and permanent deletion. Lifecycle changes are mirrored into
-  every member catalog.
+  every member catalog. The bounded settings component owns these request and
+  confirmation lifecycles and emits only navigation or catalog-refresh
+  outcomes to the workspace coordinator.
 - Permanent deletion first unregisters shared-library dependencies and removes
   project-owned R2 objects and revokes both public capabilities, then erases
   document, access, and catalog state.

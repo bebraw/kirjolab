@@ -108,7 +108,7 @@ import {
 } from "./library-reference-metadata-editor";
 import { libraryReferencePdfActionEvent, type LibraryReferencePdfAction } from "./library-reference-pdf-rows";
 import { libraryReferenceResearchActionEvent, type LibraryReferenceResearchAction } from "./library-reference-research-rows";
-import { workspaceSettingsActionEvent, type WorkspaceSettingsAction, type WorkspaceSettingsValue } from "./workspace-settings-panel";
+import { workspaceSettingsActionEvent, type WorkspaceSettingsAction } from "./workspace-settings-panel";
 import {
   researchQuestionWorkflowData,
   reviewerResponseWorkflowData,
@@ -540,7 +540,7 @@ class WorkspaceApp {
     this.#elements.workspaceSettings.addEventListener("click", () => void this.#openWorkspaceSettings());
     this.#elements.workspaceSettingsPanel.addEventListener(
       workspaceSettingsActionEvent,
-      (event) => void this.#handleWorkspaceSettingsAction((event as CustomEvent<WorkspaceSettingsAction>).detail),
+      (event) => void this.#handleWorkspaceSettingsResult((event as CustomEvent<WorkspaceSettingsAction>).detail),
     );
     this.#elements.newWorkspace.addEventListener("click", () => void this.#openNewWorkspace());
     this.#elements.newWorkspaceStartingPoints.addEventListener(startingPointActionEvent, (event) => {
@@ -1206,12 +1206,10 @@ class WorkspaceApp {
     if (checkGitHub) void this.#refreshGitHubSyncState(true);
   }
 
-  async #handleWorkspaceSettingsAction(detail: WorkspaceSettingsAction): Promise<void> {
-    if (detail.action === "save") await this.#saveWorkspaceSettings(detail.value);
-    else if (detail.action === "archive") await this.#toggleWorkspaceArchive();
-    else if (detail.action === "save-template") await this.#openSaveTemplate();
-    else if (detail.action === "duplicate") await this.#duplicateWorkspace(detail.title);
-    else await this.#deleteWorkspace(detail.title);
+  async #handleWorkspaceSettingsResult(detail: WorkspaceSettingsAction): Promise<void> {
+    if (detail.action === "save-template") await this.#openSaveTemplate();
+    else if (detail.action === "catalog-refresh") await this.#refreshCatalog();
+    else location.assign(detail.href);
   }
 
   async #refreshGitHubSyncState(force = false, resetReview = true): Promise<void> {
@@ -1301,47 +1299,6 @@ class WorkspaceApp {
     this.#elements.saveTemplateDialog.close();
     await this.#refreshProjectTemplates();
     this.#showToast(templateId ? `Replaced template “${template.name}”.` : `Saved “${template.name}” as a personal template.`);
-  }
-
-  async #saveWorkspaceSettings(value: WorkspaceSettingsValue): Promise<void> {
-    await expectOk(
-      await jsonFetch(
-        `${apiBase}/settings`,
-        {
-          title: value.title,
-          entryFileId: value.entryFileId,
-          publicationProfile: value.publicationProfile,
-        },
-        "PATCH",
-      ),
-    );
-    const next = new URL(location.href);
-    next.searchParams.set("file", value.entryFileId);
-    location.assign(`${next.pathname}${next.search}${next.hash}`);
-  }
-
-  async #toggleWorkspaceArchive(): Promise<void> {
-    const current = this.#workspaceCatalog.find((item) => item.id === workspaceId);
-    await expectOk(await jsonFetch(`${apiBase}/settings`, { archived: !current?.archivedAt }, "PATCH"));
-    this.#elements.workspaceSettingsPanel.close();
-    await this.#refreshCatalog();
-  }
-
-  async #duplicateWorkspace(currentTitle: string): Promise<void> {
-    const title = prompt("Title for the duplicate", `${currentTitle} copy`)?.trim();
-    if (!title) return;
-    const response = await jsonFetch(`${apiBase}/duplicate`, { title });
-    await expectOk(response);
-    const value: unknown = await response.json();
-    if (!isWorkspaceSummaries([value])) throw new Error("Project duplicate returned invalid data");
-    location.assign((value as WorkspaceSummary).href);
-  }
-
-  async #deleteWorkspace(title: string): Promise<void> {
-    const confirmation = prompt(`Type DELETE to permanently remove “${title}” and its project PDFs.`);
-    if (confirmation !== "DELETE") return;
-    await expectOk(await fetch(`${apiBase}/settings`, { method: "DELETE", credentials: "same-origin" }));
-    location.assign("/");
   }
 
   #syncCollaborationQueue(): void {

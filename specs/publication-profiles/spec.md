@@ -24,11 +24,12 @@ changing its canonical Markdown or shared references.
 - The profile is presentation state. It never mutates `:cite[...]`, citation
   aliases, or canonical shared bibliographic metadata.
 - One bounded workspace-settings panel owns the title, entry-file choices,
-  publication-profile values, archive and template visibility, modal lifecycle,
-  nested GitHub-sync presentation boundary, and typed project-action intents.
-  The workspace coordinator retains authorization, persistence, navigation,
-  synchronization requests, destructive confirmation, catalog refresh, and
-  toast policy.
+  publication-profile values and persistence, project lifecycle requests,
+  destructive confirmation, local busy and error state, archive and template
+  visibility, modal lifecycle, nested GitHub-sync presentation boundary, and
+  typed navigation, catalog-refresh, and save-as-template outcomes. The
+  workspace coordinator retains navigation, synchronization, template, catalog
+  refresh, and toast policy.
 
 ### Security and Validation
 

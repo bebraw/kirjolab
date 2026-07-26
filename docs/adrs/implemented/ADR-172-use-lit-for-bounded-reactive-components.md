@@ -198,8 +198,11 @@ The adopted components own bounded presentation:
   provider requests and response validation, duplicate-submit gating, progress
   and result-count copy, and typed validated-result events.
 - The workspace settings panel owns title, entry-file and publication-profile
-  values, archive and template visibility, modal lifecycle, the nested
-  GitHub-sync presentation boundary, and typed project-action intents.
+  values, settings persistence, archive/restore, duplication and permanent
+  deletion requests, destructive confirmation, local busy and error state,
+  archive and template visibility, modal lifecycle, the nested GitHub-sync
+  presentation boundary, and typed navigation, catalog-refresh, and
+  save-as-template outcomes.
 - The reference Library filter panel owns query, type, reading,
   organization, project-linkage, completeness, and sort values, dynamic type
   choices, result counts, reset behavior, and a typed filter-change intent.
@@ -467,15 +470,15 @@ reason to wrap static markup mechanically.
   coordinator.
 - The Library discovery search replaces six internal element references and
   imperative form-value, submit-state, progress, count, empty, and error
-  handling while leaving provider requests, response validation, result
-  presentation, import mutation, and refresh policy in the application
-  coordinator.
+  handling plus the provider request and response validation. The application
+  coordinator routes validated results and retains import mutation and refresh
+  policy.
 - The workspace settings panel replaces fifteen internal element references and
   imperative entry-file option, profile-value, archive-label, template
-  visibility, modal, and nested GitHub-review coordination while leaving
-  authorization, persistence, navigation, synchronization requests,
-  destructive confirmation, catalog refresh, and toast policy in the
-  application coordinator.
+  visibility, modal, and nested GitHub-review coordination. It also removes four
+  coordinator request methods and owns destructive confirmation while leaving
+  navigation, catalog refresh, save-as-template, GitHub synchronization, and
+  global toast policy in the application coordinator.
 - The reference Library filter panel replaces eight internal element references,
   seven control listeners, filter-value validation, dynamic type-option
   rendering, and result-count updates while leaving canonical filtering,
