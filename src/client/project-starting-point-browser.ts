@@ -91,6 +91,16 @@ export class ProjectStartingPointBrowser extends LitElement {
     this.setData(value, workspaces);
   }
 
+  async deleteTemplate(id: string): Promise<void> {
+    await expectOk(
+      await fetch(`/api/project-templates/${encodeURIComponent(id)}`, {
+        method: "DELETE",
+        credentials: "same-origin",
+      }),
+    );
+    await this.refresh(this.workspaces);
+  }
+
   get availableTemplates(): readonly ProjectTemplateSummary[] {
     return this.templates.filter((template) => !this.hiddenTemplateIds.has(template.id));
   }

@@ -1290,13 +1290,8 @@ class WorkspaceApp {
       hide: () => this.#setProjectTemplateHidden(template.id, true),
       restore: () => this.#setProjectTemplateHidden(template.id, false),
       commit: async () => {
-        await expectOk(
-          await fetch(`/api/project-templates/${encodeURIComponent(template.id)}`, {
-            method: "DELETE",
-            credentials: "same-origin",
-          }),
-        );
-        await this.#refreshProjectTemplates();
+        await this.#elements.newWorkspaceStartingPoints.deleteTemplate(template.id);
+        this.#syncTemplateReplacementOptions();
       },
     });
   }

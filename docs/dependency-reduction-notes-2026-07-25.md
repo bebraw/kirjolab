@@ -4919,3 +4919,27 @@ and unique production package counts remain unchanged at 135,411 B raw /
 
 Full native CI passes all 1,561 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Lit Ownership: Personal Template Deletion
+
+`ProjectStartingPointBrowser` now owns encoded personal-template deletion and
+the required post-delete catalog refresh alongside its template loading,
+optimistic hidden-template state, and visible-template derivation.
+`WorkspaceApp` retains the shared deferred-deletion timer, optimistic hide and
+restore coordination, replacement-option synchronization, and toast policy.
+
+This checkpoint reduces `src/client/app.ts` from 4,604 to 4,599 lines (-5) and
+grows the starting-point browser from 519 to 529 lines. Runtime source across
+those two files increases by 5 lines while removing coordinator request details
+and keeping the global undo mechanism centralized. Focused coverage passes
+encoded delete targets, same-origin credentials, catalog refresh, visible-state
+replacement, existing template workflows, application contracts, and strict
+types.
+
+The browser application artifact changes from 823,423 B raw / 222,191 B gzip
+to 823,536 B raw / 222,208 B gzip (+113 B raw / +17 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,562 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.

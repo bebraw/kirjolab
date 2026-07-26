@@ -51,12 +51,13 @@ without copying private research or creating a live dependency on the source.
   replacing one.
 - One bounded Lit component owns project-title input, starting-point grouping,
   template-catalog and existing-project preview requests, project creation and
-  response validation, the fetched template catalog and optimistic
+  personal-template deletion, response validation, post-delete catalog refresh,
+  the fetched template catalog, and optimistic
   hidden-template state, its derived visible-template view, local selection,
   preview and loading presentation, create readiness and status, native modal
   opening and closing, focus containment and restoration, and typed cancel,
-  import, completion, and template-delete events. `WorkspaceApp` retains
-  deferred deletion, import workflows, and navigation.
+  import, completion, and template-delete events. `WorkspaceApp` retains the
+  deferred-deletion timer and undo policy, import workflows, and navigation.
 - The template-save Lit dialog owns create-or-replace form state, promotion
   requests, saved-summary validation, duplicate-submit gating, local progress
   and error presentation, and typed validated completion outcomes.

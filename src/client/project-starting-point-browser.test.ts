@@ -244,6 +244,25 @@ describe("project starting point browser", () => {
     expect(browser.availableTemplates).toEqual([builtIn, personal]);
   });
 
+  it("deletes an encoded personal template and refreshes its catalog", async () => {
+    const browser = new TestProjectStartingPointBrowser();
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(null, { status: 204 }))
+      .mockResolvedValueOnce(Response.json([builtIn]));
+    vi.stubGlobal("fetch", fetchMock);
+    browser.setData([builtIn, personal], [workspace]);
+
+    await browser.deleteTemplate("personal/template");
+
+    expect(fetchMock).toHaveBeenNthCalledWith(1, "/api/project-templates/personal%2Ftemplate", {
+      method: "DELETE",
+      credentials: "same-origin",
+    });
+    expect(fetchMock).toHaveBeenNthCalledWith(2, "/api/project-templates", { credentials: "same-origin" });
+    expect(browser.availableTemplates).toEqual([builtIn]);
+  });
+
   it("rejects malformed catalogs and contains request failures", async () => {
     const browser = new TestProjectStartingPointBrowser();
     const fetchMock = vi
