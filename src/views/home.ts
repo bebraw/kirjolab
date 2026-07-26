@@ -1019,6 +1019,7 @@ export function renderHomePage(
     </dialog>
     </claim-dialog-panel>
 
+    <action-menu-controller></action-menu-controller>
     <app-toast class="toast" id="toast" role="status" aria-live="polite" popover="manual"></app-toast>
     <footer class="sr-only">${renderRouteSummary(routes)}</footer>
   </body>

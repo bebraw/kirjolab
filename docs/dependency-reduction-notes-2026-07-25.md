@@ -2524,6 +2524,27 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,407 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Action Menus
+
+`ActionMenuController` now owns document-level outside-action dismissal,
+settings-menu containment, Escape ordering, summary-focus restoration, and
+listener teardown for the server-rendered native `details` menus.
+`WorkspaceApp` no longer coordinates global menu presentation.
+
+This checkpoint reduces `src/client/app.ts` from 7,157 to 7,139 lines (-18)
+and removes two document listeners plus repeated open-menu queries from the
+coordinator. Focused unit and browser coverage passes internal and external
+clicks, selected actions, settings persistence, Escape ordering, focus return,
+appearance selection, and editor action-popover behavior.
+
+The browser application artifact changes from 798,805 B raw / 215,044 B gzip
+to 799,411 B raw / 215,061 B gzip (+606 B raw / +17 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,410 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
+
 ## Completed Lit Candidate Availability Ownership
 
 `CandidateReviewPanel` now owns live Apply availability updates when document

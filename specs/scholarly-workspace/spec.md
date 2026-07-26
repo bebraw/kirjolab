@@ -626,7 +626,9 @@ collaboration.
 - [x] Contextual toolbar actions stay out of the persistent chrome until the
       active citation or resource makes them usable.
 - [x] Action popovers expose ordinary button-list keyboard semantics, close on
-      Escape, and return focus to their labelled summary control.
+      Escape, and return focus to their labelled summary control. One bounded
+      controller owns document-level outside-action dismissal, settings-menu
+      containment, Escape ordering, focus restoration, and listener teardown.
 - [x] Citation and reference targets are validated against BibTeX and document
       targets.
 - [x] Citation keys offer keyboard-accessible project suggestions at the caret,

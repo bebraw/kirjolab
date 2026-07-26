@@ -9,6 +9,7 @@ describe("renderHomePage", () => {
     expect(html).toContain("KIRJOLAB");
     expect(html).toContain('data-app-mode="workspace" data-workspace-id="demo" data-identity-email="local@kirjolab.invalid"');
     expect(html).toContain('class="action-menu header-action-menu ui-menu" data-action-menu');
+    expect(html).toContain("<action-menu-controller></action-menu-controller>");
     expect(html).toContain('<nav class="primary-navigation" aria-label="Primary navigation">');
     expect(html).toContain('<a class="primary-navigation-link" href="/">Dashboard</a>');
     expect(html).toContain('<a class="primary-navigation-link" href="/library">Library</a>');

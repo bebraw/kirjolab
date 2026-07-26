@@ -614,6 +614,9 @@ reason to wrap static markup mechanically.
   centering, transient emphasis, image lookup, and anchor scrolling. This
   keeps Lit focused on reactive presentation while still removing raw Preview
   elements from `WorkspaceApp`.
+- The action-menu controller owns document-level outside-action dismissal,
+  settings-menu containment, Escape ordering, focus restoration, and listener
+  teardown for spatially separate native `details` menus.
 - Related template, visibility rules, and local event binding now have one
   browser owner.
 - Later bounded extractions can reuse the same reactive component model without

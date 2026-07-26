@@ -1,4 +1,5 @@
 import * as Y from "yjs";
+import "./action-menu-controller";
 import { bibTeXDisplayText } from "../domain/bibliography";
 import { buildWorkspaceKnowledgeGraph, isKnowledgeSearchResults, type WorkspaceKnowledgeGraph } from "../domain/knowledge";
 import { isCitationNetwork, type CitationNetwork } from "../domain/citation-assertions";
@@ -805,25 +806,6 @@ class WorkspaceApp {
       void this.#clearOfflineBrowserData()
         .then(() => location.assign(href))
         .catch((error: unknown) => this.#showToast(error instanceof Error ? error.message : "Could not clear offline data"));
-    });
-    document.addEventListener("click", (event) => {
-      if (!(event.target instanceof Element)) return;
-      for (const menu of document.querySelectorAll<HTMLDetailsElement>("details[data-action-menu][open]")) {
-        if (!menu.contains(event.target) || event.target.closest("button, a")) menu.open = false;
-      }
-      const settings = document.querySelector<HTMLDetailsElement>("details[data-settings-menu][open]");
-      if (settings && !settings.contains(event.target)) settings.open = false;
-    });
-    document.addEventListener("keydown", (event) => {
-      if (event.key !== "Escape") return;
-      const openMenus = Array.from(
-        document.querySelectorAll<HTMLDetailsElement>("details[data-action-menu][open], details[data-settings-menu][open]"),
-      );
-      const menu = openMenus.at(-1);
-      if (!menu) return;
-      menu.open = false;
-      menu.querySelector<HTMLElement>("summary")?.focus();
-      event.preventDefault();
     });
     document.addEventListener("keydown", (event) => {
       if (
