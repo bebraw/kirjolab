@@ -542,11 +542,12 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Normalize PDF selection rectangles to top-left page coordinates in zero-to-one space so highlights do not depend on viewport pixels.
 - Model a mutable PDF highlight as one stable annotation with ordered, provenance-bearing selection strokes. Auto-save paint strokes, address undo and erasing by stroke identity, and keep claim-dependent annotation deletion guarded.
 - Keep the shared PDF annotation composer's active editing identity, selected
-  highlight tool, last undoable stroke, optional note persistence, and local
+  highlight tool, last undoable stroke, highlight creation and stroke-extension
+  transport, Valibot response validation, optional note persistence, and local
   save status inside its Lit owner. Emit a completed note-save outcome and
-  bounded tool, undo, citation, and link intents while leaving geometry,
-  manuscript linking, canonical refreshes, and notifications in the
-  application coordinator.
+  bounded tool, undo, citation, and link intents while leaving selection and
+  overlap derivation, viewer draft clearing, manuscript linking, canonical
+  refreshes, and notifications in the application coordinator.
 - Refine tablet highlight strokes through bounded normalized geometry and quotation updates; preserve annotation/stroke identity and imported PDF immutability.
 - Retain the active manuscript caret or selection as Yjs-relative positions, render that local target after editor blur, and resolve it before any contextual insertion or replacement.
 - Keep standalone private PDF locations routable in browser history, coalesce selected PDF text into normalized visual-line rectangles, and export each saved highlight as one interoperable multi-quad PDF annotation without mutating source bytes.

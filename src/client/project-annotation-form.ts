@@ -1,5 +1,6 @@
 import { html, LitElement, type TemplateResult } from "lit";
-import type { AnnotationResource, PdfResource } from "../domain/workspace";
+import type { AnnotationResource, CreateAnnotationInput, PdfResource } from "../domain/workspace";
+import { isCreatedAnnotation } from "./app-contracts";
 import { errorMessage, expectOk, jsonFetch } from "./http";
 
 export const projectAnnotationSavedEvent = "project-annotation-saved";
@@ -18,6 +19,7 @@ export interface ProjectAnnotationSaved {
 }
 
 type AnnotationDraft = Pick<AnnotationResource, "comment" | "id" | "page" | "prefix" | "quote" | "suffix">;
+type AnnotationCapture = Pick<CreateAnnotationInput, "page" | "prefix" | "quote" | "rects" | "suffix">;
 type PdfChoice = Pick<PdfResource, "id" | "name">;
 type UndoStroke = { readonly annotationId: string; readonly fragmentId: string };
 
@@ -126,6 +128,29 @@ export class ProjectAnnotationForm extends LitElement {
 
   setCitationCount(count: number): void {
     this.citationCount = count;
+  }
+
+  async saveCapture(pdfId: string, capture: AnnotationCapture, targetId?: string): Promise<boolean> {
+    this.status = targetId ? "Adding highlight stroke…" : "Saving highlight…";
+    try {
+      const response = targetId
+        ? await jsonFetch(`${this.apiBase}/annotations/${encodeURIComponent(targetId)}/fragments`, capture)
+        : await jsonFetch(`${this.apiBase}/annotations`, { pdfId, ...capture, comment: "" });
+      await expectOk(response);
+      const value: unknown = await response.json();
+      if (!isCreatedAnnotation(value)) throw new Error("Highlight endpoint returned an invalid resource");
+      const fragment = value.fragments.at(-1);
+      if (!fragment) throw new Error("Highlight endpoint omitted the saved stroke");
+      this.setUndoStroke({ annotationId: value.id, fragmentId: fragment.id });
+      this.showAnnotation(value);
+      this.status = targetId
+        ? `Added a stroke to the existing highlight. ${value.fragments.length} strokes saved automatically.`
+        : "Highlight saved automatically. Add an optional note or link it to selected manuscript prose.";
+      return true;
+    } catch (error) {
+      this.status = errorMessage(error, "Could not save the highlight.");
+      return false;
+    }
   }
 
   /* v8 ignore start -- exercised by browser fallback rendering */

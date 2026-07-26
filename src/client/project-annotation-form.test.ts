@@ -109,6 +109,51 @@ describe("project annotation form", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
+  it("owns highlight creation and stroke-extension persistence", async () => {
+    const panel = new TestProjectAnnotationForm();
+    const created = annotation("annotation-1", [fragment("fragment-1")]);
+    const extended = annotation("annotation-1", [fragment("fragment-1"), fragment("fragment-2")]);
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(Response.json(created))
+      .mockResolvedValueOnce(Response.json(extended));
+    panel.configure("/api/workspaces/workspace");
+    const capture = { page: 2, prefix: "Before", quote: "Evidence", rects: [{ height: 0.1, width: 0.2, x: 0.1, y: 0.2 }], suffix: "After" };
+
+    await expect(panel.saveCapture("pdf-1", capture)).resolves.toBe(true);
+    await expect(panel.saveCapture("pdf-1", capture, "annotation/1")).resolves.toBe(true);
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      "/api/workspaces/workspace/annotations",
+      expect.objectContaining({ body: JSON.stringify({ pdfId: "pdf-1", ...capture, comment: "" }) }),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      "/api/workspaces/workspace/annotations/annotation%2F1/fragments",
+      expect.objectContaining({ body: JSON.stringify(capture) }),
+    );
+    expect(panel.renderForTest()).toBeDefined();
+  });
+
+  it("keeps malformed and failed highlight captures local and retryable", async () => {
+    const panel = new TestProjectAnnotationForm();
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(Response.json({ invalid: true }))
+      .mockResolvedValueOnce(Response.json({ ...annotation("annotation-1", []), fragments: [] }))
+      .mockResolvedValueOnce(Response.json(annotation("annotation-1", [fragment("fragment-1")])));
+    panel.configure("/api/workspaces/workspace");
+    const capture = { page: 2, prefix: "", quote: "Evidence", rects: [], suffix: "" };
+
+    await expect(panel.saveCapture("pdf-1", capture)).resolves.toBe(false);
+    await expect(panel.saveCapture("pdf-1", capture)).resolves.toBe(false);
+    expect(panel.renderForTest()).toBeDefined();
+    await expect(panel.saveCapture("pdf-1", capture)).resolves.toBe(true);
+
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
   it("emits bounded toolbar and citation intents", () => {
     const panel = new TestProjectAnnotationForm();
     const actions: ProjectAnnotationAction[] = [];
@@ -130,3 +175,23 @@ describe("project annotation form", () => {
     ]);
   });
 });
+
+function fragment(id: string) {
+  return { createdAt: "2026-07-25T00:00:00.000Z", id, prefix: "Before", quote: "Evidence", rects: [], suffix: "After" };
+}
+
+function annotation(id: string, fragments: ReturnType<typeof fragment>[]) {
+  return {
+    comment: "",
+    createdAt: "2026-07-25T00:00:00.000Z",
+    fragments,
+    id,
+    page: 2,
+    pdfId: "pdf-1",
+    prefix: "Before",
+    quote: "Evidence",
+    rects: [],
+    suffix: "After",
+    updatedAt: "2026-07-25T00:00:00.000Z",
+  };
+}

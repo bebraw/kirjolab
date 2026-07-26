@@ -247,10 +247,12 @@ changing their canonical data, selector, authorization, or rendering contracts.
   manuscript prose remains a separate labelled save action.
 - The bounded project annotation composer derives its own visibility, citation
   label and availability, active highlight-tool presentation, and undo
-  availability from explicit inputs. It owns optional note-update transport,
-  local save status and failure, and a completed save outcome. The workspace
-  coordinator retains selection, PDF gestures and geometry persistence,
-  manuscript linking, canonical refresh, and insertion policy.
+  availability from explicit inputs. It owns highlight creation and stroke-
+  extension transport, Valibot response validation, editing and undo-state
+  updates, optional note-update transport, local save status and failure, and a
+  completed note-save outcome. The workspace coordinator retains selection and
+  overlap derivation, PDF gestures and viewer draft clearing, manuscript
+  linking, canonical refresh, and insertion policy.
 - Citing a visible publication requires an explicit command and a valid current
   remembered Yjs-relative editor insertion point. If no safe insertion point
   exists, the command is unavailable; it never falls back to position zero or

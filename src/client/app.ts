@@ -227,7 +227,6 @@ import { PdfEvidenceViewer, type PdfSelectionCapture } from "./pdf-viewer";
 import { pdfHighlightImportOutcomeEvent, type PdfHighlightImportOutcome } from "./pdf-highlight-import-panel";
 import type { ExistingPdfUpload } from "./pdf-upload-queue";
 import { bindThemePreference } from "./theme";
-import { isCreatedAnnotation } from "./app-contracts";
 import { OpenAICompatibleBrowserProvider, type ModelEvidenceItem, maximumModelEvidenceItems } from "./model-provider";
 import { parseTableRequirements, tableMarkdown, type TableRequirements } from "./structured-syntax";
 import { projectHistoryOutcomeEvent, type ProjectHistoryOutcome } from "./project-history-dialog";
@@ -4387,23 +4386,9 @@ class WorkspaceApp {
   }
 
   async #savePdfSelection(pdfId: string, capture: PdfSelectionCapture, target: AnnotationResource | undefined): Promise<void> {
-    const response = target
-      ? await jsonFetch(`${apiBase}/annotations/${encodeURIComponent(target.id)}/fragments`, capture)
-      : await jsonFetch(`${apiBase}/annotations`, { pdfId, ...capture, comment: "" });
-    await expectOk(response);
-    const annotationValue: unknown = await response.json();
-    if (!isCreatedAnnotation(annotationValue)) throw new Error("Highlight endpoint returned an invalid resource");
-    const fragment = annotationValue.fragments.at(-1);
-    if (!fragment) throw new Error("Highlight endpoint omitted the saved stroke");
-    this.#elements.projectAnnotationForm.setUndoStroke({ annotationId: annotationValue.id, fragmentId: fragment.id });
-    this.#elements.projectAnnotationForm.showAnnotation(annotationValue);
+    if (!(await this.#elements.projectAnnotationForm.saveCapture(pdfId, capture, target?.id))) return;
     this.#pdfViewer.clearDraftSelection();
     await this.#resourceRefresh.request();
-    this.#elements.projectAnnotationForm.setStatus(
-      target
-        ? `Added a stroke to the existing highlight. ${annotationValue.fragments.length} strokes saved automatically.`
-        : "Highlight saved automatically. Add an optional note or link it to selected manuscript prose.",
-    );
   }
 
   #setHighlightTool(tool: ProjectHighlightTool): void {

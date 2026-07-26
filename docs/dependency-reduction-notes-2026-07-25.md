@@ -4843,3 +4843,30 @@ and unique production package counts remain unchanged at 135,411 B raw /
 
 Full native CI passes all 1,556 unit/coverage tests, 120 Workers-
 runtime tests, and 74 browser tests.
+
+## Continued Lit Ownership: Highlight Capture
+
+`ProjectAnnotationForm` now owns new-highlight creation and existing-highlight
+stroke extension alongside its editing annotation and undo-stroke state. It
+selects the stable endpoint, sends coordinator-supplied PDF geometry, reuses the
+Valibot-backed created-annotation guard, requires a returned stroke, updates its
+own form and undo state, and keeps progress and retryable errors local.
+`WorkspaceApp` retains selection-overlap derivation, viewer draft clearing,
+canonical refresh, passage linking, and notification policy.
+
+This checkpoint reduces `src/client/app.ts` from 4,642 to 4,627 lines (-15)
+and grows the annotation form from 333 to 358 lines. Runtime source across those
+two files increases by 10 lines while removing coordinator endpoint selection,
+request transport, Valibot response validation, fragment selection, form state,
+undo state, and success-copy branches. Focused coverage passes create and
+encoded extension targets, payloads, form and undo updates, malformed resources,
+missing strokes, local retry, existing note workflows, application contracts,
+and strict types.
+
+The browser application artifact changes from 823,362 B raw / 222,132 B gzip
+to 823,543 B raw / 222,216 B gzip (+181 B raw / +84 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,558 unit/coverage tests, 120 Workers-
+runtime tests, and 74 browser tests.
