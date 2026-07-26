@@ -527,8 +527,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Merge overlapping private highlight saves at the owner-library authority and update private highlight comments or page-note bodies in place; preserve annotation identity and treat project shares as immutable snapshots.
 - Let the Library PDF annotation forms own private-highlight and page-note
   create and update transport, stable encoded reference and annotation targets,
-  overlap classification, duplicate-submit gating, and retryable local
-  failures. Keep canonical Library refresh, PDF draft clearing, inspector
+  selected-drawing style updates, selected-markup deletion, overlap
+  classification, duplicate-submit gating, and retryable local failures. Keep
+  canonical Library refresh, PDF draft and selection clearing, inspector
   guidance, and toast policy in the application coordinator.
 - Keep private-PDF tool, selection, note-composition, open-card, and pointer-
   gesture state inside the bounded light-DOM markup layer that presents it.

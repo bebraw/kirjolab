@@ -586,11 +586,12 @@ reason to wrap static markup mechanically.
   references, three submit bindings, cancel and selected-markup action bindings,
   composer visibility updates, DOM-based value collection, and the coordinator's
   duplicate highlight-rectangle and editing-identity fields. They also replace
-  five coordinator highlight and page-note persistence and overlap-
-  classification methods, owning stable annotation targets, pending state, and
-  retryable local failures. The markup layer's interaction state and drawing
-  geometry remain separate from coordinator-owned Library refresh, PDF draft
-  clearing, inspector policy, and toasts.
+  seven coordinator highlight, page-note, and selected-markup persistence,
+  resolution, and overlap-classification methods, owning stable annotation
+  targets, pending state, and retryable local failures. The markup layer's
+  interaction state and drawing geometry remain separate from coordinator-
+  owned Library refresh, PDF draft and selection clearing, inspector policy,
+  and toasts.
 - The Library PDF annotation toolbar replaces twelve internal element
   references, tool, input, undo, export, and inspector bindings, and imperative
   active-tool, width-label, availability, count, and expanded-state updates. It

@@ -853,9 +853,8 @@ class WorkspaceApp {
       else if (action.action === "cancel-highlight") this.#clearLibraryHighlightDraft();
       else if (action.action === "note-saved") void this.#completeLibraryPdfNoteSave(action.kind);
       else if (action.action === "cancel-note") this.#clearLibraryPdfNoteDraft();
-      else if (action.action === "apply-drawing") void this.#updateSelectedLibraryDrawing(action);
+      else if (action.action === "markup-saved") void this.#completeSelectedLibraryPdfMarkupMutation(action.kind);
       else if (action.action === "edit-note") this.#editSelectedLibraryPdfNote();
-      else if (action.action === "delete-markup") void this.#deleteSelectedLibraryPdfMarkup();
       else this.#clearLibraryPdfMarkupSelection();
     });
     this.#elements.libraryHighlightList.addEventListener(libraryPdfAnnotationListActionEvent, (event) => {
@@ -4545,8 +4544,10 @@ class WorkspaceApp {
     this.#elements.paperMarkups.selectMarkup(markup.id);
     this.#pdfViewer.setPrivateHighlightSelection(true);
     this.#elements.libraryPdfAnnotationForms.showMarkup({
+      id: markup.id,
       label: markup.kind === "note" ? `Note on page ${markup.page} · drag its pin to move` : `Line on page ${markup.page}`,
       kind: markup.kind,
+      referenceId: markup.referenceId,
       ...(markup.kind === "drawing" ? { color: markup.color, width: markup.width } : {}),
     });
     this.#elements.libraryPdfInspector.setStatus(
@@ -4570,33 +4571,10 @@ class WorkspaceApp {
     if (note) this.#editLibraryPdfNote(note);
   }
 
-  async #updateSelectedLibraryDrawing(action: Extract<LibraryPdfAnnotationAction, { action: "apply-drawing" }>): Promise<void> {
-    const drawing = (this.#librarySnapshot?.pdfMarkups ?? []).find(
-      (item): item is LibraryPdfDrawing => item.kind === "drawing" && item.id === this.#elements.paperMarkups.selectedMarkupId,
-    );
-    if (!drawing) return;
-    const response = await fetch(
-      `/api/library/references/${encodeURIComponent(drawing.referenceId)}/pdf-markups/${encodeURIComponent(drawing.id)}`,
-      {
-        method: "PATCH",
-        credentials: "same-origin",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          color: action.color,
-          width: action.width,
-        }),
-      },
-    );
-    await expectOk(response);
+  async #completeSelectedLibraryPdfMarkupMutation(kind: "deleted" | "updated"): Promise<void> {
+    if (kind === "deleted") this.#clearLibraryPdfMarkupSelection();
     await this.#refreshReferenceLibrary();
-    this.#showToast("Line style updated.");
-  }
-
-  async #deleteSelectedLibraryPdfMarkup(): Promise<void> {
-    const markup = (this.#librarySnapshot?.pdfMarkups ?? []).find((item) => item.id === this.#elements.paperMarkups.selectedMarkupId);
-    if (!markup) return;
-    this.#clearLibraryPdfMarkupSelection();
-    await this.#deleteLibraryPdfMarkup(markup);
+    this.#showToast(kind === "deleted" ? "Private annotation deleted." : "Line style updated.");
   }
 
   #activeLibraryPdf(): LibraryPdfArtifact | undefined {

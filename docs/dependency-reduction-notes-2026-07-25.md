@@ -4284,3 +4284,29 @@ and unique production package counts remain unchanged at 135,411 B raw /
 
 Full native CI passes all 1,511 unit/coverage tests, 120 Workers-
 runtime tests, and 74 browser tests.
+
+## Continued Lit Ownership: Selected PDF Markup Mutations
+
+`LibraryPdfAnnotationForms` now also owns selected-drawing style update and
+selected-markup delete transport from stable reference and markup identities.
+The component shares duplicate-submit gating across its annotation workflows,
+disables conflicting controls while a request is pending, and keeps retryable
+failures beside the affected controls. `WorkspaceApp` retains canonical Library
+refresh, overlay-selection clearing, and outcome-specific toasts; list deletion
+and drawing undo remain separate coordinator entry points.
+
+This checkpoint reduces `src/client/app.ts` from 5,020 to 4,998 lines (-22)
+and grows the Library PDF annotation forms from 417 to 470 lines. Runtime source
+across those files increases by 31 lines while removing the coordinator's
+selected-drawing update and selected-markup deletion-resolution methods.
+Focused coverage passes stable encoded update and delete targets, exact style
+payloads, typed outcomes, provider failure and retry, and cross-mutation
+duplicate suppression.
+
+The browser application artifact changes from 813,323 B raw / 220,256 B gzip
+to 814,245 B raw / 220,404 B gzip (+922 B raw / +148 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,514 unit/coverage tests, 120 Workers-
+runtime tests, and 74 browser tests.

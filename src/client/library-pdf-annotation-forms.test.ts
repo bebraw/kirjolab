@@ -28,7 +28,11 @@ class TestLibraryPdfAnnotationForms extends LibraryPdfAnnotationForms {
     const event = new Event("submit") as SubmitEvent;
     if (form === "highlight") await this.saveHighlight(event);
     else if (form === "note") await this.saveNote(event);
-    else this.applyDrawing(event);
+    else await this.applyDrawing(event);
+  }
+
+  async deleteForTest(): Promise<void> {
+    await this.deleteMarkup();
   }
 
   emitForTest(action: LibraryPdfAnnotationAction): void {
@@ -67,10 +71,10 @@ describe("library PDF annotation forms", () => {
     expect(forms.noteOpen).toBe(true);
     forms.clearNote();
 
-    forms.showMarkup({ label: "Line on page 2", kind: "drawing", color: "#112233", width: 8 });
+    forms.showMarkup({ id: "drawing:1", label: "Line on page 2", kind: "drawing", referenceId: "reference:1", color: "#112233", width: 8 });
     expect(forms.markupOpen).toBe(true);
     expect(forms.renderForTest()).toBeDefined();
-    forms.showMarkup({ label: "Note on page 2", kind: "note" });
+    forms.showMarkup({ id: "note:1", label: "Note on page 2", kind: "note", referenceId: "reference:1" });
     forms.clearMarkup();
     expect(forms.empty).toBe(true);
   });
@@ -97,7 +101,7 @@ describe("library PDF annotation forms", () => {
     });
     forms.changeForTest("note", "  Margin note  ");
     await forms.submitForTest("note");
-    forms.showMarkup({ label: "Line", kind: "drawing" });
+    forms.showMarkup({ id: "drawing/1", label: "Line", kind: "drawing", referenceId: "reference/1" });
     forms.changeForTest("color", "#abcdef");
     forms.changeForTest("width", "12");
     await forms.submitForTest("drawing");
@@ -129,10 +133,17 @@ describe("library PDF annotation forms", () => {
         method: "POST",
       }),
     );
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/library/references/reference%2F1/pdf-markups/drawing%2F1",
+      expect.objectContaining({
+        body: JSON.stringify({ color: "#abcdef", width: 12 }),
+        method: "PATCH",
+      }),
+    );
     expect(actions).toEqual([
       { action: "highlight-saved", kind: "extended" },
       { action: "note-saved", kind: "created" },
-      { action: "apply-drawing", color: "#abcdef", width: 12 },
+      { action: "markup-saved", kind: "updated" },
     ]);
   });
 
@@ -263,6 +274,57 @@ describe("library PDF annotation forms", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
+  it("deletes the selected markup through stable encoded identities", async () => {
+    const forms = new TestLibraryPdfAnnotationForms();
+    const actions: LibraryPdfAnnotationAction[] = [];
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 200 }));
+    forms.showMarkup({ id: "note/1", label: "Note", kind: "note", referenceId: "reference/1" });
+    forms.addEventListener(libraryPdfAnnotationActionEvent, (event) =>
+      actions.push((event as CustomEvent<LibraryPdfAnnotationAction>).detail),
+    );
+
+    await forms.deleteForTest();
+
+    expect(fetchMock).toHaveBeenCalledWith("/api/library/references/reference%2F1/pdf-markups/note%2F1", {
+      credentials: "same-origin",
+      method: "DELETE",
+    });
+    expect(actions).toEqual([{ action: "markup-saved", kind: "deleted" }]);
+    expect(forms.markupOpen).toBe(false);
+  });
+
+  it("reports selected-markup failures and permits retry", async () => {
+    const forms = new TestLibraryPdfAnnotationForms();
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response("Unavailable", { status: 503 }))
+      .mockResolvedValueOnce(new Response(null, { status: 200 }));
+    forms.showMarkup({ id: "drawing:1", label: "Line", kind: "drawing", referenceId: "reference:1" });
+
+    await forms.submitForTest("drawing");
+    expect(forms.renderForTest()).toBeDefined();
+    await forms.submitForTest("drawing");
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("ignores duplicate selected-markup mutations while one is pending", async () => {
+    const forms = new TestLibraryPdfAnnotationForms();
+    let respond = (_response: Response): void => undefined;
+    const pendingResponse = new Promise<Response>((resolve) => {
+      respond = resolve;
+    });
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockReturnValue(pendingResponse);
+    forms.showMarkup({ id: "drawing:1", label: "Line", kind: "drawing", referenceId: "reference:1" });
+
+    const first = forms.submitForTest("drawing");
+    await forms.deleteForTest();
+    respond(new Response(null, { status: 200 }));
+    await first;
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
   it("emits cancellation and selected-markup intents", () => {
     const forms = new TestLibraryPdfAnnotationForms();
     const actions: LibraryPdfAnnotationAction[] = [];
@@ -273,14 +335,12 @@ describe("library PDF annotation forms", () => {
     forms.emitForTest({ action: "cancel-highlight" });
     forms.emitForTest({ action: "cancel-note" });
     forms.emitForTest({ action: "edit-note" });
-    forms.emitForTest({ action: "delete-markup" });
     forms.emitForTest({ action: "clear-markup" });
 
     expect(actions).toEqual([
       { action: "cancel-highlight" },
       { action: "cancel-note" },
       { action: "edit-note" },
-      { action: "delete-markup" },
       { action: "clear-markup" },
     ]);
   });

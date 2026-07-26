@@ -254,10 +254,12 @@ memory and makes citation aliases compete with stable source identity.
   duplicate-submit gating, pending and retryable failure state, and the typed
   completed-save outcome. Given a stable artifact, reference, page, normalized
   anchor, and optional editing identity, it also owns page-note create and body-
-  update transport with the same pending and retry behavior. It emits typed
-  cancel, completed-save, edit, delete, and drawing-style intents. The
-  application coordinator retains canonical Library refresh, PDF draft
-  clearing, inspector policy, and toasts.
+  update transport with the same pending and retry behavior. Given a selected
+  markup's stable reference and markup identities, it owns drawing-style update
+  and selected-markup delete transport, including duplicate-submit gating and
+  retryable local failures. It emits typed cancel, completed-mutation, edit, and
+  clear intents. The application coordinator retains canonical Library refresh,
+  PDF draft and selection clearing, inspector policy, and toasts.
 - A companion light-DOM toolbar component owns active-tool presentation,
   drawing color and width, undo and export availability, annotation count, and
   inspector-expanded state. It emits typed tool, undo, export, and inspector

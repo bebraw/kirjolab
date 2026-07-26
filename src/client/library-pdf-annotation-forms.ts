@@ -11,9 +11,11 @@ export interface LibraryHighlightDraft {
   readonly rects: readonly PdfSelectionRect[];
 }
 
-export interface LibraryDrawingSelection {
+export interface LibraryMarkupSelection {
+  readonly id: string;
   readonly label: string;
   readonly kind: "drawing" | "note";
+  readonly referenceId: string;
   readonly color?: string;
   readonly width?: number;
 }
@@ -38,8 +40,8 @@ export type LibraryPdfAnnotationAction =
   | { readonly action: "cancel-highlight" }
   | { readonly action: "note-saved"; readonly kind: "created" | "updated" }
   | { readonly action: "cancel-note" }
-  | { readonly action: "apply-drawing"; readonly color: string; readonly width: number }
-  | { readonly action: "edit-note" | "delete-markup" | "clear-markup" };
+  | { readonly action: "markup-saved"; readonly kind: "deleted" | "updated" }
+  | { readonly action: "edit-note" | "clear-markup" };
 
 export const libraryPdfAnnotationActionEvent = "library-pdf-annotation-action";
 
@@ -71,10 +73,11 @@ export class LibraryPdfAnnotationForms extends LitElement {
   declare private drawingColor: string;
   declare private drawingWidth: number;
   declare private markupVisible: boolean;
-  declare private saving: "" | "highlight" | "note";
+  declare private saving: "" | "highlight" | "markup" | "note";
   declare private status: string;
   private highlightContext: LibraryHighlightContext | null = null;
   private noteContext: LibraryNoteContext | null = null;
+  private markupTarget: Pick<LibraryMarkupSelection, "id" | "referenceId"> | null = null;
   #highlightId: string | null = null;
   #highlightRects: readonly PdfSelectionRect[] = [];
 
@@ -147,7 +150,8 @@ export class LibraryPdfAnnotationForms extends LitElement {
     this.status = "";
   }
 
-  showMarkup(selection: LibraryDrawingSelection): void {
+  showMarkup(selection: LibraryMarkupSelection): void {
+    this.markupTarget = { id: selection.id, referenceId: selection.referenceId };
     this.markupLabel = selection.label;
     this.markupKind = selection.kind;
     if (selection.color) this.drawingColor = selection.color;
@@ -156,7 +160,9 @@ export class LibraryPdfAnnotationForms extends LitElement {
   }
 
   clearMarkup(): void {
+    this.markupTarget = null;
     this.markupVisible = false;
+    this.status = "";
   }
 
   focusHighlightComment(): void {
@@ -256,13 +262,16 @@ export class LibraryPdfAnnotationForms extends LitElement {
               @input=${this.updateDrawingWidth}
             /><output id="library-selected-draw-width-value">${this.drawingWidth}</output></label
           >
-          <button class="button-primary" type="submit">Apply style</button>
+          <button class="button-primary" type="submit" ?disabled=${Boolean(this.saving)}>
+            ${this.saving === "markup" ? "Applying…" : "Apply style"}
+          </button>
         </div>
         <button
           class="button-secondary"
           id="edit-selected-library-note"
           type="button"
           ?hidden=${this.markupKind !== "note"}
+          ?disabled=${Boolean(this.saving)}
           @click=${() => this.emitAction({ action: "edit-note" })}
         >
           Edit note
@@ -272,7 +281,8 @@ export class LibraryPdfAnnotationForms extends LitElement {
           id="delete-selected-library-markup"
           type="button"
           data-destructive="true"
-          @click=${() => this.emitAction({ action: "delete-markup" })}
+          ?disabled=${Boolean(this.saving)}
+          @click=${this.deleteMarkup}
         >
           Delete
         </button>
@@ -280,10 +290,12 @@ export class LibraryPdfAnnotationForms extends LitElement {
           class="button-secondary"
           id="cancel-library-markup-selection"
           type="button"
+          ?disabled=${Boolean(this.saving)}
           @click=${() => this.emitAction({ action: "clear-markup" })}
         >
           Done
         </button>
+        <p class="status-line" role="status" ?hidden=${!this.status}>${this.status}</p>
       </form>
     `;
   }
@@ -392,9 +404,50 @@ export class LibraryPdfAnnotationForms extends LitElement {
     }
   }
 
-  protected applyDrawing(event: SubmitEvent): void {
+  protected async applyDrawing(event: SubmitEvent): Promise<void> {
     event.preventDefault();
-    this.emitAction({ action: "apply-drawing", color: this.drawingColor, width: this.drawingWidth });
+    const target = this.markupTarget;
+    if (this.saving || !target || this.markupKind !== "drawing") return;
+    this.saving = "markup";
+    this.status = "Updating private line…";
+    try {
+      const response = await fetch(
+        `/api/library/references/${encodeURIComponent(target.referenceId)}/pdf-markups/${encodeURIComponent(target.id)}`,
+        {
+          method: "PATCH",
+          credentials: "same-origin",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ color: this.drawingColor, width: this.drawingWidth }),
+        },
+      );
+      await expectOk(response);
+      this.status = "";
+      this.emitAction({ action: "markup-saved", kind: "updated" });
+    } catch (error) {
+      this.status = errorMessage(error, "Could not update the private line.");
+    } finally {
+      this.saving = "";
+    }
+  }
+
+  protected async deleteMarkup(): Promise<void> {
+    const target = this.markupTarget;
+    if (this.saving || !target) return;
+    this.saving = "markup";
+    this.status = "Deleting private annotation…";
+    try {
+      const response = await fetch(
+        `/api/library/references/${encodeURIComponent(target.referenceId)}/pdf-markups/${encodeURIComponent(target.id)}`,
+        { method: "DELETE", credentials: "same-origin" },
+      );
+      await expectOk(response);
+      this.clearMarkup();
+      this.emitAction({ action: "markup-saved", kind: "deleted" });
+    } catch (error) {
+      this.status = errorMessage(error, "Could not delete the private annotation.");
+    } finally {
+      this.saving = "";
+    }
   }
 
   protected emitAction(action: LibraryPdfAnnotationAction): void {
