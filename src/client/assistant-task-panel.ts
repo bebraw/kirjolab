@@ -23,6 +23,12 @@ export interface AssistantTaskValue {
   readonly targetScope: AssistantTargetScope;
 }
 
+export interface AssistantTargetPreview {
+  readonly passage: string | null;
+  readonly scope: AssistantTargetScope;
+  readonly target: { readonly start: number; readonly end: number } | null;
+}
+
 export class AssistantTaskPanel extends LitElement {
   static override properties = {
     generateDisabled: { state: true },
@@ -45,7 +51,7 @@ export class AssistantTaskPanel extends LitElement {
   declare private tableCaption: string;
   declare private tableColumns: string;
   declare private tableRows: string;
-  declare private targetPreview: string;
+  declare protected targetPreview: string;
   declare private targetScope: AssistantTargetScope;
 
   constructor() {
@@ -80,8 +86,26 @@ export class AssistantTaskPanel extends LitElement {
     this.generateDisabled = disabled;
   }
 
-  setTargetPreview(preview: string): void {
-    this.targetPreview = preview;
+  showTarget({ passage, scope, target }: AssistantTargetPreview): void {
+    const operation = assistantOperationDefinition(this.operationId);
+    if (operation.id === "draft-claim") {
+      this.targetPreview = "This operation uses selected annotation snapshots rather than a manuscript target.";
+      return;
+    }
+    if (operation.id === "build-table") {
+      this.targetPreview = target
+        ? target.start === target.end
+          ? "The reviewed table syntax will be inserted at the visible caret."
+          : `The reviewed table syntax will replace ${target.end - target.start} selected characters.`
+        : "Place the caret where the table should be inserted, or select text to replace.";
+      return;
+    }
+    if (!passage) {
+      this.targetPreview = "Place the caret in manuscript text or select the exact passage to target.";
+      return;
+    }
+    const excerpt = passage.replace(/\s+/gu, " ").trim();
+    this.targetPreview = `${assistantTargetScopeLabel(scope)} · “${excerpt.slice(0, 180)}${excerpt.length > 180 ? "…" : ""}”`;
   }
 
   override connectedCallback(): void {

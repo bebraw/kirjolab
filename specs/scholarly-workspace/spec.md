@@ -199,10 +199,11 @@ collaboration.
 - **Assistant task setup:** A bounded light-DOM component owns local operation,
   target scope, instruction, claim relation, rhetorical purpose, structured
   table requirements, operation-specific copy and visibility, target-preview
-  presentation, and generation readiness. It emits typed task-change and
-  generation intents; the application coordinator retains editor target
-  resolution, evidence, model requests, workflow state, results, and status
-  policy. When evidence selection is requested, the bounded Project evidence
+  wording and excerpt truncation from canonical target inputs, and generation
+  readiness. It emits typed task-change and generation intents; the application
+  coordinator retains editor target, passage, and scope resolution, evidence,
+  model requests, workflow state, results, and status policy. When evidence
+  selection is requested, the bounded Project evidence
   and Claims panels own collection opening, scrolling, and focus for the first
   available grounding choice; the coordinator retains rail selection and
   empty-evidence messaging.

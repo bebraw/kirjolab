@@ -34,7 +34,8 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Keep application appearance behind shared semantic color tokens. Light and dark modes may vary token values, but components must not grow separate theme-specific palettes.
 - Keep the interface design system thin and source-local under `src/ui/`: foundations, visual primitives, shared state contracts, typed icons, and small markup helpers only. Domain components compose it without moving application behavior or state into a second UI architecture.
 - Use pinned Lit for bounded reactive browser components that own a cohesive
-  local template, presentation state, and typed intent events. Keep network
+  local template, presentation state, presentation copy derived solely from
+  component state and canonical inputs, and typed intent events. Keep network
   workflows in a component only when their complete request lifecycle and
   response validation serve that component's local interaction. Keep Yjs
   state, persisted domain data, project refresh, navigation, and cross-feature

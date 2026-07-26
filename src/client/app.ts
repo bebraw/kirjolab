@@ -155,12 +155,7 @@ import {
   collaborationSynced,
   createCollaborationWorkflowActor,
 } from "./collaboration-workflow-machine";
-import {
-  assistantOperationDefinition,
-  assistantTargetScopeLabel,
-  resolveAssistantTarget,
-  type AssistantTargetScope,
-} from "./assistant-operations";
+import { assistantOperationDefinition, resolveAssistantTarget, type AssistantTargetScope } from "./assistant-operations";
 import { assistantTaskChangeEvent, assistantTaskGenerateEvent, type AssistantTaskChange } from "./assistant-task-panel";
 import { assistantWorkflowActionEvent, type AssistantWorkflowAction } from "./assistant-workflow-status";
 import { assistantWorkflowBusy, createAssistantWorkflowActor } from "./assistant-workflow-machine";
@@ -1660,34 +1655,13 @@ class WorkspaceApp {
   }
 
   #renderAssistantTargetPreview(): void {
-    if (this.#draftsClaim()) {
-      this.#elements.assistantTaskPanel.setTargetPreview(
-        "This operation uses selected annotation snapshots rather than a manuscript target.",
-      );
-      return;
-    }
-    if (this.#elements.assistantTaskPanel.value.operation.id === "build-table") {
-      const target = this.#assistantInsertionTarget();
-      this.#elements.assistantTaskPanel.setTargetPreview(
-        target
-          ? target.start === target.end
-            ? "The reviewed table syntax will be inserted at the visible caret."
-            : `The reviewed table syntax will replace ${target.end - target.start} selected characters.`
-          : "Place the caret where the table should be inserted, or select text to replace.",
-      );
-      return;
-    }
+    const target = this.#assistantInsertionTarget();
     const passage = this.#assistantAuthoringPassage();
-    if (!passage) {
-      this.#elements.assistantTaskPanel.setTargetPreview("Place the caret in manuscript text or select the exact passage to target.");
-      return;
-    }
-    const target = this.#resolvedAuthoringTarget();
-    const scope = target && target.start !== target.end ? "selection" : this.#assistantTargetScope();
-    const excerpt = passage.excerpt.replace(/\s+/gu, " ").trim();
-    this.#elements.assistantTaskPanel.setTargetPreview(
-      `${assistantTargetScopeLabel(scope)} · “${excerpt.slice(0, 180)}${excerpt.length > 180 ? "…" : ""}”`,
-    );
+    this.#elements.assistantTaskPanel.showTarget({
+      passage: passage?.excerpt ?? null,
+      scope: target && target.start !== target.end ? "selection" : this.#assistantTargetScope(),
+      target,
+    });
   }
 
   #restoreModelPreferences(): void {

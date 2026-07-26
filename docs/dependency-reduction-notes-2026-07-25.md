@@ -5086,3 +5086,25 @@ and unique production package counts remain unchanged at 135,411 B raw /
 
 Full native CI passes all 1,569 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Lit Ownership: Assistant Target Presentation
+
+`AssistantTaskPanel` now owns operation-specific target-preview wording,
+selection and insertion messaging, whitespace normalization, scope labels, and
+bounded excerpt truncation. `WorkspaceApp` retains canonical Yjs target,
+passage, and scope resolution and supplies only those typed values.
+
+This checkpoint reduces `src/client/app.ts` from 4,533 to 4,507 lines (-26) and
+grows the assistant-task owner from 263 to 287 lines. Runtime source across
+those two files decreases by two lines while removing four operation-specific
+presentation branches from the coordinator. Focused coverage passes missing,
+claim, table-replacement, table-insertion, and scoped truncated-passage states,
+existing task behavior, application contracts, and strict types.
+
+The browser application artifact changes from 824,348 B raw / 222,440 B gzip
+to 824,294 B raw / 222,451 B gzip (-54 B raw / +11 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,570 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
