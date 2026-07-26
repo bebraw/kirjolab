@@ -6183,25 +6183,22 @@ class WorkspaceApp {
   }
 
   #startLibraryPdfMarkup(event: PointerEvent): void {
-    const target = this.#elements.paperMarkups.markupTarget(event.target as Element);
-    if (target?.kind === "note") return this.#startLibraryPdfNoteDrag(target.id, event);
-    if (target?.kind === "drawing" && this.#libraryPdfTool() === "select") {
+    const action = this.#elements.paperMarkups.pointerAction(event);
+    if (action?.kind === "note") return this.#startLibraryPdfNoteDrag(action.id, event);
+    if (action?.kind === "drawing") {
       event.preventDefault();
-      this.#selectLibraryPdfMarkup(target.id);
+      this.#selectLibraryPdfMarkup(action.id);
       return;
     }
-    const point = this.#elements.paperMarkups.point(event);
-    if (!point) return;
-    if (this.#libraryPdfTool() === "note") {
-      this.#startLibraryPdfNote(event, point);
+    if (action?.kind === "place-note") {
+      this.#startLibraryPdfNote(event, action.point);
       return;
     }
-    if (this.#libraryPdfTool() !== "draw") return;
-    if (event.pointerType === "touch") {
+    if (action?.kind === "touch-drawing") {
       this.#elements.libraryPdfInspector.setStatus("Use Apple Pencil or a mouse to draw; touch gestures pan and zoom the page.");
       return;
     }
-    this.#startLibraryPdfDrawing(event, point);
+    if (action?.kind === "start-drawing") this.#startLibraryPdfDrawing(event, action.point);
   }
 
   #startLibraryPdfNoteDrag(id: string | null, event: PointerEvent): void {

@@ -2775,3 +2775,24 @@ gzip and 18 and 150.
 
 Full native CI passes all 1,415 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Lit Ownership: PDF Pointer Interpretation
+
+`LibraryPdfMarkupLayer` now combines its active tool, local hit-testing, and
+page-relative geometry into typed pointer-down actions for note targets,
+drawing targets, note placement, drawing starts, and touch-only drawing
+rejection. `WorkspaceApp` retains pointer capture, annotation-machine
+transitions, selection, persistence, inspector messaging, and notifications.
+
+This checkpoint reduces `src/client/app.ts` from 7,054 to 7,051 lines (-3).
+Focused unit coverage passes every tool and target branch, and the private-PDF
+browser workflow passes tool switching, touch-compatible interaction, note and
+drawing behavior, persistence, rendering, and annotated export.
+
+The browser application artifact changes from 800,885 B raw / 215,763 B gzip
+to 801,333 B raw / 215,914 B gzip (+448 B raw / +151 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,415 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.

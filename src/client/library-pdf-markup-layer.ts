@@ -64,6 +64,11 @@ export type LibraryPdfMarkupTarget =
   | { readonly id: string | null; readonly kind: "note" }
   | { readonly id: string; readonly kind: "drawing" };
 
+export type LibraryPdfPointerAction =
+  | LibraryPdfMarkupTarget
+  | { readonly kind: "place-note" | "start-drawing"; readonly point: LibraryPdfPoint }
+  | { readonly kind: "touch-drawing" };
+
 interface MarkupTargetElement {
   closest(selector: string): Pick<Element, "getAttribute"> | null;
 }
@@ -76,6 +81,7 @@ export class LibraryPdfMarkupLayer extends LitElement {
   static override properties = { data: { state: true } };
 
   declare private data: LibraryPdfMarkupLayerData | null;
+  private interactionTool: PdfAnnotationTool = "text";
   private recognizedShape: RecognizedDrawnShape | null = null;
   private recognitionTimer: ReturnType<typeof globalThis.setTimeout> | undefined;
 
@@ -86,10 +92,12 @@ export class LibraryPdfMarkupLayer extends LitElement {
 
   setData(data: LibraryPdfMarkupLayerData): void {
     this.data = data;
+    this.interactionTool = data.tool;
     if (this.isConnected) this.performUpdate();
   }
 
   setInteraction(tool: PdfAnnotationTool, drawingActive = false): void {
+    this.interactionTool = tool;
     this.dataset.tool = tool;
     if (drawingActive) this.dataset.drawingActive = "true";
     else delete this.dataset.drawingActive;
@@ -109,6 +117,18 @@ export class LibraryPdfMarkupLayer extends LitElement {
     if (note) return { id: note.getAttribute("data-markup-id"), kind: "note" };
     const drawingId = target.closest(".pdf-ink-stroke")?.getAttribute("data-markup-id");
     return drawingId ? { id: drawingId, kind: "drawing" } : null;
+  }
+
+  pointerAction(event: Pick<PointerEvent, "clientX" | "clientY" | "pointerType" | "target">): LibraryPdfPointerAction | null {
+    if (isMarkupTargetElement(event.target)) {
+      const target = this.markupTarget(event.target);
+      if (target?.kind === "note" || (target?.kind === "drawing" && this.interactionTool === "select")) return target;
+    }
+    const point = this.point(event);
+    if (!point) return null;
+    if (this.interactionTool === "note") return { kind: "place-note", point };
+    if (this.interactionTool !== "draw") return null;
+    return event.pointerType === "touch" ? { kind: "touch-drawing" } : { kind: "start-drawing", point };
   }
 
   extendDrawing(event: DrawingPointerEvent, draft: readonly LibraryPdfPoint[]): LibraryPdfDrawingUpdate | null {
@@ -297,6 +317,10 @@ function relativePoints(
 
 function drawingPoints(points: readonly LibraryPdfPoint[]): string {
   return points.map((point) => `${point.x * 1000},${point.y * 1000}`).join(" ");
+}
+
+function isMarkupTargetElement(target: EventTarget | null): target is EventTarget & MarkupTargetElement {
+  return !!target && "closest" in target && typeof target.closest === "function";
 }
 
 if (typeof customElements !== "undefined" && !customElements.get("library-pdf-markup-layer")) {
