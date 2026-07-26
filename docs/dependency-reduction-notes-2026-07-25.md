@@ -2208,6 +2208,25 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,389 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Contract: Project-File Save Mode
+
+`ProjectFileDialog` now emits its owned operation mode together with the
+submitted path. `WorkspaceApp` no longer mirrors that mode in a coordinator
+field and consumes one stable typed intent for create, create-and-include,
+rename, folder-create, and folder-rename operations.
+
+This checkpoint reduces `src/client/app.ts` from 7,360 to 7,357 lines (-3) and
+removes duplicated mutable mode state. Focused unit coverage verifies that the
+dialog emits its configured mode with the trimmed path.
+
+The browser application artifact changes from 789,120 B raw / 212,922 B gzip
+to 789,109 B raw / 212,926 B gzip (-11 B raw / +4 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,389 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Model Preferences Entry
 
 `ModelProviderSettings` now opens its enclosing preferences menu and focuses
@@ -2227,21 +2246,23 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,390 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
-## Continued Lit Contract: Project-File Save Mode
+## Continued Lit Composition: Project-File Actions
 
-`ProjectFileDialog` now emits its owned operation mode together with the
-submitted path. `WorkspaceApp` no longer mirrors that mode in a coordinator
-field and consumes one stable typed intent for create, create-and-include,
-rename, folder-create, and folder-rename operations.
+Two `ProjectFileActions` instances now own the project rail and editor-menu
+commands, entry-file delete availability, and one typed action protocol.
+`WorkspaceApp` retains active-file identity, resource checks, dialogs, upload
+selection, persistence, deferred deletion, selection, refresh, and toast policy.
 
-This checkpoint reduces `src/client/app.ts` from 7,360 to 7,357 lines (-3) and
-removes duplicated mutable mode state. Focused unit coverage verifies that the
-dialog emits its configured mode with the trimmed path.
+This checkpoint reduces `src/client/app.ts` from 7,352 to 7,343 lines (-9),
+replaces seven raw button references and direct bindings with two component
+references, and removes coordinator-owned delete-button presentation. Focused
+unit and browser coverage passes both variants, every typed intent, the
+entry-file guard, and the complete create/include/folder/rename/delete workflow.
 
-The browser application artifact changes from 789,120 B raw / 212,922 B gzip
-to 789,109 B raw / 212,926 B gzip (-11 B raw / +4 B gzip). Styles and direct
-and unique production package counts remain unchanged at 135,411 B raw /
+The browser application artifact changes from 789,183 B raw / 212,957 B gzip
+to 790,598 B raw / 213,321 B gzip (+1,415 B raw / +364 B gzip). Styles and
+direct and unique production package counts remain unchanged at 135,411 B raw /
 23,373 B gzip and 18 and 150.
 
-Full native CI passes all 1,389 unit/coverage tests, 120 Workers-runtime tests,
+Full native CI passes all 1,392 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.

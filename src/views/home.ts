@@ -259,11 +259,13 @@ export function renderHomePage(
                 <project-history-trigger class="contents" id="project-history-trigger">
                   <button id="open-project-history" type="button"><strong>History</strong><code id="revision-badge">r0</code></button>
                 </project-history-trigger>
-                <p class="editor-command-menu-label">File</p>
-                <button id="new-project-file" type="button"><strong>Add file</strong></button>
-                <button id="create-and-include-project-file" type="button"><strong>Create and include</strong><code>at the current caret</code></button>
-                <button id="rename-project-file" type="button"><strong>Move or rename file</strong></button>
-                <button id="delete-project-file" type="button"><strong>Delete file</strong></button>
+                <project-file-actions class="contents" id="project-file-menu-actions" variant="menu">
+                  <p class="editor-command-menu-label">File</p>
+                  <button id="new-project-file" type="button"><strong>Add file</strong></button>
+                  <button id="create-and-include-project-file" type="button"><strong>Create and include</strong><code>at the current caret</code></button>
+                  <button id="rename-project-file" type="button"><strong>Move or rename file</strong></button>
+                  <button id="delete-project-file" type="button"><strong>Delete file</strong></button>
+                </project-file-actions>
               </div>
             </details>
           </div>

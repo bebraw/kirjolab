@@ -30,7 +30,8 @@ export function renderProjectRailNavigation(): string {
 }
 
 export function renderProjectFileActions(): string {
-  return `<div class="grid gap-3">
+  return `<project-file-actions class="block" id="project-file-rail-actions" variant="rail">
+          <div class="grid gap-3">
             <h1 class="text-xl font-semibold tracking-[-0.035em]">Files</h1>
             <div class="grid grid-cols-3 gap-1">
               <button class="button-secondary justify-center" id="new-project-file-rail" type="button" aria-label="Add file" title="Add file">
@@ -43,7 +44,8 @@ export function renderProjectFileActions(): string {
                 ${renderIcon("imageAdd", "rail-action-icon")}
               </button>
             </div>
-          </div>`;
+          </div>
+          </project-file-actions>`;
 }
 
 export function renderExpandProjectRailButton(): string {

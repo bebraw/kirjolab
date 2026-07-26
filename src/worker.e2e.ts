@@ -4070,6 +4070,10 @@ test("creates and inserts transcluded project files", async ({ page }) => {
   const workspaceId = await createWorkspace(page, "Transclusion authoring");
   await page.goto(`/editor/${workspaceId}`);
   await expect(page.locator("#save-status")).toHaveText("Saved");
+  const fileMenu = page.locator(".action-menu", { has: page.locator("#create-and-include-project-file") });
+  await fileMenu.locator("summary").click();
+  await expect(page.locator("#delete-project-file")).toBeDisabled();
+  await fileMenu.locator("summary").click();
   const source = page.locator("#source-editor");
   const entrySource = "## Introduction\n\nBefore\nAfter\n";
   await source.fill(entrySource);
@@ -4079,7 +4083,6 @@ test("creates and inserts transcluded project files", async ({ page }) => {
     element.dispatchEvent(new Event("select", { bubbles: true }));
   }, entrySource.indexOf("After"));
 
-  const fileMenu = page.locator(".action-menu", { has: page.locator("#create-and-include-project-file") });
   await fileMenu.locator("summary").click();
   await page.locator("#create-and-include-project-file").click();
   await page.locator("#project-file-path").fill("chapters/method.md");

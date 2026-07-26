@@ -239,6 +239,7 @@ import {
   type ProjectFileDialogMode,
   type ProjectFileSave,
 } from "./project-file-dialog";
+import { ProjectFileActions, projectFileActionEvent, type ProjectFileAction } from "./project-file-actions";
 import { ProjectTemplateSaveDialog, projectTemplateSaveEvent, type ProjectTemplateSave } from "./project-template-save-dialog";
 import { ProjectTreePanel, projectTreeActionEvent, type ProjectTreeAction } from "./project-tree-panel";
 import { ManuscriptMapPanel, manuscriptMapSelectEvent, type ManuscriptMapSelection } from "./manuscript-map-panel";
@@ -464,15 +465,10 @@ interface Elements {
   researchDiaryPanel: ResearchDiarySummary;
   researchQuestionPanel: WritingWorkflowPanel;
   reviewerResponsePanel: WritingWorkflowPanel;
-  newProjectFileRail: HTMLButtonElement;
-  newProjectFolderRail: HTMLButtonElement;
-  uploadProjectImages: HTMLButtonElement;
+  projectFileRailActions: ProjectFileActions;
   projectImageUpload: HTMLInputElement;
   projectTreePanel: ProjectTreePanel;
-  newProjectFile: HTMLButtonElement;
-  createAndIncludeProjectFile: HTMLButtonElement;
-  renameProjectFile: HTMLButtonElement;
-  deleteProjectFile: HTMLButtonElement;
+  projectFileMenuActions: ProjectFileActions;
   projectFileDialog: ProjectFileDialog;
   projectHistoryTrigger: ProjectHistoryTrigger;
   openExport: HTMLButtonElement;
@@ -1059,10 +1055,14 @@ class WorkspaceApp {
     this.#rememberAuthoringSelection();
     this.#elements.vimModeControl.bindEditor(this.#elements.source, this.#elements.sourceEditorShell);
     bindYText(this.#elements.bibliography, this.#bibliography, this.#document);
-    this.#elements.newProjectFile.addEventListener("click", () => this.#openProjectFileDialog("create"));
-    this.#elements.newProjectFileRail.addEventListener("click", () => this.#openProjectFileDialog("create"));
-    this.#elements.newProjectFolderRail.addEventListener("click", () => this.#openProjectFileDialog("create-folder"));
-    this.#elements.uploadProjectImages.addEventListener("click", () => this.#elements.projectImageUpload.click());
+    for (const actions of [this.#elements.projectFileRailActions, this.#elements.projectFileMenuActions]) {
+      actions.addEventListener(projectFileActionEvent, (event) => {
+        const action = (event as CustomEvent<ProjectFileAction>).detail;
+        if (action === "upload-images") this.#elements.projectImageUpload.click();
+        else if (action === "delete") this.#deleteProjectFile();
+        else this.#openProjectFileDialog(action);
+      });
+    }
     this.#elements.projectTreePanel.addEventListener(projectTreeActionEvent, (event) => {
       const detail = (event as CustomEvent<ProjectTreeAction>).detail;
       if (detail.action === "select-file") {
@@ -1074,9 +1074,6 @@ class WorkspaceApp {
       else void this.#deleteProjectImage(detail.asset);
     });
     this.#elements.projectImageUpload.addEventListener("change", () => void this.#uploadProjectImages());
-    this.#elements.createAndIncludeProjectFile.addEventListener("click", () => this.#openProjectFileDialog("create-and-include"));
-    this.#elements.renameProjectFile.addEventListener("click", () => this.#openProjectFileDialog("rename"));
-    this.#elements.deleteProjectFile.addEventListener("click", () => this.#deleteProjectFile());
     this.#elements.projectFileDialog.addEventListener(
       projectFileSaveEvent,
       (event) => void this.#saveProjectFile((event as CustomEvent<ProjectFileSave>).detail),
@@ -2949,8 +2946,7 @@ class WorkspaceApp {
     });
     this.#elements.editorInsertMenu.setFiles(files.find((file) => file.id === this.#activeFileId) ?? null, files);
     const entryActive = this.#activeFileId === snapshot.entryFileId;
-    this.#elements.renameProjectFile.disabled = false;
-    this.#elements.deleteProjectFile.disabled = entryActive;
+    this.#elements.projectFileMenuActions.setEntryFileActive(entryActive);
     this.#renderAuthoringTarget();
   }
 
@@ -7179,15 +7175,10 @@ function collectElements(): Elements {
     researchDiaryPanel: requiredElement("research-diary-panel", ResearchDiarySummary),
     researchQuestionPanel: requiredElement("research-question-panel", WritingWorkflowPanel),
     reviewerResponsePanel: requiredElement("reviewer-response-panel", WritingWorkflowPanel),
-    newProjectFileRail: requiredElement("new-project-file-rail", HTMLButtonElement),
-    newProjectFolderRail: requiredElement("new-project-folder-rail", HTMLButtonElement),
-    uploadProjectImages: requiredElement("upload-project-images", HTMLButtonElement),
+    projectFileRailActions: requiredElement("project-file-rail-actions", ProjectFileActions),
     projectImageUpload: requiredElement("project-image-upload", HTMLInputElement),
     projectTreePanel: requiredElement("project-tree-panel", ProjectTreePanel),
-    newProjectFile: requiredElement("new-project-file", HTMLButtonElement),
-    createAndIncludeProjectFile: requiredElement("create-and-include-project-file", HTMLButtonElement),
-    renameProjectFile: requiredElement("rename-project-file", HTMLButtonElement),
-    deleteProjectFile: requiredElement("delete-project-file", HTMLButtonElement),
+    projectFileMenuActions: requiredElement("project-file-menu-actions", ProjectFileActions),
     projectFileDialog: requiredElement("project-file-dialog-panel", ProjectFileDialog),
     projectHistoryTrigger: requiredElement("project-history-trigger", ProjectHistoryTrigger),
     openExport: requiredElement("open-export", HTMLButtonElement),

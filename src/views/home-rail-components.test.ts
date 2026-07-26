@@ -35,6 +35,8 @@ describe("renderProjectFileActions", () => {
   it("binds each file action to its label and icon", () => {
     const html = renderProjectFileActions();
 
+    expect(html).toContain('<project-file-actions class="block" id="project-file-rail-actions" variant="rail">');
+
     const contracts = [
       ["new-project-file-rail", "Add file", "fileAdd"],
       ["new-project-folder-rail", "Add folder", "folderAdd"],
