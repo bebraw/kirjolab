@@ -37,6 +37,11 @@ ephemeral rather than a scholarly resource.
 - The left project rail exposes Comments as a peer of Files and Research. Its
   local mode contains the selected-passage composer, open-comment count, and
   open/resolved history without reducing the manuscript editor height.
+- The bounded light-DOM comment panel owns composer state plus create,
+  re-anchor, and resolve transport, local failures, and completed mutation
+  outcomes. The workspace coordinator retains Yjs selection stability checks,
+  derives the current typed passage input, refreshes canonical project state,
+  presents notifications, and opens resolved passages.
 - A socket receives a server-owned ephemeral collaborator id. Its bounded
   current-revision selection is broadcast to peers and cleared on disconnect;
   it is never stored or added to history.

@@ -103,7 +103,7 @@ describe("manuscript comment list", () => {
       "/api/workspaces/workspace/comments/comment%2F1/resolve",
       expect.objectContaining({ method: "POST" }),
     );
-    expect(actions).toEqual([{ action: "resolved", message: "Comment resolved; its revision history is preserved." }]);
+    expect(actions).toEqual([{ action: "mutated", message: "Comment resolved; its revision history is preserved." }]);
   });
 
   it("reports resolution failures and permits retry", async () => {
@@ -138,7 +138,7 @@ describe("manuscript comment list", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
-  it("emits the current comment and resets after save", () => {
+  it("emits the current comment intent", () => {
     const list = new TestManuscriptCommentList();
     const comments: string[] = [];
     list.addEventListener(manuscriptCommentCreateEvent, (event) => {
@@ -147,9 +147,53 @@ describe("manuscript comment list", () => {
     list.changeForTest("Check this claim");
     list.createForTest();
     expect(comments).toEqual(["Check this claim"]);
-    list.markSaved();
-    list.createForTest();
-    expect(comments).toEqual(["Check this claim", ""]);
     expect(list.renderForTest()).toBeDefined();
+  });
+
+  it("owns create and re-anchor persistence and emits completed outcomes", async () => {
+    const list = new TestManuscriptCommentList();
+    const actions: ManuscriptCommentAction[] = [];
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 200 }));
+    list.configure("/api/workspaces/workspace");
+    list.changeForTest("Check this claim");
+    list.addEventListener(manuscriptCommentActionEvent, (event) => actions.push((event as CustomEvent<ManuscriptCommentAction>).detail));
+    const passage = { fileId: "main", start: 0, end: 16, excerpt: "Selected passage", sourceRevision: 4 };
+
+    await list.createAt({ ...passage, body: "Check this claim" });
+    await list.reanchorAt("comment/1", passage);
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      "/api/workspaces/workspace/comments",
+      expect.objectContaining({ body: JSON.stringify({ ...passage, body: "Check this claim" }), method: "POST" }),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      "/api/workspaces/workspace/comments/comment%2F1/reanchor",
+      expect.objectContaining({ body: JSON.stringify(passage), method: "POST" }),
+    );
+    expect(actions).toEqual([
+      { action: "mutated", message: "Comment anchored to the selected passage." },
+      { action: "mutated", message: "Comment linked to the selected passage; earlier anchors remain in project history." },
+    ]);
+  });
+
+  it("keeps failed comment creation local and retryable", async () => {
+    const list = new TestManuscriptCommentList();
+    const actions: ManuscriptCommentAction[] = [];
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(Response.json({ error: "Denied" }, { status: 403 }))
+      .mockResolvedValueOnce(new Response(null, { status: 200 }));
+    list.configure("/api/workspaces/workspace");
+    list.addEventListener(manuscriptCommentActionEvent, (event) => actions.push((event as CustomEvent<ManuscriptCommentAction>).detail));
+    const input = { fileId: "main", start: 0, end: 16, excerpt: "Selected passage", sourceRevision: 4, body: "Check this claim" };
+
+    await list.createAt(input);
+    expect(list.renderForTest()).toBeDefined();
+    await list.createAt(input);
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(actions).toEqual([{ action: "mutated", message: "Comment anchored to the selected passage." }]);
   });
 });

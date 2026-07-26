@@ -4557,6 +4557,30 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,535 unit/coverage tests, 120 Workers-
 runtime tests, and 74 browser tests.
 
+## Continued Lit Ownership: Manuscript Comment Mutations
+
+`ManuscriptCommentList` now owns create and re-anchor transport alongside its
+existing resolve workflow. The workspace coordinator retains Yjs stability
+checks and derives the current typed passage input before invoking the Lit
+owner. The component owns request status, retryable local failures, successful
+composer reset, and one completed mutation outcome; `WorkspaceApp` retains
+canonical refresh, toast, and passage-navigation policy.
+
+This checkpoint reduces `src/client/app.ts` from 4,766 to 4,759 lines (-7) and
+grows the comment owner from 177 to 202 lines. Runtime source across those two
+files increases by 18 lines while removing the coordinator's remaining comment
+HTTP requests. Focused coverage passes stable create and encoded re-anchor
+targets, completed outcomes, local failure and retry, resolve suppression, and
+the remaining selection-dependent intents.
+
+The browser application artifact changes from 818,910 B raw / 221,674 B gzip
+to 819,216 B raw / 221,767 B gzip (+306 B raw / +93 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,537 unit/coverage tests, 120 Workers-
+runtime tests, and 74 browser tests.
+
 ## Coordinator Simplification: Single-Use Projections
 
 `WorkspaceApp` now reads the active rail, settled Library list, and empty PDF

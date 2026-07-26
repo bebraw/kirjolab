@@ -1,6 +1,11 @@
 import { html, LitElement, type TemplateResult } from "lit";
-import type { ManuscriptAnchorSelector, ManuscriptComment } from "../domain/workspace";
-import { errorMessage, expectOk } from "./http";
+import type {
+  CreateManuscriptCommentInput,
+  ManuscriptAnchorSelector,
+  ManuscriptComment,
+  ManuscriptPassageInput,
+} from "../domain/workspace";
+import { errorMessage, expectOk, jsonFetch } from "./http";
 import { anchorActionLabel } from "./research-resource-presentation";
 
 export const manuscriptCommentActionEvent = "manuscript-comment-action";
@@ -9,7 +14,7 @@ export const manuscriptCommentCreateEvent = "manuscript-comment-create";
 export type ManuscriptCommentAction =
   | { readonly action: "open"; readonly anchor: ManuscriptAnchorSelector }
   | { readonly action: "reanchor"; readonly commentId: string }
-  | { readonly action: "resolved"; readonly message: string };
+  | { readonly action: "mutated"; readonly message: string };
 
 export class ManuscriptCommentList extends LitElement {
   static override properties = {
@@ -41,9 +46,16 @@ export class ManuscriptCommentList extends LitElement {
     this.comments = comments;
   }
 
-  markSaved(): void {
-    this.body = "";
-    this.status = "Comment saved without changing the Markdown source.";
+  async createAt(input: CreateManuscriptCommentInput): Promise<void> {
+    await this.persist(`${this.apiBase}/comments`, input, "Comment anchored to the selected passage.", true);
+  }
+
+  async reanchorAt(commentId: string, input: ManuscriptPassageInput): Promise<void> {
+    await this.persist(
+      `${this.apiBase}/comments/${encodeURIComponent(commentId)}/reanchor`,
+      input,
+      "Comment linked to the selected passage; earlier anchors remain in project history.",
+    );
   }
 
   override connectedCallback(): void {
@@ -153,11 +165,24 @@ export class ManuscriptCommentList extends LitElement {
         credentials: "same-origin",
       });
       await expectOk(response);
-      this.emit({ action: "resolved", message: "Comment resolved; its revision history is preserved." });
+      this.emit({ action: "mutated", message: "Comment resolved; its revision history is preserved." });
     } catch (error) {
       this.status = errorMessage(error, "Could not resolve the comment.");
     } finally {
       this.resolvingCommentId = "";
+    }
+  }
+
+  private async persist(endpoint: string, input: ManuscriptPassageInput, message: string, reset = false): Promise<void> {
+    this.status = reset ? "Saving comment…" : "Re-anchoring comment…";
+    try {
+      const response = await jsonFetch(endpoint, input);
+      await expectOk(response);
+      if (reset) this.body = "";
+      this.status = reset ? "Comment saved without changing the Markdown source." : message;
+      this.emit({ action: "mutated", message });
+    } catch (error) {
+      this.status = errorMessage(error, reset ? "Could not save the comment." : "Could not re-anchor the comment.");
     }
   }
 

@@ -2551,15 +2551,11 @@ class WorkspaceApp {
       this.#showToast("Select manuscript text before adding a comment.");
       return;
     }
-    const response = await jsonFetch(`${apiBase}/comments`, {
+    await this.#elements.manuscriptCommentListPanel.createAt({
       ...passage,
       sourceRevision: this.#revision,
       body,
     });
-    await expectOk(response);
-    this.#elements.manuscriptCommentListPanel.markSaved();
-    await this.#resourceRefresh.request();
-    this.#showToast("Comment anchored to the selected passage.");
   }
 
   async #reanchorManuscriptComment(commentId: string): Promise<void> {
@@ -2572,13 +2568,10 @@ class WorkspaceApp {
       this.#showToast("Select the revised manuscript passage before re-anchoring the comment.");
       return;
     }
-    const response = await jsonFetch(`${apiBase}/comments/${encodeURIComponent(commentId)}/reanchor`, {
+    await this.#elements.manuscriptCommentListPanel.reanchorAt(commentId, {
       ...passage,
       sourceRevision: this.#revision,
     });
-    await expectOk(response);
-    await this.#resourceRefresh.request();
-    this.#showToast("Comment linked to the selected passage; earlier anchors remain in project history.");
   }
 
   #openClaimDialog(claim?: ClaimResource): void {
