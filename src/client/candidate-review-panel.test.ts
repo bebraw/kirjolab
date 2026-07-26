@@ -7,7 +7,7 @@ import {
   candidateEvidenceEvent,
   type CandidateDecisionOutcome,
   type CandidateDecisionRequest,
-  type CandidateReviewData,
+  type CandidateReviewSources,
 } from "./candidate-review-panel";
 
 const annotation: ModelAnnotationEvidence = {
@@ -54,6 +54,22 @@ const revision: ModelCandidate = {
   },
 };
 
+const claim: ModelCandidate = {
+  createdAt: revision.createdAt,
+  evidence: [annotation],
+  id: "candidate:claim",
+  instruction: "Draft a claim",
+  model: "local-model",
+  operation: "draft-claim",
+  promptVersion: "draft-claim-v1",
+  proposedNote: "",
+  proposedText: "Evidence-backed claim",
+  providerAdapter: "openai-compatible",
+  providerLabel: "Local",
+  relation: "supports",
+  status: "accepted",
+};
+
 class TestCandidateReviewPanel extends CandidateReviewPanel {
   renderForTest() {
     return this.render();
@@ -78,12 +94,13 @@ class TestCandidateReviewPanel extends CandidateReviewPanel {
   }
 }
 
-function data(candidate: ModelCandidate = revision, overrides: Partial<CandidateReviewData> = {}): CandidateReviewData {
+function data(candidate: ModelCandidate = revision, overrides: Partial<CandidateReviewSources> = {}): CandidateReviewSources {
   return {
-    applicable: true,
-    availableEvidenceIds: new Set(["annotation:1"]),
+    annotations: [{ id: annotation.id, updatedAt: annotation.version }],
     candidate,
+    claims: [],
     decisionBusy: false,
+    sourceRevision: 3,
     stableDocument: true,
     ...overrides,
   };
@@ -100,7 +117,7 @@ describe("candidate review panel", () => {
     panel.setCandidate(data());
     panel.setAvailability(false, true);
     expect(panel.renderForTest()).toBeDefined();
-    panel.setCandidate(data(revision, { applicable: false, currentAction: "apply", decisionBusy: true, stableDocument: false }));
+    panel.setCandidate(data(revision, { currentAction: "apply", decisionBusy: true, sourceRevision: 4, stableDocument: false }));
     expect(panel.renderForTest()).toBeDefined();
     panel.showFailure("Could not apply revision");
     expect(panel.renderForTest()).toBeDefined();
@@ -108,28 +125,33 @@ describe("candidate review panel", () => {
   });
 
   it("renders claim candidates and terminal statuses", () => {
-    const claim: ModelCandidate = {
-      createdAt: revision.createdAt,
-      evidence: [annotation],
-      id: "candidate:claim",
-      instruction: "Draft a claim",
-      model: "local-model",
-      operation: "draft-claim",
-      promptVersion: "draft-claim-v1",
-      proposedNote: "",
-      proposedText: "Evidence-backed claim",
-      providerAdapter: "openai-compatible",
-      providerLabel: "Local",
-      relation: "supports",
-      status: "accepted",
-    };
     const panel = new TestCandidateReviewPanel();
     panel.setCandidate(data(claim));
     expect(panel.renderForTest()).toBeDefined();
     panel.setCandidate(data({ ...claim, status: "rejected" }, { currentAction: "reject" }));
     expect(panel.renderForTest()).toBeDefined();
-    panel.setCandidate(data({ ...claim, status: "pending" }, { applicable: false, availableEvidenceIds: new Set() }));
+    panel.setCandidate(data({ ...claim, status: "pending" }, { annotations: [] }));
     expect(panel.renderForTest()).toBeDefined();
+  });
+
+  it("derives revision and claim applicability from canonical inputs", () => {
+    const panel = new TestCandidateReviewPanel();
+    const decisions: CandidateDecisionRequest[] = [];
+    panel.addEventListener(candidateDecisionEvent, (event) => decisions.push((event as CustomEvent<CandidateDecisionRequest>).detail));
+    if (revision.operation !== "revise-selection" || revision.target.resolution.status !== "resolved") throw new Error("Invalid fixture");
+
+    panel.setCandidate(data(revision, { sourceRevision: 4 }));
+    panel.applyForTest();
+    panel.setCandidate(
+      data({ ...revision, target: { ...revision.target, resolution: { ...revision.target.resolution, exactMatch: false } } }),
+    );
+    panel.applyForTest();
+    panel.setCandidate(data({ ...claim, status: "pending" }, { annotations: [] }));
+    panel.applyForTest();
+    panel.setCandidate(data({ ...claim, status: "pending" }));
+    panel.applyForTest();
+
+    expect(decisions).toEqual([{ action: "apply", candidateId: claim.id }]);
   });
 
   it("emits decision and available evidence intents", () => {

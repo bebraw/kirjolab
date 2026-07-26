@@ -86,11 +86,13 @@ The adopted components own bounded presentation:
   mode visibility, focus entry, and one typed resource-selection stream; and
   exposes one graph-presentation boundary to the application coordinator.
 - The candidate review panel owns before/after and provenance rendering,
-  live collaboration and workflow decision availability, decision gating,
-  encoded apply and reject transport, retryable same-candidate failure state,
-  progress, local scroll state, and typed decision-start, completed-decision,
-  and evidence-navigation outcomes. The coordinator retains assistant workflow
-  transitions, canonical refresh, tab movement, and notification policy.
+  evidence-link availability, local revision and claim-draft applicability from
+  canonical inputs, live collaboration and workflow decision availability,
+  decision gating, encoded apply and reject transport, retryable same-candidate
+  failure state, progress, local scroll state, and typed decision-start,
+  completed-decision, and evidence-navigation outcomes. The coordinator retains
+  assistant workflow transitions, canonical refresh, tab movement, and
+  notification policy; the server remains authoritative for mutation safety.
 - The publication context panel owns scholarly metadata, linked-paper and
   project-PDF option derivation and rendering from canonical reference inputs,
   citation readiness, local scroll state, and explicit project-PDF link and
@@ -449,9 +451,10 @@ reason to wrap static markup mechanically.
 - The candidate review panel replaces thirteen internal element references and
   the coordinator's candidate-copy, status, evidence, and action renderers while
   also replacing candidate-decision availability branches, the apply/reject
-  request, and retryable local failure reconstruction. It leaves applicability
-  derivation, workflow transitions, canonical refresh, tab movement,
-  notification policy, and evidence navigation in the application coordinator.
+  request, retryable local failure reconstruction, evidence-id collection, and
+  revision/claim-draft applicability derivation. It leaves canonical inputs,
+  workflow transitions, refresh, tab movement, notification policy, and evidence
+  navigation in the application coordinator.
 - The publication context panel replaces eight internal element references and
   imperative metadata, paper-row, and link-form renderers plus two coordinator
   relationship-mutation methods. It also replaces the coordinator's parallel

@@ -5134,6 +5134,31 @@ gzip and 18 and 150.
 Full native CI passes all 1,571 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Candidate Applicability
+
+`CandidateReviewPanel` now derives evidence-link availability and local apply
+eligibility from canonical candidate, annotation-version, source-revision,
+anchor-resolution, collaboration, and workflow inputs. `WorkspaceApp` retains
+those canonical authorities, XState transitions, refresh, navigation, evidence
+opening, and notifications. Server-side application continues to independently
+revalidate pending state, exact anchors, revisions, and annotation versions.
+
+This checkpoint reduces `src/client/app.ts` from 4,468 to 4,449 lines (-19) and
+grows the candidate-review owner from 278 to 312 lines. Runtime source across
+those two files increases by 15 lines while deleting the coordinator's parallel
+evidence-id and revision/claim-draft eligibility methods. Focused coverage passes
+stale revisions, non-exact anchors, stale and current claim evidence, terminal
+states, existing gating and transport behavior, application contracts, and
+strict types.
+
+The browser application artifact changes from 824,296 B raw / 222,485 B gzip
+to 824,420 B raw / 222,534 B gzip (+124 B raw / +49 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,572 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Publication Paper Projection
 
 `PublicationContextPanel` now derives available project PDFs and ordered

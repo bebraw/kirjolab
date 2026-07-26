@@ -2763,33 +2763,14 @@ class WorkspaceApp {
     const candidateDecision = this.#assistantWorkflow.getSnapshot().context.candidateDecision;
     const currentDecision = candidateDecision?.id === candidate.id ? candidateDecision : null;
     this.#elements.candidateReviewPanel.setCandidate({
-      applicable: this.#candidateApplicable(candidate),
-      availableEvidenceIds: new Set([
-        ...this.#snapshot.annotations.map((annotation) => annotation.id),
-        ...this.#snapshot.claims.map((claim) => claim.id),
-      ]),
+      annotations: this.#snapshot.annotations,
       candidate,
+      claims: this.#snapshot.claims,
       ...(currentDecision ? { currentAction: currentDecision.action } : {}),
       decisionBusy: candidateDecision !== null,
+      sourceRevision: this.#revision,
       stableDocument: this.#hasStableDocumentBase(),
     });
-  }
-
-  #candidateApplicable(candidate: ModelCandidate): boolean {
-    if (candidate.operation === "draft-claim") {
-      return (
-        candidate.status === "pending" &&
-        candidate.evidence.every((evidence) =>
-          this.#snapshot?.annotations.some((annotation) => annotation.id === evidence.id && annotation.updatedAt === evidence.version),
-        )
-      );
-    }
-    return (
-      candidate.status === "pending" &&
-      candidate.sourceRevision === this.#revision &&
-      candidate.target.resolution.status === "resolved" &&
-      candidate.target.resolution.exactMatch
-    );
   }
 
   #closeContextTab(key: ResearchContextKey): void {

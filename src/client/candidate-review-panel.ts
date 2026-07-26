@@ -1,5 +1,5 @@
 import { html, LitElement, nothing, type TemplateResult } from "lit";
-import type { ModelCandidate, ModelEvidence } from "../domain/workspace";
+import type { AnnotationResource, ClaimResource, ModelCandidate, ModelEvidence } from "../domain/workspace";
 import { errorMessage, expectOk } from "./http";
 
 export const candidateDecisionEvent = "candidate-decision";
@@ -28,6 +28,16 @@ export interface CandidateReviewData {
   readonly stableDocument: boolean;
 }
 
+export interface CandidateReviewSources {
+  readonly annotations: readonly Pick<AnnotationResource, "id" | "updatedAt">[];
+  readonly candidate: ModelCandidate;
+  readonly claims: readonly Pick<ClaimResource, "id">[];
+  readonly currentAction?: "apply" | "reject";
+  readonly decisionBusy: boolean;
+  readonly sourceRevision: number;
+  readonly stableDocument: boolean;
+}
+
 export class CandidateReviewPanel extends LitElement {
   static override properties = {
     data: { state: true },
@@ -44,9 +54,33 @@ export class CandidateReviewPanel extends LitElement {
     this.failure = null;
   }
 
-  setCandidate(data: CandidateReviewData): void {
-    if (this.data?.candidate.id !== data.candidate.id || data.candidate.status !== "pending") this.failure = null;
-    this.data = data;
+  setCandidate({
+    annotations,
+    candidate,
+    claims,
+    currentAction,
+    decisionBusy,
+    sourceRevision,
+    stableDocument,
+  }: CandidateReviewSources): void {
+    if (this.data?.candidate.id !== candidate.id || candidate.status !== "pending") this.failure = null;
+    const applicable =
+      candidate.status === "pending" &&
+      (candidate.operation === "draft-claim"
+        ? candidate.evidence.every((evidence) =>
+            annotations.some((annotation) => annotation.id === evidence.id && annotation.updatedAt === evidence.version),
+          )
+        : candidate.sourceRevision === sourceRevision &&
+          candidate.target.resolution.status === "resolved" &&
+          candidate.target.resolution.exactMatch);
+    this.data = {
+      applicable,
+      availableEvidenceIds: new Set([...annotations, ...claims].map(({ id }) => id)),
+      candidate,
+      ...(currentAction ? { currentAction } : {}),
+      decisionBusy,
+      stableDocument,
+    };
   }
 
   configure(apiBase: string): void {

@@ -82,9 +82,12 @@ must show where a claim enters authored prose.
       fixed provider adapter and prompt version, validates that the response is
       a claim-draft candidate, and returns it for canonical refresh and review.
 - [x] The bounded candidate-review owner gates apply or reject from current
-      applicability and collaboration state, owns encoded decision transport
-      and retryable local failures, and emits typed start and completion outcomes
-      for cross-feature workflow transitions and canonical refresh.
+      candidate, annotation-version, source-revision, anchor-resolution,
+      collaboration, and workflow inputs; derives evidence-link availability;
+      owns encoded decision transport and retryable local failures; and emits
+      typed start and completion outcomes for cross-feature workflow transitions
+      and canonical refresh. Server-side apply independently revalidates every
+      pending status, annotation version, revision, and exact anchor.
 
 ### Regression Guardrails
 
