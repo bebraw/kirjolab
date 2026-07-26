@@ -4357,3 +4357,28 @@ direct and unique production package counts remain unchanged at 135,411 B raw /
 
 Full native CI passes all 1,516 unit/coverage tests, 120 Workers-
 runtime tests, and 74 browser tests.
+
+## Continued Lit Ownership: Private Drawing Undo
+
+`LibraryPdfAnnotationToolbar` now derives the newest drawing from the active
+page's stable drawing records and owns its encoded DELETE request, pending-state
+suppression, retryable failure status, and typed completion outcome. The undo
+target itself is the source of truth for availability rather than duplicated
+boolean state. `WorkspaceApp` retains canonical Library refresh and the
+successful-delete toast; annotation-list deletion remains a separate entry
+point.
+
+This checkpoint reduces `src/client/app.ts` from 4,975 to 4,966 lines (-9)
+and grows the Library PDF annotation toolbar from 200 to 238 lines. Runtime
+source across those files increases by 29 lines while removing the coordinator
+undo-target filtering, ordering, deletion request, and adapter method. Focused
+coverage passes newest-target selection, stable encoded deletion, typed
+completion, provider failure and retry, and overlapping-submit suppression.
+
+The browser application artifact changes from 816,280 B raw / 220,865 B gzip
+to 816,820 B raw / 220,797 B gzip (+540 B raw / -68 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,518 unit/coverage tests, 120 Workers-
+runtime tests, and 74 browser tests.

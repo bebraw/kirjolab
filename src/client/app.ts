@@ -881,7 +881,7 @@ class WorkspaceApp {
     this.#elements.libraryPdfAnnotationToolbar.addEventListener(libraryPdfToolbarActionEvent, (event) => {
       const action = (event as CustomEvent<LibraryPdfToolbarAction>).detail;
       if (action.action === "choose-tool") this.#setLibraryPdfTool(action.tool);
-      else if (action.action === "undo-drawing") void this.#undoLibraryDrawing();
+      else if (action.action === "drawing-undone") void this.#completeLibraryDrawingUndo();
       else if (action.action === "export-annotated") void this.#downloadAnnotatedPdf();
       else this.#setLibraryPdfInspector(true, true);
     });
@@ -4283,10 +4283,7 @@ class WorkspaceApp {
     }
     this.#pdfViewer.updatePrivateHighlights(highlights);
     const markups = (this.#librarySnapshot.pdfMarkups ?? []).filter((markup) => markup.artifactId === artifact.id);
-    this.#elements.libraryPdfAnnotationToolbar.setAnnotationAvailability(
-      highlights.length + markups.length,
-      markups.filter((markup) => markup.kind === "drawing").length,
-    );
+    this.#elements.libraryPdfAnnotationToolbar.setAnnotationAvailability(highlights.length + markups.length);
     this.#elements.libraryHighlightList.setData({
       artifact,
       highlights,
@@ -4586,7 +4583,7 @@ class WorkspaceApp {
       notes: markups.filter((item): item is LibraryPdfNote => item.kind === "note"),
       page,
     });
-    this.#elements.libraryPdfAnnotationToolbar.setUndoAvailable(markups.some((item) => item.kind === "drawing"));
+    this.#elements.libraryPdfAnnotationToolbar.setUndoDrawings(drawings);
   }
 
   #visibleLibraryPdfMarkups(artifact: LibraryPdfArtifact | undefined, page: number): LibraryPdfMarkup[] {
@@ -4594,15 +4591,9 @@ class WorkspaceApp {
     return (this.#librarySnapshot?.pdfMarkups ?? []).filter((item) => item.artifactId === artifact.id && item.page === page);
   }
 
-  async #undoLibraryDrawing(): Promise<void> {
-    const artifact = this.#activeLibraryPdf();
-    const drawing = (this.#librarySnapshot?.pdfMarkups ?? [])
-      .filter(
-        (item): item is LibraryPdfDrawing =>
-          item.kind === "drawing" && item.artifactId === artifact?.id && item.page === this.#pdfViewer.currentPage,
-      )
-      .sort((left, right) => right.createdAt.localeCompare(left.createdAt) || right.id.localeCompare(left.id))[0];
-    if (drawing) await this.#deleteLibraryPdfMarkup(drawing);
+  async #completeLibraryDrawingUndo(): Promise<void> {
+    await this.#refreshReferenceLibrary();
+    this.#showToast("Private annotation deleted.");
   }
 
   async #completeLibraryPdfNoteMove(): Promise<void> {

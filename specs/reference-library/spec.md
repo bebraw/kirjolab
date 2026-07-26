@@ -262,9 +262,11 @@ memory and makes citation aliases compete with stable source identity.
   PDF draft and selection clearing, inspector policy, and toasts.
 - A companion light-DOM toolbar component owns active-tool presentation,
   drawing color and width, undo and export availability, annotation count, and
-  inspector-expanded state. It emits typed tool, undo, export, and inspector
-  intents. The application coordinator retains drawing persistence, annotated
-  export, and inspector policy.
+  inspector-expanded state. From the active page drawings, it derives the
+  newest stable undo target and owns its deletion, pending suppression,
+  retryable local failure state, and typed completion outcome. It also emits
+  typed tool, export, and inspector intents. The application coordinator
+  retains canonical refresh, annotated export, inspector policy, and toasts.
 - A bounded light-DOM inspector component composes the annotation forms,
   imported-highlight review, saved annotation list, and project-use block. It
   owns shell visibility, active-artifact identity, status presentation,

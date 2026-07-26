@@ -270,8 +270,9 @@ The adopted components own bounded presentation:
   retryable failure state, plus typed completed-save, cancel, edit, delete, and
   drawing-style outcomes.
 - The Library PDF annotation toolbar owns tool and drawing-style controls,
-  per-tool guidance, annotation availability and inspector state, and typed
-  tool, undo, export, and inspector intents.
+  per-tool guidance, annotation availability and inspector state, newest-page-
+  drawing selection, stable undo deletion, pending and retryable failure state,
+  and typed tool, completed-undo, export, and inspector outcomes.
 - The Library PDF inspector owns its shell visibility, active-artifact identity,
   status presentation, expanded state, annotation-details opening, nested
   annotation component composition, and typed close intent.
@@ -600,9 +601,11 @@ reason to wrap static markup mechanically.
 - The Library PDF annotation toolbar replaces twelve internal element
   references, tool, input, undo, export, and inspector bindings, and imperative
   active-tool, width-label, availability, count, and expanded-state updates. It
-  also owns the guidance associated with each tool while leaving gestures in
-  the markup layer and drawing persistence, annotated export, inspector policy,
-  and toasts in the application coordinator.
+  also owns the guidance associated with each tool plus newest-page-drawing
+  derivation and stable undo deletion, removing the coordinator undo-resolution
+  and request adapter. Gestures remain in the markup layer; canonical refresh,
+  annotated export, inspector policy, and toasts remain in the application
+  coordinator.
 - The Library PDF inspector replaces four shell element references, the direct
   close binding, artifact dataset comparisons, and repeated visibility, status,
   expansion, and details mutations while leaving interactions in the markup

@@ -1,20 +1,25 @@
 import { html, LitElement, type TemplateResult } from "lit";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
+import type { LibraryPdfDrawing } from "../domain/reference-library";
 import { renderIcon, type IconName } from "../ui/icons";
+import { errorMessage, expectOk } from "./http";
 import type { PdfAnnotationTool } from "./library-pdf-markup-layer";
 
 export type LibraryPdfToolbarAction =
   | { readonly action: "choose-tool"; readonly tool: PdfAnnotationTool }
-  | { readonly action: "undo-drawing" | "export-annotated" | "open-inspector" };
+  | { readonly action: "drawing-undone" | "export-annotated" | "open-inspector" };
 
 export const libraryPdfToolbarActionEvent = "library-pdf-toolbar-action";
+
+type UndoDrawing = Pick<LibraryPdfDrawing, "createdAt" | "id" | "referenceId">;
 
 export class LibraryPdfAnnotationToolbar extends LitElement {
   static override properties = {
     tool: { state: true },
     drawingColor: { state: true },
     drawingWidth: { state: true },
-    undoAvailable: { state: true },
+    undoing: { state: true },
+    undoStatus: { state: true },
     exportAvailable: { state: true },
     annotationCount: { state: true },
     inspectorOpen: { state: true },
@@ -23,17 +28,20 @@ export class LibraryPdfAnnotationToolbar extends LitElement {
   declare private tool: PdfAnnotationTool;
   declare private drawingColor: string;
   declare private drawingWidth: number;
-  declare private undoAvailable: boolean;
+  declare private undoing: boolean;
+  declare private undoStatus: string;
   declare private exportAvailable: boolean;
   declare private annotationCount: number;
   declare private inspectorOpen: boolean;
+  private undoTarget: Pick<UndoDrawing, "id" | "referenceId"> | null = null;
 
   constructor() {
     super();
     this.tool = "text";
     this.drawingColor = "#d33f49";
     this.drawingWidth = 4;
-    this.undoAvailable = false;
+    this.undoing = false;
+    this.undoStatus = "";
     this.exportAvailable = false;
     this.annotationCount = 0;
     this.inspectorOpen = false;
@@ -48,14 +56,22 @@ export class LibraryPdfAnnotationToolbar extends LitElement {
     return toolStatus[tool];
   }
 
-  setAnnotationAvailability(count: number, drawingCount: number): void {
+  setAnnotationAvailability(count: number): void {
     this.annotationCount = count;
     this.exportAvailable = count > 0;
-    this.undoAvailable = drawingCount > 0;
   }
 
-  setUndoAvailable(available: boolean): void {
-    this.undoAvailable = available;
+  setUndoDrawings(drawings: readonly UndoDrawing[]): void {
+    const latest = drawings.reduce<UndoDrawing | undefined>(
+      (current, drawing) =>
+        !current || drawing.createdAt > current.createdAt || (drawing.createdAt === current.createdAt && drawing.id > current.id)
+          ? drawing
+          : current,
+      undefined,
+    );
+    this.undoTarget = latest ? { id: latest.id, referenceId: latest.referenceId } : null;
+    this.undoStatus = "";
+    this.requestUpdate();
   }
 
   setInspectorOpen(open: boolean): void {
@@ -103,11 +119,11 @@ export class LibraryPdfAnnotationToolbar extends LitElement {
               class="library-pdf-rail-button library-undo-drawing button-icon"
               id="undo-library-drawing"
               type="button"
-              ?disabled=${!this.undoAvailable}
-              title="Remove the latest drawing on this page"
-              @click=${() => this.emitAction({ action: "undo-drawing" })}
+              ?disabled=${!this.undoTarget || this.undoing}
+              title=${this.undoStatus || "Remove the latest drawing on this page"}
+              @click=${this.undoDrawing}
             >
-              ${icon("undo")}<span class="sr-only">Undo latest drawing</span>
+              ${icon("undo")}<span class="sr-only">${this.undoing ? "Removing latest drawing" : "Undo latest drawing"}</span>
             </button>
           </div>
         </div>
@@ -151,6 +167,28 @@ export class LibraryPdfAnnotationToolbar extends LitElement {
 
   protected updateDrawingWidth(event: Event): void {
     this.drawingWidth = Number(inputValue(event));
+  }
+
+  protected async undoDrawing(): Promise<void> {
+    const target = this.undoTarget;
+    if (!target || this.undoing) return;
+    this.undoing = true;
+    this.undoStatus = "Removing latest drawing…";
+    try {
+      const response = await fetch(
+        `/api/library/references/${encodeURIComponent(target.referenceId)}/pdf-markups/${encodeURIComponent(target.id)}`,
+        { method: "DELETE", credentials: "same-origin" },
+      );
+      await expectOk(response);
+      this.undoTarget = null;
+      this.undoStatus = "";
+      this.requestUpdate();
+      this.emitAction({ action: "drawing-undone" });
+    } catch (error) {
+      this.undoStatus = `${errorMessage(error, "Could not undo the latest drawing.")} Select Undo to retry.`;
+    } finally {
+      this.undoing = false;
+    }
   }
 
   protected emitAction(action: LibraryPdfToolbarAction): void {
