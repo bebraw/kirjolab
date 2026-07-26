@@ -76,6 +76,15 @@ describe("assistant workflow status", () => {
     panel.setEvidenceSelected("claim:missing", true);
 
     expect(panel.modelEvidence([annotation], [claim])).toEqual({
+      annotationItems: [
+        {
+          content: "Quote: Evidence\nContext before: Before\nContext after: After\nResearcher note: Research note",
+          id: "1",
+          kind: "annotation",
+          label: "PDF annotation on page 3",
+        },
+      ],
+      annotationReferences: [{ id: "1", kind: "annotation", version: timestamp }],
       items: [
         {
           content: "Quote: Evidence\nContext before: Before\nContext after: After\nResearcher note: Research note",

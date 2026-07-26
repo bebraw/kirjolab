@@ -86,11 +86,12 @@ All mutation operations preserve a human review boundary.
   attribution and initial status copy, subsequent live status presentation,
   selected evidence keys and their count or limit status, reconciliation
   against the current allowed key set, ordered model-evidence items and version
-  references projected from canonical annotations and claims, and typed
-  evidence and connection intents. The workspace coordinator retains canonical
-  snapshot availability, evidence navigation, settings authority, provider
-  discovery, generation, and the policy that selects subsequent status
-  messages.
+  references projected from canonical annotations and claims, the ordered
+  annotation-only item and version subsets required by claim drafting, and
+  typed evidence and connection intents. The workspace coordinator retains
+  canonical snapshot availability, evidence navigation, settings authority,
+  provider discovery, generation, and the policy that selects subsequent
+  status messages.
 - Connection diagnostics distinguish a direct browser/CORS failure from an
   unavailable companion. Bounded companion error details and targeted guidance
   for origin rejection or an incomplete chat-completions URL remain visible in

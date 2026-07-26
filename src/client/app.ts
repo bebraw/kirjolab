@@ -157,7 +157,7 @@ import {
 } from "./collaboration-workflow-machine";
 import { assistantOperationDefinition, resolveAssistantTarget, type AssistantTargetScope } from "./assistant-operations";
 import { assistantTaskChangeEvent, assistantTaskGenerateEvent, type AssistantTaskChange } from "./assistant-task-panel";
-import { assistantWorkflowActionEvent, type AssistantWorkflowAction } from "./assistant-workflow-status";
+import { assistantWorkflowActionEvent, type AssistantWorkflowAction, type SelectedModelEvidence } from "./assistant-workflow-status";
 import { assistantWorkflowBusy, createAssistantWorkflowActor } from "./assistant-workflow-machine";
 import { citationPageFromLocator, createCitationInsertion, parseCitationKeys, type CitationContext } from "./citations";
 import { loadMarkdownRuntime, type MarkdownRuntime } from "./markdown-runtime";
@@ -308,9 +308,7 @@ interface AssistantGenerationContext {
   readonly provider: OpenAICompatibleBrowserProvider;
   readonly operation: ReturnType<typeof assistantOperationDefinition>;
   readonly passage: AuthoringPassage | null;
-  readonly evidence: { items: ModelEvidenceItem[]; references: ModelEvidenceReference[] };
-  readonly annotationItems: ModelEvidenceItem[];
-  readonly annotationReferences: Array<Extract<ModelEvidenceReference, { readonly kind: "annotation" }>>;
+  readonly evidence: SelectedModelEvidence;
   readonly insertionTarget: AuthoringPassage | null;
   readonly instruction: string;
   readonly sourceRevision: number;
@@ -3326,10 +3324,10 @@ class WorkspaceApp {
       "Choose one or more evidence resources in the Research rail, then return to the assistant.";
   }
 
-  #modelEvidence(): { items: ModelEvidenceItem[]; references: ModelEvidenceReference[] } {
+  #modelEvidence(): SelectedModelEvidence {
     return this.#snapshot
       ? this.#elements.assistantWorkflowStatus.modelEvidence(this.#snapshot.annotations, this.#snapshot.claims)
-      : { items: [], references: [] };
+      : { annotationItems: [], annotationReferences: [], items: [], references: [] };
   }
 
   async #generateCandidate(): Promise<void> {
@@ -3363,14 +3361,10 @@ class WorkspaceApp {
     }
     const passage = this.#assistantAuthoringPassage();
     const evidence = this.#modelEvidence();
-    const annotationItems = evidence.items.filter((item) => item.kind === "annotation");
-    const annotationReferences = evidence.references.filter(
-      (item): item is Extract<ModelEvidenceReference, { readonly kind: "annotation" }> => item.kind === "annotation",
-    );
     const insertionTarget = operation.id === "build-table" ? this.#assistantInsertionTarget() : null;
     if (
       this.#assistantTargetMissing(operation.id, passage, insertionTarget) ||
-      this.#assistantEvidenceMissing(operation.evidence, evidence, annotationItems)
+      this.#assistantEvidenceMissing(operation.evidence, evidence)
     ) {
       this.#elements.assistantWorkflowStatus.status = draftsClaim
         ? "Choose at least one annotation as evidence. Claims cannot ground a new claim draft."
@@ -3384,8 +3378,6 @@ class WorkspaceApp {
       operation,
       passage,
       evidence,
-      annotationItems,
-      annotationReferences,
       insertionTarget,
       instruction,
       sourceRevision: this.#revision,
@@ -3404,10 +3396,9 @@ class WorkspaceApp {
   #assistantEvidenceMissing(
     requirement: AssistantGenerationContext["operation"]["evidence"],
     evidence: AssistantGenerationContext["evidence"],
-    annotations: readonly ModelEvidenceItem[],
   ): boolean {
     if (requirement === "required") return evidence.items.length === 0;
-    if (requirement === "annotations") return annotations.length === 0;
+    if (requirement === "annotations") return evidence.annotationItems.length === 0;
     return false;
   }
 
@@ -3440,9 +3431,9 @@ class WorkspaceApp {
   async #generateClaimCandidate(input: AssistantGenerationContext): Promise<void> {
     const relation = readClaimEvidenceRelation(this.#elements.assistantTaskPanel.value.relation);
     const value = await this.#elements.candidateListPanel.generateClaim(input.provider, {
-      evidence: input.annotationReferences,
+      evidence: input.evidence.annotationReferences,
       instruction: input.instruction,
-      promptEvidence: input.annotationItems,
+      promptEvidence: input.evidence.annotationItems,
       relation,
     });
     await this.#openCreatedCandidate(value);

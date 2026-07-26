@@ -6,6 +6,8 @@ export const assistantWorkflowActionEvent = "kirjolab-assistant-workflow-action"
 export type AssistantWorkflowAction = "choose-evidence" | "open-settings";
 
 export interface SelectedModelEvidence {
+  readonly annotationItems: ModelEvidenceItem[];
+  readonly annotationReferences: Array<Extract<ModelEvidenceReference, { readonly kind: "annotation" }>>;
   readonly items: ModelEvidenceItem[];
   readonly references: ModelEvidenceReference[];
 }
@@ -55,6 +57,8 @@ export class AssistantWorkflowStatus extends LitElement {
   }
 
   modelEvidence(annotations: readonly AnnotationResource[], claims: readonly ClaimResource[]): SelectedModelEvidence {
+    const annotationItems: ModelEvidenceItem[] = [];
+    const annotationReferences: Array<Extract<ModelEvidenceReference, { readonly kind: "annotation" }>> = [];
     const items: ModelEvidenceItem[] = [];
     const references: ModelEvidenceReference[] = [];
     for (const key of this.evidenceKeys) {
@@ -62,8 +66,8 @@ export class AssistantWorkflowStatus extends LitElement {
         const id = key.slice("annotation:".length);
         const annotation = annotations.find((item) => item.id === id);
         if (!annotation) continue;
-        references.push({ kind: "annotation", id, version: annotation.updatedAt });
-        items.push({
+        const reference = { kind: "annotation" as const, id, version: annotation.updatedAt };
+        const item: ModelEvidenceItem = {
           kind: "annotation",
           id,
           label: `PDF annotation on page ${annotation.page}`,
@@ -75,7 +79,11 @@ export class AssistantWorkflowStatus extends LitElement {
           ]
             .filter(Boolean)
             .join("\n"),
-        });
+        };
+        annotationReferences.push(reference);
+        references.push(reference);
+        annotationItems.push(item);
+        items.push(item);
         continue;
       }
       const id = key.slice("claim:".length);
@@ -89,7 +97,7 @@ export class AssistantWorkflowStatus extends LitElement {
         content: [`Claim: ${claim.text}`, claim.note ? `Working note: ${claim.note}` : ""].filter(Boolean).join("\n"),
       });
     }
-    return { items, references };
+    return { annotationItems, annotationReferences, items, references };
   }
 
   protected emitAction(action: AssistantWorkflowAction): void {
