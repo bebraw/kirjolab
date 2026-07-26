@@ -90,7 +90,7 @@ import { libraryPdfToolbarActionEvent, type LibraryPdfToolbarAction } from "./li
 import { libraryPdfInspectorCloseEvent } from "./library-pdf-inspector";
 import {
   startingPointActionEvent,
-  startingPointProjectLoadEvent,
+  startingPointCompleteEvent,
   startingPointTemplateDeleteEvent,
   type StartingPointAction,
 } from "./project-starting-point-browser";
@@ -551,13 +551,12 @@ class WorkspaceApp {
     this.#elements.newWorkspace.addEventListener("click", () => void this.#openNewWorkspace());
     this.#elements.newWorkspaceStartingPoints.addEventListener(startingPointActionEvent, (event) => {
       const action = (event as CustomEvent<StartingPointAction>).detail;
-      if (action.action === "create") void this.#createWorkspace(action);
-      else if (action.action === "import-latex") this.#openLatexImportDialog();
+      if (action.action === "import-latex") this.#openLatexImportDialog();
       else if (action.action === "import-github") this.#openGitHubImportDialog();
       else this.#elements.newWorkspaceStartingPoints.close();
     });
-    this.#elements.newWorkspaceStartingPoints.addEventListener(startingPointProjectLoadEvent, (event) => {
-      void this.#loadProjectStartingPoint((event as CustomEvent<WorkspaceSummary>).detail);
+    this.#elements.newWorkspaceStartingPoints.addEventListener(startingPointCompleteEvent, (event) => {
+      location.assign((event as CustomEvent<string>).detail);
     });
     this.#elements.newWorkspaceStartingPoints.addEventListener(startingPointTemplateDeleteEvent, (event) => {
       this.#deleteProjectTemplate((event as CustomEvent<ProjectTemplateSummary>).detail);
@@ -1194,19 +1193,6 @@ class WorkspaceApp {
     return this.#elements.workspaceRailTabs.mode;
   }
 
-  async #createWorkspace({ startingPoint, title }: Extract<StartingPointAction, { readonly action: "create" }>): Promise<void> {
-    const sourceWorkspaceId = startingPoint.startsWith("project:") ? startingPoint.slice("project:".length) : null;
-    const response = await jsonFetch(catalogBase, {
-      title,
-      ...(sourceWorkspaceId ? { sourceWorkspaceId } : { templateId: startingPoint }),
-    });
-    await expectOk(response);
-    const workspace: unknown = await response.json();
-    const created: unknown = [workspace];
-    if (!isWorkspaceSummaries(created) || !created[0]) throw new Error("Project catalog returned invalid data");
-    location.assign(created[0].href);
-  }
-
   #openLatexImportDialog(): void {
     this.#elements.newWorkspaceStartingPoints.close();
     this.#elements.latexImportPanel.open();
@@ -1269,31 +1255,8 @@ class WorkspaceApp {
   }
 
   async #refreshProjectTemplates(): Promise<void> {
-    const response = await fetch("/api/project-templates", { credentials: "same-origin" });
-    await expectOk(response);
-    const value: unknown = await response.json();
-    if (!isProjectTemplateSummaries(value)) throw new Error("Project templates returned invalid data");
-    this.#elements.newWorkspaceStartingPoints.setData(value, this.#workspaceCatalog);
+    await this.#elements.newWorkspaceStartingPoints.refresh(this.#workspaceCatalog);
     this.#syncTemplateReplacementOptions();
-  }
-
-  async #loadProjectStartingPoint(workspace: WorkspaceSummary): Promise<void> {
-    try {
-      const response = await fetch(`/api/workspaces/${encodeURIComponent(workspace.id)}/template-preview`, {
-        credentials: "same-origin",
-      });
-      await expectOk(response);
-      const values: unknown[] = [await response.json()];
-      if (!isProjectTemplateSummaries(values) || values[0]?.source !== "project" || values[0].id !== workspace.id) {
-        throw new Error("Project starting point returned invalid data");
-      }
-      this.#elements.newWorkspaceStartingPoints.acceptProjectSource(workspace, values[0]);
-    } catch (error) {
-      this.#elements.newWorkspaceStartingPoints.rejectProjectSource(
-        workspace,
-        error instanceof Error ? error.message : "Could not load the project starting point.",
-      );
-    }
   }
 
   #deleteProjectTemplate(template: ProjectTemplateSummary): void {

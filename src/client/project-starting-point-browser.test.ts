@@ -4,7 +4,7 @@ import type { WorkspaceSummary } from "../domain/workspace";
 import {
   ProjectStartingPointBrowser,
   startingPointActionEvent,
-  startingPointProjectLoadEvent,
+  startingPointCompleteEvent,
   startingPointTemplateDeleteEvent,
   type StartingPointAction,
 } from "./project-starting-point-browser";
@@ -71,8 +71,8 @@ class TestProjectStartingPointBrowser extends ProjectStartingPointBrowser {
     this.chooseTemplate(template);
   }
 
-  chooseProjectForTest(project: WorkspaceSummary): void {
-    this.chooseProject(project);
+  async chooseProjectForTest(project: WorkspaceSummary): Promise<void> {
+    await this.chooseProject(project);
   }
 
   deleteForTest(template: ProjectTemplateSummary): void {
@@ -85,8 +85,8 @@ class TestProjectStartingPointBrowser extends ProjectStartingPointBrowser {
     this.changeTitle(event);
   }
 
-  createForTest(): void {
-    this.create(new Event("submit"));
+  async createForTest(): Promise<void> {
+    await this.create(new Event("submit"));
   }
 
   actionForTest(action: "cancel" | "import-github" | "import-latex"): void {
@@ -177,52 +177,89 @@ describe("project starting point browser", () => {
     expect(browser.renderForTest()).toBeDefined();
   });
 
-  it("emits a typed create intent with local title and selection", () => {
+  it("creates a project from the local title and selection", async () => {
     const browser = new TestProjectStartingPointBrowser();
     const actions: StartingPointAction[] = [];
+    const completed: string[] = [];
+    const fetchMock = vi.fn().mockResolvedValue(Response.json(workspace));
+    vi.stubGlobal("fetch", fetchMock);
     browser.addEventListener(startingPointActionEvent, (event) => {
       actions.push((event as CustomEvent<StartingPointAction>).detail);
     });
+    browser.addEventListener(startingPointCompleteEvent, (event) => {
+      completed.push((event as CustomEvent<string>).detail);
+    });
     browser.setData([builtIn], []);
     browser.changeTitleForTest("Focused inquiry");
-    browser.createForTest();
+    await browser.createForTest();
     expect(actions).toEqual([]);
     browser.chooseTemplateForTest(builtIn);
-    browser.createForTest();
-    expect(actions).toEqual([{ action: "create", startingPoint: "builtin-guided", title: "Focused inquiry" }]);
+    await browser.createForTest();
+    expect(completed).toEqual([workspace.href]);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/workspaces",
+      expect.objectContaining({ body: JSON.stringify({ title: "Focused inquiry", templateId: "builtin-guided" }), method: "POST" }),
+    );
     browser.actionForTest("cancel");
     browser.actionForTest("import-github");
     browser.actionForTest("import-latex");
-    expect(actions.slice(1)).toEqual([{ action: "cancel" }, { action: "import-github" }, { action: "import-latex" }]);
+    expect(actions).toEqual([{ action: "cancel" }, { action: "import-github" }, { action: "import-latex" }]);
     browser.reset();
     browser.setData([], []);
     expect(browser.renderForTest()).toBeDefined();
   });
 
-  it("loads project sources and requests personal-template deletion", () => {
+  it("loads project sources, creates from them, and requests personal-template deletion", async () => {
     const browser = new TestProjectStartingPointBrowser();
-    const projects: WorkspaceSummary[] = [];
     const deleted: ProjectTemplateSummary[] = [];
-    const actions: StartingPointAction[] = [];
-    browser.addEventListener(startingPointProjectLoadEvent, (event) => {
-      projects.push((event as CustomEvent<WorkspaceSummary>).detail);
-    });
+    const completed: string[] = [];
+    const fetchMock = vi.fn(async (input: string | URL | Request) =>
+      Response.json(String(input).endsWith("/template-preview") ? projectTemplate : workspace),
+    );
+    vi.stubGlobal("fetch", fetchMock);
     browser.addEventListener(startingPointTemplateDeleteEvent, (event) => {
       deleted.push((event as CustomEvent<ProjectTemplateSummary>).detail);
     });
-    browser.addEventListener(startingPointActionEvent, (event) => {
-      actions.push((event as CustomEvent<StartingPointAction>).detail);
+    browser.addEventListener(startingPointCompleteEvent, (event) => {
+      completed.push((event as CustomEvent<string>).detail);
     });
     browser.setData([builtIn, personal], [workspace]);
-    browser.chooseProjectForTest(workspace);
+    await browser.chooseProjectForTest(workspace);
     browser.rejectProjectSource({ ...workspace, id: "other" }, "Ignored");
-    browser.acceptProjectSource(workspace, projectTemplate);
     browser.changeTitleForTest("Copied project");
-    browser.createForTest();
+    await browser.createForTest();
     browser.deleteForTest(personal);
-    expect(projects).toEqual([workspace]);
     expect(deleted).toEqual([personal]);
-    expect(actions).toEqual([{ action: "create", startingPoint: "project:workspace-1", title: "Copied project" }]);
+    expect(completed).toEqual([workspace.href]);
+    expect(fetchMock).toHaveBeenLastCalledWith(
+      "/api/workspaces",
+      expect.objectContaining({ body: JSON.stringify({ title: "Copied project", sourceWorkspaceId: "workspace-1" }), method: "POST" }),
+    );
+  });
+
+  it("refreshes and validates the template catalog", async () => {
+    const browser = new TestProjectStartingPointBrowser();
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json([builtIn, personal])));
+    await browser.refresh([workspace]);
+    expect(browser.availableTemplates).toEqual([builtIn, personal]);
+  });
+
+  it("rejects malformed catalogs and contains request failures", async () => {
+    const browser = new TestProjectStartingPointBrowser();
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(Response.json({ templates: [] }))
+      .mockResolvedValueOnce(Response.json({ error: "Creation denied" }, { status: 403 }))
+      .mockResolvedValueOnce(Response.json({ id: workspace.id }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(browser.refresh([workspace])).rejects.toThrow("Project templates returned invalid data");
+    browser.setData([builtIn], [workspace]);
+    browser.chooseTemplateForTest(builtIn);
+    await browser.createForTest();
+    await browser.chooseProjectForTest(workspace);
+
+    expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 
   it("owns modal and focus lifecycle", () => {

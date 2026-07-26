@@ -50,13 +50,13 @@ without copying private research or creating a live dependency on the source.
   Project settings exposes **Save as template** for creating or explicitly
   replacing one.
 - One bounded Lit component owns project-title input, starting-point grouping,
-  the fetched template catalog and optimistic hidden-template state, its
-  derived visible-template view, local selection, preview and loading
-  presentation, create readiness and status, native modal opening and closing,
-  focus containment and restoration, and typed create, cancel, import,
-  project-preview, and template-delete intents. `WorkspaceApp` retains template
-  and existing-project requests, deferred deletion, project and import
-  workflows, navigation, and error policy.
+  template-catalog and existing-project preview requests, project creation and
+  response validation, the fetched template catalog and optimistic
+  hidden-template state, its derived visible-template view, local selection,
+  preview and loading presentation, create readiness and status, native modal
+  opening and closing, focus containment and restoration, and typed cancel,
+  import, completion, and template-delete events. `WorkspaceApp` retains
+  deferred deletion, template promotion, import workflows, and navigation.
 - The modal keeps Tab focus within its enabled controls. Cancel or Escape
   returns focus to the Project disclosure; transferring into an import modal
   gives focus to that import's first required field instead.

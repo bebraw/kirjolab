@@ -1,19 +1,12 @@
 import { html, LitElement, nothing, type TemplateResult } from "lit";
-import type { ProjectTemplateSummary } from "../domain/project-templates";
-import { demoWorkspaceId, type WorkspaceSummary } from "../domain/workspace";
+import { isProjectTemplateSummaries, type ProjectTemplateSummary } from "../domain/project-templates";
+import { demoWorkspaceId, isWorkspaceSummaries, type WorkspaceSummary } from "../domain/workspace";
 import { formatCalendarDate } from "./format";
 
-export interface StartingPointCreate {
-  readonly startingPoint: string;
-  readonly title: string;
-}
-
-export type StartingPointAction =
-  | ({ readonly action: "create" } & StartingPointCreate)
-  | { readonly action: "cancel" | "import-github" | "import-latex" };
+export type StartingPointAction = { readonly action: "cancel" | "import-github" | "import-latex" };
 
 export const startingPointActionEvent = "starting-point-action";
-export const startingPointProjectLoadEvent = "starting-point-project-load";
+export const startingPointCompleteEvent = "starting-point-complete";
 export const startingPointTemplateDeleteEvent = "starting-point-template-delete";
 
 export class ProjectStartingPointBrowser extends LitElement {
@@ -87,6 +80,14 @@ export class ProjectStartingPointBrowser extends LitElement {
     const templateIds = new Set(templates.map(({ id }) => id));
     this.hiddenTemplateIds = new Set([...this.hiddenTemplateIds].filter((id) => templateIds.has(id)));
     this.normalizeSelection();
+  }
+
+  async refresh(workspaces: readonly WorkspaceSummary[]): Promise<void> {
+    const response = await fetch("/api/project-templates", { credentials: "same-origin" });
+    await expectOk(response);
+    const value: unknown = await response.json();
+    if (!isProjectTemplateSummaries(value)) throw new Error("Project templates returned invalid data");
+    this.setData(value, workspaces);
   }
 
   get availableTemplates(): readonly ProjectTemplateSummary[] {
@@ -214,14 +215,31 @@ export class ProjectStartingPointBrowser extends LitElement {
     `;
   }
 
-  protected create(event: Event): void {
+  protected async create(event: Event): Promise<void> {
     event.preventDefault();
     if (!this.selectedKey) {
       this.status = "Choose a starting point.";
       return;
     }
     this.busy = true;
-    this.emitAction({ action: "create", startingPoint: this.selectedKey, title: this.projectTitle });
+    try {
+      const sourceWorkspaceId = this.selectedKey.startsWith("project:") ? this.selectedKey.slice("project:".length) : null;
+      const response = await fetch("/api/workspaces", {
+        body: JSON.stringify({
+          title: this.projectTitle,
+          ...(sourceWorkspaceId ? { sourceWorkspaceId } : { templateId: this.selectedKey }),
+        }),
+        credentials: "same-origin",
+        headers: { "content-type": "application/json" },
+        method: "POST",
+      });
+      await expectOk(response);
+      const values: unknown[] = [await response.json()];
+      if (!isWorkspaceSummaries(values) || !values[0]) throw new Error("Project catalog returned invalid data");
+      this.dispatchEvent(new CustomEvent<string>(startingPointCompleteEvent, { detail: values[0].href }));
+    } catch (error) {
+      this.showError(errorMessage(error, "Could not create the project."));
+    }
   }
 
   protected changeTitle(event: Event): void {
@@ -363,7 +381,7 @@ export class ProjectStartingPointBrowser extends LitElement {
           data-project-source-id=${workspace.id}
           data-starting-point=${key}
           aria-pressed=${String(selected)}
-          @click=${() => this.chooseProject(workspace)}
+          @click=${() => void this.chooseProject(workspace)}
         >
           <span class="template-choice-name">${workspace.title}</span>
           <span class="template-choice-description">${description}</span>
@@ -433,11 +451,27 @@ export class ProjectStartingPointBrowser extends LitElement {
     this.dispatchSelection(`Using “${template.name}”. The new project will be an independent copy.`);
   }
 
-  protected chooseProject(workspace: WorkspaceSummary): void {
+  protected async chooseProject(workspace: WorkspaceSummary): Promise<void> {
     this.previewKey = projectSourceKey(workspace.id);
     this.selectedKey = "";
     this.dispatchSelection(`Loading “${workspace.title}”…`);
-    this.dispatchEvent(new CustomEvent<WorkspaceSummary>(startingPointProjectLoadEvent, { detail: workspace }));
+    await this.loadProjectSource(workspace);
+  }
+
+  private async loadProjectSource(workspace: WorkspaceSummary): Promise<void> {
+    try {
+      const response = await fetch(`/api/workspaces/${encodeURIComponent(workspace.id)}/template-preview`, {
+        credentials: "same-origin",
+      });
+      await expectOk(response);
+      const values: unknown[] = [await response.json()];
+      if (!isProjectTemplateSummaries(values) || values[0]?.source !== "project" || values[0].id !== workspace.id) {
+        throw new Error("Project starting point returned invalid data");
+      }
+      this.acceptProjectSource(workspace, values[0]);
+    } catch (error) {
+      this.rejectProjectSource(workspace, errorMessage(error, "Could not load the project starting point."));
+    }
   }
 
   protected requestTemplateDelete(template: ProjectTemplateSummary): void {
@@ -476,6 +510,18 @@ function startingPointKey(template: ProjectTemplateSummary): string {
 
 function currentWorkspaceId(): string {
   return document.body.dataset.workspaceId ?? "";
+}
+
+async function expectOk(response: Response): Promise<void> {
+  if (response.ok) return;
+  const value: unknown = await response.json().catch(() => null);
+  throw new Error(
+    typeof value === "object" && value !== null && "error" in value && typeof value.error === "string" ? value.error : "Request failed",
+  );
+}
+
+function errorMessage(error: unknown, fallback: string): string {
+  return error instanceof Error ? error.message : fallback;
 }
 
 if (!customElements.get("project-starting-point-browser")) {

@@ -128,10 +128,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   authorized researcher also instantiate a one-off project from an existing
   project's current sanitized seed without persisting that seed as a personal
   template.
-- Keep the fetched template catalog, optimistic hidden-template state, and
+- Keep template-catalog loading, existing-project preview loading, project
+  creation, fetched catalog state, optimistic hidden-template state, and the
   derived visible-template view inside the starting-point Lit component. The
-  application coordinator retains authorized requests, deferred deletion, and
-  durable project or template mutations.
+  application coordinator retains navigation, deferred deletion, and template
+  promotion mutations.
 - Require every composition result to retain source-map spans back to file
   identity, source range, output range, and include chain. Reject unsafe paths,
   cycles, missing files, and resource-limit violations with navigable
