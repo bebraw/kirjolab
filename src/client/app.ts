@@ -912,7 +912,7 @@ class WorkspaceApp {
       if (detail.action === "create") this.#openClaimDialog();
       else if (detail.action === "evidence") this.#setModelEvidenceSelected(detail.key, detail.selected);
       else if (detail.action === "edit") this.#openClaimDialog(detail.claim);
-      else if (detail.action === "deleted")
+      else if (detail.action === "mutated")
         void this.#resourceRefresh
           .request()
           .then(() => this.#showToast(detail.message))
@@ -2594,14 +2594,11 @@ class WorkspaceApp {
       this.#showToast("Select manuscript text before linking a claim.");
       return;
     }
-    const response = await jsonFetch(`${apiBase}/claim-links`, {
+    await this.#elements.claimListPanel.linkPassage({
       claimId,
       ...passage,
       sourceRevision: this.#revision,
     });
-    await expectOk(response);
-    await this.#resourceRefresh.request();
-    this.#showToast("Claim linked to the selected manuscript passage.");
   }
 
   async #searchKnowledge(query: string): Promise<void> {

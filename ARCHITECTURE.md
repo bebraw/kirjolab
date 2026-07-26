@@ -588,8 +588,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   refresh outcome; keep evidence availability, canonical refresh, and toast
   policy in the application coordinator.
 - Let the claim list own confirmed deletion transport, stable encoded claim
-  targets, duplicate-submit gating, and retryable local failures. Keep
-  canonical refresh and workspace notification policy in the application
+  targets, duplicate-submit gating, and retryable local failures. Given a
+  coordinator-validated current passage, let it also own claim-passage link
+  transport and its completed mutation outcome. Keep Yjs selection validation,
+  canonical refresh, and workspace notification policy in the application
   coordinator.
 - Treat authoring and research context as the two primary workspace surfaces.
   Keep a permanent manuscript Preview in a keyboard-operable right-hand tab

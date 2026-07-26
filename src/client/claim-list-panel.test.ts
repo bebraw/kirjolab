@@ -170,7 +170,47 @@ describe("claim list panel", () => {
     await panel.deleteForTest({ ...claim, id: "claim/1" });
 
     expect(fetchMock).toHaveBeenCalledWith("/api/workspaces/workspace/claims/claim%2F1", expect.objectContaining({ method: "DELETE" }));
-    expect(actions).toEqual([{ action: "deleted", message: "Claim removed; source evidence remains intact." }]);
+    expect(actions).toEqual([{ action: "mutated", message: "Claim removed; source evidence remains intact." }]);
+  });
+
+  it("owns passage-link persistence and emits the completed outcome", async () => {
+    const panel = new TestClaimListPanel();
+    const actions: ClaimListAction[] = [];
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 200 }));
+    panel.configure("/api/workspaces/workspace");
+    panel.addEventListener(claimListActionEvent, (event) => actions.push((event as CustomEvent<ClaimListAction>).detail));
+    const input = {
+      claimId: "claim/1",
+      fileId: "main",
+      start: 0,
+      end: 16,
+      excerpt: "Selected passage",
+      sourceRevision: 4,
+    };
+
+    await panel.linkPassage(input);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/workspaces/workspace/claim-links",
+      expect.objectContaining({ body: JSON.stringify(input), method: "POST" }),
+    );
+    expect(actions).toEqual([{ action: "mutated", message: "Claim linked to the selected manuscript passage." }]);
+  });
+
+  it("keeps failed passage linking local and retryable", async () => {
+    const panel = new TestClaimListPanel();
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(Response.json({ error: "Denied" }, { status: 403 }))
+      .mockResolvedValueOnce(new Response(null, { status: 200 }));
+    panel.configure("/api/workspaces/workspace");
+    const input = { claimId: "claim-1", fileId: "main", start: 0, end: 16, excerpt: "Selected passage", sourceRevision: 4 };
+
+    await panel.linkPassage(input);
+    expect(panel.renderForTest()).toBeDefined();
+    await panel.linkPassage(input);
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it("honors cancellation and permits retry after a provider failure", async () => {

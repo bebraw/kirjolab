@@ -1,6 +1,13 @@
 import { html, LitElement, nothing, type TemplateResult } from "lit";
-import type { AnnotationResource, ClaimEvidenceLink, ClaimPassageLink, ClaimResource, ManuscriptAnchorSelector } from "../domain/workspace";
-import { errorMessage, expectOk } from "./http";
+import type {
+  AnnotationResource,
+  ClaimEvidenceLink,
+  ClaimPassageLink,
+  ClaimResource,
+  CreateClaimPassageLinkInput,
+  ManuscriptAnchorSelector,
+} from "../domain/workspace";
+import { errorMessage, expectOk, jsonFetch } from "./http";
 import { focusFirstModelEvidence } from "./model-evidence-focus";
 import { accessibleEvidenceExcerpt, anchorActionLabel, anchorMatchState, modelEvidenceKey } from "./research-resource-presentation";
 
@@ -8,7 +15,7 @@ export const claimListActionEvent = "claim-list-action";
 
 export type ClaimListAction =
   | { readonly action: "create" }
-  | { readonly action: "deleted"; readonly message: string }
+  | { readonly action: "mutated"; readonly message: string }
   | { readonly action: "edit"; readonly claim: ClaimResource }
   | { readonly action: "evidence"; readonly key: string; readonly selected: boolean }
   | { readonly action: "link-passage"; readonly claimId: string }
@@ -56,6 +63,18 @@ export class ClaimListPanel extends LitElement {
 
   focusEvidence(): boolean {
     return focusFirstModelEvidence(this);
+  }
+
+  async linkPassage(input: CreateClaimPassageLinkInput): Promise<void> {
+    this.status = "Linking claim to passage…";
+    try {
+      const response = await jsonFetch(`${this.apiBase}/claim-links`, input);
+      await expectOk(response);
+      this.status = "";
+      this.emit({ action: "mutated", message: "Claim linked to the selected manuscript passage." });
+    } catch (error) {
+      this.status = errorMessage(error, "Could not link the claim to the selected passage.");
+    }
   }
 
   override connectedCallback(): void {
@@ -125,7 +144,7 @@ export class ClaimListPanel extends LitElement {
       });
       await expectOk(response);
       this.status = "";
-      this.emit({ action: "deleted", message: "Claim removed; source evidence remains intact." });
+      this.emit({ action: "mutated", message: "Claim removed; source evidence remains intact." });
     } catch (error) {
       this.status = errorMessage(error, "Could not delete the claim.");
     } finally {

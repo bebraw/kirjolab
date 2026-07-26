@@ -4581,6 +4581,30 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,537 unit/coverage tests, 120 Workers-
 runtime tests, and 74 browser tests.
 
+## Continued Lit Ownership: Claim Passage Links
+
+`ClaimListPanel` now owns claim-passage-link transport alongside its existing
+confirmed deletion workflow. The workspace coordinator retains Yjs stability
+checks and derives the current typed `CreateClaimPassageLinkInput`; the Lit
+owner handles request status, retryable local failures, and the same completed
+mutation outcome used by deletion. Canonical refresh, toast, evidence
+selection, dialogs, and navigation remain coordinator-owned.
+
+This checkpoint reduces `src/client/app.ts` from 4,759 to 4,756 lines (-3) and
+grows the claim owner from 245 to 264 lines. Runtime source across those two
+files increases by 16 lines while removing the claim list's final coordinator
+HTTP request. Focused coverage passes the typed request payload, completed
+outcome, local failure and retry, confirmed deletion, duplicate suppression,
+and the remaining selection and navigation intents.
+
+The browser application artifact changes from 819,216 B raw / 221,767 B gzip
+to 819,440 B raw / 221,853 B gzip (+224 B raw / +86 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,539 unit/coverage tests, 120 Workers-
+runtime tests, and 74 browser tests.
+
 ## Coordinator Simplification: Single-Use Projections
 
 `WorkspaceApp` now reads the active rail, settled Library list, and empty PDF
