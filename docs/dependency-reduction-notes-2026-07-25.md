@@ -3075,3 +3075,27 @@ and unique production package counts remain unchanged at 135,411 B raw /
 
 Full native CI passes all 1,410 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Lit Ownership: Citation Network Snapshots
+
+`CitationNetworkWorkspace` now owns the latest validated network and expansion
+presentation snapshots it synchronizes into the nested graph/list panel.
+`WorkspaceApp` retains authorized requests, validation, provenance-bearing
+mutations, refresh sequencing, prompts, and notifications without caching a
+second copy or rebuilding the component payload through a render helper.
+
+This checkpoint reduces `src/client/app.ts` from 6,848 to 6,840 lines (-8) and
+grows the citation-network workspace from 120 to 130 lines, for two additional
+runtime lines overall while deleting two coordinator fields and one assembly
+helper. Focused component coverage passes independent network and expansion
+snapshot updates. The browser workflow passes manual assertions, review,
+snowball expansion, candidate acceptance, provenance, and accessible graph/list
+presentation.
+
+The browser application artifact changes from 797,057 B raw / 214,636 B gzip
+to 797,142 B raw / 214,626 B gzip (+85 B raw / -10 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,410 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.

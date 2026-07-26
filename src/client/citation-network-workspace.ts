@@ -1,4 +1,6 @@
 import { html, LitElement, type PropertyValues, type TemplateResult } from "lit";
+import type { CitationNetwork } from "../domain/citation-assertions";
+import type { CitationExpansionResult } from "../domain/citation-expansion-types";
 import "./citation-network-panel";
 import type { CitationNetworkData, CitationNetworkPanel, CitationReferenceChoice } from "./citation-network-panel";
 
@@ -36,6 +38,14 @@ export class CitationNetworkWorkspace extends LitElement {
 
   setData(data: CitationNetworkPresentation): void {
     this.data = data;
+  }
+
+  setNetwork(network: CitationNetwork, referenceTitles: Readonly<Record<string, string>>): void {
+    this.data = { ...this.data, network, referenceTitles };
+  }
+
+  setExpansion(expansion: CitationExpansionResult): void {
+    this.data = { ...this.data, expansion };
   }
 
   setReferences(references: readonly CitationReferenceChoice[]): void {

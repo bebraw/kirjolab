@@ -41,9 +41,24 @@ describe("citation network workspace", () => {
     Object.defineProperty(workspace, "scrollIntoView", { value: scrollIntoView });
     const references = [{ id: "source:1", title: "Source" }];
     const data = { expansion: null, network: null, referenceTitles: { "source:1": "Source" } };
+    const network = { edges: [], nodes: [], projectId: null, truncated: false };
+    const expansion = {
+      assertions: [],
+      direction: "references" as const,
+      provider: "crossref" as const,
+      requestedBy: "researcher@example.com",
+      responseId: "response-1",
+      retrievedAt: "2026-07-26T00:00:00.000Z",
+      seedReferenceId: "source:1",
+      sourceLocator: "Crossref",
+      truncated: false,
+      unmatched: [],
+    };
 
     workspace.setReferences(references);
     workspace.setData(data);
+    workspace.setNetwork(network, { a: "Seed A" });
+    workspace.setExpansion(expansion);
     workspace.updateForTest("references", "data");
     workspace.setCandidateSaving("10.1000/example", true);
     workspace.hidden = true;
@@ -52,7 +67,7 @@ describe("citation network workspace", () => {
     workspace.closeForTest();
 
     expect(panel.setReferences).toHaveBeenCalledWith(references);
-    expect(panel.setData).toHaveBeenCalledWith({ ...data, filterProject: false });
+    expect(panel.setData).toHaveBeenCalledWith({ expansion, filterProject: false, network, referenceTitles: { a: "Seed A" } });
     expect(panel.setCandidateSaving).toHaveBeenCalledWith("10.1000/example", true);
     expect(scrollIntoView).toHaveBeenCalledWith({ block: "start" });
     expect(workspace.hidden).toBe(true);

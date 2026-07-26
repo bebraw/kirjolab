@@ -2,7 +2,7 @@ import * as Y from "yjs";
 import "./action-menu-controller";
 import { bibTeXDisplayText } from "../domain/bibliography";
 import { buildWorkspaceKnowledgeGraph, isKnowledgeSearchResults, type WorkspaceKnowledgeGraph } from "../domain/knowledge";
-import { isCitationNetwork, type CitationNetwork } from "../domain/citation-assertions";
+import { isCitationNetwork } from "../domain/citation-assertions";
 import { isCitationCandidateAcceptance } from "../domain/citation-expansion-acceptance";
 import { isCitationExpansionResult } from "../domain/citation-expansion";
 import type { CitationExpansionCandidate, CitationExpansionResult } from "../domain/citation-expansion-types";
@@ -644,8 +644,6 @@ class WorkspaceApp {
   #libraryHighlightRects: PdfSelectionCapture["rects"] = [];
   #editingLibraryHighlightId: string | null = null;
   #pdfHighlightDetectionArtifactId: string | null = null;
-  #citationNetwork: CitationNetwork | null = null;
-  #citationExpansion: CitationExpansionResult | null = null;
   #workspaceCatalog: WorkspaceSummary[] = [];
   #gitHubPickerRequest = 0;
   #gitHubSyncRequest = 0;
@@ -3331,16 +3329,10 @@ class WorkspaceApp {
     await expectOk(response);
     const value: unknown = await response.json();
     if (!isCitationNetwork(value)) throw new Error("Citation network returned an invalid representation");
-    this.#citationNetwork = value;
-    this.#renderCitationNetwork();
-  }
-
-  #renderCitationNetwork(): void {
-    this.#elements.citationNetwork.setData({
-      expansion: this.#citationExpansion,
-      network: this.#citationNetwork,
-      referenceTitles: Object.fromEntries((this.#librarySnapshot?.references ?? []).map(({ id, title }) => [id, title])),
-    });
+    this.#elements.citationNetwork.setNetwork(
+      value,
+      Object.fromEntries((this.#librarySnapshot?.references ?? []).map(({ id, title }) => [id, title])),
+    );
   }
 
   async #recordCitationAssertion(detail: Extract<CitationNetworkAction, { readonly action: "record" }>): Promise<void> {
@@ -3379,7 +3371,7 @@ class WorkspaceApp {
     await expectOk(response);
     const value: unknown = await response.json();
     if (!isCitationExpansionResult(value)) throw new Error("Citation expansion returned an invalid representation");
-    this.#citationExpansion = value;
+    this.#elements.citationNetwork.setExpansion(value);
     await this.#refreshCitationNetwork();
     this.#showToast(
       value.unmatched.length > 0
@@ -3398,11 +3390,11 @@ class WorkspaceApp {
       await expectOk(response);
       const value: unknown = await response.json();
       if (!isCitationCandidateAcceptance(value)) throw new Error("Citation candidate returned an invalid representation");
-      this.#citationExpansion = {
+      this.#elements.citationNetwork.setExpansion({
         ...expansion,
         assertions: [...expansion.assertions, value.assertion],
         unmatched: expansion.unmatched.filter((item) => item.doi !== candidate.doi),
-      };
+      });
       await this.#refreshReferenceLibrary();
       await this.#refreshCitationNetwork();
       this.#showToast(value.created ? "Reference saved with its discovery trail." : "Existing reference linked to its discovery trail.");
