@@ -87,6 +87,42 @@ export class CoalescedRefresh {
   }
 }
 
+export class DebouncedAsyncQueue {
+  readonly #run: () => Promise<void>;
+  readonly #onComplete: (version: number) => void;
+  readonly #onError: (error: unknown) => void;
+  #timer: ReturnType<typeof globalThis.setTimeout> | undefined;
+  #version = 0;
+  #chain: Promise<void> = Promise.resolve();
+
+  constructor(run: () => Promise<void>, onComplete: (version: number) => void, onError: (error: unknown) => void) {
+    this.#run = run;
+    this.#onComplete = onComplete;
+    this.#onError = onError;
+  }
+
+  schedule(delay = 120): void {
+    const version = ++this.#version;
+    globalThis.clearTimeout(this.#timer);
+    this.#timer = globalThis.setTimeout(() => {
+      this.#timer = undefined;
+      this.#chain = this.#chain
+        .catch(() => undefined)
+        .then(this.#run)
+        .then(() => {
+          if (version === this.#version) this.#onComplete(version);
+        });
+      void this.#chain.catch(this.#onError);
+    }, delay);
+  }
+
+  async flush(): Promise<void> {
+    globalThis.clearTimeout(this.#timer);
+    this.#timer = undefined;
+    await this.#chain.catch(() => undefined);
+  }
+}
+
 function copyUpdate(update: StoredUpdate): PendingUpdate {
   return { sequence: update.sequence, state: update.state, payload: update.payload.slice(0) };
 }

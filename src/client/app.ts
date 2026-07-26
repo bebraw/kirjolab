@@ -153,7 +153,7 @@ import {
   type WorkspaceSnapshot,
   type WorkspaceSummary,
 } from "../domain/workspace";
-import { CoalescedRefresh, PendingUpdateQueue } from "./collaboration";
+import { CoalescedRefresh, DebouncedAsyncQueue, PendingUpdateQueue } from "./collaboration";
 import {
   collaborationCanEdit,
   collaborationStable,
@@ -406,6 +406,18 @@ class WorkspaceApp {
   readonly #collaborationWorkflow = createCollaborationWorkflowActor();
   readonly #metadataRefinement = createMetadataRefinementActor();
   readonly #projectHistoryWorkflow = createProjectHistoryActor();
+  readonly #offlineSaves = new DebouncedAsyncQueue(
+    async () => await this.#persistOfflineWorkspace(),
+    (version) => {
+      document.body.dataset.offlineCached = "true";
+      document.body.dataset.offlineSavedAt = String(version);
+      if (!collaborationSynced(this.#collaborationWorkflow.getSnapshot())) this.#elements.editorStatus.setSave("Saved offline");
+    },
+    (error) => {
+      if (!collaborationSynced(this.#collaborationWorkflow.getSnapshot())) this.#elements.editorStatus.setSave("Offline save failed");
+      this.#showToast(error instanceof Error ? error.message : "Could not save the manuscript offline");
+    },
+  );
   #snapshot: WorkspaceSnapshot | null = null;
   #revision = 0;
   #socket: WebSocket | null = null;
@@ -435,9 +447,6 @@ class WorkspaceApp {
   #projectReferencePdfs: readonly ProjectReferencePdf[] = [];
   #workspaceCatalog: WorkspaceSummary[] = [];
   #previewRenderVersion = 0;
-  #offlineSaveTimer: number | undefined;
-  #offlineSaveVersion = 0;
-  #offlineSaveChain: Promise<void> = Promise.resolve();
   #workspaceRouteReady = false;
   #citationLibraryLoading = false;
   readonly #layout: WorkspaceLayoutManager;
@@ -6053,24 +6062,7 @@ class WorkspaceApp {
 
   #scheduleOfflineSave(delay = 120): void {
     if (!this.#offlineStore || !this.#snapshot || !this.#collaborationWorkflow.getSnapshot().context.offlineAvailable) return;
-    const version = ++this.#offlineSaveVersion;
-    window.clearTimeout(this.#offlineSaveTimer);
-    this.#offlineSaveTimer = window.setTimeout(() => {
-      this.#offlineSaveTimer = undefined;
-      this.#offlineSaveChain = this.#offlineSaveChain
-        .catch(() => undefined)
-        .then(async () => await this.#persistOfflineWorkspace())
-        .then(() => {
-          if (version !== this.#offlineSaveVersion) return;
-          document.body.dataset.offlineCached = "true";
-          document.body.dataset.offlineSavedAt = String(version);
-          if (!collaborationSynced(this.#collaborationWorkflow.getSnapshot())) this.#elements.editorStatus.setSave("Saved offline");
-        });
-      void this.#offlineSaveChain.catch((error: unknown) => {
-        if (!collaborationSynced(this.#collaborationWorkflow.getSnapshot())) this.#elements.editorStatus.setSave("Offline save failed");
-        this.#showToast(error instanceof Error ? error.message : "Could not save the manuscript offline");
-      });
-    }, delay);
+    this.#offlineSaves.schedule(delay);
   }
 
   async #persistOfflineWorkspace(): Promise<void> {
@@ -6094,8 +6086,7 @@ class WorkspaceApp {
   }
 
   async #clearOfflineBrowserData(): Promise<void> {
-    window.clearTimeout(this.#offlineSaveTimer);
-    await this.#offlineSaveChain.catch(() => undefined);
+    await this.#offlineSaves.flush();
     await Promise.all([
       clearAllOfflineWorkspaces(typeof indexedDB === "undefined" ? undefined : indexedDB),
       clearOfflineShellCaches(typeof caches === "undefined" ? undefined : caches),

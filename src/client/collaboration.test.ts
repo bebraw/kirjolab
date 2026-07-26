@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { CoalescedRefresh, PendingUpdateQueue } from "./collaboration";
+import { CoalescedRefresh, DebouncedAsyncQueue, PendingUpdateQueue } from "./collaboration";
 
 describe("PendingUpdateQueue", () => {
   it("copies payloads and exposes unsent updates in FIFO order", () => {
@@ -126,6 +126,81 @@ describe("CoalescedRefresh", () => {
     expect(coalesced.isRunning).toBe(false);
     await expect(coalesced.request()).resolves.toBeUndefined();
     expect(refresh).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("DebouncedAsyncQueue", () => {
+  it("debounces pending work and reports only the latest completed version", async () => {
+    vi.useFakeTimers();
+    const run = vi.fn<() => Promise<void>>().mockResolvedValue();
+    const completed: number[] = [];
+    const queue = new DebouncedAsyncQueue(
+      run,
+      (version) => completed.push(version),
+      () => undefined,
+    );
+
+    queue.schedule();
+    queue.schedule();
+    await vi.runAllTimersAsync();
+    await queue.flush();
+
+    expect(run).toHaveBeenCalledTimes(1);
+    expect(completed).toEqual([2]);
+    vi.useRealTimers();
+  });
+
+  it("serializes work, recovers after failure, and flushes active work", async () => {
+    vi.useFakeTimers();
+    const releases: Array<() => void> = [];
+    const failure = new Error("save failed");
+    const errors: unknown[] = [];
+    const run = vi
+      .fn<() => Promise<void>>()
+      .mockRejectedValueOnce(failure)
+      .mockImplementationOnce(() => new Promise<void>((resolve) => releases.push(resolve)));
+    const queue = new DebouncedAsyncQueue(
+      run,
+      () => undefined,
+      (error) => errors.push(error),
+    );
+
+    queue.schedule(0);
+    await vi.runAllTimersAsync();
+    await queue.flush();
+    expect(errors).toEqual([failure]);
+
+    queue.schedule(0);
+    await vi.advanceTimersByTimeAsync(0);
+    const flushing = queue.flush();
+    let flushed = false;
+    void flushing.then(() => {
+      flushed = true;
+    });
+    await Promise.resolve();
+    expect(flushed).toBe(false);
+    releases[0]?.();
+    await flushing;
+
+    expect(run).toHaveBeenCalledTimes(2);
+    vi.useRealTimers();
+  });
+
+  it("cancels pending work when flushed", async () => {
+    vi.useFakeTimers();
+    const run = vi.fn<() => Promise<void>>().mockResolvedValue();
+    const queue = new DebouncedAsyncQueue(
+      run,
+      () => undefined,
+      () => undefined,
+    );
+
+    queue.schedule();
+    await queue.flush();
+    await vi.runAllTimersAsync();
+
+    expect(run).not.toHaveBeenCalled();
+    vi.useRealTimers();
   });
 });
 
