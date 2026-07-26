@@ -118,7 +118,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   its read-only connection, installation, repository, and branch discovery
   lifecycle plus stale-request protection, import preview and creation requests,
   account disconnection, Valibot response validation, and local progress and
-  failure presentation. Let the sync menu likewise own its bounded connection
+  failure presentation. Let the import panel close its own dialog; expose only
+  successful workspace navigation to the application coordinator. Let the sync
+  menu likewise own its bounded connection
   and status refresh interval, validation, stale-request guard, and primary
   presentation, then emit one state event for the settings mirror. Let the
   detailed sync review own its Pull, Publish, and disconnect requests because
@@ -135,7 +137,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Import LaTeX archives only through a bounded, authenticated Worker workflow
   that separates non-mutating inspection from reviewed project creation. Keep
   Markdown canonical; never retain TeX as a second editable authority or
-  execute uploaded TeX.
+  execute uploaded TeX. Let the bounded Lit import panel own dialog dismissal
+  and expose only successful workspace navigation to the application
+  coordinator.
 - Preserve explicit TikZ source as canonical fenced Markdown. Do not render it
   until a separately approved isolated server boundary can compile it and its
   SVG output can pass inert-SVG validation.

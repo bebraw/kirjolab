@@ -5623,6 +5623,27 @@ component members.
 Full native CI passes all 1,583 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Import Dialog Dismissal
+
+`GitHubImportPanel` and `LatexImportPanel` now close their own native dialogs
+when Cancel is activated. `WorkspaceApp` listens only for successful navigation;
+the GitHub cancel event is removed, and LaTeX import replaces its cancel-or-
+complete union with a completion-only href event.
+
+This checkpoint reduces `src/client/app.ts` from 3,975 to 3,972 lines (-3).
+Runtime source across the app and two Lit owners decreases by six lines, while
+focused test source remains unchanged. Thirteen focused and 15 affected tests
+pass alongside strict types.
+
+The browser application artifact changes from 824,576 B raw / 223,087 B gzip
+to 824,333 B raw / 223,058 B gzip (-243 B raw / -29 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150. The readability audit reports two fewer externally
+visible low-level component members after dialog closing becomes internal.
+
+Full native CI passes all 1,583 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Assistant Evidence Projection
 
 `AssistantWorkflowStatus` now resolves its ordered selected evidence keys

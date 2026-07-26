@@ -205,13 +205,14 @@ The adopted components own bounded presentation:
 - The LaTeX import panel owns archive, title, and root input, bounded client
   validation, converted-file and diagnostic review, preview identity, busy and
   status presentation, native dialog lifecycle, authenticated preview and
-  creation request lifecycles, Valibot response validation, and typed cancel
-  and completed-navigation intents.
+  creation request lifecycles, Valibot response validation, local dismissal,
+  and a completed-navigation intent.
 - The GitHub import and detailed sync-review panels own their opaque preview
   identities and confirmation working state. The import panel additionally
   owns its read-only connection and repository-picker discovery lifecycle plus
   import preview, creation, and account-disconnection requests because their
   payloads, validation, progress, and results are local to that component. The
+  import panel closes its own dialog and emits only successful navigation. The
   sync menu owns its read-only connection and status request lifecycle because
   its interval, validation, stale-request protection, and primary result
   presentation are local to that component. The sync review owns its Pull,

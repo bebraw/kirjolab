@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { GitHubImportPanel, gitHubImportCancelEvent, gitHubImportCompleteEvent } from "./github-import-panel";
+import { GitHubImportPanel, gitHubImportCompleteEvent } from "./github-import-panel";
 
 class TestGitHubImportPanel extends GitHubImportPanel {
   focusCount = 0;
@@ -225,10 +225,11 @@ describe("GitHub import panel", () => {
     expect(JSON.parse(fetcher.mock.calls[1]?.[1]?.body as string)).toEqual({ previewId: "preview-1", title: "paper" });
   });
 
-  it("emits cancellation and owns account disconnection", async () => {
+  it("owns cancellation and account disconnection", async () => {
     const panel = new TestGitHubImportPanel();
-    const actions: string[] = [];
-    panel.addEventListener(gitHubImportCancelEvent, () => actions.push(gitHubImportCancelEvent));
+    const dialog = new FakeDialog();
+    vi.stubGlobal("HTMLDialogElement", FakeDialog);
+    Object.defineProperty(panel, "closest", { value: () => dialog });
     const fetcher = vi
       .fn()
       .mockResolvedValueOnce(new Response(null, { status: 204 }))
@@ -239,7 +240,7 @@ describe("GitHub import panel", () => {
     panel.cancelForTest();
     await panel.disconnectForTest();
 
-    expect(actions).toEqual([gitHubImportCancelEvent]);
+    expect(dialog.closeCount).toBe(1);
     expect(fetcher).toHaveBeenNthCalledWith(1, "/api/github/connection", { credentials: "same-origin", method: "DELETE" });
     expect(panel.selection.installationId).toBeNull();
   });

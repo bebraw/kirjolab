@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { LatexImportPreview } from "./app-contracts";
-import { LatexImportPanel, latexImportActionEvent, type LatexImportAction } from "./latex-import-panel";
+import { LatexImportPanel, latexImportCompleteEvent } from "./latex-import-panel";
 
 const preview: LatexImportPreview = {
   archive: {
@@ -121,8 +121,8 @@ describe("LaTeX import panel", () => {
   it("owns preview and creation requests and emits complete navigation", async () => {
     const panel = new TestLatexImportPanel();
     const archive = new File(["zip"], "my-paper.zip", { type: "application/zip" });
-    const actions: LatexImportAction[] = [];
-    panel.addEventListener(latexImportActionEvent, (event) => actions.push((event as CustomEvent<LatexImportAction>).detail));
+    const actions: string[] = [];
+    panel.addEventListener(latexImportCompleteEvent, (event) => actions.push((event as CustomEvent<string>).detail));
     const fetchMock = vi
       .spyOn(globalThis, "fetch")
       .mockResolvedValueOnce(Response.json(preview))
@@ -133,9 +133,8 @@ describe("LaTeX import panel", () => {
     await panel.previewForTest();
     panel.titleForTest("Reviewed paper");
     await panel.confirmForTest();
-    panel.cancelForTest();
 
-    expect(actions).toEqual([{ action: "complete", href: "/editor/project" }]);
+    expect(actions).toEqual(["/editor/project"]);
     expect(fetchMock).toHaveBeenNthCalledWith(1, "/api/latex-import-previews", expect.objectContaining({ body: archive, method: "POST" }));
     expect(fetchMock).toHaveBeenNthCalledWith(
       2,
@@ -147,8 +146,8 @@ describe("LaTeX import panel", () => {
   it("requires re-preview after root changes and rejects oversized archives locally", async () => {
     const panel = new TestLatexImportPanel();
     const archive = new File(["zip"], "paper.zip", { type: "application/zip" });
-    const actions: LatexImportAction[] = [];
-    panel.addEventListener(latexImportActionEvent, (event) => actions.push((event as CustomEvent<LatexImportAction>).detail));
+    const actions: string[] = [];
+    panel.addEventListener(latexImportCompleteEvent, (event) => actions.push((event as CustomEvent<string>).detail));
 
     panel.archiveFile = archive;
     panel.previewSucceeded(preview);
@@ -183,7 +182,7 @@ describe("LaTeX import panel", () => {
     Object.defineProperty(panel, "closest", { value: () => dialog });
 
     panel.open();
-    panel.close();
+    panel.cancelForTest();
     expect(dialog.modalCount).toBe(1);
     expect(dialog.closeCount).toBe(1);
     expect(panel.focusCount).toBe(1);

@@ -28,7 +28,6 @@ export interface GitHubConnectionPresentation {
 }
 
 export const gitHubImportCompleteEvent = "github-import-complete";
-export const gitHubImportCancelEvent = "github-import-cancel";
 
 export class GitHubImportPanel extends LitElement {
   static override properties = {
@@ -459,7 +458,7 @@ export class GitHubImportPanel extends LitElement {
   }
 
   protected requestCancel(): void {
-    this.dispatchEvent(new CustomEvent(gitHubImportCancelEvent));
+    this.close();
   }
 
   protected async previewImport(event: SubmitEvent): Promise<void> {

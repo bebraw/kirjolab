@@ -52,7 +52,7 @@ import type { AppToastOptions } from "./app-toast";
 import { expectOk, jsonFetch } from "./http";
 import { workspaceSwitchEvent } from "./workspace-switcher";
 import { sourceCompletionActionEvent, type SourceCompletionAction, type SourceCompletionIntent } from "./source-completion";
-import { gitHubImportCancelEvent, gitHubImportCompleteEvent } from "./github-import-panel";
+import { gitHubImportCompleteEvent } from "./github-import-panel";
 import {
   gitHubSyncCheckEvent,
   gitHubSyncPullEvent,
@@ -62,7 +62,7 @@ import {
   type GitHubSyncStateDetail,
 } from "./github-sync-menu";
 import { gitHubSyncMutationEvent, type GitHubSyncMutation } from "./github-sync-review";
-import { latexImportActionEvent, type LatexImportAction } from "./latex-import-panel";
+import { latexImportCompleteEvent } from "./latex-import-panel";
 import { libraryPdfAnnotationActionEvent, type LibraryPdfAnnotationAction } from "./library-pdf-annotation-forms";
 import { libraryPdfAnnotationListActionEvent, type LibraryPdfAnnotationListAction } from "./library-pdf-annotation-list";
 import {
@@ -504,12 +504,9 @@ class WorkspaceApp {
     this.#elements.newWorkspaceStartingPoints.addEventListener(startingPointTemplateDeleteEvent, (event) => {
       this.#deleteProjectTemplate((event as CustomEvent<ProjectTemplateSummary>).detail);
     });
-    this.#elements.latexImportPanel.addEventListener(latexImportActionEvent, (event) => {
-      const action = (event as CustomEvent<LatexImportAction>).detail;
-      if (action.action === "cancel") this.#elements.latexImportPanel.close();
-      else location.assign(action.href);
+    this.#elements.latexImportPanel.addEventListener(latexImportCompleteEvent, (event) => {
+      location.assign((event as CustomEvent<string>).detail);
     });
-    this.#elements.gitHubImportPanel.addEventListener(gitHubImportCancelEvent, () => this.#elements.gitHubImportPanel.close());
     this.#elements.gitHubImportPanel.addEventListener(gitHubImportCompleteEvent, (event) => {
       location.assign((event as CustomEvent<string>).detail);
     });

@@ -17,9 +17,9 @@ not translate cleanly.
   root, reviewed conversion, preview digest, status, busy presentation, and
   native dialog lifecycle. It also owns the authenticated preview and creation
   requests, constructs them from its current reviewed state, validates both
-  responses with the shared Valibot boundary contracts, and emits typed cancel
-  or completed-navigation intents. The application coordinator retains browser
-  navigation.
+  responses with the shared Valibot boundary contracts, closes itself on
+  cancellation, and emits only a completed-navigation href. The application
+  coordinator retains browser navigation.
 - Archive inspection and conservative conversion run in the authenticated
   Worker. Uploaded ZIP bytes are transient request data and are never stored.
 - The importer accepts one bounded ZIP, rejects encrypted entries, traversal,

@@ -27,7 +27,7 @@ incoming and outgoing mutation.
   sorting, loading and failure presentation, and request-generation guards. It
   also owns import preview and creation requests, confirmation payload
   construction, account-disconnection confirmation and request, shared Valibot
-  response validation, and operation progress. It emits only cancellation or a
+  response validation, operation progress, and local dismissal. It emits only a
   completed workspace href; navigation remains in the application coordinator.
 - One deployment-wide GitHub App is authorized per Kirjolab owner through the
   GitHub App user OAuth flow. One-time callback state is owner-scoped, user and

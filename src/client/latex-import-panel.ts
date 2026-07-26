@@ -3,9 +3,7 @@ import { isLatexImportPreview, isLatexImportResult, type LatexImportPreview } fr
 import { formatBytes } from "./format";
 import { errorMessage, expectOk } from "./http";
 
-export const latexImportActionEvent = "latex-import-action";
-
-export type LatexImportAction = { readonly action: "cancel" } | { readonly action: "complete"; readonly href: string };
+export const latexImportCompleteEvent = "latex-import-complete";
 
 type LatexImportBusyState = "confirm" | "preview" | null;
 type LatexConversion = NonNullable<LatexImportPreview["conversion"]>;
@@ -227,14 +225,14 @@ export class LatexImportPanel extends LitElement {
       await expectOk(response);
       const value: unknown = await response.json();
       if (!isLatexImportResult(value)) throw new Error("LaTeX import returned invalid project data");
-      this.emit({ action: "complete", href: value.workspace.href });
+      this.emit(value.workspace.href);
     } catch (error) {
       this.confirmFailed(errorMessage(error, "Could not import the LaTeX project."));
     }
   }
 
   protected cancel(): void {
-    if (!this.busy) this.emit({ action: "cancel" });
+    if (!this.busy) this.close();
   }
 
   protected updateTitle(event: Event): void {
@@ -295,8 +293,8 @@ ${file.content.length > 1_200 ? `${file.content.slice(0, 1_200)}\n…` : file.co
     this.bibliographyPath = null;
   }
 
-  private emit(detail: LatexImportAction): void {
-    this.dispatchEvent(new CustomEvent(latexImportActionEvent, { bubbles: true, composed: true, detail }));
+  private emit(detail: string): void {
+    this.dispatchEvent(new CustomEvent(latexImportCompleteEvent, { bubbles: true, composed: true, detail }));
   }
 
   private get dialog(): HTMLDialogElement {
