@@ -816,11 +816,16 @@ class WorkspaceApp {
     this.#elements.projectMap.addEventListener(projectMapResourceSelectEvent, (event) => {
       this.#focusKnowledgeResource((event as CustomEvent<string>).detail);
     });
+    this.#elements.publicationListPanel.configure(apiBase);
     this.#elements.publicationListPanel.addEventListener(publicationListActionEvent, (event) => {
       const detail = (event as CustomEvent<PublicationListAction>).detail;
       if (detail.action === "open") this.#openPublicationContext(detail.publication);
       else if (detail.action === "manage") void this.#openReferenceLibraryEntry(detail.publicationId);
-      else void this.#enrichPublication(detail.publicationId);
+      else
+        void this.#resourceRefresh
+          .request()
+          .then(() => this.#showToast(detail.message))
+          .catch(() => this.#showToast("The reference was enriched, but project resources could not be refreshed."));
     });
     this.#elements.projectAnnotationForm.addEventListener(projectAnnotationSaveEvent, (event) => {
       void this.#createAnnotation((event as CustomEvent<ProjectAnnotationSave>).detail);
@@ -3518,17 +3523,6 @@ class WorkspaceApp {
     this.#elements.pdfUpload.value = "";
     await this.#resourceRefresh.request();
     this.#showToast("PDF imported without modifying the source file.");
-  }
-
-  async #enrichPublication(publicationId: string): Promise<void> {
-    this.#showToast("Looking up DOI metadata from Crossref…");
-    const response = await fetch(`${apiBase}/publications/${publicationId}/enrich`, {
-      method: "POST",
-      credentials: "same-origin",
-    });
-    await expectOk(response);
-    await this.#resourceRefresh.request();
-    this.#showToast("Reference enriched from Crossref.");
   }
 
   async #createAnnotation(detail: ProjectAnnotationSave): Promise<void> {

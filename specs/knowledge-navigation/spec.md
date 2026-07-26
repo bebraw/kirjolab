@@ -99,9 +99,11 @@ connection without reconstructing identity from a citation key or filename.
   states, but authorized search requests, response validation, and resource
   navigation remain outside it.
 - A bounded light-DOM project publication list owns reference metadata, alias
-  and DOI labels, empty-state, and action presentation. It emits typed open,
-  Library-management, and enrichment intents while context navigation,
-  authorized mutations, and refreshes remain with the application coordinator.
+  and DOI labels, empty-state, action presentation, DOI-enrichment transport,
+  stable encoded targets, duplicate-submit gating, pending and retryable failure
+  state, and the completed-enrichment outcome. Context navigation, Library
+  management, canonical refresh, and workspace notification policy remain with
+  the application coordinator.
   reflows. Connector coordinates must use the rendered canvas dimensions rather
   than a fixed aspect ratio, and compact layouts must preserve every resource
   action when decorative connectors are hidden.

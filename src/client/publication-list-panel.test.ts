@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ProjectReferenceLink, PublicationResource } from "../domain/workspace";
 import { PublicationListPanel, publicationListActionEvent, type PublicationListAction } from "./publication-list-panel";
 
@@ -52,7 +52,13 @@ class TestPublicationListPanel extends PublicationListPanel {
     Object.defineProperty(event, "currentTarget", { value: { dataset: { publicationAction: action, publicationId } } });
     this.actOnPublication(event);
   }
+
+  enrichForTest(publicationId = publication.id): Promise<void> {
+    return this.enrichPublication(publicationId);
+  }
 }
+
+afterEach(() => vi.restoreAllMocks());
 
 describe("publication list panel", () => {
   it("renders empty, enrichable, and connected publication states", () => {
@@ -75,12 +81,58 @@ describe("publication list panel", () => {
     panel.actForTest("open", "missing");
     panel.actForTest("open");
     panel.actForTest("manage");
-    panel.actForTest("enrich");
 
     expect(actions).toEqual([
       { action: "open", publication },
       { action: "manage", publicationId: publication.id },
-      { action: "enrich", publicationId: publication.id },
     ]);
+  });
+
+  it("owns enrichment persistence and emits the completed outcome", async () => {
+    const panel = new TestPublicationListPanel();
+    const actions: PublicationListAction[] = [];
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 200 }));
+    panel.configure("/api/workspaces/workspace");
+    panel.addEventListener(publicationListActionEvent, (event) => actions.push((event as CustomEvent<PublicationListAction>).detail));
+
+    await panel.enrichForTest("publication/1");
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/workspaces/workspace/publications/publication%2F1/enrich",
+      expect.objectContaining({ method: "POST" }),
+    );
+    expect(actions).toEqual([{ action: "enriched", message: "Reference enriched from Crossref." }]);
+  });
+
+  it("reports provider failures and permits retry", async () => {
+    const panel = new TestPublicationListPanel();
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response("Unavailable", { status: 503 }))
+      .mockResolvedValueOnce(new Response(null, { status: 200 }));
+    panel.configure("/api/workspaces/workspace");
+
+    await panel.enrichForTest();
+    expect(panel.renderForTest()).toBeDefined();
+    await panel.enrichForTest();
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("ignores duplicate enrichment while a request is pending", async () => {
+    const panel = new TestPublicationListPanel();
+    let respond = (_response: Response): void => undefined;
+    const pendingResponse = new Promise<Response>((resolve) => {
+      respond = resolve;
+    });
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockReturnValue(pendingResponse);
+    panel.configure("/api/workspaces/workspace");
+
+    const first = panel.enrichForTest();
+    await panel.enrichForTest();
+    respond(new Response(null, { status: 200 }));
+    await first;
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });

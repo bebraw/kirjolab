@@ -4136,3 +4136,26 @@ and unique production package counts remain unchanged at 135,411 B raw /
 
 Full native CI passes all 1,492 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Lit Ownership: Publication Enrichment
+
+`PublicationListPanel` now owns DOI-enrichment transport, stable encoded
+publication targets, request validation, duplicate-submit gating, pending and
+retryable failure state, and the typed completed-enrichment outcome on its
+existing action channel. `WorkspaceApp` retains canonical project-resource
+refresh, workspace notification policy, publication navigation, and Library
+management.
+
+This checkpoint reduces `src/client/app.ts` from 5,117 to 5,111 lines (-6) and
+grows the project publication list from 130 to 164 lines. Runtime source across
+those files increases by 28 lines while removing the coordinator enrichment
+method. Focused coverage passes stable encoded targets, successful completion,
+provider failure and retry, and duplicate enrichment submissions.
+
+The browser application artifact changes from 809,178 B raw / 219,449 B gzip
+to 809,952 B raw / 219,542 B gzip (+774 B raw / +93 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,495 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.

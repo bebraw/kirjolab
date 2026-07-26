@@ -1,11 +1,12 @@
 import { html, LitElement, nothing, type TemplateResult } from "lit";
 import { bibTeXDisplayText } from "../domain/bibliography";
 import type { ProjectReferenceLink, PublicationResource } from "../domain/workspace";
+import { errorMessage, expectOk } from "./http";
 
 export const publicationListActionEvent = "publication-list-action";
 
 export type PublicationListAction =
-  | { readonly action: "enrich"; readonly publicationId: string }
+  | { readonly action: "enriched"; readonly message: string }
   | { readonly action: "manage"; readonly publicationId: string }
   | { readonly action: "open"; readonly publication: PublicationResource };
 
@@ -17,13 +18,24 @@ interface PublicationListData {
 export class PublicationListPanel extends LitElement {
   static override properties = {
     data: { state: true },
+    enrichingPublicationId: { state: true },
+    status: { state: true },
   };
 
   declare private data: PublicationListData;
+  declare private enrichingPublicationId: string;
+  declare private status: string;
+  private apiBase = "";
 
   constructor() {
     super();
     this.data = { projectReferences: [], publications: [] };
+    this.enrichingPublicationId = "";
+    this.status = "";
+  }
+
+  configure(apiBase: string): void {
+    this.apiBase = apiBase;
   }
 
   setPublications(data: PublicationListData): void {
@@ -47,6 +59,7 @@ export class PublicationListPanel extends LitElement {
           ? html`<div class="empty-state">Imported references appear here as stable publication resources.</div>`
           : this.data.publications.map((publication) => this.renderPublication(publication))}
       </div>
+      <p class="status-line px-1" role="status" ?hidden=${!this.status}>${this.status}</p>
     </details>`;
   }
 
@@ -56,7 +69,27 @@ export class PublicationListPanel extends LitElement {
     if (!publication) return;
     const action = button.dataset.publicationAction;
     if (action === "open") this.emit({ action, publication });
-    else if (action === "manage" || action === "enrich") this.emit({ action, publicationId: publication.id });
+    else if (action === "manage") this.emit({ action, publicationId: publication.id });
+    else if (action === "enrich") void this.enrichPublication(publication.id);
+  }
+
+  protected async enrichPublication(publicationId: string): Promise<void> {
+    if (this.enrichingPublicationId) return;
+    this.enrichingPublicationId = publicationId;
+    this.status = "Looking up DOI metadata from Crossref…";
+    try {
+      const response = await fetch(`${this.apiBase}/publications/${encodeURIComponent(publicationId)}/enrich`, {
+        method: "POST",
+        credentials: "same-origin",
+      });
+      await expectOk(response);
+      this.status = "";
+      this.emit({ action: "enriched", message: "Reference enriched from Crossref." });
+    } catch (error) {
+      this.status = errorMessage(error, "Could not enrich the reference.");
+    } finally {
+      this.enrichingPublicationId = "";
+    }
   }
 
   private renderPublication(publication: PublicationResource): TemplateResult {
@@ -103,9 +136,10 @@ export class PublicationListPanel extends LitElement {
                       class="button-secondary"
                       data-publication-id=${publication.id}
                       data-publication-action="enrich"
+                      ?disabled=${Boolean(this.enrichingPublicationId)}
                       @click=${this.actOnPublication}
                     >
-                      Enrich
+                      ${this.enrichingPublicationId === publication.id ? "Enriching…" : "Enrich"}
                     </button>`}
               `
             : nothing}
