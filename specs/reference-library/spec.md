@@ -108,9 +108,10 @@ memory and makes citation aliases compete with stable source identity.
   return raw DOM targets.
 - A bounded light-DOM PDF-row component owns attached-artifact presentation,
   signed-in member access context, rights choices, primary-versus-secondary
-  refinement availability, and typed actions. The workspace coordinator
-  retains PDF presentation, rights persistence, extraction, refinement state,
-  Library refreshes, and notification policy.
+  refinement availability, rights persistence, duplicate-submit gating, local
+  retryable failures, and typed navigation, refinement, and refresh outcomes.
+  The workspace coordinator retains PDF presentation, extraction, refinement
+  state, canonical Library refreshes, and notification policy.
 - A bounded light-DOM research-row component composes attached PDFs with
   private notes, highlights, and web captures; owns share state, capture
   diagnostics, downloads, comparisons, project-pin availability, and recapture

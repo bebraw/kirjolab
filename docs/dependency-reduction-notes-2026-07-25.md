@@ -3842,3 +3842,25 @@ and unique production package counts remain unchanged at 135,411 B raw /
 
 Full native CI passes all 1,462 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Lit Ownership: PDF Rights Persistence
+
+`LibraryReferencePdfRows` now owns rights PUT requests, value validation,
+duplicate-submit gating, local progress and retryable failures, and a typed
+successful-refresh outcome. `WorkspaceApp` retains PDF opening, cross-component
+metadata refinement, and canonical Library refresh policy.
+
+This checkpoint reduces `src/client/app.ts` from 5,309 to 5,308 lines (-1)
+and grows the PDF rows from 95 to 119 lines. Runtime source across those files
+increases by 23 lines; the small line-count result reflects replacing the
+request method with an explicit canonical-refresh listener. Focused coverage
+passes the rights payload, invalid value, success, provider failure, duplicate
+submission, opening, and secondary-PDF refinement behavior.
+
+The browser application artifact changes from 800,036 B raw / 217,149 B gzip
+to 800,470 B raw / 217,180 B gzip (+434 B raw / +31 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,463 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.

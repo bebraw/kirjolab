@@ -1,6 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { BibliographicRecord, LibraryPdfArtifact } from "../domain/reference-library";
-import { LibraryReferencePdfRows, libraryReferencePdfActionEvent, type LibraryReferencePdfAction } from "./library-reference-pdf-rows";
+import {
+  LibraryReferencePdfRows,
+  libraryReferencePdfActionEvent,
+  libraryReferencePdfRefreshEvent,
+  type LibraryReferencePdfAction,
+} from "./library-reference-pdf-rows";
 
 class TestLibraryReferencePdfRows extends LibraryReferencePdfRows {
   renderForTest() {
@@ -19,10 +24,10 @@ class TestLibraryReferencePdfRows extends LibraryReferencePdfRows {
     this.refine(artifact);
   }
 
-  setRightsForTest(artifactId: string, value: string): void {
+  setRightsForTest(artifactId: string, value: string): Promise<void> {
     const event = new Event("change");
     Object.defineProperty(event, "currentTarget", { value: { value } });
-    this.setRights(artifactId, event);
+    return this.setRights(artifactId, event);
   }
 }
 
@@ -57,6 +62,10 @@ const artifact = (id: string, rights: LibraryPdfArtifact["rights"]): LibraryPdfA
 });
 
 describe("library reference PDF rows", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   it("owns empty, linked, and multi-artifact light-DOM presentation", () => {
     const rows = new TestLibraryReferencePdfRows();
     expect(rows.rootForTest()).toBe(rows);
@@ -65,23 +74,54 @@ describe("library reference PDF rows", () => {
     expect(rows.renderForTest()).toBeDefined();
   });
 
-  it("emits open, validated rights, and secondary refinement actions", () => {
+  it("owns rights persistence and emits open, refresh, and secondary refinement outcomes", async () => {
     const rows = new TestLibraryReferencePdfRows();
+    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 204 }));
+    vi.stubGlobal("fetch", fetchMock);
     const actions: LibraryReferencePdfAction[] = [];
+    let refreshes = 0;
     rows.addEventListener(libraryReferencePdfActionEvent, (event) => {
       actions.push((event as CustomEvent<LibraryReferencePdfAction>).detail);
+    });
+    rows.addEventListener(libraryReferencePdfRefreshEvent, () => {
+      refreshes += 1;
     });
     const primary = artifact("pdf-1", "private");
     const secondary = artifact("pdf-2", "unknown");
     rows.setData(reference, [primary, secondary], false);
     rows.emitForTest({ action: "open", artifact: primary });
-    rows.setRightsForTest(primary.id, "shareable");
-    rows.setRightsForTest(primary.id, "invalid");
+    await rows.setRightsForTest(primary.id, "shareable");
+    await rows.setRightsForTest(primary.id, "invalid");
     rows.refineForTest(secondary);
     expect(actions).toEqual([
       { action: "open", artifact: primary },
-      { action: "set-rights", artifactId: "pdf-1", rights: "shareable" },
       { action: "refine", artifact: secondary, reference },
     ]);
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(fetchMock).toHaveBeenCalledWith("/api/library/pdfs/pdf-1/rights", {
+      body: JSON.stringify({ rights: "shareable" }),
+      credentials: "same-origin",
+      headers: { "content-type": "application/json" },
+      method: "PUT",
+    });
+    expect(refreshes).toBe(1);
+  });
+
+  it("keeps rights failures local and ignores duplicate submissions", async () => {
+    const rows = new TestLibraryReferencePdfRows();
+    rows.setData(reference, [artifact("pdf-1", "private")], false);
+    let resolveResponse = (_response: Response): void => undefined;
+    const pendingResponse = new Promise<Response>((resolve) => {
+      resolveResponse = resolve;
+    });
+    const fetchMock = vi.fn().mockReturnValue(pendingResponse);
+    vi.stubGlobal("fetch", fetchMock);
+
+    const first = rows.setRightsForTest("pdf-1", "shareable");
+    await rows.setRightsForTest("pdf-1", "unknown");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    resolveResponse(new Response(JSON.stringify({ error: "Rights unavailable" }), { status: 503 }));
+    await first;
+    expect(rows.renderForTest()).toBeDefined();
   });
 });

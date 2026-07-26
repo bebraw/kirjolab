@@ -296,6 +296,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   destructive confirmation, duplicate-submit gating, and retryable error state
   in the Lit personal-fields block. Emit only a successful canonical-refresh
   outcome to the application coordinator.
+- Keep owner-library PDF rights persistence, value validation,
+  duplicate-submit gating, and retryable error state in the Lit PDF rows. Keep
+  PDF opening, cross-component metadata refinement, and canonical Library
+  refresh policy in the application coordinator.
 - Keep provider-preview reuse bounded, short-lived, owner-scoped, and ephemeral
   in Reference Library Durable Object memory. Never let cached preview data
   bypass acceptance-time provider refetch or fingerprint verification.

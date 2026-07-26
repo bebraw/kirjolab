@@ -1,35 +1,44 @@
 import { html, LitElement, nothing, type TemplateResult } from "lit";
 import type { BibliographicRecord, LibraryPdfArtifact } from "../domain/reference-library";
+import { errorMessage, expectOk, jsonFetch } from "./http";
 
 export type LibraryReferencePdfAction =
   | { readonly action: "open"; readonly artifact: LibraryPdfArtifact }
-  | { readonly action: "set-rights"; readonly artifactId: string; readonly rights: LibraryPdfArtifact["rights"] }
   | { readonly action: "refine"; readonly artifact: LibraryPdfArtifact; readonly reference: BibliographicRecord };
 
 export const libraryReferencePdfActionEvent = "library-reference-pdf-action";
+export const libraryReferencePdfRefreshEvent = "library-reference-pdf-refresh";
 
 export class LibraryReferencePdfRows extends LitElement {
   static override properties = {
     artifacts: { state: true },
     linked: { state: true },
     reference: { state: true },
+    savingArtifactId: { state: true },
+    status: { state: true },
   };
 
   declare artifacts: readonly LibraryPdfArtifact[];
   declare linked: boolean;
   declare reference: BibliographicRecord | null;
+  declare private savingArtifactId: string;
+  declare private status: string;
 
   constructor() {
     super();
     this.artifacts = [];
     this.linked = false;
     this.reference = null;
+    this.savingArtifactId = "";
+    this.status = "";
   }
 
   setData(reference: BibliographicRecord, artifacts: readonly LibraryPdfArtifact[], linked: boolean): void {
     this.reference = reference;
     this.artifacts = artifacts;
     this.linked = linked;
+    this.savingArtifactId = "";
+    this.status = "";
   }
 
   override connectedCallback(): void {
@@ -43,13 +52,23 @@ export class LibraryReferencePdfRows extends LitElement {
 
   protected override render(): TemplateResult {
     const primaryId = this.artifacts[0]?.id;
-    return html`${this.artifacts.map((artifact) => this.renderArtifact(artifact, primaryId))}`;
+    return html`${this.artifacts.map((artifact) => this.renderArtifact(artifact, primaryId))}
+    ${this.status ? html`<p class="status-text mt-2" role="status">${this.status}</p>` : nothing}`;
   }
 
-  protected setRights(artifactId: string, event: Event): void {
+  protected async setRights(artifactId: string, event: Event): Promise<void> {
     const rights = (event.currentTarget as HTMLSelectElement).value;
-    if (rights === "private" || rights === "unknown" || rights === "shareable") {
-      this.emitAction({ action: "set-rights", artifactId, rights });
+    if (this.savingArtifactId || (rights !== "private" && rights !== "unknown" && rights !== "shareable")) return;
+    this.savingArtifactId = artifactId;
+    this.status = "Saving rights…";
+    try {
+      await expectOk(await jsonFetch(`/api/library/pdfs/${encodeURIComponent(artifactId)}/rights`, { rights }, "PUT"));
+      this.status = "";
+      this.dispatchEvent(new CustomEvent(libraryReferencePdfRefreshEvent, { bubbles: true }));
+    } catch (error) {
+      this.status = errorMessage(error, "Could not save PDF rights.");
+    } finally {
+      this.savingArtifactId = "";
     }
   }
 
@@ -71,7 +90,12 @@ export class LibraryReferencePdfRows extends LitElement {
             </p>`
           : nothing}
         <button class="button-secondary mt-2" type="button" @click=${() => this.emitAction({ action: "open", artifact })}>Open PDF</button>
-        <select class="field mt-2" .value=${artifact.rights} @change=${(event: Event) => this.setRights(artifact.id, event)}>
+        <select
+          class="field mt-2"
+          .value=${artifact.rights}
+          ?disabled=${Boolean(this.savingArtifactId)}
+          @change=${(event: Event) => void this.setRights(artifact.id, event)}
+        >
           <option value="private">Rights: private</option>
           <option value="unknown">Rights: unknown</option>
           <option value="shareable">Rights: shareable</option>

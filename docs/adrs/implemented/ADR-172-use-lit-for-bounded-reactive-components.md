@@ -299,8 +299,8 @@ The adopted components own bounded presentation:
   and reviewed persistence, duplicate-submit gating, local failures, and typed
   refresh or notice outcomes.
 - The Library reference PDF rows own attached-artifact presentation, member
-  access context, rights choices, and typed open, rights, and refinement
-  intents.
+  access context, rights choices and persistence, duplicate-submit gating,
+  local failure state, and typed open, refresh, and refinement outcomes.
 - The Library reference list owns result and empty-state rendering, detail
   expansion, nested reference-component composition, nested update settlement,
   and addressed-card focus.
@@ -681,11 +681,10 @@ reason to wrap static markup mechanically.
   extraction, provider preview and acceptance requests, response validation,
   its refinement state machine, request supersession, local busy and retryable
   error state, PDF-metadata persistence, and typed refresh and notice outcomes.
-  The application coordinator retains manual persistence, canonical refreshes,
-  and toast policy.
+  The application coordinator retains canonical refreshes and toast policy.
 - The Library reference PDF rows replace two imperative row render helpers and
   per-artifact open, rights, and secondary-refinement handlers while leaving
-  PDF presentation and rights persistence in the application coordinator. A
+  PDF presentation and canonical refresh policy in the application coordinator. A
   secondary refinement intent delegates directly to the owning metadata editor.
 - The Library reference research rows compose attached PDFs with private notes,
   highlights, and immutable web captures; own share, revoke, download,

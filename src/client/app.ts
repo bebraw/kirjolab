@@ -91,7 +91,11 @@ import {
   libraryReferenceMetadataNoticeEvent,
   libraryReferenceMetadataRefreshEvent,
 } from "./library-reference-metadata-editor";
-import { libraryReferencePdfActionEvent, type LibraryReferencePdfAction } from "./library-reference-pdf-rows";
+import {
+  libraryReferencePdfActionEvent,
+  libraryReferencePdfRefreshEvent,
+  type LibraryReferencePdfAction,
+} from "./library-reference-pdf-rows";
 import { libraryReferenceResearchActionEvent, type LibraryReferenceResearchAction } from "./library-reference-research-rows";
 import { workspaceSettingsActionEvent, type WorkspaceSettingsAction } from "./workspace-settings-panel";
 import {
@@ -640,13 +644,15 @@ class WorkspaceApp {
     this.#elements.referenceLibraryList.addEventListener(libraryReferencePdfActionEvent, (event) => {
       const detail = (event as CustomEvent<LibraryReferencePdfAction>).detail;
       if (detail.action === "open") void this.#openLibraryPdf(detail.artifact);
-      else if (detail.action === "set-rights") void this.#setArtifactRights(detail.artifactId, detail.rights);
       else {
         const editor = (event.target as Element)
           .closest(".library-reference-row")
           ?.querySelector<LibraryReferenceMetadataEditor>("library-reference-metadata-editor");
         if (editor) void editor.refineMetadata(detail.reference, detail.artifact);
       }
+    });
+    this.#elements.referenceLibraryList.addEventListener(libraryReferencePdfRefreshEvent, () => {
+      void this.#refreshReferenceLibrary();
     });
     this.#elements.referenceLibraryList.addEventListener(libraryReferenceResearchActionEvent, (event) => {
       const detail = (event as CustomEvent<LibraryReferenceResearchAction>).detail;
@@ -2549,13 +2555,6 @@ class WorkspaceApp {
   async #refreshBibliographicMetadata(): Promise<void> {
     await this.#refreshReferenceLibrary();
     await this.#refreshSnapshot();
-  }
-
-  async #setArtifactRights(artifactId: string, rightsValue: string): Promise<void> {
-    if (rightsValue !== "private" && rightsValue !== "unknown" && rightsValue !== "shareable") return;
-    const response = await jsonFetch(`/api/library/pdfs/${encodeURIComponent(artifactId)}/rights`, { rights: rightsValue }, "PUT");
-    await expectOk(response);
-    await this.#refreshReferenceLibrary();
   }
 
   async #sharePrivateResearch(referenceId: string, kind: "note" | "highlight" | "web-snapshot", resourceId: string): Promise<void> {
