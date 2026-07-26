@@ -609,6 +609,11 @@ reason to wrap static markup mechanically.
   active-load failures and text-selection pointer routing reported by the
   application coordinator, without exposing its internal elements to
   `WorkspaceApp`.
+- The Preview DOM adapter owns direct article and viewport mechanics that do
+  not need reactive templating: content assignment, source-span lookup,
+  centering, transient emphasis, image lookup, and anchor scrolling. This
+  keeps Lit focused on reactive presentation while still removing raw Preview
+  elements from `WorkspaceApp`.
 - Related template, visibility rules, and local event binding now have one
   browser owner.
 - Later bounded extractions can reuse the same reactive component model without

@@ -2462,6 +2462,26 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,404 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued PDF Viewer Encapsulation: Status
+
+`PdfEvidenceViewer` now owns its complete loading, rendering, selection, mode,
+and failure status presentation. `WorkspaceApp` retains active-tab stale-load
+protection and reports only the active load failure through the viewer API.
+
+This checkpoint reduces `src/client/app.ts` from 7,216 to 7,214 lines (-2),
+removes the last raw PDF-status element reference, and leaves the separate text
+layer reference only for annotation-tool pointer routing. Focused private and
+project PDF browser workflows pass status, rendering, selection, annotation,
+and resource-context behavior.
+
+The browser application artifact changes from 798,490 B raw / 214,795 B gzip
+to 798,475 B raw / 214,784 B gzip (-15 B raw / -11 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,404 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
+
 ## Completed PDF Viewer Shell Encapsulation
 
 `PdfEvidenceViewer` now also owns text-selection pointer routing for annotation
@@ -2481,22 +2501,25 @@ gzip and 18 and 150.
 Full native CI passes all 1,404 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
-## Continued PDF Viewer Encapsulation: Status
+## Continued Preview Encapsulation: DOM Adapter
 
-`PdfEvidenceViewer` now owns its complete loading, rendering, selection, mode,
-and failure status presentation. `WorkspaceApp` retains active-tab stale-load
-protection and reports only the active load failure through the viewer API.
+`PreviewDocument` now owns direct article and viewport mechanics: rendered and
+fallback content assignment, source-span lookup, viewport centering, transient
+sync emphasis, project-image lookup, scroll reset, and anchor navigation.
+`WorkspaceApp` retains Markdown rendering, source-map translation, project
+authorization, citation behavior, source selection, and routing.
 
-This checkpoint reduces `src/client/app.ts` from 7,216 to 7,214 lines (-2),
-removes the last raw PDF-status element reference, and leaves the separate text
-layer reference only for annotation-tool pointer routing. Focused private and
-project PDF browser workflows pass status, rendering, selection, annotation,
-and resource-context behavior.
+This checkpoint reduces `src/client/app.ts` from 7,212 to 7,166 lines (-46),
+removes both raw Preview element references and the coordinator's transient
+highlight timer, and deletes four DOM-query and geometry helpers. Focused unit
+and browser coverage passes content ownership, nearest-span selection,
+centering, transient emphasis, clicks, anchor and image lookup, live Markdown
+rendering, bidirectional source sync, and authorized project images.
 
-The browser application artifact changes from 798,490 B raw / 214,795 B gzip
-to 798,475 B raw / 214,784 B gzip (-15 B raw / -11 B gzip). Styles and direct
+The browser application artifact changes from 798,483 B raw / 214,778 B gzip
+to 798,937 B raw / 215,080 B gzip (+454 B raw / +302 B gzip). Styles and direct
 and unique production package counts remain unchanged at 135,411 B raw /
 23,373 B gzip and 18 and 150.
 
-Full native CI passes all 1,404 unit/coverage tests, 120 Workers-runtime tests,
+Full native CI passes all 1,407 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.

@@ -64,6 +64,7 @@ import { ConnectionStatus } from "./connection-status";
 import { VimModeControl } from "./vim-mode-control";
 import { ApplicationVersionControl, applicationVersionNoticeEvent } from "./application-version-control";
 import { PreviewSyncControls, previewSyncActionEvent, type PreviewSyncAction } from "./preview-sync-controls";
+import { PreviewDocument } from "./preview-document";
 import { SourceCitationControl, sourceCitationOpenEvent } from "./source-citation-control";
 import { WorkspaceSurfaceSwitcher, workspaceSurfaceChangeEvent } from "./workspace-surface-switcher";
 import { ProjectHistoryTrigger, projectHistoryOpenEvent } from "./project-history-trigger";
@@ -492,10 +493,8 @@ interface Elements {
   contextTabStrip: ContextTabStrip;
   previewContextControls: PreviewContextStatus;
   previewNavigationControl: PreviewNavigationControl;
-  previewScroll: HTMLElement;
   publicationContextPanel: PublicationContextPanel;
   candidateReviewPanel: CandidateReviewPanel;
-  preview: HTMLElement;
   diagnostics: PreviewDiagnosticsPanel;
   connectionStatus: ConnectionStatus;
   editorStatus: EditorStatus;
@@ -587,6 +586,7 @@ type AssistantResultContext =
 class WorkspaceApp {
   readonly #elements = collectElements();
   readonly #pdfViewer: PdfEvidenceViewer;
+  readonly #previewDocument: PreviewDocument;
   readonly #document = new Y.Doc();
   readonly #source = this.#document.getText("source");
   readonly #bibliography = this.#document.getText("bibliography");
@@ -660,7 +660,6 @@ class WorkspaceApp {
   readonly #hiddenProjectTemplateIds = new Set<string>();
   #previewRenderVersion = 0;
   #previewSourceMap: readonly CompositionSourceSpan[] = [];
-  #previewSyncHighlightTimer: number | undefined;
   #offlineSaveTimer: number | undefined;
   #offlineSaveVersion = 0;
   #offlineSaveChain: Promise<void> = Promise.resolve();
@@ -681,6 +680,7 @@ class WorkspaceApp {
       onPageChange: (page) => this.#handlePdfPageChange(page),
       onPrivateHighlight: (highlightId) => this.#selectLibraryHighlight(highlightId),
     });
+    this.#previewDocument = PreviewDocument.forDocument(document);
     this.#layout = WorkspaceLayoutManager.forWorkspace(this.#elements.workspaceSurfaces, {
       paneStorageKey: () => `kirjolab:authoring-pane:${workspaceId}:${this.#activeResourceTab()?.kind ?? "preview"}`,
       resizePdf: () => void this.#pdfViewer.resize(),
@@ -1248,7 +1248,7 @@ class WorkspaceApp {
       if (detail.action === "activate") this.#activateContext(detail.key);
       else this.#closeContextTab(detail.key);
     });
-    this.#elements.preview.addEventListener("click", (event) => this.#handlePreviewClick(event));
+    this.#previewDocument.onClick((event) => this.#handlePreviewClick(event));
     this.#elements.diagnostics.addEventListener(previewDiagnosticSelectEvent, (event) => {
       const { fileId, from, to } = (event as CustomEvent<PreviewDiagnosticSelection>).detail;
       this.#focusProjectRange(fileId || this.#snapshot?.entryFileId || "", from, to);
@@ -2578,7 +2578,7 @@ class WorkspaceApp {
   }
 
   #renderPreviewUnavailable(renderedSource: string, error: unknown): void {
-    this.#elements.preview.textContent = renderedSource;
+    this.#previewDocument.showSource(renderedSource);
     this.#elements.previewContextControls.setSummary("Preview unavailable");
     this.#elements.diagnostics.showUnavailable(error instanceof Error ? error.message : "The Markdown renderer could not be loaded");
   }
@@ -2598,7 +2598,7 @@ class WorkspaceApp {
   }
 
   #renderMarkdownPreview(rendered: RenderedDocument, inputs: PreviewInputs): void {
-    this.#elements.preview.innerHTML = rendered.html;
+    this.#previewDocument.showHtml(rendered.html);
     this.#previewSourceMap = inputs.filePreview?.sourceMap ?? [];
     this.#resolveProjectPreviewImages(inputs.renderedSource, inputs.filePreview?.sourceMap ?? []);
   }
@@ -2754,11 +2754,7 @@ class WorkspaceApp {
   }
 
   #syncSourceFromPreviewCenter(): void {
-    const bounds = this.#elements.previewScroll.getBoundingClientRect();
-    const centered = document
-      .elementFromPoint(bounds.left + bounds.width / 2, bounds.top + bounds.height / 2)
-      ?.closest<HTMLElement>("[data-source-from][data-source-to]");
-    const target = centered && this.#elements.preview.contains(centered) ? centered : this.#nearestPreviewSourceElement();
+    const target = this.#previewDocument.centeredSourceElement();
     if (target) this.#syncSourceFromPreviewElement(target, true);
   }
 
@@ -2770,7 +2766,7 @@ class WorkspaceApp {
     this.#showWorkspaceSurface("authoring");
     this.#focusProjectRange(location.fileId, location.offset, location.offset);
     if (centerEditor) this.#centerSourceOffset(location.offset);
-    this.#markPreviewSyncTarget(target);
+    this.#previewDocument.markSyncTarget(target);
   }
 
   #centerSourceOffset(sourceOffset: number): void {
@@ -2785,12 +2781,10 @@ class WorkspaceApp {
     if (!this.#previewSyncAvailable(explicit)) return;
     const offsets = this.#previewSyncOffsets(explicit);
     if (offsets.length === 0) return;
-    const target = this.#nearestPreviewSourceElement(offsets);
+    const target = this.#previewDocument.nearestSourceElement(offsets);
     if (!target) return;
-    const previewBounds = this.#elements.previewScroll.getBoundingClientRect();
-    const targetBounds = target.getBoundingClientRect();
-    this.#elements.previewScroll.scrollTop += targetBounds.top + targetBounds.height / 2 - (previewBounds.top + previewBounds.height / 2);
-    this.#markPreviewSyncTarget(target);
+    this.#previewDocument.center(target);
+    this.#previewDocument.markSyncTarget(target);
   }
 
   #previewSyncAvailable(explicit: boolean): boolean {
@@ -2832,44 +2826,6 @@ class WorkspaceApp {
       this.#elements.workspaceSurfaces.dataset.layout === "split" &&
       this.#contextState.activeKey === RESEARCH_PREVIEW_KEY
     );
-  }
-
-  #nearestPreviewSourceElement(offsets: readonly number[] = []): HTMLElement | null {
-    const viewportCenter = this.#elements.previewScroll.getBoundingClientRect().top + this.#elements.previewScroll.clientHeight / 2;
-    const candidates = [...this.#elements.preview.querySelectorAll<HTMLElement>("[data-source-from][data-source-to]")]
-      .filter((element) => offsets.length === 0 || this.#previewElementContainsOffset(element, offsets))
-      .map((element) => {
-        const bounds = element.getBoundingClientRect();
-        return {
-          element,
-          distance: Math.abs(bounds.top + bounds.height / 2 - viewportCenter),
-          rangeLength: this.#previewSourceRangeLength(element),
-        };
-      });
-    candidates.sort((left, right) => left.distance - right.distance || left.rangeLength - right.rangeLength);
-    return candidates[0]?.element ?? null;
-  }
-
-  #previewElementContainsOffset(element: HTMLElement, offsets: readonly number[]): boolean {
-    const from = Number.parseInt(element.dataset.sourceFrom ?? "", 10);
-    const to = Number.parseInt(element.dataset.sourceTo ?? "", 10);
-    return Number.isSafeInteger(from) && Number.isSafeInteger(to) && offsets.some((offset) => offset >= from && offset < to);
-  }
-
-  #previewSourceRangeLength(element: HTMLElement): number {
-    const from = Number.parseInt(element.dataset.sourceFrom ?? "", 10);
-    const to = Number.parseInt(element.dataset.sourceTo ?? "", 10);
-    return Number.isSafeInteger(from) && Number.isSafeInteger(to) ? Math.max(0, to - from) : Number.POSITIVE_INFINITY;
-  }
-
-  #markPreviewSyncTarget(target: HTMLElement): void {
-    if (this.#previewSyncHighlightTimer !== undefined) window.clearTimeout(this.#previewSyncHighlightTimer);
-    this.#elements.preview.querySelector<HTMLElement>('[data-preview-sync-active="true"]')?.removeAttribute("data-preview-sync-active");
-    target.dataset.previewSyncActive = "true";
-    this.#previewSyncHighlightTimer = window.setTimeout(() => {
-      target.removeAttribute("data-preview-sync-active");
-      this.#previewSyncHighlightTimer = undefined;
-    }, 900);
   }
 
   #updateAnchorActions(links: Array<PassageLink | ClaimPassageLink>): void {
@@ -2941,7 +2897,7 @@ class WorkspaceApp {
     this.#rememberAuthoringSelection();
     this.#renderProjectFiles();
     this.#updateModelAvailability();
-    this.#elements.previewScroll.scrollTop = 0;
+    this.#previewDocument.resetScroll();
     void this.#renderPreview();
     this.#syncWorkspaceRoute("replace");
   }
@@ -3196,7 +3152,7 @@ class WorkspaceApp {
     const snapshot = this.#snapshot;
     if (!snapshot || snapshot.assets.length === 0) return;
     const matches = [...source.matchAll(/!\[[^\]\r\n]*\]\((?<path><[^>\r\n]+>|[^\s)\r\n]+)(?:[ \t]+(?:"[^"]*"|'[^']*'|\([^)]*\)))?\)/gu)];
-    const images = this.#elements.preview.querySelectorAll<HTMLImageElement>("img");
+    const images = this.#previewDocument.images();
     images.forEach((image, index) => this.#resolveProjectPreviewImage(image, matches[index], sourceMap, snapshot));
   }
 
@@ -4273,7 +4229,7 @@ class WorkspaceApp {
       },
       section: (id) => {
         this.#activateContext(RESEARCH_PREVIEW_KEY);
-        this.#elements.preview.querySelector<HTMLElement>(`#${CSS.escape(id)}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+        this.#previewDocument.scrollToAnchor(id);
       },
       annotation: (id) => {
         const annotation = this.#snapshot?.annotations.find((item) => item.id === id);
@@ -7091,10 +7047,8 @@ function collectElements(): Elements {
     contextTabStrip: requiredElement("context-tab-strip", ContextTabStrip),
     previewContextControls: requiredElement("preview-context-controls", PreviewContextStatus),
     previewNavigationControl: requiredElement("preview-navigation-control", PreviewNavigationControl),
-    previewScroll: requiredElement("preview-scroll", HTMLElement),
     publicationContextPanel: requiredElement("publication-context-panel", PublicationContextPanel),
     candidateReviewPanel: requiredElement("candidate-review-panel", CandidateReviewPanel),
-    preview: requiredElement("preview", HTMLElement),
     diagnostics: requiredElement("diagnostics", PreviewDiagnosticsPanel),
     connectionStatus: requiredElement("connection-status-panel", ConnectionStatus),
     editorStatus: requiredElement("editor-status", EditorStatus),
