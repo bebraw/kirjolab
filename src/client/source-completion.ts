@@ -6,9 +6,15 @@ export interface SourceCompletionOption {
   readonly value: string;
 }
 
-export type SourceCompletionAction = { readonly action: "accept"; readonly index: number } | { readonly action: "dismiss" };
+export type CitationCompletionScope = "library" | "project";
+
+export type SourceCompletionAction =
+  | { readonly action: "accept"; readonly index: number }
+  | { readonly action: "dismiss" }
+  | { readonly action: "scope-change"; readonly scope: CitationCompletionScope };
 
 export const sourceCompletionActionEvent = "source-completion-action";
+const scopeStorageKey = "kirjolab:citation-completion-scope";
 
 export class SourceCompletion extends LitElement {
   static override properties = {
@@ -19,11 +25,27 @@ export class SourceCompletion extends LitElement {
   declare private options: readonly SourceCompletionOption[];
   declare private selectedIndex: number;
   private source: HTMLTextAreaElement | null = null;
+  private scopeSelect: HTMLSelectElement | null = null;
+  private dismissTimer: number | undefined;
 
   constructor() {
     super();
     this.options = [];
     this.selectedIndex = 0;
+  }
+
+  get scope(): CitationCompletionScope {
+    return this.scopeSelect?.value === "library" ? "library" : "project";
+  }
+
+  bindEditor(source: HTMLTextAreaElement, scopeSelect: HTMLSelectElement): void {
+    this.unbindEditor();
+    this.source = source;
+    this.scopeSelect = scopeSelect;
+    scopeSelect.value = localStorage.getItem(scopeStorageKey) === "library" ? "library" : "project";
+    source.addEventListener("keydown", this.handleEditorKey);
+    source.addEventListener("blur", this.handleEditorBlur);
+    scopeSelect.addEventListener("change", this.handleScopeChange);
   }
 
   show(options: readonly SourceCompletionOption[], source: HTMLTextAreaElement): void {
@@ -68,6 +90,11 @@ export class SourceCompletion extends LitElement {
     super.connectedCallback();
   }
 
+  override disconnectedCallback(): void {
+    this.unbindEditor();
+    super.disconnectedCallback();
+  }
+
   protected override createRenderRoot(): HTMLElement {
     return this;
   }
@@ -105,6 +132,30 @@ export class SourceCompletion extends LitElement {
 
   protected emitAction(action: SourceCompletionAction): void {
     this.dispatchEvent(new CustomEvent<SourceCompletionAction>(sourceCompletionActionEvent, { bubbles: true, detail: action }));
+  }
+
+  private readonly handleEditorKey = (event: KeyboardEvent): void => {
+    this.handleKey(event);
+  };
+
+  private readonly handleEditorBlur = (): void => {
+    this.dismissTimer = window.setTimeout(() => this.emitAction({ action: "dismiss" }), 0);
+  };
+
+  private readonly handleScopeChange = (): void => {
+    const scope = this.scope;
+    localStorage.setItem(scopeStorageKey, scope);
+    this.emitAction({ action: "scope-change", scope });
+  };
+
+  private unbindEditor(): void {
+    this.source?.removeEventListener("keydown", this.handleEditorKey);
+    this.source?.removeEventListener("blur", this.handleEditorBlur);
+    this.scopeSelect?.removeEventListener("change", this.handleScopeChange);
+    if (this.dismissTimer !== undefined) window.clearTimeout(this.dismissTimer);
+    this.dismissTimer = undefined;
+    this.source = null;
+    this.scopeSelect = null;
   }
 }
 

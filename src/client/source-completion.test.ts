@@ -67,4 +67,39 @@ describe("source completion", () => {
     expect(completion.handleKey(key("Enter", true))).toBe(false);
     expect(actions).toEqual([{ action: "accept", index: 1 }, { action: "dismiss" }]);
   });
+
+  it("binds editor interaction and persisted citation scope", () => {
+    vi.useFakeTimers();
+    const storage = new Map([["kirjolab:citation-completion-scope", "library"]]);
+    vi.stubGlobal("localStorage", {
+      getItem: vi.fn((key: string) => storage.get(key) ?? null),
+      setItem: vi.fn((key: string, value: string) => storage.set(key, value)),
+    });
+    vi.stubGlobal("window", { clearTimeout, setTimeout });
+    const completion = new TestSourceCompletion();
+    const source = Object.assign(new EventTarget(), {
+      removeAttribute: vi.fn(),
+      setAttribute: vi.fn(),
+    }) as unknown as HTMLTextAreaElement;
+    const scope = Object.assign(new EventTarget(), { value: "project" }) as unknown as HTMLSelectElement;
+    const actions: SourceCompletionAction[] = [];
+    completion.addEventListener(sourceCompletionActionEvent, (event) => {
+      actions.push((event as CustomEvent<SourceCompletionAction>).detail);
+    });
+
+    completion.bindEditor(source, scope);
+    expect(completion.scope).toBe("library");
+    expect(scope.value).toBe("library");
+    completion.show([{ value: "paper", metadata: "Paper" }], source);
+    const enter = Object.assign(new Event("keydown", { cancelable: true }), { isComposing: false, key: "Enter" });
+    source.dispatchEvent(enter);
+    scope.value = "project";
+    scope.dispatchEvent(new Event("change"));
+    source.dispatchEvent(new Event("blur"));
+    vi.runAllTimers();
+
+    expect(localStorage.setItem).toHaveBeenCalledWith("kirjolab:citation-completion-scope", "project");
+    expect(actions).toEqual([{ action: "accept", index: 0 }, { action: "scope-change", scope: "project" }, { action: "dismiss" }]);
+    vi.useRealTimers();
+  });
 });

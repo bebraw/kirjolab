@@ -2956,3 +2956,26 @@ and unique production package counts remain unchanged at 135,411 B raw /
 
 Full native CI passes all 1,412 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Lit Ownership: Source Completion Interaction
+
+`SourceCompletion` now owns its editor keyboard and delayed-blur lifecycle in
+addition to option presentation, selection, and ARIA state. It restores and
+persists the browser-local citation suggestion scope and reports scope changes
+as typed intents. `WorkspaceApp` retains candidate generation, private-Library
+loading and linking, Yjs edits, caret restoration, and menu positioning.
+
+This checkpoint reduces `src/client/app.ts` from 6,938 to 6,926 lines (-12).
+The component grows from 119 to 170 lines to contain its reusable binding and
+cleanup lifecycle, for 39 additional runtime lines overall. Focused unit
+coverage passes persisted scope restoration, scope-change intents, keyboard
+acceptance, and delayed dismissal. The include-completion browser flow passes
+Enter and Tab acceptance through the bound editor lifecycle.
+
+The browser application artifact changes from 797,474 B raw / 214,991 B gzip
+to 798,193 B raw / 215,085 B gzip (+719 B raw / +94 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,413 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.

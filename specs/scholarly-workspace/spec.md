@@ -261,10 +261,11 @@ collaboration.
   transaction.
 - **Completion presentation:** One bounded light-DOM component owns citation
   and include option markup, hover and keyboard selection, active-descendant
-  state, selected-option scrolling, dismissal, and typed acceptance intents.
-  The workspace coordinator retains context detection, candidate ranking,
-  private-Library linking, collaborative edits, caret restoration, and menu
-  positioning.
+  state, selected-option scrolling, editor keyboard and blur binding, browser-
+  local citation-scope persistence, dismissal, and typed acceptance or scope-
+  change intents. The workspace coordinator retains context detection,
+  candidate ranking, private-Library linking, collaborative edits, caret
+  restoration, and menu positioning.
 - **Source citation action:** One bounded light-DOM control derives the citation
   context at the current source caret, owns action availability, and emits the
   resolved citation keys and locator. The workspace coordinator retains

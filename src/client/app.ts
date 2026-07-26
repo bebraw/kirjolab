@@ -413,7 +413,6 @@ const apiBase = `${catalogBase}/${workspaceId}`;
 const remoteOrigin = Symbol("remote");
 const offlineOrigin = Symbol("offline");
 const modelPreferencesStorageKey = "kirjolab:model-preferences";
-const citationCompletionScopeStorageKey = "kirjolab:citation-completion-scope";
 const deferredDeleteGraceMs = 6_000;
 
 interface ToastAction {
@@ -756,7 +755,6 @@ class WorkspaceApp {
 
   #bindUi(): void {
     this.#restoreModelPreferences();
-    this.#restoreCitationCompletionScope();
     this.#elements.toast.addEventListener(appToastActionEvent, () => {
       const action = this.#toastAction;
       this.#toastAction = null;
@@ -980,6 +978,7 @@ class WorkspaceApp {
     this.#bindSourceEditor(this.#source);
     this.#rememberAuthoringSelection();
     this.#elements.vimModeControl.bindEditor(this.#elements.source, this.#elements.sourceEditorShell);
+    this.#elements.sourceCompletion.bindEditor(this.#elements.source, this.#elements.citationCompletionScope);
     bindYText(this.#elements.bibliography, this.#bibliography, this.#document);
     for (const actions of [this.#elements.projectFileRailActions, this.#elements.projectFileMenuActions]) {
       actions.addEventListener(projectFileActionEvent, (event) => {
@@ -1013,19 +1012,13 @@ class WorkspaceApp {
       if (detail.action === "syntax") this.#insertSourceSyntax(detail.kind);
       else this.#insertProjectIncludeFromMenu(detail.relativePath, detail.path);
     });
-    this.#elements.citationCompletionScope.addEventListener("change", () => {
-      const scope = this.#elements.citationCompletionScope.value === "library" ? "library" : "project";
-      localStorage.setItem(citationCompletionScopeStorageKey, scope);
-      void this.#renderSourceCompletion();
-    });
-    this.#elements.source.addEventListener("keydown", (event) => this.#elements.sourceCompletion.handleKey(event));
     this.#elements.sourceCompletion.addEventListener(sourceCompletionActionEvent, (event) => {
       const detail = (event as CustomEvent<SourceCompletionAction>).detail;
       if (detail.action === "dismiss") this.#hideSourceCompletion();
+      else if (detail.action === "scope-change") void this.#renderSourceCompletion();
       else if (this.#sourceCompletionKind === "citation") void this.#acceptCitationCompletion(detail.index);
       else if (this.#sourceCompletionKind === "include") this.#acceptIncludeCompletion(detail.index);
     });
-    this.#elements.source.addEventListener("blur", () => window.setTimeout(() => this.#hideSourceCompletion(), 0));
     this.#elements.authoringModeTabs.addEventListener(authoringModeChangeEvent, (event) => {
       this.#setAuthoringMode((event as CustomEvent<AuthoringMode>).detail);
     });
@@ -4644,11 +4637,6 @@ class WorkspaceApp {
     return this.#snapshot?.publications.find((publication) => publication.citationKey.toLocaleLowerCase() === normalized);
   }
 
-  #restoreCitationCompletionScope(): void {
-    this.#elements.citationCompletionScope.value =
-      localStorage.getItem(citationCompletionScopeStorageKey) === "library" ? "library" : "project";
-  }
-
   async #renderSourceCompletion(): Promise<void> {
     if (appMode !== "workspace" || document.activeElement !== this.#elements.source) {
       this.#hideSourceCompletion();
@@ -4701,7 +4689,7 @@ class WorkspaceApp {
       this.#hideSourceCompletion();
       return;
     }
-    if (this.#elements.citationCompletionScope.value === "library" && !this.#librarySnapshot && !this.#citationLibraryLoading) {
+    if (this.#elements.sourceCompletion.scope === "library" && !this.#librarySnapshot && !this.#citationLibraryLoading) {
       const request = ++this.#citationLibraryRequest;
       this.#citationLibraryLoading = true;
       void this.#loadCitationCompletionLibrary(request);
@@ -4754,7 +4742,7 @@ class WorkspaceApp {
       scope: "project" as const,
       referenceId: reference.referenceId,
     }));
-    if (this.#elements.citationCompletionScope.value !== "library" || !this.#librarySnapshot) return projectCandidates;
+    if (this.#elements.sourceCompletion.scope !== "library" || !this.#librarySnapshot) return projectCandidates;
     const linked = new Set(snapshot.projectReferences.map((reference) => reference.referenceId));
     return [
       ...projectCandidates,
