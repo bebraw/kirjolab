@@ -4,7 +4,7 @@ import { collectAppElements } from "./app-elements";
 import { bibTeXDisplayText } from "../domain/bibliography";
 import { buildWorkspaceKnowledgeGraph } from "../domain/knowledge";
 import type { ReferenceDiscoveryResult } from "../domain/reference-discovery";
-import { reviewerResponseLetter, reviewerResponsePath, reviewerResponseTemplate } from "../domain/reviewer-response";
+import { reviewerResponsePath, reviewerResponseTemplate } from "../domain/reviewer-response";
 import {
   collaborationProtocolVersion,
   encodeClientSelectionMessage,
@@ -1699,20 +1699,13 @@ class WorkspaceApp {
     await this.#createWorkflowFile(reviewerResponsePath, reviewerResponseTemplate());
   }
 
-  #downloadReviewerResponse(): void {
-    const file = this.#previewProjectFiles().find((candidate) => candidate.path === reviewerResponsePath);
-    if (!file) return;
-    downloadTextFile("response-to-reviewers.md", reviewerResponseLetter(file.content));
-    this.#showToast("Response letter exported.");
-  }
-
   async #handleWritingWorkflowAction(detail: WritingWorkflowActionDetail): Promise<void> {
     if (detail.action === "select") {
       this.#focusProjectRange(detail.fileId, detail.from, detail.to);
       return;
     }
-    if (detail.action === "download") {
-      this.#downloadReviewerResponse();
+    if (detail.action === "notice") {
+      this.#showToast(detail.message);
       return;
     }
     if (detail.kind === "research-questions") await this.#openResearchQuestions();
@@ -3864,15 +3857,6 @@ function researchTabRouteLocation(tab: ResearchContextState["tabs"][number] | un
   if (tab?.kind !== "pdf" && tab?.kind !== "library-pdf") return {};
   if (tab.kind === "pdf" && tab.focusedAnnotationId) return { page: tab.page, annotationId: tab.focusedAnnotationId };
   return { page: tab.page };
-}
-
-function downloadTextFile(name: string, content: string): void {
-  const href = URL.createObjectURL(new Blob([content], { type: "text/markdown;charset=utf-8" }));
-  const link = document.createElement("a");
-  link.href = href;
-  link.download = name;
-  link.click();
-  URL.revokeObjectURL(href);
 }
 
 function selectionRectsOverlap(left: PdfSelectionRect, right: PdfSelectionRect): boolean {

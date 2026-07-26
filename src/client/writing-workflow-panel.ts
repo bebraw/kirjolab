@@ -1,7 +1,7 @@
 import { html, LitElement, type TemplateResult } from "lit";
 import type { ProjectFile } from "../domain/project-files";
 import { parseResearchQuestions } from "../domain/research-questions";
-import { parseReviewerResponses } from "../domain/reviewer-response";
+import { parseReviewerResponses, reviewerResponseLetter } from "../domain/reviewer-response";
 
 export type WritingWorkflowKind = "research-questions" | "reviewer-responses";
 
@@ -14,13 +14,15 @@ export interface WritingWorkflowItem {
 }
 
 export interface WritingWorkflowData {
+  readonly letter: string | null;
   readonly fileId: string | null;
   readonly items: readonly WritingWorkflowItem[];
   readonly kind: WritingWorkflowKind;
 }
 
 export type WritingWorkflowActionDetail =
-  | { readonly action: "open" | "download"; readonly kind: WritingWorkflowKind }
+  | { readonly action: "notice"; readonly message: string }
+  | { readonly action: "open"; readonly kind: WritingWorkflowKind }
   | {
       readonly action: "select";
       readonly fileId: string;
@@ -34,6 +36,7 @@ export const writingWorkflowActionEvent = "writing-workflow-action";
 export function researchQuestionWorkflowData(file: ProjectFile | undefined): WritingWorkflowData {
   const questions = file ? parseResearchQuestions(file.content) : [];
   return {
+    letter: null,
     fileId: file?.id ?? null,
     items: questions.map((question) => ({
       from: question.from,
@@ -49,6 +52,7 @@ export function researchQuestionWorkflowData(file: ProjectFile | undefined): Wri
 export function reviewerResponseWorkflowData(file: ProjectFile | undefined): WritingWorkflowData {
   const responses = file ? parseReviewerResponses(file.content) : [];
   return {
+    letter: file ? reviewerResponseLetter(file.content) : null,
     fileId: file?.id ?? null,
     items: responses.map((response) => ({
       from: response.from,
@@ -70,7 +74,7 @@ export class WritingWorkflowPanel extends LitElement {
 
   constructor() {
     super();
-    this.data = { fileId: null, items: [], kind: "research-questions" };
+    this.data = { fileId: null, items: [], kind: "research-questions", letter: null };
   }
 
   setData(data: WritingWorkflowData): void {
@@ -120,16 +124,23 @@ export class WritingWorkflowPanel extends LitElement {
     `;
   }
 
-  protected request(action: "open" | "download"): void {
-    this.dispatchAction({ action, kind: this.data.kind });
-  }
-
   protected open(): void {
-    this.request("open");
+    this.dispatchAction({ action: "open", kind: this.data.kind });
   }
 
   protected download(): void {
-    this.request("download");
+    if (!this.data.letter) return;
+    this.downloadFile("response-to-reviewers.md", this.data.letter);
+    this.dispatchAction({ action: "notice", message: "Response letter exported." });
+  }
+
+  protected downloadFile(name: string, content: string): void {
+    const href = URL.createObjectURL(new Blob([content], { type: "text/markdown;charset=utf-8" }));
+    const link = document.createElement("a");
+    link.href = href;
+    link.download = name;
+    link.click();
+    URL.revokeObjectURL(href);
   }
 
   protected select(item: WritingWorkflowItem): void {

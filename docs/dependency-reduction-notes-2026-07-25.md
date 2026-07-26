@@ -5705,6 +5705,28 @@ component members.
 Full native CI passes all 1,583 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Reviewer-Response Export
+
+`WritingWorkflowPanel` now derives the response-to-reviewers letter from its
+supplied canonical matrix and owns the browser-local Markdown download behind
+its own Export control. It emits only the resulting notice; `WorkspaceApp`
+retains workflow-file creation, source navigation, and toast policy.
+
+This checkpoint reduces `src/client/app.ts` from 3,913 to 3,897 lines (-16).
+Production source across the app and component decreases by five lines. The
+focused test grows from 110 to 118 lines (+8) to assert the new download boundary,
+for a three-line increase across all three files. Three focused and five affected
+tests pass alongside strict types.
+
+The browser application artifact changes from 823,008 B raw / 222,848 B gzip
+to 823,042 B raw / 222,819 B gzip (+34 B raw / -29 B gzip). Styles, direct and
+unique production package counts, and the readability audit remain unchanged
+at 135,411 B raw / 23,373 B gzip, 18, 150, and 249 externally visible low-level
+component members.
+
+Full native CI passes all 1,583 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Source Completion Library Loading
 
 `SourceCompletion` now owns its private-Library request, response validation,

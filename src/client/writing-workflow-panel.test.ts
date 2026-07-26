@@ -27,6 +27,8 @@ const file: ProjectFile = {
 };
 
 class TestWritingWorkflowPanel extends WritingWorkflowPanel {
+  downloads: { content: string; name: string }[] = [];
+
   renderForTest() {
     return this.render();
   }
@@ -37,6 +39,10 @@ class TestWritingWorkflowPanel extends WritingWorkflowPanel {
 
   downloadForTest(): void {
     this.download();
+  }
+
+  protected override downloadFile(name: string, content: string): void {
+    this.downloads.push({ content, name });
   }
 
   rootForTest(): HTMLElement {
@@ -69,24 +75,25 @@ describe("writing workflow presentation", () => {
     expect(reviewerResponseWorkflowData(undefined).items).toEqual([]);
     expect(questions.items[0]).toMatchObject({ id: "RQ1", label: "What changed?", meta: "active · 1s · 1c" });
     expect(responses.items[0]).toMatchObject({ id: "R1.1", label: "Clarify the result", meta: "addressed · 1 links" });
+    expect(responses.letter).toContain("# Response to reviewers");
   });
 
   it("renders missing, empty, and populated workflow states", () => {
     const panel = new TestWritingWorkflowPanel();
     expect(panel.renderForTest()).toBeDefined();
-    panel.setData({ fileId: null, items: [], kind: "reviewer-responses" });
+    panel.setData({ fileId: null, items: [], kind: "reviewer-responses", letter: null });
     expect(panel.renderForTest()).toBeDefined();
-    panel.setData({ fileId: "questions", items: [], kind: "research-questions" });
+    panel.setData({ fileId: "questions", items: [], kind: "research-questions", letter: null });
     expect(panel.renderForTest()).toBeDefined();
-    panel.setData({ fileId: "responses", items: [], kind: "reviewer-responses" });
+    panel.setData({ fileId: "responses", items: [], kind: "reviewer-responses", letter: "letter" });
     expect(panel.renderForTest()).toBeDefined();
-    panel.setData({ fileId: "questions", items: [item], kind: "research-questions" });
+    panel.setData({ fileId: "questions", items: [item], kind: "research-questions", letter: null });
     expect(panel.renderForTest()).toBeDefined();
-    panel.setData({ fileId: "responses", items: [{ ...item, id: "R1.1" }], kind: "reviewer-responses" });
+    panel.setData({ fileId: "responses", items: [{ ...item, id: "R1.1" }], kind: "reviewer-responses", letter: "letter" });
     expect(panel.renderForTest()).toBeDefined();
   });
 
-  it("emits open, download, and bounded selection intents", () => {
+  it("owns download and emits open, notice, and bounded selection intents", () => {
     const panel = new TestWritingWorkflowPanel();
     const actions: WritingWorkflowActionDetail[] = [];
     panel.addEventListener(writingWorkflowActionEvent, (event) => {
@@ -94,7 +101,7 @@ describe("writing workflow presentation", () => {
     });
 
     panel.selectForTest(item);
-    panel.setData({ fileId: "responses", items: [item], kind: "reviewer-responses" });
+    panel.setData({ fileId: "responses", items: [item], kind: "reviewer-responses", letter: "letter" });
     panel.openForTest();
     panel.downloadForTest();
     panel.selectEventForTest("0");
@@ -102,9 +109,10 @@ describe("writing workflow presentation", () => {
 
     expect(actions).toEqual([
       { action: "open", kind: "reviewer-responses" },
-      { action: "download", kind: "reviewer-responses" },
+      { action: "notice", message: "Response letter exported." },
       { action: "select", fileId: "responses", from: 10, kind: "reviewer-responses", to: 30 },
     ]);
+    expect(panel.downloads).toEqual([{ content: "letter", name: "response-to-reviewers.md" }]);
     expect(panel.rootForTest()).toBe(panel);
   });
 });

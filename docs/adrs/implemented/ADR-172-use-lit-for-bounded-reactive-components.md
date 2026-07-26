@@ -70,8 +70,9 @@ The adopted components own bounded presentation:
   typed open intent. The application coordinator retains revision authority,
   toast presentation, and browser navigation policy.
 - Reused writing-workflow panels own research-question and reviewer-response
-  Markdown-to-item adaptation, counts, empty states, action labels, and typed
-  open, download, and source-selection intents.
+  Markdown-to-item adaptation, counts, empty states, action labels, reviewer-
+  response letter derivation and browser download, and typed open, notice, and
+  source-selection outcomes.
 - The assistant result panel owns validated-table previews, clarity input,
   transient revision choices and their captured passage, source-revision,
   evidence, provider-continuation, or table-target context, table generation and
@@ -454,10 +455,11 @@ reason to wrap static markup mechanically.
   methods while leaving toast, reload, and navigation outcomes in the
   application coordinator.
 - The writing-workflow panels replace five internal element references and two
-  parallel imperative list renderers while leaving workflow-template choice,
-  response export, and source navigation in the application coordinator. The
-  shared project-file owner performs their content-bearing file creation and
-  created-path verification.
+  parallel imperative list renderers. The reviewer-response panel also replaces
+  the coordinator's response-letter derivation and download helper while
+  leaving workflow-template choice, source navigation, and toast policy in the
+  application coordinator. The shared project-file owner performs their
+  content-bearing file creation and created-path verification.
 - The assistant result panel replaces six imperative result renderers and their
   local event bindings. It also removes the coordinator's parallel transient-
   result discriminator and context cache by emitting the context retained with

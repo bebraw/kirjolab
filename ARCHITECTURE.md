@@ -573,6 +573,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Keep the native textarea as the only manuscript input surface. Derive syntax
   highlighting into an inert, text-identical presentation layer so styling
   cannot change canonical Markdown, selection offsets, or collaboration.
+- Let the bounded writing-workflow panel derive and download the reviewer-
+  response letter from its supplied canonical matrix. Emit only the resulting
+  notice; keep workflow-file creation, source navigation, and toast policy in
+  the application coordinator.
 - Keep native-textarea infrastructure in a bounded browser adapter that owns
   Yjs synchronization and history, highlight and presence mirroring, completion
   geometry, relative selections, and optional keymap binding. The application
