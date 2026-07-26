@@ -83,8 +83,11 @@ The adopted components own bounded presentation:
   mode visibility, focus entry, and one typed resource-selection stream; and
   exposes one graph-presentation boundary to the application coordinator.
 - The candidate review panel owns before/after and provenance rendering,
-  live collaboration and workflow decision availability, progress, local
-  scroll state, and typed apply, reject, and evidence-navigation intents.
+  live collaboration and workflow decision availability, decision gating,
+  encoded apply and reject transport, retryable same-candidate failure state,
+  progress, local scroll state, and typed decision-start, completed-decision,
+  and evidence-navigation outcomes. The coordinator retains assistant workflow
+  transitions, canonical refresh, tab movement, and notification policy.
 - The publication context panel owns scholarly metadata, linked-paper and
   project-PDF option rendering, citation readiness, local scroll state, and
   explicit project-PDF link and unlink transport, duplicate-submit gating,
@@ -427,8 +430,10 @@ reason to wrap static markup mechanically.
   graph acquisition, resource navigation, editor visibility, and URL policy.
 - The candidate review panel replaces thirteen internal element references and
   the coordinator's candidate-copy, status, evidence, and action renderers while
-  leaving applicability checks, workflow transitions, canonical mutations, and
-  evidence navigation in the application coordinator.
+  also replacing candidate-decision availability branches, the apply/reject
+  request, and retryable local failure reconstruction. It leaves applicability
+  derivation, workflow transitions, canonical refresh, tab movement,
+  notification policy, and evidence navigation in the application coordinator.
 - The publication context panel replaces eight internal element references and
   imperative metadata, paper-row, and link-form renderers plus two coordinator
   relationship-mutation methods while leaving manuscript insertion, PDF

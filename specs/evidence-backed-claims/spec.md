@@ -81,6 +81,10 @@ must show where a claim enters authored prose.
 - [x] The bounded candidate-list owner persists typed claim drafts with its
       fixed provider adapter and prompt version, validates that the response is
       a claim-draft candidate, and returns it for canonical refresh and review.
+- [x] The bounded candidate-review owner gates apply or reject from current
+      applicability and collaboration state, owns encoded decision transport
+      and retryable local failures, and emits typed start and completion outcomes
+      for cross-feature workflow transitions and canonical refresh.
 
 ### Regression Guardrails
 

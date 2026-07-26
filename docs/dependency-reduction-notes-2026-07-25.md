@@ -4791,3 +4791,28 @@ and unique production package counts remain unchanged at 135,411 B raw /
 
 Full native CI passes all 1,552 unit/coverage tests, 120 Workers-
 runtime tests, and 74 browser tests.
+
+## Continued Lit Ownership: Candidate Decisions
+
+`CandidateReviewPanel` now owns apply/reject gating from its current candidate,
+applicability, stable-document, pending, and busy state. It emits a typed start
+outcome, sends the encoded decision request, preserves retryable local failure
+copy across refreshes of the same pending candidate, and emits a typed completed
+outcome. `WorkspaceApp` retains the assistant workflow actor, canonical refresh,
+tab movement, success and failure toasts, and evidence navigation.
+
+This checkpoint reduces `src/client/app.ts` from 4,684 to 4,670 lines (-14) and
+grows the candidate review owner from 219 to 278 lines. Runtime source across
+those two files increases by 45 lines while removing coordinator eligibility,
+request, active-candidate forwarding, and local failure-reconstruction branches.
+Focused coverage passes encoded decision targets, completed and failed outcomes,
+same-candidate failure preservation, retry, gating intents, remaining rendering
+and evidence navigation, application contracts, and strict types.
+
+The browser application artifact changes from 822,390 B raw / 221,846 B gzip
+to 822,763 B raw / 221,993 B gzip (+373 B raw / +147 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,554 unit/coverage tests, 120 Workers-
+runtime tests, and 74 browser tests.

@@ -120,7 +120,13 @@ import {
   type AssistantResultActionDetail,
   type AssistantRevisionContext as AssistantDraftContext,
 } from "./assistant-result-panel";
-import { candidateDecisionEvent, candidateEvidenceEvent } from "./candidate-review-panel";
+import {
+  candidateDecisionEvent,
+  candidateDecisionOutcomeEvent,
+  candidateEvidenceEvent,
+  type CandidateDecisionOutcome,
+  type CandidateDecisionRequest,
+} from "./candidate-review-panel";
 import { publicationContextActionEvent, type PublicationContextAction, type PublicationPaperOption } from "./publication-context-panel";
 import {
   defaultProjectPublicationProfile,
@@ -988,8 +994,15 @@ class WorkspaceApp {
         if (publication) this.#openPublicationContext(publication);
       } else void this.#completePublicationIntake(detail.doi, detail.requestId);
     });
+    this.#elements.candidateReviewPanel.configure(apiBase);
     this.#elements.candidateReviewPanel.addEventListener(candidateDecisionEvent, (event) => {
-      void this.#updateActiveCandidate((event as CustomEvent<"apply" | "reject">).detail);
+      const detail = (event as CustomEvent<CandidateDecisionRequest>).detail;
+      this.#assistantWorkflow.send({ type: "DECIDE", id: detail.candidateId, action: detail.action });
+      this.#renderResearchContext(false);
+      this.#updateModelAvailability();
+    });
+    this.#elements.candidateReviewPanel.addEventListener(candidateDecisionOutcomeEvent, (event) => {
+      void this.#completeCandidateRequest((event as CustomEvent<CandidateDecisionOutcome>).detail);
     });
     this.#elements.candidateReviewPanel.addEventListener(candidateEvidenceEvent, (event) => {
       const evidence = (event as CustomEvent<ModelEvidence>).detail;
@@ -3907,36 +3920,24 @@ class WorkspaceApp {
     this.#openCandidateContext(this.#snapshot?.candidates.find((item) => item.id === value.id) ?? value);
   }
 
-  async #updateCandidate(candidateId: string, action: "apply" | "reject"): Promise<void> {
-    if (assistantWorkflowBusy(this.#assistantWorkflow.getSnapshot())) return;
-    const candidate = this.#snapshot?.candidates.find((item) => item.id === candidateId);
-    if (!this.#candidateDecisionAllowed(action, candidate)) {
-      this.#showToast("Wait for the manuscript to finish synchronizing before applying a candidate.");
-      return;
-    }
-    this.#assistantWorkflow.send({ type: "DECIDE", id: candidateId, action });
-    this.#renderResearchContext(false);
-    this.#updateModelAvailability();
-    let failure: string | null = null;
-    try {
-      const response = await fetch(`${apiBase}/candidates/${candidateId}/${action}`, { method: "POST" });
-      await expectOk(response);
-      await this.#resourceRefresh.request();
-      if (action === "reject") this.#contextState = activateResearchTab(this.#contextState, RESEARCH_ASSISTANT_KEY);
-      this.#showToast(this.#candidateDecisionMessage(action, candidate?.operation === "draft-claim"));
-    } catch (error) {
-      failure = error instanceof Error ? error.message : "Candidate decision failed";
+  async #completeCandidateRequest(detail: CandidateDecisionOutcome): Promise<void> {
+    const candidate = this.#snapshot?.candidates.find((item) => item.id === detail.candidateId);
+    let failure = detail.failure;
+    if (failure) {
       await this.#resourceRefresh.request().catch(() => undefined);
       this.#showToast(failure);
-    } finally {
-      this.#completeCandidateDecision(candidateId, action, failure);
+    } else {
+      try {
+        await this.#resourceRefresh.request();
+        if (detail.action === "reject") this.#contextState = activateResearchTab(this.#contextState, RESEARCH_ASSISTANT_KEY);
+        this.#showToast(this.#candidateDecisionMessage(detail.action, candidate?.operation === "draft-claim"));
+      } catch (error) {
+        failure = error instanceof Error ? error.message : "Candidate decision failed";
+        await this.#resourceRefresh.request().catch(() => undefined);
+        this.#showToast(failure);
+      }
     }
-  }
-
-  #candidateDecisionAllowed(action: "apply" | "reject", candidate: ModelCandidate | undefined): boolean {
-    if (action === "reject") return true;
-    if (candidate?.operation === "draft-claim") return true;
-    return this.#hasStableDocumentBase();
+    this.#completeCandidateDecision(detail.action, failure);
   }
 
   #candidateDecisionMessage(action: "apply" | "reject", draftsClaim: boolean): string {
@@ -3944,26 +3945,11 @@ class WorkspaceApp {
     return draftsClaim ? "Claim draft rejected; no claim created." : "Candidate rejected; manuscript unchanged.";
   }
 
-  #completeCandidateDecision(candidateId: string, action: "apply" | "reject", failure: string | null): void {
+  #completeCandidateDecision(action: "apply" | "reject", failure: string | null): void {
     this.#assistantWorkflow.send(failure ? { type: "DECISION_FAILED", message: failure } : { type: "DECISION_DONE" });
     this.#renderResearchContext(false);
     this.#updateModelAvailability();
     if (!failure && action === "reject") this.#focusContextTab(RESEARCH_ASSISTANT_KEY);
-    if (failure) this.#showCandidateDecisionFailure(candidateId, action, failure);
-  }
-
-  #showCandidateDecisionFailure(candidateId: string, action: "apply" | "reject", failure: string): void {
-    const current = this.#snapshot?.candidates.find((candidate) => candidate.id === candidateId);
-    if (current?.status !== "pending" || this.#activeResourceTab()?.id !== candidateId) return;
-    const verb = action === "apply" ? "apply" : "reject";
-    const subject = current.operation === "draft-claim" ? "claim draft" : "revision";
-    this.#elements.candidateReviewPanel.showFailure(`Could not ${verb} ${subject}: ${failure}`);
-  }
-
-  async #updateActiveCandidate(action: "apply" | "reject"): Promise<void> {
-    const tab = this.#activeResourceTab();
-    if (tab?.kind !== "candidate") return;
-    await this.#updateCandidate(tab.id, action);
   }
 
   async #showPaper(pdf: PdfResource, page?: number, focusAnnotationId?: string): Promise<void> {

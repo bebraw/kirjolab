@@ -1,8 +1,23 @@
 import { html, LitElement, nothing, type TemplateResult } from "lit";
 import type { ModelCandidate, ModelEvidence } from "../domain/workspace";
+import { errorMessage, expectOk } from "./http";
 
 export const candidateDecisionEvent = "candidate-decision";
+export const candidateDecisionOutcomeEvent = "candidate-decision-outcome";
 export const candidateEvidenceEvent = "candidate-evidence";
+
+export type CandidateDecision = "apply" | "reject";
+
+export interface CandidateDecisionRequest {
+  readonly action: CandidateDecision;
+  readonly candidateId: string;
+}
+
+export interface CandidateDecisionOutcome {
+  readonly action: CandidateDecision;
+  readonly candidateId: string;
+  readonly failure: string | null;
+}
 
 export interface CandidateReviewData {
   readonly applicable: boolean;
@@ -21,6 +36,7 @@ export class CandidateReviewPanel extends LitElement {
 
   declare private data: CandidateReviewData | null;
   declare private failure: string | null;
+  private apiBase = "";
 
   constructor() {
     super();
@@ -29,8 +45,12 @@ export class CandidateReviewPanel extends LitElement {
   }
 
   setCandidate(data: CandidateReviewData): void {
+    if (this.data?.candidate.id !== data.candidate.id || data.candidate.status !== "pending") this.failure = null;
     this.data = data;
-    this.failure = null;
+  }
+
+  configure(apiBase: string): void {
+    this.apiBase = apiBase;
   }
 
   setAvailability(stableDocument: boolean, decisionBusy: boolean): void {
@@ -40,6 +60,28 @@ export class CandidateReviewPanel extends LitElement {
 
   showFailure(message: string): void {
     this.failure = message;
+  }
+
+  async decide(action: CandidateDecision): Promise<void> {
+    const candidate = this.data?.candidate;
+    if (!candidate) return;
+    this.failure = null;
+    let failure: string | null = null;
+    try {
+      const response = await fetch(`${this.apiBase}/candidates/${encodeURIComponent(candidate.id)}/${action}`, { method: "POST" });
+      await expectOk(response);
+    } catch (error) {
+      failure = errorMessage(error, "Candidate decision failed");
+      const verb = action === "apply" ? "apply" : "reject";
+      const subject = candidate.operation === "draft-claim" ? "claim draft" : "revision";
+      this.failure = `Could not ${verb} ${subject}: ${failure}`;
+    }
+    this.dispatchEvent(
+      new CustomEvent<CandidateDecisionOutcome>(candidateDecisionOutcomeEvent, {
+        bubbles: true,
+        detail: { action, candidateId: candidate.id, failure },
+      }),
+    );
   }
 
   get scrollPosition(): number {
@@ -150,17 +192,34 @@ ${candidate
   }
 
   protected apply(): void {
-    this.dispatchEvent(new CustomEvent(candidateDecisionEvent, { bubbles: true, composed: true, detail: "apply" }));
+    this.startDecision("apply");
   }
 
   protected reject(): void {
-    this.dispatchEvent(new CustomEvent(candidateDecisionEvent, { bubbles: true, composed: true, detail: "reject" }));
+    this.startDecision("reject");
   }
 
   protected openEvidence(event: Event): void {
     const id = (event.currentTarget as HTMLButtonElement).dataset.evidenceId;
     const evidence = this.data?.candidate.evidence.find((item) => item.id === id);
     if (evidence) this.dispatchEvent(new CustomEvent(candidateEvidenceEvent, { bubbles: true, composed: true, detail: evidence }));
+  }
+
+  private startDecision(action: CandidateDecision): void {
+    const data = this.data;
+    const candidate = data?.candidate;
+    if (
+      !data ||
+      !candidate ||
+      data.decisionBusy ||
+      candidate.status !== "pending" ||
+      (action === "apply" && (!data.applicable || (candidate.operation !== "draft-claim" && !data.stableDocument)))
+    ) {
+      return;
+    }
+    const detail: CandidateDecisionRequest = { action, candidateId: candidate.id };
+    this.dispatchEvent(new CustomEvent<CandidateDecisionRequest>(candidateDecisionEvent, { bubbles: true, composed: true, detail }));
+    void this.decide(action);
   }
 
   private candidateMeta(candidate: ModelCandidate): string {

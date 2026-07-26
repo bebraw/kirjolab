@@ -271,6 +271,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   drafts, derive fixed adapter and prompt-version fields, and validate the
   operation-specific response. Keep authorized target and evidence derivation,
   canonical refresh, context navigation, and workflow status in the coordinator.
+  Let the candidate-review Lit owner gate decisions from its current candidate,
+  applicability, document-stability, and busy state; own encoded apply/reject
+  transport and retryable same-candidate failures; and emit typed start and
+  completed outcomes. Keep cross-feature workflow transitions, canonical refresh,
+  tab movement, and toast policy in the coordinator.
   Let reference-discovery cards use the shared CSL projection and import adapter
   while owning duplicate-submit gating, local retryable failures, and refresh-
   pending state; retain canonical Library refresh and cross-panel workflow status

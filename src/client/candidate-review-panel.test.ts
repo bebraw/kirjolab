@@ -1,6 +1,14 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ModelAnnotationEvidence, ModelCandidate, ModelEvidence } from "../domain/workspace";
-import { CandidateReviewPanel, candidateDecisionEvent, candidateEvidenceEvent, type CandidateReviewData } from "./candidate-review-panel";
+import {
+  CandidateReviewPanel,
+  candidateDecisionEvent,
+  candidateDecisionOutcomeEvent,
+  candidateEvidenceEvent,
+  type CandidateDecisionOutcome,
+  type CandidateDecisionRequest,
+  type CandidateReviewData,
+} from "./candidate-review-panel";
 
 const annotation: ModelAnnotationEvidence = {
   comment: "",
@@ -81,6 +89,10 @@ function data(candidate: ModelCandidate = revision, overrides: Partial<Candidate
   };
 }
 
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
 describe("candidate review panel", () => {
   it("renders empty, revision, busy, stale, and failure states", () => {
     const panel = new TestCandidateReviewPanel();
@@ -122,9 +134,9 @@ describe("candidate review panel", () => {
 
   it("emits decision and available evidence intents", () => {
     const panel = new TestCandidateReviewPanel();
-    const decisions: string[] = [];
+    const decisions: CandidateDecisionRequest[] = [];
     const evidence: ModelEvidence[] = [];
-    panel.addEventListener(candidateDecisionEvent, (event) => decisions.push((event as CustomEvent<string>).detail));
+    panel.addEventListener(candidateDecisionEvent, (event) => decisions.push((event as CustomEvent<CandidateDecisionRequest>).detail));
     panel.addEventListener(candidateEvidenceEvent, (event) => evidence.push((event as CustomEvent<ModelEvidence>).detail));
     panel.setCandidate(data());
 
@@ -134,8 +146,50 @@ describe("candidate review panel", () => {
     panel.openForTest("missing");
     panel.openForTest("annotation:1");
 
-    expect(decisions).toEqual(["apply", "reject"]);
+    expect(decisions).toEqual([
+      { action: "apply", candidateId: revision.id },
+      { action: "reject", candidateId: revision.id },
+    ]);
     expect(evidence).toEqual([annotation]);
+  });
+
+  it("owns encoded decision transport and emits completed outcomes", async () => {
+    const panel = new TestCandidateReviewPanel();
+    const outcomes: CandidateDecisionOutcome[] = [];
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 200 }));
+    panel.configure("/api/workspaces/workspace");
+    panel.setCandidate(data({ ...revision, id: "candidate/1" }));
+    panel.addEventListener(candidateDecisionOutcomeEvent, (event) => {
+      outcomes.push((event as CustomEvent<CandidateDecisionOutcome>).detail);
+    });
+
+    await panel.decide("apply");
+
+    expect(fetchMock).toHaveBeenCalledWith("/api/workspaces/workspace/candidates/candidate%2F1/apply", { method: "POST" });
+    expect(outcomes).toEqual([{ action: "apply", candidateId: "candidate/1", failure: null }]);
+  });
+
+  it("keeps decision failures local across same-candidate refresh and permits retry", async () => {
+    const panel = new TestCandidateReviewPanel();
+    const outcomes: CandidateDecisionOutcome[] = [];
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(Response.json({ error: "Denied" }, { status: 403 }))
+      .mockResolvedValueOnce(new Response(null, { status: 200 }));
+    panel.configure("/api/workspaces/workspace");
+    panel.setCandidate(data());
+    panel.addEventListener(candidateDecisionOutcomeEvent, (event) => {
+      outcomes.push((event as CustomEvent<CandidateDecisionOutcome>).detail);
+    });
+
+    await panel.decide("reject");
+    panel.setCandidate(data());
+    expect(panel.renderForTest()).toBeDefined();
+    await panel.decide("reject");
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(outcomes[0]).toEqual({ action: "reject", candidateId: revision.id, failure: "Denied" });
+    expect(outcomes[1]).toEqual({ action: "reject", candidateId: revision.id, failure: null });
   });
 
   it("owns its nested scroll position", () => {
