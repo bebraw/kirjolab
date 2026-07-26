@@ -5370,6 +5370,28 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,580 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Coordinator Simplification: Resource Refresh Notices
+
+`WorkspaceApp` now routes seven mutation-completion paths through one canonical
+coalesced resource-refresh and success-or-failure notice helper. Comment,
+project-evidence, highlight, publication, claim, claim-dialog, and linked-paper
+outcomes keep their feature-specific wording without maintaining parallel
+promise chains.
+
+This checkpoint reduces `src/client/app.ts` from 4,125 to 4,110 lines (-15),
+deleting 32 coordinator lines while adding 17. The affected gate passes strict
+types and all 1,580 unit/coverage tests; its first sandboxed run reached the
+same suite but the real loopback model-companion boundary was denied local
+`listen` permission, then passed under the native test permission profile.
+
+The browser application artifact changes from 824,834 B raw / 222,999 B gzip
+to 824,567 B raw / 223,011 B gzip (-267 B raw / +12 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,580 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Assistant Evidence Projection
 
 `AssistantWorkflowStatus` now resolves its ordered selected evidence keys

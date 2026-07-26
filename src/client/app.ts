@@ -741,11 +741,7 @@ class WorkspaceApp {
       const detail = (event as CustomEvent<ManuscriptCommentAction>).detail;
       if (detail.action === "open") this.#showPassage(detail.anchor);
       else if (detail.action === "reanchor") void this.#reanchorManuscriptComment(detail.commentId);
-      else
-        void this.#resourceRefresh
-          .request()
-          .then(() => this.#showToast(detail.message))
-          .catch(() => this.#showToast("The comment was resolved, but project resources could not be refreshed."));
+      else this.#refreshResourcesWithNotice(detail.message, "The comment was resolved, but project resources could not be refreshed.");
     });
     for (const eventName of ["focus", "input", "keyup", "select", "click"] as const) {
       this.#elements.source.addEventListener(eventName, () => {
@@ -787,19 +783,13 @@ class WorkspaceApp {
         detail.action === "pdf-imported" ||
         detail.action === "pdf-removed"
       )
-        void this.#resourceRefresh
-          .request()
-          .then(() => this.#showToast(detail.message))
-          .catch(() => this.#showToast("The project changed, but project resources could not be refreshed."));
+        this.#refreshResourcesWithNotice(detail.message, "The project changed, but project resources could not be refreshed.");
       else if (detail.action === "evidence") this.#setModelEvidenceSelected(detail.key, detail.selected);
       else if (detail.action === "link-annotation") void this.#linkAnnotation(detail.annotationId);
       else if (detail.action === "edit-annotation") this.#editAnnotation(detail.annotation);
       else if (detail.action === "annotation-removed") {
         this.#elements.projectAnnotationForm.clearAnnotation(detail.annotationId);
-        void this.#resourceRefresh
-          .request()
-          .then(() => this.#showToast(detail.message))
-          .catch(() => this.#showToast("The highlight was deleted, but project resources could not be refreshed."));
+        this.#refreshResourcesWithNotice(detail.message, "The highlight was deleted, but project resources could not be refreshed.");
       } else if (detail.action === "open-passage") this.#showPassage(detail.anchor);
       else void this.#removeHighlightFragment(detail.annotationId, detail.fragmentId, true);
     });
@@ -812,11 +802,7 @@ class WorkspaceApp {
       const detail = (event as CustomEvent<PublicationListAction>).detail;
       if (detail.action === "open") this.#openPublicationContext(detail.publication);
       else if (detail.action === "manage") void this.#openReferenceLibraryEntry(detail.publicationId);
-      else
-        void this.#resourceRefresh
-          .request()
-          .then(() => this.#showToast(detail.message))
-          .catch(() => this.#showToast("The reference was enriched, but project resources could not be refreshed."));
+      else this.#refreshResourcesWithNotice(detail.message, "The reference was enriched, but project resources could not be refreshed.");
     });
     this.#elements.projectAnnotationForm.configure(apiBase);
     this.#elements.projectAnnotationForm.addEventListener(projectAnnotationSavedEvent, (event) => {
@@ -902,10 +888,7 @@ class WorkspaceApp {
       else if (detail.action === "evidence") this.#setModelEvidenceSelected(detail.key, detail.selected);
       else if (detail.action === "edit") this.#openClaimDialog(detail.claim);
       else if (detail.action === "mutated")
-        void this.#resourceRefresh
-          .request()
-          .then(() => this.#showToast(detail.message))
-          .catch(() => this.#showToast("The claim was deleted, but project resources could not be refreshed."));
+        this.#refreshResourcesWithNotice(detail.message, "The claim was deleted, but project resources could not be refreshed.");
       else if (detail.action === "link-passage") void this.#linkClaim(detail.claimId);
       else if (detail.action === "open-annotation") this.#focusAnnotationCard(detail.annotationId);
       else this.#showPassage(detail.anchor);
@@ -916,11 +899,10 @@ class WorkspaceApp {
     });
     this.#elements.claimDialog.configure(apiBase);
     this.#elements.claimDialog.addEventListener(claimDialogSavedEvent, (event) => {
-      const message = (event as CustomEvent<string>).detail;
-      void this.#resourceRefresh
-        .request()
-        .then(() => this.#showToast(message))
-        .catch(() => this.#showToast("The claim was saved, but project resources could not be refreshed."));
+      this.#refreshResourcesWithNotice(
+        (event as CustomEvent<string>).detail,
+        "The claim was saved, but project resources could not be refreshed.",
+      );
     });
     this.#elements.workspaceSurfaceSwitcher.addEventListener(workspaceSurfaceChangeEvent, (event) => {
       this.#showWorkspaceSurface((event as CustomEvent<WorkspaceSurface>).detail);
@@ -959,11 +941,7 @@ class WorkspaceApp {
       const detail = (event as CustomEvent<PublicationContextAction>).detail;
       if (detail.action === "insert-citation") this.#insertActivePublicationCitation();
       else if (detail.action === "open-paper") void this.#openPublicationPaper(detail.paper);
-      else
-        void this.#resourceRefresh
-          .request()
-          .then(() => this.#showToast(detail.message))
-          .catch(() => this.#showToast("The paper links changed, but project resources could not be refreshed."));
+      else this.#refreshResourcesWithNotice(detail.message, "The paper links changed, but project resources could not be refreshed.");
     });
     this.#elements.publicationIntakePanel.configure(apiBase);
     this.#elements.publicationIntakePanel.addEventListener(publicationIntakeActionEvent, (event) => {
@@ -2247,6 +2225,13 @@ class WorkspaceApp {
     } finally {
       options.complete?.();
     }
+  }
+
+  #refreshResourcesWithNotice(message: string, failureMessage: string): void {
+    void this.#resourceRefresh
+      .request()
+      .then(() => this.#showToast(message))
+      .catch(() => this.#showToast(failureMessage));
   }
 
   async #revealExistingPdfReference(existing: ExistingPdfUpload): Promise<void> {

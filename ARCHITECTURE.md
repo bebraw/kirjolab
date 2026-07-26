@@ -660,6 +660,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Invalidate browser resource views with a server-owned control message and a
   coalesced authorized metadata refresh rather than replacing live editor
   state from a workspace snapshot.
+- Centralize mutation-completion refresh notices in the application
+  coordinator: await the shared coalesced resource refresh, then show the
+  feature-specific success or refresh-failure message.
 - Treat claims as stable, human-authored propositions; store their evidence and manuscript usage as typed links so editing or deleting a claim never mutates its source annotations or authored prose.
 - Let the bounded claim dialog own its stable create/edit target, proposition,
   note, evidence selections and relations, mutation transport, duplicate-submit
