@@ -2818,3 +2818,24 @@ and unique production package counts remain unchanged at 135,411 B raw /
 
 Full native CI passes all 1,415 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Lit Ownership: PDF Drawing Continuation
+
+`LibraryPdfMarkupLayer` now owns the full local continuation step for an
+unrecognized drawing: Safari scroll suppression, coalesced-sample expansion,
+near-duplicate rejection, live draft updates, and recognition scheduling. It
+returns only new normalized points to `WorkspaceApp`, which retains the
+annotation-machine transition and persistence.
+
+This checkpoint reduces `src/client/app.ts` from 7,037 to 7,027 lines (-10)
+and removes its one-use drawing-append helper. Focused unit coverage passes the
+local continuation contract, and the private-PDF browser workflow passes held
+mouse drawing, recognition, persistence, rendering, and annotated export.
+
+The browser application artifact changes from 801,290 B raw / 215,903 B gzip
+to 801,313 B raw / 215,902 B gzip (+23 B raw / -1 B gzip). Styles and direct and
+unique production package counts remain unchanged at 135,411 B raw / 23,373 B
+gzip and 18 and 150.
+
+Full native CI passes all 1,415 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.

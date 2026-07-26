@@ -98,6 +98,7 @@ describe("library PDF markup layer", () => {
     Object.defineProperties(layer, {
       dataset: { value: dataset },
       getBoundingClientRect: { configurable: true, value: () => ({ height: 200, left: 10, top: 20, width: 400 }) },
+      querySelector: { configurable: true, value: () => null },
     });
 
     layer.setInteraction("draw", true);
@@ -124,6 +125,12 @@ describe("library PDF markup layer", () => {
       ],
     });
     expect(layer.extendDrawing({ clientX: 50, clientY: 60 }, [{ x: 0.1, y: 0.2 }])).toBeNull();
+    const preventDefault = vi.fn();
+    expect(layer.continueDrawing({ clientX: 210, clientY: 120, pointerId: 9, preventDefault }, [{ x: 0.1, y: 0.2 }])).toEqual([
+      { x: 0.5, y: 0.5 },
+    ]);
+    expect(preventDefault).toHaveBeenCalledOnce();
+    layer.cancelShapeRecognition();
     const recognized = layer.recognizeShape([
       { x: 0.1, y: 0.2 },
       { x: 0.8, y: 0.2 },

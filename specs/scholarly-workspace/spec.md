@@ -350,7 +350,10 @@ collaboration.
   typed note placement, drawing start, touch rejection, and selection actions.
   It performs local default suppression, pointer capture, shape cancellation,
   and active-drawing presentation before returning an action. The coordinator
-  retains annotation-machine transitions and persistence.
+  retains annotation-machine transitions and persistence. During a freehand
+  gesture, the layer suppresses native scrolling, expands coalesced samples,
+  updates the live draft, schedules recognition, and returns only new normalized
+  points for the coordinator's drawing-state transition.
   The annotation toolbar owns the guidance associated with each tool, while
   the coordinator decides when that guidance is presented in the inspector.
 - **Web sources:** Public HTTP(S) pages are captured through bounded,

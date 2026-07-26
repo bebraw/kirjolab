@@ -6228,7 +6228,8 @@ class WorkspaceApp {
     const draft = this.#pdfDrawingDraft();
     if (this.#pdfDrawingPointer() !== event.pointerId || !draft) return;
     if (this.#elements.paperMarkups.adjustRecognizedShape(event)) return;
-    this.#appendLibraryPdfDrawingPoints(event, draft);
+    const additions = this.#elements.paperMarkups.continueDrawing(event, draft);
+    if (additions) this.#pdfAnnotation.send({ type: "ADD_DRAWING_POINTS", pointerId: event.pointerId, points: additions });
   }
 
   #continueLibraryPdfNoteDrag(event: PointerEvent, noteId: string): void {
@@ -6238,17 +6239,6 @@ class WorkspaceApp {
     if (!this.#pdfNoteDrag()?.moved) return;
     event.preventDefault();
     this.#elements.paperMarkups.moveNote(noteId, point);
-  }
-
-  #appendLibraryPdfDrawingPoints(event: PointerEvent, draft: readonly LibraryPdfPoint[]): void {
-    // Safari can otherwise promote an active Apple Pencil stroke to a native
-    // scroll once the zoomed page starts moving, despite cancelling pointerdown.
-    event.preventDefault();
-    const update = this.#elements.paperMarkups.extendDrawing(event, draft);
-    if (!update) return;
-    this.#pdfAnnotation.send({ type: "ADD_DRAWING_POINTS", pointerId: event.pointerId, points: update.additions });
-    this.#elements.paperMarkups.updateDraft(update.points);
-    this.#elements.paperMarkups.scheduleShapeRecognition(event.pointerId, update.points);
   }
 
   async #finishLibraryPdfDrawing(event: PointerEvent): Promise<void> {

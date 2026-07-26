@@ -217,8 +217,8 @@ The adopted components own bounded presentation:
   page coordinates, coalesced-sample accumulation and deduplication,
   delayed pixel-space shape recognition and adjustment, recognition-timer
   cleanup, note-pin and drawing-stroke hit-testing, tool-aware pointer-down
-  interpretation, local pointer capture and drawing activation, and typed
-  recognition, shape-adjustment, and note-card close intents.
+  interpretation, local pointer capture, drawing activation and continuation,
+  and typed recognition, shape-adjustment, and note-card close intents.
 - The Library PDF project-use block owns unidentified, unlinked, and linked
   presentation, capability-boundary copy, citation preview, and a typed
   reference-link intent.
@@ -506,8 +506,10 @@ reason to wrap static markup mechanically.
   selectors and combines targets, page geometry, and active tool state into
   typed pointer actions. The layer also owns native-default suppression, pointer
   capture, recognition cancellation, and active-drawing presentation at gesture
-  start. The application coordinator retains state-machine transitions,
-  persistence, inspector policy, and notifications.
+  start. During continuation it owns native scroll suppression, coalesced sample
+  expansion, draft updates, and recognition scheduling. The application
+  coordinator retains state-machine transitions, persistence, inspector policy,
+  and notifications.
 - The Library PDF project-use block replaces its imperative renderer and four
   one-off DOM-construction helpers. The application coordinator retains
   canonical reference and project-link lookup, the linking mutation, snapshot

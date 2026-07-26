@@ -50,6 +50,11 @@ interface DrawingPointerEvent extends DrawingPointerSample {
   readonly getCoalescedEvents?: () => readonly DrawingPointerSample[];
 }
 
+interface ActiveDrawingPointerEvent extends DrawingPointerEvent {
+  readonly pointerId: number;
+  preventDefault(): void;
+}
+
 interface DrawingAdjustmentEvent extends DrawingPointerSample {
   readonly pointerId: number;
   preventDefault(): void;
@@ -157,6 +162,17 @@ export class LibraryPdfMarkupLayer extends LitElement {
       additions.push(point);
     }
     return additions.length > 0 ? { additions, points } : null;
+  }
+
+  continueDrawing(event: ActiveDrawingPointerEvent, draft: readonly LibraryPdfPoint[]): readonly LibraryPdfPoint[] | null {
+    // Safari can otherwise promote an active Apple Pencil stroke to a native
+    // scroll once the zoomed page starts moving, despite cancelling pointerdown.
+    event.preventDefault();
+    const update = this.extendDrawing(event, draft);
+    if (!update) return null;
+    this.updateDraft(update.points);
+    this.scheduleShapeRecognition(event.pointerId, update.points);
+    return update.additions;
   }
 
   recognizeShape(points: readonly LibraryPdfPoint[]): LibraryPdfRecognizedShape | null {
