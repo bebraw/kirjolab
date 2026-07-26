@@ -2462,6 +2462,25 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,404 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Completed PDF Viewer Shell Encapsulation
+
+`PdfEvidenceViewer` now also owns text-selection pointer routing for annotation
+tool changes. `WorkspaceApp` supplies only the selected tool state through the
+viewer API and no longer retains any raw viewer-internal element references.
+
+This checkpoint reduces `src/client/app.ts` from 7,214 to 7,212 lines (-2) and
+removes the final raw text-layer reference. Focused browser coverage passes the
+paint, extend, undo, erase, and delete lifecycle while switching among text,
+drawing, erasing, and selection tools.
+
+The browser application artifact changes from 798,475 B raw / 214,784 B gzip
+to 798,483 B raw / 214,778 B gzip (+8 B raw / -6 B gzip). Styles and direct and
+unique production package counts remain unchanged at 135,411 B raw / 23,373 B
+gzip and 18 and 150.
+
+Full native CI passes all 1,404 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued PDF Viewer Encapsulation: Status
 
 `PdfEvidenceViewer` now owns its complete loading, rendering, selection, mode,

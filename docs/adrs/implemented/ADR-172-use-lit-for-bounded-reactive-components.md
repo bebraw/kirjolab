@@ -606,8 +606,9 @@ reason to wrap static markup mechanically.
   coordinator retains publication resolution, grouped-citation policy, and
   context navigation.
 - The existing PDF viewer owns its complete status presentation, including
-  active-load failures reported by the application coordinator, without
-  exposing the status element to `WorkspaceApp`.
+  active-load failures and text-selection pointer routing reported by the
+  application coordinator, without exposing its internal elements to
+  `WorkspaceApp`.
 - Related template, visibility rules, and local event binding now have one
   browser owner.
 - Later bounded extractions can reuse the same reactive component model without

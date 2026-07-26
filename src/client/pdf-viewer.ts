@@ -225,6 +225,10 @@ export class PdfEvidenceViewer {
     this.#elements.status.textContent = error instanceof Error ? error.message : "Could not render this PDF";
   }
 
+  setTextSelectionEnabled(enabled: boolean): void {
+    this.#elements.textLayer.style.pointerEvents = enabled ? "auto" : "none";
+  }
+
   clearDraftSelection(): void {
     window.clearTimeout(this.#selectionCaptureTimer);
     this.#clearNativeSelection();

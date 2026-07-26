@@ -511,7 +511,6 @@ interface Elements {
   libraryPdfAnnotationToolbar: LibraryPdfAnnotationToolbar;
   libraryProjectUse: LibraryPdfProjectUse;
   libraryHighlightList: LibraryPdfAnnotationList;
-  paperTextLayer: HTMLElement;
   paperMarkups: LibraryPdfMarkupLayer;
   paperReader: HTMLElement;
   publicationIntakePanel: PublicationIntakePanel;
@@ -6254,7 +6253,7 @@ class WorkspaceApp {
     this.#pdfAnnotation.send({ type: "CHOOSE_TOOL", tool });
     if (tool !== "draw") delete this.#elements.paperMarkups.dataset.drawingActive;
     this.#elements.paperMarkups.dataset.tool = tool;
-    this.#elements.paperTextLayer.style.pointerEvents = tool === "text" ? "auto" : "none";
+    this.#pdfViewer.setTextSelectionEnabled(tool === "text");
     this.#elements.libraryPdfAnnotationToolbar.setTool(tool);
     this.#pdfViewer.setPrivateHighlightSelection(tool === "select", this.#selectedLibraryHighlightId());
     this.#elements.libraryPdfInspector.setStatus(this.#libraryPdfToolStatus(tool));
@@ -7111,7 +7110,6 @@ function collectElements(): Elements {
     libraryPdfAnnotationToolbar: requiredElement("library-pdf-annotation-toolbar", LibraryPdfAnnotationToolbar),
     libraryProjectUse: requiredElement("library-project-use", LibraryPdfProjectUse),
     libraryHighlightList: requiredElement("library-highlight-list", LibraryPdfAnnotationList),
-    paperTextLayer: requiredElement("paper-text-layer", HTMLElement),
     paperMarkups: requiredElement("paper-markups", LibraryPdfMarkupLayer),
     paperReader: requiredElement("paper-reader", HTMLElement),
     publicationIntakePanel: requiredElement("publication-intake-panel", PublicationIntakePanel),
