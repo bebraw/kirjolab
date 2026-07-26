@@ -248,11 +248,13 @@ memory and makes citation aliases compete with stable source identity.
   the page is resized. Saved annotations are collapsed by default.
 - One bounded light-DOM component owns the private-highlight, page-note, and
   selected-markup composer values and visibility. Its private-highlight draft
-  includes captured rectangles and an optional editing identity, which its
-  typed save intent emits with the reviewed page, quote, and comment. It also
-  emits typed cancel, edit, delete, and drawing-style intents. The application
-  coordinator retains active resource identity, persistence, refreshes,
-  inspector policy, and toasts.
+  includes captured rectangles and an optional editing identity. Given the
+  active artifact, reference, and current highlights, it owns create and
+  comment-update transport, stable encoded targets, overlap classification,
+  duplicate-submit gating, pending and retryable failure state, and the typed
+  completed-save outcome. It also emits typed cancel, edit, delete, and drawing-
+  style intents. The application coordinator retains canonical Library refresh,
+  PDF draft clearing, inspector policy, and toasts.
 - A companion light-DOM toolbar component owns active-tool presentation,
   drawing color and width, undo and export availability, annotation count, and
   inspector-expanded state. It emits typed tool, undo, export, and inspector

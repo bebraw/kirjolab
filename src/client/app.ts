@@ -849,7 +849,7 @@ class WorkspaceApp {
     });
     this.#elements.libraryPdfAnnotationForms.addEventListener(libraryPdfAnnotationActionEvent, (event) => {
       const action = (event as CustomEvent<LibraryPdfAnnotationAction>).detail;
-      if (action.action === "save-highlight") void this.#saveLibraryHighlight(action);
+      if (action.action === "highlight-saved") void this.#completeLibraryHighlightSave(action.kind);
       else if (action.action === "cancel-highlight") this.#clearLibraryHighlightDraft();
       else if (action.action === "save-note") void this.#saveLibraryPdfNote(action.body);
       else if (action.action === "cancel-note") this.#clearLibraryPdfNoteDraft();
@@ -4265,6 +4265,13 @@ class WorkspaceApp {
     if (!this.#elements.libraryPdfInspector.showsArtifact(artifact.id)) this.#resetLibraryHighlightComposer(artifact.id);
     this.#renderLibraryProjectUse(artifact);
     const highlights = this.#librarySnapshot.highlights.filter((highlight) => highlight.artifactId === artifact.id);
+    if (artifact.referenceId) {
+      this.#elements.libraryPdfAnnotationForms.setHighlightContext({
+        artifactId: artifact.id,
+        highlights,
+        referenceId: artifact.referenceId,
+      });
+    }
     this.#pdfViewer.updatePrivateHighlights(highlights);
     const markups = (this.#librarySnapshot.pdfMarkups ?? []).filter((markup) => markup.artifactId === artifact.id);
     this.#elements.libraryPdfAnnotationToolbar.setAnnotationAvailability(
@@ -4355,68 +4362,21 @@ class WorkspaceApp {
     this.#elements.libraryProjectUse.setData({ linkedCitationAlias, reference: reference ?? null });
   }
 
-  async #saveLibraryHighlight(action: Extract<LibraryPdfAnnotationAction, { action: "save-highlight" }>): Promise<void> {
-    const artifact = this.#activeLibraryPdf();
-    const quote = action.quote;
-    if (!artifact?.referenceId || !quote) return;
-    if (action.highlightId) {
-      await this.#updateLibraryHighlightNote(artifact.referenceId, action.highlightId, action.comment);
+  async #completeLibraryHighlightSave(kind: "created" | "extended" | "updated"): Promise<void> {
+    this.#pdfViewer.clearDraftSelection();
+    await this.#refreshReferenceLibrary();
+    if (kind === "updated") {
+      this.#elements.libraryPdfInspector.setStatus("Private highlight note updated.");
+      this.#showToast("Private highlight note updated.");
       return;
     }
-    await this.#createLibraryHighlight(artifact, artifact.referenceId, action);
-  }
-
-  async #updateLibraryHighlightNote(referenceId: string, highlightId: string, comment: string): Promise<void> {
-    const response = await fetch(
-      `/api/library/references/${encodeURIComponent(referenceId)}/highlights/${encodeURIComponent(highlightId)}`,
-      {
-        method: "PATCH",
-        credentials: "same-origin",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ comment }),
-      },
-    );
-    await expectOk(response);
-    this.#clearLibraryHighlightDraft("Private highlight note updated.");
-    await this.#refreshReferenceLibrary();
-    this.#showToast("Private highlight note updated.");
-  }
-
-  async #createLibraryHighlight(
-    artifact: LibraryPdfArtifact,
-    referenceId: string,
-    action: Extract<LibraryPdfAnnotationAction, { action: "save-highlight" }>,
-  ): Promise<void> {
-    const { page, quote, comment, rects } = action;
-    const extendsExisting = this.#libraryHighlightExtendsExisting(artifact.id, page, rects);
-    const response = await jsonFetch(`/api/library/references/${encodeURIComponent(referenceId)}/highlights`, {
-      artifactId: artifact.id,
-      page,
-      quote,
-      comment,
-      rects,
-    });
-    await expectOk(response);
-    this.#clearLibraryHighlightDraft(
-      extendsExisting
-        ? "Existing private highlight extended."
-        : "Private highlight saved. It remains outside the project until explicitly shared.",
-    );
-    await this.#refreshReferenceLibrary();
+    const extended = kind === "extended";
     this.#elements.libraryPdfInspector.setStatus(
-      extendsExisting
+      extended
         ? "Existing private highlight extended. Select another passage to continue."
         : "Private highlight saved. Select another passage to continue.",
     );
-    this.#showToast(extendsExisting ? "Existing private highlight extended." : "Private highlight saved to your library.");
-  }
-
-  #libraryHighlightExtendsExisting(artifactId: string, page: number, rects: readonly PdfSelectionRect[]): boolean {
-    return (
-      this.#librarySnapshot?.highlights.some(
-        (highlight) => highlight.artifactId === artifactId && highlight.page === page && libraryPdfRectsOverlap(highlight.rects, rects),
-      ) ?? false
-    );
+    this.#showToast(extended ? "Existing private highlight extended." : "Private highlight saved to your library.");
   }
 
   #clearLibraryHighlightDraft(message = "Selection cancelled. Nothing was saved."): void {

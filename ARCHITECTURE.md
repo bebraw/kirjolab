@@ -525,6 +525,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Retain the active manuscript caret or selection as Yjs-relative positions, render that local target after editor blur, and resolve it before any contextual insertion or replacement.
 - Keep standalone private PDF locations routable in browser history, coalesce selected PDF text into normalized visual-line rectangles, and export each saved highlight as one interoperable multi-quad PDF annotation without mutating source bytes.
 - Merge overlapping private highlight saves at the owner-library authority and update private highlight comments or page-note bodies in place; preserve annotation identity and treat project shares as immutable snapshots.
+- Let the Library PDF annotation forms own private-highlight create and comment-
+  update transport, stable encoded reference and highlight targets, overlap
+  classification, duplicate-submit gating, and retryable local failures. Keep
+  canonical Library refresh, PDF draft clearing, inspector guidance, and toast
+  policy in the application coordinator.
 - Keep private-PDF tool, selection, note-composition, open-card, and pointer-
   gesture state inside the bounded light-DOM markup layer that presents it.
   The application coordinator retains authorized persistence, refresh,

@@ -1,5 +1,7 @@
 import { html, LitElement, type TemplateResult } from "lit";
+import { libraryPdfRectsOverlap, type LibraryHighlight } from "../domain/reference-library";
 import type { PdfSelectionRect } from "../domain/workspace";
+import { errorMessage, expectOk, jsonFetch } from "./http";
 
 export interface LibraryHighlightDraft {
   readonly highlightId: string | null;
@@ -16,15 +18,14 @@ export interface LibraryDrawingSelection {
   readonly width?: number;
 }
 
+interface LibraryHighlightContext {
+  readonly artifactId: string;
+  readonly highlights: readonly LibraryHighlight[];
+  readonly referenceId: string;
+}
+
 export type LibraryPdfAnnotationAction =
-  | {
-      readonly action: "save-highlight";
-      readonly highlightId: string | null;
-      readonly page: number;
-      readonly quote: string;
-      readonly comment: string;
-      readonly rects: readonly PdfSelectionRect[];
-    }
+  | { readonly action: "highlight-saved"; readonly kind: "created" | "extended" | "updated" }
   | { readonly action: "cancel-highlight" }
   | { readonly action: "save-note"; readonly body: string }
   | { readonly action: "cancel-note" }
@@ -46,6 +47,8 @@ export class LibraryPdfAnnotationForms extends LitElement {
     drawingColor: { state: true },
     drawingWidth: { state: true },
     markupVisible: { state: true },
+    savingHighlight: { state: true },
+    status: { state: true },
   };
 
   declare private highlightPage: number;
@@ -59,6 +62,9 @@ export class LibraryPdfAnnotationForms extends LitElement {
   declare private drawingColor: string;
   declare private drawingWidth: number;
   declare private markupVisible: boolean;
+  declare private savingHighlight: boolean;
+  declare private status: string;
+  private highlightContext: LibraryHighlightContext | null = null;
   #highlightId: string | null = null;
   #highlightRects: readonly PdfSelectionRect[] = [];
 
@@ -75,6 +81,8 @@ export class LibraryPdfAnnotationForms extends LitElement {
     this.drawingColor = "#d33f49";
     this.drawingWidth = 4;
     this.markupVisible = false;
+    this.savingHighlight = false;
+    this.status = "";
   }
 
   get highlightOpen(): boolean {
@@ -102,6 +110,10 @@ export class LibraryPdfAnnotationForms extends LitElement {
     this.highlightVisible = true;
   }
 
+  setHighlightContext(context: LibraryHighlightContext): void {
+    this.highlightContext = context;
+  }
+
   clearHighlight(page: number): void {
     this.#highlightId = null;
     this.#highlightRects = [];
@@ -109,6 +121,8 @@ export class LibraryPdfAnnotationForms extends LitElement {
     this.highlightQuote = "";
     this.highlightComment = "";
     this.highlightVisible = false;
+    this.savingHighlight = false;
+    this.status = "";
   }
 
   showNote(body = ""): void {
@@ -168,15 +182,19 @@ export class LibraryPdfAnnotationForms extends LitElement {
           .value=${this.highlightComment}
           @input=${this.updateHighlightComment}
         />
-        <button class="button-primary" id="save-library-highlight" type="submit">${this.#highlightId ? "Save note" : "Save"}</button>
+        <button class="button-primary" id="save-library-highlight" type="submit" ?disabled=${this.savingHighlight}>
+          ${this.savingHighlight ? "Saving…" : this.#highlightId ? "Save note" : "Save"}
+        </button>
         <button
           class="button-secondary"
           id="cancel-library-highlight"
           type="button"
+          ?disabled=${this.savingHighlight}
           @click=${() => this.emitAction({ action: "cancel-highlight" })}
         >
           Cancel
         </button>
+        <p class="status-line" role="status" ?hidden=${!this.status}>${this.status}</p>
       </form>
       <form class="library-context-composer" id="library-note-form" ?hidden=${!this.noteVisible} @submit=${this.saveNote}>
         <textarea
@@ -265,16 +283,51 @@ export class LibraryPdfAnnotationForms extends LitElement {
     this.drawingWidth = Number(inputValue(event));
   }
 
-  protected saveHighlight(event: SubmitEvent): void {
+  protected async saveHighlight(event: SubmitEvent): Promise<void> {
     event.preventDefault();
-    this.emitAction({
-      action: "save-highlight",
-      highlightId: this.#highlightId,
-      page: this.highlightPage,
-      quote: this.highlightQuote.trim(),
-      comment: this.highlightComment,
-      rects: this.#highlightRects,
-    });
+    const context = this.highlightContext;
+    const quote = this.highlightQuote.trim();
+    if (this.savingHighlight || !context || !quote) return;
+    this.savingHighlight = true;
+    this.status = "Saving private highlight…";
+    try {
+      let kind: Extract<LibraryPdfAnnotationAction, { action: "highlight-saved" }>["kind"];
+      if (this.#highlightId) {
+        const response = await fetch(
+          `/api/library/references/${encodeURIComponent(context.referenceId)}/highlights/${encodeURIComponent(this.#highlightId)}`,
+          {
+            method: "PATCH",
+            credentials: "same-origin",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ comment: this.highlightComment }),
+          },
+        );
+        await expectOk(response);
+        kind = "updated";
+      } else {
+        const extendsExisting = context.highlights.some(
+          (highlight) =>
+            highlight.artifactId === context.artifactId &&
+            highlight.page === this.highlightPage &&
+            libraryPdfRectsOverlap(highlight.rects, this.#highlightRects),
+        );
+        const response = await jsonFetch(`/api/library/references/${encodeURIComponent(context.referenceId)}/highlights`, {
+          artifactId: context.artifactId,
+          page: this.highlightPage,
+          quote,
+          comment: this.highlightComment,
+          rects: this.#highlightRects,
+        });
+        await expectOk(response);
+        kind = extendsExisting ? "extended" : "created";
+      }
+      this.clearHighlight(this.highlightPage);
+      this.emitAction({ action: "highlight-saved", kind });
+    } catch (error) {
+      this.status = errorMessage(error, "Could not save the private highlight.");
+    } finally {
+      this.savingHighlight = false;
+    }
   }
 
   protected saveNote(event: SubmitEvent): void {

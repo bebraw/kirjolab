@@ -4236,3 +4236,27 @@ and unique production package counts remain unchanged at 135,411 B raw /
 
 Full native CI passes all 1,505 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Lit Ownership: Private Highlight Persistence
+
+`LibraryPdfAnnotationForms` now owns private-highlight create and comment-
+update transport, stable encoded reference and highlight targets, request
+validation, overlap-extension classification from current artifact highlights,
+duplicate-submit gating, pending and retryable failure state, and a typed
+created, extended, or updated outcome. `WorkspaceApp` retains canonical Library
+refresh, PDF draft clearing, inspector guidance, and toast policy.
+
+This checkpoint reduces `src/client/app.ts` from 5,073 to 5,033 lines (-40)
+and grows the Library PDF annotation forms from 307 to 360 lines. Runtime source
+across those files increases by 13 lines while removing four coordinator save,
+update, create, and overlap-classification methods. Focused coverage passes
+trimmed create payloads, overlap extension, stable encoded update targets,
+successful outcomes, provider failure and retry, and duplicate submissions.
+
+The browser application artifact changes from 812,054 B raw / 220,056 B gzip
+to 812,667 B raw / 220,119 B gzip (+613 B raw / +63 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,508 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
