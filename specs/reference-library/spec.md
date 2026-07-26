@@ -249,12 +249,15 @@ memory and makes citation aliases compete with stable source identity.
 - One bounded light-DOM component owns the private-highlight, page-note, and
   selected-markup composer values and visibility. Its private-highlight draft
   includes captured rectangles and an optional editing identity. Given the
-  active artifact, reference, and current highlights, it owns create and
-  comment-update transport, stable encoded targets, overlap classification,
+  active artifact, reference, and current highlights, it owns highlight create
+  and comment-update transport, stable encoded targets, overlap classification,
   duplicate-submit gating, pending and retryable failure state, and the typed
-  completed-save outcome. It also emits typed cancel, edit, delete, and drawing-
-  style intents. The application coordinator retains canonical Library refresh,
-  PDF draft clearing, inspector policy, and toasts.
+  completed-save outcome. Given a stable artifact, reference, page, normalized
+  anchor, and optional editing identity, it also owns page-note create and body-
+  update transport with the same pending and retry behavior. It emits typed
+  cancel, completed-save, edit, delete, and drawing-style intents. The
+  application coordinator retains canonical Library refresh, PDF draft
+  clearing, inspector policy, and toasts.
 - A companion light-DOM toolbar component owns active-tool presentation,
   drawing color and width, undo and export availability, annotation count, and
   inspector-expanded state. It emits typed tool, undo, export, and inspector
@@ -269,7 +272,8 @@ memory and makes citation aliases compete with stable source identity.
   tool and saved-resource selection state, note composition, open note cards,
   live draft geometry updates, pointer capture, note movement, drawing and
   shape-recognition gestures, note-card dismissal, and focus restoration. The
-  application coordinator retains normalized durable results, persistence,
+  annotation forms own page-note persistence; the application coordinator
+  retains normalized durable drawing and moved-note results, their persistence,
   refreshes, inspector policy, and notifications.
 - A bounded light-DOM annotation list owns the private reader's saved highlight
   and markup cards, empty state, comments, share and citation availability, and

@@ -24,10 +24,19 @@ interface LibraryHighlightContext {
   readonly referenceId: string;
 }
 
+interface LibraryNoteContext {
+  readonly artifactId: string;
+  readonly editingId: string | null;
+  readonly page: number;
+  readonly referenceId: string;
+  readonly x: number;
+  readonly y: number;
+}
+
 export type LibraryPdfAnnotationAction =
   | { readonly action: "highlight-saved"; readonly kind: "created" | "extended" | "updated" }
   | { readonly action: "cancel-highlight" }
-  | { readonly action: "save-note"; readonly body: string }
+  | { readonly action: "note-saved"; readonly kind: "created" | "updated" }
   | { readonly action: "cancel-note" }
   | { readonly action: "apply-drawing"; readonly color: string; readonly width: number }
   | { readonly action: "edit-note" | "delete-markup" | "clear-markup" };
@@ -47,7 +56,7 @@ export class LibraryPdfAnnotationForms extends LitElement {
     drawingColor: { state: true },
     drawingWidth: { state: true },
     markupVisible: { state: true },
-    savingHighlight: { state: true },
+    saving: { state: true },
     status: { state: true },
   };
 
@@ -62,9 +71,10 @@ export class LibraryPdfAnnotationForms extends LitElement {
   declare private drawingColor: string;
   declare private drawingWidth: number;
   declare private markupVisible: boolean;
-  declare private savingHighlight: boolean;
+  declare private saving: "" | "highlight" | "note";
   declare private status: string;
   private highlightContext: LibraryHighlightContext | null = null;
+  private noteContext: LibraryNoteContext | null = null;
   #highlightId: string | null = null;
   #highlightRects: readonly PdfSelectionRect[] = [];
 
@@ -81,7 +91,7 @@ export class LibraryPdfAnnotationForms extends LitElement {
     this.drawingColor = "#d33f49";
     this.drawingWidth = 4;
     this.markupVisible = false;
-    this.savingHighlight = false;
+    this.saving = "";
     this.status = "";
   }
 
@@ -121,18 +131,20 @@ export class LibraryPdfAnnotationForms extends LitElement {
     this.highlightQuote = "";
     this.highlightComment = "";
     this.highlightVisible = false;
-    this.savingHighlight = false;
     this.status = "";
   }
 
-  showNote(body = ""): void {
+  showNote(body = "", context?: LibraryNoteContext): void {
     this.noteBody = body;
+    if (context) this.noteContext = context;
     this.noteVisible = true;
   }
 
   clearNote(): void {
     this.noteBody = "";
+    this.noteContext = null;
     this.noteVisible = false;
+    this.status = "";
   }
 
   showMarkup(selection: LibraryDrawingSelection): void {
@@ -182,14 +194,14 @@ export class LibraryPdfAnnotationForms extends LitElement {
           .value=${this.highlightComment}
           @input=${this.updateHighlightComment}
         />
-        <button class="button-primary" id="save-library-highlight" type="submit" ?disabled=${this.savingHighlight}>
-          ${this.savingHighlight ? "Saving…" : this.#highlightId ? "Save note" : "Save"}
+        <button class="button-primary" id="save-library-highlight" type="submit" ?disabled=${Boolean(this.saving)}>
+          ${this.saving === "highlight" ? "Saving…" : this.#highlightId ? "Save note" : "Save"}
         </button>
         <button
           class="button-secondary"
           id="cancel-library-highlight"
           type="button"
-          ?disabled=${this.savingHighlight}
+          ?disabled=${Boolean(this.saving)}
           @click=${() => this.emitAction({ action: "cancel-highlight" })}
         >
           Cancel
@@ -207,10 +219,19 @@ export class LibraryPdfAnnotationForms extends LitElement {
           .value=${this.noteBody}
           @input=${this.updateNoteBody}
         ></textarea>
-        <button class="button-primary" type="submit">Save note</button>
-        <button class="button-secondary" id="cancel-library-note" type="button" @click=${() => this.emitAction({ action: "cancel-note" })}>
+        <button class="button-primary" type="submit" ?disabled=${Boolean(this.saving)}>
+          ${this.saving === "note" ? "Saving…" : "Save note"}
+        </button>
+        <button
+          class="button-secondary"
+          id="cancel-library-note"
+          type="button"
+          ?disabled=${Boolean(this.saving)}
+          @click=${() => this.emitAction({ action: "cancel-note" })}
+        >
           Cancel
         </button>
+        <p class="status-line" role="status" ?hidden=${!this.status}>${this.status}</p>
       </form>
       <form
         class="library-context-composer library-markup-selection"
@@ -287,8 +308,8 @@ export class LibraryPdfAnnotationForms extends LitElement {
     event.preventDefault();
     const context = this.highlightContext;
     const quote = this.highlightQuote.trim();
-    if (this.savingHighlight || !context || !quote) return;
-    this.savingHighlight = true;
+    if (this.saving || !context || !quote) return;
+    this.saving = "highlight";
     this.status = "Saving private highlight…";
     try {
       let kind: Extract<LibraryPdfAnnotationAction, { action: "highlight-saved" }>["kind"];
@@ -326,13 +347,49 @@ export class LibraryPdfAnnotationForms extends LitElement {
     } catch (error) {
       this.status = errorMessage(error, "Could not save the private highlight.");
     } finally {
-      this.savingHighlight = false;
+      this.saving = "";
     }
   }
 
-  protected saveNote(event: SubmitEvent): void {
+  protected async saveNote(event: SubmitEvent): Promise<void> {
     event.preventDefault();
-    this.emitAction({ action: "save-note", body: this.noteBody.trim() });
+    const body = this.noteBody.trim();
+    const context = this.noteContext;
+    if (this.saving || !body || !context) return;
+    this.saving = "note";
+    this.status = "Saving private note…";
+    try {
+      const { artifactId, editingId, referenceId, ...anchor } = context;
+      let kind: Extract<LibraryPdfAnnotationAction, { action: "note-saved" }>["kind"];
+      if (editingId) {
+        const response = await fetch(
+          `/api/library/references/${encodeURIComponent(referenceId)}/pdf-markups/${encodeURIComponent(editingId)}`,
+          {
+            method: "PATCH",
+            credentials: "same-origin",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ ...anchor, body }),
+          },
+        );
+        await expectOk(response);
+        kind = "updated";
+      } else {
+        const response = await jsonFetch(`/api/library/references/${encodeURIComponent(referenceId)}/pdf-markups`, {
+          kind: "note",
+          artifactId,
+          ...anchor,
+          body,
+        });
+        await expectOk(response);
+        kind = "created";
+      }
+      this.clearNote();
+      this.emitAction({ action: "note-saved", kind });
+    } catch (error) {
+      this.status = errorMessage(error, "Could not save the private note.");
+    } finally {
+      this.saving = "";
+    }
   }
 
   protected applyDrawing(event: SubmitEvent): void {

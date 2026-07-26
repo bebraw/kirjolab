@@ -4260,3 +4260,27 @@ and unique production package counts remain unchanged at 135,411 B raw /
 
 Full native CI passes all 1,508 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Lit Ownership: Private Page-Note Persistence
+
+`LibraryPdfAnnotationForms` now also owns private page-note create and body-
+update transport, stable encoded reference and note targets, normalized anchor
+payloads, shared duplicate-submit gating, pending state, and retryable local
+failures. `WorkspaceApp` passes the stable note context at composition time and
+retains canonical Library refresh, overlay-draft clearing, inspector policy,
+and outcome-specific toasts.
+
+This checkpoint reduces `src/client/app.ts` from 5,033 to 5,020 lines (-13)
+and grows the Library PDF annotation forms from 360 to 417 lines. Runtime source
+across those files increases by 44 lines while removing the coordinator note-
+save request method. Focused coverage passes trimmed create payloads, stable
+encoded update targets, successful typed outcomes, provider failure and retry,
+and duplicate submissions.
+
+The browser application artifact changes from 812,667 B raw / 220,119 B gzip
+to 813,323 B raw / 220,256 B gzip (+656 B raw / +137 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,511 unit/coverage tests, 120 Workers-
+runtime tests, and 74 browser tests.

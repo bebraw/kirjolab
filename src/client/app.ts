@@ -851,7 +851,7 @@ class WorkspaceApp {
       const action = (event as CustomEvent<LibraryPdfAnnotationAction>).detail;
       if (action.action === "highlight-saved") void this.#completeLibraryHighlightSave(action.kind);
       else if (action.action === "cancel-highlight") this.#clearLibraryHighlightDraft();
-      else if (action.action === "save-note") void this.#saveLibraryPdfNote(action.body);
+      else if (action.action === "note-saved") void this.#completeLibraryPdfNoteSave(action.kind);
       else if (action.action === "cancel-note") this.#clearLibraryPdfNoteDraft();
       else if (action.action === "apply-drawing") void this.#updateSelectedLibraryDrawing(action);
       else if (action.action === "edit-note") this.#editSelectedLibraryPdfNote();
@@ -4472,8 +4472,16 @@ class WorkspaceApp {
   }
 
   #finishLibraryPdfNotePress(point: LibraryPdfPoint): void {
+    const artifact = this.#activeLibraryPdf();
+    if (!artifact?.referenceId) return;
     this.#elements.paperMarkups.placeNote(this.#pdfViewer.currentPage, point);
-    this.#elements.libraryPdfAnnotationForms.showNote();
+    const noteDraft = this.#elements.paperMarkups.noteDraft;
+    if (!noteDraft) return;
+    this.#elements.libraryPdfAnnotationForms.showNote("", {
+      artifactId: artifact.id,
+      referenceId: artifact.referenceId,
+      ...noteDraft,
+    });
     this.#setLibraryPdfInspector(true);
     this.#elements.libraryPdfAnnotationForms.focusNote();
   }
@@ -4495,39 +4503,11 @@ class WorkspaceApp {
     this.#showToast("Drawing saved privately.");
   }
 
-  async #saveLibraryPdfNote(body: string): Promise<void> {
-    const artifact = this.#activeLibraryPdf();
-    const noteDraft = this.#elements.paperMarkups.noteDraft;
-    if (!artifact?.referenceId || !noteDraft || !body) return;
-    const { editingId, ...anchor } = noteDraft;
-    if (editingId) {
-      const response = await fetch(
-        `/api/library/references/${encodeURIComponent(artifact.referenceId)}/pdf-markups/${encodeURIComponent(editingId)}`,
-        {
-          method: "PATCH",
-          credentials: "same-origin",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ ...anchor, body }),
-        },
-      );
-      await expectOk(response);
-      this.#clearLibraryPdfNoteDraft();
-      await this.#refreshReferenceLibrary();
-      this.#setLibraryPdfInspector(false);
-      this.#showToast("Private note updated.");
-      return;
-    }
-    const response = await jsonFetch(`/api/library/references/${encodeURIComponent(artifact.referenceId)}/pdf-markups`, {
-      kind: "note",
-      artifactId: artifact.id,
-      ...anchor,
-      body,
-    });
-    await expectOk(response);
-    this.#clearLibraryPdfNoteDraft();
+  async #completeLibraryPdfNoteSave(kind: "created" | "updated"): Promise<void> {
+    this.#elements.paperMarkups.clearNote();
     await this.#refreshReferenceLibrary();
     this.#setLibraryPdfInspector(false);
-    this.#showToast("Note attached privately.");
+    this.#showToast(kind === "updated" ? "Private note updated." : "Note attached privately.");
   }
 
   #clearLibraryPdfNoteDraft(): void {
@@ -4538,7 +4518,14 @@ class WorkspaceApp {
   #editLibraryPdfNote(note: LibraryPdfNote): void {
     if (this.#elements.paperMarkups.tool !== "select") this.#setLibraryPdfTool("select");
     this.#elements.paperMarkups.editNote(note);
-    this.#elements.libraryPdfAnnotationForms.showNote(note.body);
+    this.#elements.libraryPdfAnnotationForms.showNote(note.body, {
+      artifactId: note.artifactId,
+      editingId: note.id,
+      page: note.page,
+      referenceId: note.referenceId,
+      x: note.x,
+      y: note.y,
+    });
     this.#elements.libraryPdfInspector.setStatus(`Editing the note on page ${note.page}.`);
     this.#setLibraryPdfInspector(true);
     this.#elements.libraryPdfAnnotationForms.focusNote();

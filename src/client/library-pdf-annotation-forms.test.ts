@@ -27,7 +27,7 @@ class TestLibraryPdfAnnotationForms extends LibraryPdfAnnotationForms {
   async submitForTest(form: "highlight" | "note" | "drawing"): Promise<void> {
     const event = new Event("submit") as SubmitEvent;
     if (form === "highlight") await this.saveHighlight(event);
-    else if (form === "note") this.saveNote(event);
+    else if (form === "note") await this.saveNote(event);
     else this.applyDrawing(event);
   }
 
@@ -75,7 +75,7 @@ describe("library PDF annotation forms", () => {
     expect(forms.empty).toBe(true);
   });
 
-  it("persists current highlight values and emits note and drawing intents", async () => {
+  it("persists current highlight and note values and emits drawing intents", async () => {
     const forms = new TestLibraryPdfAnnotationForms();
     const actions: LibraryPdfAnnotationAction[] = [];
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 200 }));
@@ -87,7 +87,14 @@ describe("library PDF annotation forms", () => {
     forms.showHighlight({ highlightId: null, page: 5, quote: "  selected claim  ", comment: "", rects });
     forms.changeForTest("comment", "Explain this");
     await forms.submitForTest("highlight");
-    forms.showNote();
+    forms.showNote("", {
+      artifactId: "artifact:1",
+      editingId: null,
+      page: 5,
+      referenceId: "reference:1",
+      x: 0.2,
+      y: 0.3,
+    });
     forms.changeForTest("note", "  Margin note  ");
     await forms.submitForTest("note");
     forms.showMarkup({ label: "Line", kind: "drawing" });
@@ -108,11 +115,99 @@ describe("library PDF annotation forms", () => {
         method: "POST",
       }),
     );
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/library/references/reference%3A1/pdf-markups",
+      expect.objectContaining({
+        body: JSON.stringify({
+          kind: "note",
+          artifactId: "artifact:1",
+          page: 5,
+          x: 0.2,
+          y: 0.3,
+          body: "Margin note",
+        }),
+        method: "POST",
+      }),
+    );
     expect(actions).toEqual([
       { action: "highlight-saved", kind: "extended" },
-      { action: "save-note", body: "Margin note" },
+      { action: "note-saved", kind: "created" },
       { action: "apply-drawing", color: "#abcdef", width: 12 },
     ]);
+  });
+
+  it("updates an existing page note through stable encoded identities", async () => {
+    const forms = new TestLibraryPdfAnnotationForms();
+    const actions: LibraryPdfAnnotationAction[] = [];
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 200 }));
+    forms.showNote("Revised note", {
+      artifactId: "artifact:1",
+      editingId: "note/1",
+      page: 7,
+      referenceId: "reference/1",
+      x: 0.4,
+      y: 0.6,
+    });
+    forms.addEventListener(libraryPdfAnnotationActionEvent, (event) =>
+      actions.push((event as CustomEvent<LibraryPdfAnnotationAction>).detail),
+    );
+
+    await forms.submitForTest("note");
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/library/references/reference%2F1/pdf-markups/note%2F1",
+      expect.objectContaining({
+        body: JSON.stringify({ page: 7, x: 0.4, y: 0.6, body: "Revised note" }),
+        method: "PATCH",
+      }),
+    );
+    expect(actions).toEqual([{ action: "note-saved", kind: "updated" }]);
+  });
+
+  it("reports page-note failures and permits retry", async () => {
+    const forms = new TestLibraryPdfAnnotationForms();
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response("Unavailable", { status: 503 }))
+      .mockResolvedValueOnce(new Response(null, { status: 200 }));
+    forms.showNote("Retry me", {
+      artifactId: "artifact:1",
+      editingId: null,
+      page: 5,
+      referenceId: "reference:1",
+      x: 0.2,
+      y: 0.3,
+    });
+
+    await forms.submitForTest("note");
+    expect(forms.renderForTest()).toBeDefined();
+    await forms.submitForTest("note");
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("ignores duplicate page-note saves while one is pending", async () => {
+    const forms = new TestLibraryPdfAnnotationForms();
+    let respond = (_response: Response): void => undefined;
+    const pendingResponse = new Promise<Response>((resolve) => {
+      respond = resolve;
+    });
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockReturnValue(pendingResponse);
+    forms.showNote("Save once", {
+      artifactId: "artifact:1",
+      editingId: null,
+      page: 5,
+      referenceId: "reference:1",
+      x: 0.2,
+      y: 0.3,
+    });
+
+    const first = forms.submitForTest("note");
+    await forms.submitForTest("note");
+    respond(new Response(null, { status: 200 }));
+    await first;
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it("updates an existing highlight note through stable encoded identities", async () => {
