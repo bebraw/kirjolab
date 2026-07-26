@@ -266,11 +266,15 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Keep each transient assistant result's captured passage, source revision,
   evidence, and continuation authority inside its Lit result owner. Emit that
   complete typed context with table, clarity, or revision intents while leaving
-  provider requests, workflow state, candidate persistence, and Yjs edits in
-  the application coordinator. Let reference-discovery cards use the shared CSL
-  projection and import adapter while owning duplicate-submit gating, local
-  retryable failures, and refresh-pending state; retain canonical Library
-  refresh and cross-panel workflow status in the coordinator.
+  provider requests, workflow state, and Yjs edits in the application
+  coordinator. Let the candidate-list Lit owner persist typed revision and claim
+  drafts, derive fixed adapter and prompt-version fields, and validate the
+  operation-specific response. Keep authorized target and evidence derivation,
+  canonical refresh, context navigation, and workflow status in the coordinator.
+  Let reference-discovery cards use the shared CSL projection and import adapter
+  while owning duplicate-submit gating, local retryable failures, and refresh-
+  pending state; retain canonical Library refresh and cross-panel workflow status
+  in the coordinator.
 - Keep browser-local assistant evidence selection and its count or limit status
   inside the Lit workflow-status owner. The coordinator may resolve those keys
   against current snapshots and enforce generation policy, but must not keep a

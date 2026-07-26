@@ -4765,3 +4765,29 @@ and unique production package counts remain unchanged at 135,411 B raw /
 
 Full native CI passes all 1,550 unit/coverage tests, 120 Workers-
 runtime tests, and 74 browser tests.
+
+## Continued Lit Ownership: Candidate Creation
+
+`CandidateListPanel` now owns typed revision- and claim-candidate persistence
+alongside candidate collection rendering. It derives the fixed OpenAI-compatible
+adapter and operation prompt version, sends each operation to its stable endpoint,
+and validates both the shared candidate contract and expected operation.
+`WorkspaceApp` retains local provider calls, authorized manuscript targets,
+evidence derivation, canonical refresh, context opening, workflow state, and
+candidate decisions.
+
+This checkpoint reduces `src/client/app.ts` from 4,693 to 4,684 lines (-9) and
+grows the candidate list from 78 to 125 lines. Runtime source across those two
+files increases by 38 lines while removing two coordinator requests, two
+response parsers and guards, and four repeated invariant payload fields. Focused
+coverage passes both stable endpoints and payloads, invariant derivation,
+operation-specific validated outcomes, malformed and mismatched responses,
+remaining list navigation, application contracts, and strict types.
+
+The browser application artifact changes from 821,981 B raw / 222,398 B gzip
+to 822,390 B raw / 221,846 B gzip (+409 B raw / -552 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,552 unit/coverage tests, 120 Workers-
+runtime tests, and 74 browser tests.

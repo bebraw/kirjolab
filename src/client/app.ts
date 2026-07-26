@@ -124,7 +124,6 @@ import { candidateDecisionEvent, candidateEvidenceEvent } from "./candidate-revi
 import { publicationContextActionEvent, type PublicationContextAction, type PublicationPaperOption } from "./publication-context-panel";
 import {
   defaultProjectPublicationProfile,
-  isModelCandidate,
   isWorkspaceSnapshot,
   isWorkspaceSummaries,
   type AnnotationResource,
@@ -311,7 +310,7 @@ interface AssistantGenerationContext {
   readonly passage: AuthoringPassage | null;
   readonly evidence: { items: ModelEvidenceItem[]; references: ModelEvidenceReference[] };
   readonly annotationItems: ModelEvidenceItem[];
-  readonly annotationReferences: ModelEvidenceReference[];
+  readonly annotationReferences: Array<Extract<ModelEvidenceReference, { readonly kind: "annotation" }>>;
   readonly insertionTarget: AuthoringPassage | null;
   readonly instruction: string;
   readonly sourceRevision: number;
@@ -926,6 +925,7 @@ class WorkspaceApp {
       else if (detail.action === "open-annotation") this.#focusAnnotationCard(detail.annotationId);
       else this.#showPassage(detail.anchor);
     });
+    this.#elements.candidateListPanel.configure(apiBase);
     this.#elements.candidateListPanel.addEventListener(candidateListOpenEvent, (event) => {
       this.#openCandidateContext((event as CustomEvent<ModelCandidate>).detail);
     });
@@ -3587,7 +3587,9 @@ class WorkspaceApp {
     const passage = this.#assistantAuthoringPassage();
     const evidence = this.#modelEvidence();
     const annotationItems = evidence.items.filter((item) => item.kind === "annotation");
-    const annotationReferences = evidence.references.filter((item) => item.kind === "annotation");
+    const annotationReferences = evidence.references.filter(
+      (item): item is Extract<ModelEvidenceReference, { readonly kind: "annotation" }> => item.kind === "annotation",
+    );
     const insertionTarget = operation.id === "build-table" ? this.#assistantInsertionTarget() : null;
     if (
       this.#assistantTargetMissing(operation.id, passage, insertionTarget) ||
@@ -3661,21 +3663,15 @@ class WorkspaceApp {
   async #generateClaimCandidate(input: AssistantGenerationContext): Promise<void> {
     const relation = readClaimEvidenceRelation(this.#elements.assistantTaskPanel.value.relation);
     const draft = await input.provider.draftClaim({ instruction: input.instruction, relation, evidence: input.annotationItems });
-    const response = await jsonFetch(`${apiBase}/claim-candidates`, {
-      providerAdapter: "openai-compatible",
+    const value = await this.#elements.candidateListPanel.createClaim({
       providerLabel: draft.providerLabel,
       model: draft.model,
-      promptVersion: "draft-claim-v1",
       instruction: input.instruction,
       relation,
       evidence: input.annotationReferences,
       proposedText: draft.text,
       proposedNote: draft.note,
     });
-    await expectOk(response);
-    const value: unknown = await response.json();
-    if (!isModelCandidate(value) || value.operation !== "draft-claim")
-      throw new Error("Candidate endpoint returned an invalid claim draft");
     await this.#resourceRefresh.request();
     this.#openCandidateContext(this.#snapshot?.candidates.find((item) => item.id === value.id) ?? value);
     this.#elements.assistantWorkflowStatus.status = "Claim draft ready. Review its proposition, note, and annotation snapshots in Context.";
@@ -3899,19 +3895,14 @@ class WorkspaceApp {
     readonly providerLabel: string;
     readonly model: string;
   }): Promise<void> {
-    const response = await jsonFetch(`${apiBase}/candidates`, {
-      providerAdapter: "openai-compatible",
+    const value = await this.#elements.candidateListPanel.createRevision({
       providerLabel: input.providerLabel,
       model: input.model,
-      promptVersion: "revise-selection-v1",
       instruction: input.instruction,
       target: { ...input.passage, sourceRevision: input.sourceRevision },
-      evidence: input.evidence,
+      evidence: [...input.evidence],
       proposedReplacement: input.replacement,
     });
-    await expectOk(response);
-    const value: unknown = await response.json();
-    if (!isModelCandidate(value)) throw new Error("Candidate endpoint returned an invalid targeted revision");
     await this.#resourceRefresh.request();
     this.#openCandidateContext(this.#snapshot?.candidates.find((item) => item.id === value.id) ?? value);
   }

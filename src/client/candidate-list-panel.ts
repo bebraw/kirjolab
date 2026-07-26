@@ -1,7 +1,18 @@
 import { html, LitElement, type TemplateResult } from "lit";
-import type { ModelCandidate } from "../domain/workspace";
+import {
+  isModelCandidate,
+  type CreateCandidateInput,
+  type CreateClaimCandidateInput,
+  type ModelCandidate,
+  type ModelClaimCandidate,
+  type ModelRevisionCandidate,
+} from "../domain/workspace";
+import { expectOk, jsonFetch } from "./http";
 
 export const candidateListOpenEvent = "candidate-list-open";
+
+type RevisionCandidateDraft = Omit<CreateCandidateInput, "promptVersion" | "providerAdapter">;
+type ClaimCandidateDraft = Omit<CreateClaimCandidateInput, "promptVersion" | "providerAdapter">;
 
 export class CandidateListPanel extends LitElement {
   static override properties = {
@@ -9,6 +20,7 @@ export class CandidateListPanel extends LitElement {
   };
 
   declare private candidates: readonly ModelCandidate[];
+  private apiBase = "";
 
   constructor() {
     super();
@@ -17,6 +29,30 @@ export class CandidateListPanel extends LitElement {
 
   setCandidates(candidates: readonly ModelCandidate[]): void {
     this.candidates = candidates;
+  }
+
+  configure(apiBase: string): void {
+    this.apiBase = apiBase;
+  }
+
+  async createRevision(input: RevisionCandidateDraft): Promise<ModelRevisionCandidate> {
+    const candidate = await this.create("candidates", {
+      ...input,
+      promptVersion: "revise-selection-v1",
+      providerAdapter: "openai-compatible",
+    });
+    if (candidate.operation !== "revise-selection") throw new Error("Candidate endpoint returned an invalid targeted revision");
+    return candidate;
+  }
+
+  async createClaim(input: ClaimCandidateDraft): Promise<ModelClaimCandidate> {
+    const candidate = await this.create("claim-candidates", {
+      ...input,
+      promptVersion: "draft-claim-v1",
+      providerAdapter: "openai-compatible",
+    });
+    if (candidate.operation !== "draft-claim") throw new Error("Candidate endpoint returned an invalid claim draft");
+    return candidate;
   }
 
   override connectedCallback(): void {
@@ -64,6 +100,17 @@ export class CandidateListPanel extends LitElement {
         </button>
       </article>
     `;
+  }
+
+  private async create(
+    resource: "candidates" | "claim-candidates",
+    input: CreateCandidateInput | CreateClaimCandidateInput,
+  ): Promise<ModelCandidate> {
+    const response = await jsonFetch(`${this.apiBase}/${resource}`, input);
+    await expectOk(response);
+    const value: unknown = await response.json();
+    if (!isModelCandidate(value)) throw new Error("Candidate endpoint returned an invalid candidate");
+    return value;
   }
 }
 

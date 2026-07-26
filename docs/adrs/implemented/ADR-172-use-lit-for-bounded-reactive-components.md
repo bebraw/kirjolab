@@ -111,7 +111,11 @@ The adopted components own bounded presentation:
   gating, pending and retryable failure state, and typed open, manage, and
   completed-enrichment outcomes.
 - The model candidate list owns revision and claim-draft summaries, empty-state,
-  and a typed review-opening intent.
+  typed creation transport, fixed adapter and prompt-version derivation,
+  operation-specific response validation, and a typed review-opening intent.
+  The coordinator retains provider calls, authorized target and evidence
+  derivation, canonical refresh, context navigation, workflow state, and
+  decisions.
 - The context-tab overview owns overflow visibility, counts, tab summaries, and
   typed activate and close intents.
 - The composed context tab strip owns fixed-tab presentation and keyboard
@@ -408,10 +412,10 @@ reason to wrap static markup mechanically.
 - The assistant result panel replaces six imperative result renderers and their
   local event bindings. It also removes the coordinator's parallel transient-
   result discriminator and context cache by emitting the context retained with
-  the visible result. Model requests, workflow state, candidate persistence,
-  document edits, canonical Library refresh, and cross-panel status remain in
-  the application coordinator; the result owner performs its local discovered-
-  reference import.
+  the visible result. Model requests, workflow state, candidate-input derivation,
+  document edits, canonical refresh, and cross-panel status remain in the
+  application coordinator; the candidate list persists candidate resources and
+  the result owner performs its local discovered-reference import.
 - The project map panel replaces three internal element references, two
   coordinator fields, and imperative node, connector, resize, focus, and hover
   management while leaving graph derivation and resource navigation in the
@@ -452,8 +456,10 @@ reason to wrap static markup mechanically.
   navigation, Library management, canonical refresh, and notification policy
   in the application coordinator.
 - The model candidate list replaces one internal list reference and its
-  imperative card renderer while leaving generation, candidate state, context
-  navigation, applicability checks, and decisions in the application
+  imperative card renderer plus the coordinator's revision- and claim-candidate
+  requests and response guards. It leaves provider generation, authorized
+  target and evidence derivation, canonical candidate state, context navigation,
+  applicability checks, workflow state, and decisions in the application
   coordinator.
 - The context-tab overview replaces three internal element references and its
   imperative row and close-action renderers while leaving tab titles, routing,

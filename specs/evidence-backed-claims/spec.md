@@ -78,6 +78,9 @@ must show where a claim enters authored prose.
 - [x] Browser coverage proves the annotation-to-claim-to-prose workflow.
 - [x] A reviewed `draft-claim-v1` candidate can create one ordinary claim and
       its evidence links from current annotation snapshots.
+- [x] The bounded candidate-list owner persists typed claim drafts with its
+      fixed provider adapter and prompt version, validates that the response is
+      a claim-draft candidate, and returns it for canonical refresh and review.
 
 ### Regression Guardrails
 
