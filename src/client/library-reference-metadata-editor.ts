@@ -16,13 +16,6 @@ import { extractPdfMetadata, type PdfMetadataCandidates } from "./pdf-metadata";
 
 export type LibraryReferenceMetadataValue = Readonly<Record<ReferenceMetadataField, string>>;
 
-export type LibraryReferenceMetadataAction = {
-  readonly action: "save";
-  readonly referenceId: string;
-  readonly value: LibraryReferenceMetadataValue;
-};
-
-export const libraryReferenceMetadataActionEvent = "library-reference-metadata-action";
 export const libraryReferenceMetadataNoticeEvent = "library-reference-metadata-notice";
 export const libraryReferenceMetadataRefreshEvent = "library-reference-metadata-refresh";
 
@@ -156,7 +149,7 @@ export class LibraryReferenceMetadataEditor extends LitElement {
       ${textFields.map((field) => this.renderField(field, referenceId))} ${this.renderField("abstract", referenceId)}
       ${this.renderRefinement()}
       <div class="mt-2 flex flex-wrap gap-2">
-        <button class="button-primary" type="button" ?disabled=${this.busy} @click=${() => this.save()}>Save details</button>
+        <button class="button-primary" type="button" ?disabled=${this.busy} @click=${() => void this.save()}>Save details</button>
         ${this.primaryArtifact
           ? html`<button class="button-secondary" type="button" ?disabled=${this.busy} @click=${() => void this.refine()}>
               Refine metadata
@@ -170,8 +163,35 @@ export class LibraryReferenceMetadataEditor extends LitElement {
     this.value = { ...this.value, [field]: (event.currentTarget as HTMLInputElement | HTMLTextAreaElement).value };
   }
 
-  protected save(): void {
-    if (this.reference) this.emitAction({ action: "save", referenceId: this.reference.id, value: this.value });
+  protected async save(): Promise<void> {
+    if (this.busy || !this.reference) return;
+    this.busy = true;
+    try {
+      await expectOk(
+        await jsonFetch(
+          `/api/library/references/${encodeURIComponent(this.reference.id)}`,
+          {
+            type: this.value.type.trim(),
+            title: this.value.title.trim(),
+            authors: this.value.authors
+              .split(";")
+              .map((item) => item.trim())
+              .filter(Boolean),
+            year: this.value.year.trim(),
+            venue: this.value.venue.trim(),
+            doi: this.value.doi.trim(),
+            url: this.value.url.trim(),
+            abstract: this.value.abstract.trim(),
+          },
+          "PATCH",
+        ),
+      );
+      this.emitRefresh("Bibliographic details saved with manual provenance.");
+    } catch (error) {
+      this.emitNotice(errorMessage(error, "Could not save bibliographic details."));
+    } finally {
+      this.busy = false;
+    }
   }
 
   protected refine(): Promise<void> {
@@ -281,12 +301,6 @@ export class LibraryReferenceMetadataEditor extends LitElement {
     if ((event.currentTarget as HTMLInputElement).checked) this.pdfSelections.add(field);
     else this.pdfSelections.delete(field);
     this.requestUpdate();
-  }
-
-  protected emitAction(action: LibraryReferenceMetadataAction): void {
-    this.dispatchEvent(
-      new CustomEvent<LibraryReferenceMetadataAction>(libraryReferenceMetadataActionEvent, { bubbles: true, detail: action }),
-    );
   }
 
   private async discoverMetadata(

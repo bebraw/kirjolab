@@ -102,10 +102,10 @@ memory and makes citation aliases compete with stable source identity.
 - A bounded light-DOM metadata editor owns manual bibliographic values,
   refinement progress, PDF suggestions, grouped scholarly-provider matches,
   work and field selections, PDF extraction, provider preview and acceptance,
-  refinement workflow state, local persistence, and typed manual-save, refresh,
-  and notice outcomes. The workspace coordinator retains canonical refreshes
-  and notification policy; metadata components never receive or return raw DOM
-  targets.
+  refinement workflow state, manual and reviewed local persistence, and typed
+  refresh and notice outcomes. The workspace coordinator retains canonical
+  refreshes and notification policy; metadata components never receive or
+  return raw DOM targets.
 - A bounded light-DOM PDF-row component owns attached-artifact presentation,
   signed-in member access context, rights choices, primary-versus-secondary
   refinement availability, and typed actions. The workspace coordinator

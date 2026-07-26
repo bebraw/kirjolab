@@ -3,10 +3,8 @@ import type { BibliographicRecord, LibraryPdfArtifact, MetadataRefinementPreview
 import { extractPdfMetadata } from "./pdf-metadata";
 import {
   LibraryReferenceMetadataEditor,
-  libraryReferenceMetadataActionEvent,
   libraryReferenceMetadataNoticeEvent,
   libraryReferenceMetadataRefreshEvent,
-  type LibraryReferenceMetadataAction,
 } from "./library-reference-metadata-editor";
 
 vi.mock("./pdf-metadata", async () => {
@@ -23,8 +21,8 @@ class TestLibraryReferenceMetadataEditor extends LibraryReferenceMetadataEditor 
     return this.createRenderRoot();
   }
 
-  saveForTest(): void {
-    this.save();
+  saveForTest(): Promise<void> {
+    return this.save();
   }
 
   refineForTest(): Promise<void> {
@@ -136,31 +134,52 @@ describe("library reference metadata editor", () => {
     expect(editor.renderForTest()).toBeDefined();
   });
 
-  it("emits only the remaining manual-save action", () => {
+  it("owns manual metadata persistence and emits a refresh outcome", async () => {
     const editor = configuredEditor();
-    const actions: LibraryReferenceMetadataAction[] = [];
-    editor.addEventListener(libraryReferenceMetadataActionEvent, (event) => {
-      actions.push((event as CustomEvent<LibraryReferenceMetadataAction>).detail);
+    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 204 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const outcomes: string[] = [];
+    editor.addEventListener(libraryReferenceMetadataRefreshEvent, (event) => outcomes.push((event as CustomEvent<string>).detail));
+
+    await editor.saveForTest();
+
+    expect(fetchMock).toHaveBeenCalledWith("/api/library/references/ref-1", {
+      body: JSON.stringify({
+        type: "article",
+        title: "Current title",
+        authors: ["Jane Doe"],
+        year: "2025",
+        venue: "Journal",
+        doi: "10.1000/current",
+        url: "",
+        abstract: "",
+      }),
+      credentials: "same-origin",
+      headers: { "content-type": "application/json" },
+      method: "PATCH",
     });
+    expect(outcomes).toEqual(["Bibliographic details saved with manual provenance."]);
+  });
 
-    editor.saveForTest();
+  it("keeps manual-save failures local and ignores duplicate submissions", async () => {
+    const editor = configuredEditor();
+    let resolveResponse = (_response: Response): void => undefined;
+    const pendingResponse = new Promise<Response>((resolve) => {
+      resolveResponse = resolve;
+    });
+    const fetchMock = vi.fn().mockReturnValue(pendingResponse);
+    vi.stubGlobal("fetch", fetchMock);
+    const notices: string[] = [];
+    editor.addEventListener(libraryReferenceMetadataNoticeEvent, (event) => notices.push((event as CustomEvent<string>).detail));
 
-    expect(actions).toEqual([
-      {
-        action: "save",
-        referenceId: "ref-1",
-        value: {
-          abstract: "",
-          authors: "Jane Doe",
-          doi: "10.1000/current",
-          title: "Current title",
-          type: "article",
-          url: "",
-          venue: "Journal",
-          year: "2025",
-        },
-      },
-    ]);
+    const first = editor.saveForTest();
+    await editor.saveForTest();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    resolveResponse(json({ error: "Metadata unavailable" }, 503));
+    await first;
+
+    expect(notices).toEqual(["Metadata unavailable"]);
+    expect(editor.renderForTest()).toBeDefined();
   });
 
   it("owns local extraction, provider preview, validation, and cache presentation", async () => {

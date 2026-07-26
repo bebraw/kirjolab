@@ -289,8 +289,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   as explicit provenance-preserving operations.
 - Keep the browser-local metadata-refinement actor, PDF extraction, provider
   preview and acceptance requests, response guards, stale-response rejection,
-  busy state, and retryable errors in the Lit metadata editor. Emit only manual
-  save, canonical-refresh, and notice outcomes to the application coordinator.
+  manual bibliographic persistence, busy state, and retryable errors in the Lit
+  metadata editor. Emit only canonical-refresh and notice outcomes to the
+  application coordinator.
 - Keep private tag, collection, reading-state, note, and archive mutations,
   destructive confirmation, duplicate-submit gating, and retryable error state
   in the Lit personal-fields block. Emit only a successful canonical-refresh

@@ -295,8 +295,9 @@ The adopted components own bounded presentation:
   duplicate-submit gating, local failure state, and one typed successful-refresh
   outcome.
 - The Library reference metadata editor owns manual field values, PDF and
-  provider suggestions, work and field selections, refinement progress, and
-  typed save, refine, and application intents.
+  provider suggestions, work and field selections, refinement progress, manual
+  and reviewed persistence, duplicate-submit gating, local failures, and typed
+  refresh or notice outcomes.
 - The Library reference PDF rows own attached-artifact presentation, member
   access context, rights choices, and typed open, rights, and refinement
   intents.

@@ -3820,3 +3820,25 @@ and unique production package counts remain unchanged at 135,411 B raw /
 
 Full native CI passes all 1,461 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Lit Ownership: Manual Metadata Persistence
+
+`LibraryReferenceMetadataEditor` now also owns manual bibliographic PATCH
+payloads, duplicate-submit gating, and retryable failures. Its existing typed
+refresh and notice outcomes cover both manual and reviewed metadata operations;
+`WorkspaceApp` no longer brokers a separate manual-save intent.
+
+This checkpoint reduces `src/client/app.ts` from 5,339 to 5,309 lines (-30)
+and grows the metadata editor from 548 to 562 lines. Runtime source across
+those files decreases by 16 lines while removing the final metadata request
+method and action adapter from the coordinator. Focused coverage passes the
+normalized manual payload, successful refresh, provider failure, and duplicate
+submission behavior alongside the existing refinement workflow.
+
+The browser application artifact changes from 800,138 B raw / 217,105 B gzip
+to 800,036 B raw / 217,149 B gzip (-102 B raw / +44 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,462 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.

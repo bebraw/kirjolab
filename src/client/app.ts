@@ -88,11 +88,8 @@ import { libraryReferenceSummaryActionEvent, type LibraryReferenceSummaryAction 
 import { libraryReferencePersonalRefreshEvent } from "./library-reference-personal-fields";
 import {
   LibraryReferenceMetadataEditor,
-  libraryReferenceMetadataActionEvent,
   libraryReferenceMetadataNoticeEvent,
   libraryReferenceMetadataRefreshEvent,
-  type LibraryReferenceMetadataAction,
-  type LibraryReferenceMetadataValue,
 } from "./library-reference-metadata-editor";
 import { libraryReferencePdfActionEvent, type LibraryReferencePdfAction } from "./library-reference-pdf-rows";
 import { libraryReferenceResearchActionEvent, type LibraryReferenceResearchAction } from "./library-reference-research-rows";
@@ -633,10 +630,6 @@ class WorkspaceApp {
     });
     this.#elements.referenceLibraryList.addEventListener(libraryReferencePersonalRefreshEvent, (event) => {
       void this.#completePersonalReferenceMutation((event as CustomEvent<string>).detail);
-    });
-    this.#elements.referenceLibraryList.addEventListener(libraryReferenceMetadataActionEvent, (event) => {
-      const detail = (event as CustomEvent<LibraryReferenceMetadataAction>).detail;
-      void this.#saveReferenceMetadata(detail.referenceId, detail.value);
     });
     this.#elements.referenceLibraryList.addEventListener(libraryReferenceMetadataNoticeEvent, (event) => {
       this.#showToast((event as CustomEvent<string>).detail);
@@ -2551,29 +2544,6 @@ class WorkspaceApp {
     } catch {
       this.#showToast("Metadata was applied, but the refreshed Library could not be loaded.");
     }
-  }
-
-  async #saveReferenceMetadata(referenceId: string, value: LibraryReferenceMetadataValue): Promise<void> {
-    const response = await jsonFetch(
-      `/api/library/references/${encodeURIComponent(referenceId)}`,
-      {
-        type: value.type.trim(),
-        title: value.title.trim(),
-        authors: value.authors
-          .split(";")
-          .map((item) => item.trim())
-          .filter(Boolean),
-        year: value.year.trim(),
-        venue: value.venue.trim(),
-        doi: value.doi.trim(),
-        url: value.url.trim(),
-        abstract: value.abstract.trim(),
-      },
-      "PATCH",
-    );
-    await expectOk(response);
-    await this.#refreshBibliographicMetadata();
-    this.#showToast("Bibliographic details saved with manual provenance.");
   }
 
   async #refreshBibliographicMetadata(): Promise<void> {
