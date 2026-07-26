@@ -338,8 +338,9 @@ collaboration.
   On touch hardware, fingers pan and pinch-zoom even while Draw is active;
   Apple Pencil and mouse pointers create ink. The bounded markup layer owns
   active-tool and drawing attributes plus clamped pointer normalization against
-  its rendered page bounds; the coordinator retains gesture transitions, shape
-  recognition, and persistence.
+  its rendered page bounds, pixel-space shape recognition, and adjustment back
+  to normalized page points; the coordinator retains gesture and recognized
+  shape state, workflow transitions, and persistence.
 - **Web sources:** Public HTTP(S) pages are captured through bounded,
   redirect-controlled Worker retrieval into immutable owner-private raw and
   readable R2 objects. Project citations pin one exact access timestamp and

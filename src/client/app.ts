@@ -210,7 +210,7 @@ import { AssistantTaskPanel, assistantTaskChangeEvent, assistantTaskGenerateEven
 import { AssistantWorkflowStatus, assistantWorkflowActionEvent, type AssistantWorkflowAction } from "./assistant-workflow-status";
 import { assistantWorkflowBusy, createAssistantWorkflowActor } from "./assistant-workflow-machine";
 import { citationPageFromLocator, createCitationInsertion, parseCitationKeys, type CitationContext } from "./citations";
-import { manipulateRecognizedShape, recognizeDrawnShape, type RecognizedDrawnShape } from "./drawn-shape-recognition";
+import type { RecognizedDrawnShape } from "./drawn-shape-recognition";
 import { loadMarkdownRuntime, type MarkdownRuntime } from "./markdown-runtime";
 import { createMetadataRefinementActor } from "./metadata-refinement-machine";
 import { ProjectMapWorkspace, projectMapResourceSelectEvent, projectMapSearchEvent } from "./project-map-workspace";
@@ -6278,39 +6278,25 @@ class WorkspaceApp {
     this.#pdfDrawingShapeTimer = window.setTimeout(() => {
       this.#pdfDrawingShapeTimer = undefined;
       const draft = this.#pdfDrawingDraft();
-      const rect = this.#elements.paperMarkups.getBoundingClientRect();
-      if (this.#pdfDrawingPointer() !== pointerId || !draft || rect.width <= 0 || rect.height <= 0) return;
-      const shape = recognizeDrawnShape(draft.map((point) => ({ x: point.x * rect.width, y: point.y * rect.height })));
-      if (!shape) return;
-      this.#pdfDrawingShape = shape;
-      const points = this.#normalizedLibraryPdfShapePoints(shape.points, rect);
-      this.#pdfAnnotation.send({ type: "SNAP_DRAWING_SHAPE", pointerId, points });
-      this.#elements.paperMarkups.updateDraft(points);
-      const label = { line: "Line", ellipse: "Circle", rectangle: "Rectangle", triangle: "Triangle" }[shape.kind];
+      if (this.#pdfDrawingPointer() !== pointerId || !draft) return;
+      const recognized = this.#elements.paperMarkups.recognizeShape(draft);
+      if (!recognized) return;
+      this.#pdfDrawingShape = recognized.shape;
+      this.#pdfAnnotation.send({ type: "SNAP_DRAWING_SHAPE", pointerId, points: recognized.points });
+      this.#elements.paperMarkups.updateDraft(recognized.points);
+      const label = { line: "Line", ellipse: "Circle", rectangle: "Rectangle", triangle: "Triangle" }[recognized.shape.kind];
       this.#elements.libraryPdfInspector.setStatus(`${label} snapped into place. Keep dragging to adjust it, or lift to save.`);
     }, 850);
   }
 
   #adjustLibraryPdfDrawingShape(event: PointerEvent): void {
-    const point = this.#elements.paperMarkups.point(event);
     const shape = this.#pdfDrawingShape;
-    const rect = this.#elements.paperMarkups.getBoundingClientRect();
-    if (!point || !shape || rect.width <= 0 || rect.height <= 0) return;
+    if (!shape) return;
+    const points = this.#elements.paperMarkups.adjustShape(shape, event);
+    if (!points) return;
     event.preventDefault();
-    const adjusted = manipulateRecognizedShape(shape, { x: point.x * rect.width, y: point.y * rect.height });
-    const points = this.#normalizedLibraryPdfShapePoints(adjusted, rect);
     this.#pdfAnnotation.send({ type: "ADJUST_DRAWING_SHAPE", pointerId: event.pointerId, points });
     this.#elements.paperMarkups.updateDraft(points);
-  }
-
-  #normalizedLibraryPdfShapePoints(
-    points: readonly { readonly x: number; readonly y: number }[],
-    rect: Pick<DOMRect, "width" | "height">,
-  ): readonly LibraryPdfPoint[] {
-    return points.map((point) => ({
-      x: Math.max(0, Math.min(1, point.x / rect.width)),
-      y: Math.max(0, Math.min(1, point.y / rect.height)),
-    }));
   }
 
   async #finishLibraryPdfDrawing(event: PointerEvent): Promise<void> {

@@ -2647,3 +2647,25 @@ and unique production package counts remain unchanged at 135,411 B raw /
 
 Full native CI passes all 1,413 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Lit Ownership: PDF Shape Geometry
+
+`LibraryPdfMarkupLayer` now owns the rendered-bound conversions required to
+recognize normalized strokes in pixel space and return snapped or adjusted
+shapes to normalized page coordinates. `WorkspaceApp` retains gesture and
+recognized-shape state, the recognition delay, workflow transitions,
+persistence, and inspector messaging.
+
+This checkpoint reduces `src/client/app.ts` from 7,101 to 7,087 lines (-14),
+removes its shape-normalization helper, and removes its direct dependency on
+the recognition and manipulation functions. Focused unit and browser coverage
+passes recognition, adjustment, unavailable bounds, a real held line gesture,
+private persistence, rendering, and annotated export.
+
+The browser application artifact changes from 799,775 B raw / 215,172 B gzip
+to 799,932 B raw / 215,491 B gzip (+157 B raw / +319 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,413 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.

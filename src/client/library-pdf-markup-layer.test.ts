@@ -94,10 +94,22 @@ describe("library PDF markup layer", () => {
     expect(dataset).toEqual({ drawingActive: "true", tool: "draw" });
     expect(layer.point({ clientX: 210, clientY: 120 })).toEqual({ x: 0.5, y: 0.5 });
     expect(layer.point({ clientX: -10, clientY: 300 })).toEqual({ x: 0, y: 1 });
+    const recognized = layer.recognizeShape([
+      { x: 0.1, y: 0.2 },
+      { x: 0.8, y: 0.2 },
+    ]);
+    expect(recognized?.shape.kind).toBe("line");
+    expect(recognized?.points).toEqual([
+      { x: 0.1, y: 0.2 },
+      { x: 0.8, y: 0.2 },
+    ]);
+    expect(recognized && layer.adjustShape(recognized.shape, { clientX: 210, clientY: 220 })).toBeDefined();
     layer.setInteraction("select");
     expect(dataset).toEqual({ tool: "select" });
 
     Object.defineProperty(layer, "getBoundingClientRect", { value: () => ({ height: 0, left: 0, top: 0, width: 0 }) });
     expect(layer.point({ clientX: 0, clientY: 0 })).toBeNull();
+    expect(layer.recognizeShape(drawing.points)).toBeNull();
+    expect(recognized && layer.adjustShape(recognized.shape, { clientX: 0, clientY: 0 })).toBeNull();
   });
 });

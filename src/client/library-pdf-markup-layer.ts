@@ -1,5 +1,6 @@
 import { html, LitElement, nothing, type TemplateResult } from "lit";
 import type { LibraryPdfDrawing, LibraryPdfNote, LibraryPdfPoint } from "../domain/reference-library";
+import { manipulateRecognizedShape, recognizeDrawnShape, type RecognizedDrawnShape } from "./drawn-shape-recognition";
 import type { PdfAnnotationTool } from "./pdf-annotation-machine";
 
 interface PdfNoteDraft {
@@ -22,6 +23,11 @@ export interface LibraryPdfMarkupLayerData {
 export interface LibraryPdfMarkupLayerAction {
   readonly action: "close-note";
   readonly noteId: string;
+}
+
+export interface LibraryPdfRecognizedShape {
+  readonly points: readonly LibraryPdfPoint[];
+  readonly shape: RecognizedDrawnShape;
 }
 
 export const libraryPdfMarkupLayerActionEvent = "library-pdf-markup-layer-action";
@@ -54,6 +60,20 @@ export class LibraryPdfMarkupLayer extends LitElement {
       x: Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width)),
       y: Math.max(0, Math.min(1, (event.clientY - rect.top) / rect.height)),
     };
+  }
+
+  recognizeShape(points: readonly LibraryPdfPoint[]): LibraryPdfRecognizedShape | null {
+    const rect = this.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) return null;
+    const shape = recognizeDrawnShape(points.map((point) => ({ x: point.x * rect.width, y: point.y * rect.height })));
+    return shape ? { points: relativePoints(shape.points, rect), shape } : null;
+  }
+
+  adjustShape(shape: RecognizedDrawnShape, event: Pick<PointerEvent, "clientX" | "clientY">): readonly LibraryPdfPoint[] | null {
+    const rect = this.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) return null;
+    const adjusted = manipulateRecognizedShape(shape, { x: event.clientX - rect.left, y: event.clientY - rect.top });
+    return relativePoints(adjusted, rect);
   }
 
   updateDraft(points: readonly LibraryPdfPoint[]): void {
@@ -157,6 +177,16 @@ export class LibraryPdfMarkupLayer extends LitElement {
         : nothing}
     `;
   }
+}
+
+function relativePoints(
+  points: readonly { readonly x: number; readonly y: number }[],
+  rect: Pick<DOMRect, "height" | "width">,
+): readonly LibraryPdfPoint[] {
+  return points.map((point) => ({
+    x: Math.max(0, Math.min(1, point.x / rect.width)),
+    y: Math.max(0, Math.min(1, point.y / rect.height)),
+  }));
 }
 
 function drawingPoints(points: readonly LibraryPdfPoint[]): string {
