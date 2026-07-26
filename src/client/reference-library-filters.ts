@@ -1,5 +1,6 @@
 import { html, LitElement, type TemplateResult } from "lit";
-import type { ReferenceLibraryFilters } from "../domain/reference-filters";
+import type { BibliographicRecord, ReferenceLibrarySnapshot } from "../domain/reference-library";
+import { filterReferenceLibrary, type ReferenceLibraryFilters } from "../domain/reference-filters";
 
 export const referenceLibraryFilterChangeEvent = "reference-library-filter-change";
 
@@ -42,14 +43,13 @@ export class ReferenceLibraryFilterPanel extends LitElement {
     this.filters = query ? { ...emptyFilters, query } : emptyFilters;
   }
 
-  setCount(count: number, total: number): void {
-    this.count = count;
-    this.total = total;
-  }
-
-  setTypes(types: readonly string[]): void {
-    this.types = types;
-    if (this.filters.type && !types.includes(this.filters.type)) this.filters = { ...this.filters, type: "" };
+  filterLibrary(library: ReferenceLibrarySnapshot, linkedReferenceIds: ReadonlySet<string>): readonly BibliographicRecord[] {
+    this.types = [...new Set(library.references.map((reference) => reference.type))].sort();
+    if (this.filters.type && !this.types.includes(this.filters.type)) this.filters = { ...this.filters, type: "" };
+    const references = filterReferenceLibrary(library, linkedReferenceIds, this.filters);
+    this.count = references.length;
+    this.total = library.references.length;
+    return references;
   }
 
   override connectedCallback(): void {

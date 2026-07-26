@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { ReferenceLibrarySnapshot } from "../domain/reference-library";
 import type { ReferenceLibraryFilters } from "../domain/reference-filters";
 import { ReferenceLibraryFilterPanel, referenceLibraryFilterChangeEvent } from "./reference-library-filters";
 
@@ -33,11 +34,11 @@ describe("reference library filter panel", () => {
   it("renders dynamic types, counts, and reset state", () => {
     const panel = new TestReferenceLibraryFilterPanel();
     expect(panel.rootForTest()).toBe(panel);
-    panel.setTypes(["article", "book"]);
-    panel.setCount(2, 5);
+    const references = panel.filterLibrary(library("article", "book"), new Set());
+    expect(references).toHaveLength(2);
     expect(panel.renderForTest()).toBeDefined();
     panel.changeForTest("type", "article");
-    panel.setTypes(["book"]);
+    panel.filterLibrary(library("book"), new Set());
     expect(panel.value.type).toBe("");
     panel.reset("sourceunderreview");
     expect(panel.value.query).toBe("sourceunderreview");
@@ -78,3 +79,34 @@ describe("reference library filter panel", () => {
     expect(panel.value).toMatchObject({ completeness: "all", linkage: "all", readingStatus: "all", sort: "updated" });
   });
 });
+
+function library(...types: string[]): ReferenceLibrarySnapshot {
+  return {
+    artifacts: [],
+    collections: {},
+    highlights: [],
+    notes: [],
+    reading: [],
+    referenceKeyStates: {},
+    references: types.map((type, index) => ({
+      abstract: "",
+      archivedAt: null,
+      authors: [],
+      createdAt: "2026-01-01",
+      deletedAt: null,
+      doi: "",
+      id: `reference-${index}`,
+      provenance: {},
+      referenceKey: `reference${index}`,
+      title: `Reference ${index}`,
+      type,
+      updatedAt: "2026-01-01",
+      url: "",
+      venue: "",
+      year: "",
+    })),
+    tags: {},
+    webSnapshots: [],
+    webSources: [],
+  };
+}

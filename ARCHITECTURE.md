@@ -64,6 +64,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   unlink transport, canonical workspace-response validation, and completed
   mutation outcome. Keep canonical snapshot application, project-PDF refresh,
   Library rerendering, and notification policy in the application coordinator.
+- Let the reference Library filter Lit owner derive dynamic type choices,
+  filtered and sorted reference results, and visible-versus-total counts from
+  the canonical Library snapshot, its local filter state, and coordinator-
+  supplied linked-reference ids. Keep canonical snapshot loading, result-card
+  composition, navigation, mutations, and refresh policy in their authorities.
 - Let the workspace-settings Lit component own project settings persistence,
   archive/restore, duplication, permanent-deletion confirmation and request
   lifecycles, plus their local busy and failure state. Emit only navigation,

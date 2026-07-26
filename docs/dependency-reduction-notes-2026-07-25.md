@@ -5507,6 +5507,30 @@ component members.
 Full native CI passes all 1,582 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Reference Library Projection
+
+`ReferenceLibraryFilterPanel` now derives dynamic type choices, filtered and
+sorted references, and visible-versus-total counts from the canonical Library
+snapshot, its local filter state, and project-linked reference ids.
+`WorkspaceApp` retains Library loading, linked-id projection, result-card
+composition, navigation, mutations, and refresh policy without importing the
+reference filter domain adapter.
+
+This checkpoint reduces `src/client/app.ts` from 4,032 to 4,027 lines (-5)
+while the reference filter owner remains 202 lines. Runtime source across those
+two files decreases by five lines and two narrow public setters collapse into
+one complete filtering boundary. Nine focused domain and component tests plus
+all four affected tests pass alongside strict types.
+
+The browser application artifact changes from 824,415 B raw / 223,055 B gzip
+to 824,356 B raw / 222,964 B gzip (-59 B raw / -91 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150. The readability audit reports one fewer externally
+visible low-level component member.
+
+Full native CI passes all 1,582 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Assistant Evidence Projection
 
 `AssistantWorkflowStatus` now resolves its ordered selected evidence keys

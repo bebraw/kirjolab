@@ -273,7 +273,8 @@ The adopted components own bounded presentation:
   components and the application coordinator.
 - The reference Library filter panel owns query, type, reading,
   organization, project-linkage, completeness, and sort values, dynamic type
-  choices, result counts, reset behavior, and a typed filter-change intent.
+  choices, canonical filtering and sorting, result counts, reset behavior, and
+  a typed filter-change intent.
 - The model provider settings panel owns connection, endpoint, model, and
   reasoning-effort values, saved-value validation, dynamic model choices,
   discovery progress, status presentation, opening and focusing its preferences
@@ -629,9 +630,9 @@ reason to wrap static markup mechanically.
   request-owning Lit components small without introducing another dependency.
 - The reference Library filter panel replaces eight internal element references,
   seven control listeners, filter-value validation, dynamic type-option
-  rendering, and result-count updates while leaving canonical filtering,
-  linked-reference projection, result-card rendering, and navigation in the
-  application coordinator.
+  rendering, result-count updates, and coordinator-side canonical filtering.
+  The application coordinator supplies linked-reference ids and retains
+  result-card composition and navigation.
 - The model provider settings panel replaces six internal element references,
   duplicate preference listeners and status synchronization, stored-value
   validation, and imperative model-option rendering. It also removes the

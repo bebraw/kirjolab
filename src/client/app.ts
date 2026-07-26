@@ -40,7 +40,6 @@ import {
   type ProjectReferencePdf,
   type ReferenceLibrarySnapshot,
 } from "../domain/reference-library";
-import { filterReferenceLibrary } from "../domain/reference-filters";
 import { applicationVersionNoticeEvent } from "./application-version-control";
 import { previewSyncActionEvent, type PreviewSyncAction } from "./preview-sync-controls";
 import { PreviewDocument } from "./preview-document";
@@ -2155,12 +2154,8 @@ class WorkspaceApp {
     const library = this.#librarySnapshot;
     if (!library) return;
     this.#elements.citationNetwork.setReferences(library.references.map(({ id, title }) => ({ id, title: bibTeXDisplayText(title) })));
-    const types = [...new Set(library.references.map((reference) => reference.type))].sort();
-    this.#elements.referenceLibraryFilters.setTypes(types);
-    const filters = this.#elements.referenceLibraryFilters.value;
     const linked = new Set(this.#snapshot?.projectReferences.map((reference) => reference.referenceId) ?? []);
-    const references = filterReferenceLibrary(library, linked, filters);
-    this.#elements.referenceLibraryFilters.setCount(references.length, library.references.length);
+    const references = this.#elements.referenceLibraryFilters.filterLibrary(library, linked);
     this.#elements.referenceLibraryList.setData({
       library,
       projectApiBase: appMode === "workspace" ? apiBase : null,
