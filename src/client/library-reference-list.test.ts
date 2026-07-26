@@ -48,11 +48,23 @@ describe("library reference list", () => {
     const list = new TestReferenceList();
     expect(list.rootForTest()).toBe(list);
     expect(list.renderForTest()).toBeDefined();
-    list.setData({ library: { ...library, references: [] }, projectReferences: [], references: [], researchShares: [], workspace: false });
+    list.setData({
+      library: { ...library, references: [] },
+      projectApiBase: null,
+      projectReferences: [],
+      references: [],
+      researchShares: [],
+    });
     expect(list.renderForTest()).toBeDefined();
-    list.setData({ library, projectReferences: [], references: [], researchShares: [], workspace: false });
+    list.setData({ library, projectApiBase: null, projectReferences: [], references: [], researchShares: [] });
     expect(list.renderForTest()).toBeDefined();
-    list.setData({ library, projectReferences: [], references: [reference], researchShares: [], workspace: true });
+    list.setData({
+      library,
+      projectApiBase: "/api/workspaces/workspace",
+      projectReferences: [],
+      references: [reference],
+      researchShares: [],
+    });
     expect(list.renderForTest()).toBeDefined();
   });
 });

@@ -1,23 +1,24 @@
-import { html, LitElement, nothing, type TemplateResult } from "lit";
+import { html, nothing, type TemplateResult } from "lit";
 import { bibTeXDisplayText } from "../domain/bibliography";
 import type { BibliographicRecord, LibraryPdfArtifact } from "../domain/reference-library";
+import { ProjectReferenceMutationElement, type ProjectReferenceMutation } from "./project-reference-mutation";
 
 export interface LibraryReferenceSummaryData {
   readonly keyState: "provisional" | "final";
   readonly linkedCitationAlias: string | null;
   readonly primaryArtifact: LibraryPdfArtifact | null;
+  readonly projectApiBase: string | null;
   readonly reference: BibliographicRecord;
-  readonly workspace: boolean;
 }
 
-export type LibraryReferenceSummaryAction =
-  | { readonly action: "open-pdf"; readonly artifact: LibraryPdfArtifact }
-  | { readonly action: "link"; readonly referenceId: string; readonly referenceKey: string }
-  | { readonly action: "unlink"; readonly referenceId: string };
+export interface LibraryReferenceSummaryAction {
+  readonly action: "open-pdf";
+  readonly artifact: LibraryPdfArtifact;
+}
 
 export const libraryReferenceSummaryActionEvent = "library-reference-summary-action";
 
-export class LibraryReferenceSummary extends LitElement {
+export class LibraryReferenceSummary extends ProjectReferenceMutationElement {
   static override properties = {
     data: { state: true },
   };
@@ -45,7 +46,7 @@ export class LibraryReferenceSummary extends LitElement {
   protected override render(): TemplateResult {
     const data = this.data;
     if (!data) return html``;
-    const { keyState, linkedCitationAlias, primaryArtifact, reference, workspace } = data;
+    const { keyState, linkedCitationAlias, primaryArtifact, projectApiBase, reference } = data;
     const displayTitle = bibTeXDisplayText(reference.title) || "Untitled reference";
     const details = [
       bibTeXDisplayText(reference.authors.join("; ")),
@@ -76,14 +77,14 @@ export class LibraryReferenceSummary extends LitElement {
               </button>
             `
           : nothing}
-        ${workspace
+        ${projectApiBase
           ? linkedCitationAlias
             ? html`
                 <button
                   class="button-secondary"
                   type="button"
                   title=${`Remove :cite[${linkedCitationAlias}] from this project`}
-                  @click=${() => this.emitAction({ action: "unlink", referenceId: reference.id })}
+                  @click=${this.unlinkReference}
                 >
                   Linked
                 </button>
@@ -93,12 +94,7 @@ export class LibraryReferenceSummary extends LitElement {
                   class="button-primary"
                   type="button"
                   title=${`Add :cite[${reference.referenceKey}] to this project`}
-                  @click=${() =>
-                    this.emitAction({
-                      action: "link",
-                      referenceId: reference.id,
-                      referenceKey: reference.referenceKey,
-                    })}
+                  @click=${this.linkReference}
                 >
                   Add
                 </button>
@@ -112,6 +108,25 @@ export class LibraryReferenceSummary extends LitElement {
     this.dispatchEvent(
       new CustomEvent<LibraryReferenceSummaryAction>(libraryReferenceSummaryActionEvent, { bubbles: true, detail: action }),
     );
+  }
+
+  protected linkReference(): Promise<void> {
+    const data = this.data;
+    return data
+      ? this.changeReference({ action: "link", citationAlias: data.reference.referenceKey, referenceId: data.reference.id })
+      : Promise.resolve();
+  }
+
+  protected unlinkReference(): Promise<void> {
+    const data = this.data;
+    return data ? this.changeReference({ action: "unlink", referenceId: data.reference.id }) : Promise.resolve();
+  }
+
+  private async changeReference(mutation: ProjectReferenceMutation): Promise<void> {
+    const data = this.data;
+    const linked = data?.linkedCitationAlias !== null;
+    if (!data?.projectApiBase || data.reference.id !== mutation.referenceId || (mutation.action === "link" ? linked : !linked)) return;
+    await this.changeProjectReference(data.projectApiBase, mutation);
   }
 }
 

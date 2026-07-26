@@ -1,13 +1,19 @@
 import { describe, expect, it } from "vitest";
 import type { BibliographicRecord, LibraryPdfArtifact } from "../domain/reference-library";
+import type { WorkspaceSnapshot } from "../domain/workspace";
+import { workspaceSnapshotFixture } from "../test-support/workspace-fixture";
 import {
   LibraryReferenceSummary,
   libraryReferenceSummaryActionEvent,
   type LibraryReferenceSummaryAction,
   type LibraryReferenceSummaryData,
 } from "./library-reference-summary";
+import { projectReferenceChangedEvent, type ProjectReferenceChanged, type ProjectReferenceMutation } from "./project-reference-mutation";
 
 class TestLibraryReferenceSummary extends LibraryReferenceSummary {
+  readonly requests: { apiBase: string; mutation: ProjectReferenceMutation }[] = [];
+  requestError: Error | null = null;
+
   renderForTest() {
     return this.render();
   }
@@ -18,6 +24,23 @@ class TestLibraryReferenceSummary extends LibraryReferenceSummary {
 
   emitForTest(action: LibraryReferenceSummaryAction): void {
     this.emitAction(action);
+  }
+
+  linkForTest(): Promise<void> {
+    return this.linkReference();
+  }
+
+  unlinkForTest(): Promise<void> {
+    return this.unlinkReference();
+  }
+
+  protected override async requestProjectReferenceMutation(
+    apiBase: string,
+    mutation: ProjectReferenceMutation,
+  ): Promise<WorkspaceSnapshot> {
+    this.requests.push({ apiBase, mutation });
+    if (this.requestError) throw this.requestError;
+    return workspaceSnapshotFixture;
   }
 }
 
@@ -56,36 +79,68 @@ function data(overrides: Partial<LibraryReferenceSummaryData> = {}): LibraryRefe
     keyState: "final",
     linkedCitationAlias: null,
     primaryArtifact: null,
+    projectApiBase: null,
     reference,
-    workspace: false,
     ...overrides,
   };
 }
 
 describe("library reference summary", () => {
-  it("owns light-DOM summary variants", () => {
+  it("owns light-DOM summary and project availability variants", () => {
     const summary = new TestLibraryReferenceSummary();
     expect(summary.rootForTest()).toBe(summary);
     expect(summary.renderForTest()).toBeDefined();
     summary.setData(data({ keyState: "provisional", primaryArtifact: artifact }));
     expect(summary.renderForTest()).toBeDefined();
-    summary.setData(data({ linkedCitationAlias: "paper", workspace: true }));
+    summary.setData(data({ projectApiBase: "/api/workspaces/workspace" }));
+    expect(summary.renderForTest()).toBeDefined();
+    summary.setData(data({ linkedCitationAlias: "paper", projectApiBase: "/api/workspaces/workspace" }));
     expect(summary.renderForTest()).toBeDefined();
   });
 
-  it("emits typed PDF, link, and unlink actions", () => {
+  it("keeps PDF navigation as a typed intent", () => {
     const summary = new TestLibraryReferenceSummary();
     const actions: LibraryReferenceSummaryAction[] = [];
     summary.addEventListener(libraryReferenceSummaryActionEvent, (event) => {
       actions.push((event as CustomEvent<LibraryReferenceSummaryAction>).detail);
     });
     summary.emitForTest({ action: "open-pdf", artifact });
-    summary.emitForTest({ action: "link", referenceId: reference.id, referenceKey: reference.referenceKey });
-    summary.emitForTest({ action: "unlink", referenceId: reference.id });
-    expect(actions).toEqual([
-      { action: "open-pdf", artifact },
-      { action: "link", referenceId: "ref-1", referenceKey: "doe2026" },
-      { action: "unlink", referenceId: "ref-1" },
+    expect(actions).toEqual([{ action: "open-pdf", artifact }]);
+  });
+
+  it("owns stable link and unlink requests and emits completed workspace outcomes", async () => {
+    const summary = new TestLibraryReferenceSummary();
+    const outcomes: ProjectReferenceChanged[] = [];
+    summary.addEventListener(projectReferenceChangedEvent, (event) => {
+      outcomes.push((event as CustomEvent<ProjectReferenceChanged>).detail);
+    });
+    summary.setData(data({ projectApiBase: "/api/workspaces/workspace" }));
+    await summary.linkForTest();
+    summary.setData(data({ linkedCitationAlias: "doe2026", projectApiBase: "/api/workspaces/workspace" }));
+    await summary.unlinkForTest();
+
+    expect(summary.requests).toEqual([
+      {
+        apiBase: "/api/workspaces/workspace",
+        mutation: { action: "link", citationAlias: "doe2026", referenceId: "ref-1" },
+      },
+      { apiBase: "/api/workspaces/workspace", mutation: { action: "unlink", referenceId: "ref-1" } },
     ]);
+    expect(outcomes.map(({ message }) => message)).toEqual([
+      "Added :cite[doe2026] to this project's reference set.",
+      "Reference removed from this project; the private library record remains.",
+    ]);
+  });
+
+  it("keeps provider failures retryable and guards unavailable targets", async () => {
+    const summary = new TestLibraryReferenceSummary();
+    await summary.linkForTest();
+    summary.setData(data({ projectApiBase: "/api/workspaces/workspace" }));
+    summary.requestError = new Error("Denied");
+    await expect(summary.linkForTest()).rejects.toThrow("Denied");
+    summary.requestError = null;
+    await summary.linkForTest();
+
+    expect(summary.requests).toHaveLength(2);
   });
 });

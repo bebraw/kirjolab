@@ -53,6 +53,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   project validated metadata to CSL JSON and own its import transport, local
   save progress, retryable failures, and refresh-pending state. Keep canonical
   Library refresh and toast policy in the application coordinator.
+- Let bounded Library reference-link controls share their project-link and
+  unlink transport, canonical workspace-response validation, and completed
+  mutation outcome. Keep canonical snapshot application, project-PDF refresh,
+  Library rerendering, and notification policy in the application coordinator.
 - Let the workspace-settings Lit component own project settings persistence,
   archive/restore, duplication, permanent-deletion confirmation and request
   lifecycles, plus their local busy and failure state. Emit only navigation,

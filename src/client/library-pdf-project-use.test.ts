@@ -1,8 +1,14 @@
 import { describe, expect, it } from "vitest";
 import type { BibliographicRecord } from "../domain/reference-library";
-import { LibraryPdfProjectUse, libraryPdfProjectUseActionEvent, type LibraryPdfProjectUseAction } from "./library-pdf-project-use";
+import type { WorkspaceSnapshot } from "../domain/workspace";
+import { workspaceSnapshotFixture } from "../test-support/workspace-fixture";
+import { LibraryPdfProjectUse, type LibraryPdfProjectUseData } from "./library-pdf-project-use";
+import { projectReferenceChangedEvent, type ProjectReferenceChanged, type ProjectReferenceMutation } from "./project-reference-mutation";
 
 class TestProjectUse extends LibraryPdfProjectUse {
+  readonly requests: { apiBase: string; mutation: ProjectReferenceMutation }[] = [];
+  requestError: Error | null = null;
+
   renderForTest() {
     return this.render();
   }
@@ -11,8 +17,17 @@ class TestProjectUse extends LibraryPdfProjectUse {
     return this.createRenderRoot();
   }
 
-  emitForTest(action: LibraryPdfProjectUseAction): void {
-    this.emitAction(action);
+  linkForTest(): Promise<void> {
+    return this.linkReference();
+  }
+
+  protected override async requestProjectReferenceMutation(
+    apiBase: string,
+    mutation: ProjectReferenceMutation,
+  ): Promise<WorkspaceSnapshot> {
+    this.requests.push({ apiBase, mutation });
+    if (this.requestError) throw this.requestError;
+    return workspaceSnapshotFixture;
   }
 }
 
@@ -34,26 +49,61 @@ const reference: BibliographicRecord = {
   updatedAt: "updated",
 };
 
+const data = (overrides: Partial<LibraryPdfProjectUseData> = {}): LibraryPdfProjectUseData => ({
+  linkedCitationAlias: null,
+  projectApiBase: "/api/workspaces/workspace",
+  reference,
+  ...overrides,
+});
+
 describe("library PDF project use", () => {
-  it("owns unidentified, unlinked, and linked presentation", () => {
+  it("owns unidentified, unavailable, unlinked, and linked presentation", () => {
     const projectUse = new TestProjectUse();
     expect(projectUse.rootForTest()).toBe(projectUse);
     expect(projectUse.renderForTest()).toBeDefined();
-    projectUse.setData({ linkedCitationAlias: null, reference: null });
+    projectUse.setData(data({ reference: null }));
     expect(projectUse.renderForTest()).toBeDefined();
-    projectUse.setData({ linkedCitationAlias: null, reference });
+    projectUse.setData(data({ projectApiBase: null }));
     expect(projectUse.renderForTest()).toBeDefined();
-    projectUse.setData({ linkedCitationAlias: "source", reference });
+    projectUse.setData(data());
+    expect(projectUse.renderForTest()).toBeDefined();
+    projectUse.setData(data({ linkedCitationAlias: "source" }));
     expect(projectUse.renderForTest()).toBeDefined();
   });
 
-  it("emits a typed link intent", () => {
+  it("owns stable link transport and emits only the completed workspace outcome", async () => {
     const projectUse = new TestProjectUse();
-    const actions: LibraryPdfProjectUseAction[] = [];
-    projectUse.addEventListener(libraryPdfProjectUseActionEvent, (event) => {
-      actions.push((event as CustomEvent<LibraryPdfProjectUseAction>).detail);
+    const outcomes: ProjectReferenceChanged[] = [];
+    projectUse.addEventListener(projectReferenceChangedEvent, (event) => {
+      outcomes.push((event as CustomEvent<ProjectReferenceChanged>).detail);
     });
-    projectUse.emitForTest({ action: "link-reference", referenceId: reference.id, referenceKey: reference.referenceKey });
-    expect(actions).toEqual([{ action: "link-reference", referenceId: reference.id, referenceKey: reference.referenceKey }]);
+    projectUse.setData(data());
+
+    await projectUse.linkForTest();
+
+    expect(projectUse.requests).toEqual([
+      {
+        apiBase: "/api/workspaces/workspace",
+        mutation: { action: "link", citationAlias: "source2026", referenceId: "reference-1" },
+      },
+    ]);
+    expect(outcomes).toEqual([
+      {
+        message: "Added :cite[source2026] to this project's reference set.",
+        snapshot: workspaceSnapshotFixture,
+      },
+    ]);
+  });
+
+  it("keeps failures retryable and ignores unavailable targets", async () => {
+    const projectUse = new TestProjectUse();
+    projectUse.setData(data({ projectApiBase: null }));
+    await projectUse.linkForTest();
+    projectUse.setData(data());
+    projectUse.requestError = new Error("Denied");
+    await expect(projectUse.linkForTest()).rejects.toThrow("Denied");
+    projectUse.requestError = null;
+    await projectUse.linkForTest();
+    expect(projectUse.requests).toHaveLength(2);
   });
 });

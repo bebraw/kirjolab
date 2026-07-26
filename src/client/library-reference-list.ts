@@ -9,10 +9,10 @@ import { LibraryReferenceSummary } from "./library-reference-summary";
 
 export interface LibraryReferenceListData {
   readonly library: ReferenceLibrarySnapshot;
+  readonly projectApiBase: string | null;
   readonly projectReferences: readonly ProjectReferenceLink[];
   readonly references: readonly BibliographicRecord[];
   readonly researchShares: readonly ResearchShareSnapshot[];
-  readonly workspace: boolean;
 }
 
 interface FocusOptions {
@@ -93,8 +93,8 @@ export class LibraryReferenceList extends LitElement {
         keyState: data.library.referenceKeyStates[reference.id] ?? "final",
         linkedCitationAlias: linked?.citationAlias ?? null,
         primaryArtifact: artifacts[0] ?? null,
+        projectApiBase: data.projectApiBase,
         reference,
-        workspace: data.workspace,
       });
       card.querySelector("library-reference-metadata-editor")?.setData(reference, displayTitle, artifacts[0] ?? null);
       card.querySelector("library-reference-personal-fields")?.setData({

@@ -1,20 +1,14 @@
-import { html, LitElement, nothing, type TemplateResult } from "lit";
+import { html, nothing, type TemplateResult } from "lit";
 import type { BibliographicRecord } from "../domain/reference-library";
+import { ProjectReferenceMutationElement } from "./project-reference-mutation";
 
 export interface LibraryPdfProjectUseData {
   readonly linkedCitationAlias: string | null;
+  readonly projectApiBase: string | null;
   readonly reference: BibliographicRecord | null;
 }
 
-export interface LibraryPdfProjectUseAction {
-  readonly action: "link-reference";
-  readonly referenceId: string;
-  readonly referenceKey: string;
-}
-
-export const libraryPdfProjectUseActionEvent = "library-pdf-project-use-action";
-
-export class LibraryPdfProjectUse extends LitElement {
+export class LibraryPdfProjectUse extends ProjectReferenceMutationElement {
   static override properties = { data: { state: true } };
 
   declare private data: LibraryPdfProjectUseData | null;
@@ -56,18 +50,21 @@ export class LibraryPdfProjectUse extends LitElement {
       <code class="mt-2 block truncate text-xs">:cite[${alias}]</code>
       ${linked
         ? nothing
-        : html`<button
-            class="button-primary mt-3"
-            type="button"
-            @click=${() => this.emitAction({ action: "link-reference", referenceId: reference.id, referenceKey: reference.referenceKey })}
-          >
+        : html`<button class="button-primary mt-3" type="button" ?disabled=${!data.projectApiBase} @click=${this.linkReference}>
             Add reference to project
           </button>`}
     `;
   }
 
-  protected emitAction(action: LibraryPdfProjectUseAction): void {
-    this.dispatchEvent(new CustomEvent<LibraryPdfProjectUseAction>(libraryPdfProjectUseActionEvent, { bubbles: true, detail: action }));
+  protected async linkReference(): Promise<void> {
+    const data = this.data;
+    const reference = data?.reference;
+    if (!data?.projectApiBase || !reference || data.linkedCitationAlias !== null) return;
+    await this.changeProjectReference(data.projectApiBase, {
+      action: "link",
+      citationAlias: reference.referenceKey,
+      referenceId: reference.id,
+    });
   }
 }
 

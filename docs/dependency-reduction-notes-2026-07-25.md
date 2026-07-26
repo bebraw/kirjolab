@@ -4507,3 +4507,30 @@ counts remain unchanged at 135,411 B raw / 23,373 B gzip and 18 and 150.
 
 Full native CI passes all 1,526 unit/coverage tests, 120 Workers-
 runtime tests, and 74 browser tests.
+
+## Continued Lit Ownership: Project Reference Links
+
+`LibraryReferenceSummary` and `LibraryPdfProjectUse` now own their project-
+reference link and unlink requests through one shared Lit mutation boundary.
+That boundary constructs stable encoded requests, validates the returned
+canonical workspace snapshot, and emits one completed outcome. `WorkspaceApp`
+retains snapshot application, project-PDF refresh, Library rerendering, and
+toast policy. The existing workspace guard remains the single large domain
+validator; duplicating it as a second Valibot schema would increase rather than
+reduce maintained contract code.
+
+This checkpoint reduces `src/client/app.ts` from 4,808 to 4,798 lines (-10).
+Runtime source across the coordinator, both controls, and their shared mutation
+boundary increases by 70 lines to remove two coordinator transport methods and
+give both entry points one validation and outcome contract. Focused coverage
+passes link and unlink request construction, stable encoded targets, invalid
+workspace rejection, completed outcomes, retryable provider failures, and
+workspace availability guards.
+
+The browser application artifact changes from 817,545 B raw / 221,216 B gzip
+to 818,526 B raw / 221,582 B gzip (+981 B raw / +366 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,532 unit/coverage tests, 120 Workers-
+runtime tests, and 74 browser tests.

@@ -1,0 +1,37 @@
+import type { WorkspaceSnapshot } from "../domain/workspace";
+
+export const workspaceSnapshotFixture: WorkspaceSnapshot = {
+  id: "workspace",
+  title: "Study",
+  entryFileId: "file-1",
+  folders: [],
+  assets: [],
+  files: [
+    {
+      id: "file-1",
+      path: "chapters/method.md",
+      mediaType: "text/markdown",
+      content: "",
+      createdAt: "now",
+      updatedAt: "now",
+    },
+  ],
+  composition: { content: "", sourceMap: [], diagnostics: [], dependencies: {} },
+  source: "",
+  bibliography: "",
+  revision: 1,
+  publicationProfile: { citationStyle: "apa", locale: "en-US", submissionTemplate: "article", paperSize: "a4" },
+  pdfs: [],
+  publications: [],
+  projectReferences: [],
+  researchShares: [],
+  publicationPdfLinks: [],
+  annotations: [],
+  links: [],
+  claims: [],
+  claimEvidenceLinks: [],
+  claimLinks: [],
+  comments: [],
+  candidates: [],
+  reviewArtifactPins: [],
+};

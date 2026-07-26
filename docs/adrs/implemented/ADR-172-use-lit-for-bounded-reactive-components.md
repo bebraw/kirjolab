@@ -301,7 +301,9 @@ The adopted components own bounded presentation:
   visible failed draft with explicit retry and discard actions.
 - The Library PDF project-use block owns unidentified, unlinked, and linked
   presentation, capability-boundary copy, citation preview, and a typed
-  reference-link intent.
+  completed reference-link mutation outcome. It shares project-reference
+  transport and canonical workspace-response validation with the Library
+  reference summary.
 - The collaborator selection list owns current-revision and current-file
   filtering, caret and range presentation, accessible excerpts, and missing-file
   fallbacks for remote editor presence.
@@ -326,7 +328,9 @@ The adopted components own bounded presentation:
   progress and retryable failures, refresh-pending state, and a typed refresh
   outcome.
 - The Library reference summary owns title and metadata presentation, PDF and
-  project-link actions, and their accessible labels.
+  project-link actions, their accessible labels, project-link and unlink
+  transport, canonical workspace-response validation, and typed completed
+  mutation outcomes.
 - The Library reference personal-fields block owns tags, collections,
   archive-state presentation, reading state, private-note composition, all five
   persistence requests, payload normalization, archive confirmation,
@@ -654,8 +658,8 @@ reason to wrap static markup mechanically.
   its durable save.
 - The Library PDF project-use block replaces its imperative renderer and four
   one-off DOM-construction helpers. The application coordinator retains
-  canonical reference and project-link lookup, the linking mutation, snapshot
-  refreshes, and notification policy.
+  canonical reference and project-link lookup, snapshot application, project-
+  PDF refreshes, and notification policy.
 - The collaborator selection list replaces imperative remote-presence rendering
   and consolidates revision and file filtering for both the list and editor
   overlay. The application coordinator retains local-author selection,

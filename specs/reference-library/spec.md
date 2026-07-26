@@ -102,9 +102,11 @@ memory and makes citation aliases compete with stable source identity.
   workspace coordinator retains canonical reference filtering,
   project-linkage projection, result-card assembly, and reference navigation.
 - A bounded light-DOM reference summary owns each result's display title,
-  compact metadata, PDF action, project-link state, and typed actions. The
-  workspace coordinator retains PDF presentation, link mutations, metadata
-  editing and refinement, and Library refresh policy.
+  compact metadata, PDF action, project-link state, link and unlink transport,
+  canonical workspace-response validation, and typed completed mutation
+  outcomes. The workspace coordinator retains PDF presentation, canonical
+  snapshot application, metadata editing and refinement, and Library refresh
+  policy.
 - A bounded light-DOM personal-fields block owns each source's tag, collection,
   reading-state, archive-state, and private-note form values; their request
   payloads and lifecycles; archive confirmation; duplicate-submit gating; and
@@ -335,9 +337,10 @@ memory and makes citation aliases compete with stable source identity.
   artifact rights, then explicitly share or revoke the PDF snapshot. Each saved
   highlight retains a separate share or revoke action.
 - A bounded light-DOM project-use block owns unidentified, unlinked, and linked
-  PDF presentation, capability-boundary copy, citation preview, and a typed
-  reference-link intent. The workspace coordinator retains canonical lookup,
-  the project-link mutation, snapshot refreshes, and notification policy.
+  PDF presentation, capability-boundary copy, citation preview, project-link
+  transport, canonical workspace-response validation, and a typed completed
+  mutation outcome. The workspace coordinator retains canonical lookup,
+  snapshot application, project-PDF refreshes, and notification policy.
 - A project publication context resolves every authorized paper representation
   for the stable reference identity. The owner sees attached private-library
   PDFs without converting them into project resources; active artifact shares

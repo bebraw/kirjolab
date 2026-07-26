@@ -75,7 +75,6 @@ import {
   type LibraryPdfMarkupAction,
   type LibraryPdfShapeRecognition,
 } from "./library-pdf-markup-layer";
-import { libraryPdfProjectUseActionEvent, type LibraryPdfProjectUseAction } from "./library-pdf-project-use";
 import { libraryPdfToolbarActionEvent, type LibraryPdfToolbarAction } from "./library-pdf-annotation-toolbar";
 import { libraryPdfInspectorCloseEvent } from "./library-pdf-inspector";
 import {
@@ -89,6 +88,7 @@ import { WorkspaceLayoutManager } from "./workspace-layout-manager";
 import { workspaceLayoutChangeEvent } from "./workspace-layout-control";
 import { unidentifiedPdfRefreshEvent, type UnidentifiedPdfRefresh } from "./unidentified-pdf-list";
 import { libraryReferenceSummaryActionEvent, type LibraryReferenceSummaryAction } from "./library-reference-summary";
+import { projectReferenceChangedEvent, type ProjectReferenceChanged } from "./project-reference-mutation";
 import { libraryReferenceImportRefreshEvent, type LibraryReferenceImportRefresh } from "./library-reference-import-control";
 import { libraryReferencePersonalRefreshEvent } from "./library-reference-personal-fields";
 import {
@@ -630,9 +630,7 @@ class WorkspaceApp {
     this.#elements.referenceLibraryFilters.addEventListener(referenceLibraryFilterChangeEvent, () => this.#renderReferenceLibrary());
     this.#elements.referenceLibraryList.addEventListener(libraryReferenceSummaryActionEvent, (event) => {
       const detail = (event as CustomEvent<LibraryReferenceSummaryAction>).detail;
-      if (detail.action === "open-pdf") void this.#openLibraryPdf(detail.artifact);
-      else if (detail.action === "link") void this.#linkLibraryReference(detail.referenceId, detail.referenceKey);
-      else void this.#unlinkProjectReference(detail.referenceId);
+      void this.#openLibraryPdf(detail.artifact);
     });
     this.#elements.referenceLibraryList.addEventListener(libraryReferencePersonalRefreshEvent, (event) => {
       void this.#completeLibraryRefresh(
@@ -860,10 +858,15 @@ class WorkspaceApp {
       else if (detail.action === "edit-note") this.#editLibraryPdfNote(detail.note);
       else this.#completeLibraryPdfMarkup("Private annotation deleted.");
     });
-    this.#elements.libraryProjectUse.addEventListener(libraryPdfProjectUseActionEvent, (event) => {
-      const { referenceId, referenceKey } = (event as CustomEvent<LibraryPdfProjectUseAction>).detail;
-      void this.#linkLibraryReference(referenceId, referenceKey);
-    });
+    for (const target of [this.#elements.referenceLibraryList, this.#elements.libraryProjectUse]) {
+      target.addEventListener(projectReferenceChangedEvent, (event) => {
+        const { message, snapshot } = (event as CustomEvent<ProjectReferenceChanged>).detail;
+        void this.#acceptWorkspaceMutation(snapshot).then(() => {
+          this.#renderReferenceLibrary();
+          this.#showToast(message);
+        });
+      });
+    }
     this.#elements.libraryPdfAnnotationToolbar.addEventListener(libraryPdfToolbarActionEvent, (event) => {
       const action = (event as CustomEvent<LibraryPdfToolbarAction>).detail;
       if (action.action === "choose-tool") this.#setLibraryPdfTool(action.tool);
@@ -2383,10 +2386,10 @@ class WorkspaceApp {
     this.#elements.referenceLibraryFilters.setCount(references.length, library.references.length);
     this.#elements.referenceLibraryList.setData({
       library,
+      projectApiBase: appMode === "workspace" ? apiBase : null,
       projectReferences: this.#snapshot?.projectReferences ?? [],
       references,
       researchShares: this.#snapshot?.researchShares ?? [],
-      workspace: appMode === "workspace",
     });
 
     const unidentified = library.artifacts.filter((artifact) => artifact.referenceId === null);
@@ -2438,23 +2441,6 @@ class WorkspaceApp {
     this.#showToast("This exact web capture is pinned to the project.");
   }
 
-  async #linkLibraryReference(referenceId: string, citationAlias: string): Promise<void> {
-    const response = await jsonFetch(`${apiBase}/references`, { referenceId, citationAlias });
-    await this.#acceptWorkspaceMutation(response);
-    this.#renderReferenceLibrary();
-    this.#showToast(`Added :cite[${citationAlias.trim()}] to this project's reference set.`);
-  }
-
-  async #unlinkProjectReference(referenceId: string): Promise<void> {
-    const response = await fetch(`${apiBase}/references/${encodeURIComponent(referenceId)}`, {
-      method: "DELETE",
-      credentials: "same-origin",
-    });
-    await this.#acceptWorkspaceMutation(response);
-    this.#renderReferenceLibrary();
-    this.#showToast("Reference removed from this project; the private library record remains.");
-  }
-
   async #refreshBibliographicMetadata(): Promise<void> {
     await this.#refreshReferenceLibrary();
     await this.#refreshSnapshot();
@@ -2477,9 +2463,9 @@ class WorkspaceApp {
     this.#showToast("Share revoked for future project access; prior revision history remains intact.");
   }
 
-  async #acceptWorkspaceMutation(response: Response): Promise<void> {
-    await expectOk(response);
-    const value: unknown = await response.json();
+  async #acceptWorkspaceMutation(result: Response | WorkspaceSnapshot): Promise<void> {
+    if (result instanceof Response) await expectOk(result);
+    const value: unknown = result instanceof Response ? await result.json() : result;
     if (!isWorkspaceSnapshot(value)) throw new Error("Project mutation returned an invalid snapshot");
     this.#snapshot = value;
     await this.#refreshProjectReferencePdfs(false);
@@ -4260,7 +4246,11 @@ class WorkspaceApp {
     const linkedCitationAlias = reference
       ? (this.#snapshot?.projectReferences.find((item) => item.referenceId === reference.id)?.citationAlias ?? null)
       : null;
-    this.#elements.libraryProjectUse.setData({ linkedCitationAlias, reference: reference ?? null });
+    this.#elements.libraryProjectUse.setData({
+      linkedCitationAlias,
+      projectApiBase: appMode === "workspace" ? apiBase : null,
+      reference: reference ?? null,
+    });
   }
 
   async #completeLibraryHighlightSave(kind: "created" | "extended" | "updated"): Promise<void> {
