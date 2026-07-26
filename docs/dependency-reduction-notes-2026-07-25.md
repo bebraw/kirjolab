@@ -3028,3 +3028,27 @@ and unique production package counts remain unchanged at 135,411 B raw /
 
 Full native CI passes all 1,408 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Lit Ownership: GitHub Preview Identity
+
+`GitHubImportPanel` and `GitHubSyncReview` now own their opaque preview IDs and
+confirmation working state. Enabled confirmation intents carry only the current
+preview ID, and `WorkspaceSettingsPanel` preserves that detail while forwarding
+nested sync-review events. `WorkspaceApp` retains requests, payload validation
+and construction, project refresh, and navigation.
+
+This checkpoint reduces `src/client/app.ts` from 6,871 to 6,858 lines (-13).
+The import panel grows from 407 to 410 lines, the sync review from 364 to 374,
+and the settings panel from 283 to 285, for two additional runtime lines
+overall while deleting three duplicated coordinator identity fields. Focused
+component coverage passes preview identity, guarded confirmation, and
+progress/error/success lifecycle behavior. Four focused browser workflows pass
+import, incoming pull, conflict resolution, and publish confirmation.
+
+The browser application artifact changes from 797,020 B raw / 214,591 B gzip
+to 796,904 B raw / 214,612 B gzip (-116 B raw / +21 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,410 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.

@@ -115,7 +115,9 @@ export class WorkspaceSettingsPanel extends LitElement {
       gitHubPublishConfirmEvent,
       gitHubSyncDisconnectEvent,
     ]) {
-      this.gitHubReview.addEventListener(eventName, () => this.dispatchEvent(new CustomEvent(eventName)));
+      this.gitHubReview.addEventListener(eventName, (event) => {
+        this.dispatchEvent(new CustomEvent(eventName, { detail: (event as CustomEvent<unknown>).detail }));
+      });
     }
   }
 

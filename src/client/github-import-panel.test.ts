@@ -130,16 +130,24 @@ describe("GitHub import panel", () => {
   it("emits preview, cancel, and confirmation intents", () => {
     const panel = new TestGitHubImportPanel();
     const actions: string[] = [];
-    for (const eventName of [gitHubImportPreviewEvent, gitHubImportCancelEvent, gitHubImportConfirmEvent, gitHubDisconnectEvent]) {
+    let previewId: string | null = null;
+    for (const eventName of [gitHubImportPreviewEvent, gitHubImportCancelEvent, gitHubDisconnectEvent]) {
       panel.addEventListener(eventName, () => actions.push(eventName));
     }
+    panel.addEventListener(gitHubImportConfirmEvent, (event) => {
+      actions.push(gitHubImportConfirmEvent);
+      previewId = (event as CustomEvent<string>).detail;
+    });
 
     panel.previewForTest();
     panel.cancelForTest();
     panel.confirmForTest();
+    panel.showPreview({ id: "preview-1", commitSha: "1234567890abcdef", entryPath: "main.md", files: [] });
+    panel.confirmForTest();
     panel.disconnectForTest();
 
     expect(actions).toEqual([gitHubImportPreviewEvent, gitHubImportCancelEvent, gitHubImportConfirmEvent, gitHubDisconnectEvent]);
+    expect(previewId).toBe("preview-1");
   });
 
   it("owns its native dialog lifecycle", () => {

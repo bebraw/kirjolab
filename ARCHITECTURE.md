@@ -59,6 +59,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   Keep import creation, bound-workspace synchronization, and their shared
   transport/error contracts in separate server modules; callers depend only on
   the phase they invoke.
+  Keep opaque Import, Pull, and Publish preview identities and confirmation
+  working state inside their owning Lit panels. Emit the current preview ID
+  only with an enabled confirmation intent; retain requests, payload
+  validation, project refresh, and navigation in the application coordinator.
   Delegate GitHub App JWT signing and private-key handling to pinned
   `@octokit/auth-app`, but keep installation-token exchange bounded and
   request-scoped. Do not retain request-bound installation authentication

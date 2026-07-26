@@ -56,6 +56,10 @@ export class GitHubSyncReview extends LitElement {
     return this.conflictChoices.flatMap((choice, conflict) => (choice === "local" || choice === "remote" ? [{ conflict, choice }] : []));
   }
 
+  get hasActivePreview(): boolean {
+    return this.pullPreview !== null || this.publishPreview !== null;
+  }
+
   setConnected(connected: boolean): void {
     this.connected = connected;
   }
@@ -285,19 +289,25 @@ export class GitHubSyncReview extends LitElement {
   }
 
   private requestPullPreview(): void {
+    this.beginPullPreview();
     this.dispatchEvent(new CustomEvent(gitHubPullPreviewEvent));
   }
 
-  private requestPullConfirm(): void {
-    this.dispatchEvent(new CustomEvent(gitHubPullConfirmEvent));
+  protected requestPullConfirm(): void {
+    if (!this.pullPreview) return;
+    this.beginPull();
+    this.dispatchEvent(new CustomEvent<string>(gitHubPullConfirmEvent, { detail: this.pullPreview.id }));
   }
 
   private requestPublishPreview(): void {
+    this.beginPublishPreview();
     this.dispatchEvent(new CustomEvent(gitHubPublishPreviewEvent));
   }
 
-  private requestPublishConfirm(): void {
-    this.dispatchEvent(new CustomEvent(gitHubPublishConfirmEvent));
+  protected requestPublishConfirm(): void {
+    if (!this.publishPreview) return;
+    this.beginPublish();
+    this.dispatchEvent(new CustomEvent<string>(gitHubPublishConfirmEvent, { detail: this.publishPreview.id }));
   }
 
   private requestDisconnect(): void {

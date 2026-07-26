@@ -650,9 +650,6 @@ class WorkspaceApp {
   #citationExpansion: CitationExpansionResult | null = null;
   #wordStatistics: PublicationWordStatistics | null = null;
   #workspaceCatalog: WorkspaceSummary[] = [];
-  #gitHubImportPreviewId: string | null = null;
-  #gitHubPullPreviewId: string | null = null;
-  #gitHubPublishPreviewId: string | null = null;
   #gitHubPickerRequest = 0;
   #gitHubSyncRequest = 0;
   #gitHubSyncCheckedAt = 0;
@@ -807,12 +804,21 @@ class WorkspaceApp {
     this.#elements.gitHubImportPanel.addEventListener(gitHubImportCancelEvent, () => this.#elements.gitHubImportPanel.close());
     this.#elements.gitHubImportPanel.addEventListener(gitHubInstallationChangeEvent, () => void this.#loadGitHubRepositories());
     this.#elements.gitHubImportPanel.addEventListener(gitHubRepositoryChangeEvent, () => void this.#loadGitHubBranches());
-    this.#elements.gitHubImportPanel.addEventListener(gitHubImportConfirmEvent, () => void this.#confirmGitHubImport());
+    this.#elements.gitHubImportPanel.addEventListener(
+      gitHubImportConfirmEvent,
+      (event) => void this.#confirmGitHubImport((event as CustomEvent<string>).detail),
+    );
     this.#elements.gitHubImportPanel.addEventListener(gitHubDisconnectEvent, () => void this.#disconnectGitHubAccount());
     this.#elements.workspaceSettingsPanel.addEventListener(gitHubPullPreviewEvent, () => void this.#previewGitHubPull());
-    this.#elements.workspaceSettingsPanel.addEventListener(gitHubPullConfirmEvent, () => void this.#confirmGitHubPull());
+    this.#elements.workspaceSettingsPanel.addEventListener(
+      gitHubPullConfirmEvent,
+      (event) => void this.#confirmGitHubPull((event as CustomEvent<string>).detail),
+    );
     this.#elements.workspaceSettingsPanel.addEventListener(gitHubPublishPreviewEvent, () => void this.#previewGitHubPublish());
-    this.#elements.workspaceSettingsPanel.addEventListener(gitHubPublishConfirmEvent, () => void this.#confirmGitHubPublish());
+    this.#elements.workspaceSettingsPanel.addEventListener(
+      gitHubPublishConfirmEvent,
+      (event) => void this.#confirmGitHubPublish((event as CustomEvent<string>).detail),
+    );
     this.#elements.workspaceSettingsPanel.addEventListener(gitHubSyncDisconnectEvent, () => void this.#disconnectGitHub());
     this.#elements.gitHubSyncMenu.addEventListener(gitHubSyncCheckEvent, () => void this.#refreshGitHubSyncState(true));
     this.#elements.gitHubSyncMenu.addEventListener(gitHubSyncPullEvent, () => {
@@ -1450,7 +1456,6 @@ class WorkspaceApp {
 
   #openGitHubImportDialog(): void {
     this.#elements.newWorkspaceStartingPoints.close();
-    this.#gitHubImportPreviewId = null;
     this.#elements.gitHubImportPanel.open();
     void this.#refreshGitHubConnection();
   }
@@ -1508,8 +1513,6 @@ class WorkspaceApp {
   }
 
   async #previewGitHubImport(): Promise<void> {
-    this.#gitHubImportPreviewId = null;
-    this.#elements.gitHubImportPanel.beginPreview();
     try {
       const selection = this.#elements.gitHubImportPanel.selection;
       const repository = selection.repository;
@@ -1527,7 +1530,6 @@ class WorkspaceApp {
       await expectOk(response);
       const value: unknown = await response.json();
       if (!isGitHubImportPreview(value)) throw new Error("GitHub returned an invalid import preview");
-      this.#gitHubImportPreviewId = value.id;
       this.#elements.gitHubImportPanel.showPreview(value);
     } catch (error) {
       this.#elements.gitHubImportPanel.showPreviewError(error instanceof Error ? error.message : "Could not preview GitHub import.");
@@ -1536,7 +1538,6 @@ class WorkspaceApp {
 
   async #refreshGitHubConnection(): Promise<void> {
     this.#gitHubPickerRequest += 1;
-    this.#gitHubImportPreviewId = null;
     this.#elements.gitHubImportPanel.resetPreview();
     this.#elements.gitHubImportPanel.beginConnectionRefresh();
     try {
@@ -1618,12 +1619,10 @@ class WorkspaceApp {
     await this.#refreshGitHubConnection();
   }
 
-  async #confirmGitHubImport(): Promise<void> {
-    if (!this.#gitHubImportPreviewId) return;
-    this.#elements.gitHubImportPanel.beginCreation();
+  async #confirmGitHubImport(previewId: string): Promise<void> {
     try {
       const response = await jsonFetch("/api/github/imports", {
-        previewId: this.#gitHubImportPreviewId,
+        previewId,
         title: this.#elements.gitHubImportPanel.projectTitle,
       });
       await expectOk(response);
@@ -1674,13 +1673,11 @@ class WorkspaceApp {
   #shouldRefreshGitHubSync(force: boolean): boolean {
     if (!navigator.onLine) return false;
     if (force) return true;
-    if (this.#gitHubPullPreviewId || this.#gitHubPublishPreviewId || this.#elements.workspaceSettingsPanel.open) return false;
+    if (this.#elements.workspaceSettingsPanel.gitHubReview.hasActivePreview || this.#elements.workspaceSettingsPanel.open) return false;
     return Date.now() - this.#gitHubSyncCheckedAt >= 60_000;
   }
 
   #resetGitHubSyncReview(): void {
-    this.#gitHubPullPreviewId = null;
-    this.#gitHubPublishPreviewId = null;
     this.#elements.workspaceSettingsPanel.gitHubReview.reset();
   }
 
@@ -1721,26 +1718,21 @@ class WorkspaceApp {
   }
 
   async #previewGitHubPull(): Promise<void> {
-    this.#gitHubPullPreviewId = null;
-    this.#elements.workspaceSettingsPanel.gitHubReview.beginPullPreview();
     try {
       const response = await jsonFetch(`${apiBase}/github-sync/pull-previews`, {});
       await expectOk(response);
       const value: unknown = await response.json();
       if (!isGitHubPullPreview(value)) throw new Error("GitHub returned an invalid pull preview");
-      this.#gitHubPullPreviewId = value.id;
       this.#elements.workspaceSettingsPanel.gitHubReview.showPullPreview(value);
     } catch (error) {
       this.#elements.workspaceSettingsPanel.gitHubReview.showPullError(error instanceof Error ? error.message : "Could not check GitHub.");
     }
   }
 
-  async #confirmGitHubPull(): Promise<void> {
-    if (!this.#gitHubPullPreviewId) return;
-    this.#elements.workspaceSettingsPanel.gitHubReview.beginPull();
+  async #confirmGitHubPull(previewId: string): Promise<void> {
     try {
       const resolutions = this.#elements.workspaceSettingsPanel.gitHubReview.resolutions;
-      const response = await jsonFetch(`${apiBase}/github-sync/pulls`, { previewId: this.#gitHubPullPreviewId, resolutions });
+      const response = await jsonFetch(`${apiBase}/github-sync/pulls`, { previewId, resolutions });
       await expectOk(response);
       await this.#resourceRefresh.request();
       await this.#refreshGitHubSyncState(true);
@@ -1753,8 +1745,6 @@ class WorkspaceApp {
   }
 
   async #previewGitHubPublish(): Promise<void> {
-    this.#gitHubPublishPreviewId = null;
-    this.#elements.workspaceSettingsPanel.gitHubReview.beginPublishPreview();
     try {
       const response = await jsonFetch(`${apiBase}/github-sync/publish-previews`, {
         commitMessage: this.#elements.workspaceSettingsPanel.gitHubReview.commitMessage,
@@ -1762,7 +1752,6 @@ class WorkspaceApp {
       await expectOk(response);
       const value: unknown = await response.json();
       if (!isGitHubPublishPreview(value)) throw new Error("GitHub returned an invalid publish preview");
-      this.#gitHubPublishPreviewId = value.id;
       this.#elements.workspaceSettingsPanel.gitHubReview.showPublishPreview(value);
     } catch (error) {
       this.#elements.workspaceSettingsPanel.gitHubReview.showPublishError(
@@ -1771,11 +1760,9 @@ class WorkspaceApp {
     }
   }
 
-  async #confirmGitHubPublish(): Promise<void> {
-    if (!this.#gitHubPublishPreviewId) return;
-    this.#elements.workspaceSettingsPanel.gitHubReview.beginPublish();
+  async #confirmGitHubPublish(previewId: string): Promise<void> {
     try {
-      const response = await jsonFetch(`${apiBase}/github-sync/publishes`, { previewId: this.#gitHubPublishPreviewId });
+      const response = await jsonFetch(`${apiBase}/github-sync/publishes`, { previewId });
       await expectOk(response);
       const value: unknown = await response.json();
       if (!isUnknownRecord(value) || typeof value.commitSha !== "string") throw new Error("GitHub returned an invalid publish result");

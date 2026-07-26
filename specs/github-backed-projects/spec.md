@@ -120,8 +120,10 @@ incoming and outgoing mutation.
   form submission, readiness, preview/status rendering, native dialog
   lifecycle, and typed Disconnect, Preview, Cancel, and Confirm intents. The
   application coordinator retains connection and picker requests, payload
-  validation, preview identity, confirmation, and project creation, while the
-  Worker retains initial fallback markup.
+  validation, confirmation requests, and project creation, while the component
+  retains the opaque preview identity and confirmation working state and emits
+  the current preview ID with an enabled Confirm intent. The Worker retains
+  initial fallback markup.
 - The workspace sync menu is a light-DOM Lit component that owns repository
   status presentation, relationship tone, Pull and Push availability, and
   typed Check, Pull, Push, and Settings intents. The application coordinator
@@ -130,8 +132,11 @@ incoming and outgoing mutation.
 - The detailed sync review is a light-DOM Lit component that owns diff and
   conflict presentation, local resolution choices, commit-message input,
   action readiness, and typed preview, confirmation, and disconnect intents.
-  The application coordinator retains preview identities, requests,
-  confirmation payloads, project refresh, and disconnect confirmation.
+  It retains the opaque Pull and Publish preview identities and confirmation
+  working state, and emits the current preview ID with each enabled Confirm
+  intent. The containing settings panel forwards those intent details
+  unchanged. The application coordinator retains requests, confirmation
+  payload construction, project refresh, and disconnect confirmation.
 - `POST /api/workspaces/{id}/github-sync/pull-previews` returns a non-mutating
   three-way incoming diff and conflicts.
 - `POST /api/workspaces/{id}/github-sync/pulls` consumes a current pull preview

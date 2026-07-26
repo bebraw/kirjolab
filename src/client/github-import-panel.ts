@@ -378,11 +378,14 @@ export class GitHubImportPanel extends LitElement {
 
   protected requestPreview(event: SubmitEvent): void {
     event.preventDefault();
+    this.beginPreview();
     this.dispatchEvent(new CustomEvent(gitHubImportPreviewEvent));
   }
 
   protected requestConfirm(): void {
-    this.dispatchEvent(new CustomEvent(gitHubImportConfirmEvent));
+    if (!this.preview) return;
+    this.beginCreation();
+    this.dispatchEvent(new CustomEvent<string>(gitHubImportConfirmEvent, { detail: this.preview.id }));
   }
 
   protected requestDisconnect(): void {

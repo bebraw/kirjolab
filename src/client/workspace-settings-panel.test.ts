@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { GitHubSyncReview, gitHubPullPreviewEvent } from "./github-sync-review";
+import { GitHubSyncReview, gitHubPullConfirmEvent, gitHubPullPreviewEvent } from "./github-sync-review";
 import {
   WorkspaceSettingsPanel,
   workspaceSettingsActionEvent,
@@ -163,6 +163,12 @@ describe("workspace settings panel", () => {
     panel.firstUpdatedForTest();
     panel.review.dispatchEvent(new CustomEvent(gitHubPullPreviewEvent));
     expect(forwarded).toBe(1);
+    let previewId: string | null = null;
+    panel.addEventListener(gitHubPullConfirmEvent, (event) => {
+      previewId = (event as CustomEvent<string>).detail;
+    });
+    panel.review.dispatchEvent(new CustomEvent<string>(gitHubPullConfirmEvent, { detail: "pull-1" }));
+    expect(previewId).toBe("pull-1");
 
     await panel.show(view);
     expect(panel.open).toBe(true);

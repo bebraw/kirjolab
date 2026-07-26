@@ -140,6 +140,11 @@ The adopted components own bounded presentation:
   validation, converted-file and diagnostic review, preview identity, busy and
   status presentation, native dialog lifecycle, and typed preview,
   confirmation, and cancel intents.
+- The GitHub import and detailed sync-review panels own their opaque preview
+  identities and confirmation working state. Enabled confirmation intents
+  carry the current preview ID, and containing components preserve that detail
+  when forwarding events. The application coordinator retains requests,
+  payload validation and construction, project refresh, and navigation.
 - The export statistics panel owns loading, total, file, heading, and
   empty-group presentation for the live publication word-count projection.
 - The project export dialog progressively enhances the server-rendered export
