@@ -337,6 +337,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   history, general APIs, or Yjs state. Its same-origin presence socket may
   exchange only validated, ephemeral caret and selection metadata, and must be
   disconnected when the capability rotates or is revoked.
+- Keep authenticated member listing and invitation plus read-only and edit-link
+  status, creation, and revocation inside the bounded sharing Lit component.
+  Validate responses there and emit only user-facing notices; keep the
+  application coordinator responsible for global toast presentation.
 - Keep public read-only viewers outside cross-origin embedder isolation so
   browser-native PDF extension frames can render their share-scoped,
   independently authorized same-origin PDF response. Keep authoring pages

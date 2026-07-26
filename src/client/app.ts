@@ -94,12 +94,7 @@ import {
   startingPointTemplateDeleteEvent,
   type StartingPointAction,
 } from "./project-starting-point-browser";
-import {
-  workspaceSharingActionEvent,
-  workspaceSharingInviteEvent,
-  workspaceSharingNoticeEvent,
-  type WorkspaceSharingActionDetail,
-} from "./workspace-sharing-panel";
+import { workspaceSharingNoticeEvent } from "./workspace-sharing-panel";
 import { WorkspaceLayoutManager } from "./workspace-layout-manager";
 import { unidentifiedPdfIdentifyEvent, type UnidentifiedPdfSelection } from "./unidentified-pdf-list";
 import { libraryReferenceSummaryActionEvent, type LibraryReferenceSummaryAction } from "./library-reference-summary";
@@ -135,7 +130,6 @@ import {
   defaultProjectPublicationProfile,
   isModelCandidate,
   isWorkspaceSnapshot,
-  isWorkspaceMembers,
   isWorkspaceSummaries,
   isPublicationIntakePreview,
   type AnnotationResource,
@@ -237,7 +231,7 @@ import {
 } from "./pdf-highlight-import-panel";
 import { uploadPdfBatch, type ExistingPdfUpload } from "./pdf-upload-queue";
 import { bindThemePreference } from "./theme";
-import { isCreatedAnnotation, isShareLinkStatus, isWebSnapshotComparisonResponse } from "./app-contracts";
+import { isCreatedAnnotation, isWebSnapshotComparisonResponse } from "./app-contracts";
 import {
   OpenAICompatibleBrowserProvider,
   type ModelClarityRewrites,
@@ -610,13 +604,8 @@ class WorkspaceApp {
         void this.#handleWritingWorkflowAction((event as CustomEvent<WritingWorkflowActionDetail>).detail);
       });
     }
-    this.#elements.shareWorkspace.addEventListener("click", () => void this.#openSharing());
-    this.#elements.workspaceSharingPanel.addEventListener(workspaceSharingInviteEvent, (event) => {
-      void this.#inviteMember((event as CustomEvent<string>).detail);
-    });
-    this.#elements.workspaceSharingPanel.addEventListener(workspaceSharingActionEvent, (event) => {
-      void this.#handleShareAction((event as CustomEvent<WorkspaceSharingActionDetail>).detail);
-    });
+    this.#elements.workspaceSharingPanel.configure(apiBase);
+    this.#elements.shareWorkspace.addEventListener("click", () => this.#elements.workspaceSharingPanel.open());
     this.#elements.workspaceSharingPanel.addEventListener(workspaceSharingNoticeEvent, (event) => {
       this.#showToast((event as CustomEvent<string>).detail);
     });
@@ -1354,93 +1343,6 @@ class WorkspaceApp {
     if (confirmation !== "DELETE") return;
     await expectOk(await fetch(`${apiBase}/settings`, { method: "DELETE", credentials: "same-origin" }));
     location.assign("/");
-  }
-
-  async #openSharing(): Promise<void> {
-    this.#elements.workspaceSharingPanel.open();
-    await Promise.all([this.#refreshMembers(), this.#refreshReadOnlyShare(), this.#refreshEditShare()]);
-  }
-
-  async #refreshReadOnlyShare(): Promise<void> {
-    const response = await fetch(`${apiBase}/share-link`, { credentials: "same-origin" });
-    if (response.status === 403) {
-      this.#elements.workspaceSharingPanel.setShareForbidden("read-only");
-      return;
-    }
-    await expectOk(response);
-    const status: unknown = await response.json();
-    if (!isShareLinkStatus(status)) throw new Error("Read-only link status returned invalid data");
-    this.#elements.workspaceSharingPanel.setShareStatus("read-only", status);
-  }
-
-  // Read-only and editable links deliberately expose parallel, separately named owner actions.
-  // fallow-ignore-next-line code-duplication
-  async #createReadOnlyShare(): Promise<void> {
-    const response = await fetch(`${apiBase}/share-link`, { method: "POST", credentials: "same-origin" });
-    await expectOk(response);
-    const share: unknown = await response.json();
-    if (!isRecord(share) || typeof share.href !== "string") throw new Error("Read-only link returned invalid data");
-    await this.#refreshReadOnlyShare();
-    this.#showToast("Read-only link created. You can return here to copy it again.");
-  }
-
-  async #revokeReadOnlyShare(): Promise<void> {
-    await expectOk(await fetch(`${apiBase}/share-link`, { method: "DELETE", credentials: "same-origin" }));
-    await this.#refreshReadOnlyShare();
-    this.#showToast("Read-only link revoked.");
-  }
-
-  async #refreshEditShare(): Promise<void> {
-    const response = await fetch(`${apiBase}/edit-link`, { credentials: "same-origin" });
-    if (response.status === 403) {
-      this.#elements.workspaceSharingPanel.setShareForbidden("edit");
-      return;
-    }
-    await expectOk(response);
-    const status: unknown = await response.json();
-    if (!isShareLinkStatus(status)) throw new Error("Edit link status returned invalid data");
-    this.#elements.workspaceSharingPanel.setShareStatus("edit", status);
-  }
-
-  async #createEditShare(): Promise<void> {
-    const response = await fetch(`${apiBase}/edit-link`, { method: "POST", credentials: "same-origin" });
-    await expectOk(response);
-    const share: unknown = await response.json();
-    if (!isRecord(share) || typeof share.href !== "string") throw new Error("Edit link returned invalid data");
-    await this.#refreshEditShare();
-    this.#showToast("Edit link created. You can return here to copy it again.");
-  }
-
-  async #revokeEditShare(): Promise<void> {
-    await expectOk(await fetch(`${apiBase}/edit-link`, { method: "DELETE", credentials: "same-origin" }));
-    await this.#refreshEditShare();
-    this.#showToast("Edit link revoked.");
-  }
-
-  async #handleShareAction(detail: WorkspaceSharingActionDetail): Promise<void> {
-    if (detail.kind === "read-only") {
-      if (detail.action === "create") await this.#createReadOnlyShare();
-      else await this.#revokeReadOnlyShare();
-      return;
-    }
-    if (detail.action === "create") await this.#createEditShare();
-    else await this.#revokeEditShare();
-  }
-
-  async #refreshMembers(): Promise<void> {
-    const response = await fetch(`${apiBase}/members`, { credentials: "same-origin" });
-    await expectOk(response);
-    const members: unknown = await response.json();
-    if (!isWorkspaceMembers(members)) throw new Error("Project members returned invalid data");
-    this.#elements.workspaceSharingPanel.setMembers(members);
-  }
-
-  async #inviteMember(email: string): Promise<void> {
-    const response = await jsonFetch(`${apiBase}/members`, { email });
-    await expectOk(response);
-    this.#elements.workspaceSharingPanel.clearInvite();
-    await this.#refreshMembers();
-    this.#showToast("Collaborator invited to this project.");
   }
 
   #syncCollaborationQueue(): void {
@@ -3492,7 +3394,7 @@ class WorkspaceApp {
         this.#elements.source.scrollIntoView({ behavior: "smooth", block: "center" });
       },
       project: () => this.#elements.workspaceSwitcher.focusSelect(),
-      person: () => void this.#openSharing(),
+      person: () => this.#elements.workspaceSharingPanel.open(),
       "model-candidate": (id) => {
         const candidate = this.#snapshot?.candidates.find((item) => item.id === id);
         if (candidate) this.#openCandidateContext(candidate);

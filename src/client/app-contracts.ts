@@ -164,6 +164,7 @@ const shareLinkStatusSchema = v.object({
   createdAt: nullableStringSchema,
   href: nullableStringSchema,
 });
+const shareLinkResultSchema = v.object({ href: v.string() });
 
 export type GitHubInstallationOption = Readonly<v.InferInput<typeof gitHubInstallationOptionSchema>>;
 export type GitHubRepositoryOption = Readonly<v.InferInput<typeof gitHubRepositoryOptionSchema>>;
@@ -237,4 +238,8 @@ export function isCreatedAnnotation(value: unknown): value is AnnotationResource
 
 export function isShareLinkStatus(value: unknown): value is ShareLinkStatus {
   return v.is(shareLinkStatusSchema, value);
+}
+
+export function isShareLinkResult(value: unknown): value is { readonly href: string } {
+  return v.is(shareLinkResultSchema, value);
 }

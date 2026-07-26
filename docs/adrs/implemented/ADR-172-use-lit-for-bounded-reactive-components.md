@@ -50,9 +50,9 @@ The adopted components own bounded presentation:
   hidden-template state, the derived visible-template view, local selection
   and preview state, bounded preview rendering, and typed completion and
   template-delete events.
-- The workspace sharing panel owns member and capability-link presentation,
-  invitation input, clipboard interaction, native parent-dialog lifecycle, and
-  typed invite, share-link, and notice intents.
+- The workspace sharing panel owns member and capability-link requests,
+  response validation and presentation, invitation input and submission,
+  clipboard interaction, native parent-dialog lifecycle, and typed notices.
 - The workspace catalog panel owns project filtering, result and empty-state
   rendering, metadata labels, filter focus reset, and native parent-dialog
   lifecycle.
@@ -308,8 +308,9 @@ reason to wrap static markup mechanically.
   and connection, installation, repository, and branch discovery methods.
 - The sharing panel replaces fifteen internal element references and the
   coordinator's member/link DOM assembly. It also removes the separate native
-  dialog reference and close-event bridge while leaving membership, capability,
-  and authorization requests in the application coordinator.
+  dialog reference, close-event bridge, seven request methods, and two intent
+  adapters while leaving global toast presentation in the application
+  coordinator.
 - The catalog panel replaces three internal element references and the
   coordinator's filter/result DOM assembly. It also removes the separate native
   dialog reference and close-event bridge while leaving catalog fetching,

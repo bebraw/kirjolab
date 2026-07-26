@@ -1,17 +1,9 @@
 import { html, LitElement, type TemplateResult } from "lit";
-import type { WorkspaceMember } from "../domain/workspace";
-import type { ShareLinkStatus } from "./app-contracts";
+import { isWorkspaceMembers, type WorkspaceMember } from "../domain/workspace";
+import { isShareLinkResult, isShareLinkStatus, type ShareLinkStatus } from "./app-contracts";
 
 export type WorkspaceShareKind = "read-only" | "edit";
-export type WorkspaceShareAction = "create" | "revoke";
 
-export interface WorkspaceSharingActionDetail {
-  readonly action: WorkspaceShareAction;
-  readonly kind: WorkspaceShareKind;
-}
-
-export const workspaceSharingActionEvent = "workspace-sharing-action";
-export const workspaceSharingInviteEvent = "workspace-sharing-invite";
 export const workspaceSharingNoticeEvent = "workspace-sharing-notice";
 
 interface ShareLinkPresentation {
@@ -33,27 +25,31 @@ export class WorkspaceSharingPanel extends LitElement {
     editShare: { state: true },
     inviteEmail: { state: true },
     members: { state: true },
+    membersError: { state: true },
     readOnlyShare: { state: true },
   };
 
   declare private editShare: ShareLinkPresentation;
   declare private inviteEmail: string;
   declare private members: readonly WorkspaceMember[] | null;
+  declare private membersError: string;
   declare private readOnlyShare: ShareLinkPresentation;
+  private apiBase = "";
 
   constructor() {
     super();
     this.editShare = checkingShareLink;
     this.inviteEmail = "";
     this.members = null;
+    this.membersError = "";
     this.readOnlyShare = checkingShareLink;
   }
 
-  setMembers(members: readonly WorkspaceMember[]): void {
-    this.members = members;
+  configure(apiBase: string): void {
+    this.apiBase = apiBase;
   }
 
-  setShareStatus(kind: WorkspaceShareKind, status: ShareLinkStatus): void {
+  private setShareStatus(kind: WorkspaceShareKind, status: ShareLinkStatus): void {
     this.setSharePresentation(kind, {
       active: status.active,
       allowed: true,
@@ -62,7 +58,7 @@ export class WorkspaceSharingPanel extends LitElement {
     });
   }
 
-  setShareForbidden(kind: WorkspaceShareKind): void {
+  private setShareForbidden(kind: WorkspaceShareKind): void {
     this.setSharePresentation(kind, {
       active: false,
       allowed: false,
@@ -71,12 +67,9 @@ export class WorkspaceSharingPanel extends LitElement {
     });
   }
 
-  clearInvite(): void {
-    this.inviteEmail = "";
-  }
-
   open(): void {
     this.dialog.showModal();
+    void this.refresh();
   }
 
   override connectedCallback(): void {
@@ -95,16 +88,18 @@ export class WorkspaceSharingPanel extends LitElement {
         <h2 class="mt-1 text-xl font-semibold tracking-[-0.035em]">Collaborators</h2>
         ${this.shareLinkSection("read-only", this.readOnlyShare)} ${this.shareLinkSection("edit", this.editShare)}
         <div class="mt-4 space-y-2" id="workspace-member-list">
-          ${this.members
-            ? this.members.map(
-                (member) => html`
-                  <div class="resource-card flex items-center justify-between gap-3 font-sans text-xs">
-                    <span class="truncate">${member.email}</span>
-                    <span class="eyebrow block">${member.role}</span>
-                  </div>
-                `,
-              )
-            : html`<div class="empty-state">Loading members…</div>`}
+          ${this.membersError
+            ? html`<div class="empty-state">${this.membersError}</div>`
+            : this.members
+              ? this.members.map(
+                  (member) => html`
+                    <div class="resource-card flex items-center justify-between gap-3 font-sans text-xs">
+                      <span class="truncate">${member.email}</span>
+                      <span class="eyebrow block">${member.role}</span>
+                    </div>
+                  `,
+                )
+              : html`<div class="empty-state">Loading members…</div>`}
         </div>
         <form class="mt-5 border-t border-app-line pt-5" id="invite-member-form" @submit=${this.inviteMember}>
           <label class="field-label"
@@ -148,7 +143,7 @@ export class WorkspaceSharingPanel extends LitElement {
             id="create-${prefix}-share"
             type="button"
             ?hidden=${!presentation.allowed}
-            @click=${() => this.requestShareAction(kind, "create")}
+            @click=${() => void this.mutateShare(kind, "create")}
           >
             ${presentation.active ? "Replace link" : "Create link"}
           </button>
@@ -165,7 +160,7 @@ export class WorkspaceSharingPanel extends LitElement {
           id="revoke-${prefix}-share"
           type="button"
           ?hidden=${!presentation.active}
-          @click=${() => this.requestShareAction(kind, "revoke")}
+          @click=${() => void this.mutateShare(kind, "revoke")}
         >
           Revoke ${readOnly ? "read-only " : "edit "}link
         </button>
@@ -178,19 +173,13 @@ export class WorkspaceSharingPanel extends LitElement {
     else this.editShare = presentation;
   }
 
-  private updateInviteEmail(event: InputEvent): void {
+  protected updateInviteEmail(event: InputEvent): void {
     this.inviteEmail = (event.currentTarget as HTMLInputElement).value;
   }
 
   private inviteMember(event: SubmitEvent): void {
     event.preventDefault();
-    this.dispatchEvent(
-      new CustomEvent<string>(workspaceSharingInviteEvent, {
-        bubbles: true,
-        composed: true,
-        detail: this.inviteEmail,
-      }),
-    );
+    void this.invite();
   }
 
   close(): void {
@@ -203,28 +192,108 @@ export class WorkspaceSharingPanel extends LitElement {
     return dialog;
   }
 
-  private requestShareAction(kind: WorkspaceShareKind, action: WorkspaceShareAction): void {
-    this.dispatchEvent(
-      new CustomEvent<WorkspaceSharingActionDetail>(workspaceSharingActionEvent, {
-        bubbles: true,
-        composed: true,
-        detail: { action, kind },
-      }),
-    );
+  protected async refresh(): Promise<void> {
+    this.members = null;
+    this.membersError = "";
+    await Promise.all([this.refreshMembers(), this.refreshShare("read-only"), this.refreshShare("edit")]);
+  }
+
+  private async refreshMembers(): Promise<void> {
+    try {
+      const response = await fetch(`${this.apiBase}/members`, { credentials: "same-origin" });
+      await expectOk(response);
+      const value: unknown = await response.json();
+      if (!isWorkspaceMembers(value)) throw new Error("Project members returned invalid data");
+      this.members = value;
+    } catch (error) {
+      this.membersError = errorMessage(error, "Could not load project members.");
+    }
+  }
+
+  private async refreshShare(kind: WorkspaceShareKind): Promise<void> {
+    const label = kind === "read-only" ? "Read-only" : "Edit";
+    try {
+      const response = await fetch(`${this.apiBase}/${shareEndpoint(kind)}`, { credentials: "same-origin" });
+      if (response.status === 403) {
+        this.setShareForbidden(kind);
+        return;
+      }
+      await expectOk(response);
+      const value: unknown = await response.json();
+      if (!isShareLinkStatus(value)) throw new Error(`${label} link status returned invalid data`);
+      this.setShareStatus(kind, value);
+    } catch (error) {
+      this.setSharePresentation(kind, {
+        active: false,
+        allowed: true,
+        description: errorMessage(error, `Could not load the ${kind} link.`),
+        href: null,
+      });
+    }
+  }
+
+  protected async mutateShare(kind: WorkspaceShareKind, action: "create" | "revoke"): Promise<void> {
+    const label = kind === "read-only" ? "Read-only" : "Edit";
+    try {
+      const response = await fetch(`${this.apiBase}/${shareEndpoint(kind)}`, {
+        credentials: "same-origin",
+        method: action === "create" ? "POST" : "DELETE",
+      });
+      await expectOk(response);
+      if (action === "create") {
+        const value: unknown = await response.json();
+        if (!isShareLinkResult(value)) throw new Error(`${label} link returned invalid data`);
+      }
+      await this.refreshShare(kind);
+      this.emitNotice(`${label} link ${action === "create" ? "created. You can return here to copy it again." : "revoked."}`);
+    } catch (error) {
+      this.emitNotice(errorMessage(error, `Could not ${action} the ${kind} link.`));
+    }
+  }
+
+  protected async invite(): Promise<void> {
+    try {
+      const response = await fetch(`${this.apiBase}/members`, {
+        body: JSON.stringify({ email: this.inviteEmail }),
+        credentials: "same-origin",
+        headers: { "content-type": "application/json" },
+        method: "POST",
+      });
+      await expectOk(response);
+      this.inviteEmail = "";
+      await this.refreshMembers();
+      this.emitNotice("Collaborator invited to this project.");
+    } catch (error) {
+      this.emitNotice(errorMessage(error, "Could not invite the collaborator."));
+    }
   }
 
   private async copyShareLink(kind: WorkspaceShareKind): Promise<void> {
     const href = kind === "read-only" ? this.readOnlyShare.href : this.editShare.href;
     if (!href) return;
     await navigator.clipboard.writeText(href);
-    this.dispatchEvent(
-      new CustomEvent<string>(workspaceSharingNoticeEvent, {
-        bubbles: true,
-        composed: true,
-        detail: `${kind === "read-only" ? "Read-only" : "Edit"} link copied.`,
-      }),
-    );
+    this.emitNotice(`${kind === "read-only" ? "Read-only" : "Edit"} link copied.`);
   }
+
+  private emitNotice(message: string): void {
+    this.dispatchEvent(new CustomEvent<string>(workspaceSharingNoticeEvent, { bubbles: true, composed: true, detail: message }));
+  }
+}
+
+function shareEndpoint(kind: WorkspaceShareKind): "share-link" | "edit-link" {
+  return kind === "read-only" ? "share-link" : "edit-link";
+}
+
+async function expectOk(response: Response): Promise<void> {
+  if (response.ok) return;
+  const value: unknown = await response.json().catch(() => null);
+  throw new Error(
+    typeof value === "object" && value !== null && "error" in value && typeof value.error === "string" ? value.error : "Request failed",
+  );
+}
+
+function errorMessage(error: unknown, fallback: string): string {
+  return error instanceof Error ? error.message : fallback;
 }
 
 export function shareLinkDescription(kind: WorkspaceShareKind, status: ShareLinkStatus): string {

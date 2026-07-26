@@ -12,6 +12,7 @@ import {
   isGitHubSyncState,
   isLatexImportPreview,
   isLatexImportResult,
+  isShareLinkResult,
   isShareLinkStatus,
   isWebSnapshotComparisonResponse,
 } from "./app-contracts";
@@ -180,6 +181,11 @@ describe("app response contracts", () => {
     expect(isShareLinkStatus({ active: false, createdAt: null, href: null })).toBe(true);
     expect(isShareLinkStatus({ active: true, createdAt: 1, href: null })).toBe(false);
     expect(isShareLinkStatus({ active: "yes", createdAt: null, href: null })).toBe(false);
+  });
+
+  it("validates created share-link payloads", () => {
+    expect(isShareLinkResult({ href: "/shared/token" })).toBe(true);
+    expect(isShareLinkResult({ href: 42 })).toBe(false);
   });
 
   it("rejects each malformed comparison scalar and hunk field independently", () => {

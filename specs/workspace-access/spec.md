@@ -49,9 +49,10 @@ without accidentally widening access to another resource.
 - `GET /api/workspaces/{id}/members` lists members for authorized users.
 - `POST /api/workspaces/{id}/members` lets only the owner invite a valid email.
 - The authenticated shell's bounded sharing component owns collaborator and
-  capability-link presentation, invitation input, and clipboard interaction.
-  It emits typed intents while the application coordinator retains all member,
-  share-link, and authorization requests.
+  It also owns member listing and invitation, both capability-link request
+  lifecycles, response validation, forbidden and failure presentation, and
+  typed user-facing notices. The application coordinator retains global toast
+  presentation.
 - Authenticated members may list and stream owner-library PDFs only when their
   references are currently linked to the project. Each request revalidates
   membership and both relationships; unrelated owner-library state is hidden.

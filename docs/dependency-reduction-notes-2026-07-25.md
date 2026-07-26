@@ -3551,3 +3551,28 @@ and unique production package counts remain unchanged at 135,411 B raw /
 
 Full native CI passes all 1,432 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Lit Ownership: Workspace Sharing Requests
+
+`WorkspaceSharingPanel` now owns collaborator listing and invitation plus the
+read-only and edit capability-link status, creation, and revocation lifecycles.
+It validates status and created-link responses through shared Valibot contracts,
+renders forbidden and failed request states locally, refreshes affected state
+after mutations, and emits only user-facing notices. `WorkspaceApp` retains the
+global toast presentation used for those notices.
+
+This checkpoint reduces `src/client/app.ts` from 6,062 to 5,964 lines (-98),
+grows the sharing panel from 251 to 320 lines, and adds five lines to the shared
+Valibot contract module. Runtime source across those files decreases by 24
+lines while removing seven coordinator-only request methods and two intent
+adapters. Focused coverage passes member and link refresh, owner-only status,
+create and revoke requests, invitation payloads and refresh, malformed mutation
+containment, Valibot result validation, presentation, and modal lifecycle.
+
+The browser application artifact changes from 797,264 B raw / 215,343 B gzip
+to 797,028 B raw / 215,599 B gzip (-236 B raw / +256 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,436 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
