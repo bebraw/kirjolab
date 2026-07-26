@@ -5206,6 +5206,28 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,573 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: PDF Citation Availability
+
+`ProjectAnnotationForm` now derives its citation count, label, and availability
+from the active PDF and canonical publication-PDF links. `WorkspaceApp` retains
+active-tab selection, publication lookup, citation insertion, authoring caret,
+and notification policy.
+
+This checkpoint reduces `src/client/app.ts` from 4,392 to 4,389 lines (-3)
+without growing the 362-line project-annotation owner. Runtime source across
+those two files decreases by three lines while deleting the coordinator-only
+publication-link filter. Focused coverage passes matching and unrelated links,
+no active PDF, existing capture and save behavior, application contracts, and
+strict types.
+
+The browser application artifact changes from 824,533 B raw / 222,600 B gzip
+to 824,520 B raw / 222,614 B gzip (-13 B raw / +14 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,573 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Annotation Capture Feedback
 
 `ProjectAnnotationForm` now derives paint-versus-erase selection feedback,

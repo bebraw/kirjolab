@@ -2671,7 +2671,10 @@ class WorkspaceApp {
     this.#elements.previewSyncControls.setVisible(activeKey === RESEARCH_PREVIEW_KEY);
     this.#elements.previewNavigationControl.setPreviewActive(activeKey === RESEARCH_PREVIEW_KEY);
     this.#renderContextPdfVisibility(activeTab);
-    this.#renderActivePdfCitationControl(activeTab);
+    this.#elements.projectAnnotationForm.setCitationContext(
+      activeTab?.kind === "pdf" ? activeTab.id : null,
+      this.#snapshot?.publicationPdfLinks ?? [],
+    );
   }
 
   #renderContextPdfVisibility(activeTab: ResearchResourceTab | undefined): void {
@@ -2692,12 +2695,6 @@ class WorkspaceApp {
 
   #activeProjectReferencePdf(activeTab: ResearchResourceTab | undefined, artifact: LibraryPdfArtifact | undefined): boolean {
     return activeTab?.kind === "library-pdf" && !artifact && Boolean(this.#projectReferencePdf(activeTab.id));
-  }
-
-  #renderActivePdfCitationControl(activeTab: ResearchResourceTab | undefined): void {
-    const activePdfPublications =
-      activeTab?.kind === "pdf" ? (this.#snapshot?.publicationPdfLinks.filter((link) => link.pdfId === activeTab.id) ?? []) : [];
-    this.#elements.projectAnnotationForm.setCitationCount(activePdfPublications.length);
   }
 
   #renderActiveResearchContext(activeKey: ResearchContextKey, activeTab: ResearchResourceTab | undefined, loadPdf: boolean): void {

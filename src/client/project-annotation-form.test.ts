@@ -75,7 +75,13 @@ describe("project annotation form", () => {
     panel.setStatus("Selection saved.");
     panel.setVisible(false);
     panel.setUndoStroke({ annotationId: "annotation-1", fragmentId: "fragment-1" });
-    panel.setCitationCount(2);
+    panel.setCitationContext("pdf-1", [
+      { id: "link-1", pdfId: "pdf-1", publicationId: "publication-1", createdAt: "2026-07-25T00:00:00.000Z" },
+      { id: "link-2", pdfId: "pdf-2", publicationId: "publication-2", createdAt: "2026-07-25T00:00:00.000Z" },
+    ]);
+    expect(panel.renderForTest().values).toContain("Cite current page");
+    panel.setCitationContext(null, []);
+    expect(panel.renderForTest().values).toContain("Identify before citing");
     panel.showAnnotation({ id: "annotation-1", comment: "Important", page: 4, prefix: "left", quote: "claim", suffix: "right" });
     panel.changeForTest("page", "5");
     panel.changeForTest("prefix", "new left");

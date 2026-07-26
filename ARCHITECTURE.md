@@ -575,10 +575,12 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   highlight tool, last undoable stroke, highlight creation and stroke-extension
   transport, Valibot response validation, optional note persistence, and local
   save status inside its Lit owner. Let it derive paint-versus-erase selection
-  feedback from its local tool and canonical capture. Emit a completed note-save
-  outcome and bounded tool, undo, citation, and link intents while leaving
-  selection and overlap derivation, viewer draft clearing, manuscript linking,
-  canonical refreshes, and notifications in the application coordinator.
+  feedback from its local tool and canonical capture, plus citation availability
+  from the active PDF and canonical publication-PDF links. Emit a completed
+  note-save outcome and bounded tool, undo, citation, and link intents while
+  leaving selection and overlap derivation, viewer draft clearing, manuscript
+  linking, canonical refreshes, and notifications in the application
+  coordinator.
 - Refine tablet highlight strokes through bounded normalized geometry and quotation updates; preserve annotation/stroke identity and imported PDF immutability.
 - Retain the active manuscript caret or selection as Yjs-relative positions, render that local target after editor blur, and resolve it before any contextual insertion or replacement.
 - Keep standalone private PDF locations routable in browser history, coalesce selected PDF text into normalized visual-line rectangles, and export each saved highlight as one interoperable multi-quad PDF annotation without mutating source bytes.

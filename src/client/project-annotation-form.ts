@@ -1,5 +1,5 @@
 import { html, LitElement, type TemplateResult } from "lit";
-import type { AnnotationResource, CreateAnnotationInput, PdfResource } from "../domain/workspace";
+import type { AnnotationResource, CreateAnnotationInput, PdfResource, PublicationPdfLink } from "../domain/workspace";
 import { isCreatedAnnotation } from "./app-contracts";
 import { errorMessage, expectOk, jsonFetch } from "./http";
 
@@ -130,8 +130,8 @@ export class ProjectAnnotationForm extends LitElement {
     this.undoStroke = stroke;
   }
 
-  setCitationCount(count: number): void {
-    this.citationCount = count;
+  setCitationContext(pdfId: string | null, links: readonly PublicationPdfLink[]): void {
+    this.citationCount = pdfId ? links.filter((link) => link.pdfId === pdfId).length : 0;
   }
 
   async saveCapture(pdfId: string, capture: AnnotationCapture, targetId?: string): Promise<boolean> {
