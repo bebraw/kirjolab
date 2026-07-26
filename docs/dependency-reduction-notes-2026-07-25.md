@@ -5014,3 +5014,26 @@ and unique production package counts remain unchanged at 135,411 B raw /
 
 Full native CI passes all 1,566 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Lit Ownership: Table Generation
+
+`AssistantResultPanel` now owns structured-table provider generation, returned-
+shape validation, deterministic GFM serialization, and preview presentation.
+`WorkspaceApp` retains live editor target and paragraph-context derivation,
+requirements parsing, XState transitions, status and failure policy, and the
+revision-checked Yjs insertion.
+
+This checkpoint reduces `src/client/app.ts` from 4,569 to 4,567 lines (-2) and
+grows the assistant result owner from 442 to 456 lines. Runtime source across
+those two files increases by 12 lines while removing provider-result shape
+knowledge and serialization from the coordinator. Focused coverage passes exact
+table payloads, shape rejection, GFM presentation, existing insertion intents,
+application contracts, and strict types.
+
+The browser application artifact changes from 823,878 B raw / 222,346 B gzip
+to 823,941 B raw / 222,271 B gzip (+63 B raw / -75 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,567 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.

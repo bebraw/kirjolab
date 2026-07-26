@@ -147,7 +147,8 @@ All mutation operations preserve a human review boundary.
   secondary settings instead of occupying persistent chrome.
 - One bounded result component owns transient table, clarity, ideation,
   phrasing, rewrite, and reference-discovery presentation plus local input and
-  save-progress state. It owns clarity, ideation, and phrasing provider requests
+  save-progress state. It owns table generation, returned-shape validation, and
+  GFM serialization plus clarity, ideation, and phrasing provider requests
   because their complete output lifecycles remain transient in that component.
   For reference discovery it also owns model query formulation, registry
   transport and response validation. Its discovery cards project validated

@@ -228,7 +228,7 @@ import { pdfHighlightImportOutcomeEvent, type PdfHighlightImportOutcome } from "
 import type { ExistingPdfUpload } from "./pdf-upload-queue";
 import { bindThemePreference } from "./theme";
 import { OpenAICompatibleBrowserProvider, type ModelEvidenceItem, maximumModelEvidenceItems } from "./model-provider";
-import { parseTableRequirements, tableMarkdown, type TableRequirements } from "./structured-syntax";
+import { parseTableRequirements, type TableRequirements } from "./structured-syntax";
 import { projectHistoryOutcomeEvent, type ProjectHistoryOutcome } from "./project-history-dialog";
 import {
   activateResearchTab,
@@ -3661,13 +3661,11 @@ class WorkspaceApp {
     const requirements = this.#tableRequirements();
     const source = this.#activeFileText.toString();
     const manuscriptContext = resolveAssistantTarget(source, input.insertionTarget.end, input.insertionTarget.end, "paragraph").text;
-    const table = await input.provider.buildTable({ instruction: input.instruction, ...requirements, manuscriptContext });
-    if (table.columns.length !== requirements.columns.length || table.rows.length !== requirements.rows.length)
-      throw new Error("Local model changed the requested table shape");
-    this.#elements.assistantInteractiveResult.showTable(tableMarkdown(table), {
-      sourceRevision: input.sourceRevision,
-      target: input.insertionTarget,
-    });
+    await this.#elements.assistantInteractiveResult.generateTable(
+      input.provider,
+      { instruction: input.instruction, ...requirements, manuscriptContext },
+      { sourceRevision: input.sourceRevision, target: input.insertionTarget },
+    );
     this.#elements.assistantWorkflowStatus.status = "Table syntax ready. Review it before inserting at the visible target.";
     this.#assistantWorkflow.send({ type: "REVIEW" });
   }

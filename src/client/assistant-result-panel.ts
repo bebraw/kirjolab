@@ -7,12 +7,14 @@ import type {
   ModelPhrasingAlternatives,
   ModelProvider,
   ReferenceQueryRequest,
+  TableSyntaxRequest,
 } from "./model-provider";
 import { phrasingPatternsForPurpose, type PhrasingPurpose } from "../domain/phrasing-guidance";
 import { isReferenceDiscoveryResults, referenceDiscoveryIdentifierUrl, type ReferenceDiscoveryResult } from "../domain/reference-discovery";
 import type { ModelEvidenceReference } from "../domain/workspace";
 import { errorMessage, expectOk, jsonFetch } from "./http";
 import { importDiscoveredReference } from "./reference-discovery-import";
+import { tableMarkdown } from "./structured-syntax";
 
 export interface AssistantAuthoringPassage {
   readonly fileId: string;
@@ -116,6 +118,18 @@ export class AssistantResultPanel extends LitElement {
 
   showTable(markdown: string, context: AssistantTableContext): void {
     this.view = { context, kind: "table", markdown };
+  }
+
+  async generateTable(
+    provider: Pick<ModelProvider, "buildTable">,
+    request: TableSyntaxRequest,
+    context: AssistantTableContext,
+  ): Promise<void> {
+    const table = await provider.buildTable(request);
+    if (table.columns.length !== request.columns.length || table.rows.length !== request.rows.length) {
+      throw new Error("Local model changed the requested table shape");
+    }
+    this.showTable(tableMarkdown(table), context);
   }
 
   showClarityQuestion(context: AssistantClarityContext): void {

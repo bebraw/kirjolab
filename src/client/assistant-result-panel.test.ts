@@ -93,6 +93,28 @@ describe("assistant result panel", () => {
     expect(panel.rootForTest()).toBe(panel);
   });
 
+  it("owns table generation, shape validation, and GFM presentation", async () => {
+    const panel = new TestAssistantResultPanel();
+    const request = {
+      caption: "Results",
+      columns: ["Method", "Score"],
+      rows: [["Baseline", "0.6"]],
+      instruction: "Build a comparison",
+      manuscriptContext: "The baseline was measured.",
+    };
+    const buildTable = vi.fn().mockResolvedValue({ ...provenance, caption: request.caption, columns: request.columns, rows: request.rows });
+
+    await panel.generateTable({ buildTable }, request, tableContext);
+
+    expect(buildTable).toHaveBeenCalledWith(request);
+    expect(panel.renderForTest()).toBeDefined();
+
+    buildTable.mockResolvedValueOnce({ ...provenance, caption: request.caption, columns: ["Only one"], rows: request.rows });
+    await expect(panel.generateTable({ buildTable }, request, tableContext)).rejects.toThrow(
+      "Local model changed the requested table shape",
+    );
+  });
+
   it("adapts idea, phrasing, and clarity results into choices", () => {
     const panel = new TestAssistantResultPanel();
     panel.showIdeas(revisionContext, {
