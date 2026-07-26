@@ -76,9 +76,9 @@ describe("PDF highlight import panel", () => {
     expect(panel.rootForTest()).toBe(panel);
     panel.detectForTest();
     expect(panel.renderForTest()).toBeDefined();
-    panel.showResult({ candidates: [], pagesScanned: 1, pagesTotal: 1, truncated: false });
+    panel.showResult("artifact-1", { candidates: [], pagesScanned: 1, pagesTotal: 1, truncated: false });
     expect(panel.renderForTest()).toBeDefined();
-    panel.showResult(result);
+    panel.showResult("artifact-1", result);
     expect(panel.renderForTest()).toBeDefined();
     panel.showError("Could not inspect this PDF.");
     panel.setImporting(true);
@@ -94,16 +94,18 @@ describe("PDF highlight import panel", () => {
 
     panel.detectForTest();
     panel.detectForTest();
-    panel.showResult(result);
+    panel.showResult("artifact-1", result);
     panel.selectForTest("flat:2", false);
     panel.commentForTest("native:1", "  Reviewed note  ");
     panel.importForTest();
     panel.cancelForTest();
+    panel.importForTest();
 
     expect(actions).toEqual([
       { action: "detect" },
       {
         action: "import",
+        artifactId: "artifact-1",
         candidates: [{ ...result.candidates[0], comment: "Reviewed note" }],
       },
       { action: "cancel" },

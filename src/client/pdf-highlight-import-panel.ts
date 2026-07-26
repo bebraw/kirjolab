@@ -7,7 +7,7 @@ export type ReviewedPdfHighlightImport = PdfHighlightImportCandidate & { readonl
 export type PdfHighlightImportAction =
   | { readonly action: "cancel" }
   | { readonly action: "detect" }
-  | { readonly action: "import"; readonly candidates: readonly ReviewedPdfHighlightImport[] };
+  | { readonly action: "import"; readonly artifactId: string; readonly candidates: readonly ReviewedPdfHighlightImport[] };
 
 interface CandidateReview {
   readonly candidate: PdfHighlightImportCandidate;
@@ -27,6 +27,7 @@ export class PdfHighlightImportPanel extends LitElement {
   declare private reviews: readonly CandidateReview[];
   declare private scanning: boolean;
   declare private status: string;
+  #artifactId: string | null = null;
 
   constructor() {
     super();
@@ -36,7 +37,8 @@ export class PdfHighlightImportPanel extends LitElement {
     this.status = defaultStatus;
   }
 
-  showResult(result: PdfHighlightDetection): void {
+  showResult(artifactId: string, result: PdfHighlightDetection): void {
+    this.#artifactId = artifactId;
     this.scanning = false;
     this.reviews = result.candidates.map((candidate) => ({ candidate, comment: candidate.comment, selected: true }));
     if (result.candidates.length === 0) {
@@ -56,6 +58,7 @@ export class PdfHighlightImportPanel extends LitElement {
   }
 
   showError(message: string): void {
+    this.#artifactId = null;
     this.scanning = false;
     this.status = message;
   }
@@ -65,6 +68,7 @@ export class PdfHighlightImportPanel extends LitElement {
   }
 
   reset(message = defaultStatus): void {
+    this.#artifactId = null;
     this.importing = false;
     this.reviews = [];
     this.scanning = false;
@@ -153,6 +157,7 @@ export class PdfHighlightImportPanel extends LitElement {
 
   protected detect(): void {
     if (this.scanning || this.importing) return;
+    this.#artifactId = null;
     this.scanning = true;
     this.reviews = [];
     this.status = "Scanning PDF annotations and page highlights…";
@@ -161,9 +166,10 @@ export class PdfHighlightImportPanel extends LitElement {
 
   protected importSelected(event: SubmitEvent): void {
     event.preventDefault();
-    if (this.scanning || this.importing) return;
+    if (this.scanning || this.importing || !this.#artifactId) return;
     this.emit({
       action: "import",
+      artifactId: this.#artifactId,
       candidates: this.reviews
         .filter(({ selected }) => selected)
         .map(({ candidate, comment }) => ({ ...candidate, comment: comment.trim() })),

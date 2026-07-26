@@ -634,7 +634,6 @@ class WorkspaceApp {
   #projectReferencePdfs: readonly ProjectReferencePdf[] = [];
   #libraryHighlightRects: PdfSelectionCapture["rects"] = [];
   #editingLibraryHighlightId: string | null = null;
-  #pdfHighlightDetectionArtifactId: string | null = null;
   #workspaceCatalog: WorkspaceSummary[] = [];
   #gitHubPickerRequest = 0;
   #gitHubSyncRequest = 0;
@@ -1105,8 +1104,7 @@ class WorkspaceApp {
     this.#elements.pdfHighlightImportPanel.addEventListener(pdfHighlightImportActionEvent, (event) => {
       const action = (event as CustomEvent<PdfHighlightImportAction>).detail;
       if (action.action === "detect") void this.#detectLibraryPdfHighlights();
-      else if (action.action === "import") void this.#importDetectedPdfHighlights(action.candidates);
-      else this.#pdfHighlightDetectionArtifactId = null;
+      else if (action.action === "import") void this.#importDetectedPdfHighlights(action.artifactId, action.candidates);
     });
     this.#elements.paperMarkups.addEventListener("pointerdown", (event) => this.#startLibraryPdfMarkup(event));
     this.#elements.paperMarkups.addEventListener("pointermove", (event) => this.#continueLibraryPdfMarkup(event));
@@ -5888,19 +5886,17 @@ class WorkspaceApp {
           !saved.some((highlight) => highlight.page === candidate.page && libraryPdfRectsOverlap(highlight.rects, candidate.rects)),
       );
       const reviewed = { ...result, candidates };
-      this.#pdfHighlightDetectionArtifactId = artifact.id;
-      this.#elements.pdfHighlightImportPanel.showResult(reviewed);
+      this.#elements.pdfHighlightImportPanel.showResult(artifact.id, reviewed);
     } catch (error) {
-      this.#pdfHighlightDetectionArtifactId = null;
       this.#elements.pdfHighlightImportPanel.showError(
         error instanceof Error ? `Could not inspect this PDF: ${error.message}` : "Could not inspect this PDF.",
       );
     }
   }
 
-  async #importDetectedPdfHighlights(selected: readonly ReviewedPdfHighlightImport[]): Promise<void> {
+  async #importDetectedPdfHighlights(detectedArtifactId: string, selected: readonly ReviewedPdfHighlightImport[]): Promise<void> {
     const artifact = this.#activeLibraryPdf();
-    if (!artifact?.referenceId || this.#pdfHighlightDetectionArtifactId !== artifact.id) return;
+    if (!artifact?.referenceId || detectedArtifactId !== artifact.id) return;
     if (selected.length === 0) {
       this.#showToast("Select at least one detected highlight to import.");
       return;
@@ -5925,7 +5921,6 @@ class WorkspaceApp {
   }
 
   #resetPdfHighlightImport(message = "Detect native annotations and flattened yellow highlights for review."): void {
-    this.#pdfHighlightDetectionArtifactId = null;
     this.#elements.pdfHighlightImportPanel.reset(message);
   }
 

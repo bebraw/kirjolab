@@ -3123,3 +3123,27 @@ and unique production package counts remain unchanged at 135,411 B raw /
 
 Full native CI passes all 1,411 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Lit Ownership: PDF Detection Identity
+
+`PdfHighlightImportPanel` now owns the opaque artifact identity associated with
+its current detection result and carries that identity with a guarded import
+intent. Detection, error, reset, and cancel transitions clear the identity
+locally. `WorkspaceApp` retains PDF inspection, duplicate filtering,
+active-reader validation, mutation, refresh, and notification policy without a
+second identity field.
+
+This checkpoint reduces `src/client/app.ts` from 6,808 to 6,803 lines (-5) and
+grows the import panel from 209 to 215 lines, for one additional runtime line
+overall. Focused component coverage passes guarded result identity, reviewed
+candidate values, cancellation, and stale-import suppression. The private-PDF
+browser workflow passes native and flattened detection, reviewed import,
+annotation editing, and export.
+
+The browser application artifact changes from 797,065 B raw / 214,599 B gzip
+to 797,102 B raw / 214,617 B gzip (+37 B raw / +18 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,411 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
