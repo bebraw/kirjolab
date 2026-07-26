@@ -292,9 +292,11 @@ collaboration.
   and include context detection from its bound editor, candidate ranking,
   display adaptation, option markup, empty-state hiding, popup positioning,
   hover and keyboard selection, active-descendant state, selected-option
-  scrolling, editor keyboard and blur binding, browser-local citation-scope
-  persistence, local Escape and blur dismissal, private-Library loading and
-  response validation for that scope, and a typed acceptance intent. Acceptance
+  scrolling, editor change, keyboard, and blur binding, browser-local
+  citation-scope persistence, local Escape and blur dismissal, private-Library
+  loading and response validation for that scope, and a typed acceptance intent.
+  One callback reports bound-editor changes for coordinator-owned authoring
+  selection, presence, and model-availability consequences. Acceptance
   carries the selected citation or include candidate together with its
   replacement context. The pure citation-completion adapter derives project and
   available unlinked Library candidates from canonical reference inputs; the

@@ -628,7 +628,11 @@ class WorkspaceApp {
     this.#bindSourceEditor(this.#source);
     this.#rememberAuthoringSelection();
     this.#elements.vimModeControl.bindEditor(this.#elements.source, this.#elements.sourceEditorShell);
-    this.#elements.sourceCompletion.bindEditor(this.#elements.source, this.#elements.citationCompletionScope);
+    this.#elements.sourceCompletion.bindEditor(this.#elements.source, this.#elements.citationCompletionScope, () => {
+      if (document.activeElement === this.#elements.source) this.#rememberAuthoringSelection();
+      this.#scheduleSelectionBroadcast();
+      this.#updateModelAvailability();
+    });
     bindYText(this.#elements.bibliography, this.#bibliography, this.#document);
     for (const actions of [this.#elements.projectFileRailActions, this.#elements.projectFileMenuActions]) {
       actions.addEventListener(projectFileActionEvent, (event) => {
@@ -689,14 +693,6 @@ class WorkspaceApp {
       else if (detail.action === "reanchor") void this.#reanchorManuscriptComment(detail.commentId);
       else this.#refreshResourcesWithNotice(detail.message, "The comment was resolved, but project resources could not be refreshed.");
     });
-    for (const eventName of ["focus", "input", "keyup", "select", "click"] as const) {
-      this.#elements.source.addEventListener(eventName, () => {
-        if (document.activeElement === this.#elements.source) this.#rememberAuthoringSelection();
-        this.#renderSourceCompletion();
-        this.#scheduleSelectionBroadcast();
-        this.#updateModelAvailability();
-      });
-    }
     this.#elements.source.addEventListener("click", () => this.#syncPreviewFromSource(false));
     this.#elements.source.addEventListener("select", () => this.#syncPreviewFromSource(false));
     this.#elements.source.addEventListener("keyup", (event) => {
@@ -1764,6 +1760,7 @@ class WorkspaceApp {
       folders: snapshot.folders.filter((folder) => !this.#hiddenProjectFolderIds.has(folder.id)),
     });
     this.#elements.editorInsertMenu.setFiles(files.find((file) => file.id === this.#activeFileId) ?? null, files);
+    this.#elements.sourceCompletion.setProject(snapshot, this.#activeFileId, appMode === "workspace");
     const entryActive = this.#activeFileId === snapshot.entryFileId;
     this.#elements.projectFileMenuActions.setEntryFileActive(entryActive);
     this.#renderAuthoringTarget();
@@ -2526,16 +2523,6 @@ class WorkspaceApp {
   #publicationByCitationKey(citationKey: string): PublicationResource | undefined {
     const normalized = citationKey.toLocaleLowerCase();
     return this.#snapshot?.publications.find((publication) => publication.citationKey.toLocaleLowerCase() === normalized);
-  }
-
-  #renderSourceCompletion(): void {
-    const snapshot = this.#snapshot;
-    this.#elements.sourceCompletion.refresh({
-      activeFileId: this.#activeFileId,
-      files: snapshot?.files ?? [],
-      projectReferences: snapshot?.projectReferences ?? [],
-      workspace: appMode === "workspace",
-    });
   }
 
   async #acceptCitationCompletion({ candidate, context }: Extract<SourceCompletionIntent, { kind: "citation" }>): Promise<void> {

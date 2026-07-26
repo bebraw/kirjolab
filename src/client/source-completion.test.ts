@@ -17,6 +17,10 @@ function option(value: string, metadata: string, action?: string): SourceComplet
   return { value, metadata, intent: includeIntent, ...(action ? { action } : {}) };
 }
 
+function setProject(completion: SourceCompletion, inputs: SourceCompletionInputs): void {
+  completion.setProject(inputs, inputs.activeFileId, inputs.workspace);
+}
+
 class TestSourceCompletion extends SourceCompletion {
   positions: number[] = [];
 
@@ -111,7 +115,7 @@ describe("source completion", () => {
       workspace: true,
     } satisfies SourceCompletionInputs;
 
-    completion.refresh(inputs);
+    setProject(completion, inputs);
     expect(completion.positions).toEqual([10]);
 
     source.value = ":cite[doe";
@@ -128,17 +132,17 @@ describe("source completion", () => {
         year: "2026",
       },
     ]);
-    completion.refresh(inputs);
+    setProject(completion, inputs);
     expect(completion.positions).toEqual([10, 6]);
 
     vi.stubGlobal("document", { activeElement: null });
-    completion.refresh(inputs);
+    setProject(completion, inputs);
     expect(source.removeAttribute).toHaveBeenCalledWith("aria-activedescendant");
     vi.stubGlobal("document", { activeElement: source });
-    completion.refresh({ ...inputs, workspace: false });
+    setProject(completion, { ...inputs, workspace: false });
     source.value = "Plain manuscript text";
     source.selectionEnd = source.value.length;
-    completion.refresh(inputs);
+    setProject(completion, inputs);
     vi.unstubAllGlobals();
   });
 
@@ -169,10 +173,10 @@ describe("source completion", () => {
     vi.stubGlobal("document", { activeElement: source });
     vi.stubGlobal("fetch", fetchMock);
 
-    completion.refresh({ activeFileId: null, files: [], projectReferences: [], workspace: true });
+    setProject(completion, { activeFileId: null, files: [], projectReferences: [], workspace: true });
 
     await vi.waitFor(() => expect(Reflect.get(completion, "libraryReferences")).toEqual([]));
-    completion.refresh({ activeFileId: null, files: [], projectReferences: [], workspace: true });
+    setProject(completion, { activeFileId: null, files: [], projectReferences: [], workspace: true });
     expect(fetchMock).toHaveBeenCalledOnce();
     expect(fetchMock).toHaveBeenCalledWith("/api/library", { credentials: "same-origin" });
   });
@@ -188,17 +192,34 @@ describe("source completion", () => {
     const completion = new TestSourceCompletion();
     const source = Object.assign(new EventTarget(), {
       removeAttribute: vi.fn(),
+      selectionEnd: 14,
       setAttribute: vi.fn(),
+      value: "::include[chap",
     }) as unknown as HTMLTextAreaElement;
     const scope = Object.assign(new EventTarget(), { value: "project" }) as unknown as HTMLSelectElement;
     const intents: SourceCompletionIntent[] = [];
+    const editorChanged = vi.fn();
     completion.addEventListener(sourceCompletionActionEvent, (event) => {
       intents.push((event as CustomEvent<SourceCompletionIntent>).detail);
     });
 
-    completion.bindEditor(source, scope);
+    completion.bindEditor(source, scope, editorChanged);
+    vi.stubGlobal("document", { activeElement: source });
+    completion.setProject(
+      {
+        files: [
+          { id: "file-1", path: "manuscript.md" },
+          { id: "file-2", path: "chapters/method.md" },
+        ],
+        projectReferences: [],
+      },
+      "file-1",
+      true,
+    );
+    source.dispatchEvent(new Event("input"));
     expect(completion.scope).toBe("library");
     expect(scope.value).toBe("library");
+    expect(completion.positions).toEqual([10, 10]);
     completion.show([option("paper", "Paper")], source);
     const enter = Object.assign(new Event("keydown", { cancelable: true }), { isComposing: false, key: "Enter" });
     source.dispatchEvent(enter);
@@ -208,6 +229,7 @@ describe("source completion", () => {
     vi.runAllTimers();
 
     expect(localStorage.setItem).toHaveBeenCalledWith("kirjolab:citation-completion-scope", "project");
+    expect(editorChanged).toHaveBeenCalledOnce();
     expect(intents).toEqual([includeIntent]);
     expect(completion.hidden).toBe(true);
     vi.useRealTimers();

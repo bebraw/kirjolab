@@ -598,8 +598,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   file identity, automatic-versus-explicit sync policy, Preview DOM navigation,
   caret placement, and focus policy in the application coordinator.
 - Keep source-completion interaction in its bounded light-DOM component: bind
-  editor keyboard and blur behavior there, persist citation suggestion scope
-  there, detect citation and include contexts from the bound editor there, rank
+  editor change, keyboard, and blur behavior there; invoke one coordinator
+  callback for authoring-selection, presence, and model-availability
+  consequences; persist citation suggestion scope there; detect citation and
+  include contexts from the bound editor there; rank
   and adapt candidates there, own empty-state hiding and popup positioning
   there, dismiss locally on Escape or editor blur, and emit the selected
   candidate with its replacement context as one typed intent. Derive citation

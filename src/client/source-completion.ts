@@ -38,8 +38,11 @@ export interface SourceCompletionInputs {
   readonly workspace: boolean;
 }
 
+type SourceCompletionProject = Pick<SourceCompletionInputs, "files" | "projectReferences">;
+
 export const sourceCompletionActionEvent = "source-completion-action";
 const scopeStorageKey = "kirjolab:citation-completion-scope";
+const editorRefreshEvents = ["click", "focus", "input", "keyup", "select"] as const;
 
 export class SourceCompletion extends LitElement {
   static override properties = {
@@ -54,6 +57,7 @@ export class SourceCompletion extends LitElement {
   private inputs: SourceCompletionInputs | null = null;
   private libraryReferences: CitationCompletionReferences | null | undefined = null;
   private dismissTimer: number | undefined;
+  private onEditorChange: () => void = () => undefined;
 
   constructor() {
     super();
@@ -65,13 +69,15 @@ export class SourceCompletion extends LitElement {
     return this.scopeSelect?.value === "library" ? "library" : "project";
   }
 
-  bindEditor(source: HTMLTextAreaElement, scopeSelect: HTMLSelectElement): void {
+  bindEditor(source: HTMLTextAreaElement, scopeSelect: HTMLSelectElement, onEditorChange: () => void = () => undefined): void {
     this.unbindEditor();
     this.source = source;
     this.scopeSelect = scopeSelect;
+    this.onEditorChange = onEditorChange;
     scopeSelect.value = localStorage.getItem(scopeStorageKey) === "library" ? "library" : "project";
     source.addEventListener("keydown", this.handleEditorKey);
     source.addEventListener("blur", this.handleEditorBlur);
+    for (const eventName of editorRefreshEvents) source.addEventListener(eventName, this.handleEditorChange);
     scopeSelect.addEventListener("change", this.handleScopeChange);
   }
 
@@ -108,10 +114,15 @@ export class SourceCompletion extends LitElement {
     );
   }
 
-  refresh(inputs: SourceCompletionInputs): void {
-    this.inputs = inputs;
+  setProject(project: SourceCompletionProject, activeFileId: string | null, workspace: boolean): void {
+    this.inputs = { activeFileId, files: project.files, projectReferences: project.projectReferences, workspace };
+    this.refresh();
+  }
+
+  private refresh(): void {
+    const inputs = this.inputs;
     const source = this.source;
-    if (!source || !inputs.workspace || document.activeElement !== source) {
+    if (!inputs || !source || !inputs.workspace || document.activeElement !== source) {
       this.hide();
       return;
     }
@@ -244,7 +255,7 @@ export class SourceCompletion extends LitElement {
       const value: unknown = await response.json();
       if (!isReferenceLibrarySnapshot(value)) throw new Error("Reference library returned an invalid snapshot");
       this.libraryReferences = value.references;
-      if (this.inputs) this.refresh(this.inputs);
+      this.refresh();
     } catch {
       this.libraryReferences = null;
     }
@@ -258,19 +269,26 @@ export class SourceCompletion extends LitElement {
     this.dismissTimer = window.setTimeout(() => this.hide(), 0);
   };
 
+  private readonly handleEditorChange = (): void => {
+    this.refresh();
+    this.onEditorChange();
+  };
+
   private readonly handleScopeChange = (): void => {
     localStorage.setItem(scopeStorageKey, this.scope);
-    if (this.inputs) this.refresh(this.inputs);
+    this.refresh();
   };
 
   private unbindEditor(): void {
     this.source?.removeEventListener("keydown", this.handleEditorKey);
     this.source?.removeEventListener("blur", this.handleEditorBlur);
+    for (const eventName of editorRefreshEvents) this.source?.removeEventListener(eventName, this.handleEditorChange);
     this.scopeSelect?.removeEventListener("change", this.handleScopeChange);
     if (this.dismissTimer !== undefined) window.clearTimeout(this.dismissTimer);
     this.dismissTimer = undefined;
     this.source = null;
     this.scopeSelect = null;
+    this.onEditorChange = () => undefined;
   }
 }
 

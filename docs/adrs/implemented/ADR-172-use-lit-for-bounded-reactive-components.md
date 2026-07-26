@@ -172,11 +172,13 @@ The adopted components own bounded presentation:
   coordinator retains passage-aware link adaptation, collaborative selection
   resolution, and Yjs edits.
 - The source completion list owns citation and include option presentation,
-  bound-editor citation and include context detection, candidate ranking and
-  display adaptation, empty-state hiding, popup positioning, hover and keyboard
-  selection, active-descendant state, selected-option scrolling, local Escape
-  and blur dismissal, private-Library loading and response validation for that
-  scope, and typed acceptance intents. Its pure
+  bound-editor change subscription plus citation and include context detection,
+  candidate ranking and display adaptation, empty-state hiding, popup
+  positioning, hover and keyboard selection, active-descendant state,
+  selected-option scrolling, local Escape and blur dismissal, private-Library
+  loading and response validation for that scope, and typed acceptance intents.
+  It invokes one coordinator callback for authoring-selection, presence, and
+  model-availability consequences. Its pure
   citation-completion domain adapter owns
   project and available unlinked Library candidate construction from canonical
   reference inputs, while the component owns project-relative include candidate

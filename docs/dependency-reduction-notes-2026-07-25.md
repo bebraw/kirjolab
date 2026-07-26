@@ -5705,6 +5705,32 @@ component members.
 Full native CI passes all 1,583 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Source Completion Refresh
+
+`SourceCompletion` now owns the five bound-editor events that refresh citation
+and include suggestions. Canonical project inputs arrive when project files
+render, and one callback reports editor changes for coordinator-owned authoring
+selection, presence, and model-availability consequences. `WorkspaceApp` no
+longer owns a parallel source-event subscription or a completion-refresh method;
+it retains private-Library linking, Yjs edits, caret restoration, and the three
+cross-feature consequences.
+
+This checkpoint reduces `src/client/app.ts` from 3,788 to 3,775 lines (-13) and
+grows the source-completion owner from 285 to 303 lines (+18), for five added
+runtime lines while establishing one editor-event owner. Its focused test grows
+from 215 to 237 lines to cover project-input refresh, bound input refresh, and
+the coordinator callback. Six focused and eight related tests pass through the
+affected guardrails alongside formatting, lint, and strict types.
+
+The browser application artifact changes from 821,919 B raw / 222,544 B gzip
+to 822,123 B raw / 222,645 B gzip (+204 B raw / +101 B gzip). Styles, direct and
+unique production package counts, and the readability audit remain unchanged
+at 135,411 B raw / 23,373 B gzip, 18, 150, and 249 externally visible low-level
+component members.
+
+Full native CI passes all 1,584 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Candidate Decision Outcomes
 
 `CandidateReviewPanel` now derives revision-versus-claim completion wording and
