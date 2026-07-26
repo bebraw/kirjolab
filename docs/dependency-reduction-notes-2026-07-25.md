@@ -5411,6 +5411,32 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,580 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Source Completion Context
+
+`SourceCompletion` now detects active `::include[...]` and citation-key contexts
+from its bound editor, selects the corresponding canonical candidates, and owns
+the no-context, inactive-editor, and non-workspace hiding paths. `WorkspaceApp`
+retains project-relative include candidate projection, canonical project and
+Library citation candidates, bounded Library loading, private-reference
+linking, Yjs replacement, and caret restoration.
+
+This checkpoint reduces `src/client/app.ts` from 4,106 to 4,074 lines (-32) and
+grows the source-completion owner from 221 to 258 lines. Runtime source across
+those two files grows by five lines while deleting two coordinator presentation
+methods and removing completion-context imports from the coordinator. Focused
+coverage passes include, citation, Library-scope, inactive-editor,
+non-workspace, no-context, existing presentation and interaction, application
+contracts, and strict types.
+
+The browser application artifact changes from 824,393 B raw / 222,985 B gzip
+to 824,216 B raw / 223,003 B gzip (-177 B raw / +18 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150. The readability audit reports one fewer externally
+visible low-level component member.
+
+Full native CI passes all 1,581 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Assistant Evidence Projection
 
 `AssistantWorkflowStatus` now resolves its ordered selected evidence keys

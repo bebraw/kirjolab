@@ -280,16 +280,18 @@ collaboration.
   replaces only the path inside the directive in one collaborative text
   transaction.
 - **Completion presentation:** One bounded light-DOM component owns citation
-  and include candidate ranking, display adaptation, option markup, empty-state
-  hiding, popup positioning, hover and keyboard selection, active-descendant
-  state, selected-option scrolling, editor keyboard and blur binding, browser-
-  local citation-scope persistence, dismissal, and typed acceptance or scope-
-  change intents. Acceptance carries the selected citation or include candidate
-  together with its replacement context. The pure citation-completion adapter
-  derives project and available unlinked Library candidates from canonical
-  reference inputs. The workspace coordinator retains those canonical reference
-  sets, context detection, private-Library linking, collaborative edits, and
-  caret restoration without caching the visible options or completion kind.
+  and include context detection from its bound editor, candidate ranking,
+  display adaptation, option markup, empty-state hiding, popup positioning,
+  hover and keyboard selection, active-descendant state, selected-option
+  scrolling, editor keyboard and blur binding, browser-local citation-scope
+  persistence, dismissal, and typed acceptance or scope-change intents.
+  Acceptance carries the selected citation or include candidate together with
+  its replacement context. The pure citation-completion adapter derives project
+  and available unlinked Library candidates from canonical reference inputs.
+  The workspace coordinator retains canonical project-file and reference
+  candidate projection, private-Library loading and linking, collaborative
+  edits, and caret restoration without caching visible options or completion
+  kind.
 - **Source citation action:** One bounded light-DOM control derives the citation
   context at the current source caret, owns action availability, and emits the
   resolved citation keys and locator. The workspace coordinator retains

@@ -3,6 +3,7 @@ import {
   SourceCompletion,
   sourceCompletionActionEvent,
   type SourceCompletionAction,
+  type SourceCompletionInputs,
   type SourceCompletionIntent,
   type SourceCompletionOption,
 } from "./source-completion";
@@ -101,6 +102,42 @@ describe("source completion", () => {
 
     completion.showIncludes([], { end: 3, query: "missing", start: 0 }, source);
     expect(source.removeAttribute).toHaveBeenCalledWith("aria-activedescendant");
+  });
+
+  it("owns editor context detection for include and citation presentation", () => {
+    const completion = new TestSourceCompletion();
+    const source = {
+      value: "::include[chap",
+      selectionEnd: 14,
+      removeAttribute: vi.fn(),
+      setAttribute: vi.fn(),
+    };
+    Reflect.set(completion, "source", source);
+    vi.stubGlobal("document", { activeElement: source });
+    const inputs = {
+      citations: [{ authors: ["Doe"], key: "doe2026", referenceId: "reference-1", scope: "library", title: "Result", year: "2026" }],
+      includes: [{ path: "chapters/method.md", reference: "chapters/method.md" }],
+      workspace: true,
+    } satisfies SourceCompletionInputs;
+
+    expect(completion.refresh(inputs)).toBe(false);
+    expect(completion.positions).toEqual([10]);
+
+    source.value = ":cite[doe";
+    source.selectionEnd = 9;
+    Reflect.set(completion, "scopeSelect", { value: "library" });
+    expect(completion.refresh(inputs)).toBe(true);
+    expect(completion.positions).toEqual([10, 6]);
+
+    vi.stubGlobal("document", { activeElement: null });
+    expect(completion.refresh(inputs)).toBe(false);
+    expect(source.removeAttribute).toHaveBeenCalledWith("aria-activedescendant");
+    vi.stubGlobal("document", { activeElement: source });
+    expect(completion.refresh({ ...inputs, workspace: false })).toBe(false);
+    source.value = "Plain manuscript text";
+    source.selectionEnd = source.value.length;
+    expect(completion.refresh(inputs)).toBe(false);
+    vi.unstubAllGlobals();
   });
 
   it("binds editor interaction and persisted citation scope", () => {

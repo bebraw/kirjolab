@@ -1,6 +1,16 @@
 import { html, LitElement, nothing, type TemplateResult } from "lit";
-import { rankCitationCompletionCandidates, type CitationCompletionCandidate, type CitationCompletionContext } from "./citation-completions";
-import { rankIncludeCompletionCandidates, type IncludeCompletionCandidate, type IncludeCompletionContext } from "./include-completions";
+import {
+  citationCompletionContext,
+  rankCitationCompletionCandidates,
+  type CitationCompletionCandidate,
+  type CitationCompletionContext,
+} from "./citation-completions";
+import {
+  includeCompletionContext,
+  rankIncludeCompletionCandidates,
+  type IncludeCompletionCandidate,
+  type IncludeCompletionContext,
+} from "./include-completions";
 import { positionSourceCompletion } from "./source-editor-adapter";
 
 export type SourceCompletionIntent =
@@ -15,6 +25,12 @@ export interface SourceCompletionOption {
 }
 
 export type CitationCompletionScope = "library" | "project";
+
+export interface SourceCompletionInputs {
+  readonly citations: readonly CitationCompletionCandidate[];
+  readonly includes: readonly IncludeCompletionCandidate[];
+  readonly workspace: boolean;
+}
 
 export type SourceCompletionAction =
   | { readonly action: "accept"; readonly intent: SourceCompletionIntent }
@@ -87,6 +103,27 @@ export class SourceCompletion extends LitElement {
       source,
       context.start,
     );
+  }
+
+  refresh(inputs: SourceCompletionInputs): boolean {
+    const source = this.source;
+    if (!source || !inputs.workspace || document.activeElement !== source) {
+      this.hide();
+      return false;
+    }
+    const includeContext = includeCompletionContext(source.value, source.selectionEnd);
+    if (includeContext) {
+      this.showIncludes(inputs.includes, includeContext, source);
+      return false;
+    }
+    const citationContext = citationCompletionContext(source.value, source.selectionEnd);
+    if (!citationContext) {
+      this.hide();
+      return false;
+    }
+    const libraryScope = this.scope === "library";
+    this.showCitations(inputs.citations, citationContext, source);
+    return libraryScope;
   }
 
   hide(): void {

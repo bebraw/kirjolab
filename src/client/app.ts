@@ -53,6 +53,7 @@ import type { AppToastOptions } from "./app-toast";
 import { expectOk, jsonFetch } from "./http";
 import { workspaceSwitchEvent } from "./workspace-switcher";
 import { sourceCompletionActionEvent, type SourceCompletionAction, type SourceCompletionIntent } from "./source-completion";
+import { citationCompletionCandidates } from "./citation-completions";
 import { gitHubImportCancelEvent, gitHubImportCompleteEvent } from "./github-import-panel";
 import {
   gitHubSyncCheckEvent,
@@ -252,8 +253,6 @@ import { workspaceRailChangeEvent } from "./workspace-rail-tabs";
 import { authoringModeChangeEvent } from "./authoring-mode-tabs";
 import type { EditorPresenceRange } from "./editor-presence";
 import { bindYText, captureRelativeSelection, type RelativeEditorSelection } from "./source-editor-adapter";
-import { citationCompletionCandidates, citationCompletionContext } from "./citation-completions";
-import { includeCompletionContext, type IncludeCompletionContext } from "./include-completions";
 
 interface PreviewInputs {
   readonly files: readonly ProjectFile[];
@@ -715,7 +714,7 @@ class WorkspaceApp {
     this.#elements.sourceCompletion.addEventListener(sourceCompletionActionEvent, (event) => {
       const detail = (event as CustomEvent<SourceCompletionAction>).detail;
       if (detail.action === "dismiss") this.#hideSourceCompletion();
-      else if (detail.action === "scope-change") void this.#renderSourceCompletion();
+      else if (detail.action === "scope-change") this.#renderSourceCompletion();
       else if (detail.intent.kind === "citation") void this.#acceptCitationCompletion(detail.intent);
       else this.#acceptIncludeCompletion(detail.intent);
     });
@@ -746,7 +745,7 @@ class WorkspaceApp {
     for (const eventName of ["focus", "input", "keyup", "select", "click"] as const) {
       this.#elements.source.addEventListener(eventName, () => {
         if (document.activeElement === this.#elements.source) this.#rememberAuthoringSelection();
-        void this.#renderSourceCompletion();
+        this.#renderSourceCompletion();
         this.#scheduleSelectionBroadcast();
         this.#updateModelAvailability();
       });
@@ -2728,58 +2727,27 @@ class WorkspaceApp {
     return this.#snapshot?.publications.find((publication) => publication.citationKey.toLocaleLowerCase() === normalized);
   }
 
-  async #renderSourceCompletion(): Promise<void> {
-    if (appMode !== "workspace" || document.activeElement !== this.#elements.source) {
-      this.#hideSourceCompletion();
-      return;
-    }
-    const includeContext = includeCompletionContext(this.#elements.source.value, this.#elements.source.selectionEnd);
-    if (includeContext) {
-      this.#renderIncludeCompletion(includeContext);
-      return;
-    }
-    await this.#renderCitationCompletion();
-  }
-
-  #renderIncludeCompletion(context: IncludeCompletionContext): void {
+  #renderSourceCompletion(): void {
     const snapshot = this.#snapshot;
     const activeFile = snapshot?.files.find((file) => file.id === this.#activeFileId);
-    if (!snapshot || !activeFile) {
-      this.#hideSourceCompletion();
-      return;
-    }
-    this.#elements.sourceCompletion.showIncludes(
-      snapshot.files
-        .filter((file) => file.id !== activeFile.id)
-        .map((file) => ({ reference: relativeProjectPath(activeFile.path, file.path), path: file.path })),
-      context,
-      this.#elements.source,
-    );
-  }
-
-  async #renderCitationCompletion(): Promise<void> {
-    if (appMode !== "workspace" || document.activeElement !== this.#elements.source) {
-      this.#hideSourceCompletion();
-      return;
-    }
-    const context = citationCompletionContext(this.#elements.source.value, this.#elements.source.selectionEnd);
-    if (!context) {
-      this.#hideSourceCompletion();
-      return;
-    }
-    if (this.#elements.sourceCompletion.scope === "library" && !this.#librarySnapshot && !this.#citationLibraryLoading) {
+    const sourceCompletion = this.#elements.sourceCompletion;
+    const libraryScope = sourceCompletion.scope === "library";
+    const needsLibrary = sourceCompletion.refresh({
+      citations: citationCompletionCandidates(
+        snapshot?.projectReferences ?? [],
+        libraryScope ? (this.#librarySnapshot?.references ?? []) : [],
+      ),
+      includes: activeFile
+        ? (snapshot?.files ?? [])
+            .filter((file) => file.id !== activeFile.id)
+            .map((file) => ({ reference: relativeProjectPath(activeFile.path, file.path), path: file.path }))
+        : [],
+      workspace: appMode === "workspace",
+    });
+    if (needsLibrary && !this.#librarySnapshot && !this.#citationLibraryLoading) {
       this.#citationLibraryLoading = true;
       void this.#loadCitationCompletionLibrary();
     }
-    const snapshot = this.#snapshot;
-    this.#elements.sourceCompletion.showCitations(
-      citationCompletionCandidates(
-        snapshot?.projectReferences ?? [],
-        this.#elements.sourceCompletion.scope === "library" ? (this.#librarySnapshot?.references ?? []) : [],
-      ),
-      context,
-      this.#elements.source,
-    );
   }
 
   async #loadCitationCompletionLibrary(): Promise<void> {
@@ -2789,7 +2757,7 @@ class WorkspaceApp {
       const value: unknown = await response.json();
       if (!isReferenceLibrarySnapshot(value)) throw new Error("Reference library returned an invalid snapshot");
       this.#librarySnapshot = value;
-      await this.#renderCitationCompletion();
+      this.#renderSourceCompletion();
     } catch {
       return;
     } finally {

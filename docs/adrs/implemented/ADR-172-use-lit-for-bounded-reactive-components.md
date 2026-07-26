@@ -162,11 +162,12 @@ The adopted components own bounded presentation:
   include-file intents. The application coordinator retains collaborative
   selection resolution and Yjs edits.
 - The source completion list owns citation and include option presentation,
-  candidate ranking and display adaptation, empty-state hiding, popup
-  positioning, hover and keyboard selection, active-descendant state,
-  selected-option scrolling, dismissal, and typed acceptance intents. Its pure
-  citation-completion domain adapter owns project and available unlinked Library
-  candidate construction from canonical reference inputs.
+  bound-editor citation and include context detection, candidate ranking and
+  display adaptation, empty-state hiding, popup positioning, hover and keyboard
+  selection, active-descendant state, selected-option scrolling, dismissal, and
+  typed acceptance intents. Its pure citation-completion domain adapter owns
+  project and available unlinked Library candidate construction from canonical
+  reference inputs.
 - The manuscript map panel owns summary metrics, heading outline, structural
   cues, local editing-pass selection, editing cues, and typed source-range
   selection intents.
@@ -859,9 +860,10 @@ reason to wrap static markup mechanically.
   blur lifecycle, owns browser-local citation-scope persistence, and emits a
   typed scope-change intent. Acceptance now carries the component-selected
   candidate and replacement context, removing five coordinator caches and the
-  completion-kind discriminator. The application coordinator retains canonical
-  project and Library reference sets, context detection, private-Library linking,
-  Yjs edits, and caret restoration.
+  completion-kind discriminator. It also replaces two coordinator context-
+  detection and presentation methods. The application coordinator retains
+  canonical project-file and reference candidate projection, private-Library
+  loading and linking, Yjs edits, and caret restoration.
 - The source citation control owns caret-context parsing and action
   availability and emits one typed resolved-citation intent. The application
   coordinator retains publication resolution, grouped-citation policy, and
