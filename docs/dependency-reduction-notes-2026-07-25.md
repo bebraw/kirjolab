@@ -3193,3 +3193,25 @@ and unique production package counts remain unchanged at 135,411 B raw /
 
 Full native CI passes all 1,411 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
+
+## Browser Shell Registry Deduplication
+
+The browser shell now resolves all required native and Lit elements through one
+typed `app-elements` registry. TypeScript infers the complete registry shape
+from the constructors checked at startup, so `WorkspaceApp` no longer repeats
+the same 86 entries in a manually synchronized interface or owns the lookup
+helper. Theme preference lookup joins the same boundary.
+
+This checkpoint reduces `src/client/app.ts` from 6,787 to 6,539 lines (-248).
+The extracted 165-line registry replaces 266 removed registry, interface, and
+import lines, reducing runtime source by 83 lines overall. Focused coverage
+checks all 87 unique element identities through the inferred boundary and the
+missing-or-wrong-constructor failure path.
+
+The browser application artifact changes from 797,182 B raw / 214,623 B gzip
+to 797,139 B raw / 214,746 B gzip (-43 B raw / +123 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,413 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.

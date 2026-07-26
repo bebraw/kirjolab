@@ -291,6 +291,10 @@ collaboration.
   reparenting, and popover visibility. The workspace coordinator supplies
   authorized action effects and retains deferred-deletion authority, offline
   persistence, and notification policy without caching notice state.
+- **Application element registry:** One typed browser-shell boundary resolves
+  every required server-rendered and custom element, validates its constructor,
+  and exposes an inferred registry shape. The workspace coordinator must not
+  duplicate that registry as a manually maintained interface.
 - **Collaborator selections:** A client may send only an exact-key, bounded
   `protocol: 1` selection message for the current file and revision. The room
   supplies its socket identity, validates the range, broadcasts it only to

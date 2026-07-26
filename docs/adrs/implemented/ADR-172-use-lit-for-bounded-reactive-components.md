@@ -667,6 +667,10 @@ reason to wrap static markup mechanically.
 - The action-menu controller owns document-level outside-action dismissal,
   settings-menu containment, Escape ordering, focus restoration, and listener
   teardown for spatially separate native `details` menus.
+- The browser shell resolves its native and Lit elements through one typed
+  registry. TypeScript infers the returned registry shape from the validated
+  constructors, replacing a separately maintained 86-field interface and
+  keeping startup-only DOM lookup outside the application coordinator.
 - Related template, visibility rules, and local event binding now have one
   browser owner.
 - Later bounded extractions can reuse the same reactive component model without

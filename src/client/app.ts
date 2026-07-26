@@ -1,5 +1,6 @@
 import * as Y from "yjs";
 import "./action-menu-controller";
+import { collectAppElements } from "./app-elements";
 import { bibTeXDisplayText } from "../domain/bibliography";
 import { buildWorkspaceKnowledgeGraph, isKnowledgeSearchResults, type WorkspaceKnowledgeGraph } from "../domain/knowledge";
 import { isCitationNetwork } from "../domain/citation-assertions";
@@ -59,24 +60,18 @@ import {
   type ReferenceLibrarySnapshot,
 } from "../domain/reference-library";
 import { filterReferenceLibrary } from "../domain/reference-filters";
-import { ProjectExportDialog } from "./project-export-dialog";
-import { EditorStatus } from "./editor-status";
-import { ConnectionStatus } from "./connection-status";
-import { VimModeControl } from "./vim-mode-control";
-import { ApplicationVersionControl, applicationVersionNoticeEvent } from "./application-version-control";
-import { PreviewSyncControls, previewSyncActionEvent, type PreviewSyncAction } from "./preview-sync-controls";
+import { applicationVersionNoticeEvent } from "./application-version-control";
+import { previewSyncActionEvent, type PreviewSyncAction } from "./preview-sync-controls";
 import { PreviewDocument } from "./preview-document";
-import { SourceCitationControl, sourceCitationOpenEvent } from "./source-citation-control";
-import { WorkspaceSurfaceSwitcher, workspaceSurfaceChangeEvent } from "./workspace-surface-switcher";
-import { ProjectHistoryTrigger, projectHistoryOpenEvent } from "./project-history-trigger";
-import { EditorInsertMenu, editorInsertActionEvent, type EditorInsertAction, type EditorSyntaxKind } from "./editor-insert-menu";
+import { sourceCitationOpenEvent } from "./source-citation-control";
+import { workspaceSurfaceChangeEvent } from "./workspace-surface-switcher";
+import { projectHistoryOpenEvent } from "./project-history-trigger";
+import { editorInsertActionEvent, type EditorInsertAction, type EditorSyntaxKind } from "./editor-insert-menu";
 import { sourceSpanAt } from "./composition-source-map";
-import { CollaboratorSelectionList } from "./collaborator-selection-list";
-import { AppToast, type AppToastOptions } from "./app-toast";
-import { WorkspaceSwitcher, workspaceSwitchEvent } from "./workspace-switcher";
-import { SourceCompletion, sourceCompletionActionEvent, type SourceCompletionAction } from "./source-completion";
+import type { AppToastOptions } from "./app-toast";
+import { workspaceSwitchEvent } from "./workspace-switcher";
+import { sourceCompletionActionEvent, type SourceCompletionAction } from "./source-completion";
 import {
-  GitHubImportPanel,
   gitHubDisconnectEvent,
   gitHubImportCancelEvent,
   gitHubImportConfirmEvent,
@@ -84,13 +79,7 @@ import {
   gitHubInstallationChangeEvent,
   gitHubRepositoryChangeEvent,
 } from "./github-import-panel";
-import {
-  GitHubSyncMenu,
-  gitHubSyncCheckEvent,
-  gitHubSyncPullEvent,
-  gitHubSyncPushEvent,
-  gitHubSyncSettingsEvent,
-} from "./github-sync-menu";
+import { gitHubSyncCheckEvent, gitHubSyncPullEvent, gitHubSyncPushEvent, gitHubSyncSettingsEvent } from "./github-sync-menu";
 import {
   gitHubPublishConfirmEvent,
   gitHubPublishPreviewEvent,
@@ -98,43 +87,27 @@ import {
   gitHubPullPreviewEvent,
   gitHubSyncDisconnectEvent,
 } from "./github-sync-review";
-import { LatexImportPanel, latexImportActionEvent, type LatexImportAction } from "./latex-import-panel";
+import { latexImportActionEvent, type LatexImportAction } from "./latex-import-panel";
+import { libraryPdfAnnotationActionEvent, type LibraryPdfAnnotationAction } from "./library-pdf-annotation-forms";
+import { libraryPdfAnnotationListActionEvent, type LibraryPdfAnnotationListAction } from "./library-pdf-annotation-list";
+import { libraryPdfShapeRecognizedEvent, type LibraryPdfNoteDragResult, type LibraryPdfShapeRecognition } from "./library-pdf-markup-layer";
+import { libraryPdfProjectUseActionEvent, type LibraryPdfProjectUseAction } from "./library-pdf-project-use";
+import { libraryPdfToolbarActionEvent, type LibraryPdfToolbarAction } from "./library-pdf-annotation-toolbar";
+import { libraryPdfInspectorCloseEvent } from "./library-pdf-inspector";
 import {
-  LibraryPdfAnnotationForms,
-  libraryPdfAnnotationActionEvent,
-  type LibraryPdfAnnotationAction,
-} from "./library-pdf-annotation-forms";
-import {
-  LibraryPdfAnnotationList,
-  libraryPdfAnnotationListActionEvent,
-  type LibraryPdfAnnotationListAction,
-} from "./library-pdf-annotation-list";
-import {
-  LibraryPdfMarkupLayer,
-  libraryPdfShapeRecognizedEvent,
-  type LibraryPdfNoteDragResult,
-  type LibraryPdfShapeRecognition,
-} from "./library-pdf-markup-layer";
-import { LibraryPdfProjectUse, libraryPdfProjectUseActionEvent, type LibraryPdfProjectUseAction } from "./library-pdf-project-use";
-import { LibraryPdfAnnotationToolbar, libraryPdfToolbarActionEvent, type LibraryPdfToolbarAction } from "./library-pdf-annotation-toolbar";
-import { LibraryPdfInspector, libraryPdfInspectorCloseEvent } from "./library-pdf-inspector";
-import {
-  ProjectStartingPointBrowser,
   startingPointActionEvent,
   startingPointProjectLoadEvent,
   startingPointTemplateDeleteEvent,
   type StartingPointAction,
 } from "./project-starting-point-browser";
 import {
-  WorkspaceSharingPanel,
   workspaceSharingActionEvent,
   workspaceSharingInviteEvent,
   workspaceSharingNoticeEvent,
   type WorkspaceSharingActionDetail,
 } from "./workspace-sharing-panel";
-import { WorkspaceCatalogPanel } from "./workspace-catalog-panel";
 import { WorkspaceLayoutManager } from "./workspace-layout-manager";
-import { UnidentifiedPdfList, unidentifiedPdfIdentifyEvent, type UnidentifiedPdfSelection } from "./unidentified-pdf-list";
+import { unidentifiedPdfIdentifyEvent, type UnidentifiedPdfSelection } from "./unidentified-pdf-list";
 import { libraryReferenceSummaryActionEvent, type LibraryReferenceSummaryAction } from "./library-reference-summary";
 import { libraryReferencePersonalActionEvent, type LibraryReferencePersonalAction } from "./library-reference-personal-fields";
 import {
@@ -146,34 +119,17 @@ import {
 } from "./library-reference-metadata-editor";
 import { libraryReferencePdfActionEvent, type LibraryReferencePdfAction } from "./library-reference-pdf-rows";
 import { libraryReferenceResearchActionEvent, type LibraryReferenceResearchAction } from "./library-reference-research-rows";
-import { LibraryReferenceList } from "./library-reference-list";
-import {
-  WorkspaceSettingsPanel,
-  workspaceSettingsActionEvent,
-  type WorkspaceSettingsAction,
-  type WorkspaceSettingsValue,
-} from "./workspace-settings-panel";
+import { workspaceSettingsActionEvent, type WorkspaceSettingsAction, type WorkspaceSettingsValue } from "./workspace-settings-panel";
 import {
   researchQuestionWorkflowData,
   reviewerResponseWorkflowData,
-  WritingWorkflowPanel,
   writingWorkflowActionEvent,
   type WritingWorkflowActionDetail,
 } from "./writing-workflow-panel";
-import { ResearchDiarySummary, researchDiaryOpenEvent } from "./research-diary-summary";
-import {
-  AssistantResultPanel,
-  assistantResultActionEvent,
-  referenceDiscoveryIdentifierUrl,
-  type AssistantResultActionDetail,
-} from "./assistant-result-panel";
-import { CandidateReviewPanel, candidateDecisionEvent, candidateEvidenceEvent } from "./candidate-review-panel";
-import {
-  PublicationContextPanel,
-  publicationContextActionEvent,
-  type PublicationContextAction,
-  type PublicationPaperOption,
-} from "./publication-context-panel";
+import { researchDiaryOpenEvent } from "./research-diary-summary";
+import { assistantResultActionEvent, referenceDiscoveryIdentifierUrl, type AssistantResultActionDetail } from "./assistant-result-panel";
+import { candidateDecisionEvent, candidateEvidenceEvent } from "./candidate-review-panel";
+import { publicationContextActionEvent, type PublicationContextAction, type PublicationPaperOption } from "./publication-context-panel";
 import { isGitHubSyncStatus, type GitHubSyncStatus } from "./github-sync-status";
 import {
   defaultProjectPublicationProfile,
@@ -211,29 +167,23 @@ import {
   resolveAssistantTarget,
   type AssistantTargetScope,
 } from "./assistant-operations";
-import { AssistantTaskPanel, assistantTaskChangeEvent, assistantTaskGenerateEvent, type AssistantTaskChange } from "./assistant-task-panel";
-import { AssistantWorkflowStatus, assistantWorkflowActionEvent, type AssistantWorkflowAction } from "./assistant-workflow-status";
+import { assistantTaskChangeEvent, assistantTaskGenerateEvent, type AssistantTaskChange } from "./assistant-task-panel";
+import { assistantWorkflowActionEvent, type AssistantWorkflowAction } from "./assistant-workflow-status";
 import { assistantWorkflowBusy, createAssistantWorkflowActor } from "./assistant-workflow-machine";
 import { citationPageFromLocator, createCitationInsertion, parseCitationKeys, type CitationContext } from "./citations";
 import { loadMarkdownRuntime, type MarkdownRuntime } from "./markdown-runtime";
 import { createMetadataRefinementActor } from "./metadata-refinement-machine";
-import { ProjectMapWorkspace, projectMapResourceSelectEvent, projectMapSearchEvent } from "./project-map-workspace";
-import { ClaimListPanel, claimListActionEvent, type ClaimListAction } from "./claim-list-panel";
-import { ClaimDialog, claimDialogSaveEvent, type ClaimDialogSave } from "./claim-dialog";
-import {
-  ManuscriptCommentList,
-  manuscriptCommentActionEvent,
-  manuscriptCommentCreateEvent,
-  type ManuscriptCommentAction,
-} from "./manuscript-comment-list";
-import { PublicationListPanel, publicationListActionEvent, type PublicationListAction } from "./publication-list-panel";
-import { CandidateListPanel, candidateListOpenEvent } from "./candidate-list-panel";
+import { projectMapResourceSelectEvent, projectMapSearchEvent } from "./project-map-workspace";
+import { claimListActionEvent, type ClaimListAction } from "./claim-list-panel";
+import { claimDialogSaveEvent, type ClaimDialogSave } from "./claim-dialog";
+import { manuscriptCommentActionEvent, manuscriptCommentCreateEvent, type ManuscriptCommentAction } from "./manuscript-comment-list";
+import { publicationListActionEvent, type PublicationListAction } from "./publication-list-panel";
+import { candidateListOpenEvent } from "./candidate-list-panel";
 import { contextTabOverviewActionEvent, type ContextTabOverviewAction } from "./context-tab-overview";
 import { contextResourceTabActionEvent, type ContextResourceTabAction } from "./context-resource-tabs";
-import { ContextTabStrip, contextPrimaryTabActionEvent, type ContextPrimaryTabAction } from "./context-tab-strip";
-import { ProjectEvidencePanel, projectEvidenceActionEvent, type ProjectEvidenceAction } from "./project-evidence-panel";
+import { contextPrimaryTabActionEvent, type ContextPrimaryTabAction } from "./context-tab-strip";
+import { projectEvidenceActionEvent, type ProjectEvidenceAction } from "./project-evidence-panel";
 import {
-  ProjectAnnotationForm,
   projectAnnotationActionEvent,
   projectAnnotationSaveEvent,
   type ProjectAnnotationAction,
@@ -241,34 +191,28 @@ import {
   type ProjectHighlightTool,
 } from "./project-annotation-form";
 import {
-  ProjectFileDialog,
   projectFileDialogIsCreating,
   projectFileDialogIsFolder,
   projectFileSaveEvent,
   type ProjectFileDialogMode,
   type ProjectFileSave,
 } from "./project-file-dialog";
-import { ProjectFileActions, projectFileActionEvent, type ProjectFileAction } from "./project-file-actions";
-import { ProjectTemplateSaveDialog, projectTemplateSaveEvent, type ProjectTemplateSave } from "./project-template-save-dialog";
-import { ProjectTreePanel, projectTreeActionEvent, type ProjectTreeAction } from "./project-tree-panel";
-import { ManuscriptMapPanel, manuscriptMapSelectEvent, type ManuscriptMapSelection } from "./manuscript-map-panel";
-import { LibraryDiscoveryResults, libraryDiscoverySaveEvent, type LibraryDiscoverySaveDetail } from "./library-discovery-results";
-import { LibraryDiscoverySearch, libraryDiscoverySearchEvent } from "./library-discovery-search";
-import { ReferenceLibraryFilterPanel, referenceLibraryFilterChangeEvent } from "./reference-library-filters";
-import { LibraryPdfUploadStatus, libraryPdfUploadRetryEvent, libraryPdfUploadRevealEvent } from "./library-pdf-upload-status";
-import { LibraryPdfUploadControl, libraryPdfUploadActionEvent, type LibraryPdfUploadAction } from "./library-pdf-upload-control";
-import { LibraryToolsMenu, libraryToolsActionEvent, type LibraryToolsAction } from "./library-tools-menu";
-import { ModelProviderSettings, modelProviderChangeEvent, modelProviderDiscoveryEvent } from "./model-provider-settings";
-import { WebSnapshotComparisonPanel, WebSourceCapture, webSourceCaptureEvent } from "./web-source-panels";
+import { projectFileActionEvent, type ProjectFileAction } from "./project-file-actions";
+import { projectTemplateSaveEvent, type ProjectTemplateSave } from "./project-template-save-dialog";
+import { projectTreeActionEvent, type ProjectTreeAction } from "./project-tree-panel";
+import { manuscriptMapSelectEvent, type ManuscriptMapSelection } from "./manuscript-map-panel";
+import { libraryDiscoverySaveEvent, type LibraryDiscoverySaveDetail } from "./library-discovery-results";
+import { libraryDiscoverySearchEvent } from "./library-discovery-search";
+import { referenceLibraryFilterChangeEvent } from "./reference-library-filters";
+import { libraryPdfUploadRetryEvent, libraryPdfUploadRevealEvent } from "./library-pdf-upload-status";
+import { libraryPdfUploadActionEvent, type LibraryPdfUploadAction } from "./library-pdf-upload-control";
+import { libraryToolsActionEvent, type LibraryToolsAction } from "./library-tools-menu";
+import { modelProviderChangeEvent, modelProviderDiscoveryEvent } from "./model-provider-settings";
+import { webSourceCaptureEvent } from "./web-source-panels";
 import { citationNetworkActionEvent, type CitationNetworkAction } from "./citation-network-panel";
-import { CitationNetworkWorkspace, citationNetworkFilterEvent } from "./citation-network-workspace";
-import {
-  PreviewContextStatus,
-  PreviewDiagnosticsPanel,
-  previewDiagnosticSelectEvent,
-  type PreviewDiagnosticSelection,
-} from "./preview-presentation";
-import { PublicationIntakePanel, publicationIntakeActionEvent, type PublicationIntakeAction } from "./publication-intake-panel";
+import { citationNetworkFilterEvent } from "./citation-network-workspace";
+import { previewDiagnosticSelectEvent, type PreviewDiagnosticSelection } from "./preview-presentation";
+import { publicationIntakeActionEvent, type PublicationIntakeAction } from "./publication-intake-panel";
 import { modelEvidenceKey } from "./research-resource-presentation";
 import {
   applicationVersion,
@@ -287,7 +231,6 @@ import { createPublicationIntakeActor, publicationIntakeBusy } from "./publicati
 import { extractPdfMetadata, type PdfMetadataCandidates } from "./pdf-metadata";
 import { detectImportedPdfHighlights } from "./pdf-highlight-import";
 import {
-  PdfHighlightImportPanel,
   pdfHighlightImportActionEvent,
   type PdfHighlightImportAction,
   type ReviewedPdfHighlightImport,
@@ -323,8 +266,7 @@ import {
 import { parseTableRequirements, tableMarkdown, type TableRequirements } from "./structured-syntax";
 import { createProjectHistoryActor, projectHistoryBusy, type ProjectHistoryOperation } from "./project-history-machine";
 import { projectHistoryActionEvent } from "./project-history-panel";
-import { ProjectHistoryDialog, projectHistoryDialogCloseEvent } from "./project-history-dialog";
-import { PreviewNavigationControl } from "./preview-navigation-control";
+import { projectHistoryDialogCloseEvent } from "./project-history-dialog";
 import {
   activateResearchTab,
   closeResearchTab,
@@ -353,8 +295,8 @@ import {
   type WorkspaceRail,
   type WorkspaceSurface,
 } from "./workspace-ui-route";
-import { WorkspaceRailTabs, workspaceRailChangeEvent } from "./workspace-rail-tabs";
-import { AuthoringModeTabs, authoringModeChangeEvent } from "./authoring-mode-tabs";
+import { workspaceRailChangeEvent } from "./workspace-rail-tabs";
+import { authoringModeChangeEvent } from "./authoring-mode-tabs";
 import type { EditorPresenceRange } from "./editor-presence";
 import { bindYText, captureRelativeSelection, positionSourceCompletion, type RelativeEditorSelection } from "./source-editor-adapter";
 import {
@@ -426,95 +368,6 @@ interface PendingDeletion {
   readonly timer: number;
 }
 
-interface Elements {
-  modelProviderSettings: ModelProviderSettings;
-  applicationVersion: ApplicationVersionControl;
-  citationCompletionScope: HTMLSelectElement;
-  collaboratorSelections: CollaboratorSelectionList;
-  workspaceSwitcher: WorkspaceSwitcher;
-  workspaceLayout: HTMLSelectElement;
-  manageWorkspaces: HTMLButtonElement;
-  workspaceSettings: HTMLButtonElement;
-  workspaceSettingsPanel: WorkspaceSettingsPanel;
-  workspaceCatalogPanel: WorkspaceCatalogPanel;
-  newWorkspace: HTMLButtonElement;
-  newWorkspaceStartingPoints: ProjectStartingPointBrowser;
-  latexImportPanel: LatexImportPanel;
-  gitHubImportPanel: GitHubImportPanel;
-  gitHubSyncMenu: GitHubSyncMenu;
-  saveTemplateDialog: ProjectTemplateSaveDialog;
-  shareWorkspace: HTMLButtonElement;
-  workspaceSharingPanel: WorkspaceSharingPanel;
-  referenceLibraryList: LibraryReferenceList;
-  libraryDiscoverySearch: LibraryDiscoverySearch;
-  libraryDiscoveryResults: LibraryDiscoveryResults;
-  libraryBibliographyUpload: HTMLInputElement;
-  libraryCslUpload: HTMLInputElement;
-  libraryToolsMenu: LibraryToolsMenu;
-  libraryPdfUploadControl: LibraryPdfUploadControl;
-  libraryPdfUploadStatus: LibraryPdfUploadStatus;
-  referenceLibraryFilters: ReferenceLibraryFilterPanel;
-  citationNetwork: CitationNetworkWorkspace;
-  webSourceCapture: WebSourceCapture;
-  webSnapshotComparison: WebSnapshotComparisonPanel;
-  unidentifiedPdfList: UnidentifiedPdfList;
-  workspaceRailTabs: WorkspaceRailTabs;
-  manuscriptMapPanel: ManuscriptMapPanel;
-  researchDiaryPanel: ResearchDiarySummary;
-  researchQuestionPanel: WritingWorkflowPanel;
-  reviewerResponsePanel: WritingWorkflowPanel;
-  projectFileRailActions: ProjectFileActions;
-  projectImageUpload: HTMLInputElement;
-  projectTreePanel: ProjectTreePanel;
-  projectFileMenuActions: ProjectFileActions;
-  projectFileDialog: ProjectFileDialog;
-  projectHistoryTrigger: ProjectHistoryTrigger;
-  exportDialog: ProjectExportDialog;
-  projectHistoryDialog: ProjectHistoryDialog;
-  source: HTMLTextAreaElement;
-  sourceHighlight: HTMLElement;
-  sourceEditorShell: HTMLElement;
-  sourceCompletion: SourceCompletion;
-  authoringModeTabs: AuthoringModeTabs;
-  projectMap: ProjectMapWorkspace;
-  vimModeControl: VimModeControl;
-  editorInsertMenu: EditorInsertMenu;
-  bibliography: HTMLTextAreaElement;
-  manuscriptCommentListPanel: ManuscriptCommentList;
-  workspaceSurfaces: HTMLElement;
-  previewSyncControls: PreviewSyncControls;
-  workspaceSurfaceSwitcher: WorkspaceSurfaceSwitcher;
-  sourceCitationControl: SourceCitationControl;
-  contextTabStrip: ContextTabStrip;
-  previewContextControls: PreviewContextStatus;
-  previewNavigationControl: PreviewNavigationControl;
-  publicationContextPanel: PublicationContextPanel;
-  candidateReviewPanel: CandidateReviewPanel;
-  diagnostics: PreviewDiagnosticsPanel;
-  connectionStatus: ConnectionStatus;
-  editorStatus: EditorStatus;
-  pdfUpload: HTMLInputElement;
-  projectEvidencePanel: ProjectEvidencePanel;
-  publicationListPanel: PublicationListPanel;
-  claimListPanel: ClaimListPanel;
-  claimDialog: ClaimDialog;
-  projectAnnotationForm: ProjectAnnotationForm;
-  libraryPdfInspector: LibraryPdfInspector;
-  pdfHighlightImportPanel: PdfHighlightImportPanel;
-  libraryPdfAnnotationForms: LibraryPdfAnnotationForms;
-  libraryPdfAnnotationToolbar: LibraryPdfAnnotationToolbar;
-  libraryProjectUse: LibraryPdfProjectUse;
-  libraryHighlightList: LibraryPdfAnnotationList;
-  paperMarkups: LibraryPdfMarkupLayer;
-  paperReader: HTMLElement;
-  publicationIntakePanel: PublicationIntakePanel;
-  assistantTaskPanel: AssistantTaskPanel;
-  assistantInteractiveResult: AssistantResultPanel;
-  assistantWorkflowStatus: AssistantWorkflowStatus;
-  candidateListPanel: CandidateListPanel;
-  toast: AppToast;
-}
-
 type RemoteCollaboratorSelection = Extract<ServerCollaborationMessage, { type: "selection" }>;
 
 interface AuthoringPassage {
@@ -579,7 +432,7 @@ type AssistantResultContext =
   | { readonly kind: "table"; readonly sourceRevision: number; readonly target: AuthoringPassage };
 
 class WorkspaceApp {
-  readonly #elements = collectElements();
+  readonly #elements = collectAppElements();
   readonly #pdfViewer: PdfEvidenceViewer;
   readonly #previewDocument: PreviewDocument;
   readonly #document = new Y.Doc();
@@ -664,6 +517,7 @@ class WorkspaceApp {
   }
 
   async start(): Promise<void> {
+    bindThemePreference(document.documentElement, this.#elements.themePreference, localStorage);
     this.#elements.applicationVersion.setVersion(applicationVersion);
     this.#bindUi();
     this.#elements.workspaceSurfaces.dataset.ready = "true";
@@ -1597,7 +1451,7 @@ class WorkspaceApp {
       });
       await expectOk(response);
       const value: unknown = await response.json();
-      if (!isUnknownRecord(value) || !isUnknownRecord(value.workspace) || typeof value.workspace.href !== "string") {
+      if (!isRecord(value) || !isRecord(value.workspace) || typeof value.workspace.href !== "string") {
         throw new Error("GitHub import returned invalid project data");
       }
       location.assign(value.workspace.href);
@@ -1735,7 +1589,7 @@ class WorkspaceApp {
       const response = await jsonFetch(`${apiBase}/github-sync/publishes`, { previewId });
       await expectOk(response);
       const value: unknown = await response.json();
-      if (!isUnknownRecord(value) || typeof value.commitSha !== "string") throw new Error("GitHub returned an invalid publish result");
+      if (!isRecord(value) || typeof value.commitSha !== "string") throw new Error("GitHub returned an invalid publish result");
       await this.#refreshGitHubSyncState(true);
       this.#elements.workspaceSettingsPanel.gitHubReview.showPublishSuccess(value.commitSha);
     } catch (error) {
@@ -6605,107 +6459,6 @@ function researchTabRouteLocation(tab: ResearchContextState["tabs"][number] | un
   return { page: tab.page };
 }
 
-function collectElements(): Elements {
-  return {
-    modelProviderSettings: requiredElement("model-provider-settings", ModelProviderSettings),
-    applicationVersion: requiredElement("application-version-control", ApplicationVersionControl),
-    citationCompletionScope: requiredElement("citation-completion-scope", HTMLSelectElement),
-    collaboratorSelections: requiredElement("collaborator-selections", CollaboratorSelectionList),
-    workspaceSwitcher: requiredElement("workspace-switcher-control", WorkspaceSwitcher),
-    workspaceLayout: requiredElement("workspace-layout", HTMLSelectElement),
-    manageWorkspaces: requiredElement("manage-workspaces", HTMLButtonElement),
-    workspaceSettings: requiredElement("workspace-settings", HTMLButtonElement),
-    workspaceSettingsPanel: requiredElement("workspace-settings-panel", WorkspaceSettingsPanel),
-    workspaceCatalogPanel: requiredElement("workspace-catalog-panel", WorkspaceCatalogPanel),
-    newWorkspace: requiredElement("new-workspace", HTMLButtonElement),
-    newWorkspaceStartingPoints: requiredElement("project-starting-point-browser", ProjectStartingPointBrowser),
-    latexImportPanel: requiredElement("latex-import-panel", LatexImportPanel),
-    gitHubImportPanel: requiredElement("github-import-panel", GitHubImportPanel),
-    gitHubSyncMenu: requiredElement("github-sync-control", GitHubSyncMenu),
-    saveTemplateDialog: requiredElement("project-template-save-dialog", ProjectTemplateSaveDialog),
-    shareWorkspace: requiredElement("share-workspace", HTMLButtonElement),
-    workspaceSharingPanel: requiredElement("workspace-sharing-panel", WorkspaceSharingPanel),
-    referenceLibraryList: requiredElement("reference-library-list", LibraryReferenceList),
-    libraryDiscoverySearch: requiredElement("library-discovery-search", LibraryDiscoverySearch),
-    libraryDiscoveryResults: requiredElement("library-discovery-results", LibraryDiscoveryResults),
-    libraryBibliographyUpload: requiredElement("library-bibliography-upload", HTMLInputElement),
-    libraryCslUpload: requiredElement("library-csl-upload", HTMLInputElement),
-    libraryToolsMenu: requiredElement("library-tools-menu", LibraryToolsMenu),
-    libraryPdfUploadControl: requiredElement("library-pdf-upload-control", LibraryPdfUploadControl),
-    libraryPdfUploadStatus: requiredElement("library-pdf-upload-status", LibraryPdfUploadStatus),
-    referenceLibraryFilters: requiredElement("reference-library-filters", ReferenceLibraryFilterPanel),
-    citationNetwork: requiredElement("citation-network", CitationNetworkWorkspace),
-    webSourceCapture: requiredElement("web-source-capture", WebSourceCapture),
-    webSnapshotComparison: requiredElement("web-snapshot-comparison", WebSnapshotComparisonPanel),
-    unidentifiedPdfList: requiredElement("unidentified-pdf-list-panel", UnidentifiedPdfList),
-    workspaceRailTabs: requiredElement("workspace-rail-tabs", WorkspaceRailTabs),
-    manuscriptMapPanel: requiredElement("manuscript-map-panel", ManuscriptMapPanel),
-    researchDiaryPanel: requiredElement("research-diary-panel", ResearchDiarySummary),
-    researchQuestionPanel: requiredElement("research-question-panel", WritingWorkflowPanel),
-    reviewerResponsePanel: requiredElement("reviewer-response-panel", WritingWorkflowPanel),
-    projectFileRailActions: requiredElement("project-file-rail-actions", ProjectFileActions),
-    projectImageUpload: requiredElement("project-image-upload", HTMLInputElement),
-    projectTreePanel: requiredElement("project-tree-panel", ProjectTreePanel),
-    projectFileMenuActions: requiredElement("project-file-menu-actions", ProjectFileActions),
-    projectFileDialog: requiredElement("project-file-dialog-panel", ProjectFileDialog),
-    projectHistoryTrigger: requiredElement("project-history-trigger", ProjectHistoryTrigger),
-    exportDialog: requiredElement("export-dialog-control", ProjectExportDialog),
-    projectHistoryDialog: requiredElement("project-history-dialog-control", ProjectHistoryDialog),
-    source: requiredElement("source-editor", HTMLTextAreaElement),
-    sourceHighlight: requiredElement("source-editor-highlight", HTMLElement),
-    sourceEditorShell: requiredElement("source-editor-shell", HTMLElement),
-    sourceCompletion: requiredElement("source-completion", SourceCompletion),
-    authoringModeTabs: requiredElement("authoring-mode-tabs", AuthoringModeTabs),
-    projectMap: requiredElement("project-map", ProjectMapWorkspace),
-    vimModeControl: requiredElement("vim-mode-control", VimModeControl),
-    editorInsertMenu: requiredElement("editor-insert-menu-component", EditorInsertMenu),
-    bibliography: requiredElement("bibliography-editor", HTMLTextAreaElement),
-    manuscriptCommentListPanel: requiredElement("manuscript-comment-list-panel", ManuscriptCommentList),
-    workspaceSurfaces: requiredElement("workspace-surfaces", HTMLElement),
-    previewSyncControls: requiredElement("preview-sync-controls", PreviewSyncControls),
-    workspaceSurfaceSwitcher: requiredElement("workspace-surface-switcher", WorkspaceSurfaceSwitcher),
-    sourceCitationControl: requiredElement("source-citation-control", SourceCitationControl),
-    contextTabStrip: requiredElement("context-tab-strip", ContextTabStrip),
-    previewContextControls: requiredElement("preview-context-controls", PreviewContextStatus),
-    previewNavigationControl: requiredElement("preview-navigation-control", PreviewNavigationControl),
-    publicationContextPanel: requiredElement("publication-context-panel", PublicationContextPanel),
-    candidateReviewPanel: requiredElement("candidate-review-panel", CandidateReviewPanel),
-    diagnostics: requiredElement("diagnostics", PreviewDiagnosticsPanel),
-    connectionStatus: requiredElement("connection-status-panel", ConnectionStatus),
-    editorStatus: requiredElement("editor-status", EditorStatus),
-    pdfUpload: requiredElement("pdf-upload", HTMLInputElement),
-    projectEvidencePanel: requiredElement("project-evidence-panel", ProjectEvidencePanel),
-    publicationListPanel: requiredElement("publication-list-panel", PublicationListPanel),
-    claimListPanel: requiredElement("claim-list-panel", ClaimListPanel),
-    claimDialog: requiredElement("claim-dialog-panel", ClaimDialog),
-    projectAnnotationForm: requiredElement("project-annotation-form", ProjectAnnotationForm),
-    libraryPdfInspector: requiredElement("library-pdf-inspector", LibraryPdfInspector),
-    pdfHighlightImportPanel: requiredElement("pdf-highlight-import-panel", PdfHighlightImportPanel),
-    libraryPdfAnnotationForms: requiredElement("library-pdf-annotation-forms", LibraryPdfAnnotationForms),
-    libraryPdfAnnotationToolbar: requiredElement("library-pdf-annotation-toolbar", LibraryPdfAnnotationToolbar),
-    libraryProjectUse: requiredElement("library-project-use", LibraryPdfProjectUse),
-    libraryHighlightList: requiredElement("library-highlight-list", LibraryPdfAnnotationList),
-    paperMarkups: requiredElement("paper-markups", LibraryPdfMarkupLayer),
-    paperReader: requiredElement("paper-reader", HTMLElement),
-    publicationIntakePanel: requiredElement("publication-intake-panel", PublicationIntakePanel),
-    assistantTaskPanel: requiredElement("assistant-task-panel", AssistantTaskPanel),
-    assistantInteractiveResult: requiredElement("assistant-interactive-result", AssistantResultPanel),
-    assistantWorkflowStatus: requiredElement("assistant-workflow-status", AssistantWorkflowStatus),
-    candidateListPanel: requiredElement("candidate-list-panel", CandidateListPanel),
-    toast: requiredElement("toast", AppToast),
-  };
-}
-
-function requiredElement<T extends Element>(id: string, type: { new (): T }): T {
-  const element = document.getElementById(id);
-  if (!(element instanceof type)) throw new Error(`Missing interface element: ${id}`);
-  return element;
-}
-
-function isUnknownRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
 async function jsonFetch(url: string, body: object, method: "POST" | "PUT" | "PATCH" = "POST"): Promise<Response> {
   return await fetch(url, {
     method,
@@ -6778,7 +6531,6 @@ function installedWebApp(): boolean {
 class WorkspaceAccessError extends Error {}
 
 if (typeof document !== "undefined") {
-  bindThemePreference(document.documentElement, requiredElement("theme-preference", HTMLSelectElement), localStorage);
   const app = new WorkspaceApp();
   void app.start().catch((error: unknown) => {
     const message = error instanceof Error ? error.message : "Kirjolab failed to start";

@@ -38,6 +38,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   authority, Yjs and XState state, persisted domain data, and cross-feature
   coordination in the existing application authorities; do not wrap static
   server-rendered markup mechanically or turn Lit into the application shell.
+- Keep the browser shell's required-element lookup in one typed registry whose
+  return shape is inferred from its constructors. Do not duplicate that shape
+  in a manually synchronized application interface.
 - Keep duplicated `.github/skills/` content and vendored
   `.codex/skills/**/references/` material outside the Prettier baseline.
   Continue formatting project-owned skill entrypoints, specs, ADRs, and docs.
