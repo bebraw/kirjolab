@@ -65,7 +65,7 @@ export type LibraryPdfMarkupTarget =
   | { readonly id: string; readonly kind: "drawing" };
 
 export type LibraryPdfPointerAction =
-  | LibraryPdfMarkupTarget
+  | { readonly id: string; readonly kind: "note" | "drawing" }
   | { readonly kind: "place-note" | "start-drawing"; readonly point: LibraryPdfPoint }
   | { readonly kind: "touch-drawing" };
 
@@ -119,16 +119,31 @@ export class LibraryPdfMarkupLayer extends LitElement {
     return drawingId ? { id: drawingId, kind: "drawing" } : null;
   }
 
-  pointerAction(event: Pick<PointerEvent, "clientX" | "clientY" | "pointerType" | "target">): LibraryPdfPointerAction | null {
+  pointerAction(
+    event: Pick<PointerEvent, "clientX" | "clientY" | "pointerId" | "pointerType" | "preventDefault" | "target">,
+  ): LibraryPdfPointerAction | null {
     if (isMarkupTargetElement(event.target)) {
       const target = this.markupTarget(event.target);
-      if (target?.kind === "note" || (target?.kind === "drawing" && this.interactionTool === "select")) return target;
+      if (target?.kind === "note") {
+        if (!target.id || this.interactionTool !== "select") return null;
+        this.setPointerCapture(event.pointerId);
+        return { id: target.id, kind: "note" };
+      }
+      if (target?.kind === "drawing" && this.interactionTool === "select") {
+        event.preventDefault();
+        return target;
+      }
     }
     const point = this.point(event);
     if (!point) return null;
     if (this.interactionTool === "note") return { kind: "place-note", point };
     if (this.interactionTool !== "draw") return null;
-    return event.pointerType === "touch" ? { kind: "touch-drawing" } : { kind: "start-drawing", point };
+    if (event.pointerType === "touch") return { kind: "touch-drawing" };
+    event.preventDefault();
+    this.cancelShapeRecognition();
+    this.setPointerCapture(event.pointerId);
+    this.setInteraction("draw", true);
+    return { kind: "start-drawing", point };
   }
 
   extendDrawing(event: DrawingPointerEvent, draft: readonly LibraryPdfPoint[]): LibraryPdfDrawingUpdate | null {

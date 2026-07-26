@@ -6184,48 +6184,34 @@ class WorkspaceApp {
 
   #startLibraryPdfMarkup(event: PointerEvent): void {
     const action = this.#elements.paperMarkups.pointerAction(event);
-    if (action?.kind === "note") return this.#startLibraryPdfNoteDrag(action.id, event);
+    if (action?.kind === "note") {
+      this.#selectLibraryPdfMarkup(action.id);
+      this.#pdfAnnotation.send({ type: "START_NOTE_DRAG", id: action.id, pointerId: event.pointerId, x: event.clientX, y: event.clientY });
+      return;
+    }
     if (action?.kind === "drawing") {
-      event.preventDefault();
       this.#selectLibraryPdfMarkup(action.id);
       return;
     }
     if (action?.kind === "place-note") {
-      this.#startLibraryPdfNote(event, action.point);
+      this.#pdfAnnotation.send({
+        type: "START_NOTE_PRESS",
+        pointerId: event.pointerId,
+        page: this.#pdfViewer.currentPage,
+        point: action.point,
+        x: event.clientX,
+        y: event.clientY,
+      });
       return;
     }
     if (action?.kind === "touch-drawing") {
       this.#elements.libraryPdfInspector.setStatus("Use Apple Pencil or a mouse to draw; touch gestures pan and zoom the page.");
       return;
     }
-    if (action?.kind === "start-drawing") this.#startLibraryPdfDrawing(event, action.point);
-  }
-
-  #startLibraryPdfNoteDrag(id: string | null, event: PointerEvent): void {
-    if (!id || this.#libraryPdfTool() !== "select") return;
-    this.#selectLibraryPdfMarkup(id);
-    this.#pdfAnnotation.send({ type: "START_NOTE_DRAG", id, pointerId: event.pointerId, x: event.clientX, y: event.clientY });
-    this.#elements.paperMarkups.setPointerCapture(event.pointerId);
-  }
-
-  #startLibraryPdfNote(event: PointerEvent, point: LibraryPdfPoint): void {
-    this.#pdfAnnotation.send({
-      type: "START_NOTE_PRESS",
-      pointerId: event.pointerId,
-      page: this.#pdfViewer.currentPage,
-      point,
-      x: event.clientX,
-      y: event.clientY,
-    });
-  }
-
-  #startLibraryPdfDrawing(event: PointerEvent, point: LibraryPdfPoint): void {
-    event.preventDefault();
-    this.#clearLibraryPdfShapeRecognition();
-    this.#pdfAnnotation.send({ type: "START_DRAWING", pointerId: event.pointerId, point });
-    this.#elements.paperMarkups.setPointerCapture(event.pointerId);
-    this.#elements.paperMarkups.setInteraction("draw", true);
-    this.#renderPdfMarkups();
+    if (action?.kind === "start-drawing") {
+      this.#pdfAnnotation.send({ type: "START_DRAWING", pointerId: event.pointerId, point: action.point });
+      this.#renderPdfMarkups();
+    }
   }
 
   #continueLibraryPdfDrawing(event: PointerEvent): void {

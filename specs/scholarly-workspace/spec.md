@@ -348,7 +348,9 @@ collaboration.
   Note-pin and drawing-stroke hit-testing is likewise component-owned; the
   layer combines those targets with page geometry and active tool state into
   typed note placement, drawing start, touch rejection, and selection actions.
-  The coordinator retains pointer capture and annotation-machine transitions.
+  It performs local default suppression, pointer capture, shape cancellation,
+  and active-drawing presentation before returning an action. The coordinator
+  retains annotation-machine transitions and persistence.
   The annotation toolbar owns the guidance associated with each tool, while
   the coordinator decides when that guidance is presented in the inspector.
 - **Web sources:** Public HTTP(S) pages are captured through bounded,

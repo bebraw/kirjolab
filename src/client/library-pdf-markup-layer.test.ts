@@ -151,16 +151,20 @@ describe("library PDF markup layer", () => {
         configurable: true,
         value: () => ({ height: 200, left: 10, top: 20, width: 400 }),
       },
+      setPointerCapture: { value: vi.fn() },
     });
     const target = (selector: string, id: string | null) =>
       Object.assign(new EventTarget(), {
         closest: (candidate: string) =>
           candidate === selector ? { getAttribute: (name: string) => (name === "data-markup-id" ? id : null) } : null,
       });
+    const preventDefault = vi.fn();
     const pointer = (pointerTarget: EventTarget, pointerType = "mouse") => ({
       clientX: 210,
       clientY: 120,
+      pointerId: 7,
       pointerType,
+      preventDefault,
       target: pointerTarget,
     });
 
@@ -171,13 +175,17 @@ describe("library PDF markup layer", () => {
 
     layer.setInteraction("select");
     expect(layer.pointerAction(pointer(target(".pdf-note-pin", "note-1")))).toEqual({ id: "note-1", kind: "note" });
+    expect(layer.pointerAction(pointer(target(".pdf-note-pin", null)))).toBeNull();
     expect(layer.pointerAction(pointer(target(".pdf-ink-stroke", "drawing-1")))).toEqual({ id: "drawing-1", kind: "drawing" });
+    expect(preventDefault).toHaveBeenCalledOnce();
     expect(layer.pointerAction(pointer(new EventTarget()))).toBeNull();
     layer.setInteraction("note");
     expect(layer.pointerAction(pointer(new EventTarget()))).toEqual({ kind: "place-note", point: { x: 0.5, y: 0.5 } });
     layer.setInteraction("draw");
     expect(layer.pointerAction(pointer(new EventTarget(), "touch"))).toEqual({ kind: "touch-drawing" });
     expect(layer.pointerAction(pointer(new EventTarget()))).toEqual({ kind: "start-drawing", point: { x: 0.5, y: 0.5 } });
+    expect(preventDefault).toHaveBeenCalledTimes(2);
+    expect(layer.setPointerCapture).toHaveBeenCalledTimes(2);
   });
 
   it("owns delayed shape recognition and cancellation", () => {

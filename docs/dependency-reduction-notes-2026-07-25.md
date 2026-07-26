@@ -2796,3 +2796,25 @@ and unique production package counts remain unchanged at 135,411 B raw /
 
 Full native CI passes all 1,415 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Lit Ownership: PDF Pointer Activation
+
+`LibraryPdfMarkupLayer` now performs the local mechanics associated with its
+typed pointer actions: drawing-selection default suppression, note and drawing
+pointer capture, stale-shape cancellation, and active-drawing presentation.
+`WorkspaceApp` retains annotation-machine transitions, selection, rerendering,
+persistence, inspector messaging, and notifications. The resulting dispatcher
+also absorbs three one-call start helpers.
+
+This checkpoint reduces `src/client/app.ts` from 7,051 to 7,037 lines (-14).
+Focused unit coverage passes capture and suppression behavior, and the
+private-PDF browser workflow passes selection, note dragging, drawing start and
+recognition, persistence, rendering, and annotated export.
+
+The browser application artifact changes from 801,333 B raw / 215,914 B gzip
+to 801,290 B raw / 215,903 B gzip (-43 B raw / -11 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,415 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
