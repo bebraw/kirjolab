@@ -1,6 +1,6 @@
 import { html, LitElement, type TemplateResult } from "lit";
 import type { AnnotationResource, ClaimResource, ModelEvidenceReference } from "../domain/workspace";
-import type { AssistantOperationId } from "./assistant-operations";
+import type { AssistantOperationDefinition, AssistantOperationId } from "./assistant-operations";
 import { maximumModelEvidenceItems, type ModelEvidenceItem } from "./model-provider";
 
 export const assistantWorkflowActionEvent = "kirjolab-assistant-workflow-action";
@@ -11,6 +11,15 @@ export interface SelectedModelEvidence {
   readonly annotationReferences: Array<Extract<ModelEvidenceReference, { readonly kind: "annotation" }>>;
   readonly items: ModelEvidenceItem[];
   readonly references: ModelEvidenceReference[];
+}
+
+export interface AssistantGenerationRequirements {
+  readonly evidence: SelectedModelEvidence;
+  readonly hasInsertionTarget: boolean;
+  readonly hasPassage: boolean;
+  readonly operation: AssistantOperationDefinition;
+  readonly snapshotAvailable: boolean;
+  readonly stableDocument: boolean;
 }
 
 export class AssistantWorkflowStatus extends LitElement {
@@ -46,6 +55,25 @@ export class AssistantWorkflowStatus extends LitElement {
         : operationId === "clarity-drill"
           ? "Finding the single ambiguity that matters most…"
           : "Asking the local model for a grounded candidate…";
+  }
+
+  validateGeneration(requirements: AssistantGenerationRequirements): boolean {
+    const { evidence, hasInsertionTarget, hasPassage, operation, snapshotAvailable, stableDocument } = requirements;
+    const draftsClaim = operation.id === "draft-claim";
+    if (!snapshotAvailable || (!draftsClaim && !stableDocument)) {
+      this.status = "Wait for the manuscript to finish synchronizing before using the model.";
+      return false;
+    }
+    const targetMissing = operation.id === "build-table" ? !hasInsertionTarget : !draftsClaim && !hasPassage;
+    const evidenceMissing =
+      operation.evidence === "required"
+        ? evidence.items.length === 0
+        : operation.evidence === "annotations" && evidence.annotationItems.length === 0;
+    if (!targetMissing && !evidenceMissing) return true;
+    this.status = draftsClaim
+      ? "Choose at least one annotation as evidence. Claims cannot ground a new claim draft."
+      : "Choose a valid manuscript target, then use Choose evidence for any required grounding.";
+    return false;
   }
 
   get selectedEvidenceKeys(): ReadonlySet<string> {

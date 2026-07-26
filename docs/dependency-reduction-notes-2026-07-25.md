@@ -5272,6 +5272,30 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,576 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Assistant Generation Requirements
+
+`AssistantWorkflowStatus` now validates synchronization readiness and each
+operation's manuscript-target, table-insertion-target, and evidence requirements
+while owning the corresponding guidance. `WorkspaceApp` retains canonical
+target and stability derivation, provider construction, generation dispatch,
+and result-specific statuses.
+
+This checkpoint reduces `src/client/app.ts` from 4,251 to 4,231 lines (-20) and
+grows the workflow-status owner from 172 to 200 lines. Runtime source across
+those two files increases by eight lines while deleting two coordinator-only
+policy helpers and their duplicated wording branch. Focused coverage passes
+unsynchronized, missing-target, required-evidence, annotation-only claim,
+table-target, successful, existing evidence-projection, application-contract,
+and strict-type cases.
+
+The browser application artifact changes from 824,456 B raw / 222,788 B gzip
+to 824,645 B raw / 222,950 B gzip (+189 B raw / +162 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,577 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Assistant Evidence Projection
 
 `AssistantWorkflowStatus` now resolves its ordered selected evidence keys

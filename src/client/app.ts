@@ -3282,21 +3282,19 @@ class WorkspaceApp {
 
   #assistantGenerationContext(): AssistantGenerationContext | null {
     const { instruction, operation } = this.#elements.assistantTaskPanel.value;
-    const draftsClaim = operation.id === "draft-claim";
-    if (!this.#snapshot || (!draftsClaim && !this.#hasStableDocumentBase())) {
-      this.#elements.assistantWorkflowStatus.status = "Wait for the manuscript to finish synchronizing before using the model.";
-      return null;
-    }
     const passage = this.#assistantAuthoringPassage();
     const evidence = this.#modelEvidence();
     const insertionTarget = operation.id === "build-table" ? this.#assistantInsertionTarget() : null;
     if (
-      this.#assistantTargetMissing(operation.id, passage, insertionTarget) ||
-      this.#assistantEvidenceMissing(operation.evidence, evidence)
+      !this.#elements.assistantWorkflowStatus.validateGeneration({
+        evidence,
+        hasInsertionTarget: insertionTarget !== null,
+        hasPassage: passage !== null,
+        operation,
+        snapshotAvailable: this.#snapshot !== null,
+        stableDocument: this.#hasStableDocumentBase(),
+      })
     ) {
-      this.#elements.assistantWorkflowStatus.status = draftsClaim
-        ? "Choose at least one annotation as evidence. Claims cannot ground a new claim draft."
-        : "Choose a valid manuscript target, then use Choose evidence for any required grounding.";
       return null;
     }
     const provider = this.#modelProviderOrReport();
@@ -3310,24 +3308,6 @@ class WorkspaceApp {
       instruction,
       sourceRevision: this.#revision,
     };
-  }
-
-  #assistantTargetMissing(
-    operation: AssistantGenerationContext["operation"]["id"],
-    passage: AuthoringPassage | null,
-    insertionTarget: AuthoringPassage | null,
-  ): boolean {
-    if (operation === "build-table") return !insertionTarget;
-    return operation !== "draft-claim" && !passage;
-  }
-
-  #assistantEvidenceMissing(
-    requirement: AssistantGenerationContext["operation"]["evidence"],
-    evidence: AssistantGenerationContext["evidence"],
-  ): boolean {
-    if (requirement === "required") return evidence.items.length === 0;
-    if (requirement === "annotations") return evidence.annotationItems.length === 0;
-    return false;
   }
 
   #modelProviderOrReport(): OpenAICompatibleBrowserProvider | null {

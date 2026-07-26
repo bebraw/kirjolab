@@ -362,7 +362,8 @@ The adopted components own bounded presentation:
   copy, live status presentation, selected evidence keys, selection count and
   limit copy, ordered annotation-or-claim model-evidence projection from
   canonical collections, annotation-only claim-drafting subsets, evidence and
-  connection actions, operation-specific generation-start copy, and their typed
+  connection actions, operation-specific target and evidence requirement
+  validation, synchronization guidance, generation-start copy, and their typed
   intents.
 - The workspace rail tabs own active-tab and open-comment-count presentation
   plus a typed navigation intent.
@@ -749,9 +750,10 @@ reason to wrap static markup mechanically.
   two native action bindings, operation-specific status copy, and attribution
   visibility. It also removes the coordinator's selected-evidence set and count
   formatting while exposing readonly keys for snapshot resolution and
-  generation policy. The application coordinator retains evidence navigation,
-  settings availability, generation, discovery-status mirroring, and broader
-  status policy.
+  requirement validation. The application coordinator retains canonical target
+  and stability derivation, evidence navigation, settings availability,
+  provider construction, generation, discovery-status mirroring, and
+  result-specific status policy.
 - The workspace rail tabs replace five internal element references, four
   native action bindings, four ARIA-selection mutations, and DOM-derived active
   mode. The application coordinator retains panel visibility, guide rendering,

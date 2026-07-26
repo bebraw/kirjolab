@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { AnnotationResource, ClaimResource } from "../domain/workspace";
+import { assistantOperationDefinition } from "./assistant-operations";
 import { AssistantWorkflowStatus, assistantWorkflowActionEvent, type AssistantWorkflowAction } from "./assistant-workflow-status";
 
 const timestamp = "2026-07-25T00:00:00.000Z";
@@ -37,6 +38,62 @@ class TestAssistantWorkflowStatus extends AssistantWorkflowStatus {
 }
 
 describe("assistant workflow status", () => {
+  it("owns operation-specific generation requirements and guidance", () => {
+    const panel = new TestAssistantWorkflowStatus();
+    const evidence = panel.modelEvidence([], []);
+    const requirements = {
+      evidence,
+      hasInsertionTarget: false,
+      hasPassage: false,
+      operation: assistantOperationDefinition("revise-selection"),
+      snapshotAvailable: false,
+      stableDocument: false,
+    };
+
+    expect(panel.validateGeneration(requirements)).toBe(false);
+    expect(panel.status).toBe("Wait for the manuscript to finish synchronizing before using the model.");
+    expect(panel.validateGeneration({ ...requirements, snapshotAvailable: true, stableDocument: true })).toBe(false);
+    expect(panel.status).toBe("Choose a valid manuscript target, then use Choose evidence for any required grounding.");
+
+    panel.setEvidenceSelected("annotation:1", true);
+    const annotationEvidence = panel.modelEvidence([annotation], []);
+    expect(
+      panel.validateGeneration({
+        ...requirements,
+        evidence: annotationEvidence,
+        hasPassage: true,
+        snapshotAvailable: true,
+        stableDocument: true,
+      }),
+    ).toBe(true);
+    expect(
+      panel.validateGeneration({
+        ...requirements,
+        operation: assistantOperationDefinition("draft-claim"),
+        snapshotAvailable: true,
+      }),
+    ).toBe(false);
+    expect(panel.status).toBe("Choose at least one annotation as evidence. Claims cannot ground a new claim draft.");
+    expect(
+      panel.validateGeneration({
+        ...requirements,
+        evidence: annotationEvidence,
+        operation: assistantOperationDefinition("draft-claim"),
+        snapshotAvailable: true,
+      }),
+    ).toBe(true);
+    expect(
+      panel.validateGeneration({
+        ...requirements,
+        evidence,
+        hasInsertionTarget: true,
+        operation: assistantOperationDefinition("build-table"),
+        snapshotAvailable: true,
+        stableDocument: true,
+      }),
+    ).toBe(true);
+  });
+
   it("owns operation-specific attribution and live status presentation", () => {
     const panel = new TestAssistantWorkflowStatus();
     expect(panel.rootForTest()).toBe(panel);
