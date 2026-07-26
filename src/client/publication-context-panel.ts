@@ -3,6 +3,7 @@ import { bibTeXDisplayText } from "../domain/bibliography";
 import type { LibraryPdfArtifact, ProjectReferencePdf } from "../domain/reference-library";
 import type { PdfResource, PublicationResource } from "../domain/workspace";
 import { formatBytes } from "./format";
+import { errorMessage, expectOk, jsonFetch } from "./http";
 
 export const publicationContextActionEvent = "publication-context-action";
 
@@ -13,9 +14,8 @@ export type PublicationPaperOption =
 
 export type PublicationContextAction =
   | { readonly action: "insert-citation" }
-  | { readonly action: "link-pdf"; readonly pdfId: string }
   | { readonly action: "open-paper"; readonly paper: PublicationPaperOption }
-  | { readonly action: "unlink-pdf"; readonly linkId: string };
+  | { readonly action: "papers-changed"; readonly message: string };
 
 interface PublicationContextData {
   readonly availablePdfs: readonly PdfResource[];
@@ -25,17 +25,28 @@ interface PublicationContextData {
 
 export class PublicationContextPanel extends LitElement {
   static override properties = {
+    busy: { state: true },
     citationAvailable: { state: true },
     data: { state: true },
+    status: { state: true },
   };
 
+  declare private busy: boolean;
   declare private citationAvailable: boolean;
   declare private data: PublicationContextData | null;
+  declare private status: string;
+  private apiBase = "";
 
   constructor() {
     super();
+    this.busy = false;
     this.citationAvailable = false;
     this.data = null;
+    this.status = "";
+  }
+
+  configure(apiBase: string): void {
+    this.apiBase = apiBase;
   }
 
   setContext(data: PublicationContextData): void {
@@ -131,13 +142,16 @@ export class PublicationContextPanel extends LitElement {
             <span data-publication-pdf-link-label>
               ${papers.length > 0 ? "Add another paper from this project" : "Add a paper from this project"}
             </span>
-            <select class="field" id="publication-pdf-link" ?disabled=${availablePdfs.length === 0}>
+            <select class="field" id="publication-pdf-link" ?disabled=${this.busy || availablePdfs.length === 0}>
               <option value="">Choose a project PDF</option>
               ${availablePdfs.map((pdf) => html`<option value=${pdf.id}>${pdf.name}</option>`)}
             </select>
           </label>
-          <button class="button-secondary justify-center" type="submit" ?disabled=${availablePdfs.length === 0}>Add paper</button>
+          <button class="button-secondary justify-center" type="submit" ?disabled=${this.busy || availablePdfs.length === 0}>
+            ${this.busy ? "Updating…" : "Add paper"}
+          </button>
         </form>
+        <p class="status-line" role="status" ?hidden=${!this.status}>${this.status}</p>
       </div>
     `;
   }
@@ -159,13 +173,44 @@ export class PublicationContextPanel extends LitElement {
 
   protected unlinkPaper(event: Event): void {
     const linkId = (event.currentTarget as HTMLButtonElement).dataset.linkId;
-    if (linkId) this.emit({ action: "unlink-pdf", linkId });
+    if (linkId) void this.unlinkPdf(linkId);
   }
 
-  protected linkPdf(event: Event): void {
+  protected async linkPdf(event: Event): Promise<void> {
     event.preventDefault();
     const pdfId = this.querySelector<HTMLSelectElement>("#publication-pdf-link")?.value;
-    if (pdfId) this.emit({ action: "link-pdf", pdfId });
+    const publicationId = this.data?.publication.id;
+    if (!pdfId || !publicationId || this.busy) return;
+    await this.updatePapers(
+      () => jsonFetch(`${this.apiBase}/publication-pdf-links`, { publicationId, pdfId }),
+      "Project PDF added to this reference.",
+    );
+  }
+
+  protected async unlinkPdf(linkId: string): Promise<void> {
+    if (this.busy) return;
+    await this.updatePapers(
+      () =>
+        fetch(`${this.apiBase}/publication-pdf-links/${encodeURIComponent(linkId)}`, {
+          method: "DELETE",
+          credentials: "same-origin",
+        }),
+      "Paper disconnected; both resources remain available.",
+    );
+  }
+
+  private async updatePapers(request: () => Promise<Response>, message: string): Promise<void> {
+    this.busy = true;
+    this.status = "Updating linked papers…";
+    try {
+      await expectOk(await request());
+      this.status = "";
+      this.emit({ action: "papers-changed", message });
+    } catch (error) {
+      this.status = errorMessage(error, "Could not update linked papers.");
+    } finally {
+      this.busy = false;
+    }
   }
 
   private renderPaper(paper: PublicationPaperOption): TemplateResult {
@@ -183,7 +228,13 @@ export class PublicationContextPanel extends LitElement {
         <div class="flex shrink-0 gap-2">
           <button class="button-secondary" type="button" data-paper-index=${index} @click=${this.openPaper}>Open</button>
           ${paper.kind === "project"
-            ? html`<button class="button-secondary" type="button" data-link-id=${paper.linkId} @click=${this.unlinkPaper}>
+            ? html`<button
+                class="button-secondary"
+                type="button"
+                data-link-id=${paper.linkId}
+                ?disabled=${this.busy}
+                @click=${this.unlinkPaper}
+              >
                 Disconnect
               </button>`
             : ""}

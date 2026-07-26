@@ -92,9 +92,12 @@ connection without reconstructing identity from a citation key or filename.
   cards.
 - The project-map presentation component may own derived layout and interaction
   state, but graph derivation and navigation authority remain outside it.
-- The publication-context presentation component may own metadata, linked-paper
-  options, citation readiness, and local scroll state, but manuscript insertion,
-  PDF navigation, and publication/PDF link mutations remain outside it.
+- The publication-context presentation component owns metadata, linked-paper
+  options, citation readiness, local scroll state, explicit project-PDF link
+  and unlink transport, stable encoded link targets, duplicate-submit gating,
+  pending and retryable failure state, and completed-relationship outcomes.
+  Manuscript insertion, PDF navigation, canonical refresh, and workspace
+  notification policy remain outside it.
 - The knowledge-search presentation component may own its query and result
   states, but authorized search requests, response validation, and resource
   navigation remain outside it.

@@ -4159,3 +4159,28 @@ and unique production package counts remain unchanged at 135,411 B raw /
 
 Full native CI passes all 1,495 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Lit Ownership: Publication Paper Links
+
+`PublicationContextPanel` now owns explicit project-PDF link and unlink
+transport, stable encoded link targets, response validation, shared
+duplicate-submit gating, pending and retryable failure state, and the typed
+completed-relationship outcome on its existing action channel. `WorkspaceApp`
+retains canonical project-resource refresh, workspace notification policy,
+citation insertion, and paper navigation.
+
+This checkpoint reduces `src/client/app.ts` from 5,111 to 5,096 lines (-15)
+and grows the publication context panel from 208 to 259 lines. Runtime source
+across those files increases by 36 lines while removing both coordinator
+relationship-mutation methods and consolidating their component behavior behind
+one update path. Focused coverage passes link and unlink requests, stable
+encoded link targets, successful outcomes, provider failure and retry, and
+duplicate relationship submissions.
+
+The browser application artifact changes from 809,952 B raw / 219,542 B gzip
+to 810,614 B raw / 219,688 B gzip (+662 B raw / +146 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,497 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.

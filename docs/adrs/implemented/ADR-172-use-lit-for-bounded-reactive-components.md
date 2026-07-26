@@ -87,7 +87,9 @@ The adopted components own bounded presentation:
   scroll state, and typed apply, reject, and evidence-navigation intents.
 - The publication context panel owns scholarly metadata, linked-paper and
   project-PDF option rendering, citation readiness, local scroll state, and
-  typed citation, paper, link, and unlink intents.
+  explicit project-PDF link and unlink transport, duplicate-submit gating,
+  pending and retryable failure state, and typed citation, paper-navigation,
+  and completed-relationship outcomes.
 - The knowledge search panel owns query capture, empty, result, and error
   presentation, and typed search and resource-selection intents.
 - The claim list panel owns the Claims collection shell and count, claim,
@@ -388,9 +390,10 @@ reason to wrap static markup mechanically.
   leaving applicability checks, workflow transitions, canonical mutations, and
   evidence navigation in the application coordinator.
 - The publication context panel replaces eight internal element references and
-  imperative metadata, paper-row, and link-form renderers while leaving
-  manuscript insertion, PDF navigation, and link mutations in the application
-  coordinator.
+  imperative metadata, paper-row, and link-form renderers plus two coordinator
+  relationship-mutation methods while leaving manuscript insertion, PDF
+  navigation, canonical refresh, and workspace notification policy in the
+  application coordinator.
 - The knowledge search panel replaces three internal element references and
   imperative result-card rendering while leaving authorized fetches, response
   validation, and resource navigation in the application coordinator.

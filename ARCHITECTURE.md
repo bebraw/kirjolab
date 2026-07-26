@@ -579,6 +579,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   Never infer the canonical association from citation aliases, titles,
   authors, or filenames; an unidentified PDF remains private intake until its
   source is reviewed.
+- Let the publication-context Lit panel own explicit project PDF link and
+  unlink transport, stable encoded link targets, duplicate-submit gating, and
+  retryable local failures. Keep canonical refresh, citation insertion, paper
+  navigation, and workspace notifications in the application coordinator.
 - Collapse the two-surface workspace to an explicit Authoring/Context switch
   when both surfaces cannot retain readable measures; preserve editor and
   per-context local state while either surface is hidden.

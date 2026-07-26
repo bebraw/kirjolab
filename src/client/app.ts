@@ -948,12 +948,16 @@ class WorkspaceApp {
     this.#elements.sourceCitationControl.addEventListener(sourceCitationOpenEvent, (event) => {
       this.#openCitation((event as CustomEvent<CitationContext>).detail);
     });
+    this.#elements.publicationContextPanel.configure(apiBase);
     this.#elements.publicationContextPanel.addEventListener(publicationContextActionEvent, (event) => {
       const detail = (event as CustomEvent<PublicationContextAction>).detail;
       if (detail.action === "insert-citation") this.#insertActivePublicationCitation();
-      else if (detail.action === "link-pdf") void this.#linkActivePublicationPdf(detail.pdfId);
       else if (detail.action === "open-paper") void this.#openPublicationPaper(detail.paper);
-      else void this.#unlinkPublicationPdf(detail.linkId);
+      else
+        void this.#resourceRefresh
+          .request()
+          .then(() => this.#showToast(detail.message))
+          .catch(() => this.#showToast("The paper links changed, but project resources could not be refreshed."));
     });
     this.#elements.publicationIntakePanel.configure(apiBase);
     this.#elements.publicationIntakePanel.addEventListener(publicationIntakeActionEvent, (event) => {
@@ -3377,25 +3381,6 @@ class WorkspaceApp {
     }
     if (!projectReference) throw new Error("Project reference was not created");
     this.#insertCitation(projectReference.citationAlias, `p. ${highlight.page}`);
-  }
-
-  async #linkActivePublicationPdf(pdfId: string): Promise<void> {
-    const tab = this.#activeResourceTab();
-    if (tab?.kind !== "publication" || !pdfId) return;
-    const response = await jsonFetch(`${apiBase}/publication-pdf-links`, { publicationId: tab.id, pdfId });
-    await expectOk(response);
-    await this.#resourceRefresh.request();
-    this.#showToast("Project PDF added to this reference.");
-  }
-
-  async #unlinkPublicationPdf(linkId: string): Promise<void> {
-    const response = await fetch(`${apiBase}/publication-pdf-links/${encodeURIComponent(linkId)}`, {
-      method: "DELETE",
-      credentials: "same-origin",
-    });
-    await expectOk(response);
-    await this.#resourceRefresh.request();
-    this.#showToast("Paper disconnected; both resources remain available.");
   }
 
   async #loadActivePdf(force: boolean): Promise<void> {

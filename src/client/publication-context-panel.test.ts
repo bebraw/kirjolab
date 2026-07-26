@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { LibraryPdfArtifact, ProjectReferencePdf } from "../domain/reference-library";
 import type { PublicationResource } from "../domain/workspace";
 import {
@@ -59,12 +59,12 @@ class TestPublicationContextPanel extends PublicationContextPanel {
     this.openPaper(eventWithDataset(index ? { paperIndex: index } : {}));
   }
 
-  unlinkForTest(linkId?: string): void {
-    this.unlinkPaper(eventWithDataset(linkId ? { linkId } : {}));
+  linkForTest(): Promise<void> {
+    return this.linkPdf(new Event("submit"));
   }
 
-  linkForTest(): void {
-    this.linkPdf(new Event("submit"));
+  disconnectForTest(linkId = projectPaper.linkId): Promise<void> {
+    return this.unlinkPdf(linkId);
   }
 }
 
@@ -73,6 +73,8 @@ function eventWithDataset(dataset: Record<string, string>): Event {
   Object.defineProperty(event, "currentTarget", { value: { dataset } });
   return event;
 }
+
+afterEach(() => vi.restoreAllMocks());
 
 describe("publication context panel", () => {
   it("renders fallback, publication, paper, and citation states", () => {
@@ -118,7 +120,7 @@ describe("publication context panel", () => {
     panel.openOnlyForTest();
   });
 
-  it("emits citation, paper, and unlink intents", () => {
+  it("emits citation and paper navigation intents", () => {
     const panel = new TestPublicationContextPanel();
     const actions: PublicationContextAction[] = [];
     panel.addEventListener(publicationContextActionEvent, (event) => actions.push((event as CustomEvent<PublicationContextAction>).detail));
@@ -129,14 +131,11 @@ describe("publication context panel", () => {
     panel.openForTest();
     panel.openForTest("2");
     panel.openForTest("0");
-    panel.unlinkForTest();
-    panel.unlinkForTest("link:1");
 
     expect(actions).toEqual([
       { action: "insert-citation" },
       { action: "open-paper", paper: projectPaper },
       { action: "open-paper", paper: projectPaper },
-      { action: "unlink-pdf", linkId: "link:1" },
     ]);
   });
 
@@ -149,12 +148,63 @@ describe("publication context panel", () => {
     expect(body.scrollTop).toBe(20);
   });
 
-  it("emits a selected project-PDF link intent", () => {
+  it("owns link and unlink persistence with typed completed outcomes", async () => {
     const panel = new TestPublicationContextPanel();
     const actions: PublicationContextAction[] = [];
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 200 }));
     panel.addEventListener(publicationContextActionEvent, (event) => actions.push((event as CustomEvent<PublicationContextAction>).detail));
+    panel.configure("/api/workspaces/workspace");
+    panel.setContext({ availablePdfs: [projectPaper.pdf], papers: [projectPaper], publication });
     Object.defineProperty(panel, "querySelector", { value: () => ({ value: "pdf:1" }) });
-    panel.linkForTest();
-    expect(actions).toEqual([{ action: "link-pdf", pdfId: "pdf:1" }]);
+
+    await panel.linkForTest();
+    await panel.disconnectForTest("link/1");
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      "/api/workspaces/workspace/publication-pdf-links",
+      expect.objectContaining({ body: JSON.stringify({ publicationId: publication.id, pdfId: "pdf:1" }), method: "POST" }),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      "/api/workspaces/workspace/publication-pdf-links/link%2F1",
+      expect.objectContaining({ method: "DELETE" }),
+    );
+    expect(actions).toEqual([
+      { action: "papers-changed", message: "Project PDF added to this reference." },
+      { action: "papers-changed", message: "Paper disconnected; both resources remain available." },
+    ]);
+  });
+
+  it("reports provider failures and permits retry", async () => {
+    const panel = new TestPublicationContextPanel();
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response("Unavailable", { status: 503 }))
+      .mockResolvedValueOnce(new Response(null, { status: 200 }));
+    panel.configure("/api/workspaces/workspace");
+
+    await panel.disconnectForTest();
+    expect(panel.renderForTest()).toBeDefined();
+    await panel.disconnectForTest();
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("ignores duplicate relationship updates while a request is pending", async () => {
+    const panel = new TestPublicationContextPanel();
+    let respond = (_response: Response): void => undefined;
+    const pendingResponse = new Promise<Response>((resolve) => {
+      respond = resolve;
+    });
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockReturnValue(pendingResponse);
+    panel.configure("/api/workspaces/workspace");
+
+    const first = panel.disconnectForTest();
+    await panel.disconnectForTest();
+    respond(new Response(null, { status: 200 }));
+    await first;
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });
