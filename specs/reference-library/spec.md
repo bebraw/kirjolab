@@ -81,10 +81,10 @@ memory and makes citation aliases compete with stable source identity.
   provenance. This may improve a PDF-origin refinable key before or after it is
   linked to a project.
 - One bounded discovery-search component owns query inputs, publication-type
-  choices, duplicate-submit gating, search progress, result-count copy, and
-  typed query intents. The workspace coordinator retains provider requests,
-  response validation, result presentation, import mutation, and Library
-  refresh policy.
+  choices, the provider request, response validation, search progress,
+  result-count copy, and typed validated-result events. The workspace
+  coordinator routes results to their sibling presentation and retains import
+  mutation and Library refresh policy.
 - One bounded filter component owns Library query and facet values, dynamic
   type choices, validated defaults, result counts, and reset behavior. The
   workspace coordinator retains canonical reference filtering,

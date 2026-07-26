@@ -7,7 +7,7 @@ import { isCitationNetwork } from "../domain/citation-assertions";
 import { isCitationCandidateAcceptance } from "../domain/citation-expansion-acceptance";
 import { isCitationExpansionResult } from "../domain/citation-expansion";
 import type { CitationExpansionCandidate, CitationExpansionResult } from "../domain/citation-expansion-types";
-import { isReferenceDiscoveryResults, type ReferenceDiscoveryQuery, type ReferenceDiscoveryResult } from "../domain/reference-discovery";
+import { isReferenceDiscoveryResults, type ReferenceDiscoveryResult } from "../domain/reference-discovery";
 import { reviewerResponseLetter, reviewerResponsePath, reviewerResponseTemplate } from "../domain/reviewer-response";
 import {
   collaborationProtocolVersion,
@@ -196,7 +196,7 @@ import { projectTemplateSaveEvent, type ProjectTemplateSave } from "./project-te
 import { projectTreeActionEvent, type ProjectTreeAction } from "./project-tree-panel";
 import { manuscriptMapSelectEvent, type ManuscriptMapSelection } from "./manuscript-map-panel";
 import { libraryDiscoverySaveEvent, type LibraryDiscoverySaveDetail } from "./library-discovery-results";
-import { libraryDiscoverySearchEvent } from "./library-discovery-search";
+import { libraryDiscoveryResultsEvent } from "./library-discovery-search";
 import { referenceLibraryFilterChangeEvent } from "./reference-library-filters";
 import { libraryPdfUploadRetryEvent, libraryPdfUploadRevealEvent } from "./library-pdf-upload-status";
 import { libraryPdfUploadActionEvent, type LibraryPdfUploadAction } from "./library-pdf-upload-control";
@@ -609,10 +609,9 @@ class WorkspaceApp {
     this.#elements.workspaceSharingPanel.addEventListener(workspaceSharingNoticeEvent, (event) => {
       this.#showToast((event as CustomEvent<string>).detail);
     });
-    this.#elements.libraryDiscoverySearch.addEventListener(
-      libraryDiscoverySearchEvent,
-      (event) => void this.#discoverLibraryReferences((event as CustomEvent<ReferenceDiscoveryQuery>).detail),
-    );
+    this.#elements.libraryDiscoverySearch.addEventListener(libraryDiscoveryResultsEvent, (event) => {
+      this.#elements.libraryDiscoveryResults.setResults((event as CustomEvent<readonly ReferenceDiscoveryResult[]>).detail);
+    });
     this.#elements.libraryDiscoveryResults.addEventListener(libraryDiscoverySaveEvent, (event) => {
       const { index, result } = (event as CustomEvent<LibraryDiscoverySaveDetail>).detail;
       void this.#saveLibraryDiscoveredReference(result, index);
@@ -2589,20 +2588,6 @@ class WorkspaceApp {
     await this.#referenceLibraryRenderComplete();
     this.#renderResearchContext();
     this.#syncWorkspaceRoute("replace");
-  }
-
-  async #discoverLibraryReferences(query: ReferenceDiscoveryQuery): Promise<void> {
-    this.#elements.libraryDiscoveryResults.setResults([]);
-    try {
-      const response = await jsonFetch("/api/library/discovery", query);
-      await expectOk(response);
-      const value: unknown = await response.json();
-      if (!isReferenceDiscoveryResults(value)) throw new Error("Reference provider returned invalid discovery results");
-      this.#elements.libraryDiscoveryResults.setResults(value);
-      this.#elements.libraryDiscoverySearch.showResults(value.length);
-    } catch (error) {
-      this.#elements.libraryDiscoverySearch.showError(error instanceof Error ? error.message : "Reference search failed");
-    }
   }
 
   #renderReferenceLibrary(): void {

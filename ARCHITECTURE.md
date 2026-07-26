@@ -41,6 +41,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   cross-feature coordination in the existing application authorities; do not
   wrap static server-rendered markup mechanically or turn Lit into the
   application shell.
+- Let the bounded Library discovery search own its provider request, response
+  validation, duplicate-submit guard, and status lifecycle. Route only its
+  validated result list to the sibling results component; keep shared reference
+  import and Library refresh policy in the application coordinator.
 - Keep the browser shell's required-element lookup in one typed registry whose
   return shape is inferred from its constructors. Do not duplicate that shape
   in a manually synchronized application interface.

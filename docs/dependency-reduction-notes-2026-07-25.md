@@ -3576,3 +3576,28 @@ and unique production package counts remain unchanged at 135,411 B raw /
 
 Full native CI passes all 1,436 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Lit Ownership: Library Discovery Search
+
+`LibraryDiscoverySearch` now owns its scholarly-provider request and response
+validation together with the query, duplicate-submit guard, progress, result
+count, and failure state it already held. It clears and emits validated result
+lists through one typed event. `WorkspaceApp` only routes those results to the
+sibling presentation component and retains the reference-import path shared
+with assistant discovery.
+
+This checkpoint reduces `src/client/app.ts` from 5,964 to 5,949 lines (-15)
+and grows the discovery-search component from 129 to 159 lines. Runtime source
+across those files increases by 15 lines while removing one coordinator-only
+request method and replacing its query adapter with a validated-result bridge.
+Focused coverage passes request payloads, duplicate-submit gating, result and
+empty states, provider failures, malformed responses, form values, and missing
+control errors.
+
+The browser application artifact changes from 797,028 B raw / 215,599 B gzip
+to 797,265 B raw / 215,631 B gzip (+237 B raw / +32 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,437 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.

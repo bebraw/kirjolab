@@ -1,12 +1,26 @@
-import { describe, expect, it } from "vitest";
-import type { ReferenceDiscoveryQuery } from "../domain/reference-discovery";
-import { LibraryDiscoverySearch, libraryDiscoverySearchEvent } from "./library-discovery-search";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import type { ReferenceDiscoveryQuery, ReferenceDiscoveryResult } from "../domain/reference-discovery";
+import { LibraryDiscoverySearch, libraryDiscoveryResultsEvent } from "./library-discovery-search";
 
 const query: ReferenceDiscoveryQuery = {
   author: "Author",
   query: "evidence synthesis",
   type: "article",
   year: "2026",
+};
+const result: ReferenceDiscoveryResult = {
+  identifiers: [{ scheme: "doi", value: "10.5555/result" }],
+  metadata: {
+    abstract: "",
+    authors: ["Ada Author"],
+    doi: "10.5555/result",
+    title: "A discovered paper",
+    type: "article",
+    url: "",
+    venue: "Journal",
+    year: "2026",
+  },
+  providers: [{ provider: "crossref", score: 1 }],
 };
 
 class TestLibraryDiscoverySearch extends LibraryDiscoverySearch {
@@ -18,8 +32,8 @@ class TestLibraryDiscoverySearch extends LibraryDiscoverySearch {
     return this.createRenderRoot();
   }
 
-  searchForTest(): void {
-    this.search(new Event("submit") as SubmitEvent);
+  async searchForTest(): Promise<void> {
+    await this.search(new Event("submit") as SubmitEvent);
   }
 
   protected override get query(): ReferenceDiscoveryQuery {
@@ -67,11 +81,11 @@ class MissingLibraryDiscoverySearchElements extends LibraryDiscoverySearch {
 }
 
 describe("library discovery search", () => {
-  it("renders initial, busy, result, empty, and error states", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("renders initial, result, empty, and error states", () => {
     const panel = new TestLibraryDiscoverySearch();
     expect(panel.rootForTest()).toBe(panel);
-    expect(panel.renderForTest()).toBeDefined();
-    panel.searchForTest();
     expect(panel.renderForTest()).toBeDefined();
     panel.showResults(1);
     expect(panel.renderForTest()).toBeDefined();
@@ -83,15 +97,47 @@ describe("library discovery search", () => {
     expect(panel.renderForTest()).toBeDefined();
   });
 
-  it("emits one typed query while busy", () => {
+  it("searches once while busy and emits validated results", async () => {
     const panel = new TestLibraryDiscoverySearch();
-    const searches: ReferenceDiscoveryQuery[] = [];
-    panel.addEventListener(libraryDiscoverySearchEvent, (event) => searches.push((event as CustomEvent<ReferenceDiscoveryQuery>).detail));
+    const results: (readonly ReferenceDiscoveryResult[])[] = [];
+    let resolveResponse: ((response: Response) => void) | undefined;
+    const fetchMock = vi.fn(
+      () =>
+        new Promise<Response>((resolve) => {
+          resolveResponse = resolve;
+        }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    panel.addEventListener(libraryDiscoveryResultsEvent, (event) => {
+      results.push((event as CustomEvent<readonly ReferenceDiscoveryResult[]>).detail);
+    });
 
-    panel.searchForTest();
-    panel.searchForTest();
+    const search = panel.searchForTest();
+    await panel.searchForTest();
+    resolveResponse?.(Response.json([result]));
+    await search;
 
-    expect(searches).toEqual([query]);
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/library/discovery",
+      expect.objectContaining({ body: JSON.stringify(query), method: "POST" }),
+    );
+    expect(results).toEqual([[], [result]]);
+  });
+
+  it("contains provider and malformed-result failures", async () => {
+    const panel = new TestLibraryDiscoverySearch();
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(Response.json({ error: "Provider unavailable" }, { status: 503 }))
+      .mockResolvedValueOnce(Response.json({ results: [] }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await panel.searchForTest();
+    await panel.searchForTest();
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(panel.renderForTest()).toBeDefined();
   });
 
   it("collects the rendered form values and reports missing inputs", () => {

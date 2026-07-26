@@ -195,8 +195,8 @@ The adopted components own bounded presentation:
   its native parent-dialog opening, closing, focus containment, listener
   teardown, and return-focus lifecycle.
 - The Library discovery search owns query inputs, publication-type choices,
-  duplicate-submit gating, progress and result-count copy, and typed query
-  intents.
+  provider requests and response validation, duplicate-submit gating, progress
+  and result-count copy, and typed validated-result events.
 - The workspace settings panel owns title, entry-file and publication-profile
   values, archive and template visibility, modal lifecycle, the nested
   GitHub-sync presentation boundary, and typed project-action intents.

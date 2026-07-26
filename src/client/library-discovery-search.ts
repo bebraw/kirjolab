@@ -1,7 +1,13 @@
 import { html, LitElement, type TemplateResult } from "lit";
-import { referenceDiscoveryTypes, type ReferenceDiscoveryQuery, type ReferenceDiscoveryType } from "../domain/reference-discovery";
+import {
+  isReferenceDiscoveryResults,
+  referenceDiscoveryTypes,
+  type ReferenceDiscoveryQuery,
+  type ReferenceDiscoveryResult,
+  type ReferenceDiscoveryType,
+} from "../domain/reference-discovery";
 
-export const libraryDiscoverySearchEvent = "library-discovery-search";
+export const libraryDiscoveryResultsEvent = "library-discovery-results";
 
 const initialStatus = "Search Crossref and available scholarly indexes. Results are not saved automatically.";
 
@@ -83,16 +89,32 @@ export class LibraryDiscoverySearch extends LitElement {
     `;
   }
 
-  protected search(event: SubmitEvent): void {
+  protected async search(event: SubmitEvent): Promise<void> {
     event.preventDefault();
     if (this.busy) return;
     this.busy = true;
     this.status = "Searching scholarly indexes…";
+    this.emitResults([]);
+    try {
+      const response = await fetch("/api/library/discovery", {
+        body: JSON.stringify(this.query),
+        credentials: "same-origin",
+        headers: { "content-type": "application/json" },
+        method: "POST",
+      });
+      await expectOk(response);
+      const value: unknown = await response.json();
+      if (!isReferenceDiscoveryResults(value)) throw new Error("Reference provider returned invalid discovery results");
+      this.emitResults(value);
+      this.showResults(value.length);
+    } catch (error) {
+      this.showError(error instanceof Error ? error.message : "Reference search failed");
+    }
+  }
+
+  private emitResults(results: readonly ReferenceDiscoveryResult[]): void {
     this.dispatchEvent(
-      new CustomEvent<ReferenceDiscoveryQuery>(libraryDiscoverySearchEvent, {
-        bubbles: true,
-        detail: this.query,
-      }),
+      new CustomEvent<readonly ReferenceDiscoveryResult[]>(libraryDiscoveryResultsEvent, { bubbles: true, detail: results }),
     );
   }
 
@@ -116,6 +138,14 @@ export class LibraryDiscoverySearch extends LitElement {
     if (!select) throw new Error(`Library discovery select ${id} is unavailable`);
     return select;
   }
+}
+
+async function expectOk(response: Response): Promise<void> {
+  if (response.ok) return;
+  const value: unknown = await response.json().catch(() => null);
+  throw new Error(
+    typeof value === "object" && value !== null && "error" in value && typeof value.error === "string" ? value.error : "Request failed",
+  );
 }
 
 if (typeof customElements !== "undefined" && !customElements.get("library-discovery-search")) {
