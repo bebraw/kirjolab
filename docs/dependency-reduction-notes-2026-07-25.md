@@ -5705,6 +5705,28 @@ component members.
 Full native CI passes all 1,583 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Active PDF Load-Path Consolidation
+
+The active PDF load path now keeps resource resolution, URL selection, viewer
+focus, viewer mode, and stale-error suppression beside the two operations that
+consume those decisions. Five single-use helpers and the private
+`ActivePdfResources` transfer shape are gone. The resolution order and viewer
+behavior remain unchanged, while the coordinator exposes fewer incidental
+concepts.
+
+This checkpoint reduces `src/client/app.ts` from 3,761 to 3,715 lines (-46). The
+browser application artifact changes from 822,140 B raw / 222,636 B gzip to
+821,877 B raw / 222,556 B gzip (-263 B raw / -80 B gzip). Styles, direct and
+unique production package counts, and the readability audit remain unchanged at
+135,411 B raw / 23,373 B gzip, 18, 150, and 249 externally visible low-level
+component members.
+
+The affected guardrails pass formatting, lint, strict types, and all 1,584
+unit/coverage tests.
+
+Full native CI passes all 1,584 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
+
 ## Active PDF One-Use Derivations
 
 `WorkspaceApp` now derives the active workspace annotations and private library
