@@ -401,6 +401,7 @@ class WorkspaceApp {
       paneStorageKey: () => `kirjolab:authoring-pane:${workspaceId}:${this.#activeResourceTab()?.kind ?? "preview"}`,
       resizePdf: () => void this.#pdfViewer.resize(),
     });
+    this.#elements.previewSyncControls.bindSource(this.#elements.source, this.#elements.sourceHighlight);
   }
 
   async start(): Promise<void> {
@@ -1812,22 +1813,14 @@ class WorkspaceApp {
     if (!location) return;
     this.#showWorkspaceSurface("authoring");
     this.#focusProjectRange(location.fileId, location.offset, location.offset);
-    if (centerEditor) this.#centerSourceOffset(location.offset);
+    if (centerEditor) this.#elements.previewSyncControls.centerSourceOffset(location.offset);
     this.#previewDocument.markSyncTarget(target);
-  }
-
-  #centerSourceOffset(sourceOffset: number): void {
-    const beforeOffset = this.#elements.source.value.slice(0, Math.max(0, sourceOffset));
-    const lineNumber = [...beforeOffset.matchAll(/\r\n|\r|\n/gu)].length + 1;
-    const line = this.#elements.sourceHighlight.querySelector<HTMLElement>(`.source-editor-line[data-line-number="${lineNumber}"]`);
-    if (!line) return;
-    this.#elements.source.scrollTop = line.offsetTop + line.offsetHeight / 2 - this.#elements.source.clientHeight / 2;
   }
 
   #syncPreviewFromSource(explicit = true): void {
     if (!this.#previewSyncAvailable(explicit)) return;
     const fileId = this.#activeFileId ?? this.#snapshot?.entryFileId ?? "";
-    const sourceOffset = explicit ? this.#sourceOffsetAtEditorCenter() : this.#elements.source.selectionEnd;
+    const sourceOffset = explicit ? this.#elements.previewSyncControls.sourceOffsetAtCenter() : this.#elements.source.selectionEnd;
     const offsets = this.#elements.previewSyncControls.previewOffsets(fileId, sourceOffset);
     if (offsets.length === 0) return;
     const target = this.#previewDocument.nearestSourceElement(offsets);
@@ -1839,28 +1832,6 @@ class WorkspaceApp {
   #previewSyncAvailable(explicit: boolean): boolean {
     const automaticSyncAvailable = explicit || this.#automaticPreviewSyncAvailable();
     return automaticSyncAvailable && this.#contextState.activeKey === RESEARCH_PREVIEW_KEY;
-  }
-
-  #sourceOffsetAtEditorCenter(): number {
-    const center = this.#elements.source.scrollTop + this.#elements.source.clientHeight / 2;
-    const lines = [...this.#elements.sourceHighlight.querySelectorAll<HTMLElement>(".source-editor-line")];
-    let nearestLine = lines[0];
-    let nearestDistance = Number.POSITIVE_INFINITY;
-    for (const line of lines) {
-      const distance = Math.abs(line.offsetTop + line.offsetHeight / 2 - center);
-      if (distance >= nearestDistance) continue;
-      nearestLine = line;
-      nearestDistance = distance;
-    }
-    const lineNumber = Number.parseInt(nearestLine?.dataset.lineNumber ?? "1", 10);
-    if (!Number.isSafeInteger(lineNumber) || lineNumber <= 1) return 0;
-    let offset = 0;
-    for (let currentLine = 1; currentLine < lineNumber; currentLine += 1) {
-      const newline = /\r\n|\r|\n/u.exec(this.#elements.source.value.slice(offset));
-      if (!newline) return this.#elements.source.value.length;
-      offset += newline.index + newline[0].length;
-    }
-    return offset;
   }
 
   #automaticPreviewSyncAvailable(): boolean {

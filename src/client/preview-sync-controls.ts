@@ -9,6 +9,13 @@ export type PreviewSyncAction = "preview-to-source" | "source-to-preview";
 
 export class PreviewSyncControls extends LitElement {
   #sourceMap: readonly CompositionSourceSpan[] = [];
+  #source: HTMLTextAreaElement | null = null;
+  #sourceHighlight: HTMLElement | null = null;
+
+  bindSource(source: HTMLTextAreaElement, sourceHighlight: HTMLElement): void {
+    this.#source = source;
+    this.#sourceHighlight = sourceHighlight;
+  }
 
   setSourceMap(sourceMap: readonly CompositionSourceSpan[]): void {
     this.#sourceMap = sourceMap;
@@ -20,6 +27,36 @@ export class PreviewSyncControls extends LitElement {
 
   previewOffsets(fileId: string, sourceOffset: number): readonly number[] {
     return previewOffsetsForSourceLocation(this.#sourceMap, fileId, sourceOffset);
+  }
+
+  centerSourceOffset(sourceOffset: number): void {
+    const source = this.#source;
+    const sourceHighlight = this.#sourceHighlight;
+    if (!source || !sourceHighlight) return;
+    const beforeOffset = source.value.slice(0, Math.max(0, sourceOffset));
+    const lineNumber = [...beforeOffset.matchAll(/\r\n|\r|\n/gu)].length + 1;
+    const line = sourceHighlight.querySelector<HTMLElement>(`.source-editor-line[data-line-number="${lineNumber}"]`);
+    if (line) source.scrollTop = line.offsetTop + line.offsetHeight / 2 - source.clientHeight / 2;
+  }
+
+  sourceOffsetAtCenter(): number {
+    const source = this.#source;
+    const sourceHighlight = this.#sourceHighlight;
+    if (!source || !sourceHighlight) return 0;
+    const center = source.scrollTop + source.clientHeight / 2;
+    const lines = [...sourceHighlight.querySelectorAll<HTMLElement>(".source-editor-line")];
+    let nearestLine = lines[0];
+    let nearestDistance = Number.POSITIVE_INFINITY;
+    for (const line of lines) {
+      const distance = Math.abs(line.offsetTop + line.offsetHeight / 2 - center);
+      if (distance >= nearestDistance) continue;
+      nearestLine = line;
+      nearestDistance = distance;
+    }
+    const lineNumber = Number.parseInt(nearestLine?.dataset.lineNumber ?? "1", 10);
+    if (!Number.isSafeInteger(lineNumber) || lineNumber <= 1) return 0;
+    const lineOffsets = [0, ...[...source.value.matchAll(/\r\n|\r|\n/gu)].map((match) => match.index + match[0].length)];
+    return lineOffsets[lineNumber - 1] ?? source.value.length;
   }
 
   setVisible(visible: boolean): void {

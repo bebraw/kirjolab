@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { PreviewSyncControls, previewSyncActionEvent, type PreviewSyncAction } from "./preview-sync-controls";
 
 class TestPreviewSyncControls extends PreviewSyncControls {
@@ -18,6 +18,8 @@ class TestPreviewSyncControls extends PreviewSyncControls {
 }
 
 describe("preview sync controls", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
   it("owns visibility and emits both synchronization directions", () => {
     const controls = new TestPreviewSyncControls();
     const actions: PreviewSyncAction[] = [];
@@ -41,5 +43,36 @@ describe("preview sync controls", () => {
     expect(controls.previewOffsets("part", 14)).toEqual([9]);
     expect(controls.renderForTest()).toBeDefined();
     expect(controls.rootForTest()).toBe(controls);
+  });
+
+  it("owns source-editor viewport translation in both directions", () => {
+    const controls = new TestPreviewSyncControls();
+    expect(controls.sourceOffsetAtCenter()).toBe(0);
+    controls.centerSourceOffset(4);
+
+    const lines = [1, 2, 3].map((line, index) => ({
+      dataset: { lineNumber: String(line) },
+      offsetHeight: 20,
+      offsetTop: index * 100,
+    }));
+    vi.stubGlobal("document", {
+      createElement: vi.fn((tagName: string) =>
+        tagName === "textarea"
+          ? { clientHeight: 100, scrollTop: 60, value: "first\nsecond\nthird" }
+          : {
+              querySelector: (selector: string) =>
+                lines.find((line) => selector.endsWith(`[data-line-number="${line.dataset.lineNumber}"]`)) ?? null,
+              querySelectorAll: () => lines,
+            },
+      ),
+    });
+    const source = document.createElement("textarea");
+    const highlight = document.createElement("div");
+
+    controls.bindSource(source, highlight);
+
+    expect(controls.sourceOffsetAtCenter()).toBe(6);
+    controls.centerSourceOffset(13);
+    expect(source.scrollTop).toBe(160);
   });
 });

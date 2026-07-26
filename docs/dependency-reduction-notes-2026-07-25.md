@@ -5437,6 +5437,31 @@ visible low-level component member.
 Full native CI passes all 1,581 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Preview Source Viewport
+
+`PreviewSyncControls` now binds the native source viewport and inert highlight
+lines, derives the source offset nearest the viewport center, and centers the
+editor on a requested source offset. `WorkspaceApp` retains active-file
+identity, automatic-versus-explicit synchronization policy, Preview DOM
+navigation, caret placement, and focus policy.
+
+This checkpoint reduces `src/client/app.ts` from 4,074 to 4,045 lines (-29) and
+grows the preview-sync owner from 78 to 115 lines. Runtime source across those
+two files grows by eight lines while deleting both coordinator viewport
+algorithms. Focused coverage passes unbound, centered-offset, reverse-centering,
+existing source-map translation and directional interaction behavior; affected
+coverage passes four tests alongside strict types.
+
+The browser application artifact changes from 824,216 B raw / 223,003 B gzip
+to 824,363 B raw / 223,076 B gzip (+147 B raw / +73 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150. The readability audit reports three additional
+externally visible component members for binding and bidirectional viewport
+translation while the coordinator loses both private viewport algorithms.
+
+Full native CI passes all 1,582 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Assistant Evidence Projection
 
 `AssistantWorkflowStatus` now resolves its ordered selected evidence keys

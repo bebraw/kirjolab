@@ -791,9 +791,11 @@ reason to wrap static markup mechanically.
   build version and retains toast presentation for the typed copy notice.
 - The preview synchronization control replaces its container and two button
   references, owns Preview-context visibility, the current composition source
-  map, bidirectional offset resolution, and one typed directional action stream.
-  The application coordinator retains active-file and editor-offset selection,
-  caret placement, scrolling, and focus policy.
+  map, bidirectional composition-offset resolution, native source-viewport
+  centering and centered-offset derivation, and one typed directional action
+  stream. The application coordinator retains active-file identity,
+  automatic-versus-explicit sync policy, Preview DOM navigation, caret
+  placement, and focus policy.
 - The preview navigation control owns browser-local top-navigation visibility,
   stored restoration, toggle and restore presentation, ARIA and title copy,
   restricted-Preview availability, and focus handoff. The application
