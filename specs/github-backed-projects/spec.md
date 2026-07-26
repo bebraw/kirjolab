@@ -115,16 +115,13 @@ incoming and outgoing mutation.
   interval, distinguishes branch-only movement from actionable manuscript
   divergence, and offers Pull or Push entry points that open the existing
   detailed preview rather than bypassing confirmation.
-- The GitHub import account presentation is a light-DOM Lit component that owns
-  its local message, action visibility, and disconnect intent. The application
-  coordinator retains connection requests, confirmation, picker loading, and
-  import workflow state, while the Worker retains initial fallback markup.
-- The adjacent import picker is a light-DOM Lit component that owns local field
-  values, account/repository/branch options, form submission, readiness,
-  preview/status rendering, and typed Preview, Cancel, and Confirm intents. The
-  application coordinator retains remote loading, payload validation, preview
-  identity, and project creation, while the Worker retains initial fallback
-  markup.
+- One light-DOM GitHub import component owns account connection presentation,
+  action visibility, local field values, account/repository/branch options,
+  form submission, readiness, preview/status rendering, native dialog
+  lifecycle, and typed Disconnect, Preview, Cancel, and Confirm intents. The
+  application coordinator retains connection and picker requests, payload
+  validation, preview identity, confirmation, and project creation, while the
+  Worker retains initial fallback markup.
 - The workspace sync menu is a light-DOM Lit component that owns repository
   status presentation, relationship tone, Pull and Push availability, and
   typed Check, Pull, Push, and Settings intents. The application coordinator

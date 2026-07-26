@@ -1,7 +1,15 @@
-import { describe, expect, it } from "vitest";
-import { GitHubImportPanel, gitHubImportCancelEvent, gitHubImportConfirmEvent, gitHubImportPreviewEvent } from "./github-import-panel";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  GitHubImportPanel,
+  gitHubDisconnectEvent,
+  gitHubImportCancelEvent,
+  gitHubImportConfirmEvent,
+  gitHubImportPreviewEvent,
+} from "./github-import-panel";
 
 class TestGitHubImportPanel extends GitHubImportPanel {
+  focusCount = 0;
+
   renderForTest() {
     return this.render();
   }
@@ -21,7 +29,30 @@ class TestGitHubImportPanel extends GitHubImportPanel {
   confirmForTest(): void {
     this.requestConfirm();
   }
+
+  disconnectForTest(): void {
+    this.requestDisconnect();
+  }
+
+  override focusTitle(): void {
+    this.focusCount += 1;
+  }
 }
+
+class FakeDialog extends EventTarget {
+  closeCount = 0;
+  modalCount = 0;
+
+  close(): void {
+    this.closeCount += 1;
+  }
+
+  showModal(): void {
+    this.modalCount += 1;
+  }
+}
+
+afterEach(() => vi.unstubAllGlobals());
 
 const installation = {
   id: 7,
@@ -52,6 +83,8 @@ describe("GitHub import panel", () => {
     });
 
     panel.beginConnectionRefresh();
+    panel.setConnection({ connected: true, message: "Connected." });
+    panel.setConnectionMessage("Ready.");
     panel.setInstallationsLoading();
     panel.setInstallations([installation]);
     panel.setRepositoriesLoading();
@@ -97,14 +130,28 @@ describe("GitHub import panel", () => {
   it("emits preview, cancel, and confirmation intents", () => {
     const panel = new TestGitHubImportPanel();
     const actions: string[] = [];
-    for (const eventName of [gitHubImportPreviewEvent, gitHubImportCancelEvent, gitHubImportConfirmEvent]) {
+    for (const eventName of [gitHubImportPreviewEvent, gitHubImportCancelEvent, gitHubImportConfirmEvent, gitHubDisconnectEvent]) {
       panel.addEventListener(eventName, () => actions.push(eventName));
     }
 
     panel.previewForTest();
     panel.cancelForTest();
     panel.confirmForTest();
+    panel.disconnectForTest();
 
-    expect(actions).toEqual([gitHubImportPreviewEvent, gitHubImportCancelEvent, gitHubImportConfirmEvent]);
+    expect(actions).toEqual([gitHubImportPreviewEvent, gitHubImportCancelEvent, gitHubImportConfirmEvent, gitHubDisconnectEvent]);
+  });
+
+  it("owns its native dialog lifecycle", () => {
+    const panel = new TestGitHubImportPanel();
+    const dialog = new FakeDialog();
+    vi.stubGlobal("HTMLDialogElement", FakeDialog);
+    Object.defineProperty(panel, "closest", { value: () => dialog });
+
+    panel.open();
+    panel.close();
+    expect(dialog.modalCount).toBe(1);
+    expect(dialog.closeCount).toBe(1);
+    expect(panel.focusCount).toBe(1);
   });
 });

@@ -72,9 +72,9 @@ import { CollaboratorSelectionList } from "./collaborator-selection-list";
 import { AppToast, appToastActionEvent, appToastDismissEvent } from "./app-toast";
 import { WorkspaceSwitcher, workspaceSwitchEvent } from "./workspace-switcher";
 import { SourceCompletion, sourceCompletionActionEvent, type SourceCompletionAction } from "./source-completion";
-import { GitHubConnectionPanel, gitHubDisconnectEvent } from "./github-connection-panel";
 import {
   GitHubImportPanel,
+  gitHubDisconnectEvent,
   gitHubImportCancelEvent,
   gitHubImportConfirmEvent,
   gitHubImportPreviewEvent,
@@ -442,8 +442,6 @@ interface Elements {
   newWorkspaceStartingPoints: ProjectStartingPointBrowser;
   latexImportDialog: HTMLDialogElement;
   latexImportPanel: LatexImportPanel;
-  gitHubImportDialog: HTMLDialogElement;
-  gitHubConnectionPanel: GitHubConnectionPanel;
   gitHubImportPanel: GitHubImportPanel;
   gitHubSyncMenu: GitHubSyncMenu;
   saveTemplateDialog: ProjectTemplateSaveDialog;
@@ -910,11 +908,11 @@ class WorkspaceApp {
       else void this.#confirmLatexImport(action);
     });
     this.#elements.gitHubImportPanel.addEventListener(gitHubImportPreviewEvent, () => void this.#previewGitHubImport());
-    this.#elements.gitHubImportPanel.addEventListener(gitHubImportCancelEvent, () => this.#elements.gitHubImportDialog.close());
+    this.#elements.gitHubImportPanel.addEventListener(gitHubImportCancelEvent, () => this.#elements.gitHubImportPanel.close());
     this.#elements.gitHubImportPanel.addEventListener(gitHubInstallationChangeEvent, () => void this.#loadGitHubRepositories());
     this.#elements.gitHubImportPanel.addEventListener(gitHubRepositoryChangeEvent, () => void this.#loadGitHubBranches());
     this.#elements.gitHubImportPanel.addEventListener(gitHubImportConfirmEvent, () => void this.#confirmGitHubImport());
-    this.#elements.gitHubConnectionPanel.addEventListener(gitHubDisconnectEvent, () => void this.#disconnectGitHubAccount());
+    this.#elements.gitHubImportPanel.addEventListener(gitHubDisconnectEvent, () => void this.#disconnectGitHubAccount());
     this.#elements.workspaceSettingsPanel.addEventListener(gitHubPullPreviewEvent, () => void this.#previewGitHubPull());
     this.#elements.workspaceSettingsPanel.addEventListener(gitHubPullConfirmEvent, () => void this.#confirmGitHubPull());
     this.#elements.workspaceSettingsPanel.addEventListener(gitHubPublishPreviewEvent, () => void this.#previewGitHubPublish());
@@ -1573,9 +1571,7 @@ class WorkspaceApp {
   #openGitHubImportDialog(): void {
     this.#elements.newWorkspaceStartingPoints.close();
     this.#gitHubImportPreviewId = null;
-    this.#elements.gitHubImportPanel.resetPreview();
-    this.#elements.gitHubImportDialog.showModal();
-    this.#elements.gitHubImportPanel.focusTitle();
+    this.#elements.gitHubImportPanel.open();
     void this.#refreshGitHubConnection();
   }
 
@@ -1668,7 +1664,7 @@ class WorkspaceApp {
       await expectOk(response);
       const value: unknown = await response.json();
       if (!isGitHubConnectionState(value)) throw new Error("GitHub returned an invalid connection state");
-      this.#elements.gitHubConnectionPanel.setConnection({
+      this.#elements.gitHubImportPanel.setConnection({
         connected: value.connected,
         message: value.connected
           ? `Connected as @${value.user.login}. Repository access remains controlled on GitHub.`
@@ -1677,7 +1673,9 @@ class WorkspaceApp {
       if (value.connected) await this.#loadGitHubInstallations();
       else this.#elements.gitHubImportPanel.resetDisconnected();
     } catch (error) {
-      this.#elements.gitHubConnectionPanel.setMessage(error instanceof Error ? error.message : "Could not load the GitHub connection.");
+      this.#elements.gitHubImportPanel.setConnectionMessage(
+        error instanceof Error ? error.message : "Could not load the GitHub connection.",
+      );
     }
   }
 
@@ -1691,7 +1689,7 @@ class WorkspaceApp {
     if (requestId !== this.#gitHubPickerRequest) return;
     this.#elements.gitHubImportPanel.setInstallations(value.installations);
     if (value.installations.length === 0) {
-      this.#elements.gitHubConnectionPanel.setMessage("Connected. Install the Kirjolab GitHub App or grant it repository access.");
+      this.#elements.gitHubImportPanel.setConnectionMessage("Connected. Install the Kirjolab GitHub App or grant it repository access.");
       this.#elements.gitHubImportPanel.resetRepositoryPickers();
       return;
     }
@@ -7174,8 +7172,6 @@ function collectElements(): Elements {
     newWorkspaceStartingPoints: requiredElement("project-starting-point-browser", ProjectStartingPointBrowser),
     latexImportDialog: requiredElement("latex-import-dialog", HTMLDialogElement),
     latexImportPanel: requiredElement("latex-import-panel", LatexImportPanel),
-    gitHubImportDialog: requiredElement("github-import-dialog", HTMLDialogElement),
-    gitHubConnectionPanel: requiredElement("github-connection-panel", GitHubConnectionPanel),
     gitHubImportPanel: requiredElement("github-import-panel", GitHubImportPanel),
     gitHubSyncMenu: requiredElement("github-sync-control", GitHubSyncMenu),
     saveTemplateDialog: requiredElement("project-template-save-dialog", ProjectTemplateSaveDialog),

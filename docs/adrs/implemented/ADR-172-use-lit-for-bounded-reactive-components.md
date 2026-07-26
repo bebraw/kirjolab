@@ -28,11 +28,11 @@ state, and cross-feature workflows.
 
 The adopted components own bounded presentation:
 
-- The import account panel owns connected and disconnected messages, reactive
-  action visibility, and a typed disconnect intent.
-- The import picker panel owns local field values, account/repository/branch
-  option rendering, form submission, readiness, preview/status rendering, and
-  typed Preview, Cancel, and Confirm intents.
+- The import panel owns connected and disconnected account presentation,
+  reactive account actions, local field values, account/repository/branch
+  option rendering, form submission, readiness, preview/status rendering,
+  native dialog lifecycle, and typed Disconnect, Preview, Cancel, and Confirm
+  intents.
 - The workspace sync menu owns repository status, relationship tone, Pull and
   Push availability, and typed Check, Pull, Push, and Settings intents.
 - The workspace sync review owns Pull and Publish diff rendering, conflict
@@ -245,7 +245,8 @@ reason to wrap static markup mechanically.
   from the application coordinator's registry.
 - The import picker replaces ten internal element references, the coordinator's
   repository-option cache, outer form reference and submit binding, and its
-  imperative option and preview DOM assembly.
+  imperative option and preview DOM assembly. It also absorbs the former
+  connection panel and separate native-dialog reference.
 - The sharing panel replaces fifteen internal element references and the
   coordinator's member/link DOM assembly while leaving membership, capability,
   and authorization requests in the application coordinator.

@@ -10,11 +10,17 @@ export interface GitHubImportSelection {
   readonly entryPath: string;
 }
 
+export interface GitHubConnectionPresentation {
+  readonly connected: boolean;
+  readonly message: string;
+}
+
 export const gitHubInstallationChangeEvent = "github-installation-change";
 export const gitHubRepositoryChangeEvent = "github-repository-change";
 export const gitHubImportPreviewEvent = "github-import-preview";
 export const gitHubImportConfirmEvent = "github-import-confirm";
 export const gitHubImportCancelEvent = "github-import-cancel";
+export const gitHubDisconnectEvent = "github-disconnect";
 
 export class GitHubImportPanel extends LitElement {
   static override properties = {
@@ -34,6 +40,8 @@ export class GitHubImportPanel extends LitElement {
     status: { state: true },
     working: { state: true },
     canConfirm: { state: true },
+    connected: { state: true },
+    connectionMessage: { state: true },
   };
 
   declare private projectTitleValue: string;
@@ -52,6 +60,8 @@ export class GitHubImportPanel extends LitElement {
   declare private status: string;
   declare private working: boolean;
   declare private canConfirm: boolean;
+  declare private connected: boolean;
+  declare private connectionMessage: string;
 
   constructor() {
     super();
@@ -71,6 +81,8 @@ export class GitHubImportPanel extends LitElement {
     this.status = "";
     this.working = false;
     this.canConfirm = false;
+    this.connected = false;
+    this.connectionMessage = "Checking connection…";
   }
 
   get selection(): GitHubImportSelection {
@@ -85,6 +97,16 @@ export class GitHubImportPanel extends LitElement {
 
   get projectTitle(): string {
     return this.projectTitleValue;
+  }
+
+  open(): void {
+    this.resetPreview();
+    this.dialog.showModal();
+    this.focusTitle();
+  }
+
+  close(): void {
+    this.dialog.close();
   }
 
   resetPreview(): void {
@@ -103,6 +125,15 @@ export class GitHubImportPanel extends LitElement {
     this.installationId = "";
     this.installationPlaceholder = "Checking connection…";
     this.resetRepositoryPickers();
+  }
+
+  setConnection(presentation: GitHubConnectionPresentation): void {
+    this.connected = presentation.connected;
+    this.connectionMessage = presentation.message;
+  }
+
+  setConnectionMessage(message: string): void {
+    this.connectionMessage = message;
   }
 
   setInstallationsLoading(): void {
@@ -201,6 +232,19 @@ export class GitHubImportPanel extends LitElement {
   protected override render(): TemplateResult {
     const ready = Boolean(this.installationId && this.repositoryId && this.branch);
     return html`
+      <section class="mt-5 border-y border-app-line py-4" aria-labelledby="github-connection-heading">
+        <p class="field-label" id="github-connection-heading">GitHub account</p>
+        <p class="mt-1 text-sm leading-6 text-app-text-soft" id="github-connection-status" aria-live="polite">${this.connectionMessage}</p>
+        <div class="mt-3 flex flex-wrap gap-2">
+          <a class="button-primary" href="/api/github/connect?returnTo=%2F%3FgithubImport%3D1" ?hidden=${this.connected}>Connect GitHub</a>
+          <a class="button-secondary" href="/api/github/install?returnTo=%2F%3FgithubImport%3D1" ?hidden=${!this.connected}
+            >Manage repository access</a
+          >
+          <button class="button-secondary" type="button" ?hidden=${!this.connected} @click=${this.requestDisconnect}>
+            Disconnect account
+          </button>
+        </div>
+      </section>
       <form id="github-import-form" @submit=${this.requestPreview}>
         <div class="mt-5 grid gap-3 sm:grid-cols-2">
           <label class="field-label"
@@ -339,6 +383,16 @@ export class GitHubImportPanel extends LitElement {
 
   protected requestConfirm(): void {
     this.dispatchEvent(new CustomEvent(gitHubImportConfirmEvent));
+  }
+
+  protected requestDisconnect(): void {
+    this.dispatchEvent(new CustomEvent(gitHubDisconnectEvent));
+  }
+
+  private get dialog(): HTMLDialogElement {
+    const dialog = this.closest("dialog");
+    if (!(dialog instanceof HTMLDialogElement)) throw new Error("GitHub import panel requires a dialog parent");
+    return dialog;
   }
 }
 

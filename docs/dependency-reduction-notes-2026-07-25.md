@@ -2125,6 +2125,27 @@ and unique production package counts remain unchanged at 135,411 B raw /
 23,373 B gzip and 18 and 150. Full native CI passes all 1,385 unit/coverage
 tests, 120 Workers-runtime tests, and 74 browser tests.
 
+## Continued Lit Composition: GitHub Import
+
+`GitHubImportPanel` now composes account connection presentation with the
+repository picker, preview, confirmation, and native dialog lifecycle. The
+standalone connection component and its application-level reference are gone;
+`WorkspaceApp` retains authenticated requests, response validation, preview
+identity, and project creation.
+
+This checkpoint reduces `src/client/app.ts` from 7,376 to 7,372 lines (-4),
+deletes the 74-line connection component, removes two coordinator references,
+and consolidates four typed import intents on one Lit boundary. Focused unit
+coverage passes connection, picker, preview, confirmation, disconnect, and
+dialog lifecycle behavior, while focused browser coverage passes the guarded
+GitHub connection/import flow.
+
+The browser application artifact changes from 789,338 B raw / 213,050 B gzip
+to 789,139 B raw / 213,062 B gzip (-199 B raw / +12 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150. Full native CI passes all 1,386 unit/coverage
+tests, 120 Workers-runtime tests, and 74 browser tests.
+
 ## Continued Coordinator Reduction: PDF Viewer Shell
 
 `PdfEvidenceViewer` now resolves its bounded canvas, page, link, text,
