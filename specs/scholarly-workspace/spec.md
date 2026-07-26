@@ -151,7 +151,12 @@ collaboration.
   available for existing projects without advertising the superseded upload
   path. Research hides the collection when both are absent; otherwise one
   compact Project evidence collection groups highlights beneath their paper.
-  New PDF intake remains in Library → Add reference.
+  Its Lit panel owns guarded removal transport only after both annotations and
+  explicit publication links are absent, plus confirmation, stable encoded
+  targets, duplicate-submit gating, pending state, retryable failures, and the
+  completed-removal outcome. Canonical refresh and notification policy remain
+  in the workspace coordinator. New PDF intake remains in Library → Add
+  reference.
 - **Workspace navigation:** `WorkspaceCatalog` lists and creates stable
   workspace resources while each `DocumentRoom` retains isolated coordination.
   Dashboard and Projects-browser links use `/editor/{workspaceId}`; creating or

@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import type { AnnotationResource, PassageLink, PdfResource } from "../domain/workspace";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import type { AnnotationResource, PassageLink, PdfResource, PublicationPdfLink } from "../domain/workspace";
 import { ProjectEvidencePanel, projectEvidenceActionEvent, type ProjectEvidenceAction } from "./project-evidence-panel";
 
 const createdAt = "2026-07-25T00:00:00.000Z";
@@ -51,6 +51,12 @@ const link: PassageLink = {
   id: "passage:1",
   resolution: { end: 14, exactMatch: true, start: 0, status: "resolved", text: "Linked passage" },
 };
+const publicationPdfLink: PublicationPdfLink = {
+  createdAt,
+  id: "publication-pdf:1",
+  pdfId: pdf.id,
+  publicationId: "publication:1",
+};
 
 class TestProjectEvidencePanel extends ProjectEvidencePanel {
   renderForTest() {
@@ -93,6 +99,10 @@ class TestProjectEvidencePanel extends ProjectEvidencePanel {
       }),
     );
   }
+
+  removeForTest(value: PdfResource = pdf): Promise<void> {
+    return this.removePdf(value);
+  }
 }
 
 function eventWithTarget(target: object): Event {
@@ -100,6 +110,11 @@ function eventWithTarget(target: object): Event {
   Object.defineProperty(event, "currentTarget", { value: target });
   return event;
 }
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 
 describe("project evidence panel", () => {
   it("renders empty, assigned, unassigned, linked, and selected states", () => {
@@ -111,12 +126,13 @@ describe("project evidence panel", () => {
       annotations: [annotation, { ...annotation, id: "annotation:2", pdfId: "missing" }],
       links: [link],
       pdfs: [pdf],
+      publicationPdfLinks: [],
       selectedEvidenceKeys: new Set(["annotation:1"]),
     });
     panel.toggleForTest(pdf.id);
     panel.toggleEvidenceForTest(false);
     expect(panel.renderForTest()).toBeDefined();
-    panel.setEvidence({ annotations: [], links: [], pdfs: [], selectedEvidenceKeys: new Set() });
+    panel.setEvidence({ annotations: [], links: [], pdfs: [], publicationPdfLinks: [], selectedEvidenceKeys: new Set() });
     expect(panel.renderForTest()).toBeDefined();
     expect(panel.rootForTest()).toBe(panel);
   });
@@ -125,13 +141,12 @@ describe("project evidence panel", () => {
     const panel = new TestProjectEvidencePanel();
     const actions: ProjectEvidenceAction[] = [];
     panel.addEventListener(projectEvidenceActionEvent, (event) => actions.push((event as CustomEvent<ProjectEvidenceAction>).detail));
-    panel.setEvidence({ annotations: [annotation], links: [link], pdfs: [pdf], selectedEvidenceKeys: new Set() });
+    panel.setEvidence({ annotations: [annotation], links: [link], pdfs: [pdf], publicationPdfLinks: [], selectedEvidenceKeys: new Set() });
 
     panel.toggleForTest();
     panel.pdfForTest("open", "missing");
     panel.pdfForTest();
     panel.pdfForTest("open");
-    panel.pdfForTest("remove");
     panel.evidenceForTest();
     panel.evidenceForTest("annotation:1", false);
     panel.annotationForTest("open", "missing");
@@ -148,7 +163,6 @@ describe("project evidence panel", () => {
 
     expect(actions).toEqual([
       { action: "open-pdf", pdf },
-      { action: "remove-pdf", pdf },
       { action: "evidence", key: "annotation:1", selected: false },
       { action: "open-pdf", annotationId: annotation.id, page: annotation.page, pdf },
       { action: "edit-annotation", annotation },
@@ -163,7 +177,7 @@ describe("project evidence panel", () => {
     const panel = new TestProjectEvidencePanel();
     const actions: ProjectEvidenceAction[] = [];
     panel.addEventListener(projectEvidenceActionEvent, (event) => actions.push((event as CustomEvent<ProjectEvidenceAction>).detail));
-    panel.setEvidence({ annotations: [annotation], links: [], pdfs: [pdf], selectedEvidenceKeys: new Set() });
+    panel.setEvidence({ annotations: [annotation], links: [], pdfs: [pdf], publicationPdfLinks: [], selectedEvidenceKeys: new Set() });
 
     panel.fragmentForTest("save", undefined, "missing");
     panel.fragmentForTest("save");
@@ -187,5 +201,90 @@ describe("project evidence panel", () => {
       }),
       { action: "remove-fragment", annotationId: annotation.id, fragmentId: annotation.fragments[0]!.id },
     ]);
+  });
+
+  it("blocks removal while highlights or reference links remain", async () => {
+    const panel = new TestProjectEvidencePanel();
+    const fetchMock = vi.spyOn(globalThis, "fetch");
+    vi.stubGlobal(
+      "confirm",
+      vi.fn(() => true),
+    );
+    panel.configure("/api/workspaces/workspace");
+    panel.setEvidence({
+      annotations: [annotation],
+      links: [],
+      pdfs: [pdf],
+      publicationPdfLinks: [publicationPdfLink],
+      selectedEvidenceKeys: new Set(),
+    });
+
+    await panel.removeForTest();
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    const notices: ProjectEvidenceAction[] = [];
+    panel.addEventListener(projectEvidenceActionEvent, (event) => notices.push((event as CustomEvent<ProjectEvidenceAction>).detail));
+    await panel.removeForTest();
+    expect(notices).toEqual([
+      { action: "notice", message: "Cannot remove paper.pdf: remove 1 highlight(s) and 1 reference link(s) first." },
+    ]);
+    expect(panel.renderForTest()).toBeDefined();
+  });
+
+  it("owns confirmed PDF removal and emits the completed outcome", async () => {
+    const panel = new TestProjectEvidencePanel();
+    const actions: ProjectEvidenceAction[] = [];
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 200 }));
+    vi.stubGlobal(
+      "confirm",
+      vi.fn(() => true),
+    );
+    panel.configure("/api/workspaces/workspace");
+    panel.addEventListener(projectEvidenceActionEvent, (event) => actions.push((event as CustomEvent<ProjectEvidenceAction>).detail));
+
+    await panel.removeForTest({ ...pdf, id: "pdf/1" });
+
+    expect(fetchMock).toHaveBeenCalledWith("/api/workspaces/workspace/pdfs/pdf%2F1", expect.objectContaining({ method: "DELETE" }));
+    expect(actions).toEqual([{ action: "pdf-removed", message: "paper.pdf removed from the project." }]);
+  });
+
+  it("honors cancellation and permits retry after a provider failure", async () => {
+    const panel = new TestProjectEvidencePanel();
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response("Unavailable", { status: 503 }))
+      .mockResolvedValueOnce(new Response(null, { status: 200 }));
+    const confirmMock = vi.fn(() => false);
+    vi.stubGlobal("confirm", confirmMock);
+    panel.configure("/api/workspaces/workspace");
+
+    await panel.removeForTest();
+    expect(fetchMock).not.toHaveBeenCalled();
+    confirmMock.mockReturnValue(true);
+    await panel.removeForTest();
+    expect(panel.renderForTest()).toBeDefined();
+    await panel.removeForTest();
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("ignores duplicate removals while one is pending", async () => {
+    const panel = new TestProjectEvidencePanel();
+    let respond = (_response: Response): void => undefined;
+    const pendingResponse = new Promise<Response>((resolve) => {
+      respond = resolve;
+    });
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockReturnValue(pendingResponse);
+    const confirmMock = vi.fn(() => true);
+    vi.stubGlobal("confirm", confirmMock);
+    panel.configure("/api/workspaces/workspace");
+
+    const first = panel.removeForTest();
+    await panel.removeForTest();
+    respond(new Response(null, { status: 200 }));
+    await first;
+
+    expect(confirmMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });

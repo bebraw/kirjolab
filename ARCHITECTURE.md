@@ -539,6 +539,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   project membership, shared-note provenance, and model-candidate evidence as
   typed hypermedia links without making the projection authoritative.
 - Derive bounded workspace search and hypermedia projections from canonical state until scale measurements justify a persisted index. Host the project evidence map as a read-only authoring modality paired with ordinary resource actions; never make its visual layout authoritative or the only navigation model.
+- Let the project-evidence Lit panel own guarded legacy project-PDF removal,
+  including annotation and explicit reference-link preconditions, confirmation,
+  stable encoded targets, duplicate-submit gating, and retryable local failures.
+  Keep canonical refresh, PDF navigation, editor-dependent evidence mutations,
+  and workspace notifications in the application coordinator.
 - Invalidate browser resource views with a server-owned control message and a
   coalesced authorized metadata refresh rather than replacing live editor
   state from a workspace snapshot.

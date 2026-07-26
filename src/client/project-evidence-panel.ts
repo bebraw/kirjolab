@@ -1,6 +1,14 @@
 import { html, LitElement, nothing, type TemplateResult } from "lit";
-import type { AnnotationResource, ManuscriptAnchorSelector, PassageLink, PdfResource, PdfSelectionRect } from "../domain/workspace";
+import type {
+  AnnotationResource,
+  ManuscriptAnchorSelector,
+  PassageLink,
+  PdfResource,
+  PdfSelectionRect,
+  PublicationPdfLink,
+} from "../domain/workspace";
 import { formatBytes } from "./format";
+import { errorMessage, expectOk } from "./http";
 import { focusFirstModelEvidence } from "./model-evidence-focus";
 import { adjustSelectionRects, type HighlightGeometryAdjustment } from "./pdf-selection";
 import { accessibleEvidenceExcerpt, anchorActionLabel, anchorMatchState, modelEvidenceKey } from "./research-resource-presentation";
@@ -14,8 +22,9 @@ export type ProjectEvidenceAction =
   | { readonly action: "link-annotation"; readonly annotationId: string }
   | { readonly action: "open-passage"; readonly anchor: ManuscriptAnchorSelector }
   | { readonly action: "open-pdf"; readonly annotationId?: string; readonly page?: number; readonly pdf: PdfResource }
+  | { readonly action: "notice"; readonly message: string }
   | { readonly action: "remove-fragment"; readonly annotationId: string; readonly fragmentId: string }
-  | { readonly action: "remove-pdf"; readonly pdf: PdfResource }
+  | { readonly action: "pdf-removed"; readonly message: string }
   | {
       readonly action: "update-fragment";
       readonly annotationId: string;
@@ -30,6 +39,7 @@ interface ProjectEvidenceData {
   readonly annotations: readonly AnnotationResource[];
   readonly links: readonly PassageLink[];
   readonly pdfs: readonly PdfResource[];
+  readonly publicationPdfLinks: readonly PublicationPdfLink[];
   readonly selectedEvidenceKeys: ReadonlySet<string>;
 }
 
@@ -38,17 +48,28 @@ export class ProjectEvidencePanel extends LitElement {
     data: { state: true },
     evidenceOpen: { state: true },
     expandedPdfs: { state: true },
+    removingPdfId: { state: true },
+    status: { state: true },
   };
 
   declare private data: ProjectEvidenceData;
   declare private evidenceOpen: boolean;
   declare private expandedPdfs: ReadonlySet<string>;
+  declare private removingPdfId: string;
+  declare private status: string;
+  private apiBase = "";
 
   constructor() {
     super();
-    this.data = { annotations: [], links: [], pdfs: [], selectedEvidenceKeys: new Set() };
+    this.data = { annotations: [], links: [], pdfs: [], publicationPdfLinks: [], selectedEvidenceKeys: new Set() };
     this.evidenceOpen = false;
     this.expandedPdfs = new Set();
+    this.removingPdfId = "";
+    this.status = "";
+  }
+
+  configure(apiBase: string): void {
+    this.apiBase = apiBase;
   }
 
   setEvidence(data: ProjectEvidenceData): void {
@@ -107,6 +128,7 @@ export class ProjectEvidencePanel extends LitElement {
             ${unassigned.map((annotation) => this.renderAnnotation(annotation))}
           </div>
         </div>
+        <p class="status-line px-1" role="status" ?hidden=${!this.status}>${this.status}</p>
       </details>
     `;
   }
@@ -129,8 +151,36 @@ export class ProjectEvidencePanel extends LitElement {
     const button = event.currentTarget as HTMLButtonElement;
     const pdf = this.data.pdfs.find((item) => item.id === button.dataset.pdfId);
     if (!pdf) return;
-    if (button.dataset.pdfAction === "remove") this.emit({ action: "remove-pdf", pdf });
+    if (button.dataset.pdfAction === "remove") void this.removePdf(pdf);
     else if (button.dataset.pdfAction === "open") this.emit({ action: "open-pdf", pdf });
+  }
+
+  protected async removePdf(pdf: PdfResource): Promise<void> {
+    if (this.removingPdfId) return;
+    const annotations = this.data.annotations.filter((annotation) => annotation.pdfId === pdf.id).length;
+    const references = this.data.publicationPdfLinks.filter((link) => link.pdfId === pdf.id).length;
+    if (annotations + references > 0) {
+      const message = `Cannot remove ${pdf.name}: remove ${annotations} highlight(s) and ${references} reference link(s) first.`;
+      this.status = message;
+      this.emit({ action: "notice", message });
+      return;
+    }
+    if (!globalThis.confirm(`Remove ${pdf.name} from this project? The imported PDF bytes will be deleted.`)) return;
+    this.removingPdfId = pdf.id;
+    this.status = `Removing ${pdf.name}…`;
+    try {
+      const response = await fetch(`${this.apiBase}/pdfs/${encodeURIComponent(pdf.id)}`, {
+        method: "DELETE",
+        credentials: "same-origin",
+      });
+      await expectOk(response);
+      this.status = "";
+      this.emit({ action: "pdf-removed", message: `${pdf.name} removed from the project.` });
+    } catch (error) {
+      this.status = errorMessage(error, `Could not remove ${pdf.name}.`);
+    } finally {
+      this.removingPdfId = "";
+    }
   }
 
   protected selectEvidence(event: Event): void {
@@ -199,9 +249,10 @@ export class ProjectEvidencePanel extends LitElement {
             data-pdf-action="remove"
             aria-label="Remove from project"
             title="Remove this legacy project PDF"
+            ?disabled=${Boolean(this.removingPdfId)}
             @click=${this.actOnPdf}
           >
-            Remove
+            ${this.removingPdfId === pdf.id ? "Removing…" : "Remove"}
           </button>
         </div>
         <details

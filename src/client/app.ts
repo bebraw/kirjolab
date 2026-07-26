@@ -786,12 +786,18 @@ class WorkspaceApp {
       this.#flushPendingUpdates();
     });
     this.#elements.pdfUpload.addEventListener("change", () => void this.#uploadPdf());
+    this.#elements.projectEvidencePanel.configure(apiBase);
     this.#elements.projectEvidencePanel.addEventListener(projectEvidenceActionEvent, (event) => {
       const detail = (event as CustomEvent<ProjectEvidenceAction>).detail;
       if (detail.action === "open-pdf") {
         this.#elements.projectAnnotationForm.selectPdf(detail.pdf.id);
         void this.#showPaper(detail.pdf, detail.page, detail.annotationId);
-      } else if (detail.action === "remove-pdf") void this.#removePdf(detail.pdf);
+      } else if (detail.action === "notice") this.#showToast(detail.message);
+      else if (detail.action === "pdf-removed")
+        void this.#resourceRefresh
+          .request()
+          .then(() => this.#showToast(detail.message))
+          .catch(() => this.#showToast("The PDF was removed, but project resources could not be refreshed."));
       else if (detail.action === "evidence") this.#setModelEvidenceSelected(detail.key, detail.selected);
       else if (detail.action === "link-annotation") void this.#linkAnnotation(detail.annotationId);
       else if (detail.action === "edit-annotation") this.#editAnnotation(detail.annotation);
@@ -2557,27 +2563,10 @@ class WorkspaceApp {
       annotations,
       links,
       pdfs,
+      publicationPdfLinks: this.#snapshot.publicationPdfLinks,
       selectedEvidenceKeys: this.#elements.assistantWorkflowStatus.selectedEvidenceKeys,
     });
     this.#elements.projectAnnotationForm.setPdfs(pdfs, this.#renderedPdfId ?? "");
-  }
-
-  async #removePdf(pdf: PdfResource): Promise<void> {
-    if (!this.#snapshot) return;
-    const annotations = this.#snapshot.annotations.filter((annotation) => annotation.pdfId === pdf.id).length;
-    const references = this.#snapshot.publicationPdfLinks.filter((link) => link.pdfId === pdf.id).length;
-    if (annotations + references > 0) {
-      this.#showToast(`Cannot remove ${pdf.name}: remove ${annotations} highlight(s) and ${references} reference link(s) first.`);
-      return;
-    }
-    if (!confirm(`Remove ${pdf.name} from this project? The imported PDF bytes will be deleted.`)) return;
-    const response = await fetch(`${apiBase}/pdfs/${encodeURIComponent(pdf.id)}`, {
-      method: "DELETE",
-      credentials: "same-origin",
-    });
-    await expectOk(response);
-    await this.#resourceRefresh.request();
-    this.#showToast(`${pdf.name} removed from the project.`);
   }
 
   #renderPublications(publications: PublicationResource[]): void {

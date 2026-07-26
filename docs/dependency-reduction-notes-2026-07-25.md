@@ -4184,3 +4184,29 @@ and unique production package counts remain unchanged at 135,411 B raw /
 
 Full native CI passes all 1,497 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Lit Ownership: Legacy Project PDF Removal
+
+`ProjectEvidencePanel` now owns guarded legacy project-PDF removal, deriving
+annotation and explicit publication-link preconditions from its canonical
+input, plus confirmation, stable encoded PDF targets, response validation,
+duplicate-submit gating, pending and retryable failure state, and the typed
+completed-removal outcome on its existing action channel. `WorkspaceApp`
+retains canonical project-resource refresh, workspace notification policy,
+PDF navigation, grounding authority, and editor-dependent evidence mutations.
+
+This checkpoint reduces `src/client/app.ts` from 5,096 to 5,085 lines (-11)
+and grows the project evidence panel from 367 to 418 lines. Runtime source
+across those files increases by 40 lines while removing the coordinator
+PDF-removal method and keeping removal eligibility derivable instead of
+introducing separate boolean state. Focused coverage passes relationship
+preconditions, cancellation, stable encoded targets, successful completion,
+provider failure and retry, and duplicate removal submissions.
+
+The browser application artifact changes from 810,614 B raw / 219,688 B gzip
+to 811,437 B raw / 219,965 B gzip (+823 B raw / +277 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,501 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
