@@ -5705,6 +5705,27 @@ component members.
 Full native CI passes all 1,583 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Active PDF One-Use Derivations
+
+`WorkspaceApp` now derives the active workspace annotations and private library
+highlights directly while assembling the PDF load context. The removed helpers
+each had one caller and no independent behavior or contract, so keeping the
+filters at their use site reduces coordinator concepts without moving incidental
+logic into another module.
+
+This checkpoint reduces `src/client/app.ts` from 3,769 to 3,761 lines (-8). The
+browser application artifact changes from 822,192 B raw / 222,638 B gzip to
+822,140 B raw / 222,636 B gzip (-52 B raw / -2 B gzip). Styles, direct and unique
+production package counts, and the readability audit remain unchanged at
+135,411 B raw / 23,373 B gzip, 18, 150, and 249 externally visible low-level
+component members.
+
+The affected guardrails pass formatting, lint, strict types, and all 1,584
+unit/coverage tests.
+
+Full native CI passes all 1,584 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Open Comment Count
 
 `ManuscriptCommentList` now derives and returns the open-comment count while

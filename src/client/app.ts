@@ -2672,8 +2672,10 @@ class WorkspaceApp {
     const { workspacePdf, libraryPdf, projectReferencePdf } = this.#activePdfResources(tab);
     if (!workspacePdf && !libraryPdf && !projectReferencePdf) return null;
     if (workspacePdf) this.#elements.projectAnnotationForm.selectPdf(workspacePdf.id);
-    const annotations = this.#activePdfAnnotations(workspacePdf);
-    const privateHighlights = this.#activePdfHighlights(libraryPdf);
+    const annotations = workspacePdf ? (this.#snapshot?.annotations.filter((item) => item.pdfId === workspacePdf.id) ?? []) : [];
+    const privateHighlights = libraryPdf
+      ? (this.#librarySnapshot?.highlights.filter((item) => item.artifactId === libraryPdf.id) ?? [])
+      : [];
     const url = this.#activePdfUrl(workspacePdf, libraryPdf, projectReferencePdf);
     if (!url) return null;
     return { tab, workspacePdf, libraryPdf, annotations, privateHighlights, url };
@@ -2699,16 +2701,6 @@ class WorkspaceApp {
       libraryPdf,
       projectReferencePdf: libraryPdf ? undefined : this.#projectReferencePdf(tab.id),
     };
-  }
-
-  #activePdfAnnotations(workspacePdf: PdfResource | undefined): AnnotationResource[] {
-    if (!workspacePdf) return [];
-    return this.#snapshot?.annotations.filter((annotation) => annotation.pdfId === workspacePdf.id) ?? [];
-  }
-
-  #activePdfHighlights(libraryPdf: LibraryPdfArtifact | undefined): LibraryHighlight[] {
-    if (!libraryPdf) return [];
-    return this.#librarySnapshot?.highlights.filter((highlight) => highlight.artifactId === libraryPdf.id) ?? [];
   }
 
   #activePdfUrl(
