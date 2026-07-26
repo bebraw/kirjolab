@@ -165,10 +165,11 @@ The adopted components own bounded presentation:
   validated workspace snapshot. The coordinator retains snapshot application,
   project-tree and preview rendering, image insertion and deletion, and toast
   policy.
-- The editor Insert menu owns scholarly-syntax choices, relative include-file
-  option rendering, empty state, and local menu closing with typed syntax and
-  include-file intents. The application coordinator retains collaborative
-  selection resolution and Yjs edits.
+- The editor Insert menu owns scholarly-syntax choices and their displayed
+  templates, relative include-file option rendering, empty state, and local menu
+  closing with typed syntax-template and include-file intents. The application
+  coordinator retains passage-aware link adaptation, collaborative selection
+  resolution, and Yjs edits.
 - The source completion list owns citation and include option presentation,
   bound-editor citation and include context detection, candidate ranking and
   display adaptation, empty-state hiding, popup positioning, hover and keyboard

@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type { ProjectFile } from "../domain/project-files";
-import { EditorInsertMenu, editorInsertActionEvent, type EditorInsertAction, type EditorSyntaxKind } from "./editor-insert-menu";
+import {
+  EditorInsertMenu,
+  editorInsertActionEvent,
+  type EditorInsertAction,
+  type EditorSyntaxKind,
+  type EditorSyntaxTemplate,
+} from "./editor-insert-menu";
 
 const createdAt = "2026-07-25T00:00:00.000Z";
 const mainFile: ProjectFile = {
@@ -26,8 +32,8 @@ class TestEditorInsertMenu extends EditorInsertMenu {
     this.emitAction(action);
   }
 
-  selectSyntaxForTest(kind: EditorSyntaxKind): void {
-    this.emitForTest({ action: "syntax", kind });
+  selectSyntaxForTest(kind: EditorSyntaxKind, template: EditorSyntaxTemplate): void {
+    this.emitForTest({ action: "syntax", kind, template });
   }
 }
 
@@ -48,10 +54,10 @@ describe("editor insert menu", () => {
     menu.addEventListener(editorInsertActionEvent, (event) => {
       actions.push((event as CustomEvent<EditorInsertAction>).detail);
     });
-    menu.selectSyntaxForTest("citation");
+    menu.selectSyntaxForTest("citation", { text: ":cite[key]", select: "key" });
     menu.emitForTest({ action: "include-file", path: mainFile.path, relativePath: "../main.md" });
     expect(actions).toEqual([
-      { action: "syntax", kind: "citation" },
+      { action: "syntax", kind: "citation", template: { text: ":cite[key]", select: "key" } },
       { action: "include-file", path: "main.md", relativePath: "../main.md" },
     ]);
   });

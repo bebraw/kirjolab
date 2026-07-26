@@ -3,9 +3,14 @@ import { relativeProjectPath, type ProjectFile } from "../domain/project-files";
 
 export type EditorInsertAction =
   | { readonly action: "include-file"; readonly path: string; readonly relativePath: string }
-  | { readonly action: "syntax"; readonly kind: EditorSyntaxKind };
+  | { readonly action: "syntax"; readonly kind: EditorSyntaxKind; readonly template: EditorSyntaxTemplate };
 
 export type EditorSyntaxKind = "anchor" | "bibliography" | "citation" | "footnote" | "link" | "reference";
+
+export interface EditorSyntaxTemplate {
+  readonly text: string;
+  readonly select?: string;
+}
 
 export const editorInsertActionEvent = "editor-insert-action";
 
@@ -14,13 +19,13 @@ interface EditorInsertData {
   readonly files: readonly ProjectFile[];
 }
 
-const syntaxOptions: readonly { readonly kind: EditorSyntaxKind; readonly label: string; readonly syntax: string }[] = [
-  { kind: "citation", label: "Citation", syntax: ":cite[key]" },
-  { kind: "reference", label: "Cross-reference", syntax: ":ref[target]" },
-  { kind: "anchor", label: "Anchor", syntax: "{#label}" },
-  { kind: "footnote", label: "Footnote", syntax: "[^note]" },
-  { kind: "link", label: "Link", syntax: "[text](url)" },
-  { kind: "bibliography", label: "Bibliography", syntax: "::bibliography[]" },
+const syntaxOptions: readonly { readonly kind: EditorSyntaxKind; readonly label: string; readonly template: EditorSyntaxTemplate }[] = [
+  { kind: "citation", label: "Citation", template: { text: ":cite[key]", select: "key" } },
+  { kind: "reference", label: "Cross-reference", template: { text: ":ref[target]", select: "target" } },
+  { kind: "anchor", label: "Anchor", template: { text: "{#label}", select: "label" } },
+  { kind: "footnote", label: "Footnote", template: { text: "[^note]", select: "note" } },
+  { kind: "link", label: "Link", template: { text: "[text](url)", select: "text" } },
+  { kind: "bibliography", label: "Bibliography", template: { text: "::bibliography[]" } },
 ];
 
 export class EditorInsertMenu extends LitElement {
@@ -53,9 +58,9 @@ export class EditorInsertMenu extends LitElement {
       <summary class="button-secondary">Insert</summary>
       <div class="editor-command-menu ui-menu-panel">
         ${syntaxOptions.map(
-          ({ kind, label, syntax }) =>
-            html`<button type="button" data-insert-syntax=${kind} @click=${() => this.selectSyntax(kind)}>
-              <strong>${label}</strong><code>${syntax}</code>
+          ({ kind, label, template }) =>
+            html`<button type="button" data-insert-syntax=${kind} @click=${() => this.selectSyntax(kind, template)}>
+              <strong>${label}</strong><code>${template.text}</code>
             </button>`,
         )}
         <div class="border-t border-app-line pt-1" id="include-project-file-list" aria-label="Include project file">
@@ -72,8 +77,8 @@ export class EditorInsertMenu extends LitElement {
     if (typeof this.querySelector === "function") this.querySelector<HTMLDetailsElement>("details")?.removeAttribute("open");
   }
 
-  private selectSyntax(kind: EditorSyntaxKind): void {
-    this.emitAction({ action: "syntax", kind });
+  private selectSyntax(kind: EditorSyntaxKind, template: EditorSyntaxTemplate): void {
+    this.emitAction({ action: "syntax", kind, template });
   }
 
   private renderFile(file: ProjectFile, activeFile: ProjectFile): TemplateResult {

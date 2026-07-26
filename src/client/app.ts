@@ -46,7 +46,7 @@ import { PreviewDocument } from "./preview-document";
 import { sourceCitationOpenEvent } from "./source-citation-control";
 import { workspaceSurfaceChangeEvent } from "./workspace-surface-switcher";
 import { projectHistoryOpenEvent } from "./project-history-trigger";
-import { editorInsertActionEvent, type EditorInsertAction, type EditorSyntaxKind } from "./editor-insert-menu";
+import { editorInsertActionEvent, type EditorInsertAction, type EditorSyntaxTemplate } from "./editor-insert-menu";
 import { sourceSpanAt } from "./composition-source-map";
 import type { AppToastOptions } from "./app-toast";
 import { expectOk, jsonFetch } from "./http";
@@ -242,11 +242,6 @@ interface PreviewInputs {
   readonly publicationComposition: ProjectComposition | null;
   readonly filePreview: ProjectFilePreview | null;
   readonly renderedSource: string;
-}
-
-interface SourceSyntaxTemplate {
-  readonly text: string;
-  readonly select?: string;
 }
 
 const workspaceId = readWorkspaceId();
@@ -673,7 +668,7 @@ class WorkspaceApp {
     });
     this.#elements.editorInsertMenu.addEventListener(editorInsertActionEvent, (event) => {
       const detail = (event as CustomEvent<EditorInsertAction>).detail;
-      if (detail.action === "syntax") this.#insertSourceSyntax(detail.kind);
+      if (detail.action === "syntax") this.#insertSourceSyntax(detail);
       else this.#insertProjectIncludeFromMenu(detail.relativePath, detail.path);
     });
     this.#elements.sourceCompletion.addEventListener(sourceCompletionActionEvent, (event) => {
@@ -2860,12 +2855,11 @@ class WorkspaceApp {
     };
   }
 
-  #insertSourceSyntax(kind: EditorSyntaxKind): void {
+  #insertSourceSyntax({ kind, template }: Extract<EditorInsertAction, { readonly action: "syntax" }>): void {
     const passage = this.#selectedAuthoringPassage();
     const caret = this.#resolvedAuthoringCaret() ?? this.#elements.source.selectionEnd;
-    const template = this.#sourceSyntaxTemplate(kind, passage);
-    if (!template) return;
-    this.#applySourceSyntax(template, passage, caret);
+    const resolved = kind === "link" && passage ? { text: `[${passage.excerpt}](url)`, select: "url" } : template;
+    this.#applySourceSyntax(resolved, passage, caret);
     this.#showToast("Inserted scholarly syntax.");
   }
 
@@ -2875,19 +2869,7 @@ class WorkspaceApp {
     this.#showToast(`Included ${path}.`);
   }
 
-  #sourceSyntaxTemplate(kind: string, passage: AuthoringPassage | null): SourceSyntaxTemplate | undefined {
-    const templates: Readonly<Record<string, SourceSyntaxTemplate>> = {
-      citation: { text: ":cite[key]", select: "key" },
-      reference: { text: ":ref[target]", select: "target" },
-      anchor: { text: "{#label}", select: "label" },
-      footnote: { text: "[^note]", select: "note" },
-      link: { text: passage ? `[${passage.excerpt}](url)` : "[text](url)", select: passage ? "url" : "text" },
-      bibliography: { text: "::bibliography[]" },
-    };
-    return templates[kind];
-  }
-
-  #applySourceSyntax(template: SourceSyntaxTemplate, passage: AuthoringPassage | null, caret: number): void {
+  #applySourceSyntax(template: EditorSyntaxTemplate, passage: AuthoringPassage | null, caret: number): void {
     const start = passage?.start ?? caret;
     const end = passage?.end ?? caret;
     this.#document.transact(() => {

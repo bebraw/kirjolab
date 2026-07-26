@@ -175,6 +175,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   file. Keep workflow-template selection and navigation, collaborative caret
   capture, Yjs insertion, optimistic hiding, Undo timing, snapshot application,
   selection, rendering, and toast policy in the workspace coordinator.
+- Let the editor Insert menu own the scholarly syntax templates it displays and
+  emit those templates with typed syntax choices. Keep passage-aware link
+  adaptation, collaborative selection resolution, and Yjs edits in the
+  workspace coordinator.
 - Let the project-image upload control own file-input state, sequential upload
   transport, response validation, duplicate-submit gating, and retryable local
   status. Emit only the final validated workspace snapshot and completion

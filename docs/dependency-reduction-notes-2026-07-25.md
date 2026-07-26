@@ -5705,6 +5705,29 @@ component members.
 Full native CI passes all 1,583 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Editor Syntax Templates
+
+`EditorInsertMenu` now owns the scholarly syntax templates it displays and
+emits each template with its typed syntax choice. `WorkspaceApp` retains only
+passage-aware link adaptation, collaborative selection resolution, and the Yjs
+edit and focus consequences.
+
+This checkpoint reduces `src/client/app.ts` from 3,828 to 3,810 lines (-18) and
+grows the editor Insert menu from 100 to 105 lines (+5), for a 13-line runtime
+source reduction. Its focused test grows from 58 to 64 lines (+6) to assert the
+template-bearing event contract, leaving the full runtime and focused-test
+boundary seven lines smaller. Two focused and four related tests pass through
+the affected guardrails alongside formatting, lint, and strict types.
+
+The browser application artifact changes from 822,241 B raw / 222,667 B gzip
+to 822,140 B raw / 222,608 B gzip (-101 B raw / -59 B gzip). Styles, direct and
+unique production package counts, and the readability audit remain unchanged
+at 135,411 B raw / 23,373 B gzip, 18, 150, and 249 externally visible low-level
+component members.
+
+Full native CI passes all 1,584 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
+
 ## Shared Workflow File Opening
 
 `WorkspaceApp` now uses one lazy workflow-file opener for the research diary,
