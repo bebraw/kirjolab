@@ -6,14 +6,15 @@ import type {
   LibraryPdfNote,
   ResearchShareSnapshot,
 } from "../domain/reference-library";
+import { errorMessage, expectOk } from "./http";
 
 export type LibraryPdfAnnotationListAction =
   | { readonly action: "cite-highlight"; readonly highlight: LibraryHighlight }
-  | { readonly action: "delete-markup"; readonly markup: LibraryPdfMarkup }
   | { readonly action: "edit-highlight"; readonly highlight: LibraryHighlight }
   | { readonly action: "edit-note"; readonly note: LibraryPdfNote }
   | { readonly action: "open-highlight"; readonly highlight: LibraryHighlight }
   | { readonly action: "open-markup"; readonly artifact: LibraryPdfArtifact; readonly page: number }
+  | { readonly action: "markup-deleted" }
   | { readonly action: "revoke-share"; readonly shareId: string }
   | { readonly action: "share-highlight"; readonly highlight: LibraryHighlight };
 
@@ -29,9 +30,10 @@ interface AnnotationListData {
 }
 
 export class LibraryPdfAnnotationList extends LitElement {
-  static override properties = { data: { state: true } };
+  static override properties = { data: { state: true }, deletion: { state: true } };
 
   declare private data: AnnotationListData;
+  declare private deletion: { readonly id: string; readonly pending: boolean; readonly status: string } | null;
 
   constructor() {
     super();
@@ -43,6 +45,7 @@ export class LibraryPdfAnnotationList extends LitElement {
       researchShares: [],
       workspace: false,
     };
+    this.deletion = null;
   }
 
   setData(data: AnnotationListData): void {
@@ -136,9 +139,37 @@ export class LibraryPdfAnnotationList extends LitElement {
               Edit note
             </button>`
           : nothing}
-        <button class="button-secondary" type="button" @click=${() => this.emitAction({ action: "delete-markup", markup })}>Delete</button>
+        <button
+          class="button-secondary"
+          type="button"
+          ?disabled=${Boolean(this.deletion?.pending)}
+          @click=${() => void this.deleteMarkup(markup)}
+        >
+          ${this.deletion?.id === markup.id && this.deletion.pending ? "Deleting…" : "Delete"}
+        </button>
       </div>
+      <p class="status-line" role="status" ?hidden=${this.deletion?.id !== markup.id || !this.deletion.status}>${this.deletion?.status}</p>
     </article>`;
+  }
+
+  protected async deleteMarkup(markup: LibraryPdfMarkup): Promise<void> {
+    if (this.deletion?.pending) return;
+    this.deletion = { id: markup.id, pending: true, status: "Deleting private annotation…" };
+    try {
+      const response = await fetch(
+        `/api/library/references/${encodeURIComponent(markup.referenceId)}/pdf-markups/${encodeURIComponent(markup.id)}`,
+        { method: "DELETE", credentials: "same-origin" },
+      );
+      await expectOk(response);
+      this.deletion = null;
+      this.emitAction({ action: "markup-deleted" });
+    } catch (error) {
+      this.deletion = {
+        id: markup.id,
+        pending: false,
+        status: errorMessage(error, "Could not delete the private annotation."),
+      };
+    }
   }
 }
 

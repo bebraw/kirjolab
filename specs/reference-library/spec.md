@@ -287,9 +287,11 @@ memory and makes citation aliases compete with stable source identity.
   notifications.
 - A bounded light-DOM annotation list owns the private reader's saved highlight
   and markup cards, empty state, comments, share and citation availability, and
-  typed navigation, edit, cite, share, revoke, and delete intents. The
-  application coordinator retains PDF navigation, annotation persistence,
-  project citation and research-share workflows, refreshes, and notifications.
+  typed navigation, edit, cite, share, and revoke intents. A saved markup card
+  owns its stable encoded delete request, a list-wide duplicate-request lock,
+  retryable card-local failure state, and a typed deletion outcome. The
+  application coordinator retains PDF navigation, project citation and
+  research-share workflows, canonical refreshes, and notifications.
 - Saved text-highlight comments and page-note bodies expose an explicit edit
   action. Editing preserves the annotation id, page, geometry, and creation
   time while advancing its update time; it never changes the immutable PDF.

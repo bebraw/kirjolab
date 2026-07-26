@@ -4382,3 +4382,27 @@ and unique production package counts remain unchanged at 135,411 B raw /
 
 Full native CI passes all 1,518 unit/coverage tests, 120 Workers-
 runtime tests, and 74 browser tests.
+
+## Continued Lit Ownership: Saved PDF Markup Deletion
+
+`LibraryPdfAnnotationList` now owns deletion initiated from a saved markup card,
+including stable encoded reference and markup targets, a list-wide pending
+lock, retryable card-local failure state, and a typed completion outcome. One
+deletion state object keeps identity, pending status, and presentation together.
+`WorkspaceApp` retains only canonical Library refresh and the successful-
+deletion toast.
+
+This checkpoint reduces `src/client/app.ts` from 4,966 to 4,961 lines (-5)
+and grows the Library PDF annotation list from 153 to 184 lines. Runtime source
+across those files increases by 26 lines while removing the final generic
+coordinator PDF-markup deletion request method. Focused coverage passes stable
+encoded targets, typed completion, provider failure and retry, originating-card
+rendering, and cross-card duplicate suppression.
+
+The browser application artifact changes from 816,820 B raw / 220,797 B gzip
+to 817,425 B raw / 220,876 B gzip (+605 B raw / +79 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,520 unit/coverage tests, 120 Workers-
+runtime tests, and 74 browser tests.

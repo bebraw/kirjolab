@@ -872,7 +872,7 @@ class WorkspaceApp {
       else if (detail.action === "revoke-share") void this.#revokePrivateResearch(detail.shareId);
       else if (detail.action === "open-markup") void this.#openLibraryPdf(detail.artifact, detail.page);
       else if (detail.action === "edit-note") this.#editLibraryPdfNote(detail.note);
-      else void this.#deleteLibraryPdfMarkup(detail.markup);
+      else void this.#completeLibraryPdfMarkupDeletion();
     });
     this.#elements.libraryProjectUse.addEventListener(libraryPdfProjectUseActionEvent, (event) => {
       const { referenceId, referenceKey } = (event as CustomEvent<LibraryPdfProjectUseAction>).detail;
@@ -4601,12 +4601,7 @@ class WorkspaceApp {
     this.#showToast("Note moved.");
   }
 
-  async #deleteLibraryPdfMarkup(markup: LibraryPdfMarkup): Promise<void> {
-    const response = await fetch(
-      `/api/library/references/${encodeURIComponent(markup.referenceId)}/pdf-markups/${encodeURIComponent(markup.id)}`,
-      { method: "DELETE", credentials: "same-origin" },
-    );
-    await expectOk(response);
+  async #completeLibraryPdfMarkupDeletion(): Promise<void> {
     await this.#refreshReferenceLibrary();
     this.#showToast("Private annotation deleted.");
   }

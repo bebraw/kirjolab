@@ -278,7 +278,9 @@ The adopted components own bounded presentation:
   annotation component composition, and typed close intent.
 - The Library PDF annotation list owns saved private-highlight and markup cards,
   empty state, comments, share and citation availability, and typed navigation,
-  edit, cite, share, revoke, and delete intents.
+  edit, cite, share, and revoke intents. It also owns saved-markup card deletion,
+  stable encoded targets, list-wide pending suppression, retryable card-local
+  failures, and a typed deletion outcome.
 - The Library PDF markup layer owns saved and draft drawing SVG, note pins,
   tool, saved-resource selection, note-composition, and open-note-card state;
   live draft geometry updates; note movement and focus restoration; active
@@ -613,9 +615,10 @@ reason to wrap static markup mechanically.
   coordinator.
 - The Library PDF annotation list replaces five imperative highlight and markup
   render helpers plus their per-card handlers with one delegated typed action
-  stream. The application coordinator retains PDF navigation, annotation
-  mutations, project citation and research-share workflows, refreshes, and
-  notification policy.
+  stream. It also removes the generic coordinator markup-deletion request by
+  owning deletion initiated from a saved markup card. The application
+  coordinator retains PDF navigation, project citation and research-share
+  workflows, canonical refreshes, and notification policy.
 - The Library PDF markup layer replaces imperative SVG, polyline, draft-pin,
   saved-pin, and note-card construction plus coordinator-owned draft-line and
   note-focus queries. It also owns page-relative pointer normalization and its

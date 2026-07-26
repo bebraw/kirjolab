@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type {
   LibraryHighlight,
   LibraryPdfArtifact,
@@ -24,7 +24,13 @@ class TestAnnotationList extends LibraryPdfAnnotationList {
   emitForTest(action: LibraryPdfAnnotationListAction): void {
     this.emitAction(action);
   }
+
+  async deleteForTest(markup: LibraryPdfDrawing | LibraryPdfNote): Promise<void> {
+    await this.deleteMarkup(markup);
+  }
 }
+
+afterEach(() => vi.restoreAllMocks());
 
 const artifact: LibraryPdfArtifact = {
   id: "pdf-1",
@@ -121,7 +127,45 @@ describe("library PDF annotation list", () => {
     list.emitForTest({ action: "revoke-share", shareId: share.id });
     list.emitForTest({ action: "open-markup", artifact, page: note.page });
     list.emitForTest({ action: "edit-note", note });
-    list.emitForTest({ action: "delete-markup", markup: drawing });
+    list.emitForTest({ action: "markup-deleted" });
     expect(actions).toHaveLength(8);
+  });
+
+  it("deletes a markup through stable encoded identities", async () => {
+    const list = new TestAnnotationList();
+    const actions: LibraryPdfAnnotationListAction[] = [];
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 200 }));
+    list.addEventListener(libraryPdfAnnotationListActionEvent, (event) =>
+      actions.push((event as CustomEvent<LibraryPdfAnnotationListAction>).detail),
+    );
+
+    await list.deleteForTest({ ...drawing, id: "drawing/1", referenceId: "reference/1" });
+
+    expect(fetchMock).toHaveBeenCalledWith("/api/library/references/reference%2F1/pdf-markups/drawing%2F1", {
+      credentials: "same-origin",
+      method: "DELETE",
+    });
+    expect(actions).toEqual([{ action: "markup-deleted" }]);
+  });
+
+  it("reports deletion failures, suppresses overlap, and permits retry", async () => {
+    const list = new TestAnnotationList();
+    let respond = (_response: Response): void => undefined;
+    const pendingResponse = new Promise<Response>((resolve) => {
+      respond = resolve;
+    });
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockReturnValueOnce(pendingResponse)
+      .mockResolvedValueOnce(new Response(null, { status: 200 }));
+
+    const first = list.deleteForTest(drawing);
+    await list.deleteForTest(note);
+    respond(new Response("Unavailable", { status: 503 }));
+    await first;
+    expect(list.renderForTest()).toBeDefined();
+    await list.deleteForTest(drawing);
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });
