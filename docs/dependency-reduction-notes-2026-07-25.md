@@ -2585,3 +2585,23 @@ and unique production package counts remain unchanged at 135,411 B raw /
 
 Full native CI passes all 1,410 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Lit Ownership: Project Quick Open
+
+`ProjectTreePanel` now owns workspace-only Cmd/Ctrl+P detection, open-dialog
+suppression, the document listener lifecycle, and a typed quick-open intent.
+`WorkspaceApp` retains rail and layout coordination, then asks the visible
+panel to focus its filter. The follow-up also removes obsolete anchor-link DOM
+identity attributes after passage resolution became typed panel data.
+
+This checkpoint reduces `src/client/app.ts` from 7,129 to 7,116 lines (-13)
+and removes its remaining global keyboard listener. Focused unit and browser
+coverage passes project-tree rendering and the collapsed-rail quick-open flow.
+
+The browser application artifact changes from 799,325 B raw / 214,992 B gzip
+to 799,504 B raw / 215,054 B gzip (+179 B raw / +62 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,411 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.

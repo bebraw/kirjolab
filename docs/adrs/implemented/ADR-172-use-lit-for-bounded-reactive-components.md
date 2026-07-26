@@ -101,8 +101,9 @@ The adopted components own bounded presentation:
   expanded state, grounding selection, live passage-resolution presentation,
   stroke controls, and typed navigation and mutation intents.
 - The project tree panel owns path filtering, sorted folder, file, and image
-  rows, active and entry presentation, quick-open selection, action menus, and
-  typed file, folder, and image intents.
+  rows, active and entry presentation, the workspace quick-open shortcut and
+  selection, action menus, listener teardown, and typed file, folder, image,
+  and quick-open intents.
 - The editor Insert menu owns scholarly-syntax choices, relative include-file
   option rendering, empty state, and local menu closing with typed syntax and
   include-file intents. The application coordinator retains collaborative

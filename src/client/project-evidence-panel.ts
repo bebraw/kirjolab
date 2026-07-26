@@ -250,7 +250,6 @@ export class ProjectEvidencePanel extends LitElement {
                 type="button"
                 class="button-secondary w-full justify-center"
                 data-annotation-id=${annotation.id}
-                data-anchor-link-id=${passage.id}
                 data-anchor-status=${passage.resolution.status}
                 data-anchor-match=${anchorMatchState(passage.resolution)}
                 ?disabled=${passage.resolution.status !== "resolved"}

@@ -89,7 +89,7 @@ describe("renderHomePage", () => {
     expect(html).toContain('id="publication-list-panel"');
     expect(html).toContain('id="candidate-list-panel"');
     expect(html).toContain('id="project-evidence-panel"');
-    expect(html).toContain('id="project-tree-panel"');
+    expect(html).toContain('<project-tree-panel id="project-tree-panel" app-mode="workspace">');
     expect(html).toContain('<a class="review-study-launch" href="/review">');
     expect(html).toContain("Open the review catalog to link an SLR or MLR");
     expect(html).not.toContain('id="review-study-dialog"');

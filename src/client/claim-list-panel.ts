@@ -176,7 +176,6 @@ export class ClaimListPanel extends LitElement {
                 type="button"
                 class="button-secondary col-span-2 justify-center"
                 data-claim-id=${claim.id}
-                data-anchor-link-id=${passage.id}
                 data-anchor-status=${passage.resolution.status}
                 data-anchor-match=${anchorMatchState(passage.resolution)}
                 ?disabled=${passage.resolution.status !== "resolved"}

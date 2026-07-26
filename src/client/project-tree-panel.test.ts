@@ -44,6 +44,14 @@ class TestProjectTreePanel extends ProjectTreePanel {
     this.handleFilterKey(event);
   }
 
+  quickOpenForTest(event: KeyboardEvent): void {
+    this.handleQuickOpen(event);
+  }
+
+  disconnectForTest(): void {
+    this.disconnectedCallback();
+  }
+
   actForTest(action?: string, ids: { assetId?: string; fileId?: string; folderId?: string } = {}): void {
     this.act(
       eventWithTarget({
@@ -105,6 +113,37 @@ describe("project tree panel", () => {
     panel.keyForTest("ArrowDown");
 
     expect(actions).toEqual([{ action: "select-file", fileId: file.id, focusEditor: true }]);
+  });
+
+  it("emits the global quick-open intent and removes its listener", () => {
+    const panel = new TestProjectTreePanel();
+    const actions: ProjectTreeAction[] = [];
+    let removed = false;
+    Object.defineProperty(panel, "ownerDocument", {
+      value: {
+        querySelector: () => null,
+        removeEventListener: () => {
+          removed = true;
+        },
+      },
+    });
+    panel.setAttribute("app-mode", "workspace");
+    panel.addEventListener(projectTreeActionEvent, (event) => actions.push((event as CustomEvent<ProjectTreeAction>).detail));
+    const event = new Event("keydown", { cancelable: true }) as KeyboardEvent;
+    Object.defineProperties(event, {
+      altKey: { value: false },
+      ctrlKey: { value: true },
+      key: { value: "p" },
+      metaKey: { value: false },
+      shiftKey: { value: false },
+    });
+
+    panel.quickOpenForTest(event);
+    panel.disconnectForTest();
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(actions).toEqual([{ action: "quick-open" }]);
+    expect(removed).toBe(true);
   });
 
   it("emits only known tree actions and resources", () => {

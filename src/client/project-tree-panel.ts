@@ -7,6 +7,7 @@ export type ProjectTreeAction =
   | { readonly action: "delete-asset"; readonly asset: ProjectAsset }
   | { readonly action: "delete-folder"; readonly folderId: string }
   | { readonly action: "insert-asset"; readonly asset: ProjectAsset }
+  | { readonly action: "quick-open" }
   | { readonly action: "rename-folder"; readonly folderId: string }
   | { readonly action: "select-file"; readonly fileId: string; readonly focusEditor: boolean };
 
@@ -55,6 +56,12 @@ export class ProjectTreePanel extends LitElement {
   override connectedCallback(): void {
     if (!this.hasUpdated) this.replaceChildren();
     super.connectedCallback();
+    this.ownerDocument.addEventListener("keydown", this.handleQuickOpen);
+  }
+
+  override disconnectedCallback(): void {
+    this.ownerDocument.removeEventListener("keydown", this.handleQuickOpen);
+    super.disconnectedCallback();
   }
 
   protected override createRenderRoot(): HTMLElement {
@@ -117,6 +124,22 @@ export class ProjectTreePanel extends LitElement {
     this.query = "";
     this.emit({ action: "select-file", fileId: first.file.id, focusEditor: true });
   }
+
+  protected readonly handleQuickOpen = (event: KeyboardEvent): void => {
+    if (
+      this.getAttribute("app-mode") !== "workspace" ||
+      event.defaultPrevented ||
+      event.altKey ||
+      event.shiftKey ||
+      !(event.metaKey || event.ctrlKey) ||
+      event.key.toLowerCase() !== "p" ||
+      this.ownerDocument.querySelector("dialog[open]")
+    ) {
+      return;
+    }
+    event.preventDefault();
+    this.emit({ action: "quick-open" });
+  };
 
   protected act(event: Event): void {
     const button = event.currentTarget as HTMLButtonElement;

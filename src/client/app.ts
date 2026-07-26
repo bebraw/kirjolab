@@ -807,23 +807,6 @@ class WorkspaceApp {
         .then(() => location.assign(href))
         .catch((error: unknown) => this.#showToast(error instanceof Error ? error.message : "Could not clear offline data"));
     });
-    document.addEventListener("keydown", (event) => {
-      if (
-        appMode !== "workspace" ||
-        event.defaultPrevented ||
-        event.altKey ||
-        event.shiftKey ||
-        !(event.metaKey || event.ctrlKey) ||
-        event.key.toLowerCase() !== "p" ||
-        document.querySelector("dialog[open]")
-      ) {
-        return;
-      }
-      event.preventDefault();
-      this.#layout.setRailCollapsed(false);
-      this.#showRail("files");
-      this.#elements.projectTreePanel.focusFilter();
-    });
     this.#elements.workspaceSwitcher.addEventListener(workspaceSwitchEvent, (event) => {
       location.assign(`/editor/${encodeURIComponent((event as CustomEvent<string>).detail)}`);
     });
@@ -1019,6 +1002,10 @@ class WorkspaceApp {
       if (detail.action === "select-file") {
         this.#selectProjectFile(detail.fileId);
         if (detail.focusEditor) this.#elements.source.focus();
+      } else if (detail.action === "quick-open") {
+        this.#layout.setRailCollapsed(false);
+        this.#showRail("files");
+        this.#elements.projectTreePanel.focusFilter();
       } else if (detail.action === "rename-folder") this.#openProjectFileDialog("rename-folder", detail.folderId);
       else if (detail.action === "delete-folder") this.#deleteProjectFolder(detail.folderId);
       else if (detail.action === "insert-asset") this.#insertProjectImage(detail.asset);

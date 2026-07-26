@@ -122,6 +122,9 @@ collaboration.
   ARIA selection state, and typed navigation intent. The application
   coordinator retains panel visibility, guide rendering, and URL routing;
   the layout manager retains collapse and resize behavior.
+  The bounded project-tree panel owns the workspace-only Cmd/Ctrl+P shortcut
+  and emits a typed quick-open intent; the coordinator reveals the Files rail
+  before asking the panel to focus its filter.
   Research is limited to the actionable Project evidence, Claims, and
   References inventories; project search and graph controls belong to Map. The
   bounded project-publication component owns the complete References collection
