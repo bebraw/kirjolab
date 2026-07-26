@@ -137,7 +137,7 @@ import { assistantOperationDefinition, resolveAssistantTarget, type AssistantTar
 import { assistantTaskChangeEvent, assistantTaskGenerateEvent, type AssistantTaskChange } from "./assistant-task-panel";
 import { assistantWorkflowActionEvent, type AssistantWorkflowAction, type SelectedModelEvidence } from "./assistant-workflow-status";
 import { assistantWorkflowBusy, createAssistantWorkflowActor } from "./assistant-workflow-machine";
-import { citationPageFromLocator, createCitationInsertion, parseCitationKeys, type CitationContext } from "./citations";
+import { citationPageFromLocator, createCitationInsertion, type CitationContext } from "./citations";
 import { projectMapResourceSelectEvent } from "./project-map-workspace";
 import { claimListActionEvent, type ClaimListAction } from "./claim-list-panel";
 import { claimDialogSavedEvent } from "./claim-dialog";
@@ -176,6 +176,7 @@ import { modelProviderChangeEvent } from "./model-provider-settings";
 import { webSourceCapturedEvent } from "./web-source-panels";
 import { citationNetworkOutcomeEvent, type CitationNetworkOutcome } from "./citation-network-workspace";
 import { previewDiagnosticSelectEvent, type PreviewDiagnosticSelection } from "./preview-presentation";
+import { workspacePreviewActionEvent, type WorkspacePreviewAction } from "./workspace-preview";
 import { publicationIntakeActionEvent, type PublicationIntakeAction } from "./publication-intake-panel";
 import {
   applicationVersion,
@@ -844,7 +845,14 @@ class WorkspaceApp {
       if (detail.action === "activate") this.#activateContext(detail.key);
       else this.#closeContextTab(detail.key);
     });
-    this.#elements.workspacePreview.addEventListener("click", (event) => this.#handlePreviewClick(event));
+    this.#elements.workspacePreview.addEventListener(workspacePreviewActionEvent, (event) => {
+      const detail = (event as CustomEvent<WorkspacePreviewAction>).detail;
+      if (detail.action === "source") {
+        this.#syncSourceFromPreviewOffset(detail.offset);
+        return;
+      }
+      this.#openCitation(detail.citation);
+    });
     this.#elements.workspacePreview.addEventListener(previewDiagnosticSelectEvent, (event) => {
       const { fileId, from, to } = (event as CustomEvent<PreviewDiagnosticSelection>).detail;
       this.#focusProjectRange(fileId || this.#snapshot?.entryFileId || "", from, to);
@@ -1628,27 +1636,17 @@ class WorkspaceApp {
     this.#focusProjectRange(this.#snapshot?.entryFileId ?? "", from, to);
   }
 
-  #handlePreviewClick(event: MouseEvent): void {
-    if (this.#openPreviewCitation(event) || !(event.target instanceof Element)) return;
-    if (event.target.closest("a, button, input, select, textarea")) return;
-    const target = event.target.closest<HTMLElement>("[data-source-from][data-source-to]");
-    if (target) this.#syncSourceFromPreviewElement(target);
-  }
-
   #syncSourceFromPreviewCenter(): void {
-    const target = this.#elements.workspacePreview.centeredSourceElement();
-    if (target) this.#syncSourceFromPreviewElement(target, true);
+    const offset = this.#elements.workspacePreview.centeredSourceOffset();
+    if (offset !== null) this.#syncSourceFromPreviewOffset(offset, true);
   }
 
-  #syncSourceFromPreviewElement(target: HTMLElement, centerEditor = false): void {
-    const previewOffset = Number.parseInt(target.dataset.sourceFrom ?? "", 10);
-    if (!Number.isSafeInteger(previewOffset)) return;
-    const location = this.#elements.previewSyncControls.sourceLocation(previewOffset);
+  #syncSourceFromPreviewOffset(offset: number, centerEditor = false): void {
+    const location = this.#elements.previewSyncControls.sourceLocation(offset);
     if (!location) return;
     this.#showWorkspaceSurface("authoring");
     this.#focusProjectRange(location.fileId, location.offset, location.offset);
     if (centerEditor) this.#elements.previewSyncControls.centerSourceOffset(location.offset);
-    this.#elements.workspacePreview.markSyncTarget(target);
   }
 
   #syncPreviewFromSource(explicit = true): void {
@@ -2425,17 +2423,6 @@ class WorkspaceApp {
     await this.#openProjectReferencePdf(paper.pdf);
   }
 
-  #openPreviewCitation(event: MouseEvent): boolean {
-    if (!(event.target instanceof Element)) return false;
-    const citation = event.target.closest<HTMLButtonElement>("button.semantic-citation[data-citation]");
-    if (!citation) return false;
-    const key = parseCitationKeys(citation.dataset.citation ?? "")[0];
-    const publication = key ? this.#publicationByCitationKey(key) : undefined;
-    if (publication) this.#navigateToCitation(publication, citation.dataset.locator);
-    else this.#showToast(`No publication resource is available for ${key ?? "this citation"}.`);
-    return true;
-  }
-
   #openCitation(citation: CitationContext): void {
     if (citation.keys.length > 1) {
       this.#showToast("Open this grouped citation from Preview to choose a reference.");
@@ -2443,7 +2430,7 @@ class WorkspaceApp {
     }
     const publication = this.#publicationByCitationKey(citation.keys[0] ?? "");
     if (publication) this.#navigateToCitation(publication, citation.locator);
-    else this.#showToast(`No publication resource is available for ${citation.keys[0]}.`);
+    else this.#showToast(`No publication resource is available for ${citation.keys[0] ?? "this citation"}.`);
   }
 
   #navigateToCitation(publication: PublicationResource, locator: string | undefined): void {

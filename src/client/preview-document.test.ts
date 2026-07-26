@@ -1,7 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { WorkspaceSnapshot } from "../domain/workspace";
 import { workspaceSnapshotFixture } from "../test-support/workspace-fixture";
-import { WorkspacePreview, type ProjectPreviewImageContext } from "./workspace-preview";
+import {
+  WorkspacePreview,
+  workspacePreviewActionEvent,
+  type ProjectPreviewImageContext,
+  type WorkspacePreviewAction,
+} from "./workspace-preview";
 
 interface Bounds {
   readonly top: number;
@@ -15,6 +20,7 @@ class FakeElement extends EventTarget {
   readonly sources: FakeElement[] = [];
   readonly imageNodes: FakeElement[] = [];
   readonly anchors = new Map<string, FakeElement>();
+  readonly closestMatches = new Map<string, FakeElement | null>();
   textContent = "";
   innerHTML = "";
   clientHeight = 100;
@@ -47,8 +53,9 @@ class FakeElement extends EventTarget {
     return this.sources.includes(element as FakeElement);
   }
 
-  closest(): FakeElement {
-    return this;
+  closest(selector: string): FakeElement | null {
+    if (this.closestMatches.has(selector)) return this.closestMatches.get(selector) ?? null;
+    return selector === "[data-source-from][data-source-to]" ? this : null;
   }
 
   removeAttribute(name: string): void {
@@ -82,6 +89,10 @@ class TestWorkspacePreview extends WorkspacePreview {
     this.center(target);
   }
 
+  clickForTest(target: FakeElement): void {
+    this.handleClick({ target } as unknown as MouseEvent);
+  }
+
   protected override get article(): HTMLElement {
     return this.articleNode;
   }
@@ -95,6 +106,7 @@ describe("workspace preview document", () => {
   beforeEach(() => {
     vi.useFakeTimers();
     vi.stubGlobal("CSS", { escape: (value: string) => value });
+    vi.stubGlobal("Element", FakeElement);
     vi.stubGlobal("HTMLElement", FakeElement);
     vi.stubGlobal("window", { clearTimeout, setTimeout });
   });
@@ -133,7 +145,7 @@ describe("workspace preview document", () => {
     vi.stubGlobal("document", { elementFromPoint: () => null });
     const preview = new TestWorkspacePreview(htmlElement(article), htmlElement(viewport));
 
-    expect(preview.centeredSourceElement()).toBe(narrow);
+    expect(preview.centeredSourceOffset()).toBe(5);
     expect(preview.nearestSourceElementForTest([7])).toBe(narrow);
     expect(preview.nearestSourceElementForTest([30])).toBeNull();
     expect(preview.revealNearestSource([7])).toBe(true);
@@ -197,16 +209,45 @@ describe("workspace preview document", () => {
     const previous = new FakeElement();
     previous.dataset.previewSyncActive = "true";
     const centered = new FakeElement();
+    centered.dataset.sourceFrom = "12";
+    centered.dataset.sourceTo = "20";
     article.sources.push(previous, centered);
     vi.stubGlobal("document", { elementFromPoint: () => centered });
     const preview = new TestWorkspacePreview(htmlElement(article), htmlElement(viewport));
 
-    expect(preview.centeredSourceElement()).toBe(centered);
-    preview.markSyncTarget(centered as never);
+    expect(preview.centeredSourceOffset()).toBe(12);
     expect(previous.dataset.previewSyncActive).toBeUndefined();
     expect(centered.dataset.previewSyncActive).toBe("true");
     preview.markSyncTarget(previous as never);
     vi.runAllTimers();
     expect(previous.dataset.previewSyncActive).toBeUndefined();
+  });
+
+  it("turns preview DOM clicks into typed citation and source actions", () => {
+    const article = new FakeElement();
+    const preview = new TestWorkspacePreview(htmlElement(article), htmlElement(new FakeElement()));
+    const actions: WorkspacePreviewAction[] = [];
+    preview.addEventListener(workspacePreviewActionEvent, (event) => {
+      actions.push((event as CustomEvent<WorkspacePreviewAction>).detail);
+    });
+    const citation = new FakeElement();
+    citation.dataset.citation = " First, second ";
+    citation.dataset.locator = "p. 4";
+    citation.closestMatches.set("button.semantic-citation[data-citation]", citation);
+    preview.clickForTest(citation);
+    const source = new FakeElement();
+    source.dataset.sourceFrom = "24";
+    source.dataset.sourceTo = "30";
+    article.sources.push(source);
+    preview.clickForTest(source);
+    const interactive = new FakeElement();
+    interactive.closestMatches.set("a, button, input, select, textarea", interactive);
+    preview.clickForTest(interactive);
+
+    expect(actions).toEqual([
+      { action: "citation", citation: { keys: ["First"], locator: "p. 4" } },
+      { action: "source", offset: 24 },
+    ]);
+    expect(source.dataset.previewSyncActive).toBe("true");
   });
 });

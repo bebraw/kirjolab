@@ -5705,6 +5705,32 @@ component members.
 Full native CI passes all 1,583 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Workspace Preview Actions
+
+`workspace-preview` now classifies its rendered DOM clicks, excludes links and
+form controls, parses semantic-citation datasets, extracts safe source offsets,
+applies transient source emphasis, and emits typed citation or source intents.
+Centered Preview synchronization also returns a source offset instead of
+exposing an internal rendered element. `WorkspaceApp` retains source-map and
+project-file routing plus publication resolution and citation navigation.
+
+This checkpoint reduces `src/client/app.ts` from 3,605 to 3,592 lines (-13) and
+grows `src/client/workspace-preview.ts` from 235 to 276 lines. Client runtime
+source grows by 28 lines overall while removing the coordinator's Preview DOM
+contract. The browser application artifact changes from 823,979 B raw /
+223,092 B gzip to 824,268 B raw / 223,159 B gzip (+289 B raw / +67 B gzip).
+Styles and direct and unique production package counts remain unchanged at
+135,411 B raw / 23,373 B gzip, 18, and 150. The readability audit remains at
+261 externally visible low-level component members.
+
+Focused Preview, citation, and registry coverage passes 17 tests. The affected
+guardrails pass formatting, lint, strict types, 11 related tests, and nine
+directly affected tests. Three browser scenarios cover direct Preview clicks,
+viewport-centered synchronization, and citation navigation.
+
+Full native CI passes all 1,593 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Valibot Adoption: GitHub Sync Status
 
 The GitHub synchronization status boundary now derives its TypeScript payload

@@ -93,7 +93,7 @@ describe("workspace preview", () => {
     await expect(preview.renderDocument(request)).resolves.toEqual({ available: false });
 
     expect(preview.showUnavailable).toHaveBeenCalledWith("Renderer unavailable");
-    expect(preview.renderForTest().values[0]).toBe("# Source");
+    expect(preview.renderForTest().values).toContain("# Source");
   });
 
   it("discards a render superseded while its runtime loads", async () => {

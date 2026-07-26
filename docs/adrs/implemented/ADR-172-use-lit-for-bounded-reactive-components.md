@@ -208,9 +208,11 @@ The adopted components own bounded presentation:
   lazy Markdown-runtime loading, stale-render rejection, rendered or escaped-
   source presentation, renderer diagnostics, isolated-file heading-number
   projection, authorized local-image resolution, viewport-relative source-span
-  lookup, centering, transient target emphasis, and anchor scrolling. The
-  coordinator retains project composition, Yjs source authority, source-map
-  translation, cross-panel projection, citation actions, and routing.
+  lookup, centering, transient target emphasis, anchor scrolling, interactive-
+  click classification, source-offset extraction, and typed source or citation
+  intents. The coordinator retains project composition, Yjs source authority,
+  source-map translation, cross-panel projection, publication resolution,
+  citation navigation, and routing.
 - The preview navigation control owns browser-local top-navigation visibility,
   storage restoration, toggle and restore presentation, active-context
   availability, and focus handoff between its spatially separated controls.

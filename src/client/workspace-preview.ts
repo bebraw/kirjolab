@@ -4,8 +4,15 @@ import type { Diagnostic } from "../domain/markdown";
 import { resolveProjectPath, type CompositionSourceSpan, type ProjectComposition, type ProjectFilePreview } from "../domain/project-files";
 import type { WorkspaceSnapshot } from "../domain/workspace";
 import { sourceSpanAt } from "./composition-source-map";
+import { parseCitationKeys, type CitationContext } from "./citations";
 import { loadMarkdownRuntime, type MarkdownRuntime } from "./markdown-runtime";
 import { PreviewDiagnosticsPanel } from "./preview-presentation";
+
+export const workspacePreviewActionEvent = "workspace-preview-action";
+
+export type WorkspacePreviewAction =
+  | { readonly action: "citation"; readonly citation: CitationContext }
+  | { readonly action: "source"; readonly offset: number };
 
 export interface WorkspacePreviewRequest {
   readonly apiBase: string;
@@ -55,7 +62,7 @@ export class WorkspacePreview extends LitElement {
 
   protected override render(): TemplateResult {
     return html`
-      <article class="prose-preview" id="preview" aria-live="polite">
+      <article class="prose-preview" id="preview" aria-live="polite" @click=${this.handleClick}>
         ${this.content.kind === "html" ? unsafeHTML(this.content.value) : this.content.value}
       </article>
       <preview-diagnostics-panel
@@ -100,12 +107,17 @@ export class WorkspacePreview extends LitElement {
     return { available: true, diagnostics: rendered.diagnostics };
   }
 
-  centeredSourceElement(): HTMLElement | null {
+  centeredSourceOffset(): number | null {
     const bounds = this.viewport.getBoundingClientRect();
     const centered = document
       .elementFromPoint(bounds.left + bounds.width / 2, bounds.top + bounds.height / 2)
       ?.closest<HTMLElement>("[data-source-from][data-source-to]");
-    return centered && this.article.contains(centered) ? centered : this.nearestSourceElement();
+    const target = centered && this.article.contains(centered) ? centered : this.nearestSourceElement();
+    if (!target) return null;
+    const offset = sourceOffset(target);
+    if (offset === null) return null;
+    this.markSyncTarget(target);
+    return offset;
   }
 
   revealNearestSource(offsets: readonly number[]): boolean {
@@ -136,6 +148,30 @@ export class WorkspacePreview extends LitElement {
     const viewportBounds = this.viewport.getBoundingClientRect();
     const targetBounds = target.getBoundingClientRect();
     this.viewport.scrollTop += targetBounds.top + targetBounds.height / 2 - (viewportBounds.top + viewportBounds.height / 2);
+  }
+
+  protected handleClick(event: MouseEvent): void {
+    if (!(event.target instanceof Element)) return;
+    const citation = event.target.closest<HTMLButtonElement>("button.semantic-citation[data-citation]");
+    if (citation) {
+      const key = parseCitationKeys(citation.dataset.citation ?? "")[0];
+      this.emitAction({
+        action: "citation",
+        citation: { keys: key ? [key] : [], ...(citation.dataset.locator ? { locator: citation.dataset.locator } : {}) },
+      });
+      return;
+    }
+    if (event.target.closest("a, button, input, select, textarea")) return;
+    const target = event.target.closest<HTMLElement>("[data-source-from][data-source-to]");
+    if (!target) return;
+    const offset = sourceOffset(target);
+    if (offset === null) return;
+    this.markSyncTarget(target);
+    this.emitAction({ action: "source", offset });
+  }
+
+  private emitAction(detail: WorkspacePreviewAction): void {
+    this.dispatchEvent(new CustomEvent<WorkspacePreviewAction>(workspacePreviewActionEvent, { bubbles: true, detail }));
   }
 
   markSyncTarget(target: HTMLElement): void {
@@ -200,6 +236,11 @@ function previewElementContainsOffset(element: HTMLElement, offsets: readonly nu
   const from = Number.parseInt(element.dataset.sourceFrom ?? "", 10);
   const to = Number.parseInt(element.dataset.sourceTo ?? "", 10);
   return Number.isSafeInteger(from) && Number.isSafeInteger(to) && offsets.some((offset) => offset >= from && offset < to);
+}
+
+function sourceOffset(element: HTMLElement): number | null {
+  const offset = Number.parseInt(element.dataset.sourceFrom ?? "", 10);
+  return Number.isSafeInteger(offset) ? offset : null;
 }
 
 function previewSourceRangeLength(element: HTMLElement): number {

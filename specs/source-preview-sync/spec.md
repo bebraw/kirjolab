@@ -19,9 +19,12 @@ Preview offset may belong to a supporting file.
   previews use the same contract.
 - The bounded light-DOM workspace Preview owns rendered and fallback content,
   source-span lookup by viewport position, centering, transient target
-  emphasis, authorized project-image resolution, and anchor scrolling. The
-  workspace coordinator retains source-map translation, project-file selection,
-  canonical image metadata and hidden-id inputs, citation actions, and routing.
+  emphasis, authorized project-image resolution, anchor scrolling, and click
+  classification. It converts non-interactive rendered spans and semantic
+  citation buttons into typed source-offset or citation intents without
+  exposing Preview elements. The workspace coordinator retains source-map
+  translation, project-file selection, canonical image metadata and hidden-id
+  inputs, publication resolution, citation navigation, and routing.
 - A compact two-button control straddles the authoring/context divider while
   the Preview tab is active in desktop split view. The right arrow reveals the
   passage centered in the source editor in Preview; the left arrow reveals the
