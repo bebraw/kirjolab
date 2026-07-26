@@ -18,9 +18,6 @@ interface PdfAnnotationDrawingDraft {
 interface PdfAnnotationNoteDrag {
   readonly id: string;
   readonly pointerId: number;
-  readonly startX: number;
-  readonly startY: number;
-  readonly moved: boolean;
 }
 
 interface PdfAnnotationNotePress {
@@ -64,8 +61,7 @@ type PdfAnnotationEvent =
   | { readonly type: "CLEAR_SELECTION" }
   | { readonly type: "TOGGLE_NOTE_CARD"; readonly id: string }
   | { readonly type: "CLOSE_NOTE_CARD" }
-  | { readonly type: "START_NOTE_DRAG"; readonly id: string; readonly pointerId: number; readonly x: number; readonly y: number }
-  | { readonly type: "MOVE_NOTE_DRAG"; readonly pointerId: number; readonly x: number; readonly y: number }
+  | { readonly type: "START_NOTE_DRAG"; readonly id: string; readonly pointerId: number }
   | { readonly type: "FINISH_NOTE_DRAG"; readonly pointerId: number }
   | { readonly type: "START_DRAWING"; readonly pointerId: number; readonly point: LibraryPdfPoint }
   | { readonly type: "ADD_DRAWING_POINTS"; readonly pointerId: number; readonly points: readonly LibraryPdfPoint[] }
@@ -95,7 +91,7 @@ const pdfAnnotationMachine = setup({
       return context.drawing?.pointerId === event.pointerId;
     },
     usesNotePointer: ({ context, event }) => {
-      assertEvent(event, ["MOVE_NOTE_DRAG", "FINISH_NOTE_DRAG"]);
+      assertEvent(event, "FINISH_NOTE_DRAG");
       return context.noteDrag?.pointerId === event.pointerId;
     },
     usesNotePress: ({ context, event }) => {
@@ -172,17 +168,7 @@ const pdfAnnotationMachine = setup({
       return {
         selectedHighlightId: null,
         selectedMarkupId: event.id,
-        noteDrag: { id: event.id, pointerId: event.pointerId, startX: event.x, startY: event.y, moved: false },
-      };
-    }),
-    moveNoteDrag: assign(({ context, event }) => {
-      assertEvent(event, "MOVE_NOTE_DRAG");
-      if (!context.noteDrag) return {};
-      return {
-        noteDrag: {
-          ...context.noteDrag,
-          moved: context.noteDrag.moved || Math.hypot(event.x - context.noteDrag.startX, event.y - context.noteDrag.startY) > 5,
-        },
+        noteDrag: { id: event.id, pointerId: event.pointerId },
       };
     }),
     clearNoteDrag: assign({ noteDrag: null }),
@@ -229,7 +215,6 @@ const pdfAnnotationMachine = setup({
     },
     draggingNote: {
       on: {
-        MOVE_NOTE_DRAG: { guard: "usesNotePointer", actions: "moveNoteDrag" },
         FINISH_NOTE_DRAG: { guard: "usesNotePointer", target: "selectIdle", actions: "clearNoteDrag" },
         CANCEL_POINTER: { target: "selectIdle", actions: "clearNoteDrag" },
       },

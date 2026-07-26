@@ -151,12 +151,8 @@ describe("PDF annotation interaction machine", () => {
     value.send({ type: "SELECT_MARKUP", id: "note-1" });
     expect(value.getSnapshot().context).toMatchObject({ selectedHighlightId: null, selectedMarkupId: "note-1" });
 
-    value.send({ type: "START_NOTE_DRAG", id: "note-1", pointerId: 2, x: 10, y: 10 });
+    value.send({ type: "START_NOTE_DRAG", id: "note-1", pointerId: 2 });
     expect(pdfAnnotationTool(value.getSnapshot())).toBe("select");
-    value.send({ type: "MOVE_NOTE_DRAG", pointerId: 3, x: 30, y: 30 });
-    expect(value.getSnapshot().context.noteDrag?.moved).toBe(false);
-    value.send({ type: "MOVE_NOTE_DRAG", pointerId: 2, x: 16, y: 10 });
-    expect(value.getSnapshot().context.noteDrag?.moved).toBe(true);
     value.send({ type: "FINISH_NOTE_DRAG", pointerId: 3 });
     expect(value.getSnapshot().value).toBe("draggingNote");
     value.send({ type: "FINISH_NOTE_DRAG", pointerId: 2 });
@@ -165,7 +161,7 @@ describe("PDF annotation interaction machine", () => {
     value.send({ type: "CLEAR_SELECTION" });
     expect(value.getSnapshot().context).toMatchObject({ selectedHighlightId: null, selectedMarkupId: null });
 
-    value.send({ type: "START_NOTE_DRAG", id: "note-2", pointerId: 4, x: 0, y: 0 });
+    value.send({ type: "START_NOTE_DRAG", id: "note-2", pointerId: 4 });
     value.send({ type: "CANCEL_POINTER" });
     expect(value.getSnapshot()).toMatchObject({ value: "selectIdle", context: { noteDrag: null } });
   });
@@ -174,7 +170,7 @@ describe("PDF annotation interaction machine", () => {
     const value = actor();
     value.send({ type: "START_DRAWING", pointerId: 1, point });
     value.send({ type: "PLACE_NOTE", page: 1, point });
-    value.send({ type: "START_NOTE_DRAG", id: "note-1", pointerId: 1, x: 0, y: 0 });
+    value.send({ type: "START_NOTE_DRAG", id: "note-1", pointerId: 1 });
     expect(value.getSnapshot()).toMatchObject({ value: "text", context: { note: null, drawing: null, noteDrag: null } });
   });
 });

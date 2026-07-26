@@ -354,7 +354,11 @@ collaboration.
   gesture, the layer suppresses native scrolling, expands coalesced samples,
   updates the live draft, schedules recognition, and returns only new normalized
   points for the coordinator's drawing-state transition. Any transition back to
-  inactive layer interaction clears pending and recognized shape state.
+  inactive layer interaction clears pending and recognized shape state. For a
+  selected note, the layer owns drag start coordinates, the five-pixel movement
+  threshold, native-default suppression, normalized preview geometry, and the
+  transient pin position. The annotation state machine retains active note and
+  pointer identity, and the coordinator persists the final normalized position.
   The annotation toolbar owns the guidance associated with each tool, while
   the coordinator decides when that guidance is presented in the inspector.
 - **Web sources:** Public HTTP(S) pages are captured through bounded,

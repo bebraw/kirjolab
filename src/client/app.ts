@@ -1176,7 +1176,7 @@ class WorkspaceApp {
     this.#elements.paperMarkups.addEventListener("pointermove", (event) => this.#continueLibraryPdfDrawing(event));
     this.#elements.paperMarkups.addEventListener("pointerup", (event) => void this.#finishLibraryPdfDrawing(event));
     this.#elements.paperMarkups.addEventListener("pointercancel", () => {
-      const movedNote = this.#pdfNoteDrag()?.moved;
+      const movedNote = this.#elements.paperMarkups.cancelNoteDrag();
       const hadDrawing = this.#pdfDrawingDraft() !== null;
       this.#cancelLibraryPdfDrawing();
       if (movedNote || hadDrawing) this.#renderPdfMarkups();
@@ -6185,7 +6185,7 @@ class WorkspaceApp {
     const action = this.#elements.paperMarkups.pointerAction(event);
     if (action?.kind === "note") {
       this.#selectLibraryPdfMarkup(action.id);
-      this.#pdfAnnotation.send({ type: "START_NOTE_DRAG", id: action.id, pointerId: event.pointerId, x: event.clientX, y: event.clientY });
+      this.#pdfAnnotation.send({ type: "START_NOTE_DRAG", id: action.id, pointerId: event.pointerId });
       return;
     }
     if (action?.kind === "drawing") {
@@ -6221,7 +6221,7 @@ class WorkspaceApp {
     }
     const drag = this.#pdfNoteDrag();
     if (drag?.pointerId === event.pointerId) {
-      this.#continueLibraryPdfNoteDrag(event, drag.id);
+      this.#elements.paperMarkups.continueNoteDrag(event, drag.id);
       return;
     }
     const draft = this.#pdfDrawingDraft();
@@ -6229,15 +6229,6 @@ class WorkspaceApp {
     if (this.#elements.paperMarkups.adjustRecognizedShape(event)) return;
     const additions = this.#elements.paperMarkups.continueDrawing(event, draft);
     if (additions) this.#pdfAnnotation.send({ type: "ADD_DRAWING_POINTS", pointerId: event.pointerId, points: additions });
-  }
-
-  #continueLibraryPdfNoteDrag(event: PointerEvent, noteId: string): void {
-    const point = this.#elements.paperMarkups.point(event);
-    if (!point) return;
-    this.#pdfAnnotation.send({ type: "MOVE_NOTE_DRAG", pointerId: event.pointerId, x: event.clientX, y: event.clientY });
-    if (!this.#pdfNoteDrag()?.moved) return;
-    event.preventDefault();
-    this.#elements.paperMarkups.moveNote(noteId, point);
   }
 
   async #finishLibraryPdfDrawing(event: PointerEvent): Promise<void> {
@@ -6470,13 +6461,15 @@ class WorkspaceApp {
   async #finishLibraryPdfNoteDrag(event: PointerEvent): Promise<void> {
     const drag = this.#pdfNoteDrag();
     if (!drag) return;
+    const result = this.#elements.paperMarkups.finishNoteDrag(event);
     this.#pdfAnnotation.send({ type: "FINISH_NOTE_DRAG", pointerId: event.pointerId });
-    if (!drag.moved) {
+    if (!result) return this.#renderPdfMarkups();
+    if (!result.moved) {
       this.#pdfAnnotation.send({ type: "TOGGLE_NOTE_CARD", id: drag.id });
       this.#renderPdfMarkups();
       return;
     }
-    const point = this.#elements.paperMarkups.point(event);
+    const point = result.point;
     const note = (this.#librarySnapshot?.pdfMarkups ?? []).find(
       (item): item is LibraryPdfNote => item.kind === "note" && item.id === drag.id,
     );

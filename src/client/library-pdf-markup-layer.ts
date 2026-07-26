@@ -50,14 +50,22 @@ interface DrawingPointerEvent extends DrawingPointerSample {
   readonly getCoalescedEvents?: () => readonly DrawingPointerSample[];
 }
 
-interface ActiveDrawingPointerEvent extends DrawingPointerEvent {
+interface ActivePointerEvent extends DrawingPointerEvent {
   readonly pointerId: number;
   preventDefault(): void;
 }
 
-interface DrawingAdjustmentEvent extends DrawingPointerSample {
+interface ActiveNoteDrag {
+  readonly id: string;
   readonly pointerId: number;
-  preventDefault(): void;
+  readonly startX: number;
+  readonly startY: number;
+  moved: boolean;
+}
+
+export interface LibraryPdfNoteDragResult {
+  readonly moved: boolean;
+  readonly point: LibraryPdfPoint | null;
 }
 
 export interface LibraryPdfDrawingUpdate {
@@ -87,6 +95,7 @@ export class LibraryPdfMarkupLayer extends LitElement {
 
   declare private data: LibraryPdfMarkupLayerData | null;
   private interactionTool: PdfAnnotationTool = "text";
+  private noteDrag: ActiveNoteDrag | null = null;
   private recognizedShape: RecognizedDrawnShape | null = null;
   private recognitionTimer: ReturnType<typeof globalThis.setTimeout> | undefined;
 
@@ -102,7 +111,10 @@ export class LibraryPdfMarkupLayer extends LitElement {
   }
 
   setInteraction(tool: PdfAnnotationTool, drawingActive = false): void {
-    if (!drawingActive) this.cancelShapeRecognition();
+    if (!drawingActive) {
+      this.cancelNoteDrag();
+      this.cancelShapeRecognition();
+    }
     this.interactionTool = tool;
     this.dataset.tool = tool;
     if (drawingActive) this.dataset.drawingActive = "true";
@@ -132,6 +144,13 @@ export class LibraryPdfMarkupLayer extends LitElement {
       const target = this.markupTarget(event.target);
       if (target?.kind === "note") {
         if (!target.id || this.interactionTool !== "select") return null;
+        this.noteDrag = {
+          id: target.id,
+          pointerId: event.pointerId,
+          startX: event.clientX,
+          startY: event.clientY,
+          moved: false,
+        };
         this.setPointerCapture(event.pointerId);
         return { id: target.id, kind: "note" };
       }
@@ -165,7 +184,7 @@ export class LibraryPdfMarkupLayer extends LitElement {
     return additions.length > 0 ? { additions, points } : null;
   }
 
-  continueDrawing(event: ActiveDrawingPointerEvent, draft: readonly LibraryPdfPoint[]): readonly LibraryPdfPoint[] | null {
+  continueDrawing(event: ActivePointerEvent, draft: readonly LibraryPdfPoint[]): readonly LibraryPdfPoint[] | null {
     // Safari can otherwise promote an active Apple Pencil stroke to a native
     // scroll once the zoomed page starts moving, despite cancelling pointerdown.
     event.preventDefault();
@@ -213,7 +232,7 @@ export class LibraryPdfMarkupLayer extends LitElement {
     return relativePoints(adjusted, rect);
   }
 
-  adjustRecognizedShape(event: DrawingAdjustmentEvent): boolean {
+  adjustRecognizedShape(event: ActivePointerEvent): boolean {
     const shape = this.recognizedShape;
     if (!shape) return false;
     const points = this.adjustShape(shape, event);
@@ -227,6 +246,31 @@ export class LibraryPdfMarkupLayer extends LitElement {
       }),
     );
     return true;
+  }
+
+  continueNoteDrag(event: ActivePointerEvent, noteId: string): boolean {
+    const drag = this.noteDrag;
+    if (!drag || drag.id !== noteId || drag.pointerId !== event.pointerId) return false;
+    const point = this.point(event);
+    if (!point) return false;
+    drag.moved ||= Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) > 5;
+    if (!drag.moved) return false;
+    event.preventDefault();
+    this.moveNote(noteId, point);
+    return true;
+  }
+
+  finishNoteDrag(event: Pick<PointerEvent, "clientX" | "clientY" | "pointerId">): LibraryPdfNoteDragResult | null {
+    const drag = this.noteDrag;
+    if (!drag || drag.pointerId !== event.pointerId) return null;
+    this.noteDrag = null;
+    return { moved: drag.moved, point: this.point(event) };
+  }
+
+  cancelNoteDrag(): boolean {
+    const moved = this.noteDrag?.moved ?? false;
+    this.noteDrag = null;
+    return moved;
   }
 
   updateDraft(points: readonly LibraryPdfPoint[]): void {

@@ -152,12 +152,14 @@ describe("library PDF markup layer", () => {
 
   it("resolves markup targets without exposing component selectors", () => {
     const layer = new TestMarkupLayer();
+    const pin = { dataset: { markupId: "note-1" }, style: { left: "", top: "" } };
     Object.defineProperties(layer, {
       dataset: { value: {} },
       getBoundingClientRect: {
         configurable: true,
         value: () => ({ height: 200, left: 10, top: 20, width: 400 }),
       },
+      querySelectorAll: { value: () => [pin] },
       setPointerCapture: { value: vi.fn() },
     });
     const target = (selector: string, id: string | null) =>
@@ -182,16 +184,25 @@ describe("library PDF markup layer", () => {
 
     layer.setInteraction("select");
     expect(layer.pointerAction(pointer(target(".pdf-note-pin", "note-1")))).toEqual({ id: "note-1", kind: "note" });
+    expect(layer.continueNoteDrag({ clientX: 213, clientY: 120, pointerId: 7, preventDefault }, "note-1")).toBe(false);
+    expect(layer.continueNoteDrag({ clientX: 220, clientY: 120, pointerId: 7, preventDefault }, "note-1")).toBe(true);
+    expect(pin.style).toEqual({ left: "52.5%", top: "50%" });
+    expect(layer.finishNoteDrag({ clientX: 220, clientY: 120, pointerId: 8 })).toBeNull();
+    expect(layer.finishNoteDrag({ clientX: 220, clientY: 120, pointerId: 7 })).toEqual({
+      moved: true,
+      point: { x: 0.525, y: 0.5 },
+    });
+    expect(layer.cancelNoteDrag()).toBe(false);
     expect(layer.pointerAction(pointer(target(".pdf-note-pin", null)))).toBeNull();
     expect(layer.pointerAction(pointer(target(".pdf-ink-stroke", "drawing-1")))).toEqual({ id: "drawing-1", kind: "drawing" });
-    expect(preventDefault).toHaveBeenCalledOnce();
+    expect(preventDefault).toHaveBeenCalledTimes(2);
     expect(layer.pointerAction(pointer(new EventTarget()))).toBeNull();
     layer.setInteraction("note");
     expect(layer.pointerAction(pointer(new EventTarget()))).toEqual({ kind: "place-note", point: { x: 0.5, y: 0.5 } });
     layer.setInteraction("draw");
     expect(layer.pointerAction(pointer(new EventTarget(), "touch"))).toEqual({ kind: "touch-drawing" });
     expect(layer.pointerAction(pointer(new EventTarget()))).toEqual({ kind: "start-drawing", point: { x: 0.5, y: 0.5 } });
-    expect(preventDefault).toHaveBeenCalledTimes(2);
+    expect(preventDefault).toHaveBeenCalledTimes(3);
     expect(layer.setPointerCapture).toHaveBeenCalledTimes(2);
   });
 

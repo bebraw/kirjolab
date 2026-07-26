@@ -653,6 +653,13 @@ test("imports, annotates, and exports a private PDF without a project", async ({
   await page.locator("#library-note-form").getByRole("button", { name: "Save note" }).click();
   await expect(page.locator("#toast")).toHaveText("Private note updated.");
   await expect(page.locator(".pdf-note-card")).toHaveCount(0);
+  const noteBounds = await notePin.boundingBox();
+  if (!noteBounds) throw new Error("Expected private note bounds");
+  await page.mouse.move(noteBounds.x + noteBounds.width / 2, noteBounds.y + noteBounds.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(noteBounds.x + noteBounds.width / 2 + 40, noteBounds.y + noteBounds.height / 2 + 30);
+  await page.mouse.up();
+  await expect(page.locator("#toast")).toHaveText("Note moved.");
   await page.locator("#library-draw-tool").click();
   const markupBounds = await page.locator("#paper-markups").boundingBox();
   if (!markupBounds) throw new Error("Expected PDF markup bounds");

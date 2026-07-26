@@ -2859,3 +2859,25 @@ and unique production package counts remain unchanged at 135,411 B raw /
 
 Full native CI passes all 1,415 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Lit Ownership: PDF Note Dragging
+
+`LibraryPdfMarkupLayer` now owns note-drag start coordinates, the movement
+threshold, normalized preview geometry, native-default suppression, and the
+transient pin update. The PDF annotation machine retains only the active note
+and pointer identity, while `WorkspaceApp` retains workflow transitions, final
+position persistence, rerendering, and notifications.
+
+This checkpoint reduces `src/client/app.ts` from 7,021 to 7,014 lines (-7) and
+the PDF annotation machine from 304 to 289 lines (-15). Focused unit coverage
+passes stationary, moved, mismatched-pointer, completion, and cancellation
+behavior. The private-PDF browser flow now performs a real note drag and passes
+persistence before drawing, recognition, rendering, and annotated export.
+
+The browser application artifact changes from 801,295 B raw / 215,875 B gzip
+to 801,417 B raw / 215,992 B gzip (+122 B raw / +117 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,415 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
