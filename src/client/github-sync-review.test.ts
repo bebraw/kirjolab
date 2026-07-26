@@ -1,51 +1,76 @@
-import { describe, expect, it } from "vitest";
-import { GitHubSyncReview, gitHubPublishConfirmEvent, gitHubPullConfirmEvent } from "./github-sync-review";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { GitHubSyncReview, gitHubSyncMutationEvent, type GitHubSyncMutation } from "./github-sync-review";
 
 class TestGitHubSyncReview extends GitHubSyncReview {
   renderForTest() {
     return this.render();
   }
 
-  confirmPullForTest(): void {
-    this.requestPullConfirm();
+  confirmPullForTest(): Promise<void> {
+    return this.requestPullConfirm();
   }
 
-  confirmPublishForTest(): void {
-    this.requestPublishConfirm();
+  confirmPublishForTest(): Promise<void> {
+    return this.requestPublishConfirm();
   }
 }
 
 describe("GitHub sync review", () => {
-  it("owns preview identities and emits complete confirmation intents", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it("owns pull and publish requests and emits completed mutations", async () => {
     const review = new TestGitHubSyncReview();
-    const pulls: string[] = [];
-    const publishes: string[] = [];
-    review.addEventListener(gitHubPullConfirmEvent, (event) => {
-      pulls.push((event as CustomEvent<string>).detail);
-    });
-    review.addEventListener(gitHubPublishConfirmEvent, (event) => {
-      publishes.push((event as CustomEvent<string>).detail);
-    });
+    review.configure("/api/workspaces/project");
+    const mutations: GitHubSyncMutation[] = [];
+    review.addEventListener(gitHubSyncMutationEvent, (event) => mutations.push((event as CustomEvent<GitHubSyncMutation>).detail));
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(
+        Response.json({ id: "pull-1", plan: { blocking: [], changes: [{ base: null, remote: { path: "main.md" } }] } }),
+      )
+      .mockResolvedValueOnce(Response.json({ ok: true }))
+      .mockResolvedValueOnce(
+        Response.json({
+          id: "publish-1",
+          expectedRemoteHead: "1234567890abcdef",
+          plan: { blocking: [], changes: [{ path: "main.md", content: "# Paper" }], skippedLocalPaths: [] },
+        }),
+      )
+      .mockResolvedValueOnce(Response.json({ commitSha: "1234567890abcdef" }));
 
-    review.confirmPullForTest();
-    review.confirmPublishForTest();
-    review.showPullPreview({
-      id: "pull-1",
-      plan: { blocking: [], changes: [{ base: null, remote: { path: "main.md" } }] },
-    });
-    review.showPublishPreview({
-      id: "publish-1",
-      expectedRemoteHead: "1234567890abcdef",
-      plan: { blocking: [], changes: [{ path: "main.md", content: "# Paper" }], skippedLocalPaths: [] },
-    });
+    await review.previewPull();
     expect(review.hasActivePreview).toBe(true);
-    review.confirmPullForTest();
-    review.confirmPublishForTest();
+    await review.confirmPullForTest();
+    await review.previewPublish();
+    await review.confirmPublishForTest();
 
-    expect(pulls).toEqual(["pull-1"]);
-    expect(publishes).toEqual(["publish-1"]);
+    expect(mutations).toEqual(["pull", "publish"]);
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      "/api/workspaces/project/github-sync/pulls",
+      expect.objectContaining({ body: JSON.stringify({ previewId: "pull-1", resolutions: [] }) }),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      3,
+      "/api/workspaces/project/github-sync/publish-previews",
+      expect.objectContaining({ body: JSON.stringify({ commitMessage: "Publish from Kirjolab" }) }),
+    );
     review.reset();
     expect(review.hasActivePreview).toBe(false);
+  });
+
+  it("presents invalid and failed request responses", async () => {
+    const review = new TestGitHubSyncReview();
+    review.configure("/api/workspaces/project");
+    vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(Response.json({ invalid: true }))
+      .mockResolvedValueOnce(Response.json({ error: "Remote unavailable" }, { status: 503 }));
+
+    await review.previewPull();
+    await review.previewPublish();
+
+    expect(review.hasActivePreview).toBe(false);
+    expect(review.renderForTest()).toBeDefined();
   });
 
   it("owns review progress, success, and error presentation", () => {

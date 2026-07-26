@@ -35,9 +35,12 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Keep the interface design system thin and source-local under `src/ui/`: foundations, visual primitives, shared state contracts, typed icons, and small markup helpers only. Domain components compose it without moving application behavior or state into a second UI architecture.
 - Use pinned Lit for bounded reactive browser components that own a cohesive
   local template, presentation state, and typed intent events. Keep network
-  authority, Yjs and XState state, persisted domain data, and cross-feature
-  coordination in the existing application authorities; do not wrap static
-  server-rendered markup mechanically or turn Lit into the application shell.
+  workflows in a component only when their complete request lifecycle and
+  response validation serve that component's local interaction. Keep Yjs and
+  XState state, persisted domain data, project refresh, navigation, and
+  cross-feature coordination in the existing application authorities; do not
+  wrap static server-rendered markup mechanically or turn Lit into the
+  application shell.
 - Keep the browser shell's required-element lookup in one typed registry whose
   return shape is inferred from its constructors. Do not duplicate that shape
   in a manually synchronized application interface.
@@ -63,12 +66,14 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   transport/error contracts in separate server modules; callers depend only on
   the phase they invoke.
   Keep opaque Import, Pull, and Publish preview identities and confirmation
-  working state inside their owning Lit panels. Emit the current preview ID
-  only with an enabled confirmation intent. Let the GitHub import panel own its
-  read-only connection, installation, repository, and branch discovery
-  lifecycle plus stale-request protection; retain import and synchronization
-  previews, mutations, payload construction, project refresh, and navigation in
-  the application coordinator.
+  working state inside their owning Lit panels. Let the GitHub import panel own
+  its read-only connection, installation, repository, and branch discovery
+  lifecycle plus stale-request protection. Let the detailed sync review own its
+  Pull, Publish, and disconnect requests because their validation, payloads,
+  progress, and results are local to that review. Emit completed synchronization
+  mutations so the application coordinator can refresh canonical project and
+  cross-component status state; retain import mutations, project refresh, and
+  navigation in the coordinator.
   Delegate GitHub App JWT signing and private-key handling to pinned
   `@octokit/auth-app`, but keep installation-token exchange bounded and
   request-scoped. Do not retain request-bound installation authentication

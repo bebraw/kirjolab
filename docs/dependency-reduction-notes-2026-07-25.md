@@ -3395,3 +3395,29 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,420 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests. One PDF zoom scenario timed out once, then passed both in
 isolation and in the complete rerun.
+
+## Continued Lit Ownership: GitHub Sync Review Requests
+
+`GitHubSyncReview` now owns the Pull and Publish preview and confirmation
+requests, confirmation payloads, response validation, disconnect confirmation,
+and success or error presentation that serve only its local review workflow.
+It emits one completed-mutation event after a successful external change;
+`WorkspaceApp` retains canonical project refresh and the cross-component sync
+status refresh. `WorkspaceSettingsPanel` configures the nested review through
+its Lit lifecycle instead of forwarding five intermediate intent events.
+
+This checkpoint reduces `src/client/app.ts` from 6,332 to 6,257 lines (-75).
+Across the app coordinator, detailed sync review, and settings panel, runtime
+source falls from 6,991 to 6,965 lines (-26). Focused coverage passes request
+payloads, existing Valibot-backed preview validation, failure presentation,
+parent-child configuration timing, and completed mutation events. The four
+GitHub browser scenarios also pass after explicitly preserving success feedback
+through the subsequent read-only status refresh.
+
+The browser application artifact changes from 797,112 B raw / 214,964 B gzip
+to 796,643 B raw / 215,299 B gzip (-469 B raw / +335 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,421 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.

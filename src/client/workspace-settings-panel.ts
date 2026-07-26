@@ -1,13 +1,6 @@
 import { html, LitElement, type TemplateResult } from "lit";
 import type { ProjectPublicationProfile } from "../domain/workspace";
-import {
-  GitHubSyncReview,
-  gitHubPublishConfirmEvent,
-  gitHubPublishPreviewEvent,
-  gitHubPullConfirmEvent,
-  gitHubPullPreviewEvent,
-  gitHubSyncDisconnectEvent,
-} from "./github-sync-review";
+import { GitHubSyncReview } from "./github-sync-review";
 
 export const workspaceSettingsActionEvent = "workspace-settings-action";
 
@@ -38,6 +31,7 @@ export class WorkspaceSettingsPanel extends LitElement {
 
   declare private gitHubStatus: string;
   declare private view: WorkspaceSettingsView;
+  private gitHubApiBase = "";
 
   constructor() {
     super();
@@ -94,6 +88,11 @@ export class WorkspaceSettingsPanel extends LitElement {
     this.gitHubStatus = status;
   }
 
+  configureGitHub(apiBase: string): void {
+    this.gitHubApiBase = apiBase;
+    if (this.hasUpdated) this.gitHubReview.configure(apiBase);
+  }
+
   override connectedCallback(): void {
     if (!this.hasUpdated) this.replaceChildren();
     super.connectedCallback();
@@ -108,17 +107,7 @@ export class WorkspaceSettingsPanel extends LitElement {
   }
 
   protected override firstUpdated(): void {
-    for (const eventName of [
-      gitHubPullPreviewEvent,
-      gitHubPullConfirmEvent,
-      gitHubPublishPreviewEvent,
-      gitHubPublishConfirmEvent,
-      gitHubSyncDisconnectEvent,
-    ]) {
-      this.gitHubReview.addEventListener(eventName, (event) => {
-        this.dispatchEvent(new CustomEvent(eventName, { detail: (event as CustomEvent<unknown>).detail }));
-      });
-    }
+    this.gitHubReview.configure(this.gitHubApiBase);
   }
 
   protected override render(): TemplateResult {

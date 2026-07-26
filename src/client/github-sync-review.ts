@@ -1,16 +1,14 @@
 import { html, LitElement, nothing, type TemplateResult } from "lit";
-import type { GitHubPublishPreview, GitHubPullPreview } from "./app-contracts";
+import { isGitHubPublishPreview, isGitHubPullPreview, type GitHubPublishPreview, type GitHubPullPreview } from "./app-contracts";
 
 export interface GitHubPullResolutionSelection {
   readonly conflict: number;
   readonly choice: "local" | "remote";
 }
 
-export const gitHubPullPreviewEvent = "github-pull-preview";
-export const gitHubPullConfirmEvent = "github-pull-confirm";
-export const gitHubPublishPreviewEvent = "github-publish-preview";
-export const gitHubPublishConfirmEvent = "github-publish-confirm";
-export const gitHubSyncDisconnectEvent = "github-sync-disconnect";
+export const gitHubSyncMutationEvent = "github-sync-mutation";
+
+export type GitHubSyncMutation = "disconnect" | "publish" | "pull";
 
 export class GitHubSyncReview extends LitElement {
   static override properties = {
@@ -34,6 +32,7 @@ export class GitHubSyncReview extends LitElement {
   declare private publishPreview: GitHubPublishPreview | null;
   declare private publishStatus: string;
   declare private publishWorking: boolean;
+  private apiBase = "";
 
   constructor() {
     super();
@@ -58,6 +57,10 @@ export class GitHubSyncReview extends LitElement {
 
   get hasActivePreview(): boolean {
     return this.pullPreview !== null || this.publishPreview !== null;
+  }
+
+  configure(apiBase: string): void {
+    this.apiBase = apiBase;
   }
 
   setConnected(connected: boolean): void {
@@ -100,10 +103,8 @@ export class GitHubSyncReview extends LitElement {
   }
 
   showPullSuccess(): void {
-    this.pullPreview = null;
+    this.reset();
     this.pullStatus = "Pulled the reviewed changes from GitHub.";
-    this.pullWorking = false;
-    this.conflictChoices = [];
   }
 
   beginPublishPreview(): void {
@@ -129,9 +130,8 @@ export class GitHubSyncReview extends LitElement {
   }
 
   showPublishSuccess(commitSha: string): void {
-    this.publishPreview = null;
+    this.reset();
     this.publishStatus = `Published commit ${commitSha.slice(0, 10)}.`;
-    this.publishWorking = false;
   }
 
   override connectedCallback(): void {
@@ -152,7 +152,7 @@ export class GitHubSyncReview extends LitElement {
           id="preview-github-pull"
           type="button"
           ?disabled=${!this.connected || this.pullWorking}
-          @click=${this.requestPullPreview}
+          @click=${this.previewPull}
         >
           Preview pull
         </button>
@@ -182,7 +182,7 @@ export class GitHubSyncReview extends LitElement {
           id="preview-github-publish"
           type="button"
           ?disabled=${!this.connected || this.publishWorking}
-          @click=${this.requestPublishPreview}
+          @click=${this.previewPublish}
         >
           Preview publish
         </button>
@@ -201,7 +201,7 @@ export class GitHubSyncReview extends LitElement {
           type="button"
           data-destructive="true"
           ?disabled=${!this.connected}
-          @click=${this.requestDisconnect}
+          @click=${this.disconnect}
         >
           Disconnect
         </button>
@@ -288,31 +288,91 @@ export class GitHubSyncReview extends LitElement {
     if (input instanceof HTMLInputElement) this.publishMessage = input.value;
   }
 
-  private requestPullPreview(): void {
+  async previewPull(): Promise<void> {
     this.beginPullPreview();
-    this.dispatchEvent(new CustomEvent(gitHubPullPreviewEvent));
+    try {
+      const value = await this.post("pull-previews", {});
+      if (!isGitHubPullPreview(value)) throw new Error("GitHub returned an invalid pull preview");
+      this.showPullPreview(value);
+    } catch (error) {
+      this.showPullError(errorMessage(error, "Could not check GitHub."));
+    }
   }
 
-  protected requestPullConfirm(): void {
+  protected async requestPullConfirm(): Promise<void> {
     if (!this.pullPreview) return;
     this.beginPull();
-    this.dispatchEvent(new CustomEvent<string>(gitHubPullConfirmEvent, { detail: this.pullPreview.id }));
+    try {
+      await this.post("pulls", { previewId: this.pullPreview.id, resolutions: this.resolutions });
+      this.showPullSuccess();
+      this.emitMutation("pull");
+    } catch (error) {
+      this.showPullError(errorMessage(error, "Could not pull from GitHub."));
+    }
   }
 
-  private requestPublishPreview(): void {
+  async previewPublish(): Promise<void> {
     this.beginPublishPreview();
-    this.dispatchEvent(new CustomEvent(gitHubPublishPreviewEvent));
+    try {
+      const value = await this.post("publish-previews", { commitMessage: this.commitMessage });
+      if (!isGitHubPublishPreview(value)) throw new Error("GitHub returned an invalid publish preview");
+      this.showPublishPreview(value);
+    } catch (error) {
+      this.showPublishError(errorMessage(error, "Could not preview GitHub publish."));
+    }
   }
 
-  protected requestPublishConfirm(): void {
+  protected async requestPublishConfirm(): Promise<void> {
     if (!this.publishPreview) return;
     this.beginPublish();
-    this.dispatchEvent(new CustomEvent<string>(gitHubPublishConfirmEvent, { detail: this.publishPreview.id }));
+    try {
+      const value = await this.post("publishes", { previewId: this.publishPreview.id });
+      if (!isRecord(value) || typeof value.commitSha !== "string") throw new Error("GitHub returned an invalid publish result");
+      this.showPublishSuccess(value.commitSha);
+      this.emitMutation("publish");
+    } catch (error) {
+      this.showPublishError(errorMessage(error, "Could not publish to GitHub."));
+    }
   }
 
-  private requestDisconnect(): void {
-    this.dispatchEvent(new CustomEvent(gitHubSyncDisconnectEvent));
+  private async disconnect(): Promise<void> {
+    if (!confirm("Disconnect this project from GitHub? Project files and the repository will not be deleted.")) return;
+    try {
+      await expectOk(await fetch(`${this.apiBase}/github-sync`, { method: "DELETE", credentials: "same-origin" }));
+      this.emitMutation("disconnect");
+    } catch (error) {
+      this.publishStatus = errorMessage(error, "Could not disconnect GitHub.");
+    }
   }
+
+  private async post(operation: string, body: object): Promise<unknown> {
+    const response = await fetch(`${this.apiBase}/github-sync/${operation}`, {
+      body: JSON.stringify(body),
+      credentials: "same-origin",
+      headers: { "content-type": "application/json" },
+      method: "POST",
+    });
+    await expectOk(response);
+    return response.json();
+  }
+
+  private emitMutation(detail: GitHubSyncMutation): void {
+    this.dispatchEvent(new CustomEvent<GitHubSyncMutation>(gitHubSyncMutationEvent, { bubbles: true, detail }));
+  }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+async function expectOk(response: Response): Promise<void> {
+  if (response.ok) return;
+  const value: unknown = await response.json().catch(() => null);
+  throw new Error(isRecord(value) && typeof value.error === "string" ? value.error : `Request failed (${response.status})`);
+}
+
+function errorMessage(error: unknown, fallback: string): string {
+  return error instanceof Error ? error.message : fallback;
 }
 
 function validConflictChoice(value: string): value is "local" | "remote" {

@@ -73,13 +73,7 @@ import { workspaceSwitchEvent } from "./workspace-switcher";
 import { sourceCompletionActionEvent, type SourceCompletionAction, type SourceCompletionIntent } from "./source-completion";
 import { gitHubDisconnectEvent, gitHubImportCancelEvent, gitHubImportConfirmEvent, gitHubImportPreviewEvent } from "./github-import-panel";
 import { gitHubSyncCheckEvent, gitHubSyncPullEvent, gitHubSyncPushEvent, gitHubSyncSettingsEvent } from "./github-sync-menu";
-import {
-  gitHubPublishConfirmEvent,
-  gitHubPublishPreviewEvent,
-  gitHubPullConfirmEvent,
-  gitHubPullPreviewEvent,
-  gitHubSyncDisconnectEvent,
-} from "./github-sync-review";
+import { gitHubSyncMutationEvent, type GitHubSyncMutation } from "./github-sync-review";
 import { latexImportActionEvent, type LatexImportAction } from "./latex-import-panel";
 import { libraryPdfAnnotationActionEvent, type LibraryPdfAnnotationAction } from "./library-pdf-annotation-forms";
 import { libraryPdfAnnotationListActionEvent, type LibraryPdfAnnotationListAction } from "./library-pdf-annotation-list";
@@ -240,8 +234,6 @@ import { bindThemePreference } from "./theme";
 import {
   isCreatedAnnotation,
   isGitHubImportPreview,
-  isGitHubPublishPreview,
-  isGitHubPullPreview,
   isGitHubSyncState,
   isLatexImportPreview,
   isShareLinkStatus,
@@ -579,23 +571,16 @@ class WorkspaceApp {
       (event) => void this.#confirmGitHubImport((event as CustomEvent<string>).detail),
     );
     this.#elements.gitHubImportPanel.addEventListener(gitHubDisconnectEvent, () => void this.#disconnectGitHubAccount());
-    this.#elements.workspaceSettingsPanel.addEventListener(gitHubPullPreviewEvent, () => void this.#previewGitHubPull());
-    this.#elements.workspaceSettingsPanel.addEventListener(
-      gitHubPullConfirmEvent,
-      (event) => void this.#confirmGitHubPull((event as CustomEvent<string>).detail),
-    );
-    this.#elements.workspaceSettingsPanel.addEventListener(gitHubPublishPreviewEvent, () => void this.#previewGitHubPublish());
-    this.#elements.workspaceSettingsPanel.addEventListener(
-      gitHubPublishConfirmEvent,
-      (event) => void this.#confirmGitHubPublish((event as CustomEvent<string>).detail),
-    );
-    this.#elements.workspaceSettingsPanel.addEventListener(gitHubSyncDisconnectEvent, () => void this.#disconnectGitHub());
+    this.#elements.workspaceSettingsPanel.configureGitHub(apiBase);
+    this.#elements.workspaceSettingsPanel.addEventListener(gitHubSyncMutationEvent, (event) => {
+      void this.#handleGitHubSyncMutation((event as CustomEvent<GitHubSyncMutation>).detail);
+    });
     this.#elements.gitHubSyncMenu.addEventListener(gitHubSyncCheckEvent, () => void this.#refreshGitHubSyncState(true));
     this.#elements.gitHubSyncMenu.addEventListener(gitHubSyncPullEvent, () => {
-      void this.#openWorkspaceSettings(false).then(() => this.#previewGitHubPull());
+      void this.#openWorkspaceSettings(false).then(() => this.#elements.workspaceSettingsPanel.gitHubReview.previewPull());
     });
     this.#elements.gitHubSyncMenu.addEventListener(gitHubSyncPushEvent, () => {
-      void this.#openWorkspaceSettings(false).then(() => this.#previewGitHubPublish());
+      void this.#openWorkspaceSettings(false).then(() => this.#elements.workspaceSettingsPanel.gitHubReview.previewPublish());
     });
     this.#elements.gitHubSyncMenu.addEventListener(gitHubSyncSettingsEvent, () => void this.#openWorkspaceSettings());
     const githubResult = new URL(location.href).searchParams.get("github");
@@ -1349,11 +1334,11 @@ class WorkspaceApp {
     else await this.#deleteWorkspace(detail.title);
   }
 
-  async #refreshGitHubSyncState(force = false): Promise<void> {
+  async #refreshGitHubSyncState(force = false, resetReview = true): Promise<void> {
     if (!this.#shouldRefreshGitHubSync(force)) return;
     const requestId = ++this.#gitHubSyncRequest;
     this.#gitHubSyncCheckedAt = Date.now();
-    this.#resetGitHubSyncReview();
+    if (resetReview) this.#resetGitHubSyncReview();
     try {
       await this.#loadGitHubSyncState(requestId);
     } catch (error) {
@@ -1408,69 +1393,9 @@ class WorkspaceApp {
     this.#elements.workspaceSettingsPanel.setGitHubStatus(this.#elements.gitHubSyncMenu.setStatus(status));
   }
 
-  async #previewGitHubPull(): Promise<void> {
-    try {
-      const response = await jsonFetch(`${apiBase}/github-sync/pull-previews`, {});
-      await expectOk(response);
-      const value: unknown = await response.json();
-      if (!isGitHubPullPreview(value)) throw new Error("GitHub returned an invalid pull preview");
-      this.#elements.workspaceSettingsPanel.gitHubReview.showPullPreview(value);
-    } catch (error) {
-      this.#elements.workspaceSettingsPanel.gitHubReview.showPullError(error instanceof Error ? error.message : "Could not check GitHub.");
-    }
-  }
-
-  async #confirmGitHubPull(previewId: string): Promise<void> {
-    try {
-      const resolutions = this.#elements.workspaceSettingsPanel.gitHubReview.resolutions;
-      const response = await jsonFetch(`${apiBase}/github-sync/pulls`, { previewId, resolutions });
-      await expectOk(response);
-      await this.#resourceRefresh.request();
-      await this.#refreshGitHubSyncState(true);
-      this.#elements.workspaceSettingsPanel.gitHubReview.showPullSuccess();
-    } catch (error) {
-      this.#elements.workspaceSettingsPanel.gitHubReview.showPullError(
-        error instanceof Error ? error.message : "Could not pull from GitHub.",
-      );
-    }
-  }
-
-  async #previewGitHubPublish(): Promise<void> {
-    try {
-      const response = await jsonFetch(`${apiBase}/github-sync/publish-previews`, {
-        commitMessage: this.#elements.workspaceSettingsPanel.gitHubReview.commitMessage,
-      });
-      await expectOk(response);
-      const value: unknown = await response.json();
-      if (!isGitHubPublishPreview(value)) throw new Error("GitHub returned an invalid publish preview");
-      this.#elements.workspaceSettingsPanel.gitHubReview.showPublishPreview(value);
-    } catch (error) {
-      this.#elements.workspaceSettingsPanel.gitHubReview.showPublishError(
-        error instanceof Error ? error.message : "Could not preview GitHub publish.",
-      );
-    }
-  }
-
-  async #confirmGitHubPublish(previewId: string): Promise<void> {
-    try {
-      const response = await jsonFetch(`${apiBase}/github-sync/publishes`, { previewId });
-      await expectOk(response);
-      const value: unknown = await response.json();
-      if (!isRecord(value) || typeof value.commitSha !== "string") throw new Error("GitHub returned an invalid publish result");
-      await this.#refreshGitHubSyncState(true);
-      this.#elements.workspaceSettingsPanel.gitHubReview.showPublishSuccess(value.commitSha);
-    } catch (error) {
-      this.#elements.workspaceSettingsPanel.gitHubReview.showPublishError(
-        error instanceof Error ? error.message : "Could not publish to GitHub.",
-      );
-    }
-  }
-
-  async #disconnectGitHub(): Promise<void> {
-    if (!confirm("Disconnect this project from GitHub? Project files and the repository will not be deleted.")) return;
-    const response = await fetch(`${apiBase}/github-sync`, { method: "DELETE", credentials: "same-origin" });
-    await expectOk(response);
-    await this.#refreshGitHubSyncState(true);
+  async #handleGitHubSyncMutation(mutation: GitHubSyncMutation): Promise<void> {
+    if (mutation === "pull") await this.#resourceRefresh.request();
+    await this.#refreshGitHubSyncState(true, false);
   }
 
   async #openNewWorkspace(): Promise<void> {

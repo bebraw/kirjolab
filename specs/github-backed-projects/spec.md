@@ -137,12 +137,12 @@ incoming and outgoing mutation.
   dialogs, while the Worker retains initial fallback markup.
 - The detailed sync review is a light-DOM Lit component that owns diff and
   conflict presentation, local resolution choices, commit-message input,
-  action readiness, and typed preview, confirmation, and disconnect intents.
-  It retains the opaque Pull and Publish preview identities and confirmation
-  working state, and emits the current preview ID with each enabled Confirm
-  intent. The containing settings panel forwards those intent details
-  unchanged. The application coordinator retains requests, confirmation
-  payload construction, project refresh, and disconnect confirmation.
+  action readiness, Pull and Publish preview and confirmation requests,
+  disconnect confirmation and request, response validation, and operation
+  progress. It retains the opaque preview identities, constructs confirmation
+  payloads from its current resolution and commit-message state, and emits one
+  completed-mutation event. The application coordinator retains canonical
+  project refresh and cross-component status refresh after that event.
 - `POST /api/workspaces/{id}/github-sync/pull-previews` returns a non-mutating
   three-way incoming diff and conflicts.
 - `POST /api/workspaces/{id}/github-sync/pulls` consumes a current pull preview

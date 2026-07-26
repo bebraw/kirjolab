@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { GitHubSyncReview, gitHubPullConfirmEvent, gitHubPullPreviewEvent } from "./github-sync-review";
+import { describe, expect, it, vi } from "vitest";
+import { GitHubSyncReview } from "./github-sync-review";
 import {
   WorkspaceSettingsPanel,
   workspaceSettingsActionEvent,
@@ -73,6 +73,7 @@ class TestWorkspaceSettingsPanel extends WorkspaceSettingsPanel {
 
 class LifecycleWorkspaceSettingsPanel extends TestWorkspaceSettingsPanel {
   showCount = 0;
+  readonly review = new GitHubSyncReview();
   readonly modal = {
     close: () => {
       this.modal.open = false;
@@ -83,10 +84,12 @@ class LifecycleWorkspaceSettingsPanel extends TestWorkspaceSettingsPanel {
       this.modal.open = true;
     },
   };
-  readonly review = new EventTarget() as GitHubSyncReview;
-
   override get updateComplete(): Promise<boolean> {
     return Promise.resolve(true);
+  }
+
+  override get gitHubReview(): GitHubSyncReview {
+    return this.review;
   }
 
   firstUpdatedForTest(): void {
@@ -95,10 +98,6 @@ class LifecycleWorkspaceSettingsPanel extends TestWorkspaceSettingsPanel {
 
   protected override get dialog(): HTMLDialogElement {
     return this.modal as HTMLDialogElement;
-  }
-
-  override get gitHubReview(): GitHubSyncReview {
-    return this.review;
   }
 }
 
@@ -154,22 +153,12 @@ describe("workspace settings panel", () => {
     ]);
   });
 
-  it("opens, reuses, closes, and forwards nested GitHub actions", async () => {
+  it("opens, reuses, and closes", async () => {
     const panel = new LifecycleWorkspaceSettingsPanel();
-    let forwarded = 0;
-    panel.addEventListener(gitHubPullPreviewEvent, () => {
-      forwarded += 1;
-    });
+    const configure = vi.spyOn(panel.gitHubReview, "configure");
+    panel.configureGitHub("/api/workspaces/project");
     panel.firstUpdatedForTest();
-    panel.review.dispatchEvent(new CustomEvent(gitHubPullPreviewEvent));
-    expect(forwarded).toBe(1);
-    let previewId: string | null = null;
-    panel.addEventListener(gitHubPullConfirmEvent, (event) => {
-      previewId = (event as CustomEvent<string>).detail;
-    });
-    panel.review.dispatchEvent(new CustomEvent<string>(gitHubPullConfirmEvent, { detail: "pull-1" }));
-    expect(previewId).toBe("pull-1");
-
+    expect(configure).toHaveBeenCalledWith("/api/workspaces/project");
     await panel.show(view);
     expect(panel.open).toBe(true);
     expect(panel.showCount).toBe(1);
