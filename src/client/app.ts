@@ -28,7 +28,7 @@ import { loadWorkspaceSnapshot, parseWorkspaceSnapshot, WorkspaceAccessError } f
 import { CoalescedRefresh, DebouncedAsyncQueue } from "./collaboration";
 import { CollaborationSession } from "./collaboration-session";
 import { CollaborationSocket } from "./collaboration-socket";
-import { createCitationInsertion, type CitationContext } from "./citations";
+import { createCitationInsertion } from "./citations";
 import "./manuscript-map-panel";
 import {
   applicationVersion,
@@ -509,11 +509,11 @@ class WorkspaceApp {
       openLibrary: () => void this.#openReferenceLibrary(),
     });
     this.#elements.workspacePreview.bindNavigation({
-      openCitation: (citation) => this.#openCitation(citation),
+      openCitation: (citation) => this.#elements.contextResourcePresenter.openCitation(citation),
       selectDiagnostic: ({ fileId, from, to }) => this.#focusProjectRange(fileId || this.#snapshot?.entryFileId || "", from, to),
       showSource: (offset) => this.#elements.previewSyncControls.showSource(offset),
     });
-    this.#elements.sourceCitationControl.bindNavigation((citation) => this.#openCitation(citation));
+    this.#elements.sourceCitationControl.bindNavigation((citation) => this.#elements.contextResourcePresenter.openCitation(citation));
     this.#elements.contextResourcePresenter.bindPublicationContext(apiBase);
     this.#elements.assistantGenerationPresenter.bindResources(this.#elements.contextResourcePresenter.assistantResources());
     this.#elements.assistantGenerationPresenter.bindWorkflow({
@@ -859,11 +859,6 @@ class WorkspaceApp {
     this.#renderResearchContext();
     this.#elements.contextTabStrip.focusTab(this.#contextState.activeKey);
     this.#syncWorkspaceRoute("replace");
-  }
-
-  #openCitation(citation: CitationContext): void {
-    const notice = this.#elements.contextResourcePresenter.openCitation(citation);
-    if (notice) this.#showToast(notice);
   }
 
   async #acceptCitationCompletion({ candidate, context }: Extract<SourceCompletionIntent, { kind: "citation" }>): Promise<void> {

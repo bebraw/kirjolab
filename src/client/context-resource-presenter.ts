@@ -274,18 +274,24 @@ export class ContextResourcePresenter extends LitElement {
     );
   }
 
-  openCitation(citation: CitationContext): string | null {
-    if (citation.keys.length > 1) return "Open this grouped citation from Preview to choose a reference.";
+  openCitation(citation: CitationContext): void {
+    const coordinator = this.routeCoordinator;
+    if (citation.keys.length > 1) {
+      coordinator?.presentNotice("Open this grouped citation from Preview to choose a reference.");
+      return;
+    }
     const citationKey = citation.keys[0] ?? "";
-    const project = this.routeCoordinator?.project();
+    const project = coordinator?.project();
     const publication = project?.publications.find((item) => item.citationKey.toLocaleLowerCase() === citationKey.toLocaleLowerCase());
-    if (!project || !publication) return `No publication resource is available for ${citationKey || "this citation"}.`;
+    if (!project || !publication) {
+      coordinator?.presentNotice(`No publication resource is available for ${citationKey || "this citation"}.`);
+      return;
+    }
     const links = project.publicationPdfLinks.filter(({ publicationId }) => publicationId === publication.id);
     const pdf = links.length === 1 ? project.pdfs.find(({ id }) => id === links[0]?.pdfId) : undefined;
     const page = citationPageFromLocator(citation.locator);
-    if (page && pdf) void this.routeCoordinator?.openProjectPdf(pdf, page);
-    else this.routeCoordinator?.openPublication(publication);
-    return null;
+    if (page && pdf) void coordinator?.openProjectPdf(pdf, page);
+    else coordinator?.openPublication(publication);
   }
 
   bindLibraryPdf(coordinator: LibraryPdfMutationCoordinator): void {

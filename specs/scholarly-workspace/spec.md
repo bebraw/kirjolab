@@ -360,8 +360,11 @@ collaboration.
   state.
 - **Source citation action:** One bounded light-DOM control derives the citation
   context at the current source caret, owns action availability, and emits the
-  resolved citation keys and locator. The workspace coordinator retains
-  publication resolution, grouped-citation policy, and context navigation.
+  resolved citation keys and locator. The enclosing context-resource presenter
+  resolves one key against the canonical project, chooses a unique linked PDF
+  and locator page or publication context, and owns grouped and missing-citation
+  notices. The workspace coordinator retains canonical snapshot authority and
+  context navigation effects.
 - **Offline authoring:** A service worker retains the allowlisted authoring
   shell and previously authorized canonical editor navigation. IndexedDB
   stores the current Yjs document, last acknowledged server vector, and last

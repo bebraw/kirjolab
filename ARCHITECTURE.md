@@ -167,8 +167,8 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   source-offset extraction, and routing of its source, citation, and nested
   diagnostic-selection intents through one typed navigation boundary. Keep
   canonical project-file and Yjs source authority, Yjs anchor resolution,
-  source-map translation, publication resolution, citation navigation, and
-  resulting transitions in the application coordinator.
+  source-map translation, publication resolution, and resulting transitions in
+  the application coordinator.
 - Let the bounded Preview synchronization control own explicit Preview-to-source
   offset capture, composition-map resolution, file-qualified focus intent, and
   source-viewport centering alongside its directional actions and source
@@ -972,6 +972,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   selection validation, PDF selection and undo coordination, canonical refresh,
   annotation-form synchronization, canonical refresh, and notification effects
   in the application coordinator behind that typed completion boundary.
+- Let the context-resource presenter resolve single citation keys against its
+  bound canonical project route, choose an unambiguous linked project PDF and
+  locator page or publication context, and dispatch grouped or missing-citation
+  notices through its existing workspace route. Keep canonical snapshot
+  authority and context transitions in the application coordinator.
 - Treat authoring and research context as the two primary workspace surfaces.
   Let their direct-child Lit switcher apply responsive surface selection and
   the parent workspace's visibility-driving state before reporting navigation

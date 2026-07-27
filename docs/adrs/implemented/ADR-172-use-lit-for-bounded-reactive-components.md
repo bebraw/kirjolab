@@ -147,7 +147,10 @@ The adopted components own bounded presentation:
   resolved active private-Library artifact for page routing, selection capture,
   and saved-markup projection instead of making the coordinator search the
   Library catalog again. It derives authorization identity sets for
-  those resource kinds from canonical project, Library, and linked-PDF inputs;
+  those resource kinds from canonical project, Library, and linked-PDF inputs.
+  It also resolves source and Preview citation keys against its bound project,
+  routes a unique linked PDF and locator page or publication, and dispatches
+  grouped and missing-citation notices through its existing workspace binding;
   tab reconciliation remains coordinator navigation policy. When restoring a
   supplied resource route, it also resolves the matching canonical publication,
   project PDF, private-Library PDF, linked reference PDF, or candidate and emits

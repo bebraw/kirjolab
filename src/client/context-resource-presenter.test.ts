@@ -859,8 +859,8 @@ describe("context resource presenter", () => {
     await presenter.openPublicationPaper({ kind: "project", pdf, linkId: "link:route" });
     await presenter.openPublicationPaper({ kind: "library", artifact: libraryPdf });
     await presenter.openPublicationPaper({ kind: "reference", pdf: referencePdf });
-    expect(presenter.openCitation({ keys: ["author2026"], locator: "p. 7" })).toBeNull();
-    expect(presenter.openCitation({ keys: ["Author2026"] })).toBeNull();
+    presenter.openCitation({ keys: ["author2026"], locator: "p. 7" });
+    presenter.openCitation({ keys: ["Author2026"] });
 
     expect(coordinator.openPublication).toHaveBeenCalledWith(publication);
     expect(coordinator.openProjectPdf).toHaveBeenCalledWith(pdf, 4, "annotation-1");
@@ -880,8 +880,10 @@ describe("context resource presenter", () => {
     expect(coordinator.insertCitation).toHaveBeenNthCalledWith(2, publication.citationKey, "p. 8");
     expect(setCitationAvailable).toHaveBeenNthCalledWith(1, true);
     expect(setCitationAvailable).toHaveBeenNthCalledWith(2, false);
-    expect(presenter.openCitation({ keys: ["one", "two"] })).toBe("Open this grouped citation from Preview to choose a reference.");
-    expect(presenter.openCitation({ keys: ["missing"] })).toBe("No publication resource is available for missing.");
+    presenter.openCitation({ keys: ["one", "two"] });
+    presenter.openCitation({ keys: ["missing"] });
+    expect(coordinator.presentNotice).toHaveBeenNthCalledWith(3, "Open this grouped citation from Preview to choose a reference.");
+    expect(coordinator.presentNotice).toHaveBeenNthCalledWith(4, "No publication resource is available for missing.");
 
     const refresh = vi.fn().mockResolvedValue(undefined);
     presenter.bindProjectAnnotationIntake(refresh);

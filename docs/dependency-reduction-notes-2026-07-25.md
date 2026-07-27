@@ -9228,6 +9228,27 @@ to 849,089 B raw / 228,796 B gzip (+54 B raw / +10 B gzip). Styles and direct
 and unique production package counts remain unchanged at 135,411 B raw /
 23,373 B gzip, 18, and 150.
 
+## Continued Lit Ownership: Citation Routing Notices
+
+`ContextResourcePresenter` now owns the complete source and Preview citation
+outcome: it resolves a single key against its bound canonical project, routes a
+unique linked PDF and locator page or publication, and dispatches grouped and
+missing-citation notices through its existing workspace binding. `WorkspaceApp`
+no longer receives notice strings only to return them through that same route.
+
+This checkpoint reduces `src/client/app.ts` from 1,177 to 1,172 lines (-5) and
+grows the context-resource presenter from 1,004 to 1,010 lines (+6), a combined
+one-line runtime increase. Focused and affected coverage passes 29 presenter
+cases and 43 related cases, including case-insensitive keys, locator pages,
+linked and unlinked publications, grouped and missing citations, both caller
+surfaces, and application contracts. Full native CI passes all 1,721
+unit/coverage tests, 121 Workers-runtime tests, and 74 browser tests.
+
+The browser application artifact changes from 849,089 B raw / 228,796 B gzip
+to 849,083 B raw / 228,788 B gzip (-6 B raw / -8 B gzip). Styles and direct and
+unique production package counts remain unchanged at 135,411 B raw / 23,373 B
+gzip, 18, and 150.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,
