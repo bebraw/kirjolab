@@ -67,6 +67,13 @@ const repositorySchema = v.object({
 const branchSchema = v.object({ name: branchNameSchema, protected: v.boolean() });
 const installationListSchema = v.object({ installations: v.array(installationSchema) });
 const repositoryListSchema = v.object({ repositories: v.array(repositorySchema) });
+const tokenResponseSchema = v.object({
+  access_token: v.pipe(v.string(), v.minLength(20)),
+  expires_in: v.optional(v.unknown()),
+  refresh_token: v.optional(v.unknown()),
+  refresh_token_expires_in: v.optional(v.unknown()),
+});
+const providerErrorSchema = v.object({ error_description: v.string() });
 
 export class GitHubUserClient {
   readonly #config: GitHubUserClientConfig;
@@ -172,14 +179,14 @@ export class GitHubUserClient {
     });
     const value = await responseJson(response);
     if (!response.ok) throw responseError(response.status, value);
-    if (!isRecord(value) || typeof value.access_token !== "string" || value.access_token.length < 20) {
-      throw new GitHubUserError("invalid-response", "GitHub token response is invalid");
-    }
-    const expiresIn = optionalPositiveNumber(value.expires_in);
-    const refreshExpiresIn = optionalPositiveNumber(value.refresh_token_expires_in);
-    const refreshToken = typeof value.refresh_token === "string" && value.refresh_token ? value.refresh_token : null;
+    const parsed = v.safeParse(tokenResponseSchema, value);
+    if (!parsed.success) throw new GitHubUserError("invalid-response", "GitHub token response is invalid");
+    const expiresIn = optionalPositiveNumber(parsed.output.expires_in);
+    const refreshExpiresIn = optionalPositiveNumber(parsed.output.refresh_token_expires_in);
+    const refreshToken =
+      typeof parsed.output.refresh_token === "string" && parsed.output.refresh_token ? parsed.output.refresh_token : null;
     return {
-      accessToken: value.access_token,
+      accessToken: parsed.output.access_token,
       accessExpiresAt: expiresIn === null ? null : new Date(now + expiresIn * 1_000).toISOString(),
       refreshToken,
       refreshExpiresAt: refreshExpiresIn === null ? null : new Date(now + refreshExpiresIn * 1_000).toISOString(),
@@ -245,8 +252,8 @@ async function responseJson(response: Response): Promise<unknown> {
 }
 
 function responseError(status: number, value: unknown): GitHubUserError {
-  const message =
-    isRecord(value) && typeof value.error_description === "string" ? value.error_description.slice(0, 500) : "GitHub request failed";
+  const parsed = v.safeParse(providerErrorSchema, value);
+  const message = parsed.success ? parsed.output.error_description.slice(0, 500) : "GitHub request failed";
   const code: GitHubUserErrorCode =
     status === 401 ? "authorization" : status === 403 ? "forbidden" : status === 404 ? "not-found" : "invalid-response";
   return new GitHubUserError(code, message, status);
@@ -254,8 +261,4 @@ function responseError(status: number, value: unknown): GitHubUserError {
 
 function optionalPositiveNumber(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) && value > 0 ? value : null;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

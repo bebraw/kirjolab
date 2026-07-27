@@ -7499,6 +7499,26 @@ Valibot was already pinned and shipped elsewhere.
 Full native CI passes all 1,571 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Completed Valibot Adoption: GitHub OAuth Responses
+
+The GitHub user client now validates OAuth token and provider-error payloads
+with named Valibot schemas as well. This removes its final generic record
+predicate and gives every GitHub identity, installation, repository, branch,
+token, and error response one consistent external-data boundary.
+
+This completion grows `src/integrations/github-user.ts` from 261 to 264 lines
+(+3) in exchange for replacing the last handwritten structural checks. The
+existing affected integration suite passes all 79 cases and all 120 Workers-
+runtime tests alongside strict types.
+
+Browser application and style artifacts remain unchanged at 835,394 B raw /
+225,724 B gzip and 135,411 B raw / 23,373 B gzip because this boundary is
+server-side. Direct and unique production package counts remain 18 and 150;
+Valibot was already pinned.
+
+Full native CI passes all 1,654 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Preview Status Projection
 
 `PreviewContextStatus` now derives composed-versus-isolated file labels,
