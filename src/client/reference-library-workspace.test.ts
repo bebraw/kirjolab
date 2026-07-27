@@ -1,10 +1,15 @@
 import { describe, expect, it, vi } from "vitest";
-import type { ReferenceLibrarySnapshot } from "../domain/reference-library";
-import { CitationNetworkWorkspace } from "./citation-network-workspace";
+import type { LibraryPdfArtifact, ReferenceLibrarySnapshot } from "../domain/reference-library";
+import { citationNetworkOutcomeEvent, CitationNetworkWorkspace } from "./citation-network-workspace";
+import { libraryReferenceMetadataNoticeEvent, libraryReferenceMetadataRefreshEvent } from "./library-reference-metadata-editor";
+import { libraryReferencePdfActionEvent, libraryReferencePdfRefreshEvent } from "./library-reference-pdf-rows";
+import { libraryReferencePersonalRefreshEvent } from "./library-reference-personal-fields";
+import { libraryReferenceResearchActionEvent } from "./library-reference-research-rows";
 import { LibraryReferenceList } from "./library-reference-list";
+import { libraryReferenceSummaryActionEvent } from "./library-reference-summary";
 import { ReferenceLibraryFilterPanel, referenceLibraryFilterChangeEvent } from "./reference-library-filters";
 import { ReferenceLibraryWorkspace } from "./reference-library-workspace";
-import { UnidentifiedPdfList } from "./unidentified-pdf-list";
+import { unidentifiedPdfRefreshEvent, UnidentifiedPdfList } from "./unidentified-pdf-list";
 
 class TestReferenceLibraryWorkspace extends ReferenceLibraryWorkspace {
   rootForTest(): HTMLElement {
@@ -61,6 +66,18 @@ const library: ReferenceLibrarySnapshot = {
   webSources: [],
 };
 
+const artifact: LibraryPdfArtifact = {
+  contentType: "application/pdf",
+  createdAt: "created",
+  fingerprint: "fingerprint",
+  id: "artifact-1",
+  name: "paper.pdf",
+  objectKey: "library/paper.pdf",
+  referenceId: "reference-1",
+  rights: "private",
+  size: 1024,
+};
+
 describe("reference Library workspace", () => {
   it("composes canonical Library presentation and filter changes", () => {
     const { owners, workspace } = setup();
@@ -115,5 +132,54 @@ describe("reference Library workspace", () => {
     expect(configure).toHaveBeenCalledWith("project-1");
     expect(open).toHaveBeenCalledOnce();
     expect(complete).toHaveBeenCalledWith(3);
+  });
+
+  it("routes child Library outcomes through the coordinator boundary", () => {
+    const { owners, workspace } = setup();
+    const callbacks = {
+      captureUrl: vi.fn(),
+      compareSnapshots: vi.fn(),
+      completeRefresh: vi.fn(),
+      openPdf: vi.fn(),
+      presentNotice: vi.fn(),
+      refreshLibrary: vi.fn(),
+      refreshMetadata: vi.fn().mockResolvedValue(undefined),
+    };
+    const completeIdentification = vi.spyOn(owners["unidentified-pdf-list"], "complete");
+    workspace.configure("project-1", callbacks);
+
+    workspace.dispatchEvent(new CustomEvent(citationNetworkOutcomeEvent, { detail: { action: "notice", message: "Network notice" } }));
+    workspace.dispatchEvent(
+      new CustomEvent(citationNetworkOutcomeEvent, { detail: { action: "library-refresh", message: "Candidate saved" } }),
+    );
+    workspace.dispatchEvent(new CustomEvent(libraryReferenceSummaryActionEvent, { detail: { action: "open-pdf", artifact } }));
+    workspace.dispatchEvent(new CustomEvent(libraryReferencePersonalRefreshEvent, { detail: "Personal fields saved" }));
+    workspace.dispatchEvent(new CustomEvent(libraryReferenceMetadataNoticeEvent, { detail: "Metadata notice" }));
+    workspace.dispatchEvent(new CustomEvent(libraryReferenceMetadataRefreshEvent, { detail: "Metadata saved" }));
+    workspace.dispatchEvent(new CustomEvent(libraryReferencePdfActionEvent, { detail: { action: "open", artifact } }));
+    workspace.dispatchEvent(
+      new CustomEvent(libraryReferencePdfActionEvent, { detail: { action: "refine", artifact, reference: library.references[0] } }),
+    );
+    workspace.dispatchEvent(new CustomEvent(libraryReferencePdfRefreshEvent));
+    workspace.dispatchEvent(
+      new CustomEvent(libraryReferenceResearchActionEvent, { detail: { action: "capture", canonicalUrl: "https://example.test" } }),
+    );
+    workspace.dispatchEvent(
+      new CustomEvent(libraryReferenceResearchActionEvent, { detail: { action: "compare", priorId: "prior", currentId: "current" } }),
+    );
+    workspace.dispatchEvent(new CustomEvent(unidentifiedPdfRefreshEvent, { detail: { message: "PDF identified", requestId: 7 } }));
+
+    expect(callbacks.presentNotice).toHaveBeenCalledWith("Network notice");
+    expect(callbacks.presentNotice).toHaveBeenCalledWith("Metadata notice");
+    expect(callbacks.openPdf).toHaveBeenCalledTimes(2);
+    expect(callbacks.completeRefresh).toHaveBeenCalledTimes(4);
+    expect(callbacks.refreshLibrary).toHaveBeenCalledOnce();
+    expect(callbacks.captureUrl).toHaveBeenCalledWith("https://example.test");
+    expect(callbacks.compareSnapshots).toHaveBeenCalledWith("prior", "current");
+    const metadataOptions = callbacks.completeRefresh.mock.calls[2]?.[2];
+    expect(metadataOptions?.refresh).toBe(callbacks.refreshMetadata);
+    const identificationOptions = callbacks.completeRefresh.mock.calls[3]?.[2];
+    identificationOptions?.complete?.();
+    expect(completeIdentification).toHaveBeenCalledWith(7);
   });
 });

@@ -46,19 +46,9 @@ import { startingPointActionEvent, type StartingPointAction } from "./project-st
 import { workspaceSharingNoticeEvent } from "./workspace-sharing-panel";
 import { WorkspaceLayoutManager } from "./workspace-layout-manager";
 import { workspaceLayoutChangeEvent } from "./workspace-layout-control";
-import { unidentifiedPdfRefreshEvent, type UnidentifiedPdfRefresh } from "./unidentified-pdf-list";
-import { libraryReferenceSummaryActionEvent, type LibraryReferenceSummaryAction } from "./library-reference-summary";
 import { projectReferenceChangedEvent, type ProjectReferenceChanged } from "./project-reference-mutation";
 import { projectResearchChangedEvent, type ProjectResearchChanged } from "./project-research-mutation";
 import { libraryReferenceImportRefreshEvent, type LibraryReferenceImportRefresh } from "./library-reference-import-control";
-import { libraryReferencePersonalRefreshEvent } from "./library-reference-personal-fields";
-import { libraryReferenceMetadataNoticeEvent, libraryReferenceMetadataRefreshEvent } from "./library-reference-metadata-editor";
-import {
-  libraryReferencePdfActionEvent,
-  libraryReferencePdfRefreshEvent,
-  type LibraryReferencePdfAction,
-} from "./library-reference-pdf-rows";
-import { libraryReferenceResearchActionEvent, type LibraryReferenceResearchAction } from "./library-reference-research-rows";
 import { workspaceSettingsActionEvent, type WorkspaceSettingsAction } from "./workspace-settings-panel";
 import {
   researchQuestionWorkflowData,
@@ -121,7 +111,6 @@ import {
   type LibraryToolsArchiveRefresh,
 } from "./library-tools-menu";
 import { webSourceCapturedEvent } from "./web-source-panels";
-import { citationNetworkOutcomeEvent, type CitationNetworkOutcome } from "./citation-network-workspace";
 import { previewDiagnosticSelectEvent, type PreviewDiagnosticSelection } from "./preview-presentation";
 import { workspacePreviewActionEvent, type WorkspacePreviewAction } from "./workspace-preview";
 import { publicationIntakeActionEvent, type PublicationIntakeAction } from "./publication-intake-panel";
@@ -460,58 +449,17 @@ class WorkspaceApp {
         complete: () => this.#elements.libraryToolsMenu.completeArchiveRestore(detail.requestId),
       });
     });
-    this.#elements.referenceLibraryWorkspace.configure(workspaceId);
-    this.#elements.referenceLibraryWorkspace.addEventListener(citationNetworkOutcomeEvent, (event) => {
-      const outcome = (event as CustomEvent<CitationNetworkOutcome>).detail;
-      if (outcome.action === "notice") this.#showToast(outcome.message);
-      else
-        void this.#completeLibraryRefresh(
-          outcome.message,
-          "The citation candidate was saved, but the refreshed Library could not be loaded.",
-        );
-    });
-    this.#elements.referenceLibraryWorkspace.addEventListener(libraryReferenceSummaryActionEvent, (event) => {
-      const detail = (event as CustomEvent<LibraryReferenceSummaryAction>).detail;
-      void this.#openLibraryPdf(detail.artifact);
-    });
-    this.#elements.referenceLibraryWorkspace.addEventListener(libraryReferencePersonalRefreshEvent, (event) => {
-      void this.#completeLibraryRefresh(
-        (event as CustomEvent<string>).detail,
-        "The private reference was updated, but the refreshed Library could not be loaded.",
-      );
-    });
-    this.#elements.referenceLibraryWorkspace.addEventListener(libraryReferenceMetadataNoticeEvent, (event) => {
-      this.#showToast((event as CustomEvent<string>).detail);
-    });
-    this.#elements.referenceLibraryWorkspace.addEventListener(libraryReferenceMetadataRefreshEvent, (event) => {
-      void this.#completeLibraryRefresh(
-        (event as CustomEvent<string>).detail,
-        "Metadata was applied, but the refreshed Library could not be loaded.",
-        {
-          refresh: async () => {
-            await this.#refreshReferenceLibrary();
-            await this.#refreshSnapshot();
-          },
-        },
-      );
-    });
-    this.#elements.referenceLibraryWorkspace.addEventListener(libraryReferencePdfActionEvent, (event) => {
-      const detail = (event as CustomEvent<LibraryReferencePdfAction>).detail;
-      if (detail.action === "open") void this.#openLibraryPdf(detail.artifact);
-    });
-    this.#elements.referenceLibraryWorkspace.addEventListener(libraryReferencePdfRefreshEvent, () => {
-      void this.#refreshReferenceLibrary();
-    });
-    this.#elements.referenceLibraryWorkspace.addEventListener(libraryReferenceResearchActionEvent, (event) => {
-      const detail = (event as CustomEvent<LibraryReferenceResearchAction>).detail;
-      if (detail.action === "capture") void this.#elements.webSourceCapture.captureUrl(detail.canonicalUrl);
-      else if (detail.action === "compare") void this.#elements.webSnapshotComparison.compare(detail.priorId, detail.currentId);
-    });
-    this.#elements.referenceLibraryWorkspace.addEventListener(unidentifiedPdfRefreshEvent, (event) => {
-      const detail = (event as CustomEvent<UnidentifiedPdfRefresh>).detail;
-      void this.#completeLibraryRefresh(detail.message, "The PDF was identified, but the refreshed Library could not be loaded.", {
-        complete: () => this.#elements.referenceLibraryWorkspace.completePdfIdentification(detail.requestId),
-      });
+    this.#elements.referenceLibraryWorkspace.configure(workspaceId, {
+      captureUrl: (url) => void this.#elements.webSourceCapture.captureUrl(url),
+      compareSnapshots: (priorId, currentId) => void this.#elements.webSnapshotComparison.compare(priorId, currentId),
+      completeRefresh: (message, fallback, options) => void this.#completeLibraryRefresh(message, fallback, options),
+      openPdf: (artifact) => void this.#openLibraryPdf(artifact),
+      presentNotice: (message) => this.#showToast(message),
+      refreshLibrary: () => void this.#refreshReferenceLibrary(),
+      refreshMetadata: async () => {
+        await this.#refreshReferenceLibrary();
+        await this.#refreshSnapshot();
+      },
     });
     this.#bindSourceEditor(this.#source);
     this.#rememberAuthoringSelection();

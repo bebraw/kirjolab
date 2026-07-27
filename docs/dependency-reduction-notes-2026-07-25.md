@@ -6457,6 +6457,29 @@ Valibot was already pinned.
 Full native CI passes all 1,657 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Reference Library Event Routing
+
+`ReferenceLibraryWorkspace` now binds and routes the summary, personal-fields,
+metadata-editor, PDF-row, research-row, citation-network, and unidentified-PDF
+child outcome streams that it composes. `WorkspaceApp` supplies canonical
+refresh, PDF navigation, web-capture/comparison, and notice effects through one
+typed callback boundary instead of subscribing to every nested component.
+
+This checkpoint reduces `src/client/app.ts` from 2,490 to 2,438 lines (-52)
+and grows the existing composed Library owner from 100 to 184 lines. Runtime
+source across those files grows by 32 lines while removing nine coordinator
+subscriptions and ten child-event imports. Four direct workspace cases cover
+canonical projection, filter and reveal delegation, nested lifecycle controls,
+and the complete routed-outcome boundary under strict client and Workers types.
+
+The browser application artifact changes from 838,842 B raw / 226,566 B gzip
+to 839,286 B raw / 226,580 B gzip (+444 B raw / +14 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,658 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

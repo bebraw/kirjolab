@@ -91,9 +91,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   project-reference inputs. Let a composed light-DOM Library workspace
   synchronize that projection with the reference list, citation network, and
   unidentified-PDF queue; own filter-driven rerendering and focused-reference
-  reveal; and delegate child lifecycle controls. Keep canonical snapshot
-  loading, cross-feature navigation, mutations, refresh, and notification
-  policy in their authorities.
+  reveal; delegate child lifecycle controls; and route its summary, personal-
+  field, metadata, PDF, research, citation-network, and unidentified-PDF child
+  outcomes. Keep canonical snapshot loading, cross-feature navigation,
+  mutations, refresh execution, and notification presentation in their
+  authorities behind narrow typed callbacks.
 - Keep resource-card lookup, scrolling, and focus inside the Lit component that
   renders those cards. Let the Library reference-list owner route a PDF
   refinement intent to the metadata editor in the same reference row. The
