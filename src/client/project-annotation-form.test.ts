@@ -117,7 +117,7 @@ describe("project annotation form", () => {
     expect(panel.renderForTest()).toBeDefined();
   });
 
-  it("classifies overlapping strokes on the captured PDF page", () => {
+  it("classifies and erases overlapping strokes on the captured PDF page", async () => {
     const panel = new TestProjectAnnotationForm();
     const overlap = { ...fragment("overlap"), rects: [{ height: 0.1, width: 0.2, x: 0.1, y: 0.2 }] };
     const separate = { ...fragment("separate"), rects: [{ height: 0.1, width: 0.2, x: 0.6, y: 0.7 }] };
@@ -125,17 +125,28 @@ describe("project annotation form", () => {
     const otherPage = { ...annotation("annotation-2", [overlap]), page: 3 };
     const otherPdf = { ...annotation("annotation-3", [overlap]), pdfId: "pdf-2" };
 
-    expect(
-      panel
-        .overlappingFragments([matching, otherPage, otherPdf], "pdf-1", {
-          page: 2,
-          prefix: "",
-          quote: "Evidence",
-          rects: [{ height: 0.05, width: 0.1, x: 0.15, y: 0.23 }],
-          suffix: "",
-        })
-        .map(({ annotation: resource, fragment: stroke }) => [resource.id, stroke.id]),
-    ).toEqual([["annotation-1", "overlap"]]);
+    const overlaps = panel.overlappingFragments([matching, otherPage, otherPdf], "pdf-1", {
+      page: 2,
+      prefix: "",
+      quote: "Evidence",
+      rects: [{ height: 0.05, width: 0.1, x: 0.15, y: 0.23 }],
+      suffix: "",
+    });
+    expect(overlaps.map(({ annotation: resource, fragment: stroke }) => [resource.id, stroke.id])).toEqual([["annotation-1", "overlap"]]);
+    expect(await panel.eraseOverlaps([])).toBe(false);
+    expect(await panel.eraseOverlaps(overlaps)).toBeNull();
+
+    const removeHighlight = vi.fn().mockResolvedValue(true);
+    panel.bindWorkflow({
+      chooseTool: vi.fn(),
+      citePage: vi.fn(),
+      completeSave: vi.fn(),
+      removeHighlight,
+      undoHighlight: vi.fn(),
+    });
+    expect(await panel.eraseOverlaps(overlaps)).toBe(true);
+    expect(removeHighlight).toHaveBeenCalledWith("annotation-1", "overlap");
+    expect(panel.renderForTest().values).toContain("Removed 1 overlapping highlight stroke.");
   });
 
   it("owns nested publication intake presentation and outcomes", async () => {
@@ -173,6 +184,7 @@ describe("project annotation form", () => {
       chooseTool: vi.fn(),
       completeSave: (saved) => outcomes.push(saved),
       citePage: vi.fn(),
+      removeHighlight: vi.fn(),
       undoHighlight: vi.fn(),
     });
     panel.changeForTest("comment", "Use this");
@@ -256,6 +268,7 @@ describe("project annotation form", () => {
       chooseTool,
       completeSave: vi.fn(),
       citePage,
+      removeHighlight: vi.fn(),
       undoHighlight,
     });
 

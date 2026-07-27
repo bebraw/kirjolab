@@ -456,8 +456,9 @@ The adopted components own bounded presentation:
   status and retryable failures, paint-versus-erase tool guidance and selection
   feedback derived from its local tool and canonical capture, citation
   availability derived from the active PDF and canonical publication-PDF
-  links, same-PDF/page saved-stroke overlap classification, nested
-  publication-intake configuration and PDF projection, intake
+  links, same-PDF/page saved-stroke overlap classification, ordered removal
+  routing, no-match and completed-erasure status, nested publication-intake
+  configuration and PDF projection, intake
   refresh acknowledgement and navigation routing, and one typed workflow
   binding for tool, undo, citation, completed save, and link outcomes or intents.
 - The Library PDF annotation forms own private-highlight, page-note, and

@@ -777,12 +777,13 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   save status inside its Lit owner. Let it derive paint-versus-erase tool
   guidance and selection feedback from its local tool and canonical capture,
   classify saved annotation strokes that geometrically overlap that capture on
-  the active PDF page,
+  the active PDF page, route their ordered removal through the typed workflow
+  binding, and own no-match and completed-erasure status,
   plus citation availability from the active PDF and canonical publication-PDF
   links. Let the composer configure and project its nested publication-intake
   owner, acknowledge or reject intake after canonical refresh, and route linked
   or accepted publications through typed callbacks. Route completed note-save,
-  tool, undo, citation, and link outcomes through one typed workflow binding while
+  tool, undo, erasure, citation, and link outcomes through one typed workflow binding while
   leaving PDF selection capture, viewer draft clearing, manuscript linking,
   canonical refreshes, and notifications in the application
   coordinator.

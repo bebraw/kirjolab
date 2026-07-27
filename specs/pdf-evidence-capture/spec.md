@@ -42,8 +42,10 @@ with an authored passage.
   reference navigation through typed coordinator callbacks. It derives paint-
   versus-erase tool guidance and selection feedback from its local tool and the
   canonical capture, classifies saved strokes that geometrically overlap that
-  capture on the active PDF page, and derives citation availability from the
-  active PDF and canonical publication-PDF links. The workspace coordinator
+  capture on the active PDF page, routes their ordered removal through its typed
+  workflow binding, owns no-match and completed-erasure status, and derives
+  citation availability from the active PDF and canonical publication-PDF
+  links. The workspace coordinator
   retains PDF selection capture, viewer effects, annotation identity,
   manuscript selection, refreshes, and user notifications.
 - `POST /api/workspaces/{id}/annotation-links` validates an annotation and

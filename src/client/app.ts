@@ -516,6 +516,7 @@ class WorkspaceApp {
       chooseTool: (tool) => this.#setHighlightTool(tool),
       completeSave: (saved) => void this.#completeAnnotationSave(saved),
       citePage: () => this.#citeActivePdf(),
+      removeHighlight: async (annotationId, fragmentId) => await this.#removeHighlightFragment(annotationId, fragmentId, false),
       undoHighlight: (annotationId, fragmentId) => void this.#undoLastHighlightStroke(annotationId, fragmentId),
     });
     this.#elements.contextResourcePresenter.bindLibraryPdf({
@@ -1599,18 +1600,10 @@ class WorkspaceApp {
   }
 
   async #erasePdfSelection(overlaps: readonly ProjectAnnotationOverlap[]): Promise<void> {
-    if (overlaps.length === 0) {
-      this.#pdfViewer.clearDraftSelection();
-      this.#elements.projectAnnotationForm.setStatus("The eraser did not cross a saved highlight stroke.");
-      return;
-    }
-    for (const overlap of overlaps) {
-      if (!(await this.#removeHighlightFragment(overlap.annotation.id, overlap.fragment.id, false))) return;
-    }
+    const erased = await this.#elements.projectAnnotationForm.eraseOverlaps(overlaps);
+    if (erased === null) return;
     this.#pdfViewer.clearDraftSelection();
-    const noun = overlaps.length === 1 ? "stroke" : "strokes";
-    this.#elements.projectAnnotationForm.setStatus(`Removed ${overlaps.length} overlapping highlight ${noun}.`);
-    this.#showToast("Highlight content erased.");
+    if (erased) this.#showToast("Highlight content erased.");
   }
 
   async #savePdfSelection(pdfId: string, capture: PdfSelectionCapture, target: AnnotationResource | undefined): Promise<void> {

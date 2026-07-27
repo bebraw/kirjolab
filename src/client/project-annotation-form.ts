@@ -22,6 +22,7 @@ export interface ProjectAnnotationWorkflowBinding {
   readonly chooseTool: (tool: ProjectHighlightTool) => void;
   readonly completeSave: (saved: ProjectAnnotationSaved) => void;
   readonly citePage: () => void;
+  readonly removeHighlight: (annotationId: string, fragmentId: string) => Promise<boolean>;
   readonly undoHighlight: (annotationId: string, fragmentId: string) => void;
 }
 
@@ -136,6 +137,20 @@ export class ProjectAnnotationForm extends LitElement {
           .filter((fragment) => libraryPdfRectsOverlap(fragment.rects, capture.rects))
           .map((fragment) => ({ annotation, fragment })),
       );
+  }
+
+  async eraseOverlaps(overlaps: readonly ProjectAnnotationOverlap[]): Promise<boolean | null> {
+    if (overlaps.length === 0) {
+      this.status = "The eraser did not cross a saved highlight stroke.";
+      return false;
+    }
+    const removeHighlight = this.workflowBinding?.removeHighlight;
+    if (!removeHighlight) return null;
+    for (const { annotation, fragment } of overlaps) {
+      if (!(await removeHighlight(annotation.id, fragment.id))) return null;
+    }
+    this.status = `Removed ${overlaps.length} overlapping highlight ${overlaps.length === 1 ? "stroke" : "strokes"}.`;
+    return true;
   }
 
   private applyCapture(capture: Pick<AnnotationDraft, "page" | "prefix" | "quote" | "suffix">): void {

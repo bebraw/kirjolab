@@ -7817,6 +7817,30 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,700 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: PDF Erasure Workflow
+
+`ProjectAnnotationForm` now owns empty-erasure and completed-erasure status,
+orders the matched stroke removals, and stops on the first rejected mutation.
+The typed workflow binding delegates each actual fragment mutation to the
+coordinator, which retains canonical refresh, viewer draft clearing, and global
+notification effects.
+
+This checkpoint reduces `src/client/app.ts` from 1,774 to 1,767 lines (-7) and
+grows the project-annotation owner from 447 to 462 lines (+15). Runtime source
+across those files increases by eight lines while replacing the coordinator's
+erasure branches, loop, and pluralization with one typed result. Focused
+coverage passes all nine project-annotation cases, including empty, unbound,
+and successful erasure outcomes, alongside application contracts and strict
+types.
+
+The browser application artifact changes from 845,269 B raw / 229,015 B gzip
+to 845,392 B raw / 229,060 B gzip (+123 B raw / +45 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,700 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,
