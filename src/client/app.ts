@@ -10,8 +10,7 @@ import { researchDiaryPath, researchDiaryTemplate } from "../domain/writing-work
 import "./application-version-control";
 import "./source-citation-control";
 import "./workspace-surface-switcher";
-import { expectOk, jsonFetch } from "./http";
-import { type SourceCompletionIntent } from "./source-completion";
+import { expectOk } from "./http";
 import { libraryPdfRoute, readLibraryUiRoute } from "./library-ui-route";
 import "./project-starting-point-browser";
 import { WorkspaceLayoutManager } from "./workspace-layout-manager";
@@ -378,9 +377,11 @@ class WorkspaceApp {
       }),
       presentNotice: (message) => this.#elements.toast.show(message),
     });
-    this.#elements.sourceCompletion.bindAcceptance((intent) => {
-      if (intent.kind === "citation") void this.#acceptCitationCompletion(intent);
-      else this.#elements.editorInsertMenu.replaceRange(intent.context.start, intent.context.end, intent.candidate.reference);
+    this.#elements.sourceCompletion.bindProjectAcceptance(apiBase, {
+      acceptMutation: (response) => this.#acceptWorkspaceMutation(response),
+      preserveRange: (start, end) => this.#elements.editorStatus.preserveRange(start, end),
+      presentNotice: (message) => this.#elements.toast.show(message),
+      replaceRange: (start, end, replacement) => this.#elements.editorInsertMenu.replaceRange(start, end, replacement),
     });
     this.#elements.authoringModeTabs.bindNavigation((mode) => {
       if (mode === "write") {
@@ -636,22 +637,6 @@ class WorkspaceApp {
     this.#elements.contextResourcePresenter.presentBoundContext();
     this.#elements.assistantGenerationPresenter.refreshAvailability();
     this.#syncWorkspaceRoute("replace");
-  }
-
-  async #acceptCitationCompletion({ candidate, context }: Extract<SourceCompletionIntent, { kind: "citation" }>): Promise<void> {
-    let start = context.start;
-    let end = context.end;
-    if (candidate.scope === "library") {
-      const resolveRange = this.#elements.editorStatus.preserveRange(start, end);
-      if (!resolveRange) return;
-      const response = await jsonFetch(`${apiBase}/references`, { referenceId: candidate.referenceId, citationAlias: candidate.key });
-      await this.#acceptWorkspaceMutation(response);
-      const range = resolveRange();
-      if (!range) return;
-      ({ start, end } = range);
-    }
-    this.#elements.editorInsertMenu.replaceRange(start, end, candidate.key);
-    if (candidate.scope === "library") this.#elements.toast.show(`Added and cited ${candidate.key}.`);
   }
 
   #showPassage(anchor: PassageLink["anchor"]): void {

@@ -351,17 +351,19 @@ collaboration.
   hover and keyboard selection, active-descendant state, selected-option
   scrolling, editor change, keyboard, and blur binding, browser-local
   citation-scope persistence, local Escape and blur dismissal, private-Library
-  loading and response validation for that scope, and a typed acceptance intent.
+  loading and response validation for that scope, and project acceptance.
   One callback reports bound-editor changes for coordinator-owned authoring
-  selection, presence, and model-availability consequences. Acceptance
-  carries the selected citation or include candidate together with its
-  replacement context. The pure citation-completion adapter derives project and
+  selection, presence, and model-availability consequences. Acceptance applies
+  relative includes immediately. For a private-Library citation it preserves
+  the collaborative range, requests project linking, delegates canonical
+  snapshot application, resolves the range again, applies the citation through
+  the insertion owner, and presents completion. The pure citation-completion adapter derives project and
   available unlinked Library candidates from canonical reference inputs; the
   component derives project-relative include candidates from canonical files
-  and the active file id. The workspace coordinator retains private-Library
-  linking, collaborative edits, and caret restoration without caching
-  candidates, visible options, completion kind, or completion-local loading
-  state.
+  and the active file id. The workspace coordinator supplies narrow mutation,
+  range, insertion, and notice capabilities while retaining canonical snapshot
+  and Yjs authority without caching candidates, visible options, completion
+  kind, or completion-local loading state.
 - **Source citation action:** One bounded light-DOM control derives the citation
   context at the current source caret, owns action availability, and emits the
   resolved citation keys and locator. The enclosing context-resource presenter

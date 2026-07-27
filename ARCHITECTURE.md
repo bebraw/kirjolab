@@ -848,17 +848,18 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   consequences; persist citation suggestion scope there; detect citation and
   include contexts from the bound editor there; rank
   and adapt candidates there, own empty-state hiding and popup positioning
-  there, dismiss locally on Escape or editor blur, and invoke one typed
-  acceptance binding with the selected candidate and its replacement context.
-  Derive citation
+  there, dismiss locally on Escape or editor blur, and bind one typed project
+  acceptance boundary. Derive citation
   and project-relative include candidates there from coordinator-supplied
   canonical project files and reference links. Let the component load, validate,
   and cache its private-Library candidate input only when that local scope is
-  active. The application coordinator retains active-file identity,
-  private-Library linking mutations, and canonical Yjs authority without
-  caching menu candidates, loading state, or kind state. The completion owner
-  dismisses itself on acceptance and routes its explicit selected range through
-  the editor insertion owner for replacement, focus, and caret application.
+  active. The completion owner applies relative includes immediately. For a
+  private-Library citation it preserves the selected range through the editor
+  owner, requests project linking, delegates canonical snapshot application,
+  resolves the range again, applies the citation through the insertion owner,
+  and presents completion. The application coordinator retains active-file
+  identity, canonical snapshot and Yjs authority, and the supplied mutation,
+  range, insertion, and notice capabilities without caching completion state.
 - Implement optional editor keymaps as bounded textarea command adapters that
   emit ordinary input changes. Keep keymap preference browser-local, preserve
   IME and modified browser shortcuts, and never create a second document model.

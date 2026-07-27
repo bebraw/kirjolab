@@ -14,7 +14,7 @@ import {
   type IncludeCompletionCandidate,
   type IncludeCompletionContext,
 } from "./include-completions";
-import { expectOk } from "./http";
+import { expectOk, jsonFetch } from "./http";
 import { positionSourceCompletion } from "./source-editor-adapter";
 
 export type SourceCompletionIntent =
@@ -36,6 +36,13 @@ export interface SourceCompletionInputs {
   readonly files: readonly Pick<ProjectFile, "id" | "path">[];
   readonly projectReferences: Parameters<typeof citationCompletionCandidates>[0];
   readonly workspace: boolean;
+}
+
+export interface SourceCompletionProjectAcceptance {
+  readonly acceptMutation: (result: Response) => Promise<void>;
+  readonly preserveRange: (start: number, end: number) => (() => { readonly start: number; readonly end: number } | null) | null;
+  readonly presentNotice: (message: string) => void;
+  readonly replaceRange: (start: number, end: number, replacement: string) => void;
 }
 
 type SourceCompletionProject = Pick<SourceCompletionInputs, "files" | "projectReferences">;
@@ -83,6 +90,10 @@ export class SourceCompletion extends LitElement {
 
   bindAcceptance(acceptIntent: (intent: SourceCompletionIntent) => void): void {
     this.acceptIntent = acceptIntent;
+  }
+
+  bindProjectAcceptance(apiBase: string, acceptance: SourceCompletionProjectAcceptance): void {
+    this.bindAcceptance((intent) => void this.acceptProjectIntent(apiBase, acceptance, intent));
   }
 
   show(options: readonly SourceCompletionOption[], source: HTMLTextAreaElement): void {
@@ -265,6 +276,33 @@ export class SourceCompletion extends LitElement {
     } catch {
       this.libraryReferences = null;
     }
+  }
+
+  private async acceptProjectIntent(
+    apiBase: string,
+    acceptance: SourceCompletionProjectAcceptance,
+    intent: SourceCompletionIntent,
+  ): Promise<void> {
+    if (intent.kind === "include") {
+      acceptance.replaceRange(intent.context.start, intent.context.end, intent.candidate.reference);
+      return;
+    }
+    const { candidate, context } = intent;
+    let { start, end } = context;
+    if (candidate.scope === "library") {
+      const resolveRange = acceptance.preserveRange(start, end);
+      if (!resolveRange) return;
+      const response = await jsonFetch(`${apiBase}/references`, {
+        referenceId: candidate.referenceId,
+        citationAlias: candidate.key,
+      });
+      await acceptance.acceptMutation(response);
+      const range = resolveRange();
+      if (!range) return;
+      ({ start, end } = range);
+    }
+    acceptance.replaceRange(start, end, candidate.key);
+    if (candidate.scope === "library") acceptance.presentNotice(`Added and cited ${candidate.key}.`);
   }
 
   private readonly handleEditorKey = (event: KeyboardEvent): void => {

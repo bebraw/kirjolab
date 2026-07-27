@@ -157,10 +157,11 @@ collaborative, and unambiguous about what preview and export mean.
   and inserted directive remain available through native titles.
 - Source completion dismisses itself immediately after accepting a citation or
   include candidate. The selected completion range routes through the editor
-  insertion owner; private-Library reference linking and canonical Yjs
-  authority remain in the workspace coordinator. For private-Library linking,
-  the editor-status owner preserves that range as Yjs-relative positions and
-  rejects restoration if the active authoring text changes during the request.
+  insertion owner. The completion owner applies relative includes immediately.
+  For private-Library linking, it asks the editor-status owner to preserve the
+  range as Yjs-relative positions, requests the link, delegates canonical
+  snapshot application to the workspace coordinator, rejects restoration if
+  the active authoring text changed, then applies and acknowledges the citation.
 - The editor-status owner binds the active collaborative text to the source
   editor, preserves an independent undo history for every opened text, and
   combines the resolved local target with collaborator ranges for highlighting.

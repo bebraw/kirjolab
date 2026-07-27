@@ -67,6 +67,61 @@ describe("source completion", () => {
     expect(intents).toEqual([includeIntent]);
   });
 
+  it("owns project include and Library citation acceptance", async () => {
+    const completion = new TestSourceCompletion();
+    const source = { setAttribute: vi.fn(), removeAttribute: vi.fn() } as unknown as HTMLTextAreaElement;
+    const acceptMutation = vi.fn().mockResolvedValue(undefined);
+    const preserveRange = vi.fn(() => () => ({ start: 12, end: 15 }));
+    const presentNotice = vi.fn();
+    const replaceRange = vi.fn();
+    const fetchMock = vi.fn().mockResolvedValue(Response.json({}));
+    vi.stubGlobal("fetch", fetchMock);
+    completion.bindProjectAcceptance("/api/workspaces/workspace", {
+      acceptMutation,
+      preserveRange,
+      presentNotice,
+      replaceRange,
+    });
+
+    completion.show([option("chapter", "Chapter")], source);
+    completion.handleKey({ key: "Enter", isComposing: false, preventDefault: vi.fn() } as unknown as KeyboardEvent);
+    expect(replaceRange).toHaveBeenCalledWith(10, 14, "chapters/method.md");
+
+    completion.show(
+      [
+        {
+          value: "doe2026",
+          metadata: "Library paper",
+          intent: {
+            kind: "citation",
+            context: { query: "doe", start: 6, end: 9 },
+            candidate: {
+              authors: ["Doe"],
+              key: "doe2026",
+              referenceId: "reference-1",
+              scope: "library",
+              title: "Result",
+              year: "2026",
+            },
+          },
+        },
+      ],
+      source,
+    );
+    completion.handleKey({ key: "Enter", isComposing: false, preventDefault: vi.fn() } as unknown as KeyboardEvent);
+
+    await vi.waitFor(() => expect(acceptMutation).toHaveBeenCalledOnce());
+    expect(fetchMock).toHaveBeenCalledWith("/api/workspaces/workspace/references", {
+      body: JSON.stringify({ referenceId: "reference-1", citationAlias: "doe2026" }),
+      credentials: "same-origin",
+      headers: { "content-type": "application/json" },
+      method: "POST",
+    });
+    expect(preserveRange).toHaveBeenCalledWith(6, 9);
+    expect(replaceRange).toHaveBeenLastCalledWith(12, 15, "doe2026");
+    expect(presentNotice).toHaveBeenCalledWith("Added and cited doe2026.");
+  });
+
   it("ranks and presents include and citation candidates beside their token", () => {
     const completion = new TestSourceCompletion();
     const source = { setAttribute: vi.fn(), removeAttribute: vi.fn() } as unknown as HTMLTextAreaElement;

@@ -331,13 +331,19 @@ The adopted components own bounded presentation:
   candidate ranking and display adaptation, empty-state hiding, popup
   positioning, hover and keyboard selection, active-descendant state,
   selected-option scrolling, local Escape and blur dismissal, private-Library
-  loading and response validation for that scope, and typed acceptance intents.
+  loading and response validation for that scope, and project acceptance.
+  Relative includes are applied immediately. Private-Library citation
+  acceptance preserves the collaborative range, requests project linking,
+  delegates canonical snapshot application, resolves the range again, applies
+  the citation through the editor insertion owner, and presents completion.
   It invokes one coordinator callback for authoring-selection, presence, and
   model-availability consequences. Its pure
   citation-completion domain adapter owns
   project and available unlinked Library candidate construction from canonical
   reference inputs, while the component owns project-relative include candidate
   construction from canonical files and the active file id.
+  `WorkspaceApp` supplies narrow mutation, range, insertion, and notice
+  capabilities while retaining canonical snapshot and Yjs authority.
 - The manuscript map panel owns summary metrics, heading outline, structural
   cues, local editing-pass selection, editing cues, canonical composed-source
   derivation for the guide, research-diary and writing-workflow sibling

@@ -11436,3 +11436,28 @@ and PDF.js artifacts remain unchanged at 135,411 B / 23,373 B, 204,779 B /
 
 Full native CI passes all 1,743 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Lit Ownership: Completion Acceptance
+
+`SourceCompletion` now owns the complete selected-option transaction. It
+applies relative includes immediately and, for a private-Library citation,
+preserves the collaborative range, requests project linking, delegates
+canonical snapshot application, resolves the range again, applies the citation,
+and presents completion. `WorkspaceApp` supplies narrow mutation, range,
+insertion, and notice capabilities instead of implementing the transaction.
+
+This checkpoint reduces `src/client/app.ts` from 738 to 723 lines (-15) and
+grows the source-completion owner from 309 to 347 lines (+38). The 23-line
+combined increase makes asynchronous range preservation and linking behavior
+part of the same owner as candidate loading and acceptance, with a narrow
+capability boundary back to canonical project and editor authorities. Focused
+coverage passes immediate includes, request projection, mutation delegation,
+range re-resolution, replacement, completion notice, and strict types. Direct
+and unique production package counts remain 18 and 150; Lit was already pinned.
+
+The browser application artifact remains 855,108 B raw / 230,068 B gzip.
+Styles and lazy Markdown and PDF.js artifacts also remain unchanged at 135,411
+B / 23,373 B, 204,779 B / 62,386 B, and 481,994 B / 146,135 B.
+
+Full native CI passes all 1,744 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
