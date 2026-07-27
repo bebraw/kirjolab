@@ -140,11 +140,11 @@ collaborative, and unambiguous about what preview and export mean.
   canonical inputs, derives the mutation endpoint from that identity, and emits
   the completed mode, submitted path, message, and validated workspace snapshot.
   It also owns encoded file deletion transport and shares the same response
-  validation across create, rename, and delete operations. The workspace
-  coordinator must not reconstruct mutation targets from mutable ambient
-  selection; it retains collaborative include-target capture, supporting-file
-  optimistic hiding, delayed deletion and Undo, snapshot application,
-  rendering, and notification.
+  validation across create, rename, and delete operations, plus the supporting-
+  file hidden projection, delayed deletion, Undo, and failed-commit restoration.
+  The workspace coordinator must not reconstruct mutation targets from mutable
+  ambient selection; it retains collaborative include-target capture, canonical
+  snapshot application, file selection, rendering, and the notification outlet.
 - Publication exports consume the versioned source-mapped intermediate defined
   by `specs/export-pipeline/spec.md`; no target may reimplement include
   expansion or front-matter offset handling.

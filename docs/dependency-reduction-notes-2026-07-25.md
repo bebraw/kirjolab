@@ -6387,6 +6387,30 @@ Valibot was already pinned.
 Full native CI passes all 1,656 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Completed Lit Ownership: Project File Deletion
+
+`ProjectFileDialog` now owns the remaining supporting-file deletion lifecycle:
+encoded validated transport, optimistic hidden-file projection, six-second
+delayed commit, Undo restoration, failed-commit restoration, and deletion
+notices. `WorkspaceApp` supplies only canonical snapshot application, active-
+file selection, rerendering, and the shared toast outlet.
+
+This checkpoint reduces `src/client/app.ts` from 2,504 to 2,490 lines (-14)
+and grows the existing project-file owner from 220 to 258 lines. Runtime source
+across those files grows by 24 lines while deleting the coordinator's final
+deferred-deletion controller, hidden-file set, and deletion schedule. Twelve
+direct dialog cases cover create, rename, content creation, deferred deletion,
+Undo, failed restoration, modal lifecycle, response validation, and strict
+client and Workers types.
+
+The browser application artifact changes from 838,304 B raw / 226,459 B gzip
+to 838,842 B raw / 226,566 B gzip (+538 B raw / +107 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,657 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

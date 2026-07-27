@@ -4,6 +4,7 @@ import {
   projectFileDialogIsCreating,
   projectFileDialogIsFolder,
   projectFileSavedEvent,
+  type ProjectFileDeletionCallbacks,
   type ProjectFileDialogMode,
   type ProjectFileSaved,
 } from "./project-file-dialog";
@@ -62,7 +63,18 @@ class TestProjectFileDialog extends ProjectFileDialog {
   }
 }
 
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  vi.useRealTimers();
+  vi.restoreAllMocks();
+});
+
+function deletionCallbacks(): ProjectFileDeletionCallbacks {
+  return {
+    commit: vi.fn(),
+    presentNotice: vi.fn(),
+    selectFile: vi.fn(),
+  };
+}
 
 describe("project file dialog", () => {
   it("classifies file and folder operations", () => {
@@ -141,17 +153,45 @@ describe("project file dialog", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
-  it("owns encoded file deletion transport and validates its workspace", async () => {
+  it("owns deferred encoded file deletion and commits its validated workspace", async () => {
+    vi.useFakeTimers();
     const panel = new TestProjectFileDialog();
+    const callbacks = deletionCallbacks();
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(Response.json(snapshot));
-    panel.configureApi("/api/workspaces/workspace");
+    const file = { ...snapshot.files[0]!, id: "file/1" };
+    panel.configureApi("/api/workspaces/workspace", callbacks);
 
-    await expect(panel.deleteFile("file/1")).resolves.toEqual(snapshot);
+    panel.deleteFile(file, "entry-file");
+    expect(panel.hiddenFiles.has(file.id)).toBe(true);
+    expect(callbacks.selectFile).toHaveBeenCalledWith("entry-file");
+    expect(callbacks.presentNotice).toHaveBeenCalledWith(`Deleted ${file.path}.`, expect.objectContaining({ actionLabel: "Undo" }));
+    await vi.advanceTimersByTimeAsync(6_000);
 
     expect(fetchMock).toHaveBeenCalledWith("/api/workspaces/workspace/files/file%2F1", {
       credentials: "same-origin",
       method: "DELETE",
     });
+    expect(panel.hiddenFiles.has(file.id)).toBe(false);
+    expect(callbacks.commit).toHaveBeenCalledWith(snapshot);
+  });
+
+  it("restores a project file when deferred deletion is undone", async () => {
+    vi.useFakeTimers();
+    const panel = new TestProjectFileDialog();
+    const callbacks = deletionCallbacks();
+    const fetchMock = vi.spyOn(globalThis, "fetch");
+    const file = snapshot.files[0]!;
+    panel.configureApi("/api/workspaces/workspace", callbacks);
+
+    panel.deleteFile(file, "entry-file");
+    const notice = vi.mocked(callbacks.presentNotice).mock.calls[0]?.[1];
+    notice?.action?.();
+    await vi.advanceTimersByTimeAsync(6_000);
+
+    expect(panel.hiddenFiles.has(file.id)).toBe(false);
+    expect(callbacks.selectFile).toHaveBeenLastCalledWith(file.id);
+    expect(callbacks.presentNotice).toHaveBeenLastCalledWith(`Restored ${file.path}.`, undefined);
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("owns content-bearing file creation and returns the created stable file", async () => {
@@ -176,12 +216,21 @@ describe("project file dialog", () => {
     await expect(panel.createFile("missing.md", "# Missing")).rejects.toThrow("Project file operation did not create the requested path");
   });
 
-  it("rejects malformed file deletion workspaces", async () => {
+  it("restores failed file deletion with a retryable notice", async () => {
+    vi.useFakeTimers();
     const panel = new TestProjectFileDialog();
+    const callbacks = deletionCallbacks();
     vi.spyOn(globalThis, "fetch").mockResolvedValue(Response.json({ invalid: true }));
-    panel.configureApi("/api/workspaces/workspace");
+    const file = snapshot.files[0]!;
+    panel.configureApi("/api/workspaces/workspace", callbacks);
 
-    await expect(panel.deleteFile("file-1")).rejects.toThrow("Project file operation returned an invalid workspace");
+    panel.deleteFile(file, "entry-file");
+    await vi.advanceTimersByTimeAsync(6_000);
+
+    expect(panel.hiddenFiles.has(file.id)).toBe(false);
+    expect(callbacks.selectFile).toHaveBeenLastCalledWith(file.id);
+    expect(callbacks.commit).not.toHaveBeenCalled();
+    expect(callbacks.presentNotice).toHaveBeenLastCalledWith(`Could not delete ${file.path}.`, undefined);
   });
 
   it("ignores mutation modes without their stable target", async () => {

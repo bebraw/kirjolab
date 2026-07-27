@@ -196,8 +196,9 @@ The adopted components own bounded presentation:
   deletion transport, response validation, optimistic hiding, delayed commit
   scheduling, Undo restoration, failure notices, and typed file, folder, image,
   and quick-open intents. It exposes hidden image identities to Preview and
-  returns validated snapshots. The coordinator retains active-file deletion,
-  snapshot application, cross-feature rendering, and the toast outlet.
+  returns validated snapshots. The coordinator retains snapshot application,
+  cross-feature rendering, and the toast outlet; the project-file dialog owns
+  supporting-file deletion.
 - The project image upload control owns the image file input, sequential upload
   transport, response validation, duplicate-submit gating, local progress and
   retryable failure state, and a typed completed outcome carrying the final
@@ -306,9 +307,11 @@ The adopted components own bounded presentation:
   workflow-file creation, shared response validation, created-path verification,
   duplicate-submit gating, local busy and retryable failure state, and typed
   completed outcomes carrying the mode, path, message, and validated workspace
-  snapshot together. The coordinator retains workflow-template selection and
-  navigation, the supporting-file deletion grace period, optimistic hiding,
-  Undo restoration, snapshot application, rendering, and notification.
+  snapshot together. It also owns supporting-file optimistic hiding, the
+  deletion grace period, Undo and failed-commit restoration, and exposes the
+  hidden-file projection. The coordinator retains workflow-template selection
+  and navigation, snapshot application, file selection, rendering, and the
+  notification outlet.
 - Reused project-file action components own the rail and editor-menu action
   presentation, entry-file delete availability, and one typed create, include,
   rename, delete, folder-create, or image-upload intent contract.

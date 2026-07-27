@@ -38,7 +38,6 @@ import { editorInsertActionEvent, type EditorInsertAction, type EditorSyntaxTemp
 import { sourceSpanAt } from "./composition-source-map";
 import { collaboratorSelectionChangeEvent } from "./collaborator-selection-list";
 import type { AppToastOptions } from "./app-toast";
-import { DeferredDeletionController } from "./deferred-deletion";
 import { expectOk, jsonFetch } from "./http";
 import { sourceCompletionActionEvent, type SourceCompletionIntent } from "./source-completion";
 import type { LibraryPdfSelectionPresentation, LibraryPdfToolPresentation } from "./context-resource-presenter";
@@ -224,8 +223,6 @@ class WorkspaceApp {
   #revision = 0;
   #renderSourceEditorHighlight: () => void = () => undefined;
   #hasBootstrapSnapshot = false;
-  readonly #hiddenProjectFileIds = new Set<string>();
-  readonly #deferredDeletions = new DeferredDeletionController((message, options) => this.#showToast(message, options));
   #renderedPdfId: string | undefined;
   #renderedPdfContextKey: ResearchContextKey | undefined;
   #contextState: ResearchContextState = createResearchContext();
@@ -557,7 +554,15 @@ class WorkspaceApp {
     this.#elements.projectImageUpload.addEventListener(projectImagesUploadedEvent, (event) => {
       this.#completeProjectImageUpload((event as CustomEvent<ProjectImagesUploaded>).detail);
     });
-    this.#elements.projectFileDialog.configureApi(apiBase);
+    this.#elements.projectFileDialog.configureApi(apiBase, {
+      commit: (snapshot) => {
+        this.#snapshot = snapshot;
+        this.#renderProjectFiles();
+        void this.#renderPreview();
+      },
+      presentNotice: (message, options) => this.#showToast(message, options),
+      selectFile: (fileId) => this.#selectProjectFile(fileId),
+    });
     this.#elements.projectFileDialog.addEventListener(projectFileSavedEvent, (event) => {
       this.#completeProjectFileSave((event as CustomEvent<ProjectFileSaved>).detail);
     });
@@ -950,7 +955,7 @@ class WorkspaceApp {
   async #openWorkspaceSettings(checkGitHub = true): Promise<void> {
     await this.#elements.workspaceSettingsPanel.show({
       catalog: this.#workspaceCatalog,
-      hiddenFileIds: this.#hiddenProjectFileIds,
+      hiddenFileIds: this.#elements.projectFileDialog.hiddenFiles,
       snapshot: this.#snapshot,
       workspaceId,
     });
@@ -1239,7 +1244,7 @@ class WorkspaceApp {
   #liveProjectFiles(): ProjectFile[] {
     if (!this.#snapshot) return [];
     return this.#snapshot.files
-      .filter((file) => !this.#hiddenProjectFileIds.has(file.id))
+      .filter((file) => !this.#elements.projectFileDialog.hiddenFiles.has(file.id))
       .map((file) => ({
         ...file,
         content: this.#document.getText(projectFileCollaborationTextName(file, this.#snapshot?.entryFileId ?? "")).toString(),
@@ -1250,14 +1255,14 @@ class WorkspaceApp {
     if (!this.#snapshot) return [];
     return this.#collaboration.synced || this.#collaboration.offlineAvailable
       ? this.#liveProjectFiles()
-      : this.#snapshot.files.filter((file) => !this.#hiddenProjectFileIds.has(file.id));
+      : this.#snapshot.files.filter((file) => !this.#elements.projectFileDialog.hiddenFiles.has(file.id));
   }
 
   #renderProjectFiles(): void {
     const snapshot = this.#snapshot;
     if (!snapshot) return;
     this.#ensureActiveProjectFile(snapshot);
-    const files = snapshot.files.filter((file) => !this.#hiddenProjectFileIds.has(file.id));
+    const files = snapshot.files.filter((file) => !this.#elements.projectFileDialog.hiddenFiles.has(file.id));
     this.#elements.projectTreePanel.setTree({
       activeFileId: this.#activeFileId,
       assetBase: `${apiBase}/assets`,
@@ -1283,7 +1288,7 @@ class WorkspaceApp {
   #selectProjectFile(fileId: string): void {
     const snapshot = this.#snapshot;
     const file = snapshot?.files.find((item) => item.id === fileId);
-    if (!snapshot || !file || this.#hiddenProjectFileIds.has(fileId) || fileId === this.#activeFileId) return;
+    if (!snapshot || !file || this.#elements.projectFileDialog.hiddenFiles.has(fileId) || fileId === this.#activeFileId) return;
     this.#unbindSourceEditor();
     this.#activeFileId = fileId;
     this.#activeFileText = this.#document.getText(projectFileCollaborationTextName(file, snapshot.entryFileId));
@@ -1340,26 +1345,7 @@ class WorkspaceApp {
     const snapshot = this.#snapshot;
     const file = snapshot?.files.find((item) => item.id === this.#activeFileId);
     if (!snapshot || !file || file.id === snapshot.entryFileId) return;
-    this.#deferredDeletions.schedule({
-      key: `project-file:${file.id}`,
-      deletedMessage: `Deleted ${file.path}.`,
-      restoredMessage: `Restored ${file.path}.`,
-      failedMessage: `Could not delete ${file.path}.`,
-      hide: () => {
-        this.#hiddenProjectFileIds.add(file.id);
-        this.#activeFileId = null;
-        this.#selectProjectFile(snapshot.entryFileId);
-      },
-      restore: () => {
-        this.#hiddenProjectFileIds.delete(file.id);
-        this.#selectProjectFile(file.id);
-      },
-      commit: async () => {
-        this.#snapshot = await this.#elements.projectFileDialog.deleteFile(file.id);
-        this.#renderProjectFiles();
-        void this.#renderPreview();
-      },
-    });
+    this.#elements.projectFileDialog.deleteFile(file, snapshot.entryFileId);
   }
 
   #completeProjectImageUpload({ message, snapshot }: ProjectImagesUploaded): void {

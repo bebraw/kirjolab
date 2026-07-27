@@ -1,6 +1,7 @@
 import { html, LitElement, type TemplateResult } from "lit";
 import type { ProjectFile } from "../domain/project-files";
 import { isWorkspaceSnapshot, type WorkspaceSnapshot } from "../domain/workspace";
+import { DeferredDeletionController, type DeferredDeletionNoticeOptions } from "./deferred-deletion";
 import { errorMessage, expectOk, jsonFetch } from "./http";
 
 export const projectFileSavedEvent = "project-file-saved";
@@ -12,6 +13,12 @@ export interface ProjectFileSaved {
   readonly mode: ProjectFileDialogMode;
   readonly path: string;
   readonly snapshot: WorkspaceSnapshot;
+}
+
+export interface ProjectFileDeletionCallbacks {
+  readonly commit: (snapshot: WorkspaceSnapshot) => void;
+  readonly presentNotice: (message: string, options?: DeferredDeletionNoticeOptions) => void;
+  readonly selectFile: (fileId: string) => void;
 }
 
 export function projectFileDialogIsFolder(mode: ProjectFileDialogMode): boolean {
@@ -49,7 +56,16 @@ export class ProjectFileDialog extends LitElement {
   declare private saving: boolean;
   declare private status: string;
   private apiBase = "";
+  private deletionCallbacks: ProjectFileDeletionCallbacks = {
+    commit: () => undefined,
+    presentNotice: () => undefined,
+    selectFile: () => undefined,
+  };
+  private readonly deletions = new DeferredDeletionController((message, options) => {
+    this.deletionCallbacks.presentNotice(message, options);
+  });
   private targetId: string | null = null;
+  private readonly hiddenFileIds = new Set<string>();
 
   constructor() {
     super();
@@ -59,8 +75,13 @@ export class ProjectFileDialog extends LitElement {
     this.status = "";
   }
 
-  configureApi(apiBase: string): void {
+  configureApi(apiBase: string, deletionCallbacks?: ProjectFileDeletionCallbacks): void {
     this.apiBase = apiBase;
+    if (deletionCallbacks) this.deletionCallbacks = deletionCallbacks;
+  }
+
+  get hiddenFiles(): ReadonlySet<string> {
+    return this.hiddenFileIds;
   }
 
   async show(mode: ProjectFileDialogMode, initialPath = "", targetId: string | null = null): Promise<void> {
@@ -81,13 +102,30 @@ export class ProjectFileDialog extends LitElement {
     this.dialog.close();
   }
 
-  async deleteFile(fileId: string): Promise<WorkspaceSnapshot> {
-    const response = await fetch(`${this.apiBase}/files/${encodeURIComponent(fileId)}`, {
-      method: "DELETE",
-      credentials: "same-origin",
+  deleteFile(file: ProjectFile, entryFileId: string): void {
+    this.deletions.schedule({
+      key: `project-file:${file.id}`,
+      deletedMessage: `Deleted ${file.path}.`,
+      restoredMessage: `Restored ${file.path}.`,
+      failedMessage: `Could not delete ${file.path}.`,
+      hide: () => {
+        this.hiddenFileIds.add(file.id);
+        this.deletionCallbacks.selectFile(entryFileId);
+      },
+      restore: () => {
+        this.hiddenFileIds.delete(file.id);
+        this.deletionCallbacks.selectFile(file.id);
+      },
+      commit: async () => {
+        const response = await fetch(`${this.apiBase}/files/${encodeURIComponent(file.id)}`, {
+          method: "DELETE",
+          credentials: "same-origin",
+        });
+        await expectOk(response);
+        this.hiddenFileIds.delete(file.id);
+        this.deletionCallbacks.commit(await this.workspace(response));
+      },
     });
-    await expectOk(response);
-    return this.workspace(response);
   }
 
   async createFile(path: string, content: string): Promise<ProjectFile> {

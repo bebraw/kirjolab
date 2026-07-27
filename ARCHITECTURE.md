@@ -205,11 +205,12 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   It owns file/folder create and rename transport, file deletion transport,
   content-bearing workflow-file creation, shared response validation,
   created-path verification, duplicate-submit gating, and retryable local
-  failures. Emit or return the validated workspace snapshot or created stable
+  failures. It also owns the supporting-file hidden projection, six-second
+  delayed deletion, Undo restoration, failed-commit restoration, and deletion
+  notices. Emit or return the validated workspace snapshot or created stable
   file. Keep workflow-template selection and navigation, collaborative caret
-  capture, Yjs insertion, supporting-file optimistic hiding and Undo timing,
-  snapshot application, selection, rendering, and toast policy in the workspace
-  coordinator.
+  capture, Yjs insertion, canonical snapshot application, selection, rendering,
+  and the global toast outlet in the workspace coordinator.
 - Let the editor Insert menu own the scholarly syntax templates it displays and
   emit those templates with typed syntax choices. Keep passage-aware link
   adaptation, collaborative selection resolution, and Yjs edits in the
@@ -225,8 +226,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   Undo window, delayed commit scheduling, restoration, and failure notices. It
   exposes hidden image identities so Preview does not resolve an asset during
   its grace window and returns validated snapshots for coordinator application.
-  Keep active-file deletion, canonical snapshot application, cross-feature
-  rendering, and the global toast outlet in the workspace coordinator.
+  Keep canonical snapshot application, cross-feature rendering, and the global
+  toast outlet in the workspace coordinator; the project-file dialog owns
+  supporting-file deletion.
 - Store project image metadata beside the durable file tree and keep its bytes
   as bounded, inert R2 objects under the reserved `figures/` path. Do not put
   uploaded image bytes in Yjs. Accept SVG only as validated UTF-8 image content
