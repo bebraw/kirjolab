@@ -217,7 +217,11 @@ changing their canonical data, selector, authorization, or rendering contracts.
   The presenter configures the project-map workspace and binds annotation,
   claim, candidate, note, PDF, and publication routes across its composed Lit
   owners; document, project, people, and Preview-section routes remain with the
-  application coordinator.
+  application coordinator. The presenter also configures the project-evidence
+  panel and owns annotation-form cleanup and selection, edit and PDF routes,
+  fragment-removal refresh sequencing, and notice dispatch. Mutation completion
+  policy, refresh transport, passage linking, and passage navigation remain in
+  the application coordinator.
   Typed publication-paper choices dispatch through the same
   project, private-Library, and shared-reference PDF routes. The presenter also
   derives active-publication citation readiness and maps explicit active
@@ -451,9 +455,12 @@ changing their canonical data, selector, authorization, or rendering contracts.
       transport, guarded removal transport, highlight-fragment update and delete
       transport with retryable local status and typed deletion completion, and annotation-passage-link
       transport from a coordinator-validated typed passage. Yjs selection
-      validation, grounding authority, PDF selection and undo coordination,
-      annotation-form synchronization, canonical refreshes, and toast effects
-      remain outside it behind separate typed workspace and assistant bindings.
+      validation, grounding authority, canonical refresh transport, passage
+      linking, passage navigation, and mutation completion policy remain outside
+      it behind separate typed workspace and assistant bindings. Its enclosing
+      resource presenter owns annotation-form synchronization, PDF routing,
+      refresh sequencing, and notice dispatch among the Lit resources it
+      composes.
 - [x] Narrow layouts expose an explicit Authoring/Context switch and preserve
       the hidden surface's local state.
 - [x] Refresh, copied URLs, and browser Back restore authorized file, view,

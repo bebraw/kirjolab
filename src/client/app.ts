@@ -454,27 +454,11 @@ class WorkspaceApp {
       void this.#renderPreview();
       this.#collaborationSocket.flush();
     });
-    this.#elements.projectEvidencePanel.configure(apiBase);
-    this.#elements.projectEvidencePanel.bind({
-      annotationRemoved: (annotationId, message) => {
-        this.#elements.projectAnnotationForm.clearAnnotation(annotationId);
-        this.#refreshResourcesWithNotice(message, "The highlight was deleted, but project resources could not be refreshed.");
-      },
-      completeMutation: (message) =>
-        this.#refreshResourcesWithNotice(message, "The project changed, but project resources could not be refreshed."),
-      editAnnotation: (annotation) => this.#elements.contextResourcePresenter.openProjectAnnotation(annotation.id, true),
-      fragmentRemoved: async ({ annotationDeleted, annotationId, announce }) => {
-        if (annotationDeleted) this.#elements.projectAnnotationForm.clearAnnotation(annotationId);
-        await this.#resourceRefresh.request();
-        if (announce) this.#showToast("Highlight stroke erased.");
-      },
+    this.#elements.contextResourcePresenter.bindProjectEvidence(apiBase, {
+      completeMutation: (message, refreshFailure) => this.#refreshResourcesWithNotice(message, refreshFailure),
       linkAnnotation: (annotationId) => void this.#linkSelectedPassage("annotation", annotationId),
-      notice: (message) => this.#showToast(message),
       openPassage: (anchor) => this.#showPassage(anchor),
-      openPdf: (pdf, page, annotationId) => {
-        this.#elements.projectAnnotationForm.selectPdf(pdf.id);
-        void this.#showPaper(pdf, page, annotationId);
-      },
+      refreshResources: async () => await this.#resourceRefresh.request(),
     });
     this.#elements.contextResourcePresenter.bindProjectMap(apiBase, {
       document: () => {

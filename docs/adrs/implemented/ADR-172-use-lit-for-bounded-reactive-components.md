@@ -179,7 +179,11 @@ The adopted components own bounded presentation:
   anchor resolution and render timing. Let it configure the project-map
   workspace and bind annotation, claim, candidate, note, PDF, and publication
   routes across its composed Lit owners while the application coordinator
-  retains document, project, people, and Preview-section navigation. Through a
+  retains document, project, people, and Preview-section navigation. Let it also
+  configure the project-evidence panel and own its annotation-form cleanup and
+  selection, edit and PDF routes, fragment-removal refresh sequencing, and
+  notice dispatch. Keep mutation completion policy, refresh transport, passage
+  linking, and passage navigation in the application coordinator. Through a
   narrow viewer binding it derives
   authorized active-PDF loads, synchronizes project annotations and private
   highlights, rejects stale completions, retains rendered context and project-

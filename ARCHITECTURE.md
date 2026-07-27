@@ -1010,8 +1010,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   those retained identities. The presenter binds the project-annotation form's
   workflow, applies its tool and draft-clearing effects through the bounded
   viewer, and routes citation, highlight removal, and highlight reveal to the
-  Lit owners it already composes. Only refresh, notice, and optional manuscript-
-  link effects cross to the application coordinator. Keep tab state, canonical snapshot acceptance,
+  Lit owners it already composes. Let it also configure the project-evidence
+  panel and own annotation-form cleanup and selection, edit and PDF routes,
+  fragment-removal refresh sequencing, and notice dispatch. Only mutation
+  completion policy, canonical refresh transport, passage linking, and passage
+  navigation cross to the application coordinator. Keep tab state, canonical snapshot acceptance,
   Yjs citation syntax insertion, cross-resource navigation, routing, project-selection
   persistence, remaining viewer gestures, and the shared notification outlet
   in the application coordinator through narrow callbacks.

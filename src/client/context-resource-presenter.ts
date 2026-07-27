@@ -31,7 +31,7 @@ import { libraryPdfMarkupActionEvent, type LibraryPdfMarkupAction } from "./libr
 import { libraryPdfToolbarActionEvent, type LibraryPdfToolbarAction } from "./library-pdf-annotation-toolbar";
 import { pdfHighlightImportOutcomeEvent, type PdfHighlightImportOutcome } from "./pdf-highlight-import-panel";
 import { ProjectAnnotationForm, type ProjectAnnotationCompletion } from "./project-annotation-form";
-import { ProjectEvidencePanel } from "./project-evidence-panel";
+import { ProjectEvidencePanel, type ProjectEvidenceBinding } from "./project-evidence-panel";
 import { ProjectMapWorkspace, type ProjectMapNavigation } from "./project-map-workspace";
 import { mutateProjectReference } from "./project-reference-mutation";
 import { PublicationContextPanel, type PublicationPaperOption } from "./publication-context-panel";
@@ -130,6 +130,12 @@ type ContextPdfViewer = Pick<
   Pick<PdfEvidenceViewer, "currentPage" | "focusedAnnotationId" | "open" | "showError" | "updateAnnotations" | "updatePrivateHighlights">;
 
 export type ProjectAnnotationCoordinatorCompletion = Omit<ProjectAnnotationCompletion, "clearDraftSelection">;
+export interface ProjectEvidenceCoordinator {
+  readonly completeMutation: (message: string, refreshFailure: string) => void;
+  readonly linkAnnotation: ProjectEvidenceBinding["linkAnnotation"];
+  readonly openPassage: ProjectEvidenceBinding["openPassage"];
+  readonly refreshResources: () => Promise<void>;
+}
 export type ProjectMapCoordinator = Pick<ProjectMapNavigation, "document" | "person" | "project" | "section">;
 
 export class ContextResourcePresenter extends LitElement {
@@ -318,6 +324,32 @@ export class ContextResourcePresenter extends LitElement {
       removeHighlight: async (annotationId, fragmentId) =>
         (await this.element("project-evidence-panel", ProjectEvidencePanel)?.removeFragment(annotationId, fragmentId)) ?? false,
       revealHighlight: (annotationId) => this.element("project-evidence-panel", ProjectEvidencePanel)?.revealAnnotation(annotationId),
+    });
+  }
+
+  bindProjectEvidence(apiBase: string, coordinator: ProjectEvidenceCoordinator): void {
+    const evidence = this.element("project-evidence-panel", ProjectEvidencePanel);
+    evidence?.configure(apiBase);
+    evidence?.bind({
+      annotationRemoved: (annotationId, message) => {
+        this.element("project-annotation-form", ProjectAnnotationForm)?.clearAnnotation(annotationId);
+        coordinator.completeMutation(message, "The highlight was deleted, but project resources could not be refreshed.");
+      },
+      completeMutation: (message) =>
+        coordinator.completeMutation(message, "The project changed, but project resources could not be refreshed."),
+      editAnnotation: (annotation) => this.openProjectAnnotation(annotation.id, true),
+      fragmentRemoved: async ({ annotationDeleted, annotationId, announce }) => {
+        if (annotationDeleted) this.element("project-annotation-form", ProjectAnnotationForm)?.clearAnnotation(annotationId);
+        await coordinator.refreshResources();
+        if (announce) this.routeCoordinator?.presentNotice("Highlight stroke erased.");
+      },
+      linkAnnotation: coordinator.linkAnnotation,
+      notice: (message) => this.routeCoordinator?.presentNotice(message),
+      openPassage: coordinator.openPassage,
+      openPdf: (pdf, page, annotationId) => {
+        this.element("project-annotation-form", ProjectAnnotationForm)?.selectPdf(pdf.id);
+        void this.routeCoordinator?.openProjectPdf(pdf, page, annotationId);
+      },
     });
   }
 

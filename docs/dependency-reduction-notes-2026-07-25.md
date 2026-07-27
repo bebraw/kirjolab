@@ -8541,6 +8541,28 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,708 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Project Evidence Routes
+
+`ContextResourcePresenter` now configures the project-evidence panel and owns
+its annotation-form cleanup and selection, annotation edit and PDF routes,
+fragment-removal refresh sequencing, and notice dispatch across the Lit owners
+it already composes. `WorkspaceApp` retains mutation completion policy,
+canonical refresh transport, passage linking, and passage navigation.
+
+This checkpoint reduces `src/client/app.ts` from 1,423 to 1,407 lines (-16) and
+grows the context-resource presenter from 906 to 938 lines (+32). Focused
+coverage passes all 45 context-resource and project-evidence cases, including
+configuration, sibling effects, retained coordinator callbacks, refresh order,
+notice dispatch, application contracts, and strict types.
+
+The browser application artifact changes from 846,566 B raw / 228,474 B gzip
+to 846,916 B raw / 228,562 B gzip (+350 B raw / +88 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,709 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

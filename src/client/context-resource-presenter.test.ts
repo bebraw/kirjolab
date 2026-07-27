@@ -436,6 +436,85 @@ describe("context resource presenter", () => {
     expect(completeWorkflow).toHaveBeenCalledWith({ linkAnnotationId: "annotation-1", refreshResources: true });
   });
 
+  it("owns project-evidence routes across its composed Lit resources", async () => {
+    const { elements, presenter, routes } = setup();
+    const pdf = {
+      contentType: "application/pdf",
+      createdAt: "created",
+      fingerprint: "project-fingerprint",
+      id: "pdf-1",
+      name: "project.pdf",
+      objectKey: "pdfs/project.pdf",
+      size: 1024,
+    } satisfies PdfResource;
+    const annotation = {
+      comment: "Evidence",
+      createdAt: "created",
+      fragments: [],
+      id: "annotation-1",
+      page: 2,
+      pdfId: pdf.id,
+      prefix: "",
+      quote: "Quoted evidence",
+      rects: [],
+      suffix: "",
+      updatedAt: "updated",
+    } satisfies AnnotationResource;
+    const configure = vi.spyOn(elements["project-evidence-panel"], "configure");
+    const bind = vi.spyOn(elements["project-evidence-panel"], "bind");
+    const clearAnnotation = vi.spyOn(elements["project-annotation-form"], "clearAnnotation");
+    const selectPdf = vi.spyOn(elements["project-annotation-form"], "selectPdf");
+    const openProjectAnnotation = vi.spyOn(presenter, "openProjectAnnotation").mockImplementation(() => undefined);
+    const coordinator = {
+      completeMutation: vi.fn(),
+      linkAnnotation: vi.fn(),
+      openPassage: vi.fn(),
+      refreshResources: vi.fn().mockResolvedValue(undefined),
+    };
+
+    presenter.bindProjectEvidence("/api/workspaces/workspace", coordinator);
+    const binding = bind.mock.calls[0]?.[0];
+    binding?.annotationRemoved(annotation.id, "Highlight deleted.");
+    binding?.completeMutation("Project changed.");
+    binding?.editAnnotation(annotation);
+    await binding?.fragmentRemoved({ annotationDeleted: true, annotationId: annotation.id, announce: true });
+    binding?.linkAnnotation(annotation.id);
+    binding?.notice("Evidence notice.");
+    binding?.openPassage({
+      anchoredRevision: 1,
+      exact: "Evidence",
+      fileId: "main.tex",
+      originalRange: { end: 8, start: 0 },
+      prefix: "",
+      relativeEnd: null,
+      relativeStart: null,
+      suffix: "",
+      version: 1,
+    });
+    binding?.openPdf(pdf, annotation.page, annotation.id);
+
+    expect(configure).toHaveBeenCalledWith("/api/workspaces/workspace");
+    expect(clearAnnotation).toHaveBeenCalledTimes(2);
+    expect(coordinator.completeMutation).toHaveBeenNthCalledWith(
+      1,
+      "Highlight deleted.",
+      "The highlight was deleted, but project resources could not be refreshed.",
+    );
+    expect(coordinator.completeMutation).toHaveBeenNthCalledWith(
+      2,
+      "Project changed.",
+      "The project changed, but project resources could not be refreshed.",
+    );
+    expect(openProjectAnnotation).toHaveBeenCalledWith(annotation.id, true);
+    expect(coordinator.refreshResources).toHaveBeenCalledOnce();
+    expect(coordinator.linkAnnotation).toHaveBeenCalledWith(annotation.id);
+    expect(coordinator.openPassage).toHaveBeenCalledOnce();
+    expect(routes.presentNotice).toHaveBeenCalledWith("Highlight stroke erased.");
+    expect(routes.presentNotice).toHaveBeenCalledWith("Evidence notice.");
+    expect(selectPdf).toHaveBeenCalledWith(pdf.id);
+    expect(routes.openProjectPdf).toHaveBeenCalledWith(pdf, annotation.page, annotation.id);
+  });
+
   it("projects canonical workspace resources across their bounded Lit owners", () => {
     const { elements, presenter } = setup();
     const snapshot = {
