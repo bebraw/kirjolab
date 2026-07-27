@@ -9562,6 +9562,29 @@ styles, and direct and unique production package counts remain unchanged at
 Full native CI passes all 1,726 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Canonical Research Context
+
+`ContextResourcePresenter` now owns browser-local canonical research-context
+state, including activate, open, close, authorization reconciliation, captured
+scroll/viewer state, PDF location preparation, and page updates. `WorkspaceApp`
+retains browser-history mutation, cross-surface navigation effects, authorized
+loading, and content-render timing.
+
+This checkpoint reduces `src/client/app.ts` from 1,112 to 1,083 lines (-29)
+and grows the composed context owner from 1,014 to 1,062 lines. Runtime source
+across those files grows by nineteen lines while replacing split state
+authority and removing ten context-state operation imports from the application
+coordinator. Focused presenter and application-contract coverage passes all 47
+tests alongside strict types.
+
+The browser application artifact changes from 849,004 B raw / 228,979 B gzip
+to 849,961 B raw / 229,041 B gzip (+957 B raw / +62 B gzip). Lazy runtimes,
+styles, and direct and unique production package counts remain unchanged at
+204,779 B / 62,386 B, 481,994 B / 146,135 B, 135,411 B / 23,373 B, and 18 and 150.
+
+Full native CI passes all 1,727 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Library PDF Project Use Projection
 
 `LibraryPdfProjectUse` now resolves the active bibliographic record and matching

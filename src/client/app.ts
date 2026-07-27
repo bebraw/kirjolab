@@ -44,20 +44,11 @@ import {
 import { PdfEvidenceViewer } from "./pdf-viewer";
 import { bindThemePreference } from "./theme";
 import {
-  activateResearchTab,
-  closeResearchTab,
-  createResearchContext,
-  openResearchResource,
   RESEARCH_ASSISTANT_KEY,
   RESEARCH_LIBRARY_KEY,
   RESEARCH_PREVIEW_KEY,
-  reconcileResearchContext,
-  researchResourceKey,
-  setPdfResearchLocation,
-  type ResearchContextKey,
-  type ResearchContextState,
   type PdfResearchLocation,
-  type ResearchResourceKey,
+  type ResearchContextKey,
   type ResearchResourceTarget,
 } from "./research-context";
 import { readWorkspaceUiRoute, researchTargetFromContextKey, workspaceUiRouteSelection, workspaceUiRouteUrl } from "./workspace-ui-route";
@@ -115,7 +106,6 @@ class WorkspaceApp {
   #revision = 0;
   #renderSourceEditorHighlight: () => void = () => undefined;
   #hasBootstrapSnapshot = false;
-  #contextState: ResearchContextState = createResearchContext();
   #authoringSelection: RelativeEditorSelection | null = null;
   #activeFileText = this.#source;
   readonly #editorUndoManagers = new Map<Y.Text, Y.UndoManager>();
@@ -171,8 +161,7 @@ class WorkspaceApp {
       onSelection: (capture) => this.#elements.contextResourcePresenter.capturePdfSelection(capture),
       onHighlight: (annotationId, fragmentId) => this.#elements.contextResourcePresenter.activateProjectHighlight(annotationId, fragmentId),
       onPageChange: (page) => {
-        const presentation = this.#elements.contextResourcePresenter.presentPdfPage(this.#contextState, page);
-        this.#contextState = presentation.context;
+        const presentation = this.#elements.contextResourcePresenter.presentPdfPage(page);
         if (presentation.activePdf) this.#syncWorkspaceRoute("replace");
         if (appMode === "library" && presentation.libraryPdfId && location.pathname.startsWith("/library/pdfs/")) {
           history.replaceState(history.state, "", libraryPdfRoute(presentation.libraryPdfId, page));
@@ -341,7 +330,7 @@ class WorkspaceApp {
     });
     this.#elements.referenceLibraryWorkspace.configure(workspaceId, {
       activateLibrary: () => {
-        if (this.#contextState.activeKey !== RESEARCH_LIBRARY_KEY) this.#activateContext(RESEARCH_LIBRARY_KEY);
+        if (this.#elements.contextResourcePresenter.activeKey !== RESEARCH_LIBRARY_KEY) this.#activateContext(RESEARCH_LIBRARY_KEY);
       },
       applyProjectMutation: (snapshot) => this.#acceptWorkspaceMutation(snapshot),
       clearRoute: () => history.replaceState({ view: "library" }, "", "/library"),
@@ -514,7 +503,7 @@ class WorkspaceApp {
     this.#elements.assistantGenerationPresenter.bindResources(this.#elements.contextResourcePresenter.assistantResources());
     this.#elements.assistantGenerationPresenter.bindWorkflow({
       activateAssistant: () => {
-        this.#contextState = activateResearchTab(this.#contextState, RESEARCH_ASSISTANT_KEY);
+        this.#elements.contextResourcePresenter.activateContext(RESEARCH_ASSISTANT_KEY);
       },
       applyTable: (target, insertion) => this.#applyGeneratedTable(target, insertion),
       decisionChanged: () => {
@@ -555,7 +544,7 @@ class WorkspaceApp {
   }
 
   async #ensurePdfLayoutResource(): Promise<void> {
-    const active = this.#contextState.tabs.find((tab) => tab.key === this.#contextState.activeKey);
+    const active = this.#elements.contextResourcePresenter.activeContextTab;
     if (active?.kind === "pdf" || active?.kind === "library-pdf") return;
     const pdf = this.#snapshot?.pdfs[0];
     if (pdf) return await this.#showPaper(pdf);
@@ -578,13 +567,13 @@ class WorkspaceApp {
   }
 
   async #restoreWorkspaceContext(route: ReturnType<typeof readWorkspaceUiRoute>): Promise<void> {
-    this.#contextState = activateResearchTab(this.#contextState, RESEARCH_PREVIEW_KEY);
+    this.#elements.contextResourcePresenter.activateContext(RESEARCH_PREVIEW_KEY);
     try {
       const target = researchTargetFromContextKey(route.contextKey);
       if (!target) return await this.#restoreGeneralResearchContext(route.contextKey);
       await this.#elements.contextResourcePresenter.restoreTarget(target, route.page, route.annotationId);
     } catch (error) {
-      this.#contextState = activateResearchTab(this.#contextState, RESEARCH_PREVIEW_KEY);
+      this.#elements.contextResourcePresenter.activateContext(RESEARCH_PREVIEW_KEY);
       this.#renderResearchContext();
       this.#showToast(error instanceof Error ? error.message : "Could not restore that context");
     }
@@ -597,7 +586,7 @@ class WorkspaceApp {
 
   #syncWorkspaceRoute(mode: "push" | "replace"): void {
     if (appMode !== "workspace" || !this.#workspaceRouteReady) return;
-    const activeTab = this.#contextState.tabs.find((tab) => tab.key === this.#contextState.activeKey);
+    const activeTab = this.#elements.contextResourcePresenter.activeContextTab;
     const current = new URL(location.href);
     const next = workspaceUiRouteUrl(current, {
       ...workspaceUiRouteSelection(this.#activeFileId, this.#snapshot?.entryFileId, activeTab),
@@ -605,7 +594,7 @@ class WorkspaceApp {
       mode: this.#elements.authoringModeTabs.mode,
       surface: this.#elements.workspaceSurfaces.dataset.activeSurface === "context" ? "context" : "authoring",
       layout: this.#elements.workspaceLayout.value,
-      contextKey: this.#contextState.activeKey,
+      contextKey: this.#elements.contextResourcePresenter.activeKey,
     });
     const currentRelative = `${current.pathname}${current.search}${current.hash}`;
     if (next === currentRelative) return;
@@ -694,7 +683,7 @@ class WorkspaceApp {
 
   #syncPreviewFromSource(explicit = true): void {
     const fileId = this.#activeFileId ?? this.#snapshot?.entryFileId ?? "";
-    const previewActive = this.#contextState.activeKey === RESEARCH_PREVIEW_KEY;
+    const previewActive = this.#elements.contextResourcePresenter.activeKey === RESEARCH_PREVIEW_KEY;
     const splitLayout = this.#elements.workspaceSurfaces.dataset.layout === "split";
     const offsets = this.#elements.previewSyncControls.activeSourcePreviewOffsets(fileId, explicit, previewActive, splitLayout);
     if (offsets.length > 0) this.#elements.workspacePreview.revealNearestSource(offsets);
@@ -729,10 +718,8 @@ class WorkspaceApp {
 
   async #refreshReferenceLibrary(): Promise<void> {
     const library = await this.#elements.referenceLibraryWorkspace.refresh();
-    this.#captureActiveContextState();
     await this.#refreshProjectReferencePdfs(false);
-    this.#contextState = reconcileResearchContext(
-      this.#contextState,
+    this.#elements.contextResourcePresenter.reconcileContext(
       this.#elements.contextResourcePresenter.resourceAuthorization(this.#snapshot, library),
     );
     this.#elements.referenceLibraryWorkspace.presentProject(this.#snapshot, appMode === "workspace" ? apiBase : null);
@@ -759,9 +746,7 @@ class WorkspaceApp {
 
   #renderResources(): void {
     if (!this.#snapshot) return;
-    this.#captureActiveContextState();
-    this.#contextState = reconcileResearchContext(
-      this.#contextState,
+    this.#elements.contextResourcePresenter.reconcileContext(
       this.#elements.contextResourcePresenter.resourceAuthorization(this.#snapshot, this.#librarySnapshot),
     );
     this.#elements.contextResourcePresenter.presentWorkspace(this.#snapshot);
@@ -770,22 +755,16 @@ class WorkspaceApp {
     this.#syncWorkspaceRoute("replace");
   }
 
-  #captureActiveContextState(): void {
-    this.#contextState = this.#elements.contextResourcePresenter.captureBoundContext(this.#contextState);
-  }
-
   #activateContext(key: ResearchContextKey): void {
-    this.#captureActiveContextState();
-    this.#presentContextTransition(activateResearchTab(this.#contextState, key), key);
+    this.#elements.contextResourcePresenter.activateContext(key);
+    this.#presentContextTransition(key);
   }
 
   #openResourceContext(target: ResearchResourceTarget): void {
-    this.#captureActiveContextState();
-    this.#presentContextTransition(openResearchResource(this.#contextState, target), researchResourceKey(target));
+    this.#presentContextTransition(this.#elements.contextResourcePresenter.openResourceContext(target));
   }
 
-  #presentContextTransition(context: ResearchContextState, key: ResearchContextKey, loadPdf = true, syncRoute = true): void {
-    this.#contextState = context;
+  #presentContextTransition(key: ResearchContextKey, loadPdf = true, syncRoute = true): void {
     this.#renderResearchContext(loadPdf);
     this.#elements.workspaceSurfaceSwitcher.navigate("context", false);
     this.#elements.contextTabStrip.focusTab(key);
@@ -795,7 +774,6 @@ class WorkspaceApp {
   #renderResearchContext(loadPdf = true): void {
     const presentation = this.#elements.contextResourcePresenter.presentContext({
       candidateDecision: this.#elements.assistantGenerationPresenter.candidateDecision(),
-      context: this.#contextState,
       library: this.#librarySnapshot,
       projectApiBase: appMode === "workspace" ? apiBase : null,
       referencePdfs: this.#elements.contextResourcePresenter.referencePdfs,
@@ -813,15 +791,14 @@ class WorkspaceApp {
   }
 
   #closeContextTab(key: ResearchContextKey): void {
-    this.#captureActiveContextState();
-    const returnToStandaloneLibrary = appMode === "library" && this.#contextState.activeKey === key;
-    this.#contextState = closeResearchTab(this.#contextState, key);
+    const returnToStandaloneLibrary = appMode === "library" && this.#elements.contextResourcePresenter.activeKey === key;
+    this.#elements.contextResourcePresenter.closeContext(key);
     if (returnToStandaloneLibrary) {
-      this.#contextState = activateResearchTab(this.#contextState, RESEARCH_LIBRARY_KEY);
+      this.#elements.contextResourcePresenter.activateContext(RESEARCH_LIBRARY_KEY);
       history.replaceState({ view: "library" }, "", "/library");
     }
     this.#renderResearchContext();
-    this.#elements.contextTabStrip.focusTab(this.#contextState.activeKey);
+    this.#elements.contextTabStrip.focusTab(this.#elements.contextResourcePresenter.activeKey);
     this.#syncWorkspaceRoute("replace");
   }
 
@@ -977,9 +954,9 @@ class WorkspaceApp {
   }
 
   async #openLibraryPdf(artifact: LibraryPdfArtifact, page?: number, updateHistory = true): Promise<void> {
-    const key = this.#preparePdfContext({ kind: "library-pdf", id: artifact.id }, page === undefined ? {} : { page });
+    this.#preparePdfContext({ kind: "library-pdf", id: artifact.id }, page === undefined ? {} : { page });
     if (appMode === "library" && updateHistory) {
-      const active = this.#contextState.tabs.find((tab) => tab.key === key);
+      const active = this.#elements.contextResourcePresenter.activeContextTab;
       const route = libraryPdfRoute(artifact.id, page ?? (active?.kind === "library-pdf" ? active.page : 1));
       history.pushState({ view: "library-pdf", artifactId: artifact.id }, "", route);
     }
@@ -993,15 +970,9 @@ class WorkspaceApp {
     await this.#elements.contextResourcePresenter.loadActivePdf(page !== undefined);
   }
 
-  #preparePdfContext(
-    target: { readonly kind: "pdf" | "library-pdf"; readonly id: string },
-    location: PdfResearchLocation,
-  ): ResearchResourceKey {
-    this.#captureActiveContextState();
-    const key = researchResourceKey(target);
-    const context = setPdfResearchLocation(openResearchResource(this.#contextState, target), key, location);
-    this.#presentContextTransition(context, key, false, false);
-    return key;
+  #preparePdfContext(target: { readonly kind: "pdf" | "library-pdf"; readonly id: string }, location: PdfResearchLocation): void {
+    const key = this.#elements.contextResourcePresenter.preparePdfContext(target, location);
+    this.#presentContextTransition(key, false, false);
   }
 
   async #restoreLibraryRoute(): Promise<void> {

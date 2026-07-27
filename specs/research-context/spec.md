@@ -176,9 +176,11 @@ changing their canonical data, selector, authorization, or rendering contracts.
   inputs, panel visibility, active resource labels, and PDF-mode presentation
   plus fixed-panel scroll capture and restoration during the same canonical tab
   update. It routes fixed, resource-strip, and overview navigation through one
-  typed coordinator boundary. The workspace coordinator retains canonical tab
-  state, authorized content loading, content rendering, route synchronization,
-  transitions, and resource-panel scroll restoration.
+  typed coordinator boundary. The enclosing context-resource presenter retains
+  canonical tab state, authorization reconciliation, resource closure, PDF
+  location, and resource-panel scroll restoration. The workspace coordinator
+  retains authorized content loading, content-render timing, route
+  synchronization, and cross-surface transitions.
 - A bounded resource-context presenter synchronizes the evidence, annotation,
   publication, claim, comment, and candidate Lit owners from the canonical
   workspace snapshot; projects coordinator-resolved evidence links, claim
@@ -193,8 +195,8 @@ changing their canonical data, selector, authorization, or rendering contracts.
   retains the active resource owner for layout, citation, PDF, and assistant
   consumers; retains the resolved active private-Library artifact for page
   routing, selection capture, and saved-markup projection; captures
-  fixed/resource scroll and supplied viewer
-  page/focused-annotation state into the canonical context; derives the
+  fixed/resource scroll and bound viewer page/focused-annotation state into its
+  owned canonical context; derives the
   canonical page update and private-PDF route identity from each viewer page
   change while leaving route and browser-history mutation to the coordinator;
   derives the

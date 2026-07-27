@@ -1018,9 +1018,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   tab-strip projection, derives and retains the active resource selection for
   sibling consumers before selecting the owning panel, retains the resolved
   active private-Library artifact for page routing, capture, and saved-markup
-  projection, restores resource scroll,
-  projects supplied viewer state back into canonical
-  fixed-tab scroll, resource scroll, PDF page, and focused-annotation state;
+  projection, owns the browser-local canonical context state and its open,
+  activate, close, authorization-reconciliation, and PDF-location transitions,
+  restores resource scroll, and projects bound viewer state back into canonical
+  fixed-tab scroll, resource scroll, PDF page, and focused-annotation state. It
   projects page changes into canonical PDF context and page-local private
   markup state while returning route identities to the coordinator;
   coordinates project citation and intake context,
@@ -1053,8 +1054,8 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   explicit active-publication or sole-linked project-PDF citation intents to a
   citation key and optional page locator. Route the resulting typed open and
   citation-insertion intents through the application
-  coordinator, which retains tab reconciliation, canonical context state,
-  history mutation, navigation transitions, and load timing. Let the presenter
+  coordinator, which retains browser-history mutation, cross-surface navigation
+  effects, and load timing. Let the presenter
   own private-highlight citation readiness feedback,
   collision-safe project-reference preparation, and validated link transport.
   Use its route binding as the sole canonical project and Library snapshot,

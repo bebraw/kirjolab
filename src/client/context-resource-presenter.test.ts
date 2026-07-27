@@ -198,10 +198,10 @@ describe("context resource presenter", () => {
     const tab = resourceTab("pdf", "project/pdf");
     const setTabs = vi.spyOn(elements["context-tab-strip"], "setTabs").mockImplementation(() => undefined);
     const present = vi.spyOn(presenter, "present").mockReturnValue({ publicationPresented: false });
+    presenter.openResourceContext({ kind: "pdf", id: tab.id });
 
     const presentation = presenter.presentContext({
       ...sources(undefined),
-      context: { activeKey: tab.key, tabs: [{ kind: "preview", key: "preview", scrollTop: 0 }, tab] },
       standaloneLibrary: false,
     });
 
@@ -214,8 +214,31 @@ describe("context resource presenter", () => {
       }),
     );
     expect(present).toHaveBeenCalledWith(expect.objectContaining({ activeTab: tab }));
-    expect(presentation.activeTab).toBe(tab);
-    expect(presenter.activeTab).toBe(tab);
+    expect(presentation.activeTab).toEqual(tab);
+    expect(presenter.activeTab).toEqual(tab);
+  });
+
+  it("owns canonical research-context transitions and authorization reconciliation", () => {
+    const { presenter } = setup();
+
+    presenter.activateContext("library");
+    expect(presenter.activeKey).toBe("library");
+
+    const key = presenter.openResourceContext({ kind: "publication", id: "publication:1" });
+    expect(key).toBe("publication:publication:1");
+    expect(presenter.activeContextTab).toMatchObject({ id: "publication:1", kind: "publication" });
+
+    presenter.closeContext(key);
+    expect(presenter.activeKey).toBe("assistant");
+
+    presenter.openResourceContext({ kind: "candidate", id: "candidate:1" });
+    presenter.reconcileContext({
+      candidateIds: new Set(),
+      libraryPdfIds: new Set(),
+      pdfIds: new Set(),
+      publicationIds: new Set(),
+    });
+    expect(presenter.activeKey).toBe("preview");
   });
 
   it("loads and validates the linked-reference PDF catalog", async () => {
@@ -345,8 +368,10 @@ describe("context resource presenter", () => {
     const configureAnnotation = vi.spyOn(elements["project-annotation-form"], "configure");
     const selectPdf = vi.spyOn(elements["project-annotation-form"], "selectPdf");
     const showCapture = vi.spyOn(elements["project-annotation-form"], "showCapture");
+    vi.spyOn(elements["context-tab-strip"], "fixedScrollTop").mockReturnValue(null);
     presenter.bindPdfViewer(viewer, "/api/workspaces/workspace");
     expect(configureAnnotation).toHaveBeenCalledWith("/api/workspaces/workspace");
+    presenter.preparePdfContext({ kind: "pdf", id: pdf.id }, { focusedAnnotationId: annotation.id, page: tab.page });
     presenter.present({ ...sources(tab), snapshot: project });
 
     await presenter.loadActivePdf(false);
@@ -369,8 +394,8 @@ describe("context resource presenter", () => {
     presenter.activateProjectHighlight(annotation.id, "fragment-1");
     expect(activateHighlight).toHaveBeenCalledWith(project.annotations, annotation.id, "fragment-1");
 
-    const state = { activeKey: tab.key, tabs: [tab] };
-    expect(presenter.captureBoundContext(state).tabs[0]).toMatchObject({ focusedAnnotationId: annotation.id, page: 3 });
+    presenter.captureBoundContext();
+    expect(presenter.activeContextTab).toMatchObject({ focusedAnnotationId: annotation.id, page: 3 });
     await presenter.loadActivePdf(false);
     expect(viewer.open).toHaveBeenCalledOnce();
   });
@@ -946,21 +971,22 @@ describe("context resource presenter", () => {
     const setUndoDrawings = vi.spyOn(elements["library-pdf-annotation-toolbar"], "setUndoDrawings");
 
     const tab = resourceTab("library-pdf", libraryPdf.id);
+    presenter.preparePdfContext({ kind: "library-pdf", id: tab.id }, { page: tab.page });
     presenter.present(sources(tab));
-    const presentation = presenter.presentPdfPage({ activeKey: tab.key, tabs: [tab] }, 2);
+    const presentation = presenter.presentPdfPage(2);
 
     expect(setLibraryPage).toHaveBeenCalledWith(libraryPdf, [], 2, elements["library-pdf-annotation-toolbar"].drawingStyle);
     expect(setUndoDrawings).toHaveBeenCalledWith([]);
     expect(presentation).toMatchObject({ activePdf: true, libraryPdfId: libraryPdf.id });
-    expect(presentation.context.tabs[0]).toMatchObject({ page: 2 });
+    expect(presenter.activeContextTab).toMatchObject({ page: 2 });
   });
 
   it("leaves canonical context unchanged when a PDF is not active", () => {
     const { presenter } = setup();
-    const state = { activeKey: "preview" as const, tabs: [] };
     presenter.present(sources(undefined));
 
-    expect(presenter.presentPdfPage(state, 2)).toEqual({ activePdf: false, context: state, libraryPdfId: undefined });
+    expect(presenter.presentPdfPage(2)).toEqual({ activePdf: false, libraryPdfId: undefined });
+    expect(presenter.activeKey).toBe("preview");
   });
 
   it("coordinates private-PDF tools while returning viewer-only effects", () => {

@@ -38,12 +38,21 @@ import { mutateProjectReference } from "./project-reference-mutation";
 import { PublicationContextPanel, type PublicationPaperOption } from "./publication-context-panel";
 import { PublicationListPanel, type PublicationListBinding } from "./publication-list-panel";
 import {
+  activateResearchTab,
+  closeResearchTab,
+  createResearchContext,
+  openResearchResource,
+  reconcileResearchContext,
+  researchResourceKey,
   setPdfResearchLocation,
   RESEARCH_ASSISTANT_KEY,
   setResearchTabScroll,
+  type PdfResearchLocation,
   type ResearchContextAuthorization,
+  type ResearchContextKey,
   type ResearchContextState,
   type ResearchContextTab,
+  type ResearchResourceKey,
   type ResearchResourceTab,
   type ResearchResourceTarget,
 } from "./research-context";
@@ -69,7 +78,6 @@ export interface ResearchContextPresentation extends ContextResourcePresentation
 }
 
 export interface ResearchContextSources extends Omit<ContextResourceSources, "activeTab"> {
-  readonly context: ResearchContextState;
   readonly standaloneLibrary: boolean;
 }
 
@@ -93,7 +101,6 @@ export interface LibraryPdfSelectionPresentation {
 
 export interface PdfPagePresentation {
   readonly activePdf: boolean;
-  readonly context: ResearchContextState;
   readonly libraryPdfId: string | undefined;
 }
 
@@ -138,6 +145,7 @@ export type ProjectMapCoordinator = Pick<ProjectMapNavigation, "document" | "per
 export type PublicationListCoordinator = Pick<PublicationListBinding, "manage">;
 
 export class ContextResourcePresenter extends LitElement {
+  private contextState = createResearchContext();
   private currentActiveTab: ResearchResourceTab | undefined;
   private currentLibraryPdf: LibraryPdfArtifact | undefined;
   private currentLibrary: ReferenceLibrarySnapshot | null = null;
@@ -156,6 +164,45 @@ export class ContextResourcePresenter extends LitElement {
 
   get activeTab(): ResearchResourceTab | undefined {
     return this.currentActiveTab;
+  }
+
+  get activeContextTab(): ResearchContextTab | undefined {
+    return this.contextState.tabs.find(({ key }) => key === this.contextState.activeKey);
+  }
+
+  get activeKey(): ResearchContextKey {
+    return this.contextState.activeKey;
+  }
+
+  activateContext(key: ResearchContextKey): void {
+    this.captureBoundContext();
+    this.contextState = activateResearchTab(this.contextState, key);
+  }
+
+  closeContext(key: ResearchContextKey): void {
+    this.captureBoundContext();
+    this.contextState = closeResearchTab(this.contextState, key);
+  }
+
+  openResourceContext(target: ResearchResourceTarget): ResearchResourceKey {
+    this.captureBoundContext();
+    this.contextState = openResearchResource(this.contextState, target);
+    return researchResourceKey(target);
+  }
+
+  preparePdfContext(
+    target: { readonly kind: "pdf" | "library-pdf"; readonly id: string },
+    location: PdfResearchLocation,
+  ): ResearchResourceKey {
+    this.captureBoundContext();
+    const key = researchResourceKey(target);
+    this.contextState = setPdfResearchLocation(openResearchResource(this.contextState, target), key, location);
+    return key;
+  }
+
+  reconcileContext(authorization: ResearchContextAuthorization): void {
+    this.captureBoundContext();
+    this.contextState = reconcileResearchContext(this.contextState, authorization);
   }
 
   async refreshReferencePdfs(projectApiBase: string | null, fetcher: typeof fetch = fetch): Promise<void> {
@@ -464,7 +511,8 @@ export class ContextResourcePresenter extends LitElement {
   }
 
   presentContext(sources: ResearchContextSources): ResearchContextPresentation {
-    const { context, standaloneLibrary, ...resourceSources } = sources;
+    const { standaloneLibrary, ...resourceSources } = sources;
+    const context = this.contextState;
     this.element("context-tab-strip", ContextTabStrip)?.setTabs({
       activeKey: context.activeKey,
       candidates: sources.snapshot?.candidates ?? [],
@@ -483,10 +531,10 @@ export class ContextResourcePresenter extends LitElement {
     return { activeTab, ...this.present({ ...resourceSources, activeTab }) };
   }
 
-  captureBoundContext(state: ResearchContextState): ResearchContextState {
+  captureBoundContext(): void {
     const viewer = this.pdfViewer;
-    if (!viewer) return state;
-    return this.captureContext(state, {
+    if (!viewer) return;
+    this.contextState = this.captureContext(this.contextState, {
       focusedAnnotationId: viewer.focusedAnnotationId,
       page: viewer.currentPage,
       renderedContextKey: this.renderedPdfContextKey,
@@ -592,13 +640,13 @@ export class ContextResourcePresenter extends LitElement {
     if (list) this.element("workspace-rail-tabs", WorkspaceRailTabs)?.setCommentCount(list.setComments(comments));
   }
 
-  presentPdfPage(state: ResearchContextState, page: number): PdfPagePresentation {
+  presentPdfPage(page: number): PdfPagePresentation {
     this.presentLibraryPdfPage(this.currentLibrary, page);
     const activeTab = this.currentActiveTab;
     const activePdf = activeTab?.kind === "pdf" || activeTab?.kind === "library-pdf";
+    if (activePdf) this.contextState = setPdfResearchLocation(this.contextState, activeTab.key, { page });
     return {
       activePdf,
-      context: activePdf ? setPdfResearchLocation(state, activeTab.key, { page }) : state,
       libraryPdfId: this.currentLibraryPdf?.id,
     };
   }

@@ -1167,11 +1167,11 @@ reason to wrap static markup mechanically.
   composes the existing dynamic resource tabs and overflow overview from
   canonical tab and resource inputs, restores fixed-panel scroll directly from
   that input, and replaces three coordinator event subscriptions with one
-  callback configuration. The application coordinator retains
-  active-context state, authorization reconciliation, authorized Library
-  loading, resource closure, route synchronization, content rendering,
-  PDF-specific form and inspector visibility, and resource-panel scroll
-  restoration.
+  callback configuration. The enclosing context-resource presenter owns
+  browser-local canonical context state, authorization reconciliation, resource
+  closure, PDF location, and resource-panel scroll restoration. The application
+  coordinator retains authorized Library loading, route synchronization,
+  cross-surface effects, and content-render timing.
 - The workspace surface switcher replaces two button references, native action
   bindings, ARIA-state mutations, and its public change event. It routes
   internal and workflow-driven selection through one navigation method, owns
