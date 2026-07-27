@@ -501,10 +501,11 @@ The adopted components own bounded presentation:
   archive-aware focus, and successful-route sequencing; routing for summary,
   personal-field, metadata, PDF, research, network, identification, and
   standalone Library-route outcomes; and the apply-project-notice sequence for
-  Library-originated project mutations. The application coordinator supplies
-  refresh timing, PDF navigation, web-capture/comparison, canonical project
-  snapshot application, and notice presentation through a typed callback
-  boundary.
+  Library-originated project mutations. General Library entry also owns
+  activation, optional standalone-route entry, and canonical refresh sequencing.
+  The application coordinator supplies concrete history mutation, refresh
+  timing, PDF navigation, web-capture/comparison, canonical project snapshot
+  application, and notice presentation through a typed callback boundary.
 - The model provider settings panel owns connection, endpoint, model, and
   reasoning-effort values, browser-local persistence, Valibot-backed saved-value
   restoration with bounded per-field fallbacks, dynamic model choices,

@@ -61,6 +61,7 @@ export interface ReferenceLibraryWorkspaceCallbacks {
   readonly clearRoute?: () => void;
   readonly compareSnapshots: (priorId: string, currentId: string) => void;
   readonly openPdf: (artifact: LibraryPdfArtifact, page?: number, updateHistory?: boolean) => void;
+  readonly openLibraryRoute?: () => void;
   readonly openReferenceRoute?: (referenceId: string) => void;
   readonly presentNotice: (message: string) => void;
   readonly refreshLibrary: () => Promise<void>;
@@ -217,6 +218,12 @@ export class ReferenceLibraryWorkspace extends LitElement {
     }
     this.callbacks.clearRoute?.();
     this.callbacks.presentNotice("That PDF is no longer in the library.");
+  }
+
+  async open(updateHistory = true): Promise<void> {
+    this.callbacks.activateLibrary?.();
+    if (updateHistory) this.callbacks.openLibraryRoute?.();
+    await this.callbacks.refreshLibrary();
   }
 
   configure(workspaceId: string, callbacks?: ReferenceLibraryWorkspaceCallbacks): void {

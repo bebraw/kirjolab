@@ -388,6 +388,8 @@ memory and makes citation aliases compete with stable source identity.
 - The composed Library workspace owns archive-aware canonical Library loading,
   response validation, and the single browser Library snapshot projection used
   by its filters, list, network, PDF queue, and coordinator consumers. It also
+  owns general Library entry sequencing across context activation, optional
+  standalone history entry, and canonical refresh. It
   restores standalone Library routes through owned reference focus and artifact
   lookup, and owns archive-aware source recovery, focus, and missing-reference
   feedback for direct entry navigation and duplicate-PDF upload reveals. The

@@ -177,7 +177,7 @@ class WorkspaceApp {
       this.#elements.workspaceSurfaces.dataset.activeSurface = "context";
       this.#elements.workspaceSurfaces.dataset.layout = "context";
       this.#elements.connectionStatus.setConnection("Private library", true);
-      await this.#openReferenceLibrary(false);
+      await this.#elements.referenceLibraryWorkspace.open(false);
       await this.#restoreLibraryRoute();
       return;
     }
@@ -325,6 +325,9 @@ class WorkspaceApp {
       compareSnapshots: (priorId, currentId) => void this.#elements.webSnapshotComparison.compare(priorId, currentId),
       openPdf: (artifact, page, updateHistory) =>
         void this.#elements.contextResourcePresenter.openLibraryPdf(artifact, page, updateHistory),
+      openLibraryRoute: () => {
+        if (appMode === "library") history.pushState({ view: "library" }, "", "/library");
+      },
       openReferenceRoute: (referenceId) => {
         if (appMode === "library")
           history.pushState({ view: "library-reference", referenceId }, "", `/library?reference=${encodeURIComponent(referenceId)}`);
@@ -463,7 +466,7 @@ class WorkspaceApp {
     this.#elements.contextResourcePresenter.bindContext({
       activateSurface: () => this.#elements.workspaceSurfaceSwitcher.navigate("context", false),
       citationAvailable: () => this.#elements.editorStatus.caret !== null,
-      openLibrary: (updateHistory) => this.#openReferenceLibrary(updateHistory),
+      openLibrary: (updateHistory) => this.#elements.referenceLibraryWorkspace.open(updateHistory),
       pushStandaloneLibraryPdfRoute: (artifactId, page) =>
         history.pushState({ view: "library-pdf", artifactId }, "", libraryPdfRoute(artifactId, page)),
       replaceStandaloneLibraryRoute: () => history.replaceState({ view: "library" }, "", "/library"),
@@ -680,12 +683,6 @@ class WorkspaceApp {
     if (fileId) this.#elements.projectFileDialog.selectFile(fileId);
     this.#elements.authoringModeTabs.navigate("write");
     this.#elements.editorStatus.selectRange(from, Math.max(from, to));
-  }
-
-  async #openReferenceLibrary(updateHistory = true): Promise<void> {
-    this.#elements.contextResourcePresenter.navigateContext(RESEARCH_LIBRARY_KEY);
-    if (appMode === "library" && updateHistory) history.pushState({ view: "library" }, "", "/library");
-    await this.#refreshReferenceLibrary();
   }
 
   async #refreshReferenceLibrary(): Promise<void> {

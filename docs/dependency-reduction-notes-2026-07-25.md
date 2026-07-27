@@ -9722,6 +9722,27 @@ styles, and direct and unique production package counts remain unchanged at
 Full native CI passes all 1,732 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Library Entry Lifecycle
+
+`ReferenceLibraryWorkspace` now owns general Library entry sequencing across
+context activation, optional standalone route entry, and canonical refresh.
+`WorkspaceApp` supplies concrete history mutation and the existing cross-feature
+refresh callback instead of routing the lifecycle through a private helper.
+
+This checkpoint reduces `src/client/app.ts` from 935 to 932 lines (-3) and
+grows the composed Library owner from 365 to 372 lines. Runtime source across
+those files grows by four lines while deleting the coordinator's Library-open
+method. Focused Library and context coverage passes all 47 tests; affected
+coverage passes all 14 tests alongside strict types.
+
+The browser application artifact changes from 852,348 B raw / 229,666 B gzip
+to 852,473 B raw / 229,680 B gzip (+125 B raw / +14 B gzip). Lazy runtimes,
+styles, and direct and unique production package counts remain unchanged at
+204,779 B / 62,386 B, 481,994 B / 146,135 B, 135,411 B / 23,373 B, and 18 and 150.
+
+Full native CI passes all 1,733 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Library PDF Project Use Projection
 
 `LibraryPdfProjectUse` now resolves the active bibliographic record and matching

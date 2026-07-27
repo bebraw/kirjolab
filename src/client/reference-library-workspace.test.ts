@@ -161,6 +161,29 @@ describe("reference Library workspace", () => {
     });
   });
 
+  it("owns Library activation, optional route entry, and refresh sequencing", async () => {
+    const { workspace } = setup();
+    const activateLibrary = vi.fn();
+    const openLibraryRoute = vi.fn();
+    const refreshLibrary = vi.fn().mockResolvedValue(undefined);
+    workspace.configure("workspace", {
+      activateLibrary,
+      compareSnapshots: vi.fn(),
+      openLibraryRoute,
+      openPdf: vi.fn(),
+      presentNotice: vi.fn(),
+      refreshLibrary,
+      refreshMetadata: vi.fn(),
+    });
+
+    await workspace.open(false);
+    await workspace.open();
+
+    expect(activateLibrary).toHaveBeenCalledTimes(2);
+    expect(openLibraryRoute).toHaveBeenCalledOnce();
+    expect(refreshLibrary).toHaveBeenCalledTimes(2);
+  });
+
   it("restores Library reference and PDF routes through typed effects", async () => {
     const { workspace } = setup();
     const activateLibrary = vi.fn();
