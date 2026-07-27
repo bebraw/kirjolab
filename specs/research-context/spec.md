@@ -183,7 +183,9 @@ changing their canonical data, selector, authorization, or rendering contracts.
   publication, claim, comment, and candidate Lit owners from the canonical
   workspace snapshot; composes the canonical tab-strip projection, selects and
   retains the active resource owner for layout, citation, PDF, and assistant
-  consumers; captures fixed/resource scroll and supplied viewer
+  consumers; retains the resolved active private-Library artifact for page
+  routing, selection capture, and saved-markup projection; captures
+  fixed/resource scroll and supplied viewer
   page/focused-annotation state into the canonical context; derives only the active PDF's annotation projection;
   derives the authorized publication, project-PDF, private-or-linked PDF, and
   candidate identity sets from the canonical project and Library catalogs;

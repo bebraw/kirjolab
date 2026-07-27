@@ -123,6 +123,7 @@ export interface ContextViewerState {
 
 export class ContextResourcePresenter extends LitElement {
   private currentActiveTab: ResearchResourceTab | undefined;
+  private currentLibraryPdf: LibraryPdfArtifact | undefined;
   private libraryPdfCoordinator: LibraryPdfCoordinator | null = null;
   private routeCoordinator: ContextRouteCoordinator | null = null;
   private loadedReferencePdfs: readonly ProjectReferencePdf[] = [];
@@ -133,6 +134,10 @@ export class ContextResourcePresenter extends LitElement {
 
   get activeTab(): ResearchResourceTab | undefined {
     return this.currentActiveTab;
+  }
+
+  get activeLibraryPdf(): LibraryPdfArtifact | undefined {
+    return this.currentLibraryPdf;
   }
 
   async refreshReferencePdfs(projectApiBase: string | null, fetcher: typeof fetch = fetch): Promise<void> {
@@ -266,12 +271,12 @@ export class ContextResourcePresenter extends LitElement {
     };
   }
 
-  presentLibraryPdfPage(artifact: LibraryPdfArtifact | undefined, library: ReferenceLibrarySnapshot | null, page: number): void {
+  presentLibraryPdfPage(library: ReferenceLibrarySnapshot | null, page: number): void {
     const toolbar = this.element("library-pdf-annotation-toolbar", LibraryPdfAnnotationToolbar);
     if (!toolbar) return;
     const drawings =
       this.element("paper-markups", LibraryPdfMarkupLayer)?.setLibraryPage(
-        artifact,
+        this.currentLibraryPdf,
         library?.pdfMarkups ?? [],
         page,
         toolbar.drawingStyle,
@@ -538,6 +543,7 @@ export class ContextResourcePresenter extends LitElement {
 
   present(sources: ContextResourceSources): ContextResourcePresentation {
     const activeLibraryArtifact = this.activeLibraryArtifact(sources);
+    this.currentLibraryPdf = activeLibraryArtifact;
     this.syncPdfPanels(sources, activeLibraryArtifact);
     this.presentCandidate(sources);
     this.presentProjectPdf(sources);

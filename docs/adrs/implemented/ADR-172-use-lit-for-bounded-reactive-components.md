@@ -131,7 +131,10 @@ The adopted components own bounded presentation:
   one canonical context projection. It composes the tab strip and derives the
   active resource owner before presenting that resource, then retains that
   derived selection for layout, citation, PDF, and assistant consumers instead
-  of making the coordinator search canonical tabs again. It derives authorization identity sets for
+  of making the coordinator search canonical tabs again. It also retains the
+  resolved active private-Library artifact for page routing, selection capture,
+  and saved-markup projection instead of making the coordinator search the
+  Library catalog again. It derives authorization identity sets for
   those resource kinds from canonical project, Library, and linked-PDF inputs;
   tab reconciliation remains coordinator navigation policy. When restoring a
   supplied resource route, it also resolves the matching canonical publication,

@@ -217,8 +217,11 @@ describe("context resource presenter", () => {
     const setInspectorVisible = vi.spyOn(elements["library-pdf-inspector"], "setVisible");
 
     expect(presenter.present(sources(resourceTab("pdf", "project/pdf"))).privateHighlights).toBeUndefined();
+    expect(presenter.activeLibraryPdf).toBeUndefined();
     expect(presenter.present(sources(resourceTab("library-pdf", libraryPdf.id))).privateHighlights).toEqual([highlight]);
+    expect(presenter.activeLibraryPdf).toBe(libraryPdf);
     expect(presenter.present(sources(resourceTab("library-pdf", referencePdf.id))).privateHighlights).toBeUndefined();
+    expect(presenter.activeLibraryPdf).toBeUndefined();
 
     expect(setPdf).toHaveBeenCalledWith("project/pdf", [], []);
     expect(setAnnotationVisible.mock.calls.map(([visible]) => visible)).toEqual([true, false, false]);
@@ -436,7 +439,8 @@ describe("context resource presenter", () => {
     const setLibraryPage = vi.spyOn(elements["paper-markups"], "setLibraryPage").mockReturnValue([]);
     const setUndoDrawings = vi.spyOn(elements["library-pdf-annotation-toolbar"], "setUndoDrawings");
 
-    presenter.presentLibraryPdfPage(libraryPdf, library, 2);
+    presenter.present(sources(resourceTab("library-pdf", libraryPdf.id)));
+    presenter.presentLibraryPdfPage(library, 2);
 
     expect(setLibraryPage).toHaveBeenCalledWith(libraryPdf, [], 2, elements["library-pdf-annotation-toolbar"].drawingStyle);
     expect(setUndoDrawings).toHaveBeenCalledWith([]);

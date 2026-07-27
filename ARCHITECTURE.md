@@ -925,7 +925,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   publication, candidate, project-PDF, private-Library PDF, and shared-reference
   PDF presentation from those canonical inputs. It owns the composed canonical
   tab-strip projection, derives and retains the active resource selection for
-  sibling consumers before selecting the owning panel, restores resource scroll,
+  sibling consumers before selecting the owning panel, retains the resolved
+  active private-Library artifact for page routing, capture, and saved-markup
+  projection, restores resource scroll,
   projects supplied viewer state back into canonical
   fixed-tab scroll, resource scroll, PDF page, and focused-annotation state;
   coordinates project citation and intake context,

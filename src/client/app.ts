@@ -1568,7 +1568,7 @@ class WorkspaceApp {
       this.#contextState = setPdfResearchLocation(this.#contextState, active.key, { page });
       this.#syncWorkspaceRoute("replace");
     }
-    const artifact = this.#activeLibraryPdf();
+    const artifact = this.#elements.contextResourcePresenter.activeLibraryPdf;
     if (appMode === "library" && artifact && location.pathname.startsWith("/library/pdfs/")) {
       history.replaceState(history.state, "", libraryPdfRoute(artifact.id, page));
     }
@@ -1577,7 +1577,7 @@ class WorkspaceApp {
   #capturePdfSelection(capture: PdfSelectionCapture): void {
     const activeTab = this.#elements.contextResourcePresenter.activeTab;
     if (activeTab?.kind === "library-pdf") {
-      const artifact = this.#librarySnapshot?.artifacts.find((item) => item.id === activeTab.id);
+      const artifact = this.#elements.contextResourcePresenter.activeLibraryPdf;
       if (!artifact) return;
       this.#elements.contextResourcePresenter.beginLibraryHighlight(artifact.id, capture);
       return;
@@ -1595,17 +1595,8 @@ class WorkspaceApp {
       this.#pdfViewer.setPrivateHighlightSelection(presentation.privateHighlightSelection, presentation.privateHighlightId);
   }
 
-  #activeLibraryPdf(): LibraryPdfArtifact | undefined {
-    const tab = this.#elements.contextResourcePresenter.activeTab;
-    return tab?.kind === "library-pdf" ? this.#librarySnapshot?.artifacts.find((item) => item.id === tab.id) : undefined;
-  }
-
   #renderPdfMarkups(): void {
-    this.#elements.contextResourcePresenter.presentLibraryPdfPage(
-      this.#activeLibraryPdf(),
-      this.#librarySnapshot,
-      this.#pdfViewer.currentPage,
-    );
+    this.#elements.contextResourcePresenter.presentLibraryPdfPage(this.#librarySnapshot, this.#pdfViewer.currentPage);
   }
 
   async #openLibraryHighlight(highlight: LibraryHighlight): Promise<void> {
