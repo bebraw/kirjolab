@@ -1,12 +1,11 @@
 import { html, LitElement, type TemplateResult } from "lit";
 import type { WorkspaceSurface } from "./workspace-ui-route";
 
-export const workspaceSurfaceChangeEvent = "workspace-surface-change";
-
 export class WorkspaceSurfaceSwitcher extends LitElement {
   static override properties = { surface: { state: true } };
 
   declare private surface: WorkspaceSurface;
+  private navigate: ((surface: WorkspaceSurface) => void) | null = null;
 
   constructor() {
     super();
@@ -17,10 +16,14 @@ export class WorkspaceSurfaceSwitcher extends LitElement {
     this.surface = surface;
   }
 
+  bindNavigation(navigate: (surface: WorkspaceSurface) => void): void {
+    this.navigate = navigate;
+  }
+
   protected select(event: Event): void {
     const surface = (event.currentTarget as HTMLButtonElement).dataset.surface as WorkspaceSurface | undefined;
     if (!surface || surface === this.surface) return;
-    this.dispatchEvent(new CustomEvent<WorkspaceSurface>(workspaceSurfaceChangeEvent, { bubbles: true, composed: true, detail: surface }));
+    this.navigate?.(surface);
   }
 
   override connectedCallback(): void {

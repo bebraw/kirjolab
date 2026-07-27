@@ -855,6 +855,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   annotation-form synchronization, and notification policy in the application
   coordinator.
 - Treat authoring and research context as the two primary workspace surfaces.
+  Route responsive surface and Write/Map selection through narrow typed Lit
+  navigation bindings while retaining visibility and URL authority in the
+  workspace coordinator.
   Keep a permanent manuscript Preview in a keyboard-operable right-hand tab
   pane, and address publication, PDF, and model-candidate tabs by stable
   resource identity.

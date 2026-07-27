@@ -2,12 +2,11 @@ import { html, LitElement, type TemplateResult } from "lit";
 import type { AuthoringMode } from "./workspace-ui-route";
 import type { ProjectMapWorkspace } from "./project-map-workspace";
 
-export const authoringModeChangeEvent = "kirjolab-authoring-mode-change";
-
 export class AuthoringModeTabs extends LitElement {
   static override properties = { mode: { state: true } };
 
   declare mode: AuthoringMode;
+  private navigate: ((mode: AuthoringMode) => void) | null = null;
 
   constructor() {
     super();
@@ -25,10 +24,14 @@ export class AuthoringModeTabs extends LitElement {
     document.querySelector<ProjectMapWorkspace>("#project-map")?.setVisible(!writing);
   }
 
+  bindNavigation(navigate: (mode: AuthoringMode) => void): void {
+    this.navigate = navigate;
+  }
+
   protected select(event: Event): void {
     const mode = (event.currentTarget as HTMLButtonElement).dataset.authoringMode as AuthoringMode | undefined;
     if (!mode || mode === this.mode) return;
-    this.dispatchEvent(new CustomEvent<AuthoringMode>(authoringModeChangeEvent, { bubbles: true, composed: true, detail: mode }));
+    this.navigate?.(mode);
   }
 
   override connectedCallback(): void {

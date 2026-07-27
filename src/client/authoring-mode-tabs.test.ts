@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { AuthoringMode } from "./workspace-ui-route";
-import { AuthoringModeTabs, authoringModeChangeEvent } from "./authoring-mode-tabs";
+import { AuthoringModeTabs } from "./authoring-mode-tabs";
 
 class TestAuthoringModeTabs extends AuthoringModeTabs {
   renderForTest() {
@@ -28,10 +28,10 @@ describe("authoring mode tabs", () => {
     expect(tabs.renderForTest()).toBeDefined();
   });
 
-  it("emits changed mode intents only", () => {
+  it("binds changed mode navigation only", () => {
     const tabs = new TestAuthoringModeTabs();
     const modes: AuthoringMode[] = [];
-    tabs.addEventListener(authoringModeChangeEvent, (event) => modes.push((event as CustomEvent<AuthoringMode>).detail));
+    tabs.bindNavigation((mode) => modes.push(mode));
     tabs.selectForTest();
     tabs.selectForTest("write");
     tabs.selectForTest("map");

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { WorkspaceSurfaceSwitcher, workspaceSurfaceChangeEvent } from "./workspace-surface-switcher";
+import { WorkspaceSurfaceSwitcher } from "./workspace-surface-switcher";
 import type { WorkspaceSurface } from "./workspace-ui-route";
 
 class TestWorkspaceSurfaceSwitcher extends WorkspaceSurfaceSwitcher {
@@ -19,12 +19,10 @@ class TestWorkspaceSurfaceSwitcher extends WorkspaceSurfaceSwitcher {
 }
 
 describe("workspace surface switcher", () => {
-  it("owns active presentation and emits changed surface intents", () => {
+  it("owns active presentation and binds changed surface navigation", () => {
     const switcher = new TestWorkspaceSurfaceSwitcher();
     const surfaces: WorkspaceSurface[] = [];
-    switcher.addEventListener(workspaceSurfaceChangeEvent, (event) => {
-      surfaces.push((event as CustomEvent<WorkspaceSurface>).detail);
-    });
+    switcher.bindNavigation((surface) => surfaces.push(surface));
 
     switcher.selectForTest();
     switcher.selectForTest("authoring");

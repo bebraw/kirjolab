@@ -175,8 +175,9 @@ collaboration.
   Infrequent project-management and file-mutation actions stay grouped in
   labelled menus so the persistent chrome prioritizes authoring and export.
   A bounded surface switcher owns responsive Authoring/Context selection and
-  ARIA presentation while the coordinator retains pane visibility and route
-  synchronization.
+  ARIA presentation, routing selection through a typed navigation binding while
+  the coordinator retains pane visibility and route synchronization. Write/Map
+  mode selection follows the same boundary.
   A bounded History trigger presents the current revision and delegates its
   open intent to the coordinator, which loads and opens the history dialog.
   A composed Lit history-dialog boundary owns modal lifecycle, busy state,

@@ -30,7 +30,7 @@ import {
 } from "../domain/reference-library";
 import { applicationVersionNoticeEvent } from "./application-version-control";
 import "./source-citation-control";
-import { workspaceSurfaceChangeEvent } from "./workspace-surface-switcher";
+import "./workspace-surface-switcher";
 import { type EditorSyntaxKind, type EditorSyntaxTemplate } from "./editor-insert-menu";
 import { sourceSpanAt } from "./composition-source-map";
 import { collaboratorSelectionChangeEvent } from "./collaborator-selection-list";
@@ -114,7 +114,7 @@ import {
   type WorkspaceSurface,
 } from "./workspace-ui-route";
 import { workspaceRailChangeEvent } from "./workspace-rail-tabs";
-import { authoringModeChangeEvent } from "./authoring-mode-tabs";
+import "./authoring-mode-tabs";
 import type { EditorPresenceRange } from "./editor-presence";
 import { bindYText, captureRelativeSelection, type RelativeEditorSelection } from "./source-editor-adapter";
 
@@ -437,9 +437,7 @@ class WorkspaceApp {
       if (intent.kind === "citation") void this.#acceptCitationCompletion(intent);
       else this.#acceptIncludeCompletion(intent);
     });
-    this.#elements.authoringModeTabs.addEventListener(authoringModeChangeEvent, (event) => {
-      this.#setAuthoringMode((event as CustomEvent<AuthoringMode>).detail);
-    });
+    this.#elements.authoringModeTabs.bindNavigation((mode) => this.#setAuthoringMode(mode));
     this.#elements.projectHistoryDialog.configure(apiBase, {
       presentNotice: (message) => this.#showToast(message),
       trigger: this.#elements.projectHistoryTrigger,
@@ -559,9 +557,7 @@ class WorkspaceApp {
       openAnnotation: (annotationId) => this.#elements.projectEvidencePanel.revealAnnotation(annotationId),
       openPassage: (anchor) => this.#showPassage(anchor),
     });
-    this.#elements.workspaceSurfaceSwitcher.addEventListener(workspaceSurfaceChangeEvent, (event) => {
-      this.#showWorkspaceSurface((event as CustomEvent<WorkspaceSurface>).detail);
-    });
+    this.#elements.workspaceSurfaceSwitcher.bindNavigation((surface) => this.#showWorkspaceSurface(surface));
     this.#layout.bind();
     this.#elements.contextTabStrip.bindNavigation({
       activate: (key) => this.#activateContext(key),

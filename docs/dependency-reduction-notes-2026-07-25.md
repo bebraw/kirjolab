@@ -6893,6 +6893,28 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,670 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Workspace View Navigation
+
+`AuthoringModeTabs` and `WorkspaceSurfaceSwitcher` now route Write/Map and
+Authoring/Context selections through narrow typed navigation bindings.
+`WorkspaceApp` retains editor focus, responsive pane visibility, route
+synchronization, and canonical workspace state.
+
+This checkpoint reduces `src/client/app.ts` from 2,240 to 2,236 lines (-4),
+removes two coordinator listener sites and both public change-event contracts,
+and grows the two control owners by six lines total. Runtime source across the
+three files increases by two lines for the explicit binding methods. Focused
+coverage exercises current, missing, and changed selections, controlled
+visibility, active presentation, and strict types.
+
+The browser application artifact changes from 840,669 B raw / 226,983 B gzip
+to 840,561 B raw / 227,006 B gzip (-108 B raw / +23 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,670 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

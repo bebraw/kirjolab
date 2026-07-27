@@ -475,7 +475,7 @@ The adopted components own bounded presentation:
   plus a typed navigation intent.
 - The authoring mode tabs own Write and Map active-state presentation,
   controlled editor, write-action, and map visibility, map focus entry through
-  its composed workspace, plus a typed mode-change intent.
+  its composed workspace, plus a typed navigation binding.
 - The unidentified-PDF queue owns legacy unattached-artifact count, visibility,
   reference choices and artifact-subset derivation from the canonical Library
   snapshot, identification transport, duplicate-submit gating, local progress
@@ -925,7 +925,8 @@ reason to wrap static markup mechanically.
   URL synchronization, collapse, and resize authority.
 - The authoring mode tabs replace two internal element references, two native
   action bindings, two ARIA-state mutations, DOM-derived active mode, one
-  write-action reference, and three coordinator-owned visibility mutations.
+  write-action reference, three coordinator-owned visibility mutations, and
+  its public mode-change event.
   The application coordinator retains editor focus policy and URL
   synchronization.
 - The editor status component replaces separate target and save-status element
@@ -971,8 +972,9 @@ reason to wrap static markup mechanically.
   synchronization, content rendering, PDF-specific form and inspector
   visibility, and resource-panel scroll restoration.
 - The workspace surface switcher replaces two button references, native action
-  bindings, and ARIA-state mutations. The application coordinator retains
-  responsive surface visibility and URL synchronization.
+  bindings, ARIA-state mutations, and its public change event. It routes
+  selection through a typed navigation binding; the application coordinator
+  retains responsive surface visibility and URL synchronization.
 - The workspace layout control replaces the raw select reference and
   coordinator-owned normalization and local-storage access. It owns the
   four-option template, selected value, workspace-scoped resilient persistence,
