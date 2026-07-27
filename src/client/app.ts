@@ -415,6 +415,7 @@ class WorkspaceApp {
       tree: this.#elements.projectTreePanel,
       uploaded: (result) => this.#completeProjectImageUpload(result),
     });
+    this.#elements.projectFileDialog.bindPresentation(this.#elements);
     this.#elements.editorInsertMenu.bind({
       includeFile: (relativePath, path) => this.#insertProjectIncludeFromMenu(relativePath, path),
       insertSyntax: (kind, template) => this.#insertSourceSyntax(kind, template),
@@ -1059,19 +1060,7 @@ class WorkspaceApp {
     const snapshot = this.#snapshot;
     if (!snapshot) return;
     this.#ensureActiveProjectFile(snapshot);
-    const files = snapshot.files.filter((file) => !this.#elements.projectFileDialog.hiddenFiles.has(file.id));
-    this.#elements.projectTreePanel.setTree({
-      activeFileId: this.#activeFileId,
-      assetBase: `${apiBase}/assets`,
-      assets: snapshot.assets,
-      entryFileId: snapshot.entryFileId,
-      files,
-      folders: snapshot.folders,
-    });
-    this.#elements.editorInsertMenu.setFiles(files.find((file) => file.id === this.#activeFileId) ?? null, files);
-    this.#elements.sourceCompletion.setProject(snapshot, this.#activeFileId, appMode === "workspace");
-    const entryActive = this.#activeFileId === snapshot.entryFileId;
-    this.#elements.projectFileMenuActions.setEntryFileActive(entryActive);
+    this.#elements.projectFileDialog.presentProject(snapshot, this.#activeFileId, `${apiBase}/assets`, appMode === "workspace");
     this.#renderAuthoringTarget();
   }
 

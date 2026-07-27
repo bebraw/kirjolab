@@ -5,7 +5,7 @@ import { DeferredDeletionController, type DeferredDeletionNoticeOptions } from "
 import { errorMessage, expectOk, jsonFetch } from "./http";
 import { projectFileActionEvent, type ProjectFileAction } from "./project-file-actions";
 import { projectImagesUploadedEvent, type ProjectImagesUploaded } from "./project-image-upload-control";
-import { projectTreeActionEvent, type ProjectTreeAction } from "./project-tree-panel";
+import { projectTreeActionEvent, type ProjectTreeAction, type ProjectTreeData } from "./project-tree-panel";
 
 export const projectFileSavedEvent = "project-file-saved";
 
@@ -35,6 +35,15 @@ interface ProjectImageUploadSource extends EventTarget {
 
 interface ProjectFileTreeSource extends EventTarget {
   readonly focusFilter: () => void;
+}
+
+export interface ProjectFilePresentationBinding {
+  readonly editorInsertMenu: { setFiles(activeFile: ProjectFile | null, files: readonly ProjectFile[]): void };
+  readonly projectFileMenuActions: { setEntryFileActive(active: boolean): void };
+  readonly projectTreePanel: { setTree(data: ProjectTreeData): void };
+  readonly sourceCompletion: {
+    setProject(project: WorkspaceSnapshot, activeFileId: string | null, workspace: boolean): void;
+  };
 }
 
 export interface ProjectFileWorkflowRouting {
@@ -110,6 +119,7 @@ export class ProjectFileDialog extends LitElement {
   });
   private targetId: string | null = null;
   private readonly hiddenFileIds = new Set<string>();
+  private presentation: ProjectFilePresentationBinding | null = null;
   private routing: ProjectFileWorkflowRouting | null = null;
   private routingAbort: AbortController | null = null;
 
@@ -129,6 +139,28 @@ export class ProjectFileDialog extends LitElement {
   bindWorkflow(routing: ProjectFileWorkflowRouting): void {
     this.routing = routing;
     this.connectRouting();
+  }
+
+  bindPresentation(binding: ProjectFilePresentationBinding): void {
+    this.presentation = binding;
+  }
+
+  presentProject(snapshot: WorkspaceSnapshot, activeFileId: string | null, assetBase: string, workspace: boolean): void {
+    const presentation = this.presentation;
+    if (!presentation) return;
+    const files = snapshot.files.filter((file) => !this.hiddenFileIds.has(file.id));
+    const activeFile = files.find((file) => file.id === activeFileId) ?? null;
+    presentation.projectTreePanel.setTree({
+      activeFileId,
+      assetBase,
+      assets: snapshot.assets,
+      entryFileId: snapshot.entryFileId,
+      files,
+      folders: snapshot.folders,
+    });
+    presentation.editorInsertMenu.setFiles(activeFile, files);
+    presentation.sourceCompletion.setProject(snapshot, activeFileId, workspace);
+    presentation.projectFileMenuActions.setEntryFileActive(activeFileId === snapshot.entryFileId);
   }
 
   get hiddenFiles(): ReadonlySet<string> {

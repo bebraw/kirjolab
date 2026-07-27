@@ -12,7 +12,7 @@ export type ProjectTreeAction =
   | { readonly action: "rename-folder"; readonly folderId: string }
   | { readonly action: "select-file"; readonly fileId: string; readonly focusEditor: boolean };
 
-interface ProjectTreeData {
+export interface ProjectTreeData {
   readonly activeFileId: string | null;
   readonly assetBase: string;
   readonly assets: readonly ProjectAsset[];

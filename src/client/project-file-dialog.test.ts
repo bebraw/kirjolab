@@ -189,6 +189,29 @@ describe("project file dialog", () => {
     });
   });
 
+  it("presents canonical project files through the bound Lit owners", () => {
+    const panel = new TestProjectFileDialog();
+    const editorInsertMenu = { setFiles: vi.fn() };
+    const projectFileMenuActions = { setEntryFileActive: vi.fn() };
+    const sourceCompletion = { setProject: vi.fn() };
+    const projectTreePanel = { setTree: vi.fn() };
+    panel.bindPresentation({ editorInsertMenu, projectFileMenuActions, projectTreePanel, sourceCompletion });
+
+    panel.presentProject(snapshot, snapshot.entryFileId, "/api/workspaces/demo/assets", true);
+
+    expect(projectTreePanel.setTree).toHaveBeenCalledWith({
+      activeFileId: snapshot.entryFileId,
+      assetBase: "/api/workspaces/demo/assets",
+      assets: snapshot.assets,
+      entryFileId: snapshot.entryFileId,
+      files: snapshot.files,
+      folders: snapshot.folders,
+    });
+    expect(editorInsertMenu.setFiles).toHaveBeenCalledWith(snapshot.files[0], snapshot.files);
+    expect(sourceCompletion.setProject).toHaveBeenCalledWith(snapshot, snapshot.entryFileId, true);
+    expect(projectFileMenuActions.setEntryFileActive).toHaveBeenCalledWith(true);
+  });
+
   it("persists a trimmed path and emits the validated workspace", async () => {
     const panel = new TestProjectFileDialog();
     const saves: ProjectFileSaved[] = [];

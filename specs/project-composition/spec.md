@@ -144,12 +144,16 @@ collaborative, and unambiguous about what preview and export mean.
   text and a safely delimited path relative to the canonical active file, then
   emits the projected Markdown and completion message for collaborative
   insertion by the workspace coordinator.
+  Given a canonical snapshot and active file, the same component filters its
+  hidden-file projection once and supplies the project tree, Insert menu,
+  source-completion list, and file-action menu with their bounded views.
   It also owns encoded file deletion transport and shares the same response
   validation across create, rename, and delete operations, plus the supporting-
   file hidden projection, delayed deletion, Undo, and failed-commit restoration.
   The workspace coordinator must not reconstruct mutation targets from mutable
   ambient selection; it retains collaborative include-target capture, canonical
-  snapshot application, file selection, rendering, and the notification outlet.
+  snapshot and active-file authority, cross-feature rendering, and the
+  notification outlet.
 - Publication exports consume the versioned source-mapped intermediate defined
   by `specs/export-pipeline/spec.md`; no target may reimplement include
   expansion or front-matter offset handling.

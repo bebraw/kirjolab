@@ -331,9 +331,11 @@ The adopted components own bounded presentation:
   completed outcomes carrying the mode, path, message, and validated workspace
   snapshot together. It also owns supporting-file optimistic hiding, the
   deletion grace period, Undo and failed-commit restoration, and exposes the
-  hidden-file projection. The coordinator retains workflow-template selection
-  and navigation, snapshot application, file selection, rendering, and the
-  notification outlet.
+  hidden-file projection. Its presentation binding fans one canonical snapshot,
+  visible file collection, and active/entry state into the project tree, Insert
+  menu, source completion, and file-action menu. The coordinator retains
+  workflow-template selection and navigation, canonical snapshot and active-file
+  authority, Yjs editing, cross-feature rendering, and the notification outlet.
 - Reused project-file action components own the rail and editor-menu action
   presentation, entry-file delete availability, and one typed create, include,
   rename, delete, folder-create, or image-upload intent contract.
@@ -747,9 +749,11 @@ reason to wrap static markup mechanically.
   routing sibling file actions, tree actions, upload completions, and save
   completions through one typed workflow boundary. It also derives relative,
   safely delimited Markdown image syntax and normalized alt text when a tree
-  asset is selected. Collaborative include-target capture, active-file
-  authority, Yjs insertion, snapshot application, selection, rendering, and the
-  toast outlet remain in the application coordinator.
+  asset is selected, and replaces coordinator fan-out to the project tree,
+  Insert menu, source completion, and file-action menu with one typed
+  presentation binding. Collaborative include-target capture, active-file and
+  snapshot authority, Yjs insertion, cross-feature rendering, and the toast
+  outlet remain in the application coordinator.
 - The project template save dialog replaces seven internal element references
   and imperative replacement-option, value, status, focus, and cancellation
   handling while consuming the starting-point browser's visible template view.

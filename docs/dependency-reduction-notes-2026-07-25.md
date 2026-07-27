@@ -7143,6 +7143,31 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,678 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Project File Presentation
+
+`ProjectFileDialog` now fans a canonical project snapshot into the project
+tree, Insert menu, source-completion list, and file-action menu through one
+typed presentation binding. It filters the component-owned hidden-file
+projection once and derives the active file and entry-file action state there.
+`WorkspaceApp` retains canonical snapshot and active-file authority, Yjs
+editing, and cross-feature authoring presentation.
+
+This checkpoint reduces `src/client/app.ts` from 2,113 to 2,102 lines (-11) and
+grows the project-file dialog from 362 to 394 lines (+32). Runtime source across
+the two files increases by 21 lines while replacing four coordinator-owned
+presentation calls and their duplicate visible-file lookup with one composite
+contract. Focused coverage exercises canonical tree data, active and entry
+state, sibling presentation inputs, existing project-file workflow behavior,
+application contracts, and strict types.
+
+The browser application artifact changes from 840,834 B raw / 227,389 B gzip
+to 840,982 B raw / 227,456 B gzip (+148 B raw / +67 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,679 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,
