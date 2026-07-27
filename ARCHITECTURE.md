@@ -45,8 +45,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   link request structure; authorization, immutable-profile policy, identity
   normalization, catalog projection, and project access stay explicit. At
   review-study decision boundaries, schemas own screening, final-inclusion,
-  adjudication, and duplicate-resolution structure; revision concurrency,
-  evidence authorization, and study mutation stay explicit.
+  adjudication, duplicate-resolution, quality-answer, extraction-value, and
+  reassessment-completion structure; revision concurrency, evidence parsing and
+  authorization, and study mutation stay explicit.
 - Read bounded external response bodies through stateless, request-local
   helpers that enforce both declared and observed byte limits. Keep byte
   ceilings, errors, response-shape validation, and domain mapping explicit at

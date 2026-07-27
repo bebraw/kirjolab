@@ -73,7 +73,8 @@ Adopted boundaries are:
   access, and multi-catalog projection remain explicit.
 - Review-study decisions: shared safe-revision, screening-stage, outcome, and
   nullable-criterion primitives compose screening, final-inclusion,
-  adjudication, and duplicate-resolution schemas while concurrency, evidence
+  adjudication, duplicate-resolution, quality-answer, extraction-value, and
+  reassessment-completion schemas while concurrency, evidence parsing and
   authorization, actor identity, and Durable Object mutation remain explicit.
 - Edit-capability file mutations: one request schema replaces the record,
   content, length, numeric, and safe-integer checks while bounded body reading,

@@ -30,7 +30,26 @@ import * as v from "valibot";
 
 const maximumProtocolRequestBytes = 2 * 1024 * 1024;
 const safeRevisionSchema = v.pipe(v.number(), v.safeInteger());
+const positiveRevisionSchema = v.pipe(safeRevisionSchema, v.minValue(1));
 const screeningStageSchema = v.picklist(["title-abstract", "full-text"]);
+const qualityValueSchema = v.object({
+  expectedRevision: safeRevisionSchema,
+  questionId: v.string(),
+  answerId: v.string(),
+  evidence: v.optional(v.unknown()),
+  rationale: v.optional(v.unknown()),
+});
+const extractionValueSchema = v.object({
+  expectedRevision: safeRevisionSchema,
+  fieldId: v.string(),
+  value: v.unknown(),
+  missingReason: v.nullable(v.string()),
+  evidence: v.optional(v.unknown()),
+});
+const reassessmentCompletionSchema = v.object({
+  expectedRevision: positiveRevisionSchema,
+  rationale: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(2_000)),
+});
 const screeningDecisionSchema = v.object({
   expectedRevision: safeRevisionSchema,
   stage: screeningStageSchema,
@@ -381,16 +400,7 @@ async function modelCandidateRequest(request: Request) {
 }
 
 async function qualityValueRequest(request: Request) {
-  const value: unknown = await request.json();
-  if (
-    !isRecord(value) ||
-    typeof value.expectedRevision !== "number" ||
-    !Number.isSafeInteger(value.expectedRevision) ||
-    typeof value.questionId !== "string" ||
-    typeof value.answerId !== "string"
-  ) {
-    throw new Error("Quality assessment request is invalid");
-  }
+  const value = await validatedRequest(request, qualityValueSchema, "Quality assessment request is invalid");
   return {
     expectedRevision: value.expectedRevision,
     questionId: value.questionId,
@@ -407,16 +417,7 @@ async function extractionValueRequest(request: Request): Promise<{
   missingReason: string | null;
   evidence: ReturnType<typeof parseEvidencePointer>;
 }> {
-  const input: unknown = await request.json();
-  if (
-    !isRecord(input) ||
-    typeof input.expectedRevision !== "number" ||
-    !Number.isSafeInteger(input.expectedRevision) ||
-    typeof input.fieldId !== "string" ||
-    (input.missingReason !== null && typeof input.missingReason !== "string")
-  ) {
-    throw new Error("Extraction value request is invalid");
-  }
+  const input = await validatedRequest(request, extractionValueSchema, "Extraction value request is invalid");
   return {
     expectedRevision: input.expectedRevision,
     fieldId: input.fieldId,
@@ -435,19 +436,7 @@ async function finalInclusionDecisionRequest(request: Request) {
 }
 
 async function reassessmentCompletionRequest(request: Request): Promise<{ expectedRevision: number; rationale: string }> {
-  const value: unknown = await request.json();
-  if (
-    !isRecord(value) ||
-    typeof value.expectedRevision !== "number" ||
-    !Number.isSafeInteger(value.expectedRevision) ||
-    value.expectedRevision < 1 ||
-    typeof value.rationale !== "string" ||
-    !value.rationale.trim() ||
-    value.rationale.trim().length > 2_000
-  ) {
-    throw new Error("Review reassessment completion request is invalid");
-  }
-  return { expectedRevision: value.expectedRevision, rationale: value.rationale.trim() };
+  return await validatedRequest(request, reassessmentCompletionSchema, "Review reassessment completion request is invalid");
 }
 
 async function screeningAdjudicationRequest(request: Request) {

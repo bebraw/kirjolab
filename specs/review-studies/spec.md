@@ -71,6 +71,9 @@ published deliberately into several writing projects.
   resolutions pass composable Valibot schemas with one shared safe-revision
   primitive. Optimistic revision checks, actor identity, evidence authorization,
   and study mutation remain explicit workflow rules.
+- Quality answers, extraction values, and reassessment completions reuse the
+  same revision contract and named request schemas. Evidence shape and
+  authorization, extraction domain rules, and study mutation remain explicit.
 - The focused review route follows Plan, Search, Screen, Appraise, Extract,
   Synthesize, and Report without embedding the workflow in manuscript authoring
   chrome. It exposes review membership, lifecycle, and explicit many-to-many

@@ -11023,3 +11023,17 @@ coverage passes 94 tests and all 121 Workers-runtime tests alongside strict
 types. Browser artifacts are unchanged because this boundary is server-side.
 Direct and unique production package counts remain 18 and 150; Valibot was
 already pinned.
+
+## Continued Valibot Adoption: Review Evidence Values
+
+The review-study API now validates quality answers, extraction values, and
+reassessment completions with named schemas that reuse the safe-revision
+primitive. Existing evidence and extraction parsers retain domain shape rules,
+and evidence authorization and study mutation remain explicit.
+
+This checkpoint reduces `src/api/review-study.ts` from 659 to 648 lines (-11),
+replacing 33 lines of repeated structural checks and normalization with 22
+lines of composable contracts. Affected coverage passes 94 tests and all 121
+Workers-runtime tests alongside strict types. Browser artifacts are unchanged
+because this boundary is server-side. Direct and unique production package
+counts remain 18 and 150; Valibot was already pinned.
