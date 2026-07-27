@@ -12,7 +12,6 @@ export interface EditorSyntaxTemplate {
 export interface EditorInsertBinding {
   readonly applyInsertion: (insertion: EditorInsertion) => void;
   readonly authoringTarget: () => { readonly caret: number; readonly passage: EditorAuthoringPassage | null };
-  readonly includeFile: (relativePath: string) => void;
   readonly presentNotice: (message: string) => void;
 }
 
@@ -104,7 +103,9 @@ export class EditorInsertMenu extends LitElement {
   }
 
   protected includeFile(relativePath: string, path: string): void {
-    this.binding?.includeFile(relativePath);
+    const target = this.binding?.authoringTarget();
+    if (!target) return;
+    this.applyTemplate({ text: `\n::include[${relativePath}]\n` }, null, target.caret);
     this.binding?.presentNotice(`Included ${path}.`);
     this.closeMenu();
   }

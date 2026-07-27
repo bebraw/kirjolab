@@ -11227,3 +11227,25 @@ and PDF.js artifacts remain unchanged at 135,411 B / 23,373 B, 204,779 B /
 
 Full native CI passes all 1,739 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Lit Ownership: Immediate Include Projection
+
+`EditorInsertMenu` now projects an immediate relative-file choice into its full
+include directive and collapsed post-insertion caret through the existing typed
+insertion binding. `WorkspaceApp` retains Yjs mutation and the separate
+cross-file continuation that must preserve an original text and caret while a
+new file is created asynchronously.
+
+This checkpoint reduces `src/client/app.ts` from 828 to 824 lines (-4), grows
+the Insert owner from 164 to 165 lines (+1), and reduces runtime across the pair
+by three lines. Focused coverage passes the exact relative directive, caret,
+notice, other menu projections, and strict types. Direct and unique production
+package counts remain 18 and 150; Lit was already pinned.
+
+The browser application artifact decreases from 853,954 B raw / 229,856 B gzip
+to 853,928 B / 229,850 B (-26 B raw / -6 B gzip). Styles and lazy Markdown and
+PDF.js artifacts remain unchanged at 135,411 B / 23,373 B, 204,779 B / 62,386
+B, and 481,994 B / 146,135 B.
+
+Full native CI passes all 1,739 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.

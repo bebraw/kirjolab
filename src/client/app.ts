@@ -398,10 +398,6 @@ class WorkspaceApp {
         caret: this.#elements.editorStatus.caret ?? this.#elements.source.selectionEnd,
         passage: this.#elements.editorStatus.selectedPassage(),
       }),
-      includeFile: (relativePath) => {
-        const caret = this.#elements.editorStatus.caret ?? this.#elements.source.selectionEnd;
-        this.#insertProjectInclude(this.#activeFileText, caret, relativePath);
-      },
       presentNotice: (message) => this.#elements.toast.show(message),
     });
     this.#elements.sourceCompletion.bindAcceptance((intent) => {

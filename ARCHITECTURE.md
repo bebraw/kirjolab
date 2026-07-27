@@ -321,9 +321,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   mutation origin so its undo history includes derived source insertions.
 - Let the editor Insert menu own the scholarly syntax templates it displays and
   route template and relative-include choices through one typed binding. It
-  projects passage-aware links, selection ranges, and image-template insertions
-  from a coordinator-supplied authoring target. Keep Yjs edits, editor focus,
-  and the toast outlet in the workspace coordinator.
+  projects passage-aware links, selection ranges, image-template insertions,
+  and immediate relative-include directives from a coordinator-supplied
+  authoring target. Keep Yjs edits, editor focus, asynchronous cross-file include
+  continuation, and the toast outlet in the workspace coordinator.
 - Let the source citation control own citation-at-caret interpretation,
   citation insertion syntax projection, local insertion errors, and completion
   copy from a resolved authoring caret. Keep Yjs mutation, authoring-mode

@@ -169,9 +169,11 @@ collaborative, and unambiguous about what preview and export mean.
   paths from the active project file and owns the scholarly syntax templates it
   displays. From the supplied resolved passage and caret it derives
   passage-aware links, replacement and selected ranges, image-template
-  insertion, and completion notices. It owns menu presentation and closing,
-  while the workspace coordinator owns collaborative selection resolution and
-  applies the derived source replacement through Yjs.
+  insertion, immediate relative-include directives, and completion notices. It
+  owns menu presentation and closing, while the workspace coordinator owns
+  collaborative selection resolution, applies the derived source replacement
+  through Yjs, and retains the remembered cross-file caret needed when a newly
+  created file is included after an asynchronous request.
 - The project-file dialog derives resource availability, initial path, and the
   stable file or folder identity associated with its active operation from
   canonical inputs, derives the mutation endpoint from that identity, applies

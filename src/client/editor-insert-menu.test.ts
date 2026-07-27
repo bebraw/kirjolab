@@ -45,10 +45,10 @@ describe("editor insert menu", () => {
   it("owns syntax insertion projection and relative include notices", () => {
     const menu = new TestEditorInsertMenu();
     const actions: unknown[] = [];
+    const include = "\n::include[../main.md]\n";
     menu.bind({
       applyInsertion: (insertion) => actions.push({ action: "insert", insertion }),
       authoringTarget: () => ({ caret: 4, passage: null }),
-      includeFile: (relativePath) => actions.push({ action: "include-file", relativePath }),
       presentNotice: (message) => actions.push({ action: "notice", message }),
     });
     menu.selectSyntaxForTest("citation", { text: ":cite[key]", select: "key" });
@@ -59,7 +59,10 @@ describe("editor insert menu", () => {
         insertion: { end: 4, selectionEnd: 13, selectionStart: 10, start: 4, text: ":cite[key]" },
       },
       { action: "notice", message: "Inserted scholarly syntax." },
-      { action: "include-file", relativePath: "../main.md" },
+      {
+        action: "insert",
+        insertion: { end: 4, selectionEnd: 4 + include.length, selectionStart: 4 + include.length, start: 4, text: include },
+      },
       { action: "notice", message: "Included main.md." },
     ]);
   });
@@ -74,7 +77,6 @@ describe("editor insert menu", () => {
         caret: 99,
         passage: { end: 8, excerpt: "Evidence", fileId: "file:1", start: 0 },
       }),
-      includeFile: () => undefined,
       presentNotice: (message) => notices.push(message),
     });
 
