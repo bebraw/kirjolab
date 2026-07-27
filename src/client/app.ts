@@ -560,6 +560,17 @@ class WorkspaceApp {
       refreshLibrary: () => this.#refreshReferenceLibrary(),
       showToast: (message) => this.#showToast(message),
     });
+    this.#elements.contextResourcePresenter.bindRoutes({
+      library: () => this.#librarySnapshot,
+      openCandidate: (candidate) => this.#openCandidateContext(candidate),
+      openLibraryPdf: async (artifact, page) => await this.#openLibraryPdf(artifact, page, false),
+      openProjectPdf: async (pdf, page, annotationId) => await this.#showPaper(pdf, page, annotationId),
+      openPublication: (publication) => this.#openPublicationContext(publication),
+      openReferencePdf: async (pdf, page) => await this.#openProjectReferencePdf(pdf, page, false),
+      project: () => this.#snapshot,
+      referencePdfs: () => this.#projectReferencePdfs,
+      refreshLibrary: async () => await this.#refreshReferenceLibrary(),
+    });
     this.#elements.libraryPdfInspector.bindProjectMutations(
       (message, snapshot) => void this.#completeLibraryProjectMutation(message, snapshot),
     );
@@ -698,7 +709,7 @@ class WorkspaceApp {
     try {
       const target = researchTargetFromContextKey(route.contextKey);
       if (!target) return await this.#restoreGeneralResearchContext(route.contextKey);
-      await this.#restoreTargetedResearchContext(target, route);
+      await this.#elements.contextResourcePresenter.restoreTarget(target, route.page, route.annotationId);
     } catch (error) {
       this.#contextState = activateResearchTab(this.#contextState, RESEARCH_PREVIEW_KEY);
       this.#renderResearchContext();
@@ -709,36 +720,6 @@ class WorkspaceApp {
   async #restoreGeneralResearchContext(contextKey: ResearchContextKey): Promise<void> {
     if (contextKey === RESEARCH_LIBRARY_KEY) return await this.#openReferenceLibrary(false);
     this.#activateContext(contextKey);
-  }
-
-  async #restoreTargetedResearchContext(
-    target: NonNullable<ReturnType<typeof researchTargetFromContextKey>>,
-    route: ReturnType<typeof readWorkspaceUiRoute>,
-  ): Promise<void> {
-    if (target.kind === "publication") {
-      const publication = this.#snapshot?.publications.find((item) => item.id === target.id);
-      if (publication) this.#openPublicationContext(publication);
-      return;
-    }
-    if (target.kind === "pdf") {
-      const pdf = this.#snapshot?.pdfs.find((item) => item.id === target.id);
-      if (pdf) await this.#showPaper(pdf, route.page, route.annotationId);
-      return;
-    }
-    if (target.kind === "candidate") {
-      const candidate = this.#snapshot?.candidates.find((item) => item.id === target.id);
-      if (candidate) this.#openCandidateContext(candidate);
-      return;
-    }
-    await this.#restoreLibraryPdfContext(target.id, route.page);
-  }
-
-  async #restoreLibraryPdfContext(id: string, page: number | undefined): Promise<void> {
-    if (!this.#librarySnapshot) await this.#refreshReferenceLibrary();
-    const artifact = this.#librarySnapshot?.artifacts.find((item) => item.id === id);
-    if (artifact) return await this.#openLibraryPdf(artifact, page, false);
-    const pdf = this.#projectReferencePdf(id);
-    if (pdf) await this.#openProjectReferencePdf(pdf, page, false);
   }
 
   #syncWorkspaceRoute(mode: "push" | "replace"): void {
@@ -1379,10 +1360,6 @@ class WorkspaceApp {
       (tab): tab is ResearchResourceTab =>
         tab.kind !== "preview" && tab.kind !== "library" && tab.kind !== "assistant" && tab.key === this.#contextState.activeKey,
     );
-  }
-
-  #projectReferencePdf(resourceId: string): ProjectReferencePdf | undefined {
-    return this.#projectReferencePdfs.find((pdf) => pdf.id === resourceId);
   }
 
   async #openPublicationPaper(paper: PublicationPaperOption): Promise<void> {

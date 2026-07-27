@@ -29,7 +29,7 @@ import { ProjectEvidencePanel } from "./project-evidence-panel";
 import { mutateProjectReference } from "./project-reference-mutation";
 import { PublicationContextPanel } from "./publication-context-panel";
 import { PublicationListPanel } from "./publication-list-panel";
-import type { ResearchContextAuthorization, ResearchContextTab, ResearchResourceTab } from "./research-context";
+import type { ResearchContextAuthorization, ResearchContextTab, ResearchResourceTab, ResearchResourceTarget } from "./research-context";
 import { WorkspaceRailTabs } from "./workspace-rail-tabs";
 
 export interface ContextResourceSources {
@@ -83,8 +83,51 @@ export interface LibraryPdfCoordinator {
   readonly showToast: (message: string) => void;
 }
 
+export interface ContextRouteCoordinator {
+  readonly library: () => ReferenceLibrarySnapshot | null;
+  readonly openCandidate: (candidate: WorkspaceSnapshot["candidates"][number]) => void;
+  readonly openLibraryPdf: (artifact: LibraryPdfArtifact, page?: number) => Promise<void>;
+  readonly openProjectPdf: (pdf: WorkspaceSnapshot["pdfs"][number], page?: number, annotationId?: string) => Promise<void>;
+  readonly openPublication: (publication: WorkspaceSnapshot["publications"][number]) => void;
+  readonly openReferencePdf: (pdf: ProjectReferencePdf, page?: number) => Promise<void>;
+  readonly project: () => WorkspaceSnapshot | null;
+  readonly referencePdfs: () => readonly ProjectReferencePdf[];
+  readonly refreshLibrary: () => Promise<void>;
+}
+
 export class ContextResourcePresenter extends LitElement {
   private libraryPdfCoordinator: LibraryPdfCoordinator | null = null;
+  private routeCoordinator: ContextRouteCoordinator | null = null;
+
+  bindRoutes(coordinator: ContextRouteCoordinator): void {
+    this.routeCoordinator = coordinator;
+  }
+
+  async restoreTarget(target: ResearchResourceTarget, page?: number, annotationId?: string): Promise<void> {
+    const coordinator = this.routeCoordinator;
+    if (!coordinator) return;
+    const project = coordinator.project();
+    if (target.kind === "publication") {
+      const publication = project?.publications.find(({ id }) => id === target.id);
+      if (publication) coordinator.openPublication(publication);
+      return;
+    }
+    if (target.kind === "pdf") {
+      const pdf = project?.pdfs.find(({ id }) => id === target.id);
+      if (pdf) await coordinator.openProjectPdf(pdf, page, annotationId);
+      return;
+    }
+    if (target.kind === "candidate") {
+      const candidate = project?.candidates.find(({ id }) => id === target.id);
+      if (candidate) coordinator.openCandidate(candidate);
+      return;
+    }
+    if (!coordinator.library()) await coordinator.refreshLibrary();
+    const artifact = coordinator.library()?.artifacts.find(({ id }) => id === target.id);
+    if (artifact) return await coordinator.openLibraryPdf(artifact, page);
+    const referencePdf = coordinator.referencePdfs().find(({ id }) => id === target.id);
+    if (referencePdf) await coordinator.openReferencePdf(referencePdf, page);
+  }
 
   bindLibraryPdf(coordinator: LibraryPdfCoordinator): void {
     this.libraryPdfCoordinator = coordinator;

@@ -129,7 +129,10 @@ The adopted components own bounded presentation:
   candidate, project-PDF, private-Library PDF, or shared-reference PDF owner from
   one active-resource projection. It derives authorization identity sets for
   those resource kinds from canonical project, Library, and linked-PDF inputs;
-  tab reconciliation remains coordinator navigation policy. It restores and captures resource scroll,
+  tab reconciliation remains coordinator navigation policy. When restoring a
+  supplied resource route, it also resolves the matching canonical publication,
+  project PDF, private-Library PDF, linked reference PDF, or candidate and emits
+  the typed open effect. It restores and captures resource scroll,
   supplies citation and intake context, switches the project-annotation versus
   private-inspector presentation, owns private-PDF inspector context,
   artifact-change markup reset, toolbar counts and export target, page-local
@@ -148,7 +151,8 @@ The adopted components own bounded presentation:
   the canonical workspace snapshot, and derives active PDF annotations and
   private highlights for the viewer. The coordinator retains canonical context
   state, active page, PDF loading, private markup drafts, Yjs citation
-  insertion, model availability, refresh, routing, and notification policy.
+  insertion, model availability, Library refresh, history mutation, routing,
+  navigation transitions, viewer effects, and notification policy.
 - The knowledge search panel owns query capture, empty, result, and error
   presentation, and typed search and resource-selection intents. Its enclosing
   project-map workspace owns the authorized search request, response validation,

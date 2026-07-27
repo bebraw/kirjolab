@@ -267,6 +267,79 @@ describe("context resource presenter", () => {
     });
   });
 
+  it("restores resource routes through canonical lookups and typed effects", async () => {
+    const { presenter } = setup();
+    const publication = {
+      abstract: "",
+      authors: ["Ada Author"],
+      citationKey: "Author2026",
+      createdAt: "created",
+      doi: "",
+      id: "publication:route",
+      metadataSource: "crossref" as const,
+      title: "Route source",
+      type: "article",
+      updatedAt: "updated",
+      url: "",
+      venue: "Journal",
+      year: "2026",
+    };
+    const pdf = {
+      contentType: "application/pdf" as const,
+      createdAt: "created",
+      fingerprint: "route-fingerprint",
+      id: "pdf:route",
+      name: "route.pdf",
+      objectKey: "pdfs/route.pdf",
+      size: 1024,
+    };
+    const candidate = {
+      createdAt: "created",
+      evidence: [],
+      id: "candidate:route",
+      instruction: "Draft a claim",
+      model: "local-model",
+      operation: "draft-claim" as const,
+      promptVersion: "draft-claim-v1" as const,
+      proposedNote: "",
+      proposedText: "Claim",
+      providerAdapter: "openai-compatible" as const,
+      providerLabel: "Local",
+      relation: "supports" as const,
+      status: "pending" as const,
+    };
+    const project = { ...workspaceSnapshotFixture, candidates: [candidate], pdfs: [pdf], publications: [publication] };
+    let currentLibrary: ReferenceLibrarySnapshot | null = null;
+    const coordinator = {
+      library: vi.fn(() => currentLibrary),
+      openCandidate: vi.fn(),
+      openLibraryPdf: vi.fn().mockResolvedValue(undefined),
+      openProjectPdf: vi.fn().mockResolvedValue(undefined),
+      openPublication: vi.fn(),
+      openReferencePdf: vi.fn().mockResolvedValue(undefined),
+      project: vi.fn(() => project),
+      referencePdfs: vi.fn(() => [referencePdf]),
+      refreshLibrary: vi.fn(async () => {
+        currentLibrary = library;
+      }),
+    };
+    presenter.bindRoutes(coordinator);
+
+    await presenter.restoreTarget({ kind: "publication", id: publication.id });
+    await presenter.restoreTarget({ kind: "pdf", id: pdf.id }, 4, "annotation-1");
+    await presenter.restoreTarget({ kind: "candidate", id: candidate.id });
+    await presenter.restoreTarget({ kind: "library-pdf", id: libraryPdf.id }, 5);
+    await presenter.restoreTarget({ kind: "library-pdf", id: referencePdf.id }, 6);
+    await presenter.restoreTarget({ kind: "publication", id: "missing" });
+
+    expect(coordinator.openPublication).toHaveBeenCalledWith(publication);
+    expect(coordinator.openProjectPdf).toHaveBeenCalledWith(pdf, 4, "annotation-1");
+    expect(coordinator.openCandidate).toHaveBeenCalledWith(candidate);
+    expect(coordinator.refreshLibrary).toHaveBeenCalledOnce();
+    expect(coordinator.openLibraryPdf).toHaveBeenCalledWith(libraryPdf, 5);
+    expect(coordinator.openReferencePdf).toHaveBeenCalledWith(referencePdf, 6);
+  });
+
   it("owns private-PDF inspector, markup reset, and toolbar presentation", () => {
     const { elements, presenter } = setup();
     const inspector = elements["library-pdf-inspector"];

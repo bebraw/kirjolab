@@ -192,9 +192,10 @@ changing their canonical data, selector, authorization, or rendering contracts.
   edit/selection presentation across the markup layer, inspector, and toolbar,
   and owns their local private-PDF action and completion routing, including
   citation readiness feedback, collision-safe project-reference preparation,
-  and validated link transport. It delegates canonical snapshot acceptance,
-  Yjs citation insertion, tab reconciliation, cross-resource navigation, toast
-  display, and viewer-only selection effects through typed callbacks,
+  validated link transport, and canonical catalog lookup when restoring a
+  supplied resource route. It delegates canonical snapshot acceptance, Yjs
+  citation insertion, tab reconciliation, cross-resource navigation, history
+  mutation, toast display, and viewer-only selection effects through typed callbacks,
   returning only the viewer's text-selection, selected-highlight, and draft-
   selection cleanup effects.
   It returns only active project-PDF annotations and private highlights to the
