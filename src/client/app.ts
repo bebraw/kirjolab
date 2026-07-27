@@ -62,7 +62,7 @@ import {
   type ResearchResourceKey,
   type ResearchResourceTarget,
 } from "./research-context";
-import { readWorkspaceUiRoute, researchTargetFromContextKey, workspaceUiRouteUrl, type WorkspaceSurface } from "./workspace-ui-route";
+import { readWorkspaceUiRoute, researchTargetFromContextKey, workspaceUiRouteUrl } from "./workspace-ui-route";
 import "./workspace-rail-tabs";
 import "./authoring-mode-tabs";
 import type { EditorPresenceRange } from "./editor-presence";
@@ -440,7 +440,7 @@ class WorkspaceApp {
     this.#elements.contextResourcePresenter.bindProjectEvidence(apiBase);
     this.#elements.contextResourcePresenter.bindProjectMap(apiBase, {
       document: () => {
-        this.#showWorkspaceSurface("authoring");
+        this.#elements.workspaceSurfaceSwitcher.navigate("authoring");
         this.#elements.authoringModeTabs.navigate("write");
         this.#elements.source.focus();
         this.#elements.source.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -496,7 +496,7 @@ class WorkspaceApp {
       (message, snapshot) => void this.#completeLibraryProjectMutation(message, snapshot),
     );
     this.#elements.contextResourcePresenter.bindClaimList(apiBase);
-    this.#elements.workspaceSurfaceSwitcher.bindNavigation((surface) => this.#showWorkspaceSurface(surface));
+    this.#elements.workspaceSurfaceSwitcher.bindNavigation(() => this.#syncWorkspaceRoute("replace"));
     this.#layout.bind();
     this.#elements.contextTabStrip.bindNavigation({
       activate: (key) => this.#activateContext(key),
@@ -576,7 +576,7 @@ class WorkspaceApp {
     if (route.fileId) this.#elements.projectFileDialog.selectFile(route.fileId);
     if (url.searchParams.has("context")) await this.#restoreWorkspaceContext(route);
     if (route.layout) await this.#applyWorkspaceLayout(route.layout, false);
-    if (url.searchParams.has("surface")) this.#showWorkspaceSurface(route.surface);
+    if (url.searchParams.has("surface")) this.#elements.workspaceSurfaceSwitcher.navigate(route.surface);
     this.#workspaceRouteReady = true;
     this.#syncWorkspaceRoute("replace");
   }
@@ -706,7 +706,7 @@ class WorkspaceApp {
   #syncSourceFromPreviewOffset(offset: number, centerEditor = false): void {
     const location = this.#elements.previewSyncControls.sourceLocation(offset);
     if (!location) return;
-    this.#showWorkspaceSurface("authoring");
+    this.#elements.workspaceSurfaceSwitcher.navigate("authoring");
     this.#focusProjectRange(location.fileId, location.offset, location.offset);
     if (centerEditor) this.#elements.previewSyncControls.centerSourceOffset(location.offset);
   }
@@ -827,12 +827,6 @@ class WorkspaceApp {
     this.#syncWorkspaceRoute("replace");
   }
 
-  #showWorkspaceSurface(surface: WorkspaceSurface, syncRoute = true): void {
-    this.#elements.workspaceSurfaces.dataset.activeSurface = surface;
-    this.#elements.workspaceSurfaceSwitcher.setSurface(surface);
-    if (syncRoute) this.#syncWorkspaceRoute("replace");
-  }
-
   #captureActiveContextState(): void {
     this.#contextState = this.#elements.contextResourcePresenter.captureBoundContext(this.#contextState);
   }
@@ -850,7 +844,7 @@ class WorkspaceApp {
   #presentContextTransition(context: ResearchContextState, key: ResearchContextKey, loadPdf = true, syncRoute = true): void {
     this.#contextState = context;
     this.#renderResearchContext(loadPdf);
-    this.#showWorkspaceSurface("context", false);
+    this.#elements.workspaceSurfaceSwitcher.navigate("context", false);
     this.#elements.contextTabStrip.focusTab(key);
     if (syncRoute) this.#syncWorkspaceRoute("push");
   }
@@ -957,7 +951,7 @@ class WorkspaceApp {
       return;
     }
     this.#document.transact(() => this.#activeFileText.insert(insertion.index, insertion.text), this);
-    this.#showWorkspaceSurface("authoring");
+    this.#elements.workspaceSurfaceSwitcher.navigate("authoring");
     this.#elements.authoringModeTabs.navigate("write");
     this.#elements.source.focus();
     this.#elements.source.setSelectionRange(insertion.caret, insertion.caret);
@@ -1121,7 +1115,7 @@ class WorkspaceApp {
       this.#showToast("This manuscript anchor is stale and needs to be linked again.");
       return;
     }
-    this.#showWorkspaceSurface("authoring");
+    this.#elements.workspaceSurfaceSwitcher.navigate("authoring");
     this.#elements.authoringModeTabs.navigate("write");
     this.#elements.projectFileDialog.selectFile(anchor.fileId);
     this.#elements.source.focus();

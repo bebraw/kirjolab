@@ -1156,8 +1156,10 @@ reason to wrap static markup mechanically.
   restoration.
 - The workspace surface switcher replaces two button references, native action
   bindings, ARIA-state mutations, and its public change event. It routes
-  selection through a typed navigation binding; the application coordinator
-  retains responsive surface visibility and URL synchronization.
+  internal and workflow-driven selection through one navigation method, owns
+  the direct parent workspace's visibility-driving active-surface projection,
+  and reports typed navigation outcomes. The application coordinator retains
+  URL synchronization.
 - The workspace layout control replaces the raw select reference and
   coordinator-owned normalization and local-storage access. It owns the
   four-option template, selected value, workspace-scoped resilient persistence,

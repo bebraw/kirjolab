@@ -21,17 +21,21 @@ class TestWorkspaceSurfaceSwitcher extends WorkspaceSurfaceSwitcher {
 describe("workspace surface switcher", () => {
   it("owns active presentation and binds changed surface navigation", () => {
     const switcher = new TestWorkspaceSurfaceSwitcher();
+    const workspace = { dataset: {} } as HTMLElement;
+    Object.defineProperty(switcher, "parentElement", { value: workspace });
     const surfaces: WorkspaceSurface[] = [];
     switcher.bindNavigation((surface) => surfaces.push(surface));
 
     switcher.selectForTest();
     switcher.selectForTest("authoring");
     switcher.selectForTest("context");
-    switcher.setSurface("context");
+    expect(workspace.dataset.activeSurface).toBe("context");
+    switcher.navigate("context", false);
     switcher.selectForTest("context");
     switcher.selectForTest("authoring");
 
     expect(surfaces).toEqual(["context", "authoring"]);
+    expect(workspace.dataset.activeSurface).toBe("authoring");
     expect(switcher.renderForTest()).toBeDefined();
     expect(switcher.rootForTest()).toBe(switcher);
   });

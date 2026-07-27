@@ -5,25 +5,27 @@ export class WorkspaceSurfaceSwitcher extends LitElement {
   static override properties = { surface: { state: true } };
 
   declare private surface: WorkspaceSurface;
-  private navigate: ((surface: WorkspaceSurface) => void) | null = null;
+  private navigation: ((surface: WorkspaceSurface) => void) | null = null;
 
   constructor() {
     super();
     this.surface = "authoring";
   }
 
-  setSurface(surface: WorkspaceSurface): void {
+  navigate(surface: WorkspaceSurface, notify = true): void {
     this.surface = surface;
+    if (this.parentElement) this.parentElement.dataset.activeSurface = surface;
+    if (notify) this.navigation?.(surface);
   }
 
   bindNavigation(navigate: (surface: WorkspaceSurface) => void): void {
-    this.navigate = navigate;
+    this.navigation = navigate;
   }
 
   protected select(event: Event): void {
     const surface = (event.currentTarget as HTMLButtonElement).dataset.surface as WorkspaceSurface | undefined;
     if (!surface || surface === this.surface) return;
-    this.navigate?.(surface);
+    this.navigate(surface);
   }
 
   override connectedCallback(): void {

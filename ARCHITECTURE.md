@@ -965,9 +965,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   annotation-form synchronization, canonical refresh, and notification effects
   in the application coordinator behind that typed completion boundary.
 - Treat authoring and research context as the two primary workspace surfaces.
-  Route responsive surface and Write/Map selection through narrow typed Lit
-  navigation bindings while retaining visibility and URL authority in the
-  workspace coordinator.
+  Let their direct-child Lit switcher apply responsive surface selection and
+  the parent workspace's visibility-driving state before reporting navigation
+  through a narrow typed binding. Route Write/Map selection through its sibling
+  Lit binding. Retain URL authority in the workspace coordinator.
   Keep a permanent manuscript Preview in a keyboard-operable right-hand tab
   pane, and address publication, PDF, and model-candidate tabs by stable
   resource identity.
@@ -1096,8 +1097,8 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   when both surfaces cannot retain readable measures; preserve editor and
   per-context local state while either surface is hidden.
 - Route workspace-layout changes and application-version copy notices through
-  typed bindings on their Lit owners. Keep responsive surface application and
-  global toast presentation in the workspace coordinator.
+  typed bindings on their Lit owners. Keep global toast presentation in the
+  workspace coordinator.
 - Allow the ancillary project rail to resize only on desktop, persist its
   bounded width as a cross-project browser-local preference, and contract its
   effective maximum before either primary document surface loses its readable

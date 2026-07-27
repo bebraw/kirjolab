@@ -9035,6 +9035,29 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,720 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Workspace Surface Navigation
+
+`WorkspaceSurfaceSwitcher` now applies internal and workflow-driven
+Authoring/Context navigation to its own selection state and its direct parent
+workspace's visibility-driving data attribute before reporting the selected
+surface. `WorkspaceApp` retains URL synchronization without a surface wrapper
+or the `WorkspaceSurface` type dependency; deliberate context transitions can
+suppress only the navigation outcome while still applying presentation.
+
+This checkpoint reduces `src/client/app.ts` from 1,234 to 1,228 lines (-6),
+grows the surface-switcher owner from 74 to 76 lines (+2), and reduces combined
+runtime source by four lines. Focused and affected coverage passes all three
+related cases, including changed selection, parent projection, suppressed route
+notification, and application contracts alongside strict types.
+
+The browser application artifact changes from 849,515 B raw / 228,816 B gzip
+to 849,687 B raw / 228,815 B gzip (+172 B raw / -1 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,720 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,
