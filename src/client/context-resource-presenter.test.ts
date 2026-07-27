@@ -467,7 +467,13 @@ describe("context resource presenter", () => {
       relation: "supports" as const,
       status: "pending" as const,
     };
-    const project = { ...workspaceSnapshotFixture, candidates: [candidate], pdfs: [pdf], publications: [publication] };
+    const project = {
+      ...workspaceSnapshotFixture,
+      candidates: [candidate],
+      pdfs: [pdf],
+      publicationPdfLinks: [{ createdAt: "created", id: "link:route", pdfId: pdf.id, publicationId: publication.id }],
+      publications: [publication],
+    };
     let currentLibrary: ReferenceLibrarySnapshot | null = null;
     const coordinator = {
       library: vi.fn(() => currentLibrary),
@@ -490,13 +496,18 @@ describe("context resource presenter", () => {
     await presenter.restoreTarget({ kind: "library-pdf", id: libraryPdf.id }, 5);
     await presenter.restoreTarget({ kind: "library-pdf", id: referencePdf.id }, 6);
     await presenter.restoreTarget({ kind: "publication", id: "missing" });
+    expect(presenter.openCitation({ keys: ["author2026"], locator: "p. 7" })).toBeNull();
+    expect(presenter.openCitation({ keys: ["Author2026"] })).toBeNull();
 
     expect(coordinator.openPublication).toHaveBeenCalledWith(publication);
     expect(coordinator.openProjectPdf).toHaveBeenCalledWith(pdf, 4, "annotation-1");
+    expect(coordinator.openProjectPdf).toHaveBeenCalledWith(pdf, 7);
     expect(coordinator.openCandidate).toHaveBeenCalledWith(candidate);
     expect(coordinator.refreshLibrary).toHaveBeenCalledOnce();
     expect(coordinator.openLibraryPdf).toHaveBeenCalledWith(libraryPdf, 5);
     expect(coordinator.openReferencePdf).toHaveBeenCalledWith(referencePdf, 6);
+    expect(presenter.openCitation({ keys: ["one", "two"] })).toBe("Open this grouped citation from Preview to choose a reference.");
+    expect(presenter.openCitation({ keys: ["missing"] })).toBe("No publication resource is available for missing.");
   });
 
   it("owns private-PDF inspector, markup reset, and toolbar presentation", () => {

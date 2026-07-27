@@ -14,6 +14,7 @@ import type { AnnotationResource, WorkspaceSnapshot } from "../domain/workspace"
 import { AssistantWorkflowStatus } from "./assistant-workflow-status";
 import { CandidateListPanel } from "./candidate-list-panel";
 import { CandidateReviewPanel } from "./candidate-review-panel";
+import { citationPageFromLocator, type CitationContext } from "./citations";
 import { ClaimListPanel } from "./claim-list-panel";
 import { ContextTabStrip } from "./context-tab-strip";
 import { expectOk } from "./http";
@@ -208,6 +209,20 @@ export class ContextResourcePresenter extends LitElement {
     if (artifact) return await coordinator.openLibraryPdf(artifact, page);
     const referencePdf = coordinator.referencePdfs().find(({ id }) => id === target.id);
     if (referencePdf) await coordinator.openReferencePdf(referencePdf, page);
+  }
+
+  openCitation(citation: CitationContext): string | null {
+    if (citation.keys.length > 1) return "Open this grouped citation from Preview to choose a reference.";
+    const citationKey = citation.keys[0] ?? "";
+    const project = this.routeCoordinator?.project();
+    const publication = project?.publications.find((item) => item.citationKey.toLocaleLowerCase() === citationKey.toLocaleLowerCase());
+    if (!project || !publication) return `No publication resource is available for ${citationKey || "this citation"}.`;
+    const links = project.publicationPdfLinks.filter(({ publicationId }) => publicationId === publication.id);
+    const pdf = links.length === 1 ? project.pdfs.find(({ id }) => id === links[0]?.pdfId) : undefined;
+    const page = citationPageFromLocator(citation.locator);
+    if (page && pdf) void this.routeCoordinator?.openProjectPdf(pdf, page);
+    else this.routeCoordinator?.openPublication(publication);
+    return null;
   }
 
   bindLibraryPdf(coordinator: LibraryPdfCoordinator): void {

@@ -39,7 +39,7 @@ import { CoalescedRefresh, DebouncedAsyncQueue } from "./collaboration";
 import { CollaborationSession } from "./collaboration-session";
 import { CollaborationSocket } from "./collaboration-socket";
 import { resolveAssistantTarget } from "./assistant-operations";
-import { citationPageFromLocator, createCitationInsertion, type CitationContext } from "./citations";
+import { createCitationInsertion, type CitationContext } from "./citations";
 import { type ProjectAnnotationSaved } from "./project-annotation-form";
 import { type ProjectFileDialogMode, type ProjectFileSaved } from "./project-file-dialog";
 import type { ProjectTemplateSaved } from "./project-template-save-dialog";
@@ -1180,26 +1180,8 @@ class WorkspaceApp {
   }
 
   #openCitation(citation: CitationContext): void {
-    if (citation.keys.length > 1) {
-      this.#showToast("Open this grouped citation from Preview to choose a reference.");
-      return;
-    }
-    const publication = this.#publicationByCitationKey(citation.keys[0] ?? "");
-    if (publication) this.#navigateToCitation(publication, citation.locator);
-    else this.#showToast(`No publication resource is available for ${citation.keys[0] ?? "this citation"}.`);
-  }
-
-  #navigateToCitation(publication: PublicationResource, locator: string | undefined): void {
-    const page = citationPageFromLocator(locator);
-    const links = this.#snapshot?.publicationPdfLinks.filter((link) => link.publicationId === publication.id) ?? [];
-    const pdf = links.length === 1 ? this.#snapshot?.pdfs.find((item) => item.id === links[0]?.pdfId) : undefined;
-    if (page && pdf) void this.#showPaper(pdf, page);
-    else this.#openPublicationContext(publication);
-  }
-
-  #publicationByCitationKey(citationKey: string): PublicationResource | undefined {
-    const normalized = citationKey.toLocaleLowerCase();
-    return this.#snapshot?.publications.find((publication) => publication.citationKey.toLocaleLowerCase() === normalized);
+    const notice = this.#elements.contextResourcePresenter.openCitation(citation);
+    if (notice) this.#showToast(notice);
   }
 
   async #acceptCitationCompletion({ candidate, context }: Extract<SourceCompletionIntent, { kind: "citation" }>): Promise<void> {

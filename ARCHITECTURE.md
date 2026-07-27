@@ -959,7 +959,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   private-or-linked PDF, and candidate identity sets from canonical resource
   catalogs and resolve a supplied resource route to the matching canonical
   publication, project PDF, private-Library PDF, linked reference PDF, or
-  candidate. Route the resulting typed open intent through the application
+  candidate. Let it also resolve citation keys case-insensitively and choose
+  the sole linked project PDF for a supported page locator, otherwise opening
+  publication context. Route the resulting typed open intent through the application
   coordinator, which retains tab reconciliation, canonical context state,
   history mutation, navigation transitions, and load timing. Let the presenter
   own private-highlight citation readiness feedback,
