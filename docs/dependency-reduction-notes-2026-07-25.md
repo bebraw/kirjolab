@@ -5456,6 +5456,32 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,615 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Settings View Projection
+
+`WorkspaceSettingsPanel` now derives the current title, archived state, visible
+entry-file choices, publication-profile defaults, and template eligibility from
+the canonical workspace catalog, bounded snapshot fields, hidden-file set, and
+workspace identity supplied when it opens. `WorkspaceApp` retains those
+canonical authorities, settings opening, GitHub refresh policy, catalog refresh,
+template workflow, and toast policy.
+
+This checkpoint reduces `src/client/app.ts` from 3,269 to 3,264 lines (-5) and
+grows the workspace-settings owner from 372 to 397 lines. Runtime source across
+those two files grows by 20 lines while removing the coordinator's settings-view
+projection and its default-profile dependency. Eleven focused settings and
+GitHub-menu cases cover canonical derivation, hidden files, demo eligibility,
+modal reuse, existing requests and coordination, and strict client and Workers
+types. The readability audit's high-complexity count falls from 25 to 24, and
+the coordinator settings method no longer appears in that list.
+
+The browser application artifact changes from 827,932 B raw / 223,962 B gzip
+to 828,090 B raw / 223,986 B gzip (+158 B raw / +24 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,615 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

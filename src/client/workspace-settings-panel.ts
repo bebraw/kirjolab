@@ -1,5 +1,11 @@
 import { html, LitElement, type TemplateResult } from "lit";
-import { isWorkspaceSummaries, type ProjectPublicationProfile } from "../domain/workspace";
+import {
+  defaultProjectPublicationProfile,
+  isWorkspaceSummaries,
+  type ProjectPublicationProfile,
+  type WorkspaceSnapshot,
+  type WorkspaceSummary,
+} from "../domain/workspace";
 import { GitHubSyncReview } from "./github-sync-review";
 import { expectOk, jsonFetch } from "./http";
 
@@ -20,6 +26,13 @@ export interface WorkspaceSettingsView extends WorkspaceSettingsValue {
   readonly templateAllowed: boolean;
 }
 
+export interface WorkspaceSettingsSources {
+  readonly catalog: readonly WorkspaceSummary[];
+  readonly hiddenFileIds: ReadonlySet<string>;
+  readonly snapshot: Pick<WorkspaceSnapshot, "entryFileId" | "files" | "publicationProfile"> | null;
+  readonly workspaceId: string;
+}
+
 export class WorkspaceSettingsPanel extends LitElement {
   static override properties = {
     busy: { state: true },
@@ -31,7 +44,7 @@ export class WorkspaceSettingsPanel extends LitElement {
   declare private busy: boolean;
   declare private gitHubStatus: string;
   declare private status: string;
-  declare private view: WorkspaceSettingsView;
+  declare protected view: WorkspaceSettingsView;
   private gitHubApiBase = "";
 
   constructor() {
@@ -81,8 +94,8 @@ export class WorkspaceSettingsPanel extends LitElement {
     return this.gitHubReview.hasActivePreview;
   }
 
-  async show(view: WorkspaceSettingsView): Promise<void> {
-    this.setView(view);
+  async show(sources: WorkspaceSettingsSources): Promise<void> {
+    this.setView(this.settingsView(sources));
     this.status = "";
     await this.updateComplete;
     if (!this.dialog.open) this.dialog.showModal();
@@ -126,6 +139,18 @@ export class WorkspaceSettingsPanel extends LitElement {
 
   protected setView(view: WorkspaceSettingsView): void {
     this.view = view;
+  }
+
+  private settingsView(sources: WorkspaceSettingsSources): WorkspaceSettingsView {
+    const current = sources.catalog.find(({ id }) => id === sources.workspaceId);
+    return {
+      archived: Boolean(current?.archivedAt),
+      entryFileId: sources.snapshot?.entryFileId ?? "",
+      files: (sources.snapshot?.files ?? []).filter(({ id }) => !sources.hiddenFileIds.has(id)).map(({ id, path }) => ({ id, path })),
+      publicationProfile: sources.snapshot?.publicationProfile ?? defaultProjectPublicationProfile,
+      templateAllowed: sources.workspaceId !== "demo",
+      title: current?.title ?? "",
+    };
   }
 
   protected override firstUpdated(): void {

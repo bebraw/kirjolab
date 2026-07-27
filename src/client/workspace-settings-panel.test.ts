@@ -4,6 +4,7 @@ import {
   WorkspaceSettingsPanel,
   workspaceSettingsActionEvent,
   type WorkspaceSettingsAction,
+  type WorkspaceSettingsSources,
   type WorkspaceSettingsValue,
   type WorkspaceSettingsView,
 } from "./workspace-settings-panel";
@@ -43,6 +44,10 @@ class TestWorkspaceSettingsPanel extends WorkspaceSettingsPanel {
 
   setViewForTest(next: WorkspaceSettingsView): void {
     this.setView(next);
+  }
+
+  get viewForTest(): WorkspaceSettingsView {
+    return this.view;
   }
 
   async saveForTest(): Promise<void> {
@@ -212,15 +217,46 @@ describe("workspace settings panel", () => {
 
   it("opens, reuses, and closes", async () => {
     const panel = new LifecycleWorkspaceSettingsPanel();
+    const sources: WorkspaceSettingsSources = {
+      catalog: [
+        {
+          archivedAt: null,
+          createdAt: "2026-07-25",
+          href: "/editor/study",
+          id: "study",
+          title: "Study",
+          updatedAt: "2026-07-25",
+        },
+      ],
+      hiddenFileIds: new Set(["file-1"]),
+      snapshot: {
+        entryFileId: value.entryFileId,
+        files: [
+          { content: "", createdAt: "2026-07-25", id: "file-1", mediaType: "text/markdown", path: "main.md", updatedAt: "2026-07-25" },
+          {
+            content: "",
+            createdAt: "2026-07-25",
+            id: "file-2",
+            mediaType: "text/markdown",
+            path: "methods.md",
+            updatedAt: "2026-07-25",
+          },
+        ],
+        publicationProfile: value.publicationProfile,
+      },
+      workspaceId: "study",
+    };
     const configure = vi.spyOn(panel.gitHubReview, "configure");
     panel.configureGitHub("/api/workspaces/project");
     panel.firstUpdatedForTest();
     expect(configure).toHaveBeenCalledWith("/api/workspaces/project");
-    await panel.show(view);
+    await panel.show(sources);
     expect(panel.open).toBe(true);
     expect(panel.showCount).toBe(1);
-    await panel.show({ ...view, archived: true });
+    expect(panel.viewForTest).toMatchObject({ ...value, archived: false, files: [{ id: "file-2", path: "methods.md" }] });
+    await panel.show({ ...sources, catalog: [{ ...sources.catalog[0]!, archivedAt: "2026-07-27" }], workspaceId: "demo" });
     expect(panel.showCount).toBe(1);
+    expect(panel.viewForTest).toMatchObject({ archived: false, templateAllowed: false, title: "" });
     panel.close();
     expect(panel.open).toBe(false);
   });

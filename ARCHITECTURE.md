@@ -84,14 +84,16 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   outcomes, not traverse feature-owned DOM.
 - Let the workspace-settings Lit component own project settings persistence,
   archive/restore, duplication, permanent-deletion confirmation and request
-  lifecycles, their canonical successful-result navigation, and local busy and
-  failure state. Emit only catalog-refresh or save-as-template outcomes to the
-  application coordinator.
+  lifecycles, their canonical successful-result navigation, local busy and
+  failure state, and its current title, archived state, visible entry-file
+  choices, publication defaults, and template eligibility derived from
+  canonical workspace inputs. Emit only catalog-refresh or save-as-template
+  outcomes to the application coordinator.
 - Let the GitHub sync-menu Lit component bind the workspace-settings review,
   own online and active-review refresh policy, route Check/Pull/Push/Settings
   actions, and refresh both canonical project data after Pull and menu status
-  after every completed mutation. Keep settings-view preparation and canonical
-  project fetching in their existing authorities.
+  after every completed mutation. Keep canonical project fetching in its
+  existing authority.
 - Route same-origin JSON writes and non-success response handling through the
   shared client HTTP adapter. Validate the bounded `{ error: string }` response
   contract with Valibot there instead of repeating parsing and fallback policy

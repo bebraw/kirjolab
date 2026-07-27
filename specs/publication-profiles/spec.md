@@ -24,7 +24,8 @@ changing its canonical Markdown or shared references.
 - The profile is presentation state. It never mutates `:cite[...]`, citation
   aliases, or canonical shared bibliographic metadata.
 - One bounded workspace-settings panel owns the title, entry-file choices,
-  publication-profile values and persistence, project lifecycle requests,
+  publication-profile values and persistence, their projection from canonical
+  catalog, workspace, and hidden-file inputs, project lifecycle requests,
   destructive confirmation, local busy and error state, archive and template
   visibility, modal lifecycle, nested GitHub-sync presentation boundary, and
   canonical post-request navigation plus typed catalog-refresh and save-as-

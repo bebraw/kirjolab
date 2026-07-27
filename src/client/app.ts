@@ -94,7 +94,6 @@ import {
 } from "./candidate-review-panel";
 import { publicationContextActionEvent, type PublicationContextAction, type PublicationPaperOption } from "./publication-context-panel";
 import {
-  defaultProjectPublicationProfile,
   isWorkspaceSnapshot,
   isWorkspaceSummaries,
   type AnnotationResource,
@@ -1058,15 +1057,11 @@ class WorkspaceApp {
   }
 
   async #openWorkspaceSettings(checkGitHub = true): Promise<void> {
-    const current = this.#workspaceCatalog.find((item) => item.id === workspaceId);
-    const profile = this.#snapshot?.publicationProfile ?? defaultProjectPublicationProfile;
     await this.#elements.workspaceSettingsPanel.show({
-      archived: Boolean(current?.archivedAt),
-      entryFileId: this.#snapshot?.entryFileId ?? "",
-      files: (this.#snapshot?.files ?? []).filter((file) => !this.#hiddenProjectFileIds.has(file.id)).map(({ id, path }) => ({ id, path })),
-      publicationProfile: profile,
-      templateAllowed: workspaceId !== "demo",
-      title: current?.title ?? "",
+      catalog: this.#workspaceCatalog,
+      hiddenFileIds: this.#hiddenProjectFileIds,
+      snapshot: this.#snapshot,
+      workspaceId,
     });
     if (checkGitHub) void this.#elements.gitHubSyncMenu.refreshWorkspace(true);
   }
