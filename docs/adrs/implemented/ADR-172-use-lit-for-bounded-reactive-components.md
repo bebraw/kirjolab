@@ -104,7 +104,10 @@ The adopted components own bounded presentation:
   context-resource presenter instead of repeating them across its task, result,
   and candidate workflow bindings. Bind the remaining application-owned inputs
   and consequences once through one workflow coordinator instead of separate
-  candidate, result, and control callback bags. The application coordinator retains
+  candidate, result, and control callback bags. Bind manuscript text, scoped
+  and insertion passage resolution, source revision, and collaboration stability
+  once as authoring sources; derive generation input, availability, target
+  presentation, and snapshot availability inside the presenter. The application coordinator retains
   authorized Yjs mutation, editor selection, remembered authoring selection,
   generation consequences, and refresh policy through narrow typed callbacks.
 - The project map panel owns provenance-lane rendering, measured SVG connector

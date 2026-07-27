@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   AssistantGenerationPresenter,
+  type AssistantAuthoringSources,
   type AssistantGenerationInput,
   type AssistantGenerationPresentation,
   type AssistantResourceRoutes,
@@ -129,9 +130,20 @@ function setup() {
   });
   const resources = resourceRoutes();
   const coordinator = workflowCoordinator();
+  presenter.bindAuthoring(authoringSources());
   presenter.bindResources(resources);
   presenter.bindWorkflow(coordinator);
   return { coordinator, elements, presenter, resources };
+}
+
+function authoringSources(overrides: Partial<AssistantAuthoringSources> = {}): AssistantAuthoringSources {
+  return {
+    manuscript: () => input("revise-selection").manuscript,
+    passage: () => passage,
+    sourceRevision: () => 7,
+    stableDocument: () => true,
+    ...overrides,
+  };
 }
 
 function resourceRoutes(overrides: Partial<AssistantResourceRoutes> = {}): AssistantResourceRoutes {
@@ -150,11 +162,8 @@ function workflowCoordinator(overrides: Partial<AssistantWorkflowCoordinator> = 
   return {
     applyTable: vi.fn(),
     decisionChanged: vi.fn(),
-    generationInput: vi.fn(() => input("revise-selection")),
     openEvidenceRail: vi.fn(),
     openGeneratedCandidate: vi.fn().mockResolvedValue(undefined),
-    refreshAvailability: vi.fn(),
-    refreshTarget: vi.fn(),
     resolveDecision: vi.fn().mockResolvedValue(null),
     tableState: vi.fn(() => ({ revision: 7, source: `x${passage.excerpt}`, stableDocument: true })),
     ...overrides,
@@ -170,6 +179,8 @@ async function enterWorkflow(
   workflow: AssistantGenerationPresentation["workflow"],
 ): Promise<ReturnType<typeof vi.spyOn>> {
   const generate = vi.spyOn(presenter, "generate").mockResolvedValue({ status: "Workflow ready", workflow });
+  const { manuscript: _manuscript, ...context } = input("revise-selection");
+  vi.spyOn(presenter, "prepareGeneration").mockReturnValue(context);
   presenter.bindWorkflow(controlCallbacks());
   presenter.bindControls();
   elements["assistant-task-panel"].dispatchEvent(new CustomEvent(assistantTaskGenerateEvent));
@@ -374,7 +385,10 @@ describe("assistant generation presenter", () => {
 
   it("owns local assistant control wiring", () => {
     const { elements, presenter, resources } = setup();
-    const callbacks = controlCallbacks({ generationInput: vi.fn().mockReturnValue(null) });
+    const callbacks = controlCallbacks();
+    const prepareGeneration = vi.spyOn(presenter, "prepareGeneration").mockReturnValue(null);
+    const refreshAvailability = vi.spyOn(presenter, "refreshAvailability");
+    const refreshTarget = vi.spyOn(presenter, "refreshTarget");
     const openSettings = vi.spyOn(elements["model-provider-settings"], "open").mockImplementation(() => undefined);
     const clearResult = vi.spyOn(elements["assistant-interactive-result"], "clear");
     const setEvidenceSelected = vi.spyOn(elements["assistant-workflow-status"], "setEvidenceSelected");
@@ -385,6 +399,8 @@ describe("assistant generation presenter", () => {
     presenter.bindWorkflow(callbacks);
     presenter.bindControls();
     for (const callback of Object.values(callbacks)) callback.mockClear();
+    refreshAvailability.mockClear();
+    refreshTarget.mockClear();
     vi.mocked(resources.reportNoEvidence).mockClear();
 
     elements["model-provider-settings"].dispatchEvent(new CustomEvent(modelProviderChangeEvent, { detail: "Provider ready" }));
@@ -396,11 +412,11 @@ describe("assistant generation presenter", () => {
     bindAnnotationSelection.mock.calls[0]![0]("annotation:1", true);
     bindClaimSelection.mock.calls[0]![0]("claim:1", false);
 
-    expect(callbacks.generationInput).toHaveBeenCalledOnce();
+    expect(prepareGeneration).toHaveBeenCalledOnce();
     expect(callbacks.openEvidenceRail).toHaveBeenCalledOnce();
     expect(resources.reportNoEvidence).not.toHaveBeenCalled();
-    expect(callbacks.refreshAvailability).toHaveBeenCalledTimes(4);
-    expect(callbacks.refreshTarget).toHaveBeenCalledOnce();
+    expect(refreshAvailability).toHaveBeenCalledTimes(4);
+    expect(refreshTarget).toHaveBeenCalledOnce();
     expect(setEvidenceSelected).toHaveBeenNthCalledWith(1, "annotation:1", true);
     expect(setEvidenceSelected).toHaveBeenNthCalledWith(2, "claim:1", false);
     expect(openSettings).toHaveBeenCalledOnce();
@@ -414,11 +430,49 @@ describe("assistant generation presenter", () => {
     );
   });
 
+  it("derives generation, availability, and target inputs from bound authoring sources", async () => {
+    const { elements, presenter } = setup();
+    const insertion = { ...passage, excerpt: "Insertion target" };
+    const scoped = { ...passage, excerpt: "Scoped passage" };
+    const { manuscript: _manuscript, ...context } = input("revise-selection");
+    const prepareGeneration = vi.spyOn(presenter, "prepareGeneration").mockReturnValue(context);
+    const generate = vi.spyOn(presenter, "generate").mockResolvedValue(null);
+    const presentAvailability = vi.spyOn(presenter, "presentAvailability");
+    const presentTarget = vi.spyOn(presenter, "presentTarget");
+    presenter.bindAuthoring(
+      authoringSources({
+        manuscript: () => "Current manuscript",
+        passage: (kind) => (kind === "insertion" ? insertion : scoped),
+        sourceRevision: () => 11,
+        stableDocument: () => false,
+      }),
+    );
+    presenter.bindResources(resourceRoutes({ project: () => null }));
+
+    presenter.refreshAvailability();
+    presenter.refreshTarget();
+    presenter.bindControls();
+    elements["assistant-task-panel"].dispatchEvent(new CustomEvent(assistantTaskGenerateEvent));
+    await vi.waitFor(() => expect(generate).toHaveBeenCalledOnce());
+
+    expect(presentAvailability).toHaveBeenCalledWith({ hasInsertionTarget: true, hasPassage: true, stableDocument: false });
+    expect(presentTarget).toHaveBeenCalledWith(scoped.excerpt, insertion);
+    expect(prepareGeneration).toHaveBeenCalledWith({
+      insertionTarget: insertion,
+      passage: scoped,
+      snapshotAvailable: false,
+      sourceRevision: 11,
+      stableDocument: false,
+    });
+    expect(generate).toHaveBeenCalledWith({ ...context, manuscript: "Current manuscript" });
+  });
+
   it("owns generation workflow and status orchestration", async () => {
     const { elements, presenter } = setup();
-    const generationInput = vi.fn().mockReturnValue(input("revise-selection"));
+    const { manuscript: _manuscript, ...context } = input("revise-selection");
+    const prepareGeneration = vi.spyOn(presenter, "prepareGeneration").mockReturnValue(context);
     const openGeneratedCandidate = vi.fn().mockResolvedValue(undefined);
-    const refreshAvailability = vi.fn();
+    const refreshAvailability = vi.spyOn(presenter, "refreshAvailability");
     let resolveGeneration: ((presentation: AssistantGenerationPresentation) => void) | undefined;
     const pendingGeneration = new Promise<AssistantGenerationPresentation>((resolve) => {
       resolveGeneration = resolve;
@@ -426,9 +480,7 @@ describe("assistant generation presenter", () => {
     const generate = vi.spyOn(presenter, "generate").mockReturnValueOnce(pendingGeneration);
     presenter.bindWorkflow(
       controlCallbacks({
-        generationInput,
         openGeneratedCandidate,
-        refreshAvailability,
       }),
     );
     presenter.bindControls();
@@ -436,7 +488,7 @@ describe("assistant generation presenter", () => {
 
     elements["assistant-task-panel"].dispatchEvent(new CustomEvent(assistantTaskGenerateEvent));
     elements["assistant-task-panel"].dispatchEvent(new CustomEvent(assistantTaskGenerateEvent));
-    expect(generationInput).toHaveBeenCalledOnce();
+    expect(prepareGeneration).toHaveBeenCalledOnce();
     resolveGeneration?.({ candidate: revisionCandidate, status: "Candidate ready.", workflow: "COMPLETE" });
     await vi.waitFor(() => expect(elements["assistant-workflow-status"].status).toBe("Candidate ready."));
 
@@ -489,9 +541,9 @@ describe("assistant generation presenter", () => {
     const { elements, presenter } = setup();
     await enterWorkflow(presenter, elements, "AWAIT_INPUT");
     const result = elements["assistant-interactive-result"];
-    const refreshAvailability = vi.fn();
+    const refreshAvailability = vi.spyOn(presenter, "refreshAvailability");
     const completeClarityDrill = vi.spyOn(result, "completeClarityDrill").mockResolvedValue();
-    presenter.bindWorkflow(resultCallbacks({ refreshAvailability }));
+    presenter.bindWorkflow(resultCallbacks());
     presenter.bindResults();
     const context = {
       evidence: { items: [], references: [] },
@@ -533,10 +585,10 @@ describe("assistant generation presenter", () => {
     const { elements, presenter } = setup();
     await enterWorkflow(presenter, elements, "AWAIT_INPUT");
     const result = elements["assistant-interactive-result"];
-    const refreshAvailability = vi.fn();
+    const refreshAvailability = vi.spyOn(presenter, "refreshAvailability");
     const failure = new Error("offline");
     vi.spyOn(result, "completeClarityDrill").mockRejectedValue(failure);
-    presenter.bindWorkflow(resultCallbacks({ refreshAvailability }));
+    presenter.bindWorkflow(resultCallbacks());
     presenter.bindResults();
     const context = {
       evidence: { items: [], references: [] },
@@ -558,9 +610,9 @@ describe("assistant generation presenter", () => {
     const { elements, presenter } = setup();
     await enterWorkflow(presenter, elements, "REVIEW");
     const openGeneratedCandidate = vi.fn().mockResolvedValue(undefined);
-    const refreshAvailability = vi.fn();
+    const refreshAvailability = vi.spyOn(presenter, "refreshAvailability");
     vi.spyOn(presenter, "createRevisionCandidate").mockResolvedValueOnce(revisionCandidate);
-    presenter.bindWorkflow(resultCallbacks({ openGeneratedCandidate, refreshAvailability }));
+    presenter.bindWorkflow(resultCallbacks({ openGeneratedCandidate }));
     presenter.bindResults();
     const detail = {
       action: "choose-revision",
@@ -592,8 +644,8 @@ describe("assistant generation presenter", () => {
     await enterWorkflow(presenter, elements, "REVIEW");
     const failure = new Error("offline");
     vi.spyOn(presenter, "createRevisionCandidate").mockRejectedValue(failure);
-    const refreshAvailability = vi.fn();
-    presenter.bindWorkflow(resultCallbacks({ refreshAvailability }));
+    const refreshAvailability = vi.spyOn(presenter, "refreshAvailability");
+    presenter.bindWorkflow(resultCallbacks());
     presenter.bindResults();
     const detail = {
       action: "choose-revision",

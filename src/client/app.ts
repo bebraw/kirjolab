@@ -155,7 +155,7 @@ class WorkspaceApp {
       },
       connectionChanged: () => this.#renderCollaborationWorkflow(),
       disconnected: () => this.#elements.collaboratorSelections.clear(),
-      remoteUpdateApplied: () => this.#updateModelAvailability(),
+      remoteUpdateApplied: () => this.#elements.assistantGenerationPresenter.refreshAvailability(),
       resourcesChanged: () => {
         void this.#resourceRefresh.request().catch((error: unknown) => {
           this.#showToast(error instanceof Error ? error.message : "Could not refresh project resources");
@@ -247,6 +247,12 @@ class WorkspaceApp {
   }
 
   #bindUi(): void {
+    this.#elements.assistantGenerationPresenter.bindAuthoring({
+      manuscript: () => this.#activeFileText.toString(),
+      passage: (kind) => this.#assistantPassage(kind),
+      sourceRevision: () => this.#revision,
+      stableDocument: () => this.#collaboration.stable,
+    });
     this.#elements.applicationVersion.bindNotice((message) => this.#showToast(message));
     this.#elements.collaboratorSelections.bindSelectionChanged(() => this.#renderSourceEditorHighlight());
     window.addEventListener("online", () => {
@@ -358,7 +364,7 @@ class WorkspaceApp {
     this.#elements.sourceCompletion.bindEditor(this.#elements.source, this.#elements.citationCompletionScope, () => {
       if (document.activeElement === this.#elements.source) this.#rememberAuthoringSelection();
       this.#collaborationSocket.scheduleSelection();
-      this.#updateModelAvailability();
+      this.#elements.assistantGenerationPresenter.refreshAvailability();
     });
     bindYText(this.#elements.bibliography, this.#bibliography, this.#document);
     this.#elements.projectImageUpload.configure(apiBase);
@@ -450,7 +456,7 @@ class WorkspaceApp {
       if (origin === remoteOrigin || origin === offlineOrigin) return;
       this.#collaboration.enqueue(update);
       this.#elements.editorStatus.setSave(this.#collaboration.synced ? "Saving…" : "Saving offline…");
-      this.#updateModelAvailability();
+      this.#elements.assistantGenerationPresenter.refreshAvailability();
       void this.#renderPreview();
       this.#collaborationSocket.flush();
     });
@@ -544,16 +550,10 @@ class WorkspaceApp {
       applyTable: (target, insertion) => this.#applyGeneratedTable(target, insertion),
       decisionChanged: () => {
         this.#renderResearchContext(false);
-        this.#updateModelAvailability();
-      },
-      generationInput: () => {
-        const input = this.#assistantGenerationContext();
-        return input ? { ...input, manuscript: this.#activeFileText.toString() } : null;
+        this.#elements.assistantGenerationPresenter.refreshAvailability();
       },
       openEvidenceRail: () => this.#showRail("research"),
       openGeneratedCandidate: async (candidate) => await this.#openCreatedCandidate(candidate),
-      refreshAvailability: () => this.#updateModelAvailability(),
-      refreshTarget: () => this.#renderAssistantTargetPreview(),
       resolveDecision: async (detail) => await this.#completeCandidateRequest(detail),
       tableState: () => ({
         revision: this.#revision,
@@ -670,7 +670,7 @@ class WorkspaceApp {
     this.#elements.connectionStatus.setConnection(status.label, status.connected);
     this.#elements.source.disabled = !this.#collaboration.canEdit;
     this.#elements.bibliography.disabled = !this.#collaboration.canEdit;
-    this.#updateModelAvailability();
+    this.#elements.assistantGenerationPresenter.refreshAvailability();
   }
 
   #captureEditorSelections(): RelativeEditorSelection[] {
@@ -727,20 +727,6 @@ class WorkspaceApp {
     );
     this.#unbindSourceEditor = binding.destroy;
     this.#renderSourceEditorHighlight = binding.renderHighlight;
-  }
-
-  #updateModelAvailability(): void {
-    this.#elements.assistantGenerationPresenter.presentAvailability({
-      hasInsertionTarget: this.#assistantPassage("insertion") !== null,
-      hasPassage: this.#assistantPassage("scope") !== null,
-      stableDocument: this.#collaboration.stable,
-    });
-  }
-
-  #renderAssistantTargetPreview(): void {
-    const target = this.#assistantPassage("insertion");
-    const passage = this.#assistantPassage("scope");
-    this.#elements.assistantGenerationPresenter.presentTarget(passage?.excerpt ?? null, target);
   }
 
   async #renderPreview(bibliography = this.#bibliography.toString()): Promise<void> {
@@ -840,7 +826,7 @@ class WorkspaceApp {
     this.#bindSourceEditor(this.#activeFileText);
     this.#rememberAuthoringSelection();
     this.#renderProjectFiles();
-    this.#updateModelAvailability();
+    this.#elements.assistantGenerationPresenter.refreshAvailability();
     this.#elements.workspacePreview.resetScroll();
     void this.#renderPreview();
     this.#syncWorkspaceRoute("replace");
@@ -939,7 +925,7 @@ class WorkspaceApp {
     );
     this.#elements.contextResourcePresenter.presentWorkspace(this.#snapshot);
     this.#renderResearchContext();
-    this.#updateModelAvailability();
+    this.#elements.assistantGenerationPresenter.refreshAvailability();
     this.#syncWorkspaceRoute("replace");
   }
 
@@ -1074,7 +1060,7 @@ class WorkspaceApp {
     const file = this.#snapshot?.files.find((item) => item.id === this.#activeFileId);
     this.#elements.editorStatus.setAuthoringTarget(file?.path ?? "Manuscript", this.#activeFileText.toString(), target);
     this.#renderSourceEditorHighlight();
-    this.#renderAssistantTargetPreview();
+    this.#elements.assistantGenerationPresenter.refreshTarget();
   }
 
   #resolvedAuthoringCaret(): number | null {
@@ -1182,16 +1168,6 @@ class WorkspaceApp {
       this.#elements.source.setSelectionRange(caret, caret);
       this.#rememberAuthoringSelection();
     }
-  }
-
-  #assistantGenerationContext() {
-    return this.#elements.assistantGenerationPresenter.prepareGeneration({
-      insertionTarget: this.#assistantPassage("insertion"),
-      passage: this.#assistantPassage("scope"),
-      snapshotAvailable: this.#snapshot !== null,
-      sourceRevision: this.#revision,
-      stableDocument: this.#collaboration.stable,
-    });
   }
 
   #applyGeneratedTable(target: AuthoringPassage, insertion: string): void {

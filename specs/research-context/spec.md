@@ -440,6 +440,10 @@ changing their canonical data, selector, authorization, or rendering contracts.
 - [x] The same presenter binds application-owned generation inputs and
       consequences once through one workflow coordinator; candidate, result,
       and control wiring do not maintain overlapping callback contracts.
+- [x] The assistant presenter binds authoring manuscript, passage resolution,
+      source revision, and collaboration stability once, then derives generation
+      input, availability, target presentation, and snapshot readiness from those
+      sources plus its canonical project route.
 - [x] A bounded light-DOM candidate list owns revision and claim-draft
       summaries, empty-state, and review-opening intent presentation while
       generation, canonical candidate state, context navigation, applicability

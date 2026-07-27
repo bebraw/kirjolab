@@ -84,14 +84,18 @@ export interface AssistantAvailabilityInput {
   readonly stableDocument: boolean;
 }
 
+export interface AssistantAuthoringSources {
+  readonly manuscript: () => string;
+  readonly passage: (kind: "insertion" | "scope") => AssistantAuthoringPassage | null;
+  readonly sourceRevision: () => number;
+  readonly stableDocument: () => boolean;
+}
+
 export interface AssistantWorkflowCoordinator {
   readonly applyTable: (target: AssistantAuthoringPassage, insertion: string) => void;
   readonly decisionChanged: () => void;
-  readonly generationInput: () => AssistantGenerationInput | null;
   readonly openEvidenceRail: () => void;
   readonly openGeneratedCandidate: (candidate: ModelCandidate) => Promise<void>;
-  readonly refreshAvailability: () => void;
-  readonly refreshTarget: () => void;
   readonly resolveDecision: (detail: CandidateDecisionOutcome) => Promise<string | null>;
   readonly tableState: () => {
     readonly revision: number;
@@ -121,8 +125,13 @@ export interface AssistantRevisionCandidateInput {
 
 export class AssistantGenerationPresenter extends LitElement {
   private readonly workflow = createAssistantWorkflowActor();
+  private authoring: AssistantAuthoringSources | null = null;
   private coordinator: AssistantWorkflowCoordinator | null = null;
   private resources: AssistantResourceRoutes | null = null;
+
+  bindAuthoring(authoring: AssistantAuthoringSources): void {
+    this.authoring = authoring;
+  }
 
   bindWorkflow(coordinator: AssistantWorkflowCoordinator): void {
     this.coordinator = coordinator;
@@ -135,6 +144,11 @@ export class AssistantGenerationPresenter extends LitElement {
   private get resourceRoutes(): AssistantResourceRoutes {
     if (!this.resources) throw new Error("Assistant resource routes are not bound");
     return this.resources;
+  }
+
+  private get authoringSources(): AssistantAuthoringSources {
+    if (!this.authoring) throw new Error("Assistant authoring sources are not bound");
+    return this.authoring;
   }
 
   private get workflowCoordinator(): AssistantWorkflowCoordinator {
@@ -227,6 +241,18 @@ export class AssistantGenerationPresenter extends LitElement {
     }
   }
 
+  private generationInput(): AssistantGenerationInput | null {
+    const authoring = this.authoringSources;
+    const input = this.prepareGeneration({
+      insertionTarget: authoring.passage("insertion"),
+      passage: authoring.passage("scope"),
+      snapshotAvailable: this.resourceRoutes.project() !== null,
+      sourceRevision: authoring.sourceRevision(),
+      stableDocument: authoring.stableDocument(),
+    });
+    return input ? { ...input, manuscript: authoring.manuscript() } : null;
+  }
+
   bindResults(): void {
     const callbacks = this.workflowCoordinator;
     const result = this.element("assistant-interactive-result", AssistantResultPanel);
@@ -234,7 +260,7 @@ export class AssistantGenerationPresenter extends LitElement {
     result?.addEventListener(assistantResultActionEvent, (event) => {
       const detail = (event as CustomEvent<AssistantResultActionDetail>).detail;
       if (detail.action === "continue-clarity") {
-        void this.continueClarity(result, status, detail, callbacks);
+        void this.continueClarity(result, status, detail);
       } else if (detail.action === "insert-table") this.insertTable(status, detail.context, detail.markdown, callbacks);
       else void this.chooseRevision(status, detail, callbacks);
     });
@@ -259,7 +285,7 @@ export class AssistantGenerationPresenter extends LitElement {
   ): Promise<void> {
     if (!this.workflow.getSnapshot().matches("reviewing")) return;
     this.workflow.send({ type: "CONTINUE" });
-    callbacks.refreshAvailability();
+    this.refreshAvailability();
     try {
       const { choice, context } = detail;
       const candidate = await this.createRevisionCandidate({
@@ -279,7 +305,7 @@ export class AssistantGenerationPresenter extends LitElement {
       if (status) status.status = message;
       this.workflow.send({ type: "FAIL", message });
     } finally {
-      callbacks.refreshAvailability();
+      this.refreshAvailability();
     }
   }
 
@@ -310,7 +336,6 @@ export class AssistantGenerationPresenter extends LitElement {
     result: AssistantResultPanel,
     status: AssistantWorkflowStatus | null,
     detail: Extract<AssistantResultActionDetail, { readonly action: "continue-clarity" }>,
-    callbacks: AssistantWorkflowCoordinator,
   ): Promise<void> {
     const answer = detail.answer.trim();
     const workflow = this.workflow.getSnapshot();
@@ -325,7 +350,7 @@ export class AssistantGenerationPresenter extends LitElement {
       return;
     }
     this.workflow.send({ type: "CONTINUE" });
-    callbacks.refreshAvailability();
+    this.refreshAvailability();
     if (status) status.status = "Turning that meaning into a few precise alternatives…";
     try {
       await result.completeClarityDrill(detail.context, answer);
@@ -336,7 +361,7 @@ export class AssistantGenerationPresenter extends LitElement {
       if (status) status.status = message;
       this.workflow.send({ type: "FAIL", message });
     } finally {
-      callbacks.refreshAvailability();
+      this.refreshAvailability();
     }
   }
 
@@ -348,7 +373,7 @@ export class AssistantGenerationPresenter extends LitElement {
     settings?.addEventListener(modelProviderChangeEvent, (event) => {
       const message = (event as CustomEvent<string | null>).detail;
       if (message && status) status.status = message;
-      callbacks.refreshAvailability();
+      this.refreshAvailability();
     });
     status?.addEventListener(assistantWorkflowActionEvent, (event) => {
       const action = (event as CustomEvent<AssistantWorkflowAction>).detail;
@@ -358,19 +383,19 @@ export class AssistantGenerationPresenter extends LitElement {
     task?.addEventListener(assistantTaskChangeEvent, (event) => {
       const change = (event as CustomEvent<AssistantTaskChange>).detail;
       if (change === "operation") this.presentTask(true);
-      if (change === "operation" || change === "target") callbacks.refreshTarget();
-      callbacks.refreshAvailability();
+      if (change === "operation" || change === "target") this.refreshTarget();
+      this.refreshAvailability();
     });
     task?.addEventListener(assistantTaskGenerateEvent, () => void this.runGeneration(status, callbacks));
     const selectEvidence = (key: string, selected: boolean): void => {
       status?.setEvidenceSelected(key, selected);
-      callbacks.refreshAvailability();
+      this.refreshAvailability();
     };
     this.element("project-evidence-panel", ProjectEvidencePanel)?.bindEvidenceSelection(selectEvidence);
     this.element("claim-list-panel", ClaimListPanel)?.bindEvidenceSelection(selectEvidence);
     this.presentTask();
-    callbacks.refreshTarget();
-    callbacks.refreshAvailability();
+    this.refreshTarget();
+    this.refreshAvailability();
   }
 
   private chooseEvidence(status: AssistantWorkflowStatus | null, callbacks: AssistantWorkflowCoordinator): void {
@@ -388,10 +413,10 @@ export class AssistantGenerationPresenter extends LitElement {
 
   private async runGeneration(status: AssistantWorkflowStatus | null, callbacks: AssistantWorkflowCoordinator): Promise<void> {
     if (assistantWorkflowBusy(this.workflow.getSnapshot())) return;
-    const input = callbacks.generationInput();
+    const input = this.generationInput();
     if (!input) return;
     this.workflow.send({ type: "START", operation: input.operation.id, sourceRevision: input.sourceRevision });
-    callbacks.refreshAvailability();
+    this.refreshAvailability();
     status?.generationStarted(input.operation.id);
     try {
       const presentation = await this.generate(input);
@@ -404,8 +429,23 @@ export class AssistantGenerationPresenter extends LitElement {
       if (status) status.status = message;
       this.workflow.send({ type: "FAIL", message });
     } finally {
-      callbacks.refreshAvailability();
+      this.refreshAvailability();
     }
+  }
+
+  refreshAvailability(): void {
+    const authoring = this.authoringSources;
+    this.presentAvailability({
+      hasInsertionTarget: authoring.passage("insertion") !== null,
+      hasPassage: authoring.passage("scope") !== null,
+      stableDocument: authoring.stableDocument(),
+    });
+  }
+
+  refreshTarget(): void {
+    const authoring = this.authoringSources;
+    const target = authoring.passage("insertion");
+    this.presentTarget(authoring.passage("scope")?.excerpt ?? null, target);
   }
 
   presentTask(resetResult = false): void {

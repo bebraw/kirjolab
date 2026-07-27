@@ -8633,6 +8633,30 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,711 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Assistant Authoring Sources
+
+`AssistantGenerationPresenter` now binds manuscript text, scoped and insertion
+passage resolution, source revision, and collaboration stability once. It
+derives generation input, availability, and target presentation internally,
+including snapshot readiness from its existing canonical project route.
+`WorkspaceApp` no longer owns three assistant-only derivation methods.
+
+This checkpoint reduces `src/client/app.ts` from 1,392 to 1,368 lines (-24) and
+grows the assistant-generation presenter from 576 to 616 lines (+40), for a 16-
+line runtime source increase while moving the complete reactive authoring
+projection into its Lit owner. Focused coverage passes all 46 assistant-
+generation and context-resource cases, including manuscript, passage, revision,
+stability, snapshot, generation, availability, target, application-contract,
+and strict-type behavior.
+
+The browser application artifact changes from 847,955 B raw / 228,727 B gzip
+to 848,674 B raw / 228,759 B gzip (+719 B raw / +32 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,712 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

@@ -430,7 +430,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   of repeating them across task, result, and candidate workflows. Bind all
   remaining application-owned generation inputs and consequences once through
   one workflow coordinator instead of separate candidate, result, and control
-  callback bags. Keep
+  callback bags. Bind manuscript text, scoped/insertion passage resolution,
+  source revision, and collaboration stability once as authoring sources; let
+  the presenter derive generation input, availability, and target presentation,
+  including snapshot availability from its canonical project route. Keep
   authorized Yjs mutation, editor selection, remembered authoring selection,
   generation consequences, and refresh policy in the application coordinator
   through narrow typed callbacks.
