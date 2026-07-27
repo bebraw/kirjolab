@@ -43,7 +43,6 @@ import { RESEARCH_ASSISTANT_KEY, RESEARCH_LIBRARY_KEY, RESEARCH_PREVIEW_KEY } fr
 import { readWorkspaceUiRoute, workspaceUiRouteSelection, workspaceUiRouteUrl } from "./workspace-ui-route";
 import "./workspace-rail-tabs";
 import "./authoring-mode-tabs";
-import { bindYText } from "./source-editor-adapter";
 
 const { workspaceId, identityEmail, appMode } = parseAppBootstrap(document.body.dataset);
 const catalogBase = "/api/workspaces";
@@ -94,8 +93,7 @@ class WorkspaceApp {
 
   constructor() {
     this.#collaborationSocket = new CollaborationSocket(this.#collaboration, {
-      beforeRemoteUpdate: () =>
-        this.#elements.editorStatus.preserveSelections([{ source: this.#elements.bibliography, text: this.#bibliography }]),
+      beforeRemoteUpdate: () => this.#elements.editorStatus.preserveSelections(),
       clearOffline: async () => {
         await this.#offlineStore?.clear();
       },
@@ -338,7 +336,7 @@ class WorkspaceApp {
       this.#collaborationSocket.scheduleSelection();
       this.#elements.assistantGenerationPresenter.refreshAvailability();
     });
-    bindYText(this.#elements.bibliography, this.#bibliography, this.#document);
+    this.#elements.editorStatus.bindCompanion(this.#elements.bibliography, this.#bibliography);
     this.#elements.projectImageUpload.configure(apiBase);
     this.#elements.projectFileDialog.configureApi(apiBase, {
       activateFile: (file, snapshot) => this.#activateProjectFile(file, snapshot),

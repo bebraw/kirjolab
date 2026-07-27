@@ -195,9 +195,10 @@ describe("editor status", () => {
       targetChanged: () => undefined,
     });
     status.setAuthoringContext("source.md", "source", text, true);
+    status.bindCompanion(companionSource, companion);
     source.setSelectionRange(2, 6);
     companionSource.setSelectionRange(3, 8, "backward");
-    const restore = status.preserveSelections([{ source: companionSource, text: companion }]);
+    const restore = status.preserveSelections();
 
     text.insert(0, "new ");
     companion.insert(0, "new ");

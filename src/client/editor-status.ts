@@ -30,7 +30,7 @@ export interface EditorTextInsertion {
   readonly text: string;
 }
 
-export interface EditorSelectionSource {
+interface EditorSelectionSource {
   readonly source: HTMLTextAreaElement;
   readonly text: Y.Text;
 }
@@ -51,6 +51,7 @@ export class EditorStatus extends LitElement {
   declare private save: string;
   declare protected target: string;
   private binding: EditorAuthoringBinding | null = null;
+  private readonly companions: EditorSelectionSource[] = [];
   private documentModel: Y.Doc | null = null;
   private fileId: string | null = null;
   private path = "Manuscript";
@@ -76,6 +77,13 @@ export class EditorStatus extends LitElement {
     this.documentModel = documentModel;
     this.source = source;
     if (this.text) this.bindText(this.text);
+  }
+
+  bindCompanion(source: HTMLTextAreaElement, text: Y.Text): void {
+    const documentModel = this.documentModel;
+    if (!documentModel) return;
+    this.companions.push({ source, text });
+    bindYText(source, text, documentModel);
   }
 
   setAuthoringContext(path: string, fileId: string | null, text: Y.Text, reset = false): void {
@@ -131,9 +139,9 @@ export class EditorStatus extends LitElement {
     };
   }
 
-  preserveSelections(companions: readonly EditorSelectionSource[] = []): () => void {
+  preserveSelections(): () => void {
     const active = this.source && this.text ? [{ source: this.source, text: this.text }] : [];
-    const selections = [...active, ...companions].map(({ source, text }) => captureRelativeSelection(source, text));
+    const selections = [...active, ...this.companions].map(({ source, text }) => captureRelativeSelection(source, text));
     return () => {
       const documentModel = this.documentModel;
       if (!documentModel) return;

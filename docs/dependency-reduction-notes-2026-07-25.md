@@ -11319,6 +11319,29 @@ and PDF.js artifacts remain unchanged at 135,411 B / 23,373 B, 204,779 B /
 Full native CI passes all 1,741 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Companion Editor Binding
+
+`EditorStatus` now registers and binds the bibliography as a companion Yjs
+textarea and automatically includes it in remote selection continuity.
+`WorkspaceApp` no longer imports the source-editor adapter or supplies the same
+companion on every remote update.
+
+This checkpoint reduces `src/client/app.ts` from 777 to 775 lines (-2) and
+grows the editor-status owner from 265 to 273 lines (+8). The six-line combined
+increase colocates companion synchronization and relative-selection continuity
+behind one owner registration. Focused coverage passes companion Yjs binding,
+active and bibliography selection movement, collaboration-socket behavior, and
+strict types. Direct and unique production package counts remain 18 and 150;
+Lit and Yjs were already pinned.
+
+The browser application artifact increases from 854,117 B raw / 229,888 B gzip
+to 854,220 B / 229,899 B (+103 B raw / +11 B gzip). Styles and lazy Markdown
+and PDF.js artifacts remain unchanged at 135,411 B / 23,373 B, 204,779 B /
+62,386 B, and 481,994 B / 146,135 B.
+
+Full native CI passes all 1,741 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Created Include Projection
 
 `ProjectFileDialog` now derives a create-and-include directive from its active

@@ -1156,8 +1156,9 @@ reason to wrap static markup mechanically.
   selects their resulting range so derived edits remain in that undo history.
   It also preserves an insertion point as a Yjs-relative position across an
   asynchronous authoring workflow and invalidates it when the active text
-  changes. Before a remote update, it captures and then restores Yjs-relative
-  selections for its active source and supplied companion editors. The
+  changes. It binds companion Yjs textareas such as the bibliography and,
+  before a remote update, captures and then restores Yjs-relative selections
+  for its active source and those companions. The
   application coordinator retains mutation decisions, cross-file path
   projection, assistant refresh consequences, collaboration and offline-save
   policy, and the save-status values those workflows select.

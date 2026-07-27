@@ -321,8 +321,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   those edits share its undo history. It may preserve an insertion point as a
   Yjs-relative position across an asynchronous authoring workflow and must
   reject it after the active text changes. Before remote updates, let the same
-  owner capture and restore Yjs-relative selections for the active source and
-  supplied companion editors. Keep mutation decisions, cross-file path
+  owner bind companion Yjs textareas such as the bibliography, then capture and
+  restore Yjs-relative selections for the active source and those companions.
+  Keep mutation decisions, cross-file path
   projection, assistant consequences, collaboration policy, and offline-save
   policy in the workspace coordinator.
 - Let the editor Insert menu own the scholarly syntax templates it displays and
