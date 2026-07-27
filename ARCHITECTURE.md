@@ -956,7 +956,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   markup edit/selection coordination across the markup layer, inspector, and
   toolbar. It binds and routes those siblings' private-PDF action and outcome
   streams, including local save, import, delete, export, and status completion
-  presentation. Let it also derive the authorized publication, project-PDF,
+  presentation. It resolves saved-highlight artifact navigation from the bound
+  canonical Library and completes the inspector status after the PDF opens.
+  Let it also derive the authorized publication, project-PDF,
   private-or-linked PDF, and candidate identity sets from canonical resource
   catalogs and resolve a supplied resource route to the matching canonical
   publication, project PDF, private-Library PDF, linked reference PDF, or

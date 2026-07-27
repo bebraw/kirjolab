@@ -103,8 +103,7 @@ export interface LibraryPdfCoordinator {
   readonly currentPage: () => number;
   readonly insertCitation: (citationAlias: string, locator: string) => void;
   readonly library: () => ReferenceLibrarySnapshot | null;
-  readonly openHighlight: (highlight: LibraryHighlight) => void;
-  readonly openPdf: (artifact: LibraryPdfArtifact, page: number) => void;
+  readonly openPdf: (artifact: LibraryPdfArtifact, page: number) => Promise<void>;
   readonly project: () => WorkspaceSnapshot | null;
   readonly projectApiBase: string;
   readonly refreshLibrary: () => Promise<void>;
@@ -554,12 +553,20 @@ export class ContextResourcePresenter extends LitElement {
   private handleLibraryPdfAnnotationListAction(action: LibraryPdfAnnotationListAction): void {
     const coordinator = this.libraryPdfCoordinator;
     if (!coordinator) return;
-    if (action.action === "open-highlight") coordinator.openHighlight(action.highlight);
+    if (action.action === "open-highlight") void this.openBoundLibraryHighlight(action.highlight);
     else if (action.action === "edit-highlight") this.applyViewerPresentation(this.editLibraryHighlight(action.highlight));
     else if (action.action === "cite-highlight") void this.citeLibraryHighlight(action.highlight);
-    else if (action.action === "open-markup") coordinator.openPdf(action.artifact, action.page);
+    else if (action.action === "open-markup") void coordinator.openPdf(action.artifact, action.page);
     else if (action.action === "edit-note") this.applyViewerPresentation(this.editLibraryPdfNote(action.note));
     else coordinator.completeMarkup("Private annotation deleted.");
+  }
+
+  private async openBoundLibraryHighlight(highlight: LibraryHighlight): Promise<void> {
+    const coordinator = this.libraryPdfCoordinator;
+    const artifact = coordinator?.library()?.artifacts.find(({ id }) => id === highlight.artifactId);
+    if (!coordinator || !artifact) return;
+    await coordinator.openPdf(artifact, highlight.page);
+    this.element("library-pdf-inspector", LibraryPdfInspector)?.setStatus(`Showing saved private highlight on page ${highlight.page}.`);
   }
 
   private handleLibraryPdfToolbarAction(action: LibraryPdfToolbarAction): void {

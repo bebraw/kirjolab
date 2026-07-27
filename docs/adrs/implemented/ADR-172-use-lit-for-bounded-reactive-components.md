@@ -157,7 +157,8 @@ The adopted components own bounded presentation:
   highlight, note, and markup edit/selection presentation across the markup
   layer, inspector, and toolbar. It binds their private-PDF action and outcome
   streams and owns local completion presentation, private-highlight citation
-  readiness feedback, collision-safe project-reference preparation, and
+  readiness feedback, saved-highlight artifact lookup and post-navigation
+  inspector status, collision-safe project-reference preparation, and
   validated link transport while delegating canonical snapshot acceptance,
   Yjs citation insertion, cross-resource navigation, shared toast display, and
   viewer-only selection effects through typed callbacks; it returns only

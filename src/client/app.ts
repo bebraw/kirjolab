@@ -8,7 +8,7 @@ import { projectFileCollaborationTextName, relativeProjectPath, type ProjectComp
 import { publicationWordStatistics } from "../domain/publication-statistics";
 import { researchQuestionsPath, researchQuestionsTemplate } from "../domain/research-questions";
 import { researchDiaryPath, researchDiaryTemplate } from "../domain/writing-workflows";
-import { type LibraryHighlight, type LibraryPdfArtifact, type ProjectReferencePdf } from "../domain/reference-library";
+import { type LibraryPdfArtifact, type ProjectReferencePdf } from "../domain/reference-library";
 import "./application-version-control";
 import "./source-citation-control";
 import "./workspace-surface-switcher";
@@ -527,8 +527,7 @@ class WorkspaceApp {
       currentPage: () => this.#pdfViewer.currentPage,
       insertCitation: (citationAlias, locator) => this.#insertCitation(citationAlias, locator),
       library: () => this.#librarySnapshot,
-      openHighlight: (highlight) => void this.#openLibraryHighlight(highlight),
-      openPdf: (artifact, page) => void this.#openLibraryPdf(artifact, page),
+      openPdf: async (artifact, page) => await this.#openLibraryPdf(artifact, page),
       project: () => this.#snapshot,
       projectApiBase: apiBase,
       refreshLibrary: () => this.#refreshReferenceLibrary(),
@@ -1457,13 +1456,6 @@ class WorkspaceApp {
     if (presentation.textSelectionEnabled !== undefined) this.#pdfViewer.setTextSelectionEnabled(presentation.textSelectionEnabled);
     if (presentation.privateHighlightSelection !== undefined)
       this.#pdfViewer.setPrivateHighlightSelection(presentation.privateHighlightSelection, presentation.privateHighlightId);
-  }
-
-  async #openLibraryHighlight(highlight: LibraryHighlight): Promise<void> {
-    const artifact = this.#librarySnapshot?.artifacts.find((item) => item.id === highlight.artifactId);
-    if (!artifact) return;
-    await this.#openLibraryPdf(artifact, highlight.page);
-    this.#elements.libraryPdfInspector.setStatus(`Showing saved private highlight on page ${highlight.page}.`);
   }
 
   #showPassage(anchor: PassageLink["anchor"]): void {

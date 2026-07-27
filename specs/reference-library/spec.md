@@ -335,8 +335,10 @@ memory and makes citation aliases compete with stable source identity.
   outcomes. A saved markup card owns its stable encoded delete request, a list-
   wide duplicate-request lock, retryable card-local failure state, and a typed
   deletion outcome. The application coordinator retains PDF navigation,
-  project citation, snapshot application, canonical refreshes, and
-  notifications.
+  history and load effects, while the composed context-resource presenter owns
+  saved-highlight artifact lookup and post-open inspector status. The
+  coordinator also retains project citation, snapshot application, canonical
+  refreshes, and notifications.
 - Saved text-highlight comments and page-note bodies expose an explicit edit
   action. Editing preserves the annotation id, page, geometry, and creation
   time while advancing its update time; it never changes the immutable PDF.

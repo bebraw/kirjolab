@@ -8083,6 +8083,29 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,705 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Saved Highlight Navigation
+
+`ContextResourcePresenter` now resolves saved private highlights to their
+canonical Library artifact, awaits the existing PDF-open effect, and completes
+the presenter-owned inspector status. This removes the dedicated highlight-open
+callback and coordinator method while preserving history, load, and canonical
+Library authority outside the component.
+
+This checkpoint reduces `src/client/app.ts` from 1,590 to 1,582 lines (-8) and
+grows the context-resource presenter from 810 to 817 lines (+7). Runtime source
+across those files decreases by one line while replacing the callback round trip
+with one presenter-owned workflow. Focused coverage passes all 24
+context-resource cases, including artifact lookup, awaited PDF navigation,
+inspector status, sibling events, application contracts, and strict types.
+
+The browser application artifact changes from 846,738 B raw / 228,691 B gzip
+to 846,812 B raw / 228,687 B gzip (+74 B raw / -4 B gzip). Styles and direct and
+unique production package counts remain unchanged at 135,411 B raw / 23,373 B
+gzip, 18, and 150.
+
+Full native CI passes all 1,705 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

@@ -205,7 +205,8 @@ changing their canonical data, selector, authorization, or rendering contracts.
   highlight/note draft composition and clearing, and highlight, note, and markup
   edit/selection presentation across the markup layer, inspector, and toolbar,
   and owns their local private-PDF action and completion routing, including
-  citation readiness feedback, collision-safe project-reference preparation,
+  citation readiness feedback, saved-highlight artifact lookup and post-open
+  inspector status, collision-safe project-reference preparation,
   validated link transport, and canonical catalog lookup when restoring a
   supplied resource route or opening project-map resources. Annotation intents
   resolve through the same retained catalog to their annotation form and

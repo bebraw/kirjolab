@@ -731,14 +731,14 @@ describe("context resource presenter", () => {
       currentPage: vi.fn(() => 3),
       insertCitation: vi.fn(),
       library: vi.fn(() => library),
-      openHighlight: vi.fn(),
-      openPdf: vi.fn(),
+      openPdf: vi.fn().mockResolvedValue(undefined),
       project: vi.fn(() => workspaceSnapshotFixture),
       projectApiBase: "/api/workspaces/workspace",
       refreshLibrary: vi.fn(async () => undefined),
       showToast: vi.fn(),
     };
     vi.spyOn(elements["paper-markups"], "chooseTool").mockImplementation(() => undefined);
+    const setStatus = vi.spyOn(elements["library-pdf-inspector"], "setStatus");
     vi.spyOn(elements["library-pdf-inspector"], "clearNote").mockImplementation(() => undefined);
     vi.spyOn(elements["library-pdf-inspector"], "clearMarkup").mockImplementation(() => undefined);
     vi.spyOn(elements["library-pdf-inspector"], "draftState", "get").mockReturnValue({ highlight: false, markup: false, note: false });
@@ -761,7 +761,8 @@ describe("context resource presenter", () => {
       textSelectionEnabled: true,
     });
     expect(coordinator.completeMarkup).toHaveBeenCalledWith("Drawing saved privately.");
-    expect(coordinator.openHighlight).toHaveBeenCalledWith(highlight);
+    await vi.waitFor(() => expect(coordinator.openPdf).toHaveBeenCalledWith(libraryPdf, highlight.page));
+    expect(setStatus).toHaveBeenCalledWith("Showing saved private highlight on page 2.");
     await vi.waitFor(() => expect(coordinator.refreshLibrary).toHaveBeenCalledOnce());
     expect(coordinator.clearViewerDraftSelection).toHaveBeenCalledOnce();
     expect(coordinator.showToast).toHaveBeenCalledWith("Private highlight saved to your library.");
@@ -803,8 +804,7 @@ describe("context resource presenter", () => {
       currentPage: vi.fn(() => 3),
       insertCitation: vi.fn(),
       library: librarySource,
-      openHighlight: vi.fn(),
-      openPdf: vi.fn(),
+      openPdf: vi.fn().mockResolvedValue(undefined),
       project,
       projectApiBase: "/api/workspaces/workspace",
       refreshLibrary: vi.fn(async () => undefined),
@@ -847,8 +847,7 @@ describe("context resource presenter", () => {
       currentPage: vi.fn(() => 3),
       insertCitation: vi.fn(),
       library: librarySource,
-      openHighlight: vi.fn(),
-      openPdf: vi.fn(),
+      openPdf: vi.fn().mockResolvedValue(undefined),
       project: vi.fn(() => workspaceSnapshotFixture),
       projectApiBase: "/api/workspaces/workspace",
       refreshLibrary: vi.fn(async () => undefined),
