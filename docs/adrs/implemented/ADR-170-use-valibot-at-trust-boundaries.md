@@ -28,9 +28,10 @@ Adopted boundaries are:
 
 - Library interchange: CSL JSON identity, names, dates, optional metadata,
   portable research records, archive version, and existing collection bounds.
-- Browser response contracts: GitHub connection and synchronization payloads,
-  LaTeX import previews, snapshot comparisons, created annotations, and share
-  link state.
+- Browser bootstrap and response contracts: the server-rendered workspace id,
+  identity email, and explicit workspace/Library mode plus GitHub connection
+  and synchronization payloads, LaTeX import previews, snapshot comparisons,
+  created annotations, and share-link state.
 - Project history responses: revision summaries, retained revision projections,
   and file/composed/binary comparison results.
 - Review-model boundaries: candidate creation requests and persisted candidate

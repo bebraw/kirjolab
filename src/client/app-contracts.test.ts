@@ -12,12 +12,38 @@ import {
   isGitHubSyncState,
   isLatexImportPreview,
   isLatexImportResult,
+  parseAppBootstrap,
   isShareLinkResult,
   isShareLinkStatus,
   isWebSnapshotComparisonResponse,
 } from "./app-contracts";
 
 describe("app response contracts", () => {
+  it("parses the bounded application bootstrap dataset", () => {
+    const bootstrap = {
+      appMode: "workspace",
+      identityEmail: "writer@example.test",
+      workspaceId: "paper-1",
+      unrelated: "ignored",
+    };
+    expect(parseAppBootstrap(bootstrap)).toEqual({
+      appMode: "workspace",
+      identityEmail: "writer@example.test",
+      workspaceId: "paper-1",
+    });
+    expect(parseAppBootstrap({ ...bootstrap, appMode: "library" }).appMode).toBe("library");
+    for (const invalid of [
+      null,
+      { ...bootstrap, workspaceId: "" },
+      { ...bootstrap, workspaceId: "a".repeat(65) },
+      { ...bootstrap, identityEmail: "" },
+      { ...bootstrap, identityEmail: "a".repeat(321) },
+      { ...bootstrap, appMode: "dashboard" },
+    ]) {
+      expect(() => parseAppBootstrap(invalid)).toThrow("Invalid application bootstrap");
+    }
+  });
+
   it("validates web snapshot comparisons and their hunks", () => {
     const value = {
       before: { id: "before" },

@@ -1,5 +1,6 @@
 import * as Y from "yjs";
 import "./action-menu-controller";
+import { parseAppBootstrap } from "./app-contracts";
 import { collectAppElements } from "./app-elements";
 import { reviewerResponsePath, reviewerResponseTemplate } from "../domain/reviewer-response";
 import { resolveManuscriptAnchor } from "../domain/manuscript-anchor";
@@ -50,9 +51,7 @@ import {
   type RelativeEditorSelection,
 } from "./source-editor-adapter";
 
-const workspaceId = readWorkspaceId();
-const identityEmail = readIdentityEmail();
-const appMode = readAppMode();
+const { workspaceId, identityEmail, appMode } = parseAppBootstrap(document.body.dataset);
 const catalogBase = "/api/workspaces";
 const apiBase = `${catalogBase}/${workspaceId}`;
 const remoteOrigin = Symbol("remote");
@@ -818,22 +817,6 @@ class WorkspaceApp {
       clearOfflineShellCaches(typeof caches === "undefined" ? undefined : caches),
     ]);
   }
-}
-
-function readWorkspaceId(): string {
-  const value = document.body.dataset.workspaceId;
-  if (!value || !/^[a-z0-9-]{1,64}$/iu.test(value)) throw new Error("Invalid project identity");
-  return value;
-}
-
-function readIdentityEmail(): string {
-  const value = document.body.dataset.identityEmail;
-  if (!value || value.length > 320) throw new Error("Invalid offline identity");
-  return value;
-}
-
-function readAppMode(): "workspace" | "library" {
-  return document.body.dataset.appMode === "library" ? "library" : "workspace";
 }
 
 if (typeof document !== "undefined") {

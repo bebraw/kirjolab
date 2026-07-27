@@ -48,6 +48,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   adjudication, duplicate-resolution, quality-answer, extraction-value, and
   reassessment-completion structure; revision concurrency, evidence parsing and
   authorization, and study mutation stay explicit.
+- Validate the server-rendered workspace/Library browser bootstrap as one
+  Valibot contract before constructing the application. The contract owns the
+  bounded workspace id, non-empty bounded identity email, and explicit
+  `workspace`/`library` mode; malformed or missing bootstrap values must fail
+  initialization instead of silently selecting another application mode.
 - Read bounded external response bodies through stateless, request-local
   helpers that enforce both declared and observed byte limits. Keep byte
   ceilings, errors, response-shape validation, and domain mapping explicit at

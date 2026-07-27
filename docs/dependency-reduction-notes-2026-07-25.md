@@ -11204,3 +11204,26 @@ and PDF.js artifacts remain unchanged at 135,411 B / 23,373 B, 204,779 B /
 
 Full native CI passes all 1,738 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Valibot Boundary: Application Bootstrap
+
+The shared browser contract module now validates the server-rendered workspace
+id, identity email, and explicit workspace/Library mode as one inferred
+Valibot-backed bootstrap value. `WorkspaceApp` consumes that validated value and
+no longer maintains three local dataset readers or silently maps an unsupported
+mode to the workspace surface.
+
+This checkpoint reduces `src/client/app.ts` from 845 to 828 lines (-17), grows
+`src/client/app-contracts.ts` from 245 to 257 lines (+12), and reduces runtime
+across the pair by five lines. Focused coverage passes valid workspace and
+Library bootstraps plus missing, malformed, overlong, and unsupported values;
+affected guardrails pass 130 related tests and strict types. Direct and unique
+production package counts remain 18 and 150; Valibot was already pinned.
+
+The browser application artifact decreases from 854,036 B raw / 230,005 B gzip
+to 853,954 B / 229,856 B (-82 B raw / -149 B gzip). Styles and lazy Markdown
+and PDF.js artifacts remain unchanged at 135,411 B / 23,373 B, 204,779 B /
+62,386 B, and 481,994 B / 146,135 B.
+
+Full native CI passes all 1,739 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.

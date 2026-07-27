@@ -44,6 +44,11 @@ entries.
 - `/editor` redirects to the first active authorized project, using the
   compatible `demo` workspace by default. `/editor/{workspaceId}` is the
   canonical browser representation for an authorized project.
+- The shared project/Library client validates its server-rendered workspace id,
+  identity email, and explicit `workspace` or `library` mode as one bounded
+  bootstrap contract before constructing application state. Missing, malformed,
+  or unsupported bootstrap values stop initialization rather than falling back
+  to another task surface.
 - `/review` lists every review discoverable through the current identity's
   independent catalog, including lifecycle and role, and accepts normal form
   creation with a title and `slr` or `mlr` profile. Creating a review requires

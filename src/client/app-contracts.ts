@@ -6,6 +6,11 @@ const safeIntegerSchema = v.pipe(v.number(), v.safeInteger());
 const nonNegativeIntegerSchema = v.pipe(safeIntegerSchema, v.minValue(0));
 const positiveIntegerSchema = v.pipe(safeIntegerSchema, v.minValue(1));
 const nullableStringSchema = v.nullable(v.string());
+const appBootstrapSchema = v.object({
+  workspaceId: v.pipe(v.string(), v.regex(/^[a-z0-9-]{1,64}$/iu)),
+  identityEmail: v.pipe(v.string(), v.minLength(1), v.maxLength(320)),
+  appMode: v.picklist(["workspace", "library"]),
+});
 
 const webSnapshotComparisonHunkSchema = v.object({
   beforeLine: v.number(),
@@ -171,6 +176,7 @@ export type GitHubRepositoryOption = Readonly<v.InferInput<typeof gitHubReposito
 export type GitHubBranchOption = Readonly<v.InferInput<typeof gitHubBranchOptionSchema>>;
 export type GitHubImportPreview = Readonly<v.InferInput<typeof gitHubImportPreviewSchema>>;
 export type LatexImportPreview = Readonly<v.InferInput<typeof latexImportPreviewSchema>>;
+export type AppBootstrap = Readonly<v.InferInput<typeof appBootstrapSchema>>;
 
 export interface WebSnapshotComparisonResponse {
   readonly before: WebSnapshot;
@@ -182,6 +188,12 @@ export interface ShareLinkStatus {
   readonly active: boolean;
   readonly createdAt: string | null;
   readonly href: string | null;
+}
+
+export function parseAppBootstrap(value: unknown): AppBootstrap {
+  const result = v.safeParse(appBootstrapSchema, value);
+  if (!result.success) throw new Error("Invalid application bootstrap");
+  return result.output;
 }
 
 export function isWebSnapshotComparisonResponse(value: unknown): value is WebSnapshotComparisonResponse {
