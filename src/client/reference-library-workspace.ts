@@ -6,7 +6,7 @@ import {
   type ResearchShareSnapshot,
 } from "../domain/reference-library";
 import type { ReferenceDiscoveryResult } from "../domain/reference-discovery";
-import type { ProjectReferenceLink } from "../domain/workspace";
+import type { ProjectReferenceLink, WorkspaceSnapshot } from "../domain/workspace";
 import { citationNetworkOutcomeEvent, CitationNetworkWorkspace, type CitationNetworkOutcome } from "./citation-network-workspace";
 import { expectOk } from "./http";
 import { libraryReferenceMetadataNoticeEvent, libraryReferenceMetadataRefreshEvent } from "./library-reference-metadata-editor";
@@ -175,6 +175,16 @@ export class ReferenceLibraryWorkspace extends LitElement {
     this.data = data;
     this.librarySnapshot = data.library;
     this.present();
+  }
+
+  presentProject(snapshot: WorkspaceSnapshot | null, projectApiBase: string | null): void {
+    if (!this.librarySnapshot) return;
+    this.setData({
+      library: this.librarySnapshot,
+      projectApiBase,
+      projectReferences: snapshot?.projectReferences ?? [],
+      researchShares: snapshot?.researchShares ?? [],
+    });
   }
 
   async refresh(fetcher: typeof fetch = fetch): Promise<ReferenceLibrarySnapshot> {

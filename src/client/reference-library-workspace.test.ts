@@ -132,6 +132,25 @@ describe("reference Library workspace", () => {
     );
   });
 
+  it("owns the canonical project projection into Library presentation", () => {
+    const { owners, workspace } = setup();
+    const setData = vi.spyOn(owners["library-reference-list"], "setData");
+
+    workspace.presentProject(workspaceSnapshotFixture, "/api/workspaces/workspace");
+    expect(setData).not.toHaveBeenCalled();
+
+    workspace.setData({ library, projectApiBase: null, projectReferences: [], researchShares: [] });
+    workspace.presentProject(workspaceSnapshotFixture, "/api/workspaces/workspace");
+
+    expect(setData).toHaveBeenLastCalledWith({
+      library,
+      projectApiBase: "/api/workspaces/workspace",
+      projectReferences: [],
+      references: library.references,
+      researchShares: [],
+    });
+  });
+
   it("restores Library reference and PDF routes through typed effects", async () => {
     const { workspace } = setup();
     const activateLibrary = vi.fn();

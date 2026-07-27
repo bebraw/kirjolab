@@ -102,10 +102,11 @@ memory and makes citation aliases compete with stable source identity.
 - One bounded filter component owns Library query and facet values, dynamic
   type choices, validated defaults, canonical reference filtering,
   project-linkage projection from canonical project-reference inputs, result
-  counts, and reset behavior. A composed light-DOM Library workspace supplies
-  the canonical inputs, synchronizes the resulting reference list, citation
-  network, and unidentified-PDF queue, rerenders on filter changes, and owns
-  focused-reference reveal. It encompasses discovery, reference import, PDF
+  counts, and reset behavior. A composed light-DOM Library workspace combines
+  its owned Library snapshot with canonical project-reference and research-share
+  inputs, synchronizes the resulting reference list, citation network, and
+  unidentified-PDF queue, rerenders on filter changes, and owns focused-
+  reference reveal. It encompasses discovery, reference import, PDF
   upload and status, web capture, tools, filters, results, citation network, and
   the unidentified-PDF queue; owns their sibling bindings and archive/capture
   delegation; and routes their outcomes through narrow coordinator callbacks.

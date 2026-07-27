@@ -9394,6 +9394,28 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,721 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Library Project Projection
+
+`ReferenceLibraryWorkspace` now derives its project-reference and
+research-share presentation inputs from the canonical project snapshot and its
+owned Library snapshot. `WorkspaceApp` retains canonical project snapshot
+application, Library refresh timing, PDF/context navigation, history, and
+notification policy.
+
+This checkpoint reduces `src/client/app.ts` from 1,172 to 1,161 lines (-11)
+and grows the composed Library owner from 342 to 352 lines. Runtime source
+across those files decreases by one line while deleting the coordinator-only
+Library presentation mapper. Focused Library-workspace and application-contract
+coverage passes all 26 tests alongside strict types.
+
+The browser application artifact changes from 848,752 B raw / 228,946 B gzip
+to 848,938 B raw / 228,961 B gzip (+186 B raw / +15 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,721 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Library PDF Project Use Projection
 
 `LibraryPdfProjectUse` now resolves the active bibliographic record and matching

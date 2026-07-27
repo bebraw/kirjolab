@@ -103,9 +103,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   field, metadata, PDF, research, citation-network, and unidentified-PDF child
   outcomes, including project reference and research mutation completion. Let
   it also own canonical Library loading, response validation, archive-aware
-  request scope, the single browser snapshot projection, and standalone Library
-  route lookup plus archive-aware focused-reference restoration and missing-
-  reference feedback. It also resolves duplicate-PDF upload reveals through
+  request scope, the single browser snapshot projection, and derivation of its
+  project-reference and research-share inputs from the canonical project
+  snapshot. It owns standalone Library route lookup plus archive-aware focused-
+  reference restoration and missing-reference feedback. It also resolves duplicate-PDF upload reveals through
   archive visibility, canonical refresh, owned filter/list focus, and missing-
   source feedback. Keep cross-feature PDF and
   context navigation, history mutation, project snapshot application, refresh timing, and notification

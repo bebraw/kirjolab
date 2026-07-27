@@ -469,7 +469,7 @@ class WorkspaceApp {
     this.#elements.contextResourcePresenter.bindLibraryPdf({
       acceptProjectMutation: async (snapshot) => {
         await this.#acceptWorkspaceMutation(snapshot);
-        this.#renderReferenceLibrary();
+        this.#elements.referenceLibraryWorkspace.presentProject(this.#snapshot, appMode === "workspace" ? apiBase : null);
       },
       canInsertCitation: () => this.#resolvedAuthoringCaret() !== null,
       completeMarkup: (message) =>
@@ -744,21 +744,10 @@ class WorkspaceApp {
       this.#contextState,
       this.#elements.contextResourcePresenter.resourceAuthorization(this.#snapshot, library),
     );
-    this.#renderReferenceLibrary();
+    this.#elements.referenceLibraryWorkspace.presentProject(this.#snapshot, appMode === "workspace" ? apiBase : null);
     await this.#elements.referenceLibraryWorkspace.settled();
     this.#renderResearchContext();
     this.#syncWorkspaceRoute("replace");
-  }
-
-  #renderReferenceLibrary(): void {
-    const library = this.#librarySnapshot;
-    if (!library) return;
-    this.#elements.referenceLibraryWorkspace.setData({
-      library,
-      projectApiBase: appMode === "workspace" ? apiBase : null,
-      projectReferences: this.#snapshot?.projectReferences ?? [],
-      researchShares: this.#snapshot?.researchShares ?? [],
-    });
   }
 
   async #refreshResourcesWithNotice(message?: string, failureMessage?: string): Promise<void> {
@@ -773,7 +762,7 @@ class WorkspaceApp {
 
   async #completeLibraryProjectMutation(message: string, snapshot: WorkspaceSnapshot): Promise<void> {
     await this.#acceptWorkspaceMutation(snapshot);
-    this.#renderReferenceLibrary();
+    this.#elements.referenceLibraryWorkspace.presentProject(this.#snapshot, appMode === "workspace" ? apiBase : null);
     this.#showToast(message);
   }
 

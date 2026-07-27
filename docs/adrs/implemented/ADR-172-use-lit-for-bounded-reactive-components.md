@@ -484,11 +484,13 @@ The adopted components own bounded presentation:
 - The composed reference Library workspace owns canonical presentation
   synchronization across the filter, result list, citation network, and
   unidentified-PDF queue; filter-driven rerendering; focused-reference reveal;
-  result settlement; nested network and identification lifecycle delegation;
-  and routing for summary, personal-field, metadata, PDF, research, network,
-  identification, and standalone Library-route outcomes. The application coordinator supplies refresh
-  timing, PDF navigation, web-capture/comparison, project-mutation completion,
-  and notice effects through a typed callback boundary.
+  result settlement; derivation of project-reference and research-share inputs
+  from canonical project and owned Library snapshots; nested network and
+  identification lifecycle delegation; and routing for summary, personal-field,
+  metadata, PDF, research, network, identification, and standalone Library-route
+  outcomes. The application coordinator supplies refresh timing, PDF navigation,
+  web-capture/comparison, project-mutation completion, and notice effects through
+  a typed callback boundary.
 - The model provider settings panel owns connection, endpoint, model, and
   reasoning-effort values, browser-local persistence, Valibot-backed saved-value
   restoration with bounded per-field fallbacks, dynamic model choices,
