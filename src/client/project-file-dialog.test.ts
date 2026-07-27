@@ -73,10 +73,10 @@ afterEach(() => {
 
 function mutationCallbacks(): ProjectFileMutationCallbacks {
   return {
+    activateFile: vi.fn(),
     commit: vi.fn(),
     presentNotice: vi.fn(),
     previewChanged: vi.fn(),
-    selectFile: vi.fn(),
   };
 }
 
@@ -127,10 +127,11 @@ describe("project file dialog", () => {
       prepareInclude: vi.fn(() => vi.fn(() => true)),
       quickOpen: vi.fn(),
       saved: vi.fn(),
-      selectFile: vi.fn(),
     };
     panel.bindWorkflow({ actionControls: [actions], imageUpload, tree, ...callbacks });
-    panel.presentProject(snapshot, "/assets", true);
+    const supporting = { ...snapshot.files[0]!, id: "file-2", path: "chapter.md" };
+    const project = { ...snapshot, files: [...snapshot.files, supporting] };
+    panel.presentProject(project, "/assets", true);
     const showFor = vi.spyOn(panel, "showFor").mockResolvedValue();
     const deleteFile = vi.spyOn(panel, "deleteFile");
     const asset = {
@@ -149,7 +150,9 @@ describe("project file dialog", () => {
     actions.dispatchEvent(new CustomEvent(projectFileActionEvent, { detail: "delete" }));
     actions.dispatchEvent(new CustomEvent(projectFileActionEvent, { detail: "create-folder" }));
     actions.dispatchEvent(new CustomEvent(projectFileActionEvent, { detail: "create-and-include" }));
-    tree.dispatchEvent(new CustomEvent(projectTreeActionEvent, { detail: { action: "select-file", fileId: "file-1", focusEditor: true } }));
+    tree.dispatchEvent(
+      new CustomEvent(projectTreeActionEvent, { detail: { action: "select-file", fileId: supporting.id, focusEditor: true } }),
+    );
     tree.dispatchEvent(new CustomEvent(projectTreeActionEvent, { detail: { action: "quick-open" } }));
     tree.dispatchEvent(new CustomEvent(projectTreeActionEvent, { detail: { action: "rename-folder", folderId: "folder-1" } }));
     tree.dispatchEvent(new CustomEvent(projectTreeActionEvent, { detail: { action: "insert-asset", asset } }));
@@ -160,14 +163,14 @@ describe("project file dialog", () => {
     expect(callbacks.prepareInclude).toHaveBeenCalledWith(snapshot.files[0]);
     expect(showFor).toHaveBeenNthCalledWith(1, "create-folder", snapshot.files[0], undefined);
     expect(showFor).toHaveBeenNthCalledWith(2, "create-and-include", snapshot.files[0], undefined);
-    expect(showFor).toHaveBeenNthCalledWith(3, "rename-folder", snapshot.files[0], undefined);
-    expect(callbacks.selectFile).toHaveBeenCalledWith("file-1");
+    expect(showFor).toHaveBeenNthCalledWith(3, "rename-folder", supporting, undefined);
+    expect(mutations.activateFile).toHaveBeenCalledWith(supporting, project);
     expect(callbacks.focusEditor).toHaveBeenCalledOnce();
     expect(callbacks.quickOpen).toHaveBeenCalledOnce();
     expect(tree.focusFilter).toHaveBeenCalledOnce();
     expect(callbacks.insertImage).toHaveBeenCalledWith({
       message: "Inserted figures/chart.png.",
-      syntax: "![chart](../figures/chart.png)",
+      syntax: "![chart](figures/chart.png)",
     });
     expect(mutations.commit).toHaveBeenCalledWith(snapshot);
     expect(mutations.presentNotice).toHaveBeenCalledWith("Uploaded.");
@@ -244,13 +247,17 @@ describe("project file dialog", () => {
 
   it("owns active-file fallback and selection eligibility", () => {
     const panel = new TestProjectFileDialog();
+    const callbacks = mutationCallbacks();
     const supporting = { ...snapshot.files[0]!, id: "file-2", path: "chapter.md" };
     const project = { ...snapshot, files: [...snapshot.files, supporting] };
+    panel.configureApi("/api/workspaces/workspace", callbacks);
 
     expect(panel.presentProject(project, "/assets", true)?.id).toBe(snapshot.entryFileId);
-    expect(panel.activateFile(project, supporting.id)).toBe(supporting);
+    expect(panel.selectFile(supporting.id)).toBe(true);
     expect(panel.activeFileId).toBe(supporting.id);
-    expect(panel.activateFile(project, supporting.id)).toBeNull();
+    expect(callbacks.activateFile).toHaveBeenCalledWith(supporting, project);
+    expect(panel.selectFile(supporting.id)).toBe(false);
+    expect(panel.selectFile("missing-file")).toBe(false);
     expect(panel.presentProject(snapshot, "/assets", true)?.id).toBe(snapshot.entryFileId);
     expect(panel.activeFileId).toBe(snapshot.entryFileId);
   });
@@ -273,7 +280,6 @@ describe("project file dialog", () => {
       prepareInclude: vi.fn(() => include),
       quickOpen: vi.fn(),
       saved,
-      selectFile: vi.fn(),
       tree: Object.assign(new EventTarget(), { focusFilter: vi.fn() }),
     });
     panel.presentProject(snapshot, "/assets", true);
@@ -290,7 +296,6 @@ describe("project file dialog", () => {
     expect(include).toHaveBeenCalledWith("chapters/results.md");
     expect(vi.mocked(callbacks.commit).mock.invocationCallOrder[0]).toBeLessThan(include.mock.invocationCallOrder[0] ?? 0);
     expect(saved).toHaveBeenCalledWith({
-      fileId: created.id,
       included: true,
       message: "Created chapters/results.md and included it at the remembered caret.",
     });
@@ -319,12 +324,15 @@ describe("project file dialog", () => {
     const panel = new TestProjectFileDialog();
     const callbacks = mutationCallbacks();
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(Response.json(snapshot));
-    const file = { ...snapshot.files[0]!, id: "file/1" };
+    const file = { ...snapshot.files[0]!, id: "file/1", path: "chapter.md" };
+    const project = { ...snapshot, files: [...snapshot.files, file] };
     panel.configureApi("/api/workspaces/workspace", callbacks);
+    panel.presentProject(project, "/assets", true);
+    panel.selectFile(file.id);
 
-    panel.deleteFile(file, "entry-file");
+    panel.deleteFile(file, snapshot.entryFileId);
     expect(panel.hiddenFiles.has(file.id)).toBe(true);
-    expect(callbacks.selectFile).toHaveBeenCalledWith("entry-file");
+    expect(callbacks.activateFile).toHaveBeenLastCalledWith(snapshot.files[0], project);
     expect(callbacks.presentNotice).toHaveBeenCalledWith(`Deleted ${file.path}.`, expect.objectContaining({ actionLabel: "Undo" }));
     await vi.advanceTimersByTimeAsync(6_000);
 
@@ -341,16 +349,19 @@ describe("project file dialog", () => {
     const panel = new TestProjectFileDialog();
     const callbacks = mutationCallbacks();
     const fetchMock = vi.spyOn(globalThis, "fetch");
-    const file = snapshot.files[0]!;
+    const file = { ...snapshot.files[0]!, id: "file-2", path: "chapter.md" };
+    const project = { ...snapshot, files: [...snapshot.files, file] };
     panel.configureApi("/api/workspaces/workspace", callbacks);
+    panel.presentProject(project, "/assets", true);
+    panel.selectFile(file.id);
 
-    panel.deleteFile(file, "entry-file");
+    panel.deleteFile(file, snapshot.entryFileId);
     const notice = vi.mocked(callbacks.presentNotice).mock.calls[0]?.[1];
     notice?.action?.();
     await vi.advanceTimersByTimeAsync(6_000);
 
     expect(panel.hiddenFiles.has(file.id)).toBe(false);
-    expect(callbacks.selectFile).toHaveBeenLastCalledWith(file.id);
+    expect(callbacks.activateFile).toHaveBeenLastCalledWith(file, project);
     expect(callbacks.presentNotice).toHaveBeenLastCalledWith(`Restored ${file.path}.`, undefined);
     expect(fetchMock).not.toHaveBeenCalled();
   });
@@ -371,12 +382,14 @@ describe("project file dialog", () => {
 
   it("opens an existing workflow file or lazily creates a missing one", async () => {
     const panel = new TestProjectFileDialog();
-    const selectFile = vi.fn();
+    const callbacks = mutationCallbacks();
     const focusEditor = vi.fn();
     const content = vi.fn(() => "# Questions");
+    const existing = { ...snapshot.files[0]!, id: "file-existing", path: "research-diary.md" };
     const created = { ...snapshot.files[0]!, content: "# Questions", id: "file-2", path: "research-questions.md" };
-    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(Response.json({ ...snapshot, files: [...snapshot.files, created] }));
-    panel.configureApi("/api/workspaces/workspace");
+    const project = { ...snapshot, files: [...snapshot.files, existing] };
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(Response.json({ ...project, files: [...project.files, created] }));
+    panel.configureApi("/api/workspaces/workspace", callbacks);
     panel.bindWorkflow({
       actionControls: [],
       focusEditor,
@@ -385,13 +398,12 @@ describe("project file dialog", () => {
       prepareInclude: vi.fn(() => null),
       quickOpen: vi.fn(),
       saved: vi.fn(),
-      selectFile,
       tree: Object.assign(new EventTarget(), { focusFilter: vi.fn() }),
     });
-    panel.presentProject(snapshot, "/assets", true);
+    panel.presentProject(project, "/assets", true);
 
-    await expect(panel.openOrCreateFile(snapshot.files[0]!.path, content)).resolves.toBeNull();
-    expect(selectFile).toHaveBeenCalledWith(snapshot.files[0]!.id);
+    await expect(panel.openOrCreateFile(existing.path, content)).resolves.toBeNull();
+    expect(callbacks.activateFile).toHaveBeenCalledWith(existing, project);
     expect(focusEditor).toHaveBeenCalledOnce();
     expect(content).not.toHaveBeenCalled();
 
@@ -413,14 +425,17 @@ describe("project file dialog", () => {
     const panel = new TestProjectFileDialog();
     const callbacks = mutationCallbacks();
     vi.spyOn(globalThis, "fetch").mockResolvedValue(Response.json({ invalid: true }));
-    const file = snapshot.files[0]!;
+    const file = { ...snapshot.files[0]!, id: "file-2", path: "chapter.md" };
+    const project = { ...snapshot, files: [...snapshot.files, file] };
     panel.configureApi("/api/workspaces/workspace", callbacks);
+    panel.presentProject(project, "/assets", true);
+    panel.selectFile(file.id);
 
-    panel.deleteFile(file, "entry-file");
+    panel.deleteFile(file, snapshot.entryFileId);
     await vi.advanceTimersByTimeAsync(6_000);
 
     expect(panel.hiddenFiles.has(file.id)).toBe(false);
-    expect(callbacks.selectFile).toHaveBeenLastCalledWith(file.id);
+    expect(callbacks.activateFile).toHaveBeenLastCalledWith(file, project);
     expect(callbacks.commit).not.toHaveBeenCalled();
     expect(callbacks.presentNotice).toHaveBeenLastCalledWith(`Could not delete ${file.path}.`, undefined);
   });

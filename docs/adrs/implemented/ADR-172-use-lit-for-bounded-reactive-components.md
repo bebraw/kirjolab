@@ -856,9 +856,9 @@ reason to wrap static markup mechanically.
   toast policy.
 - The project-file action components replace seven button references, seven
   direct bindings, and coordinator-owned delete availability with two component
-  references and one typed event protocol. The coordinator retains active-file
-  identity, resource checks, dialogs, upload selection, mutation, deferred
-  deletion, and toast policy.
+  references and one typed event protocol. The composed project-file dialog
+  retains active-file identity, resource checks, dialogs, upload selection,
+  mutation, deferred deletion, and toast routing.
 - The project file dialog replaces seven internal element references and
   imperative file and folder operation configuration. Its completed outcome also
   removes the coordinator's duplicate operation-mode and folder-target fields
@@ -874,9 +874,12 @@ reason to wrap static markup mechanically.
   coordinator fields, the saved mode/path protocol, and the post-save include
   helper. Its workflow-file resolver also removes coordinator-side canonical
   path lookup, existing-file selection and focus, and a separate creation helper.
+  Its canonical selection method now routes tree, workflow, save, deletion,
+  Undo, route, and cross-feature choices through one activation callback and
+  removes stable file identity from save completion.
   Collaborative include-target capture and continuation construction,
-  active-file and snapshot authority, Yjs insertion, cross-feature rendering,
-  and the toast outlet remain in the application coordinator.
+  snapshot and active Y.Text/editor authority, Yjs insertion, cross-feature
+  rendering, and the toast outlet remain in the application coordinator.
 - The project template save dialog replaces seven internal element references
   and imperative replacement-option, value, status, focus, and cancellation
   handling while consuming the starting-point browser's visible template view.

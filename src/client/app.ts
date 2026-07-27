@@ -372,6 +372,7 @@ class WorkspaceApp {
     bindYText(this.#elements.bibliography, this.#bibliography, this.#document);
     this.#elements.projectImageUpload.configure(apiBase);
     this.#elements.projectFileDialog.configureApi(apiBase, {
+      activateFile: (file, snapshot) => this.#activateProjectFile(file, snapshot),
       commit: (snapshot) => {
         this.#snapshot = snapshot;
         this.#renderProjectFiles();
@@ -379,7 +380,6 @@ class WorkspaceApp {
       },
       presentNotice: (message, options) => this.#showToast(message, options),
       previewChanged: () => void this.#renderPreview(),
-      selectFile: (fileId) => this.#selectProjectFile(fileId),
     });
     this.#elements.projectFileDialog.bindWorkflow({
       actionControls: [this.#elements.projectFileRailActions, this.#elements.projectFileMenuActions],
@@ -403,11 +403,7 @@ class WorkspaceApp {
         this.#layout.setRailCollapsed(false);
         this.#showRail("files");
       },
-      saved: ({ fileId, included, message }) => {
-        if (!included && fileId) this.#selectProjectFile(fileId);
-        this.#showToast(message);
-      },
-      selectFile: (fileId) => this.#selectProjectFile(fileId),
+      saved: ({ message }) => this.#showToast(message),
       tree: this.#elements.projectTreePanel,
     });
     this.#elements.projectFileDialog.bindPresentation(this.#elements);
@@ -585,7 +581,7 @@ class WorkspaceApp {
     const route = readWorkspaceUiRoute(url);
     if (url.searchParams.has("rail")) this.#showRail(route.rail);
     if (url.searchParams.has("mode")) this.#setAuthoringMode(route.mode);
-    if (route.fileId && this.#snapshot?.files.some((file) => file.id === route.fileId)) this.#selectProjectFile(route.fileId);
+    if (route.fileId) this.#elements.projectFileDialog.selectFile(route.fileId);
     if (url.searchParams.has("context")) await this.#restoreWorkspaceContext(route);
     if (route.layout) await this.#applyWorkspaceLayout(route.layout, false);
     if (url.searchParams.has("surface")) this.#showWorkspaceSurface(route.surface);
@@ -773,11 +769,7 @@ class WorkspaceApp {
     this.#renderAuthoringTarget();
   }
 
-  #selectProjectFile(fileId: string): void {
-    const snapshot = this.#snapshot;
-    if (!snapshot) return;
-    const file = this.#elements.projectFileDialog.activateFile(snapshot, fileId);
-    if (!file) return;
+  #activateProjectFile(file: ProjectFile, snapshot: WorkspaceSnapshot): void {
     this.#unbindSourceEditor();
     this.#activeFileText = this.#document.getText(projectFileCollaborationTextName(file, snapshot.entryFileId));
     this.#elements.source.value = this.#activeFileText.toString();
@@ -793,7 +785,7 @@ class WorkspaceApp {
   }
 
   #focusProjectRange(fileId: string, from: number, to: number): void {
-    if (fileId) this.#selectProjectFile(fileId);
+    if (fileId) this.#elements.projectFileDialog.selectFile(fileId);
     this.#setAuthoringMode("write");
     this.#elements.source.focus();
     this.#elements.source.setSelectionRange(from, Math.max(from, to));
@@ -1193,7 +1185,7 @@ class WorkspaceApp {
     }
     this.#showWorkspaceSurface("authoring");
     this.#setAuthoringMode("write");
-    this.#selectProjectFile(anchor.fileId);
+    this.#elements.projectFileDialog.selectFile(anchor.fileId);
     this.#elements.source.focus();
     this.#elements.source.setSelectionRange(resolution.start, resolution.end);
     this.#rememberAuthoringSelection();

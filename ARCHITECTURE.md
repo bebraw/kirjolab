@@ -247,12 +247,15 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   delayed deletion, Undo restoration, failed-commit restoration, and deletion
   notices. For create-and-include, it retains the one-shot insertion
   continuation across its dialog lifecycle, invokes it after applying the
-  validated snapshot, and supplies only the derived included state, message, and
-  stable file identity through its typed workflow callback. It routes validated
+  validated snapshot, selects an ordinary newly created file itself, and
+  supplies only the derived included state and message through its typed
+  workflow callback. It routes validated
   upload and save snapshots through one canonical mutation binding. From one canonical snapshot it also
   owns active-file identity, entry fallback, hidden-file selection eligibility,
-  active file/folder resolution for dialogs, active-file deletion eligibility,
-  and relative image insertion projection. It projects the visible file
+  canonical selection validation and activation routing, active file/folder
+  resolution for dialogs, active-file deletion eligibility, and relative image
+  insertion projection. Tree, workflow, save, deletion, Undo, route, and
+  cross-feature selections all use that single activation path. It projects the visible file
   collection and active/entry state into the project tree, Insert menu, source
   completion, and file menu. It also materializes that same visible collection
   with snapshot or live collaborative content for Preview, manuscript-map, and
@@ -260,8 +263,8 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   resolver. Apply or return the validated workspace snapshot through that
   mutation binding, or return the newly created stable file. Keep workflow-
   template selection and new-file navigation, collaborative caret capture and continuation
-  construction, Yjs insertion and
-  active-text binding, Yjs document authority, canonical snapshot authority,
+  construction, Yjs insertion and active-text/editor binding after a validated
+  activation, Yjs document authority, canonical snapshot authority,
   cross-feature rendering, and
   the global toast outlet in the workspace coordinator.
 - Let the editor Insert menu own the scholarly syntax templates it displays and

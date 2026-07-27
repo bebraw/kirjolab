@@ -10,7 +10,6 @@ import { projectTreeActionEvent, type ProjectTreeAction, type ProjectTreeCallbac
 export type ProjectFileDialogMode = "create" | "create-and-include" | "rename" | "create-folder" | "rename-folder";
 
 export interface ProjectFileSaved {
-  readonly fileId?: string;
   readonly included: boolean;
   readonly message: string;
 }
@@ -21,10 +20,10 @@ export interface ProjectImageInsertion {
 }
 
 export interface ProjectFileMutationCallbacks {
+  readonly activateFile: (file: ProjectFile, snapshot: WorkspaceSnapshot) => void;
   readonly commit: (snapshot: WorkspaceSnapshot) => void;
   readonly presentNotice: (message: string, options?: DeferredDeletionNoticeOptions) => void;
   readonly previewChanged: () => void;
-  readonly selectFile: (fileId: string) => void;
 }
 
 interface ProjectImageUploadSource extends EventTarget {
@@ -57,7 +56,6 @@ export interface ProjectFileWorkflowRouting {
   readonly prepareInclude: (activeFile: ProjectFile) => ((path: string) => boolean) | null;
   readonly quickOpen: () => void;
   readonly saved: (result: ProjectFileSaved) => void;
-  readonly selectFile: (fileId: string) => void;
   readonly tree: ProjectFileTreeSource;
 }
 
@@ -110,10 +108,10 @@ export class ProjectFileDialog extends LitElement {
   declare private status: string;
   private apiBase = "";
   private mutationCallbacks: ProjectFileMutationCallbacks = {
+    activateFile: () => undefined,
     commit: () => undefined,
     presentNotice: () => undefined,
     previewChanged: () => undefined,
-    selectFile: () => undefined,
   };
   private readonly deletions = new DeferredDeletionController((message, options) => {
     this.mutationCallbacks.presentNotice(message, options);
@@ -180,7 +178,16 @@ export class ProjectFileDialog extends LitElement {
     return files.map((file) => ({ ...file, content: liveContent(file, snapshot.entryFileId) }));
   }
 
-  activateFile(snapshot: WorkspaceSnapshot, fileId: string): ProjectFile | null {
+  selectFile(fileId: string): boolean {
+    const snapshot = this.snapshot;
+    if (!snapshot) return false;
+    const file = this.activateFile(snapshot, fileId);
+    if (!file) return false;
+    this.mutationCallbacks.activateFile(file, snapshot);
+    return true;
+  }
+
+  private activateFile(snapshot: WorkspaceSnapshot, fileId: string): ProjectFile | null {
     const file = snapshot.files.find(({ id }) => id === fileId);
     if (!file || this.hiddenFileIds.has(fileId) || fileId === this.selectedFileId) return null;
     this.selectedFileId = fileId;
@@ -246,11 +253,11 @@ export class ProjectFileDialog extends LitElement {
       failedMessage: `Could not delete ${file.path}.`,
       hide: () => {
         this.hiddenFileIds.add(file.id);
-        this.mutationCallbacks.selectFile(entryFileId);
+        this.selectFile(entryFileId);
       },
       restore: () => {
         this.hiddenFileIds.delete(file.id);
-        this.mutationCallbacks.selectFile(file.id);
+        this.selectFile(file.id);
       },
       commit: async () => {
         const response = await fetch(`${this.apiBase}/files/${encodeURIComponent(file.id)}`, {
@@ -276,7 +283,7 @@ export class ProjectFileDialog extends LitElement {
   async openOrCreateFile(path: string, content: () => string): Promise<ProjectFile | null> {
     const existing = this.snapshot?.files.find((file) => file.path === path);
     if (existing) {
-      this.routing?.selectFile(existing.id);
+      this.selectFile(existing.id);
       this.routing?.focusEditor();
       return null;
     }
@@ -360,8 +367,8 @@ export class ProjectFileDialog extends LitElement {
       this.mutationCallbacks.commit(snapshot);
       const included = this.pendingInclude?.(path) ?? false;
       this.pendingInclude = null;
+      if (!included && fileId) this.selectFile(fileId);
       this.routing?.saved({
-        ...(fileId ? { fileId } : {}),
         included,
         message: projectFileSavedMessage(this.mode, path),
       });
@@ -391,7 +398,7 @@ export class ProjectFileDialog extends LitElement {
     if (!routing) return;
     const detail = (event as CustomEvent<ProjectTreeAction>).detail;
     if (detail.action === "select-file") {
-      routing.selectFile(detail.fileId);
+      this.selectFile(detail.fileId);
       if (detail.focusEditor) routing.focusEditor();
     } else if (detail.action === "quick-open") {
       routing.quickOpen();

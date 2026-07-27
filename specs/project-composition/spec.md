@@ -52,8 +52,8 @@ collaborative, and unambiguous about what preview and export mean.
   contain at most 32 files.
 - Preview presents composition and Markdown-renderer diagnostics through one
   bounded list. Diagnostic selection emits a file-qualified authored range
-  resolved from the active preview source map; the workspace coordinator owns
-  file switching and editor focus.
+  resolved from the active preview source map; the project-file dialog validates
+  file selection and the workspace coordinator owns editor binding and focus.
 - The workspace Preview derives publication composition, active-file preview,
   rendered fallback source, and the active source map from coordinator-supplied
   canonical project files, snapshot pins, and active-file identity before
@@ -100,10 +100,12 @@ collaborative, and unambiguous about what preview and export mean.
   snapshots use one canonical mutation binding. A create-and-include operation
   retains one insertion continuation across the dialog lifecycle, invokes it
   only after applying the validated snapshot, and clears it on success or
-  cancellation; save completion carries only the derived stable file identity,
-  included state, and notice. The workspace coordinator retains resource
+  cancellation; an ordinary save selects its created file through the same
+  canonical activation path, and save completion carries only included state
+  and notice. The workspace coordinator retains resource
   availability, include-caret capture and continuation construction, validated
-  snapshot application, selection, Yjs insertion, rendering, and toast policy.
+  snapshot application, active Y.Text/editor binding, Yjs insertion, rendering,
+  and toast policy.
   For content-bearing workflow files, the dialog resolves the canonical path,
   selects and focuses an existing file without evaluating the lazy content
   factory, or returns the newly created stable file for coordinator navigation.
@@ -161,8 +163,10 @@ collaborative, and unambiguous about what preview and export mean.
   insertion by the workspace coordinator.
   Given a canonical snapshot and active file, the same component filters its
   hidden-file projection once, owns active-file identity, entry fallback, and
-  hidden-file selection eligibility. It resolves the active file and requested
-  folder for dialogs, rejects entry-file deletion, derives relative image
+  hidden-file selection eligibility. One canonical selection method validates
+  and routes tree, workflow, save, deletion, Undo, route, and cross-feature
+  choices through a typed activation callback. It resolves the active file and
+  requested folder for dialogs, rejects entry-file deletion, derives relative image
   insertion from that active file, and supplies the project tree, Insert menu,
   source-completion list, and file-action menu with their bounded views.
   Through a narrow coordinator-supplied live-content resolver, it also
@@ -178,9 +182,9 @@ collaborative, and unambiguous about what preview and export mean.
   file hidden projection, delayed deletion, Undo, and failed-commit restoration.
   The workspace coordinator must not reconstruct mutation targets from mutable
   ambient selection; it retains collaborative include-target capture before a
-  component-owned dialog opens, canonical
-  snapshot and active Y.Text/editor authority, cross-feature rendering, and the
-  notification outlet.
+  component-owned dialog opens, canonical snapshot and active Y.Text/editor
+  authority after activation, cross-feature rendering, and the notification
+  outlet.
 - Publication exports consume the versioned source-mapped intermediate defined
   by `specs/export-pipeline/spec.md`; no target may reimplement include
   expansion or front-matter offset handling.
