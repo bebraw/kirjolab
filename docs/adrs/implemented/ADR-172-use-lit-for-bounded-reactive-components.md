@@ -489,13 +489,14 @@ The adopted components own bounded presentation:
   completion. The context-resource presenter applies the form's tool and draft-
   clearing effects through its bounded viewer, routes citation and evidence-
   panel intents across its composed Lit owners, and delegates only refresh,
-  notice, and optional manuscript-link outcomes to the application coordinator,
-  local toolbar tool commits, viewer-highlight edit/reveal-versus-erase routing,
-  and completed undo-state presentation,
-  nested publication-intake
-  configuration and PDF projection, intake
-  refresh acknowledgement and navigation routing, and one typed workflow
-  binding for tool, undo, citation, and completion outcomes or intents.
+  notice, and optional manuscript-link outcomes to the application coordinator.
+  The form also owns local toolbar tool commits, viewer-highlight edit/reveal-
+  versus-erase routing, completed undo-state presentation, nested publication-
+  intake PDF projection, refresh acknowledgement, and one typed workflow binding
+  for tool, undo, citation, and completion outcomes or intents. The presenter
+  supplies intake API configuration, canonical publication lookup, navigation,
+  and notification routes while the application coordinator supplies only
+  resource refresh.
 - The Library PDF annotation forms own private-highlight, page-note, and
   selected-markup composer visibility and values, private-highlight geometry
   and optional editing identity, private-highlight create and comment-update

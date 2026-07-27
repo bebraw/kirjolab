@@ -37,9 +37,11 @@ with an authored passage.
   publication-intake composition, visibility, visible-PDF choices, captured
   page and quotation context, the optional note, selection status, citation
   availability, highlight-tool and undo presentation, and typed tool, undo,
-  citation, save, and link intents through one workflow binding. It configures and projects its nested
-  publication-intake owner and routes its refresh-pending acceptance and linked-
-  reference navigation through typed coordinator callbacks. It derives paint-
+  citation, save, and link intents through one workflow binding. It projects its
+  nested publication-intake owner and owns refresh-pending acceptance. Its
+  context-resource presenter supplies intake API configuration, canonical
+  publication lookup, navigation, and notification routes while the workspace
+  coordinator supplies only resource refresh. It derives paint-
   versus-erase tool guidance and selection feedback from its local tool and the
   canonical capture, classifies saved strokes that geometrically overlap that
   capture on the active PDF page, routes their ordered removal through its typed

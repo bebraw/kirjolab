@@ -325,9 +325,11 @@ describe("context resource presenter", () => {
     const capture = { page: 2, prefix: "Before", quote: "Evidence", rects: [], suffix: "After" };
     const persistCapture = vi.spyOn(elements["project-annotation-form"], "persistCapture").mockResolvedValue(undefined);
     const activateHighlight = vi.spyOn(elements["project-annotation-form"], "activateHighlight").mockResolvedValue(undefined);
+    const configureAnnotation = vi.spyOn(elements["project-annotation-form"], "configure");
     const selectPdf = vi.spyOn(elements["project-annotation-form"], "selectPdf");
     const showCapture = vi.spyOn(elements["project-annotation-form"], "showCapture");
     presenter.bindPdfViewer(viewer, "/api/workspaces/workspace");
+    expect(configureAnnotation).toHaveBeenCalledWith("/api/workspaces/workspace");
     presenter.present({ ...sources(tab), snapshot: project });
 
     await presenter.loadActivePdf(false);
@@ -488,6 +490,7 @@ describe("context resource presenter", () => {
 
   it("restores resource routes through canonical lookups and typed effects", async () => {
     const { elements, presenter } = setup();
+    const bindIntake = vi.spyOn(elements["project-annotation-form"], "bindIntake");
     const publication = {
       abstract: "",
       authors: ["Ada Author"],
@@ -630,6 +633,17 @@ describe("context resource presenter", () => {
     expect(setCitationAvailable).toHaveBeenNthCalledWith(2, false);
     expect(presenter.openCitation({ keys: ["one", "two"] })).toBe("Open this grouped citation from Preview to choose a reference.");
     expect(presenter.openCitation({ keys: ["missing"] })).toBe("No publication resource is available for missing.");
+
+    const refresh = vi.fn().mockResolvedValue(undefined);
+    presenter.bindProjectAnnotationIntake(refresh);
+    const intake = bindIntake.mock.calls[0]?.[0];
+    expect(intake?.publications()).toEqual(project.publications);
+    intake?.openPublication(publication);
+    intake?.presentNotice("Reference connected.");
+    await intake?.refresh();
+    expect(coordinator.openPublication).toHaveBeenCalledWith(publication);
+    expect(coordinator.presentNotice).toHaveBeenCalledWith("Reference connected.");
+    expect(refresh).toHaveBeenCalledOnce();
   });
 
   it("owns private-PDF inspector, markup reset, and toolbar presentation", () => {

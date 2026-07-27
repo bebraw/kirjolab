@@ -299,6 +299,16 @@ export class ContextResourcePresenter extends LitElement {
   bindPdfViewer(viewer: ContextPdfViewer, apiBase: string): void {
     this.pdfViewer = viewer;
     this.pdfApiBase = apiBase;
+    this.element("project-annotation-form", ProjectAnnotationForm)?.configure(apiBase);
+  }
+
+  bindProjectAnnotationIntake(refresh: () => Promise<void>): void {
+    this.element("project-annotation-form", ProjectAnnotationForm)?.bindIntake({
+      openPublication: (publication) => this.routeCoordinator?.openPublication(publication),
+      presentNotice: (message) => this.routeCoordinator?.presentNotice(message),
+      publications: () => this.routeCoordinator?.project()?.publications ?? [],
+      refresh,
+    });
   }
 
   bindProjectAnnotationWorkflow(completeWorkflow: (completion: ProjectAnnotationCoordinatorCompletion) => Promise<void>): void {

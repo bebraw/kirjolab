@@ -504,13 +504,7 @@ class WorkspaceApp {
       manage: (publicationId) => void this.#openReferenceLibraryEntry(publicationId),
       open: (publication) => this.#openPublicationContext(publication),
     });
-    this.#elements.projectAnnotationForm.configure(apiBase);
-    this.#elements.projectAnnotationForm.bindIntake({
-      openPublication: (publication) => this.#openPublicationContext(publication),
-      presentNotice: (message) => this.#showToast(message),
-      publications: () => this.#snapshot?.publications ?? [],
-      refresh: async () => await this.#resourceRefresh.request(),
-    });
+    this.#elements.contextResourcePresenter.bindProjectAnnotationIntake(async () => await this.#resourceRefresh.request());
     this.#elements.contextResourcePresenter.bindProjectAnnotationWorkflow(async ({ linkAnnotationId, notice, refreshResources }) => {
       if (refreshResources) await this.#resourceRefresh.request();
       if (linkAnnotationId) await this.#linkSelectedPassage("annotation", linkAnnotationId);

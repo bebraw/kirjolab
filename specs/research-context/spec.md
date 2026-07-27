@@ -313,8 +313,10 @@ changing their canonical data, selector, authorization, or rendering contracts.
   capture persistence, overlap classification, and typed completion outcomes.
   Its context-resource presenter applies tool and draft-clearing effects through
   the bounded viewer, routes citation and evidence-panel intents across composed
-  Lit owners, and delegates only refresh, notice, and optional manuscript-link
-  effects to the workspace coordinator. The form also owns toolbar tool commits, viewer-
+  Lit owners, supplies nested-intake API configuration, canonical publication
+  lookup, navigation, and notification routes, and delegates only resource
+  refresh plus optional manuscript-link effects to the workspace coordinator.
+  The form also owns toolbar tool commits, viewer-
   highlight edit/reveal-versus-erase routing, and completed undo presentation.
   The workspace coordinator retains PDF gestures,
   manuscript linking, canonical refresh, publication

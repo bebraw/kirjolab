@@ -792,13 +792,14 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   plus citation availability from the active PDF and canonical publication-PDF
   links. Let it also commit its own toolbar tool state, resolve viewer-highlight
   activation to edit/reveal or erase behavior, and complete undo state and
-  status after delegated mutation. Let the composer configure and project its nested publication-intake
-  owner, acknowledge or reject intake after canonical refresh, and route linked
-  or accepted publications through typed callbacks. Route completed note-save,
-  tool, undo, erasure, citation, and link outcomes through one typed workflow binding while
-  leaving viewer draft clearing, manuscript linking,
-  canonical refreshes, and notifications in the application
-  coordinator.
+  status after delegated mutation. Let the composer project its nested
+  publication-intake owner and acknowledge or reject intake after canonical
+  refresh. Let the context-resource presenter supply its API configuration,
+  canonical publication lookup, navigation, and notification routes while the
+  application coordinator supplies only resource refresh. Route completed note-
+  save, tool, undo, erasure, citation, and link outcomes through one typed
+  workflow binding while leaving manuscript linking, canonical refreshes, and
+  notifications in the application coordinator.
 - Refine tablet highlight strokes through bounded normalized geometry and quotation updates; preserve annotation/stroke identity and imported PDF immutability.
 - Retain the active manuscript caret or selection as Yjs-relative positions, render that local target after editor blur, and resolve it before any contextual insertion or replacement.
 - Keep standalone private PDF locations routable in browser history. Parse and
