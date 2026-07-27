@@ -9352,6 +9352,28 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,721 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Valibot Adoption: Collaboration Protocol
+
+Client selections and every server collaboration control message now use
+strict Valibot schemas for exact keys, protocol literals, bounded identifiers,
+safe non-negative integers, and ordered selection ranges. JSON-size policy,
+encoding failures, Yjs update validation, and update-application semantics stay
+explicit.
+
+This checkpoint reduces `src/domain/collaboration.ts` from 134 to 112 lines
+(-22), replacing the client guard, server switch, exact-key helper, and
+primitive predicates. Focused collaboration coverage passes all 22 tests
+alongside strict types.
+
+The browser application artifact changes from 848,300 B raw / 228,857 B gzip
+to 849,520 B raw / 228,966 B gzip (+1,220 B raw / +109 B gzip). Styles and
+direct and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150; the increase is the cost of adding strict-object
+and tagged-union validation to an already pinned dependency.
+
+Full native CI passes all 1,721 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Library PDF Project Use Projection
 
 `LibraryPdfProjectUse` now resolves the active bibliographic record and matching

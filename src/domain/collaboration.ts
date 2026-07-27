@@ -1,3 +1,4 @@
+import * as v from "valibot";
 import * as Y from "yjs";
 
 export const collaborationProtocolVersion = 1 as const;
@@ -21,6 +22,41 @@ export interface ClientSelectionMessage {
   readonly revision: number;
 }
 
+const revisionSchema = v.pipe(v.number(), v.safeInteger(), v.minValue(0));
+const identifierSchema = v.pipe(v.string(), v.minLength(1), v.maxLength(128));
+const clientSelectionMessageSchema = v.pipe(
+  v.strictObject({
+    type: v.literal("selection"),
+    protocol: v.literal(collaborationProtocolVersion),
+    fileId: identifierSchema,
+    start: revisionSchema,
+    end: revisionSchema,
+    revision: revisionSchema,
+  }),
+  v.check((value) => value.end >= value.start),
+);
+const serverSelectionMessageSchema = v.pipe(
+  v.strictObject({
+    type: v.literal("selection"),
+    collaboratorId: identifierSchema,
+    fileId: identifierSchema,
+    start: revisionSchema,
+    end: revisionSchema,
+    revision: revisionSchema,
+  }),
+  v.check((value) => value.end >= value.start),
+);
+const serverCollaborationMessageSchema = v.union([
+  v.strictObject({ type: v.literal("sync"), protocol: v.literal(collaborationProtocolVersion), revision: revisionSchema }),
+  v.strictObject({ type: v.literal("ack"), revision: revisionSchema }),
+  v.strictObject({ type: v.literal("revision"), revision: revisionSchema }),
+  v.strictObject({ type: v.literal("reset"), revision: revisionSchema }),
+  v.strictObject({ type: v.literal("presence"), collaborators: revisionSchema }),
+  serverSelectionMessageSchema,
+  v.strictObject({ type: v.literal("selection-clear"), collaboratorId: identifierSchema }),
+  v.strictObject({ type: v.literal("resources") }),
+]);
+
 export function encodeClientSelectionMessage(message: ClientSelectionMessage): string {
   if (!isClientSelectionMessage(message)) throw new TypeError("Invalid client selection message");
   return JSON.stringify(message);
@@ -37,17 +73,7 @@ export function parseClientSelectionMessage(value: string): ClientSelectionMessa
 }
 
 export function isClientSelectionMessage(value: unknown): value is ClientSelectionMessage {
-  return (
-    isRecord(value) &&
-    hasExactKeys(value, ["type", "protocol", "fileId", "start", "end", "revision"]) &&
-    value.type === "selection" &&
-    value.protocol === collaborationProtocolVersion &&
-    isIdentifier(value.fileId) &&
-    isRevision(value.start) &&
-    isRevision(value.end) &&
-    value.end >= value.start &&
-    isRevision(value.revision)
-  );
+  return v.is(clientSelectionMessageSchema, value);
 }
 
 export function encodeServerCollaborationMessage(message: unknown): string {
@@ -65,38 +91,7 @@ export function parseServerCollaborationMessage(value: string): ServerCollaborat
 }
 
 export function isServerCollaborationMessage(value: unknown): value is ServerCollaborationMessage {
-  if (!isRecord(value) || typeof value.type !== "string") return false;
-
-  switch (value.type) {
-    case "sync":
-      return (
-        hasExactKeys(value, ["type", "protocol", "revision"]) &&
-        value.protocol === collaborationProtocolVersion &&
-        isRevision(value.revision)
-      );
-    case "ack":
-    case "revision":
-    case "reset":
-      return hasExactKeys(value, ["type", "revision"]) && isRevision(value.revision);
-    case "presence":
-      return hasExactKeys(value, ["type", "collaborators"]) && isRevision(value.collaborators);
-    case "selection":
-      return (
-        hasExactKeys(value, ["type", "collaboratorId", "fileId", "start", "end", "revision"]) &&
-        isIdentifier(value.collaboratorId) &&
-        isIdentifier(value.fileId) &&
-        isRevision(value.start) &&
-        isRevision(value.end) &&
-        value.end >= value.start &&
-        isRevision(value.revision)
-      );
-    case "selection-clear":
-      return hasExactKeys(value, ["type", "collaboratorId"]) && isIdentifier(value.collaboratorId);
-    case "resources":
-      return hasExactKeys(value, ["type"]);
-    default:
-      return false;
-  }
+  return v.is(serverCollaborationMessageSchema, value);
 }
 
 export function applyYjsUpdateOnce(document: Y.Doc, update: Uint8Array): boolean {
@@ -114,21 +109,4 @@ export function applyYjsUpdateOnce(document: Y.Doc, update: Uint8Array): boolean
     document.off("update", observeUpdate);
   }
   return applied;
-}
-
-function isRevision(value: unknown): value is number {
-  return typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
-}
-
-function isIdentifier(value: unknown): value is string {
-  return typeof value === "string" && value.length > 0 && value.length <= 128;
-}
-
-function hasExactKeys(value: Record<string, unknown>, expected: readonly string[]): boolean {
-  const keys = Object.keys(value);
-  return keys.length === expected.length && expected.every((key) => Object.hasOwn(value, key));
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

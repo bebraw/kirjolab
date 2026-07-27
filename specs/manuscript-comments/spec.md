@@ -96,8 +96,9 @@ ephemeral rather than a scholarly resource.
   evidence and claim passage links.
 - Only authenticated workspace members may create or resolve comments.
 - Every comment mutation and its history snapshot must commit atomically.
-- Selection messages must use exact keys, protocol version 1, safe integer
-  offsets, and a valid current project file/revision.
+- Strict Valibot collaboration-message schemas must enforce exact keys,
+  protocol version 1, safe integer offsets, ordered selection ranges, and a
+  valid current project file/revision.
 - Invalid client metadata must never be persisted or rebroadcast.
 - Switching the local left-rail mode must not mutate Markdown, comments, Yjs
   state, or collaboration messages.
