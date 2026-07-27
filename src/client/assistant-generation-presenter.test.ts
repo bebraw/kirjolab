@@ -2,12 +2,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AssistantGenerationPresenter, type AssistantGenerationInput } from "./assistant-generation-presenter";
 import { assistantOperationDefinition } from "./assistant-operations";
 import { AssistantResultPanel } from "./assistant-result-panel";
-import { AssistantTaskPanel } from "./assistant-task-panel";
-import { AssistantWorkflowStatus } from "./assistant-workflow-status";
+import { AssistantTaskPanel, assistantTaskChangeEvent, assistantTaskGenerateEvent } from "./assistant-task-panel";
+import { AssistantWorkflowStatus, assistantWorkflowActionEvent } from "./assistant-workflow-status";
 import { CandidateListPanel } from "./candidate-list-panel";
 import { CandidateReviewPanel } from "./candidate-review-panel";
 import { OpenAICompatibleBrowserProvider } from "./model-provider";
-import { ModelProviderSettings } from "./model-provider-settings";
+import { ModelProviderSettings, modelProviderChangeEvent } from "./model-provider-settings";
 import type { ModelClaimCandidate, ModelRevisionCandidate } from "../domain/workspace";
 
 const passage = { end: 18, excerpt: "Target manuscript", fileId: "main.md", start: 1 };
@@ -215,5 +215,33 @@ describe("assistant generation presenter", () => {
     expect(clear).toHaveBeenCalledOnce();
     expect(showTarget).toHaveBeenCalledWith({ passage: "Selected target", scope: "selection", target: { end: 12, start: 3 } });
     expect(presenter.targetScope()).toBe("sentence");
+  });
+
+  it("owns local assistant control wiring", () => {
+    const { elements, presenter } = setup();
+    const callbacks = {
+      chooseEvidence: vi.fn(),
+      generate: vi.fn(),
+      refreshAvailability: vi.fn(),
+      refreshTarget: vi.fn(),
+    };
+    const openSettings = vi.spyOn(elements["model-provider-settings"], "open").mockImplementation(() => undefined);
+    const clearResult = vi.spyOn(elements["assistant-interactive-result"], "clear");
+    presenter.bindControls(callbacks);
+    for (const callback of Object.values(callbacks)) callback.mockClear();
+
+    elements["model-provider-settings"].dispatchEvent(new CustomEvent(modelProviderChangeEvent, { detail: "Provider ready" }));
+    expect(elements["assistant-workflow-status"].status).toBe("Provider ready");
+    elements["assistant-workflow-status"].dispatchEvent(new CustomEvent(assistantWorkflowActionEvent, { detail: "choose-evidence" }));
+    elements["assistant-workflow-status"].dispatchEvent(new CustomEvent(assistantWorkflowActionEvent, { detail: "open-settings" }));
+    elements["assistant-task-panel"].dispatchEvent(new CustomEvent(assistantTaskChangeEvent, { detail: "operation" }));
+    elements["assistant-task-panel"].dispatchEvent(new CustomEvent(assistantTaskGenerateEvent));
+
+    expect(callbacks.chooseEvidence).toHaveBeenCalledOnce();
+    expect(callbacks.generate).toHaveBeenCalledOnce();
+    expect(callbacks.refreshAvailability).toHaveBeenCalledTimes(2);
+    expect(callbacks.refreshTarget).toHaveBeenCalledOnce();
+    expect(openSettings).toHaveBeenCalledOnce();
+    expect(clearResult).toHaveBeenCalledOnce();
   });
 });

@@ -5974,6 +5974,31 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,640 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Assistant Control Wiring
+
+`AssistantGenerationPresenter` now owns local subscriptions for model-settings
+changes, workflow actions, task changes, and generation intent. It handles
+settings opening, status propagation, operation reset, and initial task
+presentation internally while delegating evidence navigation, canonical target
+and availability refresh, and generation execution through four explicit
+coordinator callbacks.
+
+This checkpoint reduces `src/client/app.ts` from 2,994 to 2,972 lines (-22)
+and grows the generation presenter from 202 to 240 lines. Runtime source across
+those two files grows by 16 lines while deleting four event imports, four
+sibling subscription blocks, and the coordinator-only task-update wrapper.
+Seven direct presenter cases cover all operation routes, availability and task
+projection, initial and changed control wiring, settings opening, evidence and
+generation delegation, and strict client and Workers types.
+
+The browser application artifact changes from 833,593 B raw / 225,465 B gzip
+to 833,791 B raw / 225,535 B gzip (+198 B raw / +70 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,641 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

@@ -37,7 +37,10 @@ All mutation operations preserve a human review boundary.
   review owners, deriving evidence counts and model availability only from the
   components that own them. It also derives target scope from task-owned
   operation state and coordinates operation status, transient-result reset, and
-  target preview from canonical editor-target inputs.
+  target preview from canonical editor-target inputs. It owns sibling model-
+  settings, workflow-action, task-change, and generation-intent subscriptions,
+  delegating only evidence navigation, canonical target and availability
+  refresh, and generation execution to the application.
 - A non-empty manuscript selection always resolves exactly. Otherwise the
   remembered Yjs-relative caret expands deterministically to the configured
   sentence, paragraph, or Markdown section, or remains an insertion point.

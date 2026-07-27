@@ -357,6 +357,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   availability from their owning Lit components. It may also derive target
   scope from task-owned operation state and coordinate operation status, result
   reset, and target preview from coordinator-supplied canonical target inputs.
+  It owns local model-settings, workflow-action, task-change, and generation-
+  intent subscriptions, delegating only evidence navigation, canonical target
+  refresh, canonical availability refresh, and generation execution back to the
+  coordinator.
   Let the candidate-review Lit owner resolve the active candidate id against
   the canonical workspace snapshot and derive evidence availability and local
   applicability from candidate, evidence-version, source-revision,

@@ -1,11 +1,16 @@
 import { html, LitElement, type TemplateResult } from "lit";
 import { resolveAssistantTarget, type AssistantOperationDefinition, type AssistantTargetScope } from "./assistant-operations";
 import { AssistantResultPanel, type AssistantAuthoringPassage } from "./assistant-result-panel";
-import { AssistantTaskPanel } from "./assistant-task-panel";
-import { AssistantWorkflowStatus, type SelectedModelEvidence } from "./assistant-workflow-status";
+import { AssistantTaskPanel, assistantTaskChangeEvent, assistantTaskGenerateEvent, type AssistantTaskChange } from "./assistant-task-panel";
+import {
+  AssistantWorkflowStatus,
+  assistantWorkflowActionEvent,
+  type AssistantWorkflowAction,
+  type SelectedModelEvidence,
+} from "./assistant-workflow-status";
 import { CandidateListPanel } from "./candidate-list-panel";
 import { CandidateReviewPanel } from "./candidate-review-panel";
-import { ModelProviderSettings } from "./model-provider-settings";
+import { ModelProviderSettings, modelProviderChangeEvent } from "./model-provider-settings";
 import type { ModelProvider } from "./model-provider";
 import type { ModelCandidate } from "../domain/workspace";
 
@@ -46,7 +51,40 @@ export interface AssistantAvailabilityInput {
   readonly workflowBusy: boolean;
 }
 
+export interface AssistantControlCallbacks {
+  readonly chooseEvidence: () => void;
+  readonly generate: () => void;
+  readonly refreshAvailability: () => void;
+  readonly refreshTarget: () => void;
+}
+
 export class AssistantGenerationPresenter extends LitElement {
+  bindControls(callbacks: AssistantControlCallbacks): void {
+    const settings = this.element("model-provider-settings", ModelProviderSettings);
+    const status = this.element("assistant-workflow-status", AssistantWorkflowStatus);
+    const task = this.element("assistant-task-panel", AssistantTaskPanel);
+    settings?.addEventListener(modelProviderChangeEvent, (event) => {
+      const message = (event as CustomEvent<string | null>).detail;
+      if (message && status) status.status = message;
+      callbacks.refreshAvailability();
+    });
+    status?.addEventListener(assistantWorkflowActionEvent, (event) => {
+      const action = (event as CustomEvent<AssistantWorkflowAction>).detail;
+      if (action === "choose-evidence") callbacks.chooseEvidence();
+      else settings?.open();
+    });
+    task?.addEventListener(assistantTaskChangeEvent, (event) => {
+      const change = (event as CustomEvent<AssistantTaskChange>).detail;
+      if (change === "operation") this.presentTask(true);
+      if (change === "operation" || change === "target") callbacks.refreshTarget();
+      callbacks.refreshAvailability();
+    });
+    task?.addEventListener(assistantTaskGenerateEvent, callbacks.generate);
+    this.presentTask();
+    callbacks.refreshTarget();
+    callbacks.refreshAvailability();
+  }
+
   presentTask(resetResult = false): void {
     const task = this.element("assistant-task-panel", AssistantTaskPanel);
     if (!task) return;

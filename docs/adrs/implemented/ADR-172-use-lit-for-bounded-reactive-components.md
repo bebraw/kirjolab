@@ -94,7 +94,10 @@ The adopted components own bounded presentation:
   model-discovery, task-readiness, and candidate-review owners while deriving
   evidence and model availability from those bounded owners. It derives target
   scope from task-owned operation state and coordinates operation status,
-  transient-result reset, and target preview from canonical target inputs.
+  transient-result reset, and target preview from canonical target inputs. It
+  owns sibling settings, workflow-action, task-change, and generation-intent
+  subscriptions while delegating evidence navigation, canonical target and
+  availability refresh, and generation execution to the coordinator.
 - The project map panel owns provenance-lane rendering, measured SVG connector
   geometry, responsive relayout, focus and hover emphasis, and a typed resource
   selection intent.

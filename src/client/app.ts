@@ -110,8 +110,7 @@ import { CoalescedRefresh, DebouncedAsyncQueue } from "./collaboration";
 import { CollaborationSession } from "./collaboration-session";
 import { CollaborationSocket } from "./collaboration-socket";
 import { assistantOperationDefinition, resolveAssistantTarget } from "./assistant-operations";
-import { assistantTaskChangeEvent, assistantTaskGenerateEvent, type AssistantTaskChange } from "./assistant-task-panel";
-import { assistantWorkflowActionEvent, type AssistantWorkflowAction, type SelectedModelEvidence } from "./assistant-workflow-status";
+import type { SelectedModelEvidence } from "./assistant-workflow-status";
 import { assistantWorkflowBusy, createAssistantWorkflowActor } from "./assistant-workflow-machine";
 import { citationPageFromLocator, createCitationInsertion, type CitationContext } from "./citations";
 import { projectMapResourceSelectEvent } from "./project-map-workspace";
@@ -147,7 +146,6 @@ import {
   type LibraryToolsAction,
   type LibraryToolsArchiveRefresh,
 } from "./library-tools-menu";
-import { modelProviderChangeEvent } from "./model-provider-settings";
 import { webSourceCapturedEvent } from "./web-source-panels";
 import { citationNetworkOutcomeEvent, type CitationNetworkOutcome } from "./citation-network-workspace";
 import { previewDiagnosticSelectEvent, type PreviewDiagnosticSelection } from "./preview-presentation";
@@ -857,16 +855,6 @@ class WorkspaceApp {
         this.#elements.claimListPanel.revealClaim(evidence.id, true);
       }
     });
-    this.#elements.modelProviderSettings.addEventListener(modelProviderChangeEvent, (event) => {
-      const status = (event as CustomEvent<string | null>).detail;
-      if (status) this.#elements.assistantWorkflowStatus.status = status;
-      this.#updateModelAvailability();
-    });
-    this.#elements.assistantWorkflowStatus.addEventListener(assistantWorkflowActionEvent, (event) => {
-      const action = (event as CustomEvent<AssistantWorkflowAction>).detail;
-      if (action === "choose-evidence") this.#chooseModelEvidence();
-      else this.#elements.modelProviderSettings.open();
-    });
     this.#elements.assistantInteractiveResult.addEventListener(assistantResultActionEvent, (event) => {
       void this.#handleAssistantResultAction((event as CustomEvent<AssistantResultActionDetail>).detail);
     });
@@ -878,16 +866,12 @@ class WorkspaceApp {
         success: (message) => (this.#elements.assistantWorkflowStatus.status = message),
       });
     });
-    this.#elements.assistantTaskPanel.addEventListener(assistantTaskChangeEvent, (event) => {
-      const change = (event as CustomEvent<AssistantTaskChange>).detail;
-      if (change === "operation") this.#updateModelTask(true);
-      else {
-        if (change === "target") this.#renderAssistantTargetPreview();
-        this.#updateModelAvailability();
-      }
+    this.#elements.assistantGenerationPresenter.bindControls({
+      chooseEvidence: () => this.#chooseModelEvidence(),
+      generate: () => void this.#generateCandidate(),
+      refreshAvailability: () => this.#updateModelAvailability(),
+      refreshTarget: () => this.#renderAssistantTargetPreview(),
     });
-    this.#elements.assistantTaskPanel.addEventListener(assistantTaskGenerateEvent, () => void this.#generateCandidate());
-    this.#updateModelTask();
   }
 
   async #refreshSnapshot(): Promise<void> {
@@ -1203,12 +1187,6 @@ class WorkspaceApp {
       stableDocument: this.#hasStableDocumentBase(),
       workflowBusy: assistantWorkflowBusy(assistant),
     });
-  }
-
-  #updateModelTask(resetInstruction = false): void {
-    this.#elements.assistantGenerationPresenter.presentTask(resetInstruction);
-    this.#renderAssistantTargetPreview();
-    this.#updateModelAvailability();
   }
 
   #renderAssistantTargetPreview(): void {
