@@ -987,10 +987,13 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   coordinator, which retains tab reconciliation, canonical context state,
   history mutation, navigation transitions, and load timing. Let the presenter
   own private-highlight citation readiness feedback,
-  collision-safe project-reference preparation, and validated link transport,
-  returning only the text-
-  selection, selected-highlight, and draft-selection cleanup effects that
-  remain viewer-owned, and
+  collision-safe project-reference preparation, and validated link transport.
+  Use its route binding as the sole canonical project and Library snapshot,
+  citation-insertion, Library-refresh, and notice authority. Keep the separate
+  private-PDF mutation binding limited to snapshot acceptance, caret readiness,
+  markup completion, artifact opening, and API scope. Let the presenter apply
+  local text-selection, selected-highlight, and draft-selection cleanup effects
+  through its viewer binding and
   synchronize the bounded evidence, annotation, publication, claim, comment,
   and candidate owners from one canonical workspace snapshot. Let it also
   project coordinator-resolved evidence links, claim links, comments, and

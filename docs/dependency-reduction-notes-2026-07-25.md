@@ -8497,6 +8497,29 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,707 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Contract: Canonical PDF Routes
+
+`ContextResourcePresenter` now receives canonical project and Library
+snapshots, citation insertion, Library refresh, and notices only through its
+route binding. The renamed `LibraryPdfMutationCoordinator` retains only
+snapshot acceptance, caret readiness, markup completion, artifact opening, and
+API scope, removing five duplicate application bindings.
+
+This checkpoint reduces `src/client/app.ts` from 1,435 to 1,430 lines (-5) and
+the context-resource presenter from 896 to 891 lines (-5), for a ten-line
+runtime source reduction. Focused coverage passes all 60 context-resource,
+private-PDF inspector, annotation-form, and application-contract cases,
+including canonical refresh, notice, citation, navigation, mutation, and strict-
+type behavior.
+
+The browser application artifact changes from 846,690 B raw / 228,444 B gzip
+to 846,609 B raw / 228,429 B gzip (-81 B raw / -15 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,707 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

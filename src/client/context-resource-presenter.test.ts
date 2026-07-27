@@ -13,7 +13,7 @@ import { AssistantWorkflowStatus } from "./assistant-workflow-status";
 import { CandidateListPanel } from "./candidate-list-panel";
 import { CandidateReviewPanel } from "./candidate-review-panel";
 import { ClaimListPanel } from "./claim-list-panel";
-import { ContextResourcePresenter, type ContextResourceSources, type LibraryPdfCoordinator } from "./context-resource-presenter";
+import { ContextResourcePresenter, type ContextResourceSources, type LibraryPdfMutationCoordinator } from "./context-resource-presenter";
 import { ContextTabStrip } from "./context-tab-strip";
 import { LibraryPdfAnnotationToolbar } from "./library-pdf-annotation-toolbar";
 import { LibraryPdfInspector } from "./library-pdf-inspector";
@@ -146,7 +146,21 @@ function setup() {
   Object.defineProperty(presenter, "ownerDocument", {
     value: { getElementById: (id: string) => elements[id as keyof typeof elements] ?? null },
   });
-  return { elements, presenter };
+  const routes = {
+    insertCitation: vi.fn(),
+    library: vi.fn<() => ReferenceLibrarySnapshot | null>(() => library),
+    openCandidate: vi.fn(),
+    openLibraryPdf: vi.fn().mockResolvedValue(undefined),
+    openProjectPdf: vi.fn().mockResolvedValue(undefined),
+    openPublication: vi.fn(),
+    openReferencePdf: vi.fn().mockResolvedValue(undefined),
+    presentNotice: vi.fn(),
+    project: vi.fn<() => WorkspaceSnapshot | null>(() => workspaceSnapshotFixture),
+    referencePdfs: vi.fn(() => [referencePdf]),
+    refreshLibrary: vi.fn().mockResolvedValue(undefined),
+  };
+  presenter.bindRoutes(routes);
+  return { elements, presenter, routes };
 }
 
 describe("context resource presenter", () => {
@@ -833,7 +847,7 @@ describe("context resource presenter", () => {
   });
 
   it("routes private-PDF sibling events through the bounded coordinator", async () => {
-    const { elements, presenter } = setup();
+    const { elements, presenter, routes } = setup();
     const viewer = {
       clearDraftSelection: vi.fn(),
       currentPage: 3,
@@ -850,13 +864,8 @@ describe("context resource presenter", () => {
       acceptProjectMutation: vi.fn(async () => undefined),
       canInsertCitation: vi.fn(() => true),
       completeMarkup: vi.fn(),
-      insertCitation: vi.fn(),
-      library: vi.fn(() => library),
       openPdf: vi.fn().mockResolvedValue(undefined),
-      project: vi.fn(() => workspaceSnapshotFixture),
       projectApiBase: "/api/workspaces/workspace",
-      refreshLibrary: vi.fn(async () => undefined),
-      showToast: vi.fn(),
     };
     vi.spyOn(elements["paper-markups"], "chooseTool").mockImplementation(() => undefined);
     const setStatus = vi.spyOn(elements["library-pdf-inspector"], "setStatus");
@@ -882,13 +891,13 @@ describe("context resource presenter", () => {
     expect(coordinator.completeMarkup).toHaveBeenCalledWith("Drawing saved privately.");
     await vi.waitFor(() => expect(coordinator.openPdf).toHaveBeenCalledWith(libraryPdf, highlight.page));
     expect(setStatus).toHaveBeenCalledWith("Showing saved private highlight on page 2.");
-    await vi.waitFor(() => expect(coordinator.refreshLibrary).toHaveBeenCalledOnce());
+    await vi.waitFor(() => expect(routes.refreshLibrary).toHaveBeenCalledOnce());
     expect(viewer.clearDraftSelection).toHaveBeenCalledOnce();
-    expect(coordinator.showToast).toHaveBeenCalledWith("Private highlight saved to your library.");
+    expect(routes.presentNotice).toHaveBeenCalledWith("Private highlight saved to your library.");
   });
 
   it("owns existing and collision-safe project-reference preparation before citing a highlight", async () => {
-    const { presenter } = setup();
+    const { presenter, routes } = setup();
     const existingProjectReference = {
       citationAlias: reference.referenceKey,
       createdAt: "created",
@@ -918,26 +927,23 @@ describe("context resource presenter", () => {
       acceptProjectMutation: vi.fn(async () => undefined),
       canInsertCitation: vi.fn(() => true),
       completeMarkup: vi.fn(),
-      insertCitation: vi.fn(),
-      library: librarySource,
       openPdf: vi.fn().mockResolvedValue(undefined),
-      project,
       projectApiBase: "/api/workspaces/workspace",
-      refreshLibrary: vi.fn(async () => undefined),
-      showToast: vi.fn(),
-    } satisfies LibraryPdfCoordinator;
+    } satisfies LibraryPdfMutationCoordinator;
+    routes.library.mockImplementation(librarySource);
+    routes.project.mockImplementation(project);
     presenter.bindLibraryPdf(coordinator);
 
     await presenter.citeLibraryHighlight(highlight);
 
-    expect(coordinator.insertCitation).toHaveBeenCalledWith("doe2026", "p. 2");
+    expect(routes.insertCitation).toHaveBeenCalledWith("doe2026", "p. 2");
     expect(coordinator.acceptProjectMutation).not.toHaveBeenCalled();
 
     const linked = { ...existingProjectReference, citationAlias: "doe2026a" };
     const snapshot = { ...workspaceSnapshotFixture, projectReferences: [linked] };
     project.mockReturnValue({ ...workspaceSnapshotFixture, projectReferences: [{ ...existingProjectReference, referenceId: "other" }] });
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json(snapshot)));
-    coordinator.insertCitation.mockClear();
+    routes.insertCitation.mockClear();
 
     await presenter.citeLibraryHighlight(highlight);
 
@@ -948,33 +954,29 @@ describe("context resource presenter", () => {
       method: "POST",
     });
     expect(coordinator.acceptProjectMutation).toHaveBeenCalledWith(snapshot);
-    expect(coordinator.insertCitation).toHaveBeenCalledWith("doe2026a", "p. 2");
+    expect(routes.insertCitation).toHaveBeenCalledWith("doe2026a", "p. 2");
   });
 
   it("contains unavailable highlight citation feedback", async () => {
-    const { presenter } = setup();
+    const { presenter, routes } = setup();
     const librarySource = vi.fn<() => ReferenceLibrarySnapshot | null>(() => ({ ...library, references: [reference] }));
     const coordinator = {
       acceptProjectMutation: vi.fn(async () => undefined),
       canInsertCitation: vi.fn(() => false),
       completeMarkup: vi.fn(),
-      insertCitation: vi.fn(),
-      library: librarySource,
       openPdf: vi.fn().mockResolvedValue(undefined),
-      project: vi.fn(() => workspaceSnapshotFixture),
       projectApiBase: "/api/workspaces/workspace",
-      refreshLibrary: vi.fn(async () => undefined),
-      showToast: vi.fn(),
-    } satisfies LibraryPdfCoordinator;
+    } satisfies LibraryPdfMutationCoordinator;
+    routes.library.mockImplementation(librarySource);
     presenter.bindLibraryPdf(coordinator);
 
     await presenter.citeLibraryHighlight(highlight);
-    expect(coordinator.showToast).toHaveBeenLastCalledWith("Place the manuscript caret before citing a highlight.");
+    expect(routes.presentNotice).toHaveBeenLastCalledWith("Place the manuscript caret before citing a highlight.");
 
     coordinator.canInsertCitation.mockReturnValue(true);
     librarySource.mockReturnValue(library);
     await presenter.citeLibraryHighlight(highlight);
-    expect(coordinator.showToast).toHaveBeenLastCalledWith("The highlighted source is no longer available in the library.");
-    expect(coordinator.insertCitation).not.toHaveBeenCalled();
+    expect(routes.presentNotice).toHaveBeenLastCalledWith("The highlighted source is no longer available in the library.");
+    expect(routes.insertCitation).not.toHaveBeenCalled();
   });
 });

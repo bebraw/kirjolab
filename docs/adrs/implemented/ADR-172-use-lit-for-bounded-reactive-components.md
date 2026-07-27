@@ -164,9 +164,12 @@ The adopted components own bounded presentation:
   streams and owns local completion presentation, private-highlight citation
   readiness feedback, saved-highlight artifact lookup and post-navigation
   inspector status, collision-safe project-reference preparation, and
-  validated link transport while delegating canonical snapshot acceptance,
-  Yjs citation insertion, cross-resource navigation, and shared toast display
-  through typed callbacks. It applies viewer-only draft clearing, text-
+  validated link transport. Its route binding is the sole canonical project and
+  Library snapshot, citation-insertion, Library-refresh, and notice authority;
+  its separate private-PDF mutation binding retains only snapshot acceptance,
+  caret readiness, markup completion, artifact opening, and API scope. It
+  delegates Yjs citation insertion and cross-resource navigation through the
+  route callbacks and applies viewer-only draft clearing, text-
   selection, and private-markup selection effects directly through its narrow
   viewer binding and synchronizes the bounded
   evidence, annotation, publication, claim, comment, and candidate owners from

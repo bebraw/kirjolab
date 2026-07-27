@@ -220,9 +220,12 @@ changing their canonical data, selector, authorization, or rendering contracts.
   publication or sole-linked project-PDF citation intents to a key and optional
   page locator. It delegates Yjs syntax insertion to the coordinator. It also resolves citation keys case-insensitively
   and selects the sole linked project PDF for a supported page locator, falling
-  back to publication context. It delegates canonical snapshot acceptance, Yjs
-  citation insertion, tab reconciliation, cross-resource navigation, history
-  mutation, and toast display through typed callbacks. It applies the viewer's
+  back to publication context. Its route binding is the sole canonical project
+  and Library snapshot, citation-insertion, Library-refresh, and notice
+  authority. A separate private-PDF mutation binding retains only snapshot
+  acceptance, caret readiness, markup completion, artifact opening, and API
+  scope. It delegates Yjs citation insertion, tab reconciliation, cross-resource
+  navigation, and history mutation through typed callbacks. It applies the viewer's
   text-selection, selected-private-markup, and draft-selection cleanup effects
   directly through its narrow bound-viewer capability.
   It synchronizes active project-PDF annotations and private highlights through
