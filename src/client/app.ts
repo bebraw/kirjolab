@@ -38,7 +38,6 @@ import { CollaborationSession } from "./collaboration-session";
 import { CollaborationSocket } from "./collaboration-socket";
 import { resolveAssistantTarget } from "./assistant-operations";
 import { createCitationInsertion, type CitationContext } from "./citations";
-import { type ProjectAnnotationSaved } from "./project-annotation-form";
 import { type ProjectFileDialogMode, type ProjectFileSaved } from "./project-file-dialog";
 import "./manuscript-map-panel";
 import {
@@ -495,12 +494,12 @@ class WorkspaceApp {
     });
     this.#elements.projectAnnotationForm.bindWorkflow({
       chooseTool: (tool) => this.#pdfViewer.setTool(tool),
-      completeCapture: async ({ clearDraftSelection, notice, refreshResources }) => {
+      completeWorkflow: async ({ clearDraftSelection, linkAnnotationId, notice, refreshResources }) => {
         if (clearDraftSelection) this.#pdfViewer.clearDraftSelection();
         if (refreshResources) await this.#resourceRefresh.request();
+        if (linkAnnotationId) await this.#linkSelectedPassage("annotation", linkAnnotationId);
         if (notice) this.#showToast(notice);
       },
-      completeSave: (saved) => void this.#completeAnnotationSave(saved),
       citePage: () => this.#elements.contextResourcePresenter.insertActiveCitation(true),
       removeHighlight: async (annotationId, fragmentId) =>
         await this.#elements.projectEvidencePanel.removeFragment(annotationId, fragmentId),
@@ -1177,12 +1176,6 @@ class WorkspaceApp {
     this.#elements.source.setSelectionRange(insertion.caret, insertion.caret);
     this.#rememberAuthoringSelection();
     this.#showToast(`Inserted :cite[${citationKey}]${locator ? ` at ${locator}` : ""} into canonical Markdown.`);
-  }
-
-  async #completeAnnotationSave(detail: ProjectAnnotationSaved): Promise<void> {
-    await this.#resourceRefresh.request();
-    if (detail.link) await this.#linkSelectedPassage("annotation", detail.annotationId);
-    else this.#showToast(detail.message);
   }
 
   async #linkSelectedPassage(kind: "annotation" | "claim", id: string): Promise<void> {

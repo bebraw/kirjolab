@@ -7,14 +7,9 @@ import "./publication-intake-panel";
 import type { PublicationIntakeAction, PublicationIntakePanel } from "./publication-intake-panel";
 
 export type ProjectHighlightTool = "paint" | "erase";
-export interface ProjectAnnotationSaved {
-  readonly annotationId: string;
-  readonly link: boolean;
-  readonly message: string;
-}
-
-export interface ProjectAnnotationCaptureCompletion {
+export interface ProjectAnnotationCompletion {
   readonly clearDraftSelection: boolean;
+  readonly linkAnnotationId?: string;
   readonly notice?: string;
   readonly refreshResources: boolean;
 }
@@ -26,8 +21,7 @@ export interface ProjectAnnotationOverlap {
 
 export interface ProjectAnnotationWorkflowBinding {
   readonly chooseTool: (tool: ProjectHighlightTool) => void;
-  readonly completeCapture?: (completion: ProjectAnnotationCaptureCompletion) => Promise<void>;
-  readonly completeSave: (saved: ProjectAnnotationSaved) => void;
+  readonly completeWorkflow?: (completion: ProjectAnnotationCompletion) => Promise<void>;
   readonly citePage: () => void;
   readonly removeHighlight: (annotationId: string, fragmentId: string) => Promise<boolean>;
   readonly revealHighlight: (annotationId: string) => void;
@@ -165,7 +159,7 @@ export class ProjectAnnotationForm extends LitElement {
     if (this.tool === "erase") {
       const erased = await this.eraseOverlaps(overlaps);
       if (erased === null) return;
-      await this.workflowBinding?.completeCapture?.({
+      await this.workflowBinding?.completeWorkflow?.({
         clearDraftSelection: true,
         ...(erased ? { notice: "Highlight content erased." } : {}),
         refreshResources: false,
@@ -173,7 +167,7 @@ export class ProjectAnnotationForm extends LitElement {
       return;
     }
     if (!(await this.saveCapture(pdfId, capture, overlaps[0]?.annotation.id))) return;
-    await this.workflowBinding?.completeCapture?.({ clearDraftSelection: true, refreshResources: true });
+    await this.workflowBinding?.completeWorkflow?.({ clearDraftSelection: true, refreshResources: true });
   }
 
   async activateHighlight(annotations: readonly AnnotationResource[], annotationId: string, fragmentId: string): Promise<void> {
@@ -411,7 +405,7 @@ export class ProjectAnnotationForm extends LitElement {
   }
 
   private async completeNotice(notice: string): Promise<void> {
-    await this.workflowBinding?.completeCapture?.({ clearDraftSelection: false, notice, refreshResources: false });
+    await this.workflowBinding?.completeWorkflow?.({ clearDraftSelection: false, notice, refreshResources: false });
   }
 
   protected citePage(): void {
@@ -453,10 +447,12 @@ export class ProjectAnnotationForm extends LitElement {
       await expectOk(response);
       const message = "Highlight note saved.";
       this.status = message;
-      this.workflowBinding?.completeSave({
-        annotationId,
-        link: (event.submitter as HTMLElement | null)?.id === "save-and-link-annotation",
-        message,
+      const link = (event.submitter as HTMLElement | null)?.id === "save-and-link-annotation";
+      void this.workflowBinding?.completeWorkflow?.({
+        clearDraftSelection: false,
+        ...(link && { linkAnnotationId: annotationId }),
+        ...(!link && { notice: message }),
+        refreshResources: true,
       });
     } catch (error) {
       this.status = errorMessage(error, "Could not save the highlight note.");

@@ -992,7 +992,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   rendered context and project-PDF identities, opens the viewer, restores
   resource scroll, presents active-resource failures, and routes captured
   selections to the private-highlight composer or project-annotation form from
-  those retained identities. Keep tab state, canonical snapshot acceptance,
+  those retained identities. The project-annotation form projects capture and
+  note-save follow-up through one typed viewer-clearing, refresh, notice, and
+  optional manuscript-link effect contract. Keep tab state, canonical snapshot acceptance,
   Yjs citation syntax insertion, cross-resource navigation, routing, project-selection
   persistence, remaining viewer gestures, and the shared notification outlet
   in the application coordinator through narrow callbacks.

@@ -481,13 +481,14 @@ The adopted components own bounded presentation:
   availability derived from the active PDF and canonical publication-PDF
   links, same-PDF/page saved-stroke overlap classification, ordered removal
   routing, paint-versus-erase capture persistence, no-match and completed-
-  erasure status, and typed viewer-clearing, refresh, and notice outcomes,
+  erasure status, and typed viewer-clearing, refresh, notice, and optional
+  manuscript-link outcomes shared by capture and note-save completion,
   local toolbar tool commits, viewer-highlight edit/reveal-versus-erase routing,
   and completed undo-state presentation,
   nested publication-intake
   configuration and PDF projection, intake
   refresh acknowledgement and navigation routing, and one typed workflow
-  binding for tool, undo, citation, completed save, and link outcomes or intents.
+  binding for tool, undo, citation, and completion outcomes or intents.
 - The Library PDF annotation forms own private-highlight, page-note, and
   selected-markup composer visibility and values, private-highlight geometry
   and optional editing identity, private-highlight create and comment-update

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AnnotationResource, PublicationResource } from "../domain/workspace";
-import { ProjectAnnotationForm, type ProjectAnnotationSaved, type ProjectHighlightTool } from "./project-annotation-form";
+import { ProjectAnnotationForm, type ProjectHighlightTool } from "./project-annotation-form";
 import { PublicationIntakePanel, type PublicationIntakeAction } from "./publication-intake-panel";
 
 const publication = {
@@ -140,7 +140,7 @@ describe("project annotation form", () => {
     panel.bindWorkflow({
       chooseTool: vi.fn(),
       citePage: vi.fn(),
-      completeSave: vi.fn(),
+      completeWorkflow: vi.fn(),
       removeHighlight,
       revealHighlight: vi.fn(),
     });
@@ -159,12 +159,11 @@ describe("project annotation form", () => {
       suffix: "",
     };
     const matching = annotation("annotation-1", [{ ...fragment("overlap"), rects: [{ height: 0.1, width: 0.2, x: 0.1, y: 0.2 }] }]);
-    const completeCapture = vi.fn().mockResolvedValue(undefined);
+    const completeWorkflow = vi.fn().mockResolvedValue(undefined);
     const removeHighlight = vi.fn().mockResolvedValue(true);
     panel.bindWorkflow({
       chooseTool: vi.fn(),
-      completeCapture,
-      completeSave: vi.fn(),
+      completeWorkflow,
       citePage: vi.fn(),
       removeHighlight,
       revealHighlight: vi.fn(),
@@ -174,8 +173,8 @@ describe("project annotation form", () => {
     await panel.persistCapture([], "pdf-1", capture);
     await panel.persistCapture([matching], "pdf-1", capture);
     expect(removeHighlight).toHaveBeenCalledWith(matching.id, "overlap");
-    expect(completeCapture).toHaveBeenNthCalledWith(1, { clearDraftSelection: true, refreshResources: false });
-    expect(completeCapture).toHaveBeenNthCalledWith(2, {
+    expect(completeWorkflow).toHaveBeenNthCalledWith(1, { clearDraftSelection: true, refreshResources: false });
+    expect(completeWorkflow).toHaveBeenNthCalledWith(2, {
       clearDraftSelection: true,
       notice: "Highlight content erased.",
       refreshResources: false,
@@ -185,19 +184,18 @@ describe("project annotation form", () => {
     vi.spyOn(panel, "saveCapture").mockResolvedValue(true);
     await panel.persistCapture([matching], "pdf-1", capture);
     expect(panel.saveCapture).toHaveBeenCalledWith("pdf-1", capture, matching.id);
-    expect(completeCapture).toHaveBeenLastCalledWith({ clearDraftSelection: true, refreshResources: true });
+    expect(completeWorkflow).toHaveBeenLastCalledWith({ clearDraftSelection: true, refreshResources: true });
   });
 
   it("owns viewer-highlight activation for paint and erase tools", async () => {
     const panel = new TestProjectAnnotationForm();
     const resource = annotation("annotation-1", [fragment("fragment-1")]);
-    const completeCapture = vi.fn().mockResolvedValue(undefined);
+    const completeWorkflow = vi.fn().mockResolvedValue(undefined);
     const removeHighlight = vi.fn().mockResolvedValue(true);
     const revealHighlight = vi.fn();
     panel.bindWorkflow({
       chooseTool: vi.fn(),
-      completeCapture,
-      completeSave: vi.fn(),
+      completeWorkflow,
       citePage: vi.fn(),
       removeHighlight,
       revealHighlight,
@@ -210,7 +208,7 @@ describe("project annotation form", () => {
     panel.setTool("erase");
     await panel.activateHighlight([resource], resource.id, "fragment-1");
     expect(removeHighlight).toHaveBeenCalledWith(resource.id, "fragment-1");
-    expect(completeCapture).toHaveBeenCalledWith({
+    expect(completeWorkflow).toHaveBeenCalledWith({
       clearDraftSelection: false,
       notice: "Highlight stroke erased.",
       refreshResources: false,
@@ -243,27 +241,37 @@ describe("project annotation form", () => {
     expect(fail).toHaveBeenCalledWith(4, expect.any(Error));
   });
 
-  it("owns note persistence and emits completed save and link outcomes", async () => {
+  it("owns note persistence and emits refresh, notice, and link effects", async () => {
     const panel = new TestProjectAnnotationForm();
-    const outcomes: ProjectAnnotationSaved[] = [];
+    const completeWorkflow = vi.fn().mockResolvedValue(undefined);
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 200 }));
     panel.configure("/api/workspaces/workspace");
     panel.bindWorkflow({
       chooseTool: vi.fn(),
-      completeSave: (saved) => outcomes.push(saved),
+      completeWorkflow,
       citePage: vi.fn(),
       removeHighlight: vi.fn(),
       revealHighlight: vi.fn(),
     });
     panel.changeForTest("comment", "Use this");
-    await panel.saveForTest(false);
     panel.showAnnotation({ id: "annotation-1", comment: "Use this", page: 1, prefix: "", quote: "Evidence", suffix: "" });
+    await panel.saveForTest(false);
     await panel.saveForTest(true);
     expect(fetchMock).toHaveBeenCalledWith(
       "/api/workspaces/workspace/annotations/annotation-1",
       expect.objectContaining({ body: JSON.stringify({ comment: "Use this" }), method: "PUT" }),
     );
-    expect(outcomes).toEqual([{ annotationId: "annotation-1", link: true, message: "Highlight note saved." }]);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(completeWorkflow).toHaveBeenNthCalledWith(1, {
+      clearDraftSelection: false,
+      notice: "Highlight note saved.",
+      refreshResources: true,
+    });
+    expect(completeWorkflow).toHaveBeenNthCalledWith(2, {
+      clearDraftSelection: false,
+      linkAnnotationId: "annotation-1",
+      refreshResources: true,
+    });
   });
 
   it("keeps failed note saves local and retryable", async () => {
@@ -331,12 +339,11 @@ describe("project annotation form", () => {
     const panel = new TestProjectAnnotationForm();
     const chooseTool = vi.fn();
     const citePage = vi.fn();
-    const completeCapture = vi.fn().mockResolvedValue(undefined);
+    const completeWorkflow = vi.fn().mockResolvedValue(undefined);
     const removeHighlight = vi.fn().mockResolvedValue(true);
     panel.bindWorkflow({
       chooseTool,
-      completeCapture,
-      completeSave: vi.fn(),
+      completeWorkflow,
       citePage,
       removeHighlight,
       revealHighlight: vi.fn(),
@@ -351,7 +358,7 @@ describe("project annotation form", () => {
     expect(chooseTool).toHaveBeenNthCalledWith(1, "paint");
     expect(chooseTool).toHaveBeenNthCalledWith(2, "erase");
     await vi.waitFor(() => expect(removeHighlight).toHaveBeenCalledWith("annotation-1", "fragment-1"));
-    expect(completeCapture).toHaveBeenCalledWith({
+    expect(completeWorkflow).toHaveBeenCalledWith({
       clearDraftSelection: false,
       notice: "Last highlight stroke undone.",
       refreshResources: false,
