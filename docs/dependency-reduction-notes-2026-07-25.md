@@ -9462,6 +9462,28 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,721 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Direct Library Reference Navigation
+
+`ReferenceLibraryWorkspace` now owns the activate, canonical-refresh,
+archive-aware focus, missing-feedback, and successful-route sequence used when
+publication management opens a Library reference. `WorkspaceApp` retains the
+canonical refresh implementation and browser-history mutation behind typed
+callbacks.
+
+This checkpoint reduces `src/client/app.ts` from 1,129 to 1,125 lines (-4) and
+grows the composed Library owner from 352 to 359 lines. Runtime source across
+those files grows by three lines in exchange for deleting the coordinator-only
+round trip. Focused Library-workspace and application-contract coverage passes
+all 27 tests alongside strict types.
+
+The browser application artifact changes from 848,943 B raw / 228,941 B gzip
+to 849,090 B raw / 228,953 B gzip (+147 B raw / +12 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,721 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Library PDF Project Use Projection
 
 `LibraryPdfProjectUse` now resolves the active bibliographic record and matching

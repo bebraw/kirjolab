@@ -115,6 +115,10 @@ memory and makes citation aliases compete with stable source identity.
   coordinator retains canonical loading, cross-feature navigation, snapshot
   application, refresh execution, comparison effects, and notification
   presentation.
+- Direct publication-management navigation is one Library-workspace lifecycle:
+  activate the Library context, request canonical refresh, recover archived
+  visibility when needed, focus the available reference, and emit a standalone
+  route only after successful focus.
 - A bounded light-DOM reference summary owns each result's display title,
   compact metadata, PDF action, project-link state, link and unlink transport,
   canonical workspace-response validation, and typed completed mutation

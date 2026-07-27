@@ -61,6 +61,7 @@ export interface ReferenceLibraryWorkspaceCallbacks {
   readonly compareSnapshots: (priorId: string, currentId: string) => void;
   readonly completeProjectMutation?: (message: string, snapshot: ProjectReferenceChanged["snapshot"]) => void;
   readonly openPdf: (artifact: LibraryPdfArtifact, page?: number, updateHistory?: boolean) => void;
+  readonly openReferenceRoute?: (referenceId: string) => void;
   readonly presentNotice: (message: string) => void;
   readonly refreshLibrary: () => Promise<void>;
   readonly refreshMetadata: () => Promise<void>;
@@ -266,6 +267,12 @@ export class ReferenceLibraryWorkspace extends LitElement {
     if (await this.openReference(referenceId)) return true;
     this.callbacks.presentNotice("That reference is no longer available in the Library.");
     return false;
+  }
+
+  async openAvailableReference(referenceId: string): Promise<void> {
+    this.callbacks.activateLibrary?.();
+    await this.callbacks.refreshLibrary();
+    if (await this.focusAvailableReference(referenceId)) this.callbacks.openReferenceRoute?.(referenceId);
   }
 
   revealReference(referenceId: string, query: string): Promise<boolean> {

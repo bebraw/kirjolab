@@ -206,6 +206,29 @@ describe("reference Library workspace", () => {
     expect(presentNotice).toHaveBeenCalledWith("That reference is no longer available in the Library.");
   });
 
+  it("owns activate, refresh, focus, and route sequencing for available references", async () => {
+    const { workspace } = setup();
+    const activateLibrary = vi.fn();
+    const openReferenceRoute = vi.fn();
+    const refreshLibrary = vi.fn().mockResolvedValue(undefined);
+    workspace.configure("workspace", {
+      activateLibrary,
+      compareSnapshots: vi.fn(),
+      openPdf: vi.fn(),
+      openReferenceRoute,
+      presentNotice: vi.fn(),
+      refreshLibrary,
+      refreshMetadata: vi.fn(),
+    });
+    vi.spyOn(workspace, "focusAvailableReference").mockResolvedValue(true);
+
+    await workspace.openAvailableReference("reference-1");
+
+    expect(activateLibrary).toHaveBeenCalledOnce();
+    expect(refreshLibrary).toHaveBeenCalledOnce();
+    expect(openReferenceRoute).toHaveBeenCalledWith("reference-1");
+  });
+
   it("owns filter reset, result settlement, and focused-reference reveal", async () => {
     const { owners, workspace } = setup();
     const filters = owners["reference-library-filters"];

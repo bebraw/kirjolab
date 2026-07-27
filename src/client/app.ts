@@ -347,6 +347,10 @@ class WorkspaceApp {
       compareSnapshots: (priorId, currentId) => void this.#elements.webSnapshotComparison.compare(priorId, currentId),
       completeProjectMutation: (message, snapshot) => void this.#completeLibraryProjectMutation(message, snapshot),
       openPdf: (artifact, page, updateHistory) => void this.#openLibraryPdf(artifact, page, updateHistory),
+      openReferenceRoute: (referenceId) => {
+        if (appMode === "library")
+          history.pushState({ view: "library-reference", referenceId }, "", `/library?reference=${encodeURIComponent(referenceId)}`);
+      },
       presentNotice: (message) => this.#showToast(message),
       refreshLibrary: () => this.#refreshReferenceLibrary(),
       refreshMetadata: async () => {
@@ -457,7 +461,7 @@ class WorkspaceApp {
       },
     });
     this.#elements.contextResourcePresenter.bindPublicationList(apiBase, {
-      manage: (publicationId) => void this.#openReferenceLibraryEntry(publicationId),
+      manage: (publicationId) => void this.#elements.referenceLibraryWorkspace.openAvailableReference(publicationId),
     });
     this.#elements.contextResourcePresenter.bindProjectAnnotationIntake(() => this.#resourceRefresh.request());
     this.#elements.contextResourcePresenter.bindProjectAnnotationWorkflow(async ({ linkAnnotationId, notice, refreshResources }) => {
@@ -728,14 +732,6 @@ class WorkspaceApp {
     this.#activateContext(RESEARCH_LIBRARY_KEY);
     if (appMode === "library" && updateHistory) history.pushState({ view: "library" }, "", "/library");
     await this.#refreshReferenceLibrary();
-  }
-
-  async #openReferenceLibraryEntry(referenceId: string, updateHistory = true): Promise<void> {
-    await this.#openReferenceLibrary(false);
-    const opened = await this.#elements.referenceLibraryWorkspace.focusAvailableReference(referenceId);
-    if (opened && appMode === "library" && updateHistory) {
-      history.pushState({ view: "library-reference", referenceId }, "", `/library?reference=${encodeURIComponent(referenceId)}`);
-    }
   }
 
   async #refreshReferenceLibrary(): Promise<void> {

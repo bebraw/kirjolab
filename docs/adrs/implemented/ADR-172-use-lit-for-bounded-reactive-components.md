@@ -487,9 +487,10 @@ The adopted components own bounded presentation:
   unidentified-PDF queue; filter-driven rerendering; focused-reference reveal;
   result settlement; derivation of project-reference and research-share inputs
   from canonical project and owned Library snapshots; nested network and
-  identification lifecycle delegation; and routing for summary, personal-field,
-  metadata, PDF, research, network, identification, and standalone Library-route
-  outcomes. The application coordinator supplies refresh timing, PDF navigation,
+  identification lifecycle delegation; direct-reference activation, refresh,
+  archive-aware focus, and successful-route sequencing; and routing for summary,
+  personal-field, metadata, PDF, research, network, identification, and standalone
+  Library-route outcomes. The application coordinator supplies refresh timing, PDF navigation,
   web-capture/comparison, project-mutation completion, and notice effects through
   a typed callback boundary.
 - The model provider settings panel owns connection, endpoint, model, and
