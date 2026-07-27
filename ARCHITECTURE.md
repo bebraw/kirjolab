@@ -939,6 +939,8 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   projection, restores resource scroll,
   projects supplied viewer state back into canonical
   fixed-tab scroll, resource scroll, PDF page, and focused-annotation state;
+  projects page changes into canonical PDF context and page-local private
+  markup state while returning route identities to the coordinator;
   coordinates project citation and intake context,
   switch the annotation versus private-inspector surface, synchronize the
   private-PDF inspector, markup reset, toolbar counts, and export target, and

@@ -219,9 +219,7 @@ describe("context resource presenter", () => {
     const beginHighlight = vi.spyOn(elements["library-pdf-inspector"], "beginHighlight").mockImplementation(() => undefined);
 
     presenter.present(sources(resourceTab("pdf", "project/pdf")));
-    expect(presenter.activeLibraryPdf).toBeUndefined();
     presenter.present(sources(resourceTab("library-pdf", libraryPdf.id)));
-    expect(presenter.activeLibraryPdf).toBe(libraryPdf);
     presenter.capturePdfSelection({ page: 2, prefix: "", quote: "Evidence", rects: [], suffix: "" });
     expect(beginHighlight).toHaveBeenCalledWith(libraryPdf.id, {
       comment: "",
@@ -231,7 +229,6 @@ describe("context resource presenter", () => {
       rects: [],
     });
     presenter.present(sources(resourceTab("library-pdf", referencePdf.id)));
-    expect(presenter.activeLibraryPdf).toBeUndefined();
 
     expect(setPdf).toHaveBeenCalledWith("project/pdf", [], []);
     expect(setAnnotationVisible.mock.calls.map(([visible]) => visible)).toEqual([true, false, false]);
@@ -530,11 +527,22 @@ describe("context resource presenter", () => {
     const setLibraryPage = vi.spyOn(elements["paper-markups"], "setLibraryPage").mockReturnValue([]);
     const setUndoDrawings = vi.spyOn(elements["library-pdf-annotation-toolbar"], "setUndoDrawings");
 
-    presenter.present(sources(resourceTab("library-pdf", libraryPdf.id)));
-    presenter.presentLibraryPdfPage(library, 2);
+    const tab = resourceTab("library-pdf", libraryPdf.id);
+    presenter.present(sources(tab));
+    const presentation = presenter.presentPdfPage({ activeKey: tab.key, tabs: [tab] }, 2);
 
     expect(setLibraryPage).toHaveBeenCalledWith(libraryPdf, [], 2, elements["library-pdf-annotation-toolbar"].drawingStyle);
     expect(setUndoDrawings).toHaveBeenCalledWith([]);
+    expect(presentation).toMatchObject({ activePdf: true, libraryPdfId: libraryPdf.id });
+    expect(presentation.context.tabs[0]).toMatchObject({ page: 2 });
+  });
+
+  it("leaves canonical context unchanged when a PDF is not active", () => {
+    const { presenter } = setup();
+    const state = { activeKey: "preview" as const, tabs: [] };
+    presenter.present(sources(undefined));
+
+    expect(presenter.presentPdfPage(state, 2)).toEqual({ activePdf: false, context: state, libraryPdfId: undefined });
   });
 
   it("coordinates private-PDF tools while returning viewer-only effects", () => {

@@ -87,6 +87,12 @@ export interface LibraryPdfSelectionPresentation {
   readonly textSelectionEnabled?: boolean;
 }
 
+export interface PdfPagePresentation {
+  readonly activePdf: boolean;
+  readonly context: ResearchContextState;
+  readonly libraryPdfId: string | undefined;
+}
+
 export interface LibraryPdfCoordinator {
   readonly acceptProjectMutation: (snapshot: WorkspaceSnapshot) => Promise<void>;
   readonly applyViewerPresentation: (presentation: LibraryPdfSelectionPresentation | LibraryPdfToolPresentation) => void;
@@ -147,10 +153,6 @@ export class ContextResourcePresenter extends LitElement {
 
   get activeTab(): ResearchResourceTab | undefined {
     return this.currentActiveTab;
-  }
-
-  get activeLibraryPdf(): LibraryPdfArtifact | undefined {
-    return this.currentLibraryPdf;
   }
 
   get renderedPdfId(): string | undefined {
@@ -358,7 +360,7 @@ export class ContextResourcePresenter extends LitElement {
     };
   }
 
-  presentLibraryPdfPage(library: ReferenceLibrarySnapshot | null, page: number): void {
+  private presentLibraryPdfPage(library: ReferenceLibrarySnapshot | null, page: number): void {
     const toolbar = this.element("library-pdf-annotation-toolbar", LibraryPdfAnnotationToolbar);
     if (!toolbar) return;
     const drawings =
@@ -369,6 +371,17 @@ export class ContextResourcePresenter extends LitElement {
         toolbar.drawingStyle,
       ) ?? [];
     toolbar.setUndoDrawings(drawings);
+  }
+
+  presentPdfPage(state: ResearchContextState, page: number): PdfPagePresentation {
+    this.presentLibraryPdfPage(this.currentLibrary, page);
+    const activeTab = this.currentActiveTab;
+    const activePdf = activeTab?.kind === "pdf" || activeTab?.kind === "library-pdf";
+    return {
+      activePdf,
+      context: activePdf ? setPdfResearchLocation(state, activeTab.key, { page }) : state,
+      libraryPdfId: this.currentLibraryPdf?.id,
+    };
   }
 
   setLibraryPdfInspector(open: boolean, showAnnotations = false): void {

@@ -141,7 +141,9 @@ The adopted components own bounded presentation:
   project PDF, private-Library PDF, linked reference PDF, or candidate and emits
   the typed open effect. It restores resource scroll and captures fixed/resource
   scroll plus supplied viewer page and focused-annotation state into the
-  canonical context,
+  canonical context, projects page changes into canonical PDF context and
+  page-local private markup state, and returns route identity without mutating
+  browser history,
   supplies citation and intake context, switches the project-annotation versus
   private-inspector presentation, owns private-PDF inspector context,
   artifact-change markup reset, toolbar counts and export target, page-local

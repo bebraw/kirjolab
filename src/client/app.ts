@@ -1493,15 +1493,11 @@ class WorkspaceApp {
   }
 
   #handlePdfPageChange(page: number): void {
-    this.#elements.contextResourcePresenter.presentLibraryPdfPage(this.#librarySnapshot, this.#pdfViewer.currentPage);
-    const active = this.#elements.contextResourcePresenter.activeTab;
-    if (active?.kind === "pdf" || active?.kind === "library-pdf") {
-      this.#contextState = setPdfResearchLocation(this.#contextState, active.key, { page });
-      this.#syncWorkspaceRoute("replace");
-    }
-    const artifact = this.#elements.contextResourcePresenter.activeLibraryPdf;
-    if (appMode === "library" && artifact && location.pathname.startsWith("/library/pdfs/")) {
-      history.replaceState(history.state, "", libraryPdfRoute(artifact.id, page));
+    const presentation = this.#elements.contextResourcePresenter.presentPdfPage(this.#contextState, page);
+    this.#contextState = presentation.context;
+    if (presentation.activePdf) this.#syncWorkspaceRoute("replace");
+    if (appMode === "library" && presentation.libraryPdfId && location.pathname.startsWith("/library/pdfs/")) {
+      history.replaceState(history.state, "", libraryPdfRoute(presentation.libraryPdfId, page));
     }
   }
 
