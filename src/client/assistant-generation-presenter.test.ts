@@ -421,15 +421,24 @@ describe("assistant generation presenter", () => {
     const { elements, presenter } = setup();
     const result = elements["assistant-interactive-result"];
     const handleAction = vi.fn();
+    const applyTable = vi.fn();
     const refreshLibrary = vi.fn().mockResolvedValueOnce(undefined).mockRejectedValueOnce(new Error("offline"));
     const completeReferenceSave = vi.spyOn(result, "completeReferenceSave").mockImplementation(() => undefined);
+    const tableState = vi.fn().mockReturnValue({
+      reviewing: true,
+      revision: 7,
+      source: `x${passage.excerpt}`,
+      stableDocument: true,
+    });
     presenter.bindResults({
+      applyTable,
       clarityState: () => "ready",
       completeClarity: vi.fn(),
       failClarity: vi.fn(),
       handleAction,
       refreshLibrary,
       startClarity: vi.fn(),
+      tableState,
     });
     const action = { action: "insert-table", context: { sourceRevision: 7, target: passage }, markdown: "| Result |" } as const;
 
@@ -443,9 +452,14 @@ describe("assistant generation presenter", () => {
     result.dispatchEvent(new CustomEvent(assistantReferenceRefreshEvent, { detail: { index: 3, message: "Saved again.", requestId: 5 } }));
     await vi.waitFor(() => expect(completeReferenceSave).toHaveBeenCalledWith(3, 5));
 
-    expect(handleAction).toHaveBeenCalledWith(action);
+    expect(applyTable).toHaveBeenCalledWith(passage, "\n\n| Result |\n");
+    expect(handleAction).not.toHaveBeenCalled();
     expect(refreshLibrary).toHaveBeenCalledTimes(2);
     expect(elements["assistant-workflow-status"].status).toBe("The reference was saved, but the refreshed Library could not be loaded.");
+
+    tableState.mockReturnValue({ reviewing: false, revision: 7, source: `x${passage.excerpt}`, stableDocument: true });
+    result.dispatchEvent(new CustomEvent(assistantResultActionEvent, { detail: action }));
+    expect(elements["assistant-workflow-status"].status).toBe("The manuscript changed. Generate the table again for the current target.");
   });
 
   it("owns clarity continuation and status presentation", async () => {
@@ -457,12 +471,14 @@ describe("assistant generation presenter", () => {
     const startClarity = vi.fn();
     const completeClarityDrill = vi.spyOn(result, "completeClarityDrill").mockResolvedValue();
     presenter.bindResults({
+      applyTable: vi.fn(),
       clarityState,
       completeClarity,
       failClarity,
       handleAction: vi.fn(),
       refreshLibrary: vi.fn().mockResolvedValue(undefined),
       startClarity,
+      tableState: () => ({ reviewing: true, revision: 7, source: passage.excerpt, stableDocument: true }),
     });
     const context = {
       evidence: { items: [], references: [] },

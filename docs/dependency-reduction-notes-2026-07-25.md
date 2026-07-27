@@ -6171,6 +6171,31 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,647 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Generated Table Continuation
+
+`AssistantGenerationPresenter` now intercepts generated-table actions,
+validates the captured target against reviewing state, canonical document
+stability, source revision, and exact current text, derives portable surrounding
+newlines, and projects stale or inserted status. `WorkspaceApp` retains only
+the authorized XState completion, Yjs replacement, editor focus/caret update,
+and remembered authoring selection.
+
+This checkpoint reduces `src/client/app.ts` from 2,826 to 2,810 lines (-16)
+and grows the generation presenter from 481 to 512 lines. Runtime source across
+those two files grows by 15 lines while deleting the coordinator result-action
+router, captured-table validation, spacing derivation, and direct status
+mutations. The thirteen direct presenter cases now also cover valid table
+continuation, derived insertion text, stale suppression, and existing reference-
+refresh behavior under strict client and Workers types.
+
+The browser application artifact changes from 835,115 B raw / 225,748 B gzip
+to 835,283 B raw / 225,784 B gzip (+168 B raw / +36 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,647 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

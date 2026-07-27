@@ -76,7 +76,6 @@ import {
 import { researchDiaryOpenEvent } from "./research-diary-summary";
 import {
   type AssistantAuthoringPassage as AuthoringPassage,
-  type AssistantResultActionDetail,
   type AssistantRevisionContext as AssistantDraftContext,
 } from "./assistant-result-panel";
 import { type CandidateDecisionOutcome, type CandidateDecisionRequest } from "./candidate-review-panel";
@@ -814,6 +813,7 @@ class WorkspaceApp {
       startDecision: (detail) => this.#startCandidateDecision(detail),
     });
     this.#elements.assistantGenerationPresenter.bindResults({
+      applyTable: (target, insertion) => this.#applyGeneratedTable(target, insertion),
       clarityState: () => {
         const workflow = this.#assistantWorkflow.getSnapshot();
         return workflow.matches("awaitingInput") ? "ready" : workflow.matches("stale") ? "stale" : "busy";
@@ -826,12 +826,18 @@ class WorkspaceApp {
         this.#assistantWorkflow.send({ type: "FAIL", message });
         this.#updateModelAvailability();
       },
-      handleAction: (detail) => void this.#handleAssistantResultAction(detail),
+      handleAction: (detail) => void this.#chooseAssistantRevision(detail.context, detail.choice),
       refreshLibrary: async () => await this.#refreshReferenceLibrary(),
       startClarity: () => {
         this.#assistantWorkflow.send({ type: "CONTINUE" });
         this.#updateModelAvailability();
       },
+      tableState: () => ({
+        reviewing: this.#assistantWorkflow.getSnapshot().matches("reviewing"),
+        revision: this.#revision,
+        source: this.#activeFileText.toString(),
+        stableDocument: this.#hasStableDocumentBase(),
+      }),
     });
     this.#elements.assistantGenerationPresenter.bindControls({
       completeGeneration: (workflow) => this.#assistantWorkflow.send({ type: workflow }),
@@ -2279,28 +2285,7 @@ class WorkspaceApp {
     });
   }
 
-  async #handleAssistantResultAction(detail: Exclude<AssistantResultActionDetail, { readonly action: "continue-clarity" }>): Promise<void> {
-    if (detail.action === "insert-table") {
-      this.#insertGeneratedTable(detail.context.target, detail.context.sourceRevision, detail.markdown);
-      return;
-    }
-    await this.#chooseAssistantRevision(detail.context, detail.choice);
-  }
-
-  #insertGeneratedTable(target: AuthoringPassage, sourceRevision: number, markdown: string): void {
-    const source = this.#activeFileText.toString();
-    if (
-      !this.#assistantWorkflow.getSnapshot().matches("reviewing") ||
-      !this.#hasStableDocumentBase() ||
-      this.#revision !== sourceRevision ||
-      source.slice(target.start, target.end) !== target.excerpt
-    ) {
-      this.#elements.assistantWorkflowStatus.status = "The manuscript changed. Generate the table again for the current target.";
-      return;
-    }
-    const prefix = target.start > 0 && source[target.start - 1] !== "\n" ? "\n\n" : "";
-    const suffix = target.end < source.length && source[target.end] !== "\n" ? "\n\n" : "\n";
-    const insertion = `${prefix}${markdown}${suffix}`;
+  #applyGeneratedTable(target: AuthoringPassage, insertion: string): void {
     this.#assistantWorkflow.send({ type: "COMPLETE" });
     this.#document.transact(() => {
       if (target.end > target.start) this.#activeFileText.delete(target.start, target.end - target.start);
@@ -2310,7 +2295,6 @@ class WorkspaceApp {
     this.#elements.source.focus();
     this.#elements.source.setSelectionRange(caret, caret);
     this.#rememberAuthoringSelection();
-    this.#elements.assistantWorkflowStatus.status = "Table inserted into the manuscript.";
   }
 
   async #chooseAssistantRevision(

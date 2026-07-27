@@ -7,6 +7,7 @@ import {
   type AssistantAuthoringPassage,
   type AssistantReferenceRefresh,
   type AssistantResultActionDetail,
+  type AssistantTableContext,
 } from "./assistant-result-panel";
 import { AssistantTaskPanel, assistantTaskChangeEvent, assistantTaskGenerateEvent, type AssistantTaskChange } from "./assistant-task-panel";
 import {
@@ -98,12 +99,19 @@ export interface AssistantControlCallbacks {
 }
 
 export interface AssistantResultCallbacks {
+  readonly applyTable: (target: AssistantAuthoringPassage, insertion: string) => void;
   readonly clarityState: () => "busy" | "ready" | "stale";
   readonly completeClarity: () => void;
   readonly failClarity: (message: string) => void;
-  readonly handleAction: (detail: Exclude<AssistantResultActionDetail, { readonly action: "continue-clarity" }>) => void;
+  readonly handleAction: (detail: Extract<AssistantResultActionDetail, { readonly action: "choose-revision" }>) => void;
   readonly refreshLibrary: () => Promise<void>;
   readonly startClarity: () => void;
+  readonly tableState: () => {
+    readonly reviewing: boolean;
+    readonly revision: number;
+    readonly source: string;
+    readonly stableDocument: boolean;
+  };
 }
 
 export interface AssistantCandidateCallbacks {
@@ -207,7 +215,8 @@ export class AssistantGenerationPresenter extends LitElement {
       const detail = (event as CustomEvent<AssistantResultActionDetail>).detail;
       if (detail.action === "continue-clarity") {
         void this.continueClarity(result, status, detail, callbacks);
-      } else callbacks.handleAction(detail);
+      } else if (detail.action === "insert-table") this.insertTable(status, detail.context, detail.markdown, callbacks);
+      else callbacks.handleAction(detail);
     });
     result?.addEventListener(assistantReferenceRefreshEvent, (event) => {
       const detail = (event as CustomEvent<AssistantReferenceRefresh>).detail;
@@ -221,6 +230,28 @@ export class AssistantGenerationPresenter extends LitElement {
         })
         .finally(() => result.completeReferenceSave(detail.index, detail.requestId));
     });
+  }
+
+  private insertTable(
+    status: AssistantWorkflowStatus | null,
+    context: AssistantTableContext,
+    markdown: string,
+    callbacks: AssistantResultCallbacks,
+  ): void {
+    const state = callbacks.tableState();
+    if (
+      !state.reviewing ||
+      !state.stableDocument ||
+      state.revision !== context.sourceRevision ||
+      state.source.slice(context.target.start, context.target.end) !== context.target.excerpt
+    ) {
+      if (status) status.status = "The manuscript changed. Generate the table again for the current target.";
+      return;
+    }
+    const prefix = context.target.start > 0 && state.source[context.target.start - 1] !== "\n" ? "\n\n" : "";
+    const suffix = context.target.end < state.source.length && state.source[context.target.end] !== "\n" ? "\n\n" : "\n";
+    callbacks.applyTable(context.target, `${prefix}${markdown}${suffix}`);
+    if (status) status.status = "Table inserted into the manuscript.";
   }
 
   private async continueClarity(

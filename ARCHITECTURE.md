@@ -383,7 +383,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   generation busy gating, prepared-input acquisition, start/result/failure
   status, operation routing, candidate-open sequencing, and final availability
   refresh while delegating XState transitions and canonical candidate refresh
-  through typed callbacks.
+  through typed callbacks. It also owns captured-table validation against
+  workflow, document stability, revision, and exact target text plus portable
+  insertion spacing and status; the coordinator retains the authorized XState,
+  Yjs, editor-selection, and remembered-selection mutation.
   Let the candidate-review Lit owner resolve the active candidate id against
   the canonical workspace snapshot and derive evidence availability and local
   applicability from candidate, evidence-version, source-revision,
