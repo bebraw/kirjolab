@@ -711,10 +711,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   retain them in project history, and preserve resolved comments as resources.
 - Let the manuscript comment Lit panel own create, re-anchor, and resolve
   transport, local status and retryable failure state, open-comment count
-  derivation from its canonical collection, and completed mutation outcomes.
-  Keep Yjs selection stability checks and typed passage derivation in the
-  workspace coordinator, which supplies the validated mutation input and routes
-  the derived count to the rail.
+  derivation from its canonical collection, authoring-action routing, and
+  completed mutation outcomes. Bind one typed passage resolver from the
+  workspace coordinator; keep Yjs selection stability checks and typed passage
+  derivation there, and route the derived count to the rail.
 - Store imported PDF bytes in R2 and keep annotations as separate scholarly resources.
 - Combine PDF page/geometry identity with exact quote, prefix, and suffix selectors; never require mutation of the imported PDF.
 - Normalize PDF selection rectangles to top-left page coordinates in zero-to-one space so highlights do not depend on viewport pixels.

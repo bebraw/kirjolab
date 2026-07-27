@@ -1,11 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ManuscriptAnchorSelector, ManuscriptComment } from "../domain/workspace";
-import {
-  ManuscriptCommentList,
-  manuscriptCommentActionEvent,
-  manuscriptCommentCreateEvent,
-  type ManuscriptCommentAction,
-} from "./manuscript-comment-list";
+import { ManuscriptCommentList, manuscriptCommentActionEvent, type ManuscriptCommentAction } from "./manuscript-comment-list";
 
 const anchor: ManuscriptAnchorSelector = {
   anchoredRevision: 1,
@@ -77,7 +72,7 @@ describe("manuscript comment list", () => {
     expect(list.rootForTest()).toBe(list);
   });
 
-  it("emits editor-dependent open and reanchor intents", () => {
+  it("emits editor-dependent open intents", () => {
     const list = new TestManuscriptCommentList();
     const actions: ManuscriptCommentAction[] = [];
     list.addEventListener(manuscriptCommentActionEvent, (event) => actions.push((event as CustomEvent<ManuscriptCommentAction>).detail));
@@ -86,10 +81,7 @@ describe("manuscript comment list", () => {
     list.actForTest("missing", "missing");
     list.actForTest("open");
     list.actForTest("reanchor");
-    expect(actions).toEqual([
-      { action: "open", anchor },
-      { action: "reanchor", commentId: comment.id },
-    ]);
+    expect(actions).toEqual([{ action: "open", anchor }]);
   });
 
   it("owns resolution persistence and emits the completed outcome", async () => {
@@ -140,16 +132,47 @@ describe("manuscript comment list", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
-  it("emits the current comment intent", () => {
+  it("creates and re-anchors through the bound authoring passage", async () => {
     const list = new TestManuscriptCommentList();
-    const comments: string[] = [];
-    list.addEventListener(manuscriptCommentCreateEvent, (event) => {
-      comments.push((event as CustomEvent<string>).detail);
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 200 }));
+    const passages: string[] = [];
+    const passage = { fileId: "main", start: 0, end: 16, excerpt: "Selected passage", sourceRevision: 4 };
+    list.configure("/api/workspaces/workspace");
+    list.bindAuthoring({
+      passage: (action) => {
+        passages.push(action);
+        return passage;
+      },
     });
+    list.setComments([{ ...comment, resolution: { status: "stale" } }]);
     list.changeForTest("Check this claim");
     list.createForTest();
-    expect(comments).toEqual(["Check this claim"]);
+    list.actForTest("reanchor");
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+
+    expect(passages).toEqual(["create", "reanchor"]);
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      "/api/workspaces/workspace/comments",
+      expect.objectContaining({ body: JSON.stringify({ ...passage, body: "Check this claim" }), method: "POST" }),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      "/api/workspaces/workspace/comments/comment%3A1/reanchor",
+      expect.objectContaining({ body: JSON.stringify(passage), method: "POST" }),
+    );
     expect(list.renderForTest()).toBeDefined();
+  });
+
+  it("does not persist without a bound authoring passage", () => {
+    const list = new TestManuscriptCommentList();
+    const fetchMock = vi.spyOn(globalThis, "fetch");
+    list.setComments([{ ...comment, resolution: { status: "stale" } }]);
+
+    list.createForTest();
+    list.actForTest("reanchor");
+
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("owns create and re-anchor persistence and emits completed outcomes", async () => {

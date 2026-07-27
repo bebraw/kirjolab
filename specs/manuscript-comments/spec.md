@@ -39,10 +39,12 @@ ephemeral rather than a scholarly resource.
   open/resolved history without reducing the manuscript editor height.
 - The bounded light-DOM comment panel owns composer state plus create,
   re-anchor, and resolve transport, local failures, open-comment count
-  derivation from its canonical collection, and completed mutation outcomes. The
-  workspace coordinator retains Yjs selection stability checks, derives the
-  current typed passage input, routes the derived count to the rail, refreshes
-  canonical project state, presents notifications, and opens resolved passages.
+  derivation from its canonical collection, authoring-action routing, and
+  completed mutation outcomes. It requests create and re-anchor inputs through
+  one typed resolver bound by the workspace coordinator. The coordinator retains
+  Yjs selection stability checks, derives the current typed passage input,
+  routes the derived count to the rail, refreshes canonical project state,
+  presents notifications, and opens resolved passages.
 - A socket receives a server-owned ephemeral collaborator id. Its bounded
   current-revision selection is broadcast to peers and cleared on disconnect;
   it is never stored or added to history.

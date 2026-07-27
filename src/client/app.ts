@@ -74,7 +74,7 @@ import { resolveAssistantTarget } from "./assistant-operations";
 import { citationPageFromLocator, createCitationInsertion, type CitationContext } from "./citations";
 import { projectMapResourceSelectEvent } from "./project-map-workspace";
 import { claimListActionEvent, type ClaimListAction } from "./claim-list-panel";
-import { manuscriptCommentActionEvent, manuscriptCommentCreateEvent, type ManuscriptCommentAction } from "./manuscript-comment-list";
+import { manuscriptCommentActionEvent, type ManuscriptCommentAction } from "./manuscript-comment-list";
 import { publicationListActionEvent, type PublicationListAction } from "./publication-list-panel";
 import { projectEvidenceActionEvent, type ProjectEvidenceAction } from "./project-evidence-panel";
 import {
@@ -454,14 +454,32 @@ class WorkspaceApp {
       trigger: this.#elements.projectHistoryTrigger,
     });
     this.#elements.manuscriptCommentListPanel.configure(apiBase);
-    this.#elements.manuscriptCommentListPanel.addEventListener(manuscriptCommentCreateEvent, (event) => {
-      void this.#createManuscriptComment((event as CustomEvent<string>).detail);
+    this.#elements.manuscriptCommentListPanel.bindAuthoring({
+      passage: (action) => {
+        if (!this.#hasStableDocumentBase()) {
+          this.#showToast(
+            action === "create"
+              ? "Wait for the manuscript to finish synchronizing before commenting."
+              : "Wait for the manuscript to finish synchronizing before re-anchoring.",
+          );
+          return;
+        }
+        const passage = this.#selectedAuthoringPassage();
+        if (!passage) {
+          this.#showToast(
+            action === "create"
+              ? "Select manuscript text before adding a comment."
+              : "Select the revised manuscript passage before re-anchoring the comment.",
+          );
+          return;
+        }
+        return { ...passage, sourceRevision: this.#revision };
+      },
     });
     this.#elements.manuscriptCommentListPanel.addEventListener(manuscriptCommentActionEvent, (event) => {
       const detail = (event as CustomEvent<ManuscriptCommentAction>).detail;
       if (detail.action === "open") this.#showPassage(detail.anchor);
-      else if (detail.action === "reanchor") void this.#reanchorManuscriptComment(detail.commentId);
-      else this.#refreshResourcesWithNotice(detail.message, "The comment was resolved, but project resources could not be refreshed.");
+      else this.#refreshResourcesWithNotice(detail.message, "The comment changed, but project resources could not be refreshed.");
     });
     this.#source.observe(() => void this.#renderPreview());
     this.#bibliography.observe(() => void this.#renderPreview());
@@ -1364,39 +1382,6 @@ class WorkspaceApp {
   #editAnnotation(annotation: AnnotationResource): void {
     this.#elements.projectAnnotationForm.showAnnotation(annotation);
     this.#openAnnotationEvidence(annotation);
-  }
-
-  async #createManuscriptComment(body: string): Promise<void> {
-    if (!this.#hasStableDocumentBase()) {
-      this.#showToast("Wait for the manuscript to finish synchronizing before commenting.");
-      return;
-    }
-    const passage = this.#selectedAuthoringPassage();
-    if (!passage) {
-      this.#showToast("Select manuscript text before adding a comment.");
-      return;
-    }
-    await this.#elements.manuscriptCommentListPanel.createAt({
-      ...passage,
-      sourceRevision: this.#revision,
-      body,
-    });
-  }
-
-  async #reanchorManuscriptComment(commentId: string): Promise<void> {
-    if (!this.#hasStableDocumentBase()) {
-      this.#showToast("Wait for the manuscript to finish synchronizing before re-anchoring.");
-      return;
-    }
-    const passage = this.#selectedAuthoringPassage();
-    if (!passage) {
-      this.#showToast("Select the revised manuscript passage before re-anchoring the comment.");
-      return;
-    }
-    await this.#elements.manuscriptCommentListPanel.reanchorAt(commentId, {
-      ...passage,
-      sourceRevision: this.#revision,
-    });
   }
 
   async #linkClaim(claimId: string): Promise<void> {

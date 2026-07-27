@@ -9,12 +9,14 @@ import { errorMessage, expectOk, jsonFetch } from "./http";
 import { anchorActionLabel } from "./research-resource-presentation";
 
 export const manuscriptCommentActionEvent = "manuscript-comment-action";
-export const manuscriptCommentCreateEvent = "manuscript-comment-create";
 
 export type ManuscriptCommentAction =
   | { readonly action: "open"; readonly anchor: ManuscriptAnchorSelector }
-  | { readonly action: "reanchor"; readonly commentId: string }
   | { readonly action: "mutated"; readonly message: string };
+
+export interface ManuscriptCommentAuthoring {
+  readonly passage: (action: "create" | "reanchor") => ManuscriptPassageInput | undefined;
+}
 
 export class ManuscriptCommentList extends LitElement {
   static override properties = {
@@ -29,6 +31,7 @@ export class ManuscriptCommentList extends LitElement {
   declare private resolvingCommentId: string;
   declare private status: string;
   private apiBase = "";
+  private authoring: ManuscriptCommentAuthoring | undefined;
 
   constructor() {
     super();
@@ -40,6 +43,10 @@ export class ManuscriptCommentList extends LitElement {
 
   configure(apiBase: string): void {
     this.apiBase = apiBase;
+  }
+
+  bindAuthoring(authoring: ManuscriptCommentAuthoring): void {
+    this.authoring = authoring;
   }
 
   setComments(comments: readonly ManuscriptComment[]): number {
@@ -139,7 +146,8 @@ export class ManuscriptCommentList extends LitElement {
 
   protected create(event: Event): void {
     event.preventDefault();
-    this.dispatchEvent(new CustomEvent<string>(manuscriptCommentCreateEvent, { bubbles: true, detail: this.body }));
+    const passage = this.authoring?.passage("create");
+    if (passage) void this.createAt({ ...passage, body: this.body });
   }
 
   protected changeBody(event: Event): void {
@@ -152,7 +160,7 @@ export class ManuscriptCommentList extends LitElement {
     if (!comment) return;
     const action = button.dataset.commentAction;
     if (action === "open") this.emit({ action, anchor: comment.anchor });
-    else if (action === "reanchor") this.emit({ action, commentId: comment.id });
+    else if (action === "reanchor") void this.reanchor(comment.id);
     else if (action === "resolve") void this.resolve(comment.id);
   }
 
@@ -172,6 +180,11 @@ export class ManuscriptCommentList extends LitElement {
     } finally {
       this.resolvingCommentId = "";
     }
+  }
+
+  private async reanchor(commentId: string): Promise<void> {
+    const passage = this.authoring?.passage("reanchor");
+    if (passage) await this.reanchorAt(commentId, passage);
   }
 
   private async persist(endpoint: string, input: ManuscriptPassageInput, message: string, reset = false): Promise<void> {

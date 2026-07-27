@@ -154,10 +154,10 @@ The adopted components own bounded presentation:
   workflow's Yjs-validated typed passage input.
 - The manuscript comment panel owns composer body and status state plus comment,
   anchor-status, empty-state, action presentation, and open-comment count
-  derivation with typed create, open, and re-anchor intents. Given a
-  coordinator-validated current passage, it owns create and re-anchor transport,
-  body reset, local retryable failure state, self-contained resolution transport,
-  duplicate-resolution gating, and typed completed mutation outcomes.
+  derivation with typed open intents. Through one coordinator-bound typed
+  passage resolver, it owns create and re-anchor action routing and transport,
+  body reset, local retryable failure state, self-contained resolution
+  transport, duplicate-resolution gating, and typed completed mutation outcomes.
 - The project publication list owns the References collection shell and count,
   reference metadata, alias and DOI labels, empty-state, and action
   presentation. It also owns DOI-enrichment transport, duplicate-submit
@@ -592,9 +592,10 @@ reason to wrap static markup mechanically.
 - The manuscript comment panel replaces three composer element references,
   submit binding, reset and saved-status updates, one internal list reference,
   its imperative card renderer, and all three coordinator comment request
-  paths. It leaves Yjs selection validation, current-passage derivation,
-  canonical refreshes, notifications, and passage navigation in the
-  application coordinator.
+  paths. Its bound authoring resolver also removes two coordinator event routes
+  and the create/re-anchor orchestration methods. It leaves Yjs selection
+  validation, current-passage derivation, canonical refreshes, notifications,
+  and passage navigation in the application coordinator.
 - The project publication list replaces one internal list reference and its
   imperative card renderer. It also replaces the separate count reference and
   mutation, the coordinator enrichment method, and the coordinator's
