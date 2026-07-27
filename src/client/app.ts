@@ -38,7 +38,7 @@ import { CollaborationSession } from "./collaboration-session";
 import { CollaborationSocket } from "./collaboration-socket";
 import { resolveAssistantTarget } from "./assistant-operations";
 import { createCitationInsertion, type CitationContext } from "./citations";
-import { type ProjectFileDialogMode, type ProjectFileSaved } from "./project-file-dialog";
+import { type ProjectFileDialogMode } from "./project-file-dialog";
 import "./manuscript-map-panel";
 import {
   applicationVersion,
@@ -380,7 +380,11 @@ class WorkspaceApp {
         this.#layout.setRailCollapsed(false);
         this.#showRail("files");
       },
-      saved: (result) => this.#completeProjectFileSave(result),
+      saved: ({ fileId, message, mode, path }) => {
+        if (!this.#insertRememberedProjectInclude(mode, path) && fileId) this.#selectProjectFile(fileId);
+        this.#showToast(message);
+        this.#resetProjectFileDialogState();
+      },
       selectFile: (fileId) => this.#selectProjectFile(fileId),
       tree: this.#elements.projectTreePanel,
     });
@@ -903,16 +907,6 @@ class WorkspaceApp {
     this.#projectFileIncludeTarget =
       mode === "create-and-include" ? captureRelativeSelection(this.#elements.source, this.#activeFileText) : null;
     this.#projectFileIncludeFromPath = mode === "create-and-include" ? (file?.path ?? null) : null;
-  }
-
-  #completeProjectFileSave({ message, mode, path, snapshot }: ProjectFileSaved): void {
-    this.#snapshot = snapshot;
-    this.#renderProjectFiles();
-    const selected = snapshot.files.find((file) => file.path === path);
-    if (!this.#insertRememberedProjectInclude(mode, path) && selected) this.#selectProjectFile(selected.id);
-    void this.#renderPreview();
-    this.#showToast(message);
-    this.#resetProjectFileDialogState();
   }
 
   #insertRememberedProjectInclude(mode: ProjectFileDialogMode, path: string): boolean {

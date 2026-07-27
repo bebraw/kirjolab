@@ -8326,6 +8326,30 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,706 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Project File Save Commit
+
+`ProjectFileDialog` now applies validated save snapshots through the same
+canonical mutation binding already used by uploads, tree mutations, and delayed
+deletions. Its save workflow supplies only the submitted mode and path, outcome
+notice, and derived stable file identity to `WorkspaceApp`; the dialog also
+routes that outcome directly instead of dispatching and catching a private
+self-event. Yjs include insertion and active editor selection remain in the
+coordinator.
+
+This checkpoint reduces `src/client/app.ts` from 1,482 to 1,476 lines (-6) and
+the project-file dialog from 468 to 463 lines (-5), for an eleven-line runtime
+source reduction. Focused coverage passes all 41 project-file dialog, action,
+tree, and application-contract cases, including canonical snapshot commit,
+stable saved-file identity, direct workflow routing, and strict types.
+
+The browser application artifact changes from 846,705 B raw / 228,519 B gzip
+to 846,537 B raw / 228,465 B gzip (-168 B raw / -54 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,706 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

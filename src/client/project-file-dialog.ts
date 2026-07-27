@@ -7,15 +7,13 @@ import { projectFileActionEvent, type ProjectFileAction } from "./project-file-a
 import { projectImagesUploadedEvent, type ProjectImagesUploaded } from "./project-image-upload-control";
 import { projectTreeActionEvent, type ProjectTreeAction, type ProjectTreeCallbacks, type ProjectTreeData } from "./project-tree-panel";
 
-export const projectFileSavedEvent = "project-file-saved";
-
 export type ProjectFileDialogMode = "create" | "create-and-include" | "rename" | "create-folder" | "rename-folder";
 
 export interface ProjectFileSaved {
+  readonly fileId?: string;
   readonly message: string;
   readonly mode: ProjectFileDialogMode;
   readonly path: string;
-  readonly snapshot: WorkspaceSnapshot;
 }
 
 export interface ProjectImageInsertion {
@@ -347,13 +345,15 @@ export class ProjectFileDialog extends LitElement {
       const response = await jsonFetch(url, { path }, creating ? "POST" : "PATCH");
       await expectOk(response);
       const snapshot = await this.workspace(response);
+      const fileId = snapshot.files.find((file) => file.path === path)?.id;
       this.close();
-      this.dispatchEvent(
-        new CustomEvent<ProjectFileSaved>(projectFileSavedEvent, {
-          bubbles: true,
-          detail: { message: projectFileSavedMessage(this.mode, path), mode: this.mode, path, snapshot },
-        }),
-      );
+      this.mutationCallbacks.commit(snapshot);
+      this.routing?.saved({
+        ...(fileId ? { fileId } : {}),
+        message: projectFileSavedMessage(this.mode, path),
+        mode: this.mode,
+        path,
+      });
     } catch (error) {
       this.status = errorMessage(error, "Could not save the project path.");
     } finally {
@@ -414,10 +414,6 @@ export class ProjectFileDialog extends LitElement {
     this.mutationCallbacks.presentNotice(message);
   };
 
-  private readonly handleSaved = (event: Event): void => {
-    this.routing?.saved((event as CustomEvent<ProjectFileSaved>).detail);
-  };
-
   private connectRouting(): void {
     this.routingAbort?.abort();
     const routing = this.routing;
@@ -427,7 +423,6 @@ export class ProjectFileDialog extends LitElement {
     for (const actions of routing.actionControls) actions.addEventListener(projectFileActionEvent, this.handleFileAction, options);
     routing.tree.addEventListener(projectTreeActionEvent, this.handleTreeAction, options);
     routing.imageUpload.addEventListener(projectImagesUploadedEvent, this.handleImagesUploaded, options);
-    this.addEventListener(projectFileSavedEvent, this.handleSaved, options);
   }
 
   protected get dialog(): HTMLDialogElement {

@@ -384,8 +384,9 @@ The adopted components own bounded presentation:
   create and rename transport, file deletion transport, content-bearing
   workflow-file creation, shared response validation, created-path verification,
   duplicate-submit gating, local busy and retryable failure state, and typed
-  completed outcomes carrying the mode, path, message, and validated workspace
-  snapshot together. It also owns supporting-file optimistic hiding, the
+  completed outcomes carrying the mode, path, message, and derived stable file
+  identity after applying the validated workspace through its shared mutation
+  binding. It also owns supporting-file optimistic hiding, the
   deletion grace period, Undo and failed-commit restoration, and exposes the
   hidden-file projection. Its presentation binding fans one canonical snapshot,
   visible file collection, and active/entry state into the project tree, Insert

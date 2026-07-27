@@ -244,8 +244,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   created-path verification, duplicate-submit gating, and retryable local
   failures. It also owns the supporting-file hidden projection, six-second
   delayed deletion, Undo restoration, failed-commit restoration, and deletion
-  notices. It routes its sibling file-action, tree, upload-completion, and save
-  streams through typed workflow callbacks. From one canonical snapshot it also
+  notices. It routes validated upload and save snapshots through one canonical
+  mutation binding and supplies saved mode, path, message, and derived stable
+  file identity through its typed workflow callback. From one canonical snapshot it also
   owns active-file identity, entry fallback, hidden-file selection eligibility,
   active file/folder resolution for dialogs, active-file deletion eligibility,
   and relative image insertion projection. It projects the visible file
@@ -253,8 +254,8 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   completion, and file menu. It also materializes that same visible collection
   with snapshot or live collaborative content for Preview, manuscript-map, and
   collaborator-selection consumers through a coordinator-supplied content
-  resolver. Emit or return the
-  validated workspace snapshot or created stable file. Keep workflow-template
+  resolver. Apply or return the validated workspace snapshot through that
+  mutation binding, or return the created stable file. Keep workflow-template
   selection and navigation, collaborative caret capture, Yjs insertion and
   active-text binding, Yjs document authority, canonical snapshot authority,
   cross-feature rendering, and

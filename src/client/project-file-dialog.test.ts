@@ -4,7 +4,6 @@ import {
   projectImageInsertion,
   projectFileDialogIsCreating,
   projectFileDialogIsFolder,
-  projectFileSavedEvent,
   type ProjectFileMutationCallbacks,
   type ProjectFileDialogMode,
   type ProjectFileSaved,
@@ -145,7 +144,6 @@ describe("project file dialog", () => {
       updatedAt: "now",
     };
     const upload = { message: "Uploaded.", snapshot };
-    const saved = { message: "Saved.", mode: "create" as const, path: "chapter.md", snapshot };
 
     actions.dispatchEvent(new CustomEvent(projectFileActionEvent, { detail: "upload-images" }));
     actions.dispatchEvent(new CustomEvent(projectFileActionEvent, { detail: "delete" }));
@@ -155,7 +153,6 @@ describe("project file dialog", () => {
     tree.dispatchEvent(new CustomEvent(projectTreeActionEvent, { detail: { action: "rename-folder", folderId: "folder-1" } }));
     tree.dispatchEvent(new CustomEvent(projectTreeActionEvent, { detail: { action: "insert-asset", asset } }));
     imageUpload.dispatchEvent(new CustomEvent(projectImagesUploadedEvent, { detail: upload }));
-    panel.dispatchEvent(new CustomEvent(projectFileSavedEvent, { detail: saved }));
 
     expect(imageUpload.choose).toHaveBeenCalledOnce();
     expect(deleteFile).not.toHaveBeenCalled();
@@ -173,7 +170,6 @@ describe("project file dialog", () => {
     });
     expect(mutations.commit).toHaveBeenCalledWith(snapshot);
     expect(mutations.presentNotice).toHaveBeenCalledWith("Uploaded.");
-    expect(callbacks.saved).toHaveBeenCalledWith(saved);
   });
 
   it("projects image assets relative to the active file", () => {
@@ -258,29 +254,41 @@ describe("project file dialog", () => {
     expect(panel.activeFileId).toBe(snapshot.entryFileId);
   });
 
-  it("persists a trimmed path and emits the validated workspace", async () => {
+  it("commits the validated workspace and emits the saved file identity", async () => {
     const panel = new TestProjectFileDialog();
-    const saves: ProjectFileSaved[] = [];
-    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(Response.json(snapshot));
-    panel.addEventListener(projectFileSavedEvent, (event) => saves.push((event as CustomEvent<ProjectFileSaved>).detail));
-    panel.configureApi("/api/workspaces/workspace");
+    const callbacks = mutationCallbacks();
+    const saved = vi.fn<(result: ProjectFileSaved) => void>();
+    const created = { ...snapshot.files[0]!, id: "file-2", path: "chapters/results.md" };
+    const project = { ...snapshot, files: [...snapshot.files, created] };
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(Response.json(project));
+    panel.configureApi("/api/workspaces/workspace", callbacks);
+    panel.bindWorkflow({
+      actionControls: [],
+      focusEditor: vi.fn(),
+      imageUpload: Object.assign(new EventTarget(), { choose: vi.fn() }),
+      insertImage: vi.fn(),
+      prepareDialog: vi.fn(),
+      quickOpen: vi.fn(),
+      saved,
+      selectFile: vi.fn(),
+      tree: Object.assign(new EventTarget(), { focusFilter: vi.fn() }),
+    });
     panel.configureForTest("create-and-include", "", "file-1");
-    panel.input.value = "  chapters/method.md  ";
+    panel.input.value = "  chapters/results.md  ";
 
     await panel.saveForTest();
 
     expect(fetchMock).toHaveBeenCalledWith(
       "/api/workspaces/workspace/files",
-      expect.objectContaining({ body: JSON.stringify({ path: "chapters/method.md" }), method: "POST" }),
+      expect.objectContaining({ body: JSON.stringify({ path: "chapters/results.md" }), method: "POST" }),
     );
-    expect(saves).toEqual([
-      {
-        message: "Created chapters/method.md and included it at the remembered caret.",
-        mode: "create-and-include",
-        path: "chapters/method.md",
-        snapshot,
-      },
-    ]);
+    expect(callbacks.commit).toHaveBeenCalledWith(project);
+    expect(saved).toHaveBeenCalledWith({
+      fileId: created.id,
+      message: "Created chapters/results.md and included it at the remembered caret.",
+      mode: "create-and-include",
+      path: "chapters/results.md",
+    });
   });
 
   it("uses the stable target for rename and permits retry after failure", async () => {

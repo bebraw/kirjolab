@@ -96,7 +96,9 @@ collaborative, and unambiguous about what preview and export mean.
   dialog owns file and folder operation copy, initial paths, focus,
   cancellation, mutation transport, response validation, duplicate-submit
   gating, retryable local failures, and typed routing of sibling file actions,
-  tree actions, upload completion, and save completion. The workspace
+  tree actions, upload completion, and save completion. Upload and save
+  snapshots use one canonical mutation binding; save completion carries only
+  the derived stable file identity plus mode, path, and notice. The workspace
   coordinator retains resource availability, include-caret capture, validated
   snapshot application, selection, rendering, and toast policy.
 - A visible, client-side Files filter matches complete file, folder, and asset
@@ -144,8 +146,9 @@ collaborative, and unambiguous about what preview and export mean.
   link adaptation, the remembered collaborative caret, and Yjs insertion.
 - The project-file dialog derives resource availability, initial path, and the
   stable file or folder identity associated with its active operation from
-  canonical inputs, derives the mutation endpoint from that identity, and emits
-  the completed mode, submitted path, message, and validated workspace snapshot.
+  canonical inputs, derives the mutation endpoint from that identity, applies
+  the validated snapshot through its shared mutation binding, and emits the
+  completed mode, submitted path, message, and derived stable file identity.
   For an image selected from the project tree, it also derives normalized alt
   text and a safely delimited path relative to the canonical active file, then
   emits the projected Markdown and completion message for collaborative
