@@ -55,7 +55,6 @@ import {
   type OfflineWorkspaceStore,
 } from "./offline-workspace";
 import { PdfEvidenceViewer } from "./pdf-viewer";
-import type { ExistingPdfUpload } from "./pdf-upload-queue";
 import { bindThemePreference } from "./theme";
 import {
   activateResearchTab,
@@ -338,7 +337,6 @@ class WorkspaceApp {
       completeProjectMutation: (message, snapshot) => void this.#completeLibraryProjectMutation(message, snapshot),
       openPdf: (artifact, page, updateHistory) => void this.#openLibraryPdf(artifact, page, updateHistory),
       presentNotice: (message) => this.#showToast(message),
-      revealExistingPdf: (upload) => void this.#revealExistingPdfReference(upload),
       refreshLibrary: async () => await this.#refreshReferenceLibrary(),
       refreshMetadata: async () => {
         await this.#refreshReferenceLibrary();
@@ -994,13 +992,6 @@ class WorkspaceApp {
       .request()
       .then(() => this.#showToast(message))
       .catch(() => this.#showToast(failureMessage));
-  }
-
-  async #revealExistingPdfReference(existing: ExistingPdfUpload): Promise<void> {
-    if (existing.archived && this.#elements.referenceLibraryWorkspace.showArchivedReferences()) await this.#refreshReferenceLibrary();
-    if (!(await this.#elements.referenceLibraryWorkspace.revealReference(existing.referenceId, existing.referenceKey))) {
-      this.#showToast(`Library source ${existing.referenceKey} is not available.`);
-    }
   }
 
   async #completeLibraryProjectMutation(message: string, snapshot: WorkspaceSnapshot): Promise<void> {

@@ -146,7 +146,6 @@ describe("reference Library workspace", () => {
       presentNotice,
       refreshLibrary: vi.fn(),
       refreshMetadata: vi.fn(),
-      revealExistingPdf: vi.fn(),
     });
     workspace.setData({
       library: { ...library, artifacts: [artifact] },
@@ -176,7 +175,6 @@ describe("reference Library workspace", () => {
       presentNotice,
       refreshLibrary,
       refreshMetadata: vi.fn(),
-      revealExistingPdf: vi.fn(),
     });
     workspace.setData({ library: { ...library, references: [] }, projectApiBase: null, projectReferences: [], researchShares: [] });
     vi.spyOn(workspace, "showArchivedReferences").mockReturnValue(true);
@@ -231,7 +229,6 @@ describe("reference Library workspace", () => {
       completeProjectMutation: vi.fn(),
       openPdf: vi.fn(),
       presentNotice: vi.fn(),
-      revealExistingPdf: vi.fn(),
       refreshLibrary: vi.fn().mockResolvedValue(undefined),
       refreshMetadata: vi.fn().mockResolvedValue(undefined),
     };
@@ -291,12 +288,13 @@ describe("reference Library workspace", () => {
       compareSnapshots: vi.fn(),
       openPdf: vi.fn(),
       presentNotice: vi.fn(),
-      revealExistingPdf: vi.fn(),
       refreshLibrary: vi.fn().mockResolvedValue(undefined),
       refreshMetadata: vi.fn().mockResolvedValue(undefined),
     };
     const setResults = vi.spyOn(owners["library-discovery-results"], "setResults");
     const openNetwork = vi.spyOn(owners["citation-network-workspace"], "open").mockResolvedValue();
+    vi.spyOn(workspace, "showArchivedReferences").mockReturnValue(true);
+    vi.spyOn(workspace, "revealReference").mockResolvedValue(false);
     workspace.configure("project-1", callbacks);
     const existing = { archived: true, referenceId: "reference-1", referenceKey: "source2026" };
 
@@ -318,9 +316,9 @@ describe("reference Library workspace", () => {
     workspace.dispatchEvent(new CustomEvent(libraryToolsArchiveRefreshEvent, { detail: { message: "Archive restored", requestId: 6 } }));
 
     expect(setResults).toHaveBeenCalledWith([]);
-    await vi.waitFor(() => expect(callbacks.refreshLibrary).toHaveBeenCalledTimes(6));
+    await vi.waitFor(() => expect(callbacks.refreshLibrary).toHaveBeenCalledTimes(7));
     expect(callbacks.presentNotice).toHaveBeenCalledWith("Upload notice");
-    expect(callbacks.revealExistingPdf).toHaveBeenCalledWith(existing);
+    await vi.waitFor(() => expect(callbacks.presentNotice).toHaveBeenCalledWith("Library source source2026 is not available."));
     expect(openNetwork).toHaveBeenCalledOnce();
     expect(callbacks.presentNotice).toHaveBeenCalledWith("Reference saved");
     expect(callbacks.presentNotice).toHaveBeenCalledWith("References imported");
@@ -337,7 +335,6 @@ describe("reference Library workspace", () => {
       compareSnapshots: vi.fn(),
       openPdf: vi.fn(),
       presentNotice,
-      revealExistingPdf: vi.fn(),
       refreshLibrary: vi.fn().mockRejectedValue(new Error("offline")),
       refreshMetadata: vi.fn().mockResolvedValue(undefined),
     });

@@ -384,7 +384,9 @@ memory and makes citation aliases compete with stable source identity.
   by its filters, list, network, PDF queue, and coordinator consumers. It also
   restores standalone Library routes through owned reference focus and artifact
   lookup, and owns archive-aware source recovery, focus, and missing-reference
-  feedback for direct entry navigation. The coordinator retains refresh timing, cross-feature reconciliation,
+  feedback for direct entry navigation and duplicate-PDF upload reveals. The
+  latter enables archived visibility, refreshes canonically, reuses owned
+  filter/list focus, and reports a missing source locally. The coordinator retains refresh timing, cross-feature reconciliation,
   viewer effects, history mutation, context transitions, and notification policy.
 - A project publication context resolves every authorized paper representation
   for the stable reference identity. The owner sees attached private-library

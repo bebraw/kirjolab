@@ -62,7 +62,6 @@ export interface ReferenceLibraryWorkspaceCallbacks {
   readonly completeProjectMutation?: (message: string, snapshot: ProjectReferenceChanged["snapshot"]) => void;
   readonly openPdf: (artifact: LibraryPdfArtifact, page?: number, updateHistory?: boolean) => void;
   readonly presentNotice: (message: string) => void;
-  readonly revealExistingPdf: (upload: ExistingPdfUpload) => void;
   readonly refreshLibrary: () => Promise<void>;
   readonly refreshMetadata: () => Promise<void>;
 }
@@ -71,7 +70,6 @@ const emptyCallbacks: ReferenceLibraryWorkspaceCallbacks = {
   compareSnapshots: () => undefined,
   openPdf: () => undefined,
   presentNotice: () => undefined,
-  revealExistingPdf: () => undefined,
   refreshLibrary: () => Promise.resolve(),
   refreshMetadata: () => Promise.resolve(),
 };
@@ -154,7 +152,7 @@ export class ReferenceLibraryWorkspace extends LitElement {
       this.routeUploadOutcome((event as CustomEvent<LibraryPdfUploadOutcome>).detail);
     });
     this.addEventListener(libraryPdfUploadRevealEvent, (event) => {
-      this.callbacks.revealExistingPdf((event as CustomEvent<ExistingPdfUpload>).detail);
+      void this.revealExistingPdf((event as CustomEvent<ExistingPdfUpload>).detail);
     });
     this.addEventListener(webSourceCapturedEvent, (event) => {
       void this.completeRefresh(
@@ -262,6 +260,13 @@ export class ReferenceLibraryWorkspace extends LitElement {
 
   revealReference(referenceId: string, query: string): Promise<boolean> {
     return this.focusReference(referenceId, query, { block: "nearest" });
+  }
+
+  async revealExistingPdf(existing: ExistingPdfUpload): Promise<void> {
+    if (existing.archived && this.showArchivedReferences()) await this.callbacks.refreshLibrary();
+    if (!(await this.revealReference(existing.referenceId, existing.referenceKey))) {
+      this.callbacks.presentNotice(`Library source ${existing.referenceKey} is not available.`);
+    }
   }
 
   private async focusReference(

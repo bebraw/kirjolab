@@ -294,7 +294,8 @@ The adopted components own bounded presentation:
   notice selection, alternate metadata refresh, local request finalizers,
   archive-aware canonical Library loading, response validation, and the single
   browser snapshot projection plus standalone route lookup and focused-reference
-  restoration, including archive-aware recovery and missing-reference feedback,
+  restoration, including archive-aware recovery, duplicate-upload source reveal,
+  and missing-reference feedback,
   while delegating context activation, history repair, PDF viewer
   navigation, refresh timing, and shared notice presentation through typed callbacks.
 - The citation network panel owns manual source and relationship choices, graph

@@ -8152,6 +8152,29 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,706 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Duplicate PDF Reveal
+
+`ReferenceLibraryWorkspace` now completes duplicate-PDF upload reveal itself:
+it enables archived visibility when needed, requests the canonical Library
+refresh through its existing callback, reuses its owned filter/list focus, and
+presents missing-source feedback. `WorkspaceApp` retains canonical Library load
+timing and the global notice outlet without a reveal callback or bounce method.
+
+This checkpoint reduces `src/client/app.ts` from 1,566 to 1,557 lines (-9) and
+grows the composed Library workspace from 334 to 342 lines (+8). Runtime source
+across those files decreases by one line while deleting the coordinator round
+trip. Focused coverage passes all 25 Library-workspace and application-contract
+cases, including archived recovery, canonical refresh, focused reveal,
+missing-source feedback, sibling outcomes, and strict types.
+
+The browser application artifact changes from 846,713 B raw / 228,661 B gzip
+to 846,643 B raw / 228,625 B gzip (-70 B raw / -36 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,706 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

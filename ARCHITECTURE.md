@@ -103,7 +103,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   it also own canonical Library loading, response validation, archive-aware
   request scope, the single browser snapshot projection, and standalone Library
   route lookup plus archive-aware focused-reference restoration and missing-
-  reference feedback. Keep cross-feature PDF and
+  reference feedback. It also resolves duplicate-PDF upload reveals through
+  archive visibility, canonical refresh, owned filter/list focus, and missing-
+  source feedback. Keep cross-feature PDF and
   context navigation, history mutation, project snapshot application, refresh timing, and notification
   presentation in their authorities behind narrow typed callbacks.
 - Keep resource-card lookup, scrolling, and focus inside the Lit component that
