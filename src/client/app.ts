@@ -162,7 +162,10 @@ class WorkspaceApp {
           this.#showToast(error instanceof Error ? error.message : "Could not refresh project resources");
         });
       },
-      revisionCompleted: (revision) => this.#completeCollaborationRevision(revision),
+      revisionCompleted: (revision) => {
+        this.#setRevision(revision);
+        this.#elements.editorStatus.setSave(this.#collaboration.pendingCount === 0 ? "Saved" : "Saving…");
+      },
       revisionObserved: (revision) => this.#setRevision(revision),
       selection: () =>
         this.#activeFileId
@@ -712,12 +715,6 @@ class WorkspaceApp {
     this.#elements.source.disabled = !this.#collaboration.canEdit;
     this.#elements.bibliography.disabled = !this.#collaboration.canEdit;
     this.#updateModelAvailability();
-  }
-
-  #completeCollaborationRevision(revision: number): void {
-    this.#setRevision(revision);
-    this.#elements.editorStatus.setSave(this.#collaboration.pendingCount === 0 ? "Saved" : "Saving…");
-    this.#scheduleOfflineSave();
   }
 
   #captureEditorSelections(): RelativeEditorSelection[] {

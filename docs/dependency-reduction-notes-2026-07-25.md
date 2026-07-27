@@ -8306,6 +8306,26 @@ gzip, 18, and 150.
 Full native CI passes all 1,706 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Simplification: Revision Completion
+
+`WorkspaceApp` now completes collaboration revisions directly at the socket
+binding and relies on `#setRevision` for its existing offline-save scheduling.
+This removes a one-use forwarding method and a second schedule call for the
+same completed revision while retaining revision, editor-status, history,
+selection, and candidate refresh behavior.
+
+This checkpoint reduces `src/client/app.ts` from 1,485 to 1,482 lines (-3).
+Focused coverage passes all 24 collaboration-socket, collaboration-session,
+editor-status, and application-contract cases, and strict types remain green.
+
+The browser application artifact changes from 846,734 B raw / 228,537 B gzip
+to 846,705 B raw / 228,519 B gzip (-29 B raw / -18 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,706 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,
