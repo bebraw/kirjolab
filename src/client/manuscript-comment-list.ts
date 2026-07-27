@@ -9,9 +9,16 @@ import { errorMessage, expectOk, jsonFetch } from "./http";
 import { anchorActionLabel } from "./research-resource-presentation";
 
 export interface ManuscriptCommentBinding {
+  readonly authoring: () => ManuscriptCommentAuthoring;
   readonly completeMutation: (message: string) => void;
+  readonly notice: (message: string) => void;
   readonly openPassage: (anchor: ManuscriptAnchorSelector) => void;
-  readonly passage: (action: "create" | "reanchor") => ManuscriptPassageInput | undefined;
+}
+
+export interface ManuscriptCommentAuthoring {
+  readonly passage: Omit<ManuscriptPassageInput, "sourceRevision"> | null;
+  readonly sourceRevision: number;
+  readonly stable: boolean;
 }
 
 export class ManuscriptCommentList extends LitElement {
@@ -142,7 +149,7 @@ export class ManuscriptCommentList extends LitElement {
 
   protected create(event: Event): void {
     event.preventDefault();
-    const passage = this.binding?.passage("create");
+    const passage = this.authoringPassage("create");
     if (passage) void this.createAt({ ...passage, body: this.body });
   }
 
@@ -179,8 +186,30 @@ export class ManuscriptCommentList extends LitElement {
   }
 
   private async reanchor(commentId: string): Promise<void> {
-    const passage = this.binding?.passage("reanchor");
+    const passage = this.authoringPassage("reanchor");
     if (passage) await this.reanchorAt(commentId, passage);
+  }
+
+  private authoringPassage(action: "create" | "reanchor"): ManuscriptPassageInput | undefined {
+    const authoring = this.binding?.authoring();
+    if (!authoring) return;
+    if (!authoring.stable) {
+      this.binding?.notice(
+        action === "create"
+          ? "Wait for the manuscript to finish synchronizing before commenting."
+          : "Wait for the manuscript to finish synchronizing before re-anchoring.",
+      );
+      return;
+    }
+    if (!authoring.passage) {
+      this.binding?.notice(
+        action === "create"
+          ? "Select manuscript text before adding a comment."
+          : "Select the revised manuscript passage before re-anchoring the comment.",
+      );
+      return;
+    }
+    return { ...authoring.passage, sourceRevision: authoring.sourceRevision };
   }
 
   private async persist(endpoint: string, input: ManuscriptPassageInput, message: string, reset = false): Promise<void> {

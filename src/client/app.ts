@@ -425,29 +425,15 @@ class WorkspaceApp {
     });
     this.#elements.manuscriptCommentListPanel.configure(apiBase);
     this.#elements.manuscriptCommentListPanel.bind({
+      authoring: () => ({
+        passage: this.#selectedAuthoringPassage(),
+        sourceRevision: this.#revision,
+        stable: this.#collaboration.stable,
+      }),
       completeMutation: (message) =>
         this.#refreshResourcesWithNotice(message, "The comment changed, but project resources could not be refreshed."),
+      notice: (message) => this.#showToast(message),
       openPassage: (anchor) => this.#showPassage(anchor),
-      passage: (action) => {
-        if (!this.#collaboration.stable) {
-          this.#showToast(
-            action === "create"
-              ? "Wait for the manuscript to finish synchronizing before commenting."
-              : "Wait for the manuscript to finish synchronizing before re-anchoring.",
-          );
-          return;
-        }
-        const passage = this.#selectedAuthoringPassage();
-        if (!passage) {
-          this.#showToast(
-            action === "create"
-              ? "Select manuscript text before adding a comment."
-              : "Select the revised manuscript passage before re-anchoring the comment.",
-          );
-          return;
-        }
-        return { ...passage, sourceRevision: this.#revision };
-      },
     });
     this.#source.observe(() => void this.#renderPreview());
     this.#bibliography.observe(() => void this.#renderPreview());

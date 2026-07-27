@@ -8657,6 +8657,30 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,712 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Comment Authoring State
+
+`ManuscriptCommentList` now reads one canonical authoring snapshot and owns
+collaboration-stability gating, missing-selection gating, action-specific
+feedback, and source-revision stamping for create and re-anchor requests.
+`WorkspaceApp` retains Yjs selection resolution, revision and collaboration
+authority, canonical refresh, passage navigation, and toast presentation.
+
+This checkpoint reduces `src/client/app.ts` from 1,368 to 1,354 lines (-14) and
+grows the manuscript-comment owner from 208 to 237 lines (+29), for a 15-line
+runtime source increase while deleting the coordinator's two validation and
+feedback branches. Focused and affected coverage passes all 41 related cases;
+the comment suite now directly covers synchronized, unstable, and missing-
+selection authoring inputs, create and re-anchor source revisions, application
+contracts, and strict types.
+
+The browser application artifact changes from 848,674 B raw / 228,759 B gzip
+to 848,851 B raw / 228,822 B gzip (+177 B raw / +63 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,713 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

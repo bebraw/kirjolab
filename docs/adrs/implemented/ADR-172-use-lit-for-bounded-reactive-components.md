@@ -229,9 +229,12 @@ The adopted components own bounded presentation:
   anchor-status, empty-state, action presentation, and open-comment count
   derivation with typed open intents. Through one coordinator-bound typed
   workspace contract, it owns create and re-anchor action routing and transport,
-  body reset, local retryable failure state, self-contained resolution
-  transport, duplicate-resolution gating, and typed passage-navigation and
-  completed-mutation outcomes.
+  collaboration-stability and selection gating, action-specific feedback, body
+  reset, local retryable failure state, self-contained resolution transport,
+  duplicate-resolution gating, and typed passage-navigation and completed-
+  mutation outcomes. The coordinator supplies one read-only authoring snapshot
+  and retains Yjs selection resolution, revision and collaboration authority,
+  canonical refresh, navigation, and notification presentation.
 - The project publication list owns the References collection shell and count,
   reference metadata, alias and DOI labels, empty-state, and action
   presentation. It also owns DOI-enrichment transport, duplicate-submit
@@ -722,11 +725,13 @@ reason to wrap static markup mechanically.
   submit binding, reset and saved-status updates, one internal list reference,
   its imperative card renderer, and all three coordinator comment request
   paths. Its bound authoring resolver also removes two coordinator event routes
-  and the create/re-anchor orchestration methods. It leaves Yjs selection
-  validation, current-passage derivation, canonical refreshes, notifications,
-  and passage navigation in the application coordinator. Completing that
-  workspace binding removes the final coordinator subscription and public
-  manuscript-comment action protocol.
+  and the create/re-anchor orchestration methods. Its read-only authoring source
+  subsequently removes synchronization, missing-selection, and source-revision
+  request derivation from the coordinator binding. It leaves Yjs selection
+  resolution, revision and collaboration authority, canonical refreshes,
+  notification presentation, and passage navigation in the application
+  coordinator. Completing that workspace binding removes the final coordinator
+  subscription and public manuscript-comment action protocol.
 - The project publication list replaces one internal list reference and its
   imperative card renderer. It also replaces the separate count reference and
   mutation, the coordinator enrichment method, and the coordinator's
