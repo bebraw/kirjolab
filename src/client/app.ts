@@ -30,7 +30,7 @@ import { libraryPdfRoute, readLibraryUiRoute } from "./library-ui-route";
 import "./project-starting-point-browser";
 import { WorkspaceLayoutManager } from "./workspace-layout-manager";
 import "./workspace-layout-control";
-import { researchQuestionWorkflowData, reviewerResponseWorkflowData, type WritingWorkflowBinding } from "./writing-workflow-panel";
+import { type WritingWorkflowBinding } from "./writing-workflow-panel";
 import "./research-diary-summary";
 import { type AssistantAuthoringPassage as AuthoringPassage } from "./assistant-result-panel";
 import { type CandidateDecisionOutcome } from "./candidate-review-panel";
@@ -329,6 +329,7 @@ class WorkspaceApp {
       () => void this.#openWorkflowFile(researchDiaryPath, () => researchDiaryTemplate(new Date().toISOString().slice(0, 10))),
     );
     this.#elements.manuscriptMapPanel.bindNavigation(({ from, to }) => this.#focusComposedRange(from, to));
+    this.#elements.manuscriptMapPanel.bindProjectPresentation(this.#elements);
     const writingWorkflow: WritingWorkflowBinding = {
       notice: (message) => this.#showToast(message),
       open: (kind) =>
@@ -886,18 +887,9 @@ class WorkspaceApp {
     }
   }
 
-  #renderManuscriptMap(source = this.#currentComposedSource()): void {
-    this.#elements.manuscriptMapPanel.setSource(source);
+  #renderManuscriptMap(source?: string): void {
     const files = this.#previewProjectFiles();
-    this.#elements.researchDiaryPanel.setContent(files.find((file) => file.path === researchDiaryPath)?.content ?? null);
-    this.#elements.researchQuestionPanel.setData(researchQuestionWorkflowData(files.find((file) => file.path === researchQuestionsPath)));
-    this.#elements.reviewerResponsePanel.setData(reviewerResponseWorkflowData(files.find((file) => file.path === reviewerResponsePath)));
-  }
-
-  #currentComposedSource(): string {
-    return this.#snapshot
-      ? composeProject(this.#previewProjectFiles(), this.#snapshot.entryFileId, {}, this.#snapshot.reviewArtifactPins).content
-      : this.#source.toString();
+    this.#elements.manuscriptMapPanel.presentProject({ fallbackSource: this.#source.toString(), files, snapshot: this.#snapshot, source });
   }
 
   async #openWorkflowFile(path: string, content: () => string): Promise<void> {

@@ -1,5 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { ManuscriptMapPanel, type ManuscriptMapSelection } from "./manuscript-map-panel";
+import { researchQuestionsPath } from "../domain/research-questions";
+import { reviewerResponsePath } from "../domain/reviewer-response";
+import { workspaceSnapshotFixture } from "../test-support/workspace-fixture";
+import { researchDiaryPath } from "../domain/writing-workflows";
 
 class TestManuscriptMapPanel extends ManuscriptMapPanel {
   renderForTest() {
@@ -50,5 +54,30 @@ describe("manuscript map panel", () => {
     panel.selectForTest("missing", "4");
 
     expect(selections).toEqual([{ from: 2, to: 9 }]);
+  });
+
+  it("projects the canonical project into the writing-guide siblings", () => {
+    const panel = new TestManuscriptMapPanel();
+    const researchDiaryPanel = { setContent: vi.fn() };
+    const researchQuestionPanel = { setData: vi.fn() };
+    const reviewerResponsePanel = { setData: vi.fn() };
+    const files = [
+      { ...workspaceSnapshotFixture.files[0]!, content: "# Composed manuscript" },
+      { ...workspaceSnapshotFixture.files[0]!, id: "diary", path: researchDiaryPath, content: "## 2026-07-27" },
+      { ...workspaceSnapshotFixture.files[0]!, id: "questions", path: researchQuestionsPath, content: "## RQ1: Does it work?" },
+      { ...workspaceSnapshotFixture.files[0]!, id: "responses", path: reviewerResponsePath, content: "## R1.1: Clarify" },
+    ];
+    panel.bindProjectPresentation({ researchDiaryPanel, researchQuestionPanel, reviewerResponsePanel });
+
+    panel.presentProject({ fallbackSource: "fallback", files, snapshot: { ...workspaceSnapshotFixture, files } });
+
+    expect(researchDiaryPanel.setContent).toHaveBeenCalledWith("## 2026-07-27");
+    expect(researchQuestionPanel.setData).toHaveBeenCalledWith(
+      expect.objectContaining({ fileId: "questions", kind: "research-questions" }),
+    );
+    expect(reviewerResponsePanel.setData).toHaveBeenCalledWith(
+      expect.objectContaining({ fileId: "responses", kind: "reviewer-responses" }),
+    );
+    expect(panel.renderForTest()).toBeDefined();
   });
 });

@@ -7545,6 +7545,30 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,696 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Writing Guide Project Projection
+
+`ManuscriptMapPanel` now derives the Writing Guide's composed source plus its
+research-diary, research-question, and reviewer-response sibling projections
+from one canonical snapshot and visible project-file set. `WorkspaceApp`
+retains workflow navigation and file creation, Preview outcomes, rail and URL
+coordination, and file-qualified editor focus.
+
+This checkpoint reduces `src/client/app.ts` from 1,898 to 1,890 lines (-8) and
+grows the manuscript-map owner from 154 to 188 lines (+34). Runtime source
+across those two files increases by 26 lines while deleting the coordinator's
+guide-specific composition fallback, three file lookups, and workflow-data
+adaptation imports. Focused coverage exercises canonical composition and all
+three sibling projections, existing map rendering and navigation, application
+contracts, and strict types.
+
+The browser application artifact changes from 844,268 B raw / 229,026 B gzip
+to 844,510 B raw / 229,023 B gzip (+242 B raw / -3 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,697 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

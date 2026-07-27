@@ -1,10 +1,29 @@
 import { html, LitElement, type TemplateResult } from "lit";
 import { runEditingPass, type EditingPass } from "../domain/editing-passes";
 import { buildManuscriptMap } from "../domain/manuscript-map";
+import { composeProject, type ProjectFile } from "../domain/project-files";
+import { researchQuestionsPath } from "../domain/research-questions";
+import { reviewerResponsePath } from "../domain/reviewer-response";
+import type { WorkspaceSnapshot } from "../domain/workspace";
+import { researchDiaryPath } from "../domain/writing-workflows";
+import { researchQuestionWorkflowData, reviewerResponseWorkflowData, type WritingWorkflowData } from "./writing-workflow-panel";
 
 export interface ManuscriptMapSelection {
   readonly from: number;
   readonly to: number;
+}
+
+interface ManuscriptMapProjectRequest {
+  readonly fallbackSource: string;
+  readonly files: readonly ProjectFile[];
+  readonly snapshot: WorkspaceSnapshot | null;
+  readonly source?: string | undefined;
+}
+
+interface ManuscriptMapProjectPresentation {
+  readonly researchDiaryPanel: { setContent(content: string | null): void };
+  readonly researchQuestionPanel: { setData(data: WritingWorkflowData): void };
+  readonly reviewerResponsePanel: { setData(data: WritingWorkflowData): void };
 }
 
 export class ManuscriptMapPanel extends LitElement {
@@ -16,6 +35,7 @@ export class ManuscriptMapPanel extends LitElement {
   declare private pass: EditingPass;
   declare private source: string;
   private navigate: ((selection: ManuscriptMapSelection) => void) | null = null;
+  private projectPresentation: ManuscriptMapProjectPresentation | null = null;
 
   constructor() {
     super();
@@ -25,6 +45,20 @@ export class ManuscriptMapPanel extends LitElement {
 
   setSource(source: string): void {
     this.source = source;
+  }
+
+  bindProjectPresentation(presentation: ManuscriptMapProjectPresentation): void {
+    this.projectPresentation = presentation;
+  }
+
+  presentProject({ fallbackSource, files, snapshot, source }: ManuscriptMapProjectRequest): void {
+    this.source =
+      source ?? (snapshot ? composeProject(files, snapshot.entryFileId, {}, snapshot.reviewArtifactPins).content : fallbackSource);
+    const presentation = this.projectPresentation;
+    if (!presentation) return;
+    presentation.researchDiaryPanel.setContent(files.find((file) => file.path === researchDiaryPath)?.content ?? null);
+    presentation.researchQuestionPanel.setData(researchQuestionWorkflowData(files.find((file) => file.path === researchQuestionsPath)));
+    presentation.reviewerResponsePanel.setData(reviewerResponseWorkflowData(files.find((file) => file.path === reviewerResponsePath)));
   }
 
   bindNavigation(navigate: (selection: ManuscriptMapSelection) => void): void {
