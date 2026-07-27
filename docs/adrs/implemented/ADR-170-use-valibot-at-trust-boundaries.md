@@ -71,6 +71,12 @@ Adopted boundaries are:
   content, length, numeric, and safe-integer checks while bounded body reading,
   bearer and same-origin authorization, revision conflicts, and mutation error
   mapping remain explicit.
+- Offline workspace persistence: one inferred record schema replaces the
+  parallel record interface and structural predicate while preserving the exact
+  schema version, ArrayBuffer requirements, and 16 MiB Yjs-state bounds.
+  Identity and workspace matching, snapshot validation, Yjs decoding and
+  application, anchor reprojection, and corrupt-record eviction remain explicit
+  persistence policy.
 
 Schemas validate local structure only. Stateful invariants, authorization,
 deduplication, provenance, canonicalization, and relationships between records

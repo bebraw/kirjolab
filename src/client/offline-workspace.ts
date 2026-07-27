@@ -1,4 +1,5 @@
 import * as Y from "yjs";
+import * as v from "valibot";
 import { resolveWorkspaceSnapshotAnchors } from "../domain/workspace-anchor-projection";
 import { isWorkspaceSnapshot, type WorkspaceSnapshot } from "../domain/workspace";
 
@@ -8,16 +9,22 @@ const workspaceStoreName = "workspaces";
 const schemaVersion = 1 as const;
 const maximumYjsStateBytes = 16 * 1024 * 1024;
 
-export interface OfflineWorkspaceRecord {
-  readonly schemaVersion: typeof schemaVersion;
-  readonly key: string;
-  readonly identity: string;
-  readonly workspaceId: string;
-  readonly snapshot: unknown;
-  readonly documentUpdate: ArrayBuffer;
-  readonly serverStateVector: ArrayBuffer;
-  readonly savedAt: string;
-}
+const boundedStateBufferSchema = v.pipe(
+  v.instance(ArrayBuffer),
+  v.check((value) => value.byteLength <= maximumYjsStateBytes),
+);
+const offlineWorkspaceRecordSchema = v.object({
+  schemaVersion: v.literal(schemaVersion),
+  key: v.string(),
+  identity: v.string(),
+  workspaceId: v.string(),
+  snapshot: v.unknown(),
+  documentUpdate: boundedStateBufferSchema,
+  serverStateVector: boundedStateBufferSchema,
+  savedAt: v.string(),
+});
+
+export type OfflineWorkspaceRecord = Readonly<v.InferOutput<typeof offlineWorkspaceRecordSchema>>;
 
 export interface OfflineWorkspaceRepository {
   read(key: string): Promise<unknown>;
@@ -130,27 +137,7 @@ function offlineWorkspaceKey(identity: string, workspaceId: string): string {
 }
 
 function isOfflineWorkspaceRecord(value: unknown, key: string, identity: string, workspaceId: string): value is OfflineWorkspaceRecord {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    "schemaVersion" in value &&
-    value.schemaVersion === schemaVersion &&
-    "key" in value &&
-    value.key === key &&
-    "identity" in value &&
-    value.identity === identity &&
-    "workspaceId" in value &&
-    value.workspaceId === workspaceId &&
-    "snapshot" in value &&
-    "documentUpdate" in value &&
-    value.documentUpdate instanceof ArrayBuffer &&
-    value.documentUpdate.byteLength <= maximumYjsStateBytes &&
-    "serverStateVector" in value &&
-    value.serverStateVector instanceof ArrayBuffer &&
-    value.serverStateVector.byteLength <= maximumYjsStateBytes &&
-    "savedAt" in value &&
-    typeof value.savedAt === "string"
-  );
+  return v.is(offlineWorkspaceRecordSchema, value) && value.key === key && value.identity === identity && value.workspaceId === workspaceId;
 }
 
 function copyRecord(record: OfflineWorkspaceRecord): OfflineWorkspaceRecord {

@@ -7591,6 +7591,29 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,697 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Valibot Adoption: Offline Workspace Records
+
+The offline persistence authority now infers its stored-record type from one
+Valibot schema that validates the exact schema version, required fields,
+ArrayBuffer state payloads, and existing 16 MiB bounds. Identity and workspace
+matching, workspace snapshot validation, Yjs decoding, anchor reprojection, and
+corrupt-record eviction remain explicit policy.
+
+This checkpoint reduces `src/client/offline-workspace.ts` from 243 to 230 lines
+(-13). It deletes the parallel record interface and 20-condition structural
+predicate while preserving all existing malformed, mismatched, boundary-size,
+copy-isolation, restoration, and IndexedDB cases. Affected coverage passes 16
+tests alongside strict types.
+
+The browser application artifact changes from 844,519 B raw / 228,984 B gzip
+to 844,553 B raw / 229,024 B gzip (+34 B raw / +40 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150; Valibot was already pinned and shipped in the
+browser application.
+
+Full native CI passes all 1,697 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

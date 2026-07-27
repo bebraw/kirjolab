@@ -334,8 +334,11 @@ collaboration.
   sends it only after the ordinary server-led `sync` boundary. The offline
   persistence authority validates the snapshot and workspace identity, decodes
   the server vector, applies the Yjs update, reprojects anchors, and evicts a
-  corrupt record before returning restoration state. Collaboration recovery and
-  UI projection remain outside that persistence boundary.
+  corrupt record before returning restoration state. One inferred Valibot
+  schema validates the persisted envelope, exact schema version, ArrayBuffer
+  fields, and 16 MiB bounds; identity and workspace matching remain explicit
+  store policy. Collaboration recovery and UI projection remain outside that
+  persistence boundary.
 - **Offline shell updates:** Browser builds derive the Kirjolab Cache Storage
   namespace from emitted shell content. Workspace and Library startup both
   check an existing registration for an update without adding Library
