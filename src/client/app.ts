@@ -528,7 +528,6 @@ class WorkspaceApp {
           message,
           "The annotation changed, but the refreshed Library could not be loaded.",
         ),
-      currentPage: () => this.#pdfViewer.currentPage,
       insertCitation: (citationAlias, locator) => this.#insertCitation(citationAlias, locator),
       library: () => this.#librarySnapshot,
       openPdf: async (artifact, page) => await this.#openLibraryPdf(artifact, page),

@@ -98,7 +98,6 @@ export interface LibraryPdfCoordinator {
   readonly acceptProjectMutation: (snapshot: WorkspaceSnapshot) => Promise<void>;
   readonly canInsertCitation: () => boolean;
   readonly completeMarkup: (message: string) => void;
-  readonly currentPage: () => number;
   readonly insertCitation: (citationAlias: string, locator: string) => void;
   readonly library: () => ReferenceLibrarySnapshot | null;
   readonly openPdf: (artifact: LibraryPdfArtifact, page: number) => Promise<void>;
@@ -644,17 +643,17 @@ export class ContextResourcePresenter extends LitElement {
   }
 
   private clearLibraryHighlightDraft(message = "Selection cancelled. Nothing was saved."): void {
-    const coordinator = this.libraryPdfCoordinator;
-    if (!coordinator) return;
-    this.element("library-pdf-inspector", LibraryPdfInspector)?.clearHighlight(coordinator.currentPage(), message);
-    this.pdfViewer?.clearDraftSelection();
+    const viewer = this.pdfViewer;
+    if (!viewer) return;
+    this.element("library-pdf-inspector", LibraryPdfInspector)?.clearHighlight(viewer.currentPage, message);
+    viewer.clearDraftSelection();
   }
 
   private closeBoundLibraryPdfInspector(): void {
-    const coordinator = this.libraryPdfCoordinator;
-    if (!coordinator) return;
-    const presentation = this.closeLibraryPdfInspector(coordinator.currentPage());
-    if (presentation.clearDraftSelection) this.pdfViewer?.clearDraftSelection();
+    const viewer = this.pdfViewer;
+    if (!viewer) return;
+    const presentation = this.closeLibraryPdfInspector(viewer.currentPage);
+    if (presentation.clearDraftSelection) viewer.clearDraftSelection();
     if (presentation.privateHighlightSelection !== null)
       this.applyViewerPresentation({
         clearDraftSelection: false,
@@ -673,8 +672,9 @@ export class ContextResourcePresenter extends LitElement {
 
   private selectBoundLibraryPdfMarkup(markupId: string): void {
     const coordinator = this.libraryPdfCoordinator;
+    const viewer = this.pdfViewer;
     const markup = coordinator?.library()?.pdfMarkups?.find((item) => item.id === markupId);
-    if (coordinator && markup) this.applyViewerPresentation(this.selectLibraryPdfMarkup(markup, coordinator.currentPage()));
+    if (markup && viewer) this.applyViewerPresentation(this.selectLibraryPdfMarkup(markup, viewer.currentPage));
   }
 
   private clearBoundLibraryPdfMarkupSelection(): void {
