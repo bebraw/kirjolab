@@ -414,7 +414,10 @@ class WorkspaceApp {
       else this.#applySourceCompletion(intent.context.start, intent.context.end, intent.candidate.reference);
     });
     this.#elements.authoringModeTabs.bindNavigation((mode) => {
-      if (mode === "write") this.#elements.source.focus();
+      if (mode === "write") {
+        this.#elements.workspaceSurfaceSwitcher.navigate("authoring", false);
+        this.#elements.source.focus();
+      }
       this.#syncWorkspaceRoute("replace");
     });
     this.#elements.projectHistoryDialog.configure(apiBase, {
@@ -440,7 +443,6 @@ class WorkspaceApp {
     this.#elements.contextResourcePresenter.bindProjectEvidence(apiBase);
     this.#elements.contextResourcePresenter.bindProjectMap(apiBase, {
       document: () => {
-        this.#elements.workspaceSurfaceSwitcher.navigate("authoring");
         this.#elements.authoringModeTabs.navigate("write");
         this.#elements.source.scrollIntoView({ behavior: "smooth", block: "center" });
       },
@@ -705,7 +707,6 @@ class WorkspaceApp {
   #syncSourceFromPreviewOffset(offset: number, centerEditor = false): void {
     const location = this.#elements.previewSyncControls.sourceLocation(offset);
     if (!location) return;
-    this.#elements.workspaceSurfaceSwitcher.navigate("authoring");
     this.#focusProjectRange(location.fileId, location.offset, location.offset);
     if (centerEditor) this.#elements.previewSyncControls.centerSourceOffset(location.offset);
   }
@@ -949,7 +950,6 @@ class WorkspaceApp {
       return;
     }
     this.#document.transact(() => this.#activeFileText.insert(insertion.index, insertion.text), this);
-    this.#elements.workspaceSurfaceSwitcher.navigate("authoring");
     this.#elements.authoringModeTabs.navigate("write");
     this.#elements.source.setSelectionRange(insertion.caret, insertion.caret);
     this.#rememberAuthoringSelection();
@@ -1112,7 +1112,6 @@ class WorkspaceApp {
       this.#showToast("This manuscript anchor is stale and needs to be linked again.");
       return;
     }
-    this.#elements.workspaceSurfaceSwitcher.navigate("authoring");
     this.#elements.projectFileDialog.selectFile(anchor.fileId);
     this.#elements.authoringModeTabs.navigate("write");
     this.#elements.source.setSelectionRange(resolution.start, resolution.end);

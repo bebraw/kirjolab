@@ -9076,6 +9076,24 @@ to 849,595 B raw / 228,815 B gzip (-92 B raw / unchanged gzip). Styles and
 direct and unique production package counts remain unchanged at 135,411 B raw /
 23,373 B gzip, 18, and 150.
 
+## Coordinator Simplification: Write Surface Policy
+
+`WorkspaceApp` now applies the Authoring surface without a separate navigation
+outcome whenever the authoring-mode Lit binding reports Write, then focuses the
+editor and replaces the route once. Project-map, preview-range, citation, and
+linked-passage workflows rely on that shared outcome instead of each performing
+an explicit surface transition and an additional route synchronization.
+
+This checkpoint reduces `src/client/app.ts` from 1,224 to 1,223 lines (-1) while
+removing four duplicated cross-surface transitions. The affected gate and full
+native CI pass all 1,720 unit/coverage tests, 121 Workers-runtime tests, and 74
+browser tests alongside formatting, lint, and strict types.
+
+The browser application artifact changes from 849,595 B raw / 228,815 B gzip
+to 849,435 B raw / 228,810 B gzip (-160 B raw / -5 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

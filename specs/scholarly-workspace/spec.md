@@ -112,7 +112,8 @@ collaboration.
   Write retains the native collaborative Markdown textarea. Map replaces it
   with a read-only derived evidence graph, bounded project search, and an
   accessible typed-connection list. Navigation into manuscript source returns
-  to Write; changing modes never changes canonical or collaborative state. A
+  to Authoring/Write; changing modes never changes canonical or collaborative
+  state. A
   bounded light-DOM tab component owns internal and workflow-driven mode
   selection, active-mode and ARIA presentation, and controlled editor, write-
   action, and map visibility before reporting the selected mode through one
@@ -120,8 +121,9 @@ collaboration.
   resource and link totals, search and overview presentation, graph and
   connection-panel synchronization, visibility, focus entry, and one typed
   resource-selection stream. The application coordinator retains authorized
-  search requests, response validation, resource navigation, editor focus, and
-  URL synchronization.
+  search requests, response validation, resource navigation, and the policy
+  that every Write outcome applies the Authoring surface, editor focus, and one
+  URL replacement.
 - **Left project rail:** Files, Research, and Comments are peer local navigation
   modes. Comments contains the selected-passage composer and durable comment
   history without taking vertical space from the manuscript editor. Derived
@@ -186,7 +188,8 @@ collaboration.
   selection, ARIA presentation, and the parent workspace's visibility-driving
   active-surface projection before reporting navigation through a typed binding.
   The coordinator retains route synchronization. Write/Map mode selection
-  follows the same boundary.
+  follows the same boundary, while its coordinator binding applies Authoring,
+  focuses the editor, and replaces the route once for every Write outcome.
   A bounded History trigger presents the current revision and delegates its
   open intent to the coordinator, which loads and opens the history dialog.
   A composed Lit history-dialog boundary owns modal lifecycle, busy state,

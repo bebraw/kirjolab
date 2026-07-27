@@ -611,7 +611,9 @@ The adopted components own bounded presentation:
 - The authoring mode tabs own internal and workflow-driven Write and Map
   selection, active-state presentation, controlled editor, write-action, and
   map visibility, map focus entry through its composed workspace, plus a typed
-  navigation outcome.
+  navigation outcome. For Write outcomes, the application coordinator applies
+  the Authoring surface and editor focus before performing one URL replacement;
+  this cross-component policy stays outside the tab owner.
 - The unidentified-PDF queue owns legacy unattached-artifact count, visibility,
   reference choices and artifact-subset derivation from the canonical Library
   snapshot, identification transport, duplicate-submit gating, local progress
@@ -1107,7 +1109,8 @@ reason to wrap static markup mechanically.
   its public mode-change event. Their navigation method applies the selected
   mode before reporting it through the typed binding, so internal clicks and
   external workflows share one state transition. The application coordinator
-  retains editor focus policy and URL synchronization.
+  retains cross-surface policy, applying Authoring and editor focus for every
+  Write outcome before one URL replacement.
 - The editor status component replaces separate target and save-status element
   references and owns their text and target-tooltip presentation, including
   bounded line counting and file, line-range, caret, and selection wording from

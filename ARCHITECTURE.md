@@ -968,7 +968,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   Let their direct-child Lit switcher apply responsive surface selection and
   the parent workspace's visibility-driving state before reporting navigation
   through a narrow typed binding. Route Write/Map selection through its sibling
-  Lit binding. Retain URL authority in the workspace coordinator.
+  Lit binding. Let the workspace coordinator turn every Write-mode outcome into
+  one Authoring-surface transition, editor-focus update, and URL replacement.
+  Retain cross-component policy and URL authority in that coordinator.
   Keep a permanent manuscript Preview in a keyboard-operable right-hand tab
   pane, and address publication, PDF, and model-candidate tabs by stable
   resource identity.
