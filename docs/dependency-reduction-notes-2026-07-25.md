@@ -7050,6 +7050,30 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,673 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Evidence-Map Resource Routing
+
+`ProjectMapWorkspace` now parses kind-qualified resource keys and routes every
+supported resource kind through one exhaustive typed binding. `WorkspaceApp`
+supplies canonical lookups and cross-feature navigation effects once; it no
+longer parses opaque keys or constructs a fresh generic handler record for each
+selection.
+
+This checkpoint reduces `src/client/app.ts` from 2,186 to 2,174 lines (-12) and
+grows the project-map workspace from 159 to 182 lines (+23). Runtime source
+across the two files increases by 11 lines while replacing string-indexed
+routing with an exhaustive domain-kind contract and reusing the domain's
+existing resource-kind guard. Focused coverage exercises search, each existing
+navigation path, valid key routing, malformed and unknown keys, child
+projection, and strict types.
+
+The browser application artifact changes from 840,651 B raw / 227,173 B gzip
+to 840,665 B raw / 227,258 B gzip (+14 B raw / +85 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,674 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

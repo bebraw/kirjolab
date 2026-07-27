@@ -1,5 +1,11 @@
 import { html, LitElement, type PropertyValues, type TemplateResult } from "lit";
-import { isKnowledgeSearchResults, type KnowledgeSearchResult, type WorkspaceKnowledgeGraph } from "../domain/knowledge";
+import {
+  isKnowledgeResourceKind,
+  isKnowledgeSearchResults,
+  type KnowledgeResourceKind,
+  type KnowledgeSearchResult,
+  type WorkspaceKnowledgeGraph,
+} from "../domain/knowledge";
 import { errorMessage, expectOk } from "./http";
 import "./knowledge-connections-panel";
 import "./knowledge-search-panel";
@@ -11,6 +17,7 @@ import type { ProjectMapPanel } from "./project-map-panel";
 type SearchState = { kind: "idle" } | { kind: "results"; results: readonly KnowledgeSearchResult[] } | { kind: "error"; message: string };
 
 const emptyGraph: WorkspaceKnowledgeGraph = { edges: [], nodes: [] };
+export type ProjectMapNavigation = Readonly<Record<KnowledgeResourceKind, (id: string) => void>>;
 
 export class ProjectMapWorkspace extends LitElement {
   static override properties = {
@@ -21,7 +28,7 @@ export class ProjectMapWorkspace extends LitElement {
   declare private graph: WorkspaceKnowledgeGraph;
   declare private searchState: SearchState;
   private apiBase = "";
-  private selectResource: ((resourceKey: string) => void) | undefined;
+  private navigation: ProjectMapNavigation | null = null;
 
   constructor() {
     super();
@@ -37,8 +44,8 @@ export class ProjectMapWorkspace extends LitElement {
     this.apiBase = apiBase;
   }
 
-  bindNavigation(selectResource: (resourceKey: string) => void): void {
-    this.selectResource = selectResource;
+  bindNavigation(navigation: ProjectMapNavigation): void {
+    this.navigation = navigation;
   }
 
   clearSearch(): void {
@@ -147,12 +154,21 @@ export class ProjectMapWorkspace extends LitElement {
 
   protected forwardSelection(event: CustomEvent<string>): void {
     event.stopPropagation();
-    this.selectResource?.(event.detail);
+    const resource = parseKnowledgeResourceKey(event.detail);
+    if (resource) this.navigation?.[resource.kind](resource.id);
   }
 
   private projectMapPanel(): ProjectMapPanel | null {
     return this.querySelector<ProjectMapPanel>("#project-map-canvas");
   }
+}
+
+function parseKnowledgeResourceKey(value: string): { kind: KnowledgeResourceKind; id: string } | null {
+  const separator = value.indexOf(":");
+  if (separator < 1) return null;
+  const kind = value.slice(0, separator);
+  if (!isKnowledgeResourceKind(kind)) return null;
+  return { kind, id: value.slice(separator + 1) };
 }
 
 if (typeof customElements !== "undefined" && !customElements.get("project-map-workspace")) {

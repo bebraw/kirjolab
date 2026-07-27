@@ -102,8 +102,9 @@ The adopted components own bounded presentation:
   selection intent.
 - The project map workspace composes search, provenance-map, and typed-connection
   panels; owns resource and link totals, search-versus-overview presentation,
-  mode visibility, focus entry, and one typed resource-selection binding; and
-  exposes one graph-presentation boundary to the application coordinator.
+  mode visibility, focus entry, kind-qualified resource-key parsing, and one
+  exhaustive typed resource-navigation binding; and exposes one graph-
+  presentation boundary to the application coordinator.
 - The candidate review panel resolves the active candidate id against the
   canonical workspace snapshot and owns before/after and provenance rendering,
   evidence-link availability, local revision and claim-draft applicability,
@@ -570,10 +571,10 @@ reason to wrap static markup mechanically.
   application coordinator.
 - The project map workspace replaces six coordinator element references with
   one component reference, consolidates four child event subscriptions into
-  one child event and one navigation binding, and owns graph/search fan-out plus
-  map entry focus. The
-  application coordinator retains authorized search, response validation,
-  graph acquisition, resource navigation, editor visibility, and URL policy.
+  one child event and one navigation binding, and owns graph/search fan-out,
+  map entry focus, and resource-kind routing. The application coordinator
+  retains graph acquisition, canonical resource lookup, navigation effects,
+  editor visibility, and URL policy.
 - The candidate review panel replaces thirteen internal element references and
   the coordinator's candidate-copy, status, evidence, and action renderers while
   also replacing candidate-decision availability branches, the apply/reject

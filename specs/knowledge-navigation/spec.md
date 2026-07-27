@@ -91,7 +91,9 @@ connection without reconstructing identity from a citation key or filename.
   changes size, and connector endpoints must remain aligned with their resource
   cards.
 - The project-map presentation component may own derived layout and interaction
-  state, but graph derivation and navigation authority remain outside it.
+  state plus parsing and exhaustive typed routing of kind-qualified resource
+  keys, but graph derivation, canonical resource lookup, and navigation effects
+  remain outside it.
 - The publication-context presentation component resolves the active
   publication id and owns metadata, linked-paper option derivation and rendering
   from canonical project, private-Library, and shared-reference inputs, citation

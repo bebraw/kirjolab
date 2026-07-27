@@ -416,7 +416,7 @@ function isSearchResult(value: unknown): value is KnowledgeSearchResult {
   return (
     isRecord(value) &&
     isNonEmptyString(value.resourceId) &&
-    isKind(value.kind) &&
+    isKnowledgeResourceKind(value.kind) &&
     isNonEmptyString(value.title) &&
     typeof value.excerpt === "string" &&
     typeof value.score === "number"
@@ -424,7 +424,7 @@ function isSearchResult(value: unknown): value is KnowledgeSearchResult {
 }
 
 function isGraphNode(value: unknown): value is KnowledgeGraphNode {
-  return isRecord(value) && isNonEmptyString(value.id) && isKind(value.kind) && isNonEmptyString(value.label);
+  return isRecord(value) && isNonEmptyString(value.id) && isKnowledgeResourceKind(value.kind) && isNonEmptyString(value.label);
 }
 
 function isGraphEdge(value: unknown): value is KnowledgeGraphEdge {
@@ -447,7 +447,7 @@ function isGraphEdge(value: unknown): value is KnowledgeGraphEdge {
   );
 }
 
-function isKind(value: unknown): value is KnowledgeResourceKind {
+export function isKnowledgeResourceKind(value: unknown): value is KnowledgeResourceKind {
   return (
     value === "project" ||
     value === "document" ||

@@ -55,7 +55,19 @@ describe("project map workspace", () => {
   it("owns project search while forwarding resource-selection intents", async () => {
     const workspace = new TestProjectMapWorkspace();
     const selections: string[] = [];
-    workspace.bindNavigation((resourceKey) => selections.push(resourceKey));
+    const select = (id: string): void => void selections.push(id);
+    workspace.bindNavigation({
+      annotation: select,
+      claim: select,
+      document: select,
+      "model-candidate": select,
+      note: select,
+      pdf: select,
+      person: select,
+      project: select,
+      publication: select,
+      section: select,
+    });
     workspace.configure("/api/documents/document-1");
     const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify(results), { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
@@ -67,7 +79,29 @@ describe("project map workspace", () => {
       credentials: "same-origin",
     });
     expect(workspace.renderForTest()).toBeDefined();
-    expect(selections).toEqual(["claim:result"]);
+    expect(selections).toEqual(["result"]);
+  });
+
+  it("ignores malformed and unknown resource keys", () => {
+    const workspace = new TestProjectMapWorkspace();
+    const select = vi.fn();
+    workspace.bindNavigation({
+      annotation: select,
+      claim: select,
+      document: select,
+      "model-candidate": select,
+      note: select,
+      pdf: select,
+      person: select,
+      project: select,
+      publication: select,
+      section: select,
+    });
+
+    workspace.forwardSelectionForTest("missing-separator");
+    workspace.forwardSelectionForTest("unknown:id");
+
+    expect(select).not.toHaveBeenCalled();
   });
 
   it("clears an empty search and presents request and contract errors", async () => {

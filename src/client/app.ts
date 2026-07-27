@@ -482,7 +482,44 @@ class WorkspaceApp {
       removeFragment: (annotationId, fragmentId) => void this.#removeHighlightFragment(annotationId, fragmentId, true),
     });
     this.#elements.projectMap.configure(apiBase);
-    this.#elements.projectMap.bindNavigation((resourceKey) => this.#focusKnowledgeResource(resourceKey));
+    this.#elements.projectMap.bindNavigation({
+      document: () => {
+        this.#showWorkspaceSurface("authoring");
+        this.#setAuthoringMode("write");
+        this.#elements.source.focus();
+        this.#elements.source.scrollIntoView({ behavior: "smooth", block: "center" });
+      },
+      project: () => this.#elements.workspaceSwitcher.focusSelect(),
+      person: () => this.#elements.workspaceSharingPanel.open(),
+      "model-candidate": (id) => {
+        const candidate = this.#snapshot?.candidates.find((item) => item.id === id);
+        if (candidate) this.#openCandidateContext(candidate);
+      },
+      note: (id) => {
+        const share = this.#snapshot?.researchShares.find(
+          (item) => item.resourceId === id && item.revokedAt === null && item.content.kind === "note",
+        );
+        if (share?.content.kind === "note") this.#showToast(excerptForToast(share.content.body));
+      },
+      section: (id) => {
+        this.#activateContext(RESEARCH_PREVIEW_KEY);
+        this.#elements.workspacePreview.scrollToAnchor(id);
+      },
+      annotation: (id) => {
+        const annotation = this.#snapshot?.annotations.find((item) => item.id === id);
+        const pdf = annotation ? this.#snapshot?.pdfs.find((item) => item.id === annotation.pdfId) : undefined;
+        if (annotation && pdf) void this.#showPaper(pdf, annotation.page, annotation.id);
+      },
+      claim: (id) => this.#elements.claimListPanel.revealClaim(id),
+      pdf: (id) => {
+        const pdf = this.#snapshot?.pdfs.find((item) => item.id === id);
+        if (pdf) void this.#showPaper(pdf);
+      },
+      publication: (id) => {
+        const publication = this.#snapshot?.publications.find((item) => item.id === id);
+        if (publication) this.#openPublicationContext(publication);
+      },
+    });
     this.#elements.publicationListPanel.configure(apiBase);
     this.#elements.publicationListPanel.bind({
       enriched: (message) =>
@@ -1303,55 +1340,6 @@ class WorkspaceApp {
       ...passage,
       sourceRevision: this.#revision,
     });
-  }
-
-  #focusKnowledgeResource(resourceId: string): void {
-    const separator = resourceId.indexOf(":");
-    if (separator < 0) return;
-    const kind = resourceId.slice(0, separator);
-    const id = resourceId.slice(separator + 1);
-    this.#knowledgeResourceHandlers()[kind]?.(id);
-  }
-
-  #knowledgeResourceHandlers(): Readonly<Record<string, (id: string) => void>> {
-    return {
-      document: () => {
-        this.#showWorkspaceSurface("authoring");
-        this.#setAuthoringMode("write");
-        this.#elements.source.focus();
-        this.#elements.source.scrollIntoView({ behavior: "smooth", block: "center" });
-      },
-      project: () => this.#elements.workspaceSwitcher.focusSelect(),
-      person: () => this.#elements.workspaceSharingPanel.open(),
-      "model-candidate": (id) => {
-        const candidate = this.#snapshot?.candidates.find((item) => item.id === id);
-        if (candidate) this.#openCandidateContext(candidate);
-      },
-      note: (id) => {
-        const share = this.#snapshot?.researchShares.find(
-          (item) => item.resourceId === id && item.revokedAt === null && item.content.kind === "note",
-        );
-        if (share?.content.kind === "note") this.#showToast(excerptForToast(share.content.body));
-      },
-      section: (id) => {
-        this.#activateContext(RESEARCH_PREVIEW_KEY);
-        this.#elements.workspacePreview.scrollToAnchor(id);
-      },
-      annotation: (id) => {
-        const annotation = this.#snapshot?.annotations.find((item) => item.id === id);
-        const pdf = annotation ? this.#snapshot?.pdfs.find((item) => item.id === annotation.pdfId) : undefined;
-        if (annotation && pdf) void this.#showPaper(pdf, annotation.page, annotation.id);
-      },
-      claim: (id) => this.#elements.claimListPanel.revealClaim(id),
-      pdf: (id) => {
-        const pdf = this.#snapshot?.pdfs.find((item) => item.id === id);
-        if (pdf) void this.#showPaper(pdf);
-      },
-      publication: (id) => {
-        const publication = this.#snapshot?.publications.find((item) => item.id === id);
-        if (publication) this.#openPublicationContext(publication);
-      },
-    };
   }
 
   #setAuthoringMode(mode: AuthoringMode): void {
