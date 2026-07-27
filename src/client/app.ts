@@ -1,7 +1,6 @@
 import * as Y from "yjs";
 import "./action-menu-controller";
 import { collectAppElements } from "./app-elements";
-import { activePdfLoadContext, type ActivePdfLoadContext } from "./active-pdf-context";
 import { reviewerResponsePath, reviewerResponseTemplate } from "../domain/reviewer-response";
 import { resolveManuscriptAnchor } from "../domain/manuscript-anchor";
 import { resolveWorkspaceSnapshotAnchors } from "../domain/workspace-anchor-projection";
@@ -132,8 +131,6 @@ class WorkspaceApp {
   #revision = 0;
   #renderSourceEditorHighlight: () => void = () => undefined;
   #hasBootstrapSnapshot = false;
-  #renderedPdfId: string | undefined;
-  #renderedPdfContextKey: ResearchContextKey | undefined;
   #contextState: ResearchContextState = createResearchContext();
   #authoringSelection: RelativeEditorSelection | null = null;
   #activeFileText = this.#source;
@@ -553,6 +550,7 @@ class WorkspaceApp {
       referencePdfs: () => this.#elements.contextResourcePresenter.referencePdfs,
       refreshLibrary: async () => await this.#refreshReferenceLibrary(),
     });
+    this.#elements.contextResourcePresenter.bindPdfViewer(this.#pdfViewer, apiBase);
     this.#elements.libraryPdfInspector.bindProjectMutations(
       (message, snapshot) => void this.#completeLibraryProjectMutation(message, snapshot),
     );
@@ -1055,7 +1053,7 @@ class WorkspaceApp {
       this.#contextState,
       this.#elements.contextResourcePresenter.resourceAuthorization(this.#snapshot, this.#librarySnapshot),
     );
-    this.#pdfViewer.updateAnnotations(this.#elements.contextResourcePresenter.presentWorkspace(this.#snapshot, this.#renderedPdfId));
+    this.#elements.contextResourcePresenter.presentWorkspace(this.#snapshot);
     this.#renderResearchContext();
     this.#updateModelAvailability();
     this.#syncWorkspaceRoute("replace");
@@ -1102,11 +1100,7 @@ class WorkspaceApp {
   }
 
   #captureActiveContextState(): void {
-    this.#contextState = this.#elements.contextResourcePresenter.captureContext(this.#contextState, {
-      focusedAnnotationId: this.#pdfViewer.focusedAnnotationId,
-      page: this.#pdfViewer.currentPage,
-      renderedContextKey: this.#renderedPdfContextKey,
-    });
+    this.#contextState = this.#elements.contextResourcePresenter.captureBoundContext(this.#contextState);
   }
 
   #activateContext(key: ResearchContextKey): void {
@@ -1149,13 +1143,9 @@ class WorkspaceApp {
       stableDocument: this.#collaboration.stable,
     });
     this.#layout.restorePaneWidth();
-    if (presentation.privateHighlights) {
-      this.#pdfViewer.updatePrivateHighlights(presentation.privateHighlights);
-      this.#renderPdfMarkups();
-    }
     if (presentation.publicationPresented) this.#updateCitationInsertionAvailability();
     if (loadPdf && (presentation.activeTab?.kind === "pdf" || presentation.activeTab?.kind === "library-pdf")) {
-      void this.#loadActivePdf(false);
+      void this.#elements.contextResourcePresenter.loadActivePdf(false);
     }
   }
 
@@ -1308,47 +1298,6 @@ class WorkspaceApp {
     this.#elements.source.setSelectionRange(insertion.caret, insertion.caret);
     this.#rememberAuthoringSelection();
     this.#showToast(`Inserted :cite[${citationKey}]${locator ? ` at ${locator}` : ""} into canonical Markdown.`);
-  }
-
-  async #loadActivePdf(force: boolean): Promise<void> {
-    const context = activePdfLoadContext({
-      activeTab: this.#elements.contextResourcePresenter.activeTab,
-      annotations: this.#snapshot?.annotations ?? [],
-      apiBase,
-      libraryArtifacts: this.#librarySnapshot?.artifacts ?? [],
-      libraryHighlights: this.#librarySnapshot?.highlights ?? [],
-      projectReferencePdfs: this.#elements.contextResourcePresenter.referencePdfs,
-      workspacePdfs: this.#snapshot?.pdfs ?? [],
-    });
-    if (!context) return;
-    if (context.workspacePdf) this.#elements.projectAnnotationForm.selectPdf(context.workspacePdf.id);
-    this.#pdfViewer.updateAnnotations(context.annotations);
-    this.#pdfViewer.updatePrivateHighlights(context.privateHighlights);
-    if (!force && this.#renderedPdfContextKey === context.tab.key) {
-      this.#elements.paperReader.scrollTop = context.tab.scrollTop;
-      return;
-    }
-    await this.#openActivePdf(context);
-  }
-
-  async #openActivePdf(context: ActivePdfLoadContext): Promise<void> {
-    try {
-      const opened = await this.#pdfViewer.open({
-        url: context.url,
-        annotations: context.annotations,
-        page: context.tab.page,
-        ...(context.tab.focusedAnnotationId ? { focusAnnotationId: context.tab.focusedAnnotationId } : {}),
-        mode: context.workspacePdf ? "evidence" : context.libraryPdf ? "private-highlight" : "read-only",
-        privateHighlights: context.privateHighlights,
-      });
-      const active = this.#elements.contextResourcePresenter.activeTab;
-      if (!opened || active?.key !== context.tab.key) return;
-      this.#renderedPdfContextKey = context.tab.key;
-      this.#renderedPdfId = context.workspacePdf?.id;
-      this.#elements.paperReader.scrollTop = context.tab.scrollTop;
-    } catch (error) {
-      if (this.#elements.contextResourcePresenter.activeTab?.key === context.tab.key) this.#pdfViewer.showError(error);
-    }
   }
 
   async #completeAnnotationSave(detail: ProjectAnnotationSaved): Promise<void> {
@@ -1506,7 +1455,7 @@ class WorkspaceApp {
       },
     );
     this.#syncWorkspaceRoute("push");
-    await this.#loadActivePdf(page !== undefined || focusAnnotationId !== undefined);
+    await this.#elements.contextResourcePresenter.loadActivePdf(page !== undefined || focusAnnotationId !== undefined);
   }
 
   async #openLibraryPdf(artifact: LibraryPdfArtifact, page?: number, updateHistory = true): Promise<void> {
@@ -1517,13 +1466,13 @@ class WorkspaceApp {
       history.pushState({ view: "library-pdf", artifactId: artifact.id }, "", route);
     }
     if (appMode === "workspace") this.#syncWorkspaceRoute("push");
-    await this.#loadActivePdf(page !== undefined);
+    await this.#elements.contextResourcePresenter.loadActivePdf(page !== undefined);
   }
 
   async #openProjectReferencePdf(pdf: ProjectReferencePdf, page?: number, updateHistory = true): Promise<void> {
     this.#preparePdfContext({ kind: "library-pdf", id: pdf.id }, page === undefined ? {} : { page });
     if (appMode === "workspace" && updateHistory) this.#syncWorkspaceRoute("push");
-    await this.#loadActivePdf(page !== undefined);
+    await this.#elements.contextResourcePresenter.loadActivePdf(page !== undefined);
   }
 
   #preparePdfContext(
@@ -1544,7 +1493,7 @@ class WorkspaceApp {
   }
 
   #handlePdfPageChange(page: number): void {
-    this.#renderPdfMarkups();
+    this.#elements.contextResourcePresenter.presentLibraryPdfPage(this.#librarySnapshot, this.#pdfViewer.currentPage);
     const active = this.#elements.contextResourcePresenter.activeTab;
     if (active?.kind === "pdf" || active?.kind === "library-pdf") {
       this.#contextState = setPdfResearchLocation(this.#contextState, active.key, { page });
@@ -1565,7 +1514,8 @@ class WorkspaceApp {
       return;
     }
     if (activeTab?.kind !== "pdf") return;
-    if (this.#renderedPdfId) this.#elements.projectAnnotationForm.selectPdf(this.#renderedPdfId);
+    const renderedPdfId = this.#elements.contextResourcePresenter.renderedPdfId;
+    if (renderedPdfId) this.#elements.projectAnnotationForm.selectPdf(renderedPdfId);
     this.#elements.projectAnnotationForm.showCapture(capture);
     void this.#persistPdfSelection(capture);
   }
@@ -1577,10 +1527,6 @@ class WorkspaceApp {
       this.#pdfViewer.setPrivateHighlightSelection(presentation.privateHighlightSelection, presentation.privateHighlightId);
   }
 
-  #renderPdfMarkups(): void {
-    this.#elements.contextResourcePresenter.presentLibraryPdfPage(this.#librarySnapshot, this.#pdfViewer.currentPage);
-  }
-
   async #openLibraryHighlight(highlight: LibraryHighlight): Promise<void> {
     const artifact = this.#librarySnapshot?.artifacts.find((item) => item.id === highlight.artifactId);
     if (!artifact) return;
@@ -1589,7 +1535,7 @@ class WorkspaceApp {
   }
 
   async #persistPdfSelection(capture: PdfSelectionCapture): Promise<void> {
-    const pdfId = this.#renderedPdfId;
+    const pdfId = this.#elements.contextResourcePresenter.renderedPdfId;
     if (!pdfId || !this.#snapshot) return;
     const overlaps = this.#elements.projectAnnotationForm.overlappingFragments(this.#snapshot.annotations, pdfId, capture);
     if (this.#elements.projectAnnotationForm.selectedTool === "erase") {

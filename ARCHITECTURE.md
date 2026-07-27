@@ -854,8 +854,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Render only the active PDF page through the PDF.js display layer; keep its worker version matched with the pinned display dependency.
 - Derive each active PDF load context through one pure projection over the
   active typed context tab and authorized project, Library, and shared-reference
-  snapshots. Keep viewer mutation, form selection, routing, and failure
-  presentation in their existing browser authorities.
+  snapshots. Let the resource-context presenter apply that projection through
+  its narrow viewer binding, including stale-load rejection, form selection,
+  resource scroll, and active-resource failure presentation. Keep routing and
+  viewer gestures in their existing browser authorities.
 - Project standard PDF link geometry from the pinned PDF.js display data into the active-page interaction layer; keep internal destinations inside the reader and isolate external navigation.
 - Expose scholarly entities through stable resource identities and typed relationships rather than citation keys or filenames alone.
 - Give workspace people opaque stored identities independent of email. Derive
@@ -953,18 +955,21 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   publication, project PDF, private-Library PDF, linked reference PDF, or
   candidate. Route the resulting typed open intent through the application
   coordinator, which retains tab reconciliation, canonical context state,
-  authorized loading, history mutation, navigation transitions, and viewer
-  effects. Let the presenter own private-highlight citation readiness feedback,
+  history mutation, navigation transitions, and load timing. Let the presenter
+  own private-highlight citation readiness feedback,
   collision-safe project-reference preparation, and validated link transport,
   returning only the text-
   selection, selected-highlight, and draft-selection cleanup effects that
   remain viewer-owned, and
   synchronize the bounded evidence, annotation, publication, claim, comment,
-  and candidate owners from one canonical workspace snapshot. It may return
-  active project-PDF annotations and private highlights for the PDF viewer while
-  keeping tab state, PDF loading, canonical snapshot acceptance, Yjs citation
-  insertion, cross-resource navigation, routing, and the shared notification
-  outlet in the application coordinator through narrow callbacks.
+  and candidate owners from one canonical workspace snapshot. Through a narrow
+  viewer binding it derives the authorized active PDF load, synchronizes project
+  annotations and private highlights, rejects stale completions, retains the
+  rendered context and project-PDF identities, opens the viewer, restores
+  resource scroll, and presents active-resource failures. Keep tab state,
+  canonical snapshot acceptance, Yjs citation insertion, cross-resource
+  navigation, routing, viewer gestures, and the shared notification outlet in
+  the application coordinator through narrow callbacks.
   Let the presenter also own linked-reference PDF catalog loading, validation,
   storage, and authorization projection. Keep refresh timing and downstream
   rendering consequences in the application coordinator.

@@ -1,4 +1,5 @@
 import { html, LitElement, type TemplateResult } from "lit";
+import { activePdfLoadContext } from "./active-pdf-context";
 import type {
   LibraryHighlight,
   LibraryPdfArtifact,
@@ -21,6 +22,7 @@ import { LibraryPdfInspector } from "./library-pdf-inspector";
 import { LibraryPdfMarkupLayer, type LibraryPdfNoteDraft, type PdfAnnotationTool } from "./library-pdf-markup-layer";
 import { ManuscriptCommentList } from "./manuscript-comment-list";
 import type { PdfSelectionCapture } from "./pdf-viewer";
+import type { PdfEvidenceViewer } from "./pdf-viewer";
 import { libraryPdfAnnotationActionEvent, type LibraryPdfAnnotationAction } from "./library-pdf-annotation-forms";
 import { libraryPdfAnnotationListActionEvent, type LibraryPdfAnnotationListAction } from "./library-pdf-annotation-list";
 import { libraryPdfInspectorCloseEvent } from "./library-pdf-inspector";
@@ -55,7 +57,6 @@ export interface ContextResourceSources {
 }
 
 export interface ContextResourcePresentation {
-  readonly privateHighlights: readonly LibraryHighlight[] | undefined;
   readonly publicationPresented: boolean;
 }
 
@@ -121,10 +122,21 @@ export interface ContextViewerState {
   readonly renderedContextKey: ResearchContextTab["key"] | undefined;
 }
 
+type ContextPdfViewer = Pick<
+  PdfEvidenceViewer,
+  "currentPage" | "focusedAnnotationId" | "open" | "showError" | "updateAnnotations" | "updatePrivateHighlights"
+>;
+
 export class ContextResourcePresenter extends LitElement {
   private currentActiveTab: ResearchResourceTab | undefined;
   private currentLibraryPdf: LibraryPdfArtifact | undefined;
+  private currentLibrary: ReferenceLibrarySnapshot | null = null;
+  private currentSnapshot: WorkspaceSnapshot | null = null;
   private libraryPdfCoordinator: LibraryPdfCoordinator | null = null;
+  private pdfApiBase = "";
+  private pdfViewer: ContextPdfViewer | null = null;
+  private renderedPdfContextKey: ResearchContextTab["key"] | undefined;
+  private currentRenderedPdfId: string | undefined;
   private routeCoordinator: ContextRouteCoordinator | null = null;
   private loadedReferencePdfs: readonly ProjectReferencePdf[] = [];
 
@@ -138,6 +150,10 @@ export class ContextResourcePresenter extends LitElement {
 
   get activeLibraryPdf(): LibraryPdfArtifact | undefined {
     return this.currentLibraryPdf;
+  }
+
+  get renderedPdfId(): string | undefined {
+    return this.currentRenderedPdfId;
   }
 
   async refreshReferencePdfs(projectApiBase: string | null, fetcher: typeof fetch = fetch): Promise<void> {
@@ -217,6 +233,11 @@ export class ContextResourcePresenter extends LitElement {
     });
   }
 
+  bindPdfViewer(viewer: ContextPdfViewer, apiBase: string): void {
+    this.pdfViewer = viewer;
+    this.pdfApiBase = apiBase;
+  }
+
   presentContext(sources: ResearchContextSources): ResearchContextPresentation {
     const { context, standaloneLibrary, ...resourceSources } = sources;
     this.element("context-tab-strip", ContextTabStrip)?.setTabs({
@@ -237,6 +258,55 @@ export class ContextResourcePresenter extends LitElement {
     return { activeTab, ...this.present({ ...resourceSources, activeTab }) };
   }
 
+  captureBoundContext(state: ResearchContextState): ResearchContextState {
+    const viewer = this.pdfViewer;
+    if (!viewer) return state;
+    return this.captureContext(state, {
+      focusedAnnotationId: viewer.focusedAnnotationId,
+      page: viewer.currentPage,
+      renderedContextKey: this.renderedPdfContextKey,
+    });
+  }
+
+  async loadActivePdf(force: boolean): Promise<void> {
+    const viewer = this.pdfViewer;
+    if (!viewer) return;
+    const context = activePdfLoadContext({
+      activeTab: this.currentActiveTab,
+      annotations: this.currentSnapshot?.annotations ?? [],
+      apiBase: this.pdfApiBase,
+      libraryArtifacts: this.currentLibrary?.artifacts ?? [],
+      libraryHighlights: this.currentLibrary?.highlights ?? [],
+      projectReferencePdfs: this.loadedReferencePdfs,
+      workspacePdfs: this.currentSnapshot?.pdfs ?? [],
+    });
+    if (!context) return;
+    if (context.workspacePdf) this.element("project-annotation-form", ProjectAnnotationForm)?.selectPdf(context.workspacePdf.id);
+    viewer.updateAnnotations(context.annotations);
+    viewer.updatePrivateHighlights(context.privateHighlights);
+    const reader = this.element("paper-reader", HTMLElement);
+    if (!force && this.renderedPdfContextKey === context.tab.key) {
+      if (reader) reader.scrollTop = context.tab.scrollTop;
+      return;
+    }
+    try {
+      const opened = await viewer.open({
+        url: context.url,
+        annotations: context.annotations,
+        page: context.tab.page,
+        ...(context.tab.focusedAnnotationId ? { focusAnnotationId: context.tab.focusedAnnotationId } : {}),
+        mode: context.workspacePdf ? "evidence" : context.libraryPdf ? "private-highlight" : "read-only",
+        privateHighlights: context.privateHighlights,
+      });
+      if (!opened || this.currentActiveTab?.key !== context.tab.key) return;
+      this.renderedPdfContextKey = context.tab.key;
+      this.currentRenderedPdfId = context.workspacePdf?.id;
+      if (reader) reader.scrollTop = context.tab.scrollTop;
+    } catch (error) {
+      if (this.currentActiveTab?.key === context.tab.key) viewer.showError(error);
+    }
+  }
+
   selectLibraryHighlight(highlightId: string): void {
     const highlight = this.libraryPdfCoordinator?.library()?.highlights.find((item) => item.id === highlightId);
     if (!highlight) return;
@@ -244,7 +314,7 @@ export class ContextResourcePresenter extends LitElement {
     this.applyViewerPresentation(this.editLibraryHighlight(highlight));
   }
 
-  presentWorkspace(snapshot: WorkspaceSnapshot, renderedPdfId: string | undefined): AnnotationResource[] {
+  presentWorkspace(snapshot: WorkspaceSnapshot, renderedPdfId = this.currentRenderedPdfId): AnnotationResource[] {
     const workflow = this.element("assistant-workflow-status", AssistantWorkflowStatus);
     workflow?.reconcileEvidence(snapshot.annotations, snapshot.claims);
     const selectedEvidence = workflow?.selectedEvidenceKeys ?? new Set<string>();
@@ -255,7 +325,9 @@ export class ContextResourcePresenter extends LitElement {
     const comments = this.element("manuscript-comment-list-panel", ManuscriptCommentList);
     if (comments) this.element("workspace-rail-tabs", WorkspaceRailTabs)?.setCommentCount(comments.setComments(snapshot.comments));
     this.element("candidate-list-panel", CandidateListPanel)?.setCandidates(snapshot.candidates);
-    return renderedPdfId ? snapshot.annotations.filter(({ pdfId }) => pdfId === renderedPdfId) : [];
+    const annotations = renderedPdfId ? snapshot.annotations.filter(({ pdfId }) => pdfId === renderedPdfId) : [];
+    this.pdfViewer?.updateAnnotations(annotations);
+    return annotations;
   }
 
   resourceAuthorization(
@@ -542,15 +614,20 @@ export class ContextResourcePresenter extends LitElement {
   }
 
   present(sources: ContextResourceSources): ContextResourcePresentation {
+    this.currentActiveTab = sources.activeTab;
+    this.currentLibrary = sources.library;
+    this.currentSnapshot = sources.snapshot;
     const activeLibraryArtifact = this.activeLibraryArtifact(sources);
     this.currentLibraryPdf = activeLibraryArtifact;
     this.syncPdfPanels(sources, activeLibraryArtifact);
     this.presentCandidate(sources);
     this.presentProjectPdf(sources);
-    return {
-      privateHighlights: this.presentLibraryPdf(sources, activeLibraryArtifact),
-      publicationPresented: this.presentPublication(sources),
-    };
+    const privateHighlights = this.presentLibraryPdf(sources, activeLibraryArtifact);
+    if (privateHighlights && this.pdfViewer) {
+      this.pdfViewer.updatePrivateHighlights(privateHighlights);
+      this.presentLibraryPdfPage(sources.library, this.pdfViewer.currentPage);
+    }
+    return { publicationPresented: this.presentPublication(sources) };
   }
 
   private syncPdfPanels(sources: ContextResourceSources, activeLibraryArtifact: LibraryPdfArtifact | undefined): void {

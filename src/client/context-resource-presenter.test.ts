@@ -8,7 +8,7 @@ import type {
   ReferenceLibrarySnapshot,
 } from "../domain/reference-library";
 import { workspaceSnapshotFixture } from "../test-support/workspace-fixture";
-import type { ProjectReferenceLink, WorkspaceSnapshot } from "../domain/workspace";
+import type { AnnotationResource, PdfResource, ProjectReferenceLink, WorkspaceSnapshot } from "../domain/workspace";
 import { AssistantWorkflowStatus } from "./assistant-workflow-status";
 import { CandidateListPanel } from "./candidate-list-panel";
 import { CandidateReviewPanel } from "./candidate-review-panel";
@@ -135,6 +135,7 @@ function setup() {
   };
   Object.defineProperty(elements["publication-context-panel"], "querySelector", { configurable: true, value: () => null });
   Object.defineProperty(elements["candidate-review-panel"], "querySelector", { configurable: true, value: () => null });
+  Object.defineProperty(elements["project-annotation-form"], "querySelector", { configurable: true, value: () => null });
   vi.spyOn(elements["library-pdf-inspector"], "setContext").mockReturnValue({
     artifactChanged: false,
     highlights: [highlight],
@@ -177,7 +178,7 @@ describe("context resource presenter", () => {
     const { elements, presenter } = setup();
     const tab = resourceTab("pdf", "project/pdf");
     const setTabs = vi.spyOn(elements["context-tab-strip"], "setTabs").mockImplementation(() => undefined);
-    const present = vi.spyOn(presenter, "present").mockReturnValue({ privateHighlights: undefined, publicationPresented: false });
+    const present = vi.spyOn(presenter, "present").mockReturnValue({ publicationPresented: false });
 
     const presentation = presenter.presentContext({
       ...sources(undefined),
@@ -216,11 +217,11 @@ describe("context resource presenter", () => {
     const setAnnotationVisible = vi.spyOn(elements["project-annotation-form"], "setVisible");
     const setInspectorVisible = vi.spyOn(elements["library-pdf-inspector"], "setVisible");
 
-    expect(presenter.present(sources(resourceTab("pdf", "project/pdf"))).privateHighlights).toBeUndefined();
+    presenter.present(sources(resourceTab("pdf", "project/pdf")));
     expect(presenter.activeLibraryPdf).toBeUndefined();
-    expect(presenter.present(sources(resourceTab("library-pdf", libraryPdf.id))).privateHighlights).toEqual([highlight]);
+    presenter.present(sources(resourceTab("library-pdf", libraryPdf.id)));
     expect(presenter.activeLibraryPdf).toBe(libraryPdf);
-    expect(presenter.present(sources(resourceTab("library-pdf", referencePdf.id))).privateHighlights).toBeUndefined();
+    presenter.present(sources(resourceTab("library-pdf", referencePdf.id)));
     expect(presenter.activeLibraryPdf).toBeUndefined();
 
     expect(setPdf).toHaveBeenCalledWith("project/pdf", [], []);
@@ -232,10 +233,7 @@ describe("context resource presenter", () => {
     const { elements, presenter } = setup();
     const setCitationContext = vi.spyOn(elements["project-annotation-form"], "setCitationContext");
 
-    expect(presenter.present(sources(undefined))).toEqual({
-      privateHighlights: undefined,
-      publicationPresented: false,
-    });
+    expect(presenter.present(sources(undefined))).toEqual({ publicationPresented: false });
     expect(setCitationContext).toHaveBeenCalledWith(null, []);
   });
 
@@ -276,6 +274,84 @@ describe("context resource presenter", () => {
       { focusedAnnotationId: null, page: 1, renderedContextKey: undefined },
     );
     expect(fixed.tabs[0]?.scrollTop).toBe(24);
+  });
+
+  it("loads and retains the active project PDF through its bound viewer", async () => {
+    const { elements, presenter } = setup();
+    const pdf = {
+      contentType: "application/pdf",
+      createdAt: "created",
+      fingerprint: "project-fingerprint",
+      id: "project/pdf",
+      name: "project.pdf",
+      objectKey: "pdfs/project.pdf",
+      size: 1024,
+    } satisfies PdfResource;
+    const annotation = {
+      comment: "Evidence",
+      createdAt: "created",
+      fragments: [],
+      id: "annotation:1",
+      page: 2,
+      pdfId: pdf.id,
+      prefix: "",
+      quote: "Quoted evidence",
+      rects: [],
+      suffix: "",
+      updatedAt: "updated",
+    } satisfies AnnotationResource;
+    const tab = { ...resourceTab("pdf", pdf.id), focusedAnnotationId: annotation.id, page: 2, scrollTop: 24 };
+    const project = { ...workspaceSnapshotFixture, annotations: [annotation], pdfs: [pdf] };
+    const viewer = {
+      currentPage: 3,
+      focusedAnnotationId: annotation.id,
+      open: vi.fn().mockResolvedValue(true),
+      showError: vi.fn(),
+      updateAnnotations: vi.fn(),
+      updatePrivateHighlights: vi.fn(),
+    };
+    const selectPdf = vi.spyOn(elements["project-annotation-form"], "selectPdf");
+    presenter.bindPdfViewer(viewer, "/api/workspaces/workspace");
+    presenter.present({ ...sources(tab), snapshot: project });
+
+    await presenter.loadActivePdf(false);
+
+    expect(selectPdf).toHaveBeenCalledWith(pdf.id);
+    expect(viewer.updateAnnotations).toHaveBeenCalledWith([annotation]);
+    expect(viewer.open).toHaveBeenCalledWith({
+      annotations: [annotation],
+      focusAnnotationId: annotation.id,
+      mode: "evidence",
+      page: 2,
+      privateHighlights: [],
+      url: "/api/workspaces/workspace/pdfs/project%2Fpdf",
+    });
+    expect(presenter.renderedPdfId).toBe(pdf.id);
+    expect(elements["paper-reader"].scrollTop).toBe(24);
+    expect(presenter.presentWorkspace(project)).toEqual([annotation]);
+
+    const state = { activeKey: tab.key, tabs: [tab] };
+    expect(presenter.captureBoundContext(state).tabs[0]).toMatchObject({ focusedAnnotationId: annotation.id, page: 3 });
+    await presenter.loadActivePdf(false);
+    expect(viewer.open).toHaveBeenCalledOnce();
+  });
+
+  it("presents active PDF loading failures only while the resource remains active", async () => {
+    const { presenter } = setup();
+    const viewer = {
+      currentPage: 1,
+      focusedAnnotationId: null,
+      open: vi.fn().mockRejectedValue(new Error("Could not open PDF")),
+      showError: vi.fn(),
+      updateAnnotations: vi.fn(),
+      updatePrivateHighlights: vi.fn(),
+    };
+    presenter.bindPdfViewer(viewer, "/api/workspaces/workspace");
+    presenter.present(sources(resourceTab("library-pdf", libraryPdf.id)));
+
+    await presenter.loadActivePdf(true);
+
+    expect(viewer.showError).toHaveBeenCalledWith(expect.objectContaining({ message: "Could not open PDF" }));
   });
 
   it("projects canonical workspace resources across their bounded Lit owners", () => {
@@ -422,7 +498,7 @@ describe("context resource presenter", () => {
     const setAnnotationAvailability = vi.spyOn(toolbar, "setAnnotationAvailability");
     const setExportArtifact = vi.spyOn(toolbar, "setExportArtifact");
 
-    expect(presenter.present(sources(resourceTab("library-pdf", libraryPdf.id))).privateHighlights).toEqual([highlight]);
+    presenter.present(sources(resourceTab("library-pdf", libraryPdf.id)));
     expect(inspector.setContext).toHaveBeenCalledWith(
       expect.objectContaining({ artifact: libraryPdf, library, projectApiBase: "/api/workspaces/workspace" }),
     );

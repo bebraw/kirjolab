@@ -186,7 +186,11 @@ changing their canonical data, selector, authorization, or rendering contracts.
   consumers; retains the resolved active private-Library artifact for page
   routing, selection capture, and saved-markup projection; captures
   fixed/resource scroll and supplied viewer
-  page/focused-annotation state into the canonical context; derives only the active PDF's annotation projection;
+  page/focused-annotation state into the canonical context; derives the
+  authorized active-PDF load from canonical project, Library, and linked-PDF
+  catalogs; applies it through a narrow viewer binding; rejects stale load
+  completions; retains rendered context and project-PDF identity; restores
+  resource scroll; and presents active-resource failures;
   derives the authorized publication, project-PDF, private-or-linked PDF, and
   candidate identity sets from the canonical project and Library catalogs;
   and owns private-PDF inspector context, artifact-change markup reset, toolbar
@@ -203,12 +207,12 @@ changing their canonical data, selector, authorization, or rendering contracts.
   mutation, toast display, and viewer-only selection effects through typed callbacks,
   returning only the viewer's text-selection, selected-highlight, and draft-
   selection cleanup effects.
-  It returns only active project-PDF annotations and private highlights to the
-  viewer. It owns linked-reference PDF catalog loading, validation, storage, and
-  authorization projection. The coordinator retains refresh timing, snapshot
-  authority, page selection, context
-  reconciliation, PDF rendering, model availability, routing, refresh, and
-  notification policy.
+  It synchronizes active project-PDF annotations and private highlights through
+  the bound viewer. It owns linked-reference PDF catalog loading, validation,
+  storage, and authorization projection. The coordinator retains refresh and
+  load timing, snapshot authority, page-selection gestures, context
+  reconciliation, model availability, routing, refresh, and notification
+  policy.
 - Reconciliation authorizes `pdf:` tabs from the workspace snapshot and
   `library-pdf:` tabs from the current owner-library snapshot; neither scope
   grants the other.
