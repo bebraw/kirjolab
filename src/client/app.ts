@@ -7,7 +7,6 @@ import { resolveWorkspaceSnapshotAnchors } from "../domain/workspace-anchor-proj
 import { projectFileCollaborationTextName, relativeProjectPath, type ProjectFile } from "../domain/project-files";
 import { researchQuestionsPath, researchQuestionsTemplate } from "../domain/research-questions";
 import { researchDiaryPath, researchDiaryTemplate } from "../domain/writing-workflows";
-import { type LibraryPdfArtifact, type ProjectReferencePdf } from "../domain/reference-library";
 import "./application-version-control";
 import "./source-citation-control";
 import "./workspace-surface-switcher";
@@ -22,7 +21,7 @@ import "./workspace-layout-control";
 import { type WritingWorkflowBinding } from "./writing-workflow-panel";
 import "./research-diary-summary";
 import { type AssistantAuthoringPassage as AuthoringPassage } from "./assistant-result-panel";
-import { type PassageLink, type PdfResource, type WorkspaceSnapshot } from "../domain/workspace";
+import { type PassageLink, type WorkspaceSnapshot } from "../domain/workspace";
 import { loadWorkspaceSnapshot, parseWorkspaceSnapshot, WorkspaceAccessError } from "./workspace-snapshot-client";
 import { CoalescedRefresh, DebouncedAsyncQueue } from "./collaboration";
 import { CollaborationSession } from "./collaboration-session";
@@ -329,7 +328,8 @@ class WorkspaceApp {
       applyProjectMutation: (snapshot) => this.#acceptWorkspaceMutation(snapshot),
       clearRoute: () => history.replaceState({ view: "library" }, "", "/library"),
       compareSnapshots: (priorId, currentId) => void this.#elements.webSnapshotComparison.compare(priorId, currentId),
-      openPdf: (artifact, page, updateHistory) => void this.#openLibraryPdf(artifact, page, updateHistory),
+      openPdf: (artifact, page, updateHistory) =>
+        void this.#elements.contextResourcePresenter.openLibraryPdf(artifact, page, updateHistory),
       openReferenceRoute: (referenceId) => {
         if (appMode === "library")
           history.pushState({ view: "library-reference", referenceId }, "", `/library?reference=${encodeURIComponent(referenceId)}`);
@@ -456,13 +456,15 @@ class WorkspaceApp {
           message,
           "The annotation changed, but the refreshed Library could not be loaded.",
         ),
-      openPdf: (artifact, page) => this.#openLibraryPdf(artifact, page),
+      openPdf: (artifact, page) => this.#elements.contextResourcePresenter.openLibraryPdf(artifact, page),
       projectApiBase: apiBase,
     });
     this.#elements.contextResourcePresenter.bindContext({
       activateSurface: () => this.#elements.workspaceSurfaceSwitcher.navigate("context", false),
       citationAvailable: () => this.#resolvedAuthoringCaret() !== null,
       openLibrary: (updateHistory) => this.#openReferenceLibrary(updateHistory),
+      pushStandaloneLibraryPdfRoute: (artifactId, page) =>
+        history.pushState({ view: "library-pdf", artifactId }, "", libraryPdfRoute(artifactId, page)),
       replaceStandaloneLibraryRoute: () => history.replaceState({ view: "library" }, "", "/library"),
       restorePaneWidth: () => this.#layout.restorePaneWidth(),
       sources: () => ({
@@ -481,10 +483,7 @@ class WorkspaceApp {
       insertCitation: (citationAlias, locator) => this.#insertCitation(citationAlias, locator),
       library: () => this.#librarySnapshot,
       linkPassage: (kind, id) => void this.#linkSelectedPassage(kind, id),
-      openLibraryPdf: (artifact, page) => this.#openLibraryPdf(artifact, page, false),
-      openProjectPdf: (pdf, page, annotationId) => this.#showPaper(pdf, page, annotationId),
       openPassage: (anchor) => this.#showPassage(anchor),
-      openReferencePdf: (pdf, page) => this.#openProjectReferencePdf(pdf, page, false),
       presentNotice: (message) => this.#showToast(message),
       project: () => this.#snapshot,
       referencePdfs: () => this.#elements.contextResourcePresenter.referencePdfs,
@@ -870,35 +869,6 @@ class WorkspaceApp {
     const caret = target.start + insertion.length;
     this.#elements.source.focus();
     this.#selectAuthoringRange(caret);
-  }
-
-  async #showPaper(pdf: PdfResource, page?: number, focusAnnotationId?: string): Promise<void> {
-    this.#elements.contextResourcePresenter.preparePdfContext(
-      { kind: "pdf", id: pdf.id },
-      {
-        ...(page !== undefined ? { page } : {}),
-        ...(focusAnnotationId !== undefined ? { focusedAnnotationId: focusAnnotationId } : {}),
-      },
-    );
-    this.#syncWorkspaceRoute("push");
-    await this.#elements.contextResourcePresenter.loadActivePdf(page !== undefined || focusAnnotationId !== undefined);
-  }
-
-  async #openLibraryPdf(artifact: LibraryPdfArtifact, page?: number, updateHistory = true): Promise<void> {
-    this.#elements.contextResourcePresenter.preparePdfContext({ kind: "library-pdf", id: artifact.id }, page === undefined ? {} : { page });
-    if (appMode === "library" && updateHistory) {
-      const active = this.#elements.contextResourcePresenter.activeContextTab;
-      const route = libraryPdfRoute(artifact.id, page ?? (active?.kind === "library-pdf" ? active.page : 1));
-      history.pushState({ view: "library-pdf", artifactId: artifact.id }, "", route);
-    }
-    if (appMode === "workspace") this.#syncWorkspaceRoute("push");
-    await this.#elements.contextResourcePresenter.loadActivePdf(page !== undefined);
-  }
-
-  async #openProjectReferencePdf(pdf: ProjectReferencePdf, page?: number, updateHistory = true): Promise<void> {
-    this.#elements.contextResourcePresenter.preparePdfContext({ kind: "library-pdf", id: pdf.id }, page === undefined ? {} : { page });
-    if (appMode === "workspace" && updateHistory) this.#syncWorkspaceRoute("push");
-    await this.#elements.contextResourcePresenter.loadActivePdf(page !== undefined);
   }
 
   async #restoreLibraryRoute(): Promise<void> {

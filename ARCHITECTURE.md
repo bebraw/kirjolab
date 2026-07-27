@@ -1026,8 +1026,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   catalogs and owns Preview fallback plus notice presentation when restoration
   fails. When PDF-only layout needs a resource, it preserves an active PDF or
   selects the first authorized project PDF and then private-Library PDF through
-  its route binding, presenting the empty-state notice itself. URL parsing,
-  browser-history mutation, and layout state remain coordinator policy. It
+  its route binding, presenting the empty-state notice itself. It also owns
+  project, private-Library, and linked-reference PDF context preparation,
+  focused page/annotation projection, route-effect sequencing, and active load
+  timing. URL parsing, concrete browser-history mutation, and layout state
+  remain coordinator policy. It
   projects page changes into canonical PDF context and page-local private
   markup state while returning route identities to the coordinator;
   coordinates project citation and intake context,

@@ -161,7 +161,11 @@ The adopted components own bounded presentation:
   history mutation remain application-coordinator policy. It also resolves the
   PDF-only layout's active-or-first authorized project/private PDF choice and
   empty state through the same catalogs and route effects while layout state
-  remains application policy. Project-map
+  remains application policy. Project, private-Library, and linked-reference
+  PDF opens no longer round-trip through application methods: the presenter
+  prepares canonical context, sequences workspace or standalone-Library route
+  effects, and loads the active viewer, while the application supplies the
+  concrete standalone URL mutation. Project-map
   navigation reuses those catalog lookups,
   while annotation edit/open intents resolve to the canonical annotation and
   its project PDF and active note intents resolve to bounded notice text from

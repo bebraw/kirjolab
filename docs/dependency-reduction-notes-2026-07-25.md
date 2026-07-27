@@ -9653,6 +9653,31 @@ styles, and direct and unique production package counts remain unchanged at
 Full native CI passes all 1,730 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: PDF Navigation Lifecycle
+
+`ContextResourcePresenter` now owns project, private-Library, and linked-
+reference PDF context preparation, requested page and focused-annotation state,
+workspace versus standalone-Library route-effect sequencing, and active-viewer
+load timing. Internal annotation, citation, publication-paper, assistant,
+restoration, and layout routes invoke those methods directly instead of leaving
+the presenter through three application callbacks and immediately re-entering
+it. `WorkspaceApp` supplies only the concrete standalone Library URL mutation.
+
+This checkpoint reduces `src/client/app.ts` from 1,009 to 979 lines (-30) and
+grows the composed context owner from 1,154 to 1,183 lines. Runtime source
+across those files decreases by one line while deleting all three coordinator
+PDF-navigation methods and their route-binding callbacks. Focused presenter
+coverage passes all 35 tests; affected runtime coverage passes all 49 tests
+alongside strict types.
+
+The browser application artifact changes from 850,932 B raw / 229,276 B gzip
+to 850,916 B raw / 229,287 B gzip (-16 B raw / +11 B gzip). Lazy runtimes,
+styles, and direct and unique production package counts remain unchanged at
+204,779 B / 62,386 B, 481,994 B / 146,135 B, 135,411 B / 23,373 B, and 18 and 150.
+
+Full native CI passes all 1,731 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Library PDF Project Use Projection
 
 `LibraryPdfProjectUse` now resolves the active bibliographic record and matching

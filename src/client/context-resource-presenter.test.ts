@@ -146,16 +146,18 @@ function setup() {
   Object.defineProperty(presenter, "ownerDocument", {
     value: { getElementById: (id: string) => elements[id as keyof typeof elements] ?? null },
   });
+  const pdfRoutes = {
+    openLibraryPdf: vi.spyOn(presenter, "openLibraryPdf").mockResolvedValue(undefined),
+    openProjectPdf: vi.spyOn(presenter, "openProjectPdf").mockResolvedValue(undefined),
+    openReferencePdf: vi.spyOn(presenter, "openReferencePdf").mockResolvedValue(undefined),
+  };
   const routes = {
     insertCitation: vi.fn(),
     library: vi.fn<() => ReferenceLibrarySnapshot | null>(() => library),
     linkPassage: vi.fn(),
     openCandidate: vi.fn(),
-    openLibraryPdf: vi.fn().mockResolvedValue(undefined),
-    openProjectPdf: vi.fn().mockResolvedValue(undefined),
     openPublication: vi.fn(),
     openPassage: vi.fn(),
-    openReferencePdf: vi.fn().mockResolvedValue(undefined),
     presentNotice: vi.fn(),
     project: vi.fn<() => WorkspaceSnapshot | null>(() => workspaceSnapshotFixture),
     referencePdfs: vi.fn(() => [referencePdf]),
@@ -163,7 +165,7 @@ function setup() {
     refreshResources: vi.fn().mockResolvedValue(undefined),
   };
   presenter.bindRoutes(routes);
-  return { elements, presenter, routes };
+  return { elements, pdfRoutes, presenter, routes };
 }
 
 describe("context resource presenter", () => {
@@ -259,6 +261,7 @@ describe("context resource presenter", () => {
       activateSurface,
       citationAvailable: () => true,
       openLibrary,
+      pushStandaloneLibraryPdfRoute: vi.fn(),
       replaceStandaloneLibraryRoute,
       restorePaneWidth,
       sources: () => ({ ...sources(undefined), standaloneLibrary }),
@@ -297,6 +300,7 @@ describe("context resource presenter", () => {
       activateSurface: vi.fn(),
       citationAvailable: () => false,
       openLibrary,
+      pushStandaloneLibraryPdfRoute: vi.fn(),
       replaceStandaloneLibraryRoute: vi.fn(),
       restorePaneWidth: vi.fn(),
       sources: () => ({ ...sources(undefined), standaloneLibrary: false }),
@@ -306,10 +310,7 @@ describe("context resource presenter", () => {
       insertCitation: vi.fn(),
       library: () => null,
       linkPassage: vi.fn(),
-      openLibraryPdf: vi.fn(),
-      openProjectPdf: vi.fn(),
       openPassage: vi.fn(),
-      openReferencePdf: vi.fn(),
       presentNotice,
       project: () => null,
       referencePdfs: () => [],
@@ -331,7 +332,7 @@ describe("context resource presenter", () => {
   });
 
   it("selects an authorized PDF for PDF-only layout", async () => {
-    const { presenter, routes } = setup();
+    const { pdfRoutes, presenter, routes } = setup();
     const pdf = {
       contentType: "application/pdf",
       createdAt: "created",
@@ -351,6 +352,7 @@ describe("context resource presenter", () => {
       activateSurface: vi.fn(),
       citationAvailable: () => false,
       openLibrary: vi.fn(),
+      pushStandaloneLibraryPdfRoute: vi.fn(),
       replaceStandaloneLibraryRoute: vi.fn(),
       restorePaneWidth: vi.fn(),
       sources: () => contextSources,
@@ -365,12 +367,60 @@ describe("context resource presenter", () => {
     presenter.openResourceContext({ kind: "pdf", id: pdf.id });
     await presenter.ensurePdfResource();
 
-    expect(routes.openProjectPdf).toHaveBeenCalledOnce();
-    expect(routes.openProjectPdf).toHaveBeenCalledWith(pdf);
-    expect(routes.openLibraryPdf).toHaveBeenCalledOnce();
-    expect(routes.openLibraryPdf).toHaveBeenCalledWith(libraryPdf);
+    expect(pdfRoutes.openProjectPdf).toHaveBeenCalledOnce();
+    expect(pdfRoutes.openProjectPdf).toHaveBeenCalledWith(pdf);
+    expect(pdfRoutes.openLibraryPdf).toHaveBeenCalledOnce();
+    expect(pdfRoutes.openLibraryPdf).toHaveBeenCalledWith(libraryPdf);
     expect(routes.presentNotice).toHaveBeenCalledOnce();
     expect(routes.presentNotice).toHaveBeenCalledWith("Add or open a PDF before using PDF-only view.");
+  });
+
+  it("owns PDF context preparation, history effects, and load timing", async () => {
+    const { pdfRoutes, presenter } = setup();
+    pdfRoutes.openProjectPdf.mockRestore();
+    pdfRoutes.openLibraryPdf.mockRestore();
+    pdfRoutes.openReferencePdf.mockRestore();
+    const preparePdfContext = vi.spyOn(presenter, "preparePdfContext").mockImplementation((target) => `${target.kind}:${target.id}`);
+    const loadActivePdf = vi.spyOn(presenter, "loadActivePdf").mockResolvedValue(undefined);
+    const pushStandaloneLibraryPdfRoute = vi.fn();
+    const syncRoute = vi.fn();
+    let standaloneLibrary = false;
+    presenter.bindContext({
+      activateSurface: vi.fn(),
+      citationAvailable: () => false,
+      openLibrary: vi.fn(),
+      pushStandaloneLibraryPdfRoute,
+      replaceStandaloneLibraryRoute: vi.fn(),
+      restorePaneWidth: vi.fn(),
+      sources: () => ({ ...sources(undefined), standaloneLibrary }),
+      syncRoute,
+    });
+    const pdf = {
+      contentType: "application/pdf",
+      createdAt: "created",
+      fingerprint: "navigation-fingerprint",
+      id: "navigation/pdf",
+      name: "navigation.pdf",
+      objectKey: "pdfs/navigation.pdf",
+      size: 1024,
+    } satisfies PdfResource;
+
+    await presenter.openProjectPdf(pdf, 3, "annotation-1");
+    await presenter.openLibraryPdf(libraryPdf, 5);
+    await presenter.openReferencePdf(referencePdf, 6, false);
+    standaloneLibrary = true;
+    await presenter.openLibraryPdf(libraryPdf, 7);
+    await presenter.openLibraryPdf(libraryPdf, 8, false);
+
+    expect(preparePdfContext).toHaveBeenNthCalledWith(1, { kind: "pdf", id: pdf.id }, { focusedAnnotationId: "annotation-1", page: 3 });
+    expect(preparePdfContext).toHaveBeenNthCalledWith(2, { kind: "library-pdf", id: libraryPdf.id }, { page: 5 });
+    expect(preparePdfContext).toHaveBeenNthCalledWith(3, { kind: "library-pdf", id: referencePdf.id }, { page: 6 });
+    expect(syncRoute).toHaveBeenCalledTimes(2);
+    expect(syncRoute).toHaveBeenCalledWith("push");
+    expect(pushStandaloneLibraryPdfRoute).toHaveBeenCalledOnce();
+    expect(pushStandaloneLibraryPdfRoute).toHaveBeenCalledWith(libraryPdf.id, 7);
+    expect(loadActivePdf).toHaveBeenCalledTimes(5);
+    expect(loadActivePdf).toHaveBeenCalledWith(true);
   });
 
   it("loads and validates the linked-reference PDF catalog", async () => {
@@ -599,7 +649,7 @@ describe("context resource presenter", () => {
   });
 
   it("owns project-evidence routes across its composed Lit resources", async () => {
-    const { elements, presenter, routes } = setup();
+    const { elements, pdfRoutes, presenter, routes } = setup();
     const completeProjectMutation = vi.spyOn(presenter, "completeProjectMutation").mockResolvedValue(undefined);
     const pdf = {
       contentType: "application/pdf",
@@ -668,7 +718,7 @@ describe("context resource presenter", () => {
     expect(routes.presentNotice).toHaveBeenCalledWith("Highlight stroke erased.");
     expect(routes.presentNotice).toHaveBeenCalledWith("Evidence notice.");
     expect(selectPdf).toHaveBeenCalledWith(pdf.id);
-    expect(routes.openProjectPdf).toHaveBeenCalledWith(pdf, annotation.page, annotation.id);
+    expect(pdfRoutes.openProjectPdf).toHaveBeenCalledWith(pdf, annotation.page, annotation.id);
   });
 
   it("owns project mutation refresh and notice completion", async () => {
@@ -838,7 +888,7 @@ describe("context resource presenter", () => {
   });
 
   it("provides canonical resource routes to the assistant presenter", async () => {
-    const { elements, presenter, routes } = setup();
+    const { elements, pdfRoutes, presenter, routes } = setup();
     const navigateResource = vi.spyOn(presenter, "navigateResource").mockImplementation(() => undefined);
     const focusTab = vi.spyOn(elements["context-tab-strip"], "focusTab").mockImplementation(() => undefined);
     const pdf = {
@@ -890,7 +940,7 @@ describe("context resource presenter", () => {
     expect(focusTab).toHaveBeenCalledWith("assistant");
     expect(resources.project()).toBe(workspaceSnapshotFixture);
     expect(navigateResource).toHaveBeenCalledWith({ kind: "candidate", id: candidate.id });
-    expect(routes.openProjectPdf).toHaveBeenCalledWith(pdf, evidence.page, evidence.id);
+    expect(pdfRoutes.openProjectPdf).toHaveBeenCalledWith(pdf, evidence.page, evidence.id);
     expect(routes.refreshLibrary).toHaveBeenCalledOnce();
     expect(routes.presentNotice).toHaveBeenCalledWith("No project evidence is available yet.");
   });
@@ -913,7 +963,7 @@ describe("context resource presenter", () => {
   });
 
   it("restores resource routes through canonical lookups and typed effects", async () => {
-    const { elements, presenter } = setup();
+    const { elements, pdfRoutes, presenter } = setup();
     const navigateResource = vi.spyOn(presenter, "navigateResource").mockImplementation(() => undefined);
     const bindIntake = vi.spyOn(elements["project-annotation-form"], "bindIntake");
     const publication = {
@@ -1000,11 +1050,8 @@ describe("context resource presenter", () => {
       library: vi.fn(() => currentLibrary),
       linkPassage: vi.fn(),
       openCandidate: vi.fn(),
-      openLibraryPdf: vi.fn().mockResolvedValue(undefined),
-      openProjectPdf: vi.fn().mockResolvedValue(undefined),
       openPublication: vi.fn(),
       openPassage: vi.fn(),
-      openReferencePdf: vi.fn().mockResolvedValue(undefined),
       presentNotice: vi.fn(),
       refreshResources: vi.fn().mockResolvedValue(undefined),
       project: vi.fn(() => project),
@@ -1042,17 +1089,17 @@ describe("context resource presenter", () => {
     presenter.openCitation({ keys: ["Author2026"] });
 
     expect(navigateResource).toHaveBeenCalledWith({ kind: "publication", id: publication.id });
-    expect(coordinator.openProjectPdf).toHaveBeenCalledWith(pdf, 4, "annotation-1");
-    expect(coordinator.openProjectPdf).toHaveBeenCalledWith(pdf, 7);
-    expect(coordinator.openProjectPdf).toHaveBeenCalledWith(pdf, annotation.page, annotation.id);
-    expect(coordinator.openProjectPdf).toHaveBeenCalledWith(pdf);
+    expect(pdfRoutes.openProjectPdf).toHaveBeenCalledWith(pdf, 4, "annotation-1");
+    expect(pdfRoutes.openProjectPdf).toHaveBeenCalledWith(pdf, 7);
+    expect(pdfRoutes.openProjectPdf).toHaveBeenCalledWith(pdf, annotation.page, annotation.id);
+    expect(pdfRoutes.openProjectPdf).toHaveBeenCalledWith(pdf);
     expect(showAnnotation).toHaveBeenCalledWith(annotation);
     expect(navigateResource).toHaveBeenCalledWith({ kind: "candidate", id: candidate.id });
     expect(coordinator.refreshLibrary).toHaveBeenCalledOnce();
-    expect(coordinator.openLibraryPdf).toHaveBeenCalledWith(libraryPdf, 5);
-    expect(coordinator.openLibraryPdf).toHaveBeenCalledWith(libraryPdf);
-    expect(coordinator.openReferencePdf).toHaveBeenCalledWith(referencePdf, 6);
-    expect(coordinator.openReferencePdf).toHaveBeenCalledWith(referencePdf);
+    expect(pdfRoutes.openLibraryPdf).toHaveBeenCalledWith(libraryPdf, 5, false);
+    expect(pdfRoutes.openLibraryPdf).toHaveBeenCalledWith(libraryPdf);
+    expect(pdfRoutes.openReferencePdf).toHaveBeenCalledWith(referencePdf, 6, false);
+    expect(pdfRoutes.openReferencePdf).toHaveBeenCalledWith(referencePdf);
     expect(coordinator.presentNotice).toHaveBeenNthCalledWith(1, "Private note");
     expect(coordinator.presentNotice).toHaveBeenNthCalledWith(2, `${"a".repeat(239)}…`);
     expect(coordinator.insertCitation).toHaveBeenNthCalledWith(1, publication.citationKey);

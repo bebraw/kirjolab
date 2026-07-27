@@ -70,7 +70,10 @@ changing their canonical data, selector, authorization, or rendering contracts.
   the accepted review visible.
 - Each PDF tab retains its page, within-page scroll, and focused annotation.
   Reopening or focusing an existing PDF target restores that local reading
-  context rather than loading a duplicate tab.
+  context rather than loading a duplicate tab. The context owner prepares the
+  canonical project, private-Library, or linked-reference PDF target, updates
+  route state with the requested page or focused annotation, and then loads the
+  active viewer; concrete browser URL mutation remains outside the component.
 - Library-backed PDFs use distinct `library-pdf:` identities and retain local
   page and scroll state. Owners read their own artifacts in private-highlight
   mode; other authenticated project members read linked-reference artifacts in
