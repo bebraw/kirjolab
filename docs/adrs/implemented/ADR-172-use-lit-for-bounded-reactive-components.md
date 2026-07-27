@@ -1261,8 +1261,10 @@ reason to wrap static markup mechanically.
   detection and presentation methods plus both candidate projections. The
   component also replaces the coordinator's private-Library request, validation,
   and duplicate-load guard. The application coordinator supplies canonical
-  project files and references and retains private-Library linking, Yjs edits,
-  and caret restoration.
+  project files and references and retains private-Library linking and canonical
+  Yjs authority. The completion owner dismisses locally on acceptance and sends
+  its selected explicit range through the editor insertion owner's existing
+  typed mutation capability for replacement, focus, and caret application.
 - The source citation control owns caret-context parsing and action
   availability. From the same resolved caret it owns canonical citation syntax
   projection, invalid-key and missing-caret presentation, insertion completion

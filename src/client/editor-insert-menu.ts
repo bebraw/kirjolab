@@ -68,6 +68,11 @@ export class EditorInsertMenu extends LitElement {
     this.applyTemplate({ text }, passage, passage.end);
   }
 
+  replaceRange(start: number, end: number, text: string): void {
+    const selection = start + text.length;
+    this.binding?.applyInsertion({ end, selectionEnd: selection, selectionStart: selection, start, text });
+  }
+
   override connectedCallback(): void {
     if (!this.hasUpdated) this.replaceChildren();
     super.connectedCallback();

@@ -60,11 +60,11 @@ describe("source completion", () => {
     const key = (value: string, isComposing = false) => ({ key: value, isComposing, preventDefault: vi.fn() }) as unknown as KeyboardEvent;
     expect(completion.handleKey(key("ArrowDown"))).toBe(true);
     expect(completion.handleKey(key("Enter"))).toBe(true);
-    expect(completion.handleKey(key("Escape"))).toBe(true);
+    expect(completion.hidden).toBe(true);
+    expect(completion.handleKey(key("Escape"))).toBe(false);
     expect(completion.handleKey(key("x"))).toBe(false);
     expect(completion.handleKey(key("Enter", true))).toBe(false);
     expect(intents).toEqual([includeIntent]);
-    expect(completion.hidden).toBe(true);
   });
 
   it("ranks and presents include and citation candidates beside their token", () => {

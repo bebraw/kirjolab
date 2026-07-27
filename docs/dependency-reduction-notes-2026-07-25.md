@@ -11107,3 +11107,27 @@ B, and 481,994 B / 146,135 B.
 
 Full native CI passes all 1,736 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Lit Ownership: Source Completion Application
+
+`SourceCompletion` now dismisses itself immediately on acceptance, and
+`EditorInsertMenu` applies its selected explicit replacement range through the
+existing typed mutation capability. `WorkspaceApp` retains private-Library
+reference linking, relative Yjs range preservation across that mutation, and
+canonical Yjs authority.
+
+This checkpoint reduces `src/client/app.ts` from 898 to 890 lines (-8), grows
+the completion and insertion owners by two and five lines, and reduces runtime
+across all three files by one line. It deletes the coordinator's generic source-
+completion mutation, focus, and caret helper. Focused coverage passes immediate
+acceptance dismissal, citation and include ranges, insertion projection, and
+strict types. Direct and unique production package counts remain 18 and 150;
+Lit was already pinned.
+
+The browser application artifact changes from 853,054 B raw / 229,862 B gzip
+to 853,101 B / 229,877 B (+47 B raw / +15 B gzip). Styles and lazy Markdown
+and PDF.js artifacts remain unchanged at 135,411 B / 23,373 B, 204,779 B /
+62,386 B, and 481,994 B / 146,135 B.
+
+Full native CI passes all 1,736 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.

@@ -828,8 +828,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   canonical project files and reference links. Let the component load, validate,
   and cache its private-Library candidate input only when that local scope is
   active. The application coordinator retains active-file identity,
-  collaborative edits, and private-Library linking mutations without caching
-  menu candidates, loading state, or kind state.
+  private-Library linking mutations, and canonical Yjs authority without
+  caching menu candidates, loading state, or kind state. The completion owner
+  dismisses itself on acceptance and routes its explicit selected range through
+  the editor insertion owner for replacement, focus, and caret application.
 - Implement optional editor keymaps as bounded textarea command adapters that
   emit ordinary input changes. Keep keymap preference browser-local, preserve
   IME and modified browser shortcuts, and never create a second document model.

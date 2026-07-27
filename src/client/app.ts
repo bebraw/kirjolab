@@ -410,7 +410,7 @@ class WorkspaceApp {
     });
     this.#elements.sourceCompletion.bindAcceptance((intent) => {
       if (intent.kind === "citation") void this.#acceptCitationCompletion(intent);
-      else this.#applySourceCompletion(intent.context.start, intent.context.end, intent.candidate.reference);
+      else this.#elements.editorInsertMenu.replaceRange(intent.context.start, intent.context.end, intent.candidate.reference);
     });
     this.#elements.authoringModeTabs.bindNavigation((mode) => {
       if (mode === "write") {
@@ -752,16 +752,8 @@ class WorkspaceApp {
       start = resolvedStart.index;
       end = resolvedEnd.index;
     }
-    this.#applySourceCompletion(start, end, candidate.key);
+    this.#elements.editorInsertMenu.replaceRange(start, end, candidate.key);
     if (candidate.scope === "library") this.#showToast(`Added and cited ${candidate.key}.`);
-  }
-
-  #applySourceCompletion(start: number, end: number, value: string): void {
-    this.#elements.sourceCompletion.hide();
-    replaceYTextRange(this.#document, this.#activeFileText, start, end, value, this);
-    const caret = start + value.length;
-    this.#elements.source.focus();
-    this.#elements.editorStatus.selectRange(caret);
   }
 
   async #linkSelectedPassage(kind: "annotation" | "claim", id: string): Promise<void> {

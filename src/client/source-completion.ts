@@ -248,7 +248,9 @@ export class SourceCompletion extends LitElement {
 
   private accept(index: number): void {
     const option = this.options[index];
-    if (option) this.emitIntent(option.intent);
+    if (!option) return;
+    this.hide();
+    this.emitIntent(option.intent);
   }
 
   private async loadLibrary(): Promise<void> {
