@@ -488,11 +488,13 @@ The adopted components own bounded presentation:
   result settlement; derivation of project-reference and research-share inputs
   from canonical project and owned Library snapshots; nested network and
   identification lifecycle delegation; direct-reference activation, refresh,
-  archive-aware focus, and successful-route sequencing; and routing for summary,
-  personal-field, metadata, PDF, research, network, identification, and standalone
-  Library-route outcomes. The application coordinator supplies refresh timing, PDF navigation,
-  web-capture/comparison, project-mutation completion, and notice effects through
-  a typed callback boundary.
+  archive-aware focus, and successful-route sequencing; routing for summary,
+  personal-field, metadata, PDF, research, network, identification, and
+  standalone Library-route outcomes; and the apply-project-notice sequence for
+  Library-originated project mutations. The application coordinator supplies
+  refresh timing, PDF navigation, web-capture/comparison, canonical project
+  snapshot application, and notice presentation through a typed callback
+  boundary.
 - The model provider settings panel owns connection, endpoint, model, and
   reasoning-effort values, browser-local persistence, Valibot-backed saved-value
   restoration with bounded per-field fallbacks, dynamic model choices,

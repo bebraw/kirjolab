@@ -396,8 +396,11 @@ memory and makes citation aliases compete with stable source identity.
   presenter's route binding is the single Library snapshot, refresh, citation-
   insertion, and notice authority used by both resource navigation and private-
   PDF workflows; its narrower private-PDF mutation binding carries no duplicate
-  canonical sources. The coordinator retains refresh timing, cross-feature reconciliation,
-  viewer effects, history mutation, context transitions, and notification policy.
+  canonical sources. Reference, research-share, and private-PDF project
+  mutations use one Library-workspace apply-project-notice lifecycle. The
+  coordinator retains canonical project snapshot application, refresh timing,
+  cross-feature reconciliation, viewer effects, history mutation, context
+  transitions, and notification presentation.
 - A project publication context resolves every authorized paper representation
   for the stable reference identity. The owner sees attached private-library
   PDFs without converting them into project resources; active artifact shares

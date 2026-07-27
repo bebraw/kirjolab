@@ -343,9 +343,9 @@ class WorkspaceApp {
       activateLibrary: () => {
         if (this.#contextState.activeKey !== RESEARCH_LIBRARY_KEY) this.#activateContext(RESEARCH_LIBRARY_KEY);
       },
+      applyProjectMutation: (snapshot) => this.#acceptWorkspaceMutation(snapshot),
       clearRoute: () => history.replaceState({ view: "library" }, "", "/library"),
       compareSnapshots: (priorId, currentId) => void this.#elements.webSnapshotComparison.compare(priorId, currentId),
-      completeProjectMutation: (message, snapshot) => void this.#completeLibraryProjectMutation(message, snapshot),
       openPdf: (artifact, page, updateHistory) => void this.#openLibraryPdf(artifact, page, updateHistory),
       openReferenceRoute: (referenceId) => {
         if (appMode === "library")
@@ -466,10 +466,7 @@ class WorkspaceApp {
     this.#elements.contextResourcePresenter.bindProjectAnnotationIntake();
     this.#elements.contextResourcePresenter.bindProjectAnnotationWorkflow();
     this.#elements.contextResourcePresenter.bindLibraryPdf({
-      acceptProjectMutation: async (snapshot) => {
-        await this.#acceptWorkspaceMutation(snapshot);
-        this.#elements.referenceLibraryWorkspace.presentProject(this.#snapshot, appMode === "workspace" ? apiBase : null);
-      },
+      acceptProjectMutation: (snapshot) => this.#elements.referenceLibraryWorkspace.applyProjectMutation(snapshot),
       canInsertCitation: () => this.#resolvedAuthoringCaret() !== null,
       completeMarkup: (message) =>
         void this.#elements.referenceLibraryWorkspace.completeRefresh(
@@ -497,7 +494,7 @@ class WorkspaceApp {
     });
     this.#elements.contextResourcePresenter.bindPdfViewer(this.#pdfViewer, apiBase);
     this.#elements.libraryPdfInspector.bindProjectMutations(
-      (message, snapshot) => void this.#completeLibraryProjectMutation(message, snapshot),
+      (message, snapshot) => void this.#elements.referenceLibraryWorkspace.applyProjectMutation(snapshot, message),
     );
     this.#elements.contextResourcePresenter.bindClaimList(apiBase);
     this.#elements.workspaceSurfaceSwitcher.bindNavigation(() => this.#syncWorkspaceRoute("replace"));
@@ -742,12 +739,6 @@ class WorkspaceApp {
     await this.#elements.referenceLibraryWorkspace.settled();
     this.#renderResearchContext();
     this.#syncWorkspaceRoute("replace");
-  }
-
-  async #completeLibraryProjectMutation(message: string, snapshot: WorkspaceSnapshot): Promise<void> {
-    await this.#acceptWorkspaceMutation(snapshot);
-    this.#elements.referenceLibraryWorkspace.presentProject(this.#snapshot, appMode === "workspace" ? apiBase : null);
-    this.#showToast(message);
   }
 
   async #acceptWorkspaceMutation(result: Response | WorkspaceSnapshot): Promise<void> {

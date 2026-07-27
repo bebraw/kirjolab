@@ -108,7 +108,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   snapshot. It owns standalone Library route lookup plus archive-aware focused-
   reference restoration and missing-reference feedback. Direct publication-
   management navigation also stays inside this owner for Library activation,
-  canonical refresh, archive-aware focus, and successful route intent. It also resolves duplicate-PDF upload reveals through
+  canonical refresh, archive-aware focus, and successful route intent.
+  Library-originated project mutations pass through one owned apply-project-
+  notice lifecycle; keep canonical project snapshot application behind the
+  coordinator callback. It also resolves duplicate-PDF upload reveals through
   archive visibility, canonical refresh, owned filter/list focus, and missing-
   source feedback. Keep cross-feature PDF and
   context navigation, history mutation, project snapshot application, refresh timing, and notification

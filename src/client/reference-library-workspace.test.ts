@@ -132,16 +132,26 @@ describe("reference Library workspace", () => {
     );
   });
 
-  it("owns the canonical project projection into Library presentation", () => {
+  it("owns canonical project mutation application and Library projection", async () => {
     const { owners, workspace } = setup();
+    const applyProjectMutation = vi.fn().mockResolvedValue(undefined);
     const setData = vi.spyOn(owners["library-reference-list"], "setData");
+    workspace.configure("workspace", {
+      applyProjectMutation,
+      compareSnapshots: vi.fn(),
+      openPdf: vi.fn(),
+      presentNotice: vi.fn(),
+      refreshLibrary: vi.fn(),
+      refreshMetadata: vi.fn(),
+    });
 
     workspace.presentProject(workspaceSnapshotFixture, "/api/workspaces/workspace");
     expect(setData).not.toHaveBeenCalled();
 
-    workspace.setData({ library, projectApiBase: null, projectReferences: [], researchShares: [] });
-    workspace.presentProject(workspaceSnapshotFixture, "/api/workspaces/workspace");
+    workspace.setData({ library, projectApiBase: "/api/workspaces/workspace", projectReferences: [], researchShares: [] });
+    await workspace.applyProjectMutation(workspaceSnapshotFixture);
 
+    expect(applyProjectMutation).toHaveBeenCalledWith(workspaceSnapshotFixture);
     expect(setData).toHaveBeenLastCalledWith({
       library,
       projectApiBase: "/api/workspaces/workspace",
@@ -267,8 +277,8 @@ describe("reference Library workspace", () => {
   it("routes child Library outcomes through its refresh boundary", async () => {
     const { owners, workspace } = setup();
     const callbacks = {
+      applyProjectMutation: vi.fn().mockResolvedValue(undefined),
       compareSnapshots: vi.fn(),
-      completeProjectMutation: vi.fn(),
       openPdf: vi.fn(),
       presentNotice: vi.fn(),
       refreshLibrary: vi.fn().mockResolvedValue(undefined),
@@ -307,10 +317,13 @@ describe("reference Library workspace", () => {
     workspace.dispatchEvent(new CustomEvent(unidentifiedPdfRefreshEvent, { detail: { message: "PDF identified", requestId: 7 } }));
 
     expect(callbacks.presentNotice).toHaveBeenCalledWith("Network notice");
-    expect(callbacks.completeProjectMutation.mock.calls).toEqual([
-      ["Reference linked", workspaceSnapshotFixture],
-      ["Research shared", workspaceSnapshotFixture],
-    ]);
+    await vi.waitFor(() => expect(callbacks.applyProjectMutation).toHaveBeenCalledTimes(2));
+    expect(callbacks.applyProjectMutation).toHaveBeenNthCalledWith(1, workspaceSnapshotFixture);
+    expect(callbacks.applyProjectMutation).toHaveBeenNthCalledWith(2, workspaceSnapshotFixture);
+    await vi.waitFor(() => {
+      expect(callbacks.presentNotice).toHaveBeenCalledWith("Reference linked");
+      expect(callbacks.presentNotice).toHaveBeenCalledWith("Research shared");
+    });
     expect(callbacks.presentNotice).toHaveBeenCalledWith("Metadata notice");
     expect(callbacks.openPdf).toHaveBeenCalledTimes(2);
     await vi.waitFor(() => expect(callbacks.refreshLibrary).toHaveBeenCalledTimes(4));

@@ -9506,6 +9506,28 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,721 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Library Project Mutation Completion
+
+`ReferenceLibraryWorkspace` now owns the common canonical-apply, Library-
+project, and optional-notice sequence for reference links, research shares, and
+private-PDF project-use mutations. `WorkspaceApp` retains canonical project
+snapshot validation and application behind the existing typed callback.
+
+This checkpoint reduces `src/client/app.ts` from 1,121 to 1,112 lines (-9) and
+grows the composed Library owner from 359 to 365 lines. Runtime source across
+those files decreases by three lines while deleting the coordinator-only
+mutation-completion adapter and unifying three mutation sources. Focused
+Library-workspace, context-presenter, and application-contract coverage passes
+all 57 tests alongside strict types.
+
+The browser application artifact changes from 849,199 B raw / 228,994 B gzip
+to 849,201 B raw / 229,011 B gzip (+2 B raw / +17 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,726 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Library PDF Project Use Projection
 
 `LibraryPdfProjectUse` now resolves the active bibliographic record and matching

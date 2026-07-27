@@ -57,9 +57,9 @@ interface LibraryRefreshOptions {
 
 export interface ReferenceLibraryWorkspaceCallbacks {
   readonly activateLibrary?: () => void;
+  readonly applyProjectMutation?: (snapshot: ProjectReferenceChanged["snapshot"]) => Promise<void>;
   readonly clearRoute?: () => void;
   readonly compareSnapshots: (priorId: string, currentId: string) => void;
-  readonly completeProjectMutation?: (message: string, snapshot: ProjectReferenceChanged["snapshot"]) => void;
   readonly openPdf: (artifact: LibraryPdfArtifact, page?: number, updateHistory?: boolean) => void;
   readonly openReferenceRoute?: (referenceId: string) => void;
   readonly presentNotice: (message: string) => void;
@@ -88,11 +88,11 @@ export class ReferenceLibraryWorkspace extends LitElement {
     super();
     this.addEventListener(projectReferenceChangedEvent, (event) => {
       const { message, snapshot } = (event as CustomEvent<ProjectReferenceChanged>).detail;
-      this.callbacks.completeProjectMutation?.(message, snapshot);
+      void this.applyProjectMutation(snapshot, message);
     });
     this.addEventListener(projectResearchChangedEvent, (event) => {
       const { message, snapshot } = (event as CustomEvent<ProjectResearchChanged>).detail;
-      this.callbacks.completeProjectMutation?.(message, snapshot);
+      void this.applyProjectMutation(snapshot, message);
     });
     this.addEventListener(referenceLibraryFilterChangeEvent, () => this.present());
     this.addEventListener(citationNetworkOutcomeEvent, (event) =>
@@ -186,6 +186,12 @@ export class ReferenceLibraryWorkspace extends LitElement {
       projectReferences: snapshot?.projectReferences ?? [],
       researchShares: snapshot?.researchShares ?? [],
     });
+  }
+
+  async applyProjectMutation(snapshot: WorkspaceSnapshot, message?: string): Promise<void> {
+    await this.callbacks.applyProjectMutation?.(snapshot);
+    this.presentProject(snapshot, this.data?.projectApiBase ?? null);
+    if (message) this.callbacks.presentNotice(message);
   }
 
   async refresh(fetcher: typeof fetch = fetch): Promise<ReferenceLibrarySnapshot> {
