@@ -37,6 +37,8 @@ export class ProjectStartingPointBrowser extends LitElement {
   declare private projectTitle: string;
   private parentDialog: HTMLDialogElement | null = null;
   private returnFocus: HTMLElement | null = null;
+  private trigger: HTMLElement | null = null;
+  private loadStartingPoints: () => Promise<void> = async () => undefined;
   private binding: StartingPointBinding = {
     openImport: () => undefined,
     presentNotice: () => undefined,
@@ -76,6 +78,25 @@ export class ProjectStartingPointBrowser extends LitElement {
     this.returnFocus = this.returnTarget(trigger);
     this.showModal();
     this.startLoading();
+  }
+
+  bindTrigger(trigger: HTMLElement, load: () => Promise<void>): void {
+    this.trigger?.removeEventListener("click", this.openFromTrigger);
+    this.trigger = trigger;
+    this.loadStartingPoints = load;
+    trigger.addEventListener("click", this.openFromTrigger);
+  }
+
+  async openFromBoundTrigger(): Promise<void> {
+    const trigger = this.trigger;
+    if (!trigger) return;
+    this.open(trigger);
+    try {
+      await this.loadStartingPoints();
+      this.focusFirst();
+    } catch (error) {
+      this.showError(errorMessage(error, "Could not load project templates."));
+    }
   }
 
   close(): void {
@@ -261,6 +282,8 @@ export class ProjectStartingPointBrowser extends LitElement {
     this.close();
     this.binding.openImport(detail);
   }
+
+  private readonly openFromTrigger = (): void => void this.openFromBoundTrigger();
 
   protected showModal(): void {
     this.dialog.showModal();

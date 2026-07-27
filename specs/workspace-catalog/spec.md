@@ -40,10 +40,10 @@ making the storage term `workspace` the primary browser hierarchy.
   The compact selector resolves selections only against its supplied authorized
   catalog and navigates through the selected entry's canonical href.
 - A bounded catalog component owns the Projects browser's filter, result and
-  empty-state presentation, project metadata labels, and close intent. The
-  application coordinator retains catalog fetching, response validation, the
-  compact current-project selector's authorized inputs, and Projects-browser
-  navigation authority.
+  empty-state presentation, project metadata labels, entry-trigger activation,
+  and native dialog lifecycle. The application coordinator retains catalog
+  fetching, response validation, the compact current-project selector's
+  authorized inputs, and Projects-browser navigation authority.
 - Unknown browser routes render the shared responsive visual shell, identify
   the missing path, and provide a direct return to the dashboard.
 

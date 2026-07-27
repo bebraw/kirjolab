@@ -53,13 +53,15 @@ The adopted components own bounded presentation:
   delayed commit and Undo lifecycle, the derived visible-template view, local
   selection and preview state, bounded preview rendering, local dismissal and
   import handoff, canonical successful-result navigation, and typed import
-  events.
+  events. It binds its server-rendered entry trigger and owns loading-state
+  entry, post-load focus, and load-failure presentation around a typed catalog-
+  refresh callback.
 - The workspace sharing panel owns member and capability-link requests,
   response validation and presentation, invitation input and submission,
   clipboard interaction, native parent-dialog lifecycle, and typed notices.
 - The workspace catalog panel owns project filtering, result and empty-state
   rendering, metadata labels, filter focus reset, and native parent-dialog
-  lifecycle.
+  lifecycle, including its server-rendered entry trigger.
 - The project history panel owns timeline, comparison controls, busy and error
   states, revision cards, inspectors, and typed revision-operation intents.
 - The project history dialog composes the server-rendered modal and reactive

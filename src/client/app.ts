@@ -267,7 +267,7 @@ class WorkspaceApp {
     this.#collaborationSocket.connect();
     if (new URL(location.href).searchParams.get("create") === "1") {
       history.replaceState(history.state, "", location.pathname);
-      await this.#openNewWorkspace();
+      await this.#elements.newWorkspaceStartingPoints.openFromBoundTrigger();
     }
   }
 
@@ -303,9 +303,7 @@ class WorkspaceApp {
     });
     this.#elements.workspaceLayout.configure(workspaceId);
     this.#elements.workspaceLayout.bindChange((layout) => void this.#applyWorkspaceLayout(layout, false));
-    this.#elements.manageWorkspaces.addEventListener("click", () => {
-      void this.#elements.workspaceCatalogPanel.open();
-    });
+    this.#elements.workspaceCatalogPanel.bindTrigger(this.#elements.manageWorkspaces);
     this.#elements.workspaceSettingsPanel.bindWorkspace(this.#elements.workspaceSettings, {
       refreshCatalog: async () => await this.#refreshCatalog(),
       refreshGitHub: () => void this.#elements.gitHubSyncMenu.refreshWorkspace(true),
@@ -317,7 +315,7 @@ class WorkspaceApp {
         workspaceId,
       }),
     });
-    this.#elements.newWorkspace.addEventListener("click", () => void this.#openNewWorkspace());
+    this.#elements.newWorkspaceStartingPoints.bindTrigger(this.#elements.newWorkspace, async () => await this.#refreshProjectTemplates());
     this.#elements.newWorkspaceStartingPoints.bind({
       openImport: (action) => {
         if (action === "import-latex") this.#openLatexImportDialog();
@@ -739,16 +737,6 @@ class WorkspaceApp {
   #openGitHubImportDialog(): void {
     this.#elements.gitHubImportPanel.open();
     void this.#elements.gitHubImportPanel.refreshConnection();
-  }
-
-  async #openNewWorkspace(): Promise<void> {
-    this.#elements.newWorkspaceStartingPoints.open(this.#elements.newWorkspace);
-    try {
-      await this.#refreshProjectTemplates();
-      this.#elements.newWorkspaceStartingPoints.focusFirst();
-    } catch (error) {
-      this.#elements.newWorkspaceStartingPoints.showError(error instanceof Error ? error.message : "Could not load project templates.");
-    }
   }
 
   async #refreshProjectTemplates(): Promise<void> {

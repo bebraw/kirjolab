@@ -7027,6 +7027,29 @@ to 840,220 B raw / 227,049 B gzip (+46 B raw / +14 B gzip). Styles and direct
 and unique production package counts remain unchanged at 135,411 B raw /
 23,373 B gzip, 18, and 150.
 
+## Continued Lit Ownership: Project Dialog Entry
+
+`WorkspaceCatalogPanel` now binds its server-rendered Projects trigger.
+`ProjectStartingPointBrowser` binds its New project trigger and owns loading-
+state entry, post-load focus, and local load-failure presentation around the
+coordinator's canonical catalog refresh. `WorkspaceApp` no longer binds either
+raw button or wraps the starting-point lifecycle in a separate method.
+
+This checkpoint reduces `src/client/app.ts` from 2,198 to 2,186 lines (-12) and
+removes its final two server-rendered button listeners. The two Lit owners grow
+from 657 to 703 lines (+46), increasing runtime source across the three files
+by 34 lines while localizing complete dialog-entry lifecycles. Focused coverage
+exercises both triggers, loading completion, modal entry, filter reset, existing
+starting-point behavior, application contracts, and strict types.
+
+The browser application artifact changes from 840,220 B raw / 227,049 B gzip
+to 840,651 B raw / 227,173 B gzip (+431 B raw / +124 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,673 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

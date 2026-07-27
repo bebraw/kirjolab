@@ -57,8 +57,10 @@ without copying private research or creating a live dependency on the source.
   selection, preview and loading presentation, create readiness and status,
   native modal opening and closing, focus containment and restoration, local
   cancellation, pre-import dismissal, canonical successful-result navigation,
-  and a typed import binding. `WorkspaceApp` retains import workflows, replacement-
-  option synchronization, and the global toast outlet.
+  server-rendered entry-trigger activation, loading-state entry, post-load
+  focus, load-failure presentation, and a typed import binding. `WorkspaceApp`
+  retains canonical catalog refresh, import workflows, replacement-option
+  synchronization, and the global toast outlet.
 - The template-save Lit dialog owns create-or-replace form state, promotion
   requests, saved-summary validation, duplicate-submit gating, local progress
   and error presentation, and typed validated completion outcomes.

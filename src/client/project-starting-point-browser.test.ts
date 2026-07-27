@@ -48,6 +48,7 @@ class TestProjectStartingPointBrowser extends ProjectStartingPointBrowser {
   active: Element | null = null;
   closeCount = 0;
   focusCount = 0;
+  firstFocusCount = 0;
   focusables: readonly HTMLElement[] = [];
   modalCount = 0;
   openDialog = false;
@@ -104,6 +105,10 @@ class TestProjectStartingPointBrowser extends ProjectStartingPointBrowser {
 
   override focus(): void {
     this.focusCount += 1;
+  }
+
+  override focusFirst(): void {
+    this.firstFocusCount += 1;
   }
 
   protected override showModal(): void {
@@ -325,6 +330,19 @@ describe("project starting point browser", () => {
     browser.openDialog = false;
     browser.restoreFocusForTest();
     expect(browser.focusCount).toBe(1);
+  });
+
+  it("owns shell-trigger loading and post-load focus", async () => {
+    const browser = new TestProjectStartingPointBrowser();
+    const trigger = new EventTarget();
+    const load = vi.fn().mockResolvedValue(undefined);
+    browser.bindTrigger(trigger as HTMLElement, load);
+
+    trigger.dispatchEvent(new Event("click"));
+    await vi.waitFor(() => expect(load).toHaveBeenCalledOnce());
+    await vi.waitFor(() => expect(browser.firstFocusCount).toBe(1));
+
+    expect(browser.modalCount).toBe(1);
   });
 
   it("binds lifecycle behavior to its native parent dialog", () => {

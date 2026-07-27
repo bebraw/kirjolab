@@ -111,6 +111,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   canonical workspace inputs. Bind its entry trigger and request canonical
   inputs, catalog refresh, save-as-template, and GitHub refresh through one
   typed workspace boundary instead of exposing local action events.
+- Let the project catalog and starting-point Lit owners bind their server-
+  rendered entry triggers. The starting-point owner also owns loading-state
+  entry, post-load focus, and local load-failure presentation around the
+  coordinator's canonical catalog refresh.
 - Let the GitHub sync-menu Lit component bind the workspace-settings review,
   own online and active-review refresh policy, route Check/Pull/Push/Settings
   actions, and refresh both canonical project data after Pull and menu status

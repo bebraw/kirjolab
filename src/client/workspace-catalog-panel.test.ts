@@ -80,4 +80,19 @@ describe("workspace catalog presentation", () => {
     expect(dialog.closeCount).toBe(1);
     expect(panel.resetCount).toBe(1);
   });
+
+  it("owns its shell trigger", async () => {
+    const panel = new TestWorkspaceCatalogPanel();
+    const dialog = new FakeDialog();
+    const trigger = new EventTarget();
+    vi.stubGlobal("HTMLDialogElement", FakeDialog);
+    Object.defineProperty(panel, "closest", { value: () => dialog });
+
+    panel.bindTrigger(trigger as HTMLElement);
+    trigger.dispatchEvent(new Event("click"));
+    await Promise.resolve();
+
+    expect(dialog.modalCount).toBe(1);
+    expect(panel.resetCount).toBe(1);
+  });
 });

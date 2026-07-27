@@ -12,6 +12,7 @@ export class WorkspaceCatalogPanel extends LitElement {
   declare private currentWorkspaceId: string;
   declare private query: string;
   declare private workspaces: readonly WorkspaceSummary[];
+  private trigger: HTMLElement | null = null;
 
   constructor() {
     super();
@@ -23,6 +24,12 @@ export class WorkspaceCatalogPanel extends LitElement {
   setData(workspaces: readonly WorkspaceSummary[], currentWorkspaceId: string): void {
     this.workspaces = workspaces;
     this.currentWorkspaceId = currentWorkspaceId;
+  }
+
+  bindTrigger(trigger: HTMLElement): void {
+    this.trigger?.removeEventListener("click", this.openFromTrigger);
+    this.trigger = trigger;
+    trigger.addEventListener("click", this.openFromTrigger);
   }
 
   async open(): Promise<void> {
@@ -92,6 +99,8 @@ export class WorkspaceCatalogPanel extends LitElement {
   private updateQuery(event: InputEvent): void {
     this.query = (event.currentTarget as HTMLInputElement).value;
   }
+
+  private readonly openFromTrigger = (): void => void this.open();
 
   close(): void {
     this.dialog.close();
