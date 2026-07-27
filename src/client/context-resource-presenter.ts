@@ -46,6 +46,7 @@ import {
   researchResourceKey,
   setPdfResearchLocation,
   RESEARCH_ASSISTANT_KEY,
+  RESEARCH_LIBRARY_KEY,
   setResearchTabScroll,
   type PdfResearchLocation,
   type ResearchContextAuthorization,
@@ -116,10 +117,8 @@ export interface ContextRouteCoordinator {
   readonly insertCitation: (citationAlias: string, locator?: string) => void;
   readonly library: () => ReferenceLibrarySnapshot | null;
   readonly linkPassage: (kind: "annotation" | "claim", id: string) => void;
-  readonly openCandidate: (candidate: WorkspaceSnapshot["candidates"][number]) => void;
   readonly openLibraryPdf: (artifact: LibraryPdfArtifact, page?: number) => Promise<void>;
   readonly openProjectPdf: (pdf: WorkspaceSnapshot["pdfs"][number], page?: number, annotationId?: string) => Promise<void>;
-  readonly openPublication: (publication: WorkspaceSnapshot["publications"][number]) => void;
   readonly openPassage: (anchor: ManuscriptAnchorSelector) => void;
   readonly openReferencePdf: (pdf: ProjectReferencePdf, page?: number) => Promise<void>;
   readonly presentNotice: (message: string) => void;
@@ -127,6 +126,16 @@ export interface ContextRouteCoordinator {
   readonly referencePdfs: () => readonly ProjectReferencePdf[];
   readonly refreshResources: () => Promise<void>;
   readonly refreshLibrary: () => Promise<void>;
+}
+
+export interface ContextPresentationBinding {
+  readonly activateSurface: () => void;
+  readonly citationAvailable: () => boolean;
+  readonly openLibrary: () => Promise<void>;
+  readonly replaceStandaloneLibraryRoute: () => void;
+  readonly restorePaneWidth: () => void;
+  readonly sources: () => ResearchContextSources;
+  readonly syncRoute: (mode: "push" | "replace") => void;
 }
 
 export interface ContextViewerState {
@@ -146,6 +155,7 @@ export type PublicationListCoordinator = Pick<PublicationListBinding, "manage">;
 
 export class ContextResourcePresenter extends LitElement {
   private contextState = createResearchContext();
+  private contextPresentation: ContextPresentationBinding | null = null;
   private currentActiveTab: ResearchResourceTab | undefined;
   private currentLibraryPdf: LibraryPdfArtifact | undefined;
   private currentLibrary: ReferenceLibrarySnapshot | null = null;
@@ -174,6 +184,35 @@ export class ContextResourcePresenter extends LitElement {
     return this.contextState.activeKey;
   }
 
+  bindContext(binding: ContextPresentationBinding): void {
+    this.contextPresentation = binding;
+    this.element("context-tab-strip", ContextTabStrip)?.bindNavigation({
+      activate: (key) => this.navigateContext(key),
+      close: (key) => this.closeBoundContext(key),
+      openLibrary: () => void binding.openLibrary(),
+    });
+  }
+
+  navigateContext(key: ResearchContextKey): void {
+    this.activateContext(key);
+    this.presentTransition(key);
+  }
+
+  navigateResource(target: ResearchResourceTarget): void {
+    this.presentTransition(this.openResourceContext(target));
+  }
+
+  presentBoundContext(loadPdf = true): void {
+    const binding = this.contextPresentation;
+    if (!binding) return;
+    const presentation = this.presentContext(binding.sources());
+    binding.restorePaneWidth();
+    if (presentation.publicationPresented) this.setCitationAvailable(binding.citationAvailable());
+    if (loadPdf && (presentation.activeTab?.kind === "pdf" || presentation.activeTab?.kind === "library-pdf")) {
+      void this.loadActivePdf(false);
+    }
+  }
+
   activateContext(key: ResearchContextKey): void {
     this.captureBoundContext();
     this.contextState = activateResearchTab(this.contextState, key);
@@ -197,12 +236,36 @@ export class ContextResourcePresenter extends LitElement {
     this.captureBoundContext();
     const key = researchResourceKey(target);
     this.contextState = setPdfResearchLocation(openResearchResource(this.contextState, target), key, location);
+    this.presentTransition(key, false, false);
     return key;
   }
 
   reconcileContext(authorization: ResearchContextAuthorization): void {
     this.captureBoundContext();
     this.contextState = reconcileResearchContext(this.contextState, authorization);
+  }
+
+  private closeBoundContext(key: ResearchContextKey): void {
+    const binding = this.contextPresentation;
+    if (!binding) return;
+    const returnToStandaloneLibrary = binding.sources().standaloneLibrary && this.activeKey === key;
+    this.closeContext(key);
+    if (returnToStandaloneLibrary) {
+      this.contextState = activateResearchTab(this.contextState, RESEARCH_LIBRARY_KEY);
+      binding.replaceStandaloneLibraryRoute();
+    }
+    this.presentBoundContext();
+    this.element("context-tab-strip", ContextTabStrip)?.focusTab(this.activeKey);
+    binding.syncRoute("replace");
+  }
+
+  private presentTransition(key: ResearchContextKey, loadPdf = true, syncRoute = true): void {
+    const binding = this.contextPresentation;
+    if (!binding) return;
+    this.presentBoundContext(loadPdf);
+    binding.activateSurface();
+    this.element("context-tab-strip", ContextTabStrip)?.focusTab(key);
+    if (syncRoute) binding.syncRoute("push");
   }
 
   async refreshReferencePdfs(projectApiBase: string | null, fetcher: typeof fetch = fetch): Promise<void> {
@@ -250,7 +313,7 @@ export class ContextResourcePresenter extends LitElement {
   assistantResources(): AssistantResourceRoutes {
     return {
       focusAssistant: () => this.element("context-tab-strip", ContextTabStrip)?.focusTab(RESEARCH_ASSISTANT_KEY),
-      openCandidate: (candidate) => this.routeCoordinator?.openCandidate(candidate),
+      openCandidate: (candidate) => this.navigateResource({ kind: "candidate", id: candidate.id }),
       openPaper: (pdf, evidence) => void this.routeCoordinator?.openProjectPdf(pdf, evidence.page, evidence.id),
       project: () => this.routeCoordinator?.project() ?? null,
       refreshLibrary: async () => await this.routeCoordinator?.refreshLibrary(),
@@ -264,7 +327,7 @@ export class ContextResourcePresenter extends LitElement {
     const project = coordinator.project();
     if (target.kind === "publication") {
       const publication = project?.publications.find(({ id }) => id === target.id);
-      if (publication) coordinator.openPublication(publication);
+      if (publication) this.navigateResource(target);
       return;
     }
     if (target.kind === "pdf") {
@@ -274,7 +337,7 @@ export class ContextResourcePresenter extends LitElement {
     }
     if (target.kind === "candidate") {
       const candidate = project?.candidates.find(({ id }) => id === target.id);
-      if (candidate) coordinator.openCandidate(candidate);
+      if (candidate) this.navigateResource(target);
       return;
     }
     if (!coordinator.library()) await coordinator.refreshLibrary();
@@ -349,7 +412,7 @@ export class ContextResourcePresenter extends LitElement {
     const pdf = links.length === 1 ? project.pdfs.find(({ id }) => id === links[0]?.pdfId) : undefined;
     const page = citationPageFromLocator(citation.locator);
     if (page && pdf) void coordinator?.openProjectPdf(pdf, page);
-    else coordinator?.openPublication(publication);
+    else this.navigateResource({ kind: "publication", id: publication.id });
   }
 
   bindLibraryPdf(coordinator: LibraryPdfMutationCoordinator): void {
@@ -381,7 +444,7 @@ export class ContextResourcePresenter extends LitElement {
 
   bindProjectAnnotationIntake(): void {
     this.element("project-annotation-form", ProjectAnnotationForm)?.bindIntake({
-      openPublication: (publication) => this.routeCoordinator?.openPublication(publication),
+      openPublication: (publication) => this.navigateResource({ kind: "publication", id: publication.id }),
       presentNotice: (message) => this.routeCoordinator?.presentNotice(message),
       publications: () => this.routeCoordinator?.project()?.publications ?? [],
       refresh: () => this.routeCoordinator?.refreshResources() ?? Promise.resolve(),
@@ -486,7 +549,7 @@ export class ContextResourcePresenter extends LitElement {
       ...coordinator,
       enriched: (message) =>
         void this.completeProjectMutation(message, "The reference was enriched, but project resources could not be refreshed."),
-      open: (publication) => this.routeCoordinator?.openPublication(publication),
+      open: (publication) => this.navigateResource({ kind: "publication", id: publication.id }),
     });
   }
 

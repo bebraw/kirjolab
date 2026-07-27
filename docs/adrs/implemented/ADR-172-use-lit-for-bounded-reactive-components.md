@@ -1169,9 +1169,11 @@ reason to wrap static markup mechanically.
   that input, and replaces three coordinator event subscriptions with one
   callback configuration. The enclosing context-resource presenter owns
   browser-local canonical context state, authorization reconciliation, resource
-  closure, PDF location, and resource-panel scroll restoration. The application
-  coordinator retains authorized Library loading, route synchronization,
-  cross-surface effects, and content-render timing.
+  closure, PDF location, resource-panel scroll restoration, tab presentation,
+  focus, route-effect sequencing, surface activation, and active-PDF load
+  timing. The application coordinator supplies authorized Library loading,
+  canonical context sources, browser-history mutation, and the underlying
+  cross-surface and layout effects.
 - The workspace surface switcher replaces two button references, native action
   bindings, ARIA-state mutations, and its public change event. It routes
   internal and workflow-driven selection through one navigation method, owns

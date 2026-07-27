@@ -178,9 +178,11 @@ changing their canonical data, selector, authorization, or rendering contracts.
   update. It routes fixed, resource-strip, and overview navigation through one
   typed coordinator boundary. The enclosing context-resource presenter retains
   canonical tab state, authorization reconciliation, resource closure, PDF
-  location, and resource-panel scroll restoration. The workspace coordinator
-  retains authorized content loading, content-render timing, route
-  synchronization, and cross-surface transitions.
+  location, resource-panel scroll restoration, tab presentation, focus,
+  route-effect sequencing, surface activation, and active-PDF load timing. The
+  workspace coordinator supplies authorized content loading, canonical context
+  sources, browser-history mutation, and the underlying cross-surface and layout
+  effects.
 - A bounded resource-context presenter synchronizes the evidence, annotation,
   publication, claim, comment, and candidate Lit owners from the canonical
   workspace snapshot; projects coordinator-resolved evidence links, claim

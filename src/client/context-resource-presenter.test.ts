@@ -241,6 +241,51 @@ describe("context resource presenter", () => {
     expect(presenter.activeKey).toBe("preview");
   });
 
+  it("owns bound context presentation, navigation, focus, and route effects", async () => {
+    const { elements, presenter } = setup();
+    const bindNavigation = vi.spyOn(elements["context-tab-strip"], "bindNavigation");
+    const focusTab = vi.spyOn(elements["context-tab-strip"], "focusTab").mockImplementation(() => undefined);
+    const presentContext = vi.spyOn(presenter, "presentContext").mockReturnValue({
+      activeTab: undefined,
+      publicationPresented: false,
+    });
+    const activateSurface = vi.fn();
+    const openLibrary = vi.fn().mockResolvedValue(undefined);
+    const replaceStandaloneLibraryRoute = vi.fn();
+    const restorePaneWidth = vi.fn();
+    const syncRoute = vi.fn();
+    let standaloneLibrary = false;
+    presenter.bindContext({
+      activateSurface,
+      citationAvailable: () => true,
+      openLibrary,
+      replaceStandaloneLibraryRoute,
+      restorePaneWidth,
+      sources: () => ({ ...sources(undefined), standaloneLibrary }),
+      syncRoute,
+    });
+    const navigation = bindNavigation.mock.calls[0]?.[0];
+
+    navigation?.activate("library");
+    navigation?.openLibrary();
+    presenter.navigateResource({ kind: "publication", id: "publication:1" });
+
+    expect(presenter.activeKey).toBe("publication:publication:1");
+    expect(activateSurface).toHaveBeenCalledTimes(2);
+    expect(focusTab).toHaveBeenCalledWith("library");
+    expect(focusTab).toHaveBeenCalledWith("publication:publication:1");
+    expect(syncRoute).toHaveBeenCalledWith("push");
+    await vi.waitFor(() => expect(openLibrary).toHaveBeenCalledOnce());
+
+    standaloneLibrary = true;
+    navigation?.close("publication:publication:1");
+    expect(presenter.activeKey).toBe("library");
+    expect(replaceStandaloneLibraryRoute).toHaveBeenCalledOnce();
+    expect(syncRoute).toHaveBeenCalledWith("replace");
+    expect(presentContext).toHaveBeenCalled();
+    expect(restorePaneWidth).toHaveBeenCalled();
+  });
+
   it("loads and validates the linked-reference PDF catalog", async () => {
     const { presenter } = setup();
 
@@ -636,6 +681,7 @@ describe("context resource presenter", () => {
 
   it("owns claim and publication routes across its composed Lit resources", () => {
     const { elements, presenter, routes } = setup();
+    const navigateResource = vi.spyOn(presenter, "navigateResource").mockImplementation(() => undefined);
     const completeProjectMutation = vi.spyOn(presenter, "completeProjectMutation").mockResolvedValue(undefined);
     const claimBind = vi.spyOn(elements["claim-list-panel"], "bind");
     const contextBind = vi.spyOn(elements["publication-context-panel"], "bind");
@@ -701,11 +747,12 @@ describe("context resource presenter", () => {
     expect(revealAnnotation).toHaveBeenCalledWith("annotation-1");
     expect(insertActiveCitation).toHaveBeenCalledOnce();
     expect(openPublicationPaper).toHaveBeenCalledWith({ kind: "reference", pdf: referencePdf });
-    expect(routes.openPublication).toHaveBeenCalledWith(publication);
+    expect(navigateResource).toHaveBeenCalledWith({ kind: "publication", id: publication.id });
   });
 
   it("provides canonical resource routes to the assistant presenter", async () => {
     const { elements, presenter, routes } = setup();
+    const navigateResource = vi.spyOn(presenter, "navigateResource").mockImplementation(() => undefined);
     const focusTab = vi.spyOn(elements["context-tab-strip"], "focusTab").mockImplementation(() => undefined);
     const pdf = {
       contentType: "application/pdf",
@@ -755,7 +802,7 @@ describe("context resource presenter", () => {
 
     expect(focusTab).toHaveBeenCalledWith("assistant");
     expect(resources.project()).toBe(workspaceSnapshotFixture);
-    expect(routes.openCandidate).toHaveBeenCalledWith(candidate);
+    expect(navigateResource).toHaveBeenCalledWith({ kind: "candidate", id: candidate.id });
     expect(routes.openProjectPdf).toHaveBeenCalledWith(pdf, evidence.page, evidence.id);
     expect(routes.refreshLibrary).toHaveBeenCalledOnce();
     expect(routes.presentNotice).toHaveBeenCalledWith("No project evidence is available yet.");
@@ -780,6 +827,7 @@ describe("context resource presenter", () => {
 
   it("restores resource routes through canonical lookups and typed effects", async () => {
     const { elements, presenter } = setup();
+    const navigateResource = vi.spyOn(presenter, "navigateResource").mockImplementation(() => undefined);
     const bindIntake = vi.spyOn(elements["project-annotation-form"], "bindIntake");
     const publication = {
       abstract: "",
@@ -906,13 +954,13 @@ describe("context resource presenter", () => {
     presenter.openCitation({ keys: ["author2026"], locator: "p. 7" });
     presenter.openCitation({ keys: ["Author2026"] });
 
-    expect(coordinator.openPublication).toHaveBeenCalledWith(publication);
+    expect(navigateResource).toHaveBeenCalledWith({ kind: "publication", id: publication.id });
     expect(coordinator.openProjectPdf).toHaveBeenCalledWith(pdf, 4, "annotation-1");
     expect(coordinator.openProjectPdf).toHaveBeenCalledWith(pdf, 7);
     expect(coordinator.openProjectPdf).toHaveBeenCalledWith(pdf, annotation.page, annotation.id);
     expect(coordinator.openProjectPdf).toHaveBeenCalledWith(pdf);
     expect(showAnnotation).toHaveBeenCalledWith(annotation);
-    expect(coordinator.openCandidate).toHaveBeenCalledWith(candidate);
+    expect(navigateResource).toHaveBeenCalledWith({ kind: "candidate", id: candidate.id });
     expect(coordinator.refreshLibrary).toHaveBeenCalledOnce();
     expect(coordinator.openLibraryPdf).toHaveBeenCalledWith(libraryPdf, 5);
     expect(coordinator.openLibraryPdf).toHaveBeenCalledWith(libraryPdf);
@@ -935,7 +983,7 @@ describe("context resource presenter", () => {
     intake?.openPublication(publication);
     intake?.presentNotice("Reference connected.");
     await intake?.refresh();
-    expect(coordinator.openPublication).toHaveBeenCalledWith(publication);
+    expect(navigateResource).toHaveBeenCalledWith({ kind: "publication", id: publication.id });
     expect(coordinator.presentNotice).toHaveBeenCalledWith("Reference connected.");
     expect(coordinator.refreshResources).toHaveBeenCalledOnce();
   });

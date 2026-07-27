@@ -1054,8 +1054,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   explicit active-publication or sole-linked project-PDF citation intents to a
   citation key and optional page locator. Route the resulting typed open and
   citation-insertion intents through the application
-  coordinator, which retains browser-history mutation, cross-surface navigation
-  effects, and load timing. Let the presenter
+  coordinator. The presenter sequences bound context-source projection, pane
+  restoration, surface activation, tab focus, route synchronization, and PDF
+  load timing; the coordinator supplies browser-history mutation and the
+  underlying cross-surface and layout effects. Let the presenter
   own private-highlight citation readiness feedback,
   collision-safe project-reference preparation, and validated link transport.
   Use its route binding as the sole canonical project and Library snapshot,

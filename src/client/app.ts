@@ -43,14 +43,7 @@ import {
 } from "./offline-workspace";
 import { PdfEvidenceViewer } from "./pdf-viewer";
 import { bindThemePreference } from "./theme";
-import {
-  RESEARCH_ASSISTANT_KEY,
-  RESEARCH_LIBRARY_KEY,
-  RESEARCH_PREVIEW_KEY,
-  type PdfResearchLocation,
-  type ResearchContextKey,
-  type ResearchResourceTarget,
-} from "./research-context";
+import { RESEARCH_ASSISTANT_KEY, RESEARCH_LIBRARY_KEY, RESEARCH_PREVIEW_KEY, type ResearchContextKey } from "./research-context";
 import { readWorkspaceUiRoute, researchTargetFromContextKey, workspaceUiRouteSelection, workspaceUiRouteUrl } from "./workspace-ui-route";
 import "./workspace-rail-tabs";
 import "./authoring-mode-tabs";
@@ -330,7 +323,8 @@ class WorkspaceApp {
     });
     this.#elements.referenceLibraryWorkspace.configure(workspaceId, {
       activateLibrary: () => {
-        if (this.#elements.contextResourcePresenter.activeKey !== RESEARCH_LIBRARY_KEY) this.#activateContext(RESEARCH_LIBRARY_KEY);
+        if (this.#elements.contextResourcePresenter.activeKey !== RESEARCH_LIBRARY_KEY)
+          this.#elements.contextResourcePresenter.navigateContext(RESEARCH_LIBRARY_KEY);
       },
       applyProjectMutation: (snapshot) => this.#acceptWorkspaceMutation(snapshot),
       clearRoute: () => history.replaceState({ view: "library" }, "", "/library"),
@@ -445,7 +439,7 @@ class WorkspaceApp {
       project: () => this.#elements.workspaceSwitcher.focusSelect(),
       person: () => this.#elements.workspaceSharingPanel.open(),
       section: (id) => {
-        this.#activateContext(RESEARCH_PREVIEW_KEY);
+        this.#elements.contextResourcePresenter.navigateContext(RESEARCH_PREVIEW_KEY);
         this.#elements.workspacePreview.scrollToAnchor(id);
       },
     });
@@ -465,14 +459,30 @@ class WorkspaceApp {
       openPdf: (artifact, page) => this.#openLibraryPdf(artifact, page),
       projectApiBase: apiBase,
     });
+    this.#elements.contextResourcePresenter.bindContext({
+      activateSurface: () => this.#elements.workspaceSurfaceSwitcher.navigate("context", false),
+      citationAvailable: () => this.#resolvedAuthoringCaret() !== null,
+      openLibrary: () => this.#openReferenceLibrary(),
+      replaceStandaloneLibraryRoute: () => history.replaceState({ view: "library" }, "", "/library"),
+      restorePaneWidth: () => this.#layout.restorePaneWidth(),
+      sources: () => ({
+        candidateDecision: this.#elements.assistantGenerationPresenter.candidateDecision(),
+        library: this.#librarySnapshot,
+        projectApiBase: appMode === "workspace" ? apiBase : null,
+        referencePdfs: this.#elements.contextResourcePresenter.referencePdfs,
+        snapshot: this.#snapshot,
+        sourceRevision: this.#revision,
+        standaloneLibrary: appMode === "library",
+        stableDocument: this.#collaboration.stable,
+      }),
+      syncRoute: (mode) => this.#syncWorkspaceRoute(mode),
+    });
     this.#elements.contextResourcePresenter.bindRoutes({
       insertCitation: (citationAlias, locator) => this.#insertCitation(citationAlias, locator),
       library: () => this.#librarySnapshot,
       linkPassage: (kind, id) => void this.#linkSelectedPassage(kind, id),
-      openCandidate: (candidate) => this.#openResourceContext({ kind: "candidate", id: candidate.id }),
       openLibraryPdf: (artifact, page) => this.#openLibraryPdf(artifact, page, false),
       openProjectPdf: (pdf, page, annotationId) => this.#showPaper(pdf, page, annotationId),
-      openPublication: (publication) => this.#openResourceContext({ kind: "publication", id: publication.id }),
       openPassage: (anchor) => this.#showPassage(anchor),
       openReferencePdf: (pdf, page) => this.#openProjectReferencePdf(pdf, page, false),
       presentNotice: (message) => this.#showToast(message),
@@ -488,11 +498,6 @@ class WorkspaceApp {
     this.#elements.contextResourcePresenter.bindClaimList(apiBase);
     this.#elements.workspaceSurfaceSwitcher.bindNavigation(() => this.#syncWorkspaceRoute("replace"));
     this.#layout.bind();
-    this.#elements.contextTabStrip.bindNavigation({
-      activate: (key) => this.#activateContext(key),
-      close: (key) => this.#closeContextTab(key),
-      openLibrary: () => void this.#openReferenceLibrary(),
-    });
     this.#elements.workspacePreview.bindNavigation({
       openCitation: (citation) => this.#elements.contextResourcePresenter.openCitation(citation),
       selectDiagnostic: ({ fileId, from, to }) => this.#focusProjectRange(fileId || this.#snapshot?.entryFileId || "", from, to),
@@ -507,7 +512,7 @@ class WorkspaceApp {
       },
       applyTable: (target, insertion) => this.#applyGeneratedTable(target, insertion),
       decisionChanged: () => {
-        this.#renderResearchContext(false);
+        this.#elements.contextResourcePresenter.presentBoundContext(false);
         this.#elements.assistantGenerationPresenter.refreshAvailability();
       },
       openEvidenceRail: () => this.#elements.workspaceRailTabs.navigate("research"),
@@ -574,14 +579,14 @@ class WorkspaceApp {
       await this.#elements.contextResourcePresenter.restoreTarget(target, route.page, route.annotationId);
     } catch (error) {
       this.#elements.contextResourcePresenter.activateContext(RESEARCH_PREVIEW_KEY);
-      this.#renderResearchContext();
+      this.#elements.contextResourcePresenter.presentBoundContext();
       this.#showToast(error instanceof Error ? error.message : "Could not restore that context");
     }
   }
 
   async #restoreGeneralResearchContext(contextKey: ResearchContextKey): Promise<void> {
     if (contextKey === RESEARCH_LIBRARY_KEY) return await this.#openReferenceLibrary(false);
-    this.#activateContext(contextKey);
+    this.#elements.contextResourcePresenter.navigateContext(contextKey);
   }
 
   #syncWorkspaceRoute(mode: "push" | "replace"): void {
@@ -637,7 +642,7 @@ class WorkspaceApp {
     this.#elements.projectHistoryTrigger.setRevision(this.#revision);
     this.#scheduleOfflineSave();
     const active = this.#elements.contextResourcePresenter.activeTab;
-    if (active?.kind === "candidate") this.#renderResearchContext(false);
+    if (active?.kind === "candidate") this.#elements.contextResourcePresenter.presentBoundContext(false);
   }
 
   #bindSourceEditor(text: Y.Text): void {
@@ -711,7 +716,7 @@ class WorkspaceApp {
   }
 
   async #openReferenceLibrary(updateHistory = true): Promise<void> {
-    this.#activateContext(RESEARCH_LIBRARY_KEY);
+    this.#elements.contextResourcePresenter.navigateContext(RESEARCH_LIBRARY_KEY);
     if (appMode === "library" && updateHistory) history.pushState({ view: "library" }, "", "/library");
     await this.#refreshReferenceLibrary();
   }
@@ -724,7 +729,7 @@ class WorkspaceApp {
     );
     this.#elements.referenceLibraryWorkspace.presentProject(this.#snapshot, appMode === "workspace" ? apiBase : null);
     await this.#elements.referenceLibraryWorkspace.settled();
-    this.#renderResearchContext();
+    this.#elements.contextResourcePresenter.presentBoundContext();
     this.#syncWorkspaceRoute("replace");
   }
 
@@ -750,55 +755,8 @@ class WorkspaceApp {
       this.#elements.contextResourcePresenter.resourceAuthorization(this.#snapshot, this.#librarySnapshot),
     );
     this.#elements.contextResourcePresenter.presentWorkspace(this.#snapshot);
-    this.#renderResearchContext();
+    this.#elements.contextResourcePresenter.presentBoundContext();
     this.#elements.assistantGenerationPresenter.refreshAvailability();
-    this.#syncWorkspaceRoute("replace");
-  }
-
-  #activateContext(key: ResearchContextKey): void {
-    this.#elements.contextResourcePresenter.activateContext(key);
-    this.#presentContextTransition(key);
-  }
-
-  #openResourceContext(target: ResearchResourceTarget): void {
-    this.#presentContextTransition(this.#elements.contextResourcePresenter.openResourceContext(target));
-  }
-
-  #presentContextTransition(key: ResearchContextKey, loadPdf = true, syncRoute = true): void {
-    this.#renderResearchContext(loadPdf);
-    this.#elements.workspaceSurfaceSwitcher.navigate("context", false);
-    this.#elements.contextTabStrip.focusTab(key);
-    if (syncRoute) this.#syncWorkspaceRoute("push");
-  }
-
-  #renderResearchContext(loadPdf = true): void {
-    const presentation = this.#elements.contextResourcePresenter.presentContext({
-      candidateDecision: this.#elements.assistantGenerationPresenter.candidateDecision(),
-      library: this.#librarySnapshot,
-      projectApiBase: appMode === "workspace" ? apiBase : null,
-      referencePdfs: this.#elements.contextResourcePresenter.referencePdfs,
-      snapshot: this.#snapshot,
-      sourceRevision: this.#revision,
-      standaloneLibrary: appMode === "library",
-      stableDocument: this.#collaboration.stable,
-    });
-    this.#layout.restorePaneWidth();
-    if (presentation.publicationPresented)
-      this.#elements.contextResourcePresenter.setCitationAvailable(this.#resolvedAuthoringCaret() !== null);
-    if (loadPdf && (presentation.activeTab?.kind === "pdf" || presentation.activeTab?.kind === "library-pdf")) {
-      void this.#elements.contextResourcePresenter.loadActivePdf(false);
-    }
-  }
-
-  #closeContextTab(key: ResearchContextKey): void {
-    const returnToStandaloneLibrary = appMode === "library" && this.#elements.contextResourcePresenter.activeKey === key;
-    this.#elements.contextResourcePresenter.closeContext(key);
-    if (returnToStandaloneLibrary) {
-      this.#elements.contextResourcePresenter.activateContext(RESEARCH_LIBRARY_KEY);
-      history.replaceState({ view: "library" }, "", "/library");
-    }
-    this.#renderResearchContext();
-    this.#elements.contextTabStrip.focusTab(this.#elements.contextResourcePresenter.activeKey);
     this.#syncWorkspaceRoute("replace");
   }
 
@@ -942,7 +900,7 @@ class WorkspaceApp {
   }
 
   async #showPaper(pdf: PdfResource, page?: number, focusAnnotationId?: string): Promise<void> {
-    this.#preparePdfContext(
+    this.#elements.contextResourcePresenter.preparePdfContext(
       { kind: "pdf", id: pdf.id },
       {
         ...(page !== undefined ? { page } : {}),
@@ -954,7 +912,7 @@ class WorkspaceApp {
   }
 
   async #openLibraryPdf(artifact: LibraryPdfArtifact, page?: number, updateHistory = true): Promise<void> {
-    this.#preparePdfContext({ kind: "library-pdf", id: artifact.id }, page === undefined ? {} : { page });
+    this.#elements.contextResourcePresenter.preparePdfContext({ kind: "library-pdf", id: artifact.id }, page === undefined ? {} : { page });
     if (appMode === "library" && updateHistory) {
       const active = this.#elements.contextResourcePresenter.activeContextTab;
       const route = libraryPdfRoute(artifact.id, page ?? (active?.kind === "library-pdf" ? active.page : 1));
@@ -965,14 +923,9 @@ class WorkspaceApp {
   }
 
   async #openProjectReferencePdf(pdf: ProjectReferencePdf, page?: number, updateHistory = true): Promise<void> {
-    this.#preparePdfContext({ kind: "library-pdf", id: pdf.id }, page === undefined ? {} : { page });
+    this.#elements.contextResourcePresenter.preparePdfContext({ kind: "library-pdf", id: pdf.id }, page === undefined ? {} : { page });
     if (appMode === "workspace" && updateHistory) this.#syncWorkspaceRoute("push");
     await this.#elements.contextResourcePresenter.loadActivePdf(page !== undefined);
-  }
-
-  #preparePdfContext(target: { readonly kind: "pdf" | "library-pdf"; readonly id: string }, location: PdfResearchLocation): void {
-    const key = this.#elements.contextResourcePresenter.preparePdfContext(target, location);
-    this.#presentContextTransition(key, false, false);
   }
 
   async #restoreLibraryRoute(): Promise<void> {
