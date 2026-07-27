@@ -1,3 +1,4 @@
+import * as v from "valibot";
 import type { BibliographicRecord } from "./reference-library";
 
 export type CitationAssertionPolarity = "cites" | "does-not-cite";
@@ -142,45 +143,83 @@ export function buildCitationNetwork(
   return { projectId, nodes, edges, truncated };
 }
 
+const identifierSchema = v.pipe(v.string(), v.minLength(1), v.maxLength(500));
+const timestampSchema = v.pipe(
+  v.string(),
+  v.maxLength(100),
+  v.check((value) => Number.isFinite(Date.parse(value))),
+);
+const evidenceStateSchema = v.picklist(["confirmed", "extracted", "inferred"]);
+const assertionStateSchema = v.picklist(["confirmed", "extracted", "inferred", "conflicting"]);
+const decisionSchema = v.picklist(["confirmed", "rejected"]);
+const assertionReviewSchema = v.object({
+  decision: decisionSchema,
+  reviewer: identifierSchema,
+  reviewedAt: timestampSchema,
+  note: v.pipe(v.string(), v.maxLength(4_000)),
+});
+const citationEvidenceEntries = {
+  polarity: v.picklist(["cites", "does-not-cite"]),
+  evidenceState: evidenceStateSchema,
+  method: v.picklist(["authoritative-metadata", "source-extraction", "provider", "model", "manual"]),
+  observedAt: timestampSchema,
+  sourceKind: v.picklist(["pdf-artifact", "web-snapshot", "provider-response", "researcher"]),
+  sourceId: identifierSchema,
+  sourceLocator: v.pipe(v.string(), v.maxLength(2_000)),
+  confidence: v.nullable(v.pipe(v.number(), v.minValue(0), v.maxValue(1))),
+};
+const createCitationAssertionInputSchema = v.pipe(
+  v.object({ citingReferenceId: identifierSchema, citedReferenceId: identifierSchema, ...citationEvidenceEntries }),
+  v.check((value) => value.citingReferenceId !== value.citedReferenceId),
+);
+const citationAssertionViewSchema = v.pipe(
+  v.object({
+    id: identifierSchema,
+    citingReferenceId: identifierSchema,
+    citedReferenceId: identifierSchema,
+    ...citationEvidenceEntries,
+    assertedBy: identifierSchema,
+    review: v.nullable(assertionReviewSchema),
+    createdAt: timestampSchema,
+    state: assertionStateSchema,
+  }),
+  v.check((value) => value.citingReferenceId !== value.citedReferenceId),
+);
+const citationNetworkSchema = v.object({
+  projectId: v.nullable(v.string()),
+  nodes: v.array(
+    v.object({
+      id: identifierSchema,
+      referenceId: identifierSchema,
+      label: v.string(),
+      authors: v.array(v.string()),
+      year: v.string(),
+      doi: v.string(),
+      inProject: v.boolean(),
+    }),
+  ),
+  edges: v.array(
+    v.object({
+      id: identifierSchema,
+      from: identifierSchema,
+      to: identifierSchema,
+      state: assertionStateSchema,
+      assertions: v.pipe(v.array(citationAssertionViewSchema), v.minLength(1)),
+    }),
+  ),
+  truncated: v.boolean(),
+});
+
 export function isCreateCitationAssertionInput(value: unknown): value is CreateCitationAssertionInput {
-  return (
-    isRecord(value) &&
-    isIdentifier(value.citingReferenceId) &&
-    isIdentifier(value.citedReferenceId) &&
-    value.citingReferenceId !== value.citedReferenceId &&
-    (value.polarity === "cites" || value.polarity === "does-not-cite") &&
-    (value.evidenceState === "confirmed" || value.evidenceState === "extracted" || value.evidenceState === "inferred") &&
-    isMethod(value.method) &&
-    isTimestamp(value.observedAt) &&
-    isSourceKind(value.sourceKind) &&
-    typeof value.sourceId === "string" &&
-    value.sourceId.length > 0 &&
-    value.sourceId.length <= 500 &&
-    typeof value.sourceLocator === "string" &&
-    value.sourceLocator.length <= 2_000 &&
-    isConfidence(value.confidence)
-  );
+  return v.is(createCitationAssertionInputSchema, value);
 }
 
 export function isReviewCitationAssertionInput(value: unknown): value is ReviewCitationAssertionInput {
-  return (
-    isRecord(value) &&
-    (value.decision === "confirmed" || value.decision === "rejected") &&
-    typeof value.note === "string" &&
-    value.note.length <= 4_000
-  );
+  return v.is(v.object({ decision: decisionSchema, note: v.pipe(v.string(), v.maxLength(4_000)) }), value);
 }
 
 export function isCitationNetwork(value: unknown): value is CitationNetwork {
-  return (
-    isRecord(value) &&
-    (value.projectId === null || typeof value.projectId === "string") &&
-    typeof value.truncated === "boolean" &&
-    Array.isArray(value.nodes) &&
-    value.nodes.every(isNetworkNode) &&
-    Array.isArray(value.edges) &&
-    value.edges.every(isNetworkEdge)
-  );
+  return v.is(citationNetworkSchema, value);
 }
 
 function reviewedState(assertion: CitationAssertion): CitationEvidenceState {
@@ -190,93 +229,4 @@ function reviewedState(assertion: CitationAssertion): CitationEvidenceState {
 function strongestState(assertions: readonly CitationAssertionView[]): CitationEvidenceState {
   if (assertions.some((assertion) => assertion.state === "confirmed")) return "confirmed";
   return assertions.some((assertion) => assertion.state === "extracted") ? "extracted" : "inferred";
-}
-
-function isNetworkNode(value: unknown): value is CitationNetworkNode {
-  return (
-    isRecord(value) &&
-    isIdentifier(value.id) &&
-    isIdentifier(value.referenceId) &&
-    typeof value.label === "string" &&
-    Array.isArray(value.authors) &&
-    value.authors.every((author) => typeof author === "string") &&
-    typeof value.year === "string" &&
-    typeof value.doi === "string" &&
-    typeof value.inProject === "boolean"
-  );
-}
-
-function isNetworkEdge(value: unknown): value is CitationNetworkEdge {
-  return (
-    isRecord(value) &&
-    isIdentifier(value.id) &&
-    isIdentifier(value.from) &&
-    isIdentifier(value.to) &&
-    (value.state === "confirmed" || value.state === "extracted" || value.state === "inferred" || value.state === "conflicting") &&
-    Array.isArray(value.assertions) &&
-    value.assertions.length > 0 &&
-    value.assertions.every(isCitationAssertionView)
-  );
-}
-
-function isCitationAssertionView(value: unknown): value is CitationAssertionView {
-  return (
-    isRecord(value) &&
-    isIdentifier(value.id) &&
-    isIdentifier(value.citingReferenceId) &&
-    isIdentifier(value.citedReferenceId) &&
-    value.citingReferenceId !== value.citedReferenceId &&
-    (value.polarity === "cites" || value.polarity === "does-not-cite") &&
-    (value.evidenceState === "confirmed" || value.evidenceState === "extracted" || value.evidenceState === "inferred") &&
-    isMethod(value.method) &&
-    isIdentifier(value.assertedBy) &&
-    isTimestamp(value.observedAt) &&
-    isSourceKind(value.sourceKind) &&
-    typeof value.sourceId === "string" &&
-    value.sourceId.length > 0 &&
-    value.sourceId.length <= 500 &&
-    typeof value.sourceLocator === "string" &&
-    value.sourceLocator.length <= 2_000 &&
-    isConfidence(value.confidence) &&
-    (value.review === null || isAssertionReview(value.review)) &&
-    isTimestamp(value.createdAt) &&
-    (value.state === "confirmed" || value.state === "extracted" || value.state === "inferred" || value.state === "conflicting")
-  );
-}
-
-function isAssertionReview(value: unknown): value is CitationAssertionReview {
-  return (
-    isRecord(value) &&
-    (value.decision === "confirmed" || value.decision === "rejected") &&
-    isIdentifier(value.reviewer) &&
-    isTimestamp(value.reviewedAt) &&
-    typeof value.note === "string" &&
-    value.note.length <= 4_000
-  );
-}
-
-function isConfidence(value: unknown): value is number | null {
-  return value === null || (typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 1);
-}
-
-function isMethod(value: unknown): value is CitationExtractionMethod {
-  return (
-    value === "authoritative-metadata" || value === "source-extraction" || value === "provider" || value === "model" || value === "manual"
-  );
-}
-
-function isSourceKind(value: unknown): value is CitationSourceKind {
-  return value === "pdf-artifact" || value === "web-snapshot" || value === "provider-response" || value === "researcher";
-}
-
-function isTimestamp(value: unknown): value is string {
-  return typeof value === "string" && value.length <= 100 && Number.isFinite(Date.parse(value));
-}
-
-function isIdentifier(value: unknown): value is string {
-  return typeof value === "string" && value.length > 0 && value.length <= 500;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

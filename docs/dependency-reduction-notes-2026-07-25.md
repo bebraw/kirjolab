@@ -9311,6 +9311,27 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,721 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Valibot Adoption: Citation Assertion Contracts
+
+Citation assertion creation, review, network-node, network-edge, nested review,
+and assertion-view validation now share composable Valibot primitives for
+identifiers, timestamps, evidence states, source kinds, confidence, and bounds.
+The cross-reference inequality remains an explicit schema refinement, and
+network derivation policy remains in the domain functions.
+
+This checkpoint reduces `src/domain/citation-assertions.ts` from 282 to 232
+lines (-50), replacing seven handwritten guard trees and primitive predicates.
+Focused assertion, expansion, and acceptance coverage passes all 11 tests
+alongside strict types.
+
+The browser application artifact changes from 848,867 B raw / 228,892 B gzip
+to 848,275 B raw / 228,825 B gzip (-592 B raw / -67 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150; Valibot was already pinned.
+
+Full native CI passes all 1,721 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Library PDF Project Use Projection
 
 `LibraryPdfProjectUse` now resolves the active bibliographic record and matching

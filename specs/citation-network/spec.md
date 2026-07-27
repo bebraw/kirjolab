@@ -63,6 +63,10 @@ provider result, extraction, or model suggestion as equally trustworthy.
   from a named expansion response after refetch verification and returns the
   saved reference, whether it was created, and the provenance-bearing
   assertion.
+- Assertion inputs, reviews, network projections, and expansion results use
+  composable Valibot structure and bound schemas while DOI validity,
+  cross-reference identity, and provider provenance remain explicit domain
+  checks.
 
 ### Privacy and Security
 
