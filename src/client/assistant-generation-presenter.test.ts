@@ -1,11 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   AssistantGenerationPresenter,
-  type AssistantControlCallbacks,
   type AssistantGenerationInput,
   type AssistantGenerationPresentation,
   type AssistantResourceRoutes,
-  type AssistantResultCallbacks,
+  type AssistantWorkflowCoordinator,
 } from "./assistant-generation-presenter";
 import { assistantOperationDefinition } from "./assistant-operations";
 import { AssistantResultPanel, assistantReferenceRefreshEvent, assistantResultActionEvent } from "./assistant-result-panel";
@@ -129,8 +128,10 @@ function setup() {
     value: { getElementById: (id: string) => elements[id as keyof typeof elements] ?? null },
   });
   const resources = resourceRoutes();
+  const coordinator = workflowCoordinator();
   presenter.bindResources(resources);
-  return { elements, presenter, resources };
+  presenter.bindWorkflow(coordinator);
+  return { coordinator, elements, presenter, resources };
 }
 
 function resourceRoutes(overrides: Partial<AssistantResourceRoutes> = {}): AssistantResourceRoutes {
@@ -145,26 +146,23 @@ function resourceRoutes(overrides: Partial<AssistantResourceRoutes> = {}): Assis
   };
 }
 
-function resultCallbacks(overrides: Partial<AssistantResultCallbacks> = {}): AssistantResultCallbacks {
+function workflowCoordinator(overrides: Partial<AssistantWorkflowCoordinator> = {}): AssistantWorkflowCoordinator {
   return {
     applyTable: vi.fn(),
-    openRevisionCandidate: vi.fn().mockResolvedValue(undefined),
-    refreshAvailability: vi.fn(),
-    tableState: () => ({ revision: 7, source: `x${passage.excerpt}`, stableDocument: true }),
-    ...overrides,
-  };
-}
-
-function controlCallbacks(overrides: Partial<AssistantControlCallbacks> = {}): AssistantControlCallbacks {
-  return {
-    generationInput: () => input("revise-selection"),
+    decisionChanged: vi.fn(),
+    generationInput: vi.fn(() => input("revise-selection")),
     openEvidenceRail: vi.fn(),
     openGeneratedCandidate: vi.fn().mockResolvedValue(undefined),
     refreshAvailability: vi.fn(),
     refreshTarget: vi.fn(),
+    resolveDecision: vi.fn().mockResolvedValue(null),
+    tableState: vi.fn(() => ({ revision: 7, source: `x${passage.excerpt}`, stableDocument: true })),
     ...overrides,
   };
 }
+
+const resultCallbacks = workflowCoordinator;
+const controlCallbacks = workflowCoordinator;
 
 async function enterWorkflow(
   presenter: AssistantGenerationPresenter,
@@ -172,7 +170,8 @@ async function enterWorkflow(
   workflow: AssistantGenerationPresentation["workflow"],
 ): Promise<ReturnType<typeof vi.spyOn>> {
   const generate = vi.spyOn(presenter, "generate").mockResolvedValue({ status: "Workflow ready", workflow });
-  presenter.bindControls(controlCallbacks());
+  presenter.bindWorkflow(controlCallbacks());
+  presenter.bindControls();
   elements["assistant-task-panel"].dispatchEvent(new CustomEvent(assistantTaskGenerateEvent));
   await vi.waitFor(() => expect(elements["assistant-workflow-status"].status).toBe("Workflow ready"));
   return generate;
@@ -383,7 +382,8 @@ describe("assistant generation presenter", () => {
     const bindClaimSelection = vi.spyOn(elements["claim-list-panel"], "bindEvidenceSelection");
     vi.spyOn(elements["project-evidence-panel"], "focusEvidence").mockReturnValue(false);
     const focusClaimEvidence = vi.spyOn(elements["claim-list-panel"], "focusEvidence").mockReturnValue(true);
-    presenter.bindControls(callbacks);
+    presenter.bindWorkflow(callbacks);
+    presenter.bindControls();
     for (const callback of Object.values(callbacks)) callback.mockClear();
     vi.mocked(resources.reportNoEvidence).mockClear();
 
@@ -424,13 +424,14 @@ describe("assistant generation presenter", () => {
       resolveGeneration = resolve;
     });
     const generate = vi.spyOn(presenter, "generate").mockReturnValueOnce(pendingGeneration);
-    presenter.bindControls(
+    presenter.bindWorkflow(
       controlCallbacks({
         generationInput,
         openGeneratedCandidate,
         refreshAvailability,
       }),
     );
+    presenter.bindControls();
     for (const callback of [openGeneratedCandidate, refreshAvailability]) callback.mockClear();
 
     elements["assistant-task-panel"].dispatchEvent(new CustomEvent(assistantTaskGenerateEvent));
@@ -461,7 +462,8 @@ describe("assistant generation presenter", () => {
       stableDocument: true,
     });
     presenter.bindResources(resourceRoutes({ refreshLibrary }));
-    presenter.bindResults(resultCallbacks({ applyTable, tableState }));
+    presenter.bindWorkflow(resultCallbacks({ applyTable, tableState }));
+    presenter.bindResults();
     const action = { action: "insert-table", context: { sourceRevision: 7, target: passage }, markdown: "| Result |" } as const;
 
     result.dispatchEvent(new CustomEvent(assistantResultActionEvent, { detail: action }));
@@ -489,7 +491,8 @@ describe("assistant generation presenter", () => {
     const result = elements["assistant-interactive-result"];
     const refreshAvailability = vi.fn();
     const completeClarityDrill = vi.spyOn(result, "completeClarityDrill").mockResolvedValue();
-    presenter.bindResults(resultCallbacks({ refreshAvailability }));
+    presenter.bindWorkflow(resultCallbacks({ refreshAvailability }));
+    presenter.bindResults();
     const context = {
       evidence: { items: [], references: [] },
       instruction: "Clarify",
@@ -533,7 +536,8 @@ describe("assistant generation presenter", () => {
     const refreshAvailability = vi.fn();
     const failure = new Error("offline");
     vi.spyOn(result, "completeClarityDrill").mockRejectedValue(failure);
-    presenter.bindResults(resultCallbacks({ refreshAvailability }));
+    presenter.bindWorkflow(resultCallbacks({ refreshAvailability }));
+    presenter.bindResults();
     const context = {
       evidence: { items: [], references: [] },
       instruction: "Clarify",
@@ -553,10 +557,11 @@ describe("assistant generation presenter", () => {
   it("owns promoted revision workflow and status", async () => {
     const { elements, presenter } = setup();
     await enterWorkflow(presenter, elements, "REVIEW");
-    const openRevisionCandidate = vi.fn().mockResolvedValue(undefined);
+    const openGeneratedCandidate = vi.fn().mockResolvedValue(undefined);
     const refreshAvailability = vi.fn();
     vi.spyOn(presenter, "createRevisionCandidate").mockResolvedValueOnce(revisionCandidate);
-    presenter.bindResults(resultCallbacks({ openRevisionCandidate, refreshAvailability }));
+    presenter.bindWorkflow(resultCallbacks({ openGeneratedCandidate, refreshAvailability }));
+    presenter.bindResults();
     const detail = {
       action: "choose-revision",
       choice: {
@@ -576,8 +581,8 @@ describe("assistant generation presenter", () => {
     } as const;
 
     elements["assistant-interactive-result"].dispatchEvent(new CustomEvent(assistantResultActionEvent, { detail }));
-    await vi.waitFor(() => expect(openRevisionCandidate).toHaveBeenCalledOnce());
-    expect(openRevisionCandidate).toHaveBeenCalledWith(revisionCandidate);
+    await vi.waitFor(() => expect(openGeneratedCandidate).toHaveBeenCalledOnce());
+    expect(openGeneratedCandidate).toHaveBeenCalledWith(revisionCandidate);
     expect(elements["assistant-workflow-status"].status).toBe("Revision ready.");
     expect(refreshAvailability).toHaveBeenCalledTimes(2);
   });
@@ -588,7 +593,8 @@ describe("assistant generation presenter", () => {
     const failure = new Error("offline");
     vi.spyOn(presenter, "createRevisionCandidate").mockRejectedValue(failure);
     const refreshAvailability = vi.fn();
-    presenter.bindResults(resultCallbacks({ refreshAvailability }));
+    presenter.bindWorkflow(resultCallbacks({ refreshAvailability }));
+    presenter.bindResults();
     const detail = {
       action: "choose-revision",
       choice: {
@@ -625,13 +631,14 @@ describe("assistant generation presenter", () => {
       claims: [{ ...claimEvidence }],
       pdfs: [pdf],
     };
-    const callbacks = { decisionChanged: vi.fn(), resolveDecision: vi.fn().mockResolvedValue(null) };
+    const callbacks = workflowCoordinator({ decisionChanged: vi.fn(), resolveDecision: vi.fn().mockResolvedValue(null) });
     const resources = resourceRoutes({ project: () => snapshot });
     const revealClaim = vi.spyOn(elements["claim-list-panel"], "revealClaim").mockReturnValue(true);
     const configureCandidates = vi.spyOn(elements["candidate-list-panel"], "configure");
     const configureReview = vi.spyOn(review, "configure");
     presenter.bindResources(resources);
-    presenter.bindCandidate("/api/workspaces/workspace", callbacks);
+    presenter.bindWorkflow(callbacks);
+    presenter.bindCandidate("/api/workspaces/workspace");
 
     elements["candidate-list-panel"].dispatchEvent(new CustomEvent(candidateListOpenEvent, { detail: revisionCandidate }));
     review.dispatchEvent(new CustomEvent(candidateDecisionEvent, { detail: { action: "reject", candidateId: revisionCandidate.id } }));

@@ -225,7 +225,10 @@ collaboration.
   evidence notice route. The assistant-generation presenter binds once to that
   presenter for canonical candidate, project-PDF, project snapshot, Library-
   refresh, assistant-tab, and no-evidence notice routes instead of repeating
-  them across task, result, and candidate workflows. The bounded workflow-status owner reconciles its
+  them across task, result, and candidate workflows. It also binds the remaining
+  application-owned generation inputs and consequences once through one
+  workflow coordinator instead of separate candidate, result, and control
+  callback bags. The bounded workflow-status owner reconciles its
   selected keys directly against coordinator-supplied canonical annotations and
   claims, retains those collections for model-evidence projection, and exposes
   the resulting evidence without requiring the coordinator to re-supply them;

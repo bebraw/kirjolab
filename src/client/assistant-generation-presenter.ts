@@ -84,28 +84,20 @@ export interface AssistantAvailabilityInput {
   readonly stableDocument: boolean;
 }
 
-export interface AssistantControlCallbacks {
+export interface AssistantWorkflowCoordinator {
+  readonly applyTable: (target: AssistantAuthoringPassage, insertion: string) => void;
+  readonly decisionChanged: () => void;
   readonly generationInput: () => AssistantGenerationInput | null;
   readonly openEvidenceRail: () => void;
   readonly openGeneratedCandidate: (candidate: ModelCandidate) => Promise<void>;
   readonly refreshAvailability: () => void;
   readonly refreshTarget: () => void;
-}
-
-export interface AssistantResultCallbacks {
-  readonly applyTable: (target: AssistantAuthoringPassage, insertion: string) => void;
-  readonly openRevisionCandidate: (candidate: ModelCandidate) => Promise<void>;
-  readonly refreshAvailability: () => void;
+  readonly resolveDecision: (detail: CandidateDecisionOutcome) => Promise<string | null>;
   readonly tableState: () => {
     readonly revision: number;
     readonly source: string;
     readonly stableDocument: boolean;
   };
-}
-
-export interface AssistantCandidateCallbacks {
-  readonly decisionChanged: () => void;
-  readonly resolveDecision: (detail: CandidateDecisionOutcome) => Promise<string | null>;
 }
 
 export interface AssistantResourceRoutes {
@@ -129,7 +121,12 @@ export interface AssistantRevisionCandidateInput {
 
 export class AssistantGenerationPresenter extends LitElement {
   private readonly workflow = createAssistantWorkflowActor();
+  private coordinator: AssistantWorkflowCoordinator | null = null;
   private resources: AssistantResourceRoutes | null = null;
+
+  bindWorkflow(coordinator: AssistantWorkflowCoordinator): void {
+    this.coordinator = coordinator;
+  }
 
   bindResources(resources: AssistantResourceRoutes): void {
     this.resources = resources;
@@ -140,7 +137,13 @@ export class AssistantGenerationPresenter extends LitElement {
     return this.resources;
   }
 
-  bindCandidate(apiBase: string, callbacks: AssistantCandidateCallbacks): void {
+  private get workflowCoordinator(): AssistantWorkflowCoordinator {
+    if (!this.coordinator) throw new Error("Assistant workflow coordinator is not bound");
+    return this.coordinator;
+  }
+
+  bindCandidate(apiBase: string): void {
+    const callbacks = this.workflowCoordinator;
     const candidates = this.element("candidate-list-panel", CandidateListPanel);
     const review = this.element("candidate-review-panel", CandidateReviewPanel);
     candidates?.configure(apiBase);
@@ -168,7 +171,7 @@ export class AssistantGenerationPresenter extends LitElement {
     });
   }
 
-  private async completeDecision(detail: CandidateDecisionOutcome, callbacks: AssistantCandidateCallbacks): Promise<void> {
+  private async completeDecision(detail: CandidateDecisionOutcome, callbacks: AssistantWorkflowCoordinator): Promise<void> {
     const failure = await callbacks.resolveDecision(detail);
     this.workflow.send(failure ? { type: "DECISION_FAILED", message: failure } : { type: "DECISION_DONE" });
     callbacks.decisionChanged();
@@ -224,7 +227,8 @@ export class AssistantGenerationPresenter extends LitElement {
     }
   }
 
-  bindResults(callbacks: AssistantResultCallbacks): void {
+  bindResults(): void {
+    const callbacks = this.workflowCoordinator;
     const result = this.element("assistant-interactive-result", AssistantResultPanel);
     const status = this.element("assistant-workflow-status", AssistantWorkflowStatus);
     result?.addEventListener(assistantResultActionEvent, (event) => {
@@ -251,7 +255,7 @@ export class AssistantGenerationPresenter extends LitElement {
   private async chooseRevision(
     status: AssistantWorkflowStatus | null,
     detail: Extract<AssistantResultActionDetail, { readonly action: "choose-revision" }>,
-    callbacks: AssistantResultCallbacks,
+    callbacks: AssistantWorkflowCoordinator,
   ): Promise<void> {
     if (!this.workflow.getSnapshot().matches("reviewing")) return;
     this.workflow.send({ type: "CONTINUE" });
@@ -267,7 +271,7 @@ export class AssistantGenerationPresenter extends LitElement {
         replacement: choice.replacement,
         sourceRevision: context.sourceRevision,
       });
-      await callbacks.openRevisionCandidate(candidate);
+      await callbacks.openGeneratedCandidate(candidate);
       if (status) status.status = choice.successMessage;
       this.workflow.send({ type: "COMPLETE" });
     } catch (error) {
@@ -283,7 +287,7 @@ export class AssistantGenerationPresenter extends LitElement {
     status: AssistantWorkflowStatus | null,
     context: AssistantTableContext,
     markdown: string,
-    callbacks: AssistantResultCallbacks,
+    callbacks: AssistantWorkflowCoordinator,
   ): void {
     const state = callbacks.tableState();
     if (
@@ -306,7 +310,7 @@ export class AssistantGenerationPresenter extends LitElement {
     result: AssistantResultPanel,
     status: AssistantWorkflowStatus | null,
     detail: Extract<AssistantResultActionDetail, { readonly action: "continue-clarity" }>,
-    callbacks: AssistantResultCallbacks,
+    callbacks: AssistantWorkflowCoordinator,
   ): Promise<void> {
     const answer = detail.answer.trim();
     const workflow = this.workflow.getSnapshot();
@@ -336,7 +340,8 @@ export class AssistantGenerationPresenter extends LitElement {
     }
   }
 
-  bindControls(callbacks: AssistantControlCallbacks): void {
+  bindControls(): void {
+    const callbacks = this.workflowCoordinator;
     const settings = this.element("model-provider-settings", ModelProviderSettings);
     const status = this.element("assistant-workflow-status", AssistantWorkflowStatus);
     const task = this.element("assistant-task-panel", AssistantTaskPanel);
@@ -368,7 +373,7 @@ export class AssistantGenerationPresenter extends LitElement {
     callbacks.refreshAvailability();
   }
 
-  private chooseEvidence(status: AssistantWorkflowStatus | null, callbacks: AssistantControlCallbacks): void {
+  private chooseEvidence(status: AssistantWorkflowStatus | null, callbacks: AssistantWorkflowCoordinator): void {
     callbacks.openEvidenceRail();
     const focused =
       this.element("project-evidence-panel", ProjectEvidencePanel)?.focusEvidence() ||
@@ -381,7 +386,7 @@ export class AssistantGenerationPresenter extends LitElement {
     if (status) status.status = "Choose one or more evidence resources in the Research rail, then return to the assistant.";
   }
 
-  private async runGeneration(status: AssistantWorkflowStatus | null, callbacks: AssistantControlCallbacks): Promise<void> {
+  private async runGeneration(status: AssistantWorkflowStatus | null, callbacks: AssistantWorkflowCoordinator): Promise<void> {
     if (assistantWorkflowBusy(this.workflow.getSnapshot())) return;
     const input = callbacks.generationInput();
     if (!input) return;

@@ -102,7 +102,9 @@ The adopted components own bounded presentation:
   state. It binds once to canonical candidate, project-PDF, project snapshot,
   Library-refresh, assistant-tab, and no-evidence notice routes supplied by the
   context-resource presenter instead of repeating them across its task, result,
-  and candidate workflow bindings. The application coordinator retains
+  and candidate workflow bindings. Bind the remaining application-owned inputs
+  and consequences once through one workflow coordinator instead of separate
+  candidate, result, and control callback bags. The application coordinator retains
   authorized Yjs mutation, editor selection, remembered authoring selection,
   generation consequences, and refresh policy through narrow typed callbacks.
 - The project map panel owns provenance-lane rendering, measured SVG connector

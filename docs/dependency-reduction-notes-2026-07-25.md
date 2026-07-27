@@ -8610,6 +8610,29 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,711 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Assistant Workflow Binding
+
+`AssistantGenerationPresenter` now receives application-owned generation
+inputs and consequences through one workflow coordinator. Its candidate,
+result, and control wiring no longer maintain separate callback contracts, and
+generated-candidate opening plus model-availability refresh each have one
+definition in `WorkspaceApp`.
+
+This checkpoint reduces `src/client/app.ts` from 1,395 to 1,392 lines (-3) and
+grows the assistant-generation presenter from 571 to 576 lines (+5), for a two-
+line runtime source increase while replacing three callback concepts with one.
+Focused coverage passes all 45 assistant-generation and context-resource cases,
+including candidate decisions, generated candidates, results, controls,
+resource routes, application contracts, and strict types.
+
+The browser application artifact changes from 847,725 B raw / 228,684 B gzip
+to 847,955 B raw / 228,727 B gzip (+230 B raw / +43 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,711 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

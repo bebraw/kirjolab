@@ -437,6 +437,9 @@ changing their canonical data, selector, authorization, or rendering contracts.
       project-PDF, project snapshot, Library-refresh, assistant-tab, and no-
       evidence notice routes supplied by the context-resource presenter; task,
       result, and candidate workflows do not repeat those resource callbacks.
+- [x] The same presenter binds application-owned generation inputs and
+      consequences once through one workflow coordinator; candidate, result,
+      and control wiring do not maintain overlapping callback contracts.
 - [x] A bounded light-DOM candidate list owns revision and claim-draft
       summaries, empty-state, and review-opening intent presentation while
       generation, canonical candidate state, context navigation, applicability

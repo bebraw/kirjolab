@@ -427,7 +427,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   the candidate-list owner. Bind the assistant presenter once to canonical
   candidate, project-PDF, project snapshot, Library-refresh, assistant-tab, and
   no-evidence notice routes supplied by the context-resource presenter instead
-  of repeating them across task, result, and candidate workflows. Keep
+  of repeating them across task, result, and candidate workflows. Bind all
+  remaining application-owned generation inputs and consequences once through
+  one workflow coordinator instead of separate candidate, result, and control
+  callback bags. Keep
   authorized Yjs mutation, editor selection, remembered authoring selection,
   generation consequences, and refresh policy in the application coordinator
   through narrow typed callbacks.

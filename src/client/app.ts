@@ -540,24 +540,12 @@ class WorkspaceApp {
         this.#refreshResourcesWithNotice(message, "The paper links changed, but project resources could not be refreshed."),
     });
     this.#elements.assistantGenerationPresenter.bindResources(this.#elements.contextResourcePresenter.assistantResources());
-    this.#elements.assistantGenerationPresenter.bindCandidate(apiBase, {
+    this.#elements.assistantGenerationPresenter.bindWorkflow({
+      applyTable: (target, insertion) => this.#applyGeneratedTable(target, insertion),
       decisionChanged: () => {
         this.#renderResearchContext(false);
         this.#updateModelAvailability();
       },
-      resolveDecision: async (detail) => await this.#completeCandidateRequest(detail),
-    });
-    this.#elements.assistantGenerationPresenter.bindResults({
-      applyTable: (target, insertion) => this.#applyGeneratedTable(target, insertion),
-      openRevisionCandidate: async (candidate) => await this.#openCreatedCandidate(candidate),
-      refreshAvailability: () => this.#updateModelAvailability(),
-      tableState: () => ({
-        revision: this.#revision,
-        source: this.#activeFileText.toString(),
-        stableDocument: this.#collaboration.stable,
-      }),
-    });
-    this.#elements.assistantGenerationPresenter.bindControls({
       generationInput: () => {
         const input = this.#assistantGenerationContext();
         return input ? { ...input, manuscript: this.#activeFileText.toString() } : null;
@@ -566,7 +554,16 @@ class WorkspaceApp {
       openGeneratedCandidate: async (candidate) => await this.#openCreatedCandidate(candidate),
       refreshAvailability: () => this.#updateModelAvailability(),
       refreshTarget: () => this.#renderAssistantTargetPreview(),
+      resolveDecision: async (detail) => await this.#completeCandidateRequest(detail),
+      tableState: () => ({
+        revision: this.#revision,
+        source: this.#activeFileText.toString(),
+        stableDocument: this.#collaboration.stable,
+      }),
     });
+    this.#elements.assistantGenerationPresenter.bindCandidate(apiBase);
+    this.#elements.assistantGenerationPresenter.bindResults();
+    this.#elements.assistantGenerationPresenter.bindControls();
   }
 
   async #refreshSnapshot(): Promise<void> {
