@@ -227,6 +227,24 @@ describe("project file dialog", () => {
     expect(panel.activeFileId).toBe(snapshot.entryFileId);
   });
 
+  it("projects visible snapshot or live collaborative file content", () => {
+    vi.useFakeTimers();
+    const panel = new TestProjectFileDialog();
+    const supporting = { ...snapshot.files[0]!, id: "file-2", path: "chapter.md" };
+    const project = { ...snapshot, files: [...snapshot.files, supporting] };
+    panel.bindLiveContent((file, entryFileId) => `${entryFileId}:${file.id}`);
+    panel.presentProject(project, "/assets", true);
+
+    expect(panel.projectFiles(false)).toEqual(project.files);
+    expect(panel.projectFiles(true).map(({ content }) => content)).toEqual([
+      `${snapshot.entryFileId}:${snapshot.files[0]!.id}`,
+      `${snapshot.entryFileId}:${supporting.id}`,
+    ]);
+
+    panel.deleteFile(supporting, snapshot.entryFileId);
+    expect(panel.projectFiles(true).map(({ id }) => id)).toEqual([snapshot.files[0]!.id]);
+  });
+
   it("owns active-file fallback and selection eligibility", () => {
     const panel = new TestProjectFileDialog();
     const supporting = { ...snapshot.files[0]!, id: "file-2", path: "chapter.md" };

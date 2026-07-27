@@ -247,10 +247,14 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   active file/folder resolution for dialogs, active-file deletion eligibility,
   and relative image insertion projection. It projects the visible file
   collection and active/entry state into the project tree, Insert menu, source
-  completion, and file menu. Emit or return the
+  completion, and file menu. It also materializes that same visible collection
+  with snapshot or live collaborative content for Preview, manuscript-map, and
+  collaborator-selection consumers through a coordinator-supplied content
+  resolver. Emit or return the
   validated workspace snapshot or created stable file. Keep workflow-template
   selection and navigation, collaborative caret capture, Yjs insertion and
-  active-text binding, canonical snapshot authority, cross-feature rendering, and
+  active-text binding, Yjs document authority, canonical snapshot authority,
+  cross-feature rendering, and
   the global toast outlet in the workspace coordinator.
 - Let the editor Insert menu own the scholarly syntax templates it displays and
   route template and relative-include choices through one typed binding. Keep

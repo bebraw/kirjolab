@@ -38,6 +38,8 @@ interface ProjectFileTreeSource extends EventTarget {
   readonly focusFilter: () => void;
 }
 
+type ProjectFileContentResolver = (file: ProjectFile, entryFileId: string) => string;
+
 export interface ProjectFilePresentationBinding {
   readonly editorInsertMenu: { setFiles(activeFile: ProjectFile | null, files: readonly ProjectFile[]): void };
   readonly projectFileMenuActions: { setEntryFileActive(active: boolean): void };
@@ -124,6 +126,7 @@ export class ProjectFileDialog extends LitElement {
   private selectedFileId: string | null = null;
   private snapshot: WorkspaceSnapshot | null = null;
   private presentation: ProjectFilePresentationBinding | null = null;
+  private liveContent: ProjectFileContentResolver | null = null;
   private routing: ProjectFileWorkflowRouting | null = null;
   private routingAbort: AbortController | null = null;
 
@@ -151,6 +154,10 @@ export class ProjectFileDialog extends LitElement {
     this.configureProjectTree();
   }
 
+  bindLiveContent(resolver: ProjectFileContentResolver): void {
+    this.liveContent = resolver;
+  }
+
   private configureProjectTree(): void {
     this.presentation?.projectTreePanel.configure(this.apiBase, {
       acceptSnapshot: this.mutationCallbacks.commit,
@@ -167,6 +174,14 @@ export class ProjectFileDialog extends LitElement {
     return this.snapshot?.files.find(({ id }) => id === this.selectedFileId) ?? null;
   }
 
+  projectFiles(live: boolean, snapshot: WorkspaceSnapshot | null = this.snapshot): ProjectFile[] {
+    if (!snapshot) return [];
+    const files = snapshot.files.filter((file) => !this.hiddenFileIds.has(file.id));
+    const liveContent = this.liveContent;
+    if (!live || !liveContent) return files;
+    return files.map((file) => ({ ...file, content: liveContent(file, snapshot.entryFileId) }));
+  }
+
   activateFile(snapshot: WorkspaceSnapshot, fileId: string): ProjectFile | null {
     const file = snapshot.files.find(({ id }) => id === fileId);
     if (!file || this.hiddenFileIds.has(fileId) || fileId === this.selectedFileId) return null;
@@ -180,7 +195,7 @@ export class ProjectFileDialog extends LitElement {
     const activeFileId = this.selectedFileId;
     const presentation = this.presentation;
     if (!presentation) return activeFile;
-    const files = snapshot.files.filter((file) => !this.hiddenFileIds.has(file.id));
+    const files = this.projectFiles(false);
     const visibleActiveFile = files.find((file) => file.id === activeFileId) ?? null;
     presentation.projectTreePanel.setTree({
       activeFileId,

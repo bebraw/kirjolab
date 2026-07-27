@@ -394,6 +394,9 @@ class WorkspaceApp {
       tree: this.#elements.projectTreePanel,
     });
     this.#elements.projectFileDialog.bindPresentation(this.#elements);
+    this.#elements.projectFileDialog.bindLiveContent((file, entryFileId) =>
+      this.#document.getText(projectFileCollaborationTextName(file, entryFileId)).toString(),
+    );
     this.#elements.editorInsertMenu.bind({
       includeFile: (relativePath, path) => this.#insertProjectIncludeFromMenu(relativePath, path),
       insertSyntax: (kind, template) => this.#insertSourceSyntax(kind, template),
@@ -776,7 +779,7 @@ class WorkspaceApp {
 
   #setRevision(revision: number): void {
     this.#revision = Math.max(this.#revision, revision);
-    this.#elements.collaboratorSelections.setData({ files: this.#liveProjectFiles(), revision: this.#revision });
+    this.#elements.collaboratorSelections.setData({ files: this.#elements.projectFileDialog.projectFiles(true), revision: this.#revision });
     this.#renderSourceEditorHighlight();
     this.#elements.projectHistoryTrigger.setRevision(this.#revision);
     this.#scheduleOfflineSave();
@@ -904,21 +907,11 @@ class WorkspaceApp {
     this.#elements.workspacePreview.revealNearestSource(offsets);
   }
 
-  #liveProjectFiles(): ProjectFile[] {
-    if (!this.#snapshot) return [];
-    return this.#snapshot.files
-      .filter((file) => !this.#elements.projectFileDialog.hiddenFiles.has(file.id))
-      .map((file) => ({
-        ...file,
-        content: this.#document.getText(projectFileCollaborationTextName(file, this.#snapshot?.entryFileId ?? "")).toString(),
-      }));
-  }
-
   #previewProjectFiles(): ProjectFile[] {
-    if (!this.#snapshot) return [];
-    return this.#collaboration.synced || this.#collaboration.offlineAvailable
-      ? this.#liveProjectFiles()
-      : this.#snapshot.files.filter((file) => !this.#elements.projectFileDialog.hiddenFiles.has(file.id));
+    return this.#elements.projectFileDialog.projectFiles(
+      this.#collaboration.synced || this.#collaboration.offlineAvailable,
+      this.#snapshot,
+    );
   }
 
   #renderProjectFiles(): void {

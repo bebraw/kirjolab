@@ -240,7 +240,10 @@ The adopted components own bounded presentation:
   projection into relative Markdown syntax and a completion message, plus the
   upload and tree mutation outcome binding. The project-file owner retains the
   canonical snapshot needed to resolve its active file, requested folder,
-  dialog inputs, deletion eligibility, and relative image projection. The
+  dialog inputs, deletion eligibility, and relative image projection. It also
+  projects the visible file collection with snapshot or live collaborative
+  content for Preview, manuscript-map, and collaborator-selection consumers
+  through a narrow content resolver. The
   coordinator retains snapshot application, cross-feature rendering, Yjs
   insertion, caret and focus authority, and the toast outlet; the project-tree
   panel owns image deletion.
