@@ -315,16 +315,18 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   retain per-file undo history, synchronize external text changes, and render
   local plus collaborator presence from coordinator-supplied ranges. Switching
   active files must release the prior text observer and editor listeners before
-  binding the next text. Keep mutation decisions, canonical Yjs transactions,
-  assistant consequences, collaboration policy, and offline-save policy in the
-  workspace coordinator; use the editor-status owner as the shared authoring
-  mutation origin so its undo history includes derived source insertions.
+  binding the next text. Let the owner apply bounded text insertions and
+  replacements, focus the active source, and select their resulting range so
+  those edits share its undo history. Keep mutation decisions, cross-file path
+  projection, assistant consequences, collaboration policy, and offline-save
+  policy in the workspace coordinator.
 - Let the editor Insert menu own the scholarly syntax templates it displays and
   route template and relative-include choices through one typed binding. It
   projects passage-aware links, selection ranges, image-template insertions,
   and immediate relative-include directives from a coordinator-supplied
-  authoring target. Keep Yjs edits, editor focus, asynchronous cross-file include
-  continuation, and the toast outlet in the workspace coordinator.
+  authoring target. Route the derived insertion through the editor-status owner;
+  keep asynchronous cross-file include continuation and the toast outlet in the
+  workspace coordinator.
 - Let the source citation control own citation-at-caret interpretation,
   citation insertion syntax projection, local insertion errors, and completion
   copy from a resolved authoring caret. Keep Yjs mutation, authoring-mode
@@ -817,9 +819,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   resolved target and caret, non-empty passage projection, temporary range
   preservation across asynchronous authoring operations, and file, line-range,
   caret, and selection wording. Reuse relative-position capture and resolution
-  from the source-editor adapter. Keep canonical Yjs mutation, editor
-  highlighting, assistant refresh, collaboration interpretation, and offline-
-  save policy in their authorities.
+  from the source-editor adapter. Apply bounded authoring text mutations,
+  active-source focus, and resulting selection in this owner. Keep mutation
+  decisions, editor highlighting, assistant refresh, collaboration
+  interpretation, and offline-save policy in their authorities.
 - Let the preview-synchronization Lit owner bind the native source viewport and
   inert highlight lines; own click, selection, and navigation-key follow
   behavior; derive the source offset nearest the viewport center; center the

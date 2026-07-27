@@ -9,6 +9,7 @@ class FakeElement extends EventTarget {
   scrollLeft = 0;
   scrollTop = 0;
   textContent = "";
+  focused = false;
 
   append(...nodes: unknown[]): void {
     this.children.push(...nodes);
@@ -19,7 +20,9 @@ class FakeElement extends EventTarget {
     this.append(...nodes);
   }
 
-  focus(): void {}
+  focus(): void {
+    this.focused = true;
+  }
 }
 
 class FakeTextarea extends FakeElement {
@@ -152,7 +155,8 @@ describe("editor status", () => {
     const second = documentModel.getText("second");
     first.insert(0, "first");
     second.insert(0, "second");
-    const source = textareaElement(new FakeTextarea());
+    const sourceControl = new FakeTextarea();
+    const source = textareaElement(sourceControl);
     const status = new TestEditorStatus();
     let sourceChanges = 0;
     let presenceReads = 0;
@@ -182,10 +186,15 @@ describe("editor status", () => {
     expect(source.value).toBe("new second");
     expect(sourceChanges).toBe(2);
 
-    documentModel.transact(() => second.insert(second.length, " owned"), status);
+    status.insertText(second, second.length, " owned");
     expect(source.value).toBe("new second owned");
+    expect(sourceControl.focused).toBe(true);
+    expect(source.selectionStart).toBe("new second owned".length);
     source.dispatchEvent(undoKey());
     expect(second.toString()).toBe("new second");
+    status.insertText(first, first.length, " background");
+    expect(first.toString()).toBe("old first edit background");
+    expect(source.value).toBe("new second");
     status.renderHighlight();
     expect(presenceReads).toBeGreaterThan(0);
   });

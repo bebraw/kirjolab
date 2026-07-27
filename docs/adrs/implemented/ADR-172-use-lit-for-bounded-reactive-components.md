@@ -1150,11 +1150,12 @@ reason to wrap static markup mechanically.
   temporary range preservation across asynchronous authoring operations. It
   owns the active Yjs-text/editor binding and teardown, per-file undo managers,
   external text synchronization, assistant-staleness observation, and local plus
-  collaborator presence highlighting from supplied ranges. It is the shared
-  authoring mutation origin so derived insertions remain in that undo history.
-  The application coordinator retains canonical Yjs mutation, assistant refresh
-  consequences, collaboration and offline-save policy, and the save-status
-  values those workflows select.
+  collaborator presence highlighting from supplied ranges. It applies bounded
+  authoring text insertions and replacements, focuses the active source, and
+  selects their resulting range so derived edits remain in that undo history.
+  The application coordinator retains mutation decisions, cross-file path
+  projection, assistant refresh consequences, collaboration and offline-save
+  policy, and the save-status values those workflows select.
 - The connection status component replaces separate label and tone element
   references and owns their synchronized presentation. The application
   coordinator retains collaboration-state interpretation and Library-mode

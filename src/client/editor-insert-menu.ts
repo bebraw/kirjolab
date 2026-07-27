@@ -1,6 +1,6 @@
 import { html, LitElement, type TemplateResult } from "lit";
 import { relativeProjectPath, type ProjectFile } from "../domain/project-files";
-import type { EditorAuthoringPassage } from "./editor-status";
+import type { EditorAuthoringPassage, EditorTextInsertion } from "./editor-status";
 
 export type EditorSyntaxKind = "anchor" | "bibliography" | "citation" | "footnote" | "link" | "reference";
 
@@ -15,13 +15,7 @@ export interface EditorInsertBinding {
   readonly presentNotice: (message: string) => void;
 }
 
-export interface EditorInsertion {
-  readonly end: number;
-  readonly selectionEnd: number;
-  readonly selectionStart: number;
-  readonly start: number;
-  readonly text: string;
-}
+export type EditorInsertion = EditorTextInsertion;
 
 interface EditorInsertData {
   readonly activeFile: ProjectFile | null;

@@ -161,10 +161,12 @@ collaborative, and unambiguous about what preview and export mean.
   editor, preserves an independent undo history for every opened text, and
   combines the resolved local target with collaborator ranges for highlighting.
   Activating another file detaches the prior text observer and editor listeners,
-  synchronizes the new text into the source control, and makes derived citation,
-  include, image, completion, and assistant insertions part of that file's undo
-  history without transferring canonical Yjs mutation authority from the
-  workspace coordinator.
+  synchronizes the new text into the source control, applies bounded text
+  insertions or replacements, focuses the active source, and selects the
+  resulting range. Derived citation, include, image, completion, and assistant
+  insertions therefore remain part of that file's undo history; mutation
+  decisions and cross-file path projection remain with the workspace
+  coordinator.
 - The bounded Insert-menu component derives existing-file choices and relative
   paths from the active project file and owns the scholarly syntax templates it
   displays. From the supplied resolved passage and caret it derives

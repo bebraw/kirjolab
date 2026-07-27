@@ -43,13 +43,7 @@ import { RESEARCH_ASSISTANT_KEY, RESEARCH_LIBRARY_KEY, RESEARCH_PREVIEW_KEY } fr
 import { readWorkspaceUiRoute, workspaceUiRouteSelection, workspaceUiRouteUrl } from "./workspace-ui-route";
 import "./workspace-rail-tabs";
 import "./authoring-mode-tabs";
-import {
-  bindYText,
-  captureRelativeSelection,
-  replaceYTextRange,
-  resolveRelativeSelection,
-  type RelativeEditorSelection,
-} from "./source-editor-adapter";
+import { bindYText, captureRelativeSelection, resolveRelativeSelection, type RelativeEditorSelection } from "./source-editor-adapter";
 
 const { workspaceId, identityEmail, appMode } = parseAppBootstrap(document.body.dataset);
 const catalogBase = "/api/workspaces";
@@ -372,7 +366,10 @@ class WorkspaceApp {
         if (!target) return null;
         return (path) => {
           const position = Y.createAbsolutePositionFromRelativePosition(target.end, this.#document);
-          if (position?.type === target.text) this.#insertProjectInclude(target.text, position.index, relativeProjectPath(file.path, path));
+          if (position?.type === target.text) {
+            const relativePath = relativeProjectPath(file.path, path);
+            this.#elements.editorStatus.insertText(target.text, position.index, `\n::include[${relativePath}]\n`);
+          }
           return true;
         };
       },
@@ -389,11 +386,7 @@ class WorkspaceApp {
       () => this.#collaboration.synced || this.#collaboration.offlineAvailable,
     );
     this.#elements.editorInsertMenu.bind({
-      applyInsertion: ({ start, end, text, selectionStart, selectionEnd }) => {
-        replaceYTextRange(this.#document, this.#activeFileText, start, end, text, this.#elements.editorStatus);
-        this.#elements.source.focus();
-        this.#elements.editorStatus.selectRange(selectionStart, selectionEnd);
-      },
+      applyInsertion: (insertion) => this.#elements.editorStatus.applyInsertion(this.#activeFileText, insertion),
       authoringTarget: () => ({
         caret: this.#elements.editorStatus.caret ?? this.#elements.source.selectionEnd,
         passage: this.#elements.editorStatus.selectedPassage(),
@@ -506,9 +499,8 @@ class WorkspaceApp {
     this.#elements.sourceCitationControl.bindNavigation((citation) => this.#elements.contextResourcePresenter.openCitation(citation));
     this.#elements.sourceCitationControl.bindInsertion({
       applyInsertion: (insertion) => {
-        this.#document.transact(() => this.#activeFileText.insert(insertion.index, insertion.text), this.#elements.editorStatus);
+        this.#elements.editorStatus.insertText(this.#activeFileText, insertion.index, insertion.text, insertion.caret);
         this.#elements.authoringModeTabs.navigate("write");
-        this.#elements.editorStatus.selectRange(insertion.caret);
       },
       presentNotice: (message) => this.#elements.toast.show(message),
     });
@@ -728,16 +720,6 @@ class WorkspaceApp {
     const link = { ...passage, sourceRevision: this.#revision };
     if (kind === "claim") await this.#elements.claimListPanel.linkPassage({ claimId: id, ...link });
     else await this.#elements.projectEvidencePanel.linkPassage({ annotationId: id, ...link });
-  }
-
-  #insertProjectInclude(text: Y.Text, index: number, path: string): void {
-    const directive = `\n::include[${path}]\n`;
-    this.#document.transact(() => text.insert(index, directive), this.#elements.editorStatus);
-    if (text === this.#activeFileText) {
-      const caret = index + directive.length;
-      this.#elements.source.focus();
-      this.#elements.editorStatus.selectRange(caret);
-    }
   }
 
   #showPassage(anchor: PassageLink["anchor"]): void {

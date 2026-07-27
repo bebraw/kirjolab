@@ -11249,3 +11249,26 @@ B, and 481,994 B / 146,135 B.
 
 Full native CI passes all 1,739 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Lit Ownership: Authoring Mutation Application
+
+`EditorStatus` now applies bounded text replacements and insertions, uses itself
+as their Yjs origin, and focuses and selects the resulting range when the target
+is the active source. `WorkspaceApp` retains mutation decisions, cross-file path
+projection, asynchronous continuation, navigation, and collaboration policy.
+
+This checkpoint reduces `src/client/app.ts` from 824 to 806 lines (-18), grows
+the editor-status owner from 209 to 231 lines (+22), and reduces the Insert-menu
+type surface from 165 to 159 lines (-6) by sharing the insertion contract. The
+combined runtime and contract surface decreases by two lines. Focused coverage
+passes active and background text insertion, focus, caret placement, per-file
+undo, the Insert menu and citation control, plus strict types. Direct and unique
+production package counts remain 18 and 150; Lit and Yjs were already pinned.
+
+The browser application artifact decreases from 853,928 B raw / 229,850 B gzip
+to 853,905 B / 229,836 B (-23 B raw / -14 B gzip). Styles and lazy Markdown and
+PDF.js artifacts remain unchanged at 135,411 B / 23,373 B, 204,779 B / 62,386
+B, and 481,994 B / 146,135 B.
+
+Full native CI passes all 1,739 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.

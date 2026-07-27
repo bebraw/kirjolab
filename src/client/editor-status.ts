@@ -4,6 +4,7 @@ import type { EditorPresenceRange } from "./editor-presence";
 import {
   bindYText,
   captureRelativeSelection,
+  replaceYTextRange,
   resolveRelativeSelection,
   type RelativeEditorSelection,
   type ResolvedEditorSelection,
@@ -19,6 +20,14 @@ export interface EditorAuthoringTarget {
 export interface EditorAuthoringPassage extends EditorAuthoringTarget {
   readonly excerpt: string;
   readonly fileId: string;
+}
+
+export interface EditorTextInsertion {
+  readonly end: number;
+  readonly selectionEnd: number;
+  readonly selectionStart: number;
+  readonly start: number;
+  readonly text: string;
 }
 
 export interface EditorAuthoringBinding {
@@ -88,6 +97,19 @@ export class EditorStatus extends LitElement {
   selectRange(start: number, end = start): void {
     this.source?.setSelectionRange(start, end);
     this.rememberSelection();
+  }
+
+  applyInsertion(text: Y.Text, insertion: EditorTextInsertion): void {
+    const documentModel = this.documentModel;
+    if (!documentModel) return;
+    replaceYTextRange(documentModel, text, insertion.start, insertion.end, insertion.text, this);
+    if (text !== this.text) return;
+    this.source?.focus();
+    this.selectRange(insertion.selectionStart, insertion.selectionEnd);
+  }
+
+  insertText(text: Y.Text, index: number, value: string, caret = index + value.length): void {
+    this.applyInsertion(text, { end: index, selectionEnd: caret, selectionStart: caret, start: index, text: value });
   }
 
   preserveRange(start: number, end: number): (() => EditorAuthoringTarget | null) | null {
