@@ -107,7 +107,7 @@ connection without reconstructing identity from a citation key or filename.
   movement, and workspace notification policy remain outside it.
 - The resource-context presenter must synchronize exactly one active publication,
   candidate, project PDF, private-Library PDF, or shared-reference PDF owner from
-  canonical context inputs. It may restore resource scroll and select the
+  canonical context inputs. It may restore and capture resource scroll and select the
   appropriate annotation or inspector presentation, but PDF loading, markup
   drafts, citation insertion, routing, refresh, and notification policy remain
   outside it.

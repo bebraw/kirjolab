@@ -181,7 +181,6 @@ import {
   researchResourceKey,
   setPdfResearchLocation,
   setResearchTabScroll,
-  type ResearchContextTab,
   type ResearchContextKey,
   type ResearchContextState,
   type PdfResearchLocation,
@@ -1949,19 +1948,13 @@ class WorkspaceApp {
     }
     const tab = this.#contextState.tabs.find((item) => item.key === key);
     if (!tab) return;
-    this.#contextState = setResearchTabScroll(this.#contextState, key, this.#resourceContextScrollTop(tab));
+    this.#contextState = setResearchTabScroll(this.#contextState, key, this.#elements.contextResourcePresenter.resourceScrollTop(tab));
     if ((tab.kind === "pdf" || tab.kind === "library-pdf") && tab.key === this.#renderedPdfContextKey) {
       this.#contextState = setPdfResearchLocation(this.#contextState, key, {
         page: this.#pdfViewer.currentPage,
         ...(tab.kind === "pdf" ? { focusedAnnotationId: this.#pdfViewer.focusedAnnotationId } : {}),
       });
     }
-  }
-
-  #resourceContextScrollTop(tab: ResearchContextTab): number {
-    if (tab.kind === "publication") return this.#elements.publicationContextPanel.scrollPosition;
-    if (tab.kind === "candidate") return this.#elements.candidateReviewPanel.scrollPosition;
-    return this.#elements.paperReader.scrollTop;
   }
 
   #activateContext(key: ResearchContextKey): void {

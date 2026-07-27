@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { LibraryPdfArtifact, ProjectReferencePdf } from "../domain/reference-library";
 import { workspaceSnapshotFixture } from "../test-support/workspace-fixture";
 import { CandidateReviewPanel } from "./candidate-review-panel";
@@ -52,9 +52,10 @@ function setup() {
     "project-annotation-form": new ProjectAnnotationForm(),
     "publication-context-panel": new PublicationContextPanel(),
     "publication-intake-panel": new PublicationIntakePanel(),
+    "paper-reader": Object.assign(new HTMLElement(), { scrollTop: 36 }),
   };
-  Object.defineProperty(elements["publication-context-panel"], "querySelector", { value: () => null });
-  Object.defineProperty(elements["candidate-review-panel"], "querySelector", { value: () => null });
+  Object.defineProperty(elements["publication-context-panel"], "querySelector", { configurable: true, value: () => null });
+  Object.defineProperty(elements["candidate-review-panel"], "querySelector", { configurable: true, value: () => null });
   Object.defineProperty(presenter, "ownerDocument", {
     value: { getElementById: (id: string) => elements[id as keyof typeof elements] ?? null },
   });
@@ -62,6 +63,16 @@ function setup() {
 }
 
 describe("context resource presenter", () => {
+  beforeEach(() =>
+    vi.stubGlobal(
+      "HTMLElement",
+      class {
+        scrollTop = 0;
+      },
+    ),
+  );
+  afterEach(() => vi.unstubAllGlobals());
+
   it("presents publication and candidate resources through their Lit owners", () => {
     const { elements, presenter } = setup();
     const setPublication = vi.spyOn(elements["publication-context-panel"], "setPublication").mockReturnValue(true);
@@ -106,5 +117,17 @@ describe("context resource presenter", () => {
       publicationPresented: false,
     });
     expect(setCitationContext).toHaveBeenCalledWith(null, []);
+  });
+
+  it("reads resource scroll from the owning panel", () => {
+    const { elements, presenter } = setup();
+    Object.defineProperty(elements["publication-context-panel"], "querySelector", { value: () => ({ scrollTop: 12 }) });
+    Object.defineProperty(elements["candidate-review-panel"], "querySelector", { value: () => ({ scrollTop: 24 }) });
+
+    expect(presenter.resourceScrollTop({ id: "publication:1", key: "publication:publication:1", kind: "publication", scrollTop: 0 })).toBe(
+      12,
+    );
+    expect(presenter.resourceScrollTop({ id: "candidate:1", key: "candidate:candidate:1", kind: "candidate", scrollTop: 0 })).toBe(24);
+    expect(presenter.resourceScrollTop(resourceTab("pdf", "pdf:1"))).toBe(36);
   });
 });

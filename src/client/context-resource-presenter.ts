@@ -6,7 +6,7 @@ import { LibraryPdfInspector } from "./library-pdf-inspector";
 import { ProjectAnnotationForm } from "./project-annotation-form";
 import { PublicationContextPanel } from "./publication-context-panel";
 import { PublicationIntakePanel } from "./publication-intake-panel";
-import type { ResearchResourceTab } from "./research-context";
+import type { ResearchContextTab, ResearchResourceTab } from "./research-context";
 
 export interface ContextResourceSources {
   readonly activeTab: ResearchResourceTab | undefined;
@@ -24,6 +24,12 @@ export interface ContextResourcePresentation {
 }
 
 export class ContextResourcePresenter extends LitElement {
+  resourceScrollTop(tab: ResearchContextTab): number {
+    if (tab.kind === "publication") return this.element("publication-context-panel", PublicationContextPanel)?.scrollPosition ?? 0;
+    if (tab.kind === "candidate") return this.element("candidate-review-panel", CandidateReviewPanel)?.scrollPosition ?? 0;
+    return this.element("paper-reader", HTMLElement)?.scrollTop ?? 0;
+  }
+
   present(sources: ContextResourceSources): ContextResourcePresentation {
     const activeLibraryArtifact = this.activeLibraryArtifact(sources);
     this.syncPdfPanels(sources, activeLibraryArtifact);
