@@ -50,7 +50,7 @@ with an authored passage.
   links. It commits toolbar tool state locally, resolves viewer-highlight
   activation to edit/reveal or erase behavior, and clears its own undo state
   after a completed delegated mutation. The workspace coordinator
-  retains viewer effects, annotation identity,
+  retains viewer effects, annotation identity, deletion-driven composer cleanup,
   manuscript selection, refreshes, and user notifications.
 - `POST /api/workspaces/{id}/annotation-links` validates an annotation and
   current manuscript selection before atomically inserting both the annotation

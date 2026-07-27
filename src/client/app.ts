@@ -447,6 +447,11 @@ class WorkspaceApp {
       completeMutation: (message) =>
         this.#refreshResourcesWithNotice(message, "The project changed, but project resources could not be refreshed."),
       editAnnotation: (annotation) => this.#editAnnotation(annotation),
+      fragmentRemoved: async ({ annotationDeleted, annotationId, announce }) => {
+        if (annotationDeleted) this.#elements.projectAnnotationForm.clearAnnotation(annotationId);
+        await this.#resourceRefresh.request();
+        if (announce) this.#showToast("Highlight stroke erased.");
+      },
       linkAnnotation: (annotationId) => void this.#linkAnnotation(annotationId),
       notice: (message) => this.#showToast(message),
       openPassage: (anchor) => this.#showPassage(anchor),
@@ -454,7 +459,6 @@ class WorkspaceApp {
         this.#elements.projectAnnotationForm.selectPdf(pdf.id);
         void this.#showPaper(pdf, page, annotationId);
       },
-      removeFragment: (annotationId, fragmentId) => void this.#removeHighlightFragment(annotationId, fragmentId, true),
     });
     this.#elements.projectMap.configure(apiBase);
     this.#elements.projectMap.bindNavigation({
@@ -518,7 +522,8 @@ class WorkspaceApp {
       },
       completeSave: (saved) => void this.#completeAnnotationSave(saved),
       citePage: () => this.#citeActivePdf(),
-      removeHighlight: async (annotationId, fragmentId) => await this.#removeHighlightFragment(annotationId, fragmentId, false),
+      removeHighlight: async (annotationId, fragmentId) =>
+        await this.#elements.projectEvidencePanel.removeFragment(annotationId, fragmentId),
       revealHighlight: (annotationId) => this.#elements.projectEvidencePanel.revealAnnotation(annotationId),
     });
     this.#elements.contextResourcePresenter.bindLibraryPdf({
@@ -1500,15 +1505,6 @@ class WorkspaceApp {
     if (!artifact) return;
     await this.#openLibraryPdf(artifact, highlight.page);
     this.#elements.libraryPdfInspector.setStatus(`Showing saved private highlight on page ${highlight.page}.`);
-  }
-
-  async #removeHighlightFragment(annotationId: string, fragmentId: string, announce: boolean): Promise<boolean> {
-    const result = await this.#elements.projectEvidencePanel.removeFragment(annotationId, fragmentId);
-    if (!result) return false;
-    if (result.annotationDeleted) this.#elements.projectAnnotationForm.clearAnnotation(annotationId);
-    await this.#resourceRefresh.request();
-    if (announce) this.#showToast("Highlight stroke erased.");
-    return true;
   }
 
   #showPassage(anchor: PassageLink["anchor"]): void {

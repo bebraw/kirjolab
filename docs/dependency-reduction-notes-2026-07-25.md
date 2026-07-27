@@ -7995,6 +7995,30 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,705 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Evidence Fragment Deletion
+
+`ProjectEvidencePanel` now completes its already-owned highlight-fragment
+deletion workflow, including annotation-deleted projection and optional notice
+intent. `WorkspaceApp` retains canonical refresh, annotation-composer cleanup,
+and toast effects through one typed completion callback; the annotation form
+delegates removals directly to the evidence owner.
+
+This checkpoint reduces `src/client/app.ts` from 1,635 to 1,631 lines (-4) and
+grows the project-evidence owner from 559 to 566 lines (+7). Runtime source
+across those files increases by three lines while deleting the coordinator's
+fragment-removal method and the panel's remove-intent pass-through. Focused
+coverage passes all 18 project-evidence cases and 60 related tests, including
+card removal, annotation-deleted completion, mutation sequencing, application
+contracts, and strict types.
+
+The browser application artifact changes from 846,659 B raw / 228,688 B gzip
+to 846,678 B raw / 228,674 B gzip (+19 B raw / -14 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,705 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

@@ -131,12 +131,12 @@ type RecordedAction =
   | { readonly action: "annotation-removed"; readonly annotationId: string; readonly message: string }
   | { readonly action: "edit-annotation"; readonly annotation: AnnotationResource }
   | { readonly action: "evidence"; readonly key: string; readonly selected: boolean }
+  | { readonly action: "fragment-removed"; readonly annotationDeleted: boolean; readonly annotationId: string; readonly announce: boolean }
   | { readonly action: "link-annotation"; readonly annotationId: string }
   | { readonly action: "mutation"; readonly message: string }
   | { readonly action: "notice"; readonly message: string }
   | { readonly action: "open-passage"; readonly anchor: PassageLink["anchor"] }
-  | { readonly action: "open-pdf"; readonly annotationId?: string; readonly page?: number; readonly pdf: PdfResource }
-  | { readonly action: "remove-fragment"; readonly annotationId: string; readonly fragmentId: string };
+  | { readonly action: "open-pdf"; readonly annotationId?: string; readonly page?: number; readonly pdf: PdfResource };
 
 function recordActions(panel: ProjectEvidencePanel): RecordedAction[] {
   const actions: RecordedAction[] = [];
@@ -144,12 +144,14 @@ function recordActions(panel: ProjectEvidencePanel): RecordedAction[] {
     annotationRemoved: (annotationId, message) => actions.push({ action: "annotation-removed", annotationId, message }),
     completeMutation: (message) => actions.push({ action: "mutation", message }),
     editAnnotation: (annotation) => actions.push({ action: "edit-annotation", annotation }),
+    fragmentRemoved: async ({ annotationDeleted, annotationId, announce }) => {
+      actions.push({ action: "fragment-removed", annotationDeleted, annotationId, announce });
+    },
     linkAnnotation: (annotationId) => actions.push({ action: "link-annotation", annotationId }),
     notice: (message) => actions.push({ action: "notice", message }),
     openPassage: (anchor) => actions.push({ action: "open-passage", anchor }),
     openPdf: (pdf, page, annotationId) =>
       actions.push({ action: "open-pdf", ...(annotationId ? { annotationId } : {}), ...(page ? { page } : {}), pdf }),
-    removeFragment: (annotationId, fragmentId) => actions.push({ action: "remove-fragment", annotationId, fragmentId }),
   });
   panel.bindEvidenceSelection((key, selected) => actions.push({ action: "evidence", key, selected }));
   return actions;
@@ -271,7 +273,7 @@ describe("project evidence panel", () => {
     expect(actions).toEqual([
       { action: "mutation", message: "Highlight stroke adjusted." },
       { action: "mutation", message: "Highlight stroke adjusted." },
-      { action: "remove-fragment", annotationId: annotation.id, fragmentId: annotation.fragments[0]!.id },
+      { action: "fragment-removed", annotationDeleted: false, annotationId: annotation.id, announce: true },
     ]);
     expect(fetchMock).toHaveBeenNthCalledWith(
       2,
@@ -363,6 +365,7 @@ describe("project evidence panel", () => {
 
   it("owns highlight fragment update and deletion transport", async () => {
     const panel = new TestProjectEvidencePanel();
+    const actions = recordActions(panel);
     const fetchMock = vi
       .spyOn(globalThis, "fetch")
       .mockResolvedValueOnce(new Response(null, { status: 200 }))
@@ -371,7 +374,8 @@ describe("project evidence panel", () => {
     const input = { prefix: "Before", quote: "  Revised evidence  ", rects: annotation.fragments[0]!.rects, suffix: "After" };
 
     await expect(panel.updateFragment("annotation/1", "fragment/1", input)).resolves.toBe(true);
-    await expect(panel.removeFragment("annotation/1", "fragment/1")).resolves.toEqual({ annotationDeleted: true });
+    await expect(panel.removeFragment("annotation/1", "fragment/1")).resolves.toBe(true);
+    expect(actions).toContainEqual({ action: "fragment-removed", annotationDeleted: true, annotationId: "annotation/1", announce: false });
 
     expect(fetchMock).toHaveBeenNthCalledWith(
       1,

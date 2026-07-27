@@ -710,7 +710,7 @@ reason to wrap static markup mechanically.
   also replacing the annotation-passage-link and project-PDF import requests
   and the final raw project-PDF input reference. It also replaces fragment
   update validation and transport plus fragment-deletion transport while
-  leaving Yjs selection validation, PDF selection and undo coordination,
+  owning deletion completion and optional notice intent. It leaves Yjs selection validation, PDF selection and undo coordination,
   grounding authority, PDF navigation, form synchronization, canonical refresh,
   and toast policy in the application coordinator. Separate typed workspace and
   assistant bindings remove two coordinator subscriptions, two assistant

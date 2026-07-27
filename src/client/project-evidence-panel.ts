@@ -18,11 +18,17 @@ export interface ProjectEvidenceBinding {
   readonly annotationRemoved: (annotationId: string, message: string) => void;
   readonly completeMutation: (message: string) => void;
   readonly editAnnotation: (annotation: AnnotationResource) => void;
+  readonly fragmentRemoved: (result: ProjectEvidenceFragmentRemoval) => Promise<void>;
   readonly linkAnnotation: (annotationId: string) => void;
   readonly notice: (message: string) => void;
   readonly openPassage: (anchor: ManuscriptAnchorSelector) => void;
   readonly openPdf: (pdf: PdfResource, page?: number, annotationId?: string) => void;
-  readonly removeFragment: (annotationId: string, fragmentId: string) => void;
+}
+
+export interface ProjectEvidenceFragmentRemoval {
+  readonly annotationDeleted: boolean;
+  readonly annotationId: string;
+  readonly announce: boolean;
 }
 
 type ProjectEvidenceSnapshot = Pick<WorkspaceSnapshot, "annotations" | "claimEvidenceLinks" | "links" | "pdfs" | "publicationPdfLinks">;
@@ -121,8 +127,8 @@ export class ProjectEvidencePanel extends LitElement {
     }
   }
 
-  async removeFragment(annotationId: string, fragmentId: string): Promise<{ readonly annotationDeleted: boolean } | null> {
-    if (this.mutationKey) return null;
+  async removeFragment(annotationId: string, fragmentId: string, announce = false): Promise<boolean> {
+    if (this.mutationKey) return false;
     this.mutationKey = `fragment:${fragmentId}`;
     this.status = "Erasing highlight stroke…";
     try {
@@ -132,10 +138,11 @@ export class ProjectEvidencePanel extends LitElement {
       );
       await expectOk(response);
       this.status = "";
-      return { annotationDeleted: response.status === 204 };
+      await this.binding?.fragmentRemoved({ annotationDeleted: response.status === 204, annotationId, announce });
+      return true;
     } catch (error) {
       this.status = errorMessage(error, "Could not erase the highlight stroke.");
-      return null;
+      return false;
     } finally {
       this.mutationKey = "";
     }
@@ -363,7 +370,7 @@ export class ProjectEvidencePanel extends LitElement {
     const quote = section?.querySelector<HTMLTextAreaElement>("textarea")?.value ?? fragment.quote;
     section?.closest("details")?.removeAttribute("open");
     if (button.dataset.fragmentAction === "remove") {
-      this.binding?.removeFragment(annotation.id, fragment.id);
+      await this.removeFragment(annotation.id, fragment.id, true);
       return;
     }
     const adjustment = button.dataset.fragmentAdjustment as HighlightGeometryAdjustment | undefined;

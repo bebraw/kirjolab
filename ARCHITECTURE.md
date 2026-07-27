@@ -901,7 +901,8 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Let the project evidence panel own project-PDF file-input state, validation,
   import transport, guarded project-PDF and annotation removal transport, and
   highlight-fragment update and deletion transport, fragment-input validation,
-  and retryable local status. Given a coordinator-validated current passage,
+  retryable local status, and deletion completion routing with optional user-
+  notice intent. Given a coordinator-validated current passage,
   let it also own annotation-passage link transport and its completed mutation
   outcome. Let it project its PDFs, annotations, claim-evidence links, passage
   links, and publication-PDF links directly from the canonical workspace
@@ -909,8 +910,8 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   workspace mutation and navigation outcomes in one typed binding, and route
   grounding choices through a separate typed assistant binding. Keep Yjs
   selection validation, PDF selection and undo coordination, canonical refresh,
-  annotation-form synchronization, and notification policy in the application
-  coordinator.
+  annotation-form synchronization, canonical refresh, and notification effects
+  in the application coordinator behind that typed completion boundary.
 - Treat authoring and research context as the two primary workspace surfaces.
   Route responsive surface and Write/Map selection through narrow typed Lit
   navigation bindings while retaining visibility and URL authority in the

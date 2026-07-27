@@ -426,10 +426,10 @@ changing their canonical data, selector, authorization, or rendering contracts.
       grouping, counts, expanded state, grounding selection, passage-link
       presentation, stroke controls, project-PDF input validation and import
       transport, guarded removal transport, highlight-fragment update and delete
-      transport with retryable local status, and annotation-passage-link
+      transport with retryable local status and typed deletion completion, and annotation-passage-link
       transport from a coordinator-validated typed passage. Yjs selection
       validation, grounding authority, PDF selection and undo coordination,
-      annotation-form synchronization, canonical refreshes, and toast policy
+      annotation-form synchronization, canonical refreshes, and toast effects
       remain outside it behind separate typed workspace and assistant bindings.
 - [x] Narrow layouts expose an explicit Authoring/Context switch and preserve
       the hidden surface's local state.
