@@ -1072,15 +1072,16 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   selections to the private-highlight composer or project-annotation form from
   those retained identities. The presenter binds the project-annotation form's
   workflow, applies its tool and draft-clearing effects through the bounded
-  viewer, and routes citation, highlight removal, and highlight reveal to the
-  Lit owners it already composes. Let it configure the manuscript-comment,
+  viewer, owns intake refresh plus completed-workflow refresh, optional passage-
+  link, and notice sequencing, and routes citation, highlight removal, and
+  highlight reveal to the Lit owners it already composes. Let it configure the manuscript-comment,
   project-evidence, claim-list, and publication list/context panels; own
   annotation-form cleanup and selection, edit and PDF routes, fragment-removal
   refresh sequencing, child-specific mutation failure copy, and notice
   dispatch; and route comment, claim, evidence, publication, citation, and paper
-  intents across those owners. Bind canonical project refresh, passage linking,
-  passage navigation, and notice presentation once through its resource-route
-  boundary. Keep Yjs passage derivation, mutation consequences, canonical
+  intents across those owners. Bind canonical project refresh execution,
+  passage linking, passage navigation, and notice presentation once through its
+  resource-route boundary. Keep Yjs passage derivation, mutation consequences, canonical
   refresh transport, cross-feature passage effects, Library management, and the
   shared notification outlet in the application coordinator.
   Keep tab state, canonical snapshot acceptance,

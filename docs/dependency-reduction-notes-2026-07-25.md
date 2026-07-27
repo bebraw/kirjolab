@@ -9484,6 +9484,28 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,721 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Annotation Workflow Completion
+
+`ContextResourcePresenter` now binds project-annotation intake and completed
+workflow outcomes directly to its existing canonical resource routes. It owns
+intake refresh plus ordered draft clearing, refresh, optional passage linking,
+and notice sequencing; `WorkspaceApp` retains refresh execution, Yjs passage
+validation and mutation, and toast presentation.
+
+This checkpoint reduces `src/client/app.ts` from 1,125 to 1,121 lines (-4) and
+grows the context presenter from 1,013 to 1,014 lines. Runtime source across
+those files decreases by three lines while deleting the coordinator callback
+type and completion adapter. Focused presenter and application-contract coverage
+passes all 46 tests alongside strict types.
+
+The browser application artifact changes from 849,090 B raw / 228,953 B gzip
+to 849,199 B raw / 228,994 B gzip (+109 B raw / +41 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,721 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Library PDF Project Use Projection
 
 `LibraryPdfProjectUse` now resolves the active bibliographic record and matching

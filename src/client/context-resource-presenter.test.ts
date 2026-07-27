@@ -398,7 +398,7 @@ describe("context resource presenter", () => {
   });
 
   it("owns project-annotation sibling and viewer effects", async () => {
-    const { elements, presenter } = setup();
+    const { elements, presenter, routes } = setup();
     const viewer = {
       clearDraftSelection: vi.fn(),
       currentPage: 1,
@@ -415,10 +415,9 @@ describe("context resource presenter", () => {
     const removeFragment = vi.spyOn(elements["project-evidence-panel"], "removeFragment").mockResolvedValue(true);
     const revealAnnotation = vi.spyOn(elements["project-evidence-panel"], "revealAnnotation").mockReturnValue(true);
     const insertCitation = vi.spyOn(presenter, "insertActiveCitation");
-    const completeWorkflow = vi.fn().mockResolvedValue(undefined);
     presenter.bindPdfViewer(viewer, "/api/workspaces/workspace");
 
-    presenter.bindProjectAnnotationWorkflow(completeWorkflow);
+    presenter.bindProjectAnnotationWorkflow();
     const workflow = bindWorkflow.mock.calls[0]?.[0];
     expect(workflow).toBeDefined();
     workflow?.chooseTool("erase");
@@ -428,6 +427,7 @@ describe("context resource presenter", () => {
     await workflow?.completeWorkflow?.({
       clearDraftSelection: true,
       linkAnnotationId: "annotation-1",
+      notice: "Annotation saved.",
       refreshResources: true,
     });
 
@@ -436,7 +436,9 @@ describe("context resource presenter", () => {
     expect(revealAnnotation).toHaveBeenCalledWith("annotation-1");
     expect(removeFragment).toHaveBeenCalledWith("annotation-1", "fragment-1");
     expect(viewer.clearDraftSelection).toHaveBeenCalledOnce();
-    expect(completeWorkflow).toHaveBeenCalledWith({ linkAnnotationId: "annotation-1", refreshResources: true });
+    expect(routes.refreshResources).toHaveBeenCalledOnce();
+    expect(routes.linkPassage).toHaveBeenCalledWith("annotation", "annotation-1");
+    expect(routes.presentNotice).toHaveBeenCalledWith("Annotation saved.");
   });
 
   it("owns project-evidence routes across its composed Lit resources", async () => {
@@ -902,8 +904,7 @@ describe("context resource presenter", () => {
     expect(coordinator.presentNotice).toHaveBeenNthCalledWith(3, "Open this grouped citation from Preview to choose a reference.");
     expect(coordinator.presentNotice).toHaveBeenNthCalledWith(4, "No publication resource is available for missing.");
 
-    const refresh = vi.fn().mockResolvedValue(undefined);
-    presenter.bindProjectAnnotationIntake(refresh);
+    presenter.bindProjectAnnotationIntake();
     const intake = bindIntake.mock.calls[0]?.[0];
     expect(intake?.publications()).toEqual(project.publications);
     intake?.openPublication(publication);
@@ -911,7 +912,7 @@ describe("context resource presenter", () => {
     await intake?.refresh();
     expect(coordinator.openPublication).toHaveBeenCalledWith(publication);
     expect(coordinator.presentNotice).toHaveBeenCalledWith("Reference connected.");
-    expect(refresh).toHaveBeenCalledOnce();
+    expect(coordinator.refreshResources).toHaveBeenCalledOnce();
   });
 
   it("owns private-PDF inspector, markup reset, and toolbar presentation", () => {

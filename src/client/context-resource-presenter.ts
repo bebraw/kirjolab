@@ -31,7 +31,7 @@ import { libraryPdfInspectorCloseEvent } from "./library-pdf-inspector";
 import { libraryPdfMarkupActionEvent, type LibraryPdfMarkupAction } from "./library-pdf-markup-layer";
 import { libraryPdfToolbarActionEvent, type LibraryPdfToolbarAction } from "./library-pdf-annotation-toolbar";
 import { pdfHighlightImportOutcomeEvent, type PdfHighlightImportOutcome } from "./pdf-highlight-import-panel";
-import { ProjectAnnotationForm, type ProjectAnnotationCompletion } from "./project-annotation-form";
+import { ProjectAnnotationForm } from "./project-annotation-form";
 import { ProjectEvidencePanel } from "./project-evidence-panel";
 import { ProjectMapWorkspace, type ProjectMapNavigation } from "./project-map-workspace";
 import { mutateProjectReference } from "./project-reference-mutation";
@@ -134,7 +134,6 @@ type ContextPdfViewer = Pick<
 > &
   Pick<PdfEvidenceViewer, "currentPage" | "focusedAnnotationId" | "open" | "showError" | "updateAnnotations" | "updatePrivateHighlights">;
 
-export type ProjectAnnotationCoordinatorCompletion = Omit<ProjectAnnotationCompletion, "clearDraftSelection">;
 export type ProjectMapCoordinator = Pick<ProjectMapNavigation, "document" | "person" | "project" | "section">;
 export type PublicationListCoordinator = Pick<PublicationListBinding, "manage">;
 
@@ -333,21 +332,23 @@ export class ContextResourcePresenter extends LitElement {
     this.element("project-annotation-form", ProjectAnnotationForm)?.configure(apiBase);
   }
 
-  bindProjectAnnotationIntake(refresh: () => Promise<void>): void {
+  bindProjectAnnotationIntake(): void {
     this.element("project-annotation-form", ProjectAnnotationForm)?.bindIntake({
       openPublication: (publication) => this.routeCoordinator?.openPublication(publication),
       presentNotice: (message) => this.routeCoordinator?.presentNotice(message),
       publications: () => this.routeCoordinator?.project()?.publications ?? [],
-      refresh,
+      refresh: () => this.routeCoordinator?.refreshResources() ?? Promise.resolve(),
     });
   }
 
-  bindProjectAnnotationWorkflow(completeWorkflow: (completion: ProjectAnnotationCoordinatorCompletion) => Promise<void>): void {
+  bindProjectAnnotationWorkflow(): void {
     this.element("project-annotation-form", ProjectAnnotationForm)?.bindWorkflow({
       chooseTool: (tool) => this.pdfViewer?.setTool(tool),
       completeWorkflow: async ({ clearDraftSelection, ...completion }) => {
         if (clearDraftSelection) this.pdfViewer?.clearDraftSelection();
-        await completeWorkflow(completion);
+        if (completion.refreshResources) await this.routeCoordinator?.refreshResources();
+        if (completion.linkAnnotationId) this.routeCoordinator?.linkPassage("annotation", completion.linkAnnotationId);
+        if (completion.notice) this.routeCoordinator?.presentNotice(completion.notice);
       },
       citePage: () => this.insertActiveCitation(true),
       removeHighlight: async (annotationId, fragmentId) =>

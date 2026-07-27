@@ -534,9 +534,11 @@ The adopted components own bounded presentation:
   routing, paint-versus-erase capture persistence, no-match and completed-
   erasure status, and typed completion outcomes shared by capture and note-save
   completion. The context-resource presenter applies the form's tool and draft-
-  clearing effects through its bounded viewer, routes citation and evidence-
-  panel intents across its composed Lit owners, and delegates only refresh,
-  notice, and optional manuscript-link outcomes to the application coordinator.
+  clearing effects through its bounded viewer, owns intake refresh plus
+  completed-workflow refresh, optional manuscript-link, and notice sequencing,
+  routes citation and evidence-panel intents across its composed Lit owners,
+  and delegates only canonical refresh execution, passage-link mutation, and
+  notice presentation to the application coordinator.
   The form also owns local toolbar tool commits, viewer-highlight edit/reveal-
   versus-erase routing, completed undo-state presentation, nested publication-
   intake PDF projection, refresh acknowledgement, and one typed workflow binding
