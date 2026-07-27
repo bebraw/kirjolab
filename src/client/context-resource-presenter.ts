@@ -32,6 +32,7 @@ import { libraryPdfToolbarActionEvent, type LibraryPdfToolbarAction } from "./li
 import { pdfHighlightImportOutcomeEvent, type PdfHighlightImportOutcome } from "./pdf-highlight-import-panel";
 import { ProjectAnnotationForm } from "./project-annotation-form";
 import { ProjectEvidencePanel } from "./project-evidence-panel";
+import { ProjectMapWorkspace } from "./project-map-workspace";
 import { mutateProjectReference } from "./project-reference-mutation";
 import { PublicationContextPanel, type PublicationPaperOption } from "./publication-context-panel";
 import { PublicationListPanel } from "./publication-list-panel";
@@ -399,12 +400,18 @@ export class ContextResourcePresenter extends LitElement {
     this.element("project-annotation-form", ProjectAnnotationForm)?.setPdfs(snapshot.pdfs, renderedPdfId ?? "");
     this.element("publication-list-panel", PublicationListPanel)?.setWorkspace(snapshot);
     this.element("claim-list-panel", ClaimListPanel)?.setWorkspace(snapshot, selectedEvidence);
-    const comments = this.element("manuscript-comment-list-panel", ManuscriptCommentList);
-    if (comments) this.element("workspace-rail-tabs", WorkspaceRailTabs)?.setCommentCount(comments.setComments(snapshot.comments));
+    this.presentComments(snapshot.comments);
     this.element("candidate-list-panel", CandidateListPanel)?.setCandidates(snapshot.candidates);
     const annotations = renderedPdfId ? snapshot.annotations.filter(({ pdfId }) => pdfId === renderedPdfId) : [];
     this.pdfViewer?.updateAnnotations(annotations);
     return annotations;
+  }
+
+  presentResolvedWorkspace(snapshot: WorkspaceSnapshot, bibliography: string, source?: string): void {
+    this.element("project-evidence-panel", ProjectEvidencePanel)?.setPassageLinks(snapshot.links);
+    this.element("claim-list-panel", ClaimListPanel)?.setPassageLinks(snapshot.claimLinks);
+    this.presentComments(snapshot.comments);
+    this.element("project-map", ProjectMapWorkspace)?.presentWorkspace(snapshot, bibliography, source);
   }
 
   resourceAuthorization(
@@ -431,6 +438,11 @@ export class ContextResourcePresenter extends LitElement {
         toolbar.drawingStyle,
       ) ?? [];
     toolbar.setUndoDrawings(drawings);
+  }
+
+  private presentComments(comments: WorkspaceSnapshot["comments"]): void {
+    const list = this.element("manuscript-comment-list-panel", ManuscriptCommentList);
+    if (list) this.element("workspace-rail-tabs", WorkspaceRailTabs)?.setCommentCount(list.setComments(comments));
   }
 
   presentPdfPage(state: ResearchContextState, page: number): PdfPagePresentation {

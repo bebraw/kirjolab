@@ -181,7 +181,10 @@ changing their canonical data, selector, authorization, or rendering contracts.
   transitions, and resource-panel scroll restoration.
 - A bounded resource-context presenter synchronizes the evidence, annotation,
   publication, claim, comment, and candidate Lit owners from the canonical
-  workspace snapshot; composes the canonical tab-strip projection, selects and
+  workspace snapshot; projects coordinator-resolved evidence links, claim
+  links, comments, and project-map inputs across those composed owners after
+  Preview rendering while leaving Yjs anchor resolution and render timing to
+  the coordinator; composes the canonical tab-strip projection, selects and
   retains the active resource owner for layout, citation, PDF, and assistant
   consumers; retains the resolved active private-Library artifact for page
   routing, selection capture, and saved-markup projection; captures

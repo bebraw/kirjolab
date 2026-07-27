@@ -820,10 +820,7 @@ class WorkspaceApp {
     const snapshot = this.#snapshot;
     if (snapshot) {
       const resolved = resolveWorkspaceSnapshotAnchors(this.#document, snapshot);
-      this.#elements.projectEvidencePanel.setPassageLinks(resolved.links);
-      this.#elements.claimListPanel.setPassageLinks(resolved.claimLinks);
-      this.#elements.workspaceRailTabs.setCommentCount(this.#elements.manuscriptCommentListPanel.setComments(resolved.comments));
-      this.#elements.projectMap.presentWorkspace(resolved, bibliography, outcome.publicationComposition?.content);
+      this.#elements.contextResourcePresenter.presentResolvedWorkspace(resolved, bibliography, outcome.publicationComposition?.content);
     }
   }
 

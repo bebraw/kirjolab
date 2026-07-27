@@ -8433,6 +8433,27 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,706 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Resolved Workspace Projection
+
+`ContextResourcePresenter` now projects resolved evidence links, claim links,
+comments, and project-map inputs across the Lit owners it already composes.
+`WorkspaceApp` retains Yjs anchor resolution, Preview availability and render
+timing, bibliography state, and composed manuscript output.
+
+This checkpoint reduces `src/client/app.ts` from 1,452 to 1,449 lines (-3) and
+grows the context-resource presenter from 855 to 867 lines (+12). Focused
+coverage passes all 46 context-resource, project-map, and application-contract
+cases, including resolved passage, comment-count, graph-input, canonical
+workspace, and strict-type behavior.
+
+The browser application artifact changes from 846,212 B raw / 228,400 B gzip
+to 846,324 B raw / 228,377 B gzip (+112 B raw / -23 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,706 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

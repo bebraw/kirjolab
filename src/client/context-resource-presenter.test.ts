@@ -21,6 +21,7 @@ import { LibraryPdfMarkupLayer } from "./library-pdf-markup-layer";
 import { ManuscriptCommentList } from "./manuscript-comment-list";
 import { ProjectAnnotationForm } from "./project-annotation-form";
 import { ProjectEvidencePanel } from "./project-evidence-panel";
+import { ProjectMapWorkspace } from "./project-map-workspace";
 import { PublicationContextPanel } from "./publication-context-panel";
 import { PublicationListPanel } from "./publication-list-panel";
 import type { ResearchResourceTab } from "./research-context";
@@ -128,6 +129,7 @@ function setup() {
     "manuscript-comment-list-panel": new ManuscriptCommentList(),
     "project-annotation-form": new ProjectAnnotationForm(),
     "project-evidence-panel": new ProjectEvidencePanel(),
+    "project-map": new ProjectMapWorkspace(),
     "publication-context-panel": new PublicationContextPanel(),
     "publication-list-panel": new PublicationListPanel(),
     "paper-reader": Object.assign(new HTMLElement(), { scrollTop: 36 }),
@@ -402,6 +404,9 @@ describe("context resource presenter", () => {
     const setComments = vi.spyOn(elements["manuscript-comment-list-panel"], "setComments").mockReturnValue(3);
     const setCommentCount = vi.spyOn(elements["workspace-rail-tabs"], "setCommentCount");
     const setCandidates = vi.spyOn(elements["candidate-list-panel"], "setCandidates");
+    const setPassageLinks = vi.spyOn(elements["project-evidence-panel"], "setPassageLinks");
+    const setClaimPassageLinks = vi.spyOn(elements["claim-list-panel"], "setPassageLinks");
+    const presentMap = vi.spyOn(elements["project-map"], "presentWorkspace");
 
     expect(presenter.presentWorkspace(snapshot, "pdf-1")).toEqual(snapshot.annotations);
     expect(reconcileEvidence).toHaveBeenCalledWith(snapshot.annotations, snapshot.claims);
@@ -413,6 +418,11 @@ describe("context resource presenter", () => {
     expect(setCommentCount).toHaveBeenCalledWith(3);
     expect(setCandidates).toHaveBeenCalledWith(snapshot.candidates);
     expect(presenter.presentWorkspace(snapshot, undefined)).toEqual([]);
+    presenter.presentResolvedWorkspace(snapshot, "@article{source}", "# Manuscript");
+    expect(setPassageLinks).toHaveBeenCalledWith(snapshot.links);
+    expect(setClaimPassageLinks).toHaveBeenCalledWith(snapshot.claimLinks);
+    expect(setComments).toHaveBeenLastCalledWith(snapshot.comments);
+    expect(presentMap).toHaveBeenCalledWith(snapshot, "@article{source}", "# Manuscript");
   });
 
   it("derives research-context authorization from canonical resources", () => {

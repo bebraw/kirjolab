@@ -170,7 +170,10 @@ The adopted components own bounded presentation:
   selection, and private-markup selection effects directly through its narrow
   viewer binding and synchronizes the bounded
   evidence, annotation, publication, claim, comment, and candidate owners from
-  the canonical workspace snapshot. Through a narrow viewer binding it derives
+  the canonical workspace snapshot. Let it also project coordinator-resolved
+  evidence links, claim links, comments, and project-map inputs across those
+  composed owners after Preview rendering while the coordinator retains Yjs
+  anchor resolution and render timing. Through a narrow viewer binding it derives
   authorized active-PDF loads, synchronizes project annotations and private
   highlights, rejects stale completions, retains rendered context and project-
   PDF identities, opens the viewer, restores resource scroll, and presents

@@ -989,8 +989,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   selection, selected-highlight, and draft-selection cleanup effects that
   remain viewer-owned, and
   synchronize the bounded evidence, annotation, publication, claim, comment,
-  and candidate owners from one canonical workspace snapshot. Through a narrow
-  viewer binding it derives the authorized active PDF load, synchronizes project
+  and candidate owners from one canonical workspace snapshot. Let it also
+  project coordinator-resolved evidence links, claim links, comments, and
+  project-map inputs across those composed owners after Preview rendering while
+  the coordinator retains Yjs anchor resolution and render timing. Through a
+  narrow viewer binding it derives the authorized active PDF load, synchronizes project
   annotations and private highlights, rejects stale completions, retains the
   rendered context and project-PDF identities, opens the viewer, restores
   resource scroll, presents active-resource failures, and routes captured
