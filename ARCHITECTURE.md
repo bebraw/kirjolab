@@ -736,12 +736,14 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   the application coordinator.
 - Keep native-textarea infrastructure in a bounded browser adapter that owns
   Yjs synchronization and history, highlight and presence mirroring, completion
-  geometry, relative selections, and optional keymap binding. The application
-  coordinator retains document, workflow, and navigation authority.
+  geometry, relative-selection capture and validated resolution, and optional
+  keymap binding. The application coordinator retains document, workflow, and
+  navigation authority and consumes only resolved numeric ranges.
 - Let the editor-status Lit owner derive file, line-range, caret, and selection
   wording from coordinator-supplied canonical source and resolved target values.
-  Keep Yjs relative-position resolution, editor highlighting, assistant refresh,
-  collaboration interpretation, and offline-save policy in their authorities.
+  Keep Yjs relative-position capture and resolution in the source-editor
+  adapter, and keep editor highlighting, assistant refresh, collaboration
+  interpretation, and offline-save policy in their authorities.
 - Let the preview-synchronization Lit owner bind the native source viewport and
   inert highlight lines; own click, selection, and navigation-key follow
   behavior; derive the source offset nearest the viewport center; center the

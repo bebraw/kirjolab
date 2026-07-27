@@ -18,7 +18,9 @@ offset.
 - Treat the most recently focused manuscript caret or selection as the local
   authoring target for the active file.
 - Keep both ends as Yjs-relative positions and resolve them against the current
-  collaborative document before display or use.
+  collaborative document before display or use. Centralize capture and
+  same-text validation in the source-editor adapter; consumers receive only a
+  normalized numeric range or no target.
 - Paint the resolved local target in the existing source-highlight layer, with
   a distinct local-author color, alongside remote collaborator presence.
 - Show the active path, line range, and caret or selection length in persistent
@@ -33,6 +35,8 @@ offset.
   they run.
 - Collaborative edits can move the remembered target without leaving a stale
   integer offset.
+- Editor restoration, remembered-target display, and passage actions share one
+  same-text validation path instead of duplicating Yjs resolution policy.
 - The shared highlight projection now distinguishes local and remote presence.
 - Overlapping local and collaborator selections still use one text projection,
   so the local target takes visual precedence where their ranges intersect.

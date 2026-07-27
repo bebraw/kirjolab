@@ -79,7 +79,7 @@ import {
 import "./workspace-rail-tabs";
 import "./authoring-mode-tabs";
 import type { EditorPresenceRange } from "./editor-presence";
-import { bindYText, captureRelativeSelection, type RelativeEditorSelection } from "./source-editor-adapter";
+import { bindYText, captureRelativeSelection, resolveRelativeSelection, type RelativeEditorSelection } from "./source-editor-adapter";
 
 const workspaceId = readWorkspaceId();
 const identityEmail = readIdentityEmail();
@@ -647,10 +647,8 @@ class WorkspaceApp {
 
   #restoreEditorSelections(selections: RelativeEditorSelection[]): void {
     for (const selection of selections) {
-      const start = Y.createAbsolutePositionFromRelativePosition(selection.start, this.#document);
-      const end = Y.createAbsolutePositionFromRelativePosition(selection.end, this.#document);
-      if (!start || !end || start.type !== selection.text || end.type !== selection.text) continue;
-      selection.textarea.setSelectionRange(start.index, end.index, selection.direction ?? undefined);
+      const resolved = resolveRelativeSelection(this.#document, selection);
+      if (resolved) selection.textarea.setSelectionRange(resolved.start, resolved.end, selection.direction ?? undefined);
     }
     if (document.activeElement === this.#elements.source) this.#rememberAuthoringSelection();
     else this.#renderAuthoringTarget();
@@ -999,10 +997,7 @@ class WorkspaceApp {
 
   #resolvedAuthoringTarget(): ResolvedAuthoringTarget | null {
     if (!this.#authoringSelection) return null;
-    const start = Y.createAbsolutePositionFromRelativePosition(this.#authoringSelection.start, this.#document);
-    const end = Y.createAbsolutePositionFromRelativePosition(this.#authoringSelection.end, this.#document);
-    if (!start || !end || start.type !== this.#activeFileText || end.type !== this.#activeFileText) return null;
-    return { start: Math.min(start.index, end.index), end: Math.max(start.index, end.index) };
+    return resolveRelativeSelection(this.#document, this.#authoringSelection);
   }
 
   #renderAuthoringTarget(): void {
@@ -1057,16 +1052,10 @@ class WorkspaceApp {
     const live = this.#elements.source.selectionStart !== this.#elements.source.selectionEnd;
     const selection = live ? captureRelativeSelection(this.#elements.source, this.#activeFileText) : this.#authoringSelection;
     if (!selection) return null;
-    const start = Y.createAbsolutePositionFromRelativePosition(selection.start, this.#document);
-    const end = Y.createAbsolutePositionFromRelativePosition(selection.end, this.#document);
-    if (!start || !end) return null;
-    if (!this.#isActiveAuthoringRange(start, end)) return null;
-    const excerpt = this.#activeFileText.toString().slice(start.index, end.index);
-    return excerpt.trim() && this.#activeFileId ? { fileId: this.#activeFileId, start: start.index, end: end.index, excerpt } : null;
-  }
-
-  #isActiveAuthoringRange(start: Y.AbsolutePosition, end: Y.AbsolutePosition): boolean {
-    return start.type === this.#activeFileText && end.type === this.#activeFileText && start.index < end.index;
+    const resolved = resolveRelativeSelection(this.#document, selection);
+    if (!resolved || resolved.start === resolved.end) return null;
+    const excerpt = this.#activeFileText.toString().slice(resolved.start, resolved.end);
+    return excerpt.trim() && this.#activeFileId ? { fileId: this.#activeFileId, ...resolved, excerpt } : null;
   }
 
   #assistantPassage(kind: "insertion" | "scope"): AuthoringPassage | null {

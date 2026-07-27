@@ -1,6 +1,6 @@
 import * as Y from "yjs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { bindYText, captureRelativeSelection, positionSourceCompletion } from "./source-editor-adapter";
+import { bindYText, captureRelativeSelection, positionSourceCompletion, resolveRelativeSelection } from "./source-editor-adapter";
 
 class FakeClassList {
   readonly values = new Set<string>();
@@ -177,6 +177,21 @@ describe("source editor adapter", () => {
     expect(ranged.direction).toBe("backward");
     expect(Y.createAbsolutePositionFromRelativePosition(ranged.start, documentModel)?.index).toBe(1);
     expect(Y.createAbsolutePositionFromRelativePosition(ranged.end, documentModel)?.index).toBe(5);
+  });
+
+  it("resolves relative selections only while both anchors belong to their text", () => {
+    const documentModel = new Y.Doc();
+    const text = documentModel.getText("source");
+    text.insert(0, "evidence");
+    const textarea = new FakeTextarea();
+    textarea.setSelectionRange(1, 5, "backward");
+    const selection = captureRelativeSelection(textareaElement(textarea), text);
+
+    text.insert(0, "new ");
+    expect(resolveRelativeSelection(documentModel, selection)).toEqual({ start: 5, end: 9 });
+
+    const otherDocument = new Y.Doc();
+    expect(resolveRelativeSelection(otherDocument, selection)).toBeNull();
   });
 
   it("positions completion within its editor shell", () => {

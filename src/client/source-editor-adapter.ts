@@ -11,6 +11,11 @@ export interface RelativeEditorSelection {
   readonly direction: "forward" | "backward" | "none" | null;
 }
 
+export interface ResolvedEditorSelection {
+  readonly start: number;
+  readonly end: number;
+}
+
 export interface YTextBinding {
   readonly destroy: () => void;
   readonly renderHighlight: () => void;
@@ -132,6 +137,13 @@ export function captureRelativeSelection(textarea: HTMLTextAreaElement, text: Y.
     end: Y.createRelativePositionFromTypeIndex(text, textarea.selectionEnd, -1),
     direction: textarea.selectionDirection,
   };
+}
+
+export function resolveRelativeSelection(documentModel: Y.Doc, selection: RelativeEditorSelection): ResolvedEditorSelection | null {
+  const start = Y.createAbsolutePositionFromRelativePosition(selection.start, documentModel);
+  const end = Y.createAbsolutePositionFromRelativePosition(selection.end, documentModel);
+  if (!start || !end || start.type !== selection.text || end.type !== selection.text) return null;
+  return { start: Math.min(start.index, end.index), end: Math.max(start.index, end.index) };
 }
 
 function renderEditorHighlight(highlight: HTMLElement, source: string, presence: readonly EditorPresenceRange[]): void {

@@ -8755,6 +8755,30 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,714 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Coordinator Extraction: Relative Selection Resolution
+
+`source-editor-adapter` now resolves captured Yjs-relative selections through
+one same-text validation path and returns normalized numeric ranges. Editor
+selection restoration, remembered authoring targets, and selected-passage
+actions consume that shared result. `WorkspaceApp` retains document identity,
+active-text authority, passage semantics, and navigation effects.
+
+This checkpoint reduces `src/client/app.ts` from 1,318 to 1,307 lines (-11),
+grows the source-editor adapter from 195 to 207 lines (+12), and grows combined
+runtime source by one line while deleting three copies of relative-position
+resolution and the coordinator-only active-range predicate. Focused coverage
+passes all 20 adapter and application-contract cases, and affected guardrails
+pass 12 related and four direct cases, including anchor movement after a Yjs
+edit and rejection against an unrelated document.
+
+The browser application artifact changes from 849,259 B raw / 228,820 B gzip
+to 849,079 B raw / 228,827 B gzip (-180 B raw / +7 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,715 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,
