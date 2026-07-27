@@ -442,7 +442,6 @@ class WorkspaceApp {
       document: () => {
         this.#elements.workspaceSurfaceSwitcher.navigate("authoring");
         this.#elements.authoringModeTabs.navigate("write");
-        this.#elements.source.focus();
         this.#elements.source.scrollIntoView({ behavior: "smooth", block: "center" });
       },
       project: () => this.#elements.workspaceSwitcher.focusSelect(),
@@ -738,7 +737,6 @@ class WorkspaceApp {
   #focusProjectRange(fileId: string, from: number, to: number): void {
     if (fileId) this.#elements.projectFileDialog.selectFile(fileId);
     this.#elements.authoringModeTabs.navigate("write");
-    this.#elements.source.focus();
     this.#elements.source.setSelectionRange(from, Math.max(from, to));
     this.#rememberAuthoringSelection();
   }
@@ -953,7 +951,6 @@ class WorkspaceApp {
     this.#document.transact(() => this.#activeFileText.insert(insertion.index, insertion.text), this);
     this.#elements.workspaceSurfaceSwitcher.navigate("authoring");
     this.#elements.authoringModeTabs.navigate("write");
-    this.#elements.source.focus();
     this.#elements.source.setSelectionRange(insertion.caret, insertion.caret);
     this.#rememberAuthoringSelection();
     this.#showToast(`Inserted :cite[${citationKey}]${locator ? ` at ${locator}` : ""} into canonical Markdown.`);
@@ -1116,9 +1113,8 @@ class WorkspaceApp {
       return;
     }
     this.#elements.workspaceSurfaceSwitcher.navigate("authoring");
-    this.#elements.authoringModeTabs.navigate("write");
     this.#elements.projectFileDialog.selectFile(anchor.fileId);
-    this.#elements.source.focus();
+    this.#elements.authoringModeTabs.navigate("write");
     this.#elements.source.setSelectionRange(resolution.start, resolution.end);
     this.#rememberAuthoringSelection();
     this.#elements.source.scrollIntoView({ behavior: "smooth", block: "center" });

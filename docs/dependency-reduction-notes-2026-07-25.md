@@ -9058,6 +9058,24 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,720 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Coordinator Simplification: Authoring Focus
+
+`WorkspaceApp` now relies on the authoring-mode Lit navigation outcome to apply
+Write-mode editor focus instead of repeating `source.focus()` in project-map,
+range, citation, and linked-passage navigation. Linked-passage navigation
+activates its project file before selecting Write mode so the component-owned
+focus remains the final focus transition.
+
+This checkpoint reduces `src/client/app.ts` from 1,228 to 1,224 lines (-4)
+without adding runtime code. The affected gate and full native CI pass all
+1,720 unit/coverage tests, 121 Workers-runtime tests, and 74 browser tests
+alongside formatting, lint, and strict types.
+
+The browser application artifact changes from 849,687 B raw / 228,815 B gzip
+to 849,595 B raw / 228,815 B gzip (-92 B raw / unchanged gzip). Styles and
+direct and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,
