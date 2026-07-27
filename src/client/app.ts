@@ -5,7 +5,6 @@ import { reviewerResponsePath, reviewerResponseTemplate } from "../domain/review
 import { resolveManuscriptAnchor } from "../domain/manuscript-anchor";
 import { resolveWorkspaceSnapshotAnchors } from "../domain/workspace-anchor-projection";
 import { projectFileCollaborationTextName, relativeProjectPath, type ProjectFile } from "../domain/project-files";
-import { publicationWordStatistics } from "../domain/publication-statistics";
 import { researchQuestionsPath, researchQuestionsTemplate } from "../domain/research-questions";
 import { researchDiaryPath, researchDiaryTemplate } from "../domain/writing-workflows";
 import { type LibraryPdfArtifact, type ProjectReferencePdf } from "../domain/reference-library";
@@ -555,7 +554,6 @@ class WorkspaceApp {
 
   #showRail(mode: WorkspaceRail): void {
     this.#elements.workspaceRailTabs.setMode(mode);
-    if (mode === "guide") this.#renderManuscriptMap();
     this.#syncWorkspaceRoute("replace");
   }
 
@@ -696,32 +694,22 @@ class WorkspaceApp {
   }
 
   async #renderPreview(bibliography = this.#bibliography.toString()): Promise<void> {
-    const files = this.#elements.projectFileDialog.projectFiles();
     const outcome = await this.#elements.workspacePreview.renderProject({
       activeFileId: this.#activeFileId,
       apiBase,
       bibliography,
       fallbackSource: this.#source.toString(),
-      files,
+      files: this.#elements.projectFileDialog.projectFiles(),
       hiddenAssetIds: this.#elements.projectTreePanel.hiddenAssets,
       snapshot: this.#snapshot,
     });
     if (!outcome) return;
-    this.#renderManuscriptMap(outcome.publicationComposition?.content ?? outcome.renderedSource);
-    if (outcome.publicationComposition && this.#snapshot) {
-      this.#elements.exportDialog.setStatistics(publicationWordStatistics(outcome.publicationComposition, files));
-    }
     if (!outcome.available) return;
     const snapshot = this.#snapshot;
     if (snapshot) {
       const resolved = resolveWorkspaceSnapshotAnchors(this.#document, snapshot);
       this.#elements.contextResourcePresenter.presentResolvedWorkspace(resolved, bibliography, outcome.publicationComposition?.content);
     }
-  }
-
-  #renderManuscriptMap(source?: string): void {
-    const files = this.#elements.projectFileDialog.projectFiles();
-    this.#elements.manuscriptMapPanel.presentProject({ fallbackSource: this.#source.toString(), files, snapshot: this.#snapshot, source });
   }
 
   async #openWorkflowFile(path: string, content: () => string): Promise<void> {

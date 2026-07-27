@@ -3,7 +3,9 @@ import type { Diagnostic } from "../domain/markdown";
 import type { ProjectComposition, ProjectFilePreview } from "../domain/project-files";
 import { workspaceSnapshotFixture } from "../test-support/workspace-fixture";
 import type { MarkdownRuntime } from "./markdown-runtime";
+import { ManuscriptMapPanel } from "./manuscript-map-panel";
 import { previewDiagnosticSelectEvent, type PreviewDiagnosticsPanel } from "./preview-presentation";
+import { ProjectExportDialog } from "./project-export-dialog";
 import {
   previewHeadingNumbers,
   WorkspacePreview,
@@ -27,6 +29,7 @@ const request: WorkspacePreviewRequest = {
 };
 
 class TestWorkspacePreview extends WorkspacePreview {
+  readonly presentCompanions = vi.fn();
   readonly presentProject = vi.fn();
   readonly resolveImages = vi.fn();
   readonly setDiagnostics = vi.fn();
@@ -57,11 +60,24 @@ class TestWorkspacePreview extends WorkspacePreview {
     this.presentProject(outcome);
   }
 
+  protected override presentProjectCompanions(
+    request: Parameters<WorkspacePreview["renderProject"]>[0],
+    outcome: ProjectPreviewOutcome,
+  ): void {
+    this.presentCompanions(request, outcome);
+  }
+
   protected override get diagnostics(): PreviewDiagnosticsPanel {
     return {
       setDiagnostics: this.setDiagnostics,
       showUnavailable: this.showUnavailable,
     } as unknown as PreviewDiagnosticsPanel;
+  }
+}
+
+class CompanionWorkspacePreview extends WorkspacePreview {
+  presentCompanionsForTest(request: Parameters<WorkspacePreview["renderProject"]>[0], outcome: ProjectPreviewOutcome): void {
+    this.presentProjectCompanions(request, outcome);
   }
 }
 
@@ -117,6 +133,46 @@ describe("workspace preview", () => {
     );
     expect(outcome).toMatchObject({ available: true });
     expect(preview.presentProject).toHaveBeenCalledWith(expect.objectContaining({ available: true }));
+    expect(preview.presentCompanions).toHaveBeenCalledWith(
+      expect.objectContaining({ files }),
+      expect.objectContaining({ publicationComposition: expect.any(Object) }),
+    );
+  });
+
+  it("projects one render outcome into manuscript-map and export companions", () => {
+    const preview = new CompanionWorkspacePreview();
+    const manuscriptMap = new ManuscriptMapPanel();
+    const exportDialog = new ProjectExportDialog();
+    const presentProject = vi.spyOn(manuscriptMap, "presentProject").mockImplementation(() => undefined);
+    const setStatistics = vi.spyOn(exportDialog, "setStatistics").mockImplementation(() => undefined);
+    Object.defineProperty(preview, "ownerDocument", {
+      value: {
+        getElementById: (id: string) => (id === "manuscript-map-panel" ? manuscriptMap : exportDialog),
+      },
+    });
+    const projectRequest = {
+      activeFileId: workspaceSnapshotFixture.entryFileId,
+      apiBase: request.apiBase,
+      bibliography: "",
+      fallbackSource: "Fallback",
+      files: workspaceSnapshotFixture.files,
+      hiddenAssetIds: new Set<string>(),
+      snapshot: workspaceSnapshotFixture,
+    };
+    const publicationComposition = { content: "# Composed paper", dependencies: {}, diagnostics: [], sourceMap: [] };
+
+    preview.presentCompanionsForTest(projectRequest, {
+      available: true,
+      diagnostics: [],
+      filePreview: null,
+      publicationComposition,
+      renderedSource: "# Active file",
+    });
+
+    expect(presentProject).toHaveBeenCalledWith(
+      expect.objectContaining({ files: projectRequest.files, source: publicationComposition.content }),
+    );
+    expect(setStatistics).toHaveBeenCalledWith(expect.objectContaining({ totalWords: 2 }));
   });
 
   it("shows source and a local diagnostic when the renderer is unavailable", async () => {

@@ -1,6 +1,7 @@
 import { html, LitElement, type TemplateResult } from "lit";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import type { Diagnostic } from "../domain/markdown";
+import { publicationWordStatistics } from "../domain/publication-statistics";
 import {
   composeProject,
   previewProjectFile,
@@ -14,6 +15,7 @@ import type { WorkspaceSnapshot } from "../domain/workspace";
 import { sourceSpanAt } from "./composition-source-map";
 import { parseCitationKeys, type CitationContext } from "./citations";
 import { loadMarkdownRuntime, type MarkdownRuntime } from "./markdown-runtime";
+import { ManuscriptMapPanel } from "./manuscript-map-panel";
 import {
   previewDiagnosticSelectEvent,
   PreviewContextStatus,
@@ -21,6 +23,7 @@ import {
   type PreviewDiagnosticSelection,
 } from "./preview-presentation";
 import { PreviewSyncControls } from "./preview-sync-controls";
+import { ProjectExportDialog } from "./project-export-dialog";
 
 export const workspacePreviewActionEvent = "workspace-preview-action";
 
@@ -189,8 +192,27 @@ export class WorkspacePreview extends LitElement {
           renderedSource,
         }
       : null;
-    if (projectOutcome) this.presentProjectOutcome(projectOutcome);
+    if (projectOutcome) {
+      this.presentProjectOutcome(projectOutcome);
+      this.presentProjectCompanions(request, projectOutcome);
+    }
     return projectOutcome;
+  }
+
+  protected presentProjectCompanions(request: ProjectPreviewRequest, outcome: ProjectPreviewOutcome): void {
+    const manuscriptMap = this.ownerDocument?.getElementById("manuscript-map-panel");
+    if (manuscriptMap instanceof ManuscriptMapPanel) {
+      manuscriptMap.presentProject({
+        fallbackSource: request.fallbackSource,
+        files: request.files,
+        snapshot: request.snapshot,
+        source: outcome.publicationComposition?.content ?? outcome.renderedSource,
+      });
+    }
+    const exportDialog = this.ownerDocument?.getElementById("export-dialog-control");
+    if (exportDialog instanceof ProjectExportDialog && outcome.publicationComposition && request.snapshot) {
+      exportDialog.setStatistics(publicationWordStatistics(outcome.publicationComposition, request.files));
+    }
   }
 
   protected presentProjectOutcome(outcome: ProjectPreviewOutcome): void {

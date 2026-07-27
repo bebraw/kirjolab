@@ -8850,6 +8850,32 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,717 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Preview Companions
+
+`WorkspacePreview` now projects manuscript-map content and live export
+statistics from the exact project render outcome it already owns. This keeps
+Preview status, source-map navigation, Guide content, and export counts on one
+publication composition. `WorkspaceApp` retains canonical Yjs/project inputs,
+resolved-anchor resource projection, publication navigation, and transition
+effects.
+
+This checkpoint reduces `src/client/app.ts` from 1,290 to 1,278 lines (-12),
+grows the workspace Preview from 375 to 397 lines (+22), and grows combined
+runtime source by ten lines while deleting the coordinator's manuscript-map
+wrapper, guide refresh hook, publication-statistics import, and companion
+fan-out. Focused coverage passes 28 Preview, application-contract,
+manuscript-map, and export-dialog cases. Affected guardrails pass 14 related and
+seven direct cases, including synchronized map source and canonical export
+statistics.
+
+The browser application artifact changes from 849,040 B raw / 228,808 B gzip
+to 849,147 B raw / 228,827 B gzip (+107 B raw / +19 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,718 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

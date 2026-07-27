@@ -95,11 +95,12 @@ files.
 - A live word-count badge opens the same dialog. Statistics show the composed
   total plus per-file and per-heading counts.
 - The export-dialog host owns both external trigger bindings and the badge's
-  formatted total. The application coordinator supplies only the canonical
-  statistics projection and does not address either trigger directly.
+  formatted total. The workspace Preview supplies the canonical statistics
+  projection from the same project render outcome and does not address either
+  trigger directly.
 - A bounded light-DOM component owns loading, total, per-file, per-heading, and
-  empty-group presentation. The application coordinator supplies only the
-  canonical `PublicationWordStatistics` projection.
+  empty-group presentation. The workspace Preview supplies only the canonical
+  `PublicationWordStatistics` projection.
 - Revision comparison reports composed line changes and the before, after, and
   delta values under the same word-counting rule.
 - The existing HTML preview remains visible if an export request fails. Export

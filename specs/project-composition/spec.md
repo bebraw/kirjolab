@@ -58,8 +58,9 @@ collaborative, and unambiguous about what preview and export mean.
   rendered fallback source, and the active source map from coordinator-supplied
   canonical project files, snapshot pins, and active-file identity before
   invoking its renderer. It synchronizes file-mode, diagnostics/unavailable
-  status, and source-map navigation siblings from the same render outcome. The coordinator retains canonical Yjs/project-file
-  authority and cross-panel consequences.
+  status, source-map navigation, manuscript-map content, and live export
+  statistics siblings from the same render outcome. The coordinator retains
+  canonical Yjs/project-file authority and resolved-anchor resource consequences.
 - The bounded Preview status owner derives composed-versus-isolated file labels
   and the combined composition and Markdown-renderer issue count from canonical
   preview and diagnostic inputs. It also owns the unavailable summary; the
