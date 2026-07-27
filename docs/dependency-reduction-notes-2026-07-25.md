@@ -5655,6 +5655,28 @@ direct and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,625 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Publication List Inputs
+
+`PublicationListPanel` now reads publications and project-reference links
+directly from the canonical workspace snapshot input. `WorkspaceApp` retains
+canonical refresh, context navigation, Library management, and notification
+policy.
+
+This checkpoint reduces `src/client/app.ts` from 3,174 to 3,171 lines (-3)
+and the publication-list owner from 164 to 159 lines (-5). Runtime source
+across the two files decreases by eight lines while deleting the dedicated
+two-field interface and its coordinator-built adapter. Five focused cases cover
+empty, enrichable, connected, intent, transport, retry, and duplicate-submit
+behavior alongside application contracts and strict client and Workers types.
+
+The browser application artifact changes from 830,463 B raw / 225,001 B gzip
+to 830,455 B raw / 225,002 B gzip (-8 B raw / +1 B gzip). Styles and direct and
+unique production package counts remain unchanged at 135,411 B raw / 23,373 B
+gzip, 18, and 150.
+
+Full native CI passes all 1,625 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

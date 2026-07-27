@@ -1,6 +1,6 @@
 import { html, LitElement, nothing, type TemplateResult } from "lit";
 import { bibTeXDisplayText } from "../domain/bibliography";
-import type { ProjectReferenceLink, PublicationResource } from "../domain/workspace";
+import type { PublicationResource, WorkspaceSnapshot } from "../domain/workspace";
 import { errorMessage, expectOk } from "./http";
 
 export const publicationListActionEvent = "publication-list-action";
@@ -10,11 +10,6 @@ export type PublicationListAction =
   | { readonly action: "manage"; readonly publicationId: string }
   | { readonly action: "open"; readonly publication: PublicationResource };
 
-interface PublicationListData {
-  readonly projectReferences: readonly ProjectReferenceLink[];
-  readonly publications: readonly PublicationResource[];
-}
-
 export class PublicationListPanel extends LitElement {
   static override properties = {
     data: { state: true },
@@ -22,7 +17,7 @@ export class PublicationListPanel extends LitElement {
     status: { state: true },
   };
 
-  declare private data: PublicationListData;
+  declare private data: Pick<WorkspaceSnapshot, "projectReferences" | "publications">;
   declare private enrichingPublicationId: string;
   declare private status: string;
   private apiBase = "";
@@ -38,8 +33,8 @@ export class PublicationListPanel extends LitElement {
     this.apiBase = apiBase;
   }
 
-  setPublications(data: PublicationListData): void {
-    this.data = data;
+  setWorkspace({ projectReferences, publications }: Pick<WorkspaceSnapshot, "projectReferences" | "publications">): void {
+    this.data = { projectReferences, publications };
   }
 
   override connectedCallback(): void {

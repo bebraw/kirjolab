@@ -64,9 +64,9 @@ describe("publication list panel", () => {
   it("renders empty, enrichable, and connected publication states", () => {
     const panel = new TestPublicationListPanel();
     expect(panel.renderForTest()).toBeDefined();
-    panel.setPublications({ projectReferences: [], publications: [publication, { ...publication, doi: "", id: "publication:2" }] });
+    panel.setWorkspace({ projectReferences: [], publications: [publication, { ...publication, doi: "", id: "publication:2" }] });
     expect(panel.renderForTest()).toBeDefined();
-    panel.setPublications({ projectReferences: [projectReference], publications: [publication] });
+    panel.setWorkspace({ projectReferences: [projectReference], publications: [publication] });
     expect(panel.renderForTest()).toBeDefined();
     expect(panel.rootForTest()).toBe(panel);
   });
@@ -75,7 +75,7 @@ describe("publication list panel", () => {
     const panel = new TestPublicationListPanel();
     const actions: PublicationListAction[] = [];
     panel.addEventListener(publicationListActionEvent, (event) => actions.push((event as CustomEvent<PublicationListAction>).detail));
-    panel.setPublications({ projectReferences: [], publications: [publication] });
+    panel.setWorkspace({ projectReferences: [], publications: [publication] });
 
     panel.actForTest();
     panel.actForTest("open", "missing");

@@ -408,9 +408,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   only its title from the filename and attaching the private artifact in the
   same library transaction. Let researchers enrich metadata later.
 - Let the project publication Lit list own DOI-enrichment transport, stable
-  encoded publication targets, duplicate-submit gating, and retryable local
-  failures. Keep canonical workspace refresh, navigation, and notification
-  policy in the application coordinator.
+  encoded publication targets, duplicate-submit gating, retryable local
+  failures, and its publication and project-reference projection from the
+  canonical workspace snapshot. Keep canonical workspace refresh, navigation,
+  and notification policy in the application coordinator.
 - Keep bounded PDF batch execution, upload transport and response guards,
   partial-failure progress, ephemeral retries, duplicate-submit gating, and
   refresh-pending state in the Lit upload control. The companion status owns

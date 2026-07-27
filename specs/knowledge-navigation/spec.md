@@ -118,9 +118,10 @@ connection without reconstructing identity from a citation key or filename.
 - A bounded light-DOM project publication list owns reference metadata, alias
   and DOI labels, empty-state, action presentation, DOI-enrichment transport,
   stable encoded targets, duplicate-submit gating, pending and retryable failure
-  state, and the completed-enrichment outcome. Context navigation, Library
-  management, canonical refresh, and workspace notification policy remain with
-  the application coordinator.
+  state, the completed-enrichment outcome, and its publication and
+  project-reference projection from the canonical workspace snapshot. Context
+  navigation, Library management, canonical refresh, and workspace notification
+  policy remain with the application coordinator.
   reflows. Connector coordinates must use the rendered canvas dimensions rather
   than a fixed aspect ratio, and compact layouts must preserve every resource
   action when decorative connectors are hidden.

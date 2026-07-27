@@ -1759,10 +1759,7 @@ class WorkspaceApp {
     this.#elements.assistantWorkflowStatus.reconcileEvidence(this.#snapshot.annotations, this.#snapshot.claims);
     this.#elements.projectEvidencePanel.setEvidence(this.#snapshot, this.#elements.assistantWorkflowStatus.selectedEvidenceKeys);
     this.#elements.projectAnnotationForm.setPdfs(this.#snapshot.pdfs, this.#renderedPdfId ?? "");
-    this.#elements.publicationListPanel.setPublications({
-      projectReferences: this.#snapshot.projectReferences,
-      publications: this.#snapshot.publications,
-    });
+    this.#elements.publicationListPanel.setWorkspace(this.#snapshot);
     this.#elements.claimListPanel.setWorkspace(this.#snapshot, this.#elements.assistantWorkflowStatus.selectedEvidenceKeys);
     this.#elements.workspaceRailTabs.setCommentCount(this.#elements.manuscriptCommentListPanel.setComments(this.#snapshot.comments));
     this.#elements.candidateListPanel.setCandidates(this.#snapshot.candidates);
