@@ -275,7 +275,7 @@ describe("context resource presenter", () => {
     expect(focusTab).toHaveBeenCalledWith("library");
     expect(focusTab).toHaveBeenCalledWith("publication:publication:1");
     expect(syncRoute).toHaveBeenCalledWith("push");
-    await vi.waitFor(() => expect(openLibrary).toHaveBeenCalledOnce());
+    await vi.waitFor(() => expect(openLibrary).toHaveBeenCalledWith());
 
     standaloneLibrary = true;
     navigation?.close("publication:publication:1");
@@ -284,6 +284,50 @@ describe("context resource presenter", () => {
     expect(syncRoute).toHaveBeenCalledWith("replace");
     expect(presentContext).toHaveBeenCalled();
     expect(restorePaneWidth).toHaveBeenCalled();
+  });
+
+  it("restores routed context with general, resource, and failure fallbacks", async () => {
+    const { elements, presenter } = setup();
+    const openLibrary = vi.fn().mockResolvedValue(undefined);
+    const presentNotice = vi.fn();
+    vi.spyOn(elements["context-tab-strip"], "focusTab").mockImplementation(() => undefined);
+    vi.spyOn(presenter, "presentContext").mockReturnValue({ activeTab: undefined, publicationPresented: false });
+    const restoreTarget = vi.spyOn(presenter, "restoreTarget").mockResolvedValue(undefined);
+    presenter.bindContext({
+      activateSurface: vi.fn(),
+      citationAvailable: () => false,
+      openLibrary,
+      replaceStandaloneLibraryRoute: vi.fn(),
+      restorePaneWidth: vi.fn(),
+      sources: () => ({ ...sources(undefined), standaloneLibrary: false }),
+      syncRoute: vi.fn(),
+    });
+    presenter.bindRoutes({
+      insertCitation: vi.fn(),
+      library: () => null,
+      linkPassage: vi.fn(),
+      openLibraryPdf: vi.fn(),
+      openProjectPdf: vi.fn(),
+      openPassage: vi.fn(),
+      openReferencePdf: vi.fn(),
+      presentNotice,
+      project: () => null,
+      referencePdfs: () => [],
+      refreshLibrary: vi.fn(),
+      refreshResources: vi.fn(),
+    });
+
+    await presenter.restoreContext("assistant");
+    await presenter.restoreContext("library");
+    await presenter.restoreContext("pdf:pdf-1", 4, "annotation-1");
+    restoreTarget.mockRejectedValueOnce(new Error("PDF is unavailable"));
+    await presenter.restoreContext("pdf:missing");
+
+    expect(openLibrary).toHaveBeenCalledWith(false);
+    expect(restoreTarget).toHaveBeenNthCalledWith(1, { kind: "pdf", id: "pdf-1" }, 4, "annotation-1");
+    expect(restoreTarget).toHaveBeenNthCalledWith(2, { kind: "pdf", id: "missing" }, undefined, undefined);
+    expect(presenter.activeKey).toBe("preview");
+    expect(presentNotice).toHaveBeenCalledWith("PDF is unavailable");
   });
 
   it("loads and validates the linked-reference PDF catalog", async () => {

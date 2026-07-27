@@ -127,7 +127,10 @@ changing their canonical data, selector, authorization, or rendering contracts.
   parameters: active non-entry file, rail, authoring mode, narrow surface,
   desktop layout, active context target, and the active PDF page or focused
   annotation. Refresh and copied workspace URLs restore those selections only
-  after their ids are reconciled against the authorized snapshots.
+  after their ids are reconciled against the authorized snapshots. Context
+  restoration begins from Preview, restores fixed destinations or an authorized
+  resource through the context owner, and returns to Preview with a visible
+  notice if loading the requested context fails.
 - Context-target changes push browser history. Incidental view changes and PDF
   page turns replace the current history entry so Back follows meaningful
   research navigation rather than replaying every local adjustment. Unknown

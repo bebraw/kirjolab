@@ -9609,6 +9609,28 @@ styles, and direct and unique production package counts remain unchanged at
 Full native CI passes all 1,728 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Research Context Restoration
+
+`ContextResourcePresenter` now owns routed context restoration from a safe
+Preview baseline, including fixed-context dispatch, canonical resource lookup,
+Library restoration without new history, and Preview-plus-notice failure
+fallback. `WorkspaceApp` retains URL parsing, browser-history mutation, and the
+surrounding rail, authoring-mode, file, layout, and surface restoration order.
+
+This checkpoint reduces `src/client/app.ts` from 1,036 to 1,019 lines (-17)
+and grows the composed context owner from 1,125 to 1,141 lines. Runtime source
+across those files decreases by one line while deleting both coordinator-only
+context-restore helpers. Focused presenter and route coverage passes all 61
+tests; affected runtime coverage passes all 47 tests alongside strict types.
+
+The browser application artifact changes from 850,856 B raw / 229,192 B gzip
+to 850,792 B raw / 229,264 B gzip (-64 B raw / +72 B gzip). Lazy runtimes,
+styles, and direct and unique production package counts remain unchanged at
+204,779 B / 62,386 B, 481,994 B / 146,135 B, 135,411 B / 23,373 B, and 18 and 150.
+
+Full native CI passes all 1,729 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Library PDF Project Use Projection
 
 `LibraryPdfProjectUse` now resolves the active bibliographic record and matching

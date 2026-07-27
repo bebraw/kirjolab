@@ -47,6 +47,7 @@ import {
   setPdfResearchLocation,
   RESEARCH_ASSISTANT_KEY,
   RESEARCH_LIBRARY_KEY,
+  RESEARCH_PREVIEW_KEY,
   setResearchTabScroll,
   type PdfResearchLocation,
   type ResearchContextAuthorization,
@@ -58,6 +59,7 @@ import {
   type ResearchResourceTarget,
 } from "./research-context";
 import { WorkspaceRailTabs } from "./workspace-rail-tabs";
+import { researchTargetFromContextKey } from "./workspace-ui-route";
 
 export interface ContextResourceSources {
   readonly activeTab: ResearchResourceTab | undefined;
@@ -131,7 +133,7 @@ export interface ContextRouteCoordinator {
 export interface ContextPresentationBinding {
   readonly activateSurface: () => void;
   readonly citationAvailable: () => boolean;
-  readonly openLibrary: () => Promise<void>;
+  readonly openLibrary: (updateHistory?: boolean) => Promise<void>;
   readonly replaceStandaloneLibraryRoute: () => void;
   readonly restorePaneWidth: () => void;
   readonly sources: () => ResearchContextSources;
@@ -345,6 +347,20 @@ export class ContextResourcePresenter extends LitElement {
     if (artifact) return await coordinator.openLibraryPdf(artifact, page);
     const referencePdf = coordinator.referencePdfs().find(({ id }) => id === target.id);
     if (referencePdf) await coordinator.openReferencePdf(referencePdf, page);
+  }
+
+  async restoreContext(key: ResearchContextKey, page?: number, annotationId?: string): Promise<void> {
+    this.activateContext(RESEARCH_PREVIEW_KEY);
+    try {
+      const target = researchTargetFromContextKey(key);
+      if (target) return await this.restoreTarget(target, page, annotationId);
+      if (key === RESEARCH_LIBRARY_KEY) return await this.contextPresentation?.openLibrary(false);
+      this.navigateContext(key);
+    } catch (error) {
+      this.activateContext(RESEARCH_PREVIEW_KEY);
+      this.presentBoundContext();
+      this.routeCoordinator?.presentNotice(error instanceof Error ? error.message : "Could not restore that context");
+    }
   }
 
   openProjectAnnotation(annotationId: string, edit = false): void {

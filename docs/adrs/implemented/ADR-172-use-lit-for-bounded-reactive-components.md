@@ -154,9 +154,12 @@ The adopted components own bounded presentation:
   routes a unique linked PDF and locator page or publication, and dispatches
   grouped and missing-citation notices through its existing workspace binding;
   tab reconciliation remains coordinator navigation policy. When restoring a
-  supplied resource route, it also resolves the matching canonical publication,
-  project PDF, private-Library PDF, linked reference PDF, or candidate and emits
-  the typed open effect. Project-map navigation reuses those catalog lookups,
+  supplied context route, it activates a safe Preview baseline, resolves fixed
+  contexts or the matching canonical publication, project PDF, private-Library
+  PDF, linked reference PDF, or candidate, emits the typed open effect, and
+  returns to Preview with a notice after failures. URL parsing and browser-
+  history mutation remain application-coordinator policy. Project-map
+  navigation reuses those catalog lookups,
   while annotation edit/open intents resolve to the canonical annotation and
   its project PDF and active note intents resolve to bounded notice text from
   canonical project shares. Typed publication-paper choices dispatch through those same

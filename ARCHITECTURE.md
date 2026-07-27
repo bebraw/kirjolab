@@ -1022,6 +1022,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   activate, close, authorization-reconciliation, and PDF-location transitions,
   restores resource scroll, and projects bound viewer state back into canonical
   fixed-tab scroll, resource scroll, PDF page, and focused-annotation state. It
+  also restores a routed fixed or resource context against those authorized
+  catalogs and owns Preview fallback plus notice presentation when restoration
+  fails; URL parsing and browser-history mutation remain coordinator policy. It
   projects page changes into canonical PDF context and page-local private
   markup state while returning route identities to the coordinator;
   coordinates project citation and intake context,

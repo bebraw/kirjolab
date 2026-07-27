@@ -43,8 +43,8 @@ import {
 } from "./offline-workspace";
 import { PdfEvidenceViewer } from "./pdf-viewer";
 import { bindThemePreference } from "./theme";
-import { RESEARCH_ASSISTANT_KEY, RESEARCH_LIBRARY_KEY, RESEARCH_PREVIEW_KEY, type ResearchContextKey } from "./research-context";
-import { readWorkspaceUiRoute, researchTargetFromContextKey, workspaceUiRouteSelection, workspaceUiRouteUrl } from "./workspace-ui-route";
+import { RESEARCH_ASSISTANT_KEY, RESEARCH_LIBRARY_KEY, RESEARCH_PREVIEW_KEY } from "./research-context";
+import { readWorkspaceUiRoute, workspaceUiRouteSelection, workspaceUiRouteUrl } from "./workspace-ui-route";
 import "./workspace-rail-tabs";
 import "./authoring-mode-tabs";
 import type { EditorPresenceRange } from "./editor-presence";
@@ -462,7 +462,7 @@ class WorkspaceApp {
     this.#elements.contextResourcePresenter.bindContext({
       activateSurface: () => this.#elements.workspaceSurfaceSwitcher.navigate("context", false),
       citationAvailable: () => this.#resolvedAuthoringCaret() !== null,
-      openLibrary: () => this.#openReferenceLibrary(),
+      openLibrary: (updateHistory) => this.#openReferenceLibrary(updateHistory),
       replaceStandaloneLibraryRoute: () => history.replaceState({ view: "library" }, "", "/library"),
       restorePaneWidth: () => this.#layout.restorePaneWidth(),
       sources: () => ({
@@ -564,29 +564,12 @@ class WorkspaceApp {
     if (url.searchParams.has("rail")) this.#elements.workspaceRailTabs.navigate(route.rail);
     if (url.searchParams.has("mode")) this.#elements.authoringModeTabs.navigate(route.mode);
     if (route.fileId) this.#elements.projectFileDialog.selectFile(route.fileId);
-    if (url.searchParams.has("context")) await this.#restoreWorkspaceContext(route);
+    if (url.searchParams.has("context"))
+      await this.#elements.contextResourcePresenter.restoreContext(route.contextKey, route.page, route.annotationId);
     if (route.layout) await this.#elements.workspaceLayout.navigate(route.layout, false);
     if (url.searchParams.has("surface")) this.#elements.workspaceSurfaceSwitcher.navigate(route.surface);
     this.#workspaceRouteReady = true;
     this.#syncWorkspaceRoute("replace");
-  }
-
-  async #restoreWorkspaceContext(route: ReturnType<typeof readWorkspaceUiRoute>): Promise<void> {
-    this.#elements.contextResourcePresenter.activateContext(RESEARCH_PREVIEW_KEY);
-    try {
-      const target = researchTargetFromContextKey(route.contextKey);
-      if (!target) return await this.#restoreGeneralResearchContext(route.contextKey);
-      await this.#elements.contextResourcePresenter.restoreTarget(target, route.page, route.annotationId);
-    } catch (error) {
-      this.#elements.contextResourcePresenter.activateContext(RESEARCH_PREVIEW_KEY);
-      this.#elements.contextResourcePresenter.presentBoundContext();
-      this.#showToast(error instanceof Error ? error.message : "Could not restore that context");
-    }
-  }
-
-  async #restoreGeneralResearchContext(contextKey: ResearchContextKey): Promise<void> {
-    if (contextKey === RESEARCH_LIBRARY_KEY) return await this.#openReferenceLibrary(false);
-    this.#elements.contextResourcePresenter.navigateContext(contextKey);
   }
 
   #syncWorkspaceRoute(mode: "push" | "replace"): void {
