@@ -102,10 +102,15 @@ export interface AssistantResultCallbacks {
   readonly applyTable: (target: AssistantAuthoringPassage, insertion: string) => void;
   readonly clarityState: () => "busy" | "ready" | "stale";
   readonly completeClarity: () => void;
+  readonly completeRevision: () => void;
   readonly failClarity: (message: string) => void;
-  readonly handleAction: (detail: Extract<AssistantResultActionDetail, { readonly action: "choose-revision" }>) => void;
+  readonly failRevision: (message: string) => void;
+  readonly openRevisionCandidate: (candidate: ModelCandidate) => Promise<void>;
   readonly refreshLibrary: () => Promise<void>;
+  readonly refreshRevisionAvailability: () => void;
+  readonly revisionReviewing: () => boolean;
   readonly startClarity: () => void;
+  readonly startRevision: () => void;
   readonly tableState: () => {
     readonly reviewing: boolean;
     readonly revision: number;
@@ -216,7 +221,7 @@ export class AssistantGenerationPresenter extends LitElement {
       if (detail.action === "continue-clarity") {
         void this.continueClarity(result, status, detail, callbacks);
       } else if (detail.action === "insert-table") this.insertTable(status, detail.context, detail.markdown, callbacks);
-      else callbacks.handleAction(detail);
+      else void this.chooseRevision(status, detail, callbacks);
     });
     result?.addEventListener(assistantReferenceRefreshEvent, (event) => {
       const detail = (event as CustomEvent<AssistantReferenceRefresh>).detail;
@@ -230,6 +235,37 @@ export class AssistantGenerationPresenter extends LitElement {
         })
         .finally(() => result.completeReferenceSave(detail.index, detail.requestId));
     });
+  }
+
+  private async chooseRevision(
+    status: AssistantWorkflowStatus | null,
+    detail: Extract<AssistantResultActionDetail, { readonly action: "choose-revision" }>,
+    callbacks: AssistantResultCallbacks,
+  ): Promise<void> {
+    if (!callbacks.revisionReviewing()) return;
+    callbacks.startRevision();
+    callbacks.refreshRevisionAvailability();
+    try {
+      const { choice, context } = detail;
+      const candidate = await this.createRevisionCandidate({
+        evidence: context.evidence.references,
+        instruction: choice.instruction,
+        model: choice.model,
+        passage: context.passage,
+        providerLabel: choice.providerLabel,
+        replacement: choice.replacement,
+        sourceRevision: context.sourceRevision,
+      });
+      await callbacks.openRevisionCandidate(candidate);
+      if (status) status.status = choice.successMessage;
+      callbacks.completeRevision();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : detail.choice.failureMessage;
+      if (status) status.status = message;
+      callbacks.failRevision(message);
+    } finally {
+      callbacks.refreshRevisionAvailability();
+    }
   }
 
   private insertTable(

@@ -1,5 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { AssistantGenerationPresenter, type AssistantGenerationInput } from "./assistant-generation-presenter";
+import {
+  AssistantGenerationPresenter,
+  type AssistantGenerationInput,
+  type AssistantResultCallbacks,
+} from "./assistant-generation-presenter";
 import { assistantOperationDefinition } from "./assistant-operations";
 import { AssistantResultPanel, assistantReferenceRefreshEvent, assistantResultActionEvent } from "./assistant-result-panel";
 import { AssistantTaskPanel, assistantTaskChangeEvent, assistantTaskGenerateEvent } from "./assistant-task-panel";
@@ -122,6 +126,25 @@ function setup() {
     value: { getElementById: (id: string) => elements[id as keyof typeof elements] ?? null },
   });
   return { elements, presenter };
+}
+
+function resultCallbacks(overrides: Partial<AssistantResultCallbacks> = {}): AssistantResultCallbacks {
+  return {
+    applyTable: vi.fn(),
+    clarityState: () => "ready",
+    completeClarity: vi.fn(),
+    completeRevision: vi.fn(),
+    failClarity: vi.fn(),
+    failRevision: vi.fn(),
+    openRevisionCandidate: vi.fn().mockResolvedValue(undefined),
+    refreshLibrary: vi.fn().mockResolvedValue(undefined),
+    refreshRevisionAvailability: vi.fn(),
+    revisionReviewing: () => true,
+    startClarity: vi.fn(),
+    startRevision: vi.fn(),
+    tableState: () => ({ reviewing: true, revision: 7, source: `x${passage.excerpt}`, stableDocument: true }),
+    ...overrides,
+  };
 }
 
 describe("assistant generation presenter", () => {
@@ -420,7 +443,6 @@ describe("assistant generation presenter", () => {
   it("owns transient result and reference-refresh wiring", async () => {
     const { elements, presenter } = setup();
     const result = elements["assistant-interactive-result"];
-    const handleAction = vi.fn();
     const applyTable = vi.fn();
     const refreshLibrary = vi.fn().mockResolvedValueOnce(undefined).mockRejectedValueOnce(new Error("offline"));
     const completeReferenceSave = vi.spyOn(result, "completeReferenceSave").mockImplementation(() => undefined);
@@ -430,16 +452,7 @@ describe("assistant generation presenter", () => {
       source: `x${passage.excerpt}`,
       stableDocument: true,
     });
-    presenter.bindResults({
-      applyTable,
-      clarityState: () => "ready",
-      completeClarity: vi.fn(),
-      failClarity: vi.fn(),
-      handleAction,
-      refreshLibrary,
-      startClarity: vi.fn(),
-      tableState,
-    });
+    presenter.bindResults(resultCallbacks({ applyTable, refreshLibrary, tableState }));
     const action = { action: "insert-table", context: { sourceRevision: 7, target: passage }, markdown: "| Result |" } as const;
 
     result.dispatchEvent(new CustomEvent(assistantResultActionEvent, { detail: action }));
@@ -453,7 +466,6 @@ describe("assistant generation presenter", () => {
     await vi.waitFor(() => expect(completeReferenceSave).toHaveBeenCalledWith(3, 5));
 
     expect(applyTable).toHaveBeenCalledWith(passage, "\n\n| Result |\n");
-    expect(handleAction).not.toHaveBeenCalled();
     expect(refreshLibrary).toHaveBeenCalledTimes(2);
     expect(elements["assistant-workflow-status"].status).toBe("The reference was saved, but the refreshed Library could not be loaded.");
 
@@ -470,16 +482,7 @@ describe("assistant generation presenter", () => {
     const failClarity = vi.fn();
     const startClarity = vi.fn();
     const completeClarityDrill = vi.spyOn(result, "completeClarityDrill").mockResolvedValue();
-    presenter.bindResults({
-      applyTable: vi.fn(),
-      clarityState,
-      completeClarity,
-      failClarity,
-      handleAction: vi.fn(),
-      refreshLibrary: vi.fn().mockResolvedValue(undefined),
-      startClarity,
-      tableState: () => ({ reviewing: true, revision: 7, source: passage.excerpt, stableDocument: true }),
-    });
+    presenter.bindResults(resultCallbacks({ clarityState, completeClarity, failClarity, startClarity }));
     const context = {
       evidence: { items: [], references: [] },
       instruction: "Clarify",
@@ -526,6 +529,55 @@ describe("assistant generation presenter", () => {
     expect(elements["assistant-workflow-status"].status).toBe(failure.message);
     expect(startClarity).toHaveBeenCalledTimes(2);
     expect(completeClarity).toHaveBeenCalledOnce();
+  });
+
+  it("owns promoted revision workflow and status", async () => {
+    const { elements, presenter } = setup();
+    const completeRevision = vi.fn();
+    const failRevision = vi.fn();
+    const openRevisionCandidate = vi.fn().mockResolvedValue(undefined);
+    const refreshRevisionAvailability = vi.fn();
+    const startRevision = vi.fn();
+    const createRevisionCandidate = vi.spyOn(presenter, "createRevisionCandidate").mockResolvedValueOnce(revisionCandidate);
+    presenter.bindResults(
+      resultCallbacks({
+        completeRevision,
+        failRevision,
+        openRevisionCandidate,
+        refreshRevisionAvailability,
+        startRevision,
+      }),
+    );
+    const detail = {
+      action: "choose-revision",
+      choice: {
+        failureMessage: "Could not save revision",
+        instruction: "Clarify",
+        model: "local-model",
+        providerLabel: "Local",
+        replacement: "Revised passage",
+        successMessage: "Revision ready.",
+      },
+      context: {
+        evidence: { items: [], references: [] },
+        instruction: "Clarify",
+        passage,
+        sourceRevision: 7,
+      },
+    } as const;
+
+    elements["assistant-interactive-result"].dispatchEvent(new CustomEvent(assistantResultActionEvent, { detail }));
+    await vi.waitFor(() => expect(completeRevision).toHaveBeenCalledOnce());
+    expect(openRevisionCandidate).toHaveBeenCalledWith(revisionCandidate);
+    expect(elements["assistant-workflow-status"].status).toBe("Revision ready.");
+
+    const failure = new Error("offline");
+    createRevisionCandidate.mockRejectedValueOnce(failure);
+    elements["assistant-interactive-result"].dispatchEvent(new CustomEvent(assistantResultActionEvent, { detail }));
+    await vi.waitFor(() => expect(failRevision).toHaveBeenCalledWith(failure.message));
+    expect(elements["assistant-workflow-status"].status).toBe(failure.message);
+    expect(startRevision).toHaveBeenCalledTimes(2);
+    expect(refreshRevisionAvailability).toHaveBeenCalledTimes(4);
   });
 
   it("owns candidate decision and evidence wiring", () => {

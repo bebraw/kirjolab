@@ -6196,6 +6196,32 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,647 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Promoted Revision Continuation
+
+`AssistantGenerationPresenter` now intercepts promoted-revision actions and
+owns review-state gating, typed candidate-request adaptation, persistence and
+canonical-open sequencing, success/failure status, and availability refresh
+timing. `WorkspaceApp` retains XState transitions plus canonical refresh and
+Context opening through narrow callbacks; it no longer routes any assistant
+result action or writes assistant result status directly.
+
+This checkpoint reduces `src/client/app.ts` from 2,810 to 2,775 lines (-35)
+and grows the generation presenter from 512 to 548 lines. Runtime source across
+those two files grows by one line while deleting the coordinator promoted-
+revision workflow method, its local input/choice contracts, the final assistant-
+result type import, and all remaining direct assistant-status mutations.
+Fourteen direct presenter cases cover promoted-revision review gating,
+persistence, canonical opening, success, provider failure, and all preceding
+assistant routes under strict client and Workers types.
+
+The browser application artifact changes from 835,283 B raw / 225,784 B gzip
+to 835,520 B raw / 225,826 B gzip (+237 B raw / +42 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,648 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

@@ -123,7 +123,10 @@ The adopted components own bounded presentation:
   refresh. It owns captured-table validation against workflow, document
   stability, revision, and exact target text plus portable insertion spacing
   and status while the coordinator retains authorized XState, Yjs, editor-
-  selection, and remembered-selection mutation.
+  selection, and remembered-selection mutation. It owns promoted-revision
+  review gating, candidate persistence and opening sequence, success/failure
+  status, and availability timing while the coordinator retains XState
+  transitions and canonical refresh/context opening.
 - The project map panel owns provenance-lane rendering, measured SVG connector
   geometry, responsive relayout, focus and hover emphasis, and a typed resource
   selection intent.

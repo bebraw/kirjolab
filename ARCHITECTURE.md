@@ -386,7 +386,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   through typed callbacks. It also owns captured-table validation against
   workflow, document stability, revision, and exact target text plus portable
   insertion spacing and status; the coordinator retains the authorized XState,
-  Yjs, editor-selection, and remembered-selection mutation.
+  Yjs, editor-selection, and remembered-selection mutation. It owns promoted-
+  revision review gating, candidate persistence sequencing, candidate-open
+  sequencing, success/failure status, and availability timing while the
+  coordinator retains XState transitions and canonical refresh/context opening.
   Let the candidate-review Lit owner resolve the active candidate id against
   the canonical workspace snapshot and derive evidence availability and local
   applicability from candidate, evidence-version, source-revision,

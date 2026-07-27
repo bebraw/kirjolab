@@ -64,7 +64,10 @@ All mutation operations preserve a human review boundary.
   XState transitions and canonical candidate refresh. It validates captured
   table targets against workflow, document stability, revision, and exact text,
   derives portable insertion spacing, and projects result status while the
-  application retains the authorized XState/Yjs/editor mutation.
+  application retains the authorized XState/Yjs/editor mutation. It owns
+  promoted-revision review gating, candidate persistence and opening sequence,
+  success/failure status, and availability timing while the application retains
+  XState transitions and canonical refresh/context opening.
 - A non-empty manuscript selection always resolves exactly. Otherwise the
   remembered Yjs-relative caret expands deterministically to the configured
   sentence, paragraph, or Markdown section, or remains an insertion point.

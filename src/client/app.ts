@@ -74,10 +74,7 @@ import {
   type WritingWorkflowActionDetail,
 } from "./writing-workflow-panel";
 import { researchDiaryOpenEvent } from "./research-diary-summary";
-import {
-  type AssistantAuthoringPassage as AuthoringPassage,
-  type AssistantRevisionContext as AssistantDraftContext,
-} from "./assistant-result-panel";
+import { type AssistantAuthoringPassage as AuthoringPassage } from "./assistant-result-panel";
 import { type CandidateDecisionOutcome, type CandidateDecisionRequest } from "./candidate-review-panel";
 import { publicationContextActionEvent, type PublicationContextAction, type PublicationPaperOption } from "./publication-context-panel";
 import {
@@ -822,16 +819,21 @@ class WorkspaceApp {
         this.#assistantWorkflow.send({ type: "REVIEW" });
         this.#updateModelAvailability();
       },
+      completeRevision: () => this.#assistantWorkflow.send({ type: "COMPLETE" }),
       failClarity: (message) => {
         this.#assistantWorkflow.send({ type: "FAIL", message });
         this.#updateModelAvailability();
       },
-      handleAction: (detail) => void this.#chooseAssistantRevision(detail.context, detail.choice),
+      failRevision: (message) => this.#assistantWorkflow.send({ type: "FAIL", message }),
+      openRevisionCandidate: async (candidate) => await this.#openCreatedCandidate(candidate),
       refreshLibrary: async () => await this.#refreshReferenceLibrary(),
+      refreshRevisionAvailability: () => this.#updateModelAvailability(),
+      revisionReviewing: () => this.#assistantWorkflow.getSnapshot().matches("reviewing"),
       startClarity: () => {
         this.#assistantWorkflow.send({ type: "CONTINUE" });
         this.#updateModelAvailability();
       },
+      startRevision: () => this.#assistantWorkflow.send({ type: "CONTINUE" }),
       tableState: () => ({
         reviewing: this.#assistantWorkflow.getSnapshot().matches("reviewing"),
         revision: this.#revision,
@@ -2295,43 +2297,6 @@ class WorkspaceApp {
     this.#elements.source.focus();
     this.#elements.source.setSelectionRange(caret, caret);
     this.#rememberAuthoringSelection();
-  }
-
-  async #chooseAssistantRevision(
-    input: Pick<AssistantDraftContext, "passage" | "evidence" | "sourceRevision">,
-    choice: {
-      readonly instruction: string;
-      readonly replacement: string;
-      readonly providerLabel: string;
-      readonly model: string;
-      readonly successMessage: string;
-      readonly failureMessage: string;
-    },
-  ): Promise<void> {
-    if (!this.#assistantWorkflow.getSnapshot().matches("reviewing")) return;
-    this.#assistantWorkflow.send({ type: "CONTINUE" });
-    this.#updateModelAvailability();
-    try {
-      await this.#openCreatedCandidate(
-        await this.#elements.assistantGenerationPresenter.createRevisionCandidate({
-          passage: input.passage,
-          evidence: input.evidence.references,
-          instruction: choice.instruction,
-          sourceRevision: input.sourceRevision,
-          replacement: choice.replacement,
-          providerLabel: choice.providerLabel,
-          model: choice.model,
-        }),
-      );
-      this.#elements.assistantWorkflowStatus.status = choice.successMessage;
-      this.#assistantWorkflow.send({ type: "COMPLETE" });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : choice.failureMessage;
-      this.#assistantWorkflow.send({ type: "FAIL", message });
-      this.#elements.assistantWorkflowStatus.status = message;
-    } finally {
-      this.#updateModelAvailability();
-    }
   }
 
   async #openCreatedCandidate(value: ModelCandidate): Promise<void> {
