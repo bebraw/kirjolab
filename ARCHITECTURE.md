@@ -145,10 +145,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   preview inputs. Let the light-DOM workspace Preview own lazy renderer loading,
   stale-render rejection, rendered or escaped-source presentation, renderer
   diagnostics, isolated-file heading-number mapping, authorized local-image
-  resolution, transient DOM navigation, interactive-click classification,
+  resolution, publication composition and active-file preview derivation from
+  supplied canonical project files, transient DOM navigation, interactive-click classification,
   source-offset extraction, and routing of its source, citation, and nested
   diagnostic-selection intents through one typed navigation boundary. Keep
-  project composition, Yjs source authority, source-map translation, cross-
+  canonical project-file and Yjs source authority, source-map translation, cross-
   panel projection, publication resolution, citation navigation, and resulting
   transitions in the application coordinator.
 - Keep the DOI publication-intake XState actor, preview and acceptance

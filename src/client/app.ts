@@ -9,11 +9,9 @@ import { resolveWorkspaceSnapshotAnchors } from "../domain/workspace-anchor-proj
 import {
   composeProject,
   projectFileCollaborationTextName,
-  previewProjectFile,
   relativeProjectPath,
   type ProjectComposition,
   type ProjectFile,
-  type ProjectFilePreview,
 } from "../domain/project-files";
 import { publicationWordStatistics } from "../domain/publication-statistics";
 import { researchQuestionsPath, researchQuestionsTemplate } from "../domain/research-questions";
@@ -100,13 +98,6 @@ import "./workspace-rail-tabs";
 import "./authoring-mode-tabs";
 import type { EditorPresenceRange } from "./editor-presence";
 import { bindYText, captureRelativeSelection, type RelativeEditorSelection } from "./source-editor-adapter";
-
-interface PreviewInputs {
-  readonly files: readonly ProjectFile[];
-  readonly publicationComposition: ProjectComposition | null;
-  readonly filePreview: ProjectFilePreview | null;
-  readonly renderedSource: string;
-}
 
 const workspaceId = readWorkspaceId();
 const identityEmail = readIdentityEmail();
@@ -858,46 +849,29 @@ class WorkspaceApp {
   }
 
   async #renderPreview(bibliography = this.#bibliography.toString()): Promise<void> {
-    const inputs = this.#previewInputs();
-    this.#preparePreviewContext(inputs);
-    const outcome = await this.#elements.workspacePreview.renderDocument({
+    const files = this.#previewProjectFiles();
+    const outcome = await this.#elements.workspacePreview.renderProject({
+      activeFileId: this.#activeFileId,
       apiBase,
       bibliography,
-      filePreview: inputs.filePreview,
+      fallbackSource: this.#source.toString(),
+      files,
       hiddenAssetIds: this.#elements.projectTreePanel.hiddenAssets,
-      publicationComposition: inputs.publicationComposition,
-      renderedSource: inputs.renderedSource,
       snapshot: this.#snapshot,
     });
     if (!outcome) return;
+    this.#renderManuscriptMap(outcome.publicationComposition?.content ?? outcome.renderedSource);
+    this.#elements.previewContextControls.setFile(outcome.filePreview);
+    if (outcome.publicationComposition && this.#snapshot) {
+      this.#elements.exportDialog.setStatistics(publicationWordStatistics(outcome.publicationComposition, files));
+    }
     if (!outcome.available) {
       this.#elements.previewContextControls.showUnavailable();
       return;
     }
-    this.#elements.previewSyncControls.setSourceMap(inputs.filePreview?.sourceMap ?? []);
-    this.#elements.previewContextControls.setDiagnostics(outcome.diagnostics, inputs.filePreview);
-    this.#renderPreviewWorkspaceContext(inputs.publicationComposition, bibliography);
-  }
-
-  #previewInputs(): PreviewInputs {
-    const files = this.#previewProjectFiles();
-    const publicationComposition = this.#snapshot
-      ? composeProject(files, this.#snapshot.entryFileId, {}, this.#snapshot.reviewArtifactPins)
-      : null;
-    const filePreview = this.#snapshot
-      ? previewProjectFile(files, this.#snapshot.entryFileId, this.#activeFileId, this.#snapshot.reviewArtifactPins)
-      : null;
-    const renderedSource = filePreview?.content ?? this.#source.toString();
-    return { files, publicationComposition, filePreview, renderedSource };
-  }
-
-  #preparePreviewContext(inputs: PreviewInputs): void {
-    this.#renderManuscriptMap(inputs.publicationComposition?.content ?? inputs.renderedSource);
-    const { filePreview, publicationComposition } = inputs;
-    this.#elements.previewContextControls.setFile(filePreview);
-    if (publicationComposition && this.#snapshot) {
-      this.#elements.exportDialog.setStatistics(publicationWordStatistics(publicationComposition, inputs.files));
-    }
+    this.#elements.previewSyncControls.setSourceMap(outcome.filePreview?.sourceMap ?? []);
+    this.#elements.previewContextControls.setDiagnostics(outcome.diagnostics, outcome.filePreview);
+    this.#renderPreviewWorkspaceContext(outcome.publicationComposition, bibliography);
   }
 
   #renderPreviewWorkspaceContext(publicationComposition: ProjectComposition | null, bibliography: string): void {

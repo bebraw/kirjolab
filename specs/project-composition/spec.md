@@ -54,6 +54,11 @@ collaborative, and unambiguous about what preview and export mean.
   bounded list. Diagnostic selection emits a file-qualified authored range
   resolved from the active preview source map; the workspace coordinator owns
   file switching and editor focus.
+- The workspace Preview derives publication composition, active-file preview,
+  rendered fallback source, and the active source map from coordinator-supplied
+  canonical project files, snapshot pins, and active-file identity before
+  invoking its renderer. The coordinator retains canonical Yjs/project-file
+  authority and cross-panel consequences.
 - The bounded Preview status owner derives composed-versus-isolated file labels
   and the combined composition and Markdown-renderer issue count from canonical
   preview and diagnostic inputs. It also owns the unavailable summary; the

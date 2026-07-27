@@ -1,7 +1,15 @@
 import { html, LitElement, type TemplateResult } from "lit";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import type { Diagnostic } from "../domain/markdown";
-import { resolveProjectPath, type CompositionSourceSpan, type ProjectComposition, type ProjectFilePreview } from "../domain/project-files";
+import {
+  composeProject,
+  previewProjectFile,
+  resolveProjectPath,
+  type CompositionSourceSpan,
+  type ProjectComposition,
+  type ProjectFile,
+  type ProjectFilePreview,
+} from "../domain/project-files";
 import type { WorkspaceSnapshot } from "../domain/workspace";
 import { sourceSpanAt } from "./composition-source-map";
 import { parseCitationKeys, type CitationContext } from "./citations";
@@ -27,6 +35,24 @@ export interface WorkspacePreviewRequest {
 export type WorkspacePreviewOutcome =
   | { readonly available: false }
   | { readonly available: true; readonly diagnostics: readonly Diagnostic[] };
+
+export interface ProjectPreviewRequest {
+  readonly activeFileId: string | null;
+  readonly apiBase: string;
+  readonly bibliography: string;
+  readonly fallbackSource: string;
+  readonly files: readonly ProjectFile[];
+  readonly hiddenAssetIds: ReadonlySet<string>;
+  readonly snapshot: WorkspaceSnapshot | null;
+}
+
+export interface ProjectPreviewOutcome {
+  readonly available: boolean;
+  readonly diagnostics: readonly Diagnostic[];
+  readonly filePreview: ProjectFilePreview | null;
+  readonly publicationComposition: ProjectComposition | null;
+  readonly renderedSource: string;
+}
 
 export interface WorkspacePreviewNavigationCallbacks {
   readonly openCitation: (citation: CitationContext) => void;
@@ -130,6 +156,33 @@ export class WorkspacePreview extends LitElement {
     }
     this.diagnostics.setDiagnostics(rendered.diagnostics, request.filePreview);
     return { available: true, diagnostics: rendered.diagnostics };
+  }
+
+  async renderProject(request: ProjectPreviewRequest): Promise<ProjectPreviewOutcome | null> {
+    const snapshot = request.snapshot;
+    const publicationComposition = snapshot ? composeProject(request.files, snapshot.entryFileId, {}, snapshot.reviewArtifactPins) : null;
+    const filePreview = snapshot
+      ? previewProjectFile(request.files, snapshot.entryFileId, request.activeFileId, snapshot.reviewArtifactPins)
+      : null;
+    const renderedSource = filePreview?.content ?? request.fallbackSource;
+    const outcome = await this.renderDocument({
+      apiBase: request.apiBase,
+      bibliography: request.bibliography,
+      filePreview,
+      hiddenAssetIds: request.hiddenAssetIds,
+      publicationComposition,
+      renderedSource,
+      snapshot,
+    });
+    return outcome
+      ? {
+          available: outcome.available,
+          diagnostics: outcome.available ? outcome.diagnostics : [],
+          filePreview,
+          publicationComposition,
+          renderedSource,
+        }
+      : null;
   }
 
   centeredSourceOffset(): number | null {

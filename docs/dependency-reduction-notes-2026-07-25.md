@@ -7451,6 +7451,29 @@ gzip, 18, and 150.
 Full native CI passes all 1,694 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Preview Input Composition
+
+`WorkspacePreview` now derives publication composition, active-file preview,
+rendered fallback source, and source-map inputs from canonical project files,
+snapshot pins, and active-file identity before invoking its existing Markdown
+renderer. `WorkspaceApp` retains canonical Yjs/file authority, manuscript-map
+and export projection, knowledge-graph refresh, and navigation consequences.
+
+This checkpoint reduces `src/client/app.ts` from 1,950 to 1,924 lines (-26) and
+grows the workspace Preview from 301 to 354 lines (+53). Runtime source across
+those two files increases by 27 lines while deleting the coordinator's preview
+input type, composition method, and preparation method. Focused coverage
+exercises canonical publication composition, active-file preview derivation,
+live file content, existing rendering, application contracts, and strict types.
+
+The browser application artifact changes from 843,577 B raw / 228,067 B gzip
+to 843,753 B raw / 228,130 B gzip (+176 B raw / +63 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,695 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

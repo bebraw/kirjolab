@@ -87,6 +87,31 @@ describe("workspace preview", () => {
     expect(preview.renderForTest()).toBeDefined();
   });
 
+  it("derives project and active-file preview inputs before rendering", async () => {
+    const preview = new TestWorkspacePreview();
+    const files = workspaceSnapshotFixture.files.map((file) => ({ ...file, content: `${file.content}\nUpdated` }));
+    const renderDocument = vi.spyOn(preview, "renderDocument");
+
+    const outcome = await preview.renderProject({
+      activeFileId: workspaceSnapshotFixture.entryFileId,
+      apiBase: request.apiBase,
+      bibliography: "",
+      fallbackSource: "Fallback",
+      files,
+      hiddenAssetIds: new Set(),
+      snapshot: workspaceSnapshotFixture,
+    });
+
+    expect(renderDocument).toHaveBeenCalledWith(
+      expect.objectContaining({
+        filePreview: expect.objectContaining({ fileId: workspaceSnapshotFixture.entryFileId }),
+        publicationComposition: expect.objectContaining({ content: expect.stringContaining("Updated") }),
+        renderedSource: expect.stringContaining("Updated"),
+      }),
+    );
+    expect(outcome).toMatchObject({ available: true });
+  });
+
   it("shows source and a local diagnostic when the renderer is unavailable", async () => {
     const preview = new TestWorkspacePreview();
     preview.runtime = Promise.reject(new Error("Renderer unavailable"));
