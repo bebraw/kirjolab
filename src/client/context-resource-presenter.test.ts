@@ -595,6 +595,47 @@ describe("context resource presenter", () => {
     expect(restoreTarget).toHaveBeenCalledWith({ kind: "publication", id: "publication-1" });
   });
 
+  it("owns claim and publication routes across its composed Lit resources", () => {
+    const { elements, presenter, routes } = setup();
+    const claimBind = vi.spyOn(elements["claim-list-panel"], "bind");
+    const contextBind = vi.spyOn(elements["publication-context-panel"], "bind");
+    const listBind = vi.spyOn(elements["publication-list-panel"], "bind");
+    const revealAnnotation = vi.spyOn(elements["project-evidence-panel"], "revealAnnotation").mockReturnValue(true);
+    const insertActiveCitation = vi.spyOn(presenter, "insertActiveCitation").mockImplementation(() => undefined);
+    const openPublicationPaper = vi.spyOn(presenter, "openPublicationPaper").mockResolvedValue(undefined);
+    const claimCoordinator = { completeMutation: vi.fn(), linkPassage: vi.fn(), openPassage: vi.fn() };
+    const contextCoordinator = { papersChanged: vi.fn() };
+    const listCoordinator = { enriched: vi.fn(), manage: vi.fn() };
+    const publication = {
+      abstract: "",
+      authors: ["Ada Author"],
+      citationKey: "Author2026",
+      createdAt: "created",
+      doi: "",
+      id: "publication-1",
+      metadataSource: "crossref" as const,
+      title: "Route source",
+      type: "article",
+      updatedAt: "updated",
+      url: "",
+      venue: "Journal",
+      year: "2026",
+    };
+
+    presenter.bindClaimList("/api/workspaces/workspace", claimCoordinator);
+    presenter.bindPublicationContext("/api/workspaces/workspace", contextCoordinator);
+    presenter.bindPublicationList("/api/workspaces/workspace", listCoordinator);
+    claimBind.mock.calls[0]?.[0].openAnnotation("annotation-1");
+    contextBind.mock.calls[0]?.[0].insertCitation();
+    contextBind.mock.calls[0]?.[0].openPaper({ kind: "reference", pdf: referencePdf });
+    listBind.mock.calls[0]?.[0].open(publication);
+
+    expect(revealAnnotation).toHaveBeenCalledWith("annotation-1");
+    expect(insertActiveCitation).toHaveBeenCalledOnce();
+    expect(openPublicationPaper).toHaveBeenCalledWith({ kind: "reference", pdf: referencePdf });
+    expect(routes.openPublication).toHaveBeenCalledWith(publication);
+  });
+
   it("derives research-context authorization from canonical resources", () => {
     const { presenter } = setup();
 

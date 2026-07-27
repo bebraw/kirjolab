@@ -1014,7 +1014,12 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   panel and own annotation-form cleanup and selection, edit and PDF routes,
   fragment-removal refresh sequencing, and notice dispatch. Only mutation
   completion policy, canonical refresh transport, passage linking, and passage
-  navigation cross to the application coordinator. Keep tab state, canonical snapshot acceptance,
+  navigation cross to the application coordinator. Let the presenter configure
+  the claim list and publication list/context panels, route claim annotations to
+  evidence, publication opening to canonical context, and citation and paper
+  intents across its composed Lit owners. Keep claim/publication mutation
+  consequences, passage effects, and Library management in the coordinator.
+  Keep tab state, canonical snapshot acceptance,
   Yjs citation syntax insertion, cross-resource navigation, routing, project-selection
   persistence, remaining viewer gestures, and the shared notification outlet
   in the application coordinator through narrow callbacks.

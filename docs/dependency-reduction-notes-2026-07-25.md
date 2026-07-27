@@ -8563,6 +8563,29 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,709 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Claim and Publication Routes
+
+`ContextResourcePresenter` now configures the claim list and publication
+list/context panels. It routes claim annotations to project evidence,
+publication opening to canonical context, and citation and paper intents among
+the Lit owners it already composes. `WorkspaceApp` retains claim/publication
+mutation consequences, manuscript-passage effects, Library entry management,
+and refresh policy.
+
+This checkpoint reduces `src/client/app.ts` from 1,407 to 1,400 lines (-7) and
+grows the context-resource presenter from 938 to 969 lines (+31). Focused
+coverage passes all 52 context-resource, claim-list, publication-list, and
+publication-context cases, including configuration, sibling routes, retained
+coordinator callbacks, application contracts, and strict types.
+
+The browser application artifact changes from 846,916 B raw / 228,562 B gzip
+to 847,153 B raw / 228,597 B gzip (+237 B raw / +35 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,710 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

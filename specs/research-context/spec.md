@@ -221,7 +221,11 @@ changing their canonical data, selector, authorization, or rendering contracts.
   panel and owns annotation-form cleanup and selection, edit and PDF routes,
   fragment-removal refresh sequencing, and notice dispatch. Mutation completion
   policy, refresh transport, passage linking, and passage navigation remain in
-  the application coordinator.
+  the application coordinator. The presenter configures the claim list and
+  publication list/context panels and routes claim annotations, publication
+  context, citation insertion, and paper opening among its composed Lit owners.
+  Mutation consequences, passage effects, and Library management remain in the
+  application coordinator.
   Typed publication-paper choices dispatch through the same
   project, private-Library, and shared-reference PDF routes. The presenter also
   derives active-publication citation readiness and maps explicit active

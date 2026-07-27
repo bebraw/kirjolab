@@ -15,7 +15,7 @@ import { AssistantWorkflowStatus } from "./assistant-workflow-status";
 import { CandidateListPanel } from "./candidate-list-panel";
 import { CandidateReviewPanel } from "./candidate-review-panel";
 import { citationPageFromLocator, type CitationContext } from "./citations";
-import { ClaimListPanel } from "./claim-list-panel";
+import { ClaimListPanel, type ClaimListBinding } from "./claim-list-panel";
 import { ContextTabStrip } from "./context-tab-strip";
 import { expectOk } from "./http";
 import { LibraryPdfAnnotationToolbar } from "./library-pdf-annotation-toolbar";
@@ -34,8 +34,8 @@ import { ProjectAnnotationForm, type ProjectAnnotationCompletion } from "./proje
 import { ProjectEvidencePanel, type ProjectEvidenceBinding } from "./project-evidence-panel";
 import { ProjectMapWorkspace, type ProjectMapNavigation } from "./project-map-workspace";
 import { mutateProjectReference } from "./project-reference-mutation";
-import { PublicationContextPanel, type PublicationPaperOption } from "./publication-context-panel";
-import { PublicationListPanel } from "./publication-list-panel";
+import { PublicationContextPanel, type PublicationContextBinding, type PublicationPaperOption } from "./publication-context-panel";
+import { PublicationListPanel, type PublicationListBinding } from "./publication-list-panel";
 import {
   setPdfResearchLocation,
   setResearchTabScroll,
@@ -130,6 +130,7 @@ type ContextPdfViewer = Pick<
   Pick<PdfEvidenceViewer, "currentPage" | "focusedAnnotationId" | "open" | "showError" | "updateAnnotations" | "updatePrivateHighlights">;
 
 export type ProjectAnnotationCoordinatorCompletion = Omit<ProjectAnnotationCompletion, "clearDraftSelection">;
+export type ClaimListCoordinator = Omit<ClaimListBinding, "openAnnotation">;
 export interface ProjectEvidenceCoordinator {
   readonly completeMutation: (message: string, refreshFailure: string) => void;
   readonly linkAnnotation: ProjectEvidenceBinding["linkAnnotation"];
@@ -137,6 +138,8 @@ export interface ProjectEvidenceCoordinator {
   readonly refreshResources: () => Promise<void>;
 }
 export type ProjectMapCoordinator = Pick<ProjectMapNavigation, "document" | "person" | "project" | "section">;
+export type PublicationContextCoordinator = Pick<PublicationContextBinding, "papersChanged">;
+export type PublicationListCoordinator = Pick<PublicationListBinding, "enriched" | "manage">;
 
 export class ContextResourcePresenter extends LitElement {
   private currentActiveTab: ResearchResourceTab | undefined;
@@ -327,6 +330,15 @@ export class ContextResourcePresenter extends LitElement {
     });
   }
 
+  bindClaimList(apiBase: string, coordinator: ClaimListCoordinator): void {
+    const claims = this.element("claim-list-panel", ClaimListPanel);
+    claims?.configure(apiBase);
+    claims?.bind({
+      ...coordinator,
+      openAnnotation: (annotationId) => this.element("project-evidence-panel", ProjectEvidencePanel)?.revealAnnotation(annotationId),
+    });
+  }
+
   bindProjectEvidence(apiBase: string, coordinator: ProjectEvidenceCoordinator): void {
     const evidence = this.element("project-evidence-panel", ProjectEvidencePanel);
     evidence?.configure(apiBase);
@@ -364,6 +376,25 @@ export class ContextResourcePresenter extends LitElement {
       note: (id) => this.openProjectNote(id),
       pdf: (id) => void this.restoreTarget({ kind: "pdf", id }),
       publication: (id) => void this.restoreTarget({ kind: "publication", id }),
+    });
+  }
+
+  bindPublicationContext(apiBase: string, coordinator: PublicationContextCoordinator): void {
+    const publication = this.element("publication-context-panel", PublicationContextPanel);
+    publication?.configure(apiBase);
+    publication?.bind({
+      ...coordinator,
+      insertCitation: () => this.insertActiveCitation(),
+      openPaper: (paper) => void this.openPublicationPaper(paper),
+    });
+  }
+
+  bindPublicationList(apiBase: string, coordinator: PublicationListCoordinator): void {
+    const publications = this.element("publication-list-panel", PublicationListPanel);
+    publications?.configure(apiBase);
+    publications?.bind({
+      ...coordinator,
+      open: (publication) => this.routeCoordinator?.openPublication(publication),
     });
   }
 

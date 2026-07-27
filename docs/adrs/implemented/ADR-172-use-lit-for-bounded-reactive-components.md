@@ -183,7 +183,11 @@ The adopted components own bounded presentation:
   configure the project-evidence panel and own its annotation-form cleanup and
   selection, edit and PDF routes, fragment-removal refresh sequencing, and
   notice dispatch. Keep mutation completion policy, refresh transport, passage
-  linking, and passage navigation in the application coordinator. Through a
+  linking, and passage navigation in the application coordinator. Let it also
+  configure the claim list and publication list/context panels and route claim
+  annotations, publication context, citation insertion, and paper opening among
+  its composed Lit owners. Keep mutation consequences, passage effects, and
+  Library management in the application coordinator. Through a
   narrow viewer binding it derives
   authorized active-PDF loads, synchronizes project annotations and private
   highlights, rejects stale completions, retains rendered context and project-

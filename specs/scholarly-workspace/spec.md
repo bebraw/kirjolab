@@ -240,6 +240,12 @@ collaboration.
   assistant bindings retain Yjs selection stability, grounding authority,
   canonical refresh transport, passage linking and navigation, and mutation
   completion policy outside the panel.
+- **Claim and publication routes:** The enclosing resource presenter configures
+  the claim list and publication list/context panels and routes claim
+  annotations to project evidence, publication opening to canonical context,
+  and citation and linked-paper intents among its composed Lit owners. The
+  application coordinator retains mutation consequences, passage effects,
+  Library entry management, and refresh policy.
 - **Access control:** Verified Cloudflare Access identities or loopback-local
   identities resolve explicit owner/member roles before workspace state.
 - **Schema lifecycle:** Every SQLite-backed document, catalog, and access

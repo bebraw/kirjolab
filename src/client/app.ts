@@ -474,12 +474,10 @@ class WorkspaceApp {
         this.#elements.workspacePreview.scrollToAnchor(id);
       },
     });
-    this.#elements.publicationListPanel.configure(apiBase);
-    this.#elements.publicationListPanel.bind({
+    this.#elements.contextResourcePresenter.bindPublicationList(apiBase, {
       enriched: (message) =>
         this.#refreshResourcesWithNotice(message, "The reference was enriched, but project resources could not be refreshed."),
       manage: (publicationId) => void this.#openReferenceLibraryEntry(publicationId),
-      open: (publication) => this.#openPublicationContext(publication),
     });
     this.#elements.contextResourcePresenter.bindProjectAnnotationIntake(async () => await this.#resourceRefresh.request());
     this.#elements.contextResourcePresenter.bindProjectAnnotationWorkflow(async ({ linkAnnotationId, notice, refreshResources }) => {
@@ -518,12 +516,10 @@ class WorkspaceApp {
     this.#elements.libraryPdfInspector.bindProjectMutations(
       (message, snapshot) => void this.#completeLibraryProjectMutation(message, snapshot),
     );
-    this.#elements.claimListPanel.configure(apiBase);
-    this.#elements.claimListPanel.bind({
+    this.#elements.contextResourcePresenter.bindClaimList(apiBase, {
       completeMutation: (message) =>
         this.#refreshResourcesWithNotice(message, "The claim changed, but project resources could not be refreshed."),
       linkPassage: (claimId) => void this.#linkSelectedPassage("claim", claimId),
-      openAnnotation: (annotationId) => this.#elements.projectEvidencePanel.revealAnnotation(annotationId),
       openPassage: (anchor) => this.#showPassage(anchor),
     });
     this.#elements.workspaceSurfaceSwitcher.bindNavigation((surface) => this.#showWorkspaceSurface(surface));
@@ -539,10 +535,7 @@ class WorkspaceApp {
       showSource: (offset) => this.#syncSourceFromPreviewOffset(offset),
     });
     this.#elements.sourceCitationControl.bindNavigation((citation) => this.#openCitation(citation));
-    this.#elements.publicationContextPanel.configure(apiBase);
-    this.#elements.publicationContextPanel.bind({
-      insertCitation: () => this.#elements.contextResourcePresenter.insertActiveCitation(),
-      openPaper: (paper) => void this.#elements.contextResourcePresenter.openPublicationPaper(paper),
+    this.#elements.contextResourcePresenter.bindPublicationContext(apiBase, {
       papersChanged: (message) =>
         this.#refreshResourcesWithNotice(message, "The paper links changed, but project resources could not be refreshed."),
     });
