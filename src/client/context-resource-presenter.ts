@@ -30,7 +30,7 @@ import { libraryPdfInspectorCloseEvent } from "./library-pdf-inspector";
 import { libraryPdfMarkupActionEvent, type LibraryPdfMarkupAction } from "./library-pdf-markup-layer";
 import { libraryPdfToolbarActionEvent, type LibraryPdfToolbarAction } from "./library-pdf-annotation-toolbar";
 import { pdfHighlightImportOutcomeEvent, type PdfHighlightImportOutcome } from "./pdf-highlight-import-panel";
-import { ProjectAnnotationForm } from "./project-annotation-form";
+import { ProjectAnnotationForm, type ProjectAnnotationCompletion } from "./project-annotation-form";
 import { ProjectEvidencePanel } from "./project-evidence-panel";
 import { ProjectMapWorkspace } from "./project-map-workspace";
 import { mutateProjectReference } from "./project-reference-mutation";
@@ -128,8 +128,13 @@ export interface ContextViewerState {
   readonly renderedContextKey: ResearchContextTab["key"] | undefined;
 }
 
-type ContextPdfViewer = Pick<PdfEvidenceViewer, "clearDraftSelection" | "setPrivateHighlightSelection" | "setTextSelectionEnabled"> &
+type ContextPdfViewer = Pick<
+  PdfEvidenceViewer,
+  "clearDraftSelection" | "setPrivateHighlightSelection" | "setTextSelectionEnabled" | "setTool"
+> &
   Pick<PdfEvidenceViewer, "currentPage" | "focusedAnnotationId" | "open" | "showError" | "updateAnnotations" | "updatePrivateHighlights">;
+
+export type ProjectAnnotationCoordinatorCompletion = Omit<ProjectAnnotationCompletion, "clearDraftSelection">;
 
 export class ContextResourcePresenter extends LitElement {
   private currentActiveTab: ResearchResourceTab | undefined;
@@ -294,6 +299,20 @@ export class ContextResourcePresenter extends LitElement {
   bindPdfViewer(viewer: ContextPdfViewer, apiBase: string): void {
     this.pdfViewer = viewer;
     this.pdfApiBase = apiBase;
+  }
+
+  bindProjectAnnotationWorkflow(completeWorkflow: (completion: ProjectAnnotationCoordinatorCompletion) => Promise<void>): void {
+    this.element("project-annotation-form", ProjectAnnotationForm)?.bindWorkflow({
+      chooseTool: (tool) => this.pdfViewer?.setTool(tool),
+      completeWorkflow: async ({ clearDraftSelection, ...completion }) => {
+        if (clearDraftSelection) this.pdfViewer?.clearDraftSelection();
+        await completeWorkflow(completion);
+      },
+      citePage: () => this.insertActiveCitation(true),
+      removeHighlight: async (annotationId, fragmentId) =>
+        (await this.element("project-evidence-panel", ProjectEvidencePanel)?.removeFragment(annotationId, fragmentId)) ?? false,
+      revealHighlight: (annotationId) => this.element("project-evidence-panel", ProjectEvidencePanel)?.revealAnnotation(annotationId),
+    });
   }
 
   capturePdfSelection(capture: PdfSelectionCapture): void {

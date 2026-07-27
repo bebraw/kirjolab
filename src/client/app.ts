@@ -511,18 +511,10 @@ class WorkspaceApp {
       publications: () => this.#snapshot?.publications ?? [],
       refresh: async () => await this.#resourceRefresh.request(),
     });
-    this.#elements.projectAnnotationForm.bindWorkflow({
-      chooseTool: (tool) => this.#pdfViewer.setTool(tool),
-      completeWorkflow: async ({ clearDraftSelection, linkAnnotationId, notice, refreshResources }) => {
-        if (clearDraftSelection) this.#pdfViewer.clearDraftSelection();
-        if (refreshResources) await this.#resourceRefresh.request();
-        if (linkAnnotationId) await this.#linkSelectedPassage("annotation", linkAnnotationId);
-        if (notice) this.#showToast(notice);
-      },
-      citePage: () => this.#elements.contextResourcePresenter.insertActiveCitation(true),
-      removeHighlight: async (annotationId, fragmentId) =>
-        await this.#elements.projectEvidencePanel.removeFragment(annotationId, fragmentId),
-      revealHighlight: (annotationId) => this.#elements.projectEvidencePanel.revealAnnotation(annotationId),
+    this.#elements.contextResourcePresenter.bindProjectAnnotationWorkflow(async ({ linkAnnotationId, notice, refreshResources }) => {
+      if (refreshResources) await this.#resourceRefresh.request();
+      if (linkAnnotationId) await this.#linkSelectedPassage("annotation", linkAnnotationId);
+      if (notice) this.#showToast(notice);
     });
     this.#elements.contextResourcePresenter.bindLibraryPdf({
       acceptProjectMutation: async (snapshot) => {

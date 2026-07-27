@@ -785,7 +785,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   classify saved annotation strokes that geometrically overlap that capture on
   the active PDF page, route their ordered removal through the typed workflow
   binding, own the paint-versus-erase capture persistence workflow, and return
-  only viewer-clearing, refresh, and notification effects to the coordinator,
+  viewer-clearing and cross-owner effects to the context-resource presenter,
+  which owns viewer, citation, and evidence-panel routing while delegating only
+  refresh, manuscript-link, and notification effects to the coordinator,
   including no-match and completed-erasure status,
   plus citation availability from the active PDF and canonical publication-PDF
   links. Let it also commit its own toolbar tool state, resolve viewer-highlight
@@ -998,9 +1000,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   rendered context and project-PDF identities, opens the viewer, restores
   resource scroll, presents active-resource failures, and routes captured
   selections to the private-highlight composer or project-annotation form from
-  those retained identities. The project-annotation form projects capture and
-  note-save follow-up through one typed viewer-clearing, refresh, notice, and
-  optional manuscript-link effect contract. Keep tab state, canonical snapshot acceptance,
+  those retained identities. The presenter binds the project-annotation form's
+  workflow, applies its tool and draft-clearing effects through the bounded
+  viewer, and routes citation, highlight removal, and highlight reveal to the
+  Lit owners it already composes. Only refresh, notice, and optional manuscript-
+  link effects cross to the application coordinator. Keep tab state, canonical snapshot acceptance,
   Yjs citation syntax insertion, cross-resource navigation, routing, project-selection
   persistence, remaining viewer gestures, and the shared notification outlet
   in the application coordinator through narrow callbacks.

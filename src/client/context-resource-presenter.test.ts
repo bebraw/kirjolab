@@ -317,6 +317,7 @@ describe("context resource presenter", () => {
       open: vi.fn().mockResolvedValue(true),
       setPrivateHighlightSelection: vi.fn(),
       setTextSelectionEnabled: vi.fn(),
+      setTool: vi.fn(),
       showError: vi.fn(),
       updateAnnotations: vi.fn(),
       updatePrivateHighlights: vi.fn(),
@@ -364,6 +365,7 @@ describe("context resource presenter", () => {
       open: vi.fn().mockRejectedValue(new Error("Could not open PDF")),
       setPrivateHighlightSelection: vi.fn(),
       setTextSelectionEnabled: vi.fn(),
+      setTool: vi.fn(),
       showError: vi.fn(),
       updateAnnotations: vi.fn(),
       updatePrivateHighlights: vi.fn(),
@@ -374,6 +376,48 @@ describe("context resource presenter", () => {
     await presenter.loadActivePdf(true);
 
     expect(viewer.showError).toHaveBeenCalledWith(expect.objectContaining({ message: "Could not open PDF" }));
+  });
+
+  it("owns project-annotation sibling and viewer effects", async () => {
+    const { elements, presenter } = setup();
+    const viewer = {
+      clearDraftSelection: vi.fn(),
+      currentPage: 1,
+      focusedAnnotationId: null,
+      open: vi.fn().mockResolvedValue(true),
+      setPrivateHighlightSelection: vi.fn(),
+      setTextSelectionEnabled: vi.fn(),
+      setTool: vi.fn(),
+      showError: vi.fn(),
+      updateAnnotations: vi.fn(),
+      updatePrivateHighlights: vi.fn(),
+    };
+    const bindWorkflow = vi.spyOn(elements["project-annotation-form"], "bindWorkflow");
+    const removeFragment = vi.spyOn(elements["project-evidence-panel"], "removeFragment").mockResolvedValue(true);
+    const revealAnnotation = vi.spyOn(elements["project-evidence-panel"], "revealAnnotation").mockReturnValue(true);
+    const insertCitation = vi.spyOn(presenter, "insertActiveCitation");
+    const completeWorkflow = vi.fn().mockResolvedValue(undefined);
+    presenter.bindPdfViewer(viewer, "/api/workspaces/workspace");
+
+    presenter.bindProjectAnnotationWorkflow(completeWorkflow);
+    const workflow = bindWorkflow.mock.calls[0]?.[0];
+    expect(workflow).toBeDefined();
+    workflow?.chooseTool("erase");
+    workflow?.citePage();
+    workflow?.revealHighlight("annotation-1");
+    await workflow?.removeHighlight("annotation-1", "fragment-1");
+    await workflow?.completeWorkflow?.({
+      clearDraftSelection: true,
+      linkAnnotationId: "annotation-1",
+      refreshResources: true,
+    });
+
+    expect(viewer.setTool).toHaveBeenCalledWith("erase");
+    expect(insertCitation).toHaveBeenCalledWith(true);
+    expect(revealAnnotation).toHaveBeenCalledWith("annotation-1");
+    expect(removeFragment).toHaveBeenCalledWith("annotation-1", "fragment-1");
+    expect(viewer.clearDraftSelection).toHaveBeenCalledOnce();
+    expect(completeWorkflow).toHaveBeenCalledWith({ linkAnnotationId: "annotation-1", refreshResources: true });
   });
 
   it("projects canonical workspace resources across their bounded Lit owners", () => {
@@ -783,6 +827,7 @@ describe("context resource presenter", () => {
       open: vi.fn().mockResolvedValue(true),
       setPrivateHighlightSelection: vi.fn(),
       setTextSelectionEnabled: vi.fn(),
+      setTool: vi.fn(),
       showError: vi.fn(),
       updateAnnotations: vi.fn(),
       updatePrivateHighlights: vi.fn(),

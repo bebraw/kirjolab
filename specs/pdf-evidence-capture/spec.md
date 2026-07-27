@@ -44,15 +44,18 @@ with an authored passage.
   canonical capture, classifies saved strokes that geometrically overlap that
   capture on the active PDF page, routes their ordered removal through its typed
   workflow binding, owns paint-versus-erase capture persistence and no-match
-  and completed-erasure status, returns capture and note-save viewer-clearing,
-  refresh, notification, and optional manuscript-link effects through one
-  completion contract, and derives
+  and completed-erasure status, and returns capture and note-save completion
+  effects through one contract. Its context-resource presenter applies tool and
+  draft-clearing effects through the bounded viewer, routes citation and
+  evidence-panel intents across composed Lit owners, and delegates only refresh,
+  notification, and optional manuscript-link effects to the workspace
+  coordinator. The form derives
   citation availability from the active PDF and canonical publication-PDF
   links. It commits toolbar tool state locally, resolves viewer-highlight
   activation to edit/reveal or erase behavior, and clears its own undo state
   after a completed delegated mutation. The workspace coordinator
-  retains viewer effects, annotation identity, deletion-driven composer cleanup,
-  manuscript selection, refreshes, and user notifications.
+  retains annotation identity, deletion-driven composer cleanup, manuscript
+  selection, refreshes, and user notifications.
 - `POST /api/workspaces/{id}/annotation-links` validates an annotation and
   current manuscript selection before atomically inserting both the annotation
   and its passage link.

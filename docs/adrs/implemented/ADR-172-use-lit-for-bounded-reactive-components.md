@@ -485,8 +485,11 @@ The adopted components own bounded presentation:
   availability derived from the active PDF and canonical publication-PDF
   links, same-PDF/page saved-stroke overlap classification, ordered removal
   routing, paint-versus-erase capture persistence, no-match and completed-
-  erasure status, and typed viewer-clearing, refresh, notice, and optional
-  manuscript-link outcomes shared by capture and note-save completion,
+  erasure status, and typed completion outcomes shared by capture and note-save
+  completion. The context-resource presenter applies the form's tool and draft-
+  clearing effects through its bounded viewer, routes citation and evidence-
+  panel intents across its composed Lit owners, and delegates only refresh,
+  notice, and optional manuscript-link outcomes to the application coordinator,
   local toolbar tool commits, viewer-highlight edit/reveal-versus-erase routing,
   and completed undo-state presentation,
   nested publication-intake

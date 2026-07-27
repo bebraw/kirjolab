@@ -8454,6 +8454,28 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,706 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Project Annotation Effects
+
+`ContextResourcePresenter` now binds the project-annotation form's workflow and
+applies tool changes and draft clearing through its bounded PDF viewer. It also
+routes page citation plus highlight removal and reveal intents to the citation
+and evidence owners it already composes. `WorkspaceApp` receives only canonical
+refresh, manuscript-link, and notification outcomes.
+
+This checkpoint reduces `src/client/app.ts` from 1,449 to 1,441 lines (-8) and
+grows the context-resource presenter from 867 to 885 lines (+18). Focused
+coverage passes all 70 context-resource, project-annotation, evidence-panel,
+and application-contract cases, including viewer cleanup, tool routing,
+citation routing, sibling evidence effects, and strict types.
+
+The browser application artifact changes from 846,324 B raw / 228,377 B gzip
+to 846,483 B raw / 228,415 B gzip (+159 B raw / +38 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,707 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,
