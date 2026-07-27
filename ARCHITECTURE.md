@@ -802,7 +802,8 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   ranges and consumes only resolved numeric ranges.
 - Let the editor-status Lit owner retain the browser-local active authoring
   target as Yjs-relative positions and own file context, range selection,
-  resolved target and caret, non-empty passage projection, and file, line-range,
+  resolved target and caret, non-empty passage projection, temporary range
+  preservation across asynchronous authoring operations, and file, line-range,
   caret, and selection wording. Reuse relative-position capture and resolution
   from the source-editor adapter. Keep canonical Yjs mutation, editor
   highlighting, assistant refresh, collaboration interpretation, and offline-

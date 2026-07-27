@@ -11131,3 +11131,28 @@ and PDF.js artifacts remain unchanged at 135,411 B / 23,373 B, 204,779 B /
 
 Full native CI passes all 1,736 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Lit Ownership: Asynchronous Authoring Range
+
+`EditorStatus` now preserves an explicit authoring range as Yjs-relative
+positions across an asynchronous operation and resolves it only while the same
+document and active text remain bound. `WorkspaceApp` uses that capability for
+private-Library citation completion while retaining the request, canonical
+snapshot refresh, and Yjs mutation.
+
+This checkpoint reduces `src/client/app.ts` from 890 to 887 lines (-3) and grows
+the editor-status owner from 145 to 159 lines (+14). Runtime across the pair
+grows by 11 lines to centralize relative-position creation, resolution, and
+active-text invalidation with the component that already owns the authoring
+target. Focused coverage passes shifted-range restoration, active-text
+invalidation, existing authoring-target behavior, and strict types. Direct and
+unique production package counts remain 18 and 150; Lit and Yjs were already
+pinned.
+
+The browser application artifact changes from 853,101 B raw / 229,877 B gzip
+to 853,318 B / 229,932 B (+217 B raw / +55 B gzip). Styles and lazy Markdown
+and PDF.js artifacts remain unchanged at 135,411 B / 23,373 B, 204,779 B /
+62,386 B, and 481,994 B / 146,135 B.
+
+Full native CI passes all 1,737 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.

@@ -1145,7 +1145,8 @@ reason to wrap static markup mechanically.
   references and owns their text and target-tooltip presentation, including
   bounded line counting and file, line-range, caret, and selection wording. It
   also owns browser-local Yjs-relative target retention, active file context,
-  range selection, resolved target/caret, and non-empty passage projection. The
+  range selection, resolved target/caret, non-empty passage projection, and
+  temporary range preservation across asynchronous authoring operations. The
   application coordinator retains canonical Yjs mutation, editor highlighting,
   assistant refresh, collaboration and offline-save policy, and the save-status
   values those workflows select.

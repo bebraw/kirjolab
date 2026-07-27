@@ -53,12 +53,14 @@ describe("editor status", () => {
 
     source.setSelectionRange(6, 10);
     status.rememberSelection();
+    const resolveRange = status.preserveRange(6, 10);
     expect(status.authoringTarget).toEqual({ start: 6, end: 10 });
     expect(status.caret).toBe(10);
     expect(status.selectedPassage()).toEqual({ fileId: "file-1", start: 6, end: 10, excerpt: "beta" });
 
     text.insert(0, "x ");
     status.refreshAuthoringTarget();
+    expect(resolveRange?.()).toEqual({ start: 8, end: 12 });
     expect(status.authoringTarget).toEqual({ start: 8, end: 12 });
     source.setSelectionRange(8, 12);
     expect(status.selectedPassage()).toEqual({ fileId: "file-1", start: 8, end: 12, excerpt: "beta" });
@@ -68,5 +70,22 @@ describe("editor status", () => {
     expect(source.selectionEnd).toBe(2);
     expect(status.selectedPassage()).toBeNull();
     expect(changes).toBe(4);
+  });
+
+  it("invalidates a preserved range when the authoring text changes", () => {
+    const documentModel = new Y.Doc();
+    const first = documentModel.getText("first");
+    const second = documentModel.getText("second");
+    first.insert(0, "first text");
+    second.insert(0, "second text");
+    const source = { setSelectionRange() {} } as unknown as HTMLTextAreaElement;
+    const status = new TestEditorStatus();
+    status.bindAuthoring(documentModel, source, () => undefined);
+    status.setAuthoringContext("first.md", "first", first);
+    const resolveRange = status.preserveRange(0, 5);
+
+    status.setAuthoringContext("second.md", "second", second);
+
+    expect(resolveRange?.()).toBeNull();
   });
 });

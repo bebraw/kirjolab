@@ -154,7 +154,9 @@ collaborative, and unambiguous about what preview and export mean.
 - Source completion dismisses itself immediately after accepting a citation or
   include candidate. The selected completion range routes through the editor
   insertion owner; private-Library reference linking and canonical Yjs
-  authority remain in the workspace coordinator.
+  authority remain in the workspace coordinator. For private-Library linking,
+  the editor-status owner preserves that range as Yjs-relative positions and
+  rejects restoration if the active authoring text changes during the request.
 - The bounded Insert-menu component derives existing-file choices and relative
   paths from the active project file and owns the scholarly syntax templates it
   displays. From the supplied resolved passage and caret it derives

@@ -741,16 +741,13 @@ class WorkspaceApp {
     let start = context.start;
     let end = context.end;
     if (candidate.scope === "library") {
-      const relativeStart = Y.createRelativePositionFromTypeIndex(this.#activeFileText, start);
-      const relativeEnd = Y.createRelativePositionFromTypeIndex(this.#activeFileText, end);
+      const resolveRange = this.#elements.editorStatus.preserveRange(start, end);
+      if (!resolveRange) return;
       const response = await jsonFetch(`${apiBase}/references`, { referenceId: candidate.referenceId, citationAlias: candidate.key });
       await this.#acceptWorkspaceMutation(response);
-      const resolvedStart = Y.createAbsolutePositionFromRelativePosition(relativeStart, this.#document);
-      const resolvedEnd = Y.createAbsolutePositionFromRelativePosition(relativeEnd, this.#document);
-      if (!resolvedStart || !resolvedEnd || resolvedStart.type !== this.#activeFileText || resolvedEnd.type !== this.#activeFileText)
-        return;
-      start = resolvedStart.index;
-      end = resolvedEnd.index;
+      const range = resolveRange();
+      if (!range) return;
+      ({ start, end } = range);
     }
     this.#elements.editorInsertMenu.replaceRange(start, end, candidate.key);
     if (candidate.scope === "library") this.#showToast(`Added and cited ${candidate.key}.`);

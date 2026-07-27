@@ -73,6 +73,20 @@ export class EditorStatus extends LitElement {
     this.rememberSelection();
   }
 
+  preserveRange(start: number, end: number): (() => EditorAuthoringTarget | null) | null {
+    const documentModel = this.documentModel;
+    const text = this.text;
+    if (!documentModel || !text) return null;
+    const relativeStart = Y.createRelativePositionFromTypeIndex(text, start);
+    const relativeEnd = Y.createRelativePositionFromTypeIndex(text, end);
+    return () => {
+      if (this.documentModel !== documentModel || this.text !== text) return null;
+      const resolvedStart = Y.createAbsolutePositionFromRelativePosition(relativeStart, documentModel);
+      const resolvedEnd = Y.createAbsolutePositionFromRelativePosition(relativeEnd, documentModel);
+      return resolvedStart?.type === text && resolvedEnd?.type === text ? { start: resolvedStart.index, end: resolvedEnd.index } : null;
+    };
+  }
+
   refreshAuthoringTarget(): void {
     this.setAuthoringTarget(this.path, this.text?.toString() ?? "", this.authoringTarget);
     this.targetChanged?.();
