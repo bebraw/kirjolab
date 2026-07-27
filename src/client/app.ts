@@ -21,7 +21,6 @@ import { publicationWordStatistics } from "../domain/publication-statistics";
 import { suggestCitationKey } from "../domain/publication-intake";
 import { researchQuestionsPath, researchQuestionsTemplate } from "../domain/research-questions";
 import { researchDiaryPath, researchDiaryTemplate } from "../domain/writing-workflows";
-import type { ProjectTemplateSummary } from "../domain/project-templates";
 import {
   isProjectReferencePdfs,
   isReferenceLibrarySnapshot,
@@ -50,7 +49,7 @@ import { libraryPdfToolbarActionEvent, type LibraryPdfToolbarAction } from "./li
 import { libraryPdfInspectorCloseEvent } from "./library-pdf-inspector";
 import type { LibraryPdfSelectionPresentation, LibraryPdfToolPresentation } from "./context-resource-presenter";
 import { libraryPdfRoute, readLibraryUiRoute } from "./library-ui-route";
-import { startingPointActionEvent, startingPointTemplateDeleteEvent, type StartingPointAction } from "./project-starting-point-browser";
+import { startingPointActionEvent, type StartingPointAction } from "./project-starting-point-browser";
 import { workspaceSharingNoticeEvent } from "./workspace-sharing-panel";
 import { WorkspaceLayoutManager } from "./workspace-layout-manager";
 import { workspaceLayoutChangeEvent } from "./workspace-layout-control";
@@ -388,8 +387,9 @@ class WorkspaceApp {
       if (action === "import-latex") this.#openLatexImportDialog();
       else this.#openGitHubImportDialog();
     });
-    this.#elements.newWorkspaceStartingPoints.addEventListener(startingPointTemplateDeleteEvent, (event) => {
-      this.#deleteProjectTemplate((event as CustomEvent<ProjectTemplateSummary>).detail);
+    this.#elements.newWorkspaceStartingPoints.bindDeletion({
+      presentNotice: (message, options) => this.#showToast(message, options),
+      templatesChanged: () => this.#syncTemplateReplacementOptions(),
     });
     this.#elements.gitHubSyncMenu.bindWorkspace(apiBase, {
       settings: this.#elements.workspaceSettingsPanel,
@@ -1011,21 +1011,6 @@ class WorkspaceApp {
     this.#syncTemplateReplacementOptions();
   }
 
-  #deleteProjectTemplate(template: ProjectTemplateSummary): void {
-    this.#deferredDeletions.schedule({
-      key: `project-template:${template.id}`,
-      deletedMessage: `Deleted template “${template.name}”.`,
-      restoredMessage: `Restored template “${template.name}”.`,
-      failedMessage: `Could not delete template “${template.name}”.`,
-      hide: () => this.#setProjectTemplateHidden(template.id, true),
-      restore: () => this.#setProjectTemplateHidden(template.id, false),
-      commit: async () => {
-        await this.#elements.newWorkspaceStartingPoints.deleteTemplate(template.id);
-        this.#syncTemplateReplacementOptions();
-      },
-    });
-  }
-
   async #openSaveTemplate(): Promise<void> {
     const projectTitle = this.#elements.workspaceSettingsPanel.value.title;
     this.#elements.workspaceSettingsPanel.close();
@@ -1036,11 +1021,6 @@ class WorkspaceApp {
     } catch (error) {
       this.#elements.saveTemplateDialog.showError(error instanceof Error ? error.message : "Could not load personal templates.");
     }
-  }
-
-  #setProjectTemplateHidden(id: string, hidden: boolean): void {
-    this.#elements.newWorkspaceStartingPoints.setTemplateHidden(id, hidden);
-    this.#syncTemplateReplacementOptions();
   }
 
   #syncTemplateReplacementOptions(): void {

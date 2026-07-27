@@ -1,12 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ProjectTemplateSummary } from "../domain/project-templates";
 import type { WorkspaceSummary } from "../domain/workspace";
-import {
-  ProjectStartingPointBrowser,
-  startingPointActionEvent,
-  startingPointTemplateDeleteEvent,
-  type StartingPointAction,
-} from "./project-starting-point-browser";
+import type { DeferredDeletionNoticeOptions } from "./deferred-deletion";
+import { ProjectStartingPointBrowser, startingPointActionEvent, type StartingPointAction } from "./project-starting-point-browser";
 
 const builtIn: ProjectTemplateSummary = {
   createdAt: null,
@@ -162,7 +158,10 @@ class FakeDialog extends EventTarget {
   }
 }
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.useRealTimers();
+  vi.unstubAllGlobals();
+});
 
 describe("project starting point browser", () => {
   it("owns the light-DOM create form and template presentation", () => {
@@ -211,17 +210,18 @@ describe("project starting point browser", () => {
     expect(browser.renderForTest()).toBeDefined();
   });
 
-  it("loads project sources, creates from them, and requests personal-template deletion", async () => {
+  it("loads project sources, creates from them, and restores an optimistically removed personal template", async () => {
     const browser = new TestProjectStartingPointBrowser();
-    const deleted: ProjectTemplateSummary[] = [];
+    const notices: { message: string; options: DeferredDeletionNoticeOptions | undefined }[] = [];
     const assign = vi.fn();
     const fetchMock = vi.fn(async (input: string | URL | Request) =>
       Response.json(String(input).endsWith("/template-preview") ? projectTemplate : workspace),
     );
     vi.stubGlobal("fetch", fetchMock);
     vi.stubGlobal("location", { assign });
-    browser.addEventListener(startingPointTemplateDeleteEvent, (event) => {
-      deleted.push((event as CustomEvent<ProjectTemplateSummary>).detail);
+    browser.bindDeletion({
+      presentNotice: (message, options) => notices.push({ message, options }),
+      templatesChanged: vi.fn(),
     });
     browser.setData([builtIn, personal], [workspace]);
     await browser.chooseProjectForTest(workspace);
@@ -229,7 +229,12 @@ describe("project starting point browser", () => {
     browser.changeTitleForTest("Copied project");
     await browser.createForTest();
     browser.deleteForTest(personal);
-    expect(deleted).toEqual([personal]);
+    await Promise.resolve();
+    expect(browser.availableTemplates).toEqual([builtIn]);
+    notices.at(-1)?.options?.action();
+    await Promise.resolve();
+    expect(browser.availableTemplates).toEqual([builtIn, personal]);
+    expect(notices.at(-1)?.message).toBe(`Restored template “${personal.name}”.`);
     expect(assign.mock.calls).toEqual([[workspace.href]]);
     expect(fetchMock).toHaveBeenLastCalledWith(
       "/api/workspaces",
@@ -244,16 +249,26 @@ describe("project starting point browser", () => {
     expect(browser.availableTemplates).toEqual([builtIn, personal]);
   });
 
-  it("deletes an encoded personal template and refreshes its catalog", async () => {
+  it("commits an encoded personal-template deletion and refreshes its catalog", async () => {
+    vi.useFakeTimers();
     const browser = new TestProjectStartingPointBrowser();
+    const encoded = { ...personal, id: "personal/template" };
+    const notices: string[] = [];
+    const templatesChanged = vi.fn();
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(new Response(null, { status: 204 }))
       .mockResolvedValueOnce(Response.json([builtIn]));
     vi.stubGlobal("fetch", fetchMock);
-    browser.setData([builtIn, personal], [workspace]);
+    browser.bindDeletion({
+      presentNotice: (message) => notices.push(message),
+      templatesChanged,
+    });
+    browser.setData([builtIn, encoded], [workspace]);
 
-    await browser.deleteTemplate("personal/template");
+    browser.deleteForTest(encoded);
+    await vi.advanceTimersByTimeAsync(6_000);
+    await Promise.resolve();
 
     expect(fetchMock).toHaveBeenNthCalledWith(1, "/api/project-templates/personal%2Ftemplate", {
       method: "DELETE",
@@ -261,6 +276,8 @@ describe("project starting point browser", () => {
     });
     expect(fetchMock).toHaveBeenNthCalledWith(2, "/api/project-templates", { credentials: "same-origin" });
     expect(browser.availableTemplates).toEqual([builtIn]);
+    expect(notices).toEqual([`Deleted template “${encoded.name}”.`]);
+    expect(templatesChanged).toHaveBeenCalledTimes(2);
   });
 
   it("rejects malformed catalogs and contains request failures", async () => {

@@ -1,13 +1,18 @@
 import { html, LitElement, nothing, type TemplateResult } from "lit";
 import { isProjectTemplateSummaries, type ProjectTemplateSummary } from "../domain/project-templates";
 import { demoWorkspaceId, isWorkspaceSummaries, type WorkspaceSummary } from "../domain/workspace";
+import { DeferredDeletionController, type DeferredDeletionNoticeOptions } from "./deferred-deletion";
 import { formatCalendarDate } from "./format";
 import { errorMessage, expectOk, jsonFetch } from "./http";
 
 export type StartingPointAction = "import-github" | "import-latex";
 
 export const startingPointActionEvent = "starting-point-action";
-export const startingPointTemplateDeleteEvent = "starting-point-template-delete";
+
+interface TemplateDeletionCallbacks {
+  readonly presentNotice: (message: string, options?: DeferredDeletionNoticeOptions) => void;
+  readonly templatesChanged: () => void;
+}
 
 export class ProjectStartingPointBrowser extends LitElement {
   static override properties = {
@@ -33,6 +38,11 @@ export class ProjectStartingPointBrowser extends LitElement {
   declare private projectTitle: string;
   private parentDialog: HTMLDialogElement | null = null;
   private returnFocus: HTMLElement | null = null;
+  private deletionCallbacks: TemplateDeletionCallbacks = { presentNotice: () => undefined, templatesChanged: () => undefined };
+  private readonly deletions = new DeferredDeletionController((message, options) => {
+    const settled = this.isConnected ? this.updateComplete : Promise.resolve();
+    void settled.then(() => this.deletionCallbacks.presentNotice(message, options));
+  });
 
   constructor() {
     super();
@@ -90,6 +100,10 @@ export class ProjectStartingPointBrowser extends LitElement {
     this.setData(value, workspaces);
   }
 
+  bindDeletion(callbacks: TemplateDeletionCallbacks): void {
+    this.deletionCallbacks = callbacks;
+  }
+
   async deleteTemplate(id: string): Promise<void> {
     await expectOk(
       await fetch(`/api/project-templates/${encodeURIComponent(id)}`, {
@@ -110,6 +124,7 @@ export class ProjectStartingPointBrowser extends LitElement {
     else hiddenIds.delete(id);
     this.hiddenTemplateIds = hiddenIds;
     this.normalizeSelection();
+    this.deletionCallbacks.templatesChanged();
   }
 
   focusFirst(): void {
@@ -469,7 +484,18 @@ export class ProjectStartingPointBrowser extends LitElement {
   }
 
   protected requestTemplateDelete(template: ProjectTemplateSummary): void {
-    this.dispatchEvent(new CustomEvent<ProjectTemplateSummary>(startingPointTemplateDeleteEvent, { detail: template }));
+    this.deletions.schedule({
+      key: `project-template:${template.id}`,
+      deletedMessage: `Deleted template “${template.name}”.`,
+      restoredMessage: `Restored template “${template.name}”.`,
+      failedMessage: `Could not delete template “${template.name}”.`,
+      hide: () => this.setTemplateHidden(template.id, true),
+      restore: () => this.setTemplateHidden(template.id, false),
+      commit: async () => {
+        await this.deleteTemplate(template.id);
+        this.deletionCallbacks.templatesChanged();
+      },
+    });
   }
 
   private dispatchSelection(status: string): void {

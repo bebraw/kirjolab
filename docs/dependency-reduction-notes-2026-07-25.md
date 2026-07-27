@@ -6294,6 +6294,30 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,654 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Template Deletion Lifecycle
+
+`ProjectStartingPointBrowser` now owns personal-template optimistic hiding,
+six-second delayed commit, Undo restoration, failure notices, encoded deletion,
+and post-delete catalog refresh as one local lifecycle. It keeps its visible
+template projection and selection normalized throughout. `WorkspaceApp` retains
+import workflows, replacement-option synchronization, and the toast outlet.
+
+This checkpoint reduces `src/client/app.ts` from 2,643 to 2,623 lines (-20)
+and grows the starting-point owner from 517 to 543 lines. Runtime source across
+those files grows by six lines while removing the coordinator's template-delete
+event, workflow method, hidden-state adapter, and template-summary dependency.
+Eight direct browser cases cover catalog loading, optimistic removal and Undo,
+delayed encoded deletion, refresh, creation, imports, modal focus, and failure
+paths under strict client and Workers types.
+
+The browser application artifact changes from 836,212 B raw / 226,037 B gzip
+to 836,397 B raw / 226,055 B gzip (+185 B raw / +18 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,654 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

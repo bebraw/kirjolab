@@ -49,10 +49,10 @@ The adopted components own bounded presentation:
 - The new-project starting-point browser owns template and existing-project
   groups, template-catalog and existing-project preview requests, project
   creation, personal-template deletion, response validation, post-delete
-  catalog refresh, the fetched catalog, and optimistic
-  hidden-template state, the derived visible-template view, local selection
-  and preview state, bounded preview rendering, local dismissal and import
-  handoff, canonical successful-result navigation, and typed template-delete
+  catalog refresh, the fetched catalog, optimistic hidden-template state, the
+  delayed commit and Undo lifecycle, the derived visible-template view, local
+  selection and preview state, bounded preview rendering, local dismissal and
+  import handoff, canonical successful-result navigation, and typed import
   events.
 - The workspace sharing panel owns member and capability-link requests,
   response validation and presentation, invitation input and submission,
@@ -315,9 +315,10 @@ The adopted components own bounded presentation:
 - The project starting-point browser owns project title, template and existing
   project choices, catalog loading, project-preview loading, project creation,
   personal-template deletion, response validation, post-delete catalog refresh,
-  preview and loading state, create readiness and status, local cancel and
-  pre-handoff dismissal, canonical successful-result navigation, and typed
-  import and template-delete events. It also owns
+  optimistic hiding, delayed commit, Undo restoration, failure notices, preview
+  and loading state, create readiness and status, local cancel and pre-handoff
+  dismissal, canonical successful-result navigation, and typed import events.
+  It also owns
   its native parent-dialog opening, closing, focus containment, listener
   teardown, and return-focus lifecycle.
 - The Library discovery search owns query inputs, publication-type choices,
@@ -701,8 +702,9 @@ reason to wrap static markup mechanically.
   bindings, title and selection collection, readiness, loading, and error
   updates. It also replaces the coordinator's duplicate template array and
   hidden-ID set plus template-catalog, project-preview, and project-creation
-  requests while leaving deferred deletion and import workflows in the
-  application coordinator.
+  requests plus the personal-template delayed deletion and Undo lifecycle. The
+  application coordinator retains import workflows, replacement-option
+  synchronization, and the toast outlet.
 - The Library discovery search replaces six internal element references and
   imperative form-value, submit-state, progress, count, empty, and error
   handling plus the provider request and response validation. The application
