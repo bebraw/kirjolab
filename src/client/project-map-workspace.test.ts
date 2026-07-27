@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { KnowledgeSearchResult, WorkspaceKnowledgeGraph } from "../domain/knowledge";
+import { buildWorkspaceKnowledgeGraph, type KnowledgeSearchResult, type WorkspaceKnowledgeGraph } from "../domain/knowledge";
+import { workspaceSnapshotFixture } from "../test-support/workspace-fixture";
 import { ProjectMapWorkspace } from "./project-map-workspace";
 
 const graph: WorkspaceKnowledgeGraph = {
@@ -50,6 +51,21 @@ describe("project map workspace", () => {
     expect(workspace.renderForTest()).toBeDefined();
     workspace.clearSearch();
     expect(workspace.renderForTest()).toBeDefined();
+  });
+
+  it("derives the evidence graph from canonical workspace inputs", () => {
+    const workspace = new TestProjectMapWorkspace();
+    const setGraph = vi.spyOn(workspace, "setGraph");
+
+    workspace.presentWorkspace(workspaceSnapshotFixture, "@article{source}", "# Current manuscript");
+
+    expect(setGraph).toHaveBeenCalledWith(
+      buildWorkspaceKnowledgeGraph({
+        ...workspaceSnapshotFixture,
+        bibliography: "@article{source}",
+        source: "# Current manuscript",
+      }),
+    );
   });
 
   it("owns project search while forwarding resource-selection intents", async () => {

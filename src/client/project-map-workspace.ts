@@ -1,11 +1,13 @@
 import { html, LitElement, type PropertyValues, type TemplateResult } from "lit";
 import {
+  buildWorkspaceKnowledgeGraph,
   isKnowledgeResourceKind,
   isKnowledgeSearchResults,
   type KnowledgeResourceKind,
   type KnowledgeSearchResult,
   type WorkspaceKnowledgeGraph,
 } from "../domain/knowledge";
+import type { WorkspaceSnapshot } from "../domain/workspace";
 import { errorMessage, expectOk } from "./http";
 import "./knowledge-connections-panel";
 import "./knowledge-search-panel";
@@ -38,6 +40,10 @@ export class ProjectMapWorkspace extends LitElement {
 
   setGraph(graph: WorkspaceKnowledgeGraph): void {
     this.graph = graph;
+  }
+
+  presentWorkspace(snapshot: WorkspaceSnapshot, bibliography: string, source = snapshot.composition.content): void {
+    this.setGraph(buildWorkspaceKnowledgeGraph({ ...snapshot, bibliography, source }));
   }
 
   configure(apiBase: string): void {

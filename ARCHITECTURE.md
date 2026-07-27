@@ -1003,6 +1003,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   over the authorized workspace snapshot. It may reveal the Files rail and
   select a file, but must not introduce a global command registry or persist
   its query in URLs, browser storage, or collaborative state.
+- Let the project-map workspace derive its read-only knowledge graph from the
+  resolved canonical workspace, current composed manuscript, and bibliography,
+  then fan that graph out to its map and connection children. Keep Yjs anchor
+  resolution, canonical snapshot authority, and resource-navigation effects in
+  the workspace coordinator.
 - Treat manuscript passage links as immutable, versioned selectors rather than
   permanent current offsets. Verify the source revision and exact range at
   creation, then capture Yjs relative positions, exact quote/context,

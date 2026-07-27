@@ -7614,6 +7614,29 @@ browser application.
 Full native CI passes all 1,697 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Evidence Graph Derivation
+
+`ProjectMapWorkspace` now derives its knowledge graph from the resolved
+canonical workspace, current composed manuscript, and bibliography before
+projecting it to its existing map and typed-connection children. `WorkspaceApp`
+retains Yjs anchor resolution, canonical snapshot authority, and resource
+navigation effects.
+
+This checkpoint reduces `src/client/app.ts` from 1,870 to 1,863 lines (-7) and
+grows the project-map workspace from 182 to 188 lines (+6). Runtime source
+across those files decreases by one line while removing the coordinator's
+knowledge-domain import and graph-construction object. Focused coverage
+exercises canonical graph derivation, existing graph fan-out, search,
+navigation, application contracts, and strict types.
+
+The browser application artifact changes from 844,553 B raw / 229,024 B gzip
+to 844,605 B raw / 229,036 B gzip (+52 B raw / +12 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,698 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

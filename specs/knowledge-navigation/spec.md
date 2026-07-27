@@ -29,6 +29,11 @@ connection without reconstructing identity from a citation key or filename.
   derived project graph, workspace search, and typed connections while keeping
   every node and connection available as an ordinary keyboard-operable resource
   action.
+- The project-map workspace derives that graph from the resolved canonical
+  snapshot, current composed manuscript, and bibliography, then projects it to
+  its map and connection children through one Lit-owned boundary. The workspace
+  coordinator retains anchor resolution, canonical state, and navigation
+  effects.
 - The visual projection keeps project context above normal-flow lanes for
   source material, evidence and reasoning, and manuscript resources. Decorative
   connectors are redrawn from measured card geometry when the authoring pane

@@ -2,7 +2,6 @@ import * as Y from "yjs";
 import "./action-menu-controller";
 import { collectAppElements } from "./app-elements";
 import { activePdfLoadContext, type ActivePdfLoadContext } from "./active-pdf-context";
-import { buildWorkspaceKnowledgeGraph } from "../domain/knowledge";
 import { reviewerResponsePath, reviewerResponseTemplate } from "../domain/reviewer-response";
 import { resolveManuscriptAnchor } from "../domain/manuscript-anchor";
 import { resolveWorkspaceSnapshotAnchors } from "../domain/workspace-anchor-projection";
@@ -870,13 +869,7 @@ class WorkspaceApp {
       this.#elements.projectEvidencePanel.setPassageLinks(resolved.links);
       this.#elements.claimListPanel.setPassageLinks(resolved.claimLinks);
       this.#elements.workspaceRailTabs.setCommentCount(this.#elements.manuscriptCommentListPanel.setComments(resolved.comments));
-      this.#elements.projectMap.setGraph(
-        buildWorkspaceKnowledgeGraph({
-          ...resolved,
-          source: publicationComposition?.content ?? snapshot.composition.content,
-          bibliography,
-        }),
-      );
+      this.#elements.projectMap.presentWorkspace(resolved, bibliography, publicationComposition?.content);
     }
   }
 
