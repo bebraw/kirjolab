@@ -449,7 +449,7 @@ class WorkspaceApp {
         await this.#resourceRefresh.request();
         if (announce) this.#showToast("Highlight stroke erased.");
       },
-      linkAnnotation: (annotationId) => void this.#linkAnnotation(annotationId),
+      linkAnnotation: (annotationId) => void this.#linkSelectedPassage("annotation", annotationId),
       notice: (message) => this.#showToast(message),
       openPassage: (anchor) => this.#showPassage(anchor),
       openPdf: (pdf, page, annotationId) => {
@@ -551,7 +551,7 @@ class WorkspaceApp {
     this.#elements.claimListPanel.bind({
       completeMutation: (message) =>
         this.#refreshResourcesWithNotice(message, "The claim changed, but project resources could not be refreshed."),
-      linkPassage: (claimId) => void this.#linkClaim(claimId),
+      linkPassage: (claimId) => void this.#linkSelectedPassage("claim", claimId),
       openAnnotation: (annotationId) => this.#elements.projectEvidencePanel.revealAnnotation(annotationId),
       openPassage: (anchor) => this.#showPassage(anchor),
     });
@@ -1028,23 +1028,6 @@ class WorkspaceApp {
     this.#syncWorkspaceRoute("replace");
   }
 
-  async #linkClaim(claimId: string): Promise<void> {
-    if (!this.#collaboration.stable) {
-      this.#showToast("Wait for the manuscript to finish synchronizing before linking a claim.");
-      return;
-    }
-    const passage = this.#selectedAuthoringPassage();
-    if (!passage) {
-      this.#showToast("Select manuscript text before linking a claim.");
-      return;
-    }
-    await this.#elements.claimListPanel.linkPassage({
-      claimId,
-      ...passage,
-      sourceRevision: this.#revision,
-    });
-  }
-
   #setAuthoringMode(mode: AuthoringMode): void {
     const writing = mode === "write";
     this.#elements.authoringModeTabs.setMode(mode);
@@ -1229,28 +1212,24 @@ class WorkspaceApp {
 
   async #completeAnnotationSave(detail: ProjectAnnotationSaved): Promise<void> {
     await this.#resourceRefresh.request();
-    if (detail.link) await this.#linkAnnotation(detail.annotationId);
+    if (detail.link) await this.#linkSelectedPassage("annotation", detail.annotationId);
     else this.#showToast(detail.message);
   }
 
-  async #linkAnnotation(annotationId: string): Promise<void> {
+  async #linkSelectedPassage(kind: "annotation" | "claim", id: string): Promise<void> {
+    const label = kind === "claim" ? "a claim" : "an annotation";
     if (!this.#collaboration.stable) {
-      this.#showToast("Wait for the manuscript to finish synchronizing before linking an annotation.");
+      this.#showToast(`Wait for the manuscript to finish synchronizing before linking ${label}.`);
       return;
     }
     const passage = this.#selectedAuthoringPassage();
     if (!passage) {
-      this.#showToast("Select manuscript text before linking an annotation.");
+      this.#showToast(`Select manuscript text before linking ${label}.`);
       return;
     }
-    await this.#elements.projectEvidencePanel.linkPassage({
-      annotationId,
-      fileId: passage.fileId,
-      start: passage.start,
-      end: passage.end,
-      excerpt: passage.excerpt,
-      sourceRevision: this.#revision,
-    });
+    const link = { ...passage, sourceRevision: this.#revision };
+    if (kind === "claim") await this.#elements.claimListPanel.linkPassage({ claimId: id, ...link });
+    else await this.#elements.projectEvidencePanel.linkPassage({ annotationId: id, ...link });
   }
 
   #selectedAuthoringPassage(): AuthoringPassage | null {

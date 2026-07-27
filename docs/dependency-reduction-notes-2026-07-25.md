@@ -8175,6 +8175,27 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,706 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Simplification: Passage Linking
+
+`WorkspaceApp` now routes claim and annotation passage linking through one typed
+coordinator method. The shared path owns the collaboration-stability gate,
+current Yjs-backed authoring selection, resource-specific feedback, revision
+payload, and final dispatch while preserving the existing claim and evidence
+Lit owners' mutation workflows.
+
+This checkpoint reduces `src/client/app.ts` from 1,557 to 1,536 lines (-21),
+which is also a 21-line runtime-source reduction. Focused coverage passes all 46
+application-contract, claim-list, and project-evidence cases; the browser suite
+continues to cover both passage-link workflows and strict types remain green.
+
+The browser application artifact changes from 846,643 B raw / 228,625 B gzip
+to 846,443 B raw / 228,615 B gzip (-200 B raw / -10 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,706 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,
