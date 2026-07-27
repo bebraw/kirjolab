@@ -17,7 +17,6 @@ import {
   type ProjectFilePreview,
 } from "../domain/project-files";
 import { publicationWordStatistics } from "../domain/publication-statistics";
-import { suggestCitationKey } from "../domain/publication-intake";
 import { researchQuestionsPath, researchQuestionsTemplate } from "../domain/research-questions";
 import { researchDiaryPath, researchDiaryTemplate } from "../domain/writing-workflows";
 import {
@@ -541,14 +540,21 @@ class WorkspaceApp {
       undoHighlight: (annotationId, fragmentId) => void this.#undoLastHighlightStroke(annotationId, fragmentId),
     });
     this.#elements.contextResourcePresenter.bindLibraryPdf({
+      acceptProjectMutation: async (snapshot) => {
+        await this.#acceptWorkspaceMutation(snapshot);
+        this.#renderReferenceLibrary();
+      },
       applyViewerPresentation: (presentation) => this.#applyLibraryPdfViewerPresentation(presentation),
-      citeHighlight: (highlight) => void this.#citeLibraryHighlight(highlight),
+      canInsertCitation: () => this.#resolvedAuthoringCaret() !== null,
       clearViewerDraftSelection: () => this.#pdfViewer.clearDraftSelection(),
       completeMarkup: (message) => this.#completeLibraryPdfMarkup(message),
       currentPage: () => this.#pdfViewer.currentPage,
+      insertCitation: (citationAlias, locator) => this.#insertCitation(citationAlias, locator),
       library: () => this.#librarySnapshot,
       openHighlight: (highlight) => void this.#openLibraryHighlight(highlight),
       openPdf: (artifact, page) => void this.#openLibraryPdf(artifact, page),
+      project: () => this.#snapshot,
+      projectApiBase: apiBase,
       refreshLibrary: () => this.#refreshReferenceLibrary(),
       showToast: (message) => this.#showToast(message),
     });
@@ -1603,34 +1609,6 @@ class WorkspaceApp {
     this.#elements.source.setSelectionRange(insertion.caret, insertion.caret);
     this.#rememberAuthoringSelection();
     this.#showToast(`Inserted :cite[${citationKey}]${locator ? ` at ${locator}` : ""} into canonical Markdown.`);
-  }
-
-  async #citeLibraryHighlight(highlight: LibraryHighlight): Promise<void> {
-    if (this.#resolvedAuthoringCaret() === null) {
-      this.#showToast("Place the manuscript caret before citing a highlight.");
-      return;
-    }
-    const reference = this.#librarySnapshot?.references.find((item) => item.id === highlight.referenceId);
-    if (!reference) {
-      this.#showToast("The highlighted source is no longer available in the library.");
-      return;
-    }
-    let projectReference = this.#snapshot?.projectReferences.find((item) => item.referenceId === reference.id);
-    if (!projectReference) {
-      const reservedAliases = this.#snapshot?.projectReferences.map((item) => item.citationAlias) ?? [];
-      const preferredAlias = reservedAliases.some((alias) => alias.toLocaleLowerCase() === reference.referenceKey.toLocaleLowerCase())
-        ? suggestCitationKey({ authors: [...reference.authors], year: reference.year }, reservedAliases)
-        : reference.referenceKey;
-      const response = await jsonFetch(`${apiBase}/references`, {
-        referenceId: reference.id,
-        citationAlias: preferredAlias,
-      });
-      await this.#acceptWorkspaceMutation(response);
-      projectReference = this.#snapshot?.projectReferences.find((item) => item.referenceId === reference.id);
-      this.#renderReferenceLibrary();
-    }
-    if (!projectReference) throw new Error("Project reference was not created");
-    this.#insertCitation(projectReference.citationAlias, `p. ${highlight.page}`);
   }
 
   async #loadActivePdf(force: boolean): Promise<void> {

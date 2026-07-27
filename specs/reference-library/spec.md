@@ -382,10 +382,12 @@ memory and makes citation aliases compete with stable source identity.
   over its duplicate shared-reference projection. Labels distinguish these
   scopes, and opening a private PDF never shares it implicitly.
 - In a project, each saved private text highlight exposes **Cite in manuscript**.
-  The action uses the remembered manuscript caret, links only the bibliographic
-  snapshot when the source is not yet in the project, and inserts the resulting
-  project citation alias with the highlight page as its locator. It does not
-  share the private highlight or PDF artifact.
+  The private-PDF presenter checks citation readiness, chooses a collision-safe
+  alias, and links only the bibliographic snapshot when the source is not yet in
+  the project. The workspace coordinator accepts the resulting canonical
+  snapshot and inserts the project citation alias at the remembered manuscript
+  caret with the highlight page as its locator. The action does not share the
+  private highlight or PDF artifact.
 
 ### API Contracts
 

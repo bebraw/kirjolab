@@ -131,16 +131,18 @@ The adopted components own bounded presentation:
   inspector open/close, highlight/note draft composition and clearing, and
   highlight, note, and markup edit/selection presentation across the markup
   layer, inspector, and toolbar. It binds their private-PDF action and outcome
-  streams and owns local completion presentation while delegating canonical
-  refresh, cross-resource navigation, citation insertion, shared toast display,
-  and viewer-only selection effects through typed callbacks; it returns only
+  streams and owns local completion presentation, private-highlight citation
+  readiness feedback, collision-safe project-reference preparation, and
+  validated link transport while delegating canonical snapshot acceptance,
+  Yjs citation insertion, cross-resource navigation, shared toast display, and
+  viewer-only selection effects through typed callbacks; it returns only
   viewer-owned selection effects
   and synchronizes the bounded
   evidence, annotation, publication, claim, comment, and candidate owners from
   the canonical workspace snapshot, and derives active PDF annotations and
   private highlights for the viewer. The coordinator retains canonical context
-  state, active page, PDF loading, private markup drafts, citation insertion,
-  model availability, refresh, routing, and notification policy.
+  state, active page, PDF loading, private markup drafts, Yjs citation
+  insertion, model availability, refresh, routing, and notification policy.
 - The knowledge search panel owns query capture, empty, result, and error
   presentation, and typed search and resource-selection intents. Its enclosing
   project-map workspace owns the authorized search request, response validation,

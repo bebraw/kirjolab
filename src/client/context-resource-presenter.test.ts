@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type {
+  BibliographicRecord,
   LibraryHighlight,
   LibraryPdfArtifact,
   LibraryPdfNote,
@@ -7,11 +8,12 @@ import type {
   ReferenceLibrarySnapshot,
 } from "../domain/reference-library";
 import { workspaceSnapshotFixture } from "../test-support/workspace-fixture";
+import type { ProjectReferenceLink, WorkspaceSnapshot } from "../domain/workspace";
 import { AssistantWorkflowStatus } from "./assistant-workflow-status";
 import { CandidateListPanel } from "./candidate-list-panel";
 import { CandidateReviewPanel } from "./candidate-review-panel";
 import { ClaimListPanel } from "./claim-list-panel";
-import { ContextResourcePresenter, type ContextResourceSources } from "./context-resource-presenter";
+import { ContextResourcePresenter, type ContextResourceSources, type LibraryPdfCoordinator } from "./context-resource-presenter";
 import { LibraryPdfAnnotationToolbar } from "./library-pdf-annotation-toolbar";
 import { LibraryPdfInspector } from "./library-pdf-inspector";
 import { LibraryPdfMarkupLayer } from "./library-pdf-markup-layer";
@@ -52,6 +54,23 @@ const highlight = {
   referenceId: "reference:1",
   updatedAt: "updated",
 } satisfies LibraryHighlight;
+const reference = {
+  abstract: "",
+  archivedAt: null,
+  authors: ["Doe, Jane"],
+  createdAt: "created",
+  deletedAt: null,
+  doi: "",
+  id: highlight.referenceId,
+  provenance: {},
+  referenceKey: "doe2026",
+  title: "Source",
+  type: "article-journal",
+  updatedAt: "updated",
+  url: "",
+  venue: "",
+  year: "2026",
+} satisfies BibliographicRecord;
 const note = {
   artifactId: libraryPdf.id,
   body: "Page note",
@@ -408,14 +427,18 @@ describe("context resource presenter", () => {
   it("routes private-PDF sibling events through the bounded coordinator", async () => {
     const { elements, presenter } = setup();
     const coordinator = {
+      acceptProjectMutation: vi.fn(async () => undefined),
       applyViewerPresentation: vi.fn(),
-      citeHighlight: vi.fn(),
+      canInsertCitation: vi.fn(() => true),
       clearViewerDraftSelection: vi.fn(),
       completeMarkup: vi.fn(),
       currentPage: vi.fn(() => 3),
+      insertCitation: vi.fn(),
       library: vi.fn(() => library),
       openHighlight: vi.fn(),
       openPdf: vi.fn(),
+      project: vi.fn(() => workspaceSnapshotFixture),
+      projectApiBase: "/api/workspaces/workspace",
       refreshLibrary: vi.fn(async () => undefined),
       showToast: vi.fn(),
     };
@@ -446,5 +469,104 @@ describe("context resource presenter", () => {
     await vi.waitFor(() => expect(coordinator.refreshLibrary).toHaveBeenCalledOnce());
     expect(coordinator.clearViewerDraftSelection).toHaveBeenCalledOnce();
     expect(coordinator.showToast).toHaveBeenCalledWith("Private highlight saved to your library.");
+  });
+
+  it("owns existing and collision-safe project-reference preparation before citing a highlight", async () => {
+    const { presenter } = setup();
+    const existingProjectReference = {
+      citationAlias: reference.referenceKey,
+      createdAt: "created",
+      id: "project-reference-1",
+      referenceId: reference.id,
+      snapshot: {
+        authors: reference.authors,
+        capturedAt: "created",
+        doi: reference.doi,
+        referenceId: reference.id,
+        title: reference.title,
+        tombstone: false,
+        type: reference.type,
+        url: reference.url,
+        venue: reference.venue,
+        webSnapshot: null,
+        year: reference.year,
+      },
+      updatedAt: "updated",
+    } satisfies ProjectReferenceLink;
+    const project = vi.fn<() => WorkspaceSnapshot | null>(() => ({
+      ...workspaceSnapshotFixture,
+      projectReferences: [existingProjectReference],
+    }));
+    const librarySource = vi.fn<() => ReferenceLibrarySnapshot | null>(() => ({ ...library, references: [reference] }));
+    const coordinator = {
+      acceptProjectMutation: vi.fn(async () => undefined),
+      applyViewerPresentation: vi.fn(),
+      canInsertCitation: vi.fn(() => true),
+      clearViewerDraftSelection: vi.fn(),
+      completeMarkup: vi.fn(),
+      currentPage: vi.fn(() => 3),
+      insertCitation: vi.fn(),
+      library: librarySource,
+      openHighlight: vi.fn(),
+      openPdf: vi.fn(),
+      project,
+      projectApiBase: "/api/workspaces/workspace",
+      refreshLibrary: vi.fn(async () => undefined),
+      showToast: vi.fn(),
+    } satisfies LibraryPdfCoordinator;
+    presenter.bindLibraryPdf(coordinator);
+
+    await presenter.citeLibraryHighlight(highlight);
+
+    expect(coordinator.insertCitation).toHaveBeenCalledWith("doe2026", "p. 2");
+    expect(coordinator.acceptProjectMutation).not.toHaveBeenCalled();
+
+    const linked = { ...existingProjectReference, citationAlias: "doe2026a" };
+    const snapshot = { ...workspaceSnapshotFixture, projectReferences: [linked] };
+    project.mockReturnValue({ ...workspaceSnapshotFixture, projectReferences: [{ ...existingProjectReference, referenceId: "other" }] });
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json(snapshot)));
+    coordinator.insertCitation.mockClear();
+
+    await presenter.citeLibraryHighlight(highlight);
+
+    expect(fetch).toHaveBeenCalledWith("/api/workspaces/workspace/references", {
+      body: JSON.stringify({ referenceId: reference.id, citationAlias: "doe2026a" }),
+      credentials: "same-origin",
+      headers: { "content-type": "application/json" },
+      method: "POST",
+    });
+    expect(coordinator.acceptProjectMutation).toHaveBeenCalledWith(snapshot);
+    expect(coordinator.insertCitation).toHaveBeenCalledWith("doe2026a", "p. 2");
+  });
+
+  it("contains unavailable highlight citation feedback", async () => {
+    const { presenter } = setup();
+    const librarySource = vi.fn<() => ReferenceLibrarySnapshot | null>(() => ({ ...library, references: [reference] }));
+    const coordinator = {
+      acceptProjectMutation: vi.fn(async () => undefined),
+      applyViewerPresentation: vi.fn(),
+      canInsertCitation: vi.fn(() => false),
+      clearViewerDraftSelection: vi.fn(),
+      completeMarkup: vi.fn(),
+      currentPage: vi.fn(() => 3),
+      insertCitation: vi.fn(),
+      library: librarySource,
+      openHighlight: vi.fn(),
+      openPdf: vi.fn(),
+      project: vi.fn(() => workspaceSnapshotFixture),
+      projectApiBase: "/api/workspaces/workspace",
+      refreshLibrary: vi.fn(async () => undefined),
+      showToast: vi.fn(),
+    } satisfies LibraryPdfCoordinator;
+    presenter.bindLibraryPdf(coordinator);
+
+    await presenter.citeLibraryHighlight(highlight);
+    expect(coordinator.showToast).toHaveBeenLastCalledWith("Place the manuscript caret before citing a highlight.");
+
+    coordinator.canInsertCitation.mockReturnValue(true);
+    librarySource.mockReturnValue(library);
+    await presenter.citeLibraryHighlight(highlight);
+    expect(coordinator.showToast).toHaveBeenLastCalledWith("The highlighted source is no longer available in the library.");
+    expect(coordinator.insertCitation).not.toHaveBeenCalled();
   });
 });

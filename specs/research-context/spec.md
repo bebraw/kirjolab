@@ -188,9 +188,11 @@ changing their canonical data, selector, authorization, or rendering contracts.
   The same presenter synchronizes tool choice, inspector open/close lifecycle,
   highlight/note draft composition and clearing, and highlight, note, and markup
   edit/selection presentation across the markup layer, inspector, and toolbar,
-  and owns their local private-PDF action and completion routing. It delegates
-  canonical refresh, cross-resource navigation, citation insertion, toast
-  display, and viewer-only selection effects through typed callbacks,
+  and owns their local private-PDF action and completion routing, including
+  citation readiness feedback, collision-safe project-reference preparation,
+  and validated link transport. It delegates canonical snapshot acceptance,
+  Yjs citation insertion, cross-resource navigation, toast display, and viewer-
+  only selection effects through typed callbacks,
   returning only the viewer's text-selection, selected-highlight, and draft-
   selection cleanup effects.
   It returns only active project-PDF annotations and private highlights to the

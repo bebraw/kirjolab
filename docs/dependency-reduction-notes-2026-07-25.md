@@ -7074,6 +7074,29 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,674 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Private-Highlight Citation
+
+`ContextResourcePresenter` now owns private-highlight citation readiness
+feedback, Library-record resolution, collision-safe project-alias selection,
+and validated project-reference link transport. `WorkspaceApp` retains caret
+authority, canonical snapshot acceptance, Library reprojection, and the actual
+Yjs citation insertion behind typed callbacks.
+
+This checkpoint reduces `src/client/app.ts` from 2,174 to 2,152 lines (-22) and
+grows the context-resource presenter from 490 to 526 lines (+36). Runtime source
+across the two files increases by 14 lines while moving the complete cite action
+into its existing private-PDF workflow owner. Focused coverage exercises
+existing links, collision-safe creation, canonical mutation completion, missing
+caret and source feedback, existing private-PDF routing, and strict types.
+
+The browser application artifact changes from 840,665 B raw / 227,258 B gzip
+to 840,921 B raw / 227,437 B gzip (+256 B raw / +179 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,676 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

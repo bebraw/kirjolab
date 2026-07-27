@@ -7,6 +7,7 @@ import type {
   ProjectReferencePdf,
   ReferenceLibrarySnapshot,
 } from "../domain/reference-library";
+import { suggestCitationKey } from "../domain/publication-intake";
 import type { AnnotationResource, WorkspaceSnapshot } from "../domain/workspace";
 import { AssistantWorkflowStatus } from "./assistant-workflow-status";
 import { CandidateListPanel } from "./candidate-list-panel";
@@ -25,6 +26,7 @@ import { libraryPdfToolbarActionEvent, type LibraryPdfToolbarAction } from "./li
 import { pdfHighlightImportOutcomeEvent, type PdfHighlightImportOutcome } from "./pdf-highlight-import-panel";
 import { ProjectAnnotationForm } from "./project-annotation-form";
 import { ProjectEvidencePanel } from "./project-evidence-panel";
+import { mutateProjectReference } from "./project-reference-mutation";
 import { PublicationContextPanel } from "./publication-context-panel";
 import { PublicationListPanel } from "./publication-list-panel";
 import type { ResearchContextTab, ResearchResourceTab } from "./research-context";
@@ -65,14 +67,18 @@ export interface LibraryPdfSelectionPresentation {
 }
 
 export interface LibraryPdfCoordinator {
+  readonly acceptProjectMutation: (snapshot: WorkspaceSnapshot) => Promise<void>;
   readonly applyViewerPresentation: (presentation: LibraryPdfSelectionPresentation | LibraryPdfToolPresentation) => void;
-  readonly citeHighlight: (highlight: LibraryHighlight) => void;
+  readonly canInsertCitation: () => boolean;
   readonly clearViewerDraftSelection: () => void;
   readonly completeMarkup: (message: string) => void;
   readonly currentPage: () => number;
+  readonly insertCitation: (citationAlias: string, locator: string) => void;
   readonly library: () => ReferenceLibrarySnapshot | null;
   readonly openHighlight: (highlight: LibraryHighlight) => void;
   readonly openPdf: (artifact: LibraryPdfArtifact, page: number) => void;
+  readonly project: () => WorkspaceSnapshot | null;
+  readonly projectApiBase: string;
   readonly refreshLibrary: () => Promise<void>;
   readonly showToast: (message: string) => void;
 }
@@ -208,6 +214,37 @@ export class ContextResourcePresenter extends LitElement {
     return { ...tool, clearDraftSelection: false, privateHighlightId: highlight.id, privateHighlightSelection: true };
   }
 
+  async citeLibraryHighlight(highlight: LibraryHighlight): Promise<void> {
+    const coordinator = this.libraryPdfCoordinator;
+    if (!coordinator) return;
+    if (!coordinator.canInsertCitation()) {
+      coordinator.showToast("Place the manuscript caret before citing a highlight.");
+      return;
+    }
+    const reference = coordinator.library()?.references.find((item) => item.id === highlight.referenceId);
+    if (!reference) {
+      coordinator.showToast("The highlighted source is no longer available in the library.");
+      return;
+    }
+    const project = coordinator.project();
+    let projectReference = project?.projectReferences.find((item) => item.referenceId === reference.id);
+    if (!projectReference) {
+      const reservedAliases = project?.projectReferences.map((item) => item.citationAlias) ?? [];
+      const preferredAlias = reservedAliases.some((alias) => alias.toLocaleLowerCase() === reference.referenceKey.toLocaleLowerCase())
+        ? suggestCitationKey({ authors: [...reference.authors], year: reference.year }, reservedAliases)
+        : reference.referenceKey;
+      const snapshot = await mutateProjectReference(coordinator.projectApiBase, {
+        action: "link",
+        citationAlias: preferredAlias,
+        referenceId: reference.id,
+      });
+      projectReference = snapshot.projectReferences.find((item) => item.referenceId === reference.id);
+      await coordinator.acceptProjectMutation(snapshot);
+    }
+    if (!projectReference) throw new Error("Project reference was not created");
+    coordinator.insertCitation(projectReference.citationAlias, `p. ${highlight.page}`);
+  }
+
   editLibraryPdfNote(note: LibraryPdfNote): LibraryPdfSelectionPresentation {
     const markups = this.element("paper-markups", LibraryPdfMarkupLayer);
     const tool = markups?.tool === "select" ? {} : this.chooseLibraryPdfTool("select");
@@ -242,7 +279,7 @@ export class ContextResourcePresenter extends LitElement {
     if (!coordinator) return;
     if (action.action === "open-highlight") coordinator.openHighlight(action.highlight);
     else if (action.action === "edit-highlight") this.applyViewerPresentation(this.editLibraryHighlight(action.highlight));
-    else if (action.action === "cite-highlight") coordinator.citeHighlight(action.highlight);
+    else if (action.action === "cite-highlight") void this.citeLibraryHighlight(action.highlight);
     else if (action.action === "open-markup") coordinator.openPdf(action.artifact, action.page);
     else if (action.action === "edit-note") this.applyViewerPresentation(this.editLibraryPdfNote(action.note));
     else coordinator.completeMarkup("Private annotation deleted.");

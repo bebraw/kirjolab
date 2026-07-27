@@ -899,14 +899,16 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   markup edit/selection coordination across the markup layer, inspector, and
   toolbar. It binds and routes those siblings' private-PDF action and outcome
   streams, including local save, import, delete, export, and status completion
-  presentation, returning only the text-
+  presentation. Let it own private-highlight citation readiness feedback,
+  collision-safe project-reference preparation, and validated link transport,
+  returning only the text-
   selection, selected-highlight, and draft-selection cleanup effects that
   remain viewer-owned, and
   synchronize the bounded evidence, annotation, publication, claim, comment,
   and candidate owners from one canonical workspace snapshot. It may return
   active project-PDF annotations and private highlights for the PDF viewer while
-  keeping tab state, PDF loading, citation insertion, canonical snapshot
-  refresh, cross-resource navigation, routing, and the shared notification
+  keeping tab state, PDF loading, canonical snapshot acceptance, Yjs citation
+  insertion, cross-resource navigation, routing, and the shared notification
   outlet in the application coordinator through narrow callbacks.
 - Project bounded, reconstructible editor UI selections into query parameters
   only after validating stable ids against authorized snapshots.
