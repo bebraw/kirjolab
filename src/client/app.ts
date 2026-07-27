@@ -26,8 +26,6 @@ import {
   isProjectReferencePdfs,
   isReferenceLibrarySnapshot,
   type LibraryHighlight,
-  type LibraryPdfDrawing,
-  type LibraryPdfMarkup,
   type LibraryPdfNote,
   type LibraryPdfArtifact,
   type ProjectReferencePdf,
@@ -2932,21 +2930,13 @@ class WorkspaceApp {
   #renderPdfMarkups(): void {
     const artifact = this.#activeLibraryPdf();
     const page = this.#pdfViewer.currentPage;
-    const markups = this.#visibleLibraryPdfMarkups(artifact, page);
-    const drawings = markups.filter((item): item is LibraryPdfDrawing => item.kind === "drawing");
-    this.#elements.paperMarkups.setData({
-      drawingStyle: this.#elements.libraryPdfAnnotationToolbar.drawingStyle,
-      drawingTarget: artifact?.referenceId ? { artifactId: artifact.id, referenceId: artifact.referenceId } : null,
-      drawings,
-      notes: markups.filter((item): item is LibraryPdfNote => item.kind === "note"),
+    const drawings = this.#elements.paperMarkups.setLibraryPage(
+      artifact,
+      this.#librarySnapshot?.pdfMarkups ?? [],
       page,
-    });
+      this.#elements.libraryPdfAnnotationToolbar.drawingStyle,
+    );
     this.#elements.libraryPdfAnnotationToolbar.setUndoDrawings(drawings);
-  }
-
-  #visibleLibraryPdfMarkups(artifact: LibraryPdfArtifact | undefined, page: number): LibraryPdfMarkup[] {
-    if (!artifact) return [];
-    return (this.#librarySnapshot?.pdfMarkups ?? []).filter((item) => item.artifactId === artifact.id && item.page === page);
   }
 
   #completeLibraryPdfMarkup(message: string): void {

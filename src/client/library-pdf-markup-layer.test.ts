@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { LibraryPdfDrawing, LibraryPdfNote } from "../domain/reference-library";
+import type { LibraryPdfArtifact, LibraryPdfDrawing, LibraryPdfNote } from "../domain/reference-library";
 import { LibraryPdfMarkupLayer, libraryPdfMarkupActionEvent, type LibraryPdfMarkupAction } from "./library-pdf-markup-layer";
 
 class TestMarkupLayer extends LibraryPdfMarkupLayer {
@@ -49,6 +49,18 @@ const note: LibraryPdfNote = {
   updatedAt: "updated",
 };
 
+const artifact: LibraryPdfArtifact = {
+  contentType: "application/pdf",
+  createdAt: "created",
+  fingerprint: "fingerprint",
+  id: "artifact-1",
+  name: "paper.pdf",
+  objectKey: "library/paper.pdf",
+  referenceId: "reference-1",
+  rights: "private",
+  size: 2048,
+};
+
 describe("library PDF markup layer", () => {
   afterEach(() => {
     vi.restoreAllMocks();
@@ -82,6 +94,29 @@ describe("library PDF markup layer", () => {
     });
     layer.editNote(note);
     expect(layer.renderForTest()).toBeDefined();
+  });
+
+  it("derives page-local drawings and notes from canonical Library markups", () => {
+    const layer = new TestMarkupLayer();
+    const setData = vi.spyOn(layer, "setData");
+    const drawings = layer.setLibraryPage(
+      artifact,
+      [drawing, note, { ...drawing, id: "other-page", page: 3 }, { ...note, artifactId: "other-artifact", id: "other-artifact" }],
+      2,
+      { color: "#000000", width: 3 },
+    );
+
+    expect(drawings).toEqual([drawing]);
+    expect(setData).toHaveBeenCalledWith({
+      drawingStyle: { color: "#000000", width: 3 },
+      drawingTarget: { artifactId: "artifact-1", referenceId: "reference-1" },
+      drawings: [drawing],
+      notes: [note],
+      page: 2,
+    });
+
+    expect(layer.setLibraryPage(undefined, [drawing, note], 2, { color: "#000000", width: 3 })).toEqual([]);
+    expect(setData).toHaveBeenLastCalledWith(expect.objectContaining({ drawingTarget: null, drawings: [], notes: [] }));
   });
 
   it("owns tool, selection, note composition, and note-card state", () => {

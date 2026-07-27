@@ -5605,6 +5605,29 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,621 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Page-Local PDF Markups
+
+`LibraryPdfMarkupLayer` now derives the active page's saved drawings, notes,
+and stable drawing target from canonical artifact and markup inputs.
+`WorkspaceApp` retains active-page selection, drawing-style and toolbar
+coordination, persistence outcomes, canonical Library refresh, and notification
+policy.
+
+This checkpoint reduces `src/client/app.ts` from 3,195 to 3,185 lines (-10)
+and grows the markup owner from 683 to 701 lines. Runtime source across those
+two files grows by eight lines while deleting the coordinator's page-local
+filtering and kind partition. Nine focused cases cover canonical artifact and
+page filtering, drawing-target derivation, empty input, existing markup
+presentation, gesture, persistence, and strict client and Workers types.
+
+The browser application artifact changes from 829,400 B raw / 224,627 B gzip
+to 829,436 B raw / 224,657 B gzip (+36 B raw / +30 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,622 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

@@ -296,8 +296,9 @@ memory and makes citation aliases compete with stable source identity.
   and notifications.
 - A bounded light-DOM markup layer owns saved and draft drawing SVG, note pins,
   tool and saved-resource selection state, note composition, open note cards,
-  live draft geometry updates, pointer capture, note movement, drawing and
-  shape-recognition gestures, note-card dismissal, and focus restoration. It
+  page-local saved-drawing and note projection from canonical artifact and
+  markup inputs, live draft geometry updates, pointer capture, note movement,
+  drawing and shape-recognition gestures, note-card dismissal, and focus restoration. It
   binds its host pointer-down, move, up, and cancellation events, routes them
   through that local gesture state, restores canonical note geometry after a
   cancelled drag, and emits typed selection, stationary-note, touch-warning,

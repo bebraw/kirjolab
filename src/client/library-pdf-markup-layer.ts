@@ -1,5 +1,5 @@
 import { html, LitElement, nothing, type TemplateResult } from "lit";
-import type { LibraryPdfDrawing, LibraryPdfNote, LibraryPdfPoint } from "../domain/reference-library";
+import type { LibraryPdfArtifact, LibraryPdfDrawing, LibraryPdfMarkup, LibraryPdfNote, LibraryPdfPoint } from "../domain/reference-library";
 import { manipulateRecognizedShape, recognizeDrawnShape, type RecognizedDrawnShape } from "./drawn-shape-recognition";
 import { errorMessage, expectOk, jsonFetch } from "./http";
 
@@ -132,6 +132,24 @@ export class LibraryPdfMarkupLayer extends LitElement {
     }
     if (!this.movingNoteId) this.noteMovePreview = null;
     if (this.isConnected) this.performUpdate();
+  }
+
+  setLibraryPage(
+    artifact: LibraryPdfArtifact | undefined,
+    markups: readonly LibraryPdfMarkup[],
+    page: number,
+    drawingStyle: Pick<LibraryPdfDrawing, "color" | "width">,
+  ): readonly LibraryPdfDrawing[] {
+    const visible = artifact ? markups.filter((item) => item.artifactId === artifact.id && item.page === page) : [];
+    const drawings = visible.filter((item): item is LibraryPdfDrawing => item.kind === "drawing");
+    this.setData({
+      drawingStyle,
+      drawingTarget: artifact?.referenceId ? { artifactId: artifact.id, referenceId: artifact.referenceId } : null,
+      drawings,
+      notes: visible.filter((item): item is LibraryPdfNote => item.kind === "note"),
+      page,
+    });
+    return drawings;
   }
 
   get noteDraft(): LibraryPdfNoteDraft | null {

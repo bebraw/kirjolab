@@ -378,8 +378,9 @@ The adopted components own bounded presentation:
   suppression, retryable card-local failures, and a typed deletion outcome.
 - The Library PDF markup layer owns saved and draft drawing SVG, note pins,
   tool, saved-resource selection, note-composition, and open-note-card state;
-  live draft geometry updates; note movement and focus restoration; active
-  interaction attributes; pointer normalization to page coordinates;
+  page-local saved-drawing, note, and stable drawing-target projection from
+  canonical artifact and markup inputs; live draft geometry updates; note
+  movement and focus restoration; active interaction attributes; pointer normalization to page coordinates;
   coalesced-sample accumulation and deduplication;
   delayed pixel-space shape recognition and adjustment, recognition-timer
   cleanup, note-pin and drawing-stroke hit-testing, tool-aware pointer-down
@@ -799,7 +800,8 @@ reason to wrap static markup mechanically.
   eliminating the separate annotation state machine, coordinator-owned
   transitions, coordinator note-move adapter, and coordinator drawing-save
   adapter. The application coordinator retains inspector policy, canonical
-  refreshes, and notifications. Note placement remains layer-local until a
+  refreshes, active-page selection, toolbar coordination, and notifications.
+  Page-local markup filtering now remains with the rendering owner. Note placement remains layer-local until a
   stationary pointer release; the layer then emits the complete typed draft for
   annotation-form persistence.
 - The Library PDF project-use block replaces its imperative renderer and four
