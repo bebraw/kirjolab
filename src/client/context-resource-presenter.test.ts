@@ -379,4 +379,31 @@ describe("context resource presenter", () => {
     expect(selectMarkup).toHaveBeenCalledWith(note.id);
     expect(selectInspectorMarkup).toHaveBeenCalledWith(note);
   });
+
+  it("owns private-PDF highlight and note draft composition", () => {
+    const { elements, presenter } = setup();
+    const inspector = elements["library-pdf-inspector"];
+    const beginHighlight = vi.spyOn(inspector, "beginHighlight").mockImplementation(() => undefined);
+    const beginNote = vi.spyOn(inspector, "beginNote").mockImplementation(() => undefined);
+    const capture = {
+      page: 4,
+      prefix: "Before",
+      quote: "Selected passage",
+      rects: [{ height: 0.1, width: 0.2, x: 0.3, y: 0.4 }],
+      suffix: "After",
+    };
+    const draft = { artifactId: libraryPdf.id, editingId: null, page: 4, referenceId: "reference:1", x: 0.2, y: 0.3 };
+
+    presenter.beginLibraryHighlight(libraryPdf.id, capture);
+    presenter.beginLibraryPdfNote(draft);
+
+    expect(beginHighlight).toHaveBeenCalledWith(libraryPdf.id, {
+      comment: "",
+      highlightId: null,
+      page: 4,
+      quote: "Selected passage",
+      rects: capture.rects,
+    });
+    expect(beginNote).toHaveBeenCalledWith(draft);
+  });
 });

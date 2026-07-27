@@ -758,10 +758,7 @@ class WorkspaceApp {
         this.#completeLibraryPdfMarkup(detail.action === "drawing-saved" ? "Drawing saved privately." : "Note moved.");
       } else if (detail.action === "select-markup") this.#selectLibraryPdfMarkup(detail.id);
       else if (detail.action === "status") this.#elements.libraryPdfInspector.setStatus(detail.message);
-      else {
-        this.#elements.libraryPdfInspector.beginNote(detail.draft);
-        this.#elements.contextResourcePresenter.setLibraryPdfInspector(true);
-      }
+      else this.#elements.contextResourcePresenter.beginLibraryPdfNote(detail.draft);
     });
     this.#elements.claimListPanel.configure(apiBase);
     this.#elements.claimListPanel.addEventListener(claimListActionEvent, (event) => {
@@ -2750,14 +2747,7 @@ class WorkspaceApp {
     if (activeTab?.kind === "library-pdf") {
       const artifact = this.#librarySnapshot?.artifacts.find((item) => item.id === activeTab.id);
       if (!artifact) return;
-      this.#elements.libraryPdfInspector.beginHighlight(artifact.id, {
-        highlightId: null,
-        page: capture.page,
-        quote: capture.quote,
-        comment: "",
-        rects: capture.rects,
-      });
-      this.#elements.contextResourcePresenter.setLibraryPdfInspector(true);
+      this.#elements.contextResourcePresenter.beginLibraryHighlight(artifact.id, capture);
       return;
     }
     if (activeTab?.kind !== "pdf") return;

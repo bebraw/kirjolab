@@ -14,8 +14,9 @@ import { CandidateReviewPanel } from "./candidate-review-panel";
 import { ClaimListPanel } from "./claim-list-panel";
 import { LibraryPdfAnnotationToolbar } from "./library-pdf-annotation-toolbar";
 import { LibraryPdfInspector } from "./library-pdf-inspector";
-import { LibraryPdfMarkupLayer, type PdfAnnotationTool } from "./library-pdf-markup-layer";
+import { LibraryPdfMarkupLayer, type LibraryPdfNoteDraft, type PdfAnnotationTool } from "./library-pdf-markup-layer";
 import { ManuscriptCommentList } from "./manuscript-comment-list";
+import type { PdfSelectionCapture } from "./pdf-viewer";
 import { ProjectAnnotationForm } from "./project-annotation-form";
 import { ProjectEvidencePanel } from "./project-evidence-panel";
 import { PublicationContextPanel } from "./publication-context-panel";
@@ -91,6 +92,22 @@ export class ContextResourcePresenter extends LitElement {
     if (showAnnotations) inspector?.setInspectorOpen(open, true);
     else inspector?.setInspectorOpen(open);
     this.element("library-pdf-annotation-toolbar", LibraryPdfAnnotationToolbar)?.setInspectorOpen(open);
+  }
+
+  beginLibraryHighlight(artifactId: string, capture: PdfSelectionCapture): void {
+    this.element("library-pdf-inspector", LibraryPdfInspector)?.beginHighlight(artifactId, {
+      comment: "",
+      highlightId: null,
+      page: capture.page,
+      quote: capture.quote,
+      rects: capture.rects,
+    });
+    this.setLibraryPdfInspector(true);
+  }
+
+  beginLibraryPdfNote(draft: LibraryPdfNoteDraft & { readonly artifactId: string; readonly referenceId: string }): void {
+    this.element("library-pdf-inspector", LibraryPdfInspector)?.beginNote(draft);
+    this.setLibraryPdfInspector(true);
   }
 
   chooseLibraryPdfTool(tool: PdfAnnotationTool): LibraryPdfToolPresentation {
