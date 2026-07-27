@@ -56,7 +56,9 @@ The adopted components own bounded presentation:
   import handoff, canonical successful-result navigation, and typed import
   events. It binds its server-rendered entry trigger and owns loading-state
   entry, post-load focus, and load-failure presentation around a typed catalog-
-  refresh callback.
+  refresh callback. Every successful refresh reports its derived visible-
+  template view through the same template-change outcome used by optimistic
+  deletion and Undo, keeping replacement consumers synchronized.
 - The workspace sharing panel owns member and capability-link requests,
   response validation and presentation, invitation input and submission,
   clipboard interaction, native parent-dialog lifecycle, and typed notices.
@@ -906,8 +908,8 @@ reason to wrap static markup mechanically.
   hidden-ID set plus template-catalog, project-preview, and project-creation
   requests plus the personal-template delayed deletion and Undo lifecycle. The
   application coordinator retains import workflows, replacement-option
-  synchronization, and the toast outlet through a typed import binding; the
-  public action event is removed.
+  consumption, and the toast outlet through typed bindings; the public action
+  event is removed.
 - The Library discovery search replaces six internal element references and
   imperative form-value, submit-state, progress, count, empty, and error
   handling plus the provider request and response validation. The application

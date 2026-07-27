@@ -8991,6 +8991,29 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,720 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Template Refresh Outcomes
+
+`ProjectStartingPointBrowser` now reports its derived visible-template view
+after every successful catalog refresh through the existing typed change
+binding. Initial loads, post-promotion loads, post-save loads, and committed
+deletions therefore synchronize the save-template replacement dialog from the
+catalog owner instead of relying on a second `WorkspaceApp` step.
+
+This checkpoint reduces `src/client/app.ts` from 1,247 to 1,246 lines (-1),
+reduces the starting-point owner from 569 to 567 lines (-2), and reduces
+combined runtime source by three lines while deleting the deletion path's
+duplicate notification. Direct component coverage passes all nine cases;
+affected application coverage passes all 11 related cases alongside strict
+types.
+
+The browser application artifact changes from 849,696 B raw / 228,863 B gzip
+to 849,595 B raw / 228,845 B gzip (-101 B raw / -18 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,720 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

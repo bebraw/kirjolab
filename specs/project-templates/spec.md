@@ -62,8 +62,10 @@ without copying private research or creating a live dependency on the source.
   cancellation, pre-import dismissal, canonical successful-result navigation,
   server-rendered entry-trigger activation, loading-state entry, post-load
   focus, load-failure presentation, and a typed import binding. `WorkspaceApp`
-  retains canonical catalog refresh, import workflows, replacement-option
-  synchronization, and the global toast outlet.
+  retains canonical workspace-catalog input, import workflows, replacement-
+  option consumption, and the global toast outlet. Every successful template-
+  catalog refresh reports the component's derived visible-template view through
+  the same typed change binding used by optimistic deletion and Undo.
 - The template-save Lit dialog owns create-or-replace form state, promotion
   requests, saved-summary validation, duplicate-submit gating, local progress
   and error presentation, and create-or-replace success wording.

@@ -252,9 +252,16 @@ describe("project starting point browser", () => {
 
   it("refreshes and validates the template catalog", async () => {
     const browser = new TestProjectStartingPointBrowser();
+    const templatesChanged = vi.fn();
+    browser.bind({
+      openImport: vi.fn(),
+      presentNotice: vi.fn(),
+      templatesChanged,
+    });
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json([builtIn, personal])));
     await browser.refresh([workspace]);
     expect(browser.availableTemplates).toEqual([builtIn, personal]);
+    expect(templatesChanged).toHaveBeenCalledOnce();
   });
 
   it("commits an encoded personal-template deletion and refreshes its catalog", async () => {

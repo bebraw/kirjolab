@@ -122,6 +122,7 @@ export class ProjectStartingPointBrowser extends LitElement {
     const value: unknown = await response.json();
     if (!isProjectTemplateSummaries(value)) throw new Error("Project templates returned invalid data");
     this.setData(value, workspaces);
+    this.binding.templatesChanged();
   }
 
   bind(binding: StartingPointBinding): void {
@@ -517,10 +518,7 @@ export class ProjectStartingPointBrowser extends LitElement {
       failedMessage: `Could not delete template “${template.name}”.`,
       hide: () => this.setTemplateHidden(template.id, true),
       restore: () => this.setTemplateHidden(template.id, false),
-      commit: async () => {
-        await this.deleteTemplate(template.id);
-        this.binding.templatesChanged();
-      },
+      commit: async () => await this.deleteTemplate(template.id),
     });
   }
 

@@ -330,6 +330,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   creation, personal-template deletion, fetched catalog state, optimistic
   hidden-template state, the six-second delayed commit and Undo lifecycle, and
   the derived visible-template view inside the starting-point Lit component.
+  Let every successful template-catalog refresh report that visible view through
+  the component's typed template-change binding so replacement consumers cannot
+  drift from the fetched or post-delete catalog.
   Let it own Cancel and close itself before handing either import choice to the
   coordinator, and let it navigate to the validated project-creation response's
   canonical workspace href. The

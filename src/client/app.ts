@@ -624,9 +624,8 @@ class WorkspaceApp {
     else history.replaceState(history.state, "", next);
   }
 
-  async #refreshProjectTemplates(): Promise<void> {
-    await this.#elements.newWorkspaceStartingPoints.refresh(this.#elements.workspaceCatalogPanel.catalog);
-    this.#elements.saveTemplateDialog.setTemplates(this.#elements.newWorkspaceStartingPoints.availableTemplates);
+  #refreshProjectTemplates(): Promise<void> {
+    return this.#elements.newWorkspaceStartingPoints.refresh(this.#elements.workspaceCatalogPanel.catalog);
   }
 
   #renderCollaborationWorkflow(): void {
