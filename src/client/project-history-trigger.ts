@@ -1,11 +1,24 @@
 import { html, LitElement, type TemplateResult } from "lit";
+import type { CollaboratorSelectionList } from "./collaborator-selection-list";
+import type { ContextResourcePresenter } from "./context-resource-presenter";
+import type { EditorStatus } from "./editor-status";
+import type { ProjectFileDialog } from "./project-file-dialog";
 
 export const projectHistoryOpenEvent = "project-history-open";
+
+export interface ProjectRevisionOwners {
+  readonly collaboratorSelections: Pick<CollaboratorSelectionList, "setData">;
+  readonly contextResourcePresenter: Pick<ContextResourcePresenter, "activeTab" | "presentBoundContext">;
+  readonly editorStatus: Pick<EditorStatus, "renderHighlight">;
+  readonly projectFileDialog: Pick<ProjectFileDialog, "projectFiles">;
+}
 
 export class ProjectHistoryTrigger extends LitElement {
   static override properties = { revision: { state: true } };
 
   declare private revision: number;
+  private revisionOwners: ProjectRevisionOwners | null = null;
+  private scheduleOfflineSave: () => void = () => undefined;
 
   constructor() {
     super();
@@ -14,6 +27,27 @@ export class ProjectHistoryTrigger extends LitElement {
 
   setRevision(revision: number): void {
     this.revision = revision;
+  }
+
+  get value(): number {
+    return this.revision;
+  }
+
+  bindRevision(owners: ProjectRevisionOwners, scheduleOfflineSave: () => void): void {
+    this.revisionOwners = owners;
+    this.scheduleOfflineSave = scheduleOfflineSave;
+  }
+
+  observeRevision(revision: number): void {
+    this.revision = Math.max(this.revision, revision);
+    const owners = this.revisionOwners;
+    if (!owners) return;
+    owners.collaboratorSelections.setData({ files: owners.projectFileDialog.projectFiles(), revision: this.revision });
+    owners.editorStatus.renderHighlight();
+    this.scheduleOfflineSave();
+    if (owners.contextResourcePresenter.activeTab?.kind === "candidate") {
+      owners.contextResourcePresenter.presentBoundContext(false);
+    }
   }
 
   protected open(): void {

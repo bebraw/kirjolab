@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { ConnectionStatus } from "./connection-status";
 
 class TestConnectionStatus extends ConnectionStatus {
@@ -22,5 +22,24 @@ describe("connection status", () => {
     status.setConnection("Offline", false);
     expect(status.renderForTest()).toBeDefined();
     expect(status.rootForTest()).toBe(status);
+  });
+
+  it("owns collaboration status, editability, and availability projection", () => {
+    const status = new TestConnectionStatus();
+    const source = { disabled: false } as HTMLTextAreaElement;
+    const bibliography = { disabled: false } as HTMLTextAreaElement;
+    const refreshAvailability = vi.fn();
+
+    status.presentWorkflow();
+    status.bindWorkflow(
+      { canEdit: false, status: { connected: false, label: "Offline" } },
+      { assistantGenerationPresenter: { refreshAvailability }, bibliography, source },
+    );
+    status.presentWorkflow();
+
+    expect(source.disabled).toBe(true);
+    expect(bibliography.disabled).toBe(true);
+    expect(refreshAvailability).toHaveBeenCalledOnce();
+    expect(status.renderForTest()).toBeDefined();
   });
 });

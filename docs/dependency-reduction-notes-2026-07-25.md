@@ -11535,3 +11535,30 @@ and PDF.js artifacts remain unchanged at 135,411 B / 23,373 B, 204,779 B /
 
 Full native CI passes all 1,749 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Lit Ownership: Collaboration Presentation
+
+`ConnectionStatus` now binds the collaboration workflow and authoring controls
+once, deriving label/tone, source and companion editability, and assistant-
+availability refresh. `ProjectHistoryTrigger` owns the monotonic presented
+revision and routes revision-dependent collaborator data, highlighting, offline
+scheduling, and candidate refresh through bound owners. `WorkspaceApp` no
+longer keeps a duplicate revision field or presentation helpers.
+
+This checkpoint reduces `src/client/app.ts` from 670 to 655 lines (-15), grows
+the connection-status owner from 49 to 78 lines (+29), and grows the history
+trigger from 47 to 81 lines (+34). The 48-line combined increase makes both
+cross-feature presentation contracts explicit while preserving collaboration
+transport, server revision authority, Yjs state, and persistence policy in
+their existing owners. Focused coverage passes unbound behavior, editability,
+availability refresh, monotonic revisions, collaborator projection, highlight
+and offline consequences, candidate refresh, and strict types. Direct and
+unique production package counts remain 18 and 150; Lit was already pinned.
+
+The browser application artifact increases from 856,080 B raw / 230,290 B gzip
+to 856,141 B / 230,349 B (+61 B raw / +59 B gzip). Styles and lazy Markdown and
+PDF.js artifacts remain unchanged at 135,411 B / 23,373 B, 204,779 B / 62,386
+B, and 481,994 B / 146,135 B.
+
+Full native CI passes all 1,751 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.

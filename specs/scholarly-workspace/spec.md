@@ -200,12 +200,18 @@ collaboration.
   and route-driven workspace layouts, resilient local persistence, and resize
   notification before reporting one typed outcome. The coordinator retains PDF
   availability; the surface switcher consumes layout state for route policy.
-  A bounded History trigger presents the current revision and delegates its
-  open intent to the coordinator, which loads and opens the history dialog.
+  A bounded History trigger owns the monotonic presented revision and badge,
+  delegates its open intent to the history dialog, and routes revision-dependent
+  collaborator data, highlight refresh, offline scheduling, and active-candidate
+  refresh through bound owners. Collaboration retains server revision authority.
   A composed Lit history-dialog boundary owns modal lifecycle, busy state,
   panel-close handling, and timeline, inspection, and comparison presentation;
   the coordinator retains the revision XState workflow, requests, mutations,
   navigation, and failure policy.
+  A bounded connection-status owner binds the collaboration workflow and
+  authoring controls once. It derives connection label/tone plus source and
+  companion editability and requests assistant-availability refresh after each
+  transition; collaboration retains state-machine and transport authority.
   User-facing copy calls the editable unit a project; workspace remains an
   implementation term for APIs, types, and coordination boundaries.
 - **Personal preferences:** A compact panel beside the Kirjolab heading owns

@@ -68,7 +68,6 @@ class WorkspaceApp {
     },
   );
   #snapshot: WorkspaceSnapshot | null = null;
-  #revision = 0;
   #hasBootstrapSnapshot = false;
   #activeFileText = this.#source;
   readonly #layout: WorkspaceLayoutManager;
@@ -81,13 +80,17 @@ class WorkspaceApp {
     return this.#elements.projectFileDialog.activeFileId;
   }
 
+  get #revision(): number {
+    return this.#elements.projectHistoryTrigger.value;
+  }
+
   constructor() {
     this.#collaborationSocket = new CollaborationSocket(this.#collaboration, {
       beforeRemoteUpdate: () => this.#elements.editorStatus.preserveSelections(),
       clearOffline: async () => {
         await this.#offlineStore?.clear();
       },
-      connectionChanged: () => this.#renderCollaborationWorkflow(),
+      connectionChanged: () => this.#elements.connectionStatus.presentWorkflow(),
       disconnected: () => this.#elements.collaboratorSelections.clear(),
       remoteUpdateApplied: () => this.#elements.assistantGenerationPresenter.refreshAvailability(),
       resourcesChanged: () => {
@@ -96,10 +99,10 @@ class WorkspaceApp {
         });
       },
       revisionCompleted: (revision) => {
-        this.#setRevision(revision);
+        this.#elements.projectHistoryTrigger.observeRevision(revision);
         this.#elements.editorStatus.setSave(this.#collaboration.pendingCount === 0 ? "Saved" : "Saving…");
       },
-      revisionObserved: (revision) => this.#setRevision(revision),
+      revisionObserved: (revision) => this.#elements.projectHistoryTrigger.observeRevision(revision),
       selection: () =>
         this.#activeFileId
           ? {
@@ -172,7 +175,7 @@ class WorkspaceApp {
       }
       if (!restored) throw new Error("Open this project online once before editing it offline", { cause: error });
       this.#collaboration.goOffline();
-      this.#renderCollaborationWorkflow();
+      this.#elements.connectionStatus.presentWorkflow();
     }
     await this.#elements.workspaceSurfaceSwitcher.restoreRoute();
     void this.#elements.gitHubSyncMenu.refreshWorkspace(true);
@@ -192,6 +195,7 @@ class WorkspaceApp {
       target: () => this.#elements.editorStatus.authoringTarget,
     });
     this.#elements.applicationVersion.bindNotice((message) => this.#elements.toast.show(message));
+    this.#elements.connectionStatus.bindWorkflow(this.#collaboration, this.#elements);
     this.#elements.collaboratorSelections.bindSelectionChanged(() => this.#elements.editorStatus.renderHighlight());
     window.addEventListener("online", () => {
       this.#collaborationSocket.connect();
@@ -386,6 +390,7 @@ class WorkspaceApp {
       presentNotice: (message) => this.#elements.toast.show(message),
       trigger: this.#elements.projectHistoryTrigger,
     });
+    this.#elements.projectHistoryTrigger.bindRevision(this.#elements, () => this.#scheduleOfflineSave());
     this.#elements.contextResourcePresenter.bindManuscriptComments(apiBase);
     this.#source.observe(() => void this.#elements.workspacePreview.renderBoundProject());
     this.#bibliography.observe(() => void this.#elements.workspacePreview.renderBoundProject());
@@ -527,11 +532,10 @@ class WorkspaceApp {
     this.#snapshot = snapshot;
     if (!this.#hasBootstrapSnapshot) {
       this.#hasBootstrapSnapshot = true;
-      this.#revision = snapshot.revision;
+      this.#elements.projectHistoryTrigger.setRevision(snapshot.revision);
       this.#elements.source.value = snapshot.source;
       this.#elements.bibliography.value = snapshot.bibliography;
       void this.#elements.workspacePreview.renderBoundProject(snapshot.bibliography);
-      this.#elements.projectHistoryTrigger.setRevision(this.#revision);
     } else {
       void this.#elements.workspacePreview.renderBoundProject();
     }
@@ -539,24 +543,6 @@ class WorkspaceApp {
     this.#renderResources();
     this.#scheduleOfflineSave();
     await this.#refreshProjectReferencePdfs();
-  }
-
-  #renderCollaborationWorkflow(): void {
-    const status = this.#collaboration.status;
-    this.#elements.connectionStatus.setConnection(status.label, status.connected);
-    this.#elements.source.disabled = !this.#collaboration.canEdit;
-    this.#elements.bibliography.disabled = !this.#collaboration.canEdit;
-    this.#elements.assistantGenerationPresenter.refreshAvailability();
-  }
-
-  #setRevision(revision: number): void {
-    this.#revision = Math.max(this.#revision, revision);
-    this.#elements.collaboratorSelections.setData({ files: this.#elements.projectFileDialog.projectFiles(), revision: this.#revision });
-    this.#elements.editorStatus.renderHighlight();
-    this.#elements.projectHistoryTrigger.setRevision(this.#revision);
-    this.#scheduleOfflineSave();
-    const active = this.#elements.contextResourcePresenter.activeTab;
-    if (active?.kind === "candidate") this.#elements.contextResourcePresenter.presentBoundContext(false);
   }
 
   #activateProjectFile(file: ProjectFile, snapshot: WorkspaceSnapshot): void {
@@ -622,7 +608,7 @@ class WorkspaceApp {
     this.#snapshot = restored.snapshot;
     this.#hasBootstrapSnapshot = true;
     this.#collaboration.setOfflineAvailable(true);
-    this.#revision = restored.snapshot.revision;
+    this.#elements.projectHistoryTrigger.setRevision(restored.snapshot.revision);
     this.#elements.workspaceCatalogPanel.setData([
       {
         id: restored.snapshot.id,
@@ -635,8 +621,7 @@ class WorkspaceApp {
     ]);
     this.#elements.projectFileDialog.presentProject(restored.snapshot, `${apiBase}/assets`, appMode === "workspace");
     this.#renderResources();
-    this.#elements.projectHistoryTrigger.setRevision(this.#revision);
-    this.#renderCollaborationWorkflow();
+    this.#elements.connectionStatus.presentWorkflow();
     this.#elements.editorStatus.setSave(pending ? "Saved offline" : "Saved");
     void this.#elements.workspacePreview.renderBoundProject();
     return true;

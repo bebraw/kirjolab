@@ -838,6 +838,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   active-source focus, and resulting selection in this owner. Keep mutation
   decisions, editor highlighting, assistant refresh, collaboration
   interpretation, and offline-save policy in their authorities.
+- Let the connection-status Lit owner bind the collaboration workflow and
+  authoring controls once, derive label/tone and source/companion editability,
+  and request assistant-availability refresh after each workflow transition.
+  Keep socket transport, collaboration-state transitions, Library-mode status,
+  and save wording in their existing authorities.
 - Let the preview-synchronization Lit owner bind the native source viewport and
   inert highlight lines; own click, selection, and navigation-key follow
   behavior; derive the source offset nearest the viewport center; center the
@@ -872,9 +877,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   with a server-assigned socket identity, and never persist selection state.
   Let the collaborator-selection Lit owner store, replace, remove, clear, and
   prune that browser-local remote selection collection and request overlay
-  refresh through a typed callback. Keep WebSocket protocol, revision authority,
-  local-author selection, and editor highlighting in the application
-  coordinator.
+  refresh through a typed callback. Let the project-history trigger own the
+  monotonic presented revision and route revision-dependent collaborator data,
+  highlight refresh, offline scheduling, and candidate refresh through bound
+  owners. Keep WebSocket protocol, server revision authority, and local-author
+  selection in the collaboration authorities.
 - Keep manuscript comments outside canonical Markdown. Attribute them to stable
   workspace-person ids, anchor them with file-qualified Yjs relative positions,
   retain them in project history, and preserve resolved comments as resources.

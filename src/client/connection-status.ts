@@ -1,5 +1,16 @@
 import { html, LitElement, type TemplateResult } from "lit";
 
+export interface ConnectionWorkflow {
+  readonly canEdit: boolean;
+  readonly status: { readonly connected: boolean; readonly label: string };
+}
+
+export interface ConnectionWorkflowOwners {
+  readonly assistantGenerationPresenter: { readonly refreshAvailability: () => void };
+  readonly bibliography: HTMLTextAreaElement;
+  readonly source: HTMLTextAreaElement;
+}
+
 export class ConnectionStatus extends LitElement {
   static override properties = {
     connected: { state: true },
@@ -8,6 +19,8 @@ export class ConnectionStatus extends LitElement {
 
   declare private connected: boolean;
   declare private label: string;
+  private workflow: ConnectionWorkflow | null = null;
+  private workflowOwners: ConnectionWorkflowOwners | null = null;
 
   constructor() {
     super();
@@ -18,6 +31,22 @@ export class ConnectionStatus extends LitElement {
   setConnection(label: string, connected: boolean): void {
     this.label = label;
     this.connected = connected;
+  }
+
+  bindWorkflow(workflow: ConnectionWorkflow, owners: ConnectionWorkflowOwners): void {
+    this.workflow = workflow;
+    this.workflowOwners = owners;
+  }
+
+  presentWorkflow(): void {
+    const workflow = this.workflow;
+    const owners = this.workflowOwners;
+    if (!workflow || !owners) return;
+    const status = workflow.status;
+    this.setConnection(status.label, status.connected);
+    owners.source.disabled = !workflow.canEdit;
+    owners.bibliography.disabled = !workflow.canEdit;
+    owners.assistantGenerationPresenter.refreshAvailability();
   }
 
   override connectedCallback(): void {

@@ -77,9 +77,12 @@ The adopted components own bounded presentation:
   stale-response rejection, busy and error state, canonical successful branch
   navigation, post-restore reload, and typed notice outcomes. Its modal close
   lifecycle is internal and emits no unused external event.
-- The project history trigger owns revision-badge presentation and emits one
-  typed open intent. The application coordinator retains revision authority,
-  toast presentation, and non-history browser navigation policy.
+- The project history trigger owns the monotonic presented revision and its
+  badge, emits one typed open intent, and routes revision-dependent collaborator
+  data, highlight refresh, offline scheduling, and active-candidate refresh
+  through bound owners. Collaboration retains server revision authority; the
+  application coordinator retains toast presentation and non-history browser
+  navigation policy.
 - Reused writing-workflow panels own research-question and reviewer-response
   Markdown-to-item adaptation, counts, empty states, action labels, reviewer-
   response letter derivation and browser download. They route typed open,
@@ -1180,9 +1183,10 @@ reason to wrap static markup mechanically.
   projection, assistant refresh consequences, collaboration and offline-save
   policy, and the save-status values those workflows select.
 - The connection status component replaces separate label and tone element
-  references and owns their synchronized presentation. The application
-  coordinator retains collaboration-state interpretation and Library-mode
-  status policy.
+  references, binds the collaboration workflow and authoring controls once, and
+  owns synchronized label/tone, source and companion editability, and assistant-
+  availability refresh. The collaboration session retains state interpretation;
+  the application coordinator retains Library-mode status and save wording.
 - The Vim mode control replaces separate toggle and mode-status element
   references and owns browser-local enablement, mode presentation, modal key
   handling, pointer-selection transitions, and editor-listener teardown. The
