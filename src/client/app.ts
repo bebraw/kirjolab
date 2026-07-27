@@ -290,7 +290,7 @@ class WorkspaceApp {
     this.#elements.newWorkspaceStartingPoints.bind({
       openImport: (action) => {
         if (action === "import-latex") this.#elements.latexImportPanel.open();
-        else this.#openGitHubImportDialog();
+        else this.#elements.gitHubImportPanel.open();
       },
       presentNotice: (message, options) => this.#showToast(message, options),
       templatesChanged: () => this.#elements.saveTemplateDialog.setTemplates(this.#elements.newWorkspaceStartingPoints.availableTemplates),
@@ -302,7 +302,7 @@ class WorkspaceApp {
     });
     const githubResult = new URL(location.href).searchParams.get("github");
     if (githubResult === "connected" || githubResult === "installed") {
-      this.#openGitHubImportDialog();
+      this.#elements.gitHubImportPanel.open();
       history.replaceState(history.state, "", location.pathname);
     }
     this.#elements.saveTemplateDialog.configure(apiBase);
@@ -704,11 +704,6 @@ class WorkspaceApp {
     if (next === currentRelative) return;
     if (mode === "push") history.pushState({ view: "workspace" }, "", next);
     else history.replaceState(history.state, "", next);
-  }
-
-  #openGitHubImportDialog(): void {
-    this.#elements.gitHubImportPanel.open();
-    void this.#elements.gitHubImportPanel.refreshConnection();
   }
 
   async #refreshProjectTemplates(): Promise<void> {

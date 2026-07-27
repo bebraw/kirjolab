@@ -8130,6 +8130,28 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,706 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: GitHub Import Open
+
+`GitHubImportPanel.open()` now starts its already-owned connection refresh after
+resetting preview state, opening the modal, and focusing the title. Both the New
+project import choice and OAuth return path call that complete lifecycle
+directly. `WorkspaceApp` retains URL-result recognition and history cleanup.
+
+This checkpoint reduces `src/client/app.ts` from 1,571 to 1,566 lines (-5) and
+grows the GitHub import owner from 544 to 545 lines (+1). Runtime source across
+those files decreases by four lines while deleting the coordinator's paired
+open-and-refresh shim. Focused coverage passes all 24 GitHub-import and
+application-contract cases, including modal lifecycle, automatic connection
+refresh, OAuth return entry, existing requests, and strict types.
+
+The browser application artifact changes from 846,726 B raw / 228,675 B gzip
+to 846,713 B raw / 228,661 B gzip (-13 B raw / -14 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,706 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

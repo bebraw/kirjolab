@@ -189,7 +189,8 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   its read-only connection, installation, repository, and branch discovery
   lifecycle plus stale-request protection, import preview and creation requests,
   account disconnection, Valibot response validation, and local progress and
-  failure presentation. Let the import panel close its own dialog and navigate
+  failure presentation. Opening the panel starts that connection refresh as one
+  component lifecycle. Let the import panel close its own dialog and navigate
   to the validated successful response's canonical workspace href. Let the sync
   menu likewise own its bounded connection
   and status refresh interval, validation, stale-request guard, and primary

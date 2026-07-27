@@ -36,7 +36,8 @@ The adopted components own bounded presentation:
   reactive account actions, local field values, account/repository/branch
   discovery requests, validation, stale-request guards, option rendering, form
   submission, readiness, import preview and creation requests, account
-  disconnection, preview/status rendering, native dialog lifecycle, and typed
+  disconnection, preview/status rendering, native dialog lifecycle with an
+  automatic connection refresh on open, and typed
   Cancel intent plus canonical successful-result navigation.
 - The workspace sync menu owns repository status, relationship tone, Pull and
   Push availability, its bounded read-only connection and status refresh

@@ -248,6 +248,7 @@ describe("GitHub import panel", () => {
   it("owns its native dialog lifecycle", () => {
     const panel = new TestGitHubImportPanel();
     const dialog = new FakeDialog();
+    const refreshConnection = vi.spyOn(panel, "refreshConnection").mockResolvedValue();
     vi.stubGlobal("HTMLDialogElement", FakeDialog);
     Object.defineProperty(panel, "closest", { value: () => dialog });
 
@@ -256,5 +257,6 @@ describe("GitHub import panel", () => {
     expect(dialog.modalCount).toBe(1);
     expect(dialog.closeCount).toBe(1);
     expect(panel.focusCount).toBe(1);
+    expect(refreshConnection).toHaveBeenCalledOnce();
   });
 });

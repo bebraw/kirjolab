@@ -109,6 +109,7 @@ export class GitHubImportPanel extends LitElement {
     this.resetPreview();
     this.dialog.showModal();
     this.focusTitle();
+    void this.refreshConnection();
   }
 
   close(): void {
