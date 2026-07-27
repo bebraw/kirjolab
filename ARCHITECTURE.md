@@ -340,56 +340,22 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   its transient results. Let the candidate-list Lit owner perform revision and
   claim-draft provider requests, persist their typed candidates, derive fixed
   adapter and prompt-version fields, and validate the operation-specific
-  response. Keep authorized target and evidence derivation, workflow state,
-  canonical refresh, context navigation, workflow status, and Yjs edits in the
-  coordinator.
-  Let a bounded assistant-generation Lit presenter route all registered
-  operations across the typed task, result, and candidate-list owners. It may
-  derive operation-local request context from coordinator-supplied canonical
-  manuscript, target, evidence, provider, and revision inputs and return only a
-  created candidate plus workflow and result-status presentation. Keep workflow
-  transitions, canonical refresh, context navigation, error policy, and Yjs
-  edits in the coordinator; candidate persistence remains inside the candidate-
-  list owner, and provider instances derive from validated model-settings state.
-  The presenter may also fan canonical
-  stability, target, and workflow inputs out to model discovery, task readiness,
-  and candidate-review availability while deriving evidence counts and model
-  availability from their owning Lit components. It may also derive target
-  scope from task-owned operation state and coordinate operation status, result
-  reset, and target preview from coordinator-supplied canonical target inputs.
-  It owns local model-settings, workflow-action, task-change, and generation-
-  intent subscriptions, delegating only evidence navigation, canonical target
-  refresh, canonical availability refresh, and generation execution back to the
-  coordinator. It also owns transient-result action and reference-refresh
-  subscriptions plus result-local save completion and status presentation,
-  delegating only canonical Library refresh. It owns candidate-review decision-
-  start, completed-decision, and evidence-navigation subscriptions, resolving
-  evidence destinations against a read-only canonical snapshot callback while
-  delegating workflow transitions, canonical refresh, PDF navigation, and
-  context rendering to the coordinator.
-  It also configures the candidate-list and candidate-review siblings from one
-  API base and owns candidate-open subscription, delegating canonical context
-  activation through a typed callback. It persists researcher-promoted
-  transient rewrites through the candidate-list owner while the coordinator
-  retains workflow transitions, canonical refresh, and context opening. It
-  prepares validated generation context from task, evidence-status, and model-
-  settings owners plus coordinator-supplied canonical target and stability
-  inputs. It also owns clarity-answer validation, provider continuation, and
-  transient status presentation while delegating XState transitions,
-  availability refresh, and failure policy through explicit callbacks. It owns
-  evidence-selection subscriptions from the project-evidence and claim owners
-  plus evidence-focus guidance and status, delegating only Research-rail
-  navigation, empty-evidence toast policy, and availability refresh. It owns
-  generation busy gating, prepared-input acquisition, start/result/failure
-  status, operation routing, candidate-open sequencing, and final availability
-  refresh while delegating XState transitions and canonical candidate refresh
-  through typed callbacks. It also owns captured-table validation against
-  workflow, document stability, revision, and exact target text plus portable
-  insertion spacing and status; the coordinator retains the authorized XState,
-  Yjs, editor-selection, and remembered-selection mutation. It owns promoted-
-  revision review gating, candidate persistence sequencing, candidate-open
-  sequencing, success/failure status, and availability timing while the
-  coordinator retains XState transitions and canonical refresh/context opening.
+  response.
+  Let a bounded assistant-generation Lit presenter own the browser-local XState
+  actor and route all registered operations across the typed task, result, and
+  candidate-list owners. It derives operation-local request context from
+  coordinator-supplied canonical manuscript, target, stability, snapshot, and
+  revision inputs plus assistant-owned task, evidence, and validated model-
+  settings state. It owns workflow transitions, busy and decision availability,
+  source-staleness transitions, status presentation, model-settings and task
+  subscriptions, evidence selection and focus guidance, generation routing,
+  clarity continuation, captured-table validation and portable spacing,
+  promoted-revision persistence sequencing, candidate decision state, and
+  candidate-review event subscriptions. Candidate persistence remains inside
+  the candidate-list owner. Keep canonical workspace and Library refresh,
+  context and PDF navigation, toast policy, authorized Yjs mutation, editor
+  selection, and remembered authoring selection in the coordinator through
+  narrow typed callbacks.
   Let the candidate-review Lit owner resolve the active candidate id against
   the canonical workspace snapshot and derive evidence availability and local
   applicability from candidate, evidence-version, source-revision,

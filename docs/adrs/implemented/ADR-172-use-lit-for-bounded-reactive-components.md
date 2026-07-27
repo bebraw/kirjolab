@@ -85,48 +85,16 @@ The adopted components own bounded presentation:
   selection, insertion, and canonical-refresh outcomes.
 - The assistant-generation presenter routes all registered operations across
   the typed task, result, and candidate-list owners from coordinator-supplied
-  canonical generation inputs. It returns only a created candidate plus
-  workflow and status presentation; candidate persistence remains in its list
-  owner and provider construction derives from validated model-settings state,
-  while the coordinator retains the XState actor, canonical refresh and
-  navigation, error policy, and manuscript mutation. The
-  presenter also fans canonical stability, target, and workflow inputs out to
-  model-discovery, task-readiness, and candidate-review owners while deriving
-  evidence and model availability from those bounded owners. It derives target
-  scope from task-owned operation state and coordinates operation status,
-  transient-result reset, and target preview from canonical target inputs. It
-  owns sibling settings, workflow-action, task-change, and generation-intent
-  subscriptions while delegating evidence navigation, canonical target and
-  availability refresh, and generation execution to the coordinator. It also
-  owns result-action and reference-refresh subscriptions, result-local save
-  completion, and status presentation while delegating canonical Library
-  refresh. It also owns candidate-review decision-start, completed-decision,
-  and evidence-navigation subscriptions and resolves evidence destinations
-  against a read-only canonical snapshot callback while the coordinator retains
-  workflow transitions, canonical refresh, PDF navigation, and context rendering.
-  It configures the candidate-list and candidate-review siblings from one API
-  base and owns candidate-open subscription while delegating canonical context
-  activation through a typed callback. It also persists researcher-promoted
-  transient rewrites through the candidate-list owner while the coordinator
-  retains workflow transitions, canonical refresh, and context opening. It
-  prepares validated generation context from assistant-owned task, evidence,
-  and model settings plus coordinator-supplied canonical target and stability
-  inputs. It owns clarity-answer validation, provider continuation, and
-  transient status presentation while the coordinator retains XState
-  transitions, availability refresh, and failure policy. It owns evidence-
-  selection subscriptions from project evidence and claims plus evidence-focus
-  guidance and status while the coordinator retains Research-rail navigation,
-  empty-evidence toast policy, and availability refresh. It owns generation
-  busy gating, prepared-input acquisition, start/result/failure status,
-  operation routing, candidate-open sequencing, and final availability refresh
-  while the coordinator retains XState transitions and canonical candidate
-  refresh. It owns captured-table validation against workflow, document
-  stability, revision, and exact target text plus portable insertion spacing
-  and status while the coordinator retains authorized XState, Yjs, editor-
-  selection, and remembered-selection mutation. It owns promoted-revision
-  review gating, candidate persistence and opening sequence, success/failure
-  status, and availability timing while the coordinator retains XState
-  transitions and canonical refresh/context opening.
+  canonical generation inputs. It owns the browser-local assistant XState
+  actor, busy and decision availability, source-staleness transitions, status
+  presentation, task and model-settings subscriptions, evidence selection and
+  focus guidance, generation routing, clarity continuation, captured-table
+  validation and portable spacing, promoted-revision persistence sequencing,
+  and candidate-review event handling. Candidate persistence remains in its
+  list owner and provider construction derives from validated model-settings
+  state. The coordinator retains canonical workspace and Library refresh,
+  context and PDF navigation, toast policy, authorized Yjs mutation, editor
+  selection, and remembered authoring selection through narrow typed callbacks.
 - The project map panel owns provenance-lane rendering, measured SVG connector
   geometry, responsive relayout, focus and hover emphasis, and a typed resource
   selection intent.
@@ -141,9 +109,9 @@ The adopted components own bounded presentation:
   decision gating, encoded apply and reject transport, retryable same-candidate
   failure state, progress, local scroll state, decision-specific completion
   wording, and typed decision-start, completed-decision, and evidence-navigation
-  outcomes. The coordinator retains
-  assistant workflow transitions, canonical refresh, tab movement, and
-  notification policy; the server remains authoritative for mutation safety.
+  outcomes. The assistant-generation presenter retains assistant workflow
+  transitions; the coordinator retains canonical refresh, tab movement, and
+  notification policy. The server remains authoritative for mutation safety.
 - The publication context panel resolves the active publication id and owns
   scholarly metadata, linked-paper and project-PDF option derivation and
   rendering from canonical reference inputs, citation readiness, local scroll
@@ -582,8 +550,9 @@ reason to wrap static markup mechanically.
   also replacing candidate-decision availability branches, the apply/reject
   request, retryable local failure reconstruction, evidence-id collection, and
   revision/claim-draft applicability derivation. It leaves canonical inputs,
-  workflow transitions, refresh, tab movement, notification policy, and evidence
-  navigation in the application coordinator.
+  refresh, tab movement, notification policy, and final PDF navigation in the
+  application coordinator; the assistant-generation presenter owns workflow
+  transitions and evidence-destination resolution.
 - The publication context panel replaces eight internal element references and
   imperative metadata, paper-row, and link-form renderers plus two coordinator
   relationship-mutation methods. It also replaces the coordinator's parallel
@@ -617,9 +586,9 @@ reason to wrap static markup mechanically.
 - The model candidate list replaces one internal list reference and its
   imperative card renderer plus the coordinator's revision- and claim-candidate
   requests, response guards, and provider generation. It leaves authorized
-  target and evidence derivation, canonical candidate state, context navigation,
-  applicability checks, workflow state, and decisions in the application
-  coordinator.
+  canonical target inputs, canonical candidate state, context navigation, and
+  refresh in the application coordinator while the assistant-generation
+  presenter owns applicability projection, workflow state, and decisions.
 - The context-tab overview replaces three internal element references and its
   imperative row and close-action renderers while leaving title derivation to
   its composed parent and routing, canonical context state, focus restoration,

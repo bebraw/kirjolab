@@ -29,6 +29,7 @@ import { ClaimListPanel, claimListActionEvent, type ClaimListAction } from "./cl
 import { ModelProviderSettings, modelProviderChangeEvent } from "./model-provider-settings";
 import type { ModelProvider } from "./model-provider";
 import { ProjectEvidencePanel, projectEvidenceActionEvent, type ProjectEvidenceAction } from "./project-evidence-panel";
+import { assistantWorkflowBusy, createAssistantWorkflowActor, type AssistantCandidateDecision } from "./assistant-workflow-machine";
 import type {
   ModelCandidate,
   ModelEvidence,
@@ -78,41 +79,26 @@ export interface AssistantGenerationPresentation {
 }
 
 export interface AssistantAvailabilityInput {
-  readonly candidateDecisionBusy: boolean;
   readonly hasInsertionTarget: boolean;
   readonly hasPassage: boolean;
   readonly stableDocument: boolean;
-  readonly workflowBusy: boolean;
 }
 
 export interface AssistantControlCallbacks {
-  readonly completeGeneration: (workflow: AssistantGenerationPresentation["workflow"]) => void;
-  readonly failGeneration: (message: string) => void;
-  readonly generationBusy: () => boolean;
   readonly generationInput: () => AssistantGenerationInput | null;
   readonly openEvidenceRail: () => void;
   readonly openGeneratedCandidate: (candidate: ModelCandidate) => Promise<void>;
   readonly refreshAvailability: () => void;
   readonly refreshTarget: () => void;
   readonly reportNoEvidence: () => void;
-  readonly startGeneration: (operation: AssistantOperationDefinition["id"], sourceRevision: number) => void;
 }
 
 export interface AssistantResultCallbacks {
   readonly applyTable: (target: AssistantAuthoringPassage, insertion: string) => void;
-  readonly clarityState: () => "busy" | "ready" | "stale";
-  readonly completeClarity: () => void;
-  readonly completeRevision: () => void;
-  readonly failClarity: (message: string) => void;
-  readonly failRevision: (message: string) => void;
   readonly openRevisionCandidate: (candidate: ModelCandidate) => Promise<void>;
   readonly refreshLibrary: () => Promise<void>;
-  readonly refreshRevisionAvailability: () => void;
-  readonly revisionReviewing: () => boolean;
-  readonly startClarity: () => void;
-  readonly startRevision: () => void;
+  readonly refreshAvailability: () => void;
   readonly tableState: () => {
-    readonly reviewing: boolean;
     readonly revision: number;
     readonly source: string;
     readonly stableDocument: boolean;
@@ -120,11 +106,12 @@ export interface AssistantResultCallbacks {
 }
 
 export interface AssistantCandidateCallbacks {
-  readonly completeDecision: (detail: CandidateDecisionOutcome) => void;
+  readonly decisionChanged: () => void;
+  readonly focusAssistant: () => void;
   readonly openCandidate: (candidate: ModelCandidate) => void;
   readonly openPaper: (pdf: PdfResource, evidence: Extract<ModelEvidence, { readonly kind: "annotation" }>) => void;
+  readonly resolveDecision: (detail: CandidateDecisionOutcome) => Promise<string | null>;
   readonly snapshot: () => WorkspaceSnapshot | null;
-  readonly startDecision: (detail: CandidateDecisionRequest) => void;
 }
 
 export interface AssistantRevisionCandidateInput {
@@ -138,6 +125,8 @@ export interface AssistantRevisionCandidateInput {
 }
 
 export class AssistantGenerationPresenter extends LitElement {
+  private readonly workflow = createAssistantWorkflowActor();
+
   bindCandidate(apiBase: string, callbacks: AssistantCandidateCallbacks): void {
     const candidates = this.element("candidate-list-panel", CandidateListPanel);
     const review = this.element("candidate-review-panel", CandidateReviewPanel);
@@ -147,10 +136,12 @@ export class AssistantGenerationPresenter extends LitElement {
       callbacks.openCandidate((event as CustomEvent<ModelCandidate>).detail);
     });
     review?.addEventListener(candidateDecisionEvent, (event) => {
-      callbacks.startDecision((event as CustomEvent<CandidateDecisionRequest>).detail);
+      const detail = (event as CustomEvent<CandidateDecisionRequest>).detail;
+      this.workflow.send({ type: "DECIDE", id: detail.candidateId, action: detail.action });
+      callbacks.decisionChanged();
     });
     review?.addEventListener(candidateDecisionOutcomeEvent, (event) => {
-      callbacks.completeDecision((event as CustomEvent<CandidateDecisionOutcome>).detail);
+      void this.completeDecision((event as CustomEvent<CandidateDecisionOutcome>).detail, callbacks);
     });
     review?.addEventListener(candidateEvidenceEvent, (event) => {
       const evidence = (event as CustomEvent<ModelEvidence>).detail;
@@ -162,6 +153,13 @@ export class AssistantGenerationPresenter extends LitElement {
         this.element("claim-list-panel", ClaimListPanel)?.revealClaim(evidence.id, true);
       }
     });
+  }
+
+  private async completeDecision(detail: CandidateDecisionOutcome, callbacks: AssistantCandidateCallbacks): Promise<void> {
+    const failure = await callbacks.resolveDecision(detail);
+    this.workflow.send(failure ? { type: "DECISION_FAILED", message: failure } : { type: "DECISION_DONE" });
+    callbacks.decisionChanged();
+    if (!failure && detail.action === "reject") callbacks.focusAssistant();
   }
 
   async createRevisionCandidate(input: AssistantRevisionCandidateInput): Promise<ModelRevisionCandidate> {
@@ -242,9 +240,9 @@ export class AssistantGenerationPresenter extends LitElement {
     detail: Extract<AssistantResultActionDetail, { readonly action: "choose-revision" }>,
     callbacks: AssistantResultCallbacks,
   ): Promise<void> {
-    if (!callbacks.revisionReviewing()) return;
-    callbacks.startRevision();
-    callbacks.refreshRevisionAvailability();
+    if (!this.workflow.getSnapshot().matches("reviewing")) return;
+    this.workflow.send({ type: "CONTINUE" });
+    callbacks.refreshAvailability();
     try {
       const { choice, context } = detail;
       const candidate = await this.createRevisionCandidate({
@@ -258,13 +256,13 @@ export class AssistantGenerationPresenter extends LitElement {
       });
       await callbacks.openRevisionCandidate(candidate);
       if (status) status.status = choice.successMessage;
-      callbacks.completeRevision();
+      this.workflow.send({ type: "COMPLETE" });
     } catch (error) {
       const message = error instanceof Error ? error.message : detail.choice.failureMessage;
       if (status) status.status = message;
-      callbacks.failRevision(message);
+      this.workflow.send({ type: "FAIL", message });
     } finally {
-      callbacks.refreshRevisionAvailability();
+      callbacks.refreshAvailability();
     }
   }
 
@@ -276,7 +274,7 @@ export class AssistantGenerationPresenter extends LitElement {
   ): void {
     const state = callbacks.tableState();
     if (
-      !state.reviewing ||
+      !this.workflow.getSnapshot().matches("reviewing") ||
       !state.stableDocument ||
       state.revision !== context.sourceRevision ||
       state.source.slice(context.target.start, context.target.end) !== context.target.excerpt
@@ -286,6 +284,7 @@ export class AssistantGenerationPresenter extends LitElement {
     }
     const prefix = context.target.start > 0 && state.source[context.target.start - 1] !== "\n" ? "\n\n" : "";
     const suffix = context.target.end < state.source.length && state.source[context.target.end] !== "\n" ? "\n\n" : "\n";
+    this.workflow.send({ type: "COMPLETE" });
     callbacks.applyTable(context.target, `${prefix}${markdown}${suffix}`);
     if (status) status.status = "Table inserted into the manuscript.";
   }
@@ -297,27 +296,30 @@ export class AssistantGenerationPresenter extends LitElement {
     callbacks: AssistantResultCallbacks,
   ): Promise<void> {
     const answer = detail.answer.trim();
-    const state = callbacks.clarityState();
-    if (!answer || state !== "ready") {
+    const workflow = this.workflow.getSnapshot();
+    if (!answer || !workflow.matches("awaitingInput")) {
       if (status) {
         status.status = !answer
           ? "Answer the clarity question first."
-          : state === "stale"
+          : workflow.matches("stale")
             ? "The manuscript changed. Start the clarity drill again for the current target."
             : "The local model is already working.";
       }
       return;
     }
-    callbacks.startClarity();
+    this.workflow.send({ type: "CONTINUE" });
+    callbacks.refreshAvailability();
     if (status) status.status = "Turning that meaning into a few precise alternatives…";
     try {
       await result.completeClarityDrill(detail.context, answer);
       if (status) status.status = "Choose the wording that best matches your meaning; it will still open for review.";
-      callbacks.completeClarity();
+      this.workflow.send({ type: "REVIEW" });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Local model request failed";
       if (status) status.status = message;
-      callbacks.failClarity(message);
+      this.workflow.send({ type: "FAIL", message });
+    } finally {
+      callbacks.refreshAvailability();
     }
   }
 
@@ -372,10 +374,10 @@ export class AssistantGenerationPresenter extends LitElement {
   }
 
   private async runGeneration(status: AssistantWorkflowStatus | null, callbacks: AssistantControlCallbacks): Promise<void> {
-    if (callbacks.generationBusy()) return;
+    if (assistantWorkflowBusy(this.workflow.getSnapshot())) return;
     const input = callbacks.generationInput();
     if (!input) return;
-    callbacks.startGeneration(input.operation.id, input.sourceRevision);
+    this.workflow.send({ type: "START", operation: input.operation.id, sourceRevision: input.sourceRevision });
     callbacks.refreshAvailability();
     status?.generationStarted(input.operation.id);
     try {
@@ -383,11 +385,11 @@ export class AssistantGenerationPresenter extends LitElement {
       if (!presentation) throw new Error("Assistant generation is unavailable");
       if (presentation.candidate) await callbacks.openGeneratedCandidate(presentation.candidate);
       if (status) status.status = presentation.status;
-      callbacks.completeGeneration(presentation.workflow);
+      this.workflow.send({ type: presentation.workflow });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Local model request failed";
       if (status) status.status = message;
-      callbacks.failGeneration(message);
+      this.workflow.send({ type: "FAIL", message });
     } finally {
       callbacks.refreshAvailability();
     }
@@ -416,8 +418,10 @@ export class AssistantGenerationPresenter extends LitElement {
   }
 
   presentAvailability(input: AssistantAvailabilityInput): void {
+    const workflow = this.workflow.getSnapshot();
+    const workflowBusy = assistantWorkflowBusy(workflow);
     const settings = this.element("model-provider-settings", ModelProviderSettings);
-    settings?.setDiscoveryAvailable(!input.workflowBusy);
+    settings?.setDiscoveryAvailable(!workflowBusy);
     const status = this.element("assistant-workflow-status", AssistantWorkflowStatus);
     const evidence = status?.modelEvidence();
     this.element("assistant-task-panel", AssistantTaskPanel)?.setGenerationAvailability({
@@ -429,9 +433,20 @@ export class AssistantGenerationPresenter extends LitElement {
       modelAvailable: Boolean(settings?.value.model.trim()),
       selectedEvidenceCount: status?.selectedEvidenceKeys.size ?? 0,
       stableDocument: input.stableDocument,
-      workflowBusy: input.workflowBusy,
+      workflowBusy,
     });
-    this.element("candidate-review-panel", CandidateReviewPanel)?.setAvailability(input.stableDocument, input.candidateDecisionBusy);
+    this.element("candidate-review-panel", CandidateReviewPanel)?.setAvailability(
+      input.stableDocument,
+      workflow.context.candidateDecision !== null,
+    );
+  }
+
+  candidateDecision(): AssistantCandidateDecision | null {
+    return this.workflow.getSnapshot().context.candidateDecision;
+  }
+
+  sourceChanged(): void {
+    this.workflow.send({ type: "SOURCE_CHANGED" });
   }
 
   async generate(input: AssistantGenerationInput): Promise<AssistantGenerationPresentation | null> {

@@ -75,7 +75,7 @@ import {
 } from "./writing-workflow-panel";
 import { researchDiaryOpenEvent } from "./research-diary-summary";
 import { type AssistantAuthoringPassage as AuthoringPassage } from "./assistant-result-panel";
-import { type CandidateDecisionOutcome, type CandidateDecisionRequest } from "./candidate-review-panel";
+import { type CandidateDecisionOutcome } from "./candidate-review-panel";
 import { publicationContextActionEvent, type PublicationContextAction, type PublicationPaperOption } from "./publication-context-panel";
 import {
   isWorkspaceSnapshot,
@@ -94,7 +94,6 @@ import { CoalescedRefresh, DebouncedAsyncQueue } from "./collaboration";
 import { CollaborationSession } from "./collaboration-session";
 import { CollaborationSocket } from "./collaboration-socket";
 import { resolveAssistantTarget } from "./assistant-operations";
-import { assistantWorkflowBusy, createAssistantWorkflowActor } from "./assistant-workflow-machine";
 import { citationPageFromLocator, createCitationInsertion, type CitationContext } from "./citations";
 import { projectMapResourceSelectEvent } from "./project-map-workspace";
 import { claimListActionEvent, type ClaimListAction } from "./claim-list-panel";
@@ -230,7 +229,6 @@ class WorkspaceApp {
     workspaceId,
   );
   readonly #resourceRefresh = new CoalescedRefresh(async () => this.#refreshSnapshot());
-  readonly #assistantWorkflow = createAssistantWorkflowActor();
   readonly #collaboration = new CollaborationSession(this.#document, remoteOrigin);
   readonly #collaborationSocket: CollaborationSocket;
   readonly #offlineSaves = new DebouncedAsyncQueue(
@@ -803,48 +801,28 @@ class WorkspaceApp {
       } else void this.#completePublicationIntake(detail.doi, detail.requestId);
     });
     this.#elements.assistantGenerationPresenter.bindCandidate(apiBase, {
-      completeDecision: (detail) => void this.#completeCandidateRequest(detail),
+      decisionChanged: () => {
+        this.#renderResearchContext(false);
+        this.#updateModelAvailability();
+      },
+      focusAssistant: () => this.#focusContextTab(RESEARCH_ASSISTANT_KEY),
       openCandidate: (candidate) => this.#openCandidateContext(candidate),
       openPaper: (pdf, evidence) => void this.#showPaper(pdf, evidence.page, evidence.id),
+      resolveDecision: async (detail) => await this.#completeCandidateRequest(detail),
       snapshot: () => this.#snapshot,
-      startDecision: (detail) => this.#startCandidateDecision(detail),
     });
     this.#elements.assistantGenerationPresenter.bindResults({
       applyTable: (target, insertion) => this.#applyGeneratedTable(target, insertion),
-      clarityState: () => {
-        const workflow = this.#assistantWorkflow.getSnapshot();
-        return workflow.matches("awaitingInput") ? "ready" : workflow.matches("stale") ? "stale" : "busy";
-      },
-      completeClarity: () => {
-        this.#assistantWorkflow.send({ type: "REVIEW" });
-        this.#updateModelAvailability();
-      },
-      completeRevision: () => this.#assistantWorkflow.send({ type: "COMPLETE" }),
-      failClarity: (message) => {
-        this.#assistantWorkflow.send({ type: "FAIL", message });
-        this.#updateModelAvailability();
-      },
-      failRevision: (message) => this.#assistantWorkflow.send({ type: "FAIL", message }),
       openRevisionCandidate: async (candidate) => await this.#openCreatedCandidate(candidate),
+      refreshAvailability: () => this.#updateModelAvailability(),
       refreshLibrary: async () => await this.#refreshReferenceLibrary(),
-      refreshRevisionAvailability: () => this.#updateModelAvailability(),
-      revisionReviewing: () => this.#assistantWorkflow.getSnapshot().matches("reviewing"),
-      startClarity: () => {
-        this.#assistantWorkflow.send({ type: "CONTINUE" });
-        this.#updateModelAvailability();
-      },
-      startRevision: () => this.#assistantWorkflow.send({ type: "CONTINUE" }),
       tableState: () => ({
-        reviewing: this.#assistantWorkflow.getSnapshot().matches("reviewing"),
         revision: this.#revision,
         source: this.#activeFileText.toString(),
         stableDocument: this.#hasStableDocumentBase(),
       }),
     });
     this.#elements.assistantGenerationPresenter.bindControls({
-      completeGeneration: (workflow) => this.#assistantWorkflow.send({ type: workflow }),
-      failGeneration: (message) => this.#assistantWorkflow.send({ type: "FAIL", message }),
-      generationBusy: () => assistantWorkflowBusy(this.#assistantWorkflow.getSnapshot()),
       generationInput: () => {
         const input = this.#assistantGenerationContext();
         return input ? { ...input, manuscript: this.#activeFileText.toString() } : null;
@@ -854,7 +832,6 @@ class WorkspaceApp {
       refreshAvailability: () => this.#updateModelAvailability(),
       refreshTarget: () => this.#renderAssistantTargetPreview(),
       reportNoEvidence: () => this.#showToast("No project evidence is available yet."),
-      startGeneration: (operation, sourceRevision) => this.#assistantWorkflow.send({ type: "START", operation, sourceRevision }),
     });
   }
 
@@ -1138,7 +1115,7 @@ class WorkspaceApp {
 
   #bindSourceEditor(text: Y.Text): void {
     this.#unbindAssistantSourceStale();
-    const markAssistantResultStale = (): void => this.#assistantWorkflow.send({ type: "SOURCE_CHANGED" });
+    const markAssistantResultStale = (): void => this.#elements.assistantGenerationPresenter.sourceChanged();
     text.observe(markAssistantResultStale);
     this.#unbindAssistantSourceStale = () => text.unobserve(markAssistantResultStale);
     let undoManager = this.#editorUndoManagers.get(text);
@@ -1163,13 +1140,10 @@ class WorkspaceApp {
   }
 
   #updateModelAvailability(): void {
-    const assistant = this.#assistantWorkflow.getSnapshot();
     this.#elements.assistantGenerationPresenter.presentAvailability({
-      candidateDecisionBusy: assistant.context.candidateDecision !== null,
       hasInsertionTarget: this.#assistantInsertionTarget() !== null,
       hasPassage: this.#assistantAuthoringPassage() !== null,
       stableDocument: this.#hasStableDocumentBase(),
-      workflowBusy: assistantWorkflowBusy(assistant),
     });
   }
 
@@ -1908,7 +1882,7 @@ class WorkspaceApp {
   #presentResearchResource(activeTab: ResearchResourceTab | undefined, loadPdf: boolean): void {
     const presentation = this.#elements.contextResourcePresenter.present({
       activeTab,
-      candidateDecision: this.#assistantWorkflow.getSnapshot().context.candidateDecision,
+      candidateDecision: this.#elements.assistantGenerationPresenter.candidateDecision(),
       library: this.#librarySnapshot,
       projectApiBase: appMode === "workspace" ? apiBase : null,
       referencePdfs: this.#projectReferencePdfs,
@@ -2288,7 +2262,6 @@ class WorkspaceApp {
   }
 
   #applyGeneratedTable(target: AuthoringPassage, insertion: string): void {
-    this.#assistantWorkflow.send({ type: "COMPLETE" });
     this.#document.transact(() => {
       if (target.end > target.start) this.#activeFileText.delete(target.start, target.end - target.start);
       this.#activeFileText.insert(target.start, insertion);
@@ -2304,7 +2277,7 @@ class WorkspaceApp {
     this.#openCandidateContext(this.#snapshot?.candidates.find((item) => item.id === value.id) ?? value);
   }
 
-  async #completeCandidateRequest(detail: CandidateDecisionOutcome): Promise<void> {
+  async #completeCandidateRequest(detail: CandidateDecisionOutcome): Promise<string | null> {
     let failure = detail.failure;
     if (failure) {
       await this.#resourceRefresh.request().catch(() => undefined);
@@ -2320,20 +2293,7 @@ class WorkspaceApp {
         this.#showToast(failure);
       }
     }
-    this.#completeCandidateDecision(detail.action, failure);
-  }
-
-  #startCandidateDecision(detail: CandidateDecisionRequest): void {
-    this.#assistantWorkflow.send({ type: "DECIDE", id: detail.candidateId, action: detail.action });
-    this.#renderResearchContext(false);
-    this.#updateModelAvailability();
-  }
-
-  #completeCandidateDecision(action: "apply" | "reject", failure: string | null): void {
-    this.#assistantWorkflow.send(failure ? { type: "DECISION_FAILED", message: failure } : { type: "DECISION_DONE" });
-    this.#renderResearchContext(false);
-    this.#updateModelAvailability();
-    if (!failure && action === "reject") this.#focusContextTab(RESEARCH_ASSISTANT_KEY);
+    return failure;
   }
 
   async #showPaper(pdf: PdfResource, page?: number, focusAnnotationId?: string): Promise<void> {

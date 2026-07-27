@@ -18,8 +18,9 @@ All mutation operations preserve a human review boundary.
 - One browser-local XState actor coordinates generation, clarification input,
   transient review, candidate persistence, and apply/reject decisions. Provider
   clients, manuscript/Yjs data, persisted candidates, and DOM rendering remain
-  outside the actor. A change to the captured active manuscript file makes an
-  awaiting or reviewable transient result stale before it can continue.
+  outside the actor. The assistant-generation presenter owns this actor. A
+  change to the captured active manuscript file makes an awaiting or reviewable
+  transient result stale before it can continue.
 - The assistant result panel retains the captured context for the transient
   table, clarity question, idea, phrasing, or rewrite it presents and emits that
   same context with a guarded continuation, insertion, or revision-choice
@@ -28,46 +29,16 @@ All mutation operations preserve a human review boundary.
 - A bounded assistant-generation presenter routes all registered operations
   across the task, result, and candidate-list owners from one canonical
   generation input. It returns only a created candidate, the next transient
-  workflow state, and result-specific status. Candidate persistence remains in
-  its bounded list owner; provider instances derive from validated model-
-  settings state; and the application retains the XState actor, canonical
-  refresh and context navigation, error policy, and manuscript mutation. The
-  presenter also projects canonical stability, target,
-  and workflow inputs across model-discovery, task-readiness, and candidate-
-  review owners, deriving evidence counts and model availability only from the
-  components that own them. It also derives target scope from task-owned
-  operation state and coordinates operation status, transient-result reset, and
-  target preview from canonical editor-target inputs. It owns sibling model-
-  settings, workflow-action, task-change, and generation-intent subscriptions,
-  delegating only evidence navigation, canonical target and availability
-  refresh, and generation execution to the application. It also owns result-
-  action and reference-refresh subscriptions plus result-local completion and
-  status, delegating only canonical Library refresh. It owns candidate-review
-  decision-start, completed-decision, and evidence-navigation subscriptions and
-  resolves evidence destinations against a read-only canonical snapshot
-  callback. The application retains decision workflow transitions, canonical
-  refresh, PDF navigation, and context rendering.
-  It configures both candidate siblings from one API base and owns candidate-
-  open subscription while delegating canonical context activation. It persists
-  researcher-promoted transient rewrites through the candidate-list owner; the
-  application retains workflow transitions, canonical refresh, and context
-  opening. It prepares validated generation context from assistant-owned task,
-  evidence, and provider settings plus canonical target and stability inputs.
-  It owns clarity-answer validation, provider continuation, and transient
-  status presentation while the application retains XState transitions,
-  availability refresh, and failure policy. It owns evidence-selection
-  subscriptions from project evidence and claims plus evidence-focus guidance
-  and status while the application retains rail navigation, toast policy, and
-  availability refresh. It owns generation busy gating, prepared-input
-  acquisition, start/result/failure status, operation routing, candidate-open
-  sequencing, and final availability refresh while the application retains
-  XState transitions and canonical candidate refresh. It validates captured
-  table targets against workflow, document stability, revision, and exact text,
-  derives portable insertion spacing, and projects result status while the
-  application retains the authorized XState/Yjs/editor mutation. It owns
-  promoted-revision review gating, candidate persistence and opening sequence,
-  success/failure status, and availability timing while the application retains
-  XState transitions and canonical refresh/context opening.
+  workflow state, and result-specific status. It owns the assistant XState
+  actor, busy and decision availability, source-staleness transitions, task and
+  settings subscriptions, evidence selection and focus guidance, generation
+  routing, clarity continuation, captured-table validation and portable
+  spacing, promoted-revision persistence sequencing, and candidate-review event
+  handling. Candidate persistence remains in its bounded list owner; provider
+  instances derive from validated model-settings state. The application retains
+  canonical workspace and Library refresh, context and PDF navigation, toast
+  policy, authorized Yjs mutation, editor selection, and remembered authoring
+  selection through narrow typed callbacks.
 - A non-empty manuscript selection always resolves exactly. Otherwise the
   remembered Yjs-relative caret expands deterministically to the configured
   sentence, paragraph, or Markdown section, or remains an insertion point.
@@ -194,8 +165,9 @@ All mutation operations preserve a human review boundary.
 - One bounded candidate-review component owns before/after and provenance
   presentation, live collaboration/decision availability, decision progress,
   and local scroll state. It emits typed apply, reject, and evidence-navigation
-  intents; candidate applicability, workflow transitions, canonical edits, and
-  source navigation remain with the application coordinator.
+  intents; the assistant-generation presenter owns candidate applicability
+  projection and workflow transitions. Canonical edits and source navigation
+  remain with the application coordinator.
 - The operation UI is the permanent Writing assistant Context tab associated
   with the authoring workflow. Passage selection, instruction, and evidence are
   primary; endpoint and model connection fields remain available under

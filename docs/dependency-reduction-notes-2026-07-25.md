@@ -6222,6 +6222,31 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,648 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Assistant Workflow Actor
+
+`AssistantGenerationPresenter` now owns the browser-local assistant XState
+actor and all generation, clarity, table, promoted-revision, and candidate-
+decision transitions. It derives busy and decision availability from that actor
+and marks captured transient results stale when the canonical source changes.
+`WorkspaceApp` retains authorized Yjs mutation, canonical workspace and Library
+refresh, navigation, editor focus, and toast policy through narrow callbacks.
+
+This checkpoint reduces `src/client/app.ts` from 2,775 to 2,735 lines (-40)
+and grows the generation presenter from 548 to 563 lines. Runtime source across
+those two files falls by 25 lines while removing the coordinator-owned actor,
+parallel workflow projection, and candidate-decision routing. Sixteen direct
+presenter cases now cover actor-derived generation gating, clarification and
+staleness, table and promoted-revision continuation, candidate decisions, and
+provider failures under strict client and Workers types.
+
+The browser application artifact changes from 835,520 B raw / 225,826 B gzip
+to 835,246 B raw / 225,661 B gzip (-274 B raw / -165 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,650 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,
