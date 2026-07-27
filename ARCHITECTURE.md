@@ -966,10 +966,12 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   viewer binding it derives the authorized active PDF load, synchronizes project
   annotations and private highlights, rejects stale completions, retains the
   rendered context and project-PDF identities, opens the viewer, restores
-  resource scroll, and presents active-resource failures. Keep tab state,
-  canonical snapshot acceptance, Yjs citation insertion, cross-resource
-  navigation, routing, viewer gestures, and the shared notification outlet in
-  the application coordinator through narrow callbacks.
+  resource scroll, presents active-resource failures, and routes captured
+  selections to the private-highlight composer or project-annotation form from
+  those retained identities. Keep tab state, canonical snapshot acceptance,
+  Yjs citation insertion, cross-resource navigation, routing, project-selection
+  persistence, remaining viewer gestures, and the shared notification outlet
+  in the application coordinator through narrow callbacks.
   Let the presenter also own linked-reference PDF catalog loading, validation,
   storage, and authorization projection. Keep refresh timing and downstream
   rendering consequences in the application coordinator.

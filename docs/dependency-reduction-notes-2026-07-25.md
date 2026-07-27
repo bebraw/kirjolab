@@ -7869,6 +7869,30 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,702 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: PDF Selection Routing
+
+`ContextResourcePresenter` now routes viewer selection captures from its
+retained active and rendered PDF identities. Private-Library selections open
+the private-highlight composer; project-PDF selections synchronize the project
+annotation form and delegate persistence through the existing narrow viewer
+binding. `WorkspaceApp` retains the actual project mutation, refresh, viewer
+draft clearing, and notification effects.
+
+This checkpoint reduces `src/client/app.ts` from 1,713 to 1,698 lines (-15) and
+grows the context-resource presenter from 748 to 763 lines (+15). Runtime source
+across those files is unchanged while deleting the coordinator's active-tab,
+artifact, rendered-id, and form-routing branches. Focused context coverage
+passes all 23 cases, including private and project selection routing, alongside
+application contracts and strict types.
+
+The browser application artifact changes from 846,181 B raw / 229,178 B gzip
+to 846,264 B raw / 229,215 B gzip (+83 B raw / +37 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,702 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

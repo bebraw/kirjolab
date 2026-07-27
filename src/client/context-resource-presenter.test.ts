@@ -216,11 +216,20 @@ describe("context resource presenter", () => {
     const setPdf = vi.spyOn(elements["project-annotation-form"], "setIntakePdf").mockImplementation(() => undefined);
     const setAnnotationVisible = vi.spyOn(elements["project-annotation-form"], "setVisible");
     const setInspectorVisible = vi.spyOn(elements["library-pdf-inspector"], "setVisible");
+    const beginHighlight = vi.spyOn(elements["library-pdf-inspector"], "beginHighlight").mockImplementation(() => undefined);
 
     presenter.present(sources(resourceTab("pdf", "project/pdf")));
     expect(presenter.activeLibraryPdf).toBeUndefined();
     presenter.present(sources(resourceTab("library-pdf", libraryPdf.id)));
     expect(presenter.activeLibraryPdf).toBe(libraryPdf);
+    presenter.capturePdfSelection({ page: 2, prefix: "", quote: "Evidence", rects: [], suffix: "" });
+    expect(beginHighlight).toHaveBeenCalledWith(libraryPdf.id, {
+      comment: "",
+      highlightId: null,
+      page: 2,
+      quote: "Evidence",
+      rects: [],
+    });
     presenter.present(sources(resourceTab("library-pdf", referencePdf.id)));
     expect(presenter.activeLibraryPdf).toBeUndefined();
 
@@ -310,8 +319,11 @@ describe("context resource presenter", () => {
       updateAnnotations: vi.fn(),
       updatePrivateHighlights: vi.fn(),
     };
+    const capture = { page: 2, prefix: "Before", quote: "Evidence", rects: [], suffix: "After" };
+    const persistProjectSelection = vi.fn();
     const selectPdf = vi.spyOn(elements["project-annotation-form"], "selectPdf");
-    presenter.bindPdfViewer(viewer, "/api/workspaces/workspace");
+    const showCapture = vi.spyOn(elements["project-annotation-form"], "showCapture");
+    presenter.bindPdfViewer(viewer, "/api/workspaces/workspace", persistProjectSelection);
     presenter.present({ ...sources(tab), snapshot: project });
 
     await presenter.loadActivePdf(false);
@@ -329,6 +341,9 @@ describe("context resource presenter", () => {
     expect(presenter.renderedPdfId).toBe(pdf.id);
     expect(elements["paper-reader"].scrollTop).toBe(24);
     expect(presenter.presentWorkspace(project)).toEqual([annotation]);
+    presenter.capturePdfSelection(capture);
+    expect(showCapture).toHaveBeenCalledWith(capture);
+    expect(persistProjectSelection).toHaveBeenCalledWith(capture);
 
     const state = { activeKey: tab.key, tabs: [tab] };
     expect(presenter.captureBoundContext(state).tabs[0]).toMatchObject({ focusedAnnotationId: annotation.id, page: 3 });

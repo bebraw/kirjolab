@@ -183,7 +183,7 @@ class WorkspaceApp {
       socketUrl: `${location.protocol === "https:" ? "wss:" : "ws:"}//${location.host}${apiBase}/socket`,
     });
     this.#pdfViewer = PdfEvidenceViewer.forDocument(document, {
-      onSelection: (capture) => this.#capturePdfSelection(capture),
+      onSelection: (capture) => this.#elements.contextResourcePresenter.capturePdfSelection(capture),
       onHighlight: (annotationId, fragmentId) => void this.#activateHighlightFragment(annotationId, fragmentId),
       onPageChange: (page) => this.#handlePdfPageChange(page),
       onPrivateHighlight: (highlightId) => this.#elements.contextResourcePresenter.selectLibraryHighlight(highlightId),
@@ -550,7 +550,7 @@ class WorkspaceApp {
       referencePdfs: () => this.#elements.contextResourcePresenter.referencePdfs,
       refreshLibrary: async () => await this.#refreshReferenceLibrary(),
     });
-    this.#elements.contextResourcePresenter.bindPdfViewer(this.#pdfViewer, apiBase);
+    this.#elements.contextResourcePresenter.bindPdfViewer(this.#pdfViewer, apiBase, (capture) => void this.#persistPdfSelection(capture));
     this.#elements.libraryPdfInspector.bindProjectMutations(
       (message, snapshot) => void this.#completeLibraryProjectMutation(message, snapshot),
     );
@@ -1503,21 +1503,6 @@ class WorkspaceApp {
     if (appMode === "library" && artifact && location.pathname.startsWith("/library/pdfs/")) {
       history.replaceState(history.state, "", libraryPdfRoute(artifact.id, page));
     }
-  }
-
-  #capturePdfSelection(capture: PdfSelectionCapture): void {
-    const activeTab = this.#elements.contextResourcePresenter.activeTab;
-    if (activeTab?.kind === "library-pdf") {
-      const artifact = this.#elements.contextResourcePresenter.activeLibraryPdf;
-      if (!artifact) return;
-      this.#elements.contextResourcePresenter.beginLibraryHighlight(artifact.id, capture);
-      return;
-    }
-    if (activeTab?.kind !== "pdf") return;
-    const renderedPdfId = this.#elements.contextResourcePresenter.renderedPdfId;
-    if (renderedPdfId) this.#elements.projectAnnotationForm.selectPdf(renderedPdfId);
-    this.#elements.projectAnnotationForm.showCapture(capture);
-    void this.#persistPdfSelection(capture);
   }
 
   #applyLibraryPdfViewerPresentation(presentation: LibraryPdfSelectionPresentation | LibraryPdfToolPresentation): void {

@@ -135,6 +135,7 @@ export class ContextResourcePresenter extends LitElement {
   private libraryPdfCoordinator: LibraryPdfCoordinator | null = null;
   private pdfApiBase = "";
   private pdfViewer: ContextPdfViewer | null = null;
+  private persistProjectSelection: (capture: PdfSelectionCapture) => void = () => undefined;
   private renderedPdfContextKey: ResearchContextTab["key"] | undefined;
   private currentRenderedPdfId: string | undefined;
   private routeCoordinator: ContextRouteCoordinator | null = null;
@@ -233,9 +234,23 @@ export class ContextResourcePresenter extends LitElement {
     });
   }
 
-  bindPdfViewer(viewer: ContextPdfViewer, apiBase: string): void {
+  bindPdfViewer(viewer: ContextPdfViewer, apiBase: string, persistProjectSelection?: (capture: PdfSelectionCapture) => void): void {
     this.pdfViewer = viewer;
     this.pdfApiBase = apiBase;
+    if (persistProjectSelection) this.persistProjectSelection = persistProjectSelection;
+  }
+
+  capturePdfSelection(capture: PdfSelectionCapture): void {
+    const activeTab = this.currentActiveTab;
+    if (activeTab?.kind === "library-pdf") {
+      if (this.currentLibraryPdf) this.beginLibraryHighlight(this.currentLibraryPdf.id, capture);
+      return;
+    }
+    if (activeTab?.kind !== "pdf") return;
+    const form = this.element("project-annotation-form", ProjectAnnotationForm);
+    if (this.currentRenderedPdfId) form?.selectPdf(this.currentRenderedPdfId);
+    form?.showCapture(capture);
+    this.persistProjectSelection(capture);
   }
 
   presentContext(sources: ResearchContextSources): ResearchContextPresentation {

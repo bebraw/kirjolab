@@ -161,7 +161,10 @@ The adopted components own bounded presentation:
   authorized active-PDF loads, synchronizes project annotations and private
   highlights, rejects stale completions, retains rendered context and project-
   PDF identities, opens the viewer, restores resource scroll, and presents
-  active-resource failures. The resource presentation also owns
+  active-resource failures. It also routes captured selections to the private-
+  highlight composer or project-annotation form from those retained identities,
+  delegating project-selection persistence through the viewer binding. The
+  resource presentation also owns
   linked-reference PDF catalog loading,
   validation, storage, and authorization projection. The coordinator retains
   refresh and load timing alongside canonical context state, active-page

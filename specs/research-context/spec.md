@@ -190,7 +190,9 @@ changing their canonical data, selector, authorization, or rendering contracts.
   authorized active-PDF load from canonical project, Library, and linked-PDF
   catalogs; applies it through a narrow viewer binding; rejects stale load
   completions; retains rendered context and project-PDF identity; restores
-  resource scroll; and presents active-resource failures;
+  resource scroll; presents active-resource failures; and routes captured
+  selections to the private-highlight composer or project-annotation form from
+  those retained identities;
   derives the authorized publication, project-PDF, private-or-linked PDF, and
   candidate identity sets from the canonical project and Library catalogs;
   and owns private-PDF inspector context, artifact-change markup reset, toolbar
@@ -210,9 +212,9 @@ changing their canonical data, selector, authorization, or rendering contracts.
   It synchronizes active project-PDF annotations and private highlights through
   the bound viewer. It owns linked-reference PDF catalog loading, validation,
   storage, and authorization projection. The coordinator retains refresh and
-  load timing, snapshot authority, page-selection gestures, context
-  reconciliation, model availability, routing, refresh, and notification
-  policy.
+  load timing, snapshot authority, project-selection persistence, remaining
+  page gestures, context reconciliation, model availability, routing, refresh,
+  and notification policy.
 - Reconciliation authorizes `pdf:` tabs from the workspace snapshot and
   `library-pdf:` tabs from the current owner-library snapshot; neither scope
   grants the other.
