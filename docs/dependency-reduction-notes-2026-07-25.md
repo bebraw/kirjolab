@@ -8263,6 +8263,27 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,706 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Template Save Notices
+
+`ProjectTemplateSaveDialog` now derives the create-or-replace success notice
+from its validated saved summary and local replacement choice. Its completion
+binding supplies that ready-to-display message instead of exporting a result
+shape solely for `WorkspaceApp` to reconstruct dialog-owned wording.
+
+This checkpoint reduces `src/client/app.ts` from 1,496 to 1,492 lines (-4) and
+the template-save dialog from 231 to 230 lines (-1), for a five-line runtime
+source reduction. Focused coverage passes all 23 template-save and application-
+contract cases, including create and replacement notices, and strict types
+remain green.
+
+The browser application artifact changes from 846,806 B raw / 228,595 B gzip
+to 846,743 B raw / 228,541 B gzip (-63 B raw / -54 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,706 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

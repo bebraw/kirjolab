@@ -66,8 +66,8 @@ without copying private research or creating a live dependency on the source.
   synchronization, and the global toast outlet.
 - The template-save Lit dialog owns create-or-replace form state, promotion
   requests, saved-summary validation, duplicate-submit gating, local progress
-  and error presentation, and typed validated completion outcomes.
-  `WorkspaceApp` refreshes the shared catalog and presents the resulting toast.
+  and error presentation, and create-or-replace success wording.
+  `WorkspaceApp` refreshes the shared catalog and presents the supplied toast.
 - The modal keeps Tab focus within its enabled controls. Cancel or Escape
   returns focus to the Project disclosure; transferring into an import modal
   gives focus to that import's first required field instead.

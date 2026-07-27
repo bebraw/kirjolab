@@ -40,7 +40,6 @@ import { resolveAssistantTarget } from "./assistant-operations";
 import { createCitationInsertion, type CitationContext } from "./citations";
 import { type ProjectAnnotationSaved } from "./project-annotation-form";
 import { type ProjectFileDialogMode, type ProjectFileSaved } from "./project-file-dialog";
-import type { ProjectTemplateSaved } from "./project-template-save-dialog";
 import "./manuscript-map-panel";
 import {
   applicationVersion,
@@ -305,7 +304,9 @@ class WorkspaceApp {
       history.replaceState(history.state, "", location.pathname);
     }
     this.#elements.saveTemplateDialog.configure(apiBase);
-    this.#elements.saveTemplateDialog.bindCompletion((result) => void this.#completeProjectTemplateSave(result));
+    this.#elements.saveTemplateDialog.bindCompletion((message) => {
+      void this.#refreshProjectTemplates().then(() => this.#showToast(message));
+    });
     this.#elements.workspaceRailTabs.bindNavigation((rail) => this.#showRail(rail));
     this.#elements.researchDiaryPanel.bindOpen(
       () => void this.#openWorkflowFile(researchDiaryPath, () => researchDiaryTemplate(new Date().toISOString().slice(0, 10))),
@@ -704,11 +705,6 @@ class WorkspaceApp {
   async #refreshProjectTemplates(): Promise<void> {
     await this.#elements.newWorkspaceStartingPoints.refresh(this.#elements.workspaceCatalogPanel.catalog);
     this.#elements.saveTemplateDialog.setTemplates(this.#elements.newWorkspaceStartingPoints.availableTemplates);
-  }
-
-  async #completeProjectTemplateSave({ replaced, template }: ProjectTemplateSaved): Promise<void> {
-    await this.#refreshProjectTemplates();
-    this.#showToast(replaced ? `Replaced template “${template.name}”.` : `Saved “${template.name}” as a personal template.`);
   }
 
   #renderCollaborationWorkflow(): void {

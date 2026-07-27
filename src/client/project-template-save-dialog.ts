@@ -8,11 +8,6 @@ export interface ProjectTemplateSave {
   readonly templateId?: string;
 }
 
-export interface ProjectTemplateSaved {
-  readonly replaced: boolean;
-  readonly template: ProjectTemplateSummary;
-}
-
 export class ProjectTemplateSaveDialog extends LitElement {
   static override properties = {
     description: { state: true },
@@ -30,7 +25,7 @@ export class ProjectTemplateSaveDialog extends LitElement {
   declare private status: string;
   declare private templates: readonly ProjectTemplateSummary[];
   private apiBase = "";
-  private completeSave: ((result: ProjectTemplateSaved) => void) | null = null;
+  private completeSave: ((message: string) => void) | null = null;
 
   constructor() {
     super();
@@ -46,7 +41,7 @@ export class ProjectTemplateSaveDialog extends LitElement {
     this.apiBase = apiBase;
   }
 
-  bindCompletion(completeSave: (result: ProjectTemplateSaved) => void): void {
+  bindCompletion(completeSave: (message: string) => void): void {
     this.completeSave = completeSave;
   }
 
@@ -195,7 +190,9 @@ export class ProjectTemplateSaveDialog extends LitElement {
       const templates: unknown[] = [await response.json()];
       if (!isProjectTemplateSummaries(templates) || !templates[0]) throw new Error("Saved project template returned invalid data");
       this.close();
-      this.completeSave?.({ replaced: Boolean(value.templateId), template: templates[0] });
+      this.completeSave?.(
+        value.templateId ? `Replaced template “${templates[0].name}”.` : `Saved “${templates[0].name}” as a personal template.`,
+      );
     } catch (error) {
       this.status = errorMessage(error, "Could not save personal template.");
     } finally {

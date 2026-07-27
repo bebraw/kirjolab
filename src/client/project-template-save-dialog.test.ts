@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ProjectTemplateSaveDialog, type ProjectTemplateSaved } from "./project-template-save-dialog";
+import { ProjectTemplateSaveDialog } from "./project-template-save-dialog";
 
 const personalTemplates = [
   {
@@ -126,7 +126,7 @@ describe("project template save dialog", () => {
       .mockImplementation(() => Promise.resolve(new Response(JSON.stringify(personalTemplates[0]), { status: 200 })));
     vi.stubGlobal("fetch", fetchMock);
     dialog.configure("/api/workspaces/workspace-1");
-    const saves: ProjectTemplateSaved[] = [];
+    const saves: string[] = [];
     dialog.bindCompletion((result) => saves.push(result));
     dialog.nameForTest("New template");
     dialog.descriptionForTest("New description");
@@ -136,8 +136,8 @@ describe("project template save dialog", () => {
     await dialog.saveForTest();
 
     expect(saves).toEqual([
-      { replaced: false, template: personalTemplates[0] },
-      { replaced: true, template: personalTemplates[0] },
+      `Saved “${personalTemplates[0].name}” as a personal template.`,
+      `Replaced template “${personalTemplates[0].name}”.`,
     ]);
     expect(fetchMock).toHaveBeenNthCalledWith(1, "/api/workspaces/workspace-1/template", {
       body: JSON.stringify({ description: "New description", name: "New template" }),
