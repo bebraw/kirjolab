@@ -1,5 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { LibraryHighlight, LibraryPdfArtifact, ProjectReferencePdf, ReferenceLibrarySnapshot } from "../domain/reference-library";
+import type {
+  LibraryHighlight,
+  LibraryPdfArtifact,
+  LibraryPdfNote,
+  ProjectReferencePdf,
+  ReferenceLibrarySnapshot,
+} from "../domain/reference-library";
 import { workspaceSnapshotFixture } from "../test-support/workspace-fixture";
 import { AssistantWorkflowStatus } from "./assistant-workflow-status";
 import { CandidateListPanel } from "./candidate-list-panel";
@@ -47,6 +53,18 @@ const highlight = {
   referenceId: "reference:1",
   updatedAt: "updated",
 } satisfies LibraryHighlight;
+const note = {
+  artifactId: libraryPdf.id,
+  body: "Page note",
+  createdAt: "created",
+  id: "note-1",
+  kind: "note",
+  page: 3,
+  referenceId: "reference:1",
+  updatedAt: "updated",
+  x: 0.2,
+  y: 0.3,
+} satisfies LibraryPdfNote;
 const library: ReferenceLibrarySnapshot = {
   artifacts: [libraryPdf],
   collections: {},
@@ -318,5 +336,47 @@ describe("context resource presenter", () => {
     expect(clearNote).toHaveBeenCalledOnce();
     expect(clearMarkup).toHaveBeenCalledOnce();
     expect(focusInspectorButton).toHaveBeenCalledOnce();
+  });
+
+  it("coordinates private-PDF highlight and note editing", () => {
+    const { elements, presenter } = setup();
+    const markups = elements["paper-markups"];
+    const inspector = elements["library-pdf-inspector"];
+    vi.spyOn(markups, "tool", "get").mockReturnValue("select");
+    const selectHighlight = vi.spyOn(markups, "selectHighlight");
+    const editMarkupNote = vi.spyOn(markups, "editNote").mockImplementation(() => undefined);
+    const editHighlight = vi.spyOn(inspector, "editHighlight").mockImplementation(() => undefined);
+    const editNote = vi.spyOn(inspector, "editNote").mockImplementation(() => undefined);
+
+    expect(presenter.editLibraryHighlight(highlight)).toEqual({
+      clearDraftSelection: false,
+      privateHighlightId: highlight.id,
+      privateHighlightSelection: true,
+    });
+    expect(presenter.editLibraryPdfNote(note)).toEqual({ clearDraftSelection: false });
+
+    expect(selectHighlight).toHaveBeenCalledWith(highlight.id);
+    expect(editHighlight).toHaveBeenCalledWith(highlight);
+    expect(editMarkupNote).toHaveBeenCalledWith(note);
+    expect(editNote).toHaveBeenCalledWith(note);
+  });
+
+  it("coordinates private-PDF markup selection and highlight-draft cleanup", () => {
+    const { elements, presenter } = setup();
+    const markups = elements["paper-markups"];
+    const inspector = elements["library-pdf-inspector"];
+    vi.spyOn(inspector, "draftState", "get").mockReturnValue({ highlight: true, markup: false, note: false });
+    const clearHighlight = vi.spyOn(inspector, "clearHighlight").mockImplementation(() => undefined);
+    const selectMarkup = vi.spyOn(markups, "selectMarkup");
+    const selectInspectorMarkup = vi.spyOn(inspector, "selectMarkup").mockImplementation(() => undefined);
+
+    expect(presenter.selectLibraryPdfMarkup(note, 3)).toEqual({
+      clearDraftSelection: true,
+      privateHighlightSelection: true,
+    });
+
+    expect(clearHighlight).toHaveBeenCalledWith(3, "Selection cancelled. Nothing was saved.");
+    expect(selectMarkup).toHaveBeenCalledWith(note.id);
+    expect(selectInspectorMarkup).toHaveBeenCalledWith(note);
   });
 });

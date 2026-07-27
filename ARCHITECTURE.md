@@ -823,9 +823,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   project page-local saved markup plus newest-drawing undo state from canonical
   Library inputs supplied by the coordinator. It also owns synchronized
   private-PDF tool, inspector-open, inspector-close, and draft-clearing
-  presentation across the markup layer, inspector, and toolbar, returning only
-  the text-selection, selected-highlight, and draft-selection cleanup effects
-  that remain viewer-owned, and
+  presentation plus highlight, note, and markup edit/selection coordination
+  across the markup layer, inspector, and toolbar, returning only the text-
+  selection, selected-highlight, and draft-selection cleanup effects that
+  remain viewer-owned, and
   synchronize the bounded evidence, annotation, publication, claim, comment,
   and candidate owners from one canonical workspace snapshot. It may return
   active project-PDF annotations and private highlights for the PDF viewer while

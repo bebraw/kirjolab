@@ -1,5 +1,12 @@
 import { html, LitElement, type TemplateResult } from "lit";
-import type { LibraryHighlight, LibraryPdfArtifact, ProjectReferencePdf, ReferenceLibrarySnapshot } from "../domain/reference-library";
+import type {
+  LibraryHighlight,
+  LibraryPdfArtifact,
+  LibraryPdfMarkup,
+  LibraryPdfNote,
+  ProjectReferencePdf,
+  ReferenceLibrarySnapshot,
+} from "../domain/reference-library";
 import type { AnnotationResource, WorkspaceSnapshot } from "../domain/workspace";
 import { AssistantWorkflowStatus } from "./assistant-workflow-status";
 import { CandidateListPanel } from "./candidate-list-panel";
@@ -42,6 +49,13 @@ export interface LibraryPdfToolPresentation {
 export interface LibraryPdfInspectorClosePresentation {
   readonly clearDraftSelection: boolean;
   readonly privateHighlightSelection: boolean | null;
+}
+
+export interface LibraryPdfSelectionPresentation {
+  readonly clearDraftSelection: boolean;
+  readonly privateHighlightId?: string | null;
+  readonly privateHighlightSelection?: boolean;
+  readonly textSelectionEnabled?: boolean;
 }
 
 export class ContextResourcePresenter extends LitElement {
@@ -117,6 +131,35 @@ export class ContextResourcePresenter extends LitElement {
     this.setLibraryPdfInspector(false);
     this.element("library-pdf-annotation-toolbar", LibraryPdfAnnotationToolbar)?.focusInspectorButton();
     return { clearDraftSelection: drafts?.highlight ?? false, privateHighlightSelection };
+  }
+
+  editLibraryHighlight(highlight: LibraryHighlight): LibraryPdfSelectionPresentation {
+    const markups = this.element("paper-markups", LibraryPdfMarkupLayer);
+    if (markups?.selectedMarkupId) this.clearLibraryPdfMarkupSelection();
+    const tool = markups?.tool === "select" ? {} : this.chooseLibraryPdfTool("select");
+    markups?.selectHighlight(highlight.id);
+    this.element("library-pdf-inspector", LibraryPdfInspector)?.editHighlight(highlight);
+    this.setLibraryPdfInspector(true);
+    return { ...tool, clearDraftSelection: false, privateHighlightId: highlight.id, privateHighlightSelection: true };
+  }
+
+  editLibraryPdfNote(note: LibraryPdfNote): LibraryPdfSelectionPresentation {
+    const markups = this.element("paper-markups", LibraryPdfMarkupLayer);
+    const tool = markups?.tool === "select" ? {} : this.chooseLibraryPdfTool("select");
+    markups?.editNote(note);
+    this.element("library-pdf-inspector", LibraryPdfInspector)?.editNote(note);
+    this.setLibraryPdfInspector(true);
+    return { ...tool, clearDraftSelection: false };
+  }
+
+  selectLibraryPdfMarkup(markup: LibraryPdfMarkup, page: number): LibraryPdfSelectionPresentation {
+    const inspector = this.element("library-pdf-inspector", LibraryPdfInspector);
+    const clearDraftSelection = inspector?.draftState.highlight ?? false;
+    if (clearDraftSelection) inspector?.clearHighlight(page, "Selection cancelled. Nothing was saved.");
+    this.element("paper-markups", LibraryPdfMarkupLayer)?.selectMarkup(markup.id);
+    inspector?.selectMarkup(markup);
+    this.setLibraryPdfInspector(true);
+    return { clearDraftSelection, privateHighlightSelection: true };
   }
 
   resourceScrollTop(tab: ResearchContextTab): number {

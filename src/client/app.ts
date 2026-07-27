@@ -47,6 +47,7 @@ import { libraryPdfAnnotationListActionEvent, type LibraryPdfAnnotationListActio
 import { libraryPdfMarkupActionEvent, type LibraryPdfMarkupAction } from "./library-pdf-markup-layer";
 import { libraryPdfToolbarActionEvent, type LibraryPdfToolbarAction } from "./library-pdf-annotation-toolbar";
 import { libraryPdfInspectorCloseEvent } from "./library-pdf-inspector";
+import type { LibraryPdfSelectionPresentation, LibraryPdfToolPresentation } from "./context-resource-presenter";
 import { libraryPdfRoute, readLibraryUiRoute } from "./library-ui-route";
 import { startingPointActionEvent, startingPointTemplateDeleteEvent, type StartingPointAction } from "./project-starting-point-browser";
 import { workspaceSharingNoticeEvent } from "./workspace-sharing-panel";
@@ -707,7 +708,7 @@ class WorkspaceApp {
       if (action.action === "highlight-saved") void this.#completeLibraryHighlightSave(action.kind);
       else if (action.action === "cancel-highlight") this.#clearLibraryHighlightDraft();
       else if (action.action === "note-saved") void this.#completeLibraryPdfNoteSave(action.kind);
-      else if (action.action === "cancel-note") this.#clearLibraryPdfNoteDraft();
+      else if (action.action === "cancel-note") this.#elements.contextResourcePresenter.clearLibraryPdfNoteDraft();
       else if (action.action === "markup-saved") void this.#completeSelectedLibraryPdfMarkupMutation(action.kind);
       else if (action.action === "edit-note") this.#editSelectedLibraryPdfNote();
       else this.#clearLibraryPdfMarkupSelection();
@@ -744,7 +745,7 @@ class WorkspaceApp {
       if (action.action === "choose-tool") this.#setLibraryPdfTool(action.tool);
       else if (action.action === "drawing-undone") this.#completeLibraryPdfMarkup("Private annotation deleted.");
       else if (action.action === "export-status") this.#showToast(action.message);
-      else this.#setLibraryPdfInspector(true, true);
+      else this.#elements.contextResourcePresenter.setLibraryPdfInspector(true, true);
     });
     this.#elements.libraryPdfInspector.addEventListener(libraryPdfInspectorCloseEvent, () => this.#closeLibraryPdfInspector());
     this.#elements.libraryPdfInspector.addEventListener(pdfHighlightImportOutcomeEvent, (event) => {
@@ -759,7 +760,7 @@ class WorkspaceApp {
       else if (detail.action === "status") this.#elements.libraryPdfInspector.setStatus(detail.message);
       else {
         this.#elements.libraryPdfInspector.beginNote(detail.draft);
-        this.#setLibraryPdfInspector(true);
+        this.#elements.contextResourcePresenter.setLibraryPdfInspector(true);
       }
     });
     this.#elements.claimListPanel.configure(apiBase);
@@ -2756,7 +2757,7 @@ class WorkspaceApp {
         comment: "",
         rects: capture.rects,
       });
-      this.#setLibraryPdfInspector(true);
+      this.#elements.contextResourcePresenter.setLibraryPdfInspector(true);
       return;
     }
     if (activeTab?.kind !== "pdf") return;
@@ -2793,16 +2794,7 @@ class WorkspaceApp {
   }
 
   #editLibraryHighlight(highlight: LibraryHighlight): void {
-    if (this.#elements.paperMarkups.selectedMarkupId) this.#clearLibraryPdfMarkupSelection();
-    if (this.#elements.paperMarkups.tool !== "select") this.#setLibraryPdfTool("select");
-    this.#elements.paperMarkups.selectHighlight(highlight.id);
-    this.#pdfViewer.setPrivateHighlightSelection(true, highlight.id);
-    this.#elements.libraryPdfInspector.editHighlight(highlight);
-    this.#setLibraryPdfInspector(true);
-  }
-
-  #setLibraryPdfInspector(open: boolean, showAnnotations = false): void {
-    this.#elements.contextResourcePresenter.setLibraryPdfInspector(open, showAnnotations);
+    this.#applyLibraryPdfViewerPresentation(this.#elements.contextResourcePresenter.editLibraryHighlight(highlight));
   }
 
   #closeLibraryPdfInspector(): void {
@@ -2813,27 +2805,18 @@ class WorkspaceApp {
   }
 
   #setLibraryPdfTool(tool: "select" | "text" | "note" | "draw"): void {
-    const presentation = this.#elements.contextResourcePresenter.chooseLibraryPdfTool(tool);
-    this.#pdfViewer.setTextSelectionEnabled(presentation.textSelectionEnabled);
-    this.#pdfViewer.setPrivateHighlightSelection(presentation.privateHighlightSelection, presentation.privateHighlightId);
+    this.#applyLibraryPdfViewerPresentation(this.#elements.contextResourcePresenter.chooseLibraryPdfTool(tool));
   }
 
   async #completeLibraryPdfNoteSave(kind: "created" | "updated"): Promise<void> {
     this.#elements.paperMarkups.clearNote();
     await this.#refreshReferenceLibrary();
-    this.#setLibraryPdfInspector(false);
+    this.#elements.contextResourcePresenter.setLibraryPdfInspector(false);
     this.#showToast(kind === "updated" ? "Private note updated." : "Note attached privately.");
   }
 
-  #clearLibraryPdfNoteDraft(): void {
-    this.#elements.contextResourcePresenter.clearLibraryPdfNoteDraft();
-  }
-
   #editLibraryPdfNote(note: LibraryPdfNote): void {
-    if (this.#elements.paperMarkups.tool !== "select") this.#setLibraryPdfTool("select");
-    this.#elements.paperMarkups.editNote(note);
-    this.#elements.libraryPdfInspector.editNote(note);
-    this.#setLibraryPdfInspector(true);
+    this.#applyLibraryPdfViewerPresentation(this.#elements.contextResourcePresenter.editLibraryPdfNote(note));
   }
 
   #selectLibraryHighlight(highlightId: string): void {
@@ -2846,11 +2829,16 @@ class WorkspaceApp {
   #selectLibraryPdfMarkup(markupId: string): void {
     const markup = (this.#librarySnapshot?.pdfMarkups ?? []).find((item) => item.id === markupId);
     if (!markup) return;
-    if (this.#elements.libraryPdfInspector.draftState.highlight) this.#clearLibraryHighlightDraft();
-    this.#elements.paperMarkups.selectMarkup(markup.id);
-    this.#pdfViewer.setPrivateHighlightSelection(true);
-    this.#elements.libraryPdfInspector.selectMarkup(markup);
-    this.#setLibraryPdfInspector(true);
+    this.#applyLibraryPdfViewerPresentation(
+      this.#elements.contextResourcePresenter.selectLibraryPdfMarkup(markup, this.#pdfViewer.currentPage),
+    );
+  }
+
+  #applyLibraryPdfViewerPresentation(presentation: LibraryPdfSelectionPresentation | LibraryPdfToolPresentation): void {
+    if ("clearDraftSelection" in presentation && presentation.clearDraftSelection) this.#pdfViewer.clearDraftSelection();
+    if (presentation.textSelectionEnabled !== undefined) this.#pdfViewer.setTextSelectionEnabled(presentation.textSelectionEnabled);
+    if (presentation.privateHighlightSelection !== undefined)
+      this.#pdfViewer.setPrivateHighlightSelection(presentation.privateHighlightSelection, presentation.privateHighlightId);
   }
 
   #clearLibraryPdfMarkupSelection(): void {
