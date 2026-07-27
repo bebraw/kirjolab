@@ -142,7 +142,10 @@ changing their canonical data, selector, authorization, or rendering contracts.
   Context while preserving readable minimum widths. The local authoring width
   is remembered per workspace and context kind. Preview, Library, and Writing
   assistant share one stable proportion, while a wide PDF reading layout does
-  not force that proportion onto the permanent tabs.
+  not force that proportion onto the permanent tabs. Entering PDF-only layout
+  preserves an active PDF; otherwise the context owner opens the first
+  authorized project PDF, then the first private Library PDF, or reports that a
+  PDF must be added or opened.
 - On desktop, a second pointer- and keyboard-operable separator resizes the
   project rail between bounded 13rem and 24rem widths. The browser remembers
   that cross-project preference locally, `Home` restores the 17rem default,

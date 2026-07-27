@@ -256,7 +256,7 @@ class WorkspaceApp {
     });
     this.#elements.workspaceLayout.configure(workspaceId, this.#elements.workspaceSurfaces);
     this.#elements.workspaceLayout.bindChange(async (layout) => {
-      if (layout === "pdf") await this.#ensurePdfLayoutResource();
+      if (layout === "pdf") await this.#elements.contextResourcePresenter.ensurePdfResource();
       this.#syncWorkspaceRoute("replace");
     });
     this.#elements.workspaceCatalogPanel.configure(catalogBase, workspaceId, this.#elements.workspaceSwitcher);
@@ -546,16 +546,6 @@ class WorkspaceApp {
     this.#renderResources();
     this.#scheduleOfflineSave();
     await this.#refreshProjectReferencePdfs();
-  }
-
-  async #ensurePdfLayoutResource(): Promise<void> {
-    const active = this.#elements.contextResourcePresenter.activeContextTab;
-    if (active?.kind === "pdf" || active?.kind === "library-pdf") return;
-    const pdf = this.#snapshot?.pdfs[0];
-    if (pdf) return await this.#showPaper(pdf);
-    const artifact = this.#librarySnapshot?.artifacts[0];
-    if (artifact) return await this.#openLibraryPdf(artifact);
-    this.#showToast("Add or open a PDF before using PDF-only view.");
   }
 
   async #restoreWorkspaceRoute(): Promise<void> {

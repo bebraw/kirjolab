@@ -363,6 +363,19 @@ export class ContextResourcePresenter extends LitElement {
     }
   }
 
+  async ensurePdfResource(): Promise<void> {
+    const active = this.activeContextTab;
+    if (active?.kind === "pdf" || active?.kind === "library-pdf") return;
+    const sources = this.contextPresentation?.sources();
+    const coordinator = this.routeCoordinator;
+    if (!sources || !coordinator) return;
+    const pdf = sources.snapshot?.pdfs[0];
+    if (pdf) return await coordinator.openProjectPdf(pdf);
+    const artifact = sources.library?.artifacts[0];
+    if (artifact) return await coordinator.openLibraryPdf(artifact);
+    coordinator.presentNotice("Add or open a PDF before using PDF-only view.");
+  }
+
   openProjectAnnotation(annotationId: string, edit = false): void {
     const coordinator = this.routeCoordinator;
     const project = coordinator?.project();

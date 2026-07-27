@@ -158,7 +158,10 @@ The adopted components own bounded presentation:
   contexts or the matching canonical publication, project PDF, private-Library
   PDF, linked reference PDF, or candidate, emits the typed open effect, and
   returns to Preview with a notice after failures. URL parsing and browser-
-  history mutation remain application-coordinator policy. Project-map
+  history mutation remain application-coordinator policy. It also resolves the
+  PDF-only layout's active-or-first authorized project/private PDF choice and
+  empty state through the same catalogs and route effects while layout state
+  remains application policy. Project-map
   navigation reuses those catalog lookups,
   while annotation edit/open intents resolve to the canonical annotation and
   its project PDF and active note intents resolve to bounded notice text from

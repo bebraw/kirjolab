@@ -330,6 +330,49 @@ describe("context resource presenter", () => {
     expect(presentNotice).toHaveBeenCalledWith("PDF is unavailable");
   });
 
+  it("selects an authorized PDF for PDF-only layout", async () => {
+    const { presenter, routes } = setup();
+    const pdf = {
+      contentType: "application/pdf",
+      createdAt: "created",
+      fingerprint: "layout-fingerprint",
+      id: "layout/pdf",
+      name: "layout.pdf",
+      objectKey: "pdfs/layout.pdf",
+      size: 1024,
+    } satisfies PdfResource;
+    let contextSources = {
+      ...sources(undefined),
+      library: library as ReferenceLibrarySnapshot | null,
+      snapshot: { ...workspaceSnapshotFixture, pdfs: [pdf] },
+      standaloneLibrary: false,
+    };
+    presenter.bindContext({
+      activateSurface: vi.fn(),
+      citationAvailable: () => false,
+      openLibrary: vi.fn(),
+      replaceStandaloneLibraryRoute: vi.fn(),
+      restorePaneWidth: vi.fn(),
+      sources: () => contextSources,
+      syncRoute: vi.fn(),
+    });
+
+    await presenter.ensurePdfResource();
+    contextSources = { ...contextSources, snapshot: workspaceSnapshotFixture };
+    await presenter.ensurePdfResource();
+    contextSources = { ...contextSources, library: null };
+    await presenter.ensurePdfResource();
+    presenter.openResourceContext({ kind: "pdf", id: pdf.id });
+    await presenter.ensurePdfResource();
+
+    expect(routes.openProjectPdf).toHaveBeenCalledOnce();
+    expect(routes.openProjectPdf).toHaveBeenCalledWith(pdf);
+    expect(routes.openLibraryPdf).toHaveBeenCalledOnce();
+    expect(routes.openLibraryPdf).toHaveBeenCalledWith(libraryPdf);
+    expect(routes.presentNotice).toHaveBeenCalledOnce();
+    expect(routes.presentNotice).toHaveBeenCalledWith("Add or open a PDF before using PDF-only view.");
+  });
+
   it("loads and validates the linked-reference PDF catalog", async () => {
     const { presenter } = setup();
 
