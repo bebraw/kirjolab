@@ -9185,6 +9185,28 @@ to 848,995 B raw / 228,775 B gzip (+27 B raw / +8 B gzip). Styles and direct and
 unique production package counts remain unchanged at 135,411 B raw / 23,373 B
 gzip, 18, and 150.
 
+## Continued Lit Ownership: Preview-to-Source Navigation
+
+`PreviewSyncControls` now captures the centered Preview offset for its explicit
+backward action, resolves that offset through its retained composition map,
+routes one file-qualified focus intent, and centers the bound source viewport.
+Preview clicks reuse the same public transition. `WorkspaceApp` retains
+source-to-Preview eligibility and DOM navigation plus file, mode, caret, and
+focus policy without two Preview-to-source wrappers.
+
+This checkpoint reduces `src/client/app.ts` from 1,202 to 1,190 lines (-12) and
+grows the synchronization control from 157 to 172 lines (+15), a combined
+three-line runtime increase. Focused and affected coverage passes explicit
+directions, click, selection, navigation-key and typing behavior, file-qualified
+mapping, viewport centering, responsive availability, and application
+contracts. Full native CI passes all 1,721 unit/coverage tests, 121
+Workers-runtime tests, and 74 browser tests.
+
+The browser application artifact changes from 848,995 B raw / 228,775 B gzip
+to 849,035 B raw / 228,786 B gzip (+40 B raw / +11 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

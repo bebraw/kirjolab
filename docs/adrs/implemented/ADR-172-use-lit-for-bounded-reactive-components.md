@@ -1137,8 +1137,11 @@ reason to wrap static markup mechanically.
   navigation-key listeners, and explicit-versus-automatic typed callback
   routing. It also derives responsive automatic-sync availability and chooses
   the centered or selected source offset from coordinator-supplied active
-  context and layout inputs. The application coordinator retains active-file,
-  context, and layout authority, Preview DOM navigation, caret placement, and
+  context and layout inputs. For Preview-to-source navigation it captures the
+  centered Preview offset, resolves the file-qualified source location, routes
+  one focus intent, and centers the source viewport. The application
+  coordinator retains active-file, context, and layout authority,
+  source-to-Preview eligibility and DOM navigation, plus file, mode, caret, and
   focus policy.
 - The preview navigation control owns browser-local top-navigation visibility,
   stored restoration, toggle and restore presentation, ARIA and title copy,

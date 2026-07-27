@@ -169,6 +169,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   canonical project-file and Yjs source authority, Yjs anchor resolution,
   source-map translation, publication resolution, citation navigation, and
   resulting transitions in the application coordinator.
+- Let the bounded Preview synchronization control own explicit Preview-to-source
+  offset capture, composition-map resolution, file-qualified focus intent, and
+  source-viewport centering alongside its directional actions and source
+  listeners. Keep source-to-Preview eligibility, Preview DOM navigation, and
+  file, mode, caret, and focus policy in the application coordinator.
 - Keep the DOI publication-intake XState actor, preview and acceptance
   requests, stale-response guards, local status, and focus lifecycle inside the
   bounded intake Lit component. Let that component also derive the active PDF's

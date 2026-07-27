@@ -39,7 +39,7 @@ describe("preview sync controls", () => {
 
   it("owns source-editor viewport translation in both directions", () => {
     const controls = new TestPreviewSyncControls();
-    const previewToSource = vi.fn();
+    const focusSource = vi.fn();
     const sourceToPreview = vi.fn();
     expect(controls.sourceOffsetAtCenter()).toBe(0);
     controls.centerSourceOffset(4);
@@ -63,7 +63,11 @@ describe("preview sync controls", () => {
     const source = Object.assign(new EventTarget(), { clientHeight: 100, scrollTop: 60, selectionEnd: 13, value: "first\nsecond\nthird" });
     const highlight = document.createElement("div");
 
-    controls.bindSource(source as HTMLTextAreaElement, highlight, { previewToSource, sourceToPreview });
+    controls.bindSource(source as HTMLTextAreaElement, highlight, {
+      focusSource,
+      previewOffset: () => 13,
+      sourceToPreview,
+    });
     controls.setSourceMap([
       { fileId: "part", includeChain: [], outputEnd: 20, outputStart: 0, path: "part.md", sourceEnd: 20, sourceStart: 0 },
     ]);
@@ -76,18 +80,16 @@ describe("preview sync controls", () => {
       Object.defineProperty(event, "key", { value: key });
       source.dispatchEvent(event);
     }
-    controls.syncForTest();
-    controls.syncForTest("source-to-preview");
-    controls.syncForTest("preview-to-source");
-
     expect(controls.sourceOffsetAtCenter()).toBe(6);
     expect(controls.activeSourcePreviewOffsets("part", true, true, false)).toEqual([6]);
     expect(controls.activeSourcePreviewOffsets("part", false, true, true)).toEqual([13]);
     expect(controls.activeSourcePreviewOffsets("part", false, false, true)).toEqual([]);
     expect(controls.activeSourcePreviewOffsets("part", false, true, false)).toEqual([]);
-    controls.centerSourceOffset(13);
+    controls.syncForTest();
+    controls.syncForTest("source-to-preview");
+    controls.syncForTest("preview-to-source");
     expect(source.scrollTop).toBe(160);
     expect(sourceToPreview.mock.calls).toEqual([[false], [false], [false], [true]]);
-    expect(previewToSource).toHaveBeenCalledOnce();
+    expect(focusSource).toHaveBeenCalledWith({ fileId: "part", offset: 13 });
   });
 });

@@ -188,7 +188,8 @@ class WorkspaceApp {
       resizePdf: () => void this.#pdfViewer.resize(),
     });
     this.#elements.previewSyncControls.bindSource(this.#elements.source, this.#elements.sourceHighlight, {
-      previewToSource: () => this.#syncSourceFromPreviewCenter(),
+      focusSource: ({ fileId, offset }) => this.#focusProjectRange(fileId, offset, offset),
+      previewOffset: () => this.#elements.workspacePreview.centeredSourceOffset(),
       sourceToPreview: (explicit) => this.#syncPreviewFromSource(explicit),
     });
   }
@@ -510,7 +511,7 @@ class WorkspaceApp {
     this.#elements.workspacePreview.bindNavigation({
       openCitation: (citation) => this.#openCitation(citation),
       selectDiagnostic: ({ fileId, from, to }) => this.#focusProjectRange(fileId || this.#snapshot?.entryFileId || "", from, to),
-      showSource: (offset) => this.#syncSourceFromPreviewOffset(offset),
+      showSource: (offset) => this.#elements.previewSyncControls.showSource(offset),
     });
     this.#elements.sourceCitationControl.bindNavigation((citation) => this.#openCitation(citation));
     this.#elements.contextResourcePresenter.bindPublicationContext(apiBase);
@@ -692,25 +693,12 @@ class WorkspaceApp {
     });
   }
 
-  #syncSourceFromPreviewCenter(): void {
-    const offset = this.#elements.workspacePreview.centeredSourceOffset();
-    if (offset !== null) this.#syncSourceFromPreviewOffset(offset, true);
-  }
-
-  #syncSourceFromPreviewOffset(offset: number, centerEditor = false): void {
-    const location = this.#elements.previewSyncControls.sourceLocation(offset);
-    if (!location) return;
-    this.#focusProjectRange(location.fileId, location.offset, location.offset);
-    if (centerEditor) this.#elements.previewSyncControls.centerSourceOffset(location.offset);
-  }
-
   #syncPreviewFromSource(explicit = true): void {
     const fileId = this.#activeFileId ?? this.#snapshot?.entryFileId ?? "";
     const previewActive = this.#contextState.activeKey === RESEARCH_PREVIEW_KEY;
     const splitLayout = this.#elements.workspaceSurfaces.dataset.layout === "split";
     const offsets = this.#elements.previewSyncControls.activeSourcePreviewOffsets(fileId, explicit, previewActive, splitLayout);
-    if (offsets.length === 0) return;
-    this.#elements.workspacePreview.revealNearestSource(offsets);
+    if (offsets.length > 0) this.#elements.workspacePreview.revealNearestSource(offsets);
   }
 
   #activateProjectFile(file: ProjectFile, snapshot: WorkspaceSnapshot): void {

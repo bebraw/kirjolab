@@ -89,9 +89,10 @@ collaboration.
   Preview without moving the pane during ordinary typing. A bounded light-DOM
   control owns its directional actions, Preview-context visibility, current
   composition source map, bidirectional composition-offset resolution,
-  centered source-offset derivation, and source-viewport centering. The
-  coordinator retains active-file identity, automatic-versus-explicit sync
-  policy, Preview DOM navigation, caret placement, and focus policy.
+  centered source-offset derivation, Preview-to-source file-qualified focus
+  intent, and source-viewport centering. The coordinator retains active-file
+  identity, source-to-Preview automatic-versus-explicit policy, Preview DOM
+  navigation, and file, mode, caret, and focus policy.
   A bounded progressive Lit control owns browser-local top-navigation
   visibility, persistence, toggle and restore copy, ARIA presentation, and
   focus handoff. In workspace mode the toggle follows Preview availability;

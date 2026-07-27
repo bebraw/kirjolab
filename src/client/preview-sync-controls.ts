@@ -7,7 +7,8 @@ import { previewOffsetsForSourceLocation, sourceLocationForPreviewOffset, type P
 export type PreviewSyncAction = "preview-to-source" | "source-to-preview";
 
 interface PreviewSyncCallbacks {
-  readonly previewToSource: () => void;
+  readonly focusSource: (location: PreviewSourceLocation) => void;
+  readonly previewOffset: () => number | null;
   readonly sourceToPreview: (explicit: boolean) => void;
 }
 
@@ -17,7 +18,11 @@ export class PreviewSyncControls extends LitElement {
   #sourceMap: readonly CompositionSourceSpan[] = [];
   #source: HTMLTextAreaElement | null = null;
   #sourceHighlight: HTMLElement | null = null;
-  #callbacks: PreviewSyncCallbacks = { previewToSource: () => undefined, sourceToPreview: () => undefined };
+  #callbacks: PreviewSyncCallbacks = {
+    focusSource: () => undefined,
+    previewOffset: () => null,
+    sourceToPreview: () => undefined,
+  };
   #sourceAbort: AbortController | null = null;
 
   bindSource(source: HTMLTextAreaElement, sourceHighlight: HTMLElement, callbacks: PreviewSyncCallbacks): void {
@@ -79,10 +84,20 @@ export class PreviewSyncControls extends LitElement {
     this.hidden = !visible;
   }
 
+  showSource(previewOffset: number, centerEditor = false): void {
+    const location = this.sourceLocation(previewOffset);
+    if (!location) return;
+    this.#callbacks.focusSource(location);
+    if (centerEditor) this.centerSourceOffset(location.offset);
+  }
+
   protected sync(event: Event): void {
     const action = (event.currentTarget as HTMLButtonElement).dataset.syncAction as PreviewSyncAction | undefined;
     if (action === "source-to-preview") this.#callbacks.sourceToPreview(true);
-    else if (action === "preview-to-source") this.#callbacks.previewToSource();
+    else if (action === "preview-to-source") {
+      const offset = this.#callbacks.previewOffset();
+      if (offset !== null) this.showSource(offset, true);
+    }
   }
 
   override connectedCallback(): void {
