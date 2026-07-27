@@ -11085,3 +11085,25 @@ and PDF.js artifacts remain unchanged at 135,411 B / 23,373 B, 204,779 B /
 
 Full native CI passes all 1,736 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
+
+## Completed Lit Ownership: Explicit Passage Insertion
+
+`EditorInsertMenu` now routes an approved assistant table through the same typed
+replacement and caret projection used by menu and image insertions.
+`WorkspaceApp` retains the Yjs mutation callback and editor focus consequence.
+
+This checkpoint reduces `src/client/app.ts` from 906 to 898 lines (-8), grows
+the editor insertion owner from 155 to 159 lines (+4), and reduces runtime
+across the pair by four lines. It deletes the final coordinator method that
+repeated explicit passage replacement, focus, and caret calculation. Focused
+coverage passes editor insertion and assistant generation behavior alongside
+strict types. Direct and unique production package counts remain 18 and 150;
+Lit was already pinned.
+
+The browser application artifact changes from 853,096 B raw / 229,870 B gzip
+to 853,054 B / 229,862 B (-42 B raw / -8 B gzip). Styles and lazy Markdown and
+PDF.js artifacts remain unchanged at 135,411 B / 23,373 B, 204,779 B / 62,386
+B, and 481,994 B / 146,135 B.
+
+Full native CI passes all 1,736 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.

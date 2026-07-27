@@ -64,6 +64,10 @@ export class EditorInsertMenu extends LitElement {
     this.binding?.presentNotice(message);
   }
 
+  replacePassage(passage: EditorAuthoringPassage, text: string): void {
+    this.applyTemplate({ text }, passage, passage.end);
+  }
+
   override connectedCallback(): void {
     if (!this.hasUpdated) this.replaceChildren();
     super.connectedCallback();

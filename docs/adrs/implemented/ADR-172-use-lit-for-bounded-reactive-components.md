@@ -718,8 +718,10 @@ reason to wrap static markup mechanically.
   validation, and serialization, clarity, ideation, and phrasing requests,
   reference-query formulation, registry discovery and validation, and local
   discovered-reference import. Workflow state, candidate-input derivation,
-  document edits, canonical refresh, and cross-panel status remain in the
-  application coordinator; the candidate list performs revision and claim-draft
+  canonical refresh, and cross-panel status remain in the application
+  coordinator; approved table passage replacement routes through the editor
+  insertion owner's existing typed mutation capability while the coordinator
+  retains Yjs authority. The candidate list performs revision and claim-draft
   generation and persists those candidate resources.
 - The project map panel replaces three internal element references, two
   coordinator fields, and imperative node, connector, resize, focus, and hover

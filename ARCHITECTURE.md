@@ -509,6 +509,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   while owning duplicate-submit gating, local retryable failures, and refresh-
   pending state; retain canonical Library refresh and cross-panel workflow status
   in the coordinator.
+- Route an approved assistant table through the editor insertion owner as an
+  explicit passage replacement. That owner derives the replacement and final
+  caret range through its existing insertion capability; the workspace
+  coordinator retains the canonical Yjs transaction and editor focus.
 - Keep browser-local assistant evidence selection, count or limit status, and
   reconciliation against canonical annotations and claims plus ordered
   annotation-or-claim model-evidence projection inside the Lit workflow-status

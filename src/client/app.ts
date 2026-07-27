@@ -19,7 +19,6 @@ import { WorkspaceLayoutManager } from "./workspace-layout-manager";
 import "./workspace-layout-control";
 import { type WritingWorkflowBinding } from "./writing-workflow-panel";
 import "./research-diary-summary";
-import type { EditorAuthoringPassage as AuthoringPassage } from "./editor-status";
 import { type PassageLink, type WorkspaceSnapshot } from "../domain/workspace";
 import { loadWorkspaceSnapshot, parseWorkspaceSnapshot, WorkspaceAccessError } from "./workspace-snapshot-client";
 import { CoalescedRefresh, DebouncedAsyncQueue } from "./collaboration";
@@ -527,7 +526,7 @@ class WorkspaceApp {
       activateAssistant: () => {
         this.#elements.contextResourcePresenter.activateContext(RESEARCH_ASSISTANT_KEY);
       },
-      applyTable: (target, insertion) => this.#applyGeneratedTable(target, insertion),
+      applyTable: (target, insertion) => this.#elements.editorInsertMenu.replacePassage(target, insertion),
       decisionChanged: () => {
         this.#elements.contextResourcePresenter.presentBoundContext(false);
         this.#elements.assistantGenerationPresenter.refreshAvailability();
@@ -789,13 +788,6 @@ class WorkspaceApp {
       this.#elements.source.focus();
       this.#elements.editorStatus.selectRange(caret);
     }
-  }
-
-  #applyGeneratedTable(target: AuthoringPassage, insertion: string): void {
-    replaceYTextRange(this.#document, this.#activeFileText, target.start, target.end, insertion, this);
-    const caret = target.start + insertion.length;
-    this.#elements.source.focus();
-    this.#elements.editorStatus.selectRange(caret);
   }
 
   async #restoreLibraryRoute(): Promise<void> {

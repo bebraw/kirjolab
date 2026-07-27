@@ -403,7 +403,9 @@ All mutation operations preserve a human review boundary.
 - When: the local provider returns the same bounded table shape and the
   researcher approves the rendered GFM
 - Then: Kirjolab inserts only the validated deterministic syntax if the captured
-  manuscript base is still current
+  manuscript base is still current. The editor insertion owner projects the
+  captured passage replacement and final caret; the workspace coordinator
+  applies that projection through Yjs.
 
 **Scenario: A claim yields verifiable reference candidates**
 

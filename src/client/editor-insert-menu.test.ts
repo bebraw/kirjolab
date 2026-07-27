@@ -80,10 +80,12 @@ describe("editor insert menu", () => {
 
     menu.selectSyntaxForTest("link", { text: "[text](url)", select: "text" });
     menu.insert({ text: "![Figure](asset.png)" }, "Inserted figure.");
+    menu.replacePassage({ end: 8, excerpt: "Evidence", fileId: "file:1", start: 0 }, "| A |\n| - |");
 
     expect(insertions).toEqual([
       { end: 8, selectionEnd: 14, selectionStart: 11, start: 0, text: "[Evidence](url)" },
       { end: 8, selectionEnd: 20, selectionStart: 20, start: 0, text: "![Figure](asset.png)" },
+      { end: 8, selectionEnd: 11, selectionStart: 11, start: 0, text: "| A |\n| - |" },
     ]);
     expect(notices).toEqual(["Inserted scholarly syntax.", "Inserted figure."]);
   });
