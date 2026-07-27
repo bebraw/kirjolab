@@ -282,14 +282,18 @@ export class ProjectFileDialog extends LitElement {
     return created;
   }
 
-  async openOrCreateFile(path: string, content: () => string): Promise<ProjectFile | null> {
+  async openWorkflowFile(path: string, content: () => string): Promise<void> {
     const existing = this.snapshot?.files.find((file) => file.path === path);
     if (existing) {
       this.selectFile(existing.id);
       this.routing?.focusEditor();
-      return null;
+      return;
     }
-    return await this.createFile(path, content());
+    const created = await this.createFile(path, content());
+    const next = new URL(location.href);
+    next.searchParams.set("file", created.id);
+    next.searchParams.set("rail", "guide");
+    location.assign(`${next.pathname}${next.search}${next.hash}`);
   }
 
   override connectedCallback(): void {

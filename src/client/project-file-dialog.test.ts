@@ -69,6 +69,7 @@ class TestProjectFileDialog extends ProjectFileDialog {
 afterEach(() => {
   vi.useRealTimers();
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 
 function mutationCallbacks(): ProjectFileMutationCallbacks {
@@ -403,6 +404,8 @@ describe("project file dialog", () => {
     const created = { ...snapshot.files[0]!, content: "# Questions", id: "file-2", path: "research-questions.md" };
     const project = { ...snapshot, files: [...snapshot.files, existing] };
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(Response.json({ ...project, files: [...project.files, created] }));
+    const assign = vi.fn();
+    vi.stubGlobal("location", { assign, href: "https://example.test/editor/workspace?context=preview#paper" });
     panel.configureApi("/api/workspaces/workspace", callbacks);
     panel.bindWorkflow({
       actionControls: [],
@@ -416,14 +419,16 @@ describe("project file dialog", () => {
     });
     panel.presentProject(project, "/assets", true);
 
-    await expect(panel.openOrCreateFile(existing.path, content)).resolves.toBeNull();
+    await expect(panel.openWorkflowFile(existing.path, content)).resolves.toBeUndefined();
     expect(callbacks.activateFile).toHaveBeenCalledWith(existing, project);
     expect(focusEditor).toHaveBeenCalledOnce();
     expect(content).not.toHaveBeenCalled();
+    expect(assign).not.toHaveBeenCalled();
 
-    await expect(panel.openOrCreateFile(created.path, content)).resolves.toEqual(created);
+    await expect(panel.openWorkflowFile(created.path, content)).resolves.toBeUndefined();
     expect(content).toHaveBeenCalledOnce();
     expect(fetchMock).toHaveBeenCalledOnce();
+    expect(assign).toHaveBeenCalledWith(`/editor/workspace?context=preview&file=${created.id}&rail=guide#paper`);
   });
 
   it("rejects content-bearing creation without the requested file", async () => {

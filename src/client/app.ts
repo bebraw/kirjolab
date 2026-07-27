@@ -325,14 +325,17 @@ class WorkspaceApp {
     });
     this.#elements.workspaceRailTabs.bindNavigation((rail) => this.#showRail(rail));
     this.#elements.researchDiaryPanel.bindOpen(
-      () => void this.#openWorkflowFile(researchDiaryPath, () => researchDiaryTemplate(new Date().toISOString().slice(0, 10))),
+      () =>
+        void this.#elements.projectFileDialog.openWorkflowFile(researchDiaryPath, () =>
+          researchDiaryTemplate(new Date().toISOString().slice(0, 10)),
+        ),
     );
     this.#elements.manuscriptMapPanel.bindNavigation(({ fileId, from, to }) => this.#focusProjectRange(fileId, from, to));
     this.#elements.manuscriptMapPanel.bindProjectPresentation(this.#elements);
     const writingWorkflow: WritingWorkflowBinding = {
       notice: (message) => this.#showToast(message),
       open: (kind) =>
-        void this.#openWorkflowFile(
+        void this.#elements.projectFileDialog.openWorkflowFile(
           kind === "research-questions" ? researchQuestionsPath : reviewerResponsePath,
           kind === "research-questions" ? researchQuestionsTemplate : reviewerResponseTemplate,
         ),
@@ -704,15 +707,6 @@ class WorkspaceApp {
       resolvedSnapshot: this.#snapshot ? resolveWorkspaceSnapshotAnchors(this.#document, this.#snapshot) : null,
       snapshot: this.#snapshot,
     });
-  }
-
-  async #openWorkflowFile(path: string, content: () => string): Promise<void> {
-    const created = await this.#elements.projectFileDialog.openOrCreateFile(path, content);
-    if (!created) return;
-    const next = new URL(location.href);
-    next.searchParams.set("file", created.id);
-    next.searchParams.set("rail", "guide");
-    location.assign(`${next.pathname}${next.search}${next.hash}`);
   }
 
   #syncSourceFromPreviewCenter(): void {

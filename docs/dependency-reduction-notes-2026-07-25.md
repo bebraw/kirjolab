@@ -8899,6 +8899,29 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,718 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Workflow File Navigation
+
+`ProjectFileDialog` now owns the complete content-bearing workflow-file path:
+select and focus an existing canonical file without evaluating lazy content, or
+create the missing file and navigate its stable identity into the Guide rail
+while preserving unrelated URL state. `WorkspaceApp` retains workflow-template
+choice, source-range navigation, and global toast policy.
+
+This checkpoint reduces `src/client/app.ts` from 1,272 to 1,266 lines (-6),
+grows the project-file dialog from 484 to 488 lines (+4), and reduces combined
+runtime source by two lines while deleting the coordinator's created-file
+navigation helper and return-value protocol. Focused coverage passes all 35
+dialog and application-contract cases, including lazy evaluation, existing-file
+focus, stable created-file routing, and URL-state preservation.
+
+The browser application artifact changes from 849,243 B raw / 228,834 B gzip
+to 849,224 B raw / 228,854 B gzip (-19 B raw / +20 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,718 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

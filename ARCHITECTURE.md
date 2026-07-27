@@ -244,7 +244,7 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   stable mutation target from its operation and canonical file/folder inputs.
   It owns file/folder create and rename transport, file deletion transport,
   content-bearing workflow-file lookup, existing-file selection and focus,
-  lazy creation, shared response validation, created-path verification,
+  lazy creation and created-file Guide navigation, shared response validation, created-path verification,
   duplicate-submit gating, and retryable local failures. It also owns the
   supporting-file hidden projection, six-second
   delayed deletion, Undo restoration, failed-commit restoration, and deletion
@@ -264,9 +264,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   with snapshot or live collaborative content for Preview, manuscript-map, and
   collaborator-selection consumers through a coordinator-supplied content
   resolver and readiness predicate bound together once. Consumers request the
-  derived collection without repeating collaboration state. Apply or return the validated workspace snapshot through that
-  mutation binding, or return the newly created stable file. Keep workflow-
-  template selection and new-file navigation, collaborative caret capture and continuation
+  derived collection without repeating collaboration state. Apply the validated
+  workspace snapshot through that mutation binding or navigate to the created
+  workflow file. Keep workflow-template selection, collaborative caret capture and continuation
   construction, Yjs insertion and active-text/editor binding after a validated
   activation, Yjs document authority, canonical snapshot authority,
   cross-feature rendering, and
@@ -739,8 +739,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Let the bounded writing-workflow panel derive and download the reviewer-
   response letter from its supplied canonical matrix. Route open, source-range,
   and resulting-notice actions through one typed binding shared by both workflow
-  panels. Keep workflow-file creation, source navigation, and toast policy in
-  the application coordinator.
+  panels. Let the project-file dialog own workflow-file creation and created-file
+  navigation. Keep source-range navigation and toast policy in the application
+  coordinator.
 - Keep native-textarea infrastructure in a bounded browser adapter that owns
   Yjs synchronization and history, highlight and presence mirroring, completion
   geometry, relative-selection capture and validated resolution, atomic text-
@@ -1093,8 +1094,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   source plus research-diary, research-question, and reviewer-response sibling
   projections from one canonical file set. Let it retain that composition's
   source map and translate guide selections into file-qualified editor ranges.
-  Keep URL synchronization, workflow-file creation, and the resulting editor
-  focus effect in the workspace coordinator.
+  Keep general URL synchronization and source-range focus effects in the
+  workspace coordinator; let the project-file dialog own workflow-file creation,
+  existing-file focus, and created-file Guide navigation.
 - Keep project-file quick open bounded to transient client-side path filtering
   over the authorized workspace snapshot. It may reveal the Files rail and
   select a file, but must not introduce a global command registry or persist

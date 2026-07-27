@@ -418,11 +418,12 @@ The adopted components own bounded presentation:
 - The project file dialog owns file and folder operation copy, initial path,
   active operation mode and stable mutation target, focus, cancellation,
   create and rename transport, file deletion transport, content-bearing
-  workflow-file lookup, existing-file selection and focus, lazy creation, shared
+  workflow-file lookup, existing-file selection and focus, lazy creation and
+  created-file Guide navigation, shared
   response validation, created-path verification, duplicate-submit gating, local
   busy and retryable failure state, and typed
-  completed outcomes carrying the derived included state, message, and stable
-  file identity after applying the validated workspace through its shared
+  completed outcomes carrying the derived included state and message after
+  applying the validated workspace through its shared
   mutation binding. For create-and-include it retains the one-shot insertion
   continuation across open, retry, success, and cancellation. It also owns
   supporting-file optimistic hiding, the
@@ -430,7 +431,7 @@ The adopted components own bounded presentation:
   hidden-file projection. Its presentation binding fans one canonical snapshot,
   visible file collection, and active/entry state into the project tree, Insert
   menu, source completion, and file-action menu. The coordinator retains
-  workflow-template selection and new-file navigation, canonical snapshot and active
+  workflow-template selection, canonical snapshot and active
   Y.Text/editor authority, Yjs editing, cross-feature rendering, and the notification outlet.
   The dialog owns active-file identity, entry fallback, and hidden-file
   selection eligibility.
@@ -876,7 +877,8 @@ reason to wrap static markup mechanically.
   presentation binding. Its pending insertion continuation also replaces two
   coordinator fields, the saved mode/path protocol, and the post-save include
   helper. Its workflow-file resolver also removes coordinator-side canonical
-  path lookup, existing-file selection and focus, and a separate creation helper.
+  path lookup, existing-file selection and focus, a separate creation helper,
+  and created-file URL navigation.
   Its canonical selection method now routes tree, workflow, save, deletion,
   Undo, route, and cross-feature choices through one activation callback and
   removes stable file identity from save completion.
