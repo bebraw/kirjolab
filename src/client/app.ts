@@ -724,17 +724,8 @@ class WorkspaceApp {
   }
 
   async #openWorkflowFile(path: string, content: () => string): Promise<void> {
-    const existing = this.#snapshot?.files.find((file) => file.path === path);
-    if (existing) {
-      this.#selectProjectFile(existing.id);
-      this.#elements.source.focus();
-      return;
-    }
-    await this.#createWorkflowFile(path, content());
-  }
-
-  async #createWorkflowFile(path: string, content: string): Promise<void> {
-    const created = await this.#elements.projectFileDialog.createFile(path, content);
+    const created = await this.#elements.projectFileDialog.openOrCreateFile(path, content);
+    if (!created) return;
     const next = new URL(location.href);
     next.searchParams.set("file", created.id);
     next.searchParams.set("rail", "guide");

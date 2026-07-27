@@ -369,6 +369,37 @@ describe("project file dialog", () => {
     );
   });
 
+  it("opens an existing workflow file or lazily creates a missing one", async () => {
+    const panel = new TestProjectFileDialog();
+    const selectFile = vi.fn();
+    const focusEditor = vi.fn();
+    const content = vi.fn(() => "# Questions");
+    const created = { ...snapshot.files[0]!, content: "# Questions", id: "file-2", path: "research-questions.md" };
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(Response.json({ ...snapshot, files: [...snapshot.files, created] }));
+    panel.configureApi("/api/workspaces/workspace");
+    panel.bindWorkflow({
+      actionControls: [],
+      focusEditor,
+      imageUpload: Object.assign(new EventTarget(), { choose: vi.fn() }),
+      insertImage: vi.fn(),
+      prepareInclude: vi.fn(() => null),
+      quickOpen: vi.fn(),
+      saved: vi.fn(),
+      selectFile,
+      tree: Object.assign(new EventTarget(), { focusFilter: vi.fn() }),
+    });
+    panel.presentProject(snapshot, "/assets", true);
+
+    await expect(panel.openOrCreateFile(snapshot.files[0]!.path, content)).resolves.toBeNull();
+    expect(selectFile).toHaveBeenCalledWith(snapshot.files[0]!.id);
+    expect(focusEditor).toHaveBeenCalledOnce();
+    expect(content).not.toHaveBeenCalled();
+
+    await expect(panel.openOrCreateFile(created.path, content)).resolves.toEqual(created);
+    expect(content).toHaveBeenCalledOnce();
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
   it("rejects content-bearing creation without the requested file", async () => {
     const panel = new TestProjectFileDialog();
     vi.spyOn(globalThis, "fetch").mockResolvedValue(Response.json(snapshot));

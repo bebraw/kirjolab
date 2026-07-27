@@ -104,6 +104,9 @@ collaborative, and unambiguous about what preview and export mean.
   included state, and notice. The workspace coordinator retains resource
   availability, include-caret capture and continuation construction, validated
   snapshot application, selection, Yjs insertion, rendering, and toast policy.
+  For content-bearing workflow files, the dialog resolves the canonical path,
+  selects and focuses an existing file without evaluating the lazy content
+  factory, or returns the newly created stable file for coordinator navigation.
 - A visible, client-side Files filter matches complete file, folder, and asset
   paths without changing the project tree or include menu. `Command-P` or
   `Control-P` expands the desktop rail when necessary, activates Files, and

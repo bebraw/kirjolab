@@ -273,6 +273,16 @@ export class ProjectFileDialog extends LitElement {
     return created;
   }
 
+  async openOrCreateFile(path: string, content: () => string): Promise<ProjectFile | null> {
+    const existing = this.snapshot?.files.find((file) => file.path === path);
+    if (existing) {
+      this.routing?.selectFile(existing.id);
+      this.routing?.focusEditor();
+      return null;
+    }
+    return await this.createFile(path, content());
+  }
+
   override connectedCallback(): void {
     if (!this.hasUpdated) this.replaceChildren();
     super.connectedCallback();

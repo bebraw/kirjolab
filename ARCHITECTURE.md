@@ -240,9 +240,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Let the project-file dialog derive resource availability, initial path, and
   stable mutation target from its operation and canonical file/folder inputs.
   It owns file/folder create and rename transport, file deletion transport,
-  content-bearing workflow-file creation, shared response validation,
-  created-path verification, duplicate-submit gating, and retryable local
-  failures. It also owns the supporting-file hidden projection, six-second
+  content-bearing workflow-file lookup, existing-file selection and focus,
+  lazy creation, shared response validation, created-path verification,
+  duplicate-submit gating, and retryable local failures. It also owns the
+  supporting-file hidden projection, six-second
   delayed deletion, Undo restoration, failed-commit restoration, and deletion
   notices. For create-and-include, it retains the one-shot insertion
   continuation across its dialog lifecycle, invokes it after applying the
@@ -257,8 +258,8 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   with snapshot or live collaborative content for Preview, manuscript-map, and
   collaborator-selection consumers through a coordinator-supplied content
   resolver. Apply or return the validated workspace snapshot through that
-  mutation binding, or return the created stable file. Keep workflow-template
-  selection and navigation, collaborative caret capture and continuation
+  mutation binding, or return the newly created stable file. Keep workflow-
+  template selection and new-file navigation, collaborative caret capture and continuation
   construction, Yjs insertion and
   active-text binding, Yjs document authority, canonical snapshot authority,
   cross-feature rendering, and

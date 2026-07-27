@@ -415,8 +415,9 @@ The adopted components own bounded presentation:
 - The project file dialog owns file and folder operation copy, initial path,
   active operation mode and stable mutation target, focus, cancellation,
   create and rename transport, file deletion transport, content-bearing
-  workflow-file creation, shared response validation, created-path verification,
-  duplicate-submit gating, local busy and retryable failure state, and typed
+  workflow-file lookup, existing-file selection and focus, lazy creation, shared
+  response validation, created-path verification, duplicate-submit gating, local
+  busy and retryable failure state, and typed
   completed outcomes carrying the derived included state, message, and stable
   file identity after applying the validated workspace through its shared
   mutation binding. For create-and-include it retains the one-shot insertion
@@ -426,7 +427,7 @@ The adopted components own bounded presentation:
   hidden-file projection. Its presentation binding fans one canonical snapshot,
   visible file collection, and active/entry state into the project tree, Insert
   menu, source completion, and file-action menu. The coordinator retains
-  workflow-template selection and navigation, canonical snapshot and active
+  workflow-template selection and new-file navigation, canonical snapshot and active
   Y.Text/editor authority, Yjs editing, cross-feature rendering, and the notification outlet.
   The dialog owns active-file identity, entry fallback, and hidden-file
   selection eligibility.
@@ -871,7 +872,9 @@ reason to wrap static markup mechanically.
   Insert menu, source completion, and file-action menu with one typed
   presentation binding. Its pending insertion continuation also replaces two
   coordinator fields, the saved mode/path protocol, and the post-save include
-  helper. Collaborative include-target capture and continuation construction,
+  helper. Its workflow-file resolver also removes coordinator-side canonical
+  path lookup, existing-file selection and focus, and a separate creation helper.
+  Collaborative include-target capture and continuation construction,
   active-file and snapshot authority, Yjs insertion, cross-feature rendering,
   and the toast outlet remain in the application coordinator.
 - The project template save dialog replaces seven internal element references
