@@ -18,17 +18,11 @@ import { type WritingWorkflowBinding } from "./writing-workflow-panel";
 import "./research-diary-summary";
 import { type WorkspaceSnapshot } from "../domain/workspace";
 import { loadWorkspaceSnapshot, parseWorkspaceSnapshot, WorkspaceAccessError } from "./workspace-snapshot-client";
-import { CoalescedRefresh, DebouncedAsyncQueue } from "./collaboration";
+import { CoalescedRefresh } from "./collaboration";
 import { CollaborationSession } from "./collaboration-session";
 import { CollaborationSocket } from "./collaboration-socket";
 import "./manuscript-map-panel";
-import { clearOfflineShellCaches } from "./offline-service-worker";
-import {
-  clearAllOfflineWorkspaces,
-  createOfflineWorkspaceStore,
-  restoreOfflineWorkspaceState,
-  type OfflineWorkspaceStore,
-} from "./offline-workspace";
+import { createOfflineWorkspaceStore, OfflineWorkspaceSession } from "./offline-workspace";
 import { PdfEvidenceViewer } from "./pdf-viewer";
 import { bindThemePreference } from "./theme";
 import { RESEARCH_ASSISTANT_KEY, RESEARCH_LIBRARY_KEY, RESEARCH_PREVIEW_KEY } from "./research-context";
@@ -47,26 +41,27 @@ class WorkspaceApp {
   readonly #document = new Y.Doc();
   readonly #source = this.#document.getText("source");
   readonly #bibliography = this.#document.getText("bibliography");
-  readonly #offlineStore: OfflineWorkspaceStore | null = createOfflineWorkspaceStore(
-    typeof indexedDB === "undefined" ? undefined : indexedDB,
-    identityEmail,
-    workspaceId,
-  );
   readonly #resourceRefresh = new CoalescedRefresh(async () => this.#refreshSnapshot());
   readonly #collaboration = new CollaborationSession(this.#document, remoteOrigin);
   readonly #collaborationSocket: CollaborationSocket;
-  readonly #offlineSaves = new DebouncedAsyncQueue(
-    () => this.#persistOfflineWorkspace(),
-    (version) => {
+  readonly #offline = new OfflineWorkspaceSession({
+    document: this.#document,
+    failed: (error) => {
+      if (!this.#collaboration.synced) this.#elements.editorStatus.setSave("Offline save failed");
+      this.#elements.toast.show(error instanceof Error ? error.message : "Could not save the manuscript offline");
+    },
+    offlineAvailable: () => this.#collaboration.offlineAvailable,
+    origin: offlineOrigin,
+    saved: (version) => {
       document.body.dataset.offlineCached = "true";
       document.body.dataset.offlineSavedAt = String(version);
       if (!this.#collaboration.synced) this.#elements.editorStatus.setSave("Saved offline");
     },
-    (error) => {
-      if (!this.#collaboration.synced) this.#elements.editorStatus.setSave("Offline save failed");
-      this.#elements.toast.show(error instanceof Error ? error.message : "Could not save the manuscript offline");
-    },
-  );
+    serverStateVector: () => this.#collaboration.serverStateVector,
+    snapshot: () => this.#snapshot,
+    store: createOfflineWorkspaceStore(typeof indexedDB === "undefined" ? undefined : indexedDB, identityEmail, workspaceId),
+    workspaceId,
+  });
   #snapshot: WorkspaceSnapshot | null = null;
   #hasBootstrapSnapshot = false;
   #activeFileText = this.#source;
@@ -87,9 +82,7 @@ class WorkspaceApp {
   constructor() {
     this.#collaborationSocket = new CollaborationSocket(this.#collaboration, {
       beforeRemoteUpdate: () => this.#elements.editorStatus.preserveSelections(),
-      clearOffline: async () => {
-        await this.#offlineStore?.clear();
-      },
+      clearOffline: () => this.#offline.clear(),
       connectionChanged: () => this.#elements.connectionStatus.presentWorkflow(),
       disconnected: () => this.#elements.collaboratorSelections.clear(),
       remoteUpdateApplied: () => this.#elements.assistantGenerationPresenter.refreshAvailability(),
@@ -145,7 +138,7 @@ class WorkspaceApp {
     this.#bindUi();
     this.#elements.workspaceSurfaces.dataset.ready = "true";
     void this.#elements.applicationVersion.prepareOfflineShell(appMode === "workspace", {
-      persist: () => this.#persistOfflineWorkspace(),
+      persist: () => this.#offline.persist(),
       pinUpdate: (refresh) =>
         this.#elements.toast.pin("A new version of Kirjolab is available.", { action: refresh, actionLabel: "Refresh now" }),
     });
@@ -170,7 +163,7 @@ class WorkspaceApp {
       await this.#resourceRefresh.request();
     } catch (error) {
       if (error instanceof WorkspaceAccessError) {
-        await this.#offlineStore?.clear();
+        await this.#offline.clear();
         throw error;
       }
       if (!restored) throw new Error("Open this project online once before editing it offline", { cause: error });
@@ -208,7 +201,7 @@ class WorkspaceApp {
       if (appMode === "workspace" && document.visibilityState === "visible") void this.#elements.gitHubSyncMenu.refreshWorkspace();
     });
     window.addEventListener("offline", () => this.#collaborationSocket.goOffline());
-    window.addEventListener("pagehide", () => this.#scheduleOfflineSave(0));
+    window.addEventListener("pagehide", () => this.#offline.schedule(0));
     window.addEventListener("popstate", () => {
       if (appMode === "library") void this.#elements.referenceLibraryWorkspace.restoreRoute(readLibraryUiRoute(new URL(location.href)));
       else void this.#elements.workspaceSurfaceSwitcher.restoreRoute();
@@ -217,7 +210,8 @@ class WorkspaceApp {
     logOut?.addEventListener("click", (event) => {
       event.preventDefault();
       const href = logOut.href;
-      void this.#clearOfflineBrowserData()
+      void this.#offline
+        .clearBrowserData(typeof indexedDB === "undefined" ? undefined : indexedDB, typeof caches === "undefined" ? undefined : caches)
         .then(() => location.assign(href))
         .catch((error: unknown) => this.#elements.toast.show(error instanceof Error ? error.message : "Could not clear offline data"));
     });
@@ -390,12 +384,12 @@ class WorkspaceApp {
       presentNotice: (message) => this.#elements.toast.show(message),
       trigger: this.#elements.projectHistoryTrigger,
     });
-    this.#elements.projectHistoryTrigger.bindRevision(this.#elements, () => this.#scheduleOfflineSave());
+    this.#elements.projectHistoryTrigger.bindRevision(this.#elements, () => this.#offline.schedule());
     this.#elements.contextResourcePresenter.bindManuscriptComments(apiBase);
     this.#source.observe(() => void this.#elements.workspacePreview.renderBoundProject());
     this.#bibliography.observe(() => void this.#elements.workspacePreview.renderBoundProject());
     this.#document.on("update", (update: Uint8Array, origin: unknown) => {
-      this.#scheduleOfflineSave();
+      this.#offline.schedule();
       if (origin === remoteOrigin || origin === offlineOrigin) return;
       this.#collaboration.enqueue(update);
       this.#elements.editorStatus.setSave(this.#collaboration.synced ? "Saving…" : "Saving offline…");
@@ -542,7 +536,7 @@ class WorkspaceApp {
     }
     this.#elements.projectFileDialog.presentProject(snapshot, `${apiBase}/assets`, appMode === "workspace");
     this.#elements.contextResourcePresenter.presentBoundWorkspace();
-    this.#scheduleOfflineSave();
+    this.#offline.schedule();
     await this.#elements.contextResourcePresenter.refreshBoundReferencePdfs();
   }
 
@@ -586,8 +580,7 @@ class WorkspaceApp {
   }
 
   async #restoreOfflineWorkspace(): Promise<boolean> {
-    if (!this.#offlineStore) return false;
-    const restored = await restoreOfflineWorkspaceState(this.#offlineStore, this.#document, offlineOrigin, workspaceId);
+    const restored = await this.#offline.restore();
     if (!restored) return false;
     const pending = this.#collaboration.restoreOffline(restored.serverStateVector);
     this.#snapshot = restored.snapshot;
@@ -610,24 +603,6 @@ class WorkspaceApp {
     this.#elements.editorStatus.setSave(pending ? "Saved offline" : "Saved");
     void this.#elements.workspacePreview.renderBoundProject();
     return true;
-  }
-
-  #scheduleOfflineSave(delay = 120): void {
-    if (!this.#offlineStore || !this.#snapshot || !this.#collaboration.offlineAvailable) return;
-    this.#offlineSaves.schedule(delay);
-  }
-
-  async #persistOfflineWorkspace(): Promise<void> {
-    if (!this.#offlineStore || !this.#snapshot || !this.#collaboration.offlineAvailable) return;
-    await this.#offlineStore.save(this.#snapshot, Y.encodeStateAsUpdate(this.#document), this.#collaboration.serverStateVector);
-  }
-
-  async #clearOfflineBrowserData(): Promise<void> {
-    await this.#offlineSaves.flush();
-    await Promise.all([
-      clearAllOfflineWorkspaces(typeof indexedDB === "undefined" ? undefined : indexedDB),
-      clearOfflineShellCaches(typeof caches === "undefined" ? undefined : caches),
-    ]);
   }
 }
 

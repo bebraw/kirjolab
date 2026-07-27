@@ -2,6 +2,8 @@ import * as Y from "yjs";
 import * as v from "valibot";
 import { resolveWorkspaceSnapshotAnchors } from "../domain/workspace-anchor-projection";
 import { isWorkspaceSnapshot, type WorkspaceSnapshot } from "../domain/workspace";
+import { DebouncedAsyncQueue } from "./collaboration";
+import { clearOfflineShellCaches } from "./offline-service-worker";
 
 const databaseName = "kirjolab-offline-v1";
 const databaseVersion = 1;
@@ -74,6 +76,55 @@ export class OfflineWorkspaceStore {
 
   async clear(): Promise<void> {
     await this.#repository.delete(this.#key);
+  }
+}
+
+export interface OfflineWorkspaceSessionOptions {
+  readonly document: Y.Doc;
+  readonly failed: (error: unknown) => void;
+  readonly offlineAvailable: () => boolean;
+  readonly origin: unknown;
+  readonly saved: (version: number) => void;
+  readonly serverStateVector: () => Uint8Array;
+  readonly snapshot: () => WorkspaceSnapshot | null;
+  readonly store: OfflineWorkspaceStore | null;
+  readonly workspaceId: string;
+}
+
+export class OfflineWorkspaceSession {
+  readonly #options: OfflineWorkspaceSessionOptions;
+  readonly #saves: DebouncedAsyncQueue;
+
+  constructor(options: OfflineWorkspaceSessionOptions) {
+    this.#options = options;
+    this.#saves = new DebouncedAsyncQueue(() => this.persist(), options.saved, options.failed);
+  }
+
+  restore(): Promise<RestoredOfflineWorkspace | null> {
+    const { document, origin, store, workspaceId } = this.#options;
+    return store ? restoreOfflineWorkspaceState(store, document, origin, workspaceId) : Promise.resolve(null);
+  }
+
+  schedule(delay = 120): void {
+    const { offlineAvailable, snapshot, store } = this.#options;
+    if (!store || !snapshot() || !offlineAvailable()) return;
+    this.#saves.schedule(delay);
+  }
+
+  async persist(): Promise<void> {
+    const { document, offlineAvailable, serverStateVector, snapshot, store } = this.#options;
+    const current = snapshot();
+    if (!store || !current || !offlineAvailable()) return;
+    await store.save(current, Y.encodeStateAsUpdate(document), serverStateVector());
+  }
+
+  async clear(): Promise<void> {
+    await this.#options.store?.clear();
+  }
+
+  async clearBrowserData(factory: IDBFactory | undefined, storage: CacheStorage | undefined): Promise<void> {
+    await this.#saves.flush();
+    await Promise.all([clearAllOfflineWorkspaces(factory), clearOfflineShellCaches(storage)]);
   }
 }
 

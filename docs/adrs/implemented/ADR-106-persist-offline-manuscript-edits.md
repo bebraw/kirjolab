@@ -45,9 +45,13 @@ Yjs state without advancing the revision.
 
 Keep record loading, snapshot and workspace validation, server-vector decoding,
 Yjs update application, anchor reprojection, and corrupt-record eviction behind
-the offline persistence module's typed restoration result. The collaboration
-session consumes only the validated server vector; the application coordinator
-retains collaboration recovery and UI projection.
+the offline persistence module's typed restoration result. Bind the store,
+document, canonical snapshot and server-vector sources, availability guard, and
+save outcomes once through one typed offline session. That session owns Yjs
+encoding, guarded debounced scheduling and flush, restoration delegation,
+project-copy clearing, and coordinated IndexedDB and shell-cache cleanup. The
+collaboration session consumes only the validated server vector; the application
+coordinator retains collaboration recovery and restored-state UI projection.
 
 Update the stored server vector only from server binary state and acknowledged
 client updates. Clear the workspace copy before applying a server reset, and

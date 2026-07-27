@@ -3,6 +3,7 @@ import * as Y from "yjs";
 import { workspaceSnapshotFixture } from "../test-support/workspace-fixture";
 import {
   OfflineWorkspaceStore,
+  OfflineWorkspaceSession,
   clearAllOfflineWorkspaces,
   createOfflineWorkspaceStore,
   offlineDocumentDelta,
@@ -162,6 +163,43 @@ afterEach(() => {
 });
 
 describe("offline workspace persistence", () => {
+  it("owns guarded persistence, debounced saves, restoration, and clearing", async () => {
+    const repository = new MemoryRepository();
+    const store = new OfflineWorkspaceStore(repository, "writer@example.test", workspaceSnapshotFixture.id);
+    const document = new Y.Doc();
+    document.getText("source").insert(0, "Offline draft");
+    let available = false;
+    const saved = vi.fn();
+    const failed = vi.fn();
+    const session = new OfflineWorkspaceSession({
+      document,
+      failed,
+      offlineAvailable: () => available,
+      origin: "offline",
+      saved,
+      serverStateVector: () => Y.encodeStateVector(document),
+      snapshot: () => workspaceSnapshotFixture,
+      store,
+      workspaceId: workspaceSnapshotFixture.id,
+    });
+
+    await session.persist();
+    expect(repository.records.size).toBe(0);
+    available = true;
+    session.schedule(0);
+    await vi.waitFor(() => expect(saved).toHaveBeenCalledOnce());
+    expect(failed).not.toHaveBeenCalled();
+    expect(repository.records.size).toBe(1);
+    await expect(session.restore()).resolves.toMatchObject({ snapshot: { id: workspaceSnapshotFixture.id } });
+
+    await session.clear();
+    expect(repository.records.size).toBe(0);
+    session.schedule(50);
+    await expect(session.clearBrowserData(undefined, undefined)).resolves.toBeUndefined();
+    expect(saved).toHaveBeenCalledOnce();
+    expect(repository.records.size).toBe(0);
+  });
+
   it("round-trips isolated copied state and clears one project", async () => {
     const repository = new MemoryRepository();
     const store = new OfflineWorkspaceStore(repository, "writer@example.test", "paper-a");

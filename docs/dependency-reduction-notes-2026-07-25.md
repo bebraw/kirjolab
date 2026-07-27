@@ -11587,3 +11587,27 @@ and PDF.js artifacts remain unchanged at 135,411 B / 23,373 B, 204,779 B /
 
 Full native CI passes all 1,752 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Ownership: Offline Persistence Session
+
+One typed `OfflineWorkspaceSession` now binds the Valibot-validated store, Yjs
+document, canonical snapshot and server-vector sources, availability guard, and
+save outcomes. It owns document encoding, guarded debounced scheduling and
+flush, restoration delegation, project-copy clearing, and coordinated
+IndexedDB and offline-shell cache cleanup. `WorkspaceApp` retains collaboration
+recovery and restored-state presentation.
+
+This checkpoint reduces `src/client/app.ts` from 640 to 619 lines (-21) and
+grows the offline persistence module from 230 to 281 lines (+51). The 30-line
+combined increase replaces scattered fields, guards, queue construction, and
+cleanup methods with one testable lifecycle authority. Focused coverage passes
+availability guards, debounced persistence, Yjs encoding, restoration, clearing,
+flush-before-cleanup behavior, and strict types. Direct and unique production
+package counts remain 18 and 150; Valibot and Yjs were already pinned.
+
+The browser application artifact remains 857,031 B raw / 230,658 B gzip.
+Styles and lazy Markdown and PDF.js artifacts also remain unchanged at 135,411
+B / 23,373 B, 204,779 B / 62,386 B, and 481,994 B / 146,135 B.
+
+Full native CI passes all 1,753 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.

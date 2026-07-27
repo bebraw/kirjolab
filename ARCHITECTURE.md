@@ -794,7 +794,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   one inferred Valibot schema, then keep identity and workspace matching
   explicit. Keep record loading, snapshot validation, server-vector decoding,
   Yjs restoration, anchor reprojection, and corrupt-record eviction in the
-  offline persistence authority. Keep collaboration queue recovery and UI
+  offline persistence authority. Let one typed offline session bind the store,
+  document, canonical snapshot and server-vector sources, availability guard,
+  and save outcomes once; own Yjs encoding, debounced scheduling and flush,
+  restoration delegation, project-copy clearing, and combined IndexedDB/shell-
+  cache cleanup. Keep collaboration queue recovery and restored-state UI
   projection in their existing owners.
 - Cache only authenticated canonical editor navigation and the allowlisted
   authoring shell for offline fallback. Never service-worker-cache dashboard,

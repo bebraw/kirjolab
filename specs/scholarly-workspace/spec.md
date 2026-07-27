@@ -394,8 +394,12 @@ collaboration.
   corrupt record before returning restoration state. One inferred Valibot
   schema validates the persisted envelope, exact schema version, ArrayBuffer
   fields, and 16 MiB bounds; identity and workspace matching remain explicit
-  store policy. Collaboration recovery and UI projection remain outside that
-  persistence boundary.
+  store policy. One typed offline session binds the store, document, canonical
+  snapshot and server-vector sources, availability guard, and save outcomes. It
+  owns Yjs encoding, guarded debounced scheduling and flush, restoration
+  delegation, project-copy clearing, and coordinated IndexedDB and shell-cache
+  cleanup. Collaboration recovery and restored-state UI projection remain
+  outside that persistence boundary.
 - **Offline shell updates:** Browser builds derive the Kirjolab Cache Storage
   namespace from emitted shell content. Workspace and Library startup both
   check an existing registration for an update without adding Library
