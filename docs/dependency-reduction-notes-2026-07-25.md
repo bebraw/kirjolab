@@ -7310,6 +7310,30 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,684 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Workspace Snapshot Transport Boundary
+
+A small typed workspace-snapshot client now owns access-revocation status
+handling, response parsing, canonical domain validation, and optional Yjs
+anchor reprojection. The same parser validates mutation snapshots without
+introducing a second schema. `WorkspaceApp` retains online/offline fallback,
+snapshot application, UI bootstrap, collaboration transitions, and error
+presentation.
+
+This checkpoint reduces `src/client/app.ts` from 2,014 to 2,004 lines (-10) and
+adds a 27-line transport boundary. Runtime source across those two files
+increases by 17 lines while isolating fetch and validation policy behind one
+tested function. Focused coverage exercises all access-revocation statuses,
+generic transport failure, invalid payloads, canonical snapshots, affected
+application contracts, and strict types.
+
+The browser application artifact changes from 842,587 B raw / 227,858 B gzip
+to 842,648 B raw / 227,878 B gzip (+61 B raw / +20 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,689 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

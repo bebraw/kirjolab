@@ -108,6 +108,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   refinement intent to the metadata editor in the same reference row. The
   application coordinator should receive cross-feature navigation and mutation
   outcomes, not traverse feature-owned DOM.
+- Load canonical workspace snapshots through one typed browser client that owns
+  access-revocation status policy, response parsing, the existing domain guard,
+  and optional Yjs anchor reprojection. Keep offline fallback, snapshot
+  application, rendering, collaboration transitions, and notification policy
+  in the application coordinator.
 - Let the workspace-settings Lit component own project settings persistence,
   archive/restore, duplication, permanent-deletion confirmation and request
   lifecycles, their canonical successful-result navigation, local busy and

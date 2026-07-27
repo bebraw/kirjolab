@@ -37,6 +37,11 @@ collaboration.
   editor route with their query string intact. The `/` dashboard links into the
   editor but does not fetch a workspace snapshot, restore offline source, or
   open collaboration itself. Workspace APIs retain their existing paths.
+- **Workspace snapshot client:** One typed browser client owns canonical
+  workspace fetch status policy, JSON parsing, domain validation, and optional
+  Yjs anchor reprojection. The workspace coordinator owns online/offline
+  fallback, snapshot application, UI bootstrap, collaboration transitions, and
+  error presentation.
 - **Project switcher:** One bounded light-DOM control owns authorized project
   option rendering, archived-current handling, selected state, and focus entry,
   then emits a typed navigation intent. The workspace coordinator retains

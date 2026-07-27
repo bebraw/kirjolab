@@ -45,7 +45,6 @@ import { type AssistantAuthoringPassage as AuthoringPassage } from "./assistant-
 import { type CandidateDecisionOutcome } from "./candidate-review-panel";
 import { type PublicationPaperOption } from "./publication-context-panel";
 import {
-  isWorkspaceSnapshot,
   type AnnotationResource,
   type ModelCandidate,
   type PassageLink,
@@ -54,6 +53,7 @@ import {
   type PublicationResource,
   type WorkspaceSnapshot,
 } from "../domain/workspace";
+import { loadWorkspaceSnapshot, parseWorkspaceSnapshot, WorkspaceAccessError } from "./workspace-snapshot-client";
 import { CoalescedRefresh, DebouncedAsyncQueue } from "./collaboration";
 import { CollaborationSession } from "./collaboration-session";
 import { CollaborationSocket } from "./collaboration-socket";
@@ -638,14 +638,7 @@ class WorkspaceApp {
   }
 
   async #refreshSnapshot(): Promise<void> {
-    const response = await fetch(apiBase);
-    if (response.status === 401 || response.status === 403 || response.status === 404) {
-      throw new WorkspaceAccessError("Project access is no longer available");
-    }
-    if (!response.ok) throw new Error("Could not load the project");
-    const value: unknown = await response.json();
-    if (!isWorkspaceSnapshot(value)) throw new Error("Project returned an invalid snapshot");
-    const snapshot = this.#collaboration.synced ? resolveWorkspaceSnapshotAnchors(this.#document, value) : value;
+    const snapshot = await loadWorkspaceSnapshot(apiBase, this.#document, this.#collaboration.synced);
     this.#snapshot = snapshot;
     if (!this.#hasBootstrapSnapshot) {
       this.#hasBootstrapSnapshot = true;
@@ -1184,8 +1177,7 @@ class WorkspaceApp {
   async #acceptWorkspaceMutation(result: Response | WorkspaceSnapshot): Promise<void> {
     if (result instanceof Response) await expectOk(result);
     const value: unknown = result instanceof Response ? await result.json() : result;
-    if (!isWorkspaceSnapshot(value)) throw new Error("Project mutation returned an invalid snapshot");
-    this.#snapshot = value;
+    this.#snapshot = parseWorkspaceSnapshot(value, "Project mutation returned an invalid snapshot");
     await this.#refreshProjectReferencePdfs(false);
     this.#renderResources();
     this.#renderProjectFiles();
@@ -2002,8 +1994,6 @@ function readIdentityEmail(): string {
 function readAppMode(): "workspace" | "library" {
   return document.body.dataset.appMode === "library" ? "library" : "workspace";
 }
-
-class WorkspaceAccessError extends Error {}
 
 if (typeof document !== "undefined") {
   const app = new WorkspaceApp();
