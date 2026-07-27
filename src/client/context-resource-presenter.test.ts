@@ -636,6 +636,63 @@ describe("context resource presenter", () => {
     expect(routes.openPublication).toHaveBeenCalledWith(publication);
   });
 
+  it("provides canonical resource routes to the assistant presenter", async () => {
+    const { elements, presenter, routes } = setup();
+    const focusTab = vi.spyOn(elements["context-tab-strip"], "focusTab").mockImplementation(() => undefined);
+    const pdf = {
+      contentType: "application/pdf",
+      createdAt: "created",
+      fingerprint: "assistant-fingerprint",
+      id: "pdf-assistant",
+      name: "assistant.pdf",
+      objectKey: "pdfs/assistant.pdf",
+      size: 1024,
+    } satisfies PdfResource;
+    const candidate = {
+      createdAt: "created",
+      evidence: [],
+      id: "candidate-assistant",
+      instruction: "Draft a claim",
+      model: "local-model",
+      operation: "draft-claim" as const,
+      promptVersion: "draft-claim-v1" as const,
+      proposedNote: "",
+      proposedText: "Grounded claim",
+      providerAdapter: "openai-compatible" as const,
+      providerLabel: "Local",
+      relation: "supports" as const,
+      status: "pending" as const,
+    };
+    const evidence = {
+      comment: "Working note",
+      createdAt: "created",
+      id: "annotation-assistant",
+      kind: "annotation" as const,
+      page: 2,
+      pdfId: pdf.id,
+      prefix: "Before",
+      quote: "Evidence",
+      rects: [],
+      suffix: "After",
+      updatedAt: "updated",
+      version: "updated",
+    };
+    const resources = presenter.assistantResources();
+
+    resources.focusAssistant();
+    resources.openCandidate(candidate);
+    resources.openPaper(pdf, evidence);
+    await resources.refreshLibrary();
+    resources.reportNoEvidence();
+
+    expect(focusTab).toHaveBeenCalledWith("assistant");
+    expect(resources.project()).toBe(workspaceSnapshotFixture);
+    expect(routes.openCandidate).toHaveBeenCalledWith(candidate);
+    expect(routes.openProjectPdf).toHaveBeenCalledWith(pdf, evidence.page, evidence.id);
+    expect(routes.refreshLibrary).toHaveBeenCalledOnce();
+    expect(routes.presentNotice).toHaveBeenCalledWith("No project evidence is available yet.");
+  });
+
   it("derives research-context authorization from canonical resources", () => {
     const { presenter } = setup();
 

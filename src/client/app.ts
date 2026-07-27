@@ -539,22 +539,18 @@ class WorkspaceApp {
       papersChanged: (message) =>
         this.#refreshResourcesWithNotice(message, "The paper links changed, but project resources could not be refreshed."),
     });
+    this.#elements.assistantGenerationPresenter.bindResources(this.#elements.contextResourcePresenter.assistantResources());
     this.#elements.assistantGenerationPresenter.bindCandidate(apiBase, {
       decisionChanged: () => {
         this.#renderResearchContext(false);
         this.#updateModelAvailability();
       },
-      focusAssistant: () => this.#elements.contextTabStrip.focusTab(RESEARCH_ASSISTANT_KEY),
-      openCandidate: (candidate) => this.#openCandidateContext(candidate),
-      openPaper: (pdf, evidence) => void this.#showPaper(pdf, evidence.page, evidence.id),
       resolveDecision: async (detail) => await this.#completeCandidateRequest(detail),
-      snapshot: () => this.#snapshot,
     });
     this.#elements.assistantGenerationPresenter.bindResults({
       applyTable: (target, insertion) => this.#applyGeneratedTable(target, insertion),
       openRevisionCandidate: async (candidate) => await this.#openCreatedCandidate(candidate),
       refreshAvailability: () => this.#updateModelAvailability(),
-      refreshLibrary: async () => await this.#refreshReferenceLibrary(),
       tableState: () => ({
         revision: this.#revision,
         source: this.#activeFileText.toString(),
@@ -570,7 +566,6 @@ class WorkspaceApp {
       openGeneratedCandidate: async (candidate) => await this.#openCreatedCandidate(candidate),
       refreshAvailability: () => this.#updateModelAvailability(),
       refreshTarget: () => this.#renderAssistantTargetPreview(),
-      reportNoEvidence: () => this.#showToast("No project evidence is available yet."),
     });
   }
 

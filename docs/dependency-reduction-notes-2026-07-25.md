@@ -8586,6 +8586,30 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,710 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Assistant Resource Routes
+
+`AssistantGenerationPresenter` now binds once to canonical candidate,
+project-PDF, project snapshot, Library-refresh, assistant-tab, and no-evidence
+notice routes supplied by `ContextResourcePresenter`. Its task, result, and
+candidate workflow bindings no longer repeat those resource callbacks.
+`WorkspaceApp` retains generation consequences, authorized Yjs mutation,
+editor selection, model availability, and refresh policy.
+
+This checkpoint reduces `src/client/app.ts` from 1,400 to 1,395 lines (-5),
+grows the assistant-generation presenter from 558 to 571 lines (+13), and grows
+the context-resource presenter from 969 to 982 lines (+13). Focused coverage
+passes all 45 assistant-generation and context-resource cases, including
+candidate, PDF, project, Library refresh, tab-focus, notice, application-
+contract, and strict-type behavior.
+
+The browser application artifact changes from 847,153 B raw / 228,597 B gzip
+to 847,725 B raw / 228,684 B gzip (+572 B raw / +87 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,711 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

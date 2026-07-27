@@ -433,6 +433,10 @@ changing their canonical data, selector, authorization, or rendering contracts.
 - [x] Grounded model candidates open as resource-keyed Context tabs with
       original/replacement regions, provenance links, and explicit apply/reject
       actions.
+- [x] The assistant-generation presenter binds once to canonical candidate,
+      project-PDF, project snapshot, Library-refresh, assistant-tab, and no-
+      evidence notice routes supplied by the context-resource presenter; task,
+      result, and candidate workflows do not repeat those resource callbacks.
 - [x] A bounded light-DOM candidate list owns revision and claim-draft
       summaries, empty-state, and review-opening intent presentation while
       generation, canonical candidate state, context navigation, applicability

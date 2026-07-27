@@ -4,6 +4,7 @@ import {
   type AssistantControlCallbacks,
   type AssistantGenerationInput,
   type AssistantGenerationPresentation,
+  type AssistantResourceRoutes,
   type AssistantResultCallbacks,
 } from "./assistant-generation-presenter";
 import { assistantOperationDefinition } from "./assistant-operations";
@@ -127,14 +128,27 @@ function setup() {
   Object.defineProperty(presenter, "ownerDocument", {
     value: { getElementById: (id: string) => elements[id as keyof typeof elements] ?? null },
   });
-  return { elements, presenter };
+  const resources = resourceRoutes();
+  presenter.bindResources(resources);
+  return { elements, presenter, resources };
+}
+
+function resourceRoutes(overrides: Partial<AssistantResourceRoutes> = {}): AssistantResourceRoutes {
+  return {
+    focusAssistant: vi.fn(),
+    openCandidate: vi.fn(),
+    openPaper: vi.fn(),
+    project: () => workspaceSnapshotFixture,
+    refreshLibrary: vi.fn().mockResolvedValue(undefined),
+    reportNoEvidence: vi.fn(),
+    ...overrides,
+  };
 }
 
 function resultCallbacks(overrides: Partial<AssistantResultCallbacks> = {}): AssistantResultCallbacks {
   return {
     applyTable: vi.fn(),
     openRevisionCandidate: vi.fn().mockResolvedValue(undefined),
-    refreshLibrary: vi.fn().mockResolvedValue(undefined),
     refreshAvailability: vi.fn(),
     tableState: () => ({ revision: 7, source: `x${passage.excerpt}`, stableDocument: true }),
     ...overrides,
@@ -148,7 +162,6 @@ function controlCallbacks(overrides: Partial<AssistantControlCallbacks> = {}): A
     openGeneratedCandidate: vi.fn().mockResolvedValue(undefined),
     refreshAvailability: vi.fn(),
     refreshTarget: vi.fn(),
-    reportNoEvidence: vi.fn(),
     ...overrides,
   };
 }
@@ -361,7 +374,7 @@ describe("assistant generation presenter", () => {
   });
 
   it("owns local assistant control wiring", () => {
-    const { elements, presenter } = setup();
+    const { elements, presenter, resources } = setup();
     const callbacks = controlCallbacks({ generationInput: vi.fn().mockReturnValue(null) });
     const openSettings = vi.spyOn(elements["model-provider-settings"], "open").mockImplementation(() => undefined);
     const clearResult = vi.spyOn(elements["assistant-interactive-result"], "clear");
@@ -372,6 +385,7 @@ describe("assistant generation presenter", () => {
     const focusClaimEvidence = vi.spyOn(elements["claim-list-panel"], "focusEvidence").mockReturnValue(true);
     presenter.bindControls(callbacks);
     for (const callback of Object.values(callbacks)) callback.mockClear();
+    vi.mocked(resources.reportNoEvidence).mockClear();
 
     elements["model-provider-settings"].dispatchEvent(new CustomEvent(modelProviderChangeEvent, { detail: "Provider ready" }));
     expect(elements["assistant-workflow-status"].status).toBe("Provider ready");
@@ -384,7 +398,7 @@ describe("assistant generation presenter", () => {
 
     expect(callbacks.generationInput).toHaveBeenCalledOnce();
     expect(callbacks.openEvidenceRail).toHaveBeenCalledOnce();
-    expect(callbacks.reportNoEvidence).not.toHaveBeenCalled();
+    expect(resources.reportNoEvidence).not.toHaveBeenCalled();
     expect(callbacks.refreshAvailability).toHaveBeenCalledTimes(4);
     expect(callbacks.refreshTarget).toHaveBeenCalledOnce();
     expect(setEvidenceSelected).toHaveBeenNthCalledWith(1, "annotation:1", true);
@@ -394,7 +408,7 @@ describe("assistant generation presenter", () => {
 
     focusClaimEvidence.mockReturnValue(false);
     elements["assistant-workflow-status"].dispatchEvent(new CustomEvent(assistantWorkflowActionEvent, { detail: "choose-evidence" }));
-    expect(callbacks.reportNoEvidence).toHaveBeenCalledOnce();
+    expect(resources.reportNoEvidence).toHaveBeenCalledOnce();
     expect(elements["assistant-workflow-status"].status).toBe(
       "Add a PDF highlight or researcher-authored claim before choosing model evidence.",
     );
@@ -446,7 +460,8 @@ describe("assistant generation presenter", () => {
       source: `x${passage.excerpt}`,
       stableDocument: true,
     });
-    presenter.bindResults(resultCallbacks({ applyTable, refreshLibrary, tableState }));
+    presenter.bindResources(resourceRoutes({ refreshLibrary }));
+    presenter.bindResults(resultCallbacks({ applyTable, tableState }));
     const action = { action: "insert-table", context: { sourceRevision: 7, target: passage }, markdown: "| Result |" } as const;
 
     result.dispatchEvent(new CustomEvent(assistantResultActionEvent, { detail: action }));
@@ -610,17 +625,12 @@ describe("assistant generation presenter", () => {
       claims: [{ ...claimEvidence }],
       pdfs: [pdf],
     };
-    const callbacks = {
-      decisionChanged: vi.fn(),
-      focusAssistant: vi.fn(),
-      openCandidate: vi.fn(),
-      openPaper: vi.fn(),
-      resolveDecision: vi.fn().mockResolvedValue(null),
-      snapshot: () => snapshot,
-    };
+    const callbacks = { decisionChanged: vi.fn(), resolveDecision: vi.fn().mockResolvedValue(null) };
+    const resources = resourceRoutes({ project: () => snapshot });
     const revealClaim = vi.spyOn(elements["claim-list-panel"], "revealClaim").mockReturnValue(true);
     const configureCandidates = vi.spyOn(elements["candidate-list-panel"], "configure");
     const configureReview = vi.spyOn(review, "configure");
+    presenter.bindResources(resources);
     presenter.bindCandidate("/api/workspaces/workspace", callbacks);
 
     elements["candidate-list-panel"].dispatchEvent(new CustomEvent(candidateListOpenEvent, { detail: revisionCandidate }));
@@ -632,12 +642,12 @@ describe("assistant generation presenter", () => {
 
     expect(configureCandidates).toHaveBeenCalledWith("/api/workspaces/workspace");
     expect(configureReview).toHaveBeenCalledWith("/api/workspaces/workspace");
-    expect(callbacks.openCandidate).toHaveBeenCalledWith(revisionCandidate);
+    expect(resources.openCandidate).toHaveBeenCalledWith(revisionCandidate);
     await vi.waitFor(() => expect(callbacks.decisionChanged).toHaveBeenCalledTimes(2));
     expect(callbacks.resolveDecision).toHaveBeenCalledWith(outcome);
-    expect(callbacks.focusAssistant).toHaveBeenCalledOnce();
+    expect(resources.focusAssistant).toHaveBeenCalledOnce();
     expect(presenter.candidateDecision()).toBeNull();
-    expect(callbacks.openPaper).toHaveBeenCalledWith(pdf, annotationEvidence);
+    expect(resources.openPaper).toHaveBeenCalledWith(pdf, annotationEvidence);
     expect(revealClaim).toHaveBeenCalledWith(claimEvidence.id, true);
   });
 });

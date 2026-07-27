@@ -90,13 +90,11 @@ export interface AssistantControlCallbacks {
   readonly openGeneratedCandidate: (candidate: ModelCandidate) => Promise<void>;
   readonly refreshAvailability: () => void;
   readonly refreshTarget: () => void;
-  readonly reportNoEvidence: () => void;
 }
 
 export interface AssistantResultCallbacks {
   readonly applyTable: (target: AssistantAuthoringPassage, insertion: string) => void;
   readonly openRevisionCandidate: (candidate: ModelCandidate) => Promise<void>;
-  readonly refreshLibrary: () => Promise<void>;
   readonly refreshAvailability: () => void;
   readonly tableState: () => {
     readonly revision: number;
@@ -107,11 +105,16 @@ export interface AssistantResultCallbacks {
 
 export interface AssistantCandidateCallbacks {
   readonly decisionChanged: () => void;
+  readonly resolveDecision: (detail: CandidateDecisionOutcome) => Promise<string | null>;
+}
+
+export interface AssistantResourceRoutes {
   readonly focusAssistant: () => void;
   readonly openCandidate: (candidate: ModelCandidate) => void;
   readonly openPaper: (pdf: PdfResource, evidence: Extract<ModelEvidence, { readonly kind: "annotation" }>) => void;
-  readonly resolveDecision: (detail: CandidateDecisionOutcome) => Promise<string | null>;
-  readonly snapshot: () => WorkspaceSnapshot | null;
+  readonly project: () => WorkspaceSnapshot | null;
+  readonly refreshLibrary: () => Promise<void>;
+  readonly reportNoEvidence: () => void;
 }
 
 export interface AssistantRevisionCandidateInput {
@@ -126,6 +129,16 @@ export interface AssistantRevisionCandidateInput {
 
 export class AssistantGenerationPresenter extends LitElement {
   private readonly workflow = createAssistantWorkflowActor();
+  private resources: AssistantResourceRoutes | null = null;
+
+  bindResources(resources: AssistantResourceRoutes): void {
+    this.resources = resources;
+  }
+
+  private get resourceRoutes(): AssistantResourceRoutes {
+    if (!this.resources) throw new Error("Assistant resource routes are not bound");
+    return this.resources;
+  }
 
   bindCandidate(apiBase: string, callbacks: AssistantCandidateCallbacks): void {
     const candidates = this.element("candidate-list-panel", CandidateListPanel);
@@ -133,7 +146,7 @@ export class AssistantGenerationPresenter extends LitElement {
     candidates?.configure(apiBase);
     review?.configure(apiBase);
     candidates?.addEventListener(candidateListOpenEvent, (event) => {
-      callbacks.openCandidate((event as CustomEvent<ModelCandidate>).detail);
+      this.resourceRoutes.openCandidate((event as CustomEvent<ModelCandidate>).detail);
     });
     review?.addEventListener(candidateDecisionEvent, (event) => {
       const detail = (event as CustomEvent<CandidateDecisionRequest>).detail;
@@ -145,10 +158,10 @@ export class AssistantGenerationPresenter extends LitElement {
     });
     review?.addEventListener(candidateEvidenceEvent, (event) => {
       const evidence = (event as CustomEvent<ModelEvidence>).detail;
-      const snapshot = callbacks.snapshot();
+      const snapshot = this.resourceRoutes.project();
       if (evidence.kind === "annotation") {
         const pdf = snapshot?.pdfs.find(({ id }) => id === evidence.pdfId);
-        if (pdf && snapshot?.annotations.some(({ id }) => id === evidence.id)) callbacks.openPaper(pdf, evidence);
+        if (pdf && snapshot?.annotations.some(({ id }) => id === evidence.id)) this.resourceRoutes.openPaper(pdf, evidence);
       } else if (snapshot?.claims.some(({ id }) => id === evidence.id)) {
         this.element("claim-list-panel", ClaimListPanel)?.revealClaim(evidence.id, true);
       }
@@ -159,7 +172,7 @@ export class AssistantGenerationPresenter extends LitElement {
     const failure = await callbacks.resolveDecision(detail);
     this.workflow.send(failure ? { type: "DECISION_FAILED", message: failure } : { type: "DECISION_DONE" });
     callbacks.decisionChanged();
-    if (!failure && detail.action === "reject") callbacks.focusAssistant();
+    if (!failure && detail.action === "reject") this.resourceRoutes.focusAssistant();
   }
 
   async createRevisionCandidate(input: AssistantRevisionCandidateInput): Promise<ModelRevisionCandidate> {
@@ -223,7 +236,7 @@ export class AssistantGenerationPresenter extends LitElement {
     });
     result?.addEventListener(assistantReferenceRefreshEvent, (event) => {
       const detail = (event as CustomEvent<AssistantReferenceRefresh>).detail;
-      void callbacks
+      void this.resourceRoutes
         .refreshLibrary()
         .then(() => {
           if (status) status.status = detail.message;
@@ -362,7 +375,7 @@ export class AssistantGenerationPresenter extends LitElement {
       this.element("claim-list-panel", ClaimListPanel)?.focusEvidence();
     if (!focused) {
       if (status) status.status = "Add a PDF highlight or researcher-authored claim before choosing model evidence.";
-      callbacks.reportNoEvidence();
+      this.resourceRoutes.reportNoEvidence();
       return;
     }
     if (status) status.status = "Choose one or more evidence resources in the Research rail, then return to the assistant.";

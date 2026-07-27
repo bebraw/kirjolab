@@ -12,6 +12,7 @@ import { isProjectReferencePdfs } from "../domain/reference-library";
 import { suggestCitationKey } from "../domain/publication-intake";
 import type { AnnotationResource, WorkspaceSnapshot } from "../domain/workspace";
 import { AssistantWorkflowStatus } from "./assistant-workflow-status";
+import type { AssistantResourceRoutes } from "./assistant-generation-presenter";
 import { CandidateListPanel } from "./candidate-list-panel";
 import { CandidateReviewPanel } from "./candidate-review-panel";
 import { citationPageFromLocator, type CitationContext } from "./citations";
@@ -38,6 +39,7 @@ import { PublicationContextPanel, type PublicationContextBinding, type Publicati
 import { PublicationListPanel, type PublicationListBinding } from "./publication-list-panel";
 import {
   setPdfResearchLocation,
+  RESEARCH_ASSISTANT_KEY,
   setResearchTabScroll,
   type ResearchContextAuthorization,
   type ResearchContextState,
@@ -190,6 +192,17 @@ export class ContextResourcePresenter extends LitElement {
 
   bindRoutes(coordinator: ContextRouteCoordinator): void {
     this.routeCoordinator = coordinator;
+  }
+
+  assistantResources(): AssistantResourceRoutes {
+    return {
+      focusAssistant: () => this.element("context-tab-strip", ContextTabStrip)?.focusTab(RESEARCH_ASSISTANT_KEY),
+      openCandidate: (candidate) => this.routeCoordinator?.openCandidate(candidate),
+      openPaper: (pdf, evidence) => void this.routeCoordinator?.openProjectPdf(pdf, evidence.page, evidence.id),
+      project: () => this.routeCoordinator?.project() ?? null,
+      refreshLibrary: async () => await this.routeCoordinator?.refreshLibrary(),
+      reportNoEvidence: () => this.routeCoordinator?.presentNotice("No project evidence is available yet."),
+    };
   }
 
   async restoreTarget(target: ResearchResourceTarget, page?: number, annotationId?: string): Promise<void> {

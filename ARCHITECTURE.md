@@ -424,10 +424,13 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   clarity continuation, captured-table validation and portable spacing,
   promoted-revision persistence sequencing, candidate decision state, and
   candidate-review event subscriptions. Candidate persistence remains inside
-  the candidate-list owner. Keep canonical workspace and Library refresh,
-  context and PDF navigation, toast policy, authorized Yjs mutation, editor
-  selection, and remembered authoring selection in the coordinator through
-  narrow typed callbacks.
+  the candidate-list owner. Bind the assistant presenter once to canonical
+  candidate, project-PDF, project snapshot, Library-refresh, assistant-tab, and
+  no-evidence notice routes supplied by the context-resource presenter instead
+  of repeating them across task, result, and candidate workflows. Keep
+  authorized Yjs mutation, editor selection, remembered authoring selection,
+  generation consequences, and refresh policy in the application coordinator
+  through narrow typed callbacks.
   Let the candidate-review Lit owner resolve the active candidate id against
   the canonical workspace snapshot and derive evidence availability and local
   applicability from candidate, evidence-version, source-revision,

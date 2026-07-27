@@ -99,9 +99,12 @@ The adopted components own bounded presentation:
   validation and portable spacing, promoted-revision persistence sequencing,
   and candidate-review event handling. Candidate persistence remains in its
   list owner and provider construction derives from validated model-settings
-  state. The coordinator retains canonical workspace and Library refresh,
-  context and PDF navigation, toast policy, authorized Yjs mutation, editor
-  selection, and remembered authoring selection through narrow typed callbacks.
+  state. It binds once to canonical candidate, project-PDF, project snapshot,
+  Library-refresh, assistant-tab, and no-evidence notice routes supplied by the
+  context-resource presenter instead of repeating them across its task, result,
+  and candidate workflow bindings. The application coordinator retains
+  authorized Yjs mutation, editor selection, remembered authoring selection,
+  generation consequences, and refresh policy through narrow typed callbacks.
 - The project map panel owns provenance-lane rendering, measured SVG connector
   geometry, responsive relayout, focus and hover emphasis, and a typed resource
   selection intent.

@@ -220,8 +220,12 @@ collaboration.
   model requests, workflow state, results, and status policy. When evidence
   selection is requested, the bounded Project evidence
   and Claims panels own collection opening, scrolling, and focus for the first
-  available grounding choice; the coordinator retains rail selection and
-  empty-evidence messaging. The bounded workflow-status owner reconciles its
+  available grounding choice; the application coordinator retains rail
+  selection while the context-resource presenter supplies the shared no-
+  evidence notice route. The assistant-generation presenter binds once to that
+  presenter for canonical candidate, project-PDF, project snapshot, Library-
+  refresh, assistant-tab, and no-evidence notice routes instead of repeating
+  them across task, result, and candidate workflows. The bounded workflow-status owner reconciles its
   selected keys directly against coordinator-supplied canonical annotations and
   claims, retains those collections for model-evidence projection, and exposes
   the resulting evidence without requiring the coordinator to re-supply them;
