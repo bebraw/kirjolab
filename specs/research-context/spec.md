@@ -181,9 +181,10 @@ changing their canonical data, selector, authorization, or rendering contracts.
   and owns private-PDF inspector context, artifact-change markup reset, toolbar
   counts, export-target presentation, and page-local saved-markup and newest-
   drawing undo projection from coordinator-supplied canonical Library inputs.
-  The same presenter synchronizes tool choice, inspector-open state, and draft
-  clearing across the markup layer, inspector, and toolbar, returning only the
-  viewer's text-selection and selected-highlight effects.
+  The same presenter synchronizes tool choice, inspector open/close lifecycle,
+  and draft clearing across the markup layer, inspector, and toolbar, returning
+  only the viewer's text-selection, selected-highlight, and draft-selection
+  cleanup effects.
   It returns only active project-PDF annotations and private highlights to the
   viewer. The coordinator retains snapshot authority, page selection, context
   reconciliation, PDF rendering, model availability, routing, refresh, and

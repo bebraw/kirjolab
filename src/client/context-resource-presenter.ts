@@ -39,6 +39,11 @@ export interface LibraryPdfToolPresentation {
   readonly textSelectionEnabled: boolean;
 }
 
+export interface LibraryPdfInspectorClosePresentation {
+  readonly clearDraftSelection: boolean;
+  readonly privateHighlightSelection: boolean | null;
+}
+
 export class ContextResourcePresenter extends LitElement {
   presentWorkspace(snapshot: WorkspaceSnapshot, renderedPdfId: string | undefined): AnnotationResource[] {
     const workflow = this.element("assistant-workflow-status", AssistantWorkflowStatus);
@@ -101,6 +106,17 @@ export class ContextResourcePresenter extends LitElement {
     markups?.clearSelection();
     this.element("library-pdf-inspector", LibraryPdfInspector)?.clearMarkup();
     return markups?.tool === "select";
+  }
+
+  closeLibraryPdfInspector(page: number): LibraryPdfInspectorClosePresentation {
+    const inspector = this.element("library-pdf-inspector", LibraryPdfInspector);
+    const drafts = inspector?.draftState;
+    if (drafts?.highlight) inspector?.clearHighlight(page, "Selection cancelled. Nothing was saved.");
+    if (drafts?.note) this.clearLibraryPdfNoteDraft();
+    const privateHighlightSelection = drafts?.markup ? this.clearLibraryPdfMarkupSelection() : null;
+    this.setLibraryPdfInspector(false);
+    this.element("library-pdf-annotation-toolbar", LibraryPdfAnnotationToolbar)?.focusInspectorButton();
+    return { clearDraftSelection: drafts?.highlight ?? false, privateHighlightSelection };
   }
 
   resourceScrollTop(tab: ResearchContextTab): number {

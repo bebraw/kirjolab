@@ -113,8 +113,8 @@ The adopted components own bounded presentation:
   private-inspector presentation, owns private-PDF inspector context,
   artifact-change markup reset, toolbar counts and export target, page-local
   saved-markup and newest-drawing undo projection, and synchronized tool,
-  inspector-open, and draft-clearing presentation across the markup layer,
-  inspector, and toolbar; it returns only viewer-owned selection effects and
+  inspector open/close, and draft-clearing presentation across the markup
+  layer, inspector, and toolbar; it returns only viewer-owned selection effects and
   synchronizes the bounded
   evidence, annotation, publication, claim, comment, and candidate owners from
   the canonical workspace snapshot, and derives active PDF annotations and

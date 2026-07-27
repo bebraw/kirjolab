@@ -296,4 +296,27 @@ describe("context resource presenter", () => {
     expect(clearInspectorNote).toHaveBeenCalledOnce();
     expect(clearInspectorMarkup).toHaveBeenCalledOnce();
   });
+
+  it("closes private-PDF drafts and returns viewer-only cleanup", () => {
+    const { elements, presenter } = setup();
+    const markups = elements["paper-markups"];
+    const inspector = elements["library-pdf-inspector"];
+    const toolbar = elements["library-pdf-annotation-toolbar"];
+    vi.spyOn(markups, "tool", "get").mockReturnValue("select");
+    vi.spyOn(inspector, "draftState", "get").mockReturnValue({ highlight: true, markup: true, note: true });
+    const clearHighlight = vi.spyOn(inspector, "clearHighlight").mockImplementation(() => undefined);
+    const clearNote = vi.spyOn(inspector, "clearNote").mockImplementation(() => undefined);
+    const clearMarkup = vi.spyOn(inspector, "clearMarkup").mockImplementation(() => undefined);
+    const focusInspectorButton = vi.spyOn(toolbar, "focusInspectorButton").mockImplementation(() => undefined);
+
+    expect(presenter.closeLibraryPdfInspector(3)).toEqual({
+      clearDraftSelection: true,
+      privateHighlightSelection: true,
+    });
+
+    expect(clearHighlight).toHaveBeenCalledWith(3, "Selection cancelled. Nothing was saved.");
+    expect(clearNote).toHaveBeenCalledOnce();
+    expect(clearMarkup).toHaveBeenCalledOnce();
+    expect(focusInspectorButton).toHaveBeenCalledOnce();
+  });
 });

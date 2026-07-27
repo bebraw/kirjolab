@@ -2806,12 +2806,10 @@ class WorkspaceApp {
   }
 
   #closeLibraryPdfInspector(): void {
-    const drafts = this.#elements.libraryPdfInspector.draftState;
-    if (drafts.highlight) this.#clearLibraryHighlightDraft();
-    if (drafts.note) this.#clearLibraryPdfNoteDraft();
-    if (drafts.markup) this.#clearLibraryPdfMarkupSelection();
-    this.#setLibraryPdfInspector(false);
-    this.#elements.libraryPdfAnnotationToolbar.focusInspectorButton();
+    const presentation = this.#elements.contextResourcePresenter.closeLibraryPdfInspector(this.#pdfViewer.currentPage);
+    if (presentation.clearDraftSelection) this.#pdfViewer.clearDraftSelection();
+    if (presentation.privateHighlightSelection !== null)
+      this.#pdfViewer.setPrivateHighlightSelection(presentation.privateHighlightSelection);
   }
 
   #setLibraryPdfTool(tool: "select" | "text" | "note" | "draw"): void {
