@@ -9155,7 +9155,7 @@ serialization. `WorkspaceApp` supplies authorized canonical selections and
 retains push-versus-replace history policy without maintaining two local route
 helpers.
 
-This checkpoint reduces `src/client/app.ts` from 1,219 to 1,212 lines (-7).
+This checkpoint reduces `src/client/app.ts` from 1,219 to 1,207 lines (-12).
 Focused route coverage grows to 28 cases and the full native CI passes all 1,721
 unit/coverage tests, 121 Workers-runtime tests, and 74 browser tests alongside
 formatting, lint, and strict types.
