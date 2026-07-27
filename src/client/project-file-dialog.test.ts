@@ -245,6 +245,20 @@ describe("project file dialog", () => {
     expect(panel.projectFiles(true).map(({ id }) => id)).toEqual([snapshot.files[0]!.id]);
   });
 
+  it("derives live file projection readiness from its content binding", () => {
+    const panel = new TestProjectFileDialog();
+    let ready = false;
+    panel.bindLiveContent(
+      (file) => `live:${file.content}`,
+      () => ready,
+    );
+    panel.presentProject(snapshot, "/assets", true);
+
+    expect(panel.projectFiles()[0]?.content).toBe(snapshot.files[0]?.content);
+    ready = true;
+    expect(panel.projectFiles()[0]?.content).toBe(`live:${snapshot.files[0]?.content}`);
+  });
+
   it("owns active-file fallback and selection eligibility", () => {
     const panel = new TestProjectFileDialog();
     const callbacks = mutationCallbacks();

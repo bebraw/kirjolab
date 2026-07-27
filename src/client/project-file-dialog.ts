@@ -122,6 +122,7 @@ export class ProjectFileDialog extends LitElement {
   private snapshot: WorkspaceSnapshot | null = null;
   private presentation: ProjectFilePresentationBinding | null = null;
   private liveContent: ProjectFileContentResolver | null = null;
+  private liveContentReady: () => boolean = () => false;
   private pendingInclude: ((path: string) => boolean) | null = null;
   private routing: ProjectFileWorkflowRouting | null = null;
   private routingAbort: AbortController | null = null;
@@ -150,8 +151,9 @@ export class ProjectFileDialog extends LitElement {
     this.configureProjectTree();
   }
 
-  bindLiveContent(resolver: ProjectFileContentResolver): void {
+  bindLiveContent(resolver: ProjectFileContentResolver, ready: () => boolean = () => true): void {
     this.liveContent = resolver;
+    this.liveContentReady = ready;
   }
 
   private configureProjectTree(): void {
@@ -170,7 +172,7 @@ export class ProjectFileDialog extends LitElement {
     return this.snapshot?.files.find(({ id }) => id === this.selectedFileId) ?? null;
   }
 
-  projectFiles(live: boolean, snapshot: WorkspaceSnapshot | null = this.snapshot): ProjectFile[] {
+  projectFiles(live = this.liveContentReady(), snapshot: WorkspaceSnapshot | null = this.snapshot): ProjectFile[] {
     if (!snapshot) return [];
     const files = snapshot.files.filter((file) => !this.hiddenFileIds.has(file.id));
     const liveContent = this.liveContent;

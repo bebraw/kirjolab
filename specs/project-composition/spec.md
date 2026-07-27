@@ -169,11 +169,12 @@ collaborative, and unambiguous about what preview and export mean.
   requested folder for dialogs, rejects entry-file deletion, derives relative image
   insertion from that active file, and supplies the project tree, Insert menu,
   source-completion list, and file-action menu with their bounded views.
-  Through a narrow coordinator-supplied live-content resolver, it also
+  Through a narrow coordinator-supplied live-content resolver and readiness
+  predicate bound together once, it also
   materializes that same visible collection with snapshot or collaborative
   contents for Preview, manuscript-map, and collaborator-selection consumers;
-  the coordinator retains Yjs document authority and decides when live content
-  is ready.
+  those consumers do not repeat collaboration state. The coordinator retains
+  Yjs document authority and decides when live content is ready.
   Image-upload completion and project-tree deletion outcomes use its same typed
   snapshot, preview-change, and notice callbacks instead of binding coordinator
   effects independently.

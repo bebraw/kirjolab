@@ -8827,6 +8827,29 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,716 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Live Project Files
+
+`ProjectFileDialog` now retains the coordinator-supplied collaborative-content
+readiness predicate beside its live-content resolver. Preview, manuscript-map,
+and collaborator-selection consumers request one derived file collection
+without repeating collaboration state. `WorkspaceApp` retains Yjs document and
+collaboration authority and supplies both functions once.
+
+This checkpoint reduces `src/client/app.ts` from 1,296 to 1,290 lines (-6),
+grows the project-file dialog from 482 to 484 lines (+2), and reduces combined
+runtime source by four lines while deleting the coordinator's derived-file
+wrapper. Focused coverage passes all 35 dialog and application-contract cases,
+and affected guardrails pass 21 related and 19 direct cases, including readiness
+transitions between snapshot and live collaborative content.
+
+The browser application artifact changes from 848,959 B raw / 228,788 B gzip
+to 849,040 B raw / 228,808 B gzip (+81 B raw / +20 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,717 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

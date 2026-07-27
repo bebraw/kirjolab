@@ -260,7 +260,8 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   completion, and file menu. It also materializes that same visible collection
   with snapshot or live collaborative content for Preview, manuscript-map, and
   collaborator-selection consumers through a coordinator-supplied content
-  resolver. Apply or return the validated workspace snapshot through that
+  resolver and readiness predicate bound together once. Consumers request the
+  derived collection without repeating collaboration state. Apply or return the validated workspace snapshot through that
   mutation binding, or return the newly created stable file. Keep workflow-
   template selection and new-file navigation, collaborative caret capture and continuation
   construction, Yjs insertion and active-text/editor binding after a validated

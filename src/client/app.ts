@@ -407,8 +407,9 @@ class WorkspaceApp {
       tree: this.#elements.projectTreePanel,
     });
     this.#elements.projectFileDialog.bindPresentation(this.#elements);
-    this.#elements.projectFileDialog.bindLiveContent((file, entryFileId) =>
-      this.#document.getText(projectFileCollaborationTextName(file, entryFileId)).toString(),
+    this.#elements.projectFileDialog.bindLiveContent(
+      (file, entryFileId) => this.#document.getText(projectFileCollaborationTextName(file, entryFileId)).toString(),
+      () => this.#collaboration.synced || this.#collaboration.offlineAvailable,
     );
     this.#elements.editorInsertMenu.bind({
       includeFile: (relativePath, path) => this.#insertProjectIncludeFromMenu(relativePath, path),
@@ -658,7 +659,7 @@ class WorkspaceApp {
 
   #setRevision(revision: number): void {
     this.#revision = Math.max(this.#revision, revision);
-    this.#elements.collaboratorSelections.setData({ files: this.#elements.projectFileDialog.projectFiles(true), revision: this.#revision });
+    this.#elements.collaboratorSelections.setData({ files: this.#elements.projectFileDialog.projectFiles(), revision: this.#revision });
     this.#renderSourceEditorHighlight();
     this.#elements.projectHistoryTrigger.setRevision(this.#revision);
     this.#scheduleOfflineSave();
@@ -695,7 +696,7 @@ class WorkspaceApp {
   }
 
   async #renderPreview(bibliography = this.#bibliography.toString()): Promise<void> {
-    const files = this.#previewProjectFiles();
+    const files = this.#elements.projectFileDialog.projectFiles();
     const outcome = await this.#elements.workspacePreview.renderProject({
       activeFileId: this.#activeFileId,
       apiBase,
@@ -719,7 +720,7 @@ class WorkspaceApp {
   }
 
   #renderManuscriptMap(source?: string): void {
-    const files = this.#previewProjectFiles();
+    const files = this.#elements.projectFileDialog.projectFiles();
     this.#elements.manuscriptMapPanel.presentProject({ fallbackSource: this.#source.toString(), files, snapshot: this.#snapshot, source });
   }
 
@@ -752,13 +753,6 @@ class WorkspaceApp {
     const offsets = this.#elements.previewSyncControls.activeSourcePreviewOffsets(fileId, explicit, previewActive, splitLayout);
     if (offsets.length === 0) return;
     this.#elements.workspacePreview.revealNearestSource(offsets);
-  }
-
-  #previewProjectFiles(): ProjectFile[] {
-    return this.#elements.projectFileDialog.projectFiles(
-      this.#collaboration.synced || this.#collaboration.offlineAvailable,
-      this.#snapshot,
-    );
   }
 
   #renderProjectFiles(): void {

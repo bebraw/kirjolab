@@ -877,6 +877,9 @@ reason to wrap static markup mechanically.
   Its canonical selection method now routes tree, workflow, save, deletion,
   Undo, route, and cross-feature choices through one activation callback and
   removes stable file identity from save completion.
+  Its live-content binding now retains the coordinator-supplied readiness
+  predicate beside the resolver, removing repeated collaboration-state inputs
+  from Preview, manuscript-map, and collaborator projections.
   Collaborative include-target capture and continuation construction,
   snapshot and active Y.Text/editor authority, Yjs insertion, cross-feature
   rendering, and the toast outlet remain in the application coordinator.
