@@ -9,15 +9,12 @@ import {
 import { GitHubSyncReview } from "./github-sync-review";
 import { expectOk, jsonFetch } from "./http";
 
-export const workspaceSettingsActionEvent = "workspace-settings-action";
-
 export interface WorkspaceSettingsValue {
   readonly entryFileId: string;
   readonly publicationProfile: ProjectPublicationProfile;
   readonly title: string;
 }
 
-export type WorkspaceSettingsAction = { readonly action: "catalog-refresh" } | { readonly action: "save-template" };
 export type GitHubSyncPreview = "pull" | "push";
 
 export interface WorkspaceSettingsView extends WorkspaceSettingsValue {
@@ -33,6 +30,13 @@ export interface WorkspaceSettingsSources {
   readonly workspaceId: string;
 }
 
+export interface WorkspaceSettingsBinding {
+  readonly refreshCatalog: () => Promise<void> | void;
+  readonly refreshGitHub: () => Promise<void> | void;
+  readonly saveTemplate: () => Promise<void> | void;
+  readonly sources: () => WorkspaceSettingsSources;
+}
+
 export class WorkspaceSettingsPanel extends LitElement {
   static override properties = {
     busy: { state: true },
@@ -46,6 +50,9 @@ export class WorkspaceSettingsPanel extends LitElement {
   declare private status: string;
   declare protected view: WorkspaceSettingsView;
   private gitHubApiBase = "";
+  private binding: WorkspaceSettingsBinding | undefined;
+  private trigger: EventTarget | undefined;
+  private triggerBinding: AbortController | undefined;
 
   constructor() {
     super();
@@ -128,9 +135,34 @@ export class WorkspaceSettingsPanel extends LitElement {
     if (this.hasUpdated) this.gitHubReview.configure(apiBase);
   }
 
+  bindWorkspace(trigger: EventTarget, binding: WorkspaceSettingsBinding): void {
+    this.triggerBinding?.abort();
+    this.binding = binding;
+    this.trigger = trigger;
+    this.bindTrigger();
+  }
+
+  private bindTrigger(): void {
+    if (!this.trigger) return;
+    this.triggerBinding = new AbortController();
+    this.trigger.addEventListener("click", () => void this.openSettings(), { signal: this.triggerBinding.signal });
+  }
+
+  async openSettings(checkGitHub = true): Promise<void> {
+    if (!this.binding) return;
+    await this.show(this.binding.sources());
+    if (checkGitHub) void this.binding.refreshGitHub();
+  }
+
   override connectedCallback(): void {
     if (!this.hasUpdated) this.replaceChildren();
     super.connectedCallback();
+    if (this.triggerBinding?.signal.aborted) this.bindTrigger();
+  }
+
+  override disconnectedCallback(): void {
+    this.triggerBinding?.abort();
+    super.disconnectedCallback();
   }
 
   protected override createRenderRoot(): HTMLElement {
@@ -285,7 +317,7 @@ export class WorkspaceSettingsPanel extends LitElement {
 
   protected saveTemplate(): void {
     if (this.busy) return;
-    this.emit({ action: "save-template" });
+    void this.binding?.saveTemplate();
   }
 
   protected duplicate(): void {
@@ -324,7 +356,7 @@ export class WorkspaceSettingsPanel extends LitElement {
     await this.runRequest(async () => {
       await expectOk(await jsonFetch(`${this.gitHubApiBase}/settings`, { archived: !this.view.archived }, "PATCH"));
       this.close();
-      this.emit({ action: "catalog-refresh" });
+      await this.binding?.refreshCatalog();
     });
   }
 
@@ -361,10 +393,6 @@ export class WorkspaceSettingsPanel extends LitElement {
     } finally {
       this.busy = false;
     }
-  }
-
-  protected emit(detail: WorkspaceSettingsAction): void {
-    this.dispatchEvent(new CustomEvent<WorkspaceSettingsAction>(workspaceSettingsActionEvent, { bubbles: true, detail }));
   }
 
   protected get dialog(): HTMLDialogElement {

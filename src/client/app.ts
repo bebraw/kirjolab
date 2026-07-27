@@ -44,7 +44,6 @@ import { WorkspaceLayoutManager } from "./workspace-layout-manager";
 import { workspaceLayoutChangeEvent } from "./workspace-layout-control";
 import { projectReferenceChangedEvent, type ProjectReferenceChanged } from "./project-reference-mutation";
 import { projectResearchChangedEvent, type ProjectResearchChanged } from "./project-research-mutation";
-import { workspaceSettingsActionEvent, type WorkspaceSettingsAction } from "./workspace-settings-panel";
 import {
   researchQuestionWorkflowData,
   reviewerResponseWorkflowData,
@@ -332,11 +331,17 @@ class WorkspaceApp {
     this.#elements.manageWorkspaces.addEventListener("click", () => {
       void this.#elements.workspaceCatalogPanel.open();
     });
-    this.#elements.workspaceSettings.addEventListener("click", () => void this.#openWorkspaceSettings());
-    this.#elements.workspaceSettingsPanel.addEventListener(
-      workspaceSettingsActionEvent,
-      (event) => void this.#handleWorkspaceSettingsResult((event as CustomEvent<WorkspaceSettingsAction>).detail),
-    );
+    this.#elements.workspaceSettingsPanel.bindWorkspace(this.#elements.workspaceSettings, {
+      refreshCatalog: async () => await this.#refreshCatalog(),
+      refreshGitHub: () => void this.#elements.gitHubSyncMenu.refreshWorkspace(true),
+      saveTemplate: async () => await this.#openSaveTemplate(),
+      sources: () => ({
+        catalog: this.#workspaceCatalog,
+        hiddenFileIds: this.#elements.projectFileDialog.hiddenFiles,
+        snapshot: this.#snapshot,
+        workspaceId,
+      }),
+    });
     this.#elements.newWorkspace.addEventListener("click", () => void this.#openNewWorkspace());
     this.#elements.newWorkspaceStartingPoints.addEventListener(startingPointActionEvent, (event) => {
       const action = (event as CustomEvent<StartingPointAction>).detail;
@@ -349,7 +354,7 @@ class WorkspaceApp {
     });
     this.#elements.gitHubSyncMenu.bindWorkspace(apiBase, {
       settings: this.#elements.workspaceSettingsPanel,
-      openSettings: async (checkGitHub) => await this.#openWorkspaceSettings(checkGitHub),
+      openSettings: async (checkGitHub) => await this.#elements.workspaceSettingsPanel.openSettings(checkGitHub),
       refreshProject: async () => await this.#resourceRefresh.request(),
     });
     const githubResult = new URL(location.href).searchParams.get("github");
@@ -799,21 +804,6 @@ class WorkspaceApp {
   #openGitHubImportDialog(): void {
     this.#elements.gitHubImportPanel.open();
     void this.#elements.gitHubImportPanel.refreshConnection();
-  }
-
-  async #openWorkspaceSettings(checkGitHub = true): Promise<void> {
-    await this.#elements.workspaceSettingsPanel.show({
-      catalog: this.#workspaceCatalog,
-      hiddenFileIds: this.#elements.projectFileDialog.hiddenFiles,
-      snapshot: this.#snapshot,
-      workspaceId,
-    });
-    if (checkGitHub) void this.#elements.gitHubSyncMenu.refreshWorkspace(true);
-  }
-
-  async #handleWorkspaceSettingsResult(detail: WorkspaceSettingsAction): Promise<void> {
-    if (detail.action === "save-template") await this.#openSaveTemplate();
-    else await this.#refreshCatalog();
   }
 
   async #openNewWorkspace(): Promise<void> {

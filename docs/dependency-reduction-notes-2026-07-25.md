@@ -6689,6 +6689,28 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,668 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Settings Entry and Outcomes
+
+`WorkspaceSettingsPanel` now binds its project-settings trigger, captures fresh
+canonical view inputs when opening, and invokes typed catalog, template, and
+GitHub callbacks after local actions. `WorkspaceApp` retains those authorities
+without subscribing to or interpreting panel-local action events.
+
+This checkpoint reduces `src/client/app.ts` from 2,295 to 2,285 lines (-10),
+removes two coordinator listener sites, the settings action event and type, and
+the coordinator's open/outcome methods. The existing settings owner grows from
+397 to 425 lines and adds scoped trigger teardown with reconnect support.
+Focused coverage exercises trigger opening, fresh inputs, optional GitHub
+refresh, catalog and template outcomes, persistence, and strict types.
+
+The browser application artifact changes from 841,506 B raw / 226,997 B gzip
+to 841,890 B raw / 227,133 B gzip (+384 B raw / +136 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,669 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

@@ -2,8 +2,6 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { GitHubSyncReview } from "./github-sync-review";
 import {
   WorkspaceSettingsPanel,
-  workspaceSettingsActionEvent,
-  type WorkspaceSettingsAction,
   type WorkspaceSettingsSources,
   type WorkspaceSettingsValue,
   type WorkspaceSettingsView,
@@ -151,7 +149,8 @@ describe("workspace settings panel", () => {
 
   it("owns save and project lifecycle requests", async () => {
     const panel = new TestWorkspaceSettingsPanel();
-    const actions: WorkspaceSettingsAction[] = [];
+    const refreshCatalog = vi.fn();
+    const saveTemplate = vi.fn();
     const assign = vi.fn();
     const duplicate = {
       archivedAt: null,
@@ -171,8 +170,13 @@ describe("workspace settings panel", () => {
     vi.stubGlobal("location", { assign, href: "https://example.test/editor/study?mode=source" });
     vi.stubGlobal("prompt", vi.fn().mockReturnValueOnce("Study copy").mockReturnValueOnce("DELETE"));
     panel.configureGitHub("/api/workspaces/study");
+    panel.bindWorkspace(new EventTarget(), {
+      refreshCatalog,
+      refreshGitHub: vi.fn(),
+      saveTemplate,
+      sources: () => ({ catalog: [], hiddenFileIds: new Set(), snapshot: null, workspaceId: "study" }),
+    });
     panel.setViewForTest(view);
-    panel.addEventListener(workspaceSettingsActionEvent, (event) => actions.push((event as CustomEvent<WorkspaceSettingsAction>).detail));
 
     await panel.saveForTest();
     await panel.actionForTest("save-template");
@@ -180,7 +184,8 @@ describe("workspace settings panel", () => {
     await panel.actionForTest("archive");
     await panel.actionForTest("delete");
 
-    expect(actions).toEqual([{ action: "save-template" }, { action: "catalog-refresh" }]);
+    expect(saveTemplate).toHaveBeenCalledOnce();
+    expect(refreshCatalog).toHaveBeenCalledOnce();
     expect(assign.mock.calls).toEqual([["/editor/study?mode=source&file=file-2"], ["/editor/copy"], ["/"]]);
     expect(fetchMock).toHaveBeenCalledTimes(4);
     expect(panel.closeCount).toBe(1);
@@ -259,6 +264,33 @@ describe("workspace settings panel", () => {
     expect(panel.viewForTest).toMatchObject({ archived: false, templateAllowed: false, title: "" });
     panel.close();
     expect(panel.open).toBe(false);
+  });
+
+  it("binds its entry trigger and optional GitHub refresh", async () => {
+    const panel = new LifecycleWorkspaceSettingsPanel();
+    const trigger = new EventTarget();
+    const refreshGitHub = vi.fn();
+    const sources: WorkspaceSettingsSources = {
+      catalog: [],
+      hiddenFileIds: new Set(),
+      snapshot: null,
+      workspaceId: "study",
+    };
+    panel.bindWorkspace(trigger, {
+      refreshCatalog: vi.fn(),
+      refreshGitHub,
+      saveTemplate: vi.fn(),
+      sources: () => sources,
+    });
+
+    trigger.dispatchEvent(new Event("click"));
+    await vi.waitFor(() => expect(panel.open).toBe(true));
+    expect(refreshGitHub).toHaveBeenCalledOnce();
+
+    panel.close();
+    await panel.openSettings(false);
+    expect(panel.open).toBe(true);
+    expect(refreshGitHub).toHaveBeenCalledOnce();
   });
 
   it("owns its GitHub review presentation and preview actions", async () => {

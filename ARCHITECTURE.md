@@ -106,8 +106,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   lifecycles, their canonical successful-result navigation, local busy and
   failure state, and its current title, archived state, visible entry-file
   choices, publication defaults, and template eligibility derived from
-  canonical workspace inputs. Emit only catalog-refresh or save-as-template
-  outcomes to the application coordinator.
+  canonical workspace inputs. Bind its entry trigger and request canonical
+  inputs, catalog refresh, save-as-template, and GitHub refresh through one
+  typed workspace boundary instead of exposing local action events.
 - Let the GitHub sync-menu Lit component bind the workspace-settings review,
   own online and active-review refresh policy, route Check/Pull/Push/Settings
   actions, and refresh both canonical project data after Pull and menu status

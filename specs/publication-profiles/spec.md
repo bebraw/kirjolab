@@ -28,9 +28,10 @@ changing its canonical Markdown or shared references.
   catalog, workspace, and hidden-file inputs, project lifecycle requests,
   destructive confirmation, local busy and error state, archive and template
   visibility, modal lifecycle, nested GitHub-sync presentation boundary, and
-  canonical post-request navigation plus typed catalog-refresh and save-as-
-  template outcomes. The workspace coordinator retains synchronization,
-  template, catalog refresh, and toast policy.
+  canonical post-request navigation. It binds its entry trigger and requests
+  canonical inputs, catalog refresh, save-as-template, and GitHub refresh
+  through one typed workspace boundary. The workspace coordinator retains
+  synchronization, template, catalog refresh, and toast policy.
 
 ### Security and Validation
 
