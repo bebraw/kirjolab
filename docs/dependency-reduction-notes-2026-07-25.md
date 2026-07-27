@@ -9207,6 +9207,27 @@ to 849,035 B raw / 228,786 B gzip (+40 B raw / +11 B gzip). Styles and direct
 and unique production package counts remain unchanged at 135,411 B raw /
 23,373 B gzip, 18, and 150.
 
+## Continued Lit Ownership: Assistant Passage Derivation
+
+`AssistantGenerationPresenter` now derives insertion and scoped passages from
+canonical file identity, manuscript text, and target-range providers plus its
+owned task scope. `WorkspaceApp` no longer asks the presenter for scope, derives
+assistant-only passage objects, and returns them to that same presenter; it
+retains Yjs target resolution and canonical authoring authority.
+
+This checkpoint reduces `src/client/app.ts` from 1,190 to 1,177 lines (-13) and
+grows the assistant-generation presenter from 616 to 630 lines (+14), a
+combined one-line runtime increase. Focused and affected coverage passes all 17
+presenter cases and 19 related cases, including insertion and scoped targets,
+generation input, availability, target presentation, workflow routing, and
+application contracts. Full native CI passes all 1,721 unit/coverage tests, 121
+Workers-runtime tests, and 74 browser tests.
+
+The browser application artifact changes from 849,035 B raw / 228,786 B gzip
+to 849,089 B raw / 228,796 B gzip (+54 B raw / +10 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

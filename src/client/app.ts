@@ -28,7 +28,6 @@ import { loadWorkspaceSnapshot, parseWorkspaceSnapshot, WorkspaceAccessError } f
 import { CoalescedRefresh, DebouncedAsyncQueue } from "./collaboration";
 import { CollaborationSession } from "./collaboration-session";
 import { CollaborationSocket } from "./collaboration-socket";
-import { resolveAssistantTarget } from "./assistant-operations";
 import { createCitationInsertion, type CitationContext } from "./citations";
 import "./manuscript-map-panel";
 import {
@@ -239,10 +238,11 @@ class WorkspaceApp {
 
   #bindUi(): void {
     this.#elements.assistantGenerationPresenter.bindAuthoring({
+      fileId: () => this.#activeFileId,
       manuscript: () => this.#activeFileText.toString(),
-      passage: (kind) => this.#assistantPassage(kind),
       sourceRevision: () => this.#revision,
       stableDocument: () => this.#collaboration.stable,
+      target: () => this.#resolvedAuthoringTarget(),
     });
     this.#elements.applicationVersion.bindNotice((message) => this.#showToast(message));
     this.#elements.collaboratorSelections.bindSelectionChanged(() => this.#renderSourceEditorHighlight());
@@ -963,19 +963,6 @@ class WorkspaceApp {
     if (!resolved || resolved.start === resolved.end) return null;
     const excerpt = this.#activeFileText.toString().slice(resolved.start, resolved.end);
     return excerpt.trim() && this.#activeFileId ? { fileId: this.#activeFileId, ...resolved, excerpt } : null;
-  }
-
-  #assistantPassage(kind: "insertion" | "scope"): AuthoringPassage | null {
-    if (!this.#activeFileId) return null;
-    const target = this.#resolvedAuthoringTarget();
-    if (!target) return null;
-    const source = this.#activeFileText.toString();
-    const { start, end, text } =
-      kind === "scope"
-        ? resolveAssistantTarget(source, target.start, target.end, this.#elements.assistantGenerationPresenter.targetScope())
-        : { start: target.start, end: target.end, text: source.slice(target.start, target.end) };
-    if (kind === "scope" && !text.trim()) return null;
-    return { fileId: this.#activeFileId, start, end, excerpt: text };
   }
 
   #insertSourceSyntax(kind: EditorSyntaxKind, template: EditorSyntaxTemplate): void {

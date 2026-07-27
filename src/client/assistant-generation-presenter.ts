@@ -85,10 +85,11 @@ export interface AssistantAvailabilityInput {
 }
 
 export interface AssistantAuthoringSources {
+  readonly fileId: () => string | null;
   readonly manuscript: () => string;
-  readonly passage: (kind: "insertion" | "scope") => AssistantAuthoringPassage | null;
   readonly sourceRevision: () => number;
   readonly stableDocument: () => boolean;
+  readonly target: () => Pick<AssistantAuthoringPassage, "start" | "end"> | null;
 }
 
 export interface AssistantWorkflowCoordinator {
@@ -149,6 +150,20 @@ export class AssistantGenerationPresenter extends LitElement {
   private get authoringSources(): AssistantAuthoringSources {
     if (!this.authoring) throw new Error("Assistant authoring sources are not bound");
     return this.authoring;
+  }
+
+  private authoringPassage(kind: "insertion" | "scope"): AssistantAuthoringPassage | null {
+    const authoring = this.authoringSources;
+    const fileId = authoring.fileId();
+    const target = authoring.target();
+    if (!fileId || !target) return null;
+    const source = authoring.manuscript();
+    const { start, end, text } =
+      kind === "scope"
+        ? resolveAssistantTarget(source, target.start, target.end, this.targetScope())
+        : { start: target.start, end: target.end, text: source.slice(target.start, target.end) };
+    if (kind === "scope" && !text.trim()) return null;
+    return { fileId, start, end, excerpt: text };
   }
 
   private get workflowCoordinator(): AssistantWorkflowCoordinator {
@@ -244,8 +259,8 @@ export class AssistantGenerationPresenter extends LitElement {
   private generationInput(): AssistantGenerationInput | null {
     const authoring = this.authoringSources;
     const input = this.prepareGeneration({
-      insertionTarget: authoring.passage("insertion"),
-      passage: authoring.passage("scope"),
+      insertionTarget: this.authoringPassage("insertion"),
+      passage: this.authoringPassage("scope"),
       snapshotAvailable: this.resourceRoutes.project() !== null,
       sourceRevision: authoring.sourceRevision(),
       stableDocument: authoring.stableDocument(),
@@ -436,16 +451,15 @@ export class AssistantGenerationPresenter extends LitElement {
   refreshAvailability(): void {
     const authoring = this.authoringSources;
     this.presentAvailability({
-      hasInsertionTarget: authoring.passage("insertion") !== null,
-      hasPassage: authoring.passage("scope") !== null,
+      hasInsertionTarget: this.authoringPassage("insertion") !== null,
+      hasPassage: this.authoringPassage("scope") !== null,
       stableDocument: authoring.stableDocument(),
     });
   }
 
   refreshTarget(): void {
-    const authoring = this.authoringSources;
-    const target = authoring.passage("insertion");
-    this.presentTarget(authoring.passage("scope")?.excerpt ?? null, target);
+    const target = this.authoringPassage("insertion");
+    this.presentTarget(this.authoringPassage("scope")?.excerpt ?? null, target);
   }
 
   presentTask(resetResult = false): void {

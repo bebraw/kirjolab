@@ -105,7 +105,7 @@ function input(operationId: string): AssistantGenerationInput {
     evidence: { annotationItems: [], annotationReferences: [], items: [], references: [] },
     insertionTarget: passage,
     instruction: "Keep the result precise.",
-    manuscript: "Before\n\nTarget manuscript\n\nAfter",
+    manuscript: "\nTarget manuscript\n\nAfter",
     operation: assistantOperationDefinition(operationId),
     passage,
     provider,
@@ -138,10 +138,11 @@ function setup() {
 
 function authoringSources(overrides: Partial<AssistantAuthoringSources> = {}): AssistantAuthoringSources {
   return {
+    fileId: () => passage.fileId,
     manuscript: () => input("revise-selection").manuscript,
-    passage: () => passage,
     sourceRevision: () => 7,
     stableDocument: () => true,
+    target: () => ({ end: passage.end, start: passage.start }),
     ...overrides,
   };
 }
@@ -432,8 +433,6 @@ describe("assistant generation presenter", () => {
 
   it("derives generation, availability, and target inputs from bound authoring sources", async () => {
     const { elements, presenter } = setup();
-    const insertion = { ...passage, excerpt: "Insertion target" };
-    const scoped = { ...passage, excerpt: "Scoped passage" };
     const { manuscript: _manuscript, ...context } = input("revise-selection");
     const prepareGeneration = vi.spyOn(presenter, "prepareGeneration").mockReturnValue(context);
     const generate = vi.spyOn(presenter, "generate").mockResolvedValue(null);
@@ -441,8 +440,7 @@ describe("assistant generation presenter", () => {
     const presentTarget = vi.spyOn(presenter, "presentTarget");
     presenter.bindAuthoring(
       authoringSources({
-        manuscript: () => "Current manuscript",
-        passage: (kind) => (kind === "insertion" ? insertion : scoped),
+        manuscript: () => input("revise-selection").manuscript,
         sourceRevision: () => 11,
         stableDocument: () => false,
       }),
@@ -456,15 +454,15 @@ describe("assistant generation presenter", () => {
     await vi.waitFor(() => expect(generate).toHaveBeenCalledOnce());
 
     expect(presentAvailability).toHaveBeenCalledWith({ hasInsertionTarget: true, hasPassage: true, stableDocument: false });
-    expect(presentTarget).toHaveBeenCalledWith(scoped.excerpt, insertion);
+    expect(presentTarget).toHaveBeenCalledWith(passage.excerpt, passage);
     expect(prepareGeneration).toHaveBeenCalledWith({
-      insertionTarget: insertion,
-      passage: scoped,
+      insertionTarget: passage,
+      passage,
       snapshotAvailable: false,
       sourceRevision: 11,
       stableDocument: false,
     });
-    expect(generate).toHaveBeenCalledWith({ ...context, manuscript: "Current manuscript" });
+    expect(generate).toHaveBeenCalledWith({ ...context, manuscript: input("revise-selection").manuscript });
   });
 
   it("owns generation workflow and status orchestration", async () => {
