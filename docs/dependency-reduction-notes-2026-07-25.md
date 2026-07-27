@@ -5677,6 +5677,31 @@ gzip, 18, and 150.
 Full native CI passes all 1,625 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Workspace Resource Projection
+
+`ContextResourcePresenter` now synchronizes the bounded evidence, annotation,
+publication, claim, comment, and candidate owners from one canonical workspace
+snapshot. It also derives the active PDF's annotation subset for the viewer.
+`WorkspaceApp` retains snapshot authority, context reconciliation, PDF
+rendering, model availability, routing, refresh, and notification policy.
+
+This checkpoint reduces `src/client/app.ts` from 3,171 to 3,162 lines (-9)
+and grows the existing resource presenter from 130 to 151 lines. Runtime source
+across those two files grows by 12 lines while replacing eight sibling
+presentation calls and one coordinator-side annotation filter with one typed
+boundary. Five direct presenter cases cover publication, candidate, all three
+PDF modes, inactive state, scroll capture, canonical workspace fan-out,
+selected-evidence reuse, comment counts, active-PDF annotation filtering, and
+strict client and Workers types.
+
+The browser application artifact changes from 830,455 B raw / 225,002 B gzip
+to 830,551 B raw / 224,852 B gzip (+96 B raw / -150 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,626 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

@@ -1,12 +1,19 @@
 import { html, LitElement, type TemplateResult } from "lit";
 import type { LibraryPdfArtifact, ProjectReferencePdf } from "../domain/reference-library";
-import type { WorkspaceSnapshot } from "../domain/workspace";
+import type { AnnotationResource, WorkspaceSnapshot } from "../domain/workspace";
+import { AssistantWorkflowStatus } from "./assistant-workflow-status";
+import { CandidateListPanel } from "./candidate-list-panel";
 import { CandidateReviewPanel } from "./candidate-review-panel";
+import { ClaimListPanel } from "./claim-list-panel";
 import { LibraryPdfInspector } from "./library-pdf-inspector";
+import { ManuscriptCommentList } from "./manuscript-comment-list";
 import { ProjectAnnotationForm } from "./project-annotation-form";
+import { ProjectEvidencePanel } from "./project-evidence-panel";
 import { PublicationContextPanel } from "./publication-context-panel";
 import { PublicationIntakePanel } from "./publication-intake-panel";
+import { PublicationListPanel } from "./publication-list-panel";
 import type { ResearchContextTab, ResearchResourceTab } from "./research-context";
+import { WorkspaceRailTabs } from "./workspace-rail-tabs";
 
 export interface ContextResourceSources {
   readonly activeTab: ResearchResourceTab | undefined;
@@ -24,6 +31,20 @@ export interface ContextResourcePresentation {
 }
 
 export class ContextResourcePresenter extends LitElement {
+  presentWorkspace(snapshot: WorkspaceSnapshot, renderedPdfId: string | undefined): AnnotationResource[] {
+    const workflow = this.element("assistant-workflow-status", AssistantWorkflowStatus);
+    workflow?.reconcileEvidence(snapshot.annotations, snapshot.claims);
+    const selectedEvidence = workflow?.selectedEvidenceKeys ?? new Set<string>();
+    this.element("project-evidence-panel", ProjectEvidencePanel)?.setEvidence(snapshot, selectedEvidence);
+    this.element("project-annotation-form", ProjectAnnotationForm)?.setPdfs(snapshot.pdfs, renderedPdfId ?? "");
+    this.element("publication-list-panel", PublicationListPanel)?.setWorkspace(snapshot);
+    this.element("claim-list-panel", ClaimListPanel)?.setWorkspace(snapshot, selectedEvidence);
+    const comments = this.element("manuscript-comment-list-panel", ManuscriptCommentList);
+    if (comments) this.element("workspace-rail-tabs", WorkspaceRailTabs)?.setCommentCount(comments.setComments(snapshot.comments));
+    this.element("candidate-list-panel", CandidateListPanel)?.setCandidates(snapshot.candidates);
+    return renderedPdfId ? snapshot.annotations.filter(({ pdfId }) => pdfId === renderedPdfId) : [];
+  }
+
   resourceScrollTop(tab: ResearchContextTab): number {
     if (tab.kind === "publication") return this.element("publication-context-panel", PublicationContextPanel)?.scrollPosition ?? 0;
     if (tab.kind === "candidate") return this.element("candidate-review-panel", CandidateReviewPanel)?.scrollPosition ?? 0;

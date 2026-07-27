@@ -175,6 +175,12 @@ changing their canonical data, selector, authorization, or rendering contracts.
   plus fixed-panel scroll capture and restoration during the same canonical tab
   update. The workspace coordinator retains canonical tab state, authorized
   content loading, content rendering, and resource-panel scroll restoration.
+- A bounded resource-context presenter synchronizes the evidence, annotation,
+  publication, claim, comment, and candidate Lit owners from the canonical
+  workspace snapshot and derives only the active PDF's annotation projection
+  for the viewer. The coordinator retains snapshot authority, context
+  reconciliation, PDF rendering, model availability, routing, refresh, and
+  notification policy.
 - Reconciliation authorizes `pdf:` tabs from the workspace snapshot and
   `library-pdf:` tabs from the current owner-library snapshot; neither scope
   grants the other.

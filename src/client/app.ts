@@ -1756,16 +1756,7 @@ class WorkspaceApp {
     if (!this.#snapshot) return;
     this.#captureActiveContextState();
     this.#contextState = reconcileResearchContext(this.#contextState, this.#researchContextAuthorization());
-    this.#elements.assistantWorkflowStatus.reconcileEvidence(this.#snapshot.annotations, this.#snapshot.claims);
-    this.#elements.projectEvidencePanel.setEvidence(this.#snapshot, this.#elements.assistantWorkflowStatus.selectedEvidenceKeys);
-    this.#elements.projectAnnotationForm.setPdfs(this.#snapshot.pdfs, this.#renderedPdfId ?? "");
-    this.#elements.publicationListPanel.setWorkspace(this.#snapshot);
-    this.#elements.claimListPanel.setWorkspace(this.#snapshot, this.#elements.assistantWorkflowStatus.selectedEvidenceKeys);
-    this.#elements.workspaceRailTabs.setCommentCount(this.#elements.manuscriptCommentListPanel.setComments(this.#snapshot.comments));
-    this.#elements.candidateListPanel.setCandidates(this.#snapshot.candidates);
-    this.#pdfViewer.updateAnnotations(
-      this.#renderedPdfId ? this.#snapshot.annotations.filter((annotation) => annotation.pdfId === this.#renderedPdfId) : [],
-    );
+    this.#pdfViewer.updateAnnotations(this.#elements.contextResourcePresenter.presentWorkspace(this.#snapshot, this.#renderedPdfId));
     this.#renderResearchContext();
     this.#updateModelAvailability();
     this.#syncWorkspaceRoute("replace");

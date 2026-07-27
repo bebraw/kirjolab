@@ -1,13 +1,20 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { LibraryPdfArtifact, ProjectReferencePdf } from "../domain/reference-library";
 import { workspaceSnapshotFixture } from "../test-support/workspace-fixture";
+import { AssistantWorkflowStatus } from "./assistant-workflow-status";
+import { CandidateListPanel } from "./candidate-list-panel";
 import { CandidateReviewPanel } from "./candidate-review-panel";
+import { ClaimListPanel } from "./claim-list-panel";
 import { ContextResourcePresenter, type ContextResourceSources } from "./context-resource-presenter";
 import { LibraryPdfInspector } from "./library-pdf-inspector";
+import { ManuscriptCommentList } from "./manuscript-comment-list";
 import { ProjectAnnotationForm } from "./project-annotation-form";
+import { ProjectEvidencePanel } from "./project-evidence-panel";
 import { PublicationContextPanel } from "./publication-context-panel";
 import { PublicationIntakePanel } from "./publication-intake-panel";
+import { PublicationListPanel } from "./publication-list-panel";
 import type { ResearchResourceTab } from "./research-context";
+import { WorkspaceRailTabs } from "./workspace-rail-tabs";
 
 const libraryPdf: LibraryPdfArtifact = {
   contentType: "application/pdf",
@@ -47,12 +54,19 @@ function sources(activeTab: ResearchResourceTab | undefined): ContextResourceSou
 function setup() {
   const presenter = new ContextResourcePresenter();
   const elements = {
+    "assistant-workflow-status": new AssistantWorkflowStatus(),
+    "candidate-list-panel": new CandidateListPanel(),
     "candidate-review-panel": new CandidateReviewPanel(),
+    "claim-list-panel": new ClaimListPanel(),
     "library-pdf-inspector": new LibraryPdfInspector(),
+    "manuscript-comment-list-panel": new ManuscriptCommentList(),
     "project-annotation-form": new ProjectAnnotationForm(),
+    "project-evidence-panel": new ProjectEvidencePanel(),
     "publication-context-panel": new PublicationContextPanel(),
     "publication-intake-panel": new PublicationIntakePanel(),
+    "publication-list-panel": new PublicationListPanel(),
     "paper-reader": Object.assign(new HTMLElement(), { scrollTop: 36 }),
+    "workspace-rail-tabs": new WorkspaceRailTabs(),
   };
   Object.defineProperty(elements["publication-context-panel"], "querySelector", { configurable: true, value: () => null });
   Object.defineProperty(elements["candidate-review-panel"], "querySelector", { configurable: true, value: () => null });
@@ -129,5 +143,46 @@ describe("context resource presenter", () => {
     );
     expect(presenter.resourceScrollTop({ id: "candidate:1", key: "candidate:candidate:1", kind: "candidate", scrollTop: 0 })).toBe(24);
     expect(presenter.resourceScrollTop(resourceTab("pdf", "pdf:1"))).toBe(36);
+  });
+
+  it("projects canonical workspace resources across their bounded Lit owners", () => {
+    const { elements, presenter } = setup();
+    const snapshot = {
+      ...workspaceSnapshotFixture,
+      annotations: [
+        {
+          comment: "Evidence",
+          createdAt: "created",
+          fragments: [],
+          id: "annotation-1",
+          page: 2,
+          pdfId: "pdf-1",
+          prefix: "",
+          quote: "Quoted evidence",
+          rects: [],
+          suffix: "",
+          updatedAt: "updated",
+        },
+      ],
+    };
+    const reconcileEvidence = vi.spyOn(elements["assistant-workflow-status"], "reconcileEvidence");
+    const setEvidence = vi.spyOn(elements["project-evidence-panel"], "setEvidence");
+    const setPdfs = vi.spyOn(elements["project-annotation-form"], "setPdfs");
+    const setWorkspace = vi.spyOn(elements["publication-list-panel"], "setWorkspace");
+    const setClaims = vi.spyOn(elements["claim-list-panel"], "setWorkspace");
+    const setComments = vi.spyOn(elements["manuscript-comment-list-panel"], "setComments").mockReturnValue(3);
+    const setCommentCount = vi.spyOn(elements["workspace-rail-tabs"], "setCommentCount");
+    const setCandidates = vi.spyOn(elements["candidate-list-panel"], "setCandidates");
+
+    expect(presenter.presentWorkspace(snapshot, "pdf-1")).toEqual(snapshot.annotations);
+    expect(reconcileEvidence).toHaveBeenCalledWith(snapshot.annotations, snapshot.claims);
+    expect(setEvidence).toHaveBeenCalledWith(snapshot, expect.any(Set));
+    expect(setPdfs).toHaveBeenCalledWith(snapshot.pdfs, "pdf-1");
+    expect(setWorkspace).toHaveBeenCalledWith(snapshot);
+    expect(setClaims).toHaveBeenCalledWith(snapshot, expect.any(Set));
+    expect(setComments).toHaveBeenCalledWith(snapshot.comments);
+    expect(setCommentCount).toHaveBeenCalledWith(3);
+    expect(setCandidates).toHaveBeenCalledWith(snapshot.candidates);
+    expect(presenter.presentWorkspace(snapshot, undefined)).toEqual([]);
   });
 });
