@@ -1024,8 +1024,10 @@ reason to wrap static markup mechanically.
   map, bidirectional composition-offset resolution, native source-viewport
   centering and centered-offset derivation, native click, select, and
   navigation-key listeners, and explicit-versus-automatic typed callback
-  routing. The application coordinator retains active-file identity,
-  responsive sync availability, Preview DOM navigation, caret placement, and
+  routing. It also derives responsive automatic-sync availability and chooses
+  the centered or selected source offset from coordinator-supplied active
+  context and layout inputs. The application coordinator retains active-file,
+  context, and layout authority, Preview DOM navigation, caret placement, and
   focus policy.
 - The preview navigation control owns browser-local top-navigation visibility,
   stored restoration, toggle and restore presentation, ARIA and title copy,

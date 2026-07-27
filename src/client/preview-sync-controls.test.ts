@@ -60,10 +60,14 @@ describe("preview sync controls", () => {
             },
       ),
     });
-    const source = Object.assign(new EventTarget(), { clientHeight: 100, scrollTop: 60, value: "first\nsecond\nthird" });
+    const source = Object.assign(new EventTarget(), { clientHeight: 100, scrollTop: 60, selectionEnd: 13, value: "first\nsecond\nthird" });
     const highlight = document.createElement("div");
 
     controls.bindSource(source as HTMLTextAreaElement, highlight, { previewToSource, sourceToPreview });
+    controls.setSourceMap([
+      { fileId: "part", includeChain: [], outputEnd: 20, outputStart: 0, path: "part.md", sourceEnd: 20, sourceStart: 0 },
+    ]);
+    vi.stubGlobal("window", { matchMedia: vi.fn(() => ({ matches: true })) });
 
     source.dispatchEvent(new Event("click"));
     source.dispatchEvent(new Event("select"));
@@ -77,6 +81,10 @@ describe("preview sync controls", () => {
     controls.syncForTest("preview-to-source");
 
     expect(controls.sourceOffsetAtCenter()).toBe(6);
+    expect(controls.activeSourcePreviewOffsets("part", true, true, false)).toEqual([6]);
+    expect(controls.activeSourcePreviewOffsets("part", false, true, true)).toEqual([13]);
+    expect(controls.activeSourcePreviewOffsets("part", false, false, true)).toEqual([]);
+    expect(controls.activeSourcePreviewOffsets("part", false, true, false)).toEqual([]);
     controls.centerSourceOffset(13);
     expect(source.scrollTop).toBe(160);
     expect(sourceToPreview.mock.calls).toEqual([[false], [false], [false], [true]]);

@@ -910,19 +910,12 @@ class WorkspaceApp {
   }
 
   #syncPreviewFromSource(explicit = true): void {
-    if (!this.#previewSyncAvailable(explicit)) return;
     const fileId = this.#activeFileId ?? this.#snapshot?.entryFileId ?? "";
-    const sourceOffset = explicit ? this.#elements.previewSyncControls.sourceOffsetAtCenter() : this.#elements.source.selectionEnd;
-    const offsets = this.#elements.previewSyncControls.previewOffsets(fileId, sourceOffset);
+    const previewActive = this.#contextState.activeKey === RESEARCH_PREVIEW_KEY;
+    const splitLayout = this.#elements.workspaceSurfaces.dataset.layout === "split";
+    const offsets = this.#elements.previewSyncControls.activeSourcePreviewOffsets(fileId, explicit, previewActive, splitLayout);
     if (offsets.length === 0) return;
     this.#elements.workspacePreview.revealNearestSource(offsets);
-  }
-
-  #previewSyncAvailable(explicit: boolean): boolean {
-    return (
-      this.#contextState.activeKey === RESEARCH_PREVIEW_KEY &&
-      (explicit || (window.matchMedia("(min-width: 72rem)").matches && this.#elements.workspaceSurfaces.dataset.layout === "split"))
-    );
   }
 
   #liveProjectFiles(): ProjectFile[] {

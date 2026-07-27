@@ -7637,6 +7637,30 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,698 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Responsive Preview Sync
+
+`PreviewSyncControls` now derives whether explicit or automatic source-to-
+Preview synchronization is available and chooses the centered versus selected
+source offset before resolving it through the current composition map.
+`WorkspaceApp` supplies active-file, Preview-context, and layout inputs and
+retains the resulting Preview DOM navigation.
+
+This checkpoint reduces `src/client/app.ts` from 1,863 to 1,856 lines (-7) and
+grows the Preview synchronization owner from 151 to 157 lines (+6). Runtime
+source across those files decreases by one line while deleting the
+coordinator's media-query eligibility helper and source-offset branch. Focused
+coverage exercises explicit, wide split automatic, inactive-context, compact-
+layout, centered, selected, existing source-map, listener, application-contract,
+and strict-type behavior.
+
+The browser application artifact changes from 844,605 B raw / 229,036 B gzip
+to 844,654 B raw / 229,069 B gzip (+49 B raw / +33 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,698 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

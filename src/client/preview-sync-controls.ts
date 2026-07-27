@@ -39,6 +39,12 @@ export class PreviewSyncControls extends LitElement {
     return previewOffsetsForSourceLocation(this.#sourceMap, fileId, sourceOffset);
   }
 
+  activeSourcePreviewOffsets(fileId: string, explicit: boolean, previewActive: boolean, splitLayout: boolean): readonly number[] {
+    if (!previewActive || (!explicit && (!splitLayout || !window.matchMedia("(min-width: 72rem)").matches))) return [];
+    const sourceOffset = explicit ? this.sourceOffsetAtCenter() : (this.#source?.selectionEnd ?? 0);
+    return this.previewOffsets(fileId, sourceOffset);
+  }
+
   centerSourceOffset(sourceOffset: number): void {
     const source = this.#source;
     const sourceHighlight = this.#sourceHighlight;
