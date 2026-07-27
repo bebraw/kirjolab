@@ -1,10 +1,13 @@
 import { html, LitElement, type TemplateResult } from "lit";
 import { citationContextAtPosition, type CitationContext } from "./citations";
 
-export const sourceCitationOpenEvent = "source-citation-open";
-
 export class SourceCitationControl extends LitElement {
   #context: CitationContext | null = null;
+  #openContext: ((context: CitationContext) => void) | null = null;
+
+  bindNavigation(openContext: (context: CitationContext) => void): void {
+    this.#openContext = openContext;
+  }
 
   setCaret(source: string, position: number): void {
     this.#context = citationContextAtPosition(source, position);
@@ -13,13 +16,7 @@ export class SourceCitationControl extends LitElement {
 
   protected openCitation(): void {
     if (!this.#context) return;
-    this.dispatchEvent(
-      new CustomEvent<CitationContext>(sourceCitationOpenEvent, {
-        bubbles: true,
-        composed: true,
-        detail: this.#context,
-      }),
-    );
+    this.#openContext?.(this.#context);
   }
 
   override connectedCallback(): void {

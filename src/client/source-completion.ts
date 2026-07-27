@@ -40,7 +40,6 @@ export interface SourceCompletionInputs {
 
 type SourceCompletionProject = Pick<SourceCompletionInputs, "files" | "projectReferences">;
 
-export const sourceCompletionActionEvent = "source-completion-action";
 const scopeStorageKey = "kirjolab:citation-completion-scope";
 const editorRefreshEvents = ["click", "focus", "input", "keyup", "select"] as const;
 
@@ -58,6 +57,7 @@ export class SourceCompletion extends LitElement {
   private libraryReferences: CitationCompletionReferences | null | undefined = null;
   private dismissTimer: number | undefined;
   private onEditorChange: () => void = () => undefined;
+  private acceptIntent: ((intent: SourceCompletionIntent) => void) | null = null;
 
   constructor() {
     super();
@@ -79,6 +79,10 @@ export class SourceCompletion extends LitElement {
     source.addEventListener("blur", this.handleEditorBlur);
     for (const eventName of editorRefreshEvents) source.addEventListener(eventName, this.handleEditorChange);
     scopeSelect.addEventListener("change", this.handleScopeChange);
+  }
+
+  bindAcceptance(acceptIntent: (intent: SourceCompletionIntent) => void): void {
+    this.acceptIntent = acceptIntent;
   }
 
   show(options: readonly SourceCompletionOption[], source: HTMLTextAreaElement): void {
@@ -226,7 +230,7 @@ export class SourceCompletion extends LitElement {
   }
 
   protected emitIntent(intent: SourceCompletionIntent): void {
-    this.dispatchEvent(new CustomEvent<SourceCompletionIntent>(sourceCompletionActionEvent, { bubbles: true, detail: intent }));
+    this.acceptIntent?.(intent);
   }
 
   protected position(source: HTMLTextAreaElement, start: number): void {

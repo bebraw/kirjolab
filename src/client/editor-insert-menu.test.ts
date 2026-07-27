@@ -1,12 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ProjectFile } from "../domain/project-files";
-import {
-  EditorInsertMenu,
-  editorInsertActionEvent,
-  type EditorInsertAction,
-  type EditorSyntaxKind,
-  type EditorSyntaxTemplate,
-} from "./editor-insert-menu";
+import { EditorInsertMenu, type EditorSyntaxKind, type EditorSyntaxTemplate } from "./editor-insert-menu";
 
 const createdAt = "2026-07-25T00:00:00.000Z";
 const mainFile: ProjectFile = {
@@ -28,12 +22,12 @@ class TestEditorInsertMenu extends EditorInsertMenu {
     return this.createRenderRoot();
   }
 
-  emitForTest(action: EditorInsertAction): void {
-    this.emitAction(action);
+  selectSyntaxForTest(kind: EditorSyntaxKind, template: EditorSyntaxTemplate): void {
+    this.insertSyntax(kind, template);
   }
 
-  selectSyntaxForTest(kind: EditorSyntaxKind, template: EditorSyntaxTemplate): void {
-    this.emitForTest({ action: "syntax", kind, template });
+  includeFileForTest(relativePath: string, path: string): void {
+    this.includeFile(relativePath, path);
   }
 }
 
@@ -48,14 +42,15 @@ describe("editor insert menu", () => {
     expect(menu.renderForTest()).toBeDefined();
   });
 
-  it("emits syntax and relative include intents", () => {
+  it("binds syntax and relative include intents", () => {
     const menu = new TestEditorInsertMenu();
-    const actions: EditorInsertAction[] = [];
-    menu.addEventListener(editorInsertActionEvent, (event) => {
-      actions.push((event as CustomEvent<EditorInsertAction>).detail);
+    const actions: unknown[] = [];
+    menu.bind({
+      includeFile: (relativePath, path) => actions.push({ action: "include-file", path, relativePath }),
+      insertSyntax: (kind, template) => actions.push({ action: "syntax", kind, template }),
     });
     menu.selectSyntaxForTest("citation", { text: ":cite[key]", select: "key" });
-    menu.emitForTest({ action: "include-file", path: mainFile.path, relativePath: "../main.md" });
+    menu.includeFileForTest("../main.md", mainFile.path);
     expect(actions).toEqual([
       { action: "syntax", kind: "citation", template: { text: ":cite[key]", select: "key" } },
       { action: "include-file", path: "main.md", relativePath: "../main.md" },

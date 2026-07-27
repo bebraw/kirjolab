@@ -225,9 +225,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   snapshot application, selection, rendering, and the global toast outlet in
   the workspace coordinator.
 - Let the editor Insert menu own the scholarly syntax templates it displays and
-  emit those templates with typed syntax choices. Keep passage-aware link
-  adaptation, collaborative selection resolution, and Yjs edits in the
-  workspace coordinator.
+  route template and relative-include choices through one typed binding. Keep
+  passage-aware link adaptation, collaborative selection resolution, and Yjs
+  edits in the workspace coordinator.
 - Let the project-image upload control own file-input state, sequential upload
   transport, response validation, duplicate-submit gating, and retryable local
   status. Emit only the final validated workspace snapshot and completion
@@ -691,8 +691,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   consequences; persist citation suggestion scope there; detect citation and
   include contexts from the bound editor there; rank
   and adapt candidates there, own empty-state hiding and popup positioning
-  there, dismiss locally on Escape or editor blur, and emit the selected
-  candidate with its replacement context as one typed intent. Derive citation
+  there, dismiss locally on Escape or editor blur, and invoke one typed
+  acceptance binding with the selected candidate and its replacement context.
+  Derive citation
   and project-relative include candidates there from coordinator-supplied
   canonical project files and reference links. Let the component load, validate,
   and cache its private-Library candidate input only when that local scope is

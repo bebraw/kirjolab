@@ -1023,8 +1023,8 @@ reason to wrap static markup mechanically.
   source-editor ARIA synchronization. It also binds the editor keyboard and
   blur lifecycle, dismisses locally without an external intent, owns
   browser-local citation-scope persistence, rerenders locally when that scope
-  changes, and emits only a typed acceptance intent. Acceptance carries the component-selected
-  candidate and replacement context, removing five coordinator caches and the
+  changes, and invokes only a typed acceptance binding. Acceptance carries the
+  component-selected candidate and replacement context, removing five coordinator caches and the
   completion-kind discriminator. It also replaces two coordinator context-
   detection and presentation methods plus both candidate projections. The
   component also replaces the coordinator's private-Library request, validation,
@@ -1032,7 +1032,8 @@ reason to wrap static markup mechanically.
   project files and references and retains private-Library linking, Yjs edits,
   and caret restoration.
 - The source citation control owns caret-context parsing and action
-  availability and emits one typed resolved-citation intent. The application
+  availability and invokes one typed navigation binding with the resolved
+  citation. The application
   coordinator retains publication resolution, grouped-citation policy, and
   context navigation.
 - The existing PDF viewer owns its complete status presentation, including

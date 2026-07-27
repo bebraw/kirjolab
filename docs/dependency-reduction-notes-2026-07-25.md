@@ -6869,6 +6869,30 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,670 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Authoring Control Bindings
+
+`EditorInsertMenu`, `SourceCompletion`, and `SourceCitationControl` now route
+syntax and include insertion, completion acceptance, and resolved citation
+navigation through narrow typed bindings. `WorkspaceApp` retains collaborative
+selection resolution, authorized Yjs edits, private-Library linking,
+publication resolution, navigation, and notification policy.
+
+This checkpoint reduces `src/client/app.ts` from 2,244 to 2,240 lines (-4),
+removes three coordinator listener sites and all three public action-event
+contracts, and removes the editor insert-action union. Runtime source across
+the four files increases by three lines because the components expose explicit
+binding methods and keep safe unbound behavior. Focused coverage exercises
+syntax and relative includes, keyboard completion, editor binding, citation
+presence and absence, and strict types.
+
+The browser application artifact changes from 840,806 B raw / 226,988 B gzip
+to 840,669 B raw / 226,983 B gzip (-137 B raw / -5 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,670 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

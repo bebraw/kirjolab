@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { sourceCitationOpenEvent, SourceCitationControl } from "./source-citation-control";
+import { SourceCitationControl } from "./source-citation-control";
 import type { CitationContext } from "./citations";
 
 class TestSourceCitationControl extends SourceCitationControl {
@@ -17,12 +17,10 @@ class TestSourceCitationControl extends SourceCitationControl {
 }
 
 describe("source citation control", () => {
-  it("emits the citation context at the active caret", () => {
+  it("opens the citation context at the active caret", () => {
     const control = new TestSourceCitationControl();
     const contexts: CitationContext[] = [];
-    control.addEventListener(sourceCitationOpenEvent, (event) => {
-      contexts.push((event as CustomEvent<CitationContext>).detail);
-    });
+    control.bindNavigation((context) => contexts.push(context));
 
     control.setCaret('See :cite[merton1942]{locator="p. 4"}.', 12);
     control.openForTest();
@@ -32,10 +30,10 @@ describe("source citation control", () => {
     expect(control.rootForTest()).toBe(control);
   });
 
-  it("does not emit outside a citation", () => {
+  it("does not open outside a citation", () => {
     const control = new TestSourceCitationControl();
     let opened = false;
-    control.addEventListener(sourceCitationOpenEvent, () => {
+    control.bindNavigation(() => {
       opened = true;
     });
 

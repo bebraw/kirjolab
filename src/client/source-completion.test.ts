@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   SourceCompletion,
-  sourceCompletionActionEvent,
   type SourceCompletionInputs,
   type SourceCompletionIntent,
   type SourceCompletionOption,
@@ -56,9 +55,7 @@ describe("source completion", () => {
     const completion = new TestSourceCompletion();
     const source = { setAttribute: vi.fn(), removeAttribute: vi.fn() } as unknown as HTMLTextAreaElement;
     const intents: SourceCompletionIntent[] = [];
-    completion.addEventListener(sourceCompletionActionEvent, (event) => {
-      intents.push((event as CustomEvent<SourceCompletionIntent>).detail);
-    });
+    completion.bindAcceptance((intent) => intents.push(intent));
     completion.show([option("first", "First"), option("second", "Second")], source);
     const key = (value: string, isComposing = false) => ({ key: value, isComposing, preventDefault: vi.fn() }) as unknown as KeyboardEvent;
     expect(completion.handleKey(key("ArrowDown"))).toBe(true);
@@ -199,9 +196,7 @@ describe("source completion", () => {
     const scope = Object.assign(new EventTarget(), { value: "project" }) as unknown as HTMLSelectElement;
     const intents: SourceCompletionIntent[] = [];
     const editorChanged = vi.fn();
-    completion.addEventListener(sourceCompletionActionEvent, (event) => {
-      intents.push((event as CustomEvent<SourceCompletionIntent>).detail);
-    });
+    completion.bindAcceptance((intent) => intents.push(intent));
 
     completion.bindEditor(source, scope, editorChanged);
     vi.stubGlobal("document", { activeElement: source });

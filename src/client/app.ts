@@ -29,14 +29,14 @@ import {
   type ReferenceLibrarySnapshot,
 } from "../domain/reference-library";
 import { applicationVersionNoticeEvent } from "./application-version-control";
-import { sourceCitationOpenEvent } from "./source-citation-control";
+import "./source-citation-control";
 import { workspaceSurfaceChangeEvent } from "./workspace-surface-switcher";
-import { editorInsertActionEvent, type EditorInsertAction, type EditorSyntaxTemplate } from "./editor-insert-menu";
+import { type EditorSyntaxKind, type EditorSyntaxTemplate } from "./editor-insert-menu";
 import { sourceSpanAt } from "./composition-source-map";
 import { collaboratorSelectionChangeEvent } from "./collaborator-selection-list";
 import type { AppToastOptions } from "./app-toast";
 import { expectOk, jsonFetch } from "./http";
-import { sourceCompletionActionEvent, type SourceCompletionIntent } from "./source-completion";
+import { type SourceCompletionIntent } from "./source-completion";
 import type { LibraryPdfSelectionPresentation, LibraryPdfToolPresentation } from "./context-resource-presenter";
 import { libraryPdfRoute, readLibraryUiRoute } from "./library-ui-route";
 import { startingPointActionEvent, type StartingPointAction } from "./project-starting-point-browser";
@@ -429,13 +429,11 @@ class WorkspaceApp {
       tree: this.#elements.projectTreePanel,
       uploaded: (result) => this.#completeProjectImageUpload(result),
     });
-    this.#elements.editorInsertMenu.addEventListener(editorInsertActionEvent, (event) => {
-      const detail = (event as CustomEvent<EditorInsertAction>).detail;
-      if (detail.action === "syntax") this.#insertSourceSyntax(detail);
-      else this.#insertProjectIncludeFromMenu(detail.relativePath, detail.path);
+    this.#elements.editorInsertMenu.bind({
+      includeFile: (relativePath, path) => this.#insertProjectIncludeFromMenu(relativePath, path),
+      insertSyntax: (kind, template) => this.#insertSourceSyntax(kind, template),
     });
-    this.#elements.sourceCompletion.addEventListener(sourceCompletionActionEvent, (event) => {
-      const intent = (event as CustomEvent<SourceCompletionIntent>).detail;
+    this.#elements.sourceCompletion.bindAcceptance((intent) => {
       if (intent.kind === "citation") void this.#acceptCitationCompletion(intent);
       else this.#acceptIncludeCompletion(intent);
     });
@@ -575,9 +573,7 @@ class WorkspaceApp {
       selectDiagnostic: ({ fileId, from, to }) => this.#focusProjectRange(fileId || this.#snapshot?.entryFileId || "", from, to),
       showSource: (offset) => this.#syncSourceFromPreviewOffset(offset),
     });
-    this.#elements.sourceCitationControl.addEventListener(sourceCitationOpenEvent, (event) => {
-      this.#openCitation((event as CustomEvent<CitationContext>).detail);
-    });
+    this.#elements.sourceCitationControl.bindNavigation((citation) => this.#openCitation(citation));
     this.#elements.publicationContextPanel.configure(apiBase);
     this.#elements.publicationContextPanel.bind({
       insertCitation: () => this.#insertActivePublicationCitation(),
@@ -1807,7 +1803,7 @@ class WorkspaceApp {
     };
   }
 
-  #insertSourceSyntax({ kind, template }: Extract<EditorInsertAction, { readonly action: "syntax" }>): void {
+  #insertSourceSyntax(kind: EditorSyntaxKind, template: EditorSyntaxTemplate): void {
     const passage = this.#selectedAuthoringPassage();
     const caret = this.#resolvedAuthoringCaret() ?? this.#elements.source.selectionEnd;
     const resolved = kind === "link" && passage ? { text: `[${passage.excerpt}](url)`, select: "url" } : template;

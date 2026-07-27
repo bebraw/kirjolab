@@ -1,10 +1,6 @@
 import { html, LitElement, type TemplateResult } from "lit";
 import { relativeProjectPath, type ProjectFile } from "../domain/project-files";
 
-export type EditorInsertAction =
-  | { readonly action: "include-file"; readonly path: string; readonly relativePath: string }
-  | { readonly action: "syntax"; readonly kind: EditorSyntaxKind; readonly template: EditorSyntaxTemplate };
-
 export type EditorSyntaxKind = "anchor" | "bibliography" | "citation" | "footnote" | "link" | "reference";
 
 export interface EditorSyntaxTemplate {
@@ -12,7 +8,10 @@ export interface EditorSyntaxTemplate {
   readonly select?: string;
 }
 
-export const editorInsertActionEvent = "editor-insert-action";
+export interface EditorInsertBinding {
+  readonly includeFile: (relativePath: string, path: string) => void;
+  readonly insertSyntax: (kind: EditorSyntaxKind, template: EditorSyntaxTemplate) => void;
+}
 
 interface EditorInsertData {
   readonly activeFile: ProjectFile | null;
@@ -32,6 +31,7 @@ export class EditorInsertMenu extends LitElement {
   static override properties = { data: { state: true } };
 
   declare private data: EditorInsertData;
+  private binding: EditorInsertBinding | null = null;
 
   constructor() {
     super();
@@ -40,6 +40,10 @@ export class EditorInsertMenu extends LitElement {
 
   setFiles(activeFile: ProjectFile | null, files: readonly ProjectFile[]): void {
     this.data = { activeFile, files };
+  }
+
+  bind(binding: EditorInsertBinding): void {
+    this.binding = binding;
   }
 
   override connectedCallback(): void {
@@ -72,13 +76,22 @@ export class EditorInsertMenu extends LitElement {
     </details>`;
   }
 
-  protected emitAction(action: EditorInsertAction): void {
-    this.dispatchEvent(new CustomEvent<EditorInsertAction>(editorInsertActionEvent, { bubbles: true, detail: action }));
+  protected includeFile(relativePath: string, path: string): void {
+    this.binding?.includeFile(relativePath, path);
+    this.closeMenu();
+  }
+
+  protected insertSyntax(kind: EditorSyntaxKind, template: EditorSyntaxTemplate): void {
+    this.binding?.insertSyntax(kind, template);
+    this.closeMenu();
+  }
+
+  private closeMenu(): void {
     if (typeof this.querySelector === "function") this.querySelector<HTMLDetailsElement>("details")?.removeAttribute("open");
   }
 
   private selectSyntax(kind: EditorSyntaxKind, template: EditorSyntaxTemplate): void {
-    this.emitAction({ action: "syntax", kind, template });
+    this.insertSyntax(kind, template);
   }
 
   private renderFile(file: ProjectFile, activeFile: ProjectFile): TemplateResult {
@@ -87,7 +100,7 @@ export class EditorInsertMenu extends LitElement {
       type="button"
       data-include-file-id=${file.id}
       title=${`Insert ::include[${relativePath}]`}
-      @click=${() => this.emitAction({ action: "include-file", path: file.path, relativePath })}
+      @click=${() => this.includeFile(relativePath, file.path)}
     >
       <strong title=${file.path}>${file.path}</strong><code>::include[…]</code>
     </button>`;
