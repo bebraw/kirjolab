@@ -406,4 +406,47 @@ describe("context resource presenter", () => {
     });
     expect(beginNote).toHaveBeenCalledWith(draft);
   });
+
+  it("routes private-PDF sibling events through the bounded coordinator", async () => {
+    const { elements, presenter } = setup();
+    const coordinator = {
+      applyViewerPresentation: vi.fn(),
+      citeHighlight: vi.fn(),
+      clearViewerDraftSelection: vi.fn(),
+      completeMarkup: vi.fn(),
+      currentPage: vi.fn(() => 3),
+      library: vi.fn(() => library),
+      openHighlight: vi.fn(),
+      openPdf: vi.fn(),
+      refreshLibrary: vi.fn(async () => undefined),
+      showToast: vi.fn(),
+    };
+    vi.spyOn(elements["paper-markups"], "chooseTool").mockImplementation(() => undefined);
+    vi.spyOn(elements["library-pdf-inspector"], "clearNote").mockImplementation(() => undefined);
+    vi.spyOn(elements["library-pdf-inspector"], "clearMarkup").mockImplementation(() => undefined);
+    vi.spyOn(elements["library-pdf-inspector"], "draftState", "get").mockReturnValue({ highlight: false, markup: false, note: false });
+    presenter.bindLibraryPdf(coordinator);
+
+    elements["library-pdf-annotation-toolbar"].dispatchEvent(
+      new CustomEvent("library-pdf-toolbar-action", { detail: { action: "choose-tool", tool: "text" } }),
+    );
+    elements["paper-markups"].dispatchEvent(new CustomEvent("library-pdf-markup-action", { detail: { action: "drawing-saved" } }));
+    elements["library-pdf-inspector"].dispatchEvent(
+      new CustomEvent("library-pdf-annotation-list-action", { detail: { action: "open-highlight", highlight } }),
+    );
+    elements["library-pdf-inspector"].dispatchEvent(
+      new CustomEvent("library-pdf-annotation-action", { detail: { action: "highlight-saved", kind: "created" } }),
+    );
+
+    expect(coordinator.applyViewerPresentation).toHaveBeenCalledWith({
+      privateHighlightId: null,
+      privateHighlightSelection: false,
+      textSelectionEnabled: true,
+    });
+    expect(coordinator.completeMarkup).toHaveBeenCalledWith("Drawing saved privately.");
+    expect(coordinator.openHighlight).toHaveBeenCalledWith(highlight);
+    await vi.waitFor(() => expect(coordinator.refreshLibrary).toHaveBeenCalledOnce());
+    expect(coordinator.clearViewerDraftSelection).toHaveBeenCalledOnce();
+    expect(coordinator.showToast).toHaveBeenCalledWith("Private highlight saved to your library.");
+  });
 });

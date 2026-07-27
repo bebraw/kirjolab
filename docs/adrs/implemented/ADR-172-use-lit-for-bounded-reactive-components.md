@@ -127,7 +127,11 @@ The adopted components own bounded presentation:
   saved-markup and newest-drawing undo projection, and synchronized tool,
   inspector open/close, highlight/note draft composition and clearing, and
   highlight, note, and markup edit/selection presentation across the markup
-  layer, inspector, and toolbar; it returns only viewer-owned selection effects
+  layer, inspector, and toolbar. It binds their private-PDF action and outcome
+  streams and owns local completion presentation while delegating canonical
+  refresh, cross-resource navigation, citation insertion, shared toast display,
+  and viewer-only selection effects through typed callbacks; it returns only
+  viewer-owned selection effects
   and synchronizes the bounded
   evidence, annotation, publication, claim, comment, and candidate owners from
   the canonical workspace snapshot, and derives active PDF annotations and

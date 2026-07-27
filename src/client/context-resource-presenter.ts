@@ -17,6 +17,12 @@ import { LibraryPdfInspector } from "./library-pdf-inspector";
 import { LibraryPdfMarkupLayer, type LibraryPdfNoteDraft, type PdfAnnotationTool } from "./library-pdf-markup-layer";
 import { ManuscriptCommentList } from "./manuscript-comment-list";
 import type { PdfSelectionCapture } from "./pdf-viewer";
+import { libraryPdfAnnotationActionEvent, type LibraryPdfAnnotationAction } from "./library-pdf-annotation-forms";
+import { libraryPdfAnnotationListActionEvent, type LibraryPdfAnnotationListAction } from "./library-pdf-annotation-list";
+import { libraryPdfInspectorCloseEvent } from "./library-pdf-inspector";
+import { libraryPdfMarkupActionEvent, type LibraryPdfMarkupAction } from "./library-pdf-markup-layer";
+import { libraryPdfToolbarActionEvent, type LibraryPdfToolbarAction } from "./library-pdf-annotation-toolbar";
+import { pdfHighlightImportOutcomeEvent, type PdfHighlightImportOutcome } from "./pdf-highlight-import-panel";
 import { ProjectAnnotationForm } from "./project-annotation-form";
 import { ProjectEvidencePanel } from "./project-evidence-panel";
 import { PublicationContextPanel } from "./publication-context-panel";
@@ -59,7 +65,50 @@ export interface LibraryPdfSelectionPresentation {
   readonly textSelectionEnabled?: boolean;
 }
 
+export interface LibraryPdfCoordinator {
+  readonly applyViewerPresentation: (presentation: LibraryPdfSelectionPresentation | LibraryPdfToolPresentation) => void;
+  readonly citeHighlight: (highlight: LibraryHighlight) => void;
+  readonly clearViewerDraftSelection: () => void;
+  readonly completeMarkup: (message: string) => void;
+  readonly currentPage: () => number;
+  readonly library: () => ReferenceLibrarySnapshot | null;
+  readonly openHighlight: (highlight: LibraryHighlight) => void;
+  readonly openPdf: (artifact: LibraryPdfArtifact, page: number) => void;
+  readonly refreshLibrary: () => Promise<void>;
+  readonly showToast: (message: string) => void;
+}
+
 export class ContextResourcePresenter extends LitElement {
+  private libraryPdfCoordinator: LibraryPdfCoordinator | null = null;
+
+  bindLibraryPdf(coordinator: LibraryPdfCoordinator): void {
+    this.libraryPdfCoordinator = coordinator;
+    const inspector = this.element("library-pdf-inspector", LibraryPdfInspector);
+    inspector?.addEventListener(libraryPdfAnnotationActionEvent, (event) => {
+      this.handleLibraryPdfAnnotationAction((event as CustomEvent<LibraryPdfAnnotationAction>).detail);
+    });
+    inspector?.addEventListener(libraryPdfAnnotationListActionEvent, (event) => {
+      this.handleLibraryPdfAnnotationListAction((event as CustomEvent<LibraryPdfAnnotationListAction>).detail);
+    });
+    inspector?.addEventListener(libraryPdfInspectorCloseEvent, () => this.closeBoundLibraryPdfInspector());
+    inspector?.addEventListener(pdfHighlightImportOutcomeEvent, (event) => {
+      void this.completePdfHighlightImport((event as CustomEvent<PdfHighlightImportOutcome>).detail.count);
+    });
+    this.element("library-pdf-annotation-toolbar", LibraryPdfAnnotationToolbar)?.addEventListener(libraryPdfToolbarActionEvent, (event) =>
+      this.handleLibraryPdfToolbarAction((event as CustomEvent<LibraryPdfToolbarAction>).detail),
+    );
+    this.element("paper-markups", LibraryPdfMarkupLayer)?.addEventListener(libraryPdfMarkupActionEvent, (event) => {
+      this.handleLibraryPdfMarkupAction((event as CustomEvent<LibraryPdfMarkupAction>).detail);
+    });
+  }
+
+  selectLibraryHighlight(highlightId: string): void {
+    const highlight = this.libraryPdfCoordinator?.library()?.highlights.find((item) => item.id === highlightId);
+    if (!highlight) return;
+    this.clearBoundLibraryPdfMarkupSelection();
+    this.applyViewerPresentation(this.editLibraryHighlight(highlight));
+  }
+
   presentWorkspace(snapshot: WorkspaceSnapshot, renderedPdfId: string | undefined): AnnotationResource[] {
     const workflow = this.element("assistant-workflow-status", AssistantWorkflowStatus);
     workflow?.reconcileEvidence(snapshot.annotations, snapshot.claims);
@@ -177,6 +226,134 @@ export class ContextResourcePresenter extends LitElement {
     inspector?.selectMarkup(markup);
     this.setLibraryPdfInspector(true);
     return { clearDraftSelection, privateHighlightSelection: true };
+  }
+
+  private handleLibraryPdfAnnotationAction(action: LibraryPdfAnnotationAction): void {
+    if (action.action === "highlight-saved") void this.completeLibraryHighlightSave(action.kind);
+    else if (action.action === "cancel-highlight") this.clearLibraryHighlightDraft();
+    else if (action.action === "note-saved") void this.completeLibraryPdfNoteSave(action.kind);
+    else if (action.action === "cancel-note") this.clearLibraryPdfNoteDraft();
+    else if (action.action === "markup-saved") void this.completeSelectedLibraryPdfMarkupMutation(action.kind);
+    else if (action.action === "edit-note") this.editSelectedLibraryPdfNote();
+    else this.clearBoundLibraryPdfMarkupSelection();
+  }
+
+  private handleLibraryPdfAnnotationListAction(action: LibraryPdfAnnotationListAction): void {
+    const coordinator = this.libraryPdfCoordinator;
+    if (!coordinator) return;
+    if (action.action === "open-highlight") coordinator.openHighlight(action.highlight);
+    else if (action.action === "edit-highlight") this.applyViewerPresentation(this.editLibraryHighlight(action.highlight));
+    else if (action.action === "cite-highlight") coordinator.citeHighlight(action.highlight);
+    else if (action.action === "open-markup") coordinator.openPdf(action.artifact, action.page);
+    else if (action.action === "edit-note") this.applyViewerPresentation(this.editLibraryPdfNote(action.note));
+    else coordinator.completeMarkup("Private annotation deleted.");
+  }
+
+  private handleLibraryPdfToolbarAction(action: LibraryPdfToolbarAction): void {
+    const coordinator = this.libraryPdfCoordinator;
+    if (!coordinator) return;
+    if (action.action === "choose-tool") this.applyViewerPresentation(this.chooseLibraryPdfTool(action.tool));
+    else if (action.action === "drawing-undone") coordinator.completeMarkup("Private annotation deleted.");
+    else if (action.action === "export-status") coordinator.showToast(action.message);
+    else this.setLibraryPdfInspector(true, true);
+  }
+
+  private handleLibraryPdfMarkupAction(action: LibraryPdfMarkupAction): void {
+    const coordinator = this.libraryPdfCoordinator;
+    if (!coordinator) return;
+    if (action.action === "drawing-saved" || action.action === "note-moved") {
+      coordinator.completeMarkup(action.action === "drawing-saved" ? "Drawing saved privately." : "Note moved.");
+    } else if (action.action === "select-markup") this.selectBoundLibraryPdfMarkup(action.id);
+    else if (action.action === "status") this.element("library-pdf-inspector", LibraryPdfInspector)?.setStatus(action.message);
+    else this.beginLibraryPdfNote(action.draft);
+  }
+
+  private async completePdfHighlightImport(count: number): Promise<void> {
+    const coordinator = this.libraryPdfCoordinator;
+    if (!coordinator) return;
+    await coordinator.refreshLibrary();
+    coordinator.showToast(`${count} PDF ${count === 1 ? "highlight" : "highlights"} imported to your library.`);
+  }
+
+  private async completeLibraryHighlightSave(kind: "created" | "extended" | "updated"): Promise<void> {
+    const coordinator = this.libraryPdfCoordinator;
+    if (!coordinator) return;
+    coordinator.clearViewerDraftSelection();
+    await coordinator.refreshLibrary();
+    const inspector = this.element("library-pdf-inspector", LibraryPdfInspector);
+    if (kind === "updated") {
+      inspector?.setStatus("Private highlight note updated.");
+      coordinator.showToast("Private highlight note updated.");
+      return;
+    }
+    const extended = kind === "extended";
+    inspector?.setStatus(
+      extended
+        ? "Existing private highlight extended. Select another passage to continue."
+        : "Private highlight saved. Select another passage to continue.",
+    );
+    coordinator.showToast(extended ? "Existing private highlight extended." : "Private highlight saved to your library.");
+  }
+
+  private clearLibraryHighlightDraft(message = "Selection cancelled. Nothing was saved."): void {
+    const coordinator = this.libraryPdfCoordinator;
+    if (!coordinator) return;
+    this.element("library-pdf-inspector", LibraryPdfInspector)?.clearHighlight(coordinator.currentPage(), message);
+    coordinator.clearViewerDraftSelection();
+  }
+
+  private closeBoundLibraryPdfInspector(): void {
+    const coordinator = this.libraryPdfCoordinator;
+    if (!coordinator) return;
+    const presentation = this.closeLibraryPdfInspector(coordinator.currentPage());
+    if (presentation.clearDraftSelection) coordinator.clearViewerDraftSelection();
+    if (presentation.privateHighlightSelection !== null)
+      coordinator.applyViewerPresentation({
+        clearDraftSelection: false,
+        privateHighlightSelection: presentation.privateHighlightSelection,
+      });
+  }
+
+  private async completeLibraryPdfNoteSave(kind: "created" | "updated"): Promise<void> {
+    const coordinator = this.libraryPdfCoordinator;
+    if (!coordinator) return;
+    this.element("paper-markups", LibraryPdfMarkupLayer)?.clearNote();
+    await coordinator.refreshLibrary();
+    this.setLibraryPdfInspector(false);
+    coordinator.showToast(kind === "updated" ? "Private note updated." : "Note attached privately.");
+  }
+
+  private selectBoundLibraryPdfMarkup(markupId: string): void {
+    const coordinator = this.libraryPdfCoordinator;
+    const markup = coordinator?.library()?.pdfMarkups?.find((item) => item.id === markupId);
+    if (coordinator && markup) this.applyViewerPresentation(this.selectLibraryPdfMarkup(markup, coordinator.currentPage()));
+  }
+
+  private clearBoundLibraryPdfMarkupSelection(): void {
+    this.libraryPdfCoordinator?.applyViewerPresentation({
+      clearDraftSelection: false,
+      privateHighlightSelection: this.clearLibraryPdfMarkupSelection(),
+    });
+  }
+
+  private editSelectedLibraryPdfNote(): void {
+    const selectedId = this.element("paper-markups", LibraryPdfMarkupLayer)?.selectedMarkupId;
+    const note = this.libraryPdfCoordinator
+      ?.library()
+      ?.pdfMarkups?.find((item): item is LibraryPdfNote => item.kind === "note" && item.id === selectedId);
+    if (note) this.applyViewerPresentation(this.editLibraryPdfNote(note));
+  }
+
+  private async completeSelectedLibraryPdfMarkupMutation(kind: "deleted" | "updated"): Promise<void> {
+    const coordinator = this.libraryPdfCoordinator;
+    if (!coordinator) return;
+    if (kind === "deleted") this.clearBoundLibraryPdfMarkupSelection();
+    await coordinator.refreshLibrary();
+    coordinator.showToast(kind === "deleted" ? "Private annotation deleted." : "Line style updated.");
+  }
+
+  private applyViewerPresentation(presentation: LibraryPdfSelectionPresentation | LibraryPdfToolPresentation): void {
+    this.libraryPdfCoordinator?.applyViewerPresentation(presentation);
   }
 
   resourceScrollTop(tab: ResearchContextTab): number {

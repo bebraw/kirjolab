@@ -844,15 +844,17 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   private-PDF tool, inspector-open, inspector-close, and draft-clearing
   presentation plus highlight/note draft composition and highlight, note, and
   markup edit/selection coordination across the markup layer, inspector, and
-  toolbar, returning only the text-
+  toolbar. It binds and routes those siblings' private-PDF action and outcome
+  streams, including local save, import, delete, export, and status completion
+  presentation, returning only the text-
   selection, selected-highlight, and draft-selection cleanup effects that
   remain viewer-owned, and
   synchronize the bounded evidence, annotation, publication, claim, comment,
   and candidate owners from one canonical workspace snapshot. It may return
   active project-PDF annotations and private highlights for the PDF viewer while
-  keeping tab state, PDF loading, private markup drafts, citation insertion,
-  canonical refresh, routing, and notification policy in the application
-  coordinator.
+  keeping tab state, PDF loading, citation insertion, canonical snapshot
+  refresh, cross-resource navigation, routing, and the shared notification
+  outlet in the application coordinator through narrow callbacks.
 - Project bounded, reconstructible editor UI selections into query parameters
   only after validating stable ids against authorized snapshots.
   Push meaningful context-target navigation, replace incidental view and page
