@@ -9374,6 +9374,26 @@ and tagged-union validation to an already pinned dependency.
 Full native CI passes all 1,721 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Valibot Adoption: Manuscript Anchors
+
+Version 1 manuscript-anchor selectors and `resolved`/`stale` results now share
+strict Valibot schemas for exact keys, bounded strings, encoded relative
+positions, safe indices, ordered ranges, and resolved-text length. Yjs relative
+position encoding, decoding, source-type authority, and stale-resolution policy
+remain explicit domain behavior.
+
+This checkpoint reduces `src/domain/manuscript-anchor.ts` from 240 to 209 lines
+(-31), replacing both public guards and four primitive helpers. Focused anchor
+coverage passes all 6 tests alongside strict types.
+
+The browser application artifact changes from 849,520 B raw / 228,966 B gzip
+to 848,752 B raw / 228,946 B gzip (-768 B raw / -20 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150; Valibot was already pinned.
+
+Full native CI passes all 1,721 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Library PDF Project Use Projection
 
 `LibraryPdfProjectUse` now resolves the active bibliographic record and matching

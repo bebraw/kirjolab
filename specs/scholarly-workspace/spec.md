@@ -929,6 +929,9 @@ collaboration.
 - New selectors must store version 1 relative endpoints with start association
   `0` and end association `-1`, exact/prefix/suffix text, original offsets, and
   anchored revision.
+- Strict Valibot selector and resolution schemas must enforce exact keys,
+  encoded-position syntax and bounds, ordered safe-integer ranges, immutable
+  text lengths, and the `resolved`/`stale` result variants.
 - Version 1 anchor resolution must use both stored relative positions and return
   `stale` if they are unavailable, target the wrong source type, or produce an
   invalid or collapsed range.

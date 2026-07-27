@@ -1,3 +1,4 @@
+import * as v from "valibot";
 import * as Y from "yjs";
 
 const contextLength = 64;
@@ -36,6 +37,45 @@ export interface ResolvedManuscriptAnchor {
 }
 
 export type ManuscriptAnchorResolution = ResolvedManuscriptAnchor | { readonly status: "stale" };
+
+const safeIndexSchema = v.pipe(v.number(), v.safeInteger(), v.minValue(0));
+const originalRangeSchema = v.pipe(
+  v.strictObject({ start: safeIndexSchema, end: safeIndexSchema }),
+  v.check(({ start, end }) => end > start),
+);
+const encodedRelativePositionSchema = v.nullable(
+  v.pipe(
+    v.string(),
+    v.minLength(1),
+    v.maxLength(maximumEncodedRelativePositionLength),
+    v.regex(/^[A-Za-z0-9_-]+$/u),
+    v.check((value) => value.length % 4 !== 1),
+  ),
+);
+const manuscriptAnchorSelectorSchema = v.strictObject({
+  version: v.literal(1),
+  fileId: v.pipe(v.string(), v.minLength(1), v.maxLength(128)),
+  relativeStart: encodedRelativePositionSchema,
+  relativeEnd: encodedRelativePositionSchema,
+  exact: v.pipe(v.string(), v.minLength(1), v.maxLength(50_000)),
+  prefix: v.pipe(v.string(), v.maxLength(256)),
+  suffix: v.pipe(v.string(), v.maxLength(256)),
+  originalRange: originalRangeSchema,
+  anchoredRevision: safeIndexSchema,
+});
+const manuscriptAnchorResolutionSchema = v.union([
+  v.strictObject({ status: v.literal("stale") }),
+  v.pipe(
+    v.strictObject({
+      status: v.literal("resolved"),
+      start: safeIndexSchema,
+      end: safeIndexSchema,
+      text: v.string(),
+      exactMatch: v.boolean(),
+    }),
+    v.check(({ start, end, text }) => end > start && text.length === end - start),
+  ),
+]);
 
 export function createManuscriptAnchor(
   document: Y.Doc,
@@ -109,58 +149,11 @@ export function resolveManuscriptAnchor(
 }
 
 export function isManuscriptAnchorSelector(value: unknown): value is ManuscriptAnchorSelector {
-  if (
-    !isRecord(value) ||
-    !hasExactKeys(value, [
-      "version",
-      "fileId",
-      "relativeStart",
-      "relativeEnd",
-      "exact",
-      "prefix",
-      "suffix",
-      "originalRange",
-      "anchoredRevision",
-    ]) ||
-    value.version !== 1
-  ) {
-    return false;
-  }
-  if (!isStringWithin(value.fileId, 128, true)) return false;
-  if (!isEncodedRelativePosition(value.relativeStart) || !isEncodedRelativePosition(value.relativeEnd)) return false;
-  if (!isStringWithin(value.exact, 50_000, true)) return false;
-  if (!isStringWithin(value.prefix, 256) || !isStringWithin(value.suffix, 256)) return false;
-  if (!isRecord(value.originalRange) || !hasExactKeys(value.originalRange, ["start", "end"])) return false;
-  const { start, end } = value.originalRange;
-  return (
-    Number.isSafeInteger(start) &&
-    Number.isSafeInteger(end) &&
-    typeof start === "number" &&
-    typeof end === "number" &&
-    start >= 0 &&
-    end > start &&
-    Number.isSafeInteger(value.anchoredRevision) &&
-    typeof value.anchoredRevision === "number" &&
-    value.anchoredRevision >= 0
-  );
+  return v.is(manuscriptAnchorSelectorSchema, value);
 }
 
 export function isManuscriptAnchorResolution(value: unknown): value is ManuscriptAnchorResolution {
-  if (!isRecord(value)) return false;
-  if (value.status === "stale") return hasExactKeys(value, ["status"]);
-  return (
-    hasExactKeys(value, ["status", "start", "end", "text", "exactMatch"]) &&
-    value.status === "resolved" &&
-    Number.isSafeInteger(value.start) &&
-    Number.isSafeInteger(value.end) &&
-    typeof value.start === "number" &&
-    typeof value.end === "number" &&
-    value.start >= 0 &&
-    value.end > value.start &&
-    typeof value.text === "string" &&
-    value.text.length === value.end - value.start &&
-    typeof value.exactMatch === "boolean"
-  );
+  return v.is(manuscriptAnchorResolutionSchema, value);
 }
 
 function metadata(anchor: StoredManuscriptAnchor | ManuscriptAnchorSelector): ManuscriptAnchorMetadata {
@@ -213,28 +206,4 @@ function assertRange(start: number, end: number, maximum: number): void {
   if (!Number.isSafeInteger(start) || !Number.isSafeInteger(end) || start < 0 || end <= start || end > maximum) {
     throw new RangeError("The manuscript anchor range is invalid");
   }
-}
-
-function isEncodedRelativePosition(value: unknown): value is string | null {
-  return (
-    value === null ||
-    (typeof value === "string" &&
-      value.length > 0 &&
-      value.length <= maximumEncodedRelativePositionLength &&
-      /^[A-Za-z0-9_-]+$/u.test(value) &&
-      value.length % 4 !== 1)
-  );
-}
-
-function isStringWithin(value: unknown, maximumLength: number, required = false): value is string {
-  return typeof value === "string" && value.length <= maximumLength && (!required || value.length > 0);
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function hasExactKeys(value: Record<string, unknown>, expected: readonly string[]): boolean {
-  const keys = Object.keys(value);
-  return keys.length === expected.length && expected.every((key) => Object.hasOwn(value, key));
 }
