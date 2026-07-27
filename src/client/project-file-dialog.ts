@@ -54,7 +54,7 @@ export interface ProjectFileWorkflowRouting {
   readonly focusEditor: () => void;
   readonly imageUpload: ProjectImageUploadSource;
   readonly insertImage: (insertion: ProjectImageInsertion) => void;
-  readonly prepareInclude: (activeFile: ProjectFile) => ((path: string) => boolean) | null;
+  readonly prepareInclude: () => ((directive: string) => boolean) | null;
   readonly quickOpen: () => void;
   readonly saved: (result: ProjectFileSaved) => void;
   readonly tree: ProjectFileTreeSource;
@@ -425,7 +425,9 @@ export class ProjectFileDialog extends LitElement {
     if (!routing || !snapshot) return;
     const activeFile = this.activeFile;
     const folder = snapshot.folders.find(({ id }) => id === folderId);
-    this.pendingInclude = mode === "create-and-include" && activeFile ? routing.prepareInclude(activeFile) : null;
+    const insertInclude = mode === "create-and-include" && activeFile ? routing.prepareInclude() : null;
+    this.pendingInclude =
+      insertInclude && activeFile ? (path) => insertInclude(`\n::include[${relativeProjectPath(activeFile.path, path)}]\n`) : null;
     void this.showFor(mode, activeFile ?? undefined, folder);
   }
 

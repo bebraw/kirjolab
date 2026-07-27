@@ -445,7 +445,8 @@ The adopted components own bounded presentation:
   completed outcomes carrying the derived included state and message after
   applying the validated workspace through its shared
   mutation binding. For create-and-include it retains the one-shot insertion
-  continuation across open, retry, success, and cancellation. It also owns
+  continuation across open, retry, success, and cancellation and derives the
+  project-relative directive from the active and created paths. It also owns
   supporting-file optimistic hiding, the
   deletion grace period, Undo and failed-commit restoration, and exposes the
   hidden-file projection. Its presentation binding fans one canonical snapshot,

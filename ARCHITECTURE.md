@@ -288,7 +288,8 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   supporting-file hidden projection, six-second
   delayed deletion, Undo restoration, failed-commit restoration, and deletion
   notices. For create-and-include, it retains the one-shot insertion
-  continuation across its dialog lifecycle, invokes it after applying the
+  continuation across its dialog lifecycle, derives the project-relative
+  directive from the active and created paths, invokes it after applying the
   validated snapshot, selects an ordinary newly created file itself, and
   supplies only the derived included state and message through its typed
   workflow callback. It routes validated
@@ -329,8 +330,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   projects passage-aware links, selection ranges, image-template insertions,
   and immediate relative-include directives from a coordinator-supplied
   authoring target. Route the derived insertion and preserved asynchronous
-  insertion point through the editor-status owner; keep cross-file path and
-  continuation decisions plus the toast outlet in the workspace coordinator.
+  insertion point through the editor-status owner. Let the project-file dialog
+  derive the eventual create-and-include directive from its active and created
+  paths; keep continuation decisions and the toast outlet in the workspace
+  coordinator.
 - Let the source citation control own citation-at-caret interpretation,
   citation insertion syntax projection, local insertion errors, and completion
   copy from a resolved authoring caret. Keep Yjs mutation, authoring-mode

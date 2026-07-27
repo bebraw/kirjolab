@@ -5,7 +5,7 @@ import { collectAppElements } from "./app-elements";
 import { reviewerResponsePath, reviewerResponseTemplate } from "../domain/reviewer-response";
 import { resolveManuscriptAnchor } from "../domain/manuscript-anchor";
 import { resolveWorkspaceSnapshotAnchors } from "../domain/workspace-anchor-projection";
-import { projectFileCollaborationTextName, relativeProjectPath, type ProjectFile } from "../domain/project-files";
+import { projectFileCollaborationTextName, type ProjectFile } from "../domain/project-files";
 import { researchQuestionsPath, researchQuestionsTemplate } from "../domain/research-questions";
 import { researchDiaryPath, researchDiaryTemplate } from "../domain/writing-workflows";
 import "./application-version-control";
@@ -359,10 +359,7 @@ class WorkspaceApp {
       focusEditor: () => this.#elements.source.focus(),
       imageUpload: this.#elements.projectImageUpload,
       insertImage: ({ message, syntax }) => this.#elements.editorInsertMenu.insert({ text: syntax }, message),
-      prepareInclude: (file) => {
-        const insert = this.#elements.editorStatus.preserveInsertionPoint();
-        return insert ? (path) => insert(`\n::include[${relativeProjectPath(file.path, path)}]\n`) : null;
-      },
+      prepareInclude: () => this.#elements.editorStatus.preserveInsertionPoint(),
       quickOpen: () => {
         this.#layout.setRailCollapsed(false);
         this.#elements.workspaceRailTabs.navigate("files");

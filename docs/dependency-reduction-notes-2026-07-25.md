@@ -11318,3 +11318,25 @@ and PDF.js artifacts remain unchanged at 135,411 B / 23,373 B, 204,779 B /
 
 Full native CI passes all 1,741 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Lit Ownership: Created Include Projection
+
+`ProjectFileDialog` now derives a create-and-include directive from its active
+file and newly created path before invoking the editor-status insertion
+continuation. `WorkspaceApp` supplies only that preserved insertion function
+and no longer imports or applies project-relative path logic.
+
+This checkpoint reduces `src/client/app.ts` from 780 to 777 lines (-3), grows
+the project-file dialog from 491 to 493 lines (+2), and removes one combined
+runtime line. Focused and affected coverage pass exact relative directive
+projection, dialog workflow ordering, editor insertion continuity, and strict
+types. Direct and unique production package counts remain 18 and 150; Lit was
+already pinned.
+
+The browser application artifact decreases from 854,127 B raw / 229,900 B gzip
+to 854,117 B / 229,888 B (-10 B raw / -12 B gzip). Styles and lazy Markdown and
+PDF.js artifacts remain unchanged at 135,411 B / 23,373 B, 204,779 B / 62,386
+B, and 481,994 B / 146,135 B.
+
+Full native CI passes all 1,741 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.

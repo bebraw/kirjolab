@@ -162,7 +162,7 @@ describe("project file dialog", () => {
 
     expect(imageUpload.choose).toHaveBeenCalledOnce();
     expect(deleteFile).not.toHaveBeenCalled();
-    expect(callbacks.prepareInclude).toHaveBeenCalledWith(snapshot.files[0]);
+    expect(callbacks.prepareInclude).toHaveBeenCalledWith();
     expect(showFor).toHaveBeenNthCalledWith(1, "create-folder", snapshot.files[0], undefined);
     expect(showFor).toHaveBeenNthCalledWith(2, "create-and-include", snapshot.files[0], undefined);
     expect(showFor).toHaveBeenNthCalledWith(3, "rename-folder", supporting, undefined);
@@ -309,7 +309,7 @@ describe("project file dialog", () => {
       expect.objectContaining({ body: JSON.stringify({ path: "chapters/results.md" }), method: "POST" }),
     );
     expect(callbacks.commit).toHaveBeenCalledWith(project);
-    expect(include).toHaveBeenCalledWith("chapters/results.md");
+    expect(include).toHaveBeenCalledWith("\n::include[results.md]\n");
     expect(vi.mocked(callbacks.commit).mock.invocationCallOrder[0]).toBeLessThan(include.mock.invocationCallOrder[0] ?? 0);
     expect(saved).toHaveBeenCalledWith({
       included: true,
