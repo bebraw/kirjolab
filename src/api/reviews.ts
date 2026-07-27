@@ -1,6 +1,5 @@
 import {
   isReviewId,
-  isReviewProfile,
   normalizeReviewEmail,
   type ProjectReviewLink,
   type ReviewCatalogRecord,
@@ -10,6 +9,23 @@ import {
 import { demoWorkspaceId, localOwnerId, type WorkspaceSummary } from "../domain/workspace";
 import { ownerKeyForEmail, type AuthIdentity } from "../security/auth";
 import { handleReviewStudyApi } from "./review-study";
+import * as v from "valibot";
+
+const reviewTitleSchema = v.pipe(
+  v.string(),
+  v.transform((title) => title.trim()),
+  v.minLength(1),
+  v.maxLength(120),
+);
+const reviewCreationSchema = v.object({ title: v.string(), profile: v.picklist(["slr", "mlr"]) });
+const reviewSettingsSchema = v.object({
+  title: v.exactOptional(reviewTitleSchema),
+  archived: v.exactOptional(v.boolean()),
+  profile: v.exactOptional(v.undefined()),
+});
+const reviewMemberSchema = v.object({ email: v.string() });
+const reviewProjectLinkSchema = v.object({ workspaceId: v.pipe(v.string(), v.regex(/^[a-z0-9-]{1,64}$/iu)) });
+const optionalProjectLinkSchema = v.object({ projectLinkId: v.optional(v.string()) });
 
 export interface ReviewResource {
   readonly record: ReviewCatalogRecord;
@@ -480,7 +496,8 @@ async function reviewWorkflowProjectContext(
   let requestedLinkId = url.searchParams.get("projectLinkId") ?? request.headers.get("x-kirjolab-project-link-id");
   if (!requestedLinkId && request.method === "POST" && url.pathname.endsWith("/synthesis/publish")) {
     const value: unknown = await request.clone().json();
-    if (isRecord(value) && typeof value.projectLinkId === "string") requestedLinkId = value.projectLinkId;
+    const input = v.safeParse(optionalProjectLinkSchema, value);
+    if (input.success && input.output.projectLinkId) requestedLinkId = input.output.projectLinkId;
   }
   let link: ProjectReviewLink | undefined;
   if (requestedLinkId) link = links.find((candidate) => candidate.id === requestedLinkId);
@@ -516,41 +533,37 @@ async function reviewCatalogOwnerKey(identity: AuthIdentity, email: string): Pro
 
 async function createReviewRequest(request: Request): Promise<{ title: string; profile: "slr" | "mlr" }> {
   const value: unknown = await request.json();
-  if (!isRecord(value) || typeof value.title !== "string" || !isReviewProfile(value.profile)) {
-    throw new Error("Review creation request is invalid");
-  }
-  const title = value.title.trim();
-  if (!title || title.length > 120) throw new Error("Review title is invalid");
-  return { title, profile: value.profile };
+  const input = v.safeParse(reviewCreationSchema, value);
+  if (!input.success) throw new Error("Review creation request is invalid");
+  const title = v.safeParse(reviewTitleSchema, input.output.title);
+  if (!title.success) throw new Error("Review title is invalid");
+  return { ...input.output, title: title.output };
 }
 
 async function updateReviewRequest(request: Request): Promise<{ title?: string; archived?: boolean }> {
   const value: unknown = await request.json();
-  if (!isRecord(value)) throw new Error("Review settings request is invalid");
-  if (value.profile !== undefined) throw new Error("Review method profile cannot change after creation");
-  const title = value.title === undefined ? undefined : typeof value.title === "string" ? value.title.trim() : "";
-  const archived = value.archived === undefined ? undefined : typeof value.archived === "boolean" ? value.archived : null;
-  if ((title !== undefined && (!title || title.length > 120)) || archived === null) {
+  const input = v.safeParse(reviewSettingsSchema, value);
+  if (!input.success) {
+    if (typeof value === "object" && value !== null && "profile" in value && value.profile !== undefined) {
+      throw new Error("Review method profile cannot change after creation");
+    }
     throw new Error("Review settings request is invalid");
   }
-  return {
-    ...(title === undefined ? {} : { title }),
-    ...(archived === undefined ? {} : { archived }),
-  };
+  return input.output;
 }
 
 async function reviewMemberEmailRequest(request: Request): Promise<string> {
   const value: unknown = await request.json();
-  if (!isRecord(value) || typeof value.email !== "string") throw new Error("Review member request is invalid");
-  return normalizeReviewEmail(value.email);
+  const input = v.safeParse(reviewMemberSchema, value);
+  if (!input.success) throw new Error("Review member request is invalid");
+  return normalizeReviewEmail(input.output.email);
 }
 
 async function projectLinkRequest(request: Request): Promise<string> {
   const value: unknown = await request.json();
-  if (!isRecord(value) || typeof value.workspaceId !== "string" || !/^[a-z0-9-]{1,64}$/iu.test(value.workspaceId)) {
-    throw new Error("Review project link request is invalid");
-  }
-  return value.workspaceId;
+  const input = v.safeParse(reviewProjectLinkSchema, value);
+  if (!input.success) throw new Error("Review project link request is invalid");
+  return input.output.workspaceId;
 }
 
 function reviewError(error: unknown): Response {
@@ -575,8 +588,4 @@ function jsonError(error: string, status: number): Response {
 
 function methodNotAllowed(): Response {
   return jsonError("Method not allowed", 405);
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

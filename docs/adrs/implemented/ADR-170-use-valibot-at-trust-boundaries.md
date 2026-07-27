@@ -67,6 +67,10 @@ Adopted boundaries are:
   revision-seed schemas replace parallel request interfaces, record checks, and
   scalar predicates while authorization, canonical title trimming, catalog
   fan-out, revision identity, and Durable Object mutations remain explicit.
+- Review catalog commands: creation, settings, membership, optional publish-
+  link, and project-link schemas replace repeated record and primitive checks
+  while immutable-profile policy, email normalization, authorization, project
+  access, and multi-catalog projection remain explicit.
 - Edit-capability file mutations: one request schema replaces the record,
   content, length, numeric, and safe-integer checks while bounded body reading,
   bearer and same-origin authorization, revision conflicts, and mutation error

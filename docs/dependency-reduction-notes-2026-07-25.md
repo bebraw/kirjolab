@@ -10992,3 +10992,19 @@ and unique production package counts remain unchanged at 135,411 B raw /
 
 Full native CI passes all 1,573 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Valibot Adoption: Review Catalog Commands
+
+The review catalog API now validates creation, settings, membership, optional
+synthesis-publish link, and project-link requests with named Valibot schemas.
+Immutable-profile policy, normalized identities, authorization, project access,
+and multi-catalog projection remain explicit.
+
+This checkpoint removes the API's generic record predicate and five repeated
+record-and-primitive validation branches. `src/api/reviews.ts` changes from 582
+to 591 lines (+9) because the bounded schemas name each accepted command shape;
+the maintained runtime contract is centralized even though physical lines grow.
+Affected coverage passes 94 tests and all 121 Workers-runtime tests alongside
+strict types. Browser artifacts are unchanged because this boundary is server-
+side. Direct and unique production package counts remain 18 and 150; Valibot
+was already pinned.

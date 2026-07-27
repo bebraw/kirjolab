@@ -40,7 +40,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   disjoint-field invariants remain explicit. At workspace lifecycle command boundaries, schemas own
   settings, duplicate-title, milestone, and revision-seed structure and scalar
   bounds; authorization, canonical title trimming, catalog fan-out, revision
-  identity, and Durable Object mutations stay explicit.
+  identity, and Durable Object mutations stay explicit. At review catalog
+  command boundaries, schemas own creation, settings, membership, and project-
+  link request structure; authorization, immutable-profile policy, identity
+  normalization, catalog projection, and project access stay explicit.
 - Read bounded external response bodies through stateless, request-local
   helpers that enforce both declared and observed byte limits. Keep byte
   ceilings, errors, response-shape validation, and domain mapping explicit at

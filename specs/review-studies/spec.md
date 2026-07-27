@@ -63,6 +63,10 @@ published deliberately into several writing projects.
   `src/api/review-study.ts`. Both boundaries require authentication, enforce
   same-origin mutation checks, and never trust browser-computed counts,
   identities, links, or derived reports.
+- Review creation, settings, membership, optional synthesis-publish link, and
+  project-link request bodies pass named Valibot schemas before domain policy
+  runs. Profile immutability, title and identity normalization, authorization,
+  project access, and catalog projection remain explicit API or domain rules.
 - The focused review route follows Plan, Search, Screen, Appraise, Extract,
   Synthesize, and Report without embedding the workflow in manuscript authoring
   chrome. It exposes review membership, lifecycle, and explicit many-to-many
