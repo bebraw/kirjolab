@@ -5903,6 +5903,31 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,638 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Assistant Availability Projection
+
+`AssistantGenerationPresenter` now projects canonical document stability,
+target availability, workflow activity, and candidate-decision activity across
+the model-settings, task, and candidate-review Lit owners. It derives selected-
+evidence counts, model availability, and discovery activity directly from their
+owners instead of requiring `WorkspaceApp` to coordinate four sibling
+components.
+
+This checkpoint reduces `src/client/app.ts` from 3,026 to 3,017 lines (-9) and
+grows the generation presenter from 151 to 180 lines. Runtime source across
+those two files grows by 20 lines while reducing availability updates to one
+canonical projection call and avoiding parallel evidence or model state. Five
+direct presenter cases cover all generation routes plus availability fan-out,
+candidate-decision gating, task target inputs, and strict client and Workers
+types.
+
+The browser application artifact changes from 832,961 B raw / 225,344 B gzip
+to 833,234 B raw / 225,412 B gzip (+273 B raw / +68 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,639 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

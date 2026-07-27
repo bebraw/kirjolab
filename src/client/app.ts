@@ -1195,23 +1195,14 @@ class WorkspaceApp {
   }
 
   #updateModelAvailability(): void {
-    const stable = this.#hasStableDocumentBase();
     const assistant = this.#assistantWorkflow.getSnapshot();
-    const assistantBusy = assistantWorkflowBusy(assistant);
-    this.#elements.modelProviderSettings.setDiscoveryAvailable(!assistantBusy);
-    const evidence = this.#elements.assistantWorkflowStatus.modelEvidence();
-    this.#elements.assistantTaskPanel.setGenerationAvailability({
-      annotationEvidenceCount: evidence.annotationItems.length,
-      discoveryBusy: this.#elements.modelProviderSettings.discoveryBusy,
-      evidenceCount: evidence.items.length,
+    this.#elements.assistantGenerationPresenter.presentAvailability({
+      candidateDecisionBusy: assistant.context.candidateDecision !== null,
       hasInsertionTarget: this.#assistantInsertionTarget() !== null,
       hasPassage: this.#assistantAuthoringPassage() !== null,
-      modelAvailable: Boolean(this.#elements.modelProviderSettings.value.model.trim()),
-      selectedEvidenceCount: this.#elements.assistantWorkflowStatus.selectedEvidenceKeys.size,
-      stableDocument: stable,
-      workflowBusy: assistantBusy,
+      stableDocument: this.#hasStableDocumentBase(),
+      workflowBusy: assistantWorkflowBusy(assistant),
     });
-    this.#elements.candidateReviewPanel.setAvailability(stable, assistant.context.candidateDecision !== null);
   }
 
   #updateModelTask(resetInstruction = false): void {

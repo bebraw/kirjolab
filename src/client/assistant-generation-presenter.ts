@@ -2,8 +2,10 @@ import { html, LitElement, type TemplateResult } from "lit";
 import { resolveAssistantTarget, type AssistantOperationDefinition } from "./assistant-operations";
 import { AssistantResultPanel, type AssistantAuthoringPassage } from "./assistant-result-panel";
 import { AssistantTaskPanel } from "./assistant-task-panel";
-import type { SelectedModelEvidence } from "./assistant-workflow-status";
+import { AssistantWorkflowStatus, type SelectedModelEvidence } from "./assistant-workflow-status";
 import { CandidateListPanel } from "./candidate-list-panel";
+import { CandidateReviewPanel } from "./candidate-review-panel";
+import { ModelProviderSettings } from "./model-provider-settings";
 import type { ModelProvider } from "./model-provider";
 import type { ModelCandidate } from "../domain/workspace";
 
@@ -36,7 +38,34 @@ export interface AssistantGenerationPresentation {
   readonly workflow: "AWAIT_INPUT" | "COMPLETE" | "REVIEW";
 }
 
+export interface AssistantAvailabilityInput {
+  readonly candidateDecisionBusy: boolean;
+  readonly hasInsertionTarget: boolean;
+  readonly hasPassage: boolean;
+  readonly stableDocument: boolean;
+  readonly workflowBusy: boolean;
+}
+
 export class AssistantGenerationPresenter extends LitElement {
+  presentAvailability(input: AssistantAvailabilityInput): void {
+    const settings = this.element("model-provider-settings", ModelProviderSettings);
+    settings?.setDiscoveryAvailable(!input.workflowBusy);
+    const status = this.element("assistant-workflow-status", AssistantWorkflowStatus);
+    const evidence = status?.modelEvidence();
+    this.element("assistant-task-panel", AssistantTaskPanel)?.setGenerationAvailability({
+      annotationEvidenceCount: evidence?.annotationItems.length ?? 0,
+      discoveryBusy: settings?.discoveryBusy ?? false,
+      evidenceCount: evidence?.items.length ?? 0,
+      hasInsertionTarget: input.hasInsertionTarget,
+      hasPassage: input.hasPassage,
+      modelAvailable: Boolean(settings?.value.model.trim()),
+      selectedEvidenceCount: status?.selectedEvidenceKeys.size ?? 0,
+      stableDocument: input.stableDocument,
+      workflowBusy: input.workflowBusy,
+    });
+    this.element("candidate-review-panel", CandidateReviewPanel)?.setAvailability(input.stableDocument, input.candidateDecisionBusy);
+  }
+
   async generate(input: AssistantGenerationInput): Promise<AssistantGenerationPresentation | null> {
     const task = this.element("assistant-task-panel", AssistantTaskPanel);
     if (!task) return null;

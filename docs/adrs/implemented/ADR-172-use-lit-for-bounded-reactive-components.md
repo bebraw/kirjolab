@@ -88,7 +88,10 @@ The adopted components own bounded presentation:
   canonical generation inputs. It returns only a created candidate plus
   workflow and status presentation; candidate persistence remains in its list
   owner, while the coordinator retains the XState actor, provider construction,
-  canonical refresh and navigation, error policy, and manuscript mutation.
+  canonical refresh and navigation, error policy, and manuscript mutation. The
+  presenter also fans canonical stability, target, and workflow inputs out to
+  model-discovery, task-readiness, and candidate-review owners while deriving
+  evidence and model availability from those bounded owners.
 - The project map panel owns provenance-lane rendering, measured SVG connector
   geometry, responsive relayout, focus and hover emphasis, and a typed resource
   selection intent.

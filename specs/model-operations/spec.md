@@ -31,7 +31,10 @@ All mutation operations preserve a human review boundary.
   workflow state, and result-specific status. Candidate persistence remains in
   its bounded list owner; the application retains the XState actor, canonical
   refresh and context navigation, provider construction, error policy, and
-  manuscript mutation.
+  manuscript mutation. The presenter also projects canonical stability, target,
+  and workflow inputs across model-discovery, task-readiness, and candidate-
+  review owners, deriving evidence counts and model availability only from the
+  components that own them.
 - A non-empty manuscript selection always resolves exactly. Otherwise the
   remembered Yjs-relative caret expands deterministically to the configured
   sentence, paragraph, or Markdown section, or remains an insertion point.

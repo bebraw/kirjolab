@@ -350,7 +350,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   created candidate plus workflow and result-status presentation. Keep workflow
   transitions, canonical refresh, context navigation, provider construction,
   error policy, and Yjs edits in the coordinator; candidate persistence remains
-  inside the candidate-list owner.
+  inside the candidate-list owner. The presenter may also fan canonical
+  stability, target, and workflow inputs out to model discovery, task readiness,
+  and candidate-review availability while deriving evidence counts and model
+  availability from their owning Lit components.
   Let the candidate-review Lit owner resolve the active candidate id against
   the canonical workspace snapshot and derive evidence availability and local
   applicability from candidate, evidence-version, source-revision,

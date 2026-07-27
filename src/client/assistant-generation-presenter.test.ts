@@ -3,8 +3,11 @@ import { AssistantGenerationPresenter, type AssistantGenerationInput } from "./a
 import { assistantOperationDefinition } from "./assistant-operations";
 import { AssistantResultPanel } from "./assistant-result-panel";
 import { AssistantTaskPanel } from "./assistant-task-panel";
+import { AssistantWorkflowStatus } from "./assistant-workflow-status";
 import { CandidateListPanel } from "./candidate-list-panel";
+import { CandidateReviewPanel } from "./candidate-review-panel";
 import { OpenAICompatibleBrowserProvider } from "./model-provider";
+import { ModelProviderSettings } from "./model-provider-settings";
 import type { ModelClaimCandidate, ModelRevisionCandidate } from "../domain/workspace";
 
 const passage = { end: 18, excerpt: "Target manuscript", fileId: "main.md", start: 1 };
@@ -76,7 +79,10 @@ function setup() {
   const elements = {
     "assistant-interactive-result": new AssistantResultPanel(),
     "assistant-task-panel": new AssistantTaskPanel(),
+    "assistant-workflow-status": new AssistantWorkflowStatus(),
     "candidate-list-panel": new CandidateListPanel(),
+    "candidate-review-panel": new CandidateReviewPanel(),
+    "model-provider-settings": new ModelProviderSettings(),
   };
   Object.defineProperty(presenter, "ownerDocument", {
     value: { getElementById: (id: string) => elements[id as keyof typeof elements] ?? null },
@@ -162,5 +168,34 @@ describe("assistant generation presenter", () => {
 
     expect(generateRevision).toHaveBeenCalledWith(provider, expect.objectContaining({ target: { ...passage, sourceRevision: 7 } }));
     expect(generateClaim).toHaveBeenCalledWith(provider, expect.objectContaining({ relation: "supports" }));
+  });
+
+  it("projects canonical availability across assistant owners", () => {
+    const { elements, presenter } = setup();
+    const settings = elements["model-provider-settings"];
+    const task = elements["assistant-task-panel"];
+    const review = elements["candidate-review-panel"];
+    const setDiscoveryAvailable = vi.spyOn(settings, "setDiscoveryAvailable");
+    const setGenerationAvailability = vi.spyOn(task, "setGenerationAvailability");
+    const setReviewAvailability = vi.spyOn(review, "setAvailability");
+
+    presenter.presentAvailability({
+      candidateDecisionBusy: true,
+      hasInsertionTarget: true,
+      hasPassage: false,
+      stableDocument: true,
+      workflowBusy: false,
+    });
+
+    expect(setDiscoveryAvailable).toHaveBeenCalledWith(true);
+    expect(setGenerationAvailability).toHaveBeenCalledWith(
+      expect.objectContaining({
+        hasInsertionTarget: true,
+        hasPassage: false,
+        stableDocument: true,
+        workflowBusy: false,
+      }),
+    );
+    expect(setReviewAvailability).toHaveBeenCalledWith(true, true);
   });
 });
