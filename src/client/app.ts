@@ -23,13 +23,7 @@ import { type WritingWorkflowBinding } from "./writing-workflow-panel";
 import "./research-diary-summary";
 import { type AssistantAuthoringPassage as AuthoringPassage } from "./assistant-result-panel";
 import { type CandidateDecisionOutcome } from "./candidate-review-panel";
-import {
-  type ModelCandidate,
-  type PassageLink,
-  type PdfResource,
-  type PublicationResource,
-  type WorkspaceSnapshot,
-} from "../domain/workspace";
+import { type ModelCandidate, type PassageLink, type PdfResource, type WorkspaceSnapshot } from "../domain/workspace";
 import { loadWorkspaceSnapshot, parseWorkspaceSnapshot, WorkspaceAccessError } from "./workspace-snapshot-client";
 import { CoalescedRefresh, DebouncedAsyncQueue } from "./collaboration";
 import { CollaborationSession } from "./collaboration-session";
@@ -66,6 +60,7 @@ import {
   type ResearchContextState,
   type PdfResearchLocation,
   type ResearchResourceKey,
+  type ResearchResourceTarget,
 } from "./research-context";
 import { readWorkspaceUiRoute, researchTargetFromContextKey, workspaceUiRouteUrl, type WorkspaceSurface } from "./workspace-ui-route";
 import "./workspace-rail-tabs";
@@ -485,10 +480,10 @@ class WorkspaceApp {
       insertCitation: (citationAlias, locator) => this.#insertCitation(citationAlias, locator),
       library: () => this.#librarySnapshot,
       linkPassage: (kind, id) => void this.#linkSelectedPassage(kind, id),
-      openCandidate: (candidate) => this.#openCandidateContext(candidate),
+      openCandidate: (candidate) => this.#openResourceContext({ kind: "candidate", id: candidate.id }),
       openLibraryPdf: async (artifact, page) => await this.#openLibraryPdf(artifact, page, false),
       openProjectPdf: async (pdf, page, annotationId) => await this.#showPaper(pdf, page, annotationId),
-      openPublication: (publication) => this.#openPublicationContext(publication),
+      openPublication: (publication) => this.#openResourceContext({ kind: "publication", id: publication.id }),
       openPassage: (anchor) => this.#showPassage(anchor),
       openReferencePdf: async (pdf, page) => await this.#openProjectReferencePdf(pdf, page, false),
       presentNotice: (message) => this.#showToast(message),
@@ -847,15 +842,8 @@ class WorkspaceApp {
     this.#presentContextTransition(activateResearchTab(this.#contextState, key), key);
   }
 
-  #openPublicationContext(publication: PublicationResource): void {
+  #openResourceContext(target: ResearchResourceTarget): void {
     this.#captureActiveContextState();
-    const target = { kind: "publication" as const, id: publication.id };
-    this.#presentContextTransition(openResearchResource(this.#contextState, target), researchResourceKey(target));
-  }
-
-  #openCandidateContext(candidate: ModelCandidate): void {
-    this.#captureActiveContextState();
-    const target = { kind: "candidate" as const, id: candidate.id };
     this.#presentContextTransition(openResearchResource(this.#contextState, target), researchResourceKey(target));
   }
 
@@ -1061,7 +1049,7 @@ class WorkspaceApp {
 
   async #openCreatedCandidate(value: ModelCandidate): Promise<void> {
     await this.#resourceRefresh.request();
-    this.#openCandidateContext(this.#snapshot?.candidates.find((item) => item.id === value.id) ?? value);
+    this.#openResourceContext({ kind: "candidate", id: value.id });
   }
 
   async #completeCandidateRequest(detail: CandidateDecisionOutcome): Promise<string | null> {

@@ -9014,6 +9014,27 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,720 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Coordinator Simplification: Resource Context Navigation
+
+`WorkspaceApp` now routes publication and candidate tabs through one existing
+`ResearchResourceTarget` transition instead of maintaining feature-specific
+wrappers. Candidate creation also uses the accepted candidate's stable id
+directly after canonical refresh rather than searching the refreshed collection
+only to recover that same id.
+
+This checkpoint reduces `src/client/app.ts` from 1,246 to 1,234 lines (-12),
+removing one feature-specific domain import, two duplicated transition methods,
+and the redundant candidate lookup. The affected gate passes all 1,720 unit and
+coverage cases alongside formatting, lint, and strict types.
+
+The browser application artifact changes from 849,595 B raw / 228,845 B gzip
+to 849,515 B raw / 228,816 B gzip (-80 B raw / -29 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,720 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,
