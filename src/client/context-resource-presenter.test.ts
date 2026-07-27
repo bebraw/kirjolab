@@ -250,4 +250,50 @@ describe("context resource presenter", () => {
     expect(setLibraryPage).toHaveBeenCalledWith(libraryPdf, [], 2, elements["library-pdf-annotation-toolbar"].drawingStyle);
     expect(setUndoDrawings).toHaveBeenCalledWith([]);
   });
+
+  it("coordinates private-PDF tools while returning viewer-only effects", () => {
+    const { elements, presenter } = setup();
+    const markups = elements["paper-markups"];
+    const inspector = elements["library-pdf-inspector"];
+    const toolbar = elements["library-pdf-annotation-toolbar"];
+    const chooseTool = vi.spyOn(markups, "chooseTool").mockImplementation(() => undefined);
+    const clearNote = vi.spyOn(inspector, "clearNote").mockImplementation(() => undefined);
+    const clearMarkup = vi.spyOn(inspector, "clearMarkup").mockImplementation(() => undefined);
+    const setStatus = vi.spyOn(inspector, "setStatus");
+    vi.spyOn(inspector, "draftState", "get").mockReturnValue({ highlight: false, markup: false, note: false });
+    const setInspectorOpen = vi.spyOn(inspector, "setInspectorOpen");
+    const setToolbarOpen = vi.spyOn(toolbar, "setInspectorOpen");
+
+    expect(presenter.chooseLibraryPdfTool("text")).toEqual({
+      privateHighlightId: null,
+      privateHighlightSelection: false,
+      textSelectionEnabled: true,
+    });
+
+    expect(chooseTool).toHaveBeenCalledWith("text");
+    expect(clearNote).toHaveBeenCalledOnce();
+    expect(clearMarkup).toHaveBeenCalledOnce();
+    expect(setStatus).toHaveBeenCalledWith("Select text to highlight.");
+    expect(setInspectorOpen).toHaveBeenCalledWith(false);
+    expect(setToolbarOpen).toHaveBeenCalledWith(false);
+  });
+
+  it("owns private-PDF draft clearing and exposes markup selection state", () => {
+    const { elements, presenter } = setup();
+    const markups = elements["paper-markups"];
+    const inspector = elements["library-pdf-inspector"];
+    vi.spyOn(markups, "tool", "get").mockReturnValue("select");
+    const clearNote = vi.spyOn(markups, "clearNote");
+    const clearSelection = vi.spyOn(markups, "clearSelection");
+    const clearInspectorNote = vi.spyOn(inspector, "clearNote").mockImplementation(() => undefined);
+    const clearInspectorMarkup = vi.spyOn(inspector, "clearMarkup").mockImplementation(() => undefined);
+
+    presenter.clearLibraryPdfNoteDraft();
+    expect(presenter.clearLibraryPdfMarkupSelection()).toBe(true);
+
+    expect(clearNote).toHaveBeenCalledOnce();
+    expect(clearSelection).toHaveBeenCalledOnce();
+    expect(clearInspectorNote).toHaveBeenCalledOnce();
+    expect(clearInspectorMarkup).toHaveBeenCalledOnce();
+  });
 });

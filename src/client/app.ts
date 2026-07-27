@@ -2802,8 +2802,7 @@ class WorkspaceApp {
   }
 
   #setLibraryPdfInspector(open: boolean, showAnnotations = false): void {
-    this.#elements.libraryPdfInspector.setInspectorOpen(open, showAnnotations);
-    this.#elements.libraryPdfAnnotationToolbar.setInspectorOpen(open);
+    this.#elements.contextResourcePresenter.setLibraryPdfInspector(open, showAnnotations);
   }
 
   #closeLibraryPdfInspector(): void {
@@ -2816,15 +2815,9 @@ class WorkspaceApp {
   }
 
   #setLibraryPdfTool(tool: "select" | "text" | "note" | "draw"): void {
-    this.#elements.paperMarkups.chooseTool(tool);
-    this.#pdfViewer.setTextSelectionEnabled(tool === "text");
-    const status = this.#elements.libraryPdfAnnotationToolbar.setTool(tool);
-    this.#pdfViewer.setPrivateHighlightSelection(tool === "select", this.#elements.paperMarkups.selectedHighlightId);
-    this.#elements.libraryPdfInspector.setStatus(status);
-    if (tool !== "note") this.#clearLibraryPdfNoteDraft();
-    if (tool !== "select") this.#clearLibraryPdfMarkupSelection();
-    const drafts = this.#elements.libraryPdfInspector.draftState;
-    if (!drafts.highlight && !drafts.markup && !drafts.note) this.#setLibraryPdfInspector(false);
+    const presentation = this.#elements.contextResourcePresenter.chooseLibraryPdfTool(tool);
+    this.#pdfViewer.setTextSelectionEnabled(presentation.textSelectionEnabled);
+    this.#pdfViewer.setPrivateHighlightSelection(presentation.privateHighlightSelection, presentation.privateHighlightId);
   }
 
   async #completeLibraryPdfNoteSave(kind: "created" | "updated"): Promise<void> {
@@ -2835,8 +2828,7 @@ class WorkspaceApp {
   }
 
   #clearLibraryPdfNoteDraft(): void {
-    this.#elements.paperMarkups.clearNote();
-    this.#elements.libraryPdfInspector.clearNote();
+    this.#elements.contextResourcePresenter.clearLibraryPdfNoteDraft();
   }
 
   #editLibraryPdfNote(note: LibraryPdfNote): void {
@@ -2864,9 +2856,7 @@ class WorkspaceApp {
   }
 
   #clearLibraryPdfMarkupSelection(): void {
-    this.#elements.paperMarkups.clearSelection();
-    this.#elements.libraryPdfInspector.clearMarkup();
-    this.#pdfViewer.setPrivateHighlightSelection(this.#elements.paperMarkups.tool === "select");
+    this.#pdfViewer.setPrivateHighlightSelection(this.#elements.contextResourcePresenter.clearLibraryPdfMarkupSelection());
   }
 
   #editSelectedLibraryPdfNote(): void {

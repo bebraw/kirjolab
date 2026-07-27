@@ -7,7 +7,7 @@ import { CandidateReviewPanel } from "./candidate-review-panel";
 import { ClaimListPanel } from "./claim-list-panel";
 import { LibraryPdfAnnotationToolbar } from "./library-pdf-annotation-toolbar";
 import { LibraryPdfInspector } from "./library-pdf-inspector";
-import { LibraryPdfMarkupLayer } from "./library-pdf-markup-layer";
+import { LibraryPdfMarkupLayer, type PdfAnnotationTool } from "./library-pdf-markup-layer";
 import { ManuscriptCommentList } from "./manuscript-comment-list";
 import { ProjectAnnotationForm } from "./project-annotation-form";
 import { ProjectEvidencePanel } from "./project-evidence-panel";
@@ -31,6 +31,12 @@ export interface ContextResourceSources {
 export interface ContextResourcePresentation {
   readonly privateHighlights: readonly LibraryHighlight[] | undefined;
   readonly publicationPresented: boolean;
+}
+
+export interface LibraryPdfToolPresentation {
+  readonly privateHighlightId: string | null;
+  readonly privateHighlightSelection: boolean;
+  readonly textSelectionEnabled: boolean;
 }
 
 export class ContextResourcePresenter extends LitElement {
@@ -59,6 +65,42 @@ export class ContextResourcePresenter extends LitElement {
         toolbar.drawingStyle,
       ) ?? [];
     toolbar.setUndoDrawings(drawings);
+  }
+
+  setLibraryPdfInspector(open: boolean, showAnnotations = false): void {
+    const inspector = this.element("library-pdf-inspector", LibraryPdfInspector);
+    if (showAnnotations) inspector?.setInspectorOpen(open, true);
+    else inspector?.setInspectorOpen(open);
+    this.element("library-pdf-annotation-toolbar", LibraryPdfAnnotationToolbar)?.setInspectorOpen(open);
+  }
+
+  chooseLibraryPdfTool(tool: PdfAnnotationTool): LibraryPdfToolPresentation {
+    const markups = this.element("paper-markups", LibraryPdfMarkupLayer);
+    const inspector = this.element("library-pdf-inspector", LibraryPdfInspector);
+    markups?.chooseTool(tool);
+    const status = this.element("library-pdf-annotation-toolbar", LibraryPdfAnnotationToolbar)?.setTool(tool);
+    if (status) inspector?.setStatus(status);
+    if (tool !== "note") this.clearLibraryPdfNoteDraft();
+    if (tool !== "select") this.clearLibraryPdfMarkupSelection();
+    const drafts = inspector?.draftState;
+    if (drafts && !drafts.highlight && !drafts.markup && !drafts.note) this.setLibraryPdfInspector(false);
+    return {
+      privateHighlightId: markups?.selectedHighlightId ?? null,
+      privateHighlightSelection: tool === "select",
+      textSelectionEnabled: tool === "text",
+    };
+  }
+
+  clearLibraryPdfNoteDraft(): void {
+    this.element("paper-markups", LibraryPdfMarkupLayer)?.clearNote();
+    this.element("library-pdf-inspector", LibraryPdfInspector)?.clearNote();
+  }
+
+  clearLibraryPdfMarkupSelection(): boolean {
+    const markups = this.element("paper-markups", LibraryPdfMarkupLayer);
+    markups?.clearSelection();
+    this.element("library-pdf-inspector", LibraryPdfInspector)?.clearMarkup();
+    return markups?.tool === "select";
   }
 
   resourceScrollTop(tab: ResearchContextTab): number {
@@ -139,8 +181,7 @@ export class ContextResourcePresenter extends LitElement {
     const inspector = this.element("library-pdf-inspector", LibraryPdfInspector);
     const toolbar = this.element("library-pdf-annotation-toolbar", LibraryPdfAnnotationToolbar);
     if (!artifact) {
-      inspector?.setInspectorOpen(false);
-      toolbar?.setInspectorOpen(false);
+      this.setLibraryPdfInspector(false);
       return undefined;
     }
     if (!sources.library || !inspector) return undefined;
@@ -155,8 +196,7 @@ export class ContextResourcePresenter extends LitElement {
       const markupsLayer = this.element("paper-markups", LibraryPdfMarkupLayer);
       markupsLayer?.cancelShapeRecognition();
       markupsLayer?.resetState();
-      inspector.setInspectorOpen(false);
-      toolbar?.setInspectorOpen(false);
+      this.setLibraryPdfInspector(false);
     }
     toolbar?.setAnnotationAvailability(highlights.length + markups.length);
     toolbar?.setExportArtifact(artifact);
