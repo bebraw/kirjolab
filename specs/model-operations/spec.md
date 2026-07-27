@@ -185,8 +185,10 @@ All mutation operations preserve a human review boundary.
   candidate-list component owns revision and claim-draft provider calls and
   their typed persistence because those results immediately become candidate
   resources. XState transitions, authorized target and evidence derivation,
-  canonical Markdown edits, canonical refresh, context navigation, and
-  cross-panel workflow status remain with the application coordinator.
+  generated-candidate refresh-before-open, decision refresh and recovery, and
+  cross-panel workflow status belong to the assistant presenter. Canonical
+  Markdown edits, refresh execution, context-state mutation, and notice
+  presentation remain application effects behind its typed workflow binding.
 - The assistant keeps a visible **Choose evidence** action beside its status.
   It opens the Research rail, expands the collection containing the first
   available grounding control, and focuses that control; an empty project
@@ -293,8 +295,9 @@ All mutation operations preserve a human review boundary.
   states; stale, failed, or superseded transient results cannot continue their
   prior operation.
 - Result presentation must not acquire model, candidate, manuscript, or Library
-  mutation authority; every continuation or mutation crosses a typed intent
-  back to the application coordinator.
+  mutation authority; every continuation or mutation crosses a typed intent to
+  the assistant presenter and then a typed application effect where canonical
+  state or refresh execution is required.
 - The companion must require one exact origin and a fixed credential-free
   loopback upstream, and it must fail closed on invalid shape, size, route,
   method, media type, redirect, timeout, or network response.

@@ -93,11 +93,12 @@ export interface AssistantAuthoringSources {
 }
 
 export interface AssistantWorkflowCoordinator {
+  readonly activateAssistant: () => void;
   readonly applyTable: (target: AssistantAuthoringPassage, insertion: string) => void;
   readonly decisionChanged: () => void;
   readonly openEvidenceRail: () => void;
-  readonly openGeneratedCandidate: (candidate: ModelCandidate) => Promise<void>;
-  readonly resolveDecision: (detail: CandidateDecisionOutcome) => Promise<string | null>;
+  readonly presentNotice: (message: string) => void;
+  readonly refreshResources: () => Promise<void>;
   readonly tableState: () => {
     readonly revision: number;
     readonly source: string;
@@ -201,10 +202,29 @@ export class AssistantGenerationPresenter extends LitElement {
   }
 
   private async completeDecision(detail: CandidateDecisionOutcome, callbacks: AssistantWorkflowCoordinator): Promise<void> {
-    const failure = await callbacks.resolveDecision(detail);
+    let failure = detail.failure;
+    if (failure) {
+      await callbacks.refreshResources().catch(() => undefined);
+      callbacks.presentNotice(failure);
+    } else {
+      try {
+        await callbacks.refreshResources();
+        if (detail.action === "reject") callbacks.activateAssistant();
+        callbacks.presentNotice(detail.message);
+      } catch (error) {
+        failure = error instanceof Error ? error.message : "Candidate decision failed";
+        await callbacks.refreshResources().catch(() => undefined);
+        callbacks.presentNotice(failure);
+      }
+    }
     this.workflow.send(failure ? { type: "DECISION_FAILED", message: failure } : { type: "DECISION_DONE" });
     callbacks.decisionChanged();
     if (!failure && detail.action === "reject") this.resourceRoutes.focusAssistant();
+  }
+
+  private async openGeneratedCandidate(candidate: ModelCandidate): Promise<void> {
+    await this.workflowCoordinator.refreshResources();
+    this.resourceRoutes.openCandidate(candidate);
   }
 
   async createRevisionCandidate(input: AssistantRevisionCandidateInput): Promise<ModelRevisionCandidate> {
@@ -277,7 +297,7 @@ export class AssistantGenerationPresenter extends LitElement {
       if (detail.action === "continue-clarity") {
         void this.continueClarity(result, status, detail);
       } else if (detail.action === "insert-table") this.insertTable(status, detail.context, detail.markdown, callbacks);
-      else void this.chooseRevision(status, detail, callbacks);
+      else void this.chooseRevision(status, detail);
     });
     result?.addEventListener(assistantReferenceRefreshEvent, (event) => {
       const detail = (event as CustomEvent<AssistantReferenceRefresh>).detail;
@@ -296,7 +316,6 @@ export class AssistantGenerationPresenter extends LitElement {
   private async chooseRevision(
     status: AssistantWorkflowStatus | null,
     detail: Extract<AssistantResultActionDetail, { readonly action: "choose-revision" }>,
-    callbacks: AssistantWorkflowCoordinator,
   ): Promise<void> {
     if (!this.workflow.getSnapshot().matches("reviewing")) return;
     this.workflow.send({ type: "CONTINUE" });
@@ -312,7 +331,7 @@ export class AssistantGenerationPresenter extends LitElement {
         replacement: choice.replacement,
         sourceRevision: context.sourceRevision,
       });
-      await callbacks.openGeneratedCandidate(candidate);
+      await this.openGeneratedCandidate(candidate);
       if (status) status.status = choice.successMessage;
       this.workflow.send({ type: "COMPLETE" });
     } catch (error) {
@@ -401,7 +420,7 @@ export class AssistantGenerationPresenter extends LitElement {
       if (change === "operation" || change === "target") this.refreshTarget();
       this.refreshAvailability();
     });
-    task?.addEventListener(assistantTaskGenerateEvent, () => void this.runGeneration(status, callbacks));
+    task?.addEventListener(assistantTaskGenerateEvent, () => void this.runGeneration(status));
     const selectEvidence = (key: string, selected: boolean): void => {
       status?.setEvidenceSelected(key, selected);
       this.refreshAvailability();
@@ -426,7 +445,7 @@ export class AssistantGenerationPresenter extends LitElement {
     if (status) status.status = "Choose one or more evidence resources in the Research rail, then return to the assistant.";
   }
 
-  private async runGeneration(status: AssistantWorkflowStatus | null, callbacks: AssistantWorkflowCoordinator): Promise<void> {
+  private async runGeneration(status: AssistantWorkflowStatus | null): Promise<void> {
     if (assistantWorkflowBusy(this.workflow.getSnapshot())) return;
     const input = this.generationInput();
     if (!input) return;
@@ -436,7 +455,7 @@ export class AssistantGenerationPresenter extends LitElement {
     try {
       const presentation = await this.generate(input);
       if (!presentation) throw new Error("Assistant generation is unavailable");
-      if (presentation.candidate) await callbacks.openGeneratedCandidate(presentation.candidate);
+      if (presentation.candidate) await this.openGeneratedCandidate(presentation.candidate);
       if (status) status.status = presentation.status;
       this.workflow.send({ type: presentation.workflow });
     } catch (error) {

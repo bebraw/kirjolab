@@ -9416,6 +9416,29 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,721 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Candidate Completion
+
+`AssistantGenerationPresenter` now owns generated-candidate
+refresh-before-open and completed candidate-decision refresh, recovery, notice
+selection, XState completion, and assistant-focus sequencing. `WorkspaceApp`
+supplies only canonical refresh execution, assistant-context activation, and
+notice presentation through the existing typed workflow binding.
+
+This checkpoint reduces `src/client/app.ts` from 1,161 to 1,139 lines (-22)
+and grows the assistant presenter from 630 to 649 lines. Runtime source across
+those files decreases by three lines while deleting both coordinator-only
+candidate completion adapters. Focused presenter and application-contract
+coverage passes all 35 tests, including provider-reported and refresh failure
+recovery, alongside strict types.
+
+The browser application artifact changes from 848,938 B raw / 228,961 B gzip
+to 849,004 B raw / 228,944 B gzip (+66 B raw / -17 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,721 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Library PDF Project Use Projection
 
 `LibraryPdfProjectUse` now resolves the active bibliographic record and matching

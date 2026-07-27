@@ -22,8 +22,7 @@ import "./workspace-layout-control";
 import { type WritingWorkflowBinding } from "./writing-workflow-panel";
 import "./research-diary-summary";
 import { type AssistantAuthoringPassage as AuthoringPassage } from "./assistant-result-panel";
-import { type CandidateDecisionOutcome } from "./candidate-review-panel";
-import { type ModelCandidate, type PassageLink, type PdfResource, type WorkspaceSnapshot } from "../domain/workspace";
+import { type PassageLink, type PdfResource, type WorkspaceSnapshot } from "../domain/workspace";
 import { loadWorkspaceSnapshot, parseWorkspaceSnapshot, WorkspaceAccessError } from "./workspace-snapshot-client";
 import { CoalescedRefresh, DebouncedAsyncQueue } from "./collaboration";
 import { CollaborationSession } from "./collaboration-session";
@@ -517,14 +516,17 @@ class WorkspaceApp {
     this.#elements.contextResourcePresenter.bindPublicationContext(apiBase);
     this.#elements.assistantGenerationPresenter.bindResources(this.#elements.contextResourcePresenter.assistantResources());
     this.#elements.assistantGenerationPresenter.bindWorkflow({
+      activateAssistant: () => {
+        this.#contextState = activateResearchTab(this.#contextState, RESEARCH_ASSISTANT_KEY);
+      },
       applyTable: (target, insertion) => this.#applyGeneratedTable(target, insertion),
       decisionChanged: () => {
         this.#renderResearchContext(false);
         this.#elements.assistantGenerationPresenter.refreshAvailability();
       },
       openEvidenceRail: () => this.#elements.workspaceRailTabs.navigate("research"),
-      openGeneratedCandidate: (candidate) => this.#openCreatedCandidate(candidate),
-      resolveDecision: (detail) => this.#completeCandidateRequest(detail),
+      presentNotice: (message) => this.#showToast(message),
+      refreshResources: () => this.#resourceRefresh.request(),
       tableState: () => ({
         revision: this.#revision,
         source: this.#activeFileText.toString(),
@@ -987,30 +989,6 @@ class WorkspaceApp {
     const caret = target.start + insertion.length;
     this.#elements.source.focus();
     this.#selectAuthoringRange(caret);
-  }
-
-  async #openCreatedCandidate(value: ModelCandidate): Promise<void> {
-    await this.#resourceRefresh.request();
-    this.#openResourceContext({ kind: "candidate", id: value.id });
-  }
-
-  async #completeCandidateRequest(detail: CandidateDecisionOutcome): Promise<string | null> {
-    let failure = detail.failure;
-    if (failure) {
-      await this.#resourceRefresh.request().catch(() => undefined);
-      this.#showToast(failure);
-    } else {
-      try {
-        await this.#resourceRefresh.request();
-        if (detail.action === "reject") this.#contextState = activateResearchTab(this.#contextState, RESEARCH_ASSISTANT_KEY);
-        this.#showToast(detail.message);
-      } catch (error) {
-        failure = error instanceof Error ? error.message : "Candidate decision failed";
-        await this.#resourceRefresh.request().catch(() => undefined);
-        this.#showToast(failure);
-      }
-    }
-    return failure;
   }
 
   async #showPaper(pdf: PdfResource, page?: number, focusAnnotationId?: string): Promise<void> {

@@ -99,20 +99,22 @@ The adopted components own bounded presentation:
   presentation, task and model-settings subscriptions, evidence selection and
   focus guidance, generation routing, clarity continuation, captured-table
   validation and portable spacing, promoted-revision persistence sequencing,
-  and candidate-review event handling. Candidate persistence remains in its
-  list owner and provider construction derives from validated model-settings
-  state. It binds once to canonical candidate, project-PDF, project snapshot,
+  candidate-review event handling, generated-candidate refresh-before-open,
+  and completed-decision refresh, recovery, notice selection, and workflow
+  completion. Candidate persistence remains in its list owner and provider construction derives from validated model-settings state. It binds once to canonical candidate, project-PDF, project snapshot,
   Library-refresh, assistant-tab, and no-evidence notice routes supplied by the
   context-resource presenter instead of repeating them across its task, result,
   and candidate workflow bindings. Bind the remaining application-owned inputs
-  and consequences once through one workflow coordinator instead of separate
-  candidate, result, and control callback bags. Bind canonical file identity,
+  and narrow canonical refresh, assistant-context activation, and notice
+  effects once through one workflow coordinator instead of separate candidate,
+  result, and control callback bags. Bind canonical file identity,
   manuscript text, target range, source revision, and collaboration stability
   once as authoring sources; derive scoped and insertion passages, generation
   input, availability, target presentation, and snapshot availability inside
   the presenter. The application coordinator retains
   authorized Yjs mutation, editor selection, remembered authoring selection,
-  generation consequences, and refresh policy through narrow typed callbacks.
+  canonical refresh execution, context-state mutation, and notice presentation
+  through narrow typed callbacks.
 - The project map panel owns provenance-lane rendering, measured SVG connector
   geometry, responsive relayout, focus and hover emphasis, and a typed resource
   selection intent.

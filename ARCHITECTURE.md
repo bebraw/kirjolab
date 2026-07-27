@@ -455,22 +455,23 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   source-staleness transitions, status presentation, model-settings and task
   subscriptions, evidence selection and focus guidance, generation routing,
   clarity continuation, captured-table validation and portable spacing,
-  promoted-revision persistence sequencing, candidate decision state, and
-  candidate-review event subscriptions. Candidate persistence remains inside
-  the candidate-list owner. Bind the assistant presenter once to canonical
+  promoted-revision persistence sequencing, candidate decision state,
+  candidate-review event subscriptions, generated-candidate refresh-before-
+  open, and completed-decision refresh, recovery, notice selection, and
+  workflow completion. Candidate persistence remains inside the candidate-list owner. Bind the assistant presenter once to canonical
   candidate, project-PDF, project snapshot, Library-refresh, assistant-tab, and
   no-evidence notice routes supplied by the context-resource presenter instead
   of repeating them across task, result, and candidate workflows. Bind all
-  remaining application-owned generation inputs and consequences once through
-  one workflow coordinator instead of separate candidate, result, and control
-  callback bags. Bind canonical file identity, manuscript text, target range,
+  remaining application-owned generation inputs and narrow canonical refresh,
+  assistant-context activation, and notice effects once through one workflow
+  coordinator instead of separate candidate, result, and control callback bags. Bind canonical file identity, manuscript text, target range,
   source revision, and collaboration stability once as authoring sources; let
   the presenter derive scoped and insertion passages, generation input,
   availability, and target presentation, including snapshot availability from
   its canonical project route. Keep
   authorized Yjs mutation, editor selection, remembered authoring selection,
-  generation consequences, and refresh policy in the application coordinator
-  through narrow typed callbacks.
+  canonical refresh execution, context-state mutation, and notice presentation
+  in the application coordinator through narrow typed callbacks.
   Let the candidate-review Lit owner resolve the active candidate id against
   the canonical workspace snapshot and derive evidence availability and local
   applicability from candidate, evidence-version, source-revision,
