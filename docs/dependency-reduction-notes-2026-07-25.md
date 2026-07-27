@@ -9147,6 +9147,24 @@ to 848,978 B raw / 228,772 B gzip (-161 B raw / -9 B gzip). Styles and direct
 and unique production package counts remain unchanged at 135,411 B raw /
 23,373 B gzip, 18, and 150.
 
+## Route Ownership: Workspace Selection Projection
+
+The pure workspace route adapter now owns default entry-file elision and active
+PDF page and workspace-annotation projection alongside query parsing and
+serialization. `WorkspaceApp` supplies authorized canonical selections and
+retains push-versus-replace history policy without maintaining two local route
+helpers.
+
+This checkpoint reduces `src/client/app.ts` from 1,219 to 1,212 lines (-7).
+Focused route coverage grows to 28 cases and the full native CI passes all 1,721
+unit/coverage tests, 121 Workers-runtime tests, and 74 browser tests alongside
+formatting, lint, and strict types.
+
+The browser application artifact changes from 848,978 B raw / 228,772 B gzip
+to 848,968 B raw / 228,767 B gzip (-10 B raw / -5 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

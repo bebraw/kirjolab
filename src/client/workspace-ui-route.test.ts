@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { readWorkspaceUiRoute, researchTargetFromContextKey, workspaceUiRouteUrl } from "./workspace-ui-route";
+import { readWorkspaceUiRoute, researchTargetFromContextKey, workspaceUiRouteSelection, workspaceUiRouteUrl } from "./workspace-ui-route";
 
 describe("workspace UI routes", () => {
   it("uses the stable workspace defaults for an empty query", () => {
@@ -131,5 +131,39 @@ describe("workspace UI routes", () => {
         annotationId: "annotation-1",
       }),
     ).toBe("/editor/demo?context=candidate%3Acandidate-1");
+  });
+
+  it("projects non-default files and PDF tab locations", () => {
+    expect(workspaceUiRouteSelection("entry", "entry", undefined)).toEqual({});
+    expect(
+      workspaceUiRouteSelection("notes", "entry", {
+        key: "pdf:paper",
+        kind: "pdf",
+        id: "paper",
+        page: 3,
+        focusedAnnotationId: null,
+        scrollTop: 0,
+      }),
+    ).toEqual({ fileId: "notes", page: 3 });
+    expect(
+      workspaceUiRouteSelection(null, "entry", {
+        key: "pdf:paper",
+        kind: "pdf",
+        id: "paper",
+        page: 4,
+        focusedAnnotationId: "note-1",
+        scrollTop: 0,
+      }),
+    ).toEqual({ page: 4, annotationId: "note-1" });
+    expect(
+      workspaceUiRouteSelection("notes", "entry", {
+        key: "library-pdf:paper",
+        kind: "library-pdf",
+        id: "paper",
+        page: 5,
+        focusedAnnotationId: null,
+        scrollTop: 0,
+      }),
+    ).toEqual({ fileId: "notes", page: 5 });
   });
 });

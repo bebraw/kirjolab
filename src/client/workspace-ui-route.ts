@@ -3,6 +3,7 @@ import {
   RESEARCH_LIBRARY_KEY,
   RESEARCH_PREVIEW_KEY,
   type ResearchContextKey,
+  type ResearchContextState,
   type ResearchResourceKind,
   type ResearchResourceTarget,
 } from "./research-context";
@@ -58,6 +59,17 @@ export function workspaceUiRouteUrl(current: URL, state: WorkspaceUiRouteState):
   if (state.page && state.page > 1 && isPdfContext(state.contextKey)) next.searchParams.set("page", String(state.page));
   if (state.annotationId && state.contextKey.startsWith("pdf:")) next.searchParams.set("annotation", state.annotationId);
   return `${next.pathname}${next.search}${next.hash}`;
+}
+
+export function workspaceUiRouteSelection(
+  activeFileId: string | null,
+  entryFileId: string | undefined,
+  tab: ResearchContextState["tabs"][number] | undefined,
+): Pick<WorkspaceUiRouteState, "fileId" | "page" | "annotationId"> {
+  const file = activeFileId && activeFileId !== entryFileId ? { fileId: activeFileId } : {};
+  if (tab?.kind !== "pdf" && tab?.kind !== "library-pdf") return file;
+  const annotation = tab.kind === "pdf" && tab.focusedAnnotationId ? { annotationId: tab.focusedAnnotationId } : {};
+  return { ...file, page: tab.page, ...annotation };
 }
 
 export function researchTargetFromContextKey(key: ResearchContextKey): ResearchResourceTarget | null {

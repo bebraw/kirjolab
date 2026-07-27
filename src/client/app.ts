@@ -62,7 +62,7 @@ import {
   type ResearchResourceKey,
   type ResearchResourceTarget,
 } from "./research-context";
-import { readWorkspaceUiRoute, researchTargetFromContextKey, workspaceUiRouteUrl } from "./workspace-ui-route";
+import { readWorkspaceUiRoute, researchTargetFromContextKey, workspaceUiRouteSelection, workspaceUiRouteUrl } from "./workspace-ui-route";
 import "./workspace-rail-tabs";
 import "./authoring-mode-tabs";
 import type { EditorPresenceRange } from "./editor-presence";
@@ -604,15 +604,13 @@ class WorkspaceApp {
     if (appMode !== "workspace" || !this.#workspaceRouteReady) return;
     const activeTab = this.#contextState.tabs.find((tab) => tab.key === this.#contextState.activeKey);
     const current = new URL(location.href);
-    const tabLocation = researchTabRouteLocation(activeTab);
     const next = workspaceUiRouteUrl(current, {
-      ...activeWorkspaceFileRoute(this.#activeFileId, this.#snapshot?.entryFileId),
+      ...workspaceUiRouteSelection(this.#activeFileId, this.#snapshot?.entryFileId, activeTab),
       rail: this.#elements.workspaceRailTabs.mode,
       mode: this.#elements.authoringModeTabs.mode,
       surface: this.#elements.workspaceSurfaces.dataset.activeSurface === "context" ? "context" : "authoring",
       layout: this.#elements.workspaceLayout.value,
       contextKey: this.#contextState.activeKey,
-      ...tabLocation,
     });
     const currentRelative = `${current.pathname}${current.search}${current.hash}`;
     if (next === currentRelative) return;
@@ -1182,16 +1180,6 @@ class WorkspaceApp {
   #showToast(message: string, options?: AppToastOptions): void {
     this.#elements.toast.show(message, options);
   }
-}
-
-function activeWorkspaceFileRoute(activeFileId: string | null, entryFileId: string | undefined): { fileId: string } | object {
-  return activeFileId && activeFileId !== entryFileId ? { fileId: activeFileId } : {};
-}
-
-function researchTabRouteLocation(tab: ResearchContextState["tabs"][number] | undefined): { page: number; annotationId?: string } | object {
-  if (tab?.kind !== "pdf" && tab?.kind !== "library-pdf") return {};
-  if (tab.kind === "pdf" && tab.focusedAnnotationId) return { page: tab.page, annotationId: tab.focusedAnnotationId };
-  return { page: tab.page };
 }
 
 function readWorkspaceId(): string {

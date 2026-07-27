@@ -1073,6 +1073,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   rendering consequences in the application coordinator.
 - Project bounded, reconstructible editor UI selections into query parameters
   only after validating stable ids against authorized snapshots.
+  Keep default-file elision and active PDF-page and annotation projection beside
+  parsing and serialization in the pure workspace route adapter; let the
+  application coordinator choose authorized state and history mode.
   Push meaningful context-target navigation, replace incidental view and page
   changes, preserve unrelated query parameters, and keep drafts, scroll,
   selection, pane sizing, and inactive-tab session state out of URLs.
