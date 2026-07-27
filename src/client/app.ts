@@ -647,7 +647,7 @@ class WorkspaceApp {
         detail.action === "pdf-removed"
       )
         this.#refreshResourcesWithNotice(detail.message, "The project changed, but project resources could not be refreshed.");
-      else if (detail.action === "evidence") this.#setModelEvidenceSelected(detail.key, detail.selected);
+      else if (detail.action === "evidence") return;
       else if (detail.action === "link-annotation") void this.#linkAnnotation(detail.annotationId);
       else if (detail.action === "edit-annotation") this.#editAnnotation(detail.annotation);
       else if (detail.action === "annotation-removed") {
@@ -738,7 +738,7 @@ class WorkspaceApp {
     this.#elements.claimListPanel.addEventListener(claimListActionEvent, (event) => {
       const detail = (event as CustomEvent<ClaimListAction>).detail;
       if (detail.action === "create") this.#openClaimDialog();
-      else if (detail.action === "evidence") this.#setModelEvidenceSelected(detail.key, detail.selected);
+      else if (detail.action === "evidence") return;
       else if (detail.action === "edit") this.#openClaimDialog(detail.claim);
       else if (detail.action === "mutated")
         this.#refreshResourcesWithNotice(detail.message, "The claim was deleted, but project resources could not be refreshed.");
@@ -835,10 +835,11 @@ class WorkspaceApp {
       },
     });
     this.#elements.assistantGenerationPresenter.bindControls({
-      chooseEvidence: () => this.#chooseModelEvidence(),
       generate: () => void this.#generateCandidate(),
+      openEvidenceRail: () => this.#showRail("research"),
       refreshAvailability: () => this.#updateModelAvailability(),
       refreshTarget: () => this.#renderAssistantTargetPreview(),
+      reportNoEvidence: () => this.#showToast("No project evidence is available yet."),
     });
   }
 
@@ -2259,22 +2260,6 @@ class WorkspaceApp {
       this.#elements.source.setSelectionRange(caret, caret);
       this.#rememberAuthoringSelection();
     }
-  }
-
-  #setModelEvidenceSelected(key: string, selected: boolean): void {
-    this.#elements.assistantWorkflowStatus.setEvidenceSelected(key, selected);
-    this.#updateModelAvailability();
-  }
-
-  #chooseModelEvidence(): void {
-    this.#showRail("research");
-    if (!this.#elements.projectEvidencePanel.focusEvidence() && !this.#elements.claimListPanel.focusEvidence()) {
-      this.#elements.assistantWorkflowStatus.status = "Add a PDF highlight or researcher-authored claim before choosing model evidence.";
-      this.#showToast("No project evidence is available yet.");
-      return;
-    }
-    this.#elements.assistantWorkflowStatus.status =
-      "Choose one or more evidence resources in the Research rail, then return to the assistant.";
   }
 
   async #generateCandidate(): Promise<void> {

@@ -55,7 +55,10 @@ All mutation operations preserve a human review boundary.
   evidence, and provider settings plus canonical target and stability inputs.
   It owns clarity-answer validation, provider continuation, and transient
   status presentation while the application retains XState transitions,
-  availability refresh, and failure policy.
+  availability refresh, and failure policy. It owns evidence-selection
+  subscriptions from project evidence and claims plus evidence-focus guidance
+  and status while the application retains rail navigation, toast policy, and
+  availability refresh.
 - A non-empty manuscript selection always resolves exactly. Otherwise the
   remembered Yjs-relative caret expands deterministically to the configured
   sentence, paragraph, or Markdown section, or remains an insertion point.

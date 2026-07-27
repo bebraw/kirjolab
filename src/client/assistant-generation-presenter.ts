@@ -24,9 +24,10 @@ import {
   type CandidateDecisionOutcome,
   type CandidateDecisionRequest,
 } from "./candidate-review-panel";
-import { ClaimListPanel } from "./claim-list-panel";
+import { ClaimListPanel, claimListActionEvent, type ClaimListAction } from "./claim-list-panel";
 import { ModelProviderSettings, modelProviderChangeEvent } from "./model-provider-settings";
 import type { ModelProvider } from "./model-provider";
+import { ProjectEvidencePanel, projectEvidenceActionEvent, type ProjectEvidenceAction } from "./project-evidence-panel";
 import type {
   ModelCandidate,
   ModelEvidence,
@@ -84,10 +85,11 @@ export interface AssistantAvailabilityInput {
 }
 
 export interface AssistantControlCallbacks {
-  readonly chooseEvidence: () => void;
   readonly generate: () => void;
+  readonly openEvidenceRail: () => void;
   readonly refreshAvailability: () => void;
   readonly refreshTarget: () => void;
+  readonly reportNoEvidence: () => void;
 }
 
 export interface AssistantResultCallbacks {
@@ -256,7 +258,7 @@ export class AssistantGenerationPresenter extends LitElement {
     });
     status?.addEventListener(assistantWorkflowActionEvent, (event) => {
       const action = (event as CustomEvent<AssistantWorkflowAction>).detail;
-      if (action === "choose-evidence") callbacks.chooseEvidence();
+      if (action === "choose-evidence") this.chooseEvidence(status, callbacks);
       else settings?.open();
     });
     task?.addEventListener(assistantTaskChangeEvent, (event) => {
@@ -266,9 +268,33 @@ export class AssistantGenerationPresenter extends LitElement {
       callbacks.refreshAvailability();
     });
     task?.addEventListener(assistantTaskGenerateEvent, callbacks.generate);
+    const selectEvidence = (detail: ProjectEvidenceAction | ClaimListAction): void => {
+      if (detail.action !== "evidence") return;
+      status?.setEvidenceSelected(detail.key, detail.selected);
+      callbacks.refreshAvailability();
+    };
+    this.element("project-evidence-panel", ProjectEvidencePanel)?.addEventListener(projectEvidenceActionEvent, (event) => {
+      selectEvidence((event as CustomEvent<ProjectEvidenceAction>).detail);
+    });
+    this.element("claim-list-panel", ClaimListPanel)?.addEventListener(claimListActionEvent, (event) => {
+      selectEvidence((event as CustomEvent<ClaimListAction>).detail);
+    });
     this.presentTask();
     callbacks.refreshTarget();
     callbacks.refreshAvailability();
+  }
+
+  private chooseEvidence(status: AssistantWorkflowStatus | null, callbacks: AssistantControlCallbacks): void {
+    callbacks.openEvidenceRail();
+    const focused =
+      this.element("project-evidence-panel", ProjectEvidencePanel)?.focusEvidence() ||
+      this.element("claim-list-panel", ClaimListPanel)?.focusEvidence();
+    if (!focused) {
+      if (status) status.status = "Add a PDF highlight or researcher-authored claim before choosing model evidence.";
+      callbacks.reportNoEvidence();
+      return;
+    }
+    if (status) status.status = "Choose one or more evidence resources in the Research rail, then return to the assistant.";
   }
 
   presentTask(resetResult = false): void {

@@ -6121,6 +6121,30 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,646 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Assistant Evidence Selection
+
+`AssistantGenerationPresenter` now subscribes to evidence-selection outcomes
+from both the project-evidence and claim owners, updates the assistant evidence
+owner, and projects evidence-focus success or empty-state guidance. The
+coordinator retains Research-rail navigation, empty-evidence toast policy, and
+canonical availability refresh through three narrow callbacks.
+
+This checkpoint reduces `src/client/app.ts` from 2,870 to 2,855 lines (-15)
+and grows the generation presenter from 426 to 452 lines. Runtime source across
+those two files grows by 11 lines while deleting two coordinator evidence
+branches, the selection adapter, the evidence-focus method, and its direct
+assistant-status mutations. The twelve direct presenter cases now also cover
+cross-panel evidence selection, successful focus guidance, and empty-evidence
+reporting under strict client and Workers types.
+
+The browser application artifact changes from 834,611 B raw / 225,802 B gzip
+to 834,843 B raw / 225,659 B gzip (+232 B raw / -143 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,646 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

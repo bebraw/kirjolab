@@ -113,7 +113,10 @@ The adopted components own bounded presentation:
   and model settings plus coordinator-supplied canonical target and stability
   inputs. It owns clarity-answer validation, provider continuation, and
   transient status presentation while the coordinator retains XState
-  transitions, availability refresh, and failure policy.
+  transitions, availability refresh, and failure policy. It owns evidence-
+  selection subscriptions from project evidence and claims plus evidence-focus
+  guidance and status while the coordinator retains Research-rail navigation,
+  empty-evidence toast policy, and availability refresh.
 - The project map panel owns provenance-lane rendering, measured SVG connector
   geometry, responsive relayout, focus and hover emphasis, and a typed resource
   selection intent.

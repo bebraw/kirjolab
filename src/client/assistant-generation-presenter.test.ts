@@ -15,6 +15,7 @@ import {
 import { ClaimListPanel } from "./claim-list-panel";
 import { OpenAICompatibleBrowserProvider } from "./model-provider";
 import { ModelProviderSettings, modelProviderChangeEvent } from "./model-provider-settings";
+import { ProjectEvidencePanel, projectEvidenceActionEvent } from "./project-evidence-panel";
 import type { ModelAnnotationEvidence, ModelClaimCandidate, ModelClaimEvidence, ModelRevisionCandidate } from "../domain/workspace";
 import { workspaceSnapshotFixture } from "../test-support/workspace-fixture";
 
@@ -115,6 +116,7 @@ function setup() {
     "candidate-review-panel": new CandidateReviewPanel(),
     "claim-list-panel": new ClaimListPanel(),
     "model-provider-settings": new ModelProviderSettings(),
+    "project-evidence-panel": new ProjectEvidencePanel(),
   };
   Object.defineProperty(presenter, "ownerDocument", {
     value: { getElementById: (id: string) => elements[id as keyof typeof elements] ?? null },
@@ -322,13 +324,17 @@ describe("assistant generation presenter", () => {
   it("owns local assistant control wiring", () => {
     const { elements, presenter } = setup();
     const callbacks = {
-      chooseEvidence: vi.fn(),
       generate: vi.fn(),
+      openEvidenceRail: vi.fn(),
       refreshAvailability: vi.fn(),
       refreshTarget: vi.fn(),
+      reportNoEvidence: vi.fn(),
     };
     const openSettings = vi.spyOn(elements["model-provider-settings"], "open").mockImplementation(() => undefined);
     const clearResult = vi.spyOn(elements["assistant-interactive-result"], "clear");
+    const setEvidenceSelected = vi.spyOn(elements["assistant-workflow-status"], "setEvidenceSelected");
+    vi.spyOn(elements["project-evidence-panel"], "focusEvidence").mockReturnValue(false);
+    const focusClaimEvidence = vi.spyOn(elements["claim-list-panel"], "focusEvidence").mockReturnValue(true);
     presenter.bindControls(callbacks);
     for (const callback of Object.values(callbacks)) callback.mockClear();
 
@@ -338,13 +344,25 @@ describe("assistant generation presenter", () => {
     elements["assistant-workflow-status"].dispatchEvent(new CustomEvent(assistantWorkflowActionEvent, { detail: "open-settings" }));
     elements["assistant-task-panel"].dispatchEvent(new CustomEvent(assistantTaskChangeEvent, { detail: "operation" }));
     elements["assistant-task-panel"].dispatchEvent(new CustomEvent(assistantTaskGenerateEvent));
+    elements["project-evidence-panel"].dispatchEvent(
+      new CustomEvent(projectEvidenceActionEvent, { detail: { action: "evidence", key: "annotation:1", selected: true } }),
+    );
 
-    expect(callbacks.chooseEvidence).toHaveBeenCalledOnce();
     expect(callbacks.generate).toHaveBeenCalledOnce();
-    expect(callbacks.refreshAvailability).toHaveBeenCalledTimes(2);
+    expect(callbacks.openEvidenceRail).toHaveBeenCalledOnce();
+    expect(callbacks.reportNoEvidence).not.toHaveBeenCalled();
+    expect(callbacks.refreshAvailability).toHaveBeenCalledTimes(3);
     expect(callbacks.refreshTarget).toHaveBeenCalledOnce();
+    expect(setEvidenceSelected).toHaveBeenCalledWith("annotation:1", true);
     expect(openSettings).toHaveBeenCalledOnce();
     expect(clearResult).toHaveBeenCalledOnce();
+
+    focusClaimEvidence.mockReturnValue(false);
+    elements["assistant-workflow-status"].dispatchEvent(new CustomEvent(assistantWorkflowActionEvent, { detail: "choose-evidence" }));
+    expect(callbacks.reportNoEvidence).toHaveBeenCalledOnce();
+    expect(elements["assistant-workflow-status"].status).toBe(
+      "Add a PDF highlight or researcher-authored claim before choosing model evidence.",
+    );
   });
 
   it("owns transient result and reference-refresh wiring", async () => {
