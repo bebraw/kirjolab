@@ -1,4 +1,10 @@
 import { html, LitElement, type TemplateResult } from "lit";
+import { applicationVersion, cacheOfflineNavigation, registerOfflineServiceWorker } from "./offline-service-worker";
+
+export interface OfflineShellBinding {
+  readonly persist: () => Promise<void>;
+  readonly pinUpdate: (refresh: () => void) => void;
+}
 
 export class ApplicationVersionControl extends LitElement {
   static override properties = { version: { state: true } };
@@ -8,7 +14,7 @@ export class ApplicationVersionControl extends LitElement {
 
   constructor() {
     super();
-    this.version = "Loading…";
+    this.version = applicationVersion;
   }
 
   setVersion(version: string): void {
@@ -17,6 +23,18 @@ export class ApplicationVersionControl extends LitElement {
 
   bindNotice(presentNotice: (message: string) => void): void {
     this.presentNotice = presentNotice;
+  }
+
+  async prepareOfflineShell(workspace: boolean, binding: OfflineShellBinding): Promise<void> {
+    try {
+      const registered = await registerOfflineServiceWorker(navigator.serviceWorker, () => {
+        binding.pinUpdate(() => void binding.persist().finally(() => location.reload()));
+      });
+      if (!registered || !workspace || typeof caches === "undefined") return;
+      if (await cacheOfflineNavigation(caches, fetch, location.href)) document.body.dataset.offlineReady = "true";
+    } catch {
+      // The online application remains fully usable when offline APIs are unavailable.
+    }
   }
 
   protected async copyVersion(): Promise<void> {

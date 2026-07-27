@@ -22,12 +22,7 @@ import { CoalescedRefresh, DebouncedAsyncQueue } from "./collaboration";
 import { CollaborationSession } from "./collaboration-session";
 import { CollaborationSocket } from "./collaboration-socket";
 import "./manuscript-map-panel";
-import {
-  applicationVersion,
-  cacheOfflineNavigation,
-  clearOfflineShellCaches,
-  registerOfflineServiceWorker,
-} from "./offline-service-worker";
+import { clearOfflineShellCaches } from "./offline-service-worker";
 import {
   clearAllOfflineWorkspaces,
   createOfflineWorkspaceStore,
@@ -144,10 +139,13 @@ class WorkspaceApp {
 
   async start(): Promise<void> {
     bindThemePreference(document.documentElement, this.#elements.themePreference, localStorage);
-    this.#elements.applicationVersion.setVersion(applicationVersion);
     this.#bindUi();
     this.#elements.workspaceSurfaces.dataset.ready = "true";
-    void this.#prepareOfflineShell();
+    void this.#elements.applicationVersion.prepareOfflineShell(appMode === "workspace", {
+      persist: () => this.#persistOfflineWorkspace(),
+      pinUpdate: (refresh) =>
+        this.#elements.toast.pin("A new version of Kirjolab is available.", { action: refresh, actionLabel: "Refresh now" }),
+    });
     if (appMode === "library") {
       this.#elements.workspaceSurfaces.dataset.activeSurface = "context";
       this.#elements.workspaceSurfaces.dataset.layout = "context";
@@ -652,21 +650,6 @@ class WorkspaceApp {
   async #persistOfflineWorkspace(): Promise<void> {
     if (!this.#offlineStore || !this.#snapshot || !this.#collaboration.offlineAvailable) return;
     await this.#offlineStore.save(this.#snapshot, Y.encodeStateAsUpdate(this.#document), this.#collaboration.serverStateVector);
-  }
-
-  async #prepareOfflineShell(): Promise<void> {
-    try {
-      const registered = await registerOfflineServiceWorker(navigator.serviceWorker, () => {
-        this.#elements.toast.pin("A new version of Kirjolab is available.", {
-          action: () => void this.#persistOfflineWorkspace().finally(() => location.reload()),
-          actionLabel: "Refresh now",
-        });
-      });
-      if (!registered || appMode !== "workspace" || typeof caches === "undefined") return;
-      if (await cacheOfflineNavigation(caches, fetch, location.href)) document.body.dataset.offlineReady = "true";
-    } catch {
-      // The online application remains fully usable when offline APIs are unavailable.
-    }
   }
 
   async #clearOfflineBrowserData(): Promise<void> {

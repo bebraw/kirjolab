@@ -11510,3 +11510,28 @@ B, and 481,994 B / 146,135 B.
 
 Full native CI passes all 1,747 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Lit Ownership: Offline Application Shell
+
+`ApplicationVersionControl` now derives its displayed build identity directly
+from the offline shell and owns service-worker registration, update refresh
+sequencing, workspace-navigation caching, ready projection, and fail-open
+behavior. `WorkspaceApp` supplies only project persistence and pinned-update
+presentation effects.
+
+This checkpoint reduces `src/client/app.ts` from 687 to 672 lines (-15) and
+grows the application-version owner from 84 to 102 lines (+18). The three-line
+combined increase unifies build identity with the versioned shell lifecycle and
+removes duplicated startup knowledge from the application coordinator. Focused
+coverage passes registration and update checks, navigation caching, ready
+projection, persist-before-reload ordering, failure tolerance, and strict
+types. Direct and unique production package counts remain 18 and 150; Lit was
+already pinned.
+
+The browser application artifact increases from 855,398 B raw / 230,128 B gzip
+to 856,080 B / 230,290 B (+682 B raw / +162 B gzip). Styles and lazy Markdown
+and PDF.js artifacts remain unchanged at 135,411 B / 23,373 B, 204,779 B /
+62,386 B, and 481,994 B / 146,135 B.
+
+Full native CI passes all 1,749 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.

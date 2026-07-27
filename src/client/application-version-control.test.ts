@@ -63,4 +63,51 @@ describe("application version control", () => {
     expect(input.remove).toHaveBeenCalledTimes(2);
     expect(notices).toEqual(["Copied application version fallback-456.", "Could not copy the application version"]);
   });
+
+  it("owns offline shell registration, navigation caching, and update refresh", async () => {
+    let controllerChanged: (() => void) | undefined;
+    const update = vi.fn().mockResolvedValue(undefined);
+    const register = vi.fn().mockResolvedValue({ update });
+    const serviceWorker = {
+      addEventListener: vi.fn((_type: string, listener: () => void) => {
+        controllerChanged = listener;
+      }),
+      controller: {},
+      ready: Promise.resolve({}),
+      register,
+    };
+    const put = vi.fn().mockResolvedValue(undefined);
+    const cacheStorage = { open: vi.fn().mockResolvedValue({ put }) };
+    const fetchMock = vi.fn().mockResolvedValue(new Response("shell"));
+    const persist = vi.fn().mockResolvedValue(undefined);
+    const reload = vi.fn();
+    const pinUpdate = vi.fn();
+    const body = { dataset: {} as DOMStringMap };
+    vi.stubGlobal("navigator", { serviceWorker });
+    vi.stubGlobal("caches", cacheStorage);
+    vi.stubGlobal("fetch", fetchMock);
+    vi.stubGlobal("document", { body });
+    vi.stubGlobal("location", { href: "https://example.test/editor/demo", reload });
+    const control = new TestApplicationVersionControl();
+
+    await control.prepareOfflineShell(true, { persist, pinUpdate });
+
+    expect(register).toHaveBeenCalledWith("/service-worker.js", { scope: "/" });
+    expect(update).toHaveBeenCalledOnce();
+    expect(cacheStorage.open).toHaveBeenCalledOnce();
+    expect(put).toHaveBeenCalledOnce();
+    expect(body.dataset.offlineReady).toBe("true");
+    controllerChanged?.();
+    const refresh = pinUpdate.mock.calls[0]?.[0] as (() => void) | undefined;
+    refresh?.();
+    await vi.waitFor(() => expect(reload).toHaveBeenCalledOnce());
+    expect(persist).toHaveBeenCalledOnce();
+  });
+
+  it("keeps the application usable when offline shell preparation fails", async () => {
+    vi.stubGlobal("navigator", { serviceWorker: { register: vi.fn().mockRejectedValue(new Error("unavailable")) } });
+    const control = new TestApplicationVersionControl();
+
+    await expect(control.prepareOfflineShell(true, { persist: vi.fn(), pinUpdate: vi.fn() })).resolves.toBeUndefined();
+  });
 });

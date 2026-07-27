@@ -217,8 +217,11 @@ collaboration.
   task-specific surfaces. Writing assistant links back to the shared panel
   rather than duplicating model controls.
   A bounded light-DOM version control owns build-version presentation and both
-  Clipboard API and textarea fallback copying, then invokes one typed binding
-  for coordinator-owned toast presentation.
+  Clipboard API and textarea fallback copying. It also derives its version from
+  the built offline shell and owns service-worker registration, update refresh
+  sequencing, workspace-navigation caching, ready projection, and fail-open
+  behavior. Narrow bindings retain coordinator-owned persistence, pinned-update
+  presentation, and copy notices.
   A bounded light-DOM Vim control owns stored enablement, mode presentation,
   modal keyboard and pointer-selection behavior, and editor-listener teardown;
   the coordinator supplies only the source textarea and its visual shell.
@@ -394,7 +397,9 @@ collaboration.
   generations, persists an open offline workspace when the user accepts a
   persistent update notice, and reloads the controlled page once. Ordinary
   transient notices may briefly replace the update notice, which returns until
-  the user refreshes.
+  the user refreshes. The application-version owner performs registration,
+  caching, update refresh sequencing, ready projection, and fail-open handling;
+  the coordinator supplies only project persistence and the pinned notice.
 - **Application notices:** One bounded light-DOM component owns transient and
   persistent message rendering, replacement timers, one-shot action
   availability and callback lifecycle, pinned fallback restoration, modal
