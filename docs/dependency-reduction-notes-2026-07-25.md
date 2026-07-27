@@ -7569,6 +7569,28 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,697 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Writing Guide Range Translation
+
+`ManuscriptMapPanel` now retains the composition source map it already derives
+for the Writing Guide and translates selected composed ranges into
+file-qualified authored ranges. `WorkspaceApp` receives that typed navigation
+target and retains only file selection, editor focus, and caret application.
+
+This checkpoint reduces `src/client/app.ts` from 1,890 to 1,870 lines (-20) and
+grows the manuscript-map owner from 188 to 200 lines (+12). Runtime source
+across those two files decreases by eight lines while deleting a second
+`composeProject` call, its source-span translation branches, and two coordinator
+imports. Focused coverage exercises mapped and unmapped selection, existing map
+projection and navigation, application contracts, and strict types.
+
+The browser application artifact changes from 844,510 B raw / 229,023 B gzip
+to 844,519 B raw / 228,984 B gzip (+9 B raw / -39 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,697 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

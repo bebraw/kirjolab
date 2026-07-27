@@ -6,13 +6,7 @@ import { buildWorkspaceKnowledgeGraph } from "../domain/knowledge";
 import { reviewerResponsePath, reviewerResponseTemplate } from "../domain/reviewer-response";
 import { resolveManuscriptAnchor } from "../domain/manuscript-anchor";
 import { resolveWorkspaceSnapshotAnchors } from "../domain/workspace-anchor-projection";
-import {
-  composeProject,
-  projectFileCollaborationTextName,
-  relativeProjectPath,
-  type ProjectComposition,
-  type ProjectFile,
-} from "../domain/project-files";
+import { projectFileCollaborationTextName, relativeProjectPath, type ProjectComposition, type ProjectFile } from "../domain/project-files";
 import { publicationWordStatistics } from "../domain/publication-statistics";
 import { researchQuestionsPath, researchQuestionsTemplate } from "../domain/research-questions";
 import { researchDiaryPath, researchDiaryTemplate } from "../domain/writing-workflows";
@@ -21,7 +15,6 @@ import "./application-version-control";
 import "./source-citation-control";
 import "./workspace-surface-switcher";
 import { type EditorSyntaxKind, type EditorSyntaxTemplate } from "./editor-insert-menu";
-import { sourceSpanAt } from "./composition-source-map";
 import type { AppToastOptions } from "./app-toast";
 import { expectOk, jsonFetch } from "./http";
 import { type SourceCompletionIntent } from "./source-completion";
@@ -328,7 +321,7 @@ class WorkspaceApp {
     this.#elements.researchDiaryPanel.bindOpen(
       () => void this.#openWorkflowFile(researchDiaryPath, () => researchDiaryTemplate(new Date().toISOString().slice(0, 10))),
     );
-    this.#elements.manuscriptMapPanel.bindNavigation(({ from, to }) => this.#focusComposedRange(from, to));
+    this.#elements.manuscriptMapPanel.bindNavigation(({ fileId, from, to }) => this.#focusProjectRange(fileId, from, to));
     this.#elements.manuscriptMapPanel.bindProjectPresentation(this.#elements);
     const writingWorkflow: WritingWorkflowBinding = {
       notice: (message) => this.#showToast(message),
@@ -908,19 +901,6 @@ class WorkspaceApp {
     next.searchParams.set("file", created.id);
     next.searchParams.set("rail", "guide");
     location.assign(`${next.pathname}${next.search}${next.hash}`);
-  }
-
-  #focusComposedRange(from: number, to: number): void {
-    const composition = this.#snapshot
-      ? composeProject(this.#previewProjectFiles(), this.#snapshot.entryFileId, {}, this.#snapshot.reviewArtifactPins)
-      : null;
-    const start = composition ? sourceSpanAt(composition.sourceMap, from) : undefined;
-    const end = composition ? sourceSpanAt(composition.sourceMap, Math.max(from, to - 1)) : undefined;
-    if (start && end && start.fileId === end.fileId) {
-      this.#focusProjectRange(start.fileId, start.sourceStart, end.sourceEnd);
-      return;
-    }
-    this.#focusProjectRange(this.#snapshot?.entryFileId ?? "", from, to);
   }
 
   #syncSourceFromPreviewCenter(): void {

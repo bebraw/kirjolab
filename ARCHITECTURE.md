@@ -993,9 +993,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Route rail-tab and manuscript-map range navigation through typed bindings on
   their Lit owners. Let the manuscript-map owner derive its composed guide
   source plus research-diary, research-question, and reviewer-response sibling
-  projections from one canonical file set. Keep URL synchronization,
-  workflow-file creation, and file-qualified editor focus in the workspace
-  coordinator.
+  projections from one canonical file set. Let it retain that composition's
+  source map and translate guide selections into file-qualified editor ranges.
+  Keep URL synchronization, workflow-file creation, and the resulting editor
+  focus effect in the workspace coordinator.
 - Keep project-file quick open bounded to transient client-side path filtering
   over the authorized workspace snapshot. It may reveal the Files rail and
   select a file, but must not introduce a global command registry or persist

@@ -53,7 +53,7 @@ describe("manuscript map panel", () => {
     panel.selectForTest("8", "4");
     panel.selectForTest("missing", "4");
 
-    expect(selections).toEqual([{ from: 2, to: 9 }]);
+    expect(selections).toEqual([{ fileId: "", from: 2, to: 9 }]);
   });
 
   it("projects the canonical project into the writing-guide siblings", () => {
@@ -61,6 +61,7 @@ describe("manuscript map panel", () => {
     const researchDiaryPanel = { setContent: vi.fn() };
     const researchQuestionPanel = { setData: vi.fn() };
     const reviewerResponsePanel = { setData: vi.fn() };
+    const selections: ManuscriptMapSelection[] = [];
     const files = [
       { ...workspaceSnapshotFixture.files[0]!, content: "# Composed manuscript" },
       { ...workspaceSnapshotFixture.files[0]!, id: "diary", path: researchDiaryPath, content: "## 2026-07-27" },
@@ -68,8 +69,10 @@ describe("manuscript map panel", () => {
       { ...workspaceSnapshotFixture.files[0]!, id: "responses", path: reviewerResponsePath, content: "## R1.1: Clarify" },
     ];
     panel.bindProjectPresentation({ researchDiaryPanel, researchQuestionPanel, reviewerResponsePanel });
+    panel.bindNavigation((selection) => selections.push(selection));
 
     panel.presentProject({ fallbackSource: "fallback", files, snapshot: { ...workspaceSnapshotFixture, files } });
+    panel.selectForTest("0", "5");
 
     expect(researchDiaryPanel.setContent).toHaveBeenCalledWith("## 2026-07-27");
     expect(researchQuestionPanel.setData).toHaveBeenCalledWith(
@@ -78,6 +81,7 @@ describe("manuscript map panel", () => {
     expect(reviewerResponsePanel.setData).toHaveBeenCalledWith(
       expect.objectContaining({ fileId: "responses", kind: "reviewer-responses" }),
     );
+    expect(selections).toEqual([{ fileId: workspaceSnapshotFixture.entryFileId, from: 0, to: 21 }]);
     expect(panel.renderForTest()).toBeDefined();
   });
 });

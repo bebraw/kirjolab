@@ -1,14 +1,16 @@
 import { html, LitElement, type TemplateResult } from "lit";
 import { runEditingPass, type EditingPass } from "../domain/editing-passes";
 import { buildManuscriptMap } from "../domain/manuscript-map";
-import { composeProject, type ProjectFile } from "../domain/project-files";
+import { composeProject, type CompositionSourceSpan, type ProjectFile } from "../domain/project-files";
 import { researchQuestionsPath } from "../domain/research-questions";
 import { reviewerResponsePath } from "../domain/reviewer-response";
 import type { WorkspaceSnapshot } from "../domain/workspace";
 import { researchDiaryPath } from "../domain/writing-workflows";
+import { sourceSpanAt } from "./composition-source-map";
 import { researchQuestionWorkflowData, reviewerResponseWorkflowData, type WritingWorkflowData } from "./writing-workflow-panel";
 
 export interface ManuscriptMapSelection {
+  readonly fileId: string;
   readonly from: number;
   readonly to: number;
 }
@@ -34,8 +36,10 @@ export class ManuscriptMapPanel extends LitElement {
 
   declare private pass: EditingPass;
   declare private source: string;
+  private entryFileId = "";
   private navigate: ((selection: ManuscriptMapSelection) => void) | null = null;
   private projectPresentation: ManuscriptMapProjectPresentation | null = null;
+  private sourceMap: readonly CompositionSourceSpan[] = [];
 
   constructor() {
     super();
@@ -52,8 +56,10 @@ export class ManuscriptMapPanel extends LitElement {
   }
 
   presentProject({ fallbackSource, files, snapshot, source }: ManuscriptMapProjectRequest): void {
-    this.source =
-      source ?? (snapshot ? composeProject(files, snapshot.entryFileId, {}, snapshot.reviewArtifactPins).content : fallbackSource);
+    const composition = snapshot ? composeProject(files, snapshot.entryFileId, {}, snapshot.reviewArtifactPins) : null;
+    this.entryFileId = snapshot?.entryFileId ?? "";
+    this.sourceMap = composition?.sourceMap ?? [];
+    this.source = source ?? composition?.content ?? fallbackSource;
     const presentation = this.projectPresentation;
     if (!presentation) return;
     presentation.researchDiaryPanel.setContent(files.find((file) => file.path === researchDiaryPath)?.content ?? null);
@@ -164,7 +170,13 @@ export class ManuscriptMapPanel extends LitElement {
     const from = Number(button.dataset.rangeFrom);
     const to = Number(button.dataset.rangeTo);
     if (!Number.isSafeInteger(from) || !Number.isSafeInteger(to) || from < 0 || to < from) return;
-    this.navigate?.({ from, to });
+    const start = sourceSpanAt(this.sourceMap, from);
+    const end = sourceSpanAt(this.sourceMap, Math.max(from, to - 1));
+    this.navigate?.(
+      start && end && start.fileId === end.fileId
+        ? { fileId: start.fileId, from: start.sourceStart, to: end.sourceEnd }
+        : { fileId: this.entryFileId, from, to },
+    );
   }
 
   private metric(value: number, label: string): TemplateResult {
