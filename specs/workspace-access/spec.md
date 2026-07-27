@@ -48,11 +48,11 @@ without accidentally widening access to another resource.
   protected by its server-side capability check.
 - `GET /api/workspaces/{id}/members` lists members for authorized users.
 - `POST /api/workspaces/{id}/members` lets only the owner invite a valid email.
-- The authenticated shell's bounded sharing component owns collaborator and
-  It also owns member listing and invitation, both capability-link request
-  lifecycles, response validation, forbidden and failure presentation, and
-  typed user-facing notices. The application coordinator retains global toast
-  presentation.
+- The authenticated shell's bounded sharing component owns member listing and
+  invitation, both capability-link request lifecycles, response validation,
+  forbidden and failure presentation, its sibling trigger, and typed
+  user-facing notice forwarding. The application coordinator supplies global
+  toast presentation through typed configuration.
 - Authenticated members may list and stream owner-library PDFs only when their
   references are currently linked to the project. Each request revalidates
   membership and both relationships; unrelated owner-library state is hidden.

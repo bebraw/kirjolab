@@ -7,6 +7,11 @@ export type WorkspaceShareKind = "read-only" | "edit";
 
 export const workspaceSharingNoticeEvent = "workspace-sharing-notice";
 
+interface WorkspaceSharingOptions {
+  readonly presentNotice?: (message: string) => void;
+  readonly trigger?: EventTarget;
+}
+
 interface ShareLinkPresentation {
   readonly active: boolean;
   readonly allowed: boolean;
@@ -36,6 +41,8 @@ export class WorkspaceSharingPanel extends LitElement {
   declare private membersError: string;
   declare private readOnlyShare: ShareLinkPresentation;
   private apiBase = "";
+  private presentNotice: (message: string) => void = () => undefined;
+  private trigger: EventTarget | null = null;
 
   constructor() {
     super();
@@ -46,8 +53,12 @@ export class WorkspaceSharingPanel extends LitElement {
     this.readOnlyShare = checkingShareLink;
   }
 
-  configure(apiBase: string): void {
+  configure(apiBase: string, options: WorkspaceSharingOptions = {}): void {
+    this.trigger?.removeEventListener("click", this.handleOpen);
     this.apiBase = apiBase;
+    this.presentNotice = options.presentNotice ?? (() => undefined);
+    this.trigger = options.trigger ?? null;
+    this.trigger?.addEventListener("click", this.handleOpen);
   }
 
   private setShareStatus(kind: WorkspaceShareKind, status: ShareLinkStatus): void {
@@ -76,6 +87,12 @@ export class WorkspaceSharingPanel extends LitElement {
   override connectedCallback(): void {
     if (!this.hasUpdated) this.replaceChildren();
     super.connectedCallback();
+    this.trigger?.addEventListener("click", this.handleOpen);
+  }
+
+  override disconnectedCallback(): void {
+    this.trigger?.removeEventListener("click", this.handleOpen);
+    super.disconnectedCallback();
   }
 
   protected override createRenderRoot(): HTMLElement {
@@ -187,6 +204,10 @@ export class WorkspaceSharingPanel extends LitElement {
     this.dialog.close();
   }
 
+  private readonly handleOpen = (): void => {
+    this.open();
+  };
+
   private get dialog(): HTMLDialogElement {
     const dialog = this.closest("dialog");
     if (!(dialog instanceof HTMLDialogElement)) throw new Error("Workspace sharing panel requires a dialog parent");
@@ -272,6 +293,7 @@ export class WorkspaceSharingPanel extends LitElement {
   }
 
   private emitNotice(message: string): void {
+    this.presentNotice(message);
     this.dispatchEvent(new CustomEvent<string>(workspaceSharingNoticeEvent, { bubbles: true, composed: true, detail: message }));
   }
 }

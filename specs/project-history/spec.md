@@ -23,8 +23,9 @@ continues to use a narrow source revision for stale-selection checks.
   revision-operation intents. Its enclosing Lit dialog owns the XState actor,
   response validation, confirmations, fetches, mutations, stale-response
   rejection, local failure presentation, canonical successful branch
-  navigation, and post-restore reload. The application coordinator retains
-  toast policy through typed notice outcomes.
+  navigation, post-restore reload, sibling-trigger binding, and notice
+  forwarding. The application coordinator supplies global toast policy through
+  typed configuration.
 - Every retained snapshot stores the exact Yjs update plus workspace settings
   and the rows for project files, references, research shares, PDFs,
   annotations, claims, manuscript comments, and their typed relationships in

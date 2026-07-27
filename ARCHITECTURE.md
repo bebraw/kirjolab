@@ -555,8 +555,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Keep the browser-local history actor, timeline and operation requests,
   response guards, confirmations, busy state, and stale-response rejection in
   the project-history Lit dialog. Let it own canonical successful branch
-  navigation and post-restore reload, and emit only typed notices to the
-  application coordinator for global toast policy.
+  navigation, post-restore reload, its sibling trigger, and notice forwarding.
+  The application coordinator supplies only global toast policy through typed
+  configuration.
 - Treat project unlink, library archive, share revocation, and permanent owner
   deletion as distinct operations. Revocation is forward-only; deletion keeps
   only the tombstoned provenance needed by historical project revisions.
@@ -576,8 +577,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   disconnected when the capability rotates or is revoked.
 - Keep authenticated member listing and invitation plus read-only and edit-link
   status, creation, and revocation inside the bounded sharing Lit component.
-  Validate responses there and emit only user-facing notices; keep the
-  application coordinator responsible for global toast presentation.
+  Validate responses there, bind its sibling trigger, and forward user-facing
+  notices through typed configuration; keep the application coordinator
+  responsible only for global toast presentation.
 - Keep public read-only viewers outside cross-origin embedder isolation so
   browser-native PDF extension frames can render their share-scoped,
   independently authorized same-origin PDF response. Keep authoring pages

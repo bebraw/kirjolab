@@ -103,6 +103,17 @@ describe("project history dialog", () => {
     expect(dialog.close).toHaveBeenCalledOnce();
   });
 
+  it("owns its trigger and notice forwarding", async () => {
+    const { control } = controls();
+    const trigger = new EventTarget();
+    const presentNotice = vi.fn();
+    control.configure("/api/workspaces/workspace-1", { presentNotice, trigger });
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(json({ invalid: true })));
+
+    trigger.dispatchEvent(new Event("project-history-open"));
+    await vi.waitFor(() => expect(presentNotice).toHaveBeenCalledWith("Project history returned an invalid timeline"));
+  });
+
   it("owns inspect, compare, milestone, restore, and branch requests", async () => {
     const { control, dialog, panel } = controls();
     dialog.open = true;

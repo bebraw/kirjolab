@@ -33,7 +33,6 @@ import { applicationVersionNoticeEvent } from "./application-version-control";
 import { previewSyncActionEvent, type PreviewSyncAction } from "./preview-sync-controls";
 import { sourceCitationOpenEvent } from "./source-citation-control";
 import { workspaceSurfaceChangeEvent } from "./workspace-surface-switcher";
-import { projectHistoryOpenEvent } from "./project-history-trigger";
 import { editorInsertActionEvent, type EditorInsertAction, type EditorSyntaxTemplate } from "./editor-insert-menu";
 import { sourceSpanAt } from "./composition-source-map";
 import { collaboratorSelectionChangeEvent } from "./collaborator-selection-list";
@@ -43,7 +42,6 @@ import { sourceCompletionActionEvent, type SourceCompletionIntent } from "./sour
 import type { LibraryPdfSelectionPresentation, LibraryPdfToolPresentation } from "./context-resource-presenter";
 import { libraryPdfRoute, readLibraryUiRoute } from "./library-ui-route";
 import { startingPointActionEvent, type StartingPointAction } from "./project-starting-point-browser";
-import { workspaceSharingNoticeEvent } from "./workspace-sharing-panel";
 import { WorkspaceLayoutManager } from "./workspace-layout-manager";
 import { workspaceLayoutChangeEvent } from "./workspace-layout-control";
 import { projectReferenceChangedEvent, type ProjectReferenceChanged } from "./project-reference-mutation";
@@ -119,7 +117,6 @@ import { clearAllOfflineWorkspaces, createOfflineWorkspaceStore, type OfflineWor
 import { PdfEvidenceViewer, type PdfSelectionCapture } from "./pdf-viewer";
 import type { ExistingPdfUpload } from "./pdf-upload-queue";
 import { bindThemePreference } from "./theme";
-import { projectHistoryOutcomeEvent } from "./project-history-dialog";
 import {
   activateResearchTab,
   closeResearchTab,
@@ -395,10 +392,9 @@ class WorkspaceApp {
         void this.#handleWritingWorkflowAction((event as CustomEvent<WritingWorkflowActionDetail>).detail);
       });
     }
-    this.#elements.workspaceSharingPanel.configure(apiBase);
-    this.#elements.shareWorkspace.addEventListener("click", () => this.#elements.workspaceSharingPanel.open());
-    this.#elements.workspaceSharingPanel.addEventListener(workspaceSharingNoticeEvent, (event) => {
-      this.#showToast((event as CustomEvent<string>).detail);
+    this.#elements.workspaceSharingPanel.configure(apiBase, {
+      presentNotice: (message) => this.#showToast(message),
+      trigger: this.#elements.shareWorkspace,
     });
     this.#elements.libraryDiscoverySearch.addEventListener(libraryDiscoveryResultsEvent, (event) => {
       this.#elements.libraryDiscoveryResults.setResults((event as CustomEvent<readonly ReferenceDiscoveryResult[]>).detail);
@@ -522,10 +518,9 @@ class WorkspaceApp {
     this.#elements.authoringModeTabs.addEventListener(authoringModeChangeEvent, (event) => {
       this.#setAuthoringMode((event as CustomEvent<AuthoringMode>).detail);
     });
-    this.#elements.projectHistoryDialog.configure(apiBase);
-    this.#elements.projectHistoryTrigger.addEventListener(projectHistoryOpenEvent, () => void this.#elements.projectHistoryDialog.open());
-    this.#elements.projectHistoryDialog.addEventListener(projectHistoryOutcomeEvent, (event) => {
-      this.#showToast((event as CustomEvent<string>).detail);
+    this.#elements.projectHistoryDialog.configure(apiBase, {
+      presentNotice: (message) => this.#showToast(message),
+      trigger: this.#elements.projectHistoryTrigger,
     });
     this.#elements.manuscriptCommentListPanel.configure(apiBase);
     this.#elements.manuscriptCommentListPanel.addEventListener(manuscriptCommentCreateEvent, (event) => {

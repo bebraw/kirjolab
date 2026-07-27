@@ -6525,6 +6525,27 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,660 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Modal Workflow Routing
+
+The project-history dialog and workspace-sharing panel now bind their sibling
+entry triggers and forward local notices through typed configuration.
+`WorkspaceApp` retains global toast policy without subscribing to either
+workflow's trigger or outcome stream.
+
+This checkpoint reduces `src/client/app.ts` from 2,416 to 2,411 lines (-5) and
+removes four coordinator subscriptions and three event imports. The two
+existing workflow owners grow by 45 lines to manage typed configuration and
+listener teardown. Fourteen focused cases cover the request, presentation,
+trigger, notice, and dialog lifecycles under strict client and Workers types.
+
+The browser application artifact changes from 839,769 B raw / 226,801 B gzip
+to 840,388 B raw / 226,939 B gzip (+619 B raw / +138 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,662 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

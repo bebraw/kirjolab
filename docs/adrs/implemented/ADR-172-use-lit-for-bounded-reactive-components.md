@@ -1011,6 +1011,10 @@ reason to wrap static markup mechanically.
   centering, transient emphasis, image lookup, and anchor scrolling. This
   keeps Lit focused on reactive presentation while still removing raw Preview
   elements from `WorkspaceApp`.
+- The project-history dialog and workspace-sharing panel each bind their
+  sibling entry trigger and forward local notices through typed configuration.
+  This removes four coordinator subscriptions while retaining global toast
+  policy in the application coordinator.
 - The action-menu controller owns document-level outside-action dismissal,
   settings-menu containment, Escape ordering, focus restoration, and listener
   teardown for spatially separate native `details` menus.

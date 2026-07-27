@@ -4,15 +4,27 @@ import { isWorkspaceSummaries } from "../domain/workspace";
 import { errorMessage, expectOk, jsonFetch } from "./http";
 import { createProjectHistoryActor, projectHistoryBusy, type ProjectHistoryOperation } from "./project-history-machine";
 import { ProjectHistoryPanel, projectHistoryActionEvent, projectHistoryCloseEvent } from "./project-history-panel";
+import { projectHistoryOpenEvent } from "./project-history-trigger";
 
 export const projectHistoryOutcomeEvent = "project-history-outcome";
+
+interface ProjectHistoryDialogOptions {
+  readonly presentNotice?: (message: string) => void;
+  readonly trigger?: EventTarget;
+}
 
 export class ProjectHistoryDialog extends LitElement {
   private readonly workflow = createProjectHistoryActor();
   private apiBase = "";
+  private presentNotice: (message: string) => void = () => undefined;
+  private trigger: EventTarget | null = null;
 
-  configure(apiBase: string): void {
+  configure(apiBase: string, options: ProjectHistoryDialogOptions = {}): void {
+    this.trigger?.removeEventListener(projectHistoryOpenEvent, this.handleOpen);
     this.apiBase = apiBase;
+    this.presentNotice = options.presentNotice ?? (() => undefined);
+    this.trigger = options.trigger ?? null;
+    this.trigger?.addEventListener(projectHistoryOpenEvent, this.handleOpen);
   }
 
   async open(): Promise<void> {
@@ -49,12 +61,14 @@ export class ProjectHistoryDialog extends LitElement {
 
   override connectedCallback(): void {
     super.connectedCallback();
+    this.trigger?.addEventListener(projectHistoryOpenEvent, this.handleOpen);
     this.addEventListener(projectHistoryCloseEvent, this.handlePanelClose);
     this.addEventListener(projectHistoryActionEvent, this.handlePanelActionEvent);
     this.dialog()?.addEventListener("close", this.handleDialogClose);
   }
 
   override disconnectedCallback(): void {
+    this.trigger?.removeEventListener(projectHistoryOpenEvent, this.handleOpen);
     this.removeEventListener(projectHistoryCloseEvent, this.handlePanelClose);
     this.removeEventListener(projectHistoryActionEvent, this.handlePanelActionEvent);
     this.dialog()?.removeEventListener("close", this.handleDialogClose);
@@ -67,6 +81,10 @@ export class ProjectHistoryDialog extends LitElement {
 
   protected readonly handlePanelClose = (): void => {
     this.dialog()?.close();
+  };
+
+  protected readonly handleOpen = (): void => {
+    void this.open();
   };
 
   protected readonly handleDialogClose = (): void => {
@@ -192,6 +210,7 @@ export class ProjectHistoryDialog extends LitElement {
   }
 
   private emitNotice(message: string): void {
+    this.presentNotice(message);
     this.dispatchEvent(new CustomEvent<string>(projectHistoryOutcomeEvent, { bubbles: true, detail: message }));
   }
 
