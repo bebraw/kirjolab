@@ -11177,3 +11177,30 @@ and PDF.js artifacts remain unchanged at 135,411 B / 23,373 B, 204,779 B /
 
 Full native CI passes all 1,737 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Lit Ownership: Active Source Binding
+
+`EditorStatus` now owns the active Yjs-text/source-editor binding, listener and
+observer replacement when the active file changes, per-text undo managers,
+external text synchronization, assistant-staleness observation, and local plus
+collaborator presence projection. `WorkspaceApp` supplies remote ranges and
+cross-feature callbacks, retains canonical Yjs transactions, and uses the Lit
+owner as their authoring mutation origin so derived insertions remain undoable.
+
+This checkpoint reduces `src/client/app.ts` from 878 to 845 lines (-33) and
+grows the editor-status owner from 159 to 209 lines (+50). Runtime across the
+pair grows by 17 lines to replace four coordinator lifecycle fields and a split
+binding method with one typed owner binding and tested teardown boundary.
+Focused coverage passes active-text switching, old-observer detachment, new-text
+synchronization, collaborator-presence reads, owner-origin undo, existing
+relative selections, source-adapter behavior, and strict types. Direct and
+unique production package counts remain 18 and 150; Lit and Yjs were already
+pinned.
+
+The browser application artifact changes from 853,556 B raw / 229,922 B gzip
+to 854,036 B / 230,005 B (+480 B raw / +83 B gzip). Styles and lazy Markdown
+and PDF.js artifacts remain unchanged at 135,411 B / 23,373 B, 204,779 B /
+62,386 B, and 481,994 B / 146,135 B.
+
+Full native CI passes all 1,738 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.

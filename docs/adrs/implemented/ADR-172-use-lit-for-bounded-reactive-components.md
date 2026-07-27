@@ -1146,9 +1146,13 @@ reason to wrap static markup mechanically.
   bounded line counting and file, line-range, caret, and selection wording. It
   also owns browser-local Yjs-relative target retention, active file context,
   range selection, resolved target/caret, non-empty passage projection, and
-  temporary range preservation across asynchronous authoring operations. The
-  application coordinator retains canonical Yjs mutation, editor highlighting,
-  assistant refresh, collaboration and offline-save policy, and the save-status
+  temporary range preservation across asynchronous authoring operations. It
+  owns the active Yjs-text/editor binding and teardown, per-file undo managers,
+  external text synchronization, assistant-staleness observation, and local plus
+  collaborator presence highlighting from supplied ranges. It is the shared
+  authoring mutation origin so derived insertions remain in that undo history.
+  The application coordinator retains canonical Yjs mutation, assistant refresh
+  consequences, collaboration and offline-save policy, and the save-status
   values those workflows select.
 - The connection status component replaces separate label and tone element
   references and owns their synchronized presentation. The application

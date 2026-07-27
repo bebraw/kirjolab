@@ -302,17 +302,23 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   resolver and readiness predicate bound together once. Consumers request the
   derived collection without repeating collaboration state. Apply the validated
   workspace snapshot through that mutation binding or navigate to the created
-  workflow file. Keep workflow-template selection, collaborative caret capture and continuation
-  construction, Yjs insertion and active-text/editor binding after a validated
-  activation, Yjs document authority, canonical snapshot authority,
-  cross-feature rendering, and
-  the global toast outlet in the workspace coordinator.
+  workflow file. Keep workflow-template selection, collaborative caret capture
+  and continuation construction, Yjs insertion and document authority,
+  canonical snapshot authority, cross-feature rendering, and the global toast
+  outlet in the workspace coordinator.
+- Let the editor-status Lit owner bind the active Yjs text to the source editor,
+  retain per-file undo history, synchronize external text changes, and render
+  local plus collaborator presence from coordinator-supplied ranges. Switching
+  active files must release the prior text observer and editor listeners before
+  binding the next text. Keep mutation decisions, canonical Yjs transactions,
+  assistant consequences, collaboration policy, and offline-save policy in the
+  workspace coordinator; use the editor-status owner as the shared authoring
+  mutation origin so its undo history includes derived source insertions.
 - Let the editor Insert menu own the scholarly syntax templates it displays and
   route template and relative-include choices through one typed binding. It
   projects passage-aware links, selection ranges, and image-template insertions
-  from a coordinator-supplied authoring target. Keep collaborative selection
-  resolution, Yjs edits, editor focus, and the toast outlet in the workspace
-  coordinator.
+  from a coordinator-supplied authoring target. Keep Yjs edits, editor focus,
+  and the toast outlet in the workspace coordinator.
 - Let the source citation control own citation-at-caret interpretation,
   citation insertion syntax projection, local insertion errors, and completion
   copy from a resolved authoring caret. Keep Yjs mutation, authoring-mode

@@ -157,6 +157,14 @@ collaborative, and unambiguous about what preview and export mean.
   authority remain in the workspace coordinator. For private-Library linking,
   the editor-status owner preserves that range as Yjs-relative positions and
   rejects restoration if the active authoring text changes during the request.
+- The editor-status owner binds the active collaborative text to the source
+  editor, preserves an independent undo history for every opened text, and
+  combines the resolved local target with collaborator ranges for highlighting.
+  Activating another file detaches the prior text observer and editor listeners,
+  synchronizes the new text into the source control, and makes derived citation,
+  include, image, completion, and assistant insertions part of that file's undo
+  history without transferring canonical Yjs mutation authority from the
+  workspace coordinator.
 - The bounded Insert-menu component derives existing-file choices and relative
   paths from the active project file and owns the scholarly syntax templates it
   displays. From the supplied resolved passage and caret it derives

@@ -1,6 +1,8 @@
 import { html, LitElement, type TemplateResult } from "lit";
 import * as Y from "yjs";
+import type { EditorPresenceRange } from "./editor-presence";
 import {
+  bindYText,
   captureRelativeSelection,
   resolveRelativeSelection,
   type RelativeEditorSelection,
@@ -19,6 +21,13 @@ export interface EditorAuthoringPassage extends EditorAuthoringTarget {
   readonly fileId: string;
 }
 
+export interface EditorAuthoringBinding {
+  readonly highlight: HTMLElement;
+  readonly presence: (fileId: string | null) => readonly EditorPresenceRange[];
+  readonly sourceChanged: () => void;
+  readonly targetChanged: () => void;
+}
+
 export class EditorStatus extends LitElement {
   static override properties = {
     save: { state: true },
@@ -27,13 +36,16 @@ export class EditorStatus extends LitElement {
 
   declare private save: string;
   declare protected target: string;
+  private binding: EditorAuthoringBinding | null = null;
   private documentModel: Y.Doc | null = null;
   private fileId: string | null = null;
   private path = "Manuscript";
+  private releaseText: () => void = () => undefined;
+  private renderEditorHighlight: () => void = () => undefined;
   private selection: RelativeEditorSelection | null = null;
   private source: HTMLTextAreaElement | null = null;
   private text: Y.Text | null = null;
-  private targetChanged: (() => void) | null = null;
+  private readonly undoManagers = new Map<Y.Text, Y.UndoManager>();
 
   constructor() {
     super();
@@ -45,22 +57,27 @@ export class EditorStatus extends LitElement {
     this.save = save;
   }
 
-  bindAuthoring(documentModel: Y.Doc, source: HTMLTextAreaElement, targetChanged: () => void): void {
+  bindAuthoring(documentModel: Y.Doc, source: HTMLTextAreaElement, binding: EditorAuthoringBinding): void {
+    this.binding = binding;
     this.documentModel = documentModel;
     this.source = source;
-    this.targetChanged = targetChanged;
+    if (this.text) this.bindText(this.text);
   }
 
   setAuthoringContext(path: string, fileId: string | null, text: Y.Text, reset = false): void {
     const resetSelection = reset || this.text !== text;
+    const textChanged = this.text !== text;
     this.path = path;
     this.fileId = fileId;
     this.text = text;
     if (resetSelection) {
       this.selection = null;
+      if (this.source) this.source.value = text.toString();
       this.source?.setSelectionRange(0, 0);
-      this.rememberSelection();
-    } else this.refreshAuthoringTarget();
+    }
+    if (textChanged) this.bindText(text);
+    if (resetSelection) this.rememberSelection();
+    else this.refreshAuthoringTarget();
   }
 
   rememberSelection(): void {
@@ -89,7 +106,12 @@ export class EditorStatus extends LitElement {
 
   refreshAuthoringTarget(): void {
     this.setAuthoringTarget(this.path, this.text?.toString() ?? "", this.authoringTarget);
-    this.targetChanged?.();
+    this.renderEditorHighlight();
+    this.binding?.targetChanged();
+  }
+
+  renderHighlight(): void {
+    this.renderEditorHighlight();
   }
 
   get authoringTarget(): ResolvedEditorSelection | null {
@@ -141,6 +163,34 @@ export class EditorStatus extends LitElement {
       <p class="editor-target-status" id="editor-target-status" title=${this.target}>${this.target}</p>
       <p class="text-xs text-app-text-soft" id="save-status">${this.save}</p>
     `;
+  }
+
+  private bindText(text: Y.Text): void {
+    const documentModel = this.documentModel;
+    const source = this.source;
+    const binding = this.binding;
+    if (!documentModel || !source || !binding) return;
+    this.releaseText();
+    text.observe(binding.sourceChanged);
+    let undoManager = this.undoManagers.get(text);
+    if (!undoManager) {
+      undoManager = new Y.UndoManager(text, { trackedOrigins: new Set([source, this]) });
+      this.undoManagers.set(text, undoManager);
+    }
+    const textBinding = bindYText(source, text, documentModel, binding.highlight, () => this.editorPresence(), undoManager);
+    this.renderEditorHighlight = textBinding.renderHighlight;
+    this.releaseText = () => {
+      textBinding.destroy();
+      text.unobserve(binding.sourceChanged);
+    };
+  }
+
+  private editorPresence(): readonly EditorPresenceRange[] {
+    const target = this.authoringTarget;
+    const local: readonly EditorPresenceRange[] = target
+      ? [{ collaboratorId: "local-author", start: target.start, end: target.end, local: true }]
+      : [];
+    return [...local, ...(this.binding?.presence(this.fileId) ?? [])];
   }
 }
 
