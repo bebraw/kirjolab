@@ -207,17 +207,19 @@ The adopted components own bounded presentation:
   deletion transport, response validation, optimistic hiding, delayed commit
   scheduling, Undo restoration, failure notices, and typed file, folder, image,
   and quick-open intents. It exposes hidden image identities to Preview and
-  returns validated snapshots. The coordinator retains snapshot application,
-  cross-feature rendering, and the toast outlet; the project-file dialog owns
-  supporting-file deletion.
+  returns validated snapshots through the project-file owner's shared mutation
+  binding. The coordinator retains snapshot application, cross-feature
+  rendering, and the toast outlet; the project-file dialog owns supporting-file
+  deletion and upload completion.
 - The project image upload control owns the image file input, sequential upload
   transport, response validation, duplicate-submit gating, local progress and
   retryable failure state, and a typed completed outcome carrying the final
   validated workspace snapshot. The project-file dialog owns tree-image
-  projection into relative Markdown syntax and a completion message. The
-  coordinator retains canonical active-file lookup, snapshot application,
-  project-tree and preview rendering, Yjs insertion, caret and focus authority,
-  and the toast outlet; the project-tree panel owns image deletion.
+  projection into relative Markdown syntax and a completion message, plus the
+  upload and tree mutation outcome binding. The coordinator retains canonical
+  active-file lookup, snapshot application, cross-feature rendering, Yjs
+  insertion, caret and focus authority, and the toast outlet; the project-tree
+  panel owns image deletion.
 - The editor Insert menu owns scholarly-syntax choices and their displayed
   templates, relative include-file option rendering, empty state, and local menu
   closing with typed syntax-template and include-file intents. The application
@@ -669,7 +671,8 @@ reason to wrap static markup mechanically.
   DELETE requests plus their optimistic hide, delayed commit, Undo, restoration,
   and failure lifecycle. File deletion, editor rebinding, validated snapshot
   application, image insertion, include insertion, cross-feature rendering, and
-  the toast outlet remain in the application coordinator.
+  the toast outlet remain in the application coordinator, with upload and tree
+  mutation effects routed once through the project-file owner.
 - The manuscript map panel replaces seven internal element references and the
   imperative metric, outline, structural-cue, and editing-cue renderers while
   removing its public selection event. It leaves composed-source derivation and

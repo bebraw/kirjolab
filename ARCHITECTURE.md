@@ -245,18 +245,21 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   status. Emit only the final validated workspace snapshot and completion
   message. Let the project-file dialog project a selected tree asset into
   relative Markdown image syntax and a completion message from the canonical
-  active file. Keep active-file authority, Yjs insertion, caret and focus,
-  snapshot application, project-tree and preview rendering, and the toast outlet
-  in the workspace coordinator. Let the project-tree panel own image deletion
-  as part of its local row lifecycle.
+  active file. Route image-upload and project-tree mutation completions through
+  the project-file owner's one canonical snapshot, preview, and notice binding.
+  Keep active-file authority, Yjs insertion, caret and focus, snapshot
+  application, cross-feature rendering, and the toast outlet in the workspace
+  coordinator. Let the project-tree panel own image deletion as part of its
+  local row lifecycle.
 - Let the project-tree panel own encoded empty-folder and image deletion
   transport and response validation plus optimistic row hiding, the six-second
   Undo window, delayed commit scheduling, restoration, and failure notices. It
   exposes hidden image identities so Preview does not resolve an asset during
   its grace window and returns validated snapshots for coordinator application.
-  Keep canonical snapshot application, cross-feature rendering, and the global
-  toast outlet in the workspace coordinator; the project-file dialog owns
-  supporting-file deletion.
+  Bind those outcomes through the project-file owner beside upload and
+  supporting-file mutation completion. Keep canonical snapshot application,
+  cross-feature rendering, and the global toast outlet in the workspace
+  coordinator.
 - Store project image metadata beside the durable file tree and keep its bytes
   as bounded, inert R2 objects under the reserved `figures/` path. Do not put
   uploaded image bytes in Yjs. Accept SVG only as validated UTF-8 image content

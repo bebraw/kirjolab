@@ -26,7 +26,7 @@ type ProjectTreeItem =
   | { readonly kind: "file"; readonly path: string; readonly file: ProjectFile }
   | { readonly kind: "folder"; readonly path: string; readonly folder: ProjectFolder };
 
-interface ProjectTreeCallbacks {
+export interface ProjectTreeCallbacks {
   readonly acceptSnapshot: (snapshot: WorkspaceSnapshot) => void;
   readonly presentNotice: (message: string, options?: DeferredDeletionNoticeOptions) => void;
   readonly previewChanged: () => void;

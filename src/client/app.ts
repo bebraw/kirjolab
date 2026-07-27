@@ -63,7 +63,6 @@ import { resolveAssistantTarget } from "./assistant-operations";
 import { citationPageFromLocator, createCitationInsertion, type CitationContext } from "./citations";
 import { type ProjectAnnotationSaved, type ProjectHighlightTool } from "./project-annotation-form";
 import { type ProjectFileDialogMode, type ProjectFileSaved } from "./project-file-dialog";
-import { type ProjectImagesUploaded } from "./project-image-upload-control";
 import type { ProjectTemplateSaved } from "./project-template-save-dialog";
 import "./manuscript-map-panel";
 import {
@@ -376,14 +375,6 @@ class WorkspaceApp {
       this.#updateModelAvailability();
     });
     bindYText(this.#elements.bibliography, this.#bibliography, this.#document);
-    this.#elements.projectTreePanel.configure(apiBase, {
-      acceptSnapshot: (snapshot) => {
-        this.#snapshot = snapshot;
-        this.#renderProjectFiles();
-      },
-      presentNotice: (message, options) => this.#showToast(message, options),
-      previewChanged: () => void this.#renderPreview(),
-    });
     this.#elements.projectImageUpload.configure(apiBase);
     this.#elements.projectFileDialog.configureApi(apiBase, {
       commit: (snapshot) => {
@@ -392,6 +383,7 @@ class WorkspaceApp {
         void this.#renderPreview();
       },
       presentNotice: (message, options) => this.#showToast(message, options),
+      previewChanged: () => void this.#renderPreview(),
       selectFile: (fileId) => this.#selectProjectFile(fileId),
     });
     this.#elements.projectFileDialog.bindWorkflow({
@@ -413,7 +405,6 @@ class WorkspaceApp {
       saved: (result) => this.#completeProjectFileSave(result),
       selectFile: (fileId) => this.#selectProjectFile(fileId),
       tree: this.#elements.projectTreePanel,
-      uploaded: (result) => this.#completeProjectImageUpload(result),
     });
     this.#elements.projectFileDialog.bindPresentation(this.#elements);
     this.#elements.editorInsertMenu.bind({
@@ -1132,13 +1123,6 @@ class WorkspaceApp {
     const file = snapshot?.files.find((item) => item.id === this.#activeFileId);
     if (!snapshot || !file || file.id === snapshot.entryFileId) return;
     this.#elements.projectFileDialog.deleteFile(file, snapshot.entryFileId);
-  }
-
-  #completeProjectImageUpload({ message, snapshot }: ProjectImagesUploaded): void {
-    this.#snapshot = snapshot;
-    this.#renderProjectFiles();
-    void this.#renderPreview();
-    this.#showToast(message);
   }
 
   #focusProjectRange(fileId: string, from: number, to: number): void {

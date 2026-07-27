@@ -147,6 +147,9 @@ collaborative, and unambiguous about what preview and export mean.
   Given a canonical snapshot and active file, the same component filters its
   hidden-file projection once and supplies the project tree, Insert menu,
   source-completion list, and file-action menu with their bounded views.
+  Image-upload completion and project-tree deletion outcomes use its same typed
+  snapshot, preview-change, and notice callbacks instead of binding coordinator
+  effects independently.
   It also owns encoded file deletion transport and shares the same response
   validation across create, rename, and delete operations, plus the supporting-
   file hidden projection, delayed deletion, Undo, and failed-commit restoration.

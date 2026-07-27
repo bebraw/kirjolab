@@ -5,7 +5,7 @@ import { DeferredDeletionController, type DeferredDeletionNoticeOptions } from "
 import { errorMessage, expectOk, jsonFetch } from "./http";
 import { projectFileActionEvent, type ProjectFileAction } from "./project-file-actions";
 import { projectImagesUploadedEvent, type ProjectImagesUploaded } from "./project-image-upload-control";
-import { projectTreeActionEvent, type ProjectTreeAction, type ProjectTreeData } from "./project-tree-panel";
+import { projectTreeActionEvent, type ProjectTreeAction, type ProjectTreeCallbacks, type ProjectTreeData } from "./project-tree-panel";
 
 export const projectFileSavedEvent = "project-file-saved";
 
@@ -23,9 +23,10 @@ export interface ProjectImageInsertion {
   readonly syntax: string;
 }
 
-export interface ProjectFileDeletionCallbacks {
+export interface ProjectFileMutationCallbacks {
   readonly commit: (snapshot: WorkspaceSnapshot) => void;
   readonly presentNotice: (message: string, options?: DeferredDeletionNoticeOptions) => void;
+  readonly previewChanged: () => void;
   readonly selectFile: (fileId: string) => void;
 }
 
@@ -40,7 +41,10 @@ interface ProjectFileTreeSource extends EventTarget {
 export interface ProjectFilePresentationBinding {
   readonly editorInsertMenu: { setFiles(activeFile: ProjectFile | null, files: readonly ProjectFile[]): void };
   readonly projectFileMenuActions: { setEntryFileActive(active: boolean): void };
-  readonly projectTreePanel: { setTree(data: ProjectTreeData): void };
+  readonly projectTreePanel: {
+    configure(apiBase: string, callbacks: ProjectTreeCallbacks): void;
+    setTree(data: ProjectTreeData): void;
+  };
   readonly sourceCompletion: {
     setProject(project: WorkspaceSnapshot, activeFileId: string | null, workspace: boolean): void;
   };
@@ -58,7 +62,6 @@ export interface ProjectFileWorkflowRouting {
   readonly saved: (result: ProjectFileSaved) => void;
   readonly selectFile: (fileId: string) => void;
   readonly tree: ProjectFileTreeSource;
-  readonly uploaded: (result: ProjectImagesUploaded) => void;
 }
 
 export function projectImageInsertion(activeFile: ProjectFile, asset: ProjectAsset): ProjectImageInsertion {
@@ -109,13 +112,14 @@ export class ProjectFileDialog extends LitElement {
   declare private saving: boolean;
   declare private status: string;
   private apiBase = "";
-  private deletionCallbacks: ProjectFileDeletionCallbacks = {
+  private mutationCallbacks: ProjectFileMutationCallbacks = {
     commit: () => undefined,
     presentNotice: () => undefined,
+    previewChanged: () => undefined,
     selectFile: () => undefined,
   };
   private readonly deletions = new DeferredDeletionController((message, options) => {
-    this.deletionCallbacks.presentNotice(message, options);
+    this.mutationCallbacks.presentNotice(message, options);
   });
   private targetId: string | null = null;
   private readonly hiddenFileIds = new Set<string>();
@@ -131,9 +135,10 @@ export class ProjectFileDialog extends LitElement {
     this.status = "";
   }
 
-  configureApi(apiBase: string, deletionCallbacks?: ProjectFileDeletionCallbacks): void {
+  configureApi(apiBase: string, mutationCallbacks?: ProjectFileMutationCallbacks): void {
     this.apiBase = apiBase;
-    if (deletionCallbacks) this.deletionCallbacks = deletionCallbacks;
+    if (mutationCallbacks) this.mutationCallbacks = mutationCallbacks;
+    this.configureProjectTree();
   }
 
   bindWorkflow(routing: ProjectFileWorkflowRouting): void {
@@ -143,6 +148,15 @@ export class ProjectFileDialog extends LitElement {
 
   bindPresentation(binding: ProjectFilePresentationBinding): void {
     this.presentation = binding;
+    this.configureProjectTree();
+  }
+
+  private configureProjectTree(): void {
+    this.presentation?.projectTreePanel.configure(this.apiBase, {
+      acceptSnapshot: this.mutationCallbacks.commit,
+      presentNotice: this.mutationCallbacks.presentNotice,
+      previewChanged: this.mutationCallbacks.previewChanged,
+    });
   }
 
   presentProject(snapshot: WorkspaceSnapshot, activeFileId: string | null, assetBase: string, workspace: boolean): void {
@@ -193,11 +207,11 @@ export class ProjectFileDialog extends LitElement {
       failedMessage: `Could not delete ${file.path}.`,
       hide: () => {
         this.hiddenFileIds.add(file.id);
-        this.deletionCallbacks.selectFile(entryFileId);
+        this.mutationCallbacks.selectFile(entryFileId);
       },
       restore: () => {
         this.hiddenFileIds.delete(file.id);
-        this.deletionCallbacks.selectFile(file.id);
+        this.mutationCallbacks.selectFile(file.id);
       },
       commit: async () => {
         const response = await fetch(`${this.apiBase}/files/${encodeURIComponent(file.id)}`, {
@@ -206,7 +220,7 @@ export class ProjectFileDialog extends LitElement {
         });
         await expectOk(response);
         this.hiddenFileIds.delete(file.id);
-        this.deletionCallbacks.commit(await this.workspace(response));
+        this.mutationCallbacks.commit(await this.workspace(response));
       },
     });
   }
@@ -337,7 +351,9 @@ export class ProjectFileDialog extends LitElement {
   };
 
   private readonly handleImagesUploaded = (event: Event): void => {
-    this.routing?.uploaded((event as CustomEvent<ProjectImagesUploaded>).detail);
+    const { message, snapshot } = (event as CustomEvent<ProjectImagesUploaded>).detail;
+    this.mutationCallbacks.commit(snapshot);
+    this.mutationCallbacks.presentNotice(message);
   };
 
   private readonly handleSaved = (event: Event): void => {

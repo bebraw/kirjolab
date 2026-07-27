@@ -7168,6 +7168,30 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,679 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Project Mutation Outcomes
+
+`ProjectFileDialog` now configures project-tree mutation callbacks and completes
+image uploads through the same typed snapshot, preview-change, selection, and
+notice binding already used for supporting-file deletion. `WorkspaceApp` keeps
+canonical snapshot application, cross-feature rendering, and the shared toast
+outlet, but no longer binds the tree separately or owns an image-upload
+completion method.
+
+This checkpoint reduces `src/client/app.ts` from 2,102 to 2,086 lines (-16) and
+grows the project-file dialog from 394 to 410 lines (+16). Runtime source across
+the two files is unchanged while consolidating two duplicated child mutation
+paths. Focused coverage exercises binding-order independence, upload snapshot
+and notice completion, tree callback configuration, existing deletion and
+workflow behavior, application contracts, and strict types.
+
+The browser application artifact changes from 840,982 B raw / 227,456 B gzip
+to 841,162 B raw / 227,485 B gzip (+180 B raw / +29 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,679 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

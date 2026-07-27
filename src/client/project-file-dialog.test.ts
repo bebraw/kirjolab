@@ -5,7 +5,7 @@ import {
   projectFileDialogIsCreating,
   projectFileDialogIsFolder,
   projectFileSavedEvent,
-  type ProjectFileDeletionCallbacks,
+  type ProjectFileMutationCallbacks,
   type ProjectFileDialogMode,
   type ProjectFileSaved,
 } from "./project-file-dialog";
@@ -72,10 +72,11 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-function deletionCallbacks(): ProjectFileDeletionCallbacks {
+function mutationCallbacks(): ProjectFileMutationCallbacks {
   return {
     commit: vi.fn(),
     presentNotice: vi.fn(),
+    previewChanged: vi.fn(),
     selectFile: vi.fn(),
   };
 }
@@ -116,6 +117,8 @@ describe("project file dialog", () => {
 
   it("routes the surrounding project-file workflow", () => {
     const panel = new TestProjectFileDialog();
+    const mutations = mutationCallbacks();
+    panel.configureApi("/api/workspaces/demo", mutations);
     const actions = new EventTarget();
     const imageUpload = Object.assign(new EventTarget(), { choose: vi.fn() });
     const tree = Object.assign(new EventTarget(), { focusFilter: vi.fn() });
@@ -128,7 +131,6 @@ describe("project file dialog", () => {
       quickOpen: vi.fn(),
       saved: vi.fn(),
       selectFile: vi.fn(),
-      uploaded: vi.fn(),
     };
     panel.bindWorkflow({ actionControls: [actions], imageUpload, tree, ...callbacks });
     const asset = {
@@ -166,7 +168,8 @@ describe("project file dialog", () => {
       message: "Inserted figures/chart.png.",
       syntax: "![chart](../figures/chart.png)",
     });
-    expect(callbacks.uploaded).toHaveBeenCalledWith(upload);
+    expect(mutations.commit).toHaveBeenCalledWith(snapshot);
+    expect(mutations.presentNotice).toHaveBeenCalledWith("Uploaded.");
     expect(callbacks.saved).toHaveBeenCalledWith(saved);
   });
 
@@ -194,8 +197,14 @@ describe("project file dialog", () => {
     const editorInsertMenu = { setFiles: vi.fn() };
     const projectFileMenuActions = { setEntryFileActive: vi.fn() };
     const sourceCompletion = { setProject: vi.fn() };
-    const projectTreePanel = { setTree: vi.fn() };
+    const projectTreePanel = { configure: vi.fn(), setTree: vi.fn() };
     panel.bindPresentation({ editorInsertMenu, projectFileMenuActions, projectTreePanel, sourceCompletion });
+
+    expect(projectTreePanel.configure).toHaveBeenCalledWith("", {
+      acceptSnapshot: expect.any(Function),
+      presentNotice: expect.any(Function),
+      previewChanged: expect.any(Function),
+    });
 
     panel.presentProject(snapshot, snapshot.entryFileId, "/api/workspaces/demo/assets", true);
 
@@ -258,7 +267,7 @@ describe("project file dialog", () => {
   it("owns deferred encoded file deletion and commits its validated workspace", async () => {
     vi.useFakeTimers();
     const panel = new TestProjectFileDialog();
-    const callbacks = deletionCallbacks();
+    const callbacks = mutationCallbacks();
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(Response.json(snapshot));
     const file = { ...snapshot.files[0]!, id: "file/1" };
     panel.configureApi("/api/workspaces/workspace", callbacks);
@@ -280,7 +289,7 @@ describe("project file dialog", () => {
   it("restores a project file when deferred deletion is undone", async () => {
     vi.useFakeTimers();
     const panel = new TestProjectFileDialog();
-    const callbacks = deletionCallbacks();
+    const callbacks = mutationCallbacks();
     const fetchMock = vi.spyOn(globalThis, "fetch");
     const file = snapshot.files[0]!;
     panel.configureApi("/api/workspaces/workspace", callbacks);
@@ -321,7 +330,7 @@ describe("project file dialog", () => {
   it("restores failed file deletion with a retryable notice", async () => {
     vi.useFakeTimers();
     const panel = new TestProjectFileDialog();
-    const callbacks = deletionCallbacks();
+    const callbacks = mutationCallbacks();
     vi.spyOn(globalThis, "fetch").mockResolvedValue(Response.json({ invalid: true }));
     const file = snapshot.files[0]!;
     panel.configureApi("/api/workspaces/workspace", callbacks);
