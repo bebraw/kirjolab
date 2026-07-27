@@ -8350,6 +8350,26 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,706 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Simplification: Project File Include State
+
+`WorkspaceApp` now captures and clears the project-file dialog's remembered
+Yjs include context directly at its `prepareDialog` and `saved` lifecycle
+bindings. Relative-position resolution and collaborative insertion remain in
+the dedicated helper, while two one-use state-forwarding methods are removed.
+
+This checkpoint reduces `src/client/app.ts` from 1,476 to 1,471 lines (-5).
+Focused coverage passes all 41 project-file dialog, action, source-completion,
+and application-contract cases, and strict types remain green. The browser
+workflow continues to cover create-and-include behavior.
+
+The browser application artifact changes from 846,537 B raw / 228,465 B gzip
+to 846,484 B raw / 228,458 B gzip (-53 B raw / -7 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,706 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

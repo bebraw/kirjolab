@@ -375,15 +375,21 @@ class WorkspaceApp {
         this.#applySourceSyntax({ text: syntax }, null, caret);
         this.#showToast(message);
       },
-      prepareDialog: (mode, file) => this.#rememberProjectFileIncludeTarget(mode, file ?? undefined),
+      prepareDialog: (mode, file) => {
+        const include = mode === "create-and-include";
+        this.#projectFileIncludeTarget = include ? captureRelativeSelection(this.#elements.source, this.#activeFileText) : null;
+        this.#projectFileIncludeFromPath = include ? (file?.path ?? null) : null;
+      },
       quickOpen: () => {
         this.#layout.setRailCollapsed(false);
         this.#showRail("files");
       },
       saved: ({ fileId, message, mode, path }) => {
-        if (!this.#insertRememberedProjectInclude(mode, path) && fileId) this.#selectProjectFile(fileId);
+        const included = this.#insertRememberedProjectInclude(mode, path);
+        this.#projectFileIncludeTarget = null;
+        this.#projectFileIncludeFromPath = null;
+        if (!included && fileId) this.#selectProjectFile(fileId);
         this.#showToast(message);
-        this.#resetProjectFileDialogState();
       },
       selectFile: (fileId) => this.#selectProjectFile(fileId),
       tree: this.#elements.projectTreePanel,
@@ -903,12 +909,6 @@ class WorkspaceApp {
     this.#syncWorkspaceRoute("replace");
   }
 
-  #rememberProjectFileIncludeTarget(mode: ProjectFileDialogMode, file: ProjectFile | undefined): void {
-    this.#projectFileIncludeTarget =
-      mode === "create-and-include" ? captureRelativeSelection(this.#elements.source, this.#activeFileText) : null;
-    this.#projectFileIncludeFromPath = mode === "create-and-include" ? (file?.path ?? null) : null;
-  }
-
   #insertRememberedProjectInclude(mode: ProjectFileDialogMode, path: string): boolean {
     const target = this.#projectFileIncludeTarget;
     const fromPath = this.#projectFileIncludeFromPath;
@@ -916,11 +916,6 @@ class WorkspaceApp {
     const position = Y.createAbsolutePositionFromRelativePosition(target.end, this.#document);
     if (position?.type === target.text) this.#insertProjectInclude(target.text, position.index, relativeProjectPath(fromPath, path));
     return true;
-  }
-
-  #resetProjectFileDialogState(): void {
-    this.#projectFileIncludeTarget = null;
-    this.#projectFileIncludeFromPath = null;
   }
 
   #focusProjectRange(fileId: string, from: number, to: number): void {
