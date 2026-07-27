@@ -1,5 +1,6 @@
 import { html, LitElement, type TemplateResult } from "lit";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
+import type * as Y from "yjs";
 import type { Diagnostic } from "../domain/markdown";
 import { publicationWordStatistics } from "../domain/publication-statistics";
 import {
@@ -12,6 +13,7 @@ import {
   type ProjectFilePreview,
 } from "../domain/project-files";
 import type { WorkspaceSnapshot } from "../domain/workspace";
+import { resolveWorkspaceSnapshotAnchors } from "../domain/workspace-anchor-projection";
 import { sourceSpanAt } from "./composition-source-map";
 import { ContextResourcePresenter } from "./context-resource-presenter";
 import { parseCitationKeys, type CitationContext } from "./citations";
@@ -57,6 +59,18 @@ export interface ProjectPreviewRequest {
   readonly snapshot: WorkspaceSnapshot | null;
 }
 
+export interface WorkspacePreviewProjectOwners {
+  readonly projectFileDialog: { readonly activeFileId: string | null; projectFiles(): readonly ProjectFile[] };
+  readonly projectTreePanel: { readonly hiddenAssets: ReadonlySet<string> };
+}
+
+interface WorkspacePreviewProjectBinding {
+  readonly apiBase: string;
+  readonly document: Y.Doc;
+  readonly owners: WorkspacePreviewProjectOwners;
+  readonly snapshot: () => WorkspaceSnapshot | null;
+}
+
 export interface ProjectPreviewOutcome {
   readonly available: boolean;
   readonly diagnostics: readonly Diagnostic[];
@@ -92,6 +106,7 @@ export class WorkspacePreview extends LitElement {
 
   declare private content: PreviewContent;
   private navigation = emptyNavigation;
+  private projectBinding: WorkspacePreviewProjectBinding | null = null;
   private renderVersion = 0;
   private syncHighlightTimer: number | undefined;
 
@@ -110,6 +125,10 @@ export class WorkspacePreview extends LitElement {
 
   bindNavigation(callbacks: WorkspacePreviewNavigationCallbacks): void {
     this.navigation = callbacks;
+  }
+
+  bindProject(apiBase: string, document: Y.Doc, snapshot: () => WorkspaceSnapshot | null, owners: WorkspacePreviewProjectOwners): void {
+    this.projectBinding = { apiBase, document, owners, snapshot };
   }
 
   override connectedCallback(): void {
@@ -199,6 +218,24 @@ export class WorkspacePreview extends LitElement {
       this.presentProjectCompanions(request, projectOutcome);
     }
     return projectOutcome;
+  }
+
+  renderBoundProject(bibliography?: string): Promise<ProjectPreviewOutcome | null> {
+    const binding = this.projectBinding;
+    if (!binding) return Promise.resolve(null);
+    const snapshot = binding.snapshot();
+    const source = binding.document.getText("source");
+    const bibliographyText = binding.document.getText("bibliography");
+    return this.renderProject({
+      activeFileId: binding.owners.projectFileDialog.activeFileId,
+      apiBase: binding.apiBase,
+      bibliography: bibliography ?? bibliographyText.toString(),
+      fallbackSource: source.toString(),
+      files: binding.owners.projectFileDialog.projectFiles(),
+      hiddenAssetIds: binding.owners.projectTreePanel.hiddenAssets,
+      resolvedSnapshot: snapshot ? resolveWorkspaceSnapshotAnchors(binding.document, snapshot) : null,
+      snapshot,
+    });
   }
 
   protected presentProjectCompanions(request: ProjectPreviewRequest, outcome: ProjectPreviewOutcome): void {

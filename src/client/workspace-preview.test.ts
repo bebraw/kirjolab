@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import * as Y from "yjs";
 import type { Diagnostic } from "../domain/markdown";
 import type { ProjectComposition, ProjectFilePreview } from "../domain/project-files";
 import { workspaceSnapshotFixture } from "../test-support/workspace-fixture";
@@ -139,6 +140,38 @@ describe("workspace preview", () => {
       expect.objectContaining({ files }),
       expect.objectContaining({ publicationComposition: expect.any(Object) }),
     );
+  });
+
+  it("owns the bound canonical project request", async () => {
+    const preview = new TestWorkspacePreview();
+    await expect(preview.renderBoundProject()).resolves.toBeNull();
+    const documentModel = new Y.Doc();
+    documentModel.getText("source").insert(0, "Bound source");
+    documentModel.getText("bibliography").insert(0, "Bound bibliography");
+    const hiddenAssets = new Set(["asset-1"]);
+    const files = workspaceSnapshotFixture.files.map((file) => ({ ...file, content: `${file.content}\nLive` }));
+    const renderProject = vi.spyOn(preview, "renderProject").mockResolvedValue(null);
+    preview.bindProject(request.apiBase, documentModel, () => workspaceSnapshotFixture, {
+      projectFileDialog: { activeFileId: workspaceSnapshotFixture.entryFileId, projectFiles: () => files },
+      projectTreePanel: { hiddenAssets },
+    });
+
+    await preview.renderBoundProject();
+    await preview.renderBoundProject("Override bibliography");
+
+    expect(renderProject).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        activeFileId: workspaceSnapshotFixture.entryFileId,
+        bibliography: "Bound bibliography",
+        fallbackSource: "Bound source",
+        files,
+        hiddenAssetIds: hiddenAssets,
+        resolvedSnapshot: expect.objectContaining({ id: workspaceSnapshotFixture.id }),
+        snapshot: workspaceSnapshotFixture,
+      }),
+    );
+    expect(renderProject.mock.calls[1]?.[0].bibliography).toBe("Override bibliography");
   });
 
   it("projects one render outcome into manuscript-map and export companions", () => {

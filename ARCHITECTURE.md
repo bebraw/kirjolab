@@ -180,10 +180,12 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   labels and combined composition and renderer issue summaries from canonical
   preview inputs. Let the light-DOM workspace Preview own lazy renderer loading,
   stale-render rejection, rendered or escaped-source presentation, renderer
-  diagnostics, isolated-file heading-number mapping, authorized local-image
-  resolution, publication composition and active-file preview derivation from
-  supplied canonical project files, synchronized Preview status and source-map
-  sibling projection, manuscript-map and live export-statistics companion
+  diagnostics, isolated-file heading-number mapping, and authorized local-image
+  resolution. Bind the canonical Yjs document, snapshot source, project-file
+  owner, and hidden-asset owner once; let Preview derive its live source,
+  bibliography, resolved anchors, publication composition, active-file preview,
+  synchronized status and source-map sibling projection, manuscript-map and
+  live export-statistics companion
   projection, and available-outcome projection of a supplied anchor-resolved
   workspace into research companions from the same project render outcome,
   transient DOM navigation, interactive-click classification,

@@ -375,9 +375,11 @@ The adopted components own bounded presentation:
 - The workspace Preview owns its light-DOM article and diagnostics surface,
   lazy Markdown-runtime loading, stale-render rejection, rendered or escaped-
   source presentation, renderer diagnostics, isolated-file heading-number
-  projection, publication composition and active-file preview derivation from
-  supplied canonical project files, synchronized Preview status and source-map
-  sibling projection, manuscript-map content and live export-statistics
+  projection, and authorized local-image resolution. Its bound project sources
+  expose the canonical Yjs document, snapshot, project-file owner, and hidden-
+  asset owner once; Preview derives live source and bibliography, resolved
+  anchors, publication composition, active-file preview, synchronized status and
+  source-map sibling projection, manuscript-map content and live export-statistics
   companion projection, and available-outcome projection of a supplied
   anchor-resolved workspace into research companions from the same project
   render outcome, authorized local-image resolution, viewport-relative source-span

@@ -11319,28 +11319,26 @@ and PDF.js artifacts remain unchanged at 135,411 B / 23,373 B, 204,779 B /
 Full native CI passes all 1,741 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
-## Continued Lit Ownership: Passage-Link Policy
+## Continued Lit Ownership: Created Include Projection
 
-`ContextResourcePresenter` now consumes the authoring-state source it already
-shares with manuscript comments, rejects claim and evidence links while the
-document is unstable or no passage is selected, and delegates validated link
-transport to its composed claim or evidence owner. `WorkspaceApp` supplies one
-canonical authoring projection and no longer owns the policy or child routing.
+`ProjectFileDialog` now derives a create-and-include directive from its active
+file and newly created path before invoking the editor-status insertion
+continuation. `WorkspaceApp` supplies only that preserved insertion function
+and no longer imports or applies project-relative path logic.
 
-This checkpoint reduces `src/client/app.ts` from 775 to 759 lines (-16), grows
-the context-resource presenter from 1,183 to 1,200 lines (+17), and adds one
-combined runtime line to consolidate policy shared by three resource families.
-Focused coverage passes stable claim and evidence links, synchronization and
-missing-selection guards, comment authoring, child mutation routes, and strict
+This checkpoint reduces `src/client/app.ts` from 780 to 777 lines (-3), grows
+the project-file dialog from 491 to 493 lines (+2), and removes one combined
+runtime line. Focused and affected coverage pass exact relative directive
+projection, dialog workflow ordering, editor insertion continuity, and strict
 types. Direct and unique production package counts remain 18 and 150; Lit was
 already pinned.
 
-The browser application artifact increases from 854,220 B raw / 229,899 B gzip
-to 854,312 B / 229,963 B (+92 B raw / +64 B gzip). Styles and lazy Markdown and
+The browser application artifact decreases from 854,127 B raw / 229,900 B gzip
+to 854,117 B / 229,888 B (-10 B raw / -12 B gzip). Styles and lazy Markdown and
 PDF.js artifacts remain unchanged at 135,411 B / 23,373 B, 204,779 B / 62,386
 B, and 481,994 B / 146,135 B.
 
-Full native CI passes all 1,742 unit/coverage tests, 121 Workers-runtime tests,
+Full native CI passes all 1,741 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
 ## Continued Lit Ownership: Companion Editor Binding
@@ -11366,24 +11364,51 @@ and PDF.js artifacts remain unchanged at 135,411 B / 23,373 B, 204,779 B /
 Full native CI passes all 1,741 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
-## Continued Lit Ownership: Created Include Projection
+## Continued Lit Ownership: Passage-Link Policy
 
-`ProjectFileDialog` now derives a create-and-include directive from its active
-file and newly created path before invoking the editor-status insertion
-continuation. `WorkspaceApp` supplies only that preserved insertion function
-and no longer imports or applies project-relative path logic.
+`ContextResourcePresenter` now consumes the authoring-state source it already
+shares with manuscript comments, rejects claim and evidence links while the
+document is unstable or no passage is selected, and delegates validated link
+transport to its composed claim or evidence owner. `WorkspaceApp` supplies one
+canonical authoring projection and no longer owns the policy or child routing.
 
-This checkpoint reduces `src/client/app.ts` from 780 to 777 lines (-3), grows
-the project-file dialog from 491 to 493 lines (+2), and removes one combined
-runtime line. Focused and affected coverage pass exact relative directive
-projection, dialog workflow ordering, editor insertion continuity, and strict
+This checkpoint reduces `src/client/app.ts` from 775 to 759 lines (-16), grows
+the context-resource presenter from 1,183 to 1,200 lines (+17), and adds one
+combined runtime line to consolidate policy shared by three resource families.
+Focused coverage passes stable claim and evidence links, synchronization and
+missing-selection guards, comment authoring, child mutation routes, and strict
 types. Direct and unique production package counts remain 18 and 150; Lit was
 already pinned.
 
-The browser application artifact decreases from 854,127 B raw / 229,900 B gzip
-to 854,117 B / 229,888 B (-10 B raw / -12 B gzip). Styles and lazy Markdown and
+The browser application artifact increases from 854,220 B raw / 229,899 B gzip
+to 854,312 B / 229,963 B (+92 B raw / +64 B gzip). Styles and lazy Markdown and
 PDF.js artifacts remain unchanged at 135,411 B / 23,373 B, 204,779 B / 62,386
 B, and 481,994 B / 146,135 B.
 
-Full native CI passes all 1,741 unit/coverage tests, 121 Workers-runtime tests,
+Full native CI passes all 1,742 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
+## Continued Lit Ownership: Bound Project Preview
+
+`WorkspacePreview` now binds the canonical Yjs document, snapshot source,
+project-file owner, and hidden-asset owner once. It derives live source and
+bibliography text, active and visible files, resolved snapshot anchors, and the
+complete render request whenever preview refresh is requested. `WorkspaceApp`
+no longer rebuilds that projection or owns a preview-render helper.
+
+This checkpoint reduces `src/client/app.ts` from 759 to 746 lines (-13) and
+grows the workspace Preview owner from 403 to 440 lines (+37). The 24-line
+combined increase makes the existing renderer's canonical inputs explicit and
+testable at its ownership boundary, replacing repeated coordinator knowledge.
+Focused and affected coverage pass default and bootstrap bibliography, live Yjs
+source, active files, hidden assets, resolved anchors, companion projection, and
+strict types. Direct and unique production package counts remain 18 and 150;
+Lit and Yjs were already pinned.
+
+The browser application artifact increases from 854,312 B raw / 229,963 B gzip
+to 855,000 B / 230,058 B (+688 B raw / +95 B gzip). Styles and lazy Markdown
+and PDF.js artifacts remain unchanged at 135,411 B / 23,373 B, 204,779 B /
+62,386 B, and 481,994 B / 146,135 B.
+
+Full native CI passes all 1,743 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.

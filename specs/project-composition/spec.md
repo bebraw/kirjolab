@@ -54,10 +54,11 @@ collaborative, and unambiguous about what preview and export mean.
   bounded list. Diagnostic selection emits a file-qualified authored range
   resolved from the active preview source map; the project-file dialog validates
   file selection and the workspace coordinator owns editor binding and focus.
-- The workspace Preview derives publication composition, active-file preview,
-  rendered fallback source, and the active source map from coordinator-supplied
-  canonical project files, snapshot pins, and active-file identity before
-  invoking its renderer. It synchronizes file-mode, diagnostics/unavailable
+- The workspace Preview binds its canonical Yjs document, snapshot source,
+  project-file owner, and hidden-asset owner once. It derives live source and
+  bibliography, resolved anchors, publication composition, active-file preview,
+  rendered fallback source, and the active source map before invoking its
+  renderer. It synchronizes file-mode, diagnostics/unavailable
   status, source-map navigation, manuscript-map content, and live export
   statistics siblings from the same render outcome. For an available outcome,
   it also supplies the coordinator-resolved workspace anchors and composed

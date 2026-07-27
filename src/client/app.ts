@@ -4,7 +4,6 @@ import { parseAppBootstrap } from "./app-contracts";
 import { collectAppElements } from "./app-elements";
 import { reviewerResponsePath, reviewerResponseTemplate } from "../domain/reviewer-response";
 import { resolveManuscriptAnchor } from "../domain/manuscript-anchor";
-import { resolveWorkspaceSnapshotAnchors } from "../domain/workspace-anchor-projection";
 import { projectFileCollaborationTextName, type ProjectFile } from "../domain/project-files";
 import { researchQuestionsPath, researchQuestionsTemplate } from "../domain/research-questions";
 import { researchDiaryPath, researchDiaryTemplate } from "../domain/writing-workflows";
@@ -343,14 +342,14 @@ class WorkspaceApp {
       commit: (snapshot) => {
         this.#snapshot = snapshot;
         this.#elements.projectFileDialog.presentProject(snapshot, `${apiBase}/assets`, appMode === "workspace");
-        void this.#renderPreview();
+        void this.#elements.workspacePreview.renderBoundProject();
       },
       presentFile: (file, snapshot) => {
         this.#activeFileText = this.#document.getText(projectFileCollaborationTextName(file, snapshot.entryFileId));
         this.#elements.editorStatus.setAuthoringContext(file.path, file.id, this.#activeFileText);
       },
       presentNotice: (message, options) => this.#elements.toast.show(message, options),
-      previewChanged: () => void this.#renderPreview(),
+      previewChanged: () => void this.#elements.workspacePreview.renderBoundProject(),
     });
     this.#elements.projectFileDialog.bindWorkflow({
       actionControls: [this.#elements.projectFileRailActions, this.#elements.projectFileMenuActions],
@@ -370,6 +369,7 @@ class WorkspaceApp {
       (file, entryFileId) => this.#document.getText(projectFileCollaborationTextName(file, entryFileId)).toString(),
       () => this.#collaboration.synced || this.#collaboration.offlineAvailable,
     );
+    this.#elements.workspacePreview.bindProject(apiBase, this.#document, () => this.#snapshot, this.#elements);
     this.#elements.editorInsertMenu.bind({
       applyInsertion: (insertion) => this.#elements.editorStatus.applyInsertion(this.#activeFileText, insertion),
       authoringTarget: () => ({
@@ -394,15 +394,15 @@ class WorkspaceApp {
       trigger: this.#elements.projectHistoryTrigger,
     });
     this.#elements.contextResourcePresenter.bindManuscriptComments(apiBase);
-    this.#source.observe(() => void this.#renderPreview());
-    this.#bibliography.observe(() => void this.#renderPreview());
+    this.#source.observe(() => void this.#elements.workspacePreview.renderBoundProject());
+    this.#bibliography.observe(() => void this.#elements.workspacePreview.renderBoundProject());
     this.#document.on("update", (update: Uint8Array, origin: unknown) => {
       this.#scheduleOfflineSave();
       if (origin === remoteOrigin || origin === offlineOrigin) return;
       this.#collaboration.enqueue(update);
       this.#elements.editorStatus.setSave(this.#collaboration.synced ? "Saving…" : "Saving offline…");
       this.#elements.assistantGenerationPresenter.refreshAvailability();
-      void this.#renderPreview();
+      void this.#elements.workspacePreview.renderBoundProject();
       this.#collaborationSocket.flush();
     });
     this.#elements.contextResourcePresenter.bindProjectEvidence(apiBase);
@@ -522,10 +522,10 @@ class WorkspaceApp {
       this.#revision = snapshot.revision;
       this.#elements.source.value = snapshot.source;
       this.#elements.bibliography.value = snapshot.bibliography;
-      void this.#renderPreview(snapshot.bibliography);
+      void this.#elements.workspacePreview.renderBoundProject(snapshot.bibliography);
       this.#elements.projectHistoryTrigger.setRevision(this.#revision);
     } else {
-      void this.#renderPreview();
+      void this.#elements.workspacePreview.renderBoundProject();
     }
     this.#elements.projectFileDialog.presentProject(snapshot, `${apiBase}/assets`, appMode === "workspace");
     this.#renderResources();
@@ -583,19 +583,6 @@ class WorkspaceApp {
     if (active?.kind === "candidate") this.#elements.contextResourcePresenter.presentBoundContext(false);
   }
 
-  async #renderPreview(bibliography = this.#bibliography.toString()): Promise<void> {
-    await this.#elements.workspacePreview.renderProject({
-      activeFileId: this.#activeFileId,
-      apiBase,
-      bibliography,
-      fallbackSource: this.#source.toString(),
-      files: this.#elements.projectFileDialog.projectFiles(),
-      hiddenAssetIds: this.#elements.projectTreePanel.hiddenAssets,
-      resolvedSnapshot: this.#snapshot ? resolveWorkspaceSnapshotAnchors(this.#document, this.#snapshot) : null,
-      snapshot: this.#snapshot,
-    });
-  }
-
   #syncPreviewFromSource(explicit = true): void {
     const fileId = this.#activeFileId ?? this.#snapshot?.entryFileId ?? "";
     const previewActive = this.#elements.contextResourcePresenter.activeKey === RESEARCH_PREVIEW_KEY;
@@ -610,7 +597,7 @@ class WorkspaceApp {
     this.#elements.projectFileDialog.presentProject(snapshot, `${apiBase}/assets`, appMode === "workspace");
     this.#elements.assistantGenerationPresenter.refreshAvailability();
     this.#elements.workspacePreview.resetScroll();
-    void this.#renderPreview();
+    void this.#elements.workspacePreview.renderBoundProject();
     this.#syncWorkspaceRoute("replace");
   }
 
@@ -640,7 +627,7 @@ class WorkspaceApp {
     await this.#refreshProjectReferencePdfs(false);
     this.#renderResources();
     this.#elements.projectFileDialog.presentProject(snapshot, `${apiBase}/assets`, appMode === "workspace");
-    void this.#renderPreview();
+    void this.#elements.workspacePreview.renderBoundProject();
   }
 
   async #refreshProjectReferencePdfs(render = true): Promise<void> {
@@ -712,7 +699,7 @@ class WorkspaceApp {
     this.#elements.projectHistoryTrigger.setRevision(this.#revision);
     this.#renderCollaborationWorkflow();
     this.#elements.editorStatus.setSave(pending ? "Saved offline" : "Saved");
-    void this.#renderPreview();
+    void this.#elements.workspacePreview.renderBoundProject();
     return true;
   }
 
