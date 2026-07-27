@@ -1,5 +1,7 @@
 import { html, LitElement, type TemplateResult } from "lit";
+import type * as Y from "yjs";
 import { activePdfLoadContext } from "./active-pdf-context";
+import { resolveManuscriptAnchor } from "../domain/manuscript-anchor";
 import type {
   LibraryHighlight,
   LibraryPdfArtifact,
@@ -117,14 +119,15 @@ export interface LibraryPdfMutationCoordinator {
 
 export interface ContextRouteCoordinator {
   readonly authoring: () => ManuscriptCommentAuthoring;
+  readonly document: () => Y.Doc;
   readonly insertCitation: (citationAlias: string, locator?: string) => void;
   readonly library: () => ReferenceLibrarySnapshot | null;
-  readonly openPassage: (anchor: ManuscriptAnchorSelector) => void;
   readonly presentNotice: (message: string) => void;
   readonly project: () => WorkspaceSnapshot | null;
   readonly referencePdfs: () => readonly ProjectReferencePdf[];
   readonly refreshResources: () => Promise<void>;
   readonly refreshLibrary: () => Promise<void>;
+  readonly selectPassage: (fileId: string, start: number, end: number) => void;
 }
 
 export interface ContextPresentationBinding {
@@ -296,6 +299,20 @@ export class ContextResourcePresenter extends LitElement {
 
   bindRoutes(coordinator: ContextRouteCoordinator): void {
     this.routeCoordinator = coordinator;
+  }
+
+  openPassage(anchor: ManuscriptAnchorSelector): void {
+    const coordinator = this.routeCoordinator;
+    if (!coordinator) return;
+    const resolution = resolveManuscriptAnchor(coordinator.document(), anchor);
+    if (resolution.status !== "resolved") {
+      coordinator.presentNotice("This manuscript anchor is stale and needs to be linked again.");
+      return;
+    }
+    coordinator.selectPassage(anchor.fileId, resolution.start, resolution.end);
+    coordinator.presentNotice(
+      resolution.exactMatch ? "Linked manuscript passage selected." : "Changed linked passage selected; review its current text.",
+    );
   }
 
   async completeProjectMutation(message?: string, failureMessage?: string): Promise<void> {
@@ -533,7 +550,7 @@ export class ContextResourcePresenter extends LitElement {
         void this.completeProjectMutation(message, "The claim changed, but project resources could not be refreshed."),
       linkPassage: (claimId) => void this.linkSelectedPassage("claim", claimId),
       openAnnotation: (annotationId) => this.element("project-evidence-panel", ProjectEvidencePanel)?.revealAnnotation(annotationId),
-      openPassage: (anchor) => this.routeCoordinator?.openPassage(anchor),
+      openPassage: (anchor) => this.openPassage(anchor),
     });
   }
 
@@ -545,7 +562,7 @@ export class ContextResourcePresenter extends LitElement {
       completeMutation: (message) =>
         void this.completeProjectMutation(message, "The comment changed, but project resources could not be refreshed."),
       notice: (message) => this.routeCoordinator?.presentNotice(message),
-      openPassage: (anchor) => this.routeCoordinator?.openPassage(anchor),
+      openPassage: (anchor) => this.openPassage(anchor),
     });
   }
 
@@ -567,7 +584,7 @@ export class ContextResourcePresenter extends LitElement {
       },
       linkAnnotation: (annotationId) => void this.linkSelectedPassage("annotation", annotationId),
       notice: (message) => this.routeCoordinator?.presentNotice(message),
-      openPassage: (anchor) => this.routeCoordinator?.openPassage(anchor),
+      openPassage: (anchor) => this.openPassage(anchor),
       openPdf: (pdf, page, annotationId) => {
         this.element("project-annotation-form", ProjectAnnotationForm)?.selectPdf(pdf.id);
         void this.openProjectPdf(pdf, page, annotationId);

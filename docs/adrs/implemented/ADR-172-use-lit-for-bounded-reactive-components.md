@@ -201,8 +201,8 @@ The adopted components own bounded presentation:
   evidence, annotation, publication, claim, comment, and candidate owners from
   the canonical workspace snapshot. Let it also project coordinator-resolved
   evidence links, claim links, comments, and project-map inputs across those
-  composed owners after Preview rendering while the coordinator retains Yjs
-  anchor resolution and render timing. Let it configure the project-map
+  composed owners after Preview rendering while the coordinator retains render
+  timing. Let it configure the project-map
   workspace and bind annotation, claim, candidate, note, PDF, and publication
   routes across its composed Lit owners while the application coordinator
   retains document, project, people, and Preview-section navigation. Let it also
@@ -214,9 +214,11 @@ The adopted components own bounded presentation:
   canonical project refresh, authoring state, passage navigation, and notice
   presentation once through the resource-route coordinator. The presenter
   validates synchronization and a current passage before delegating claim or
-  annotation link transport to the composed owner. Keep Yjs passage derivation,
-  revision and collaboration authority, mutation consequences, canonical
-  refresh transport, cross-feature passage effects, Library management, and the
+  annotation link transport to the composed owner. For incoming links it
+  resolves the stored Yjs anchor, rejects stale targets, distinguishes exact
+  from changed text, and selects the notice. Keep canonical Yjs document and
+  selection effects, revision and collaboration authority, mutation
+  consequences, canonical refresh transport, Library management, and the
   notification outlet in the application coordinator. Through a
   narrow viewer binding it derives
   authorized active-PDF loads, synchronizes project annotations and private
@@ -792,7 +794,9 @@ reason to wrap static markup mechanically.
   evidence, validates synchronization and passage availability, and delegates
   link transport to the appropriate child. Yjs selection resolution, revision
   and collaboration authority, canonical refreshes, notification presentation,
-  and passage navigation remain in the application coordinator. Completing that workspace binding removes the final
+  and passage-selection effects remain in the application coordinator. The
+  presenter owns incoming anchor resolution plus stale, exact, and changed-text
+  notice selection. Completing that workspace binding removes the final
   coordinator subscription and public manuscript-comment action protocol.
 - The project publication list replaces one internal list reference and its
   imperative card renderer. It also replaces the separate count reference and

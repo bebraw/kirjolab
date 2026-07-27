@@ -1136,7 +1136,7 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   and candidate owners from one canonical workspace snapshot. Let it also
   project coordinator-resolved evidence links, claim links, comments, and
   project-map inputs across those composed owners after Preview rendering while
-  the coordinator retains Yjs anchor resolution and render timing. Through a
+  the coordinator retains render timing. Through a
   narrow viewer binding it derives the authorized active PDF load, synchronizes project
   annotations and private highlights, rejects stale completions, retains the
   rendered context and project-PDF identities, opens the viewer, restores
@@ -1155,9 +1155,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   authoring state, passage navigation, and notice presentation once through its
   resource-route boundary. Let the presenter validate synchronization and a
   current passage before delegating claim or annotation link transport to its
-  composed owner. Keep Yjs passage derivation, revision and collaboration
-  authority, mutation consequences, canonical refresh transport, cross-feature
-  passage effects, Library management, and the shared notification outlet in
+  composed owner. For incoming links, let it resolve the stored Yjs anchor,
+  reject stale targets, distinguish exact from changed text, and select the
+  corresponding notice. Keep canonical Yjs document and selection effects,
+  revision and collaboration authority, mutation consequences, canonical
+  refresh transport, Library management, and the shared notification outlet in
   the application coordinator.
   Keep tab state, canonical snapshot acceptance,
   Yjs citation syntax insertion, cross-resource navigation, routing, project-selection

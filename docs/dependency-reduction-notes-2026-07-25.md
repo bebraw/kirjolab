@@ -11461,3 +11461,27 @@ B / 23,373 B, 204,779 B / 62,386 B, and 481,994 B / 146,135 B.
 
 Full native CI passes all 1,744 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Lit Ownership: Passage Navigation
+
+`ContextResourcePresenter` now resolves incoming manuscript anchors for the
+comment, claim, and evidence owners it already composes. It rejects stale
+targets and selects exact-versus-changed passage feedback before delegating the
+file-qualified selection effect. `WorkspaceApp` retains the canonical Yjs
+document, file activation, editor selection, scrolling, and toast outlet.
+
+This checkpoint reduces `src/client/app.ts` from 723 to 713 lines (-10) and
+grows the context-resource presenter from 1,200 to 1,217 lines (+17). The
+seven-line combined increase consolidates shared navigation policy beside the
+same owner's passage-link validation and child routing. Focused coverage passes
+stale, exact, and changed anchors, file-qualified range delegation, notice
+selection, and strict types. Direct and unique production package counts remain
+18 and 150; Lit, Yjs, and Valibot were already pinned.
+
+The browser application artifact increases from 855,108 B raw / 230,068 B gzip
+to 855,360 B / 230,103 B (+252 B raw / +35 B gzip). Styles and lazy Markdown
+and PDF.js artifacts remain unchanged at 135,411 B / 23,373 B, 204,779 B /
+62,386 B, and 481,994 B / 146,135 B.
+
+Full native CI passes all 1,745 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.

@@ -3,7 +3,6 @@ import "./action-menu-controller";
 import { parseAppBootstrap } from "./app-contracts";
 import { collectAppElements } from "./app-elements";
 import { reviewerResponsePath, reviewerResponseTemplate } from "../domain/reviewer-response";
-import { resolveManuscriptAnchor } from "../domain/manuscript-anchor";
 import { projectFileCollaborationTextName, type ProjectFile } from "../domain/project-files";
 import { researchQuestionsPath, researchQuestionsTemplate } from "../domain/research-questions";
 import { researchDiaryPath, researchDiaryTemplate } from "../domain/writing-workflows";
@@ -17,7 +16,7 @@ import { WorkspaceLayoutManager } from "./workspace-layout-manager";
 import "./workspace-layout-control";
 import { type WritingWorkflowBinding } from "./writing-workflow-panel";
 import "./research-diary-summary";
-import { type PassageLink, type WorkspaceSnapshot } from "../domain/workspace";
+import { type WorkspaceSnapshot } from "../domain/workspace";
 import { loadWorkspaceSnapshot, parseWorkspaceSnapshot, WorkspaceAccessError } from "./workspace-snapshot-client";
 import { CoalescedRefresh, DebouncedAsyncQueue } from "./collaboration";
 import { CollaborationSession } from "./collaboration-session";
@@ -461,14 +460,18 @@ class WorkspaceApp {
         sourceRevision: this.#revision,
         stable: this.#collaboration.stable,
       }),
+      document: () => this.#document,
       insertCitation: (citationAlias, locator) => this.#elements.sourceCitationControl.insertCitation(citationAlias, locator),
       library: () => this.#librarySnapshot,
-      openPassage: (anchor) => this.#showPassage(anchor),
       presentNotice: (message) => this.#elements.toast.show(message),
       project: () => this.#snapshot,
       referencePdfs: () => this.#elements.contextResourcePresenter.referencePdfs,
       refreshResources: () => this.#resourceRefresh.request(),
       refreshLibrary: () => this.#refreshReferenceLibrary(),
+      selectPassage: (fileId, start, end) => {
+        this.#focusProjectRange(fileId, start, end);
+        this.#elements.source.scrollIntoView({ behavior: "smooth", block: "center" });
+      },
     });
     this.#elements.contextResourcePresenter.bindPdfViewer(this.#pdfViewer, apiBase);
     this.#elements.libraryPdfInspector.bindProjectMutations(
@@ -637,19 +640,6 @@ class WorkspaceApp {
     this.#elements.contextResourcePresenter.presentBoundContext();
     this.#elements.assistantGenerationPresenter.refreshAvailability();
     this.#syncWorkspaceRoute("replace");
-  }
-
-  #showPassage(anchor: PassageLink["anchor"]): void {
-    const resolution = resolveManuscriptAnchor(this.#document, anchor);
-    if (resolution.status !== "resolved") {
-      this.#elements.toast.show("This manuscript anchor is stale and needs to be linked again.");
-      return;
-    }
-    this.#focusProjectRange(anchor.fileId, resolution.start, resolution.end);
-    this.#elements.source.scrollIntoView({ behavior: "smooth", block: "center" });
-    this.#elements.toast.show(
-      resolution.exactMatch ? "Linked manuscript passage selected." : "Changed linked passage selected; review its current text.",
-    );
   }
 
   async #restoreOfflineWorkspace(): Promise<boolean> {

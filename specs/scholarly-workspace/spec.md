@@ -548,10 +548,11 @@ collaboration.
   the comment panel blocks create and re-anchor actions while collaboration is
   unstable or no manuscript passage is selected, stamps accepted passages with
   the supplied source revision, and owns action-specific feedback. Yjs selection
-  resolution, revision and collaboration authority, passage navigation,
-  canonical refresh, and notification presentation remain outside the panel.
-  Its enclosing resource presenter configures the panel and routes those
-  canonical effects through the same application boundary used by claims,
+  resolution, revision and collaboration authority, canonical refresh, and
+  notification presentation remain outside the panel. Its enclosing resource
+  presenter configures the panel, resolves incoming anchors, rejects stale
+  targets, selects exact-versus-changed notices, and routes file-qualified
+  selection effects through the same application boundary used by claims,
   project evidence, and publications.
 - **Blob storage:** The `PAPERS` R2 binding stores immutable private PDF bytes
   and bounded web representations under owner-library keys. Responses stream

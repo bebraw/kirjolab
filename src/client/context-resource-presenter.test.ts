@@ -1,4 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import * as Y from "yjs";
+import { createManuscriptAnchor, toManuscriptAnchorSelector } from "../domain/manuscript-anchor";
 import type {
   BibliographicRecord,
   LibraryHighlight,
@@ -157,16 +159,17 @@ function setup() {
       sourceRevision: 3,
       stable: true,
     })),
+    document: vi.fn(() => new Y.Doc()),
     insertCitation: vi.fn(),
     library: vi.fn<() => ReferenceLibrarySnapshot | null>(() => library),
     openCandidate: vi.fn(),
     openPublication: vi.fn(),
-    openPassage: vi.fn(),
     presentNotice: vi.fn(),
     project: vi.fn<() => WorkspaceSnapshot | null>(() => workspaceSnapshotFixture),
     referencePdfs: vi.fn(() => [referencePdf]),
     refreshLibrary: vi.fn().mockResolvedValue(undefined),
     refreshResources: vi.fn().mockResolvedValue(undefined),
+    selectPassage: vi.fn(),
   };
   presenter.bindRoutes(routes);
   return { elements, pdfRoutes, presenter, routes };
@@ -181,6 +184,24 @@ describe("context resource presenter", () => {
       },
     ),
   );
+
+  it("owns linked-passage resolution and notices", () => {
+    const { presenter, routes } = setup();
+    const document = new Y.Doc();
+    const source = document.getText("source");
+    source.insert(0, "Evidence matters");
+    const anchor = toManuscriptAnchorSelector(createManuscriptAnchor(document, 0, 8, 1));
+    routes.document.mockReturnValue(document);
+
+    presenter.openPassage(anchor);
+    expect(routes.selectPassage).toHaveBeenCalledWith("main", 0, 8);
+    expect(routes.presentNotice).toHaveBeenCalledWith("Linked manuscript passage selected.");
+
+    source.delete(0, 1);
+    source.insert(0, "e");
+    presenter.openPassage(anchor);
+    expect(routes.presentNotice).toHaveBeenCalledWith("Changed linked passage selected; review its current text.");
+  });
   afterEach(() => vi.unstubAllGlobals());
 
   it("presents publication and candidate resources through their Lit owners", () => {
@@ -312,14 +333,15 @@ describe("context resource presenter", () => {
     });
     presenter.bindRoutes({
       authoring: () => ({ passage: null, sourceRevision: 0, stable: false }),
+      document: () => new Y.Doc(),
       insertCitation: vi.fn(),
       library: () => null,
-      openPassage: vi.fn(),
       presentNotice,
       project: () => null,
       referencePdfs: () => [],
       refreshLibrary: vi.fn(),
       refreshResources: vi.fn(),
+      selectPassage: vi.fn(),
     });
 
     await presenter.restoreContext("assistant");
@@ -734,7 +756,8 @@ describe("context resource presenter", () => {
       sourceRevision: 3,
       start: 0,
     });
-    expect(routes.openPassage).toHaveBeenCalledOnce();
+    expect(routes.selectPassage).not.toHaveBeenCalled();
+    expect(routes.presentNotice).toHaveBeenCalledWith("This manuscript anchor is stale and needs to be linked again.");
     expect(routes.presentNotice).toHaveBeenCalledWith("Highlight stroke erased.");
     expect(routes.presentNotice).toHaveBeenCalledWith("Evidence notice.");
     expect(selectPdf).toHaveBeenCalledWith(pdf.id);
@@ -1092,11 +1115,11 @@ describe("context resource presenter", () => {
     let currentLibrary: ReferenceLibrarySnapshot | null = null;
     const coordinator = {
       authoring: vi.fn(() => ({ passage: null, sourceRevision: 0, stable: false })),
+      document: vi.fn(() => new Y.Doc()),
       insertCitation: vi.fn(),
       library: vi.fn(() => currentLibrary),
       openCandidate: vi.fn(),
       openPublication: vi.fn(),
-      openPassage: vi.fn(),
       presentNotice: vi.fn(),
       refreshResources: vi.fn().mockResolvedValue(undefined),
       project: vi.fn(() => project),
@@ -1104,6 +1127,7 @@ describe("context resource presenter", () => {
       refreshLibrary: vi.fn(async () => {
         currentLibrary = library;
       }),
+      selectPassage: vi.fn(),
     };
     presenter.bindRoutes(coordinator);
 
