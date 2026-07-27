@@ -21,6 +21,13 @@ export interface YTextBinding {
   readonly renderHighlight: () => void;
 }
 
+export function replaceYTextRange(documentModel: Y.Doc, text: Y.Text, start: number, end: number, value: string, origin: unknown): void {
+  documentModel.transact(() => {
+    if (end > start) text.delete(start, end - start);
+    if (value) text.insert(start, value);
+  }, origin);
+}
+
 export function bindYText(
   textarea: HTMLTextAreaElement,
   text: Y.Text,
@@ -41,10 +48,7 @@ export function bindYText(
     renderHighlight();
     const splice = calculateTextSplice(text.toString(), textarea.value);
     if (!splice) return;
-    documentModel.transact(() => {
-      if (splice.deleteCount > 0) text.delete(splice.start, splice.deleteCount);
-      if (splice.insert) text.insert(splice.start, splice.insert);
-    }, textarea);
+    replaceYTextRange(documentModel, text, splice.start, splice.start + splice.deleteCount, splice.insert, textarea);
   };
   const handleText = (event: Y.YTextEvent): void => {
     if (event.transaction.origin === textarea) return;

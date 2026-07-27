@@ -1,6 +1,12 @@
 import * as Y from "yjs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { bindYText, captureRelativeSelection, positionSourceCompletion, resolveRelativeSelection } from "./source-editor-adapter";
+import {
+  bindYText,
+  captureRelativeSelection,
+  positionSourceCompletion,
+  replaceYTextRange,
+  resolveRelativeSelection,
+} from "./source-editor-adapter";
 
 class FakeClassList {
   readonly values = new Set<string>();
@@ -192,6 +198,19 @@ describe("source editor adapter", () => {
 
     const otherDocument = new Y.Doc();
     expect(resolveRelativeSelection(otherDocument, selection)).toBeNull();
+  });
+
+  it("replaces a Yjs text range in one attributed transaction", () => {
+    const documentModel = new Y.Doc();
+    const text = documentModel.getText("source");
+    text.insert(0, "draft prose");
+    const origins: unknown[] = [];
+    documentModel.on("afterTransaction", (transaction) => origins.push(transaction.origin));
+
+    replaceYTextRange(documentModel, text, 0, 5, "final", "authoring-action");
+
+    expect(text.toString()).toBe("final prose");
+    expect(origins).toEqual(["authoring-action"]);
   });
 
   it("positions completion within its editor shell", () => {

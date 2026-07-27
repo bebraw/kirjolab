@@ -8779,6 +8779,29 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,715 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Coordinator Extraction: Atomic Text Range Splices
+
+`source-editor-adapter` now owns one attributed Yjs range-splice primitive.
+Native textarea synchronization, source completion, scholarly syntax insertion,
+and generated-table application share that atomic delete-and-insert path while
+their owning workflows retain range choice, caret, focus, and notification
+policy.
+
+This checkpoint reduces `src/client/app.ts` from 1,307 to 1,304 lines (-3),
+grows the source-editor adapter from 207 to 211 lines (+4), and grows combined
+runtime source by one line while deleting four copies of transaction and splice
+mechanics. Focused coverage passes all 21 adapter and application-contract
+cases, and affected guardrails pass 13 related and five direct cases, including
+replacement content and transaction-origin attribution.
+
+The browser application artifact changes from 849,079 B raw / 228,827 B gzip
+to 848,948 B raw / 228,801 B gzip (-131 B raw / -26 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,716 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

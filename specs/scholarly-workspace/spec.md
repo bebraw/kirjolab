@@ -310,7 +310,9 @@ collaboration.
 - **Source editor adapter:** One bounded browser adapter owns textarea-to-Yjs
   synchronization and history, syntax and presence mirroring, scroll alignment,
   completion geometry, and relative-selection capture and validated resolution
-  to normalized numeric ranges.
+  to normalized numeric ranges. The same adapter owns the attributed atomic
+  range-splice primitive used by editor completion, syntax, and generated-table
+  actions.
   The workspace coordinator retains document identity, collaboration workflow,
   canonical completion inputs, authoring-target use, and navigation authority.
 - **Citation completion:** With the caret in a `:cite`, `:citet`, or `:citep`

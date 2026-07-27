@@ -79,7 +79,13 @@ import {
 import "./workspace-rail-tabs";
 import "./authoring-mode-tabs";
 import type { EditorPresenceRange } from "./editor-presence";
-import { bindYText, captureRelativeSelection, resolveRelativeSelection, type RelativeEditorSelection } from "./source-editor-adapter";
+import {
+  bindYText,
+  captureRelativeSelection,
+  replaceYTextRange,
+  resolveRelativeSelection,
+  type RelativeEditorSelection,
+} from "./source-editor-adapter";
 
 const workspaceId = readWorkspaceId();
 const identityEmail = readIdentityEmail();
@@ -978,10 +984,7 @@ class WorkspaceApp {
 
   #applySourceCompletion(start: number, end: number, value: string): void {
     this.#elements.sourceCompletion.hide();
-    this.#document.transact(() => {
-      if (end > start) this.#activeFileText.delete(start, end - start);
-      this.#activeFileText.insert(start, value);
-    }, this);
+    replaceYTextRange(this.#document, this.#activeFileText, start, end, value, this);
     const caret = start + value.length;
     this.#elements.source.focus();
     this.#elements.source.setSelectionRange(caret, caret);
@@ -1088,10 +1091,7 @@ class WorkspaceApp {
   #applySourceSyntax(template: EditorSyntaxTemplate, passage: AuthoringPassage | null, caret: number): void {
     const start = passage?.start ?? caret;
     const end = passage?.end ?? caret;
-    this.#document.transact(() => {
-      if (end > start) this.#activeFileText.delete(start, end - start);
-      this.#activeFileText.insert(start, template.text);
-    }, this);
+    replaceYTextRange(this.#document, this.#activeFileText, start, end, template.text, this);
     const selectionStart = template.select ? start + template.text.indexOf(template.select) : start + template.text.length;
     this.#elements.source.focus();
     this.#elements.source.setSelectionRange(selectionStart, selectionStart + (template.select?.length ?? 0));
@@ -1110,10 +1110,7 @@ class WorkspaceApp {
   }
 
   #applyGeneratedTable(target: AuthoringPassage, insertion: string): void {
-    this.#document.transact(() => {
-      if (target.end > target.start) this.#activeFileText.delete(target.start, target.end - target.start);
-      this.#activeFileText.insert(target.start, insertion);
-    }, this);
+    replaceYTextRange(this.#document, this.#activeFileText, target.start, target.end, insertion, this);
     const caret = target.start + insertion.length;
     this.#elements.source.focus();
     this.#elements.source.setSelectionRange(caret, caret);

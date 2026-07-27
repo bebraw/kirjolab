@@ -28,6 +28,9 @@ offset.
   focus; the derived layer keeps the target visible after focus moves.
 - Reset the target to the start of a newly selected file rather than carrying a
   position across file identities.
+- Apply completion, syntax, and generated-table replacements through the
+  source-editor adapter's one attributed Yjs range-splice primitive after the
+  owning workflow has selected its canonical range.
 
 ## Consequences
 
@@ -37,6 +40,8 @@ offset.
   integer offset.
 - Editor restoration, remembered-target display, and passage actions share one
   same-text validation path instead of duplicating Yjs resolution policy.
+- Editor actions share one atomic delete-and-insert implementation while
+  retaining their own caret, focus, and notification policy.
 - The shared highlight projection now distinguishes local and remote presence.
 - Overlapping local and collaborator selections still use one text projection,
   so the local target takes visual precedence where their ranges intersect.
