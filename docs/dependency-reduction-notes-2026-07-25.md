@@ -8242,6 +8242,27 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,706 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Simplification: Assistant Passages
+
+`WorkspaceApp` now derives raw insertion targets and scope-expanded assistant
+passages through one parameterized projection over the active file and resolved
+Yjs-relative authoring target. Availability, target preview, and generation
+input no longer repeat active-file, selection, source, and excerpt assembly.
+
+This checkpoint reduces `src/client/app.ts` from 1,504 to 1,496 lines (-8),
+which is also an eight-line runtime-source reduction. Focused coverage passes
+all 45 assistant-presenter, assistant-operation, and application-contract cases;
+the full browser workflow continues to exercise selection and scope-expanded
+generation targets, and strict types remain green.
+
+The browser application artifact changes from 846,821 B raw / 228,573 B gzip
+to 846,806 B raw / 228,595 B gzip (-15 B raw / +22 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,706 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

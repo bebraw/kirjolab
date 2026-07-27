@@ -785,15 +785,15 @@ class WorkspaceApp {
 
   #updateModelAvailability(): void {
     this.#elements.assistantGenerationPresenter.presentAvailability({
-      hasInsertionTarget: this.#assistantInsertionTarget() !== null,
-      hasPassage: this.#assistantAuthoringPassage() !== null,
+      hasInsertionTarget: this.#assistantPassage("insertion") !== null,
+      hasPassage: this.#assistantPassage("scope") !== null,
       stableDocument: this.#collaboration.stable,
     });
   }
 
   #renderAssistantTargetPreview(): void {
-    const target = this.#assistantInsertionTarget();
-    const passage = this.#assistantAuthoringPassage();
+    const target = this.#assistantPassage("insertion");
+    const passage = this.#assistantPassage("scope");
     this.#elements.assistantGenerationPresenter.presentTarget(passage?.excerpt ?? null, target);
   }
 
@@ -1221,25 +1221,17 @@ class WorkspaceApp {
     return start.type === this.#activeFileText && end.type === this.#activeFileText && start.index < end.index;
   }
 
-  #assistantAuthoringPassage(): AuthoringPassage | null {
+  #assistantPassage(kind: "insertion" | "scope"): AuthoringPassage | null {
     if (!this.#activeFileId) return null;
     const target = this.#resolvedAuthoringTarget();
     if (!target) return null;
     const source = this.#activeFileText.toString();
-    const resolved = resolveAssistantTarget(source, target.start, target.end, this.#elements.assistantGenerationPresenter.targetScope());
-    return resolved.text.trim() ? { fileId: this.#activeFileId, start: resolved.start, end: resolved.end, excerpt: resolved.text } : null;
-  }
-
-  #assistantInsertionTarget(): AuthoringPassage | null {
-    if (!this.#activeFileId) return null;
-    const target = this.#resolvedAuthoringTarget();
-    if (!target) return null;
-    return {
-      fileId: this.#activeFileId,
-      start: target.start,
-      end: target.end,
-      excerpt: this.#activeFileText.toString().slice(target.start, target.end),
-    };
+    const { start, end, text } =
+      kind === "scope"
+        ? resolveAssistantTarget(source, target.start, target.end, this.#elements.assistantGenerationPresenter.targetScope())
+        : { start: target.start, end: target.end, text: source.slice(target.start, target.end) };
+    if (kind === "scope" && !text.trim()) return null;
+    return { fileId: this.#activeFileId, start, end, excerpt: text };
   }
 
   #insertSourceSyntax(kind: EditorSyntaxKind, template: EditorSyntaxTemplate): void {
@@ -1282,8 +1274,8 @@ class WorkspaceApp {
 
   #assistantGenerationContext() {
     return this.#elements.assistantGenerationPresenter.prepareGeneration({
-      insertionTarget: this.#assistantInsertionTarget(),
-      passage: this.#assistantAuthoringPassage(),
+      insertionTarget: this.#assistantPassage("insertion"),
+      passage: this.#assistantPassage("scope"),
       snapshotAvailable: this.#snapshot !== null,
       sourceRevision: this.#revision,
       stableDocument: this.#collaboration.stable,
