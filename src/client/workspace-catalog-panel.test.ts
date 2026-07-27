@@ -61,10 +61,31 @@ describe("workspace catalog presentation", () => {
 
   it("accepts coordinator-owned catalog state", () => {
     const panel = new TestWorkspaceCatalogPanel();
+    const switcher = { setData: vi.fn() };
     expect(panel.renderForTest()).toBeDefined();
+    panel.configure("/api/workspaces", current.id, switcher);
     panel.setData([current, archived], current.id);
     expect(panel.renderForTest()).toBeDefined();
+    expect(panel.catalog).toEqual([current, archived]);
+    expect(switcher.setData).toHaveBeenCalledWith([current, archived], current.id);
     expect(panel).toBeInstanceOf(WorkspaceCatalogPanel);
+  });
+
+  it("loads and validates the shared workspace catalog", async () => {
+    const panel = new TestWorkspaceCatalogPanel();
+    const switcher = { setData: vi.fn() };
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(Response.json([current, archived]))
+      .mockResolvedValueOnce(Response.json({ invalid: true }))
+      .mockResolvedValueOnce(new Response("Unavailable", { status: 503 }));
+    panel.configure("/api/workspaces", current.id, switcher);
+
+    await panel.refresh();
+    expect(fetchMock).toHaveBeenNthCalledWith(1, "/api/workspaces");
+    expect(panel.catalog).toEqual([current, archived]);
+    await expect(panel.refresh()).rejects.toThrow("invalid data");
+    await expect(panel.refresh()).rejects.toThrow("Could not load project navigation");
   });
 
   it("owns its native dialog lifecycle", async () => {

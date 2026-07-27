@@ -46,7 +46,6 @@ import { type CandidateDecisionOutcome } from "./candidate-review-panel";
 import { type PublicationPaperOption } from "./publication-context-panel";
 import {
   isWorkspaceSnapshot,
-  isWorkspaceSummaries,
   type AnnotationResource,
   type ModelCandidate,
   type PassageLink,
@@ -54,7 +53,6 @@ import {
   type PdfSelectionRect,
   type PublicationResource,
   type WorkspaceSnapshot,
-  type WorkspaceSummary,
 } from "../domain/workspace";
 import { CoalescedRefresh, DebouncedAsyncQueue } from "./collaboration";
 import { CollaborationSession } from "./collaboration-session";
@@ -179,7 +177,6 @@ class WorkspaceApp {
   #projectFileIncludeFromPath: string | null = null;
   #librarySnapshot: ReferenceLibrarySnapshot | null = null;
   #projectReferencePdfs: readonly ProjectReferencePdf[] = [];
-  #workspaceCatalog: WorkspaceSummary[] = [];
   #workspaceRouteReady = false;
   readonly #layout: WorkspaceLayoutManager;
 
@@ -249,7 +246,7 @@ class WorkspaceApp {
     this.#setEditorsEnabled(false);
     const restored = await this.#restoreOfflineWorkspace();
     try {
-      await this.#refreshCatalog();
+      await this.#elements.workspaceCatalogPanel.refresh();
     } catch (error) {
       if (!restored) throw new Error("Open Kirjolab online once before using it offline", { cause: error });
     }
@@ -305,13 +302,14 @@ class WorkspaceApp {
     });
     this.#elements.workspaceLayout.configure(workspaceId);
     this.#elements.workspaceLayout.bindChange((layout) => void this.#applyWorkspaceLayout(layout, false));
+    this.#elements.workspaceCatalogPanel.configure(catalogBase, workspaceId, this.#elements.workspaceSwitcher);
     this.#elements.workspaceCatalogPanel.bindTrigger(this.#elements.manageWorkspaces);
     this.#elements.workspaceSettingsPanel.bindWorkspace(this.#elements.workspaceSettings, {
-      refreshCatalog: async () => await this.#refreshCatalog(),
+      refreshCatalog: async () => await this.#elements.workspaceCatalogPanel.refresh(),
       refreshGitHub: () => void this.#elements.gitHubSyncMenu.refreshWorkspace(true),
       saveTemplate: async () => await this.#openSaveTemplate(),
       sources: () => ({
-        catalog: this.#workspaceCatalog,
+        catalog: this.#elements.workspaceCatalogPanel.catalog,
         hiddenFileIds: this.#elements.projectFileDialog.hiddenFiles,
         snapshot: this.#snapshot,
         workspaceId,
@@ -654,20 +652,6 @@ class WorkspaceApp {
     await this.#refreshProjectReferencePdfs();
   }
 
-  async #refreshCatalog(): Promise<void> {
-    const response = await fetch(catalogBase);
-    if (!response.ok) throw new Error("Could not load project navigation");
-    const value: unknown = await response.json();
-    if (!isWorkspaceSummaries(value)) throw new Error("Project catalog returned invalid data");
-    this.#renderWorkspaceCatalog(value);
-  }
-
-  #renderWorkspaceCatalog(workspaces: WorkspaceSummary[]): void {
-    this.#workspaceCatalog = workspaces;
-    this.#elements.workspaceSwitcher.setData(workspaces, workspaceId);
-    this.#elements.workspaceCatalogPanel.setData(workspaces, workspaceId);
-  }
-
   #showRail(mode: WorkspaceRail): void {
     this.#elements.workspaceRailTabs.setMode(mode);
     if (mode === "guide") this.#renderManuscriptMap();
@@ -787,7 +771,7 @@ class WorkspaceApp {
   }
 
   async #refreshProjectTemplates(): Promise<void> {
-    await this.#elements.newWorkspaceStartingPoints.refresh(this.#workspaceCatalog);
+    await this.#elements.newWorkspaceStartingPoints.refresh(this.#elements.workspaceCatalogPanel.catalog);
     this.#syncTemplateReplacementOptions();
   }
 
@@ -1947,7 +1931,7 @@ class WorkspaceApp {
     this.#hasBootstrapSnapshot = true;
     this.#collaboration.setOfflineAvailable(true);
     this.#revision = restored.snapshot.revision;
-    this.#renderWorkspaceCatalog([
+    this.#elements.workspaceCatalogPanel.setData([
       {
         id: restored.snapshot.id,
         title: restored.snapshot.title,

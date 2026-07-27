@@ -1,6 +1,10 @@
 import { html, LitElement, type TemplateResult } from "lit";
-import type { WorkspaceSummary } from "../domain/workspace";
+import { isWorkspaceSummaries, type WorkspaceSummary } from "../domain/workspace";
 import { formatCalendarDate } from "./format";
+
+interface WorkspaceCatalogSwitcher {
+  readonly setData: (workspaces: readonly WorkspaceSummary[], currentWorkspaceId: string) => void;
+}
 
 export class WorkspaceCatalogPanel extends LitElement {
   static override properties = {
@@ -12,6 +16,8 @@ export class WorkspaceCatalogPanel extends LitElement {
   declare private currentWorkspaceId: string;
   declare private query: string;
   declare private workspaces: readonly WorkspaceSummary[];
+  private catalogBase = "";
+  private switcher: WorkspaceCatalogSwitcher | null = null;
   private trigger: HTMLElement | null = null;
 
   constructor() {
@@ -21,9 +27,28 @@ export class WorkspaceCatalogPanel extends LitElement {
     this.workspaces = [];
   }
 
-  setData(workspaces: readonly WorkspaceSummary[], currentWorkspaceId: string): void {
+  configure(catalogBase: string, currentWorkspaceId: string, switcher: WorkspaceCatalogSwitcher): void {
+    this.catalogBase = catalogBase;
+    this.currentWorkspaceId = currentWorkspaceId;
+    this.switcher = switcher;
+  }
+
+  get catalog(): readonly WorkspaceSummary[] {
+    return this.workspaces;
+  }
+
+  setData(workspaces: readonly WorkspaceSummary[], currentWorkspaceId = this.currentWorkspaceId): void {
     this.workspaces = workspaces;
     this.currentWorkspaceId = currentWorkspaceId;
+    this.switcher?.setData(workspaces, currentWorkspaceId);
+  }
+
+  async refresh(): Promise<void> {
+    const response = await fetch(this.catalogBase);
+    if (!response.ok) throw new Error("Could not load project navigation");
+    const value: unknown = await response.json();
+    if (!isWorkspaceSummaries(value)) throw new Error("Project catalog returned invalid data");
+    this.setData(value);
   }
 
   bindTrigger(trigger: HTMLElement): void {

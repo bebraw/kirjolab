@@ -7239,6 +7239,30 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,681 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Workspace Catalog Loading
+
+`WorkspaceCatalogPanel` now owns authorized catalog fetch and response
+validation, retains the single browser catalog projection, and synchronizes the
+compact workspace switcher from that state. Settings, templates, and offline
+fallback consume or seed the same component-owned catalog. `WorkspaceApp`
+retains canonical route navigation.
+
+This checkpoint reduces `src/client/app.ts` from 2,065 to 2,049 lines (-16) and
+grows the workspace-catalog owner from 132 to 159 lines (+27). Runtime source
+across the two files increases by 11 lines while deleting two coordinator
+methods and its duplicate catalog field. Focused coverage exercises successful,
+invalid, and failed loads, switcher synchronization, read-only catalog access,
+existing filtering and modal behavior, application contracts, and strict
+types.
+
+The browser application artifact changes from 841,471 B raw / 227,586 B gzip
+to 841,805 B raw / 227,609 B gzip (+334 B raw / +23 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,682 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

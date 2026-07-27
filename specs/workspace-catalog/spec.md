@@ -41,9 +41,11 @@ making the storage term `workspace` the primary browser hierarchy.
   catalog and navigates through the selected entry's canonical href.
 - A bounded catalog component owns the Projects browser's filter, result and
   empty-state presentation, project metadata labels, entry-trigger activation,
-  and native dialog lifecycle. The application coordinator retains catalog
-  fetching, response validation, the compact current-project selector's
-  authorized inputs, and Projects-browser navigation authority.
+  native dialog lifecycle, catalog fetch and response validation, the one
+  browser catalog projection, and synchronization of the compact current-project
+  selector's authorized inputs. Settings and template workflows consume its
+  read-only catalog. The application coordinator retains Projects-browser and
+  canonical-route navigation authority.
 - Unknown browser routes render the shared responsive visual shell, identify
   the missing path, and provide a direct return to the dashboard.
 

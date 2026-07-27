@@ -61,7 +61,11 @@ The adopted components own bounded presentation:
   clipboard interaction, native parent-dialog lifecycle, and typed notices.
 - The workspace catalog panel owns project filtering, result and empty-state
   rendering, metadata labels, filter focus reset, and native parent-dialog
-  lifecycle, including its server-rendered entry trigger.
+  lifecycle, including its server-rendered entry trigger. It also owns catalog
+  fetch and response validation, retains the one browser catalog projection,
+  synchronizes the compact workspace switcher, and exposes a read-only catalog
+  to settings and template workflows. The coordinator retains canonical route
+  navigation.
 - The project history panel owns timeline, comparison controls, busy and error
   states, revision cards, inspectors, and typed revision-operation intents.
 - The project history dialog composes the server-rendered modal and reactive

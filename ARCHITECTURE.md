@@ -119,7 +119,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Let the project catalog and starting-point Lit owners bind their server-
   rendered entry triggers. The starting-point owner also owns loading-state
   entry, post-load focus, and local load-failure presentation around the
-  coordinator's canonical catalog refresh.
+  catalog owner's canonical refresh. Let the project catalog owner fetch and
+  validate its authorized summaries, retain the one browser catalog projection,
+  and synchronize the compact switcher from that state. Other workflows consume
+  its read-only catalog; keep canonical route navigation outside it.
 - Let the GitHub sync-menu Lit component bind the workspace-settings review,
   own online and active-review refresh policy, route Check/Pull/Push/Settings
   actions, and refresh both canonical project data after Pull and menu status
