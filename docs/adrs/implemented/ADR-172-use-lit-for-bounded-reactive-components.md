@@ -931,6 +931,9 @@ reason to wrap static markup mechanically.
   updates. It also replaces the coordinator's duplicate template array and
   hidden-ID set plus template-catalog, project-preview, and project-creation
   requests plus the personal-template delayed deletion and Undo lifecycle. The
+  owner binds the canonical read-only workspace catalog once and derives it for
+  trigger, settings, save-template completion, and internal mutation refreshes
+  instead of requiring each caller to re-supply the same collection. The
   application coordinator retains import workflows, replacement-option
   consumption, and the toast outlet through typed bindings; the public action
   event is removed.

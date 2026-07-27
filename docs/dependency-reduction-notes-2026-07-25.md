@@ -9701,6 +9701,27 @@ styles, and direct and unique production package counts remain unchanged at
 Full native CI passes all 1,732 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Starting-Point Workspace Source
+
+`ProjectStartingPointBrowser` now binds the canonical read-only workspace
+catalog once and derives it for entry-trigger, settings, save-template
+completion, and internal template-mutation refreshes. `WorkspaceApp` no longer
+re-supplies the same catalog through a pass-through helper at three call sites.
+
+This checkpoint reduces `src/client/app.ts` from 938 to 935 lines (-3) and
+grows the starting-point owner from 567 to 572 lines. Runtime source across
+those files grows by two lines while removing one repeated coordinator concept.
+Focused coverage passes all nine tests; affected coverage passes all eleven
+tests alongside strict types.
+
+The browser application artifact changes from 852,176 B raw / 229,635 B gzip
+to 852,348 B raw / 229,666 B gzip (+172 B raw / +31 B gzip). Lazy runtimes,
+styles, and direct and unique production package counts remain unchanged at
+204,779 B / 62,386 B, 481,994 B / 146,135 B, 135,411 B / 23,373 B, and 18 and 150.
+
+Full native CI passes all 1,732 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Library PDF Project Use Projection
 
 `LibraryPdfProjectUse` now resolves the active bibliographic record and matching

@@ -254,11 +254,12 @@ class WorkspaceApp {
     });
     this.#elements.workspaceCatalogPanel.configure(catalogBase, workspaceId, this.#elements.workspaceSwitcher);
     this.#elements.workspaceCatalogPanel.bindTrigger(this.#elements.manageWorkspaces);
+    this.#elements.newWorkspaceStartingPoints.bindWorkspaces(() => this.#elements.workspaceCatalogPanel.catalog);
     this.#elements.workspaceSettingsPanel.bindWorkspace(this.#elements.workspaceSettings, {
       refreshCatalog: () => this.#elements.workspaceCatalogPanel.refresh(),
       refreshGitHub: () => void this.#elements.gitHubSyncMenu.refreshWorkspace(true),
       saveTemplate: async (projectTitle) =>
-        await this.#elements.saveTemplateDialog.open(projectTitle, () => this.#refreshProjectTemplates()),
+        await this.#elements.saveTemplateDialog.open(projectTitle, () => this.#elements.newWorkspaceStartingPoints.refresh()),
       sources: () => ({
         catalog: this.#elements.workspaceCatalogPanel.catalog,
         hiddenFileIds: this.#elements.projectFileDialog.hiddenFiles,
@@ -266,7 +267,7 @@ class WorkspaceApp {
         workspaceId,
       }),
     });
-    this.#elements.newWorkspaceStartingPoints.bindTrigger(this.#elements.newWorkspace, () => this.#refreshProjectTemplates());
+    this.#elements.newWorkspaceStartingPoints.bindTrigger(this.#elements.newWorkspace);
     this.#elements.newWorkspaceStartingPoints.bind({
       openImport: (action) => {
         if (action === "import-latex") this.#elements.latexImportPanel.open();
@@ -287,7 +288,7 @@ class WorkspaceApp {
     }
     this.#elements.saveTemplateDialog.configure(apiBase);
     this.#elements.saveTemplateDialog.bindCompletion((message) => {
-      void this.#refreshProjectTemplates().then(() => this.#showToast(message));
+      void this.#elements.newWorkspaceStartingPoints.refresh().then(() => this.#showToast(message));
     });
     this.#elements.workspaceRailTabs.bindNavigation(() => this.#syncWorkspaceRoute("replace"));
     this.#elements.researchDiaryPanel.bindOpen(
@@ -577,10 +578,6 @@ class WorkspaceApp {
     if (next === currentRelative) return;
     if (mode === "push") history.pushState({ view: "workspace" }, "", next);
     else history.replaceState(history.state, "", next);
-  }
-
-  #refreshProjectTemplates(): Promise<void> {
-    return this.#elements.newWorkspaceStartingPoints.refresh(this.#elements.workspaceCatalogPanel.catalog);
   }
 
   #renderCollaborationWorkflow(): void {

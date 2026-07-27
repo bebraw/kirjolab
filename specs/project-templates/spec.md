@@ -61,8 +61,9 @@ without copying private research or creating a live dependency on the source.
   native modal opening and closing, focus containment and restoration, local
   cancellation, pre-import dismissal, canonical successful-result navigation,
   server-rendered entry-trigger activation, loading-state entry, post-load
-  focus, load-failure presentation, and a typed import binding. `WorkspaceApp`
-  retains canonical workspace-catalog input, import workflows, replacement-
+  focus, load-failure presentation, a once-bound canonical workspace-catalog
+  source used by every refresh path, and a typed import binding. `WorkspaceApp`
+  retains catalog authority, import workflows, replacement-
   option consumption, and the global toast outlet. Every successful template-
   catalog refresh reports the component's derived visible-template view through
   the same typed change binding used by optimistic deletion and Undo.

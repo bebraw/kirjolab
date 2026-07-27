@@ -258,8 +258,9 @@ describe("project starting point browser", () => {
       presentNotice: vi.fn(),
       templatesChanged,
     });
+    browser.bindWorkspaces(() => [workspace]);
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json([builtIn, personal])));
-    await browser.refresh([workspace]);
+    await browser.refresh();
     expect(browser.availableTemplates).toEqual([builtIn, personal]);
     expect(templatesChanged).toHaveBeenCalledOnce();
   });

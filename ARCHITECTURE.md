@@ -137,10 +137,13 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Let the project catalog and starting-point Lit owners bind their server-
   rendered entry triggers. The starting-point owner also owns loading-state
   entry, post-load focus, and local load-failure presentation around the
-  catalog owner's canonical refresh. Let the project catalog owner fetch and
-  validate its authorized summaries, retain the one browser catalog projection,
-  and synchronize the compact switcher from that state. Other workflows consume
-  its read-only catalog; keep canonical route navigation outside it.
+  catalog owner's canonical refresh. Bind the catalog owner's read-only
+  workspace projection once so trigger, settings, save-template completion, and
+  internal template mutations refresh against the same derived input. Let the
+  project catalog owner fetch and validate its authorized summaries, retain the
+  one browser catalog projection, and synchronize the compact switcher from
+  that state. Other workflows consume its read-only catalog; keep canonical
+  route navigation outside it.
 - Let the workspace rail-tabs Lit owner apply each internal or workflow-driven
   rail selection to its active tab and controlled panel before reporting the
   selected mode through one typed navigation callback. Keep URL synchronization,

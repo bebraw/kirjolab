@@ -39,6 +39,7 @@ export class ProjectStartingPointBrowser extends LitElement {
   private returnFocus: HTMLElement | null = null;
   private trigger: HTMLElement | null = null;
   private loadStartingPoints: () => Promise<void> = async () => undefined;
+  private workspaceSource: () => readonly WorkspaceSummary[] = () => this.workspaces;
   private binding: StartingPointBinding = {
     openImport: () => undefined,
     presentNotice: () => undefined,
@@ -80,11 +81,15 @@ export class ProjectStartingPointBrowser extends LitElement {
     this.startLoading();
   }
 
-  bindTrigger(trigger: HTMLElement, load: () => Promise<void>): void {
+  bindTrigger(trigger: HTMLElement, load: () => Promise<void> = () => this.refresh()): void {
     this.trigger?.removeEventListener("click", this.openFromTrigger);
     this.trigger = trigger;
     this.loadStartingPoints = load;
     trigger.addEventListener("click", this.openFromTrigger);
+  }
+
+  bindWorkspaces(source: () => readonly WorkspaceSummary[]): void {
+    this.workspaceSource = source;
   }
 
   async openFromBoundTrigger(): Promise<void> {
@@ -116,7 +121,7 @@ export class ProjectStartingPointBrowser extends LitElement {
     this.normalizeSelection();
   }
 
-  async refresh(workspaces: readonly WorkspaceSummary[]): Promise<void> {
+  async refresh(workspaces = this.workspaceSource()): Promise<void> {
     const response = await fetch("/api/project-templates", { credentials: "same-origin" });
     await expectOk(response);
     const value: unknown = await response.json();
