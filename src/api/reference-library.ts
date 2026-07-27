@@ -242,6 +242,65 @@ const libraryReadingStateUpdateSchema = v.object({
   rating: v.nullable(v.number()),
   priority: v.picklist(["low", "normal", "high"]),
 });
+const reviewedPdfMetadataSchema = v.strictObject({
+  title: v.exactOptional(
+    v.pipe(
+      v.string(),
+      v.maxLength(2_000),
+      v.check((value) => value.trim().length > 0),
+    ),
+  ),
+  authors: v.exactOptional(
+    v.pipe(
+      v.array(
+        v.pipe(
+          v.string(),
+          v.maxLength(300),
+          v.check((value) => value.trim().length > 0),
+        ),
+      ),
+      v.maxLength(64),
+    ),
+  ),
+  year: v.exactOptional(v.pipe(v.string(), v.regex(/^(?:\d{4})?$/u))),
+  doi: v.exactOptional(v.pipe(v.string(), v.maxLength(500))),
+});
+const reviewedPdfMetadataInputSchema = v.object({
+  artifactId: v.pipe(v.string(), v.regex(/^[0-9a-f-]{36}$/iu)),
+  fields: v.pipe(
+    reviewedPdfMetadataSchema,
+    v.check((fields) => Object.keys(fields).length > 0),
+  ),
+});
+const metadataRefinementPreviewInputSchema = v.object({
+  artifactId: v.pipe(v.string(), v.regex(/^[0-9a-f-]{36}$/iu)),
+  candidates: reviewedPdfMetadataSchema,
+});
+const crossrefAcceptanceEntries = {
+  metadataFingerprint: v.pipe(v.string(), v.regex(/^[a-f0-9]{64}$/u)),
+  fields: v.pipe(
+    v.array(v.picklist(crossrefMetadataFields)),
+    v.minLength(1),
+    v.maxLength(crossrefMetadataFields.length),
+    v.check((fields) => new Set(fields).size === fields.length),
+  ),
+};
+const crossrefAcceptanceInputSchema = v.object(crossrefAcceptanceEntries);
+const metadataRefinementAcceptanceInputSchema = v.object({
+  provider: v.picklist(["openalex", "crossref", "datacite", "semantic-scholar"]),
+  doi: v.pipe(v.string(), v.check(isValidDoi)),
+  ...crossrefAcceptanceEntries,
+});
+const metadataRefinementBatchAcceptanceInputSchema = v.pipe(
+  v.object({ selections: v.pipe(v.array(metadataRefinementAcceptanceInputSchema), v.minLength(1), v.maxLength(4)) }),
+  v.check(({ selections }) => {
+    const dois = new Set(selections.map((selection) => normalizeDoi(selection.doi)));
+    const sources = new Set(selections.map((selection) => `${selection.provider}:${normalizeDoi(selection.doi)}`));
+    const fields = selections.flatMap((selection) => selection.fields);
+    return dois.size === 1 && sources.size === selections.length && new Set(fields).size === fields.length;
+  }),
+);
+const metadataRefinementAcceptanceSchema = v.union([metadataRefinementAcceptanceInputSchema, metadataRefinementBatchAcceptanceInputSchema]);
 
 export async function handleReferenceLibraryApi(
   request: Request,
@@ -567,7 +626,7 @@ async function handleLibraryReferenceMetadataRoutes(context: LibraryReferenceRou
   const { request, action, referenceId, identity, env, library } = context;
   if (action === "pdf-metadata" && request.method === "POST") {
     const body: unknown = await request.json();
-    if (!isReviewedPdfMetadataInput(body)) return jsonError("Invalid reviewed PDF metadata", 400);
+    if (!v.is(reviewedPdfMetadataInputSchema, body)) return jsonError("Invalid reviewed PDF metadata", 400);
     return Response.json(
       await mutateReferenceMetadata(referenceId, identity, env, library, () =>
         library.applyReviewedPdfMetadata(referenceId, body.artifactId, body.fields, identity.email),
@@ -770,7 +829,7 @@ async function acceptCrossrefMetadata(
   fetchExternal: ExternalFetch,
 ): Promise<Response> {
   const body: unknown = await request.json();
-  if (!isCrossrefAcceptanceInput(body)) return jsonError("Invalid Crossref metadata acceptance", 400);
+  if (!v.is(crossrefAcceptanceInputSchema, body)) return jsonError("Invalid Crossref metadata acceptance", 400);
   const reference = await libraryReference(referenceId, library);
   const conflict = await duplicateDoiResponse(reference, library);
   if (conflict) return conflict;
@@ -796,7 +855,7 @@ async function previewMetadataRefinement(
   fetchExternal: ExternalFetch,
 ): Promise<Response> {
   const body: unknown = await request.json();
-  if (!isMetadataRefinementPreviewInput(body)) return jsonError("Invalid metadata refinement preview", 400);
+  if (!v.is(metadataRefinementPreviewInputSchema, body)) return jsonError("Invalid metadata refinement preview", 400);
   const { reference } = await library.getPdfMetadataContext(referenceId, body.artifactId);
   const cacheKey = metadataRefinementPreviewCacheKey(reference, body.artifactId, body.candidates, env);
   const cached = await library.getMetadataRefinementPreview(cacheKey);
@@ -842,7 +901,7 @@ async function acceptMetadataRefinement(
   fetchExternal: ExternalFetch,
 ): Promise<Response> {
   const body: unknown = await request.json();
-  if (!isMetadataRefinementAcceptanceInput(body) && !isMetadataRefinementBatchAcceptanceInput(body)) {
+  if (!v.is(metadataRefinementAcceptanceSchema, body)) {
     return jsonError("Invalid metadata refinement acceptance", 400);
   }
   const reference = await libraryReference(referenceId, library);
@@ -1063,78 +1122,6 @@ async function duplicateDoiValueResponse(
         { status: 409, ...noStore() },
       )
     : null;
-}
-
-function isCrossrefAcceptanceInput(value: unknown): value is { metadataFingerprint: string; fields: CrossrefMetadataField[] } {
-  if (
-    !isRecord(value) ||
-    typeof value.metadataFingerprint !== "string" ||
-    !/^[a-f0-9]{64}$/u.test(value.metadataFingerprint) ||
-    !Array.isArray(value.fields) ||
-    value.fields.length === 0 ||
-    value.fields.length > crossrefMetadataFields.length ||
-    !value.fields.every((field) => typeof field === "string" && crossrefMetadataFields.includes(field as CrossrefMetadataField))
-  ) {
-    return false;
-  }
-  return new Set(value.fields).size === value.fields.length;
-}
-
-function isMetadataRefinementPreviewInput(value: unknown): value is { artifactId: string; candidates: ReviewedPdfMetadata } {
-  if (!isRecord(value) || typeof value.artifactId !== "string" || !/^[0-9a-f-]{36}$/iu.test(value.artifactId)) return false;
-  return isPdfMetadataFields(value.candidates, true);
-}
-
-function isMetadataRefinementAcceptanceInput(value: unknown): value is {
-  provider: ScholarlyMetadataProvider;
-  doi: string;
-  metadataFingerprint: string;
-  fields: CrossrefMetadataField[];
-} {
-  return (
-    isRecord(value) &&
-    ["openalex", "crossref", "datacite", "semantic-scholar"].includes(String(value.provider)) &&
-    typeof value.doi === "string" &&
-    isValidDoi(value.doi) &&
-    isCrossrefAcceptanceInput(value)
-  );
-}
-
-function isMetadataRefinementBatchAcceptanceInput(value: unknown): value is {
-  selections: Array<{
-    provider: ScholarlyMetadataProvider;
-    doi: string;
-    metadataFingerprint: string;
-    fields: CrossrefMetadataField[];
-  }>;
-} {
-  if (!isRecord(value) || !Array.isArray(value.selections) || value.selections.length === 0 || value.selections.length > 4) return false;
-  if (!value.selections.every(isMetadataRefinementAcceptanceInput)) return false;
-  const dois = new Set(value.selections.map((selection) => normalizeDoi(selection.doi)));
-  const sources = new Set(value.selections.map((selection) => `${selection.provider}:${normalizeDoi(selection.doi)}`));
-  const fields = value.selections.flatMap((selection) => selection.fields);
-  return dois.size === 1 && sources.size === value.selections.length && new Set(fields).size === fields.length;
-}
-
-function isReviewedPdfMetadataInput(value: unknown): value is { artifactId: string; fields: ReviewedPdfMetadata } {
-  if (!isRecord(value) || typeof value.artifactId !== "string" || !/^[0-9a-f-]{36}$/iu.test(value.artifactId)) return false;
-  return isPdfMetadataFields(value.fields, false);
-}
-
-function isPdfMetadataFields(value: unknown, allowEmpty: boolean): value is ReviewedPdfMetadata {
-  if (!isRecord(value)) return false;
-  const keys = Object.keys(value);
-  if ((!allowEmpty && keys.length === 0) || keys.some((key) => !["title", "authors", "year", "doi"].includes(key))) return false;
-  const { title, authors, year, doi } = value;
-  return (
-    (title === undefined || (typeof title === "string" && title.trim().length > 0 && title.length <= 2_000)) &&
-    (authors === undefined ||
-      (Array.isArray(authors) &&
-        authors.length <= 64 &&
-        authors.every((author) => typeof author === "string" && author.trim() && author.length <= 300))) &&
-    (year === undefined || (typeof year === "string" && (/^\d{4}$/u.test(year) || year === ""))) &&
-    (doi === undefined || (typeof doi === "string" && doi.length <= 500))
-  );
 }
 
 async function expandCitationReferences(

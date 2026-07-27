@@ -59,6 +59,10 @@ Adopted boundaries are:
   note, drawing, point, style, position, and reading-state schemas replace
   parallel structural interfaces and predicates while imported-candidate
   semantics, authorization, and Durable Object domain bounds remain explicit.
+- Owner-library metadata review: reviewed PDF fields, artifact ids,
+  fingerprints, provider choices, selected fields, and single/batch envelopes
+  use composable schemas while normalized-DOI, unique-provider, disjoint-field,
+  stale-provider, and duplicate-record rules remain explicit.
 - Workspace lifecycle commands: settings, duplicate-title, milestone, and
   revision-seed schemas replace parallel request interfaces, record checks, and
   scalar predicates while authorization, canonical title trimming, catalog

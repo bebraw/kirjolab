@@ -434,7 +434,10 @@ memory and makes citation aliases compete with stable source identity.
   non-cacheable. A one-to-four-provider batch must describe one normalized DOI,
   assign every field once, and fail without mutation on invalid, stale, mixed,
   unavailable, or duplicate-DOI input. Legacy Crossref enrichment remains
-  compatible.
+  compatible. Reviewed PDF fields, artifact ids, provider and fingerprint
+  envelopes, and selected-field bounds pass composable Valibot validation;
+  normalized-DOI, unique-provider, disjoint-field, freshness, and duplicate
+  rules remain explicit orchestration policy.
 - `POST /api/workspaces/{id}/references` links a source snapshot and local
   alias. Patch renames the alias; sync refreshes metadata; delete unlinks only
   after its citations are removed.

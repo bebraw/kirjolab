@@ -6434,6 +6434,29 @@ Valibot was already pinned.
 Full native CI passes all 1,657 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Valibot Adoption: Library Metadata Review
+
+Reviewed PDF metadata, Crossref acceptance, provider-refinement preview, and
+single or batch provider acceptance now compose Valibot schemas for artifact
+ids, optional bounded fields, fingerprints, provider choices, and selected
+fields. Normalized-DOI, unique-provider, disjoint-field, stale-provider, and
+duplicate-record invariants remain explicit orchestration policy.
+
+This checkpoint reduces `src/api/reference-library.ts` from 1,649 to 1,636
+lines (-13), replacing six nested handwritten guards with reusable schemas and
+direct schema-backed narrowing at each request boundary. Ninety-four affected
+API and integration tests cover empty, unknown, over-limit, duplicate-field,
+mixed-work, duplicate-provider, overlapping-field, stale, and successful
+metadata paths alongside strict types and all 121 Workers-runtime tests.
+
+Browser application and style artifacts remain unchanged at 838,842 B raw /
+226,566 B gzip and 135,411 B raw / 23,373 B gzip because this boundary is
+Worker-side. Direct and unique production package counts remain 18 and 150;
+Valibot was already pinned.
+
+Full native CI passes all 1,657 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,
