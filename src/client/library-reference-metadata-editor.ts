@@ -14,7 +14,7 @@ import { createMetadataRefinementActor, metadataRefinementBusy } from "./metadat
 import { groupMetadataCandidates, metadataFieldValue } from "./metadata-refinement";
 import { extractPdfMetadata, type PdfMetadataCandidates } from "./pdf-metadata";
 
-export type LibraryReferenceMetadataValue = Readonly<Record<ReferenceMetadataField, string>>;
+type LibraryReferenceMetadataValue = Readonly<Record<ReferenceMetadataField, string>>;
 
 export const libraryReferenceMetadataNoticeEvent = "library-reference-metadata-notice";
 export const libraryReferenceMetadataRefreshEvent = "library-reference-metadata-refresh";

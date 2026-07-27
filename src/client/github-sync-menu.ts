@@ -11,7 +11,7 @@ export interface GitHubSyncConnectionPresentation {
   readonly branch: string;
 }
 
-export const gitHubSyncCheckEvent = "github-sync-check";
+const gitHubSyncCheckEvent = "github-sync-check";
 export const gitHubSyncPullEvent = "github-sync-pull";
 export const gitHubSyncPushEvent = "github-sync-push";
 export const gitHubSyncSettingsEvent = "github-sync-settings";

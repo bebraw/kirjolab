@@ -4,7 +4,7 @@ import type { LibraryPdfArtifact, ReferenceLibrarySnapshot } from "../domain/ref
 import { formatBytes } from "./format";
 import { errorMessage, expectOk, jsonFetch } from "./http";
 
-export interface UnidentifiedPdfReference {
+interface UnidentifiedPdfReference {
   readonly id: string;
   readonly title: string;
 }

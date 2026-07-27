@@ -9528,6 +9528,24 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,726 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Maintained Surface Reduction: Internal-Only Symbols
+
+Five symbols used only within their defining modules are no longer exported:
+the GitHub sync check event, client-selection guard, candidate-review data,
+Library metadata value, and unidentified-PDF reference types. Runtime behavior
+and source line counts are unchanged, while Fallow's dead-export metric drops
+from 0.9% to 0.0% and the public module surface no longer promises unused
+contracts.
+
+Affected guardrails pass 189 related unit tests and all 121 Workers-runtime
+tests alongside strict types. Browser application, lazy runtime, style, and
+production-package measurements remain unchanged at 849,201 B raw / 229,011 B
+gzip, 204,779 B / 62,386 B, 481,994 B / 146,135 B, 135,411 B / 23,373 B, and
+18 direct / 150 unique package-version nodes.
+
+Full native CI passes all 1,726 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Library PDF Project Use Projection
 
 `LibraryPdfProjectUse` now resolves the active bibliographic record and matching

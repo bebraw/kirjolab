@@ -19,7 +19,7 @@ export interface CandidateDecisionOutcome {
   readonly message: string;
 }
 
-export interface CandidateReviewData {
+interface CandidateReviewData {
   readonly applicable: boolean;
   readonly availableEvidenceIds: ReadonlySet<string>;
   readonly candidate: ModelCandidate;
