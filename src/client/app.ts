@@ -89,11 +89,9 @@ import {
   type ProjectAnnotationSaved,
   type ProjectHighlightTool,
 } from "./project-annotation-form";
-import { projectFileSavedEvent, type ProjectFileDialogMode, type ProjectFileSaved } from "./project-file-dialog";
-import { projectFileActionEvent, type ProjectFileAction } from "./project-file-actions";
-import { projectImagesUploadedEvent, type ProjectImagesUploaded } from "./project-image-upload-control";
+import { type ProjectFileDialogMode, type ProjectFileSaved } from "./project-file-dialog";
+import { type ProjectImagesUploaded } from "./project-image-upload-control";
 import { projectTemplateSavedEvent, type ProjectTemplateSaved } from "./project-template-save-dialog";
-import { projectTreeActionEvent, type ProjectTreeAction } from "./project-tree-panel";
 import { manuscriptMapSelectEvent, type ManuscriptMapSelection } from "./manuscript-map-panel";
 import { libraryDiscoveryRefreshEvent, type LibraryDiscoveryRefresh } from "./library-discovery-results";
 import { libraryDiscoveryResultsEvent } from "./library-discovery-search";
@@ -461,26 +459,6 @@ class WorkspaceApp {
       this.#updateModelAvailability();
     });
     bindYText(this.#elements.bibliography, this.#bibliography, this.#document);
-    for (const actions of [this.#elements.projectFileRailActions, this.#elements.projectFileMenuActions]) {
-      actions.addEventListener(projectFileActionEvent, (event) => {
-        const action = (event as CustomEvent<ProjectFileAction>).detail;
-        if (action === "upload-images") this.#elements.projectImageUpload.choose();
-        else if (action === "delete") this.#deleteProjectFile();
-        else this.#openProjectFileDialog(action);
-      });
-    }
-    this.#elements.projectTreePanel.addEventListener(projectTreeActionEvent, (event) => {
-      const detail = (event as CustomEvent<ProjectTreeAction>).detail;
-      if (detail.action === "select-file") {
-        this.#selectProjectFile(detail.fileId);
-        if (detail.focusEditor) this.#elements.source.focus();
-      } else if (detail.action === "quick-open") {
-        this.#layout.setRailCollapsed(false);
-        this.#showRail("files");
-        this.#elements.projectTreePanel.focusFilter();
-      } else if (detail.action === "rename-folder") this.#openProjectFileDialog("rename-folder", detail.folderId);
-      else this.#insertProjectImage(detail.asset);
-    });
     this.#elements.projectTreePanel.configure(apiBase, {
       acceptSnapshot: (snapshot) => {
         this.#snapshot = snapshot;
@@ -490,9 +468,6 @@ class WorkspaceApp {
       previewChanged: () => void this.#renderPreview(),
     });
     this.#elements.projectImageUpload.configure(apiBase);
-    this.#elements.projectImageUpload.addEventListener(projectImagesUploadedEvent, (event) => {
-      this.#completeProjectImageUpload((event as CustomEvent<ProjectImagesUploaded>).detail);
-    });
     this.#elements.projectFileDialog.configureApi(apiBase, {
       commit: (snapshot) => {
         this.#snapshot = snapshot;
@@ -502,8 +477,21 @@ class WorkspaceApp {
       presentNotice: (message, options) => this.#showToast(message, options),
       selectFile: (fileId) => this.#selectProjectFile(fileId),
     });
-    this.#elements.projectFileDialog.addEventListener(projectFileSavedEvent, (event) => {
-      this.#completeProjectFileSave((event as CustomEvent<ProjectFileSaved>).detail);
+    this.#elements.projectFileDialog.bindWorkflow({
+      actionControls: [this.#elements.projectFileRailActions, this.#elements.projectFileMenuActions],
+      deleteFile: () => this.#deleteProjectFile(),
+      focusEditor: () => this.#elements.source.focus(),
+      imageUpload: this.#elements.projectImageUpload,
+      insertAsset: (asset) => this.#insertProjectImage(asset),
+      openDialog: (mode, folderId) => this.#openProjectFileDialog(mode, folderId),
+      quickOpen: () => {
+        this.#layout.setRailCollapsed(false);
+        this.#showRail("files");
+      },
+      saved: (result) => this.#completeProjectFileSave(result),
+      selectFile: (fileId) => this.#selectProjectFile(fileId),
+      tree: this.#elements.projectTreePanel,
+      uploaded: (result) => this.#completeProjectImageUpload(result),
     });
     this.#elements.editorInsertMenu.addEventListener(editorInsertActionEvent, (event) => {
       const detail = (event as CustomEvent<EditorInsertAction>).detail;

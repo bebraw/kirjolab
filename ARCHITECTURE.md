@@ -216,10 +216,12 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   created-path verification, duplicate-submit gating, and retryable local
   failures. It also owns the supporting-file hidden projection, six-second
   delayed deletion, Undo restoration, failed-commit restoration, and deletion
-  notices. Emit or return the validated workspace snapshot or created stable
-  file. Keep workflow-template selection and navigation, collaborative caret
-  capture, Yjs insertion, canonical snapshot application, selection, rendering,
-  and the global toast outlet in the workspace coordinator.
+  notices. It routes its sibling file-action, tree, upload-completion, and save
+  streams through typed workflow callbacks. Emit or return the validated
+  workspace snapshot or created stable file. Keep workflow-template selection
+  and navigation, collaborative caret capture, Yjs insertion, canonical
+  snapshot application, selection, rendering, and the global toast outlet in
+  the workspace coordinator.
 - Let the editor Insert menu own the scholarly syntax templates it displays and
   emit those templates with typed syntax choices. Keep passage-aware link
   adaptation, collaborative selection resolution, and Yjs edits in the

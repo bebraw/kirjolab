@@ -89,7 +89,8 @@ collaborative, and unambiguous about what preview and export mean.
   editable path action as **Move or rename file**. One bounded project-file
   dialog owns file and folder operation copy, initial paths, focus,
   cancellation, mutation transport, response validation, duplicate-submit
-  gating, retryable local failures, and typed completed outcomes. The workspace
+  gating, retryable local failures, and typed routing of sibling file actions,
+  tree actions, upload completion, and save completion. The workspace
   coordinator retains resource availability, include-caret capture, validated
   snapshot application, selection, rendering, and toast policy.
 - A visible, client-side Files filter matches complete file, folder, and asset
@@ -120,10 +121,10 @@ collaborative, and unambiguous about what preview and export mean.
   hiding, the delayed commit, Undo restoration, and failure notice for those
   resources. It exposes optimistically hidden image identities to Preview and
   returns validated snapshots to the coordinator for canonical application.
-  Deleting a supporting file remains under coordinator authority because it
-  changes the active collaborative editor. Every deletion hides immediately,
-  delays the server operation for six seconds, and offers **Undo** throughout
-  that grace period.
+  Deleting a supporting file retains coordinator effects because it changes the
+  active collaborative editor, but its intent is routed by the project-file
+  owner. Every deletion hides immediately, delays the server operation for six
+  seconds, and offers **Undo** throughout that grace period.
 - The authoring toolbar inserts an existing file with a path relative to the
   active file. **Create and include** creates a supporting file and inserts its
   directive at the remembered collaborative caret, so authors do not have to

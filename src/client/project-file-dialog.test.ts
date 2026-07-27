@@ -9,6 +9,9 @@ import {
   type ProjectFileSaved,
 } from "./project-file-dialog";
 import { workspaceSnapshotFixture as snapshot } from "../test-support/workspace-fixture";
+import { projectFileActionEvent } from "./project-file-actions";
+import { projectImagesUploadedEvent } from "./project-image-upload-control";
+import { projectTreeActionEvent } from "./project-tree-panel";
 
 class TestProjectFileDialog extends ProjectFileDialog {
   focusCount = 0;
@@ -108,6 +111,58 @@ describe("project file dialog", () => {
     expect(show).toHaveBeenNthCalledWith(2, "rename-folder", folder.path, folder.id);
     expect(show).toHaveBeenNthCalledWith(3, "create-and-include", "", null);
     expect(show).toHaveBeenCalledTimes(3);
+  });
+
+  it("routes the surrounding project-file workflow", () => {
+    const panel = new TestProjectFileDialog();
+    const actions = new EventTarget();
+    const imageUpload = Object.assign(new EventTarget(), { choose: vi.fn() });
+    const tree = Object.assign(new EventTarget(), { focusFilter: vi.fn() });
+    const callbacks = {
+      deleteFile: vi.fn(),
+      focusEditor: vi.fn(),
+      insertAsset: vi.fn(),
+      openDialog: vi.fn(),
+      quickOpen: vi.fn(),
+      saved: vi.fn(),
+      selectFile: vi.fn(),
+      uploaded: vi.fn(),
+    };
+    panel.bindWorkflow({ actionControls: [actions], imageUpload, tree, ...callbacks });
+    const asset = {
+      createdAt: "now",
+      fingerprint: "asset-fingerprint",
+      id: "asset-1",
+      mediaType: "image/png" as const,
+      objectKey: "asset-object",
+      path: "figures/chart.png",
+      size: 42,
+      updatedAt: "now",
+    };
+    const upload = { message: "Uploaded.", snapshot };
+    const saved = { message: "Saved.", mode: "create" as const, path: "chapter.md", snapshot };
+
+    actions.dispatchEvent(new CustomEvent(projectFileActionEvent, { detail: "upload-images" }));
+    actions.dispatchEvent(new CustomEvent(projectFileActionEvent, { detail: "delete" }));
+    actions.dispatchEvent(new CustomEvent(projectFileActionEvent, { detail: "create-folder" }));
+    tree.dispatchEvent(new CustomEvent(projectTreeActionEvent, { detail: { action: "select-file", fileId: "file-1", focusEditor: true } }));
+    tree.dispatchEvent(new CustomEvent(projectTreeActionEvent, { detail: { action: "quick-open" } }));
+    tree.dispatchEvent(new CustomEvent(projectTreeActionEvent, { detail: { action: "rename-folder", folderId: "folder-1" } }));
+    tree.dispatchEvent(new CustomEvent(projectTreeActionEvent, { detail: { action: "insert-asset", asset } }));
+    imageUpload.dispatchEvent(new CustomEvent(projectImagesUploadedEvent, { detail: upload }));
+    panel.dispatchEvent(new CustomEvent(projectFileSavedEvent, { detail: saved }));
+
+    expect(imageUpload.choose).toHaveBeenCalledOnce();
+    expect(callbacks.deleteFile).toHaveBeenCalledOnce();
+    expect(callbacks.openDialog).toHaveBeenNthCalledWith(1, "create-folder");
+    expect(callbacks.openDialog).toHaveBeenNthCalledWith(2, "rename-folder", "folder-1");
+    expect(callbacks.selectFile).toHaveBeenCalledWith("file-1");
+    expect(callbacks.focusEditor).toHaveBeenCalledOnce();
+    expect(callbacks.quickOpen).toHaveBeenCalledOnce();
+    expect(tree.focusFilter).toHaveBeenCalledOnce();
+    expect(callbacks.insertAsset).toHaveBeenCalledWith(asset);
+    expect(callbacks.uploaded).toHaveBeenCalledWith(upload);
+    expect(callbacks.saved).toHaveBeenCalledWith(saved);
   });
 
   it("persists a trimmed path and emits the validated workspace", async () => {

@@ -6546,6 +6546,30 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,662 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Project File Workflow Routing
+
+`ProjectFileDialog` now binds and routes both file-action controls, project-tree
+intents, image-upload completion, and its own save completion through one typed
+workflow boundary. `WorkspaceApp` retains collaborative include-target capture,
+Yjs insertion, canonical snapshot application, selection, rendering, rail
+policy, and global notices.
+
+This checkpoint reduces `src/client/app.ts` from 2,411 to 2,399 lines (-12)
+and removes five runtime coordinator subscriptions and four event imports. The
+existing project-file owner grows from 234 to 340 lines, including scoped
+AbortController teardown; total runtime source across those files grows by 94
+lines while consolidating the spatially separate workflow. Thirteen focused
+cases cover file/folder operations, deletion, routing, upload and save outcomes,
+and modal behavior under strict types.
+
+The browser application artifact changes from 840,388 B raw / 226,939 B gzip
+to 841,301 B raw / 227,193 B gzip (+913 B raw / +254 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,663 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

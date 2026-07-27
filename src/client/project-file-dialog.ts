@@ -1,8 +1,11 @@
 import { html, LitElement, type TemplateResult } from "lit";
-import type { ProjectFile } from "../domain/project-files";
+import type { ProjectAsset, ProjectFile } from "../domain/project-files";
 import { isWorkspaceSnapshot, type WorkspaceSnapshot } from "../domain/workspace";
 import { DeferredDeletionController, type DeferredDeletionNoticeOptions } from "./deferred-deletion";
 import { errorMessage, expectOk, jsonFetch } from "./http";
+import { projectFileActionEvent, type ProjectFileAction } from "./project-file-actions";
+import { projectImagesUploadedEvent, type ProjectImagesUploaded } from "./project-image-upload-control";
+import { projectTreeActionEvent, type ProjectTreeAction } from "./project-tree-panel";
 
 export const projectFileSavedEvent = "project-file-saved";
 
@@ -19,6 +22,28 @@ export interface ProjectFileDeletionCallbacks {
   readonly commit: (snapshot: WorkspaceSnapshot) => void;
   readonly presentNotice: (message: string, options?: DeferredDeletionNoticeOptions) => void;
   readonly selectFile: (fileId: string) => void;
+}
+
+interface ProjectImageUploadSource extends EventTarget {
+  readonly choose: () => void;
+}
+
+interface ProjectFileTreeSource extends EventTarget {
+  readonly focusFilter: () => void;
+}
+
+export interface ProjectFileWorkflowRouting {
+  readonly actionControls: readonly EventTarget[];
+  readonly deleteFile: () => void;
+  readonly focusEditor: () => void;
+  readonly imageUpload: ProjectImageUploadSource;
+  readonly insertAsset: (asset: ProjectAsset) => void;
+  readonly openDialog: (mode: ProjectFileDialogMode, folderId?: string) => void;
+  readonly quickOpen: () => void;
+  readonly saved: (result: ProjectFileSaved) => void;
+  readonly selectFile: (fileId: string) => void;
+  readonly tree: ProjectFileTreeSource;
+  readonly uploaded: (result: ProjectImagesUploaded) => void;
 }
 
 export function projectFileDialogIsFolder(mode: ProjectFileDialogMode): boolean {
@@ -66,6 +91,8 @@ export class ProjectFileDialog extends LitElement {
   });
   private targetId: string | null = null;
   private readonly hiddenFileIds = new Set<string>();
+  private routing: ProjectFileWorkflowRouting | null = null;
+  private routingAbort: AbortController | null = null;
 
   constructor() {
     super();
@@ -78,6 +105,11 @@ export class ProjectFileDialog extends LitElement {
   configureApi(apiBase: string, deletionCallbacks?: ProjectFileDeletionCallbacks): void {
     this.apiBase = apiBase;
     if (deletionCallbacks) this.deletionCallbacks = deletionCallbacks;
+  }
+
+  bindWorkflow(routing: ProjectFileWorkflowRouting): void {
+    this.routing = routing;
+    this.connectRouting();
   }
 
   get hiddenFiles(): ReadonlySet<string> {
@@ -140,6 +172,13 @@ export class ProjectFileDialog extends LitElement {
   override connectedCallback(): void {
     if (!this.hasUpdated) this.replaceChildren();
     super.connectedCallback();
+    this.connectRouting();
+  }
+
+  override disconnectedCallback(): void {
+    this.routingAbort?.abort();
+    this.routingAbort = null;
+    super.disconnectedCallback();
   }
 
   protected override createRenderRoot(): HTMLElement {
@@ -218,6 +257,49 @@ export class ProjectFileDialog extends LitElement {
 
   protected cancel(): void {
     this.close();
+  }
+
+  private readonly handleFileAction = (event: Event): void => {
+    const routing = this.routing;
+    if (!routing) return;
+    const action = (event as CustomEvent<ProjectFileAction>).detail;
+    if (action === "upload-images") routing.imageUpload.choose();
+    else if (action === "delete") routing.deleteFile();
+    else routing.openDialog(action);
+  };
+
+  private readonly handleTreeAction = (event: Event): void => {
+    const routing = this.routing;
+    if (!routing) return;
+    const detail = (event as CustomEvent<ProjectTreeAction>).detail;
+    if (detail.action === "select-file") {
+      routing.selectFile(detail.fileId);
+      if (detail.focusEditor) routing.focusEditor();
+    } else if (detail.action === "quick-open") {
+      routing.quickOpen();
+      routing.tree.focusFilter();
+    } else if (detail.action === "rename-folder") routing.openDialog("rename-folder", detail.folderId);
+    else routing.insertAsset(detail.asset);
+  };
+
+  private readonly handleImagesUploaded = (event: Event): void => {
+    this.routing?.uploaded((event as CustomEvent<ProjectImagesUploaded>).detail);
+  };
+
+  private readonly handleSaved = (event: Event): void => {
+    this.routing?.saved((event as CustomEvent<ProjectFileSaved>).detail);
+  };
+
+  private connectRouting(): void {
+    this.routingAbort?.abort();
+    const routing = this.routing;
+    if (!routing) return;
+    this.routingAbort = new AbortController();
+    const options = { signal: this.routingAbort.signal };
+    for (const actions of routing.actionControls) actions.addEventListener(projectFileActionEvent, this.handleFileAction, options);
+    routing.tree.addEventListener(projectTreeActionEvent, this.handleTreeAction, options);
+    routing.imageUpload.addEventListener(projectImagesUploadedEvent, this.handleImagesUploaded, options);
+    this.addEventListener(projectFileSavedEvent, this.handleSaved, options);
   }
 
   protected get dialog(): HTMLDialogElement {

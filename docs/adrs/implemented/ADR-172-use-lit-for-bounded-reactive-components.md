@@ -702,9 +702,10 @@ reason to wrap static markup mechanically.
   and file/folder request helper, and its deletion method removes the file DELETE
   request. It now derives resource availability, initial paths, and stable
   mutation targets from its operation and canonical resource inputs while
-  leaving collaborative include-target capture, deletion grace and Undo
-  coordination, snapshot application, selection, rendering, and toast policy in
-  the application coordinator.
+  routing sibling file actions, tree actions, upload completions, and save
+  completions through one typed workflow boundary. Collaborative include-target
+  capture, snapshot application, selection, rendering, and toast policy remain
+  in the application coordinator.
 - The project template save dialog replaces seven internal element references
   and imperative replacement-option, value, status, focus, and cancellation
   handling while consuming the starting-point browser's visible template view.
