@@ -467,6 +467,8 @@ The adopted components own bounded presentation:
   links, same-PDF/page saved-stroke overlap classification, ordered removal
   routing, paint-versus-erase capture persistence, no-match and completed-
   erasure status, and typed viewer-clearing, refresh, and notice outcomes,
+  local toolbar tool commits, viewer-highlight edit/reveal-versus-erase routing,
+  and completed undo-state presentation,
   nested publication-intake
   configuration and PDF projection, intake
   refresh acknowledgement and navigation routing, and one typed workflow

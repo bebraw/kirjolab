@@ -40,7 +40,7 @@ import { CollaborationSession } from "./collaboration-session";
 import { CollaborationSocket } from "./collaboration-socket";
 import { resolveAssistantTarget } from "./assistant-operations";
 import { citationPageFromLocator, createCitationInsertion, type CitationContext } from "./citations";
-import { type ProjectAnnotationSaved, type ProjectHighlightTool } from "./project-annotation-form";
+import { type ProjectAnnotationSaved } from "./project-annotation-form";
 import { type ProjectFileDialogMode, type ProjectFileSaved } from "./project-file-dialog";
 import type { ProjectTemplateSaved } from "./project-template-save-dialog";
 import "./manuscript-map-panel";
@@ -184,7 +184,7 @@ class WorkspaceApp {
     });
     this.#pdfViewer = PdfEvidenceViewer.forDocument(document, {
       onSelection: (capture) => this.#elements.contextResourcePresenter.capturePdfSelection(capture),
-      onHighlight: (annotationId, fragmentId) => void this.#activateHighlightFragment(annotationId, fragmentId),
+      onHighlight: (annotationId, fragmentId) => this.#elements.contextResourcePresenter.activateProjectHighlight(annotationId, fragmentId),
       onPageChange: (page) => this.#handlePdfPageChange(page),
       onPrivateHighlight: (highlightId) => this.#elements.contextResourcePresenter.selectLibraryHighlight(highlightId),
     });
@@ -510,7 +510,7 @@ class WorkspaceApp {
       refresh: async () => await this.#resourceRefresh.request(),
     });
     this.#elements.projectAnnotationForm.bindWorkflow({
-      chooseTool: (tool) => this.#setHighlightTool(tool),
+      chooseTool: (tool) => this.#pdfViewer.setTool(tool),
       completeCapture: async ({ clearDraftSelection, notice, refreshResources }) => {
         if (clearDraftSelection) this.#pdfViewer.clearDraftSelection();
         if (refreshResources) await this.#resourceRefresh.request();
@@ -519,7 +519,7 @@ class WorkspaceApp {
       completeSave: (saved) => void this.#completeAnnotationSave(saved),
       citePage: () => this.#citeActivePdf(),
       removeHighlight: async (annotationId, fragmentId) => await this.#removeHighlightFragment(annotationId, fragmentId, false),
-      undoHighlight: (annotationId, fragmentId) => void this.#undoLastHighlightStroke(annotationId, fragmentId),
+      revealHighlight: (annotationId) => this.#elements.projectEvidencePanel.revealAnnotation(annotationId),
     });
     this.#elements.contextResourcePresenter.bindLibraryPdf({
       acceptProjectMutation: async (snapshot) => {
@@ -1520,22 +1520,6 @@ class WorkspaceApp {
     this.#elements.libraryPdfInspector.setStatus(`Showing saved private highlight on page ${highlight.page}.`);
   }
 
-  #setHighlightTool(tool: ProjectHighlightTool): void {
-    this.#elements.projectAnnotationForm.setTool(tool);
-    this.#pdfViewer.setTool(tool);
-  }
-
-  async #activateHighlightFragment(annotationId: string, fragmentId: string): Promise<void> {
-    if (this.#elements.projectAnnotationForm.selectedTool === "erase") {
-      await this.#removeHighlightFragment(annotationId, fragmentId, true);
-      return;
-    }
-    const annotation = this.#snapshot?.annotations.find((item) => item.id === annotationId);
-    if (!annotation) return;
-    this.#elements.projectAnnotationForm.showAnnotation(annotation);
-    this.#elements.projectEvidencePanel.revealAnnotation(annotationId);
-  }
-
   async #removeHighlightFragment(annotationId: string, fragmentId: string, announce: boolean): Promise<boolean> {
     const result = await this.#elements.projectEvidencePanel.removeFragment(annotationId, fragmentId);
     if (!result) return false;
@@ -1543,12 +1527,6 @@ class WorkspaceApp {
     await this.#resourceRefresh.request();
     if (announce) this.#showToast("Highlight stroke erased.");
     return true;
-  }
-
-  async #undoLastHighlightStroke(annotationId: string, fragmentId: string): Promise<void> {
-    if (!(await this.#removeHighlightFragment(annotationId, fragmentId, false))) return;
-    this.#elements.projectAnnotationForm.setUndoStroke(null);
-    this.#showToast("Last highlight stroke undone.");
   }
 
   #showPassage(anchor: PassageLink["anchor"]): void {

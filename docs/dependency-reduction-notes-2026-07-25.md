@@ -7945,6 +7945,32 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,704 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Project Highlight Interaction
+
+`ProjectAnnotationForm` now commits toolbar tool changes locally, resolves
+viewer-highlight activation to edit/reveal or erase behavior, and completes
+undo state and status after delegated removal. `ContextResourcePresenter`
+routes viewer activation with its retained canonical annotations. `WorkspaceApp`
+retains viewer tool projection, evidence reveal, fragment mutation, canonical
+refresh, and notification effects through the existing typed binding.
+
+This checkpoint reduces `src/client/app.ts` from 1,675 to 1,653 lines (-22),
+grows the context-resource presenter from 772 to 777 lines (+5), and grows the
+project-annotation owner from 485 to 504 lines (+19). Runtime source across the
+three files increases by two lines while deleting the coordinator's tool-state,
+highlight-activation, and undo methods plus the form's obsolete public selected-
+tool getter. Focused coverage passes all 11 project-annotation cases and 24
+context-resource cases, including paint reveal, tap erase, toolbar state, and
+completed undo effects, alongside application contracts and strict types.
+
+The browser application artifact changes from 846,261 B raw / 228,550 B gzip
+to 846,550 B raw / 228,571 B gzip (+289 B raw / +21 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,705 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

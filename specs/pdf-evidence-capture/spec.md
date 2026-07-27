@@ -47,7 +47,9 @@ with an authored passage.
   and completed-erasure status, returns only viewer-clearing, refresh, and
   notification effects to the coordinator, and derives
   citation availability from the active PDF and canonical publication-PDF
-  links. The workspace coordinator
+  links. It commits toolbar tool state locally, resolves viewer-highlight
+  activation to edit/reveal or erase behavior, and clears its own undo state
+  after a completed delegated mutation. The workspace coordinator
   retains viewer effects, annotation identity,
   manuscript selection, refreshes, and user notifications.
 - `POST /api/workspaces/{id}/annotation-links` validates an annotation and

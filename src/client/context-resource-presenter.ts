@@ -251,6 +251,11 @@ export class ContextResourcePresenter extends LitElement {
     }
   }
 
+  activateProjectHighlight(annotationId: string, fragmentId: string): void {
+    const form = this.element("project-annotation-form", ProjectAnnotationForm);
+    if (form && this.currentSnapshot) void form.activateHighlight(this.currentSnapshot.annotations, annotationId, fragmentId);
+  }
+
   presentContext(sources: ResearchContextSources): ResearchContextPresentation {
     const { context, standaloneLibrary, ...resourceSources } = sources;
     this.element("context-tab-strip", ContextTabStrip)?.setTabs({

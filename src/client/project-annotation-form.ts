@@ -30,7 +30,7 @@ export interface ProjectAnnotationWorkflowBinding {
   readonly completeSave: (saved: ProjectAnnotationSaved) => void;
   readonly citePage: () => void;
   readonly removeHighlight: (annotationId: string, fragmentId: string) => Promise<boolean>;
-  readonly undoHighlight: (annotationId: string, fragmentId: string) => void;
+  readonly revealHighlight: (annotationId: string) => void;
 }
 
 export interface ProjectAnnotationIntakeBinding {
@@ -176,6 +176,17 @@ export class ProjectAnnotationForm extends LitElement {
     await this.workflowBinding?.completeCapture?.({ clearDraftSelection: true, refreshResources: true });
   }
 
+  async activateHighlight(annotations: readonly AnnotationResource[], annotationId: string, fragmentId: string): Promise<void> {
+    if (this.tool === "erase") {
+      if (await this.workflowBinding?.removeHighlight(annotationId, fragmentId)) await this.completeNotice("Highlight stroke erased.");
+      return;
+    }
+    const annotation = annotations.find(({ id }) => id === annotationId);
+    if (!annotation) return;
+    this.showAnnotation(annotation);
+    this.workflowBinding?.revealHighlight(annotationId);
+  }
+
   private applyCapture(capture: Pick<AnnotationDraft, "page" | "prefix" | "quote" | "suffix">): void {
     this.page = capture.page;
     this.quotePrefix = capture.prefix;
@@ -208,10 +219,6 @@ export class ProjectAnnotationForm extends LitElement {
       tool === "paint"
         ? "Paint PDF text to save or extend a highlight."
         : "Select across a saved highlight stroke or tap it to erase that content.";
-  }
-
-  get selectedTool(): ProjectHighlightTool {
-    return this.tool;
   }
 
   setUndoStroke(stroke: UndoStroke | null): void {
@@ -388,11 +395,23 @@ export class ProjectAnnotationForm extends LitElement {
   }
 
   protected chooseTool(tool: ProjectHighlightTool): void {
+    this.setTool(tool);
     this.workflowBinding?.chooseTool(tool);
   }
 
   protected undoHighlight(): void {
-    if (this.undoStroke) this.workflowBinding?.undoHighlight(this.undoStroke.annotationId, this.undoStroke.fragmentId);
+    const stroke = this.undoStroke;
+    if (stroke) void this.completeUndo(stroke);
+  }
+
+  private async completeUndo(stroke: UndoStroke): Promise<void> {
+    if (!(await this.workflowBinding?.removeHighlight(stroke.annotationId, stroke.fragmentId))) return;
+    this.setUndoStroke(null);
+    await this.completeNotice("Last highlight stroke undone.");
+  }
+
+  private async completeNotice(notice: string): Promise<void> {
+    await this.workflowBinding?.completeCapture?.({ clearDraftSelection: false, notice, refreshResources: false });
   }
 
   protected citePage(): void {

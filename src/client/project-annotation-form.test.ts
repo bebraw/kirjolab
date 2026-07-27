@@ -142,7 +142,7 @@ describe("project annotation form", () => {
       citePage: vi.fn(),
       completeSave: vi.fn(),
       removeHighlight,
-      undoHighlight: vi.fn(),
+      revealHighlight: vi.fn(),
     });
     expect(await panel.eraseOverlaps(overlaps)).toBe(true);
     expect(removeHighlight).toHaveBeenCalledWith("annotation-1", "overlap");
@@ -167,7 +167,7 @@ describe("project annotation form", () => {
       completeSave: vi.fn(),
       citePage: vi.fn(),
       removeHighlight,
-      undoHighlight: vi.fn(),
+      revealHighlight: vi.fn(),
     });
 
     panel.setTool("erase");
@@ -186,6 +186,35 @@ describe("project annotation form", () => {
     await panel.persistCapture([matching], "pdf-1", capture);
     expect(panel.saveCapture).toHaveBeenCalledWith("pdf-1", capture, matching.id);
     expect(completeCapture).toHaveBeenLastCalledWith({ clearDraftSelection: true, refreshResources: true });
+  });
+
+  it("owns viewer-highlight activation for paint and erase tools", async () => {
+    const panel = new TestProjectAnnotationForm();
+    const resource = annotation("annotation-1", [fragment("fragment-1")]);
+    const completeCapture = vi.fn().mockResolvedValue(undefined);
+    const removeHighlight = vi.fn().mockResolvedValue(true);
+    const revealHighlight = vi.fn();
+    panel.bindWorkflow({
+      chooseTool: vi.fn(),
+      completeCapture,
+      completeSave: vi.fn(),
+      citePage: vi.fn(),
+      removeHighlight,
+      revealHighlight,
+    });
+
+    await panel.activateHighlight([resource], resource.id, "fragment-1");
+    expect(revealHighlight).toHaveBeenCalledWith(resource.id);
+    expect(panel.renderForTest().values).toContain("Evidence");
+
+    panel.setTool("erase");
+    await panel.activateHighlight([resource], resource.id, "fragment-1");
+    expect(removeHighlight).toHaveBeenCalledWith(resource.id, "fragment-1");
+    expect(completeCapture).toHaveBeenCalledWith({
+      clearDraftSelection: false,
+      notice: "Highlight stroke erased.",
+      refreshResources: false,
+    });
   });
 
   it("owns nested publication intake presentation and outcomes", async () => {
@@ -224,7 +253,7 @@ describe("project annotation form", () => {
       completeSave: (saved) => outcomes.push(saved),
       citePage: vi.fn(),
       removeHighlight: vi.fn(),
-      undoHighlight: vi.fn(),
+      revealHighlight: vi.fn(),
     });
     panel.changeForTest("comment", "Use this");
     await panel.saveForTest(false);
@@ -298,17 +327,19 @@ describe("project annotation form", () => {
     expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 
-  it("routes bounded toolbar and citation intents", () => {
+  it("owns bounded toolbar state, undo completion, and citation intents", async () => {
     const panel = new TestProjectAnnotationForm();
     const chooseTool = vi.fn();
     const citePage = vi.fn();
-    const undoHighlight = vi.fn();
+    const completeCapture = vi.fn().mockResolvedValue(undefined);
+    const removeHighlight = vi.fn().mockResolvedValue(true);
     panel.bindWorkflow({
       chooseTool,
+      completeCapture,
       completeSave: vi.fn(),
       citePage,
-      removeHighlight: vi.fn(),
-      undoHighlight,
+      removeHighlight,
+      revealHighlight: vi.fn(),
     });
 
     panel.actionForTest("paint");
@@ -319,7 +350,12 @@ describe("project annotation form", () => {
 
     expect(chooseTool).toHaveBeenNthCalledWith(1, "paint");
     expect(chooseTool).toHaveBeenNthCalledWith(2, "erase");
-    expect(undoHighlight).toHaveBeenCalledWith("annotation-1", "fragment-1");
+    await vi.waitFor(() => expect(removeHighlight).toHaveBeenCalledWith("annotation-1", "fragment-1"));
+    expect(completeCapture).toHaveBeenCalledWith({
+      clearDraftSelection: false,
+      notice: "Last highlight stroke undone.",
+      refreshResources: false,
+    });
     expect(citePage).toHaveBeenCalledOnce();
   });
 });

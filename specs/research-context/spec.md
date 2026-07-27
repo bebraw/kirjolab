@@ -298,7 +298,9 @@ changing their canonical data, selector, authorization, or rendering contracts.
   completed note-save outcome. It also owns active-PDF projection and outcome
   routing for its nested publication-intake component plus paint-versus-erase
   capture persistence, overlap classification, and typed viewer-clearing,
-  refresh, and notice outcomes. The workspace coordinator retains PDF gestures,
+  refresh, and notice outcomes. It also owns toolbar tool commits, viewer-
+  highlight edit/reveal-versus-erase routing, and completed undo presentation.
+  The workspace coordinator retains PDF gestures,
   viewer draft clearing, manuscript linking, canonical refresh, publication
   navigation, and insertion policy behind typed callbacks.
 - Citing a visible publication requires an explicit command and a valid current

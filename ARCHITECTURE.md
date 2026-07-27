@@ -782,7 +782,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   only viewer-clearing, refresh, and notification effects to the coordinator,
   including no-match and completed-erasure status,
   plus citation availability from the active PDF and canonical publication-PDF
-  links. Let the composer configure and project its nested publication-intake
+  links. Let it also commit its own toolbar tool state, resolve viewer-highlight
+  activation to edit/reveal or erase behavior, and complete undo state and
+  status after delegated mutation. Let the composer configure and project its nested publication-intake
   owner, acknowledge or reject intake after canonical refresh, and route linked
   or accepted publications through typed callbacks. Route completed note-save,
   tool, undo, erasure, citation, and link outcomes through one typed workflow binding while
