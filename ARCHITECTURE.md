@@ -818,12 +818,14 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   publication, candidate, project-PDF, private-Library PDF, and shared-reference
   PDF presentation from those canonical inputs. It may select the owning panel,
   restore and capture resource scroll, project citation and intake context,
-  switch the annotation versus private-inspector surface, and synchronize the
-  bounded evidence, annotation, publication, claim, comment, and candidate
-  owners from one canonical workspace snapshot. It may return the active PDF's
-  annotation projection while keeping tab state, PDF loading, private markup
-  drafts, citation insertion, canonical refresh, routing, and notification
-  policy in the application coordinator.
+  switch the annotation versus private-inspector surface, synchronize the
+  private-PDF inspector, markup reset, toolbar counts, and export target, and
+  synchronize the bounded evidence, annotation, publication, claim, comment,
+  and candidate owners from one canonical workspace snapshot. It may return
+  active project-PDF annotations and private highlights for the PDF viewer while
+  keeping tab state, PDF loading, private markup drafts, citation insertion,
+  canonical refresh, routing, and notification policy in the application
+  coordinator.
 - Project bounded, reconstructible editor UI selections into query parameters
   only after validating stable ids against authorized snapshots.
   Push meaningful context-target navigation, replace incidental view and page

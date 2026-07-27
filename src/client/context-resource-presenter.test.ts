@@ -1,12 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { LibraryPdfArtifact, ProjectReferencePdf } from "../domain/reference-library";
+import type { LibraryHighlight, LibraryPdfArtifact, ProjectReferencePdf, ReferenceLibrarySnapshot } from "../domain/reference-library";
 import { workspaceSnapshotFixture } from "../test-support/workspace-fixture";
 import { AssistantWorkflowStatus } from "./assistant-workflow-status";
 import { CandidateListPanel } from "./candidate-list-panel";
 import { CandidateReviewPanel } from "./candidate-review-panel";
 import { ClaimListPanel } from "./claim-list-panel";
 import { ContextResourcePresenter, type ContextResourceSources } from "./context-resource-presenter";
+import { LibraryPdfAnnotationToolbar } from "./library-pdf-annotation-toolbar";
 import { LibraryPdfInspector } from "./library-pdf-inspector";
+import { LibraryPdfMarkupLayer } from "./library-pdf-markup-layer";
 import { ManuscriptCommentList } from "./manuscript-comment-list";
 import { ProjectAnnotationForm } from "./project-annotation-form";
 import { ProjectEvidencePanel } from "./project-evidence-panel";
@@ -34,6 +36,29 @@ const referencePdf: ProjectReferencePdf = {
   referenceId: "reference:1",
   size: 4096,
 };
+const highlight = {
+  artifactId: libraryPdf.id,
+  comment: "Private note",
+  createdAt: "created",
+  id: "highlight-1",
+  page: 2,
+  quote: "Quoted evidence",
+  rects: [],
+  referenceId: "reference:1",
+  updatedAt: "updated",
+} satisfies LibraryHighlight;
+const library: ReferenceLibrarySnapshot = {
+  artifacts: [libraryPdf],
+  collections: {},
+  highlights: [highlight],
+  notes: [],
+  reading: [],
+  referenceKeyStates: {},
+  references: [],
+  tags: {},
+  webSnapshots: [],
+  webSources: [],
+};
 
 function resourceTab(kind: "pdf" | "library-pdf", id: string): Extract<ResearchResourceTab, { kind: "pdf" | "library-pdf" }> {
   return { focusedAnnotationId: null, id, key: `${kind}:${id}`, kind, page: 1, scrollTop: 0 };
@@ -43,7 +68,8 @@ function sources(activeTab: ResearchResourceTab | undefined): ContextResourceSou
   return {
     activeTab,
     candidateDecision: null,
-    libraryArtifacts: [libraryPdf],
+    library,
+    projectApiBase: "/api/workspaces/workspace",
     referencePdfs: [referencePdf],
     snapshot: workspaceSnapshotFixture,
     sourceRevision: 3,
@@ -58,7 +84,9 @@ function setup() {
     "candidate-list-panel": new CandidateListPanel(),
     "candidate-review-panel": new CandidateReviewPanel(),
     "claim-list-panel": new ClaimListPanel(),
+    "library-pdf-annotation-toolbar": new LibraryPdfAnnotationToolbar(),
     "library-pdf-inspector": new LibraryPdfInspector(),
+    "paper-markups": new LibraryPdfMarkupLayer(),
     "manuscript-comment-list-panel": new ManuscriptCommentList(),
     "project-annotation-form": new ProjectAnnotationForm(),
     "project-evidence-panel": new ProjectEvidencePanel(),
@@ -70,6 +98,11 @@ function setup() {
   };
   Object.defineProperty(elements["publication-context-panel"], "querySelector", { configurable: true, value: () => null });
   Object.defineProperty(elements["candidate-review-panel"], "querySelector", { configurable: true, value: () => null });
+  vi.spyOn(elements["library-pdf-inspector"], "setContext").mockReturnValue({
+    artifactChanged: false,
+    highlights: [highlight],
+    markups: [],
+  });
   Object.defineProperty(presenter, "ownerDocument", {
     value: { getElementById: (id: string) => elements[id as keyof typeof elements] ?? null },
   });
@@ -109,13 +142,9 @@ describe("context resource presenter", () => {
     const setAnnotationVisible = vi.spyOn(elements["project-annotation-form"], "setVisible");
     const setInspectorVisible = vi.spyOn(elements["library-pdf-inspector"], "setVisible");
 
-    expect(presenter.present(sources(resourceTab("pdf", "project/pdf")))).toMatchObject({ activeLibraryArtifact: undefined });
-    expect(presenter.present(sources(resourceTab("library-pdf", libraryPdf.id)))).toMatchObject({
-      activeLibraryArtifact: libraryPdf,
-    });
-    expect(presenter.present(sources(resourceTab("library-pdf", referencePdf.id)))).toMatchObject({
-      activeLibraryArtifact: undefined,
-    });
+    expect(presenter.present(sources(resourceTab("pdf", "project/pdf"))).privateHighlights).toBeUndefined();
+    expect(presenter.present(sources(resourceTab("library-pdf", libraryPdf.id))).privateHighlights).toEqual([highlight]);
+    expect(presenter.present(sources(resourceTab("library-pdf", referencePdf.id))).privateHighlights).toBeUndefined();
 
     expect(setPdf).toHaveBeenCalledWith("project/pdf", [], []);
     expect(setAnnotationVisible.mock.calls.map(([visible]) => visible)).toEqual([true, false, false]);
@@ -127,7 +156,7 @@ describe("context resource presenter", () => {
     const setCitationContext = vi.spyOn(elements["project-annotation-form"], "setCitationContext");
 
     expect(presenter.present(sources(undefined))).toEqual({
-      activeLibraryArtifact: undefined,
+      privateHighlights: undefined,
       publicationPresented: false,
     });
     expect(setCitationContext).toHaveBeenCalledWith(null, []);
@@ -184,5 +213,30 @@ describe("context resource presenter", () => {
     expect(setCommentCount).toHaveBeenCalledWith(3);
     expect(setCandidates).toHaveBeenCalledWith(snapshot.candidates);
     expect(presenter.presentWorkspace(snapshot, undefined)).toEqual([]);
+  });
+
+  it("owns private-PDF inspector, markup reset, and toolbar presentation", () => {
+    const { elements, presenter } = setup();
+    const inspector = elements["library-pdf-inspector"];
+    const toolbar = elements["library-pdf-annotation-toolbar"];
+    const markups = elements["paper-markups"];
+    vi.mocked(inspector.setContext).mockReturnValue({ artifactChanged: true, highlights: [highlight], markups: [] });
+    const cancelShapeRecognition = vi.spyOn(markups, "cancelShapeRecognition").mockImplementation(() => undefined);
+    const resetState = vi.spyOn(markups, "resetState").mockImplementation(() => undefined);
+    const setInspectorOpen = vi.spyOn(inspector, "setInspectorOpen");
+    const setToolbarOpen = vi.spyOn(toolbar, "setInspectorOpen");
+    const setAnnotationAvailability = vi.spyOn(toolbar, "setAnnotationAvailability");
+    const setExportArtifact = vi.spyOn(toolbar, "setExportArtifact");
+
+    expect(presenter.present(sources(resourceTab("library-pdf", libraryPdf.id))).privateHighlights).toEqual([highlight]);
+    expect(inspector.setContext).toHaveBeenCalledWith(
+      expect.objectContaining({ artifact: libraryPdf, library, projectApiBase: "/api/workspaces/workspace" }),
+    );
+    expect(cancelShapeRecognition).toHaveBeenCalledOnce();
+    expect(resetState).toHaveBeenCalledOnce();
+    expect(setInspectorOpen).toHaveBeenCalledWith(false);
+    expect(setToolbarOpen).toHaveBeenCalledWith(false);
+    expect(setAnnotationAvailability).toHaveBeenCalledWith(1);
+    expect(setExportArtifact).toHaveBeenCalledWith(libraryPdf);
   });
 });

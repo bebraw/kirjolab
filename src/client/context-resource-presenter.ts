@@ -1,11 +1,13 @@
 import { html, LitElement, type TemplateResult } from "lit";
-import type { LibraryPdfArtifact, ProjectReferencePdf } from "../domain/reference-library";
+import type { LibraryHighlight, LibraryPdfArtifact, ProjectReferencePdf, ReferenceLibrarySnapshot } from "../domain/reference-library";
 import type { AnnotationResource, WorkspaceSnapshot } from "../domain/workspace";
 import { AssistantWorkflowStatus } from "./assistant-workflow-status";
 import { CandidateListPanel } from "./candidate-list-panel";
 import { CandidateReviewPanel } from "./candidate-review-panel";
 import { ClaimListPanel } from "./claim-list-panel";
+import { LibraryPdfAnnotationToolbar } from "./library-pdf-annotation-toolbar";
 import { LibraryPdfInspector } from "./library-pdf-inspector";
+import { LibraryPdfMarkupLayer } from "./library-pdf-markup-layer";
 import { ManuscriptCommentList } from "./manuscript-comment-list";
 import { ProjectAnnotationForm } from "./project-annotation-form";
 import { ProjectEvidencePanel } from "./project-evidence-panel";
@@ -18,7 +20,8 @@ import { WorkspaceRailTabs } from "./workspace-rail-tabs";
 export interface ContextResourceSources {
   readonly activeTab: ResearchResourceTab | undefined;
   readonly candidateDecision: { readonly action: "apply" | "reject"; readonly id: string } | null;
-  readonly libraryArtifacts: readonly LibraryPdfArtifact[];
+  readonly library: ReferenceLibrarySnapshot | null;
+  readonly projectApiBase: string | null;
   readonly referencePdfs: readonly ProjectReferencePdf[];
   readonly snapshot: WorkspaceSnapshot | null;
   readonly sourceRevision: number;
@@ -26,7 +29,7 @@ export interface ContextResourceSources {
 }
 
 export interface ContextResourcePresentation {
-  readonly activeLibraryArtifact: LibraryPdfArtifact | undefined;
+  readonly privateHighlights: readonly LibraryHighlight[] | undefined;
   readonly publicationPresented: boolean;
 }
 
@@ -57,7 +60,7 @@ export class ContextResourcePresenter extends LitElement {
     this.presentCandidate(sources);
     this.presentProjectPdf(sources);
     return {
-      activeLibraryArtifact,
+      privateHighlights: this.presentLibraryPdf(sources, activeLibraryArtifact),
       publicationPresented: this.presentPublication(sources),
     };
   }
@@ -78,7 +81,7 @@ export class ContextResourcePresenter extends LitElement {
     const panel = this.element("publication-context-panel", PublicationContextPanel);
     const presented =
       panel?.setPublication({
-        libraryArtifacts: sources.libraryArtifacts,
+        libraryArtifacts: sources.library?.artifacts ?? [],
         publicationId: tab.id,
         referencePdfs: sources.referencePdfs,
         snapshot: sources.snapshot,
@@ -113,7 +116,38 @@ export class ContextResourcePresenter extends LitElement {
 
   private activeLibraryArtifact(sources: ContextResourceSources): LibraryPdfArtifact | undefined {
     const tab = sources.activeTab;
-    return tab?.kind === "library-pdf" ? sources.libraryArtifacts.find(({ id }) => id === tab.id) : undefined;
+    return tab?.kind === "library-pdf" ? sources.library?.artifacts.find(({ id }) => id === tab.id) : undefined;
+  }
+
+  private presentLibraryPdf(
+    sources: ContextResourceSources,
+    artifact: LibraryPdfArtifact | undefined,
+  ): readonly LibraryHighlight[] | undefined {
+    const inspector = this.element("library-pdf-inspector", LibraryPdfInspector);
+    const toolbar = this.element("library-pdf-annotation-toolbar", LibraryPdfAnnotationToolbar);
+    if (!artifact) {
+      inspector?.setInspectorOpen(false);
+      toolbar?.setInspectorOpen(false);
+      return undefined;
+    }
+    if (!sources.library || !inspector) return undefined;
+    const { artifactChanged, highlights, markups } = inspector.setContext({
+      artifact,
+      library: sources.library,
+      projectApiBase: sources.projectApiBase,
+      projectReferences: sources.snapshot?.projectReferences ?? [],
+      researchShares: sources.snapshot?.researchShares ?? [],
+    });
+    if (artifactChanged) {
+      const markupsLayer = this.element("paper-markups", LibraryPdfMarkupLayer);
+      markupsLayer?.cancelShapeRecognition();
+      markupsLayer?.resetState();
+      inspector.setInspectorOpen(false);
+      toolbar?.setInspectorOpen(false);
+    }
+    toolbar?.setAnnotationAvailability(highlights.length + markups.length);
+    toolbar?.setExportArtifact(artifact);
+    return highlights;
   }
 
   private activeReferencePdf(sources: ContextResourceSources, activeLibraryArtifact: LibraryPdfArtifact | undefined): boolean {

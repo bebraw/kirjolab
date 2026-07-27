@@ -1976,14 +1976,17 @@ class WorkspaceApp {
     const presentation = this.#elements.contextResourcePresenter.present({
       activeTab,
       candidateDecision: this.#assistantWorkflow.getSnapshot().context.candidateDecision,
-      libraryArtifacts: this.#librarySnapshot?.artifacts ?? [],
+      library: this.#librarySnapshot,
+      projectApiBase: appMode === "workspace" ? apiBase : null,
       referencePdfs: this.#projectReferencePdfs,
       snapshot: this.#snapshot,
       sourceRevision: this.#revision,
       stableDocument: this.#hasStableDocumentBase(),
     });
-    if (!presentation.activeLibraryArtifact) this.#setLibraryPdfInspector(false);
-    this.#renderLibraryHighlightComposer(presentation.activeLibraryArtifact);
+    if (presentation.privateHighlights) {
+      this.#pdfViewer.updatePrivateHighlights(presentation.privateHighlights);
+      this.#renderPdfMarkups();
+    }
     if (presentation.publicationPresented) this.#updateCitationInsertionAvailability();
     if (loadPdf && (activeTab?.kind === "pdf" || activeTab?.kind === "library-pdf")) void this.#loadActivePdf(false);
   }
@@ -2760,26 +2763,6 @@ class WorkspaceApp {
     if (this.#renderedPdfId) this.#elements.projectAnnotationForm.selectPdf(this.#renderedPdfId);
     this.#elements.projectAnnotationForm.showCapture(capture);
     void this.#persistPdfSelection(capture);
-  }
-
-  #renderLibraryHighlightComposer(artifact: LibraryPdfArtifact | undefined): void {
-    if (!artifact || !this.#librarySnapshot) return;
-    const { artifactChanged, highlights, markups } = this.#elements.libraryPdfInspector.setContext({
-      artifact,
-      library: this.#librarySnapshot,
-      projectApiBase: appMode === "workspace" ? apiBase : null,
-      projectReferences: this.#snapshot?.projectReferences ?? [],
-      researchShares: this.#snapshot?.researchShares ?? [],
-    });
-    if (artifactChanged) {
-      this.#elements.paperMarkups.cancelShapeRecognition();
-      this.#elements.paperMarkups.resetState();
-      this.#setLibraryPdfInspector(false);
-    }
-    this.#pdfViewer.updatePrivateHighlights(highlights);
-    this.#elements.libraryPdfAnnotationToolbar.setAnnotationAvailability(highlights.length + markups.length);
-    this.#elements.libraryPdfAnnotationToolbar.setExportArtifact(artifact);
-    this.#renderPdfMarkups();
   }
 
   async #completePdfHighlightImport(count: number): Promise<void> {
