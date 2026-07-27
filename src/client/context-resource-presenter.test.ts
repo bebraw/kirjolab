@@ -239,4 +239,15 @@ describe("context resource presenter", () => {
     expect(setAnnotationAvailability).toHaveBeenCalledWith(1);
     expect(setExportArtifact).toHaveBeenCalledWith(libraryPdf);
   });
+
+  it("owns page-local private markup and toolbar undo presentation", () => {
+    const { elements, presenter } = setup();
+    const setLibraryPage = vi.spyOn(elements["paper-markups"], "setLibraryPage").mockReturnValue([]);
+    const setUndoDrawings = vi.spyOn(elements["library-pdf-annotation-toolbar"], "setUndoDrawings");
+
+    presenter.presentLibraryPdfPage(libraryPdf, library, 2);
+
+    expect(setLibraryPage).toHaveBeenCalledWith(libraryPdf, [], 2, elements["library-pdf-annotation-toolbar"].drawingStyle);
+    expect(setUndoDrawings).toHaveBeenCalledWith([]);
+  });
 });

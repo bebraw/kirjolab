@@ -111,12 +111,13 @@ The adopted components own bounded presentation:
   one active-resource projection. It restores and captures resource scroll,
   supplies citation and intake context, switches the project-annotation versus
   private-inspector presentation, owns private-PDF inspector context,
-  artifact-change markup reset, toolbar counts and export target, synchronizes
-  the bounded evidence, annotation, publication, claim, comment, and candidate
-  owners from the canonical workspace snapshot, and derives active PDF
-  annotations and private highlights for the viewer. The coordinator retains
-  canonical context state, PDF loading, private markup drafts, citation
-  insertion, model availability, refresh, routing, and notification policy.
+  artifact-change markup reset, toolbar counts and export target, page-local
+  saved-markup and newest-drawing undo projection, synchronizes the bounded
+  evidence, annotation, publication, claim, comment, and candidate owners from
+  the canonical workspace snapshot, and derives active PDF annotations and
+  private highlights for the viewer. The coordinator retains canonical context
+  state, active page, PDF loading, private markup drafts, citation insertion,
+  model availability, refresh, routing, and notification policy.
 - The knowledge search panel owns query capture, empty, result, and error
   presentation, and typed search and resource-selection intents. Its enclosing
   project-map workspace owns the authorized search request, response validation,

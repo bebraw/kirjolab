@@ -48,6 +48,19 @@ export class ContextResourcePresenter extends LitElement {
     return renderedPdfId ? snapshot.annotations.filter(({ pdfId }) => pdfId === renderedPdfId) : [];
   }
 
+  presentLibraryPdfPage(artifact: LibraryPdfArtifact | undefined, library: ReferenceLibrarySnapshot | null, page: number): void {
+    const toolbar = this.element("library-pdf-annotation-toolbar", LibraryPdfAnnotationToolbar);
+    if (!toolbar) return;
+    const drawings =
+      this.element("paper-markups", LibraryPdfMarkupLayer)?.setLibraryPage(
+        artifact,
+        library?.pdfMarkups ?? [],
+        page,
+        toolbar.drawingStyle,
+      ) ?? [];
+    toolbar.setUndoDrawings(drawings);
+  }
+
   resourceScrollTop(tab: ResearchContextTab): number {
     if (tab.kind === "publication") return this.element("publication-context-panel", PublicationContextPanel)?.scrollPosition ?? 0;
     if (tab.kind === "candidate") return this.element("candidate-review-panel", CandidateReviewPanel)?.scrollPosition ?? 0;

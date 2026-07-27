@@ -2888,15 +2888,11 @@ class WorkspaceApp {
   }
 
   #renderPdfMarkups(): void {
-    const artifact = this.#activeLibraryPdf();
-    const page = this.#pdfViewer.currentPage;
-    const drawings = this.#elements.paperMarkups.setLibraryPage(
-      artifact,
-      this.#librarySnapshot?.pdfMarkups ?? [],
-      page,
-      this.#elements.libraryPdfAnnotationToolbar.drawingStyle,
+    this.#elements.contextResourcePresenter.presentLibraryPdfPage(
+      this.#activeLibraryPdf(),
+      this.#librarySnapshot,
+      this.#pdfViewer.currentPage,
     );
-    this.#elements.libraryPdfAnnotationToolbar.setUndoDrawings(drawings);
   }
 
   #completeLibraryPdfMarkup(message: string): void {

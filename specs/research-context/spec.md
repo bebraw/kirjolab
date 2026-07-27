@@ -179,10 +179,12 @@ changing their canonical data, selector, authorization, or rendering contracts.
   publication, claim, comment, and candidate Lit owners from the canonical
   workspace snapshot; derives only the active PDF's annotation projection;
   and owns private-PDF inspector context, artifact-change markup reset, toolbar
-  counts, and export-target presentation. It returns only active project-PDF
-  annotations and private highlights to the viewer. The coordinator retains
-  snapshot authority, context reconciliation, PDF rendering, model
-  availability, routing, refresh, and notification policy.
+  counts, export-target presentation, and page-local saved-markup and newest-
+  drawing undo projection from coordinator-supplied canonical Library inputs.
+  It returns only active project-PDF annotations and private highlights to the
+  viewer. The coordinator retains snapshot authority, page selection, context
+  reconciliation, PDF rendering, model availability, routing, refresh, and
+  notification policy.
 - Reconciliation authorizes `pdf:` tabs from the workspace snapshot and
   `library-pdf:` tabs from the current owner-library snapshot; neither scope
   grants the other.

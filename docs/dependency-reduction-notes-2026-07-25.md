@@ -5728,6 +5728,29 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,627 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Private PDF Page Projection
+
+`ContextResourcePresenter` now supplies the private markup layer with the
+active artifact, canonical saved markups, page, and toolbar drawing style, then
+projects the resulting page drawings back to toolbar undo state. `WorkspaceApp`
+retains active-page selection, Library route updates, and page-change timing.
+
+This checkpoint reduces `src/client/app.ts` from 3,145 to 3,141 lines (-4)
+and grows the existing resource presenter from 185 to 198 lines. Runtime source
+across those two files grows by nine lines while reducing the coordinator's
+page renderer to one typed owner call. Seven direct presenter cases cover
+page-local markup inputs, drawing style, undo projection, private-PDF
+presentation, canonical workspace fan-out, scroll capture, and strict client
+and Workers types.
+
+The browser application artifact changes from 830,702 B raw / 224,790 B gzip
+to 830,803 B raw / 224,825 B gzip (+101 B raw / +35 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,628 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

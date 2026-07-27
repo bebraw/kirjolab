@@ -820,6 +820,8 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   restore and capture resource scroll, project citation and intake context,
   switch the annotation versus private-inspector surface, synchronize the
   private-PDF inspector, markup reset, toolbar counts, and export target, and
+  project page-local saved markup plus newest-drawing undo state from canonical
+  Library inputs supplied by the coordinator, and
   synchronize the bounded evidence, annotation, publication, claim, comment,
   and candidate owners from one canonical workspace snapshot. It may return
   active project-PDF annotations and private highlights for the PDF viewer while
