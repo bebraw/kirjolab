@@ -3,7 +3,9 @@ import { AssistantGenerationPresenter, type AssistantGenerationInput } from "./a
 import { assistantOperationDefinition } from "./assistant-operations";
 import { AssistantResultPanel } from "./assistant-result-panel";
 import { AssistantTaskPanel } from "./assistant-task-panel";
+import { CandidateListPanel } from "./candidate-list-panel";
 import { OpenAICompatibleBrowserProvider } from "./model-provider";
+import type { ModelClaimCandidate, ModelRevisionCandidate } from "../domain/workspace";
 
 const passage = { end: 18, excerpt: "Target manuscript", fileId: "main.md", start: 1 };
 const provider = new OpenAICompatibleBrowserProvider({
@@ -12,6 +14,49 @@ const provider = new OpenAICompatibleBrowserProvider({
   model: "local-model",
   providerLabel: "Local",
 });
+const revisionCandidate: ModelRevisionCandidate = {
+  createdAt: "created",
+  evidence: [],
+  id: "candidate:revision",
+  instruction: "Revise",
+  model: "local-model",
+  operation: "revise-selection",
+  promptVersion: "revise-selection-v1",
+  proposedReplacement: "Revised passage",
+  providerAdapter: "openai-compatible",
+  providerLabel: "Local",
+  sourceRevision: 7,
+  status: "pending",
+  target: {
+    anchor: {
+      anchoredRevision: 7,
+      exact: passage.excerpt,
+      fileId: passage.fileId,
+      originalRange: { end: passage.end, start: passage.start },
+      prefix: "",
+      relativeEnd: "AQ",
+      relativeStart: "AA",
+      suffix: "",
+      version: 1,
+    },
+    resolution: { end: passage.end, exactMatch: true, start: passage.start, status: "resolved", text: passage.excerpt },
+  },
+};
+const claimCandidate: ModelClaimCandidate = {
+  createdAt: "created",
+  evidence: [],
+  id: "candidate:claim",
+  instruction: "Draft claim",
+  model: "local-model",
+  operation: "draft-claim",
+  promptVersion: "draft-claim-v1",
+  proposedNote: "",
+  proposedText: "Grounded claim",
+  providerAdapter: "openai-compatible",
+  providerLabel: "Local",
+  relation: "supports",
+  status: "pending",
+};
 
 function input(operationId: string): AssistantGenerationInput {
   return {
@@ -31,6 +76,7 @@ function setup() {
   const elements = {
     "assistant-interactive-result": new AssistantResultPanel(),
     "assistant-task-panel": new AssistantTaskPanel(),
+    "candidate-list-panel": new CandidateListPanel(),
   };
   Object.defineProperty(presenter, "ownerDocument", {
     value: { getElementById: (id: string) => elements[id as keyof typeof elements] ?? null },
@@ -83,7 +129,7 @@ describe("assistant generation presenter", () => {
     expect(startClarityDrill).toHaveBeenCalledOnce();
   });
 
-  it("projects reference discovery counts and leaves candidate operations to the coordinator", async () => {
+  it("projects reference discovery counts", async () => {
     const { elements, presenter } = setup();
     const discoverReferences = vi
       .spyOn(elements["assistant-interactive-result"], "discoverReferences")
@@ -96,8 +142,25 @@ describe("assistant generation presenter", () => {
     await expect(presenter.generate(input("find-references"))).resolves.toMatchObject({
       status: "No verifiable registry records matched this query. Refine the search focus and try again.",
     });
-    await expect(presenter.generate(input("draft-claim"))).resolves.toBeNull();
-    await expect(presenter.generate(input("revise-selection"))).resolves.toBeNull();
     expect(discoverReferences).toHaveBeenCalledTimes(2);
+  });
+
+  it("routes revision and claim candidates for coordinator refresh", async () => {
+    const { elements, presenter } = setup();
+    const candidates = elements["candidate-list-panel"];
+    const generateRevision = vi.spyOn(candidates, "generateRevision").mockResolvedValue(revisionCandidate);
+    const generateClaim = vi.spyOn(candidates, "generateClaim").mockResolvedValue(claimCandidate);
+
+    await expect(presenter.generate(input("revise-selection"))).resolves.toMatchObject({
+      candidate: revisionCandidate,
+      workflow: "COMPLETE",
+    });
+    await expect(presenter.generate(input("draft-claim"))).resolves.toMatchObject({
+      candidate: claimCandidate,
+      workflow: "COMPLETE",
+    });
+
+    expect(generateRevision).toHaveBeenCalledWith(provider, expect.objectContaining({ target: { ...passage, sourceRevision: 7 } }));
+    expect(generateClaim).toHaveBeenCalledWith(provider, expect.objectContaining({ relation: "supports" }));
   });
 });

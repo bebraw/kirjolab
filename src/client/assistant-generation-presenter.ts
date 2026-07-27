@@ -3,11 +3,20 @@ import { resolveAssistantTarget, type AssistantOperationDefinition } from "./ass
 import { AssistantResultPanel, type AssistantAuthoringPassage } from "./assistant-result-panel";
 import { AssistantTaskPanel } from "./assistant-task-panel";
 import type { SelectedModelEvidence } from "./assistant-workflow-status";
+import { CandidateListPanel } from "./candidate-list-panel";
 import type { ModelProvider } from "./model-provider";
+import type { ModelCandidate } from "../domain/workspace";
 
 type InteractiveProvider = Pick<
   ModelProvider,
-  "buildTable" | "continueClarityDrill" | "formulateReferenceQuery" | "ideate" | "phrasePassage" | "startClarityDrill"
+  | "buildTable"
+  | "continueClarityDrill"
+  | "draftClaim"
+  | "formulateReferenceQuery"
+  | "ideate"
+  | "phrasePassage"
+  | "reviseSelection"
+  | "startClarityDrill"
 >;
 
 export interface AssistantGenerationInput {
@@ -22,15 +31,46 @@ export interface AssistantGenerationInput {
 }
 
 export interface AssistantGenerationPresentation {
+  readonly candidate?: ModelCandidate;
   readonly status: string;
-  readonly workflow: "AWAIT_INPUT" | "REVIEW";
+  readonly workflow: "AWAIT_INPUT" | "COMPLETE" | "REVIEW";
 }
 
 export class AssistantGenerationPresenter extends LitElement {
   async generate(input: AssistantGenerationInput): Promise<AssistantGenerationPresentation | null> {
-    const result = this.element("assistant-interactive-result", AssistantResultPanel);
     const task = this.element("assistant-task-panel", AssistantTaskPanel);
-    if (!result || !task || input.operation.id === "draft-claim" || input.operation.id === "revise-selection") return null;
+    if (!task) return null;
+    const candidates = this.element("candidate-list-panel", CandidateListPanel);
+    if (input.operation.id === "draft-claim") {
+      if (!candidates) return null;
+      const candidate = await candidates.generateClaim(input.provider, {
+        evidence: input.evidence.annotationReferences,
+        instruction: input.instruction,
+        promptEvidence: input.evidence.annotationItems,
+        relation: task.claimEvidenceRelation,
+      });
+      return {
+        candidate,
+        status: "Claim draft ready. Review its proposition, note, and annotation snapshots in Context.",
+        workflow: "COMPLETE",
+      };
+    }
+    if (input.operation.id === "revise-selection") {
+      if (!candidates || !input.passage) return null;
+      const candidate = await candidates.generateRevision(input.provider, {
+        evidence: input.evidence.references,
+        instruction: input.instruction,
+        promptEvidence: input.evidence.items,
+        target: { ...input.passage, sourceRevision: input.sourceRevision },
+      });
+      return {
+        candidate,
+        status: "Candidate ready. Review its exact replacement and evidence in Context.",
+        workflow: "COMPLETE",
+      };
+    }
+    const result = this.element("assistant-interactive-result", AssistantResultPanel);
+    if (!result) return null;
     if (input.operation.id === "build-table") {
       if (!input.insertionTarget) throw new Error("Place the manuscript caret first");
       const manuscriptContext = resolveAssistantTarget(

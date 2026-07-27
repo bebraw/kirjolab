@@ -2425,43 +2425,17 @@ class WorkspaceApp {
   }
 
   async #runAssistantGeneration(input: AssistantGenerationContext): Promise<void> {
-    if (input.operation.id === "draft-claim") return await this.#generateClaimCandidate(input);
     const presentation = await this.#elements.assistantGenerationPresenter.generate({
       ...input,
       manuscript: this.#activeFileText.toString(),
     });
     if (presentation) {
+      if (presentation.candidate) await this.#openCreatedCandidate(presentation.candidate);
       this.#elements.assistantWorkflowStatus.status = presentation.status;
       this.#assistantWorkflow.send({ type: presentation.workflow });
       return;
     }
-    if (!input.passage) throw new Error("Select manuscript text first");
-    await this.#generateRevisionCandidate(input, input.passage);
-  }
-
-  async #generateClaimCandidate(input: AssistantGenerationContext): Promise<void> {
-    const relation = this.#elements.assistantTaskPanel.claimEvidenceRelation;
-    const value = await this.#elements.candidateListPanel.generateClaim(input.provider, {
-      evidence: input.evidence.annotationReferences,
-      instruction: input.instruction,
-      promptEvidence: input.evidence.annotationItems,
-      relation,
-    });
-    await this.#openCreatedCandidate(value);
-    this.#elements.assistantWorkflowStatus.status = "Claim draft ready. Review its proposition, note, and annotation snapshots in Context.";
-    this.#assistantWorkflow.send({ type: "COMPLETE" });
-  }
-
-  async #generateRevisionCandidate(input: AssistantGenerationContext, passage: AuthoringPassage): Promise<void> {
-    const value = await this.#elements.candidateListPanel.generateRevision(input.provider, {
-      evidence: input.evidence.references,
-      instruction: input.instruction,
-      promptEvidence: input.evidence.items,
-      target: { ...passage, sourceRevision: input.sourceRevision },
-    });
-    await this.#openCreatedCandidate(value);
-    this.#elements.assistantWorkflowStatus.status = "Candidate ready. Review its exact replacement and evidence in Context.";
-    this.#assistantWorkflow.send({ type: "COMPLETE" });
+    throw new Error("Assistant generation is unavailable");
   }
 
   async #handleAssistantResultAction(detail: AssistantResultActionDetail): Promise<void> {

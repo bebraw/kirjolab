@@ -5877,6 +5877,32 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,637 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Assistant Candidate Routing
+
+`AssistantGenerationPresenter` now routes revision and evidence-backed claim
+generation through the existing candidate-list Lit owner as well as the five
+interactive result operations. It returns the created candidate alongside the
+workflow/status projection so `WorkspaceApp` retains canonical refresh and
+context navigation. Candidate provider requests and persistence remain in the
+candidate-list owner; the coordinator retains the XState actor, provider
+construction, error policy, and Yjs mutation.
+
+This checkpoint reduces `src/client/app.ts` from 3,052 to 3,026 lines (-26)
+and grows the generation presenter from 111 to 151 lines. Runtime source across
+those two files grows by 14 lines while deleting the final two operation-
+specific generation methods from the coordinator. Four direct presenter cases
+cover all seven registered operations, candidate projection, task-derived claim
+relation, exact revision target capture, interactive status and workflow
+projection, and strict client and Workers types.
+
+The browser application artifact changes from 833,115 B raw / 225,356 B gzip
+to 832,961 B raw / 225,344 B gzip (-154 B raw / -12 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,638 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,
