@@ -29,7 +29,7 @@ import { ProjectEvidencePanel } from "./project-evidence-panel";
 import { mutateProjectReference } from "./project-reference-mutation";
 import { PublicationContextPanel } from "./publication-context-panel";
 import { PublicationListPanel } from "./publication-list-panel";
-import type { ResearchContextTab, ResearchResourceTab } from "./research-context";
+import type { ResearchContextAuthorization, ResearchContextTab, ResearchResourceTab } from "./research-context";
 import { WorkspaceRailTabs } from "./workspace-rail-tabs";
 
 export interface ContextResourceSources {
@@ -126,6 +126,19 @@ export class ContextResourcePresenter extends LitElement {
     if (comments) this.element("workspace-rail-tabs", WorkspaceRailTabs)?.setCommentCount(comments.setComments(snapshot.comments));
     this.element("candidate-list-panel", CandidateListPanel)?.setCandidates(snapshot.candidates);
     return renderedPdfId ? snapshot.annotations.filter(({ pdfId }) => pdfId === renderedPdfId) : [];
+  }
+
+  resourceAuthorization(
+    snapshot: WorkspaceSnapshot | null,
+    library: ReferenceLibrarySnapshot | null,
+    referencePdfs: readonly ProjectReferencePdf[],
+  ): ResearchContextAuthorization {
+    return {
+      publicationIds: new Set(snapshot?.publications.map(({ id }) => id) ?? []),
+      pdfIds: new Set(snapshot?.pdfs.map(({ id }) => id) ?? []),
+      libraryPdfIds: new Set([...(library?.artifacts.map(({ id }) => id) ?? []), ...referencePdfs.map(({ id }) => id)]),
+      candidateIds: new Set(snapshot?.candidates.map(({ id }) => id) ?? []),
+    };
   }
 
   presentLibraryPdfPage(artifact: LibraryPdfArtifact | undefined, library: ReferenceLibrarySnapshot | null, page: number): void {

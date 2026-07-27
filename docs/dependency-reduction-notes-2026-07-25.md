@@ -7192,6 +7192,29 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,679 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Research Resource Authorization
+
+`ContextResourcePresenter` now derives authorized publication, project-PDF,
+private-or-linked PDF, and candidate identity sets from canonical project,
+Library, and linked-reference inputs. `WorkspaceApp` retains context-state
+reconciliation, authorized loading, history, routing, and navigation
+transitions.
+
+This checkpoint reduces `src/client/app.ts` from 2,086 to 2,075 lines (-11) and
+grows the context-resource presenter from 526 to 540 lines (+14). Runtime source
+across the two files increases by three lines while removing the coordinator's
+four-kind resource-catalog mapper. Focused coverage exercises complete and empty
+catalogs, private and linked PDF unioning, existing context presentation,
+application contracts, and strict types.
+
+The browser application artifact changes from 841,162 B raw / 227,485 B gzip
+to 841,313 B raw / 227,538 B gzip (+151 B raw / +53 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,680 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

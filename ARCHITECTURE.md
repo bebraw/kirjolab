@@ -911,7 +911,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   markup edit/selection coordination across the markup layer, inspector, and
   toolbar. It binds and routes those siblings' private-PDF action and outcome
   streams, including local save, import, delete, export, and status completion
-  presentation. Let it own private-highlight citation readiness feedback,
+  presentation. Let it also derive the authorized publication, project-PDF,
+  private-or-linked PDF, and candidate identity sets from canonical resource
+  catalogs. Keep tab reconciliation, canonical context state, authorized
+  loading, history, routes, and navigation transitions in the application
+  coordinator. Let it own private-highlight citation readiness feedback,
   collision-safe project-reference preparation, and validated link transport,
   returning only the text-
   selection, selected-highlight, and draft-selection cleanup effects that

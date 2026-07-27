@@ -123,7 +123,9 @@ The adopted components own bounded presentation:
   for citation, paper-navigation, and completed-relationship outcomes.
 - The context resource presenter selects and synchronizes the publication,
   candidate, project-PDF, private-Library PDF, or shared-reference PDF owner from
-  one active-resource projection. It restores and captures resource scroll,
+  one active-resource projection. It derives authorization identity sets for
+  those resource kinds from canonical project, Library, and linked-PDF inputs;
+  tab reconciliation remains coordinator navigation policy. It restores and captures resource scroll,
   supplies citation and intake context, switches the project-annotation versus
   private-inspector presentation, owns private-PDF inspector context,
   artifact-change markup reset, toolbar counts and export target, page-local
@@ -1008,9 +1010,10 @@ reason to wrap static markup mechanically.
   canonical tab and resource inputs, restores fixed-panel scroll directly from
   that input, and replaces three coordinator event subscriptions with one
   callback configuration. The application coordinator retains
-  active-context state, authorized Library loading, resource closure, route
-  synchronization, content rendering, PDF-specific form and inspector
-  visibility, and resource-panel scroll restoration.
+  active-context state, authorization reconciliation, authorized Library
+  loading, resource closure, route synchronization, content rendering,
+  PDF-specific form and inspector visibility, and resource-panel scroll
+  restoration.
 - The workspace surface switcher replaces two button references, native action
   bindings, ARIA-state mutations, and its public change event. It routes
   selection through a typed navigation binding; the application coordinator

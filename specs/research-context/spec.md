@@ -182,6 +182,8 @@ changing their canonical data, selector, authorization, or rendering contracts.
 - A bounded resource-context presenter synchronizes the evidence, annotation,
   publication, claim, comment, and candidate Lit owners from the canonical
   workspace snapshot; derives only the active PDF's annotation projection;
+  derives the authorized publication, project-PDF, private-or-linked PDF, and
+  candidate identity sets from the canonical project and Library catalogs;
   and owns private-PDF inspector context, artifact-change markup reset, toolbar
   counts, export-target presentation, and page-local saved-markup and newest-
   drawing undo projection from coordinator-supplied canonical Library inputs.
@@ -191,8 +193,8 @@ changing their canonical data, selector, authorization, or rendering contracts.
   and owns their local private-PDF action and completion routing, including
   citation readiness feedback, collision-safe project-reference preparation,
   and validated link transport. It delegates canonical snapshot acceptance,
-  Yjs citation insertion, cross-resource navigation, toast display, and viewer-
-  only selection effects through typed callbacks,
+  Yjs citation insertion, tab reconciliation, cross-resource navigation, toast
+  display, and viewer-only selection effects through typed callbacks,
   returning only the viewer's text-selection, selected-highlight, and draft-
   selection cleanup effects.
   It returns only active project-PDF annotations and private highlights to the

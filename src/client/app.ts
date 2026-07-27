@@ -1170,7 +1170,10 @@ class WorkspaceApp {
     this.#captureActiveContextState();
     this.#librarySnapshot = value;
     await this.#refreshProjectReferencePdfs(false);
-    this.#contextState = reconcileResearchContext(this.#contextState, this.#researchContextAuthorization());
+    this.#contextState = reconcileResearchContext(
+      this.#contextState,
+      this.#elements.contextResourcePresenter.resourceAuthorization(this.#snapshot, this.#librarySnapshot, this.#projectReferencePdfs),
+    );
     this.#renderReferenceLibrary();
     await this.#elements.referenceLibraryWorkspace.settled();
     this.#renderResearchContext();
@@ -1235,28 +1238,14 @@ class WorkspaceApp {
   #renderResources(): void {
     if (!this.#snapshot) return;
     this.#captureActiveContextState();
-    this.#contextState = reconcileResearchContext(this.#contextState, this.#researchContextAuthorization());
+    this.#contextState = reconcileResearchContext(
+      this.#contextState,
+      this.#elements.contextResourcePresenter.resourceAuthorization(this.#snapshot, this.#librarySnapshot, this.#projectReferencePdfs),
+    );
     this.#pdfViewer.updateAnnotations(this.#elements.contextResourcePresenter.presentWorkspace(this.#snapshot, this.#renderedPdfId));
     this.#renderResearchContext();
     this.#updateModelAvailability();
     this.#syncWorkspaceRoute("replace");
-  }
-
-  #researchContextAuthorization(): {
-    publicationIds: Set<string>;
-    pdfIds: Set<string>;
-    libraryPdfIds: Set<string>;
-    candidateIds: Set<string>;
-  } {
-    return {
-      publicationIds: new Set(this.#snapshot?.publications.map((publication) => publication.id) ?? []),
-      pdfIds: new Set(this.#snapshot?.pdfs.map((pdf) => pdf.id) ?? []),
-      libraryPdfIds: new Set([
-        ...(this.#librarySnapshot?.artifacts.map((artifact) => artifact.id) ?? []),
-        ...this.#projectReferencePdfs.map((pdf) => pdf.id),
-      ]),
-      candidateIds: new Set(this.#snapshot?.candidates.map((candidate) => candidate.id) ?? []),
-    };
   }
 
   #openAnnotationEvidence(annotation: AnnotationResource): void {

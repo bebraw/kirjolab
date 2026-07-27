@@ -250,6 +250,23 @@ describe("context resource presenter", () => {
     expect(presenter.presentWorkspace(snapshot, undefined)).toEqual([]);
   });
 
+  it("derives research-context authorization from canonical resources", () => {
+    const { presenter } = setup();
+
+    expect(presenter.resourceAuthorization(workspaceSnapshotFixture, library, [referencePdf])).toEqual({
+      publicationIds: new Set(workspaceSnapshotFixture.publications.map(({ id }) => id)),
+      pdfIds: new Set(workspaceSnapshotFixture.pdfs.map(({ id }) => id)),
+      libraryPdfIds: new Set([...library.artifacts.map(({ id }) => id), referencePdf.id]),
+      candidateIds: new Set(workspaceSnapshotFixture.candidates.map(({ id }) => id)),
+    });
+    expect(presenter.resourceAuthorization(null, null, [])).toEqual({
+      publicationIds: new Set(),
+      pdfIds: new Set(),
+      libraryPdfIds: new Set(),
+      candidateIds: new Set(),
+    });
+  });
+
   it("owns private-PDF inspector, markup reset, and toolbar presentation", () => {
     const { elements, presenter } = setup();
     const inspector = elements["library-pdf-inspector"];
