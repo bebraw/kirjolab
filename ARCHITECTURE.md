@@ -308,9 +308,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   cross-feature rendering, and
   the global toast outlet in the workspace coordinator.
 - Let the editor Insert menu own the scholarly syntax templates it displays and
-  route template and relative-include choices through one typed binding. Keep
-  passage-aware link adaptation, collaborative selection resolution, and Yjs
-  edits in the workspace coordinator.
+  route template and relative-include choices through one typed binding. It
+  projects passage-aware links, selection ranges, and image-template insertions
+  from a coordinator-supplied authoring target. Keep collaborative selection
+  resolution, Yjs edits, editor focus, and the toast outlet in the workspace
+  coordinator.
 - Let the project-image upload control own file-input state, sequential upload
   transport, response validation, duplicate-submit gating, and retryable local
   status. Emit only the final validated workspace snapshot and completion

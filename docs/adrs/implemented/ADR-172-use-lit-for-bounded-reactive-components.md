@@ -318,9 +318,11 @@ The adopted components own bounded presentation:
   panel owns image deletion.
 - The editor Insert menu owns scholarly-syntax choices and their displayed
   templates, relative include-file option rendering, empty state, and local menu
-  closing with typed syntax-template and include-file intents. The application
-  coordinator retains passage-aware link adaptation, collaborative selection
-  resolution, and Yjs edits.
+  closing. From a supplied authoring target it also owns passage-aware link
+  adaptation, template selection ranges, image-template insertion projection,
+  and local completion notices. The application coordinator retains
+  collaborative selection resolution, Yjs edits, editor focus, and the global
+  toast outlet.
 - The source completion list owns citation and include option presentation,
   bound-editor change subscription plus citation and include context detection,
   candidate ranking and display adaptation, empty-state hiding, popup

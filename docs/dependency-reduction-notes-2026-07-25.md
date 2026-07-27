@@ -11037,3 +11037,27 @@ lines of composable contracts. Affected coverage passes 94 tests and all 121
 Workers-runtime tests alongside strict types. Browser artifacts are unchanged
 because this boundary is server-side. Direct and unique production package
 counts remain 18 and 150; Valibot was already pinned.
+
+## Continued Lit Ownership: Editor Insertions
+
+`EditorInsertMenu` now owns passage-aware link adaptation, replacement and
+selection-range projection, relative-include notices, and image-template
+insertion from a resolved authoring target. `WorkspaceApp` retains Yjs mutation,
+collaborative target resolution, editor focus, and the global toast outlet.
+
+This checkpoint reduces `src/client/app.ts` from 932 to 916 lines (-16) and
+grows the editor Insert-menu owner from 118 to 155 lines (+37). Runtime across
+the pair grows by 21 lines because the typed insertion contract names all five
+range fields, while deleting three coordinator methods and keeping the
+canonical mutation boundary explicit. Focused coverage passes menu rendering,
+syntax selection, selected-passage links, include notices, image templates, and
+strict types. Direct and unique production package counts remain 18 and 150;
+Lit was already pinned.
+
+The browser application artifact changes from 852,473 B raw / 229,680 B gzip
+to 852,830 B / 229,806 B (+357 B raw / +126 B gzip). Styles and lazy Markdown
+and PDF.js artifacts remain unchanged at 135,411 B / 23,373 B, 204,779 B /
+62,386 B, and 481,994 B / 146,135 B.
+
+Full native CI passes all 1,734 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.

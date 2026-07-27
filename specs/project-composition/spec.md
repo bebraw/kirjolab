@@ -153,9 +153,11 @@ collaborative, and unambiguous about what preview and export mean.
   and inserted directive remain available through native titles.
 - The bounded Insert-menu component derives existing-file choices and relative
   paths from the active project file and owns the scholarly syntax templates it
-  displays, then emits typed include or syntax-template intents. It owns menu
-  presentation and closing, while the workspace coordinator owns passage-aware
-  link adaptation, the remembered collaborative caret, and Yjs insertion.
+  displays. From the supplied resolved passage and caret it derives
+  passage-aware links, replacement and selected ranges, image-template
+  insertion, and completion notices. It owns menu presentation and closing,
+  while the workspace coordinator owns collaborative selection resolution and
+  applies the derived source replacement through Yjs.
 - The project-file dialog derives resource availability, initial path, and the
   stable file or folder identity associated with its active operation from
   canonical inputs, derives the mutation endpoint from that identity, applies

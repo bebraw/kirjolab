@@ -10,7 +10,6 @@ import { researchDiaryPath, researchDiaryTemplate } from "../domain/writing-work
 import "./application-version-control";
 import "./source-citation-control";
 import "./workspace-surface-switcher";
-import { type EditorSyntaxKind, type EditorSyntaxTemplate } from "./editor-insert-menu";
 import type { AppToastOptions } from "./app-toast";
 import { expectOk, jsonFetch } from "./http";
 import { type SourceCompletionIntent } from "./source-completion";
@@ -373,11 +372,7 @@ class WorkspaceApp {
       actionControls: [this.#elements.projectFileRailActions, this.#elements.projectFileMenuActions],
       focusEditor: () => this.#elements.source.focus(),
       imageUpload: this.#elements.projectImageUpload,
-      insertImage: ({ message, syntax }) => {
-        const caret = this.#elements.editorStatus.caret ?? this.#elements.source.selectionEnd;
-        this.#applySourceSyntax({ text: syntax }, null, caret);
-        this.#showToast(message);
-      },
+      insertImage: ({ message, syntax }) => this.#elements.editorInsertMenu.insert({ text: syntax }, message),
       prepareInclude: (file) => {
         const target = captureRelativeSelection(this.#elements.source, this.#activeFileText);
         if (!target) return null;
@@ -400,8 +395,20 @@ class WorkspaceApp {
       () => this.#collaboration.synced || this.#collaboration.offlineAvailable,
     );
     this.#elements.editorInsertMenu.bind({
-      includeFile: (relativePath, path) => this.#insertProjectIncludeFromMenu(relativePath, path),
-      insertSyntax: (kind, template) => this.#insertSourceSyntax(kind, template),
+      applyInsertion: ({ start, end, text, selectionStart, selectionEnd }) => {
+        replaceYTextRange(this.#document, this.#activeFileText, start, end, text, this);
+        this.#elements.source.focus();
+        this.#elements.editorStatus.selectRange(selectionStart, selectionEnd);
+      },
+      authoringTarget: () => ({
+        caret: this.#elements.editorStatus.caret ?? this.#elements.source.selectionEnd,
+        passage: this.#elements.editorStatus.selectedPassage(),
+      }),
+      includeFile: (relativePath) => {
+        const caret = this.#elements.editorStatus.caret ?? this.#elements.source.selectionEnd;
+        this.#insertProjectInclude(this.#activeFileText, caret, relativePath);
+      },
+      presentNotice: (message) => this.#showToast(message),
     });
     this.#elements.sourceCompletion.bindAcceptance((intent) => {
       if (intent.kind === "citation") void this.#acceptCitationCompletion(intent);
@@ -782,29 +789,6 @@ class WorkspaceApp {
     const link = { ...passage, sourceRevision: this.#revision };
     if (kind === "claim") await this.#elements.claimListPanel.linkPassage({ claimId: id, ...link });
     else await this.#elements.projectEvidencePanel.linkPassage({ annotationId: id, ...link });
-  }
-
-  #insertSourceSyntax(kind: EditorSyntaxKind, template: EditorSyntaxTemplate): void {
-    const passage = this.#elements.editorStatus.selectedPassage();
-    const caret = this.#elements.editorStatus.caret ?? this.#elements.source.selectionEnd;
-    const resolved = kind === "link" && passage ? { text: `[${passage.excerpt}](url)`, select: "url" } : template;
-    this.#applySourceSyntax(resolved, passage, caret);
-    this.#showToast("Inserted scholarly syntax.");
-  }
-
-  #insertProjectIncludeFromMenu(relativePath: string, path: string): void {
-    const caret = this.#elements.editorStatus.caret ?? this.#elements.source.selectionEnd;
-    this.#insertProjectInclude(this.#activeFileText, caret, relativePath);
-    this.#showToast(`Included ${path}.`);
-  }
-
-  #applySourceSyntax(template: EditorSyntaxTemplate, passage: AuthoringPassage | null, caret: number): void {
-    const start = passage?.start ?? caret;
-    const end = passage?.end ?? caret;
-    replaceYTextRange(this.#document, this.#activeFileText, start, end, template.text, this);
-    const selectionStart = template.select ? start + template.text.indexOf(template.select) : start + template.text.length;
-    this.#elements.source.focus();
-    this.#elements.editorStatus.selectRange(selectionStart, selectionStart + (template.select?.length ?? 0));
   }
 
   #insertProjectInclude(text: Y.Text, index: number, path: string): void {

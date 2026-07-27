@@ -1,5 +1,6 @@
 import { html, LitElement, type TemplateResult } from "lit";
 import { relativeProjectPath, type ProjectFile } from "../domain/project-files";
+import type { EditorAuthoringPassage } from "./editor-status";
 
 export type EditorSyntaxKind = "anchor" | "bibliography" | "citation" | "footnote" | "link" | "reference";
 
@@ -9,8 +10,18 @@ export interface EditorSyntaxTemplate {
 }
 
 export interface EditorInsertBinding {
-  readonly includeFile: (relativePath: string, path: string) => void;
-  readonly insertSyntax: (kind: EditorSyntaxKind, template: EditorSyntaxTemplate) => void;
+  readonly applyInsertion: (insertion: EditorInsertion) => void;
+  readonly authoringTarget: () => { readonly caret: number; readonly passage: EditorAuthoringPassage | null };
+  readonly includeFile: (relativePath: string) => void;
+  readonly presentNotice: (message: string) => void;
+}
+
+export interface EditorInsertion {
+  readonly end: number;
+  readonly selectionEnd: number;
+  readonly selectionStart: number;
+  readonly start: number;
+  readonly text: string;
 }
 
 interface EditorInsertData {
@@ -46,6 +57,13 @@ export class EditorInsertMenu extends LitElement {
     this.binding = binding;
   }
 
+  insert(template: EditorSyntaxTemplate, message: string): void {
+    const target = this.binding?.authoringTarget();
+    if (!target) return;
+    this.applyTemplate(template, target.passage, target.caret);
+    this.binding?.presentNotice(message);
+  }
+
   override connectedCallback(): void {
     if (!this.hasUpdated) this.replaceChildren();
     super.connectedCallback();
@@ -77,12 +95,17 @@ export class EditorInsertMenu extends LitElement {
   }
 
   protected includeFile(relativePath: string, path: string): void {
-    this.binding?.includeFile(relativePath, path);
+    this.binding?.includeFile(relativePath);
+    this.binding?.presentNotice(`Included ${path}.`);
     this.closeMenu();
   }
 
   protected insertSyntax(kind: EditorSyntaxKind, template: EditorSyntaxTemplate): void {
-    this.binding?.insertSyntax(kind, template);
+    const target = this.binding?.authoringTarget();
+    if (!target) return;
+    const resolved = kind === "link" && target.passage ? { text: `[${target.passage.excerpt}](url)`, select: "url" } : template;
+    this.applyTemplate(resolved, target.passage, target.caret);
+    this.binding?.presentNotice("Inserted scholarly syntax.");
     this.closeMenu();
   }
 
@@ -92,6 +115,20 @@ export class EditorInsertMenu extends LitElement {
 
   private selectSyntax(kind: EditorSyntaxKind, template: EditorSyntaxTemplate): void {
     this.insertSyntax(kind, template);
+  }
+
+  private applyTemplate(template: EditorSyntaxTemplate, passage: EditorAuthoringPassage | null, caret: number): void {
+    const start = passage?.start ?? caret;
+    const end = passage?.end ?? caret;
+    const selectedOffset = template.select ? template.text.indexOf(template.select) : template.text.length;
+    const selectionStart = start + (selectedOffset < 0 ? template.text.length : selectedOffset);
+    this.binding?.applyInsertion({
+      end,
+      selectionEnd: selectionStart + (selectedOffset < 0 ? 0 : (template.select?.length ?? 0)),
+      selectionStart,
+      start,
+      text: template.text,
+    });
   }
 
   private renderFile(file: ProjectFile, activeFile: ProjectFile): TemplateResult {

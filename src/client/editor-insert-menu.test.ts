@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ProjectFile } from "../domain/project-files";
-import { EditorInsertMenu, type EditorSyntaxKind, type EditorSyntaxTemplate } from "./editor-insert-menu";
+import { EditorInsertMenu, type EditorInsertion, type EditorSyntaxKind, type EditorSyntaxTemplate } from "./editor-insert-menu";
 
 const createdAt = "2026-07-25T00:00:00.000Z";
 const mainFile: ProjectFile = {
@@ -42,18 +42,49 @@ describe("editor insert menu", () => {
     expect(menu.renderForTest()).toBeDefined();
   });
 
-  it("binds syntax and relative include intents", () => {
+  it("owns syntax insertion projection and relative include notices", () => {
     const menu = new TestEditorInsertMenu();
     const actions: unknown[] = [];
     menu.bind({
-      includeFile: (relativePath, path) => actions.push({ action: "include-file", path, relativePath }),
-      insertSyntax: (kind, template) => actions.push({ action: "syntax", kind, template }),
+      applyInsertion: (insertion) => actions.push({ action: "insert", insertion }),
+      authoringTarget: () => ({ caret: 4, passage: null }),
+      includeFile: (relativePath) => actions.push({ action: "include-file", relativePath }),
+      presentNotice: (message) => actions.push({ action: "notice", message }),
     });
     menu.selectSyntaxForTest("citation", { text: ":cite[key]", select: "key" });
     menu.includeFileForTest("../main.md", mainFile.path);
     expect(actions).toEqual([
-      { action: "syntax", kind: "citation", template: { text: ":cite[key]", select: "key" } },
-      { action: "include-file", path: "main.md", relativePath: "../main.md" },
+      {
+        action: "insert",
+        insertion: { end: 4, selectionEnd: 13, selectionStart: 10, start: 4, text: ":cite[key]" },
+      },
+      { action: "notice", message: "Inserted scholarly syntax." },
+      { action: "include-file", relativePath: "../main.md" },
+      { action: "notice", message: "Included main.md." },
     ]);
+  });
+
+  it("wraps selected passages as links and owns external template insertion", () => {
+    const menu = new TestEditorInsertMenu();
+    const insertions: EditorInsertion[] = [];
+    const notices: string[] = [];
+    menu.bind({
+      applyInsertion: (insertion) => insertions.push(insertion),
+      authoringTarget: () => ({
+        caret: 99,
+        passage: { end: 8, excerpt: "Evidence", fileId: "file:1", start: 0 },
+      }),
+      includeFile: () => undefined,
+      presentNotice: (message) => notices.push(message),
+    });
+
+    menu.selectSyntaxForTest("link", { text: "[text](url)", select: "text" });
+    menu.insert({ text: "![Figure](asset.png)" }, "Inserted figure.");
+
+    expect(insertions).toEqual([
+      { end: 8, selectionEnd: 14, selectionStart: 11, start: 0, text: "[Evidence](url)" },
+      { end: 8, selectionEnd: 20, selectionStart: 20, start: 0, text: "![Figure](asset.png)" },
+    ]);
+    expect(notices).toEqual(["Inserted scholarly syntax.", "Inserted figure."]);
   });
 });

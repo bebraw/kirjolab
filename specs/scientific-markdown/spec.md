@@ -70,9 +70,10 @@ second Markdown dialect.
   teaches and writes canonical Markdown syntax; it does not introduce an
   editor-only document model.
 - A bounded light-DOM Insert menu owns those template choices, relative
-  include-file presentation, empty state, and typed selection bindings. The
-  workspace coordinator retains collaborative caret and passage resolution and
-  applies the canonical source edit through Yjs.
+  include-file presentation, empty state, passage-aware link wrapping, template
+  selection ranges, and typed insertion bindings. The workspace coordinator
+  supplies the resolved collaborative caret and passage and applies the
+  canonical source edit through Yjs.
 - Quoted and unquoted single-token directive attributes are accepted, matching
   the source project's examples.
 - Experimental version 1 `:::figure{kind="boxplot" version=1}` containers
