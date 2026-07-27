@@ -3,7 +3,6 @@ import "./action-menu-controller";
 import { collectAppElements } from "./app-elements";
 import { activePdfLoadContext, type ActivePdfLoadContext } from "./active-pdf-context";
 import { buildWorkspaceKnowledgeGraph } from "../domain/knowledge";
-import type { ReferenceDiscoveryResult } from "../domain/reference-discovery";
 import { reviewerResponsePath, reviewerResponseTemplate } from "../domain/reviewer-response";
 import { resolveManuscriptAnchor } from "../domain/manuscript-anchor";
 import { resolveWorkspaceSnapshotAnchors } from "../domain/workspace-anchor-projection";
@@ -45,7 +44,6 @@ import { WorkspaceLayoutManager } from "./workspace-layout-manager";
 import { workspaceLayoutChangeEvent } from "./workspace-layout-control";
 import { projectReferenceChangedEvent, type ProjectReferenceChanged } from "./project-reference-mutation";
 import { projectResearchChangedEvent, type ProjectResearchChanged } from "./project-research-mutation";
-import { libraryReferenceImportRefreshEvent, type LibraryReferenceImportRefresh } from "./library-reference-import-control";
 import { workspaceSettingsActionEvent, type WorkspaceSettingsAction } from "./workspace-settings-panel";
 import {
   researchQuestionWorkflowData,
@@ -92,17 +90,6 @@ import { type ProjectFileDialogMode, type ProjectFileSaved } from "./project-fil
 import { type ProjectImagesUploaded } from "./project-image-upload-control";
 import { projectTemplateSavedEvent, type ProjectTemplateSaved } from "./project-template-save-dialog";
 import { manuscriptMapSelectEvent, type ManuscriptMapSelection } from "./manuscript-map-panel";
-import { libraryDiscoveryRefreshEvent, type LibraryDiscoveryRefresh } from "./library-discovery-results";
-import { libraryDiscoveryResultsEvent } from "./library-discovery-search";
-import { libraryPdfUploadRevealEvent } from "./library-pdf-upload-status";
-import { libraryPdfUploadOutcomeEvent, type LibraryPdfUploadOutcome } from "./library-pdf-upload-control";
-import {
-  libraryToolsActionEvent,
-  libraryToolsArchiveRefreshEvent,
-  type LibraryToolsAction,
-  type LibraryToolsArchiveRefresh,
-} from "./library-tools-menu";
-import { webSourceCapturedEvent } from "./web-source-panels";
 import { publicationIntakeActionEvent, type PublicationIntakeAction } from "./publication-intake-panel";
 import {
   applicationVersion,
@@ -396,56 +383,12 @@ class WorkspaceApp {
       presentNotice: (message) => this.#showToast(message),
       trigger: this.#elements.shareWorkspace,
     });
-    this.#elements.libraryDiscoverySearch.addEventListener(libraryDiscoveryResultsEvent, (event) => {
-      this.#elements.libraryDiscoveryResults.setResults((event as CustomEvent<readonly ReferenceDiscoveryResult[]>).detail);
-    });
-    this.#elements.libraryDiscoveryResults.addEventListener(libraryDiscoveryRefreshEvent, (event) => {
-      const detail = (event as CustomEvent<LibraryDiscoveryRefresh>).detail;
-      void this.#completeLibraryRefresh(detail.message, "The reference was saved, but the refreshed Library could not be loaded.", {
-        complete: () => this.#elements.libraryDiscoveryResults.complete(detail.index, detail.requestId),
-      });
-    });
-    this.#elements.libraryReferenceImport.addEventListener(libraryReferenceImportRefreshEvent, (event) => {
-      const detail = (event as CustomEvent<LibraryReferenceImportRefresh>).detail;
-      void this.#completeLibraryRefresh(detail.message, "References were imported, but the refreshed Library could not be loaded.", {
-        complete: () => this.#elements.libraryReferenceImport.complete(detail.requestId),
-      });
-    });
-    this.#elements.libraryPdfUploadControl.bindStatus(this.#elements.libraryPdfUploadStatus);
-    this.#elements.libraryPdfUploadControl.addEventListener(libraryPdfUploadOutcomeEvent, (event) => {
-      const outcome = (event as CustomEvent<LibraryPdfUploadOutcome>).detail;
-      if (outcome.action === "notice") this.#showToast(outcome.message);
-      else
-        void this.#completeLibraryRefresh(outcome.message, "PDF intake completed, but the refreshed Library could not be loaded.", {
-          complete: () => this.#elements.libraryPdfUploadControl.complete(outcome.requestId),
-        });
-    });
-    this.#elements.libraryPdfUploadStatus.addEventListener(libraryPdfUploadRevealEvent, (event) => {
-      void this.#revealExistingPdfReference((event as CustomEvent<ExistingPdfUpload>).detail);
-    });
-    this.#elements.webSourceCapture.addEventListener(webSourceCapturedEvent, (event) => {
-      void this.#completeLibraryRefresh(
-        (event as CustomEvent<string>).detail,
-        "The web source was captured, but the refreshed Library could not be loaded.",
-      );
-    });
-    this.#elements.libraryToolsMenu.addEventListener(libraryToolsActionEvent, (event) => {
-      const action = (event as CustomEvent<LibraryToolsAction>).detail;
-      if (action === "open-citation-network") void this.#elements.referenceLibraryWorkspace.openCitationNetwork();
-      else void this.#refreshReferenceLibrary();
-    });
-    this.#elements.libraryToolsMenu.addEventListener(libraryToolsArchiveRefreshEvent, (event) => {
-      const detail = (event as CustomEvent<LibraryToolsArchiveRefresh>).detail;
-      void this.#completeLibraryRefresh(detail.message, "The archive was restored, but the refreshed Library could not be loaded.", {
-        complete: () => this.#elements.libraryToolsMenu.completeArchiveRestore(detail.requestId),
-      });
-    });
     this.#elements.referenceLibraryWorkspace.configure(workspaceId, {
-      captureUrl: (url) => void this.#elements.webSourceCapture.captureUrl(url),
       compareSnapshots: (priorId, currentId) => void this.#elements.webSnapshotComparison.compare(priorId, currentId),
       completeRefresh: (message, fallback, options) => void this.#completeLibraryRefresh(message, fallback, options),
       openPdf: (artifact) => void this.#openLibraryPdf(artifact),
       presentNotice: (message) => this.#showToast(message),
+      revealExistingPdf: (upload) => void this.#revealExistingPdfReference(upload),
       refreshLibrary: () => void this.#refreshReferenceLibrary(),
       refreshMetadata: async () => {
         await this.#refreshReferenceLibrary();
@@ -1299,7 +1242,7 @@ class WorkspaceApp {
   async #focusReferenceLibraryEntry(referenceId: string): Promise<boolean> {
     if (
       !this.#librarySnapshot?.references.some((reference) => reference.id === referenceId) &&
-      this.#elements.libraryToolsMenu.setShowArchived(true)
+      this.#elements.referenceLibraryWorkspace.showArchivedReferences()
     ) {
       await this.#refreshReferenceLibrary();
     }
@@ -1311,9 +1254,8 @@ class WorkspaceApp {
   }
 
   async #refreshReferenceLibrary(): Promise<void> {
-    const response = await fetch(`/api/library${this.#elements.libraryToolsMenu.includesArchivedReferences ? "?archived=include" : ""}`, {
-      credentials: "same-origin",
-    });
+    const archived = this.#elements.referenceLibraryWorkspace.includesArchivedReferences ? "?archived=include" : "";
+    const response = await fetch(`/api/library${archived}`, { credentials: "same-origin" });
     await expectOk(response);
     const value: unknown = await response.json();
     if (!isReferenceLibrarySnapshot(value)) throw new Error("Reference library returned an invalid snapshot");
@@ -1368,7 +1310,7 @@ class WorkspaceApp {
   }
 
   async #revealExistingPdfReference(existing: ExistingPdfUpload): Promise<void> {
-    if (existing.archived && this.#elements.libraryToolsMenu.setShowArchived(true)) await this.#refreshReferenceLibrary();
+    if (existing.archived && this.#elements.referenceLibraryWorkspace.showArchivedReferences()) await this.#refreshReferenceLibrary();
     if (!(await this.#elements.referenceLibraryWorkspace.revealReference(existing.referenceId, existing.referenceKey))) {
       this.#showToast(`Library source ${existing.referenceKey} is not available.`);
     }

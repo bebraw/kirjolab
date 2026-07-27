@@ -743,9 +743,12 @@ reason to wrap static markup mechanically.
   registry entries, the coordinator's filter-change listener, sibling
   presentation fan-out, and direct result-settlement and reveal calls. The
   later ownership completion also replaces nine coordinator subscriptions and
-  their child-event type imports with one callback configuration. The
-  application coordinator supplies canonical snapshots and retains cross-
-  feature navigation, refresh execution, and notifications.
+  their child-event type imports with one callback configuration. It now
+  encompasses the full Library surface and replaces another eight coordinator
+  subscriptions, seven global registry entries, upload/status binding, archive
+  state access, and web-capture delegation. The application coordinator
+  supplies canonical snapshots and retains cross-feature navigation, refresh
+  execution, comparison, and notifications.
 - The model provider settings panel replaces six internal element references,
   duplicate preference listeners and status synchronization, stored-value
   validation, and imperative model-option rendering. It also removes the

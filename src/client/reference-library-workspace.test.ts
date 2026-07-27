@@ -4,12 +4,19 @@ import { citationNetworkOutcomeEvent, CitationNetworkWorkspace } from "./citatio
 import { libraryReferenceMetadataNoticeEvent, libraryReferenceMetadataRefreshEvent } from "./library-reference-metadata-editor";
 import { libraryReferencePdfActionEvent, libraryReferencePdfRefreshEvent } from "./library-reference-pdf-rows";
 import { libraryReferencePersonalRefreshEvent } from "./library-reference-personal-fields";
+import { libraryReferenceImportRefreshEvent, LibraryReferenceImportControl } from "./library-reference-import-control";
 import { libraryReferenceResearchActionEvent } from "./library-reference-research-rows";
 import { LibraryReferenceList } from "./library-reference-list";
 import { libraryReferenceSummaryActionEvent } from "./library-reference-summary";
+import { libraryDiscoveryRefreshEvent, LibraryDiscoveryResults } from "./library-discovery-results";
+import { libraryDiscoveryResultsEvent } from "./library-discovery-search";
+import { libraryPdfUploadOutcomeEvent, LibraryPdfUploadControl } from "./library-pdf-upload-control";
+import { libraryPdfUploadRevealEvent, LibraryPdfUploadStatus } from "./library-pdf-upload-status";
+import { libraryToolsActionEvent, libraryToolsArchiveRefreshEvent, LibraryToolsMenu } from "./library-tools-menu";
 import { ReferenceLibraryFilterPanel, referenceLibraryFilterChangeEvent } from "./reference-library-filters";
 import { ReferenceLibraryWorkspace } from "./reference-library-workspace";
 import { unidentifiedPdfRefreshEvent, UnidentifiedPdfList } from "./unidentified-pdf-list";
+import { webSourceCapturedEvent, WebSourceCapture } from "./web-source-panels";
 
 class TestReferenceLibraryWorkspace extends ReferenceLibraryWorkspace {
   rootForTest(): HTMLElement {
@@ -25,9 +32,15 @@ function setup() {
   const workspace = new TestReferenceLibraryWorkspace();
   const owners = {
     "citation-network-workspace": new CitationNetworkWorkspace(),
+    "library-discovery-results": new LibraryDiscoveryResults(),
+    "library-pdf-upload-control": new LibraryPdfUploadControl(),
+    "library-pdf-upload-status": new LibraryPdfUploadStatus(),
     "library-reference-list": new LibraryReferenceList(),
+    "library-reference-import-control": new LibraryReferenceImportControl(),
+    "library-tools-menu": new LibraryToolsMenu(),
     "reference-library-filters": new ReferenceLibraryFilterPanel(),
     "unidentified-pdf-list": new UnidentifiedPdfList(),
+    "web-source-capture": new WebSourceCapture(),
   };
   Object.defineProperty(workspace, "querySelector", {
     value: (selector: string) => owners[selector as keyof typeof owners] ?? null,
@@ -137,15 +150,16 @@ describe("reference Library workspace", () => {
   it("routes child Library outcomes through the coordinator boundary", () => {
     const { owners, workspace } = setup();
     const callbacks = {
-      captureUrl: vi.fn(),
       compareSnapshots: vi.fn(),
       completeRefresh: vi.fn(),
       openPdf: vi.fn(),
       presentNotice: vi.fn(),
+      revealExistingPdf: vi.fn(),
       refreshLibrary: vi.fn(),
       refreshMetadata: vi.fn().mockResolvedValue(undefined),
     };
     const completeIdentification = vi.spyOn(owners["unidentified-pdf-list"], "complete");
+    const captureUrl = vi.spyOn(owners["web-source-capture"], "captureUrl").mockResolvedValue();
     workspace.configure("project-1", callbacks);
 
     workspace.dispatchEvent(new CustomEvent(citationNetworkOutcomeEvent, { detail: { action: "notice", message: "Network notice" } }));
@@ -174,12 +188,53 @@ describe("reference Library workspace", () => {
     expect(callbacks.openPdf).toHaveBeenCalledTimes(2);
     expect(callbacks.completeRefresh).toHaveBeenCalledTimes(4);
     expect(callbacks.refreshLibrary).toHaveBeenCalledOnce();
-    expect(callbacks.captureUrl).toHaveBeenCalledWith("https://example.test");
+    expect(captureUrl).toHaveBeenCalledWith("https://example.test");
     expect(callbacks.compareSnapshots).toHaveBeenCalledWith("prior", "current");
     const metadataOptions = callbacks.completeRefresh.mock.calls[2]?.[2];
     expect(metadataOptions?.refresh).toBe(callbacks.refreshMetadata);
     const identificationOptions = callbacks.completeRefresh.mock.calls[3]?.[2];
     identificationOptions?.complete?.();
     expect(completeIdentification).toHaveBeenCalledWith(7);
+  });
+
+  it("routes full-surface Library discovery and intake outcomes", () => {
+    const { owners, workspace } = setup();
+    const callbacks = {
+      compareSnapshots: vi.fn(),
+      completeRefresh: vi.fn(),
+      openPdf: vi.fn(),
+      presentNotice: vi.fn(),
+      revealExistingPdf: vi.fn(),
+      refreshLibrary: vi.fn(),
+      refreshMetadata: vi.fn().mockResolvedValue(undefined),
+    };
+    const setResults = vi.spyOn(owners["library-discovery-results"], "setResults");
+    const openNetwork = vi.spyOn(owners["citation-network-workspace"], "open").mockResolvedValue();
+    workspace.configure("project-1", callbacks);
+    const existing = { archived: true, referenceId: "reference-1", referenceKey: "source2026" };
+
+    workspace.dispatchEvent(new CustomEvent(libraryDiscoveryResultsEvent, { detail: [] }));
+    workspace.dispatchEvent(
+      new CustomEvent(libraryDiscoveryRefreshEvent, { detail: { index: 2, message: "Reference saved", requestId: 3 } }),
+    );
+    workspace.dispatchEvent(
+      new CustomEvent(libraryReferenceImportRefreshEvent, { detail: { message: "References imported", requestId: 4 } }),
+    );
+    workspace.dispatchEvent(new CustomEvent(libraryPdfUploadOutcomeEvent, { detail: { action: "notice", message: "Upload notice" } }));
+    workspace.dispatchEvent(
+      new CustomEvent(libraryPdfUploadOutcomeEvent, { detail: { action: "refresh", message: "PDF uploaded", requestId: 5 } }),
+    );
+    workspace.dispatchEvent(new CustomEvent(libraryPdfUploadRevealEvent, { detail: existing }));
+    workspace.dispatchEvent(new CustomEvent(webSourceCapturedEvent, { detail: "Website captured" }));
+    workspace.dispatchEvent(new CustomEvent(libraryToolsActionEvent, { detail: "open-citation-network" }));
+    workspace.dispatchEvent(new CustomEvent(libraryToolsActionEvent, { detail: "archive-visibility-change" }));
+    workspace.dispatchEvent(new CustomEvent(libraryToolsArchiveRefreshEvent, { detail: { message: "Archive restored", requestId: 6 } }));
+
+    expect(setResults).toHaveBeenCalledWith([]);
+    expect(callbacks.completeRefresh).toHaveBeenCalledTimes(5);
+    expect(callbacks.presentNotice).toHaveBeenCalledWith("Upload notice");
+    expect(callbacks.revealExistingPdf).toHaveBeenCalledWith(existing);
+    expect(openNetwork).toHaveBeenCalledOnce();
+    expect(callbacks.refreshLibrary).toHaveBeenCalledOnce();
   });
 });

@@ -362,6 +362,7 @@ export function renderHomePage(
 
         <section class="context-panel context-library-panel" id="context-library-panel" role="tabpanel" aria-labelledby="context-library-tab" tabindex="0" hidden>
           <div class="context-library-scroll p-5" id="context-library-scroll">
+            <reference-library-workspace class="contents" id="reference-library-workspace">
             <header class="library-header" aria-label="Library actions">
               <details class="action-menu library-add-menu ui-menu" data-action-menu>
                 <summary class="button-primary">Add reference</summary>
@@ -403,7 +404,6 @@ export function renderHomePage(
               </library-discovery-search>
               <library-discovery-results class="library-discovery-results" id="library-discovery-results"></library-discovery-results>
             </details>
-            <reference-library-workspace class="contents" id="reference-library-workspace">
             <div class="library-toolbar">
               <reference-library-filters class="contents" id="reference-library-filters">
                 <div class="library-search">

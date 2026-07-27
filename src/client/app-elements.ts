@@ -18,15 +18,9 @@ import { EditorStatus } from "./editor-status";
 import { GitHubImportPanel } from "./github-import-panel";
 import { GitHubSyncMenu } from "./github-sync-menu";
 import { LatexImportPanel } from "./latex-import-panel";
-import { LibraryDiscoveryResults } from "./library-discovery-results";
-import { LibraryDiscoverySearch } from "./library-discovery-search";
 import { LibraryPdfAnnotationToolbar } from "./library-pdf-annotation-toolbar";
 import { LibraryPdfInspector } from "./library-pdf-inspector";
 import { LibraryPdfMarkupLayer } from "./library-pdf-markup-layer";
-import { LibraryPdfUploadControl } from "./library-pdf-upload-control";
-import { LibraryPdfUploadStatus } from "./library-pdf-upload-status";
-import { LibraryReferenceImportControl } from "./library-reference-import-control";
-import { LibraryToolsMenu } from "./library-tools-menu";
 import { ManuscriptCommentList } from "./manuscript-comment-list";
 import { ManuscriptMapPanel } from "./manuscript-map-panel";
 import { ModelProviderSettings } from "./model-provider-settings";
@@ -52,7 +46,7 @@ import { ResearchDiarySummary } from "./research-diary-summary";
 import { SourceCitationControl } from "./source-citation-control";
 import { SourceCompletion } from "./source-completion";
 import { VimModeControl } from "./vim-mode-control";
-import { WebSnapshotComparisonPanel, WebSourceCapture } from "./web-source-panels";
+import { WebSnapshotComparisonPanel } from "./web-source-panels";
 import { WorkspaceCatalogPanel } from "./workspace-catalog-panel";
 import { WorkspaceLayoutControl } from "./workspace-layout-control";
 import { WorkspaceRailTabs } from "./workspace-rail-tabs";
@@ -83,14 +77,7 @@ export function collectAppElements(requireElement = requiredAppElement) {
     saveTemplateDialog: requireElement("project-template-save-dialog", ProjectTemplateSaveDialog),
     shareWorkspace: requireElement("share-workspace", HTMLButtonElement),
     workspaceSharingPanel: requireElement("workspace-sharing-panel", WorkspaceSharingPanel),
-    libraryDiscoverySearch: requireElement("library-discovery-search", LibraryDiscoverySearch),
-    libraryDiscoveryResults: requireElement("library-discovery-results", LibraryDiscoveryResults),
-    libraryReferenceImport: requireElement("library-reference-import-control", LibraryReferenceImportControl),
-    libraryToolsMenu: requireElement("library-tools-menu", LibraryToolsMenu),
-    libraryPdfUploadControl: requireElement("library-pdf-upload-control", LibraryPdfUploadControl),
-    libraryPdfUploadStatus: requireElement("library-pdf-upload-status", LibraryPdfUploadStatus),
     referenceLibraryWorkspace: requireElement("reference-library-workspace", ReferenceLibraryWorkspace),
-    webSourceCapture: requireElement("web-source-capture", WebSourceCapture),
     webSnapshotComparison: requireElement("web-snapshot-comparison", WebSnapshotComparisonPanel),
     workspaceRailTabs: requireElement("workspace-rail-tabs", WorkspaceRailTabs),
     manuscriptMapPanel: requireElement("manuscript-map-panel", ManuscriptMapPanel),

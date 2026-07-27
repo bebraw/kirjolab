@@ -6616,6 +6616,33 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,663 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Full Library Surface
+
+`ReferenceLibraryWorkspace` now encompasses discovery, reference import, PDF
+upload and status, web capture, tools, filters, results, citation network, and
+the unidentified-PDF queue. It owns sibling result routing, upload/status
+binding, archive visibility, capture delegation, completion acknowledgements,
+and all local outcome subscriptions while `WorkspaceApp` retains canonical
+refresh, comparison, cross-feature navigation, and notice effects.
+
+This checkpoint reduces `src/client/app.ts` from 2,389 to 2,331 lines (-58),
+removes eight coordinator listener sites and fifteen event/type import lines,
+and removes seven entries plus their imports from the global element registry.
+The existing Library owner grows from 184 to 269 lines; total runtime source
+across the owner, coordinator, and registry grows by 13 lines while collapsing
+the complete Library surface behind one boundary. Five direct owner cases and
+the shell/registry suites cover canonical composition, all nested and sibling
+outcomes, completion callbacks, navigation, archive/capture delegation, and
+strict types.
+
+The browser application artifact changes from 841,560 B raw / 227,268 B gzip
+to 841,636 B raw / 227,233 B gzip (+76 B raw / -35 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,664 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

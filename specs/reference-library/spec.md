@@ -96,19 +96,22 @@ memory and makes citation aliases compete with stable source identity.
   result-count copy, and typed validated-result events. Its bounded sibling
   owns result presentation, metadata-to-CSL projection, import transport,
   per-result duplicate-submit gating, local progress and retryable failures,
-  refresh-pending state, and a typed refresh outcome. The workspace coordinator
-  routes results and retains canonical Library refresh and toast policy.
+  refresh-pending state, and a typed refresh outcome. Their composed Library
+  workspace routes results and completed outcomes while the application
+  coordinator retains canonical Library refresh and toast policy.
 - One bounded filter component owns Library query and facet values, dynamic
   type choices, validated defaults, canonical reference filtering,
   project-linkage projection from canonical project-reference inputs, result
   counts, and reset behavior. A composed light-DOM Library workspace supplies
   the canonical inputs, synchronizes the resulting reference list, citation
   network, and unidentified-PDF queue, rerenders on filter changes, and owns
-  focused-reference reveal. It also routes child summary, personal-field,
-  metadata, PDF, research, citation-network, and unidentified-PDF outcomes to
-  narrow coordinator callbacks. The application coordinator retains canonical
-  loading, cross-feature navigation, refresh execution, web-capture and
-  comparison effects, and notification presentation.
+  focused-reference reveal. It encompasses discovery, reference import, PDF
+  upload and status, web capture, tools, filters, results, citation network, and
+  the unidentified-PDF queue; owns their sibling bindings and archive/capture
+  delegation; and routes their outcomes through narrow coordinator callbacks.
+  The application coordinator retains canonical loading, cross-feature
+  navigation, refresh execution, comparison effects, and notification
+  presentation.
 - A bounded light-DOM reference summary owns each result's display title,
   compact metadata, PDF action, project-link state, link and unlink transport,
   canonical workspace-response validation, and typed completed mutation
