@@ -140,6 +140,10 @@ collaborative, and unambiguous about what preview and export mean.
   stable file or folder identity associated with its active operation from
   canonical inputs, derives the mutation endpoint from that identity, and emits
   the completed mode, submitted path, message, and validated workspace snapshot.
+  For an image selected from the project tree, it also derives normalized alt
+  text and a safely delimited path relative to the canonical active file, then
+  emits the projected Markdown and completion message for collaborative
+  insertion by the workspace coordinator.
   It also owns encoded file deletion transport and shares the same response
   validation across create, rename, and delete operations, plus the supporting-
   file hidden projection, delayed deletion, Undo, and failed-commit restoration.

@@ -12,7 +12,6 @@ import {
   previewProjectFile,
   relativeProjectPath,
   type ProjectComposition,
-  type ProjectAsset,
   type ProjectFile,
   type ProjectFilePreview,
 } from "../domain/project-files";
@@ -396,11 +395,16 @@ class WorkspaceApp {
       selectFile: (fileId) => this.#selectProjectFile(fileId),
     });
     this.#elements.projectFileDialog.bindWorkflow({
+      activeFile: () => this.#snapshot?.files.find((file) => file.id === this.#activeFileId) ?? null,
       actionControls: [this.#elements.projectFileRailActions, this.#elements.projectFileMenuActions],
       deleteFile: () => this.#deleteProjectFile(),
       focusEditor: () => this.#elements.source.focus(),
       imageUpload: this.#elements.projectImageUpload,
-      insertAsset: (asset) => this.#insertProjectImage(asset),
+      insertImage: ({ message, syntax }) => {
+        const caret = this.#resolvedAuthoringCaret() ?? this.#elements.source.selectionEnd;
+        this.#applySourceSyntax({ text: syntax }, null, caret);
+        this.#showToast(message);
+      },
       openDialog: (mode, folderId) => this.#openProjectFileDialog(mode, folderId),
       quickOpen: () => {
         this.#layout.setRailCollapsed(false);
@@ -1146,26 +1150,6 @@ class WorkspaceApp {
     this.#renderProjectFiles();
     void this.#renderPreview();
     this.#showToast(message);
-  }
-
-  #insertProjectImage(asset: ProjectAsset): void {
-    const activeFile = this.#snapshot?.files.find((file) => file.id === this.#activeFileId);
-    if (!activeFile) return;
-    const path = relativeProjectPath(activeFile.path, asset.path);
-    const alt = (asset.path.split("/").at(-1) ?? "image")
-      .replace(/\.[^.]+$/u, "")
-      .replaceAll(/[-_]+/gu, " ")
-      .replaceAll("[", "")
-      .replaceAll("]", "");
-    const target = /[\s()]/u.test(path) ? `<${path}>` : path;
-    const syntax = `![${alt}](${target})`;
-    const start = this.#resolvedAuthoringCaret() ?? this.#elements.source.selectionEnd;
-    this.#document.transact(() => this.#activeFileText.insert(start, syntax), this);
-    const caret = start + syntax.length;
-    this.#elements.source.focus();
-    this.#elements.source.setSelectionRange(caret, caret);
-    this.#rememberAuthoringSelection();
-    this.#showToast(`Inserted ${asset.path}.`);
   }
 
   #focusProjectRange(fileId: string, from: number, to: number): void {

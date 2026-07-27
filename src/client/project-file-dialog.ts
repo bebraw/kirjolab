@@ -1,5 +1,5 @@
 import { html, LitElement, type TemplateResult } from "lit";
-import type { ProjectAsset, ProjectFile } from "../domain/project-files";
+import { relativeProjectPath, type ProjectAsset, type ProjectFile } from "../domain/project-files";
 import { isWorkspaceSnapshot, type WorkspaceSnapshot } from "../domain/workspace";
 import { DeferredDeletionController, type DeferredDeletionNoticeOptions } from "./deferred-deletion";
 import { errorMessage, expectOk, jsonFetch } from "./http";
@@ -18,6 +18,11 @@ export interface ProjectFileSaved {
   readonly snapshot: WorkspaceSnapshot;
 }
 
+export interface ProjectImageInsertion {
+  readonly message: string;
+  readonly syntax: string;
+}
+
 export interface ProjectFileDeletionCallbacks {
   readonly commit: (snapshot: WorkspaceSnapshot) => void;
   readonly presentNotice: (message: string, options?: DeferredDeletionNoticeOptions) => void;
@@ -33,17 +38,31 @@ interface ProjectFileTreeSource extends EventTarget {
 }
 
 export interface ProjectFileWorkflowRouting {
+  readonly activeFile: () => ProjectFile | null;
   readonly actionControls: readonly EventTarget[];
   readonly deleteFile: () => void;
   readonly focusEditor: () => void;
   readonly imageUpload: ProjectImageUploadSource;
-  readonly insertAsset: (asset: ProjectAsset) => void;
+  readonly insertImage: (insertion: ProjectImageInsertion) => void;
   readonly openDialog: (mode: ProjectFileDialogMode, folderId?: string) => void;
   readonly quickOpen: () => void;
   readonly saved: (result: ProjectFileSaved) => void;
   readonly selectFile: (fileId: string) => void;
   readonly tree: ProjectFileTreeSource;
   readonly uploaded: (result: ProjectImagesUploaded) => void;
+}
+
+export function projectImageInsertion(activeFile: ProjectFile, asset: ProjectAsset): ProjectImageInsertion {
+  const path = relativeProjectPath(activeFile.path, asset.path);
+  const alt = (asset.path.split("/").at(-1) ?? "image")
+    .replace(/\.[^.]+$/u, "")
+    .replaceAll(/[-_]+/gu, " ")
+    .replaceAll("[", "")
+    .replaceAll("]", "");
+  return {
+    message: `Inserted ${asset.path}.`,
+    syntax: `![${alt}](${/[\s()]/u.test(path) ? `<${path}>` : path})`,
+  };
 }
 
 export function projectFileDialogIsFolder(mode: ProjectFileDialogMode): boolean {
@@ -279,7 +298,10 @@ export class ProjectFileDialog extends LitElement {
       routing.quickOpen();
       routing.tree.focusFilter();
     } else if (detail.action === "rename-folder") routing.openDialog("rename-folder", detail.folderId);
-    else routing.insertAsset(detail.asset);
+    else {
+      const activeFile = routing.activeFile();
+      if (activeFile) routing.insertImage(projectImageInsertion(activeFile, detail.asset));
+    }
   };
 
   private readonly handleImagesUploaded = (event: Event): void => {

@@ -241,9 +241,12 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Let the project-image upload control own file-input state, sequential upload
   transport, response validation, duplicate-submit gating, and retryable local
   status. Emit only the final validated workspace snapshot and completion
-  message. Keep snapshot application, project-tree and preview rendering, image
-  insertion, and toast policy in the workspace coordinator. Let the project-tree
-  panel own image deletion as part of its local row lifecycle.
+  message. Let the project-file dialog project a selected tree asset into
+  relative Markdown image syntax and a completion message from the canonical
+  active file. Keep active-file authority, Yjs insertion, caret and focus,
+  snapshot application, project-tree and preview rendering, and the toast outlet
+  in the workspace coordinator. Let the project-tree panel own image deletion
+  as part of its local row lifecycle.
 - Let the project-tree panel own encoded empty-folder and image deletion
   transport and response validation plus optimistic row hiding, the six-second
   Undo window, delayed commit scheduling, restoration, and failure notices. It

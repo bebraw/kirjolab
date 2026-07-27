@@ -213,9 +213,11 @@ The adopted components own bounded presentation:
 - The project image upload control owns the image file input, sequential upload
   transport, response validation, duplicate-submit gating, local progress and
   retryable failure state, and a typed completed outcome carrying the final
-  validated workspace snapshot. The coordinator retains snapshot application,
-  project-tree and preview rendering, image insertion, and toast policy; the
-  project-tree panel owns image deletion.
+  validated workspace snapshot. The project-file dialog owns tree-image
+  projection into relative Markdown syntax and a completion message. The
+  coordinator retains canonical active-file lookup, snapshot application,
+  project-tree and preview rendering, Yjs insertion, caret and focus authority,
+  and the toast outlet; the project-tree panel owns image deletion.
 - The editor Insert menu owns scholarly-syntax choices and their displayed
   templates, relative include-file option rendering, empty state, and local menu
   closing with typed syntax-template and include-file intents. The application
@@ -743,9 +745,11 @@ reason to wrap static markup mechanically.
   request. It now derives resource availability, initial paths, and stable
   mutation targets from its operation and canonical resource inputs while
   routing sibling file actions, tree actions, upload completions, and save
-  completions through one typed workflow boundary. Collaborative include-target
-  capture, snapshot application, selection, rendering, and toast policy remain
-  in the application coordinator.
+  completions through one typed workflow boundary. It also derives relative,
+  safely delimited Markdown image syntax and normalized alt text when a tree
+  asset is selected. Collaborative include-target capture, active-file
+  authority, Yjs insertion, snapshot application, selection, rendering, and the
+  toast outlet remain in the application coordinator.
 - The project template save dialog replaces seven internal element references
   and imperative replacement-option, value, status, focus, and cancellation
   handling while consuming the starting-point browser's visible template view.

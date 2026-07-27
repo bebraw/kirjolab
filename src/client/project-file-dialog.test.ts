@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   ProjectFileDialog,
+  projectImageInsertion,
   projectFileDialogIsCreating,
   projectFileDialogIsFolder,
   projectFileSavedEvent,
@@ -119,9 +120,10 @@ describe("project file dialog", () => {
     const imageUpload = Object.assign(new EventTarget(), { choose: vi.fn() });
     const tree = Object.assign(new EventTarget(), { focusFilter: vi.fn() });
     const callbacks = {
+      activeFile: vi.fn(() => snapshot.files[0] ?? null),
       deleteFile: vi.fn(),
       focusEditor: vi.fn(),
-      insertAsset: vi.fn(),
+      insertImage: vi.fn(),
       openDialog: vi.fn(),
       quickOpen: vi.fn(),
       saved: vi.fn(),
@@ -160,9 +162,31 @@ describe("project file dialog", () => {
     expect(callbacks.focusEditor).toHaveBeenCalledOnce();
     expect(callbacks.quickOpen).toHaveBeenCalledOnce();
     expect(tree.focusFilter).toHaveBeenCalledOnce();
-    expect(callbacks.insertAsset).toHaveBeenCalledWith(asset);
+    expect(callbacks.insertImage).toHaveBeenCalledWith({
+      message: "Inserted figures/chart.png.",
+      syntax: "![chart](../figures/chart.png)",
+    });
     expect(callbacks.uploaded).toHaveBeenCalledWith(upload);
     expect(callbacks.saved).toHaveBeenCalledWith(saved);
+  });
+
+  it("projects image assets relative to the active file", () => {
+    const activeFile = { ...snapshot.files[0]!, path: "chapters/method.md" };
+    const asset = {
+      createdAt: "now",
+      fingerprint: "asset-fingerprint",
+      id: "asset-1",
+      mediaType: "image/png" as const,
+      objectKey: "asset-object",
+      path: "figures/result plot_(final)[1].png",
+      size: 42,
+      updatedAt: "now",
+    };
+
+    expect(projectImageInsertion(activeFile, asset)).toEqual({
+      message: "Inserted figures/result plot_(final)[1].png.",
+      syntax: "![result plot (final)1](<../figures/result plot_(final)[1].png>)",
+    });
   });
 
   it("persists a trimmed path and emits the validated workspace", async () => {

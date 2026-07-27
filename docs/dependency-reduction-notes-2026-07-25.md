@@ -7120,6 +7120,29 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,677 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Project Image Projection
+
+`ProjectFileDialog` now owns the project tree's image-insertion projection:
+active-file-relative paths, safe angle-bracket targets, normalized alt text,
+and the completion message. `WorkspaceApp` retains canonical active-file
+authority, collaborative Yjs insertion, caret and focus restoration, and the
+shared toast outlet.
+
+This checkpoint reduces `src/client/app.ts` from 2,129 to 2,113 lines (-16) and
+grows the project-file dialog from 334 to 362 lines (+28). Runtime source across
+the two files increases by 12 lines while moving Markdown image-format policy
+into the existing Lit owner of the tree insertion action. Focused coverage
+exercises nested paths, whitespace and parentheses, alt-text normalization,
+existing action routing, application contracts, and strict types.
+
+The browser application artifact shrinks from 840,846 B raw / 227,415 B gzip
+to 840,834 B raw / 227,389 B gzip (-12 B raw / -26 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,678 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,
