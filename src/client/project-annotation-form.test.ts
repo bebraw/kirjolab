@@ -1,13 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { PublicationResource } from "../domain/workspace";
-import {
-  ProjectAnnotationForm,
-  projectAnnotationActionEvent,
-  projectAnnotationSavedEvent,
-  type ProjectAnnotationAction,
-  type ProjectAnnotationSaved,
-  type ProjectHighlightTool,
-} from "./project-annotation-form";
+import { ProjectAnnotationForm, type ProjectAnnotationSaved, type ProjectHighlightTool } from "./project-annotation-form";
 import { PublicationIntakePanel, type PublicationIntakeAction } from "./publication-intake-panel";
 
 const publication = {
@@ -155,8 +148,11 @@ describe("project annotation form", () => {
     const outcomes: ProjectAnnotationSaved[] = [];
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 200 }));
     panel.configure("/api/workspaces/workspace");
-    panel.addEventListener(projectAnnotationSavedEvent, (event) => {
-      outcomes.push((event as CustomEvent<ProjectAnnotationSaved>).detail);
+    panel.bindWorkflow({
+      chooseTool: vi.fn(),
+      completeSave: (saved) => outcomes.push(saved),
+      citePage: vi.fn(),
+      undoHighlight: vi.fn(),
     });
     panel.changeForTest("comment", "Use this");
     await panel.saveForTest(false);
@@ -230,11 +226,16 @@ describe("project annotation form", () => {
     expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 
-  it("emits bounded toolbar and citation intents", () => {
+  it("routes bounded toolbar and citation intents", () => {
     const panel = new TestProjectAnnotationForm();
-    const actions: ProjectAnnotationAction[] = [];
-    panel.addEventListener(projectAnnotationActionEvent, (event) => {
-      actions.push((event as CustomEvent<ProjectAnnotationAction>).detail);
+    const chooseTool = vi.fn();
+    const citePage = vi.fn();
+    const undoHighlight = vi.fn();
+    panel.bindWorkflow({
+      chooseTool,
+      completeSave: vi.fn(),
+      citePage,
+      undoHighlight,
     });
 
     panel.actionForTest("paint");
@@ -243,12 +244,10 @@ describe("project annotation form", () => {
     panel.actionForTest("undo");
     panel.actionForTest("cite");
 
-    expect(actions).toEqual([
-      { action: "choose-tool", tool: "paint" },
-      { action: "choose-tool", tool: "erase" },
-      { action: "undo-highlight", annotationId: "annotation-1", fragmentId: "fragment-1" },
-      { action: "cite-page" },
-    ]);
+    expect(chooseTool).toHaveBeenNthCalledWith(1, "paint");
+    expect(chooseTool).toHaveBeenNthCalledWith(2, "erase");
+    expect(undoHighlight).toHaveBeenCalledWith("annotation-1", "fragment-1");
+    expect(citePage).toHaveBeenCalledOnce();
   });
 });
 

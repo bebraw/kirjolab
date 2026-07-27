@@ -76,13 +76,7 @@ import { claimListActionEvent, type ClaimListAction } from "./claim-list-panel";
 import { manuscriptCommentActionEvent, type ManuscriptCommentAction } from "./manuscript-comment-list";
 import { publicationListActionEvent, type PublicationListAction } from "./publication-list-panel";
 import { projectEvidenceActionEvent, type ProjectEvidenceAction } from "./project-evidence-panel";
-import {
-  projectAnnotationActionEvent,
-  projectAnnotationSavedEvent,
-  type ProjectAnnotationAction,
-  type ProjectAnnotationSaved,
-  type ProjectHighlightTool,
-} from "./project-annotation-form";
+import { type ProjectAnnotationSaved, type ProjectHighlightTool } from "./project-annotation-form";
 import { type ProjectFileDialogMode, type ProjectFileSaved } from "./project-file-dialog";
 import { type ProjectImagesUploaded } from "./project-image-upload-control";
 import { projectTemplateSavedEvent, type ProjectTemplateSaved } from "./project-template-save-dialog";
@@ -537,14 +531,11 @@ class WorkspaceApp {
       publications: () => this.#snapshot?.publications ?? [],
       refresh: async () => await this.#resourceRefresh.request(),
     });
-    this.#elements.projectAnnotationForm.addEventListener(projectAnnotationSavedEvent, (event) => {
-      void this.#completeAnnotationSave((event as CustomEvent<ProjectAnnotationSaved>).detail);
-    });
-    this.#elements.projectAnnotationForm.addEventListener(projectAnnotationActionEvent, (event) => {
-      const action = (event as CustomEvent<ProjectAnnotationAction>).detail;
-      if (action.action === "choose-tool") this.#setHighlightTool(action.tool);
-      else if (action.action === "undo-highlight") void this.#undoLastHighlightStroke(action.annotationId, action.fragmentId);
-      else this.#citeActivePdf();
+    this.#elements.projectAnnotationForm.bindWorkflow({
+      chooseTool: (tool) => this.#setHighlightTool(tool),
+      completeSave: (saved) => void this.#completeAnnotationSave(saved),
+      citePage: () => this.#citeActivePdf(),
+      undoHighlight: (annotationId, fragmentId) => void this.#undoLastHighlightStroke(annotationId, fragmentId),
     });
     this.#elements.contextResourcePresenter.bindLibraryPdf({
       applyViewerPresentation: (presentation) => this.#applyLibraryPdfViewerPresentation(presentation),

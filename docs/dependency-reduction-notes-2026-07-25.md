@@ -6736,6 +6736,27 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,670 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Annotation Workflow Binding
+
+`ProjectAnnotationForm` now routes tool selection, stroke undo, page citation,
+and completed note saves through one typed workflow binding. `WorkspaceApp`
+retains highlight-tool synchronization, PDF mutation, manuscript linking,
+canonical refresh, citation insertion, and notification policy.
+
+This checkpoint reduces `src/client/app.ts` from 2,269 to 2,260 lines (-9),
+removes two coordinator listener sites and the public annotation action and save
+event protocols, and reduces the annotation owner from 432 to 431 lines.
+Focused coverage exercises note-save completion, both tool choices, undo,
+citation, existing intake composition, persistence, and strict types.
+
+The browser application artifact changes from 842,475 B raw / 227,317 B gzip
+to 842,282 B raw / 227,289 B gzip (-193 B raw / -28 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,670 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

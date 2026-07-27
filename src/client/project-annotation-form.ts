@@ -5,19 +5,18 @@ import { errorMessage, expectOk, jsonFetch } from "./http";
 import "./publication-intake-panel";
 import type { PublicationIntakeAction, PublicationIntakePanel } from "./publication-intake-panel";
 
-export const projectAnnotationSavedEvent = "project-annotation-saved";
-export const projectAnnotationActionEvent = "project-annotation-action";
-
 export type ProjectHighlightTool = "paint" | "erase";
-export type ProjectAnnotationAction =
-  | { readonly action: "choose-tool"; readonly tool: ProjectHighlightTool }
-  | { readonly action: "undo-highlight"; readonly annotationId: string; readonly fragmentId: string }
-  | { readonly action: "cite-page" };
-
 export interface ProjectAnnotationSaved {
   readonly annotationId: string;
   readonly link: boolean;
   readonly message: string;
+}
+
+export interface ProjectAnnotationWorkflowBinding {
+  readonly chooseTool: (tool: ProjectHighlightTool) => void;
+  readonly completeSave: (saved: ProjectAnnotationSaved) => void;
+  readonly citePage: () => void;
+  readonly undoHighlight: (annotationId: string, fragmentId: string) => void;
 }
 
 export interface ProjectAnnotationIntakeBinding {
@@ -69,6 +68,7 @@ export class ProjectAnnotationForm extends LitElement {
   private apiBase = "";
   private intakeBinding: ProjectAnnotationIntakeBinding | undefined;
   private intakeContext: IntakeContext | undefined;
+  private workflowBinding: ProjectAnnotationWorkflowBinding | undefined;
 
   constructor() {
     super();
@@ -98,6 +98,10 @@ export class ProjectAnnotationForm extends LitElement {
 
   bindIntake(binding: ProjectAnnotationIntakeBinding): void {
     this.intakeBinding = binding;
+  }
+
+  bindWorkflow(binding: ProjectAnnotationWorkflowBinding): void {
+    this.workflowBinding = binding;
   }
 
   setIntakePdf(pdfId: string, publications: readonly PublicationResource[], links: readonly PublicationPdfLink[]): void {
@@ -330,15 +334,15 @@ export class ProjectAnnotationForm extends LitElement {
   }
 
   protected chooseTool(tool: ProjectHighlightTool): void {
-    this.emitAction({ action: "choose-tool", tool });
+    this.workflowBinding?.chooseTool(tool);
   }
 
   protected undoHighlight(): void {
-    if (this.undoStroke) this.emitAction({ action: "undo-highlight", ...this.undoStroke });
+    if (this.undoStroke) this.workflowBinding?.undoHighlight(this.undoStroke.annotationId, this.undoStroke.fragmentId);
   }
 
   protected citePage(): void {
-    this.emitAction({ action: "cite-page" });
+    this.workflowBinding?.citePage();
   }
 
   protected async handleIntake(event: CustomEvent<PublicationIntakeAction>): Promise<void> {
@@ -363,10 +367,6 @@ export class ProjectAnnotationForm extends LitElement {
     }
   }
 
-  private emitAction(detail: ProjectAnnotationAction): void {
-    this.dispatchEvent(new CustomEvent<ProjectAnnotationAction>(projectAnnotationActionEvent, { bubbles: true, detail }));
-  }
-
   protected async save(event: SubmitEvent): Promise<void> {
     event.preventDefault();
     const annotationId = this.editingAnnotationId;
@@ -380,12 +380,11 @@ export class ProjectAnnotationForm extends LitElement {
       await expectOk(response);
       const message = "Highlight note saved.";
       this.status = message;
-      this.dispatchEvent(
-        new CustomEvent<ProjectAnnotationSaved>(projectAnnotationSavedEvent, {
-          bubbles: true,
-          detail: { annotationId, link: (event.submitter as HTMLElement | null)?.id === "save-and-link-annotation", message },
-        }),
-      );
+      this.workflowBinding?.completeSave({
+        annotationId,
+        link: (event.submitter as HTMLElement | null)?.id === "save-and-link-annotation",
+        message,
+      });
     } catch (error) {
       this.status = errorMessage(error, "Could not save the highlight note.");
     }

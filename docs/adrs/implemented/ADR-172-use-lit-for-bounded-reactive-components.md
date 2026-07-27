@@ -400,8 +400,8 @@ The adopted components own bounded presentation:
   feedback derived from its local tool and canonical capture, citation
   availability derived from the active PDF and canonical publication-PDF
   links, nested publication-intake configuration and PDF projection, intake
-  refresh acknowledgement and navigation routing, and typed tool, complete
-  undo, citation, completed save, and link outcomes or intents.
+  refresh acknowledgement and navigation routing, and one typed workflow
+  binding for tool, undo, citation, completed save, and link outcomes or intents.
 - The Library PDF annotation forms own private-highlight, page-note, and
   selected-markup composer visibility and values, private-highlight geometry
   and optional editing identity, private-highlight create and comment-update
@@ -805,7 +805,9 @@ reason to wrap static markup mechanically.
   Valibot response validation, fragment selection, and form/undo-state updates.
   It also composes the publication-intake owner, removing that nested element's
   global registry entry, coordinator listener and completion method, and direct
-  lookup from the context presenter.
+  lookup from the context presenter. Its typed workflow binding also replaces
+  two coordinator subscriptions and the public annotation action and save event
+  protocols while retaining cross-feature decisions in the coordinator.
   It leaves selection and overlap derivation, viewer draft clearing, manuscript
   linking, canonical refreshes, and toast policy in the application coordinator.
 - The Library PDF annotation forms replace seventeen internal element
