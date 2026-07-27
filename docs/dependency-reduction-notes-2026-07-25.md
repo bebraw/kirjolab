@@ -8876,6 +8876,29 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,718 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Resolved Preview Workspace
+
+`WorkspacePreview` now presents a request-supplied anchor-resolved workspace to
+research companions only when the matching project render outcome is available.
+`WorkspaceApp` retains Yjs document and anchor-resolution authority and supplies
+the resolved snapshot with the other canonical Preview inputs instead of
+performing post-render companion fan-out.
+
+This checkpoint reduces `src/client/app.ts` from 1,278 to 1,272 lines (-6),
+grows the workspace Preview from 397 to 403 lines (+6), and leaves combined
+runtime source unchanged while deleting the coordinator's outcome guards,
+snapshot recapture, and direct resource-presenter call. Focused coverage passes
+all 52 Preview, application-contract, and context-resource cases, including
+available-outcome gating and synchronized bibliography/composed-source inputs.
+
+The browser application artifact changes from 849,147 B raw / 228,827 B gzip
+to 849,243 B raw / 228,834 B gzip (+96 B raw / +7 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,718 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

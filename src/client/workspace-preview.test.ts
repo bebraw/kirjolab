@@ -3,6 +3,7 @@ import type { Diagnostic } from "../domain/markdown";
 import type { ProjectComposition, ProjectFilePreview } from "../domain/project-files";
 import { workspaceSnapshotFixture } from "../test-support/workspace-fixture";
 import type { MarkdownRuntime } from "./markdown-runtime";
+import { ContextResourcePresenter } from "./context-resource-presenter";
 import { ManuscriptMapPanel } from "./manuscript-map-panel";
 import { previewDiagnosticSelectEvent, type PreviewDiagnosticsPanel } from "./preview-presentation";
 import { ProjectExportDialog } from "./project-export-dialog";
@@ -121,6 +122,7 @@ describe("workspace preview", () => {
       fallbackSource: "Fallback",
       files,
       hiddenAssetIds: new Set(),
+      resolvedSnapshot: workspaceSnapshotFixture,
       snapshot: workspaceSnapshotFixture,
     });
 
@@ -143,11 +145,17 @@ describe("workspace preview", () => {
     const preview = new CompanionWorkspacePreview();
     const manuscriptMap = new ManuscriptMapPanel();
     const exportDialog = new ProjectExportDialog();
+    const resources = new ContextResourcePresenter();
     const presentProject = vi.spyOn(manuscriptMap, "presentProject").mockImplementation(() => undefined);
     const setStatistics = vi.spyOn(exportDialog, "setStatistics").mockImplementation(() => undefined);
+    const presentResolvedWorkspace = vi.spyOn(resources, "presentResolvedWorkspace").mockImplementation(() => undefined);
     Object.defineProperty(preview, "ownerDocument", {
       value: {
-        getElementById: (id: string) => (id === "manuscript-map-panel" ? manuscriptMap : exportDialog),
+        getElementById: (id: string) => {
+          if (id === "manuscript-map-panel") return manuscriptMap;
+          if (id === "export-dialog-control") return exportDialog;
+          return resources;
+        },
       },
     });
     const projectRequest = {
@@ -157,6 +165,7 @@ describe("workspace preview", () => {
       fallbackSource: "Fallback",
       files: workspaceSnapshotFixture.files,
       hiddenAssetIds: new Set<string>(),
+      resolvedSnapshot: workspaceSnapshotFixture,
       snapshot: workspaceSnapshotFixture,
     };
     const publicationComposition = { content: "# Composed paper", dependencies: {}, diagnostics: [], sourceMap: [] };
@@ -173,6 +182,11 @@ describe("workspace preview", () => {
       expect.objectContaining({ files: projectRequest.files, source: publicationComposition.content }),
     );
     expect(setStatistics).toHaveBeenCalledWith(expect.objectContaining({ totalWords: 2 }));
+    expect(presentResolvedWorkspace).toHaveBeenCalledWith(
+      workspaceSnapshotFixture,
+      projectRequest.bibliography,
+      publicationComposition.content,
+    );
   });
 
   it("shows source and a local diagnostic when the renderer is unavailable", async () => {

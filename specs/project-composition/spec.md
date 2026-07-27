@@ -59,8 +59,10 @@ collaborative, and unambiguous about what preview and export mean.
   canonical project files, snapshot pins, and active-file identity before
   invoking its renderer. It synchronizes file-mode, diagnostics/unavailable
   status, source-map navigation, manuscript-map content, and live export
-  statistics siblings from the same render outcome. The coordinator retains
-  canonical Yjs/project-file authority and resolved-anchor resource consequences.
+  statistics siblings from the same render outcome. For an available outcome,
+  it also supplies the coordinator-resolved workspace anchors and composed
+  source to research companions. The coordinator retains canonical
+  Yjs/project-file authority and anchor resolution.
 - The bounded Preview status owner derives composed-versus-isolated file labels
   and the combined composition and Markdown-renderer issue count from canonical
   preview and diagnostic inputs. It also owns the unavailable summary; the

@@ -150,12 +150,14 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   resolution, publication composition and active-file preview derivation from
   supplied canonical project files, synchronized Preview status and source-map
   sibling projection, manuscript-map and live export-statistics companion
-  projection from the same project render outcome, transient DOM navigation, interactive-click classification,
+  projection, and available-outcome projection of a supplied anchor-resolved
+  workspace into research companions from the same project render outcome,
+  transient DOM navigation, interactive-click classification,
   source-offset extraction, and routing of its source, citation, and nested
   diagnostic-selection intents through one typed navigation boundary. Keep
-  canonical project-file and Yjs source authority, source-map translation,
-  resolved-anchor resource projection, publication resolution, citation
-  navigation, and resulting transitions in the application coordinator.
+  canonical project-file and Yjs source authority, Yjs anchor resolution,
+  source-map translation, publication resolution, citation navigation, and
+  resulting transitions in the application coordinator.
 - Keep the DOI publication-intake XState actor, preview and acceptance
   requests, stale-response guards, local status, and focus lifecycle inside the
   bounded intake Lit component. Let that component also derive the active PDF's

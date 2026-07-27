@@ -694,22 +694,16 @@ class WorkspaceApp {
   }
 
   async #renderPreview(bibliography = this.#bibliography.toString()): Promise<void> {
-    const outcome = await this.#elements.workspacePreview.renderProject({
+    await this.#elements.workspacePreview.renderProject({
       activeFileId: this.#activeFileId,
       apiBase,
       bibliography,
       fallbackSource: this.#source.toString(),
       files: this.#elements.projectFileDialog.projectFiles(),
       hiddenAssetIds: this.#elements.projectTreePanel.hiddenAssets,
+      resolvedSnapshot: this.#snapshot ? resolveWorkspaceSnapshotAnchors(this.#document, this.#snapshot) : null,
       snapshot: this.#snapshot,
     });
-    if (!outcome) return;
-    if (!outcome.available) return;
-    const snapshot = this.#snapshot;
-    if (snapshot) {
-      const resolved = resolveWorkspaceSnapshotAnchors(this.#document, snapshot);
-      this.#elements.contextResourcePresenter.presentResolvedWorkspace(resolved, bibliography, outcome.publicationComposition?.content);
-    }
   }
 
   async #openWorkflowFile(path: string, content: () => string): Promise<void> {

@@ -13,6 +13,7 @@ import {
 } from "../domain/project-files";
 import type { WorkspaceSnapshot } from "../domain/workspace";
 import { sourceSpanAt } from "./composition-source-map";
+import { ContextResourcePresenter } from "./context-resource-presenter";
 import { parseCitationKeys, type CitationContext } from "./citations";
 import { loadMarkdownRuntime, type MarkdownRuntime } from "./markdown-runtime";
 import { ManuscriptMapPanel } from "./manuscript-map-panel";
@@ -52,6 +53,7 @@ export interface ProjectPreviewRequest {
   readonly fallbackSource: string;
   readonly files: readonly ProjectFile[];
   readonly hiddenAssetIds: ReadonlySet<string>;
+  readonly resolvedSnapshot: WorkspaceSnapshot | null;
   readonly snapshot: WorkspaceSnapshot | null;
 }
 
@@ -212,6 +214,10 @@ export class WorkspacePreview extends LitElement {
     const exportDialog = this.ownerDocument?.getElementById("export-dialog-control");
     if (exportDialog instanceof ProjectExportDialog && outcome.publicationComposition && request.snapshot) {
       exportDialog.setStatistics(publicationWordStatistics(outcome.publicationComposition, request.files));
+    }
+    const resources = this.ownerDocument?.getElementById("context-resource-presenter");
+    if (resources instanceof ContextResourcePresenter && outcome.available && request.resolvedSnapshot) {
+      resources.presentResolvedWorkspace(request.resolvedSnapshot, request.bibliography, outcome.publicationComposition?.content);
     }
   }
 

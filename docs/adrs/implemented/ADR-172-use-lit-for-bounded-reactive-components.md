@@ -356,14 +356,16 @@ The adopted components own bounded presentation:
   projection, publication composition and active-file preview derivation from
   supplied canonical project files, synchronized Preview status and source-map
   sibling projection, manuscript-map content and live export-statistics
-  companion projection from the same project render outcome, authorized local-image resolution, viewport-relative source-span
+  companion projection, and available-outcome projection of a supplied
+  anchor-resolved workspace into research companions from the same project
+  render outcome, authorized local-image resolution, viewport-relative source-span
   lookup, centering, transient target emphasis, anchor scrolling, interactive-
   click classification, source-offset extraction, and typed source or citation
   intents. It routes those intents and its nested diagnostics panel's source-
   range selections through one typed navigation boundary. The coordinator
-  retains canonical project-file and Yjs source authority, source-map
-  translation, resolved-anchor resource projection, publication resolution,
-  citation navigation, and the resulting transitions.
+  retains canonical project-file and Yjs source authority, Yjs anchor
+  resolution, source-map translation, publication resolution, citation
+  navigation, and the resulting transitions.
 - The preview navigation control owns browser-local top-navigation visibility,
   storage restoration, toggle and restore presentation, active-context
   availability, and focus handoff between its spatially separated controls.
