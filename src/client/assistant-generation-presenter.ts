@@ -59,6 +59,16 @@ export interface AssistantGenerationInput {
   readonly sourceRevision: number;
 }
 
+export type AssistantGenerationContext = Omit<AssistantGenerationInput, "manuscript">;
+
+export interface AssistantGenerationPreparation {
+  readonly insertionTarget: AssistantAuthoringPassage | null;
+  readonly passage: AssistantAuthoringPassage | null;
+  readonly snapshotAvailable: boolean;
+  readonly sourceRevision: number;
+  readonly stableDocument: boolean;
+}
+
 export interface AssistantGenerationPresentation {
   readonly candidate?: ModelCandidate;
   readonly status: string;
@@ -81,8 +91,12 @@ export interface AssistantControlCallbacks {
 }
 
 export interface AssistantResultCallbacks {
-  readonly handleAction: (detail: AssistantResultActionDetail) => void;
+  readonly clarityState: () => "busy" | "ready" | "stale";
+  readonly completeClarity: () => void;
+  readonly failClarity: (error: unknown) => void;
+  readonly handleAction: (detail: Exclude<AssistantResultActionDetail, { readonly action: "continue-clarity" }>) => void;
   readonly refreshLibrary: () => Promise<void>;
+  readonly startClarity: () => void;
 }
 
 export interface AssistantCandidateCallbacks {
@@ -143,11 +157,50 @@ export class AssistantGenerationPresenter extends LitElement {
     });
   }
 
+  prepareGeneration(input: AssistantGenerationPreparation): AssistantGenerationContext | null {
+    const settings = this.element("model-provider-settings", ModelProviderSettings);
+    const status = this.element("assistant-workflow-status", AssistantWorkflowStatus);
+    const task = this.element("assistant-task-panel", AssistantTaskPanel);
+    if (!settings || !status || !task) return null;
+    const { instruction, operation } = task.value;
+    const evidence = status.modelEvidence();
+    const insertionTarget = operation.id === "build-table" ? input.insertionTarget : null;
+    if (
+      !status.validateGeneration({
+        evidence,
+        hasInsertionTarget: insertionTarget !== null,
+        hasPassage: input.passage !== null,
+        operation,
+        snapshotAvailable: input.snapshotAvailable,
+        stableDocument: input.stableDocument,
+      })
+    ) {
+      return null;
+    }
+    try {
+      return {
+        evidence,
+        insertionTarget,
+        instruction,
+        operation,
+        passage: input.passage,
+        provider: settings.provider(),
+        sourceRevision: input.sourceRevision,
+      };
+    } catch (error) {
+      status.status = error instanceof Error ? error.message : "Enter a valid local model endpoint.";
+      return null;
+    }
+  }
+
   bindResults(callbacks: AssistantResultCallbacks): void {
     const result = this.element("assistant-interactive-result", AssistantResultPanel);
     const status = this.element("assistant-workflow-status", AssistantWorkflowStatus);
     result?.addEventListener(assistantResultActionEvent, (event) => {
-      callbacks.handleAction((event as CustomEvent<AssistantResultActionDetail>).detail);
+      const detail = (event as CustomEvent<AssistantResultActionDetail>).detail;
+      if (detail.action === "continue-clarity") {
+        void this.continueClarity(result, status, detail, callbacks);
+      } else callbacks.handleAction(detail);
     });
     result?.addEventListener(assistantReferenceRefreshEvent, (event) => {
       const detail = (event as CustomEvent<AssistantReferenceRefresh>).detail;
@@ -161,6 +214,35 @@ export class AssistantGenerationPresenter extends LitElement {
         })
         .finally(() => result.completeReferenceSave(detail.index, detail.requestId));
     });
+  }
+
+  private async continueClarity(
+    result: AssistantResultPanel,
+    status: AssistantWorkflowStatus | null,
+    detail: Extract<AssistantResultActionDetail, { readonly action: "continue-clarity" }>,
+    callbacks: AssistantResultCallbacks,
+  ): Promise<void> {
+    const answer = detail.answer.trim();
+    const state = callbacks.clarityState();
+    if (!answer || state !== "ready") {
+      if (status) {
+        status.status = !answer
+          ? "Answer the clarity question first."
+          : state === "stale"
+            ? "The manuscript changed. Start the clarity drill again for the current target."
+            : "The local model is already working.";
+      }
+      return;
+    }
+    callbacks.startClarity();
+    if (status) status.status = "Turning that meaning into a few precise alternatives…";
+    try {
+      await result.completeClarityDrill(detail.context, answer);
+      if (status) status.status = "Choose the wording that best matches your meaning; it will still open for review.";
+      callbacks.completeClarity();
+    } catch (error) {
+      callbacks.failClarity(error);
+    }
   }
 
   bindControls(callbacks: AssistantControlCallbacks): void {

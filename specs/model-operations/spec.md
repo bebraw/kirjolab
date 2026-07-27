@@ -51,7 +51,11 @@ All mutation operations preserve a human review boundary.
   open subscription while delegating canonical context activation. It persists
   researcher-promoted transient rewrites through the candidate-list owner; the
   application retains workflow transitions, canonical refresh, and context
-  opening.
+  opening. It prepares validated generation context from assistant-owned task,
+  evidence, and provider settings plus canonical target and stability inputs.
+  It owns clarity-answer validation, provider continuation, and transient
+  status presentation while the application retains XState transitions,
+  availability refresh, and failure policy.
 - A non-empty manuscript selection always resolves exactly. Otherwise the
   remembered Yjs-relative caret expands deterministically to the configured
   sentence, paragraph, or Markdown section, or remains an insertion point.

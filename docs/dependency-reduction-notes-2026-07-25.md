@@ -6092,6 +6092,35 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,644 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Generation Preparation and Clarity
+
+`AssistantGenerationPresenter` now prepares validated generation context from
+the task, evidence-status, and model-settings owners plus canonical target,
+snapshot, stability, and revision inputs. It also intercepts clarity-
+continuation actions, trims and validates the answer against coordinator-
+reported workflow state, performs the result-owned provider continuation, and
+projects working, blocked, stale, success, and failure-adjacent status. XState
+transitions, availability refresh, and failure policy remain explicit
+coordinator callbacks.
+
+This checkpoint reduces `src/client/app.ts` from 2,924 to 2,870 lines (-54)
+and grows the generation presenter from 344 to 426 lines. Runtime source across
+those two files grows by 28 lines while deleting the coordinator generation-
+context interface, task/evidence/provider adapter, provider-error wrapper,
+clarity event branch, provider continuation method, and related direct
+component imports. Twelve direct presenter cases cover generation preparation,
+empty and stale clarity answers, successful continuation, provider failure, and
+the preceding operation, setup, control, result, decision, and evidence routes
+under strict client and Workers types.
+
+The browser application artifact changes from 834,261 B raw / 225,724 B gzip
+to 834,611 B raw / 225,802 B gzip (+350 B raw / +78 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,646 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

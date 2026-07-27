@@ -108,7 +108,12 @@ The adopted components own bounded presentation:
   base and owns candidate-open subscription while delegating canonical context
   activation through a typed callback. It also persists researcher-promoted
   transient rewrites through the candidate-list owner while the coordinator
-  retains workflow transitions, canonical refresh, and context opening.
+  retains workflow transitions, canonical refresh, and context opening. It
+  prepares validated generation context from assistant-owned task, evidence,
+  and model settings plus coordinator-supplied canonical target and stability
+  inputs. It owns clarity-answer validation, provider continuation, and
+  transient status presentation while the coordinator retains XState
+  transitions, availability refresh, and failure policy.
 - The project map panel owns provenance-lane rendering, measured SVG connector
   geometry, responsive relayout, focus and hover emphasis, and a typed resource
   selection intent.

@@ -76,7 +76,6 @@ import {
 import { researchDiaryOpenEvent } from "./research-diary-summary";
 import {
   type AssistantAuthoringPassage as AuthoringPassage,
-  type AssistantClarityContext as ClarityDrillContext,
   type AssistantResultActionDetail,
   type AssistantRevisionContext as AssistantDraftContext,
 } from "./assistant-result-panel";
@@ -98,8 +97,8 @@ import {
 import { CoalescedRefresh, DebouncedAsyncQueue } from "./collaboration";
 import { CollaborationSession } from "./collaboration-session";
 import { CollaborationSocket } from "./collaboration-socket";
-import { assistantOperationDefinition, resolveAssistantTarget } from "./assistant-operations";
-import type { SelectedModelEvidence } from "./assistant-workflow-status";
+import { resolveAssistantTarget } from "./assistant-operations";
+import type { AssistantGenerationContext } from "./assistant-generation-presenter";
 import { assistantWorkflowBusy, createAssistantWorkflowActor } from "./assistant-workflow-machine";
 import { citationPageFromLocator, createCitationInsertion, type CitationContext } from "./citations";
 import { projectMapResourceSelectEvent } from "./project-map-workspace";
@@ -150,7 +149,6 @@ import { PdfEvidenceViewer, type PdfSelectionCapture } from "./pdf-viewer";
 import { pdfHighlightImportOutcomeEvent, type PdfHighlightImportOutcome } from "./pdf-highlight-import-panel";
 import type { ExistingPdfUpload } from "./pdf-upload-queue";
 import { bindThemePreference } from "./theme";
-import { OpenAICompatibleBrowserProvider } from "./model-provider";
 import { projectHistoryOutcomeEvent } from "./project-history-dialog";
 import {
   activateResearchTab,
@@ -218,16 +216,6 @@ interface PendingDeletion {
 interface ResolvedAuthoringTarget {
   readonly start: number;
   readonly end: number;
-}
-
-interface AssistantGenerationContext {
-  readonly provider: OpenAICompatibleBrowserProvider;
-  readonly operation: ReturnType<typeof assistantOperationDefinition>;
-  readonly passage: AuthoringPassage | null;
-  readonly evidence: SelectedModelEvidence;
-  readonly insertionTarget: AuthoringPassage | null;
-  readonly instruction: string;
-  readonly sourceRevision: number;
 }
 
 interface OverlappingPdfFragment {
@@ -827,8 +815,24 @@ class WorkspaceApp {
       startDecision: (detail) => this.#startCandidateDecision(detail),
     });
     this.#elements.assistantGenerationPresenter.bindResults({
+      clarityState: () => {
+        const workflow = this.#assistantWorkflow.getSnapshot();
+        return workflow.matches("awaitingInput") ? "ready" : workflow.matches("stale") ? "stale" : "busy";
+      },
+      completeClarity: () => {
+        this.#assistantWorkflow.send({ type: "REVIEW" });
+        this.#updateModelAvailability();
+      },
+      failClarity: (error) => {
+        this.#failAssistantGeneration(error);
+        this.#updateModelAvailability();
+      },
       handleAction: (detail) => void this.#handleAssistantResultAction(detail),
       refreshLibrary: async () => await this.#refreshReferenceLibrary(),
+      startClarity: () => {
+        this.#assistantWorkflow.send({ type: "CONTINUE" });
+        this.#updateModelAvailability();
+      },
     });
     this.#elements.assistantGenerationPresenter.bindControls({
       chooseEvidence: () => this.#chooseModelEvidence(),
@@ -2296,42 +2300,13 @@ class WorkspaceApp {
   }
 
   #assistantGenerationContext(): AssistantGenerationContext | null {
-    const { instruction, operation } = this.#elements.assistantTaskPanel.value;
-    const passage = this.#assistantAuthoringPassage();
-    const evidence = this.#elements.assistantWorkflowStatus.modelEvidence();
-    const insertionTarget = operation.id === "build-table" ? this.#assistantInsertionTarget() : null;
-    if (
-      !this.#elements.assistantWorkflowStatus.validateGeneration({
-        evidence,
-        hasInsertionTarget: insertionTarget !== null,
-        hasPassage: passage !== null,
-        operation,
-        snapshotAvailable: this.#snapshot !== null,
-        stableDocument: this.#hasStableDocumentBase(),
-      })
-    ) {
-      return null;
-    }
-    const provider = this.#modelProviderOrReport();
-    if (!provider) return null;
-    return {
-      provider,
-      operation,
-      passage,
-      evidence,
-      insertionTarget,
-      instruction,
+    return this.#elements.assistantGenerationPresenter.prepareGeneration({
+      insertionTarget: this.#assistantInsertionTarget(),
+      passage: this.#assistantAuthoringPassage(),
+      snapshotAvailable: this.#snapshot !== null,
       sourceRevision: this.#revision,
-    };
-  }
-
-  #modelProviderOrReport(): OpenAICompatibleBrowserProvider | null {
-    try {
-      return this.#elements.modelProviderSettings.provider();
-    } catch (error) {
-      this.#elements.assistantWorkflowStatus.status = error instanceof Error ? error.message : "Enter a valid local model endpoint.";
-      return null;
-    }
+      stableDocument: this.#hasStableDocumentBase(),
+    });
   }
 
   async #runAssistantGeneration(input: AssistantGenerationContext): Promise<void> {
@@ -2348,13 +2323,9 @@ class WorkspaceApp {
     throw new Error("Assistant generation is unavailable");
   }
 
-  async #handleAssistantResultAction(detail: AssistantResultActionDetail): Promise<void> {
+  async #handleAssistantResultAction(detail: Exclude<AssistantResultActionDetail, { readonly action: "continue-clarity" }>): Promise<void> {
     if (detail.action === "insert-table") {
       this.#insertGeneratedTable(detail.context.target, detail.context.sourceRevision, detail.markdown);
-      return;
-    }
-    if (detail.action === "continue-clarity") {
-      await this.#continueClarityDrill(detail.context, detail.answer);
       return;
     }
     await this.#chooseAssistantRevision(detail.context, detail.choice);
@@ -2384,31 +2355,6 @@ class WorkspaceApp {
     this.#elements.source.setSelectionRange(caret, caret);
     this.#rememberAuthoringSelection();
     this.#elements.assistantWorkflowStatus.status = "Table inserted into the manuscript.";
-  }
-
-  async #continueClarityDrill(input: ClarityDrillContext, rawAnswer: string): Promise<void> {
-    const answer = rawAnswer.trim();
-    const workflow = this.#assistantWorkflow.getSnapshot();
-    if (!answer || !workflow.matches("awaitingInput")) {
-      this.#elements.assistantWorkflowStatus.status = !answer
-        ? "Answer the clarity question first."
-        : workflow.matches("stale")
-          ? "The manuscript changed. Start the clarity drill again for the current target."
-          : "The local model is already working.";
-      return;
-    }
-    this.#assistantWorkflow.send({ type: "CONTINUE" });
-    this.#updateModelAvailability();
-    this.#elements.assistantWorkflowStatus.status = "Turning that meaning into a few precise alternatives…";
-    try {
-      await this.#elements.assistantInteractiveResult.completeClarityDrill(input, answer);
-      this.#elements.assistantWorkflowStatus.status = "Choose the wording that best matches your meaning; it will still open for review.";
-      this.#assistantWorkflow.send({ type: "REVIEW" });
-    } catch (error) {
-      this.#failAssistantGeneration(error);
-    } finally {
-      this.#updateModelAvailability();
-    }
   }
 
   async #chooseAssistantRevision(

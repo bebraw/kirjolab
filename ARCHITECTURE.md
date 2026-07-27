@@ -371,7 +371,12 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   API base and owns candidate-open subscription, delegating canonical context
   activation through a typed callback. It persists researcher-promoted
   transient rewrites through the candidate-list owner while the coordinator
-  retains workflow transitions, canonical refresh, and context opening.
+  retains workflow transitions, canonical refresh, and context opening. It
+  prepares validated generation context from task, evidence-status, and model-
+  settings owners plus coordinator-supplied canonical target and stability
+  inputs. It also owns clarity-answer validation, provider continuation, and
+  transient status presentation while delegating XState transitions,
+  availability refresh, and failure policy through explicit callbacks.
   Let the candidate-review Lit owner resolve the active candidate id against
   the canonical workspace snapshot and derive evidence availability and local
   applicability from candidate, evidence-version, source-revision,
