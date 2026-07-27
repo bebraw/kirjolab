@@ -41,10 +41,11 @@ with an authored passage.
   publication-intake owner and routes its refresh-pending acceptance and linked-
   reference navigation through typed coordinator callbacks. It derives paint-
   versus-erase tool guidance and selection feedback from its local tool and the
-  canonical capture, plus citation availability from the active PDF and
-  canonical publication-PDF links. The
-  workspace coordinator retains highlight geometry and persistence, annotation
-  identity, manuscript selection, refreshes, and user notifications.
+  canonical capture, classifies saved strokes that geometrically overlap that
+  capture on the active PDF page, and derives citation availability from the
+  active PDF and canonical publication-PDF links. The workspace coordinator
+  retains PDF selection capture, viewer effects, annotation identity,
+  manuscript selection, refreshes, and user notifications.
 - `POST /api/workspaces/{id}/annotation-links` validates an annotation and
   current manuscript selection before atomically inserting both the annotation
   and its passage link.

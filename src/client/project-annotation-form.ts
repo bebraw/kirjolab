@@ -1,4 +1,5 @@
 import { html, LitElement, type TemplateResult } from "lit";
+import { libraryPdfRectsOverlap } from "../domain/reference-library";
 import type { AnnotationResource, CreateAnnotationInput, PdfResource, PublicationPdfLink, PublicationResource } from "../domain/workspace";
 import { isCreatedAnnotation } from "./app-contracts";
 import { errorMessage, expectOk, jsonFetch } from "./http";
@@ -10,6 +11,11 @@ export interface ProjectAnnotationSaved {
   readonly annotationId: string;
   readonly link: boolean;
   readonly message: string;
+}
+
+export interface ProjectAnnotationOverlap {
+  readonly annotation: AnnotationResource;
+  readonly fragment: AnnotationResource["fragments"][number];
 }
 
 export interface ProjectAnnotationWorkflowBinding {
@@ -120,6 +126,16 @@ export class ProjectAnnotationForm extends LitElement {
       this.tool === "erase"
         ? "Erasing overlapping highlight strokes…"
         : `Captured ${capture.rects.length} ${capture.rects.length === 1 ? "line" : "lines"} from page ${capture.page}. Saving automatically…`;
+  }
+
+  overlappingFragments(annotations: readonly AnnotationResource[], pdfId: string, capture: AnnotationCapture): ProjectAnnotationOverlap[] {
+    return annotations
+      .filter((annotation) => annotation.pdfId === pdfId && annotation.page === capture.page)
+      .flatMap((annotation) =>
+        annotation.fragments
+          .filter((fragment) => libraryPdfRectsOverlap(fragment.rects, capture.rects))
+          .map((fragment) => ({ annotation, fragment })),
+      );
   }
 
   private applyCapture(capture: Pick<AnnotationDraft, "page" | "prefix" | "quote" | "suffix">): void {

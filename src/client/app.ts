@@ -9,7 +9,6 @@ import { projectFileCollaborationTextName, relativeProjectPath, type ProjectComp
 import { publicationWordStatistics } from "../domain/publication-statistics";
 import { researchQuestionsPath, researchQuestionsTemplate } from "../domain/research-questions";
 import { researchDiaryPath, researchDiaryTemplate } from "../domain/writing-workflows";
-import { libraryPdfRectsOverlap } from "../domain/reference-library";
 import { type LibraryHighlight, type LibraryPdfArtifact, type ProjectReferencePdf } from "../domain/reference-library";
 import "./application-version-control";
 import "./source-citation-control";
@@ -42,7 +41,7 @@ import { CollaborationSession } from "./collaboration-session";
 import { CollaborationSocket } from "./collaboration-socket";
 import { resolveAssistantTarget } from "./assistant-operations";
 import { citationPageFromLocator, createCitationInsertion, type CitationContext } from "./citations";
-import { type ProjectAnnotationSaved, type ProjectHighlightTool } from "./project-annotation-form";
+import { type ProjectAnnotationOverlap, type ProjectAnnotationSaved, type ProjectHighlightTool } from "./project-annotation-form";
 import { type ProjectFileDialogMode, type ProjectFileSaved } from "./project-file-dialog";
 import type { ProjectTemplateSaved } from "./project-template-save-dialog";
 import "./manuscript-map-panel";
@@ -101,11 +100,6 @@ const offlineOrigin = Symbol("offline");
 interface ResolvedAuthoringTarget {
   readonly start: number;
   readonly end: number;
-}
-
-interface OverlappingPdfFragment {
-  readonly annotation: AnnotationResource;
-  readonly fragment: AnnotationResource["fragments"][number];
 }
 
 class WorkspaceApp {
@@ -1596,7 +1590,7 @@ class WorkspaceApp {
   async #persistPdfSelection(capture: PdfSelectionCapture): Promise<void> {
     const pdfId = this.#renderedPdfId;
     if (!pdfId || !this.#snapshot) return;
-    const overlaps = this.#overlappingPdfFragments(pdfId, capture);
+    const overlaps = this.#elements.projectAnnotationForm.overlappingFragments(this.#snapshot.annotations, pdfId, capture);
     if (this.#elements.projectAnnotationForm.selectedTool === "erase") {
       await this.#erasePdfSelection(overlaps);
       return;
@@ -1604,19 +1598,7 @@ class WorkspaceApp {
     await this.#savePdfSelection(pdfId, capture, overlaps[0]?.annotation);
   }
 
-  #overlappingPdfFragments(pdfId: string, capture: PdfSelectionCapture): OverlappingPdfFragment[] {
-    return (
-      this.#snapshot?.annotations
-        .filter((annotation) => annotation.pdfId === pdfId && annotation.page === capture.page)
-        .flatMap((annotation) =>
-          annotation.fragments
-            .filter((fragment) => libraryPdfRectsOverlap(fragment.rects, capture.rects))
-            .map((fragment) => ({ annotation, fragment })),
-        ) ?? []
-    );
-  }
-
-  async #erasePdfSelection(overlaps: readonly OverlappingPdfFragment[]): Promise<void> {
+  async #erasePdfSelection(overlaps: readonly ProjectAnnotationOverlap[]): Promise<void> {
     if (overlaps.length === 0) {
       this.#pdfViewer.clearDraftSelection();
       this.#elements.projectAnnotationForm.setStatus("The eraser did not cross a saved highlight stroke.");

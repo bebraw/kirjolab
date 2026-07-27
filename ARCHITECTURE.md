@@ -776,13 +776,15 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   transport, Valibot response validation, optional note persistence, and local
   save status inside its Lit owner. Let it derive paint-versus-erase tool
   guidance and selection feedback from its local tool and canonical capture,
+  classify saved annotation strokes that geometrically overlap that capture on
+  the active PDF page,
   plus citation availability from the active PDF and canonical publication-PDF
   links. Let the composer configure and project its nested publication-intake
   owner, acknowledge or reject intake after canonical refresh, and route linked
   or accepted publications through typed callbacks. Route completed note-save,
   tool, undo, citation, and link outcomes through one typed workflow binding while
-  leaving selection and overlap derivation, viewer draft clearing, manuscript
-  linking, canonical refreshes, and notifications in the application
+  leaving PDF selection capture, viewer draft clearing, manuscript linking,
+  canonical refreshes, and notifications in the application
   coordinator.
 - Refine tablet highlight strokes through bounded normalized geometry and quotation updates; preserve annotation/stroke identity and imported PDF immutability.
 - Retain the active manuscript caret or selection as Yjs-relative positions, render that local target after editor blur, and resolve it before any contextual insertion or replacement.

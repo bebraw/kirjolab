@@ -7794,6 +7794,29 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,699 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: PDF Erasure Overlaps
+
+`ProjectAnnotationForm` now filters canonical saved annotation strokes to the
+active PDF and captured page and classifies their rectangle-set overlap. The
+coordinator supplies the capture and retains viewer clearing, persistence,
+canonical refresh, and notification effects.
+
+This checkpoint reduces `src/client/app.ts` from 1,792 to 1,774 lines (-18) and
+grows the project-annotation owner from 431 to 447 lines (+16). Runtime source
+across those files decreases by two lines while removing the coordinator's
+overlap result type, geometry import, and annotation/fragment traversal.
+Focused coverage passes all nine project-annotation cases, including matching
+and unrelated PDF, page, and rectangle states, alongside application contracts
+and strict types.
+
+The browser application artifact changes from 845,211 B raw / 229,012 B gzip
+to 845,269 B raw / 229,015 B gzip (+58 B raw / +3 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,700 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

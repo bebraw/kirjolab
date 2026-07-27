@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { PublicationResource } from "../domain/workspace";
+import type { AnnotationResource, PublicationResource } from "../domain/workspace";
 import { ProjectAnnotationForm, type ProjectAnnotationSaved, type ProjectHighlightTool } from "./project-annotation-form";
 import { PublicationIntakePanel, type PublicationIntakeAction } from "./publication-intake-panel";
 
@@ -115,6 +115,27 @@ describe("project annotation form", () => {
     panel.changeForTest("prefix", "new left");
     panel.changeForTest("suffix", "new right");
     expect(panel.renderForTest()).toBeDefined();
+  });
+
+  it("classifies overlapping strokes on the captured PDF page", () => {
+    const panel = new TestProjectAnnotationForm();
+    const overlap = { ...fragment("overlap"), rects: [{ height: 0.1, width: 0.2, x: 0.1, y: 0.2 }] };
+    const separate = { ...fragment("separate"), rects: [{ height: 0.1, width: 0.2, x: 0.6, y: 0.7 }] };
+    const matching = annotation("annotation-1", [overlap, separate]);
+    const otherPage = { ...annotation("annotation-2", [overlap]), page: 3 };
+    const otherPdf = { ...annotation("annotation-3", [overlap]), pdfId: "pdf-2" };
+
+    expect(
+      panel
+        .overlappingFragments([matching, otherPage, otherPdf], "pdf-1", {
+          page: 2,
+          prefix: "",
+          quote: "Evidence",
+          rects: [{ height: 0.05, width: 0.1, x: 0.15, y: 0.23 }],
+          suffix: "",
+        })
+        .map(({ annotation: resource, fragment: stroke }) => [resource.id, stroke.id]),
+    ).toEqual([["annotation-1", "overlap"]]);
   });
 
   it("owns nested publication intake presentation and outcomes", async () => {
@@ -251,11 +272,11 @@ describe("project annotation form", () => {
   });
 });
 
-function fragment(id: string) {
+function fragment(id: string): AnnotationResource["fragments"][number] {
   return { createdAt: "2026-07-25T00:00:00.000Z", id, prefix: "Before", quote: "Evidence", rects: [], suffix: "After" };
 }
 
-function annotation(id: string, fragments: ReturnType<typeof fragment>[]) {
+function annotation(id: string, fragments: ReturnType<typeof fragment>[]): AnnotationResource {
   return {
     comment: "",
     createdAt: "2026-07-25T00:00:00.000Z",
