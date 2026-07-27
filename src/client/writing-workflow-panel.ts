@@ -20,18 +20,11 @@ export interface WritingWorkflowData {
   readonly kind: WritingWorkflowKind;
 }
 
-export type WritingWorkflowActionDetail =
-  | { readonly action: "notice"; readonly message: string }
-  | { readonly action: "open"; readonly kind: WritingWorkflowKind }
-  | {
-      readonly action: "select";
-      readonly fileId: string;
-      readonly from: number;
-      readonly kind: WritingWorkflowKind;
-      readonly to: number;
-    };
-
-export const writingWorkflowActionEvent = "writing-workflow-action";
+export interface WritingWorkflowBinding {
+  readonly notice: (message: string) => void;
+  readonly open: (kind: WritingWorkflowKind) => void;
+  readonly select: (fileId: string, from: number, to: number) => void;
+}
 
 export function researchQuestionWorkflowData(file: ProjectFile | undefined): WritingWorkflowData {
   const questions = file ? parseResearchQuestions(file.content) : [];
@@ -71,6 +64,7 @@ export class WritingWorkflowPanel extends LitElement {
   };
 
   declare private data: WritingWorkflowData;
+  private binding: WritingWorkflowBinding | null = null;
 
   constructor() {
     super();
@@ -79,6 +73,10 @@ export class WritingWorkflowPanel extends LitElement {
 
   setData(data: WritingWorkflowData): void {
     this.data = data;
+  }
+
+  bind(binding: WritingWorkflowBinding): void {
+    this.binding = binding;
   }
 
   override connectedCallback(): void {
@@ -125,13 +123,13 @@ export class WritingWorkflowPanel extends LitElement {
   }
 
   protected open(): void {
-    this.dispatchAction({ action: "open", kind: this.data.kind });
+    this.binding?.open(this.data.kind);
   }
 
   protected download(): void {
     if (!this.data.letter) return;
     this.downloadFile("response-to-reviewers.md", this.data.letter);
-    this.dispatchAction({ action: "notice", message: "Response letter exported." });
+    this.binding?.notice("Response letter exported.");
   }
 
   protected downloadFile(name: string, content: string): void {
@@ -145,13 +143,7 @@ export class WritingWorkflowPanel extends LitElement {
 
   protected select(item: WritingWorkflowItem): void {
     if (!this.data.fileId) return;
-    this.dispatchAction({
-      action: "select",
-      fileId: this.data.fileId,
-      from: item.from,
-      kind: this.data.kind,
-      to: item.to,
-    });
+    this.binding?.select(this.data.fileId, item.from, item.to);
   }
 
   private renderItems(): TemplateResult | readonly TemplateResult[] {
@@ -174,16 +166,6 @@ export class WritingWorkflowPanel extends LitElement {
           <small>${item.meta}</small>
         </button>
       `,
-    );
-  }
-
-  private dispatchAction(detail: WritingWorkflowActionDetail): void {
-    this.dispatchEvent(
-      new CustomEvent<WritingWorkflowActionDetail>(writingWorkflowActionEvent, {
-        bubbles: true,
-        composed: true,
-        detail,
-      }),
     );
   }
 

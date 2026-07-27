@@ -1,12 +1,11 @@
 import { html, LitElement, type TemplateResult } from "lit";
 import { summarizeResearchDiary } from "../domain/writing-workflows";
 
-export const researchDiaryOpenEvent = "kirjolab-research-diary-open";
-
 export class ResearchDiarySummary extends LitElement {
   static override properties = { content: { state: true } };
 
   declare private content: string | null;
+  private openDiary: (() => void) | null = null;
 
   constructor() {
     super();
@@ -17,8 +16,12 @@ export class ResearchDiarySummary extends LitElement {
     this.content = content;
   }
 
+  bindOpen(openDiary: () => void): void {
+    this.openDiary = openDiary;
+  }
+
   protected emitOpen(): void {
-    this.dispatchEvent(new CustomEvent(researchDiaryOpenEvent, { bubbles: true, composed: true }));
+    this.openDiary?.();
   }
 
   override connectedCallback(): void {

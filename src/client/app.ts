@@ -44,13 +44,8 @@ import { WorkspaceLayoutManager } from "./workspace-layout-manager";
 import { workspaceLayoutChangeEvent } from "./workspace-layout-control";
 import { projectReferenceChangedEvent, type ProjectReferenceChanged } from "./project-reference-mutation";
 import { projectResearchChangedEvent, type ProjectResearchChanged } from "./project-research-mutation";
-import {
-  researchQuestionWorkflowData,
-  reviewerResponseWorkflowData,
-  writingWorkflowActionEvent,
-  type WritingWorkflowActionDetail,
-} from "./writing-workflow-panel";
-import { researchDiaryOpenEvent } from "./research-diary-summary";
+import { researchQuestionWorkflowData, reviewerResponseWorkflowData, type WritingWorkflowBinding } from "./writing-workflow-panel";
+import "./research-diary-summary";
 import { type AssistantAuthoringPassage as AuthoringPassage } from "./assistant-result-panel";
 import { type CandidateDecisionOutcome } from "./candidate-review-panel";
 import { type PublicationPaperOption } from "./publication-context-panel";
@@ -355,15 +350,21 @@ class WorkspaceApp {
       void this.#completeProjectTemplateSave((event as CustomEvent<ProjectTemplateSaved>).detail);
     });
     this.#elements.workspaceRailTabs.bindNavigation((rail) => this.#showRail(rail));
-    this.#elements.researchDiaryPanel.addEventListener(
-      researchDiaryOpenEvent,
+    this.#elements.researchDiaryPanel.bindOpen(
       () => void this.#openWorkflowFile(researchDiaryPath, () => researchDiaryTemplate(new Date().toISOString().slice(0, 10))),
     );
     this.#elements.manuscriptMapPanel.bindNavigation(({ from, to }) => this.#focusComposedRange(from, to));
+    const writingWorkflow: WritingWorkflowBinding = {
+      notice: (message) => this.#showToast(message),
+      open: (kind) =>
+        void this.#openWorkflowFile(
+          kind === "research-questions" ? researchQuestionsPath : reviewerResponsePath,
+          kind === "research-questions" ? researchQuestionsTemplate : reviewerResponseTemplate,
+        ),
+      select: (fileId, from, to) => this.#focusProjectRange(fileId, from, to),
+    };
     for (const panel of [this.#elements.researchQuestionPanel, this.#elements.reviewerResponsePanel]) {
-      panel.addEventListener(writingWorkflowActionEvent, (event) => {
-        void this.#handleWritingWorkflowAction((event as CustomEvent<WritingWorkflowActionDetail>).detail);
-      });
+      panel.bind(writingWorkflow);
     }
     this.#elements.workspaceSharingPanel.configure(apiBase, {
       presentNotice: (message) => this.#showToast(message),
@@ -972,21 +973,6 @@ class WorkspaceApp {
       return;
     }
     await this.#createWorkflowFile(path, content());
-  }
-
-  async #handleWritingWorkflowAction(detail: WritingWorkflowActionDetail): Promise<void> {
-    if (detail.action === "select") {
-      this.#focusProjectRange(detail.fileId, detail.from, detail.to);
-      return;
-    }
-    if (detail.action === "notice") {
-      this.#showToast(detail.message);
-      return;
-    }
-    await this.#openWorkflowFile(
-      detail.kind === "research-questions" ? researchQuestionsPath : reviewerResponsePath,
-      detail.kind === "research-questions" ? researchQuestionsTemplate : reviewerResponseTemplate,
-    );
   }
 
   async #createWorkflowFile(path: string, content: string): Promise<void> {

@@ -16,7 +16,7 @@ connected to the manuscript and evidence-backed claims through completion.
   navigate to the exact ledger entry.
 - A reused writing-workflow component adapts the portable Markdown into guide
   items and owns their count, empty state, action label, and typed open and
-  source-selection intents. The application coordinator retains file creation
+  source-selection binding. The application coordinator retains file creation
   and source navigation.
 
 ### Anti-Patterns

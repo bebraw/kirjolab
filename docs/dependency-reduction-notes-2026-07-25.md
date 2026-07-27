@@ -6938,6 +6938,29 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,670 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Writing Workflow Bindings
+
+`ResearchDiarySummary` and the reused `WritingWorkflowPanel` now route diary
+opening plus research-question and reviewer-response opening, source selection,
+and notices through typed bindings. `WorkspaceApp` retains workflow-template
+choice, content-bearing file creation, source navigation, and toast policy.
+
+This checkpoint reduces `src/client/app.ts` from 2,231 to 2,217 lines (-14),
+removes two coordinator listener sites, three runtime subscriptions, both public
+events, the writing-workflow action union, and its coordinator dispatcher. The
+two component owners shrink from 265 to 250 lines (-15), reducing runtime source
+across all three files by 29 lines. Focused coverage exercises diary summaries,
+open actions, reviewer-letter download and notice, bounded source selection,
+workflow projections, presentation, and strict types.
+
+The browser application artifact changes from 840,451 B raw / 226,994 B gzip
+to 840,110 B raw / 226,976 B gzip (-341 B raw / -18 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,670 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

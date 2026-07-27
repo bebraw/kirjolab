@@ -73,8 +73,8 @@ The adopted components own bounded presentation:
   toast presentation, and non-history browser navigation policy.
 - Reused writing-workflow panels own research-question and reviewer-response
   Markdown-to-item adaptation, counts, empty states, action labels, reviewer-
-  response letter derivation and browser download, and typed open, notice, and
-  source-selection outcomes.
+  response letter derivation and browser download. They route typed open,
+  notice, and source-selection actions through one shared binding.
 - The assistant result panel owns validated-table previews, clarity input,
   transient revision choices and their captured passage, source-revision,
   evidence, provider-continuation, or table-target context, table generation and
@@ -462,7 +462,7 @@ The adopted components own bounded presentation:
   navigation for authorized catalog selections.
 - The research diary summary owns missing and existing diary presentation,
   derived entry, question, and action counts, action copy, and a typed open
-  intent.
+  binding.
 - The assistant workflow status owns operation-specific attribution and status
   copy, live status presentation, selected evidence keys, reconciliation
   against canonical annotations and claims, selection count and limit copy,
@@ -543,10 +543,11 @@ reason to wrap static markup mechanically.
   reload directly and removes its unused close event.
 - The writing-workflow panels replace five internal element references and two
   parallel imperative list renderers. The reviewer-response panel also replaces
-  the coordinator's response-letter derivation and download helper while
-  leaving workflow-template choice, source navigation, and toast policy in the
-  application coordinator. The shared project-file owner performs their
-  content-bearing file creation and created-path verification.
+  the coordinator's response-letter derivation and download helper. Their shared
+  typed binding removes the public action union, dispatcher, and event. Workflow-
+  template choice, source navigation, and toast policy remain in the application
+  coordinator. The shared project-file owner performs their content-bearing file
+  creation and created-path verification.
 - The assistant result panel replaces six imperative result renderers and their
   local event bindings. It also removes the coordinator's parallel transient-
   result discriminator and context cache by emitting the context retained with
@@ -910,8 +911,9 @@ reason to wrap static markup mechanically.
   the selected authorized catalog entry's canonical href; the application
   coordinator retains catalog fetching and supplies the authorized entries.
 - The research diary summary replaces three internal element references and
-  coordinator-owned summary adaptation and copy. The application coordinator
-  retains file lookup, creation, selection, and editor focus.
+  coordinator-owned summary adaptation and copy plus its public open event. The
+  application coordinator retains file lookup, creation, selection, and editor
+  focus through a typed binding.
 - The assistant workflow status replaces four internal element references,
   two native action bindings, operation-specific status copy, and attribution
   visibility. It also removes the coordinator's selected-evidence set and count

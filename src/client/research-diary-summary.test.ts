@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ResearchDiarySummary, researchDiaryOpenEvent } from "./research-diary-summary";
+import { ResearchDiarySummary } from "./research-diary-summary";
 
 class TestResearchDiarySummary extends ResearchDiarySummary {
   renderForTest() {
@@ -28,10 +28,10 @@ describe("research diary summary", () => {
     expect(summary.renderForTest()).toBeDefined();
   });
 
-  it("emits a typed open intent", () => {
+  it("binds the open action", () => {
     const summary = new TestResearchDiarySummary();
     const actions: string[] = [];
-    summary.addEventListener(researchDiaryOpenEvent, () => actions.push("open"));
+    summary.bindOpen(() => actions.push("open"));
     summary.emitOpenForTest();
     expect(actions).toEqual(["open"]);
   });

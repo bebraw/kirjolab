@@ -3,8 +3,6 @@ import {
   researchQuestionWorkflowData,
   reviewerResponseWorkflowData,
   WritingWorkflowPanel,
-  writingWorkflowActionEvent,
-  type WritingWorkflowActionDetail,
   type WritingWorkflowItem,
 } from "./writing-workflow-panel";
 import type { ProjectFile } from "../domain/project-files";
@@ -93,11 +91,13 @@ describe("writing workflow presentation", () => {
     expect(panel.renderForTest()).toBeDefined();
   });
 
-  it("owns download and emits open, notice, and bounded selection intents", () => {
+  it("owns download and binds open, notice, and bounded selection actions", () => {
     const panel = new TestWritingWorkflowPanel();
-    const actions: WritingWorkflowActionDetail[] = [];
-    panel.addEventListener(writingWorkflowActionEvent, (event) => {
-      actions.push((event as CustomEvent<WritingWorkflowActionDetail>).detail);
+    const actions: unknown[] = [];
+    panel.bind({
+      notice: (message) => actions.push({ action: "notice", message }),
+      open: (kind) => actions.push({ action: "open", kind }),
+      select: (fileId, from, to) => actions.push({ action: "select", fileId, from, to }),
     });
 
     panel.selectForTest(item);
@@ -110,7 +110,7 @@ describe("writing workflow presentation", () => {
     expect(actions).toEqual([
       { action: "open", kind: "reviewer-responses" },
       { action: "notice", message: "Response letter exported." },
-      { action: "select", fileId: "responses", from: 10, kind: "reviewer-responses", to: 30 },
+      { action: "select", fileId: "responses", from: 10, to: 30 },
     ]);
     expect(panel.downloads).toEqual([{ content: "letter", name: "response-to-reviewers.md" }]);
     expect(panel.rootForTest()).toBe(panel);

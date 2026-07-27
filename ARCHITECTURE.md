@@ -667,8 +667,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   highlighting into an inert, text-identical presentation layer so styling
   cannot change canonical Markdown, selection offsets, or collaboration.
 - Let the bounded writing-workflow panel derive and download the reviewer-
-  response letter from its supplied canonical matrix. Emit only the resulting
-  notice; keep workflow-file creation, source navigation, and toast policy in
+  response letter from its supplied canonical matrix. Route open, source-range,
+  and resulting-notice actions through one typed binding shared by both workflow
+  panels. Keep workflow-file creation, source navigation, and toast policy in
   the application coordinator.
 - Keep native-textarea infrastructure in a bounded browser adapter that owns
   Yjs synchronization and history, highlight and presence mirroring, completion
