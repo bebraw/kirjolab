@@ -193,11 +193,13 @@ All mutation operations preserve a human review boundary.
   It opens the Research rail, expands the collection containing the first
   available grounding control, and focuses that control; an empty project
   explains that a highlight or claim must be created first.
-- The active manuscript caret or selection is retained as Yjs-relative
-  positions and refreshes after keyboard movement, pointer clicks, selections,
-  and edits. Editor chrome always reports its file and line, while the existing
-  highlight layer paints the local target after textarea focus moves into
-  Context. Switching files creates a new caret at that file's start.
+- The editor-status owner retains the active manuscript caret or selection as
+  Yjs-relative positions and refreshes it after keyboard movement, pointer
+  clicks, selections, and edits. It resolves typed target, caret, and non-empty
+  passage projections for consumers. Editor chrome always reports its file and
+  line, while the existing highlight layer paints the local target after
+  textarea focus moves into Context. Switching files creates a new caret at
+  that file's start.
 - Each candidate can open one stable resource-keyed Context tab. Tab lifecycle
   and scroll remain local while the candidate and its provenance are shared
   authorized workspace state.

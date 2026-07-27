@@ -9678,6 +9678,29 @@ styles, and direct and unique production package counts remain unchanged at
 Full native CI passes all 1,731 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Authoring Target Lifecycle
+
+`EditorStatus` now owns the browser-local Yjs-relative authoring target, active
+file context, range selection, resolved target and caret, non-empty passage
+projection, and the existing file/line/range wording. `WorkspaceApp` consumes
+those typed projections and retains canonical Yjs mutation, editor highlighting,
+assistant reactions, collaboration policy, and offline persistence.
+
+This checkpoint reduces `src/client/app.ts` from 979 to 938 lines (-41) and
+grows the editor-status owner from 70 to 145 lines. Runtime source across those
+files grows by 34 lines while deleting the coordinator's parallel selection
+field, target type, and six target/caret/passage/range helpers. Focused editor,
+assistant, and context coverage passes all 56 tests; affected coverage passes
+all four tests alongside strict types.
+
+The browser application artifact changes from 850,916 B raw / 229,287 B gzip
+to 852,176 B raw / 229,635 B gzip (+1,260 B raw / +348 B gzip). Lazy runtimes,
+styles, and direct and unique production package counts remain unchanged at
+204,779 B / 62,386 B, 481,994 B / 146,135 B, 135,411 B / 23,373 B, and 18 and 150.
+
+Full native CI passes all 1,732 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Library PDF Project Use Projection
 
 `LibraryPdfProjectUse` now resolves the active bibliographic record and matching

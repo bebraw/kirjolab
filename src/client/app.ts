@@ -20,7 +20,7 @@ import { WorkspaceLayoutManager } from "./workspace-layout-manager";
 import "./workspace-layout-control";
 import { type WritingWorkflowBinding } from "./writing-workflow-panel";
 import "./research-diary-summary";
-import { type AssistantAuthoringPassage as AuthoringPassage } from "./assistant-result-panel";
+import type { EditorAuthoringPassage as AuthoringPassage } from "./editor-status";
 import { type PassageLink, type WorkspaceSnapshot } from "../domain/workspace";
 import { loadWorkspaceSnapshot, parseWorkspaceSnapshot, WorkspaceAccessError } from "./workspace-snapshot-client";
 import { CoalescedRefresh, DebouncedAsyncQueue } from "./collaboration";
@@ -63,11 +63,6 @@ const apiBase = `${catalogBase}/${workspaceId}`;
 const remoteOrigin = Symbol("remote");
 const offlineOrigin = Symbol("offline");
 
-interface ResolvedAuthoringTarget {
-  readonly start: number;
-  readonly end: number;
-}
-
 class WorkspaceApp {
   readonly #elements = collectAppElements();
   readonly #pdfViewer: PdfEvidenceViewer;
@@ -98,7 +93,6 @@ class WorkspaceApp {
   #revision = 0;
   #renderSourceEditorHighlight: () => void = () => undefined;
   #hasBootstrapSnapshot = false;
-  #authoringSelection: RelativeEditorSelection | null = null;
   #activeFileText = this.#source;
   readonly #editorUndoManagers = new Map<Y.Text, Y.UndoManager>();
   #unbindSourceEditor: () => void = () => undefined;
@@ -222,7 +216,7 @@ class WorkspaceApp {
       manuscript: () => this.#activeFileText.toString(),
       sourceRevision: () => this.#revision,
       stableDocument: () => this.#collaboration.stable,
-      target: () => this.#resolvedAuthoringTarget(),
+      target: () => this.#elements.editorStatus.authoringTarget,
     });
     this.#elements.applicationVersion.bindNotice((message) => this.#showToast(message));
     this.#elements.collaboratorSelections.bindSelectionChanged(() => this.#renderSourceEditorHighlight());
@@ -342,10 +336,16 @@ class WorkspaceApp {
       },
     });
     this.#bindSourceEditor(this.#source);
-    this.#rememberAuthoringSelection();
+    this.#elements.editorStatus.bindAuthoring(this.#document, this.#elements.source, () => {
+      this.#elements.sourceCitationControl.setCaret(this.#activeFileText.toString(), this.#elements.source.selectionEnd);
+      this.#renderSourceEditorHighlight();
+      this.#elements.assistantGenerationPresenter.refreshTarget();
+      this.#elements.contextResourcePresenter.setCitationAvailable(this.#elements.editorStatus.caret !== null);
+    });
+    this.#elements.editorStatus.setAuthoringContext("Manuscript", null, this.#source, true);
     this.#elements.vimModeControl.bindEditor(this.#elements.source, this.#elements.sourceEditorShell);
     this.#elements.sourceCompletion.bindEditor(this.#elements.source, this.#elements.citationCompletionScope, () => {
-      if (document.activeElement === this.#elements.source) this.#rememberAuthoringSelection();
+      if (document.activeElement === this.#elements.source) this.#elements.editorStatus.rememberSelection();
       this.#collaborationSocket.scheduleSelection();
       this.#elements.assistantGenerationPresenter.refreshAvailability();
     });
@@ -360,7 +360,7 @@ class WorkspaceApp {
       },
       presentFile: (file, snapshot) => {
         this.#activeFileText = this.#document.getText(projectFileCollaborationTextName(file, snapshot.entryFileId));
-        this.#renderAuthoringTarget();
+        this.#elements.editorStatus.setAuthoringContext(file.path, file.id, this.#activeFileText);
       },
       presentNotice: (message, options) => this.#showToast(message, options),
       previewChanged: () => void this.#renderPreview(),
@@ -370,7 +370,7 @@ class WorkspaceApp {
       focusEditor: () => this.#elements.source.focus(),
       imageUpload: this.#elements.projectImageUpload,
       insertImage: ({ message, syntax }) => {
-        const caret = this.#resolvedAuthoringCaret() ?? this.#elements.source.selectionEnd;
+        const caret = this.#elements.editorStatus.caret ?? this.#elements.source.selectionEnd;
         this.#applySourceSyntax({ text: syntax }, null, caret);
         this.#showToast(message);
       },
@@ -415,7 +415,7 @@ class WorkspaceApp {
       trigger: this.#elements.projectHistoryTrigger,
     });
     this.#elements.contextResourcePresenter.bindManuscriptComments(apiBase, () => ({
-      passage: this.#selectedAuthoringPassage(),
+      passage: this.#elements.editorStatus.selectedPassage(),
       sourceRevision: this.#revision,
       stable: this.#collaboration.stable,
     }));
@@ -450,7 +450,7 @@ class WorkspaceApp {
     this.#elements.contextResourcePresenter.bindProjectAnnotationWorkflow();
     this.#elements.contextResourcePresenter.bindLibraryPdf({
       acceptProjectMutation: (snapshot) => this.#elements.referenceLibraryWorkspace.applyProjectMutation(snapshot),
-      canInsertCitation: () => this.#resolvedAuthoringCaret() !== null,
+      canInsertCitation: () => this.#elements.editorStatus.caret !== null,
       completeMarkup: (message) =>
         void this.#elements.referenceLibraryWorkspace.completeRefresh(
           message,
@@ -461,7 +461,7 @@ class WorkspaceApp {
     });
     this.#elements.contextResourcePresenter.bindContext({
       activateSurface: () => this.#elements.workspaceSurfaceSwitcher.navigate("context", false),
-      citationAvailable: () => this.#resolvedAuthoringCaret() !== null,
+      citationAvailable: () => this.#elements.editorStatus.caret !== null,
       openLibrary: (updateHistory) => this.#openReferenceLibrary(updateHistory),
       pushStandaloneLibraryPdfRoute: (artifactId, page) =>
         history.pushState({ view: "library-pdf", artifactId }, "", libraryPdfRoute(artifactId, page)),
@@ -603,8 +603,8 @@ class WorkspaceApp {
       const resolved = resolveRelativeSelection(this.#document, selection);
       if (resolved) selection.textarea.setSelectionRange(resolved.start, resolved.end, selection.direction ?? undefined);
     }
-    if (document.activeElement === this.#elements.source) this.#rememberAuthoringSelection();
-    else this.#renderAuthoringTarget();
+    if (document.activeElement === this.#elements.source) this.#elements.editorStatus.rememberSelection();
+    else this.#elements.editorStatus.refreshAuthoringTarget();
   }
 
   #setRevision(revision: number): void {
@@ -633,7 +633,7 @@ class WorkspaceApp {
       this.#document,
       this.#elements.sourceHighlight,
       () => {
-        const target = this.#resolvedAuthoringTarget();
+        const target = this.#elements.editorStatus.authoringTarget;
         const local: readonly EditorPresenceRange[] = target
           ? [{ collaboratorId: "local-author", start: target.start, end: target.end, local: true }]
           : [];
@@ -670,10 +670,8 @@ class WorkspaceApp {
     this.#unbindSourceEditor();
     this.#activeFileText = this.#document.getText(projectFileCollaborationTextName(file, snapshot.entryFileId));
     this.#elements.source.value = this.#activeFileText.toString();
-    this.#authoringSelection = null;
-    this.#elements.source.setSelectionRange(0, 0);
     this.#bindSourceEditor(this.#activeFileText);
-    this.#rememberAuthoringSelection();
+    this.#elements.editorStatus.setAuthoringContext(file.path, file.id, this.#activeFileText, true);
     this.#elements.projectFileDialog.presentProject(snapshot, `${apiBase}/assets`, appMode === "workspace");
     this.#elements.assistantGenerationPresenter.refreshAvailability();
     this.#elements.workspacePreview.resetScroll();
@@ -684,7 +682,7 @@ class WorkspaceApp {
   #focusProjectRange(fileId: string, from: number, to: number): void {
     if (fileId) this.#elements.projectFileDialog.selectFile(fileId);
     this.#elements.authoringModeTabs.navigate("write");
-    this.#selectAuthoringRange(from, Math.max(from, to));
+    this.#elements.editorStatus.selectRange(from, Math.max(from, to));
   }
 
   async #openReferenceLibrary(updateHistory = true): Promise<void> {
@@ -756,40 +754,11 @@ class WorkspaceApp {
     replaceYTextRange(this.#document, this.#activeFileText, start, end, value, this);
     const caret = start + value.length;
     this.#elements.source.focus();
-    this.#selectAuthoringRange(caret);
-  }
-
-  #selectAuthoringRange(start: number, end = start): void {
-    this.#elements.source.setSelectionRange(start, end);
-    this.#rememberAuthoringSelection();
-  }
-
-  #rememberAuthoringSelection(): void {
-    this.#authoringSelection = captureRelativeSelection(this.#elements.source, this.#activeFileText);
-    this.#elements.sourceCitationControl.setCaret(this.#activeFileText.toString(), this.#elements.source.selectionEnd);
-    this.#renderAuthoringTarget();
-    this.#elements.contextResourcePresenter.setCitationAvailable(this.#resolvedAuthoringCaret() !== null);
-  }
-
-  #resolvedAuthoringTarget(): ResolvedAuthoringTarget | null {
-    if (!this.#authoringSelection) return null;
-    return resolveRelativeSelection(this.#document, this.#authoringSelection);
-  }
-
-  #renderAuthoringTarget(): void {
-    const target = this.#resolvedAuthoringTarget();
-    const file = this.#snapshot?.files.find((item) => item.id === this.#activeFileId);
-    this.#elements.editorStatus.setAuthoringTarget(file?.path ?? "Manuscript", this.#activeFileText.toString(), target);
-    this.#renderSourceEditorHighlight();
-    this.#elements.assistantGenerationPresenter.refreshTarget();
-  }
-
-  #resolvedAuthoringCaret(): number | null {
-    return this.#resolvedAuthoringTarget()?.end ?? null;
+    this.#elements.editorStatus.selectRange(caret);
   }
 
   #insertCitation(citationKey: string, locator?: string): void {
-    const index = this.#resolvedAuthoringCaret();
+    const index = this.#elements.editorStatus.caret;
     if (index === null) {
       this.#showToast("Place the manuscript caret before inserting a citation.");
       return;
@@ -801,7 +770,7 @@ class WorkspaceApp {
     }
     this.#document.transact(() => this.#activeFileText.insert(insertion.index, insertion.text), this);
     this.#elements.authoringModeTabs.navigate("write");
-    this.#selectAuthoringRange(insertion.caret);
+    this.#elements.editorStatus.selectRange(insertion.caret);
     this.#showToast(`Inserted :cite[${citationKey}]${locator ? ` at ${locator}` : ""} into canonical Markdown.`);
   }
 
@@ -811,7 +780,7 @@ class WorkspaceApp {
       this.#showToast(`Wait for the manuscript to finish synchronizing before linking ${label}.`);
       return;
     }
-    const passage = this.#selectedAuthoringPassage();
+    const passage = this.#elements.editorStatus.selectedPassage();
     if (!passage) {
       this.#showToast(`Select manuscript text before linking ${label}.`);
       return;
@@ -821,26 +790,16 @@ class WorkspaceApp {
     else await this.#elements.projectEvidencePanel.linkPassage({ annotationId: id, ...link });
   }
 
-  #selectedAuthoringPassage(): AuthoringPassage | null {
-    const live = this.#elements.source.selectionStart !== this.#elements.source.selectionEnd;
-    const selection = live ? captureRelativeSelection(this.#elements.source, this.#activeFileText) : this.#authoringSelection;
-    if (!selection) return null;
-    const resolved = resolveRelativeSelection(this.#document, selection);
-    if (!resolved || resolved.start === resolved.end) return null;
-    const excerpt = this.#activeFileText.toString().slice(resolved.start, resolved.end);
-    return excerpt.trim() && this.#activeFileId ? { fileId: this.#activeFileId, ...resolved, excerpt } : null;
-  }
-
   #insertSourceSyntax(kind: EditorSyntaxKind, template: EditorSyntaxTemplate): void {
-    const passage = this.#selectedAuthoringPassage();
-    const caret = this.#resolvedAuthoringCaret() ?? this.#elements.source.selectionEnd;
+    const passage = this.#elements.editorStatus.selectedPassage();
+    const caret = this.#elements.editorStatus.caret ?? this.#elements.source.selectionEnd;
     const resolved = kind === "link" && passage ? { text: `[${passage.excerpt}](url)`, select: "url" } : template;
     this.#applySourceSyntax(resolved, passage, caret);
     this.#showToast("Inserted scholarly syntax.");
   }
 
   #insertProjectIncludeFromMenu(relativePath: string, path: string): void {
-    const caret = this.#resolvedAuthoringCaret() ?? this.#elements.source.selectionEnd;
+    const caret = this.#elements.editorStatus.caret ?? this.#elements.source.selectionEnd;
     this.#insertProjectInclude(this.#activeFileText, caret, relativePath);
     this.#showToast(`Included ${path}.`);
   }
@@ -851,7 +810,7 @@ class WorkspaceApp {
     replaceYTextRange(this.#document, this.#activeFileText, start, end, template.text, this);
     const selectionStart = template.select ? start + template.text.indexOf(template.select) : start + template.text.length;
     this.#elements.source.focus();
-    this.#selectAuthoringRange(selectionStart, selectionStart + (template.select?.length ?? 0));
+    this.#elements.editorStatus.selectRange(selectionStart, selectionStart + (template.select?.length ?? 0));
   }
 
   #insertProjectInclude(text: Y.Text, index: number, path: string): void {
@@ -860,7 +819,7 @@ class WorkspaceApp {
     if (text === this.#activeFileText) {
       const caret = index + directive.length;
       this.#elements.source.focus();
-      this.#selectAuthoringRange(caret);
+      this.#elements.editorStatus.selectRange(caret);
     }
   }
 
@@ -868,7 +827,7 @@ class WorkspaceApp {
     replaceYTextRange(this.#document, this.#activeFileText, target.start, target.end, insertion, this);
     const caret = target.start + insertion.length;
     this.#elements.source.focus();
-    this.#selectAuthoringRange(caret);
+    this.#elements.editorStatus.selectRange(caret);
   }
 
   async #restoreLibraryRoute(): Promise<void> {

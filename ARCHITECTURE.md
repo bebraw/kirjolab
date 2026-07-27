@@ -777,11 +777,13 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   range splices, and optional keymap binding. The application coordinator
   retains document, workflow, and navigation authority; it supplies canonical
   ranges and consumes only resolved numeric ranges.
-- Let the editor-status Lit owner derive file, line-range, caret, and selection
-  wording from coordinator-supplied canonical source and resolved target values.
-  Keep Yjs relative-position capture and resolution in the source-editor
-  adapter, and keep editor highlighting, assistant refresh, collaboration
-  interpretation, and offline-save policy in their authorities.
+- Let the editor-status Lit owner retain the browser-local active authoring
+  target as Yjs-relative positions and own file context, range selection,
+  resolved target and caret, non-empty passage projection, and file, line-range,
+  caret, and selection wording. Reuse relative-position capture and resolution
+  from the source-editor adapter. Keep canonical Yjs mutation, editor
+  highlighting, assistant refresh, collaboration interpretation, and offline-
+  save policy in their authorities.
 - Let the preview-synchronization Lit owner bind the native source viewport and
   inert highlight lines; own click, selection, and navigation-key follow
   behavior; derive the source offset nearest the viewport center; center the
@@ -859,7 +861,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   workflow binding while leaving manuscript linking, canonical refresh
   execution, and notification presentation in the application coordinator.
 - Refine tablet highlight strokes through bounded normalized geometry and quotation updates; preserve annotation/stroke identity and imported PDF immutability.
-- Retain the active manuscript caret or selection as Yjs-relative positions, render that local target after editor blur, and resolve it before any contextual insertion or replacement.
+- Retain the active manuscript caret or selection as Yjs-relative positions in
+  the editor-status owner, render that local target after editor blur, and
+  resolve it before any contextual insertion or replacement.
 - Keep standalone private PDF locations routable in browser history. Parse and
   write their canonical Library root, addressed-reference, artifact, and page
   locations through one pure route adapter; keep history mutation,

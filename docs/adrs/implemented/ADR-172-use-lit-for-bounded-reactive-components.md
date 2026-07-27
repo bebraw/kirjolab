@@ -1135,10 +1135,12 @@ reason to wrap static markup mechanically.
   Write outcome before one URL replacement.
 - The editor status component replaces separate target and save-status element
   references and owns their text and target-tooltip presentation, including
-  bounded line counting and file, line-range, caret, and selection wording from
-  canonical inputs. The application coordinator retains Yjs authoring-target
-  resolution, editor highlighting, assistant refresh, collaboration and offline-
-  save policy, and the save-status values those workflows select.
+  bounded line counting and file, line-range, caret, and selection wording. It
+  also owns browser-local Yjs-relative target retention, active file context,
+  range selection, resolved target/caret, and non-empty passage projection. The
+  application coordinator retains canonical Yjs mutation, editor highlighting,
+  assistant refresh, collaboration and offline-save policy, and the save-status
+  values those workflows select.
 - The connection status component replaces separate label and tone element
   references and owns their synchronized presentation. The application
   coordinator retains collaboration-state interpretation and Library-mode

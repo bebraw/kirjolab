@@ -252,10 +252,11 @@ collaboration.
   the coordinator does not construct or retain a parallel valid-key set.
 - **Editor status:** One bounded light-DOM component owns the visible authoring
   target, bounded line counting, file, line-range, caret, and selection wording,
-  its full tooltip, and online or offline save-state presentation. The
-  application coordinator supplies canonical source and Yjs-resolved target
-  values plus save state from the current selection and collaboration workflows;
-  it retains editor highlighting and assistant refresh.
+  its full tooltip, online or offline save-state presentation, browser-local
+  Yjs-relative target, active file context, range selection, resolved caret, and
+  non-empty passage projection. The application coordinator supplies the Yjs
+  document and active text plus save state from collaboration workflows; it
+  retains canonical mutation, editor highlighting, and assistant refresh.
 - **Project evidence mutations:** The bounded Project evidence panel owns
   guarded PDF and annotation removal plus annotation-passage-link transport
   from a coordinator-validated typed passage. Its enclosing resource presenter
