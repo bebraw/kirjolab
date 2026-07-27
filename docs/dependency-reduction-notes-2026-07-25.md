@@ -5999,6 +5999,30 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,641 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Assistant Result Wiring
+
+`AssistantGenerationPresenter` now owns transient result-action and discovered-
+reference refresh subscriptions. It completes result-local save state and
+projects success or refresh-failure status while receiving canonical Library
+refresh as an injected coordinator callback. `WorkspaceApp` retains typed
+result application, canonical Library authority, XState, and Yjs mutation.
+
+This checkpoint reduces `src/client/app.ts` from 2,972 to 2,962 lines (-10)
+and grows the generation presenter from 240 to 272 lines. Runtime source across
+those two files grows by 22 lines while deleting the coordinator's result-event
+imports and two sibling subscription blocks. Eight direct presenter cases cover
+all operation routes, control wiring, result-action delegation, successful and
+failed canonical refresh, local completion, status projection, and strict
+client and Workers types.
+
+The browser application artifact changes from 833,791 B raw / 225,535 B gzip
+to 833,895 B raw / 225,650 B gzip (+104 B raw / +115 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,642 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

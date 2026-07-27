@@ -40,7 +40,9 @@ All mutation operations preserve a human review boundary.
   target preview from canonical editor-target inputs. It owns sibling model-
   settings, workflow-action, task-change, and generation-intent subscriptions,
   delegating only evidence navigation, canonical target and availability
-  refresh, and generation execution to the application.
+  refresh, and generation execution to the application. It also owns result-
+  action and reference-refresh subscriptions plus result-local completion and
+  status, delegating only canonical Library refresh.
 - A non-empty manuscript selection always resolves exactly. Otherwise the
   remembered Yjs-relative caret expands deterministically to the configured
   sentence, paragraph, or Markdown section, or remains an insertion point.

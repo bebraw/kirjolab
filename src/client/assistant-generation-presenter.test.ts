@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AssistantGenerationPresenter, type AssistantGenerationInput } from "./assistant-generation-presenter";
 import { assistantOperationDefinition } from "./assistant-operations";
-import { AssistantResultPanel } from "./assistant-result-panel";
+import { AssistantResultPanel, assistantReferenceRefreshEvent, assistantResultActionEvent } from "./assistant-result-panel";
 import { AssistantTaskPanel, assistantTaskChangeEvent, assistantTaskGenerateEvent } from "./assistant-task-panel";
 import { AssistantWorkflowStatus, assistantWorkflowActionEvent } from "./assistant-workflow-status";
 import { CandidateListPanel } from "./candidate-list-panel";
@@ -243,5 +243,29 @@ describe("assistant generation presenter", () => {
     expect(callbacks.refreshTarget).toHaveBeenCalledOnce();
     expect(openSettings).toHaveBeenCalledOnce();
     expect(clearResult).toHaveBeenCalledOnce();
+  });
+
+  it("owns transient result and reference-refresh wiring", async () => {
+    const { elements, presenter } = setup();
+    const result = elements["assistant-interactive-result"];
+    const handleAction = vi.fn();
+    const refreshLibrary = vi.fn().mockResolvedValueOnce(undefined).mockRejectedValueOnce(new Error("offline"));
+    const completeReferenceSave = vi.spyOn(result, "completeReferenceSave").mockImplementation(() => undefined);
+    presenter.bindResults({ handleAction, refreshLibrary });
+    const action = { action: "insert-table", context: { sourceRevision: 7, target: passage }, markdown: "| Result |" } as const;
+
+    result.dispatchEvent(new CustomEvent(assistantResultActionEvent, { detail: action }));
+    result.dispatchEvent(
+      new CustomEvent(assistantReferenceRefreshEvent, { detail: { index: 2, message: "Reference saved.", requestId: 4 } }),
+    );
+    await vi.waitFor(() => expect(completeReferenceSave).toHaveBeenCalledWith(2, 4));
+    expect(elements["assistant-workflow-status"].status).toBe("Reference saved.");
+
+    result.dispatchEvent(new CustomEvent(assistantReferenceRefreshEvent, { detail: { index: 3, message: "Saved again.", requestId: 5 } }));
+    await vi.waitFor(() => expect(completeReferenceSave).toHaveBeenCalledWith(3, 5));
+
+    expect(handleAction).toHaveBeenCalledWith(action);
+    expect(refreshLibrary).toHaveBeenCalledTimes(2);
+    expect(elements["assistant-workflow-status"].status).toBe("The reference was saved, but the refreshed Library could not be loaded.");
   });
 });

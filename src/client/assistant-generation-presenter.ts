@@ -1,6 +1,13 @@
 import { html, LitElement, type TemplateResult } from "lit";
 import { resolveAssistantTarget, type AssistantOperationDefinition, type AssistantTargetScope } from "./assistant-operations";
-import { AssistantResultPanel, type AssistantAuthoringPassage } from "./assistant-result-panel";
+import {
+  AssistantResultPanel,
+  assistantReferenceRefreshEvent,
+  assistantResultActionEvent,
+  type AssistantAuthoringPassage,
+  type AssistantReferenceRefresh,
+  type AssistantResultActionDetail,
+} from "./assistant-result-panel";
 import { AssistantTaskPanel, assistantTaskChangeEvent, assistantTaskGenerateEvent, type AssistantTaskChange } from "./assistant-task-panel";
 import {
   AssistantWorkflowStatus,
@@ -58,7 +65,32 @@ export interface AssistantControlCallbacks {
   readonly refreshTarget: () => void;
 }
 
+export interface AssistantResultCallbacks {
+  readonly handleAction: (detail: AssistantResultActionDetail) => void;
+  readonly refreshLibrary: () => Promise<void>;
+}
+
 export class AssistantGenerationPresenter extends LitElement {
+  bindResults(callbacks: AssistantResultCallbacks): void {
+    const result = this.element("assistant-interactive-result", AssistantResultPanel);
+    const status = this.element("assistant-workflow-status", AssistantWorkflowStatus);
+    result?.addEventListener(assistantResultActionEvent, (event) => {
+      callbacks.handleAction((event as CustomEvent<AssistantResultActionDetail>).detail);
+    });
+    result?.addEventListener(assistantReferenceRefreshEvent, (event) => {
+      const detail = (event as CustomEvent<AssistantReferenceRefresh>).detail;
+      void callbacks
+        .refreshLibrary()
+        .then(() => {
+          if (status) status.status = detail.message;
+        })
+        .catch(() => {
+          if (status) status.status = "The reference was saved, but the refreshed Library could not be loaded.";
+        })
+        .finally(() => result.completeReferenceSave(detail.index, detail.requestId));
+    });
+  }
+
   bindControls(callbacks: AssistantControlCallbacks): void {
     const settings = this.element("model-provider-settings", ModelProviderSettings);
     const status = this.element("assistant-workflow-status", AssistantWorkflowStatus);

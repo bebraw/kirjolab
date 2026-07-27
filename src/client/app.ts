@@ -75,9 +75,6 @@ import {
 } from "./writing-workflow-panel";
 import { researchDiaryOpenEvent } from "./research-diary-summary";
 import {
-  assistantResultActionEvent,
-  assistantReferenceRefreshEvent,
-  type AssistantReferenceRefresh,
   type AssistantAuthoringPassage as AuthoringPassage,
   type AssistantClarityContext as ClarityDrillContext,
   type AssistantResultActionDetail,
@@ -855,16 +852,9 @@ class WorkspaceApp {
         this.#elements.claimListPanel.revealClaim(evidence.id, true);
       }
     });
-    this.#elements.assistantInteractiveResult.addEventListener(assistantResultActionEvent, (event) => {
-      void this.#handleAssistantResultAction((event as CustomEvent<AssistantResultActionDetail>).detail);
-    });
-    this.#elements.assistantInteractiveResult.addEventListener(assistantReferenceRefreshEvent, (event) => {
-      const detail = (event as CustomEvent<AssistantReferenceRefresh>).detail;
-      void this.#completeLibraryRefresh(detail.message, "The reference was saved, but the refreshed Library could not be loaded.", {
-        complete: () => this.#elements.assistantInteractiveResult.completeReferenceSave(detail.index, detail.requestId),
-        failure: (message) => (this.#elements.assistantWorkflowStatus.status = message),
-        success: (message) => (this.#elements.assistantWorkflowStatus.status = message),
-      });
+    this.#elements.assistantGenerationPresenter.bindResults({
+      handleAction: (detail) => void this.#handleAssistantResultAction(detail),
+      refreshLibrary: async () => await this.#refreshReferenceLibrary(),
     });
     this.#elements.assistantGenerationPresenter.bindControls({
       chooseEvidence: () => this.#chooseModelEvidence(),

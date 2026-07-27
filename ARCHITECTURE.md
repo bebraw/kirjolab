@@ -360,7 +360,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   It owns local model-settings, workflow-action, task-change, and generation-
   intent subscriptions, delegating only evidence navigation, canonical target
   refresh, canonical availability refresh, and generation execution back to the
-  coordinator.
+  coordinator. It also owns transient-result action and reference-refresh
+  subscriptions plus result-local save completion and status presentation,
+  delegating only canonical Library refresh.
   Let the candidate-review Lit owner resolve the active candidate id against
   the canonical workspace snapshot and derive evidence availability and local
   applicability from candidate, evidence-version, source-revision,

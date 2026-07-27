@@ -97,7 +97,9 @@ The adopted components own bounded presentation:
   transient-result reset, and target preview from canonical target inputs. It
   owns sibling settings, workflow-action, task-change, and generation-intent
   subscriptions while delegating evidence navigation, canonical target and
-  availability refresh, and generation execution to the coordinator.
+  availability refresh, and generation execution to the coordinator. It also
+  owns result-action and reference-refresh subscriptions, result-local save
+  completion, and status presentation while delegating canonical Library refresh.
 - The project map panel owns provenance-lane rendering, measured SVG connector
   geometry, responsive relayout, focus and hover emphasis, and a typed resource
   selection intent.
