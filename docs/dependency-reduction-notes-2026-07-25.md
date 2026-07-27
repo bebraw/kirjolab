@@ -6069,6 +6069,29 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,643 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Promoted Revision Persistence
+
+`AssistantGenerationPresenter` now adapts a researcher-promoted transient
+rewrite into the typed revision-candidate request owned by `CandidateListPanel`.
+`WorkspaceApp` retains assistant workflow transitions, canonical refresh, and
+opening the refreshed candidate in Context.
+
+This checkpoint reduces `src/client/app.ts` from 2,943 to 2,924 lines (-19)
+and grows the generation presenter from 314 to 344 lines. Runtime source across
+those two files grows by 11 lines while deleting the coordinator-only revision-
+candidate input contract and persistence adapter. Ten direct presenter cases
+cover promoted-revision persistence in addition to all operation, setup,
+control, result, decision, and evidence routes under strict client and Workers
+types.
+
+The browser application artifact changes from 834,111 B raw / 225,729 B gzip
+to 834,261 B raw / 225,724 B gzip (+150 B raw / -5 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,644 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

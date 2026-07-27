@@ -88,7 +88,6 @@ import {
   type AnnotationResource,
   type ClaimResource,
   type ModelCandidate,
-  type ModelEvidenceReference,
   type PassageLink,
   type PdfResource,
   type PdfSelectionRect,
@@ -2427,15 +2426,17 @@ class WorkspaceApp {
     this.#assistantWorkflow.send({ type: "CONTINUE" });
     this.#updateModelAvailability();
     try {
-      await this.#persistRevisionCandidate({
-        passage: input.passage,
-        evidence: input.evidence.references,
-        instruction: choice.instruction,
-        sourceRevision: input.sourceRevision,
-        replacement: choice.replacement,
-        providerLabel: choice.providerLabel,
-        model: choice.model,
-      });
+      await this.#openCreatedCandidate(
+        await this.#elements.assistantGenerationPresenter.createRevisionCandidate({
+          passage: input.passage,
+          evidence: input.evidence.references,
+          instruction: choice.instruction,
+          sourceRevision: input.sourceRevision,
+          replacement: choice.replacement,
+          providerLabel: choice.providerLabel,
+          model: choice.model,
+        }),
+      );
       this.#elements.assistantWorkflowStatus.status = choice.successMessage;
       this.#assistantWorkflow.send({ type: "COMPLETE" });
     } catch (error) {
@@ -2445,26 +2446,6 @@ class WorkspaceApp {
     } finally {
       this.#updateModelAvailability();
     }
-  }
-
-  async #persistRevisionCandidate(input: {
-    readonly passage: AuthoringPassage;
-    readonly evidence: readonly ModelEvidenceReference[];
-    readonly instruction: string;
-    readonly sourceRevision: number;
-    readonly replacement: string;
-    readonly providerLabel: string;
-    readonly model: string;
-  }): Promise<void> {
-    const value = await this.#elements.candidateListPanel.createRevision({
-      providerLabel: input.providerLabel,
-      model: input.model,
-      instruction: input.instruction,
-      target: { ...input.passage, sourceRevision: input.sourceRevision },
-      evidence: [...input.evidence],
-      proposedReplacement: input.replacement,
-    });
-    await this.#openCreatedCandidate(value);
   }
 
   async #openCreatedCandidate(value: ModelCandidate): Promise<void> {

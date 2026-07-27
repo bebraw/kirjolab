@@ -27,7 +27,14 @@ import {
 import { ClaimListPanel } from "./claim-list-panel";
 import { ModelProviderSettings, modelProviderChangeEvent } from "./model-provider-settings";
 import type { ModelProvider } from "./model-provider";
-import type { ModelCandidate, ModelEvidence, PdfResource, WorkspaceSnapshot } from "../domain/workspace";
+import type {
+  ModelCandidate,
+  ModelEvidence,
+  ModelEvidenceReference,
+  ModelRevisionCandidate,
+  PdfResource,
+  WorkspaceSnapshot,
+} from "../domain/workspace";
 
 type InteractiveProvider = Pick<
   ModelProvider,
@@ -86,6 +93,16 @@ export interface AssistantCandidateCallbacks {
   readonly startDecision: (detail: CandidateDecisionRequest) => void;
 }
 
+export interface AssistantRevisionCandidateInput {
+  readonly evidence: readonly ModelEvidenceReference[];
+  readonly instruction: string;
+  readonly model: string;
+  readonly passage: AssistantAuthoringPassage;
+  readonly providerLabel: string;
+  readonly replacement: string;
+  readonly sourceRevision: number;
+}
+
 export class AssistantGenerationPresenter extends LitElement {
   bindCandidate(apiBase: string, callbacks: AssistantCandidateCallbacks): void {
     const candidates = this.element("candidate-list-panel", CandidateListPanel);
@@ -110,6 +127,19 @@ export class AssistantGenerationPresenter extends LitElement {
       } else if (snapshot?.claims.some(({ id }) => id === evidence.id)) {
         this.element("claim-list-panel", ClaimListPanel)?.revealClaim(evidence.id, true);
       }
+    });
+  }
+
+  async createRevisionCandidate(input: AssistantRevisionCandidateInput): Promise<ModelRevisionCandidate> {
+    const candidates = this.element("candidate-list-panel", CandidateListPanel);
+    if (!candidates) throw new Error("Candidate list is not available");
+    return await candidates.createRevision({
+      evidence: [...input.evidence],
+      instruction: input.instruction,
+      model: input.model,
+      proposedReplacement: input.replacement,
+      providerLabel: input.providerLabel,
+      target: { ...input.passage, sourceRevision: input.sourceRevision },
     });
   }
 

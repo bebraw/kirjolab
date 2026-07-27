@@ -202,6 +202,31 @@ describe("assistant generation presenter", () => {
     expect(generateClaim).toHaveBeenCalledWith(provider, expect.objectContaining({ relation: "supports" }));
   });
 
+  it("persists a promoted revision through the candidate owner", async () => {
+    const { elements, presenter } = setup();
+    const createRevision = vi.spyOn(elements["candidate-list-panel"], "createRevision").mockResolvedValue(revisionCandidate);
+
+    await expect(
+      presenter.createRevisionCandidate({
+        evidence: [{ id: annotationEvidence.id, kind: "annotation", version: annotationEvidence.version }],
+        instruction: revisionCandidate.instruction,
+        model: revisionCandidate.model,
+        passage,
+        providerLabel: revisionCandidate.providerLabel,
+        replacement: revisionCandidate.proposedReplacement,
+        sourceRevision: revisionCandidate.sourceRevision,
+      }),
+    ).resolves.toBe(revisionCandidate);
+    expect(createRevision).toHaveBeenCalledWith({
+      evidence: [{ id: annotationEvidence.id, kind: "annotation", version: annotationEvidence.version }],
+      instruction: revisionCandidate.instruction,
+      model: revisionCandidate.model,
+      proposedReplacement: revisionCandidate.proposedReplacement,
+      providerLabel: revisionCandidate.providerLabel,
+      target: { ...passage, sourceRevision: revisionCandidate.sourceRevision },
+    });
+  });
+
   it("projects canonical availability across assistant owners", () => {
     const { elements, presenter } = setup();
     const settings = elements["model-provider-settings"];

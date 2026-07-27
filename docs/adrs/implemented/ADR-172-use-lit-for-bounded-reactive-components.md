@@ -106,7 +106,9 @@ The adopted components own bounded presentation:
   workflow transitions, canonical refresh, PDF navigation, and context rendering.
   It configures the candidate-list and candidate-review siblings from one API
   base and owns candidate-open subscription while delegating canonical context
-  activation through a typed callback.
+  activation through a typed callback. It also persists researcher-promoted
+  transient rewrites through the candidate-list owner while the coordinator
+  retains workflow transitions, canonical refresh, and context opening.
 - The project map panel owns provenance-lane rendering, measured SVG connector
   geometry, responsive relayout, focus and hover emphasis, and a typed resource
   selection intent.

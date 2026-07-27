@@ -369,7 +369,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   context rendering to the coordinator.
   It also configures the candidate-list and candidate-review siblings from one
   API base and owns candidate-open subscription, delegating canonical context
-  activation through a typed callback.
+  activation through a typed callback. It persists researcher-promoted
+  transient rewrites through the candidate-list owner while the coordinator
+  retains workflow transitions, canonical refresh, and context opening.
   Let the candidate-review Lit owner resolve the active candidate id against
   the canonical workspace snapshot and derive evidence availability and local
   applicability from candidate, evidence-version, source-revision,

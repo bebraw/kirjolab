@@ -48,7 +48,10 @@ All mutation operations preserve a human review boundary.
   callback. The application retains decision workflow transitions, canonical
   refresh, PDF navigation, and context rendering.
   It configures both candidate siblings from one API base and owns candidate-
-  open subscription while delegating canonical context activation.
+  open subscription while delegating canonical context activation. It persists
+  researcher-promoted transient rewrites through the candidate-list owner; the
+  application retains workflow transitions, canonical refresh, and context
+  opening.
 - A non-empty manuscript selection always resolves exactly. Otherwise the
   remembered Yjs-relative caret expands deterministically to the configured
   sentence, paragraph, or Markdown section, or remains an insertion point.
