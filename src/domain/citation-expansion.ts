@@ -1,45 +1,30 @@
-import {
-  boundedString,
-  isCitationAssertionContract,
-  isIdentifier,
-  isRecord,
-  isResponseId,
-  isTimestamp,
-} from "./citation-contract-validation";
-import type { CitationExpansionCandidate, CitationExpansionResult } from "./citation-expansion-types";
+import * as v from "valibot";
+import type { CitationAssertion } from "./citation-assertions";
+import { isCitationAssertionContract, isIdentifier, isResponseId, isTimestamp } from "./citation-contract-validation";
+import type { CitationExpansionResult } from "./citation-expansion-types";
 import { isValidDoi } from "./publication-intake";
 
-export function isCitationExpansionResult(value: unknown): value is CitationExpansionResult {
-  return (
-    isRecord(value) &&
-    value.provider === "crossref" &&
-    value.direction === "references" &&
-    isIdentifier(value.seedReferenceId) &&
-    isTimestamp(value.retrievedAt) &&
-    isResponseId(value.responseId) &&
-    typeof value.sourceLocator === "string" &&
-    value.sourceLocator.length <= 2_000 &&
-    Array.isArray(value.assertions) &&
-    value.assertions.length <= 128 &&
-    value.assertions.every(isCitationAssertionContract) &&
-    Array.isArray(value.unmatched) &&
-    value.unmatched.length <= 128 &&
-    value.unmatched.every(isCitationExpansionCandidate) &&
-    typeof value.truncated === "boolean" &&
-    typeof value.requestedBy === "string" &&
-    value.requestedBy.length > 0 &&
-    value.requestedBy.length <= 500
-  );
-}
+const boundedString = (maximum: number) => v.pipe(v.string(), v.maxLength(maximum));
+const citationExpansionCandidateSchema = v.object({
+  doi: v.pipe(v.string(), v.check(isValidDoi)),
+  title: boundedString(2_000),
+  authors: boundedString(2_000),
+  year: boundedString(100),
+  unstructured: boundedString(4_000),
+});
+const citationExpansionResultSchema = v.object({
+  provider: v.literal("crossref"),
+  direction: v.literal("references"),
+  seedReferenceId: v.custom<string>(isIdentifier),
+  retrievedAt: v.custom<string>(isTimestamp),
+  responseId: v.custom<string>(isResponseId),
+  sourceLocator: boundedString(2_000),
+  assertions: v.pipe(v.array(v.custom<CitationAssertion>(isCitationAssertionContract)), v.maxLength(128)),
+  unmatched: v.pipe(v.array(citationExpansionCandidateSchema), v.maxLength(128)),
+  truncated: v.boolean(),
+  requestedBy: v.pipe(v.string(), v.minLength(1), v.maxLength(500)),
+});
 
-function isCitationExpansionCandidate(value: unknown): value is CitationExpansionCandidate {
-  return (
-    isRecord(value) &&
-    typeof value.doi === "string" &&
-    isValidDoi(value.doi) &&
-    boundedString(value.title, 2_000) &&
-    boundedString(value.authors, 2_000) &&
-    boundedString(value.year, 100) &&
-    boundedString(value.unstructured, 4_000)
-  );
+export function isCitationExpansionResult(value: unknown): value is CitationExpansionResult {
+  return v.is(citationExpansionResultSchema, value);
 }

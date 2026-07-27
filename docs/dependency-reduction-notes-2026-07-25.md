@@ -9291,6 +9291,26 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,721 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Valibot Adoption: Citation Expansion Results
+
+The Crossref citation-expansion boundary now expresses its provider constants,
+identifier and timestamp contracts, bounded strings and arrays, nested
+assertions, unmatched candidates, and requester bounds as one composable
+Valibot schema. DOI and citation-assertion domain predicates remain the
+authoritative semantic checks.
+
+This checkpoint reduces `src/domain/citation-expansion.ts` from 45 to 30 lines
+(-15), replacing the result and candidate guard trees. Focused expansion and
+acceptance coverage passes all 6 tests alongside strict types.
+
+The browser application artifact changes from 848,903 B raw / 228,835 B gzip
+to 848,867 B raw / 228,892 B gzip (-36 B raw / +57 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150; Valibot was already pinned.
+
+Full native CI passes all 1,721 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Library PDF Project Use Projection
 
 `LibraryPdfProjectUse` now resolves the active bibliographic record and matching
