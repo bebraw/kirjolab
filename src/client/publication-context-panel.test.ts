@@ -49,10 +49,13 @@ function setPublication(
 ): void {
   panel.setPublication({
     libraryArtifacts: options.libraryArtifacts ?? [],
-    pdfs: options.pdfs ?? [],
-    publication,
-    publicationPdfLinks: options.publicationPdfLinks ?? [],
+    publicationId: publication.id,
     referencePdfs: options.referencePdfs ?? [],
+    snapshot: {
+      pdfs: options.pdfs ?? [],
+      publicationPdfLinks: options.publicationPdfLinks ?? [],
+      publications: [publication],
+    },
   });
 }
 
@@ -102,6 +105,7 @@ describe("publication context panel", () => {
   it("renders fallback, publication, paper, and citation states", () => {
     const panel = new TestPublicationContextPanel();
     expect(panel.renderForTest()).toBeDefined();
+    expect(panel.setPublication({ libraryArtifacts: [], publicationId: publication.id, referencePdfs: [], snapshot: null })).toBe(false);
     setPublication(panel);
     expect(panel.renderForTest()).toBeDefined();
     setPublication(panel, {

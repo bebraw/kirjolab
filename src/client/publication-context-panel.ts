@@ -25,10 +25,13 @@ interface PublicationContextData {
 
 export interface PublicationContextSources {
   readonly libraryArtifacts: readonly LibraryPdfArtifact[];
-  readonly pdfs: readonly PdfResource[];
-  readonly publication: PublicationResource;
-  readonly publicationPdfLinks: readonly PublicationPdfLink[];
+  readonly publicationId: string;
   readonly referencePdfs: readonly ProjectReferencePdf[];
+  readonly snapshot: {
+    readonly pdfs: readonly PdfResource[];
+    readonly publicationPdfLinks: readonly PublicationPdfLink[];
+    readonly publications: readonly PublicationResource[];
+  } | null;
 }
 
 export class PublicationContextPanel extends LitElement {
@@ -57,7 +60,13 @@ export class PublicationContextPanel extends LitElement {
     this.apiBase = apiBase;
   }
 
-  setPublication({ libraryArtifacts, pdfs, publication, publicationPdfLinks, referencePdfs }: PublicationContextSources): void {
+  setPublication({ libraryArtifacts, publicationId, referencePdfs, snapshot }: PublicationContextSources): boolean {
+    const publication = snapshot?.publications.find(({ id }) => id === publicationId);
+    if (!publication || !snapshot) {
+      this.data = null;
+      return false;
+    }
+    const { pdfs, publicationPdfLinks } = snapshot;
     const links = publicationPdfLinks.filter((link) => link.publicationId === publication.id);
     const linkedIds = new Set(links.map((link) => link.pdfId));
     const projectPapers = links.flatMap((link) => {
@@ -76,6 +85,7 @@ export class PublicationContextPanel extends LitElement {
       papers: [...libraryPapers, ...linkedReferencePapers, ...projectPapers],
       publication,
     };
+    return true;
   }
 
   setCitationAvailable(available: boolean): void {

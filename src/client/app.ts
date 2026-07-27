@@ -2032,7 +2032,6 @@ class WorkspaceApp {
   #renderActiveResourceContext(activeTab: ResearchResourceTab, loadPdf: boolean): void {
     if (activeTab.kind === "publication") {
       this.#renderPublicationContext(activeTab);
-      this.#elements.publicationContextPanel.scrollPosition = activeTab.scrollTop;
       return;
     }
     if (activeTab.kind === "candidate") {
@@ -2048,6 +2047,17 @@ class WorkspaceApp {
       );
     }
     if (loadPdf) void this.#loadActivePdf(false);
+  }
+
+  #renderPublicationContext(tab: Extract<ResearchResourceTab, { kind: "publication" }>): void {
+    const rendered = this.#elements.publicationContextPanel.setPublication({
+      libraryArtifacts: this.#librarySnapshot?.artifacts ?? [],
+      publicationId: tab.id,
+      referencePdfs: this.#projectReferencePdfs,
+      snapshot: this.#snapshot,
+    });
+    if (rendered) this.#updateCitationInsertionAvailability();
+    this.#elements.publicationContextPanel.scrollPosition = tab.scrollTop;
   }
 
   async #completePublicationIntake(doi: string, requestId: number): Promise<void> {
@@ -2102,21 +2112,6 @@ class WorkspaceApp {
       (tab): tab is ResearchResourceTab =>
         tab.kind !== "preview" && tab.kind !== "library" && tab.kind !== "assistant" && tab.key === this.#contextState.activeKey,
     );
-  }
-
-  #renderPublicationContext(tab: ResearchResourceTab): void {
-    if (tab.kind !== "publication" || !this.#snapshot) return;
-    const publication = this.#snapshot.publications.find((item) => item.id === tab.id);
-    if (!publication) return;
-
-    this.#elements.publicationContextPanel.setPublication({
-      libraryArtifacts: this.#librarySnapshot?.artifacts ?? [],
-      pdfs: this.#snapshot.pdfs,
-      publication,
-      publicationPdfLinks: this.#snapshot.publicationPdfLinks,
-      referencePdfs: this.#projectReferencePdfs,
-    });
-    this.#updateCitationInsertionAvailability();
   }
 
   #projectReferencePdf(resourceId: string): ProjectReferencePdf | undefined {

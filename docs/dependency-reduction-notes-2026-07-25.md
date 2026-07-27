@@ -5482,6 +5482,31 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,615 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Publication Lookup
+
+`PublicationContextPanel` now resolves its active publication id against the
+canonical publication snapshot before deriving scholarly metadata, available
+project PDFs, and ordered private-Library, shared-reference, and project paper
+options. `WorkspaceApp` retains canonical inputs, citation availability and
+insertion, paper navigation, refresh, scroll coordination, and notification
+policy.
+
+This checkpoint reduces `src/client/app.ts` from 3,264 to 3,259 lines (-5) and
+grows the publication-context owner from 284 to 294 lines. Runtime source across
+those two files grows by five lines while deleting the coordinator's canonical
+publication lookup. Seven focused cases cover unavailable snapshots, metadata,
+all paper variants, citation and paper intents, scroll, existing relationship
+transport, and strict client and Workers types. The readability audit remains at
+24 high-complexity functions without introducing a new coordinator hotspot.
+
+The browser application artifact changes from 828,090 B raw / 223,986 B gzip
+to 828,056 B raw / 224,005 B gzip (-34 B raw / +19 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,615 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,
