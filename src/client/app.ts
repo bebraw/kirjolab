@@ -1091,29 +1091,27 @@ class WorkspaceApp {
 
   #activateContext(key: ResearchContextKey): void {
     this.#captureActiveContextState();
-    this.#contextState = activateResearchTab(this.#contextState, key);
-    this.#renderResearchContext();
-    this.#showWorkspaceSurface("context", false);
-    this.#elements.contextTabStrip.focusTab(key);
-    this.#syncWorkspaceRoute("push");
+    this.#presentContextTransition(activateResearchTab(this.#contextState, key), key);
   }
 
   #openPublicationContext(publication: PublicationResource): void {
     this.#captureActiveContextState();
-    this.#contextState = openResearchResource(this.#contextState, { kind: "publication", id: publication.id });
-    this.#renderResearchContext();
-    this.#showWorkspaceSurface("context", false);
-    this.#elements.contextTabStrip.focusTab(researchResourceKey({ kind: "publication", id: publication.id }));
-    this.#syncWorkspaceRoute("push");
+    const target = { kind: "publication" as const, id: publication.id };
+    this.#presentContextTransition(openResearchResource(this.#contextState, target), researchResourceKey(target));
   }
 
   #openCandidateContext(candidate: ModelCandidate): void {
     this.#captureActiveContextState();
-    this.#contextState = openResearchResource(this.#contextState, { kind: "candidate", id: candidate.id });
-    this.#renderResearchContext();
+    const target = { kind: "candidate" as const, id: candidate.id };
+    this.#presentContextTransition(openResearchResource(this.#contextState, target), researchResourceKey(target));
+  }
+
+  #presentContextTransition(context: ResearchContextState, key: ResearchContextKey, loadPdf = true, syncRoute = true): void {
+    this.#contextState = context;
+    this.#renderResearchContext(loadPdf);
     this.#showWorkspaceSurface("context", false);
-    this.#elements.contextTabStrip.focusTab(researchResourceKey({ kind: "candidate", id: candidate.id }));
-    this.#syncWorkspaceRoute("push");
+    this.#elements.contextTabStrip.focusTab(key);
+    if (syncRoute) this.#syncWorkspaceRoute("push");
   }
 
   #renderResearchContext(loadPdf = true): void {
@@ -1449,10 +1447,8 @@ class WorkspaceApp {
   ): ResearchResourceKey {
     this.#captureActiveContextState();
     const key = researchResourceKey(target);
-    this.#contextState = setPdfResearchLocation(openResearchResource(this.#contextState, target), key, location);
-    this.#renderResearchContext(false);
-    this.#showWorkspaceSurface("context", false);
-    this.#elements.contextTabStrip.focusTab(key);
+    const context = setPdfResearchLocation(openResearchResource(this.#contextState, target), key, location);
+    this.#presentContextTransition(context, key, false, false);
     return key;
   }
 

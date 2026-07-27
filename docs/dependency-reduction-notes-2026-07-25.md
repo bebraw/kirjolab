@@ -8043,6 +8043,24 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,705 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Simplification: Context Transitions
+
+`WorkspaceApp` now presents fixed-tab, publication, candidate, and prepared-PDF
+context transitions through one coordinator-local helper. Canonical context
+state, surface visibility, focused-tab behavior, PDF loading policy, and route
+history remain under the same coordinator authority without introducing a new
+component contract.
+
+This checkpoint reduces `src/client/app.ts` from 1,607 to 1,603 lines (-4),
+which is also a four-line runtime-source reduction. The native quality gate
+continues to cover the fixed-resource and PDF navigation paths through all
+1,705 unit/coverage tests, 121 Workers-runtime tests, and 74 browser tests.
+
+The browser application artifact changes from 846,829 B raw / 228,652 B gzip
+to 846,614 B raw / 228,680 B gzip (-215 B raw / +28 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,
