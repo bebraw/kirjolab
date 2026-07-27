@@ -893,9 +893,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   the active PDF page, route their ordered removal through the typed workflow
   binding, own the paint-versus-erase capture persistence workflow, and return
   viewer-clearing and cross-owner effects to the context-resource presenter,
-  which owns viewer, citation, and evidence-panel routing while delegating only
-  refresh execution, manuscript-link, and notification effects to the
-  coordinator. The presenter owns child project-mutation refresh sequencing,
+  which owns viewer, citation, evidence-panel routing, and validated manuscript-
+  link delegation while receiving authoring state, refresh execution, and
+  notification effects through its coordinator boundary. The presenter owns child project-mutation refresh sequencing,
   success/fallback notice selection, and propagation when no fallback exists,
   including no-match and completed-erasure status,
   plus citation availability from the active PDF and canonical publication-PDF
@@ -907,7 +907,7 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   canonical publication lookup, navigation, and notification routes while the
   application coordinator supplies only resource refresh. Route completed note-
   save, tool, undo, erasure, citation, and link outcomes through one typed
-  workflow binding while leaving manuscript linking, canonical refresh
+  workflow binding while leaving canonical authoring-state derivation, refresh
   execution, and notification presentation in the application coordinator.
 - Refine tablet highlight strokes through bounded normalized geometry and quotation updates; preserve annotation/stroke identity and imported PDF immutability.
 - Retain the active manuscript caret or selection as Yjs-relative positions in
@@ -1148,10 +1148,13 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   refresh sequencing, child-specific mutation failure copy, and notice
   dispatch; and route comment, claim, evidence, publication, citation, and paper
   intents across those owners. Bind canonical project refresh execution,
-  passage linking, passage navigation, and notice presentation once through its
-  resource-route boundary. Keep Yjs passage derivation, mutation consequences, canonical
-  refresh transport, cross-feature passage effects, Library management, and the
-  shared notification outlet in the application coordinator.
+  authoring state, passage navigation, and notice presentation once through its
+  resource-route boundary. Let the presenter validate synchronization and a
+  current passage before delegating claim or annotation link transport to its
+  composed owner. Keep Yjs passage derivation, revision and collaboration
+  authority, mutation consequences, canonical refresh transport, cross-feature
+  passage effects, Library management, and the shared notification outlet in
+  the application coordinator.
   Keep tab state, canonical snapshot acceptance,
   Yjs citation syntax insertion, cross-resource navigation, routing, project-selection
   persistence, remaining viewer gestures, and the shared notification outlet

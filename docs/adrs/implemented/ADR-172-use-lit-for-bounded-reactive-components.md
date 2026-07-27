@@ -211,11 +211,13 @@ The adopted components own bounded presentation:
   edit and PDF routes, fragment-removal refresh sequencing, child-specific
   mutation failure copy, and notice dispatch. Route comment, claim, evidence,
   publication, citation, and paper intents among those composed owners. Bind
-  canonical project refresh, passage linking, passage navigation, and notice
-  presentation once through the resource-route coordinator. Keep Yjs passage
-  derivation, mutation consequences, canonical refresh transport, cross-feature
-  passage effects, Library management, and the notification outlet in the
-  application coordinator. Through a
+  canonical project refresh, authoring state, passage navigation, and notice
+  presentation once through the resource-route coordinator. The presenter
+  validates synchronization and a current passage before delegating claim or
+  annotation link transport to the composed owner. Keep Yjs passage derivation,
+  revision and collaboration authority, mutation consequences, canonical
+  refresh transport, cross-feature passage effects, Library management, and the
+  notification outlet in the application coordinator. Through a
   narrow viewer binding it derives
   authorized active-PDF loads, synchronizes project annotations and private
   highlights, rejects stale completions, retains rendered context and project-
@@ -554,8 +556,9 @@ The adopted components own bounded presentation:
   clearing effects through its bounded viewer, owns intake refresh plus
   completed-workflow refresh, optional manuscript-link, and notice sequencing,
   routes citation and evidence-panel intents across its composed Lit owners,
-  and delegates only canonical refresh execution, passage-link mutation, and
-  notice presentation to the application coordinator.
+  validates supplied authoring state, and delegates passage-link transport to
+  the appropriate child while canonical refresh execution and notice
+  presentation remain application inputs.
   The form also owns local toolbar tool commits, viewer-highlight edit/reveal-
   versus-erase routing, completed undo-state presentation, nested publication-
   intake PDF projection, refresh acknowledgement, and one typed workflow binding
@@ -777,9 +780,11 @@ reason to wrap static markup mechanically.
   the context-resource presenter later removes the comment owner from the global
   application element registry and consolidates comment, claim, evidence, and
   publication mutation, passage, and notice effects behind one canonical route.
-  It leaves Yjs selection resolution, revision and collaboration authority,
-  canonical refreshes, notification presentation, and passage navigation in the
-  application coordinator. Completing that workspace binding removes the final
+  The presenter now consumes that authoring source for comments, claims, and
+  evidence, validates synchronization and passage availability, and delegates
+  link transport to the appropriate child. Yjs selection resolution, revision
+  and collaboration authority, canonical refreshes, notification presentation,
+  and passage navigation remain in the application coordinator. Completing that workspace binding removes the final
   coordinator subscription and public manuscript-comment action protocol.
 - The project publication list replaces one internal list reference and its
   imperative card renderer. It also replaces the separate count reference and

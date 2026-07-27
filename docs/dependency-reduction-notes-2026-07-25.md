@@ -11319,6 +11319,30 @@ and PDF.js artifacts remain unchanged at 135,411 B / 23,373 B, 204,779 B /
 Full native CI passes all 1,741 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Passage-Link Policy
+
+`ContextResourcePresenter` now consumes the authoring-state source it already
+shares with manuscript comments, rejects claim and evidence links while the
+document is unstable or no passage is selected, and delegates validated link
+transport to its composed claim or evidence owner. `WorkspaceApp` supplies one
+canonical authoring projection and no longer owns the policy or child routing.
+
+This checkpoint reduces `src/client/app.ts` from 775 to 759 lines (-16), grows
+the context-resource presenter from 1,183 to 1,200 lines (+17), and adds one
+combined runtime line to consolidate policy shared by three resource families.
+Focused coverage passes stable claim and evidence links, synchronization and
+missing-selection guards, comment authoring, child mutation routes, and strict
+types. Direct and unique production package counts remain 18 and 150; Lit was
+already pinned.
+
+The browser application artifact increases from 854,220 B raw / 229,899 B gzip
+to 854,312 B / 229,963 B (+92 B raw / +64 B gzip). Styles and lazy Markdown and
+PDF.js artifacts remain unchanged at 135,411 B / 23,373 B, 204,779 B / 62,386
+B, and 481,994 B / 146,135 B.
+
+Full native CI passes all 1,742 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Companion Editor Binding
 
 `EditorStatus` now registers and binds the bibliography as a companion Yjs

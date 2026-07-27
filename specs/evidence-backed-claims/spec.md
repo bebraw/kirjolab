@@ -30,8 +30,8 @@ must show where a claim enters authored prose.
   grounding-selection, the complete Claims collection shell and count,
   create-action availability, action presentation, confirmed deletion
   transport, stable encoded delete targets, duplicate-submit gating, pending
-  and retryable failure state, claim-passage-link transport from a coordinator-
-  validated typed passage, completed mutation outcomes, evidence availability,
+  and retryable failure state, claim-passage-link transport from a resource-
+  presenter-validated typed passage, completed mutation outcomes, evidence availability,
   and the nested editor's create/edit lifecycle. The bounded dialog component
   owns create and edit copy, proposition and note values,
   evidence relation and annotation selection, stable create/edit identity,

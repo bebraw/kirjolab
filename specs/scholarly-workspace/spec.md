@@ -259,12 +259,13 @@ collaboration.
   retains canonical mutation, editor highlighting, and assistant refresh.
 - **Project evidence mutations:** The bounded Project evidence panel owns
   guarded PDF and annotation removal plus annotation-passage-link transport
-  from a coordinator-validated typed passage. Its enclosing resource presenter
+  from a resource-presenter-validated typed passage. Its enclosing resource presenter
   owns annotation-form cleanup and selection, edit and PDF routes, fragment-
   removal refresh sequencing, and notice dispatch. Separate typed workspace and
   assistant bindings retain Yjs selection stability, grounding authority,
-  canonical refresh transport, passage linking and navigation, and mutation
-  completion policy outside the panel.
+  canonical refresh transport, passage navigation, and mutation completion
+  policy outside the panel; the resource presenter validates and delegates
+  passage linking.
 - **Claim and publication routes:** The enclosing resource presenter configures
   the claim list and publication list/context panels and routes claim
   annotations to project evidence, publication opening to canonical context,

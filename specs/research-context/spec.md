@@ -199,9 +199,10 @@ changing their canonical data, selector, authorization, or rendering contracts.
   Preview rendering while leaving Yjs anchor resolution and render timing to
   the coordinator; configures comment, evidence, claim, and publication owners
   and owns their project-mutation refresh sequencing, success/fallback notice
-  selection, and failure propagation while routing refresh execution, passage
-  linking, passage navigation, and notice presentation through one canonical
-  application boundary;
+  selection, failure propagation, and validated claim or evidence passage-link
+  delegation while routing authoring state, refresh execution, passage
+  navigation, and notice presentation through one canonical application
+  boundary;
   composes the canonical tab-strip projection, selects and
   retains the active resource owner for layout, citation, PDF, and assistant
   consumers; retains the resolved active private-Library artifact for page
@@ -237,9 +238,10 @@ changing their canonical data, selector, authorization, or rendering contracts.
   owners; document, project, people, and Preview-section routes remain with the
   application coordinator. The presenter also configures the project-evidence
   panel and owns annotation-form cleanup and selection, edit and PDF routes,
-  fragment-removal refresh sequencing, and notice dispatch. Mutation completion
-  policy, refresh transport, passage linking, and passage navigation remain in
-  the application coordinator. The presenter configures the claim list and
+  fragment-removal refresh sequencing, notice dispatch, and passage-link
+  validation and delegation. Mutation completion policy, refresh transport,
+  canonical authoring-state derivation, and passage navigation remain in the
+  application coordinator. The presenter configures the claim list and
   publication list/context panels and routes claim annotations, publication
   context, citation insertion, and paper opening among its composed Lit owners.
   Mutation consequences, passage effects, and Library management remain in the
@@ -350,8 +352,9 @@ changing their canonical data, selector, authorization, or rendering contracts.
   Lit owners, supplies nested-intake API configuration, canonical publication
   lookup, navigation, and notification routes, owns intake refresh plus
   completed-workflow refresh, optional manuscript-link, and notice sequencing,
-  and delegates only canonical refresh execution, passage-link mutation, and
-  notice presentation to the workspace coordinator.
+  validates supplied authoring state and delegates passage-link transport to the
+  appropriate child, while canonical refresh execution and notice presentation
+  remain workspace-coordinator inputs.
   The form also owns toolbar tool commits, viewer-
   highlight edit/reveal-versus-erase routing, and completed undo presentation.
   The workspace coordinator retains PDF gestures,

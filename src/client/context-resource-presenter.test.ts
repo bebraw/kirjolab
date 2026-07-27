@@ -18,7 +18,7 @@ import { ContextTabStrip } from "./context-tab-strip";
 import { LibraryPdfAnnotationToolbar } from "./library-pdf-annotation-toolbar";
 import { LibraryPdfInspector } from "./library-pdf-inspector";
 import { LibraryPdfMarkupLayer } from "./library-pdf-markup-layer";
-import { ManuscriptCommentList } from "./manuscript-comment-list";
+import { ManuscriptCommentList, type ManuscriptCommentAuthoring } from "./manuscript-comment-list";
 import { ProjectAnnotationForm } from "./project-annotation-form";
 import { ProjectEvidencePanel } from "./project-evidence-panel";
 import { ProjectMapWorkspace } from "./project-map-workspace";
@@ -152,9 +152,13 @@ function setup() {
     openReferencePdf: vi.spyOn(presenter, "openReferencePdf").mockResolvedValue(undefined),
   };
   const routes = {
+    authoring: vi.fn<() => ManuscriptCommentAuthoring>(() => ({
+      passage: { end: 8, excerpt: "Evidence", fileId: "main.md", start: 0 },
+      sourceRevision: 3,
+      stable: true,
+    })),
     insertCitation: vi.fn(),
     library: vi.fn<() => ReferenceLibrarySnapshot | null>(() => library),
-    linkPassage: vi.fn(),
     openCandidate: vi.fn(),
     openPublication: vi.fn(),
     openPassage: vi.fn(),
@@ -307,9 +311,9 @@ describe("context resource presenter", () => {
       syncRoute: vi.fn(),
     });
     presenter.bindRoutes({
+      authoring: () => ({ passage: null, sourceRevision: 0, stable: false }),
       insertCitation: vi.fn(),
       library: () => null,
-      linkPassage: vi.fn(),
       openPassage: vi.fn(),
       presentNotice,
       project: () => null,
@@ -620,6 +624,7 @@ describe("context resource presenter", () => {
     };
     const bindWorkflow = vi.spyOn(elements["project-annotation-form"], "bindWorkflow");
     const removeFragment = vi.spyOn(elements["project-evidence-panel"], "removeFragment").mockResolvedValue(true);
+    const linkPassage = vi.spyOn(elements["project-evidence-panel"], "linkPassage").mockResolvedValue(undefined);
     const revealAnnotation = vi.spyOn(elements["project-evidence-panel"], "revealAnnotation").mockReturnValue(true);
     const insertCitation = vi.spyOn(presenter, "insertActiveCitation");
     presenter.bindPdfViewer(viewer, "/api/workspaces/workspace");
@@ -644,7 +649,14 @@ describe("context resource presenter", () => {
     expect(removeFragment).toHaveBeenCalledWith("annotation-1", "fragment-1");
     expect(viewer.clearDraftSelection).toHaveBeenCalledOnce();
     expect(routes.refreshResources).toHaveBeenCalledOnce();
-    expect(routes.linkPassage).toHaveBeenCalledWith("annotation", "annotation-1");
+    expect(linkPassage).toHaveBeenCalledWith({
+      annotationId: "annotation-1",
+      end: 8,
+      excerpt: "Evidence",
+      fileId: "main.md",
+      sourceRevision: 3,
+      start: 0,
+    });
     expect(routes.presentNotice).toHaveBeenCalledWith("Annotation saved.");
   });
 
@@ -677,6 +689,7 @@ describe("context resource presenter", () => {
     const bind = vi.spyOn(elements["project-evidence-panel"], "bind");
     const clearAnnotation = vi.spyOn(elements["project-annotation-form"], "clearAnnotation");
     const selectPdf = vi.spyOn(elements["project-annotation-form"], "selectPdf");
+    const linkPassage = vi.spyOn(elements["project-evidence-panel"], "linkPassage").mockResolvedValue(undefined);
     const openProjectAnnotation = vi.spyOn(presenter, "openProjectAnnotation").mockImplementation(() => undefined);
     presenter.bindProjectEvidence("/api/workspaces/workspace");
     const binding = bind.mock.calls[0]?.[0];
@@ -713,7 +726,14 @@ describe("context resource presenter", () => {
     );
     expect(completeProjectMutation).toHaveBeenNthCalledWith(3);
     expect(openProjectAnnotation).toHaveBeenCalledWith(annotation.id, true);
-    expect(routes.linkPassage).toHaveBeenCalledWith("annotation", annotation.id);
+    expect(linkPassage).toHaveBeenCalledWith({
+      annotationId: annotation.id,
+      end: 8,
+      excerpt: "Evidence",
+      fileId: "main.md",
+      sourceRevision: 3,
+      start: 0,
+    });
     expect(routes.openPassage).toHaveBeenCalledOnce();
     expect(routes.presentNotice).toHaveBeenCalledWith("Highlight stroke erased.");
     expect(routes.presentNotice).toHaveBeenCalledWith("Evidence notice.");
@@ -828,7 +848,7 @@ describe("context resource presenter", () => {
     const insertActiveCitation = vi.spyOn(presenter, "insertActiveCitation").mockImplementation(() => undefined);
     const openPublicationPaper = vi.spyOn(presenter, "openPublicationPaper").mockResolvedValue(undefined);
     const listCoordinator = { manage: vi.fn() };
-    const authoring = vi.fn(() => ({ passage: null, sourceRevision: 3, stable: true }));
+    const linkPassage = vi.spyOn(elements["claim-list-panel"], "linkPassage").mockResolvedValue(undefined);
     const publication = {
       abstract: "",
       authors: ["Ada Author"],
@@ -846,10 +866,11 @@ describe("context resource presenter", () => {
     };
 
     presenter.bindClaimList("/api/workspaces/workspace");
-    presenter.bindManuscriptComments("/api/workspaces/workspace", authoring);
+    presenter.bindManuscriptComments("/api/workspaces/workspace");
     presenter.bindPublicationContext("/api/workspaces/workspace");
     presenter.bindPublicationList("/api/workspaces/workspace", listCoordinator);
     claimBind.mock.calls[0]?.[0].completeMutation("Claim changed.");
+    claimBind.mock.calls[0]?.[0].linkPassage("claim-1");
     claimBind.mock.calls[0]?.[0].openAnnotation("annotation-1");
     contextBind.mock.calls[0]?.[0].insertCitation();
     contextBind.mock.calls[0]?.[0].openPaper({ kind: "reference", pdf: referencePdf });
@@ -879,12 +900,36 @@ describe("context resource presenter", () => {
       "Reference enriched.",
       "The reference was enriched, but project resources could not be refreshed.",
     );
-    expect(commentBind.mock.calls[0]?.[0].authoring).toBe(authoring);
+    expect(commentBind.mock.calls[0]?.[0].authoring()).toEqual(routes.authoring());
+    expect(linkPassage).toHaveBeenCalledWith({
+      claimId: "claim-1",
+      end: 8,
+      excerpt: "Evidence",
+      fileId: "main.md",
+      sourceRevision: 3,
+      start: 0,
+    });
     expect(routes.presentNotice).toHaveBeenCalledWith("Comment notice.");
     expect(revealAnnotation).toHaveBeenCalledWith("annotation-1");
     expect(insertActiveCitation).toHaveBeenCalledOnce();
     expect(openPublicationPaper).toHaveBeenCalledWith({ kind: "reference", pdf: referencePdf });
     expect(navigateResource).toHaveBeenCalledWith({ kind: "publication", id: publication.id });
+  });
+
+  it("guards claim and evidence passage links with shared authoring state", () => {
+    const { elements, presenter, routes } = setup();
+    const claimBind = vi.spyOn(elements["claim-list-panel"], "bind");
+    const evidenceBind = vi.spyOn(elements["project-evidence-panel"], "bind");
+    presenter.bindClaimList("/api/workspaces/workspace");
+    presenter.bindProjectEvidence("/api/workspaces/workspace");
+
+    routes.authoring.mockReturnValue({ passage: null, sourceRevision: 3, stable: false });
+    claimBind.mock.calls[0]?.[0].linkPassage("claim-1");
+    routes.authoring.mockReturnValue({ passage: null, sourceRevision: 3, stable: true });
+    evidenceBind.mock.calls[0]?.[0].linkAnnotation("annotation-1");
+
+    expect(routes.presentNotice).toHaveBeenNthCalledWith(1, "Wait for the manuscript to finish synchronizing before linking a claim.");
+    expect(routes.presentNotice).toHaveBeenNthCalledWith(2, "Select manuscript text before linking an annotation.");
   });
 
   it("provides canonical resource routes to the assistant presenter", async () => {
@@ -1046,9 +1091,9 @@ describe("context resource presenter", () => {
     };
     let currentLibrary: ReferenceLibrarySnapshot | null = null;
     const coordinator = {
+      authoring: vi.fn(() => ({ passage: null, sourceRevision: 0, stable: false })),
       insertCitation: vi.fn(),
       library: vi.fn(() => currentLibrary),
-      linkPassage: vi.fn(),
       openCandidate: vi.fn(),
       openPublication: vi.fn(),
       openPassage: vi.fn(),

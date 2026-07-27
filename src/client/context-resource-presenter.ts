@@ -116,9 +116,9 @@ export interface LibraryPdfMutationCoordinator {
 }
 
 export interface ContextRouteCoordinator {
+  readonly authoring: () => ManuscriptCommentAuthoring;
   readonly insertCitation: (citationAlias: string, locator?: string) => void;
   readonly library: () => ReferenceLibrarySnapshot | null;
-  readonly linkPassage: (kind: "annotation" | "claim", id: string) => void;
   readonly openPassage: (anchor: ManuscriptAnchorSelector) => void;
   readonly presentNotice: (message: string) => void;
   readonly project: () => WorkspaceSnapshot | null;
@@ -515,7 +515,7 @@ export class ContextResourcePresenter extends LitElement {
       completeWorkflow: async ({ clearDraftSelection, ...completion }) => {
         if (clearDraftSelection) this.pdfViewer?.clearDraftSelection();
         if (completion.refreshResources) await this.routeCoordinator?.refreshResources();
-        if (completion.linkAnnotationId) this.routeCoordinator?.linkPassage("annotation", completion.linkAnnotationId);
+        if (completion.linkAnnotationId) await this.linkSelectedPassage("annotation", completion.linkAnnotationId);
         if (completion.notice) this.routeCoordinator?.presentNotice(completion.notice);
       },
       citePage: () => this.insertActiveCitation(true),
@@ -531,17 +531,17 @@ export class ContextResourcePresenter extends LitElement {
     claims?.bind({
       completeMutation: (message) =>
         void this.completeProjectMutation(message, "The claim changed, but project resources could not be refreshed."),
-      linkPassage: (claimId) => this.routeCoordinator?.linkPassage("claim", claimId),
+      linkPassage: (claimId) => void this.linkSelectedPassage("claim", claimId),
       openAnnotation: (annotationId) => this.element("project-evidence-panel", ProjectEvidencePanel)?.revealAnnotation(annotationId),
       openPassage: (anchor) => this.routeCoordinator?.openPassage(anchor),
     });
   }
 
-  bindManuscriptComments(apiBase: string, authoring: () => ManuscriptCommentAuthoring): void {
+  bindManuscriptComments(apiBase: string): void {
     const comments = this.element("manuscript-comment-list-panel", ManuscriptCommentList);
     comments?.configure(apiBase);
     comments?.bind({
-      authoring,
+      authoring: () => this.routeCoordinator?.authoring() ?? { passage: null, sourceRevision: 0, stable: false },
       completeMutation: (message) =>
         void this.completeProjectMutation(message, "The comment changed, but project resources could not be refreshed."),
       notice: (message) => this.routeCoordinator?.presentNotice(message),
@@ -565,7 +565,7 @@ export class ContextResourcePresenter extends LitElement {
         await this.completeProjectMutation();
         if (announce) this.routeCoordinator?.presentNotice("Highlight stroke erased.");
       },
-      linkAnnotation: (annotationId) => this.routeCoordinator?.linkPassage("annotation", annotationId),
+      linkAnnotation: (annotationId) => void this.linkSelectedPassage("annotation", annotationId),
       notice: (message) => this.routeCoordinator?.presentNotice(message),
       openPassage: (anchor) => this.routeCoordinator?.openPassage(anchor),
       openPdf: (pdf, page, annotationId) => {
@@ -573,6 +573,23 @@ export class ContextResourcePresenter extends LitElement {
         void this.openProjectPdf(pdf, page, annotationId);
       },
     });
+  }
+
+  private async linkSelectedPassage(kind: "annotation" | "claim", id: string): Promise<void> {
+    const coordinator = this.routeCoordinator;
+    const authoring = coordinator?.authoring();
+    const label = kind === "claim" ? "a claim" : "an annotation";
+    if (!authoring?.stable) {
+      coordinator?.presentNotice(`Wait for the manuscript to finish synchronizing before linking ${label}.`);
+      return;
+    }
+    if (!authoring.passage) {
+      coordinator?.presentNotice(`Select manuscript text before linking ${label}.`);
+      return;
+    }
+    const link = { ...authoring.passage, sourceRevision: authoring.sourceRevision };
+    if (kind === "claim") await this.element("claim-list-panel", ClaimListPanel)?.linkPassage({ claimId: id, ...link });
+    else await this.element("project-evidence-panel", ProjectEvidencePanel)?.linkPassage({ annotationId: id, ...link });
   }
 
   bindProjectMap(apiBase: string, coordinator: ProjectMapCoordinator): void {

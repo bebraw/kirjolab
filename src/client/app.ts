@@ -393,11 +393,7 @@ class WorkspaceApp {
       presentNotice: (message) => this.#elements.toast.show(message),
       trigger: this.#elements.projectHistoryTrigger,
     });
-    this.#elements.contextResourcePresenter.bindManuscriptComments(apiBase, () => ({
-      passage: this.#elements.editorStatus.selectedPassage(),
-      sourceRevision: this.#revision,
-      stable: this.#collaboration.stable,
-    }));
+    this.#elements.contextResourcePresenter.bindManuscriptComments(apiBase);
     this.#source.observe(() => void this.#renderPreview());
     this.#bibliography.observe(() => void this.#renderPreview());
     this.#document.on("update", (update: Uint8Array, origin: unknown) => {
@@ -459,9 +455,13 @@ class WorkspaceApp {
       syncRoute: (mode) => this.#syncWorkspaceRoute(mode),
     });
     this.#elements.contextResourcePresenter.bindRoutes({
+      authoring: () => ({
+        passage: this.#elements.editorStatus.selectedPassage(),
+        sourceRevision: this.#revision,
+        stable: this.#collaboration.stable,
+      }),
       insertCitation: (citationAlias, locator) => this.#elements.sourceCitationControl.insertCitation(citationAlias, locator),
       library: () => this.#librarySnapshot,
-      linkPassage: (kind, id) => void this.#linkSelectedPassage(kind, id),
       openPassage: (anchor) => this.#showPassage(anchor),
       presentNotice: (message) => this.#elements.toast.show(message),
       project: () => this.#snapshot,
@@ -673,22 +673,6 @@ class WorkspaceApp {
     }
     this.#elements.editorInsertMenu.replaceRange(start, end, candidate.key);
     if (candidate.scope === "library") this.#elements.toast.show(`Added and cited ${candidate.key}.`);
-  }
-
-  async #linkSelectedPassage(kind: "annotation" | "claim", id: string): Promise<void> {
-    const label = kind === "claim" ? "a claim" : "an annotation";
-    if (!this.#collaboration.stable) {
-      this.#elements.toast.show(`Wait for the manuscript to finish synchronizing before linking ${label}.`);
-      return;
-    }
-    const passage = this.#elements.editorStatus.selectedPassage();
-    if (!passage) {
-      this.#elements.toast.show(`Select manuscript text before linking ${label}.`);
-      return;
-    }
-    const link = { ...passage, sourceRevision: this.#revision };
-    if (kind === "claim") await this.#elements.claimListPanel.linkPassage({ claimId: id, ...link });
-    else await this.#elements.projectEvidencePanel.linkPassage({ annotationId: id, ...link });
   }
 
   #showPassage(anchor: PassageLink["anchor"]): void {
