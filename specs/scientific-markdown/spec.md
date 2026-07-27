@@ -74,6 +74,11 @@ second Markdown dialect.
   selection ranges, and typed insertion bindings. The workspace coordinator
   supplies the resolved collaborative caret and passage and applies the
   canonical source edit through Yjs.
+- The source citation control derives the citation at the resolved authoring
+  caret for contextual navigation and projects requested citation aliases and
+  optional locators into canonical `:cite[…]` syntax. It owns missing-caret,
+  invalid-key, and completion wording; the workspace coordinator applies the
+  derived insertion through Yjs and restores authoring focus and caret state.
 - Quoted and unquoted single-token directive attributes are accepted, matching
   the source project's examples.
 - Experimental version 1 `:::figure{kind="boxplot" version=1}` containers

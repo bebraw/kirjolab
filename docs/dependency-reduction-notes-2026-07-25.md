@@ -11061,3 +11061,27 @@ and PDF.js artifacts remain unchanged at 135,411 B / 23,373 B, 204,779 B /
 
 Full native CI passes all 1,734 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Lit Ownership: Citation Insertion
+
+`SourceCitationControl` now owns citation-at-caret state, canonical citation
+syntax projection, missing-caret and invalid-key wording, and insertion
+completion copy. `WorkspaceApp` retains the Yjs transaction, authoring-mode and
+caret consequences, publication resolution, and cross-resource navigation.
+
+This checkpoint reduces `src/client/app.ts` from 916 to 906 lines (-10) and
+grows the source-citation owner from 57 to 85 lines (+28). Runtime across the
+pair grows by 18 lines to name the insertion capability and keep mutation
+authority explicit, while deleting the coordinator's citation projection and
+presentation branches. Focused coverage passes citation navigation, locator
+propagation, successful insertion, missing-caret and invalid-key behavior, and
+strict types. Direct and unique production package counts remain 18 and 150;
+Lit was already pinned.
+
+The browser application artifact changes from 852,830 B raw / 229,806 B gzip
+to 853,096 B / 229,870 B (+266 B raw / +64 B gzip). Styles and lazy Markdown
+and PDF.js artifacts remain unchanged at 135,411 B / 23,373 B, 204,779 B /
+62,386 B, and 481,994 B / 146,135 B.
+
+Full native CI passes all 1,736 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.

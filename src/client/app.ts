@@ -25,7 +25,6 @@ import { loadWorkspaceSnapshot, parseWorkspaceSnapshot, WorkspaceAccessError } f
 import { CoalescedRefresh, DebouncedAsyncQueue } from "./collaboration";
 import { CollaborationSession } from "./collaboration-session";
 import { CollaborationSocket } from "./collaboration-socket";
-import { createCitationInsertion } from "./citations";
 import "./manuscript-map-panel";
 import {
   applicationVersion,
@@ -340,7 +339,7 @@ class WorkspaceApp {
     });
     this.#bindSourceEditor(this.#source);
     this.#elements.editorStatus.bindAuthoring(this.#document, this.#elements.source, () => {
-      this.#elements.sourceCitationControl.setCaret(this.#activeFileText.toString(), this.#elements.source.selectionEnd);
+      this.#elements.sourceCitationControl.setCaret(this.#activeFileText.toString(), this.#elements.editorStatus.caret);
       this.#renderSourceEditorHighlight();
       this.#elements.assistantGenerationPresenter.refreshTarget();
       this.#elements.contextResourcePresenter.setCitationAvailable(this.#elements.editorStatus.caret !== null);
@@ -491,7 +490,7 @@ class WorkspaceApp {
       syncRoute: (mode) => this.#syncWorkspaceRoute(mode),
     });
     this.#elements.contextResourcePresenter.bindRoutes({
-      insertCitation: (citationAlias, locator) => this.#insertCitation(citationAlias, locator),
+      insertCitation: (citationAlias, locator) => this.#elements.sourceCitationControl.insertCitation(citationAlias, locator),
       library: () => this.#librarySnapshot,
       linkPassage: (kind, id) => void this.#linkSelectedPassage(kind, id),
       openPassage: (anchor) => this.#showPassage(anchor),
@@ -514,6 +513,14 @@ class WorkspaceApp {
       showSource: (offset) => this.#elements.previewSyncControls.showSource(offset),
     });
     this.#elements.sourceCitationControl.bindNavigation((citation) => this.#elements.contextResourcePresenter.openCitation(citation));
+    this.#elements.sourceCitationControl.bindInsertion({
+      applyInsertion: (insertion) => {
+        this.#document.transact(() => this.#activeFileText.insert(insertion.index, insertion.text), this);
+        this.#elements.authoringModeTabs.navigate("write");
+        this.#elements.editorStatus.selectRange(insertion.caret);
+      },
+      presentNotice: (message) => this.#showToast(message),
+    });
     this.#elements.contextResourcePresenter.bindPublicationContext(apiBase);
     this.#elements.assistantGenerationPresenter.bindResources(this.#elements.contextResourcePresenter.assistantResources());
     this.#elements.assistantGenerationPresenter.bindWorkflow({
@@ -756,23 +763,6 @@ class WorkspaceApp {
     const caret = start + value.length;
     this.#elements.source.focus();
     this.#elements.editorStatus.selectRange(caret);
-  }
-
-  #insertCitation(citationKey: string, locator?: string): void {
-    const index = this.#elements.editorStatus.caret;
-    if (index === null) {
-      this.#showToast("Place the manuscript caret before inserting a citation.");
-      return;
-    }
-    const insertion = createCitationInsertion(this.#activeFileText.toString(), index, citationKey, locator);
-    if (!insertion) {
-      this.#showToast("This reference key cannot be represented by citation syntax.");
-      return;
-    }
-    this.#document.transact(() => this.#activeFileText.insert(insertion.index, insertion.text), this);
-    this.#elements.authoringModeTabs.navigate("write");
-    this.#elements.editorStatus.selectRange(insertion.caret);
-    this.#showToast(`Inserted :cite[${citationKey}]${locator ? ` at ${locator}` : ""} into canonical Markdown.`);
   }
 
   async #linkSelectedPassage(kind: "annotation" | "claim", id: string): Promise<void> {

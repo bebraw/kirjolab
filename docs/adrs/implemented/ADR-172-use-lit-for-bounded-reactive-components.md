@@ -1262,10 +1262,12 @@ reason to wrap static markup mechanically.
   project files and references and retains private-Library linking, Yjs edits,
   and caret restoration.
 - The source citation control owns caret-context parsing and action
-  availability and invokes one typed navigation binding with the resolved
-  citation. The application
-  coordinator retains publication resolution, grouped-citation policy, and
-  context navigation.
+  availability. From the same resolved caret it owns canonical citation syntax
+  projection, invalid-key and missing-caret presentation, insertion completion
+  copy, and typed navigation and insertion bindings. The application
+  coordinator retains the Yjs transaction, authoring-mode and caret
+  consequences, publication resolution, grouped-citation policy, and context
+  navigation.
 - The existing PDF viewer owns its complete status presentation, including
   active-load failures and text-selection pointer routing reported by the
   application coordinator, without exposing its internal elements to
