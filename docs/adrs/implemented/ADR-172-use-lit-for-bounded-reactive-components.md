@@ -147,8 +147,9 @@ The adopted components own bounded presentation:
   canonical snapshot projection, live passage-resolution presentation,
   grounding-choice focus, empty-state, action presentation, confirmed deletion
   and claim-passage-link transport, duplicate-delete gating, local pending and
-  retryable failure state, and typed create, claim, completed mutation, and
-  navigation outcomes. It also owns addressed-card reveal and optional focus.
+  retryable failure state, the nested claim editor's create/edit lifecycle, and
+  typed completed mutation and navigation outcomes. It also owns addressed-card
+  reveal and optional focus.
   The coordinator supplies browser-local evidence selection and the link
   workflow's Yjs-validated typed passage input.
 - The manuscript comment panel owns composer body and status state plus comment,
@@ -583,9 +584,11 @@ reason to wrap static markup mechanically.
   claim render helpers. It also replaces the separate create-button reference,
   native binding, availability update, count reference, count mutation, and
   coordinator deletion, passage-link request, and canonical claim-projection
-  methods while leaving Yjs selection validation, evidence-selection state,
-  dialogs, canonical refresh, notification policy, passage navigation, and
-  annotation navigation in the application coordinator.
+  methods. It now composes the claim dialog, removing its global registry entry,
+  two coordinator subscriptions, create/edit routing, and the coordinator's
+  dialog-opening method while leaving Yjs selection validation, evidence-
+  selection state, canonical refresh, notification policy, passage navigation,
+  and annotation navigation in the application coordinator.
 - The manuscript comment panel replaces three composer element references,
   submit binding, reset and saved-status updates, one internal list reference,
   its imperative card renderer, and all three coordinator comment request
@@ -760,9 +763,10 @@ reason to wrap static markup mechanically.
   construction, generation workflows, and assistant status mirroring.
 - The claim dialog replaces eight internal element references, one coordinator
   field, imperative evidence-option rendering, DOM-based selection collection,
-  modal configuration, and the coordinator mutation method while leaving
-  evidence availability, canonical project refresh, and toast policy in the
-  application coordinator.
+  modal configuration, and the coordinator mutation method. Its claim-list
+  owner now supplies evidence availability and canonical create/edit inputs;
+  canonical project refresh and toast policy remain in the application
+  coordinator.
 - The Library PDF upload control replaces two raw element references, four
   native file and drag bindings, coordinator-owned drag presentation, input
   reset and disabling, duplicate busy state, batch execution, upload transport,

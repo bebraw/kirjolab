@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AnnotationResource, ClaimEvidenceLink, ClaimPassageLink, ClaimResource, ManuscriptAnchorSelector } from "../domain/workspace";
+import { ClaimDialog } from "./claim-dialog";
 import { ClaimListPanel, claimListActionEvent, type ClaimListAction } from "./claim-list-panel";
 
 const createdAt = "2026-07-25T00:00:00.000Z";
@@ -44,6 +45,8 @@ const passageLink: ClaimPassageLink = {
 };
 
 class TestClaimListPanel extends ClaimListPanel {
+  protected override performUpdate(): void {}
+
   renderForTest() {
     return this.render();
   }
@@ -75,6 +78,10 @@ class TestClaimListPanel extends ClaimListPanel {
   deleteForTest(value: ClaimResource = claim): Promise<void> {
     return this.deleteClaim(value);
   }
+
+  savedForTest(message: string): void {
+    this.claimSaved(new CustomEvent("claim-dialog-saved", { detail: message }));
+  }
 }
 
 function eventWithTarget(target: object): Event {
@@ -89,6 +96,16 @@ afterEach(() => {
 });
 
 describe("claim list panel", () => {
+  it("clears fallback markup when connected", () => {
+    const panel = new TestClaimListPanel();
+    const replaceChildren = vi.fn();
+    Object.defineProperty(panel, "replaceChildren", { value: replaceChildren });
+
+    panel.connectedCallback();
+
+    expect(replaceChildren).toHaveBeenCalledOnce();
+  });
+
   it("renders empty and populated claim states", () => {
     const panel = new TestClaimListPanel();
     expect(panel.renderForTest()).toBeDefined();
@@ -139,8 +156,12 @@ describe("claim list panel", () => {
     expect(calls).toEqual(["scroll", "focus", "scroll"]);
   });
 
-  it("emits bounded claim and navigation intents", () => {
+  it("emits bounded claim and navigation intents", async () => {
     const panel = new TestClaimListPanel();
+    const dialog = new ClaimDialog();
+    Object.defineProperty(dialog, "updateComplete", { value: Promise.resolve(true) });
+    const openDialog = vi.spyOn(dialog, "open").mockImplementation(() => undefined);
+    Object.defineProperty(panel, "querySelector", { value: () => dialog });
     const actions: ClaimListAction[] = [];
     panel.addEventListener(claimListActionEvent, (event) => actions.push((event as CustomEvent<ClaimListAction>).detail));
     panel.setWorkspace(
@@ -159,19 +180,37 @@ describe("claim list panel", () => {
     panel.annotationForTest(annotation.id);
     panel.passageForTest("missing");
     panel.passageForTest();
+    await Promise.resolve();
     const changedAnchor = { ...anchor, exact: "Changed passage" };
     panel.setPassageLinks([{ ...passageLink, anchor: changedAnchor }]);
     panel.passageForTest();
 
     expect(actions).toEqual([
-      { action: "create" },
       { action: "evidence", key: "claim:1", selected: false },
-      { action: "edit", claim },
       { action: "link-passage", claimId: claim.id },
       { action: "open-annotation", annotationId: annotation.id },
       { action: "open-passage", anchor },
       { action: "open-passage", anchor: changedAnchor },
     ]);
+    expect(openDialog).toHaveBeenNthCalledWith(1, undefined, [annotation], []);
+    expect(openDialog).toHaveBeenNthCalledWith(2, claim, [annotation], [evidenceLink]);
+  });
+
+  it("converts editor completion into a claim mutation", () => {
+    const panel = new TestClaimListPanel();
+    const actions: ClaimListAction[] = [];
+    panel.addEventListener(claimListActionEvent, (event) => actions.push((event as CustomEvent<ClaimListAction>).detail));
+
+    panel.savedForTest("Claim saved.");
+    expect(actions).toEqual([{ action: "mutated", message: "Claim saved." }]);
+  });
+
+  it("keeps claim creation local when evidence is unavailable", () => {
+    const panel = new TestClaimListPanel();
+
+    panel.createForTest();
+
+    expect(panel.renderForTest()).toBeDefined();
   });
 
   it("owns confirmed deletion persistence and emits the completed outcome", async () => {

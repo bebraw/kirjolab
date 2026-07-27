@@ -7,7 +7,6 @@ import { AssistantWorkflowStatus } from "./assistant-workflow-status";
 import { AuthoringModeTabs } from "./authoring-mode-tabs";
 import { CandidateListPanel } from "./candidate-list-panel";
 import { CandidateReviewPanel } from "./candidate-review-panel";
-import { ClaimDialog } from "./claim-dialog";
 import { ClaimListPanel } from "./claim-list-panel";
 import { CollaboratorSelectionList } from "./collaborator-selection-list";
 import { ConnectionStatus } from "./connection-status";
@@ -118,7 +117,6 @@ export function collectAppElements(requireElement = requiredAppElement) {
     projectEvidencePanel: requireElement("project-evidence-panel", ProjectEvidencePanel),
     publicationListPanel: requireElement("publication-list-panel", PublicationListPanel),
     claimListPanel: requireElement("claim-list-panel", ClaimListPanel),
-    claimDialog: requireElement("claim-dialog-panel", ClaimDialog),
     projectAnnotationForm: requireElement("project-annotation-form", ProjectAnnotationForm),
     libraryPdfInspector: requireElement("library-pdf-inspector", LibraryPdfInspector),
     libraryPdfAnnotationToolbar: requireElement("library-pdf-annotation-toolbar", LibraryPdfAnnotationToolbar),

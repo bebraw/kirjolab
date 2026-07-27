@@ -59,7 +59,6 @@ import {
   isWorkspaceSnapshot,
   isWorkspaceSummaries,
   type AnnotationResource,
-  type ClaimResource,
   type ModelCandidate,
   type PassageLink,
   type PdfResource,
@@ -75,7 +74,6 @@ import { resolveAssistantTarget } from "./assistant-operations";
 import { citationPageFromLocator, createCitationInsertion, type CitationContext } from "./citations";
 import { projectMapResourceSelectEvent } from "./project-map-workspace";
 import { claimListActionEvent, type ClaimListAction } from "./claim-list-panel";
-import { claimDialogSavedEvent } from "./claim-dialog";
 import { manuscriptCommentActionEvent, manuscriptCommentCreateEvent, type ManuscriptCommentAction } from "./manuscript-comment-list";
 import { publicationListActionEvent, type PublicationListAction } from "./publication-list-panel";
 import { projectEvidenceActionEvent, type ProjectEvidenceAction } from "./project-evidence-panel";
@@ -553,21 +551,12 @@ class WorkspaceApp {
     this.#elements.claimListPanel.configure(apiBase);
     this.#elements.claimListPanel.addEventListener(claimListActionEvent, (event) => {
       const detail = (event as CustomEvent<ClaimListAction>).detail;
-      if (detail.action === "create") this.#openClaimDialog();
-      else if (detail.action === "evidence") return;
-      else if (detail.action === "edit") this.#openClaimDialog(detail.claim);
+      if (detail.action === "evidence") return;
       else if (detail.action === "mutated")
-        this.#refreshResourcesWithNotice(detail.message, "The claim was deleted, but project resources could not be refreshed.");
+        this.#refreshResourcesWithNotice(detail.message, "The claim changed, but project resources could not be refreshed.");
       else if (detail.action === "link-passage") void this.#linkClaim(detail.claimId);
       else if (detail.action === "open-annotation") this.#elements.projectEvidencePanel.revealAnnotation(detail.annotationId);
       else this.#showPassage(detail.anchor);
-    });
-    this.#elements.claimDialog.configure(apiBase);
-    this.#elements.claimDialog.addEventListener(claimDialogSavedEvent, (event) => {
-      this.#refreshResourcesWithNotice(
-        (event as CustomEvent<string>).detail,
-        "The claim was saved, but project resources could not be refreshed.",
-      );
     });
     this.#elements.workspaceSurfaceSwitcher.addEventListener(workspaceSurfaceChangeEvent, (event) => {
       this.#showWorkspaceSurface((event as CustomEvent<WorkspaceSurface>).detail);
@@ -1408,16 +1397,6 @@ class WorkspaceApp {
       ...passage,
       sourceRevision: this.#revision,
     });
-  }
-
-  #openClaimDialog(claim?: ClaimResource): void {
-    const snapshot = this.#snapshot;
-    if (!snapshot || snapshot.annotations.length === 0) {
-      this.#showToast("Create an evidence annotation before adding a claim.");
-      return;
-    }
-    const evidence = claim ? snapshot.claimEvidenceLinks.filter((link) => link.claimId === claim.id) : [];
-    this.#elements.claimDialog.open(claim, snapshot.annotations, evidence);
   }
 
   async #linkClaim(claimId: string): Promise<void> {

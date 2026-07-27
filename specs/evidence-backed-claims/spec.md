@@ -31,12 +31,13 @@ must show where a claim enters authored prose.
   create-action availability, action presentation, confirmed deletion
   transport, stable encoded delete targets, duplicate-submit gating, pending
   and retryable failure state, claim-passage-link transport from a coordinator-
-  validated typed passage, and completed mutation outcomes. A separate bounded
-  dialog component owns create and edit copy, proposition and note values,
+  validated typed passage, completed mutation outcomes, evidence availability,
+  and the nested editor's create/edit lifecycle. The bounded dialog component
+  owns create and edit copy, proposition and note values,
   evidence relation and annotation selection, stable create/edit identity,
   modal lifecycle, mutation transport, duplicate-submit gating, local busy and
-  retryable failure state, and a typed successful-refresh outcome. Yjs
-  selection validation, evidence availability, canonical project refresh,
+  retryable failure state, and a typed successful-refresh outcome consumed by
+  its list owner. Yjs selection validation, canonical project refresh,
   navigation, and toast policy remain with the application coordinator.
 
 ### API Contracts

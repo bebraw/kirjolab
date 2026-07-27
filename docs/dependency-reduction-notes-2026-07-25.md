@@ -6643,6 +6643,30 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,664 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Composed Claim Editor
+
+`ClaimListPanel` now composes `ClaimDialog`, derives create/edit inputs from its
+canonical claim projection, owns evidence availability, and converts successful
+editor saves into its existing mutation outcome. `WorkspaceApp` retains Yjs
+passage validation, canonical refresh, navigation, and notice policy without
+addressing the editor separately.
+
+This checkpoint reduces `src/client/app.ts` from 2,331 to 2,310 lines (-21),
+removes two coordinator listener sites, the dialog event/type imports, one
+global element-registry entry, and the coordinator's claim-opening method. The
+server shell also drops 30 lines of duplicate dialog fallback markup. The
+existing claim owners grow by 24 lines; focused component and shell coverage
+exercises create/edit input derivation, save outcome routing, persistence,
+registry composition, and strict types.
+
+The browser application artifact changes from 841,636 B raw / 227,233 B gzip
+to 841,680 B raw / 227,002 B gzip (+44 B raw / -231 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,667 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

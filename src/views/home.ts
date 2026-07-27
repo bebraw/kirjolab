@@ -162,6 +162,7 @@ export function renderHomePage(
                 <div class="px-1 pt-3"><button class="button-secondary w-full justify-center" id="new-claim" type="button">New claim</button></div>
                 <div class="rail-collection-body" id="claim-list"><div class="empty-state">No claims yet.</div></div>
               </details>
+              <claim-dialog-panel></claim-dialog-panel>
             </claim-list-panel>
             <publication-list-panel id="publication-list-panel">
               <details class="rail-collection">
@@ -999,36 +1000,6 @@ export function renderHomePage(
       </project-history-panel>
     </dialog>
     </project-history-dialog>
-
-    <claim-dialog-panel id="claim-dialog-panel">
-    <dialog class="new-workspace-dialog ui-dialog" id="claim-dialog">
-      <form class="p-5" id="claim-form">
-        <p class="eyebrow">Evidence synthesis</p>
-        <h2 class="mt-1 text-xl font-semibold tracking-[-0.035em]" id="claim-dialog-title">Create claim</h2>
-        <label class="field-label mt-5">Proposition
-          <textarea class="field min-h-24" id="claim-text" maxlength="2000" required placeholder="State one concise, defensible claim"></textarea>
-        </label>
-        <label class="field-label mt-3">Working note
-          <textarea class="field min-h-20" id="claim-note" maxlength="8000" placeholder="Interpretation, caveats, or next questions"></textarea>
-        </label>
-        <label class="field-label mt-3">Evidence relationship
-          <select class="field" id="claim-relation">
-            <option value="supports">Supports</option>
-            <option value="contradicts">Contradicts</option>
-            <option value="extends">Extends</option>
-          </select>
-        </label>
-        <fieldset class="mt-4">
-          <legend class="field-label">Source annotations</legend>
-          <div class="mt-2 max-h-48 space-y-2 overflow-auto" id="claim-evidence-options"></div>
-        </fieldset>
-        <div class="mt-5 flex justify-end gap-2">
-          <button class="button-secondary" id="cancel-claim" type="button">Cancel</button>
-          <button class="button-primary" type="submit">Save claim</button>
-        </div>
-      </form>
-    </dialog>
-    </claim-dialog-panel>
 
     <action-menu-controller></action-menu-controller>
     <app-toast class="toast" id="toast" role="status" aria-live="polite" popover="manual"></app-toast>

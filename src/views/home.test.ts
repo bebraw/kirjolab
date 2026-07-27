@@ -111,8 +111,8 @@ describe("renderHomePage", () => {
     expect(html).not.toContain("<summary><span>Project graph</span>");
     expect(html).not.toContain('id="explore-research-graph"');
     expect(html).toContain('id="claim-list"');
-    expect(html).toContain('<claim-dialog-panel id="claim-dialog-panel">');
-    expect(html).toContain('id="claim-form"');
+    expect(html).toContain("<claim-dialog-panel></claim-dialog-panel>");
+    expect(html).not.toContain('id="claim-form"');
     expect(html).toContain('id="project-evidence" hidden');
     expect(html).toContain(
       '<summary><span>Project evidence</span><span class="count-badge" id="project-evidence-count">0</span></summary>',
@@ -198,7 +198,7 @@ describe("renderHomePage", () => {
     expect(html).toContain('id="context-tab-list" role="tablist" aria-label="Research context"');
     expect(html).toContain('class="context-tab-list ui-tab-list"');
     expect(html.match(/class="context-tab ui-tab"/gu)).toHaveLength(3);
-    expect(html.match(/class="(?:new-workspace-dialog|reference-library-dialog)[^"]*ui-dialog"/gu)).toHaveLength(11);
+    expect(html.match(/class="(?:new-workspace-dialog|reference-library-dialog)[^"]*ui-dialog"/gu)).toHaveLength(10);
     expect(html).toContain('id="open-github-import"');
     expect(html).toContain('id="github-import-dialog"');
     expect(html).toContain('<github-import-panel id="github-import-panel">');

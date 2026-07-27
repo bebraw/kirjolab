@@ -819,9 +819,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Treat claims as stable, human-authored propositions; store their evidence and manuscript usage as typed links so editing or deleting a claim never mutates its source annotations or authored prose.
 - Let the bounded claim dialog own its stable create/edit target, proposition,
   note, evidence selections and relations, mutation transport, duplicate-submit
-  gating, and retryable local failures. Emit only a successful project-resource
-  refresh outcome; keep evidence availability, canonical refresh, and toast
-  policy in the application coordinator.
+  gating, and retryable local failures. Keep it nested inside the claim-list
+  owner, which derives evidence availability, opens create/edit state from its
+  canonical projection, and converts successful saves into its existing
+  mutation outcome. Keep canonical refresh and toast policy in the application
+  coordinator.
 - Let the claim list own confirmed deletion transport, stable encoded claim
   targets, duplicate-submit gating, and retryable local failures. Given a
   coordinator-validated current passage, let it also own claim-passage link

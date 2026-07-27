@@ -9,15 +9,15 @@ import type {
   WorkspaceSnapshot,
 } from "../domain/workspace";
 import { errorMessage, expectOk, jsonFetch } from "./http";
+import "./claim-dialog";
+import type { ClaimDialog } from "./claim-dialog";
 import { focusFirstModelEvidence } from "./model-evidence-focus";
 import { accessibleEvidenceExcerpt, anchorActionLabel, anchorMatchState, modelEvidenceKey } from "./research-resource-presentation";
 
 export const claimListActionEvent = "claim-list-action";
 
 export type ClaimListAction =
-  | { readonly action: "create" }
   | { readonly action: "mutated"; readonly message: string }
-  | { readonly action: "edit"; readonly claim: ClaimResource }
   | { readonly action: "evidence"; readonly key: string; readonly selected: boolean }
   | { readonly action: "link-passage"; readonly claimId: string }
   | { readonly action: "open-annotation"; readonly annotationId: string }
@@ -52,6 +52,7 @@ export class ClaimListPanel extends LitElement {
 
   configure(apiBase: string): void {
     this.apiBase = apiBase;
+    void this.updateComplete.then(() => this.dialog.configure(apiBase));
   }
 
   setWorkspace(
@@ -129,11 +130,12 @@ export class ClaimListPanel extends LitElement {
         </div>
         <p class="status-line px-1" role="status" ?hidden=${!this.status}>${this.status}</p>
       </details>
+      <claim-dialog-panel @claim-dialog-saved=${this.claimSaved}></claim-dialog-panel>
     `;
   }
 
   protected createClaim(): void {
-    this.emit({ action: "create" });
+    void this.openClaim();
   }
 
   protected selectEvidence(event: Event): void {
@@ -147,7 +149,7 @@ export class ClaimListPanel extends LitElement {
     const claim = this.data.claims.find((item) => item.id === button.dataset.claimId);
     if (!claim) return;
     const action = button.dataset.claimAction;
-    if (action === "edit") this.emit({ action, claim });
+    if (action === "edit") void this.openClaim(claim);
     else if (action === "delete") void this.deleteClaim(claim);
     else if (action === "link-passage") this.emit({ action, claimId: claim.id });
   }
@@ -181,6 +183,27 @@ export class ClaimListPanel extends LitElement {
     const claimId = (event.currentTarget as HTMLButtonElement).dataset.claimId;
     const link = this.data.passageLinks.find((item) => item.claimId === claimId);
     if (link) this.emit({ action: "open-passage", anchor: link.anchor });
+  }
+
+  protected claimSaved(event: CustomEvent<string>): void {
+    this.emit({ action: "mutated", message: event.detail });
+  }
+
+  private async openClaim(claim?: ClaimResource): Promise<void> {
+    if (this.data.annotations.length === 0) {
+      this.status = "Create an evidence annotation before adding a claim.";
+      return;
+    }
+    const evidence = claim ? this.data.evidenceLinks.filter((link) => link.claimId === claim.id) : [];
+    const dialog = this.dialog;
+    await dialog.updateComplete;
+    dialog.open(claim, this.data.annotations, evidence);
+  }
+
+  private get dialog(): ClaimDialog {
+    const dialog = this.querySelector<ClaimDialog>("claim-dialog-panel");
+    if (!dialog) throw new Error("Claim editor is unavailable");
+    return dialog;
   }
 
   private renderClaim(claim: ClaimResource, annotations: ReadonlyMap<string, AnnotationResource>): TemplateResult {
