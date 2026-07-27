@@ -14,6 +14,7 @@ import { CandidateListPanel } from "./candidate-list-panel";
 import { CandidateReviewPanel } from "./candidate-review-panel";
 import { ClaimListPanel } from "./claim-list-panel";
 import { ContextResourcePresenter, type ContextResourceSources, type LibraryPdfCoordinator } from "./context-resource-presenter";
+import { ContextTabStrip } from "./context-tab-strip";
 import { LibraryPdfAnnotationToolbar } from "./library-pdf-annotation-toolbar";
 import { LibraryPdfInspector } from "./library-pdf-inspector";
 import { LibraryPdfMarkupLayer } from "./library-pdf-markup-layer";
@@ -120,6 +121,7 @@ function setup() {
     "candidate-list-panel": new CandidateListPanel(),
     "candidate-review-panel": new CandidateReviewPanel(),
     "claim-list-panel": new ClaimListPanel(),
+    "context-tab-strip": new ContextTabStrip(),
     "library-pdf-annotation-toolbar": new LibraryPdfAnnotationToolbar(),
     "library-pdf-inspector": new LibraryPdfInspector(),
     "paper-markups": new LibraryPdfMarkupLayer(),
@@ -169,6 +171,30 @@ describe("context resource presenter", () => {
     expect(setCandidate).toHaveBeenCalledWith(
       expect.objectContaining({ candidateId: candidateTab.id, decision: { action: "apply", id: candidateTab.id } }),
     );
+  });
+
+  it("composes canonical tabs and the active resource presentation", () => {
+    const { elements, presenter } = setup();
+    const tab = resourceTab("pdf", "project/pdf");
+    const setTabs = vi.spyOn(elements["context-tab-strip"], "setTabs").mockImplementation(() => undefined);
+    const present = vi.spyOn(presenter, "present").mockReturnValue({ privateHighlights: undefined, publicationPresented: false });
+
+    const presentation = presenter.presentContext({
+      ...sources(undefined),
+      context: { activeKey: tab.key, tabs: [{ kind: "preview", key: "preview", scrollTop: 0 }, tab] },
+      standaloneLibrary: false,
+    });
+
+    expect(setTabs).toHaveBeenCalledWith(
+      expect.objectContaining({
+        activeKey: tab.key,
+        libraryArtifacts: [libraryPdf],
+        referencePdfs: [referencePdf],
+        tabs: expect.arrayContaining([tab]),
+      }),
+    );
+    expect(present).toHaveBeenCalledWith(expect.objectContaining({ activeTab: tab }));
+    expect(presentation.activeTab).toBe(tab);
   });
 
   it("switches project, private-Library, and shared-reference PDF presentation", () => {

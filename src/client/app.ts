@@ -815,7 +815,7 @@ class WorkspaceApp {
     this.#updateRevision();
     this.#scheduleOfflineSave();
     const active = this.#activeResourceTab();
-    if (active?.kind === "candidate") this.#presentResearchResource(active, false);
+    if (active?.kind === "candidate") this.#renderResearchContext(false);
   }
 
   #activeEditorPresence(): readonly EditorPresenceRange[] {
@@ -1304,38 +1304,26 @@ class WorkspaceApp {
   }
 
   #renderResearchContext(loadPdf = true): void {
-    this.#elements.contextTabStrip.setTabs({
-      activeKey: this.#contextState.activeKey,
-      candidates: this.#snapshot?.candidates ?? [],
-      libraryArtifacts: this.#librarySnapshot?.artifacts ?? [],
-      pdfs: this.#snapshot?.pdfs ?? [],
-      publications: this.#snapshot?.publications ?? [],
-      referencePdfs: this.#projectReferencePdfs,
-      standaloneLibrary: appMode === "library",
-      tabs: this.#contextState.tabs,
-    });
-    const activeTab = this.#activeResourceTab();
-    this.#layout.restorePaneWidth();
-    this.#presentResearchResource(activeTab, loadPdf);
-  }
-
-  #presentResearchResource(activeTab: ResearchResourceTab | undefined, loadPdf: boolean): void {
-    const presentation = this.#elements.contextResourcePresenter.present({
-      activeTab,
+    const presentation = this.#elements.contextResourcePresenter.presentContext({
       candidateDecision: this.#elements.assistantGenerationPresenter.candidateDecision(),
+      context: this.#contextState,
       library: this.#librarySnapshot,
       projectApiBase: appMode === "workspace" ? apiBase : null,
       referencePdfs: this.#projectReferencePdfs,
       snapshot: this.#snapshot,
       sourceRevision: this.#revision,
+      standaloneLibrary: appMode === "library",
       stableDocument: this.#hasStableDocumentBase(),
     });
+    this.#layout.restorePaneWidth();
     if (presentation.privateHighlights) {
       this.#pdfViewer.updatePrivateHighlights(presentation.privateHighlights);
       this.#renderPdfMarkups();
     }
     if (presentation.publicationPresented) this.#updateCitationInsertionAvailability();
-    if (loadPdf && (activeTab?.kind === "pdf" || activeTab?.kind === "library-pdf")) void this.#loadActivePdf(false);
+    if (loadPdf && (presentation.activeTab?.kind === "pdf" || presentation.activeTab?.kind === "library-pdf")) {
+      void this.#loadActivePdf(false);
+    }
   }
 
   #closeContextTab(key: ResearchContextKey): void {

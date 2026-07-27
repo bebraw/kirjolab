@@ -127,7 +127,8 @@ The adopted components own bounded presentation:
   for citation, paper-navigation, and completed-relationship outcomes.
 - The context resource presenter selects and synchronizes the publication,
   candidate, project-PDF, private-Library PDF, or shared-reference PDF owner from
-  one active-resource projection. It derives authorization identity sets for
+  one canonical context projection. It composes the tab strip and derives the
+  active resource owner before presenting that resource. It derives authorization identity sets for
   those resource kinds from canonical project, Library, and linked-PDF inputs;
   tab reconciliation remains coordinator navigation policy. When restoring a
   supplied resource route, it also resolves the matching canonical publication,

@@ -13,6 +13,7 @@ import { AssistantWorkflowStatus } from "./assistant-workflow-status";
 import { CandidateListPanel } from "./candidate-list-panel";
 import { CandidateReviewPanel } from "./candidate-review-panel";
 import { ClaimListPanel } from "./claim-list-panel";
+import { ContextTabStrip } from "./context-tab-strip";
 import { LibraryPdfAnnotationToolbar } from "./library-pdf-annotation-toolbar";
 import { LibraryPdfInspector } from "./library-pdf-inspector";
 import { LibraryPdfMarkupLayer, type LibraryPdfNoteDraft, type PdfAnnotationTool } from "./library-pdf-markup-layer";
@@ -29,7 +30,13 @@ import { ProjectEvidencePanel } from "./project-evidence-panel";
 import { mutateProjectReference } from "./project-reference-mutation";
 import { PublicationContextPanel } from "./publication-context-panel";
 import { PublicationListPanel } from "./publication-list-panel";
-import type { ResearchContextAuthorization, ResearchContextTab, ResearchResourceTab, ResearchResourceTarget } from "./research-context";
+import type {
+  ResearchContextAuthorization,
+  ResearchContextState,
+  ResearchContextTab,
+  ResearchResourceTab,
+  ResearchResourceTarget,
+} from "./research-context";
 import { WorkspaceRailTabs } from "./workspace-rail-tabs";
 
 export interface ContextResourceSources {
@@ -46,6 +53,15 @@ export interface ContextResourceSources {
 export interface ContextResourcePresentation {
   readonly privateHighlights: readonly LibraryHighlight[] | undefined;
   readonly publicationPresented: boolean;
+}
+
+export interface ResearchContextPresentation extends ContextResourcePresentation {
+  readonly activeTab: ResearchResourceTab | undefined;
+}
+
+export interface ResearchContextSources extends Omit<ContextResourceSources, "activeTab"> {
+  readonly context: ResearchContextState;
+  readonly standaloneLibrary: boolean;
 }
 
 export interface LibraryPdfToolPresentation {
@@ -148,6 +164,25 @@ export class ContextResourcePresenter extends LitElement {
     this.element("paper-markups", LibraryPdfMarkupLayer)?.addEventListener(libraryPdfMarkupActionEvent, (event) => {
       this.handleLibraryPdfMarkupAction((event as CustomEvent<LibraryPdfMarkupAction>).detail);
     });
+  }
+
+  presentContext(sources: ResearchContextSources): ResearchContextPresentation {
+    const { context, standaloneLibrary, ...resourceSources } = sources;
+    this.element("context-tab-strip", ContextTabStrip)?.setTabs({
+      activeKey: context.activeKey,
+      candidates: sources.snapshot?.candidates ?? [],
+      libraryArtifacts: sources.library?.artifacts ?? [],
+      pdfs: sources.snapshot?.pdfs ?? [],
+      publications: sources.snapshot?.publications ?? [],
+      referencePdfs: sources.referencePdfs,
+      standaloneLibrary,
+      tabs: context.tabs,
+    });
+    const activeTab = context.tabs.find(
+      (tab): tab is ResearchResourceTab =>
+        tab.kind !== "preview" && tab.kind !== "library" && tab.kind !== "assistant" && tab.key === context.activeKey,
+    );
+    return { activeTab, ...this.present({ ...resourceSources, activeTab }) };
   }
 
   selectLibraryHighlight(highlightId: string): void {

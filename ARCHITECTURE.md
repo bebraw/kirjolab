@@ -907,7 +907,8 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   rendering, route synchronization, and transitions outside it.
 - Let a separate resource-context Lit presenter coordinate the active
   publication, candidate, project-PDF, private-Library PDF, and shared-reference
-  PDF presentation from those canonical inputs. It may select the owning panel,
+  PDF presentation from those canonical inputs. It owns the composed canonical
+  tab-strip projection and active resource selection before selecting the owning panel,
   restore and capture resource scroll, project citation and intake context,
   switch the annotation versus private-inspector surface, synchronize the
   private-PDF inspector, markup reset, toolbar counts, and export target, and
