@@ -30,6 +30,11 @@ export interface EditorTextInsertion {
   readonly text: string;
 }
 
+export interface EditorSelectionSource {
+  readonly source: HTMLTextAreaElement;
+  readonly text: Y.Text;
+}
+
 export interface EditorAuthoringBinding {
   readonly highlight: HTMLElement;
   readonly presence: (fileId: string | null) => readonly EditorPresenceRange[];
@@ -123,6 +128,21 @@ export class EditorStatus extends LitElement {
       if (!range) return false;
       this.insertText(text, range.end, value);
       return true;
+    };
+  }
+
+  preserveSelections(companions: readonly EditorSelectionSource[] = []): () => void {
+    const active = this.source && this.text ? [{ source: this.source, text: this.text }] : [];
+    const selections = [...active, ...companions].map(({ source, text }) => captureRelativeSelection(source, text));
+    return () => {
+      const documentModel = this.documentModel;
+      if (!documentModel) return;
+      for (const selection of selections) {
+        const resolved = resolveRelativeSelection(documentModel, selection);
+        if (resolved) selection.textarea.setSelectionRange(resolved.start, resolved.end, selection.direction ?? undefined);
+      }
+      if (document.activeElement === this.source) this.rememberSelection();
+      else this.refreshAuthoringTarget();
     };
   }
 

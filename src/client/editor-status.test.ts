@@ -67,6 +67,7 @@ class TestEditorStatus extends EditorStatus {
 describe("editor status", () => {
   beforeEach(() => {
     vi.stubGlobal("document", {
+      activeElement: null,
       createDocumentFragment: () => new FakeElement(),
       createElement: () => new FakeElement(),
       createTextNode: (value: string) => ({ textContent: value }),
@@ -176,6 +177,39 @@ describe("editor status", () => {
     status.setAuthoringContext("second.md", "second", second);
     expect(staleInsert?.(" stale")).toBe(false);
     expect(first.toString()).toBe("new first included text");
+  });
+
+  it("preserves active and companion editor selections across remote edits", () => {
+    const documentModel = new Y.Doc();
+    const text = documentModel.getText("source");
+    const companion = documentModel.getText("bibliography");
+    text.insert(0, "source text");
+    companion.insert(0, "reference text");
+    const source = textareaElement(new FakeTextarea());
+    const companionSource = textareaElement(new FakeTextarea());
+    const status = new TestEditorStatus();
+    status.bindAuthoring(documentModel, source, {
+      highlight: htmlElement(),
+      presence: () => [],
+      sourceChanged: () => undefined,
+      targetChanged: () => undefined,
+    });
+    status.setAuthoringContext("source.md", "source", text, true);
+    source.setSelectionRange(2, 6);
+    companionSource.setSelectionRange(3, 8, "backward");
+    const restore = status.preserveSelections([{ source: companionSource, text: companion }]);
+
+    text.insert(0, "new ");
+    companion.insert(0, "new ");
+    source.setSelectionRange(0, 0);
+    companionSource.setSelectionRange(0, 0);
+    restore();
+
+    expect(source.selectionStart).toBe(6);
+    expect(source.selectionEnd).toBe(10);
+    expect(companionSource.selectionStart).toBe(7);
+    expect(companionSource.selectionEnd).toBe(12);
+    expect(companionSource.selectionDirection).toBe("backward");
   });
 
   it("owns the active source binding lifecycle", () => {

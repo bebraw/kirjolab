@@ -167,6 +167,10 @@ collaborative, and unambiguous about what preview and export mean.
   insertions therefore remain part of that file's undo history; mutation
   decisions and cross-file path projection remain with the workspace
   coordinator.
+- Before applying a remote collaboration update, the editor-status owner
+  captures Yjs-relative selections for the active source and supplied companion
+  editors such as the bibliography. Afterward it restores each still-valid
+  selection, including direction, and refreshes the remembered authoring target.
 - An asynchronous create-and-include workflow captures its insertion point
   through the editor-status owner. Concurrent edits may move that Yjs-relative
   point, but switching the active authoring text invalidates it before the

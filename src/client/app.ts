@@ -43,7 +43,7 @@ import { RESEARCH_ASSISTANT_KEY, RESEARCH_LIBRARY_KEY, RESEARCH_PREVIEW_KEY } fr
 import { readWorkspaceUiRoute, workspaceUiRouteSelection, workspaceUiRouteUrl } from "./workspace-ui-route";
 import "./workspace-rail-tabs";
 import "./authoring-mode-tabs";
-import { bindYText, captureRelativeSelection, resolveRelativeSelection, type RelativeEditorSelection } from "./source-editor-adapter";
+import { bindYText } from "./source-editor-adapter";
 
 const { workspaceId, identityEmail, appMode } = parseAppBootstrap(document.body.dataset);
 const catalogBase = "/api/workspaces";
@@ -94,10 +94,8 @@ class WorkspaceApp {
 
   constructor() {
     this.#collaborationSocket = new CollaborationSocket(this.#collaboration, {
-      beforeRemoteUpdate: () => {
-        const selections = this.#captureEditorSelections();
-        return () => this.#restoreEditorSelections(selections);
-      },
+      beforeRemoteUpdate: () =>
+        this.#elements.editorStatus.preserveSelections([{ source: this.#elements.bibliography, text: this.#bibliography }]),
       clearOffline: async () => {
         await this.#offlineStore?.clear();
       },
@@ -578,22 +576,6 @@ class WorkspaceApp {
     this.#elements.source.disabled = !this.#collaboration.canEdit;
     this.#elements.bibliography.disabled = !this.#collaboration.canEdit;
     this.#elements.assistantGenerationPresenter.refreshAvailability();
-  }
-
-  #captureEditorSelections(): RelativeEditorSelection[] {
-    return [
-      captureRelativeSelection(this.#elements.source, this.#activeFileText),
-      captureRelativeSelection(this.#elements.bibliography, this.#bibliography),
-    ];
-  }
-
-  #restoreEditorSelections(selections: RelativeEditorSelection[]): void {
-    for (const selection of selections) {
-      const resolved = resolveRelativeSelection(this.#document, selection);
-      if (resolved) selection.textarea.setSelectionRange(resolved.start, resolved.end, selection.direction ?? undefined);
-    }
-    if (document.activeElement === this.#elements.source) this.#elements.editorStatus.rememberSelection();
-    else this.#elements.editorStatus.refreshAuthoringTarget();
   }
 
   #setRevision(revision: number): void {
