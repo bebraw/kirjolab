@@ -243,10 +243,9 @@ The adopted components own bounded presentation:
   reset, local retryable failure state, self-contained resolution transport,
   duplicate-resolution gating, and typed passage-navigation and completed-
   mutation outcomes. The coordinator supplies one read-only authoring snapshot
-  through the enclosing resource presenter, which routes mutation completion,
-  passage navigation, and notice presentation through its one canonical route.
-  The coordinator retains Yjs selection resolution, revision and collaboration
-  authority, canonical refresh, navigation, and notification presentation.
+  through the enclosing resource presenter, which owns mutation refresh
+  sequencing, success/fallback notice selection, passage navigation, and notice
+  routing through its one canonical route. The coordinator retains Yjs selection resolution, revision and collaboration authority, canonical refresh execution, navigation, and notification presentation.
 - The project publication list owns the References collection shell and count,
   reference metadata, alias and DOI labels, empty-state, and action
   presentation. It also owns DOI-enrichment transport, duplicate-submit

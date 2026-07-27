@@ -9439,6 +9439,29 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,721 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Context Mutation Completion
+
+`ContextResourcePresenter` now owns child project-mutation refresh sequencing,
+success/fallback notice selection, and failure propagation for claims,
+comments, evidence, paper links, and publication enrichment. `WorkspaceApp`
+supplies only canonical resource-refresh execution and toast presentation
+through the existing route binding.
+
+This checkpoint reduces `src/client/app.ts` from 1,139 to 1,129 lines (-10)
+and grows the context presenter from 1,010 to 1,013 lines. Runtime source across
+those files decreases by seven lines while deleting the coordinator-only
+completion adapter and shortening seven child routes. Focused presenter and
+application-contract coverage passes all 46 tests, including success, fallback,
+and propagated failure behavior, alongside strict types.
+
+The browser application artifact changes from 849,004 B raw / 228,944 B gzip
+to 848,943 B raw / 228,941 B gzip (-61 B raw / -3 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150.
+
+Full native CI passes all 1,721 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Library PDF Project Use Projection
 
 `LibraryPdfProjectUse` now resolves the active bibliographic record and matching

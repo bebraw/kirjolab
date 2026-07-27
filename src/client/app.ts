@@ -480,7 +480,6 @@ class WorkspaceApp {
       projectApiBase: apiBase,
     });
     this.#elements.contextResourcePresenter.bindRoutes({
-      completeProjectMutation: (message, failureMessage) => this.#refreshResourcesWithNotice(message, failureMessage),
       insertCitation: (citationAlias, locator) => this.#insertCitation(citationAlias, locator),
       library: () => this.#librarySnapshot,
       linkPassage: (kind, id) => void this.#linkSelectedPassage(kind, id),
@@ -493,6 +492,7 @@ class WorkspaceApp {
       presentNotice: (message) => this.#showToast(message),
       project: () => this.#snapshot,
       referencePdfs: () => this.#elements.contextResourcePresenter.referencePdfs,
+      refreshResources: () => this.#resourceRefresh.request(),
       refreshLibrary: () => this.#refreshReferenceLibrary(),
     });
     this.#elements.contextResourcePresenter.bindPdfViewer(this.#pdfViewer, apiBase);
@@ -750,16 +750,6 @@ class WorkspaceApp {
     await this.#elements.referenceLibraryWorkspace.settled();
     this.#renderResearchContext();
     this.#syncWorkspaceRoute("replace");
-  }
-
-  async #refreshResourcesWithNotice(message?: string, failureMessage?: string): Promise<void> {
-    try {
-      await this.#resourceRefresh.request();
-      if (message) this.#showToast(message);
-    } catch (error) {
-      if (!failureMessage) throw error;
-      this.#showToast(failureMessage);
-    }
   }
 
   async #completeLibraryProjectMutation(message: string, snapshot: WorkspaceSnapshot): Promise<void> {

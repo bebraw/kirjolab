@@ -147,7 +147,6 @@ function setup() {
     value: { getElementById: (id: string) => elements[id as keyof typeof elements] ?? null },
   });
   const routes = {
-    completeProjectMutation: vi.fn().mockResolvedValue(undefined),
     insertCitation: vi.fn(),
     library: vi.fn<() => ReferenceLibrarySnapshot | null>(() => library),
     linkPassage: vi.fn(),
@@ -161,6 +160,7 @@ function setup() {
     project: vi.fn<() => WorkspaceSnapshot | null>(() => workspaceSnapshotFixture),
     referencePdfs: vi.fn(() => [referencePdf]),
     refreshLibrary: vi.fn().mockResolvedValue(undefined),
+    refreshResources: vi.fn().mockResolvedValue(undefined),
   };
   presenter.bindRoutes(routes);
   return { elements, presenter, routes };
@@ -441,6 +441,7 @@ describe("context resource presenter", () => {
 
   it("owns project-evidence routes across its composed Lit resources", async () => {
     const { elements, presenter, routes } = setup();
+    const completeProjectMutation = vi.spyOn(presenter, "completeProjectMutation").mockResolvedValue(undefined);
     const pdf = {
       contentType: "application/pdf",
       createdAt: "created",
@@ -491,17 +492,17 @@ describe("context resource presenter", () => {
 
     expect(configure).toHaveBeenCalledWith("/api/workspaces/workspace");
     expect(clearAnnotation).toHaveBeenCalledTimes(2);
-    expect(routes.completeProjectMutation).toHaveBeenNthCalledWith(
+    expect(completeProjectMutation).toHaveBeenNthCalledWith(
       1,
       "Highlight deleted.",
       "The highlight was deleted, but project resources could not be refreshed.",
     );
-    expect(routes.completeProjectMutation).toHaveBeenNthCalledWith(
+    expect(completeProjectMutation).toHaveBeenNthCalledWith(
       2,
       "Project changed.",
       "The project changed, but project resources could not be refreshed.",
     );
-    expect(routes.completeProjectMutation).toHaveBeenNthCalledWith(3);
+    expect(completeProjectMutation).toHaveBeenNthCalledWith(3);
     expect(openProjectAnnotation).toHaveBeenCalledWith(annotation.id, true);
     expect(routes.linkPassage).toHaveBeenCalledWith("annotation", annotation.id);
     expect(routes.openPassage).toHaveBeenCalledOnce();
@@ -509,6 +510,21 @@ describe("context resource presenter", () => {
     expect(routes.presentNotice).toHaveBeenCalledWith("Evidence notice.");
     expect(selectPdf).toHaveBeenCalledWith(pdf.id);
     expect(routes.openProjectPdf).toHaveBeenCalledWith(pdf, annotation.page, annotation.id);
+  });
+
+  it("owns project mutation refresh and notice completion", async () => {
+    const { presenter, routes } = setup();
+
+    await presenter.completeProjectMutation("Project changed.", "Refresh failed.");
+    expect(routes.refreshResources).toHaveBeenCalledOnce();
+    expect(routes.presentNotice).toHaveBeenLastCalledWith("Project changed.");
+
+    vi.mocked(routes.refreshResources).mockRejectedValueOnce(new Error("Unavailable"));
+    await presenter.completeProjectMutation("Project changed.", "Refresh failed.");
+    expect(routes.presentNotice).toHaveBeenLastCalledWith("Refresh failed.");
+
+    vi.mocked(routes.refreshResources).mockRejectedValueOnce(new Error("Unavailable"));
+    await expect(presenter.completeProjectMutation()).rejects.toThrow("Unavailable");
   });
 
   it("projects canonical workspace resources across their bounded Lit owners", () => {
@@ -593,6 +609,7 @@ describe("context resource presenter", () => {
 
   it("owns claim and publication routes across its composed Lit resources", () => {
     const { elements, presenter, routes } = setup();
+    const completeProjectMutation = vi.spyOn(presenter, "completeProjectMutation").mockResolvedValue(undefined);
     const claimBind = vi.spyOn(elements["claim-list-panel"], "bind");
     const contextBind = vi.spyOn(elements["publication-context-panel"], "bind");
     const listBind = vi.spyOn(elements["publication-list-panel"], "bind");
@@ -632,22 +649,22 @@ describe("context resource presenter", () => {
     listBind.mock.calls[0]?.[0].enriched("Reference enriched.");
     listBind.mock.calls[0]?.[0].open(publication);
 
-    expect(routes.completeProjectMutation).toHaveBeenNthCalledWith(
+    expect(completeProjectMutation).toHaveBeenNthCalledWith(
       1,
       "Claim changed.",
       "The claim changed, but project resources could not be refreshed.",
     );
-    expect(routes.completeProjectMutation).toHaveBeenNthCalledWith(
+    expect(completeProjectMutation).toHaveBeenNthCalledWith(
       2,
       "Paper changed.",
       "The paper links changed, but project resources could not be refreshed.",
     );
-    expect(routes.completeProjectMutation).toHaveBeenNthCalledWith(
+    expect(completeProjectMutation).toHaveBeenNthCalledWith(
       3,
       "Comment changed.",
       "The comment changed, but project resources could not be refreshed.",
     );
-    expect(routes.completeProjectMutation).toHaveBeenNthCalledWith(
+    expect(completeProjectMutation).toHaveBeenNthCalledWith(
       4,
       "Reference enriched.",
       "The reference was enriched, but project resources could not be refreshed.",
@@ -817,7 +834,6 @@ describe("context resource presenter", () => {
     };
     let currentLibrary: ReferenceLibrarySnapshot | null = null;
     const coordinator = {
-      completeProjectMutation: vi.fn().mockResolvedValue(undefined),
       insertCitation: vi.fn(),
       library: vi.fn(() => currentLibrary),
       linkPassage: vi.fn(),
@@ -828,6 +844,7 @@ describe("context resource presenter", () => {
       openPassage: vi.fn(),
       openReferencePdf: vi.fn().mockResolvedValue(undefined),
       presentNotice: vi.fn(),
+      refreshResources: vi.fn().mockResolvedValue(undefined),
       project: vi.fn(() => project),
       referencePdfs: vi.fn(() => [referencePdf]),
       refreshLibrary: vi.fn(async () => {

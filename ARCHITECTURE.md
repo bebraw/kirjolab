@@ -838,7 +838,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   binding, own the paint-versus-erase capture persistence workflow, and return
   viewer-clearing and cross-owner effects to the context-resource presenter,
   which owns viewer, citation, and evidence-panel routing while delegating only
-  refresh, manuscript-link, and notification effects to the coordinator,
+  refresh execution, manuscript-link, and notification effects to the
+  coordinator. The presenter owns child project-mutation refresh sequencing,
+  success/fallback notice selection, and propagation when no fallback exists,
   including no-match and completed-erasure status,
   plus citation availability from the active PDF and canonical publication-PDF
   links. Let it also commit its own toolbar tool state, resolve viewer-highlight
@@ -849,8 +851,8 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   canonical publication lookup, navigation, and notification routes while the
   application coordinator supplies only resource refresh. Route completed note-
   save, tool, undo, erasure, citation, and link outcomes through one typed
-  workflow binding while leaving manuscript linking, canonical refreshes, and
-  notifications in the application coordinator.
+  workflow binding while leaving manuscript linking, canonical refresh
+  execution, and notification presentation in the application coordinator.
 - Refine tablet highlight strokes through bounded normalized geometry and quotation updates; preserve annotation/stroke identity and imported PDF immutability.
 - Retain the active manuscript caret or selection as Yjs-relative positions, render that local target after editor blur, and resolve it before any contextual insertion or replacement.
 - Keep standalone private PDF locations routable in browser history. Parse and

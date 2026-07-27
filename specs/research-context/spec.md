@@ -185,8 +185,10 @@ changing their canonical data, selector, authorization, or rendering contracts.
   links, comments, and project-map inputs across those composed owners after
   Preview rendering while leaving Yjs anchor resolution and render timing to
   the coordinator; configures comment, evidence, claim, and publication owners
-  and routes their project-mutation completion, passage linking, passage
-  navigation, and notice outcomes through one canonical application boundary;
+  and owns their project-mutation refresh sequencing, success/fallback notice
+  selection, and failure propagation while routing refresh execution, passage
+  linking, passage navigation, and notice presentation through one canonical
+  application boundary;
   composes the canonical tab-strip projection, selects and
   retains the active resource owner for layout, citation, PDF, and assistant
   consumers; retains the resolved active private-Library artifact for page

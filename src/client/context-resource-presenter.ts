@@ -106,7 +106,6 @@ export interface LibraryPdfMutationCoordinator {
 }
 
 export interface ContextRouteCoordinator {
-  readonly completeProjectMutation: (message?: string, failureMessage?: string) => Promise<void>;
   readonly insertCitation: (citationAlias: string, locator?: string) => void;
   readonly library: () => ReferenceLibrarySnapshot | null;
   readonly linkPassage: (kind: "annotation" | "claim", id: string) => void;
@@ -119,6 +118,7 @@ export interface ContextRouteCoordinator {
   readonly presentNotice: (message: string) => void;
   readonly project: () => WorkspaceSnapshot | null;
   readonly referencePdfs: () => readonly ProjectReferencePdf[];
+  readonly refreshResources: () => Promise<void>;
   readonly refreshLibrary: () => Promise<void>;
 }
 
@@ -187,6 +187,18 @@ export class ContextResourcePresenter extends LitElement {
 
   bindRoutes(coordinator: ContextRouteCoordinator): void {
     this.routeCoordinator = coordinator;
+  }
+
+  async completeProjectMutation(message?: string, failureMessage?: string): Promise<void> {
+    const coordinator = this.routeCoordinator;
+    if (!coordinator) return;
+    try {
+      await coordinator.refreshResources();
+      if (message) coordinator.presentNotice(message);
+    } catch (error) {
+      if (!failureMessage) throw error;
+      coordinator.presentNotice(failureMessage);
+    }
   }
 
   assistantResources(): AssistantResourceRoutes {
@@ -349,7 +361,7 @@ export class ContextResourcePresenter extends LitElement {
     claims?.configure(apiBase);
     claims?.bind({
       completeMutation: (message) =>
-        void this.routeCoordinator?.completeProjectMutation(message, "The claim changed, but project resources could not be refreshed."),
+        void this.completeProjectMutation(message, "The claim changed, but project resources could not be refreshed."),
       linkPassage: (claimId) => this.routeCoordinator?.linkPassage("claim", claimId),
       openAnnotation: (annotationId) => this.element("project-evidence-panel", ProjectEvidencePanel)?.revealAnnotation(annotationId),
       openPassage: (anchor) => this.routeCoordinator?.openPassage(anchor),
@@ -362,7 +374,7 @@ export class ContextResourcePresenter extends LitElement {
     comments?.bind({
       authoring,
       completeMutation: (message) =>
-        void this.routeCoordinator?.completeProjectMutation(message, "The comment changed, but project resources could not be refreshed."),
+        void this.completeProjectMutation(message, "The comment changed, but project resources could not be refreshed."),
       notice: (message) => this.routeCoordinator?.presentNotice(message),
       openPassage: (anchor) => this.routeCoordinator?.openPassage(anchor),
     });
@@ -374,17 +386,14 @@ export class ContextResourcePresenter extends LitElement {
     evidence?.bind({
       annotationRemoved: (annotationId, message) => {
         this.element("project-annotation-form", ProjectAnnotationForm)?.clearAnnotation(annotationId);
-        void this.routeCoordinator?.completeProjectMutation(
-          message,
-          "The highlight was deleted, but project resources could not be refreshed.",
-        );
+        void this.completeProjectMutation(message, "The highlight was deleted, but project resources could not be refreshed.");
       },
       completeMutation: (message) =>
-        void this.routeCoordinator?.completeProjectMutation(message, "The project changed, but project resources could not be refreshed."),
+        void this.completeProjectMutation(message, "The project changed, but project resources could not be refreshed."),
       editAnnotation: (annotation) => this.openProjectAnnotation(annotation.id, true),
       fragmentRemoved: async ({ annotationDeleted, annotationId, announce }) => {
         if (annotationDeleted) this.element("project-annotation-form", ProjectAnnotationForm)?.clearAnnotation(annotationId);
-        await this.routeCoordinator?.completeProjectMutation();
+        await this.completeProjectMutation();
         if (announce) this.routeCoordinator?.presentNotice("Highlight stroke erased.");
       },
       linkAnnotation: (annotationId) => this.routeCoordinator?.linkPassage("annotation", annotationId),
@@ -418,10 +427,7 @@ export class ContextResourcePresenter extends LitElement {
       insertCitation: () => this.insertActiveCitation(),
       openPaper: (paper) => void this.openPublicationPaper(paper),
       papersChanged: (message) =>
-        void this.routeCoordinator?.completeProjectMutation(
-          message,
-          "The paper links changed, but project resources could not be refreshed.",
-        ),
+        void this.completeProjectMutation(message, "The paper links changed, but project resources could not be refreshed."),
     });
   }
 
@@ -431,10 +437,7 @@ export class ContextResourcePresenter extends LitElement {
     publications?.bind({
       ...coordinator,
       enriched: (message) =>
-        void this.routeCoordinator?.completeProjectMutation(
-          message,
-          "The reference was enriched, but project resources could not be refreshed.",
-        ),
+        void this.completeProjectMutation(message, "The reference was enriched, but project resources could not be refreshed."),
       open: (publication) => this.routeCoordinator?.openPublication(publication),
     });
   }
