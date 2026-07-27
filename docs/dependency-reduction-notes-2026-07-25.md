@@ -9280,7 +9280,7 @@ handwritten interface and ten-field structural guard while retaining the
 existing rule that provenance must be a non-null, non-array object.
 
 This checkpoint reduces `src/domain/bibliographic-record-contract.ts` from 32
-to 22 lines (-10). Focused bibliographic, citation-contract, and Reference
+to 20 lines (-12). Focused bibliographic, citation-contract, and Reference
 Library coverage passes all 23 tests alongside strict types.
 
 The browser application artifact changes from 849,083 B raw / 228,788 B gzip
