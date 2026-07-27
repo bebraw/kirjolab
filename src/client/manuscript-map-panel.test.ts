@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ManuscriptMapPanel, manuscriptMapSelectEvent, type ManuscriptMapSelection } from "./manuscript-map-panel";
+import { ManuscriptMapPanel, type ManuscriptMapSelection } from "./manuscript-map-panel";
 
 class TestManuscriptMapPanel extends ManuscriptMapPanel {
   renderForTest() {
@@ -42,7 +42,7 @@ describe("manuscript map panel", () => {
   it("emits only valid source-range selections", () => {
     const panel = new TestManuscriptMapPanel();
     const selections: ManuscriptMapSelection[] = [];
-    panel.addEventListener(manuscriptMapSelectEvent, (event) => selections.push((event as CustomEvent<ManuscriptMapSelection>).detail));
+    panel.bindNavigation((selection) => selections.push(selection));
 
     panel.selectForTest("2", "9");
     panel.selectForTest("-1", "4");

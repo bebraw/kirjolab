@@ -671,7 +671,8 @@ collaboration.
 - [x] Crowded left-rail navigation remains identifiable through labelled icons,
       hover titles, selected state, and the visible comment count.
 - [x] Activating a left-rail tab updates both its selected state and the
-      visibility of the panel identified by that tab's `aria-controls` value.
+      visibility of the panel identified by that tab's `aria-controls` value;
+      tab and manuscript-map range navigation use typed component bindings.
 - [x] Empty projects do not show legacy Papers or Highlights controls; existing
       project-owned PDFs and annotations appear in one compact Project evidence
       collection with highlights nested beneath their paper.

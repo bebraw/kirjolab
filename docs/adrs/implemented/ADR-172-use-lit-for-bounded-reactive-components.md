@@ -230,7 +230,7 @@ The adopted components own bounded presentation:
   construction from canonical files and the active file id.
 - The manuscript map panel owns summary metrics, heading outline, structural
   cues, local editing-pass selection, editing cues, and typed source-range
-  selection intents.
+  selection through a navigation binding.
 - The Library discovery results panel owns provider, metadata, verification,
   metadata-to-CSL projection, import transport, duplicate-submit gating, local
   save progress and retryable failures, refresh-pending state, and a typed
@@ -652,8 +652,8 @@ reason to wrap static markup mechanically.
   the toast outlet remain in the application coordinator.
 - The manuscript map panel replaces seven internal element references and the
   imperative metric, outline, structural-cue, and editing-cue renderers while
-  leaving composed-source derivation and file-qualified editor focus in the
-  application coordinator.
+  removing its public selection event. It leaves composed-source derivation and
+  file-qualified editor focus in the application coordinator.
 - The Library discovery results panel replaces its imperative result-card and
   save-button renderer while leaving provider requests and response validation
   in its search sibling. It owns CSL import and its local lifecycle while the
@@ -921,8 +921,9 @@ reason to wrap static markup mechanically.
   discovery-status mirroring, and result-specific status policy.
 - The workspace rail tabs replace five internal element references, four
   native action bindings, four ARIA-selection mutations, and DOM-derived active
-  mode. The application coordinator retains panel visibility, guide rendering,
-  URL synchronization, collapse, and resize authority.
+  mode plus their public change event. They route selection through a typed
+  navigation binding; the application coordinator retains panel visibility,
+  guide rendering, URL synchronization, collapse, and resize authority.
 - The authoring mode tabs replace two internal element references, two native
   action bindings, two ARIA-state mutations, DOM-derived active mode, one
   write-action reference, three coordinator-owned visibility mutations, and

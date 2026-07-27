@@ -931,6 +931,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   effective maximum before either primary document surface loses its readable
   minimum. Allow independent browser-local collapse with an editor-hosted
   restoration action. Keep rail geometry out of URLs and collaborative state.
+- Route rail-tab and manuscript-map range navigation through typed bindings on
+  their Lit owners. Keep guide rendering, URL synchronization, composed-source
+  resolution, and file-qualified editor focus in the workspace coordinator.
 - Keep project-file quick open bounded to transient client-side path filtering
   over the authorized workspace snapshot. It may reveal the Files rail and
   select a file, but must not introduce a global command registry or persist

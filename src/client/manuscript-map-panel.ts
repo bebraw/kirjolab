@@ -2,8 +2,6 @@ import { html, LitElement, type TemplateResult } from "lit";
 import { runEditingPass, type EditingPass } from "../domain/editing-passes";
 import { buildManuscriptMap } from "../domain/manuscript-map";
 
-export const manuscriptMapSelectEvent = "manuscript-map-select";
-
 export interface ManuscriptMapSelection {
   readonly from: number;
   readonly to: number;
@@ -17,6 +15,7 @@ export class ManuscriptMapPanel extends LitElement {
 
   declare private pass: EditingPass;
   declare private source: string;
+  private navigate: ((selection: ManuscriptMapSelection) => void) | null = null;
 
   constructor() {
     super();
@@ -26,6 +25,10 @@ export class ManuscriptMapPanel extends LitElement {
 
   setSource(source: string): void {
     this.source = source;
+  }
+
+  bindNavigation(navigate: (selection: ManuscriptMapSelection) => void): void {
+    this.navigate = navigate;
   }
 
   override connectedCallback(): void {
@@ -127,13 +130,7 @@ export class ManuscriptMapPanel extends LitElement {
     const from = Number(button.dataset.rangeFrom);
     const to = Number(button.dataset.rangeTo);
     if (!Number.isSafeInteger(from) || !Number.isSafeInteger(to) || from < 0 || to < from) return;
-    this.dispatchEvent(
-      new CustomEvent<ManuscriptMapSelection>(manuscriptMapSelectEvent, {
-        bubbles: true,
-        composed: true,
-        detail: { from, to },
-      }),
-    );
+    this.navigate?.({ from, to });
   }
 
   private metric(value: number, label: string): TemplateResult {

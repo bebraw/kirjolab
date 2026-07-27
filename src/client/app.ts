@@ -75,7 +75,7 @@ import { type ProjectAnnotationSaved, type ProjectHighlightTool } from "./projec
 import { type ProjectFileDialogMode, type ProjectFileSaved } from "./project-file-dialog";
 import { type ProjectImagesUploaded } from "./project-image-upload-control";
 import { projectTemplateSavedEvent, type ProjectTemplateSaved } from "./project-template-save-dialog";
-import { manuscriptMapSelectEvent, type ManuscriptMapSelection } from "./manuscript-map-panel";
+import "./manuscript-map-panel";
 import {
   applicationVersion,
   cacheOfflineNavigation,
@@ -113,7 +113,7 @@ import {
   type WorkspaceRail,
   type WorkspaceSurface,
 } from "./workspace-ui-route";
-import { workspaceRailChangeEvent } from "./workspace-rail-tabs";
+import "./workspace-rail-tabs";
 import "./authoring-mode-tabs";
 import type { EditorPresenceRange } from "./editor-presence";
 import { bindYText, captureRelativeSelection, type RelativeEditorSelection } from "./source-editor-adapter";
@@ -354,17 +354,12 @@ class WorkspaceApp {
     this.#elements.saveTemplateDialog.addEventListener(projectTemplateSavedEvent, (event) => {
       void this.#completeProjectTemplateSave((event as CustomEvent<ProjectTemplateSaved>).detail);
     });
-    this.#elements.workspaceRailTabs.addEventListener(workspaceRailChangeEvent, (event) => {
-      this.#showRail((event as CustomEvent<WorkspaceRail>).detail);
-    });
+    this.#elements.workspaceRailTabs.bindNavigation((rail) => this.#showRail(rail));
     this.#elements.researchDiaryPanel.addEventListener(
       researchDiaryOpenEvent,
       () => void this.#openWorkflowFile(researchDiaryPath, () => researchDiaryTemplate(new Date().toISOString().slice(0, 10))),
     );
-    this.#elements.manuscriptMapPanel.addEventListener(manuscriptMapSelectEvent, (event) => {
-      const { from, to } = (event as CustomEvent<ManuscriptMapSelection>).detail;
-      this.#focusComposedRange(from, to);
-    });
+    this.#elements.manuscriptMapPanel.bindNavigation(({ from, to }) => this.#focusComposedRange(from, to));
     for (const panel of [this.#elements.researchQuestionPanel, this.#elements.reviewerResponsePanel]) {
       panel.addEventListener(writingWorkflowActionEvent, (event) => {
         void this.#handleWritingWorkflowAction((event as CustomEvent<WritingWorkflowActionDetail>).detail);

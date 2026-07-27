@@ -3,8 +3,6 @@ import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { renderIcon, type IconName } from "../ui/icons";
 import type { WorkspaceRail } from "./workspace-ui-route";
 
-export const workspaceRailChangeEvent = "kirjolab-workspace-rail-change";
-
 const tabs: readonly { readonly icon: IconName; readonly label: string; readonly mode: WorkspaceRail }[] = [
   { icon: "files", label: "Files", mode: "files" },
   { icon: "research", label: "Research", mode: "research" },
@@ -20,6 +18,7 @@ export class WorkspaceRailTabs extends LitElement {
 
   declare private commentCount: number;
   declare mode: WorkspaceRail;
+  private navigate: ((mode: WorkspaceRail) => void) | null = null;
 
   constructor() {
     super();
@@ -29,6 +28,10 @@ export class WorkspaceRailTabs extends LitElement {
 
   setCommentCount(count: number): void {
     this.commentCount = count;
+  }
+
+  bindNavigation(navigate: (mode: WorkspaceRail) => void): void {
+    this.navigate = navigate;
   }
 
   setMode(mode: WorkspaceRail): void {
@@ -46,7 +49,7 @@ export class WorkspaceRailTabs extends LitElement {
   protected select(event: Event): void {
     const mode = (event.currentTarget as HTMLButtonElement).dataset.railMode as WorkspaceRail | undefined;
     if (!mode || mode === this.mode) return;
-    this.dispatchEvent(new CustomEvent<WorkspaceRail>(workspaceRailChangeEvent, { bubbles: true, composed: true, detail: mode }));
+    this.navigate?.(mode);
   }
 
   override connectedCallback(): void {

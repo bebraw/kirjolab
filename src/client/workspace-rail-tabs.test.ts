@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { WorkspaceRail } from "./workspace-ui-route";
-import { WorkspaceRailTabs, workspaceRailChangeEvent } from "./workspace-rail-tabs";
+import { WorkspaceRailTabs } from "./workspace-rail-tabs";
 
 class TestWorkspaceRailTabs extends WorkspaceRailTabs {
   readonly hiddenPanels = new Map<WorkspaceRail, boolean>();
@@ -44,7 +44,7 @@ describe("workspace rail tabs", () => {
   it("emits changed rail intents only", () => {
     const tabs = new TestWorkspaceRailTabs();
     const modes: WorkspaceRail[] = [];
-    tabs.addEventListener(workspaceRailChangeEvent, (event) => modes.push((event as CustomEvent<WorkspaceRail>).detail));
+    tabs.bindNavigation((mode) => modes.push(mode));
     tabs.selectForTest();
     tabs.selectForTest("files");
     tabs.selectForTest("research");
