@@ -28,13 +28,23 @@ describe("authoring mode tabs", () => {
     expect(tabs.renderForTest()).toBeDefined();
   });
 
-  it("binds changed mode navigation only", () => {
+  it("owns changed mode navigation and emits the selected mode", () => {
     const tabs = new TestAuthoringModeTabs();
     const modes: AuthoringMode[] = [];
     tabs.bindNavigation((mode) => modes.push(mode));
     tabs.selectForTest();
     tabs.selectForTest("write");
     tabs.selectForTest("map");
+    expect(tabs.mode).toBe("map");
+    expect(modes).toEqual(["map"]);
+  });
+
+  it("offers the same navigation ownership to external workflows", () => {
+    const tabs = new TestAuthoringModeTabs();
+    const modes: AuthoringMode[] = [];
+    tabs.bindNavigation((mode) => modes.push(mode));
+    tabs.navigate("map");
+    expect(tabs.mode).toBe("map");
     expect(modes).toEqual(["map"]);
   });
 

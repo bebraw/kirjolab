@@ -113,14 +113,15 @@ collaboration.
   with a read-only derived evidence graph, bounded project search, and an
   accessible typed-connection list. Navigation into manuscript source returns
   to Write; changing modes never changes canonical or collaborative state. A
-  bounded light-DOM tab component owns active-mode and ARIA presentation plus
-  controlled editor, write-action, and map visibility and a typed mode-change
-  intent. One composed light-DOM map workspace owns its
+  bounded light-DOM tab component owns internal and workflow-driven mode
+  selection, active-mode and ARIA presentation, and controlled editor, write-
+  action, and map visibility before reporting the selected mode through one
+  typed callback. One composed light-DOM map workspace owns its
   resource and link totals, search and overview presentation, graph and
   connection-panel synchronization, visibility, focus entry, and one typed
   resource-selection stream. The application coordinator retains authorized
-  search requests, response validation, resource navigation, editor visibility,
-  and URL synchronization.
+  search requests, response validation, resource navigation, editor focus, and
+  URL synchronization.
 - **Left project rail:** Files, Research, and Comments are peer local navigation
   modes. Comments contains the selected-passage composer and durable comment
   history without taking vertical space from the manuscript editor. Derived

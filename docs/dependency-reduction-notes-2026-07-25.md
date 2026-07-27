@@ -8968,6 +8968,29 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,719 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Authoring Mode Navigation
+
+`AuthoringModeTabs` now applies internal clicks and workflow-driven Write/Map
+navigation through one component-owned transition before reporting the selected
+mode for editor-focus policy and URL synchronization. `WorkspaceApp` retains
+those two policies without an authoring-mode selection wrapper or the
+`AuthoringMode` type dependency.
+
+This checkpoint reduces `src/client/app.ts` from 1,257 to 1,247 lines (-10),
+grows the authoring-mode-tabs owner from 79 to 85 lines (+6), and reduces
+combined runtime source by four lines while eliminating the coordinator round
+trip for mode selection. Direct component coverage passes all four cases;
+affected application coverage passes all six related cases alongside strict
+types.
+
+The browser application artifact changes from 849,575 B raw / 228,872 B gzip
+to 849,696 B raw / 228,863 B gzip (+121 B raw / -9 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,720 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

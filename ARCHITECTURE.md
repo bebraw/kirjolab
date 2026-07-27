@@ -138,6 +138,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   selected mode through one typed navigation callback. Keep URL synchronization,
   responsive rail layout, collapse, and guide rendering in their existing
   coordinators.
+- Let the authoring-mode-tabs Lit owner likewise apply internal or workflow-
+  driven Write/Map selection to its active tab and controlled surfaces before
+  reporting the selected mode. Keep editor focus and URL synchronization in the
+  application coordinator.
 - Let the GitHub sync-menu Lit component bind the workspace-settings review,
   own online and active-review refresh policy, route Check/Pull/Push/Settings
   actions, and refresh both canonical project data after Pull and menu status

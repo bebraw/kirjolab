@@ -6,7 +6,7 @@ export class AuthoringModeTabs extends LitElement {
   static override properties = { mode: { state: true } };
 
   declare mode: AuthoringMode;
-  private navigate: ((mode: AuthoringMode) => void) | null = null;
+  private navigation: ((mode: AuthoringMode) => void) | null = null;
 
   constructor() {
     super();
@@ -25,13 +25,18 @@ export class AuthoringModeTabs extends LitElement {
   }
 
   bindNavigation(navigate: (mode: AuthoringMode) => void): void {
-    this.navigate = navigate;
+    this.navigation = navigate;
+  }
+
+  navigate(mode: AuthoringMode): void {
+    this.setMode(mode);
+    this.navigation?.(mode);
   }
 
   protected select(event: Event): void {
     const mode = (event.currentTarget as HTMLButtonElement).dataset.authoringMode as AuthoringMode | undefined;
     if (!mode || mode === this.mode) return;
-    this.navigate?.(mode);
+    this.navigate(mode);
   }
 
   override connectedCallback(): void {

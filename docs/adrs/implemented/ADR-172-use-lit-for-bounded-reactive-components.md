@@ -606,9 +606,10 @@ The adopted components own bounded presentation:
 - The workspace rail tabs own internal and workflow-driven selection, active-
   tab, controlled-panel, and open-comment-count presentation plus a typed
   navigation outcome.
-- The authoring mode tabs own Write and Map active-state presentation,
-  controlled editor, write-action, and map visibility, map focus entry through
-  its composed workspace, plus a typed navigation binding.
+- The authoring mode tabs own internal and workflow-driven Write and Map
+  selection, active-state presentation, controlled editor, write-action, and
+  map visibility, map focus entry through its composed workspace, plus a typed
+  navigation outcome.
 - The unidentified-PDF queue owns legacy unattached-artifact count, visibility,
   reference choices and artifact-subset derivation from the canonical Library
   snapshot, identification transport, duplicate-submit gating, local progress
@@ -1101,9 +1102,10 @@ reason to wrap static markup mechanically.
 - The authoring mode tabs replace two internal element references, two native
   action bindings, two ARIA-state mutations, DOM-derived active mode, one
   write-action reference, three coordinator-owned visibility mutations, and
-  its public mode-change event.
-  The application coordinator retains editor focus policy and URL
-  synchronization.
+  its public mode-change event. Their navigation method applies the selected
+  mode before reporting it through the typed binding, so internal clicks and
+  external workflows share one state transition. The application coordinator
+  retains editor focus policy and URL synchronization.
 - The editor status component replaces separate target and save-status element
   references and owns their text and target-tooltip presentation, including
   bounded line counting and file, line-range, caret, and selection wording from

@@ -67,13 +67,7 @@ import {
   type PdfResearchLocation,
   type ResearchResourceKey,
 } from "./research-context";
-import {
-  readWorkspaceUiRoute,
-  researchTargetFromContextKey,
-  workspaceUiRouteUrl,
-  type AuthoringMode,
-  type WorkspaceSurface,
-} from "./workspace-ui-route";
+import { readWorkspaceUiRoute, researchTargetFromContextKey, workspaceUiRouteUrl, type WorkspaceSurface } from "./workspace-ui-route";
 import "./workspace-rail-tabs";
 import "./authoring-mode-tabs";
 import type { EditorPresenceRange } from "./editor-presence";
@@ -424,7 +418,10 @@ class WorkspaceApp {
       if (intent.kind === "citation") void this.#acceptCitationCompletion(intent);
       else this.#applySourceCompletion(intent.context.start, intent.context.end, intent.candidate.reference);
     });
-    this.#elements.authoringModeTabs.bindNavigation((mode) => this.#setAuthoringMode(mode));
+    this.#elements.authoringModeTabs.bindNavigation((mode) => {
+      if (mode === "write") this.#elements.source.focus();
+      this.#syncWorkspaceRoute("replace");
+    });
     this.#elements.projectHistoryDialog.configure(apiBase, {
       presentNotice: (message) => this.#showToast(message),
       trigger: this.#elements.projectHistoryTrigger,
@@ -449,7 +446,7 @@ class WorkspaceApp {
     this.#elements.contextResourcePresenter.bindProjectMap(apiBase, {
       document: () => {
         this.#showWorkspaceSurface("authoring");
-        this.#setAuthoringMode("write");
+        this.#elements.authoringModeTabs.navigate("write");
         this.#elements.source.focus();
         this.#elements.source.scrollIntoView({ behavior: "smooth", block: "center" });
       },
@@ -580,7 +577,7 @@ class WorkspaceApp {
     const url = new URL(location.href);
     const route = readWorkspaceUiRoute(url);
     if (url.searchParams.has("rail")) this.#elements.workspaceRailTabs.navigate(route.rail);
-    if (url.searchParams.has("mode")) this.#setAuthoringMode(route.mode);
+    if (url.searchParams.has("mode")) this.#elements.authoringModeTabs.navigate(route.mode);
     if (route.fileId) this.#elements.projectFileDialog.selectFile(route.fileId);
     if (url.searchParams.has("context")) await this.#restoreWorkspaceContext(route);
     if (route.layout) await this.#applyWorkspaceLayout(route.layout, false);
@@ -746,7 +743,7 @@ class WorkspaceApp {
 
   #focusProjectRange(fileId: string, from: number, to: number): void {
     if (fileId) this.#elements.projectFileDialog.selectFile(fileId);
-    this.#setAuthoringMode("write");
+    this.#elements.authoringModeTabs.navigate("write");
     this.#elements.source.focus();
     this.#elements.source.setSelectionRange(from, Math.max(from, to));
     this.#rememberAuthoringSelection();
@@ -833,13 +830,6 @@ class WorkspaceApp {
     this.#elements.contextResourcePresenter.presentWorkspace(this.#snapshot);
     this.#renderResearchContext();
     this.#elements.assistantGenerationPresenter.refreshAvailability();
-    this.#syncWorkspaceRoute("replace");
-  }
-
-  #setAuthoringMode(mode: AuthoringMode): void {
-    const writing = mode === "write";
-    this.#elements.authoringModeTabs.setMode(mode);
-    if (writing) this.#elements.source.focus();
     this.#syncWorkspaceRoute("replace");
   }
 
@@ -981,7 +971,7 @@ class WorkspaceApp {
     }
     this.#document.transact(() => this.#activeFileText.insert(insertion.index, insertion.text), this);
     this.#showWorkspaceSurface("authoring");
-    this.#setAuthoringMode("write");
+    this.#elements.authoringModeTabs.navigate("write");
     this.#elements.source.focus();
     this.#elements.source.setSelectionRange(insertion.caret, insertion.caret);
     this.#rememberAuthoringSelection();
@@ -1145,7 +1135,7 @@ class WorkspaceApp {
       return;
     }
     this.#showWorkspaceSurface("authoring");
-    this.#setAuthoringMode("write");
+    this.#elements.authoringModeTabs.navigate("write");
     this.#elements.projectFileDialog.selectFile(anchor.fileId);
     this.#elements.source.focus();
     this.#elements.source.setSelectionRange(resolution.start, resolution.end);
