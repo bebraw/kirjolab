@@ -7749,6 +7749,27 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,698 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Shared PDF Rectangle Overlap
+
+Project evidence erasure now reuses the existing reference-library rectangle-
+set overlap helper instead of carrying a second equivalent pairwise geometry
+implementation in `WorkspaceApp`. The shared domain helper already has focused
+coverage for overlap, separation, and touching-edge behavior.
+
+This checkpoint reduces `src/client/app.ts` from 1,805 to 1,799 lines (-6)
+without adding runtime source elsewhere and removes the coordinator's direct
+selection-rectangle type dependency. The focused reference-library suite passes
+all 21 cases; affected checks pass formatting, lint, application contracts,
+strict types, and all 1,698 unit/coverage tests.
+
+The browser application artifact changes from 845,228 B raw / 229,021 B gzip
+to 845,113 B raw / 228,968 B gzip (-115 B raw / -53 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,698 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

@@ -9,6 +9,7 @@ import { projectFileCollaborationTextName, relativeProjectPath, type ProjectComp
 import { publicationWordStatistics } from "../domain/publication-statistics";
 import { researchQuestionsPath, researchQuestionsTemplate } from "../domain/research-questions";
 import { researchDiaryPath, researchDiaryTemplate } from "../domain/writing-workflows";
+import { libraryPdfRectsOverlap } from "../domain/reference-library";
 import { type LibraryHighlight, type LibraryPdfArtifact, type ProjectReferencePdf } from "../domain/reference-library";
 import "./application-version-control";
 import "./source-citation-control";
@@ -32,7 +33,6 @@ import {
   type ModelCandidate,
   type PassageLink,
   type PdfResource,
-  type PdfSelectionRect,
   type PublicationResource,
   type WorkspaceSnapshot,
 } from "../domain/workspace";
@@ -1617,7 +1617,7 @@ class WorkspaceApp {
         .filter((annotation) => annotation.pdfId === pdfId && annotation.page === capture.page)
         .flatMap((annotation) =>
           annotation.fragments
-            .filter((fragment) => fragment.rects.some((rect) => capture.rects.some((candidate) => selectionRectsOverlap(rect, candidate))))
+            .filter((fragment) => libraryPdfRectsOverlap(fragment.rects, capture.rects))
             .map((fragment) => ({ annotation, fragment })),
         ) ?? []
     );
@@ -1767,12 +1767,6 @@ function researchTabRouteLocation(tab: ResearchContextState["tabs"][number] | un
   if (tab?.kind !== "pdf" && tab?.kind !== "library-pdf") return {};
   if (tab.kind === "pdf" && tab.focusedAnnotationId) return { page: tab.page, annotationId: tab.focusedAnnotationId };
   return { page: tab.page };
-}
-
-function selectionRectsOverlap(left: PdfSelectionRect, right: PdfSelectionRect): boolean {
-  return (
-    left.x < right.x + right.width && left.x + left.width > right.x && left.y < right.y + right.height && left.y + left.height > right.y
-  );
 }
 
 function excerptForToast(value: string): string {
