@@ -1,13 +1,12 @@
 import { html, LitElement, nothing, type TemplateResult } from "lit";
 import type { ProjectAsset, ProjectFile, ProjectFolder } from "../domain/project-files";
 import { isWorkspaceSnapshot, type WorkspaceSnapshot } from "../domain/workspace";
+import { DeferredDeletionController, type DeferredDeletionNoticeOptions } from "./deferred-deletion";
 import { expectOk } from "./http";
 
 export const projectTreeActionEvent = "project-tree-action";
 
 export type ProjectTreeAction =
-  | { readonly action: "delete-asset"; readonly asset: ProjectAsset }
-  | { readonly action: "delete-folder"; readonly folderId: string }
   | { readonly action: "insert-asset"; readonly asset: ProjectAsset }
   | { readonly action: "quick-open" }
   | { readonly action: "rename-folder"; readonly folderId: string }
@@ -27,39 +26,53 @@ type ProjectTreeItem =
   | { readonly kind: "file"; readonly path: string; readonly file: ProjectFile }
   | { readonly kind: "folder"; readonly path: string; readonly folder: ProjectFolder };
 
+interface ProjectTreeCallbacks {
+  readonly acceptSnapshot: (snapshot: WorkspaceSnapshot) => void;
+  readonly presentNotice: (message: string, options?: DeferredDeletionNoticeOptions) => void;
+  readonly previewChanged: () => void;
+}
+
 export class ProjectTreePanel extends LitElement {
   static override properties = {
     data: { state: true },
+    openMenuKey: { state: true },
     query: { state: true },
   };
 
   declare private data: ProjectTreeData;
+  declare private openMenuKey: string | null;
   declare private query: string;
   private apiBase = "";
+  private callbacks: ProjectTreeCallbacks = {
+    acceptSnapshot: () => undefined,
+    presentNotice: () => undefined,
+    previewChanged: () => undefined,
+  };
+  private readonly hiddenAssetIds = new Set<string>();
+  private readonly hiddenFolderIds = new Set<string>();
+  private readonly deletions = new DeferredDeletionController((message, options) => {
+    const settled = this.isConnected ? this.updateComplete : Promise.resolve();
+    void settled.then(() => this.callbacks.presentNotice(message, options));
+  });
 
   constructor() {
     super();
     this.data = { activeFileId: "", assetBase: "", assets: [], entryFileId: "", files: [], folders: [] };
+    this.openMenuKey = null;
     this.query = "";
   }
 
   setTree(data: ProjectTreeData): void {
-    if (typeof this.querySelectorAll === "function") {
-      for (const menu of this.querySelectorAll<HTMLDetailsElement>("details[open]")) menu.open = false;
-    }
     this.data = data;
   }
 
-  configure(apiBase: string): void {
+  get hiddenAssets(): ReadonlySet<string> {
+    return this.hiddenAssetIds;
+  }
+
+  configure(apiBase: string, callbacks: ProjectTreeCallbacks): void {
     this.apiBase = apiBase;
-  }
-
-  deleteAsset(assetId: string): Promise<WorkspaceSnapshot> {
-    return this.deleteResource("assets", assetId, "Image deletion returned an invalid workspace");
-  }
-
-  deleteFolder(folderId: string): Promise<WorkspaceSnapshot> {
-    return this.deleteResource("folders", folderId, "Project folder operation returned an invalid workspace");
+    this.callbacks = callbacks;
   }
 
   focusFilter(): void {
@@ -162,18 +175,23 @@ export class ProjectTreePanel extends LitElement {
     const file = this.data.files.find((item) => item.id === button.dataset.fileId);
     const folder = this.data.folders.find((item) => item.id === button.dataset.folderId);
     const asset = this.data.assets.find((item) => item.id === button.dataset.assetId);
+    if (action !== "insert-asset") this.openMenuKey = null;
     if (action === "select-file" && file) this.emit({ action, fileId: file.id, focusEditor: false });
     else if (action === "rename-folder" && folder) this.emit({ action, folderId: folder.id });
-    else if (action === "delete-folder" && folder) this.emit({ action, folderId: folder.id });
+    else if (action === "delete-folder" && folder) this.deleteFolder(folder);
     else if (action === "insert-asset" && asset) this.emit({ action, asset });
-    else if (action === "delete-asset" && asset) this.emit({ action, asset });
+    else if (action === "delete-asset" && asset) this.deleteAsset(asset);
   }
 
   private items(): ProjectTreeItem[] {
     return [
-      ...this.data.folders.map((folder) => ({ kind: "folder" as const, path: folder.path, folder })),
+      ...this.data.folders
+        .filter((folder) => !this.hiddenFolderIds.has(folder.id))
+        .map((folder) => ({ kind: "folder" as const, path: folder.path, folder })),
       ...this.data.files.map((file) => ({ kind: "file" as const, path: file.path, file })),
-      ...this.data.assets.map((asset) => ({ kind: "asset" as const, path: asset.path, asset })),
+      ...this.data.assets
+        .filter((asset) => !this.hiddenAssetIds.has(asset.id))
+        .map((asset) => ({ kind: "asset" as const, path: asset.path, asset })),
     ].sort((left, right) => left.path.localeCompare(right.path) || left.kind.localeCompare(right.kind));
   }
 
@@ -193,7 +211,11 @@ export class ProjectTreePanel extends LitElement {
         ?hidden=${hidden}
       >
         <span class="min-w-0 truncate">${folder.path.split("/").at(-1)}/</span>
-        <details class="action-menu project-tree-actions">
+        <details
+          class="action-menu project-tree-actions"
+          ?open=${this.openMenuKey === `folder:${folder.id}`}
+          @toggle=${(event: Event) => this.rememberMenu(event, `folder:${folder.id}`)}
+        >
           <summary aria-label=${`Actions for ${folder.path}`}>•••</summary>
           <div class="editor-command-menu">
             <button type="button" data-folder-id=${folder.id} data-project-action="rename-folder" @click=${this.act}>Move or rename</button>
@@ -217,7 +239,11 @@ export class ProjectTreePanel extends LitElement {
       >
         <img class="project-asset-thumbnail" src=${href} alt="" />
         <span class="min-w-0 flex-1 truncate">${asset.path.split("/").at(-1) ?? asset.path}</span>
-        <details class="action-menu project-tree-actions">
+        <details
+          class="action-menu project-tree-actions"
+          ?open=${this.openMenuKey === `asset:${asset.id}`}
+          @toggle=${(event: Event) => this.rememberMenu(event, `asset:${asset.id}`)}
+        >
           <summary aria-label=${`Actions for ${asset.path}`}>•••</summary>
           <div class="editor-command-menu">
             <button type="button" data-asset-id=${asset.id} data-project-action="insert-asset" @click=${this.act}>Insert image</button>
@@ -260,6 +286,52 @@ export class ProjectTreePanel extends LitElement {
     const value: unknown = await response.json();
     if (!isWorkspaceSnapshot(value)) throw new Error(invalidMessage);
     return value;
+  }
+
+  protected rememberMenu(event: Event, key: string): void {
+    const open = (event.currentTarget as HTMLDetailsElement).open;
+    if (open) this.openMenuKey = key;
+    else if (this.openMenuKey === key) this.openMenuKey = null;
+  }
+
+  private deleteFolder(folder: ProjectFolder): void {
+    this.deletions.schedule({
+      key: `project-folder:${folder.id}`,
+      deletedMessage: `Deleted ${folder.path}.`,
+      restoredMessage: `Restored ${folder.path}.`,
+      failedMessage: `Could not delete ${folder.path}.`,
+      hide: () => this.setHidden(this.hiddenFolderIds, folder.id, true),
+      restore: () => this.setHidden(this.hiddenFolderIds, folder.id, false),
+      commit: async () => {
+        const snapshot = await this.deleteResource("folders", folder.id, "Project folder operation returned an invalid workspace");
+        this.hiddenFolderIds.delete(folder.id);
+        this.callbacks.acceptSnapshot(snapshot);
+      },
+    });
+  }
+
+  private deleteAsset(asset: ProjectAsset): void {
+    this.deletions.schedule({
+      key: `project-image:${asset.id}`,
+      deletedMessage: `Deleted ${asset.path}.`,
+      restoredMessage: `Restored ${asset.path}.`,
+      failedMessage: `Could not delete ${asset.path}.`,
+      hide: () => this.setHidden(this.hiddenAssetIds, asset.id, true, true),
+      restore: () => this.setHidden(this.hiddenAssetIds, asset.id, false, true),
+      commit: async () => {
+        const snapshot = await this.deleteResource("assets", asset.id, "Image deletion returned an invalid workspace");
+        this.hiddenAssetIds.delete(asset.id);
+        this.callbacks.acceptSnapshot(snapshot);
+        this.callbacks.previewChanged();
+      },
+    });
+  }
+
+  private setHidden(ids: Set<string>, id: string, hidden: boolean, previewChanged = false): void {
+    if (hidden) ids.add(id);
+    else ids.delete(id);
+    this.requestUpdate();
+    if (previewChanged) this.callbacks.previewChanged();
   }
 
   private emit(detail: ProjectTreeAction): void {

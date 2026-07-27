@@ -116,10 +116,14 @@ collaborative, and unambiguous about what preview and export mean.
   references authored in supporting files. Project-tree action menus remain
   within the rail so every image and folder action label stays visible and
   interactive. The tree owner performs encoded empty-folder and image deletion
-  requests and validates their returned snapshots. Deleting a supporting file,
-  an empty folder, or an image still hides it immediately under coordinator
-  authority but delays the server operation for six seconds; an announced
-  message offers **Undo** throughout that grace period.
+  requests, validates their returned snapshots, and owns optimistic tree
+  hiding, the delayed commit, Undo restoration, and failure notice for those
+  resources. It exposes optimistically hidden image identities to Preview and
+  returns validated snapshots to the coordinator for canonical application.
+  Deleting a supporting file remains under coordinator authority because it
+  changes the active collaborative editor. Every deletion hides immediately,
+  delays the server operation for six seconds, and offers **Undo** throughout
+  that grace period.
 - The authoring toolbar inserts an existing file with a path relative to the
   active file. **Create and include** creates a supporting file and inserts its
   directive at the remembered collaborative caret, so authors do not have to
@@ -138,9 +142,9 @@ collaborative, and unambiguous about what preview and export mean.
   It also owns encoded file deletion transport and shares the same response
   validation across create, rename, and delete operations. The workspace
   coordinator must not reconstruct mutation targets from mutable ambient
-  selection; it retains collaborative include-target capture, optimistic
-  hiding, delayed deletion and Undo, snapshot application, rendering, and
-  notification.
+  selection; it retains collaborative include-target capture, supporting-file
+  optimistic hiding, delayed deletion and Undo, snapshot application,
+  rendering, and notification.
 - Publication exports consume the versioned source-mapped intermediate defined
   by `specs/export-pipeline/spec.md`; no target may reimplement include
   expansion or front-matter offset handling.

@@ -6269,6 +6269,31 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,654 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Project Tree Deletion Lifecycle
+
+`ProjectTreePanel` now owns the complete empty-folder and image deletion
+lifecycle: encoded transport, response validation, optimistic visibility,
+six-second delayed commit, Undo restoration, failure notices, hidden-image
+projection for Preview, and resource-keyed menu state. Notices wait for the
+corresponding Lit update, so restored rows are stable before another action can
+begin. `WorkspaceApp` retains active-file deletion, canonical snapshot
+application, cross-feature rendering, image insertion, and the toast outlet.
+
+This checkpoint reduces `src/client/app.ts` from 2,687 to 2,643 lines (-44)
+and grows the project-tree owner from 278 to 350 lines. Runtime source across
+those files grows by 28 lines while deleting two coordinator hidden-state sets,
+two resource-specific deletion workflows, and two delete intents. Six direct
+tree cases cover filtering, stable menu state, actions, delayed validated
+deletion, failed restoration, and Undo under strict client and Workers types.
+
+The browser application artifact changes from 835,394 B raw / 225,724 B gzip
+to 836,212 B raw / 226,037 B gzip (+818 B raw / +313 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,654 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

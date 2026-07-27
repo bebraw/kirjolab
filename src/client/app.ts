@@ -233,8 +233,6 @@ class WorkspaceApp {
   #renderSourceEditorHighlight: () => void = () => undefined;
   #hasBootstrapSnapshot = false;
   readonly #hiddenProjectFileIds = new Set<string>();
-  readonly #hiddenProjectFolderIds = new Set<string>();
-  readonly #hiddenProjectImageIds = new Set<string>();
   readonly #deferredDeletions = new DeferredDeletionController((message, options) => this.#showToast(message, options));
   #renderedPdfId: string | undefined;
   #renderedPdfContextKey: ResearchContextKey | undefined;
@@ -552,11 +550,16 @@ class WorkspaceApp {
         this.#showRail("files");
         this.#elements.projectTreePanel.focusFilter();
       } else if (detail.action === "rename-folder") this.#openProjectFileDialog("rename-folder", detail.folderId);
-      else if (detail.action === "delete-folder") this.#deleteProjectFolder(detail.folderId);
-      else if (detail.action === "insert-asset") this.#insertProjectImage(detail.asset);
-      else void this.#deleteProjectImage(detail.asset);
+      else this.#insertProjectImage(detail.asset);
     });
-    this.#elements.projectTreePanel.configure(apiBase);
+    this.#elements.projectTreePanel.configure(apiBase, {
+      acceptSnapshot: (snapshot) => {
+        this.#snapshot = snapshot;
+        this.#renderProjectFiles();
+      },
+      presentNotice: (message, options) => this.#showToast(message, options),
+      previewChanged: () => void this.#renderPreview(),
+    });
     this.#elements.projectImageUpload.configure(apiBase);
     this.#elements.projectImageUpload.addEventListener(projectImagesUploadedEvent, (event) => {
       this.#completeProjectImageUpload((event as CustomEvent<ProjectImagesUploaded>).detail);
@@ -1145,7 +1148,7 @@ class WorkspaceApp {
       apiBase,
       bibliography,
       filePreview: inputs.filePreview,
-      hiddenAssetIds: this.#hiddenProjectImageIds,
+      hiddenAssetIds: this.#elements.projectTreePanel.hiddenAssets,
       publicationComposition: inputs.publicationComposition,
       renderedSource: inputs.renderedSource,
       snapshot: this.#snapshot,
@@ -1312,10 +1315,10 @@ class WorkspaceApp {
     this.#elements.projectTreePanel.setTree({
       activeFileId: this.#activeFileId,
       assetBase: `${apiBase}/assets`,
-      assets: snapshot.assets.filter((asset) => !this.#hiddenProjectImageIds.has(asset.id)),
+      assets: snapshot.assets,
       entryFileId: snapshot.entryFileId,
       files,
-      folders: snapshot.folders.filter((folder) => !this.#hiddenProjectFolderIds.has(folder.id)),
+      folders: snapshot.folders,
     });
     this.#elements.editorInsertMenu.setFiles(files.find((file) => file.id === this.#activeFileId) ?? null, files);
     this.#elements.sourceCompletion.setProject(snapshot, this.#activeFileId, appMode === "workspace");
@@ -1413,29 +1416,6 @@ class WorkspaceApp {
     });
   }
 
-  #deleteProjectFolder(folderId: string): void {
-    const folder = this.#snapshot?.folders.find((item) => item.id === folderId);
-    if (!folder) return;
-    this.#deferredDeletions.schedule({
-      key: `project-folder:${folder.id}`,
-      deletedMessage: `Deleted ${folder.path}.`,
-      restoredMessage: `Restored ${folder.path}.`,
-      failedMessage: `Could not delete ${folder.path}.`,
-      hide: () => {
-        this.#hiddenProjectFolderIds.add(folder.id);
-        this.#renderProjectFiles();
-      },
-      restore: () => {
-        this.#hiddenProjectFolderIds.delete(folder.id);
-        this.#renderProjectFiles();
-      },
-      commit: async () => {
-        this.#snapshot = await this.#elements.projectTreePanel.deleteFolder(folder.id);
-        this.#renderProjectFiles();
-      },
-    });
-  }
-
   #completeProjectImageUpload({ message, snapshot }: ProjectImagesUploaded): void {
     this.#snapshot = snapshot;
     this.#renderProjectFiles();
@@ -1461,30 +1441,6 @@ class WorkspaceApp {
     this.#elements.source.setSelectionRange(caret, caret);
     this.#rememberAuthoringSelection();
     this.#showToast(`Inserted ${asset.path}.`);
-  }
-
-  #deleteProjectImage(asset: ProjectAsset): void {
-    this.#deferredDeletions.schedule({
-      key: `project-image:${asset.id}`,
-      deletedMessage: `Deleted ${asset.path}.`,
-      restoredMessage: `Restored ${asset.path}.`,
-      failedMessage: `Could not delete ${asset.path}.`,
-      hide: () => {
-        this.#hiddenProjectImageIds.add(asset.id);
-        this.#renderProjectFiles();
-        void this.#renderPreview();
-      },
-      restore: () => {
-        this.#hiddenProjectImageIds.delete(asset.id);
-        this.#renderProjectFiles();
-        void this.#renderPreview();
-      },
-      commit: async () => {
-        this.#snapshot = await this.#elements.projectTreePanel.deleteAsset(asset.id);
-        this.#renderProjectFiles();
-        void this.#renderPreview();
-      },
-    });
   }
 
   #focusProjectRange(fileId: string, from: number, to: number): void {

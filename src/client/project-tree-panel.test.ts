@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ProjectAsset, ProjectFile, ProjectFolder } from "../domain/project-files";
+import type { WorkspaceSnapshot } from "../domain/workspace";
 import { workspaceSnapshotFixture } from "../test-support/workspace-fixture";
+import type { DeferredDeletionNoticeOptions } from "./deferred-deletion";
 import { ProjectTreePanel, projectTreeActionEvent, type ProjectTreeAction } from "./project-tree-panel";
 
 const createdAt = "2026-07-25T00:00:00.000Z";
@@ -49,6 +51,10 @@ class TestProjectTreePanel extends ProjectTreePanel {
     this.handleQuickOpen(event);
   }
 
+  menuForTest(key: string, open: boolean): void {
+    this.rememberMenu(eventWithTarget({ open }), key);
+  }
+
   disconnectForTest(): void {
     this.disconnectedCallback();
   }
@@ -74,6 +80,7 @@ function eventWithTarget(target: object): Event {
 }
 
 afterEach(() => {
+  vi.useRealTimers();
   vi.restoreAllMocks();
 });
 
@@ -94,6 +101,9 @@ describe("project tree panel", () => {
     expect(panel.renderForTest()).toBeDefined();
     panel.filterForTest("missing");
     expect(panel.renderForTest()).toBeDefined();
+    panel.menuForTest(`folder:${folder.id}`, true);
+    expect(panel.renderForTest()).toBeDefined();
+    panel.menuForTest(`folder:${folder.id}`, false);
     expect(panel.rootForTest()).toBe(panel);
   });
 
@@ -168,47 +178,86 @@ describe("project tree panel", () => {
     panel.actForTest("select-file", { fileId: "missing" });
     panel.actForTest("select-file", { fileId: file.id });
     panel.actForTest("rename-folder", { folderId: folder.id });
-    panel.actForTest("delete-folder", { folderId: folder.id });
     panel.actForTest("insert-asset", { assetId: asset.id });
-    panel.actForTest("delete-asset", { assetId: asset.id });
     panel.actForTest("delete-asset", { assetId: "missing" });
 
     expect(actions).toEqual([
       { action: "select-file", fileId: file.id, focusEditor: false },
       { action: "rename-folder", folderId: folder.id },
-      { action: "delete-folder", folderId: folder.id },
       { action: "insert-asset", asset },
-      { action: "delete-asset", asset },
     ]);
   });
 
-  it("owns folder and image deletion transport and validates snapshots", async () => {
+  it("owns delayed folder and image deletion through validated snapshots", async () => {
+    vi.useFakeTimers();
     const panel = new TestProjectTreePanel();
-    panel.configure("/api/workspaces/workspace");
+    const accepted: WorkspaceSnapshot[] = [];
+    const previewChanged = vi.fn();
+    panel.configure("/api/workspaces/workspace", {
+      acceptSnapshot: (snapshot) => accepted.push(snapshot),
+      presentNotice: vi.fn(),
+      previewChanged,
+    });
+    panel.setTree({
+      activeFileId: file.id,
+      assetBase: "/api/assets",
+      assets: [asset],
+      entryFileId: file.id,
+      files: [file],
+      folders: [folder],
+    });
     const fetchMock = vi
       .spyOn(globalThis, "fetch")
       .mockResolvedValueOnce(Response.json(workspaceSnapshotFixture))
       .mockResolvedValueOnce(Response.json(workspaceSnapshotFixture));
 
-    await expect(panel.deleteFolder("folder/1")).resolves.toEqual(workspaceSnapshotFixture);
-    await expect(panel.deleteAsset("asset/1")).resolves.toEqual(workspaceSnapshotFixture);
+    panel.actForTest("delete-folder", { folderId: folder.id });
+    await vi.advanceTimersByTimeAsync(6_000);
+    panel.actForTest("delete-asset", { assetId: asset.id });
+    await vi.advanceTimersByTimeAsync(6_000);
 
-    expect(fetchMock).toHaveBeenNthCalledWith(1, "/api/workspaces/workspace/folders/folder%2F1", {
+    expect(fetchMock).toHaveBeenNthCalledWith(1, "/api/workspaces/workspace/folders/folder%3A1", {
       credentials: "same-origin",
       method: "DELETE",
     });
-    expect(fetchMock).toHaveBeenNthCalledWith(2, "/api/workspaces/workspace/assets/asset%2F1", {
+    expect(fetchMock).toHaveBeenNthCalledWith(2, "/api/workspaces/workspace/assets/asset%3A1", {
       credentials: "same-origin",
       method: "DELETE",
     });
+    expect(accepted).toEqual([workspaceSnapshotFixture, workspaceSnapshotFixture]);
+    expect(previewChanged).toHaveBeenCalledTimes(2);
   });
 
-  it("rejects malformed deletion snapshots", async () => {
+  it("restores failed deletion and supports tree-local undo", async () => {
+    vi.useFakeTimers();
     const panel = new TestProjectTreePanel();
-    panel.configure("/api/workspaces/workspace");
+    const notices: { message: string; options: DeferredDeletionNoticeOptions | undefined }[] = [];
+    panel.configure("/api/workspaces/workspace", {
+      acceptSnapshot: vi.fn(),
+      presentNotice: (message, options) => notices.push({ message, options }),
+      previewChanged: vi.fn(),
+    });
+    panel.setTree({
+      activeFileId: file.id,
+      assetBase: "/api/assets",
+      assets: [asset],
+      entryFileId: file.id,
+      files: [file],
+      folders: [folder],
+    });
     vi.spyOn(globalThis, "fetch").mockImplementation(() => Promise.resolve(Response.json({ invalid: true })));
 
-    await expect(panel.deleteFolder("folder-1")).rejects.toThrow("Project folder operation returned an invalid workspace");
-    await expect(panel.deleteAsset("asset-1")).rejects.toThrow("Image deletion returned an invalid workspace");
+    panel.actForTest("delete-folder", { folderId: folder.id });
+    await vi.advanceTimersByTimeAsync(6_000);
+    await Promise.resolve();
+    expect(notices.at(-1)?.message).toBe(`Could not delete ${folder.path}.`);
+
+    panel.actForTest("delete-asset", { assetId: asset.id });
+    await Promise.resolve();
+    notices.at(-1)?.options?.action();
+    await vi.advanceTimersByTimeAsync(6_000);
+    await Promise.resolve();
+    expect(globalThis.fetch).toHaveBeenCalledOnce();
+    expect(notices.at(-1)?.message).toBe(`Restored ${asset.path}.`);
   });
 });

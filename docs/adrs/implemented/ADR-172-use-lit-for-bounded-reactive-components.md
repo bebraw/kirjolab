@@ -189,16 +189,17 @@ The adopted components own bounded presentation:
 - The project tree panel owns path filtering, sorted folder, file, and image
   rows, active and entry presentation, the workspace quick-open shortcut and
   selection, action menus, listener teardown, encoded empty-folder and image
-  deletion transport, response validation, and typed file, folder, image, and
-  quick-open intents. The coordinator retains optimistic hiding, delayed commit
-  scheduling, Undo restoration, snapshot application, rendering, and failure
-  notification.
+  deletion transport, response validation, optimistic hiding, delayed commit
+  scheduling, Undo restoration, failure notices, and typed file, folder, image,
+  and quick-open intents. It exposes hidden image identities to Preview and
+  returns validated snapshots. The coordinator retains active-file deletion,
+  snapshot application, cross-feature rendering, and the toast outlet.
 - The project image upload control owns the image file input, sequential upload
   transport, response validation, duplicate-submit gating, local progress and
   retryable failure state, and a typed completed outcome carrying the final
   validated workspace snapshot. The coordinator retains snapshot application,
-  project-tree and preview rendering, image insertion and deletion, and toast
-  policy.
+  project-tree and preview rendering, image insertion, and toast policy; the
+  project-tree panel owns image deletion.
 - The editor Insert menu owns scholarly-syntax choices and their displayed
   templates, relative include-file option rendering, empty state, and local menu
   closing with typed syntax-template and include-file intents. The application
@@ -302,8 +303,8 @@ The adopted components own bounded presentation:
   duplicate-submit gating, local busy and retryable failure state, and typed
   completed outcomes carrying the mode, path, message, and validated workspace
   snapshot together. The coordinator retains workflow-template selection and
-  navigation, the deletion grace period, optimistic hiding, Undo restoration,
-  snapshot application, rendering, and notification.
+  navigation, the supporting-file deletion grace period, optimistic hiding,
+  Undo restoration, snapshot application, rendering, and notification.
 - Reused project-file action components own the rail and editor-menu action
   presentation, entry-file delete availability, and one typed create, include,
   rename, delete, folder-create, or image-upload intent contract.
@@ -611,9 +612,10 @@ reason to wrap static markup mechanically.
   imperative filter, hierarchy, row, and action-menu renderers. Its companion
   image upload control also replaces the coordinator file-input listener and
   sequential upload request, while the tree replaces the empty-folder and image
-  DELETE requests. File deletion, editor rebinding, validated snapshot
-  application, image insertion, optimistic hide and Undo coordination, include
-  insertion, and cross-feature rendering remain in the application coordinator.
+  DELETE requests plus their optimistic hide, delayed commit, Undo, restoration,
+  and failure lifecycle. File deletion, editor rebinding, validated snapshot
+  application, image insertion, include insertion, cross-feature rendering, and
+  the toast outlet remain in the application coordinator.
 - The manuscript map panel replaces seven internal element references and the
   imperative metric, outline, structural-cue, and editing-cue renderers while
   leaving composed-source derivation and file-qualified editor focus in the

@@ -200,8 +200,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   created-path verification, duplicate-submit gating, and retryable local
   failures. Emit or return the validated workspace snapshot or created stable
   file. Keep workflow-template selection and navigation, collaborative caret
-  capture, Yjs insertion, optimistic hiding, Undo timing, snapshot application,
-  selection, rendering, and toast policy in the workspace coordinator.
+  capture, Yjs insertion, supporting-file optimistic hiding and Undo timing,
+  snapshot application, selection, rendering, and toast policy in the workspace
+  coordinator.
 - Let the editor Insert menu own the scholarly syntax templates it displays and
   emit those templates with typed syntax choices. Keep passage-aware link
   adaptation, collaborative selection resolution, and Yjs edits in the
@@ -210,11 +211,15 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   transport, response validation, duplicate-submit gating, and retryable local
   status. Emit only the final validated workspace snapshot and completion
   message. Keep snapshot application, project-tree and preview rendering, image
-  insertion, deferred deletion, and toast policy in the workspace coordinator.
+  insertion, and toast policy in the workspace coordinator. Let the project-tree
+  panel own image deletion as part of its local row lifecycle.
 - Let the project-tree panel own encoded empty-folder and image deletion
-  transport and response validation. Keep optimistic hiding, the six-second
-  Undo window, delayed commit scheduling, validated snapshot application,
-  rendering, and failure notification in the workspace coordinator.
+  transport and response validation plus optimistic row hiding, the six-second
+  Undo window, delayed commit scheduling, restoration, and failure notices. It
+  exposes hidden image identities so Preview does not resolve an asset during
+  its grace window and returns validated snapshots for coordinator application.
+  Keep active-file deletion, canonical snapshot application, cross-feature
+  rendering, and the global toast outlet in the workspace coordinator.
 - Store project image metadata beside the durable file tree and keep its bytes
   as bounded, inert R2 objects under the reserved `figures/` path. Do not put
   uploaded image bytes in Yjs. Accept SVG only as validated UTF-8 image content
