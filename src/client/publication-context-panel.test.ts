@@ -1,12 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { LibraryPdfArtifact, ProjectReferencePdf } from "../domain/reference-library";
 import type { PdfResource, PublicationPdfLink, PublicationResource } from "../domain/workspace";
-import {
-  PublicationContextPanel,
-  publicationContextActionEvent,
-  type PublicationContextAction,
-  type PublicationPaperOption,
-} from "./publication-context-panel";
+import { PublicationContextPanel, type PublicationPaperOption } from "./publication-context-panel";
 
 const publication: PublicationResource = {
   abstract: "",
@@ -99,6 +94,21 @@ function eventWithDataset(dataset: Record<string, string>): Event {
   return event;
 }
 
+type RecordedAction =
+  | { readonly action: "insert-citation" }
+  | { readonly action: "open-paper"; readonly paper: PublicationPaperOption }
+  | { readonly action: "papers-changed"; readonly message: string };
+
+function recordActions(panel: PublicationContextPanel): RecordedAction[] {
+  const actions: RecordedAction[] = [];
+  panel.bind({
+    insertCitation: () => actions.push({ action: "insert-citation" }),
+    openPaper: (paper) => actions.push({ action: "open-paper", paper }),
+    papersChanged: (message) => actions.push({ action: "papers-changed", message }),
+  });
+  return actions;
+}
+
 afterEach(() => vi.restoreAllMocks());
 
 describe("publication context panel", () => {
@@ -148,8 +158,7 @@ describe("publication context panel", () => {
 
   it("emits citation and paper navigation intents", () => {
     const panel = new TestPublicationContextPanel();
-    const actions: PublicationContextAction[] = [];
-    panel.addEventListener(publicationContextActionEvent, (event) => actions.push((event as CustomEvent<PublicationContextAction>).detail));
+    const actions = recordActions(panel);
     setPublication(panel, {
       pdfs: [projectPaper.pdf],
       publicationPdfLinks: [
@@ -181,9 +190,8 @@ describe("publication context panel", () => {
 
   it("owns link and unlink persistence with typed completed outcomes", async () => {
     const panel = new TestPublicationContextPanel();
-    const actions: PublicationContextAction[] = [];
+    const actions = recordActions(panel);
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 200 }));
-    panel.addEventListener(publicationContextActionEvent, (event) => actions.push((event as CustomEvent<PublicationContextAction>).detail));
     panel.configure("/api/workspaces/workspace");
     setPublication(panel, {
       pdfs: [projectPaper.pdf],

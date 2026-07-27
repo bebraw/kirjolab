@@ -6847,6 +6847,28 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,670 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Publication Context Binding
+
+`PublicationContextPanel` now routes citation insertion, paper navigation, and
+completed project-paper relationship mutations through one typed workspace
+binding. `WorkspaceApp` retains authoring insertion, PDF and Library navigation,
+canonical refresh, and notification policy.
+
+This checkpoint leaves `src/client/app.ts` at 2,244 lines while removing one
+coordinator listener site, the public publication-context action protocol, and
+its union import. The 294-line publication-context owner is also unchanged.
+Focused coverage exercises citation and all paper variants, link and unlink
+persistence, retryable failure, duplicate mutation, projection, scrolling,
+rendering, and strict types.
+
+The browser application artifact changes from 840,989 B raw / 227,031 B gzip
+to 840,806 B raw / 226,988 B gzip (-183 B raw / -43 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,670 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

@@ -915,8 +915,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   unlink transport, stable encoded link targets, duplicate-submit gating, and
   retryable local failures. Let it resolve the active publication id and derive
   available project PDFs plus ordered private-Library, shared-reference, and
-  project paper options from canonical inputs. Keep canonical refresh, citation
-  insertion, paper navigation, and workspace notifications in the application
+  project paper options from canonical inputs. Route relationship completion,
+  citation insertion, and paper navigation through one typed workspace binding;
+  keep canonical refresh and workspace notifications in the application
   coordinator.
 - Collapse the two-surface workspace to an explicit Authoring/Context switch
   when both surfaces cannot retain readable measures; preserve editor and

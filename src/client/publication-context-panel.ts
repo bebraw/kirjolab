@@ -5,17 +5,16 @@ import type { PdfResource, PublicationPdfLink, PublicationResource } from "../do
 import { formatBytes } from "./format";
 import { errorMessage, expectOk, jsonFetch } from "./http";
 
-export const publicationContextActionEvent = "publication-context-action";
-
 export type PublicationPaperOption =
   | { readonly kind: "project"; readonly pdf: PdfResource; readonly linkId: string }
   | { readonly kind: "library"; readonly artifact: LibraryPdfArtifact }
   | { readonly kind: "reference"; readonly pdf: ProjectReferencePdf };
 
-export type PublicationContextAction =
-  | { readonly action: "insert-citation" }
-  | { readonly action: "open-paper"; readonly paper: PublicationPaperOption }
-  | { readonly action: "papers-changed"; readonly message: string };
+export interface PublicationContextBinding {
+  readonly insertCitation: () => void;
+  readonly openPaper: (paper: PublicationPaperOption) => void;
+  readonly papersChanged: (message: string) => void;
+}
 
 interface PublicationContextData {
   readonly availablePdfs: readonly PdfResource[];
@@ -47,6 +46,7 @@ export class PublicationContextPanel extends LitElement {
   declare protected data: PublicationContextData | null;
   declare private status: string;
   private apiBase = "";
+  private binding: PublicationContextBinding | undefined;
 
   constructor() {
     super();
@@ -58,6 +58,10 @@ export class PublicationContextPanel extends LitElement {
 
   configure(apiBase: string): void {
     this.apiBase = apiBase;
+  }
+
+  bind(binding: PublicationContextBinding): void {
+    this.binding = binding;
   }
 
   setPublication({ libraryArtifacts, publicationId, referencePdfs, snapshot }: PublicationContextSources): boolean {
@@ -192,18 +196,18 @@ export class PublicationContextPanel extends LitElement {
   }
 
   protected insertCitation(): void {
-    this.emit({ action: "insert-citation" });
+    this.binding?.insertCitation();
   }
 
   protected openOnlyPaper(): void {
     const paper = this.data?.papers.length === 1 ? this.data.papers[0] : undefined;
-    if (paper) this.emit({ action: "open-paper", paper });
+    if (paper) this.binding?.openPaper(paper);
   }
 
   protected openPaper(event: Event): void {
     const index = Number((event.currentTarget as HTMLButtonElement).dataset.paperIndex);
     const paper = this.data?.papers[index];
-    if (paper) this.emit({ action: "open-paper", paper });
+    if (paper) this.binding?.openPaper(paper);
   }
 
   protected unlinkPaper(event: Event): void {
@@ -240,7 +244,7 @@ export class PublicationContextPanel extends LitElement {
     try {
       await expectOk(await request());
       this.status = "";
-      this.emit({ action: "papers-changed", message });
+      this.binding?.papersChanged(message);
     } catch (error) {
       this.status = errorMessage(error, "Could not update linked papers.");
     } finally {
@@ -276,10 +280,6 @@ export class PublicationContextPanel extends LitElement {
         </div>
       </div>
     `;
-  }
-
-  private emit(detail: PublicationContextAction): void {
-    this.dispatchEvent(new CustomEvent(publicationContextActionEvent, { bubbles: true, composed: true, detail }));
   }
 }
 

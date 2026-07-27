@@ -116,8 +116,8 @@ The adopted components own bounded presentation:
   scholarly metadata, linked-paper and project-PDF option derivation and
   rendering from canonical reference inputs, citation readiness, local scroll
   state, and explicit project-PDF link and unlink transport, duplicate-submit
-  gating, pending and retryable failure state, and typed citation,
-  paper-navigation, and completed-relationship outcomes.
+  gating, pending and retryable failure state, and one typed workspace binding
+  for citation, paper-navigation, and completed-relationship outcomes.
 - The context resource presenter selects and synchronizes the publication,
   candidate, project-PDF, private-Library PDF, or shared-reference PDF owner from
   one active-resource projection. It restores and captures resource scroll,
@@ -581,7 +581,9 @@ reason to wrap static markup mechanically.
   available-PDF and private-Library, shared-reference, and project paper-option
   mapper plus active-publication lookup while leaving canonical inputs,
   manuscript insertion, PDF navigation, refresh, and workspace notification
-  policy in the application coordinator.
+  policy in the application coordinator. Its typed workspace binding removes
+  the final coordinator subscription and public publication-context action
+  protocol.
 - The knowledge search panel replaces three internal element references and
   imperative result-card rendering. Its project-map workspace also replaces the
   coordinator's authorized search fetch and response validation while leaving

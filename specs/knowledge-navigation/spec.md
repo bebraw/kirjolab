@@ -97,9 +97,9 @@ connection without reconstructing identity from a citation key or filename.
   from canonical project, private-Library, and shared-reference inputs, citation
   readiness, local scroll state, explicit project-PDF link and unlink transport,
   stable encoded link targets, duplicate-submit gating, pending and retryable
-  failure state, and completed-relationship outcomes. Manuscript insertion, PDF
-  navigation, canonical refresh, and workspace notification policy remain
-  outside it.
+  failure state, and one typed workspace binding for relationship completion,
+  citation insertion, and paper navigation. Canonical refresh and workspace
+  notification policy remain outside it.
 - The candidate-review presentation component resolves the active candidate id
   against canonical workspace state and owns its local evidence availability,
   applicability, matching decision progress, retryable failure, and scroll

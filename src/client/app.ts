@@ -53,7 +53,7 @@ import {
 import { researchDiaryOpenEvent } from "./research-diary-summary";
 import { type AssistantAuthoringPassage as AuthoringPassage } from "./assistant-result-panel";
 import { type CandidateDecisionOutcome } from "./candidate-review-panel";
-import { publicationContextActionEvent, type PublicationContextAction, type PublicationPaperOption } from "./publication-context-panel";
+import { type PublicationPaperOption } from "./publication-context-panel";
 import {
   isWorkspaceSnapshot,
   isWorkspaceSummaries,
@@ -579,11 +579,11 @@ class WorkspaceApp {
       this.#openCitation((event as CustomEvent<CitationContext>).detail);
     });
     this.#elements.publicationContextPanel.configure(apiBase);
-    this.#elements.publicationContextPanel.addEventListener(publicationContextActionEvent, (event) => {
-      const detail = (event as CustomEvent<PublicationContextAction>).detail;
-      if (detail.action === "insert-citation") this.#insertActivePublicationCitation();
-      else if (detail.action === "open-paper") void this.#openPublicationPaper(detail.paper);
-      else this.#refreshResourcesWithNotice(detail.message, "The paper links changed, but project resources could not be refreshed.");
+    this.#elements.publicationContextPanel.bind({
+      insertCitation: () => this.#insertActivePublicationCitation(),
+      openPaper: (paper) => void this.#openPublicationPaper(paper),
+      papersChanged: (message) =>
+        this.#refreshResourcesWithNotice(message, "The paper links changed, but project resources could not be refreshed."),
     });
     this.#elements.assistantGenerationPresenter.bindCandidate(apiBase, {
       decisionChanged: () => {
