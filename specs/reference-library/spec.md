@@ -392,7 +392,9 @@ memory and makes citation aliases compete with stable source identity.
   owner derives this ordered paper list and available project-PDF choices from
   coordinator-supplied canonical inputs, preferring a local private artifact
   over its duplicate shared-reference projection. Labels distinguish these
-  scopes, and opening a private PDF never shares it implicitly.
+  scopes, and the context-resource presenter dispatches each typed paper choice
+  through its matching canonical PDF route. Opening a private PDF never shares
+  it implicitly.
 - In a project, each saved private text highlight exposes **Cite in manuscript**.
   The private-PDF presenter checks citation readiness, chooses a collision-safe
   alias, and links only the bibliographic snapshot when the source is not yet in

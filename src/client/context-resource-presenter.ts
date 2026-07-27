@@ -33,7 +33,7 @@ import { pdfHighlightImportOutcomeEvent, type PdfHighlightImportOutcome } from "
 import { ProjectAnnotationForm } from "./project-annotation-form";
 import { ProjectEvidencePanel } from "./project-evidence-panel";
 import { mutateProjectReference } from "./project-reference-mutation";
-import { PublicationContextPanel } from "./publication-context-panel";
+import { PublicationContextPanel, type PublicationPaperOption } from "./publication-context-panel";
 import { PublicationListPanel } from "./publication-list-panel";
 import {
   setPdfResearchLocation,
@@ -219,6 +219,14 @@ export class ContextResourcePresenter extends LitElement {
     if (!coordinator || !annotation || !pdf) return;
     if (edit) this.element("project-annotation-form", ProjectAnnotationForm)?.showAnnotation(annotation);
     void coordinator.openProjectPdf(pdf, annotation.page, annotation.id);
+  }
+
+  async openPublicationPaper(paper: PublicationPaperOption): Promise<void> {
+    const coordinator = this.routeCoordinator;
+    if (!coordinator) return;
+    if (paper.kind === "project") return await coordinator.openProjectPdf(paper.pdf);
+    if (paper.kind === "library") return await coordinator.openLibraryPdf(paper.artifact);
+    await coordinator.openReferencePdf(paper.pdf);
   }
 
   openCitation(citation: CitationContext): string | null {

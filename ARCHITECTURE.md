@@ -964,7 +964,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   presenter resolve annotation edit/open intents to their canonical annotation
   and project PDF. Let it also resolve citation keys case-insensitively and choose
   the sole linked project PDF for a supported page locator, otherwise opening
-  publication context. Route the resulting typed open intent through the application
+  publication context. Let it dispatch the publication panel's typed project,
+  private-Library, and shared-reference paper choices through the same route
+  effects. Route the resulting typed open intent through the application
   coordinator, which retains tab reconciliation, canonical context state,
   history mutation, navigation transitions, and load timing. Let the presenter
   own private-highlight citation readiness feedback,

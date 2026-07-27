@@ -106,7 +106,9 @@ connection without reconstructing identity from a citation key or filename.
   stable encoded link targets, duplicate-submit gating, pending and retryable
   failure state, and one typed workspace binding for relationship completion,
   citation insertion, and paper navigation. Canonical refresh and workspace
-  notification policy remain outside it.
+  notification policy remain outside it. The composed context-resource
+  presenter dispatches those typed paper choices through the canonical project,
+  private-Library, and shared-reference PDF route effects.
 - The candidate-review presentation component resolves the active candidate id
   against canonical workspace state and owns its local evidence availability,
   applicability, matching decision progress, retryable failure, and scroll

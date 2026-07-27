@@ -512,6 +512,9 @@ describe("context resource presenter", () => {
     await presenter.restoreTarget({ kind: "library-pdf", id: referencePdf.id }, 6);
     await presenter.restoreTarget({ kind: "publication", id: "missing" });
     presenter.openProjectAnnotation(annotation.id, true);
+    await presenter.openPublicationPaper({ kind: "project", pdf, linkId: "link:route" });
+    await presenter.openPublicationPaper({ kind: "library", artifact: libraryPdf });
+    await presenter.openPublicationPaper({ kind: "reference", pdf: referencePdf });
     expect(presenter.openCitation({ keys: ["author2026"], locator: "p. 7" })).toBeNull();
     expect(presenter.openCitation({ keys: ["Author2026"] })).toBeNull();
 
@@ -519,11 +522,14 @@ describe("context resource presenter", () => {
     expect(coordinator.openProjectPdf).toHaveBeenCalledWith(pdf, 4, "annotation-1");
     expect(coordinator.openProjectPdf).toHaveBeenCalledWith(pdf, 7);
     expect(coordinator.openProjectPdf).toHaveBeenCalledWith(pdf, annotation.page, annotation.id);
+    expect(coordinator.openProjectPdf).toHaveBeenCalledWith(pdf);
     expect(showAnnotation).toHaveBeenCalledWith(annotation);
     expect(coordinator.openCandidate).toHaveBeenCalledWith(candidate);
     expect(coordinator.refreshLibrary).toHaveBeenCalledOnce();
     expect(coordinator.openLibraryPdf).toHaveBeenCalledWith(libraryPdf, 5);
+    expect(coordinator.openLibraryPdf).toHaveBeenCalledWith(libraryPdf);
     expect(coordinator.openReferencePdf).toHaveBeenCalledWith(referencePdf, 6);
+    expect(coordinator.openReferencePdf).toHaveBeenCalledWith(referencePdf);
     expect(presenter.openCitation({ keys: ["one", "two"] })).toBe("Open this grouped citation from Preview to choose a reference.");
     expect(presenter.openCitation({ keys: ["missing"] })).toBe("No publication resource is available for missing.");
   });

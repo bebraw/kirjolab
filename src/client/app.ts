@@ -25,7 +25,6 @@ import { type WritingWorkflowBinding } from "./writing-workflow-panel";
 import "./research-diary-summary";
 import { type AssistantAuthoringPassage as AuthoringPassage } from "./assistant-result-panel";
 import { type CandidateDecisionOutcome } from "./candidate-review-panel";
-import { type PublicationPaperOption } from "./publication-context-panel";
 import {
   type ModelCandidate,
   type PassageLink,
@@ -574,7 +573,7 @@ class WorkspaceApp {
     this.#elements.publicationContextPanel.configure(apiBase);
     this.#elements.publicationContextPanel.bind({
       insertCitation: () => this.#insertActivePublicationCitation(),
-      openPaper: (paper) => void this.#openPublicationPaper(paper),
+      openPaper: (paper) => void this.#elements.contextResourcePresenter.openPublicationPaper(paper),
       papersChanged: (message) =>
         this.#refreshResourcesWithNotice(message, "The paper links changed, but project resources could not be refreshed."),
     });
@@ -1144,18 +1143,6 @@ class WorkspaceApp {
     this.#renderResearchContext();
     this.#elements.contextTabStrip.focusTab(this.#contextState.activeKey);
     this.#syncWorkspaceRoute("replace");
-  }
-
-  async #openPublicationPaper(paper: PublicationPaperOption): Promise<void> {
-    if (paper.kind === "project") {
-      await this.#showPaper(paper.pdf);
-      return;
-    }
-    if (paper.kind === "library") {
-      await this.#openLibraryPdf(paper.artifact);
-      return;
-    }
-    await this.#openProjectReferencePdf(paper.pdf);
   }
 
   #openCitation(citation: CitationContext): void {

@@ -8061,6 +8061,28 @@ to 846,614 B raw / 228,680 B gzip (-215 B raw / +28 B gzip). Styles and direct
 and unique production package counts remain unchanged at 135,411 B raw /
 23,373 B gzip, 18, and 150.
 
+## Continued Lit Ownership: Publication Paper Routing
+
+`ContextResourcePresenter` now dispatches the publication panel's typed
+project-PDF, private-Library, and shared-reference paper choices through its
+existing canonical route coordinator. `WorkspaceApp` retains tab reconciliation,
+context transitions, history mutation, load timing, and the one panel binding.
+
+This checkpoint reduces `src/client/app.ts` from 1,603 to 1,590 lines (-13) and
+grows the context-resource presenter from 802 to 810 lines (+8). Runtime source
+across those files decreases by five lines while deleting the coordinator's
+three-way paper dispatch. Focused coverage passes all 24 context-resource cases,
+including every paper scope, existing resource restoration, annotations,
+citations, application contracts, and strict types.
+
+The browser application artifact changes from 846,614 B raw / 228,680 B gzip
+to 846,738 B raw / 228,691 B gzip (+124 B raw / +11 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,705 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

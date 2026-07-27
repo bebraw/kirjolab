@@ -209,7 +209,8 @@ changing their canonical data, selector, authorization, or rendering contracts.
   validated link transport, and canonical catalog lookup when restoring a
   supplied resource route or opening project-map resources. Annotation intents
   resolve through the same retained catalog to their annotation form and
-  project PDF. It also resolves citation keys case-insensitively
+  project PDF. Typed publication-paper choices dispatch through the same
+  project, private-Library, and shared-reference PDF routes. It also resolves citation keys case-insensitively
   and selects the sole linked project PDF for a supported page locator, falling
   back to publication context. It delegates canonical snapshot acceptance, Yjs
   citation insertion, tab reconciliation, cross-resource navigation, history
