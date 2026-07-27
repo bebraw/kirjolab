@@ -149,6 +149,35 @@ describe("editor status", () => {
     expect(resolveRange?.()).toBeNull();
   });
 
+  it("preserves a live insertion point across collaborative edits", () => {
+    const documentModel = new Y.Doc();
+    const first = documentModel.getText("first");
+    const second = documentModel.getText("second");
+    first.insert(0, "first text");
+    second.insert(0, "second text");
+    const source = textareaElement(new FakeTextarea());
+    const status = new TestEditorStatus();
+    expect(status.preserveInsertionPoint()).toBeNull();
+    status.bindAuthoring(documentModel, source, {
+      highlight: htmlElement(),
+      presence: () => [],
+      sourceChanged: () => undefined,
+      targetChanged: () => undefined,
+    });
+    status.setAuthoringContext("first.md", "first", first, true);
+    source.setSelectionRange(5, 5);
+    const insert = status.preserveInsertionPoint();
+
+    first.insert(0, "new ");
+    expect(insert?.(" included")).toBe(true);
+    expect(first.toString()).toBe("new first included text");
+
+    const staleInsert = status.preserveInsertionPoint();
+    status.setAuthoringContext("second.md", "second", second);
+    expect(staleInsert?.(" stale")).toBe(false);
+    expect(first.toString()).toBe("new first included text");
+  });
+
   it("owns the active source binding lifecycle", () => {
     const documentModel = new Y.Doc();
     const first = documentModel.getText("first");

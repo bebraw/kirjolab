@@ -112,6 +112,20 @@ export class EditorStatus extends LitElement {
     this.applyInsertion(text, { end: index, selectionEnd: caret, selectionStart: caret, start: index, text: value });
   }
 
+  preserveInsertionPoint(): ((value: string) => boolean) | null {
+    const text = this.text;
+    const caret = this.source?.selectionEnd;
+    if (!text || caret === undefined) return null;
+    const resolveRange = this.preserveRange(caret, caret);
+    if (!resolveRange) return null;
+    return (value) => {
+      const range = resolveRange();
+      if (!range) return false;
+      this.insertText(text, range.end, value);
+      return true;
+    };
+  }
+
   preserveRange(start: number, end: number): (() => EditorAuthoringTarget | null) | null {
     const documentModel = this.documentModel;
     const text = this.text;

@@ -167,6 +167,11 @@ collaborative, and unambiguous about what preview and export mean.
   insertions therefore remain part of that file's undo history; mutation
   decisions and cross-file path projection remain with the workspace
   coordinator.
+- An asynchronous create-and-include workflow captures its insertion point
+  through the editor-status owner. Concurrent edits may move that Yjs-relative
+  point, but switching the active authoring text invalidates it before the
+  eventual include insertion. The coordinator supplies the selected file path
+  and derives the project-relative directive.
 - The bounded Insert-menu component derives existing-file choices and relative
   paths from the active project file and owns the scholarly syntax templates it
   displays. From the supplied resolved passage and caret it derives

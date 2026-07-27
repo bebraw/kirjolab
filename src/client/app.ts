@@ -362,16 +362,8 @@ class WorkspaceApp {
       imageUpload: this.#elements.projectImageUpload,
       insertImage: ({ message, syntax }) => this.#elements.editorInsertMenu.insert({ text: syntax }, message),
       prepareInclude: (file) => {
-        const target = captureRelativeSelection(this.#elements.source, this.#activeFileText);
-        if (!target) return null;
-        return (path) => {
-          const position = Y.createAbsolutePositionFromRelativePosition(target.end, this.#document);
-          if (position?.type === target.text) {
-            const relativePath = relativeProjectPath(file.path, path);
-            this.#elements.editorStatus.insertText(target.text, position.index, `\n::include[${relativePath}]\n`);
-          }
-          return true;
-        };
+        const insert = this.#elements.editorStatus.preserveInsertionPoint();
+        return insert ? (path) => insert(`\n::include[${relativeProjectPath(file.path, path)}]\n`) : null;
       },
       quickOpen: () => {
         this.#layout.setRailCollapsed(false);

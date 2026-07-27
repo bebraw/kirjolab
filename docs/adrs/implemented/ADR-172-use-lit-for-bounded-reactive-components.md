@@ -1153,9 +1153,11 @@ reason to wrap static markup mechanically.
   collaborator presence highlighting from supplied ranges. It applies bounded
   authoring text insertions and replacements, focuses the active source, and
   selects their resulting range so derived edits remain in that undo history.
-  The application coordinator retains mutation decisions, cross-file path
-  projection, assistant refresh consequences, collaboration and offline-save
-  policy, and the save-status values those workflows select.
+  It also preserves an insertion point as a Yjs-relative position across an
+  asynchronous authoring workflow and invalidates it when the active text
+  changes. The application coordinator retains mutation decisions, cross-file
+  path projection, assistant refresh consequences, collaboration and offline-
+  save policy, and the save-status values those workflows select.
 - The connection status component replaces separate label and tone element
   references and owns their synchronized presentation. The application
   coordinator retains collaboration-state interpretation and Library-mode

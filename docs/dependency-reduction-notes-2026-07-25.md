@@ -11272,3 +11272,26 @@ B, and 481,994 B / 146,135 B.
 
 Full native CI passes all 1,739 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Lit Ownership: Preserved Include Caret
+
+`EditorStatus` now captures a create-and-include caret as a Yjs-relative
+position, resolves it after concurrent edits, applies the eventual insertion,
+and rejects it if the active authoring text changed. `WorkspaceApp` supplies
+only the selected file and project-relative include directive.
+
+This checkpoint reduces `src/client/app.ts` from 806 to 798 lines (-8) and
+grows the editor-status owner from 231 to 245 lines (+14). The six-line combined
+increase replaces workflow-specific Yjs position handling with a reusable,
+tested owner boundary. Focused coverage passes concurrent position movement,
+active-text invalidation, insertion and undo behavior, project-file workflows,
+and strict types. Direct and unique production package counts remain 18 and
+150; Lit and Yjs were already pinned.
+
+The browser application artifact increases from 853,905 B raw / 229,836 B gzip
+to 854,017 B / 229,878 B (+112 B raw / +42 B gzip). Styles and lazy Markdown
+and PDF.js artifacts remain unchanged at 135,411 B / 23,373 B, 204,779 B /
+62,386 B, and 481,994 B / 146,135 B.
+
+Full native CI passes all 1,740 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.

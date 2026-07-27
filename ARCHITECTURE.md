@@ -317,16 +317,18 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   active files must release the prior text observer and editor listeners before
   binding the next text. Let the owner apply bounded text insertions and
   replacements, focus the active source, and select their resulting range so
-  those edits share its undo history. Keep mutation decisions, cross-file path
-  projection, assistant consequences, collaboration policy, and offline-save
-  policy in the workspace coordinator.
+  those edits share its undo history. It may preserve an insertion point as a
+  Yjs-relative position across an asynchronous authoring workflow and must
+  reject it after the active text changes. Keep mutation decisions, cross-file
+  path projection, assistant consequences, collaboration policy, and offline-
+  save policy in the workspace coordinator.
 - Let the editor Insert menu own the scholarly syntax templates it displays and
   route template and relative-include choices through one typed binding. It
   projects passage-aware links, selection ranges, image-template insertions,
   and immediate relative-include directives from a coordinator-supplied
-  authoring target. Route the derived insertion through the editor-status owner;
-  keep asynchronous cross-file include continuation and the toast outlet in the
-  workspace coordinator.
+  authoring target. Route the derived insertion and preserved asynchronous
+  insertion point through the editor-status owner; keep cross-file path and
+  continuation decisions plus the toast outlet in the workspace coordinator.
 - Let the source citation control own citation-at-caret interpretation,
   citation insertion syntax projection, local insertion errors, and completion
   copy from a resolved authoring caret. Keep Yjs mutation, authoring-mode
