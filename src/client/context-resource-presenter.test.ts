@@ -19,7 +19,6 @@ import { ManuscriptCommentList } from "./manuscript-comment-list";
 import { ProjectAnnotationForm } from "./project-annotation-form";
 import { ProjectEvidencePanel } from "./project-evidence-panel";
 import { PublicationContextPanel } from "./publication-context-panel";
-import { PublicationIntakePanel } from "./publication-intake-panel";
 import { PublicationListPanel } from "./publication-list-panel";
 import type { ResearchResourceTab } from "./research-context";
 import { WorkspaceRailTabs } from "./workspace-rail-tabs";
@@ -109,7 +108,6 @@ function setup() {
     "project-annotation-form": new ProjectAnnotationForm(),
     "project-evidence-panel": new ProjectEvidencePanel(),
     "publication-context-panel": new PublicationContextPanel(),
-    "publication-intake-panel": new PublicationIntakePanel(),
     "publication-list-panel": new PublicationListPanel(),
     "paper-reader": Object.assign(new HTMLElement(), { scrollTop: 36 }),
     "workspace-rail-tabs": new WorkspaceRailTabs(),
@@ -156,7 +154,7 @@ describe("context resource presenter", () => {
 
   it("switches project, private-Library, and shared-reference PDF presentation", () => {
     const { elements, presenter } = setup();
-    const setPdf = vi.spyOn(elements["publication-intake-panel"], "setPdf");
+    const setPdf = vi.spyOn(elements["project-annotation-form"], "setIntakePdf").mockImplementation(() => undefined);
     const setAnnotationVisible = vi.spyOn(elements["project-annotation-form"], "setVisible");
     const setInspectorVisible = vi.spyOn(elements["library-pdf-inspector"], "setVisible");
 

@@ -272,9 +272,11 @@ changing their canonical data, selector, authorization, or rendering contracts.
   availability from explicit inputs. It owns highlight creation and stroke-
   extension transport, Valibot response validation, editing and undo-state
   updates, optional note-update transport, local save status and failure, and a
-  completed note-save outcome. The workspace coordinator retains selection and
-  overlap derivation, PDF gestures and viewer draft clearing, manuscript
-  linking, canonical refresh, and insertion policy.
+  completed note-save outcome. It also owns active-PDF projection and outcome
+  routing for its nested publication-intake component. The workspace coordinator
+  retains selection and overlap derivation, PDF gestures and viewer draft
+  clearing, manuscript linking, canonical refresh, publication navigation, and
+  insertion policy behind typed callbacks.
 - Citing a visible publication requires an explicit command and a valid current
   remembered Yjs-relative editor insertion point. If no safe insertion point
   exists, the command is unavailable; it never falls back to position zero or

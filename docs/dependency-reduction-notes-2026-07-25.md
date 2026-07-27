@@ -6711,6 +6711,31 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,669 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Composed Publication Intake
+
+`ProjectAnnotationForm` now owns the `PublicationIntakePanel` it already renders.
+It configures the nested component, projects the active project PDF, acknowledges
+or rejects refresh-pending acceptance, and routes linked or accepted publication
+navigation through typed callbacks. `WorkspaceApp` retains canonical refresh,
+context navigation, and notices without addressing the nested intake directly.
+
+This checkpoint reduces `src/client/app.ts` from 2,285 to 2,269 lines (-16),
+removes one coordinator listener site, the intake event/type import, one global
+element-registry entry, and the coordinator's acceptance-completion method.
+`ContextResourcePresenter` delegates active-PDF projection through the parent
+instead of globally locating the child. The existing annotation owner grows
+from 366 to 432 lines. Focused coverage exercises PDF projection, linked and
+accepted navigation, refresh acknowledgement and rejection, persistence,
+registry composition, and strict types.
+
+The browser application artifact changes from 841,890 B raw / 227,133 B gzip
+to 842,475 B raw / 227,317 B gzip (+585 B raw / +184 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,670 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

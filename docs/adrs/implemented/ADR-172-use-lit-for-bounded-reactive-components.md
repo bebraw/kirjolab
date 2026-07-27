@@ -265,7 +265,8 @@ The adopted components own bounded presentation:
   metadata, active-PDF linked-reference projection and rows, its XState workflow
   actor, preview and acceptance requests, response validation, stale-response
   guards, status, busy state, focus transitions, and typed refresh-pending
-  acceptance and reference-opening outcomes.
+  acceptance and reference-opening outcomes consumed by its annotation-form
+  parent.
 - The LaTeX import panel owns archive, title, and root input, bounded client
   validation, converted-file and diagnostic review, preview identity, busy and
   status presentation, native dialog lifecycle, authenticated preview and
@@ -398,7 +399,8 @@ The adopted components own bounded presentation:
   status and retryable failures, paint-versus-erase tool guidance and selection
   feedback derived from its local tool and canonical capture, citation
   availability derived from the active PDF and canonical publication-PDF
-  links, and typed tool, complete
+  links, nested publication-intake configuration and PDF projection, intake
+  refresh acknowledgement and navigation routing, and typed tool, complete
   undo, citation, completed save, and link outcomes or intents.
 - The Library PDF annotation forms own private-highlight, page-note, and
   selected-markup composer visibility and values, private-highlight geometry
@@ -662,7 +664,7 @@ reason to wrap static markup mechanically.
   seven request/workflow methods while leaving canonical snapshot refresh,
   publication navigation, and global toast presentation in the application
   coordinator. Acceptance stays in the machine's accepting state until that
-  refresh is acknowledged or rejected.
+  refresh is acknowledged or rejected by its annotation-form parent.
 - The LaTeX import panel replaces ten internal element references, two
   coordinator fields, and imperative root-option, converted-file, diagnostic,
   readiness, status, and busy rendering. It also replaces the separate native
@@ -801,6 +803,9 @@ reason to wrap static markup mechanically.
   last-stroke undo state, and coordinator note-update transport. It also
   replaces highlight create and extension endpoint selection, transport,
   Valibot response validation, fragment selection, and form/undo-state updates.
+  It also composes the publication-intake owner, removing that nested element's
+  global registry entry, coordinator listener and completion method, and direct
+  lookup from the context presenter.
   It leaves selection and overlap derivation, viewer draft clearing, manuscript
   linking, canonical refreshes, and toast policy in the application coordinator.
 - The Library PDF annotation forms replace seventeen internal element

@@ -87,7 +87,6 @@ import { type ProjectFileDialogMode, type ProjectFileSaved } from "./project-fil
 import { type ProjectImagesUploaded } from "./project-image-upload-control";
 import { projectTemplateSavedEvent, type ProjectTemplateSaved } from "./project-template-save-dialog";
 import { manuscriptMapSelectEvent, type ManuscriptMapSelection } from "./manuscript-map-panel";
-import { publicationIntakeActionEvent, type PublicationIntakeAction } from "./publication-intake-panel";
 import {
   applicationVersion,
   cacheOfflineNavigation,
@@ -532,6 +531,12 @@ class WorkspaceApp {
       else this.#refreshResourcesWithNotice(detail.message, "The reference was enriched, but project resources could not be refreshed.");
     });
     this.#elements.projectAnnotationForm.configure(apiBase);
+    this.#elements.projectAnnotationForm.bindIntake({
+      openPublication: (publication) => this.#openPublicationContext(publication),
+      presentNotice: (message) => this.#showToast(message),
+      publications: () => this.#snapshot?.publications ?? [],
+      refresh: async () => await this.#resourceRefresh.request(),
+    });
     this.#elements.projectAnnotationForm.addEventListener(projectAnnotationSavedEvent, (event) => {
       void this.#completeAnnotationSave((event as CustomEvent<ProjectAnnotationSaved>).detail);
     });
@@ -604,14 +609,6 @@ class WorkspaceApp {
       if (detail.action === "insert-citation") this.#insertActivePublicationCitation();
       else if (detail.action === "open-paper") void this.#openPublicationPaper(detail.paper);
       else this.#refreshResourcesWithNotice(detail.message, "The paper links changed, but project resources could not be refreshed.");
-    });
-    this.#elements.publicationIntakePanel.configure(apiBase);
-    this.#elements.publicationIntakePanel.addEventListener(publicationIntakeActionEvent, (event) => {
-      const detail = (event as CustomEvent<PublicationIntakeAction>).detail;
-      if (detail.action === "open-reference") {
-        const publication = this.#snapshot?.publications.find(({ id }) => id === detail.publicationId);
-        if (publication) this.#openPublicationContext(publication);
-      } else void this.#completePublicationIntake(detail.doi, detail.requestId);
     });
     this.#elements.assistantGenerationPresenter.bindCandidate(apiBase, {
       decisionChanged: () => {
@@ -1531,19 +1528,6 @@ class WorkspaceApp {
     }
     if (presentation.publicationPresented) this.#updateCitationInsertionAvailability();
     if (loadPdf && (activeTab?.kind === "pdf" || activeTab?.kind === "library-pdf")) void this.#loadActivePdf(false);
-  }
-
-  async #completePublicationIntake(doi: string, requestId: number): Promise<void> {
-    try {
-      await this.#resourceRefresh.request();
-      const publication = this.#snapshot?.publications.find((item) => item.doi === doi);
-      if (!publication) throw new Error("The connected publication could not be found");
-      if (!this.#elements.publicationIntakePanel.completeAcceptance(requestId)) return;
-      this.#openPublicationContext(publication);
-      this.#showToast("Reference added and connected; the manuscript is unchanged.");
-    } catch (error) {
-      this.#elements.publicationIntakePanel.failAcceptance(requestId, error);
-    }
   }
 
   #closeContextTab(key: ResearchContextKey): void {

@@ -26,7 +26,6 @@ import { pdfHighlightImportOutcomeEvent, type PdfHighlightImportOutcome } from "
 import { ProjectAnnotationForm } from "./project-annotation-form";
 import { ProjectEvidencePanel } from "./project-evidence-panel";
 import { PublicationContextPanel } from "./publication-context-panel";
-import { PublicationIntakePanel } from "./publication-intake-panel";
 import { PublicationListPanel } from "./publication-list-panel";
 import type { ResearchContextTab, ResearchResourceTab } from "./research-context";
 import { WorkspaceRailTabs } from "./workspace-rail-tabs";
@@ -415,7 +414,7 @@ export class ContextResourcePresenter extends LitElement {
   private presentProjectPdf(sources: ContextResourceSources): void {
     const tab = sources.activeTab;
     if (tab?.kind !== "pdf") return;
-    this.element("publication-intake-panel", PublicationIntakePanel)?.setPdf(
+    this.element("project-annotation-form", ProjectAnnotationForm)?.setIntakePdf(
       tab.id,
       sources.snapshot?.publications ?? [],
       sources.snapshot?.publicationPdfLinks ?? [],

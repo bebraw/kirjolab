@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import type { PublicationResource } from "../domain/workspace";
 import {
   ProjectAnnotationForm,
   projectAnnotationActionEvent,
@@ -7,8 +8,27 @@ import {
   type ProjectAnnotationSaved,
   type ProjectHighlightTool,
 } from "./project-annotation-form";
+import { PublicationIntakePanel, type PublicationIntakeAction } from "./publication-intake-panel";
+
+const publication = {
+  abstract: "",
+  authors: ["Ada Author"],
+  citationKey: "author2026",
+  createdAt: "2026-07-25T00:00:00.000Z",
+  doi: "10.5555/intake",
+  id: "publication-1",
+  metadataSource: "crossref",
+  title: "Reviewed intake",
+  type: "article",
+  updatedAt: "2026-07-25T00:00:00.000Z",
+  url: "https://doi.org/10.5555/intake",
+  venue: "Journal",
+  year: "2026",
+} satisfies PublicationResource;
 
 class TestProjectAnnotationForm extends ProjectAnnotationForm {
+  readonly intakeForTest = new PublicationIntakePanel();
+
   renderForTest() {
     return this.render();
   }
@@ -38,6 +58,18 @@ class TestProjectAnnotationForm extends ProjectAnnotationForm {
     if (action === "cite") this.citePage();
     else if (action === "undo") this.undoHighlight();
     else this.chooseTool(action);
+  }
+
+  intakeActionForTest(detail: PublicationIntakeAction): Promise<void> {
+    return this.handleIntake(new CustomEvent("publication-intake-action", { detail }));
+  }
+
+  firstUpdatedForTest(): void {
+    this.firstUpdated();
+  }
+
+  protected override get intake(): PublicationIntakePanel {
+    return this.intakeForTest;
   }
 }
 
@@ -90,6 +122,32 @@ describe("project annotation form", () => {
     panel.changeForTest("prefix", "new left");
     panel.changeForTest("suffix", "new right");
     expect(panel.renderForTest()).toBeDefined();
+  });
+
+  it("owns nested publication intake presentation and outcomes", async () => {
+    const panel = new TestProjectAnnotationForm();
+    const openPublication = vi.fn();
+    const presentNotice = vi.fn();
+    const refresh = vi.fn().mockResolvedValue(undefined);
+    const setPdf = vi.spyOn(panel.intakeForTest, "setPdf");
+    const configure = vi.spyOn(panel.intakeForTest, "configure");
+    const complete = vi.spyOn(panel.intakeForTest, "completeAcceptance").mockReturnValue(true);
+    const fail = vi.spyOn(panel.intakeForTest, "failAcceptance");
+    panel.bindIntake({ openPublication, presentNotice, publications: () => [publication], refresh });
+
+    panel.setIntakePdf("pdf-1", [publication], []);
+    panel.firstUpdatedForTest();
+    await panel.intakeActionForTest({ action: "open-reference", publicationId: publication.id });
+    await panel.intakeActionForTest({ action: "accepted", doi: publication.doi, requestId: 3 });
+    await panel.intakeActionForTest({ action: "accepted", doi: "10.5555/missing", requestId: 4 });
+
+    expect(setPdf).toHaveBeenCalledWith("pdf-1", [publication], []);
+    expect(configure).toHaveBeenCalledWith("");
+    expect(refresh).toHaveBeenCalledTimes(2);
+    expect(complete).toHaveBeenCalledWith(3);
+    expect(openPublication).toHaveBeenCalledTimes(2);
+    expect(presentNotice).toHaveBeenCalledWith("Reference added and connected; the manuscript is unchanged.");
+    expect(fail).toHaveBeenCalledWith(4, expect.any(Error));
   });
 
   it("owns note persistence and emits completed save and link outcomes", async () => {

@@ -1,7 +1,9 @@
 import { html, LitElement, type TemplateResult } from "lit";
-import type { AnnotationResource, CreateAnnotationInput, PdfResource, PublicationPdfLink } from "../domain/workspace";
+import type { AnnotationResource, CreateAnnotationInput, PdfResource, PublicationPdfLink, PublicationResource } from "../domain/workspace";
 import { isCreatedAnnotation } from "./app-contracts";
 import { errorMessage, expectOk, jsonFetch } from "./http";
+import "./publication-intake-panel";
+import type { PublicationIntakeAction, PublicationIntakePanel } from "./publication-intake-panel";
 
 export const projectAnnotationSavedEvent = "project-annotation-saved";
 export const projectAnnotationActionEvent = "project-annotation-action";
@@ -18,10 +20,22 @@ export interface ProjectAnnotationSaved {
   readonly message: string;
 }
 
+export interface ProjectAnnotationIntakeBinding {
+  readonly openPublication: (publication: PublicationResource) => void;
+  readonly presentNotice: (message: string) => void;
+  readonly publications: () => readonly PublicationResource[];
+  readonly refresh: () => Promise<void>;
+}
+
 type AnnotationDraft = Pick<AnnotationResource, "comment" | "id" | "page" | "prefix" | "quote" | "suffix">;
 type AnnotationCapture = Pick<CreateAnnotationInput, "page" | "prefix" | "quote" | "rects" | "suffix">;
 type PdfChoice = Pick<PdfResource, "id" | "name">;
 type UndoStroke = { readonly annotationId: string; readonly fragmentId: string };
+interface IntakeContext {
+  readonly pdfId: string;
+  readonly publicationPdfLinks: readonly PublicationPdfLink[];
+  readonly publications: readonly PublicationResource[];
+}
 
 export class ProjectAnnotationForm extends LitElement {
   static override properties = {
@@ -53,6 +67,8 @@ export class ProjectAnnotationForm extends LitElement {
   declare private visible: boolean;
   declare private quoteSuffix: string;
   private apiBase = "";
+  private intakeBinding: ProjectAnnotationIntakeBinding | undefined;
+  private intakeContext: IntakeContext | undefined;
 
   constructor() {
     super();
@@ -77,6 +93,16 @@ export class ProjectAnnotationForm extends LitElement {
 
   configure(apiBase: string): void {
     this.apiBase = apiBase;
+    this.intake?.configure(apiBase);
+  }
+
+  bindIntake(binding: ProjectAnnotationIntakeBinding): void {
+    this.intakeBinding = binding;
+  }
+
+  setIntakePdf(pdfId: string, publications: readonly PublicationResource[], links: readonly PublicationPdfLink[]): void {
+    this.intakeContext = { pdfId, publications, publicationPdfLinks: links };
+    this.syncIntake();
   }
 
   selectPdf(pdfId: string): void {
@@ -175,12 +201,21 @@ export class ProjectAnnotationForm extends LitElement {
     return this;
   }
 
+  protected override firstUpdated(): void {
+    this.intake?.configure(this.apiBase);
+    this.syncIntake();
+  }
+
   protected override render(): TemplateResult {
     return html`
       <aside class="annotation-composer" id="annotation-composer" aria-labelledby="annotation-composer-title" ?hidden=${!this.visible}>
         <details class="publication-intake" id="publication-intake">
           <summary><span id="publication-intake-heading">Identify reference</span><span class="count-badge">Optional</span></summary>
-          <publication-intake-panel class="publication-intake-body" id="publication-intake-panel"></publication-intake-panel>
+          <publication-intake-panel
+            class="publication-intake-body"
+            id="publication-intake-panel"
+            @publication-intake-action=${this.handleIntake}
+          ></publication-intake-panel>
         </details>
         <div class="flex flex-wrap items-end justify-between gap-3">
           <div>
@@ -306,6 +341,28 @@ export class ProjectAnnotationForm extends LitElement {
     this.emitAction({ action: "cite-page" });
   }
 
+  protected async handleIntake(event: CustomEvent<PublicationIntakeAction>): Promise<void> {
+    const binding = this.intakeBinding;
+    const intake = this.intake;
+    if (!binding || !intake) return;
+    const detail = event.detail;
+    if (detail.action === "open-reference") {
+      const publication = binding.publications().find(({ id }) => id === detail.publicationId);
+      if (publication) binding.openPublication(publication);
+      return;
+    }
+    try {
+      await binding.refresh();
+      const publication = binding.publications().find(({ doi }) => doi === detail.doi);
+      if (!publication) throw new Error("The connected publication could not be found");
+      if (!intake.completeAcceptance(detail.requestId)) return;
+      binding.openPublication(publication);
+      binding.presentNotice("Reference added and connected; the manuscript is unchanged.");
+    } catch (error) {
+      intake.failAcceptance(detail.requestId, error);
+    }
+  }
+
   private emitAction(detail: ProjectAnnotationAction): void {
     this.dispatchEvent(new CustomEvent<ProjectAnnotationAction>(projectAnnotationActionEvent, { bubbles: true, detail }));
   }
@@ -348,6 +405,15 @@ export class ProjectAnnotationForm extends LitElement {
 
   protected changeSuffix(event: Event): void {
     this.quoteSuffix = inputValue(event);
+  }
+
+  private syncIntake(): void {
+    const context = this.intakeContext;
+    if (context) this.intake?.setPdf(context.pdfId, context.publications, context.publicationPdfLinks);
+  }
+
+  protected get intake(): PublicationIntakePanel | null {
+    return this.querySelector<PublicationIntakePanel>("publication-intake-panel");
   }
 }
 

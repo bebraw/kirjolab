@@ -38,7 +38,6 @@ import { ProjectStartingPointBrowser } from "./project-starting-point-browser";
 import { ProjectTemplateSaveDialog } from "./project-template-save-dialog";
 import { ProjectTreePanel } from "./project-tree-panel";
 import { PublicationContextPanel } from "./publication-context-panel";
-import { PublicationIntakePanel } from "./publication-intake-panel";
 import { PublicationListPanel } from "./publication-list-panel";
 import { ReferenceLibraryWorkspace } from "./reference-library-workspace";
 import { ResearchDiarySummary } from "./research-diary-summary";
@@ -122,7 +121,6 @@ export function collectAppElements(requireElement = requiredAppElement) {
     libraryPdfAnnotationToolbar: requireElement("library-pdf-annotation-toolbar", LibraryPdfAnnotationToolbar),
     paperMarkups: requireElement("paper-markups", LibraryPdfMarkupLayer),
     paperReader: requireElement("paper-reader", HTMLElement),
-    publicationIntakePanel: requireElement("publication-intake-panel", PublicationIntakePanel),
     assistantTaskPanel: requireElement("assistant-task-panel", AssistantTaskPanel),
     assistantInteractiveResult: requireElement("assistant-interactive-result", AssistantResultPanel),
     assistantWorkflowStatus: requireElement("assistant-workflow-status", AssistantWorkflowStatus),

@@ -37,9 +37,12 @@ with an authored passage.
   publication-intake composition, visibility, visible-PDF choices, captured
   page and quotation context, the optional note, selection status, citation
   availability, highlight-tool and undo presentation, and typed tool, undo,
-  citation, save, and link intents. It derives paint-versus-erase tool guidance
-  and selection feedback from its local tool and the canonical capture, plus
-  citation availability from the active PDF and canonical publication-PDF links. The
+  citation, save, and link intents. It configures and projects its nested
+  publication-intake owner and routes its refresh-pending acceptance and linked-
+  reference navigation through typed coordinator callbacks. It derives paint-
+  versus-erase tool guidance and selection feedback from its local tool and the
+  canonical capture, plus citation availability from the active PDF and
+  canonical publication-PDF links. The
   workspace coordinator retains highlight geometry and persistence, annotation
   identity, manuscript selection, refreshes, and user notifications.
 - `POST /api/workspaces/{id}/annotation-links` validates an annotation and
