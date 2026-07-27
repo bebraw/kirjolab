@@ -46,9 +46,32 @@ import type { ProjectReferencePdf, SharedResearchContent } from "../domain/refer
 import { handleGitHubWorkspaceSyncApi } from "./github-sync";
 import { handleReviewStudyApi } from "./review-study";
 import { ensureLegacyReviewResource, workspaceStorageKey } from "./reviews";
+import * as v from "valibot";
 
 const maximumPdfBytes = 25 * 1024 * 1024;
 const maximumImageBytes = 20 * 1024 * 1024;
+const workspaceTitleSchema = v.pipe(
+  v.string(),
+  v.maxLength(120),
+  v.check((value) => value.trim().length > 0),
+);
+const trimmedWorkspaceTitleSchema = v.pipe(
+  v.string(),
+  v.transform((value) => value.trim()),
+  v.minLength(1),
+  v.maxLength(120),
+);
+const workspaceSettingsSchema = v.object({
+  title: v.optional(trimmedWorkspaceTitleSchema),
+  archived: v.optional(v.boolean()),
+  publicationProfile: v.optional(v.custom<ProjectPublicationProfile>(isProjectPublicationProfile)),
+  entryFileId: v.optional(v.pipe(v.string(), v.minLength(1), v.maxLength(128))),
+});
+const projectMilestoneCreationSchema = v.object({
+  name: workspaceTitleSchema,
+  description: v.optional(v.pipe(v.string(), v.maxLength(2_000))),
+});
+const workspaceSeedCreationSchema = v.object({ title: workspaceTitleSchema });
 const imageExtensions: Readonly<Record<ProjectAsset["mediaType"], readonly string[]>> = {
   "image/png": [".png"],
   "image/jpeg": [".jpg", ".jpeg"],
@@ -81,15 +104,6 @@ interface WorkspaceRouteContext {
 interface ProjectHistoryRouteContext extends WorkspaceRouteContext {
   readonly revision: number;
   readonly action: string | undefined;
-}
-
-interface ProjectMilestoneCreation {
-  readonly name: string;
-  readonly description?: string;
-}
-
-interface WorkspaceSeedCreation {
-  readonly title: string;
 }
 
 interface WorkspaceSettingsUpdate {
@@ -637,36 +651,14 @@ async function updateWorkspaceSettings(context: WorkspaceRouteContext): Promise<
 }
 
 function workspaceSettingsUpdate(value: unknown): WorkspaceSettingsUpdate | null {
-  if (!isWorkspaceSettingsInput(value)) return null;
+  const result = v.safeParse(workspaceSettingsSchema, value);
+  if (!result.success) return null;
   return {
-    title: value.title?.trim() ?? null,
-    archived: value.archived ?? null,
-    publicationProfile: value.publicationProfile ?? null,
-    entryFileId: value.entryFileId ?? null,
+    title: result.output.title ?? null,
+    archived: result.output.archived ?? null,
+    publicationProfile: result.output.publicationProfile ?? null,
+    entryFileId: result.output.entryFileId ?? null,
   };
-}
-
-function isWorkspaceSettingsInput(value: unknown): value is {
-  readonly title?: string;
-  readonly archived?: boolean;
-  readonly publicationProfile?: ProjectPublicationProfile;
-  readonly entryFileId?: string;
-} {
-  return (
-    isRecord(value) &&
-    isOptionalWorkspaceTitle(value.title) &&
-    (value.archived === undefined || typeof value.archived === "boolean") &&
-    (value.publicationProfile === undefined || isProjectPublicationProfile(value.publicationProfile)) &&
-    isOptionalEntryFileId(value.entryFileId)
-  );
-}
-
-function isOptionalWorkspaceTitle(value: unknown): value is string | undefined {
-  return value === undefined || (typeof value === "string" && value.trim().length > 0 && value.trim().length <= 120);
-}
-
-function isOptionalEntryFileId(value: unknown): value is string | undefined {
-  return value === undefined || (typeof value === "string" && value.length > 0 && value.length <= 128);
 }
 
 async function duplicateWorkspace(
@@ -678,8 +670,8 @@ async function duplicateWorkspace(
   identity: AuthIdentity,
 ): Promise<Response> {
   const body: unknown = await request.json();
-  if (!isRecord(body) || typeof body.title !== "string" || !body.title.trim() || body.title.length > 120)
-    return jsonError("Invalid duplicate title", 400);
+  const input = v.safeParse(v.object({ title: workspaceTitleSchema }), body);
+  if (!input.success) return jsonError("Invalid duplicate title", 400);
   const id = crypto.randomUUID();
   const storageKey = workspaceStorageKey(identity, id);
   const snapshot = await room.getSnapshot(workspaceId);
@@ -698,9 +690,9 @@ async function duplicateWorkspace(
   }
   await env.WORKSPACE_ACCESS.getByName(storageKey).initializeOwner(identity.email);
   const duplicate = env.DOCUMENT_ROOMS.getByName(storageKey);
-  await duplicate.seedFromRevision(id, body.title.trim(), await room.getHeadRevisionSeed());
+  await duplicate.seedFromRevision(id, input.output.title.trim(), await room.getHeadRevisionSeed());
   if (copiedAssets.length > 0) await duplicate.replaceProjectAssetObjects(id, copiedAssets);
-  return Response.json(await catalog.registerWorkspace(id, body.title.trim()), { status: 201 });
+  return Response.json(await catalog.registerWorkspace(id, input.output.title.trim()), { status: 201 });
 }
 
 async function saveWorkspaceTemplate(
@@ -828,18 +820,9 @@ async function handleProjectMilestoneRoute(context: ProjectHistoryRouteContext):
   const { request, action, revision, room } = context;
   if (action !== "milestones" || request.method !== "POST") return null;
   const body: unknown = await request.json();
-  if (!isProjectMilestoneCreation(body)) return jsonError("Invalid project milestone", 400);
-  return Response.json(await room.createMilestone(revision, body.name, body.description ?? ""), { status: 201 });
-}
-
-function isProjectMilestoneCreation(value: unknown): value is ProjectMilestoneCreation {
-  return (
-    isRecord(value) &&
-    typeof value.name === "string" &&
-    value.name.trim().length > 0 &&
-    value.name.length <= 120 &&
-    (value.description === undefined || (typeof value.description === "string" && value.description.length <= 2_000))
-  );
+  const input = v.safeParse(projectMilestoneCreationSchema, body);
+  if (!input.success) return jsonError("Invalid project milestone", 400);
+  return Response.json(await room.createMilestone(revision, input.output.name, input.output.description ?? ""), { status: 201 });
 }
 
 async function handleProjectRestoreRoute(context: ProjectHistoryRouteContext): Promise<Response | null> {
@@ -854,19 +837,16 @@ async function handleProjectSeedRoute(context: ProjectHistoryRouteContext): Prom
   const { request, action, identity, revision, env, room, catalog } = context;
   if (action !== "seed" || request.method !== "POST") return null;
   const body: unknown = await request.json();
-  if (!isWorkspaceSeedCreation(body)) return jsonError("Invalid workspace seed", 400);
+  const input = v.safeParse(workspaceSeedCreationSchema, body);
+  if (!input.success) return jsonError("Invalid workspace seed", 400);
   const id = crypto.randomUUID();
-  const title = body.title.trim();
+  const title = input.output.title.trim();
   const storageKey = workspaceStorageKey(identity, id);
   const access = env.WORKSPACE_ACCESS.getByName(storageKey);
   await access.initializeOwner(identity.email);
   const target = env.DOCUMENT_ROOMS.getByName(storageKey);
   await target.seedFromRevision(id, title, await room.getRevisionSeed(revision));
   return Response.json(await catalog.registerWorkspace(id, title), { status: 201 });
-}
-
-function isWorkspaceSeedCreation(value: unknown): value is WorkspaceSeedCreation {
-  return isRecord(value) && typeof value.title === "string" && value.title.trim().length > 0 && value.title.length <= 120;
 }
 
 function revisionParameter(value: string | null): number | null {

@@ -967,6 +967,8 @@ test("renames, archives, duplicates, and permanently deletes projects", async ({
   const workspaceId = await createWorkspace(page, "Lifecycle source");
   const api = `/api/workspaces/${workspaceId}`;
   const headers = { origin: "http://127.0.0.1:8788" };
+  expect((await page.request.patch(`${api}/settings`, { headers, data: { title: "   " } })).status()).toBe(400);
+  expect((await page.request.patch(`${api}/settings`, { headers, data: { entryFileId: "" } })).status()).toBe(400);
   let response = await page.request.patch(`${api}/settings`, { headers, data: { title: "Renamed lifecycle", archived: true } });
   expect(response.ok()).toBe(true);
   expect(await response.json()).toMatchObject({ id: workspaceId, title: "Renamed lifecycle", archivedAt: expect.any(String) });
@@ -978,6 +980,7 @@ test("renames, archives, duplicates, and permanently deletes projects", async ({
   expect(await (await page.request.get(api)).json()).toMatchObject({
     publicationProfile: { citationStyle: "ieee", locale: "fi-FI", submissionTemplate: "anonymous-review", paperSize: "letter" },
   });
+  expect((await page.request.post(`${api}/duplicate`, { headers, data: { title: "x".repeat(121) } })).status()).toBe(400);
   response = await page.request.post(`${api}/duplicate`, { headers, data: { title: "Lifecycle copy" } });
   expect(response.status()).toBe(201);
   const duplicate = (await response.json()) as { id: string; title: string };
@@ -4648,6 +4651,14 @@ test("names, compares, restores, and branches immutable project revisions", asyn
     throw new Error("Expected project revision history");
   }
   const head = history[0].revision;
+  expect(
+    (
+      await page.request.post(`${api}/history/${head}/milestones`, {
+        headers: { origin: "http://127.0.0.1:8788" },
+        data: { name: "   " },
+      })
+    ).status(),
+  ).toBe(400);
   const milestone = await page.request.post(`${api}/history/${head}/milestones`, {
     headers: { origin: "http://127.0.0.1:8788" },
     data: { name: "review draft", description: "Sent for review" },
@@ -4695,6 +4706,14 @@ test("names, compares, restores, and branches immutable project revisions", asyn
   await expect(page.locator("#project-history-list")).toContainText("project-file-create");
   await page.locator("#close-project-history").click();
 
+  expect(
+    (
+      await page.request.post(`${api}/history/${head}/seed`, {
+        headers: { origin: "http://127.0.0.1:8788" },
+        data: { title: "x".repeat(121) },
+      })
+    ).status(),
+  ).toBe(400);
   const branch = await page.request.post(`${api}/history/${head}/seed`, {
     headers: { origin: "http://127.0.0.1:8788" },
     data: { title: "Reviewer response branch" },

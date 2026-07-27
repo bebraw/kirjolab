@@ -21,6 +21,9 @@ making the storage term `workspace` the primary browser hierarchy.
 - `GET /api/workspaces` lists at most 200 catalog summaries.
 - `POST /api/workspaces` validates a title, initializes a document room, and
   registers a UUID workspace summary.
+- Workspace settings and duplication commands validate their optional fields,
+  title, entry-file identity, publication profile, and scalar bounds through
+  the shared Valibot trust-boundary policy before catalog or document mutation.
 - `/editor/{id}` is the canonical browser representation and
   `/api/workspaces/{id}` remains the stable API representation.
 - `/editor` redirects to the first active authorized catalog entry, which is
@@ -75,6 +78,8 @@ making the storage term `workspace` the primary browser hierarchy.
 ### Regression Guardrails
 
 - Workspace titles must be non-empty and at most 120 characters.
+- Settings entry-file identities must be non-empty and at most 128 characters;
+  malformed lifecycle commands must not mutate the room or catalog.
 - Workspace route ids must match the bounded alphanumeric/hyphen grammar.
 - Every workspace API request must resolve through the current owner catalog.
 - A document room must not enumerate or coordinate unrelated workspaces.

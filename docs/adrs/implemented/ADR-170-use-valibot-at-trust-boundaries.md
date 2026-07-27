@@ -59,6 +59,10 @@ Adopted boundaries are:
   note, drawing, point, style, position, and reading-state schemas replace
   parallel structural interfaces and predicates while imported-candidate
   semantics, authorization, and Durable Object domain bounds remain explicit.
+- Workspace lifecycle commands: settings, duplicate-title, milestone, and
+  revision-seed schemas replace parallel request interfaces, record checks, and
+  scalar predicates while authorization, canonical title trimming, catalog
+  fan-out, revision identity, and Durable Object mutations remain explicit.
 
 Schemas validate local structure only. Stateful invariants, authorization,
 deduplication, provenance, canonicalization, and relationships between records

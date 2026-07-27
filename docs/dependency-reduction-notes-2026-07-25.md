@@ -6411,6 +6411,29 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,657 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Valibot Adoption: Workspace Lifecycle Commands
+
+Workspace settings, project duplication, milestone creation, and revision
+seeding now validate their local request structures and scalar bounds with
+composable Valibot schemas. Authorization, canonical title trimming, catalog
+fan-out, revision identity, and Durable Object mutations remain explicit
+workspace orchestration policy.
+
+This checkpoint reduces `src/api/workspace.ts` from 1,749 to 1,720 lines (-29),
+replacing three request interfaces, four structural predicates, two primitive
+helpers, and an inline duplicate-title guard. Existing lifecycle and history
+browser scenarios now also reject blank or overlong titles, empty entry-file
+identities, and malformed milestone names alongside strict types and all 121
+Workers-runtime tests.
+
+Browser application and style artifacts remain unchanged at 838,842 B raw /
+226,566 B gzip and 135,411 B raw / 23,373 B gzip because this boundary is
+Worker-side. Direct and unique production package counts remain 18 and 150;
+Valibot was already pinned.
+
+Full native CI passes all 1,657 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

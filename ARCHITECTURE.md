@@ -34,7 +34,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   private-PDF mutation boundary, schemas own highlight, imported-highlight
   envelope, note, drawing, point, style, position, and reading-state structure;
   imported-candidate semantics, owner authorization, and Durable Object domain
-  bounds stay explicit.
+  bounds stay explicit. At workspace lifecycle command boundaries, schemas own
+  settings, duplicate-title, milestone, and revision-seed structure and scalar
+  bounds; authorization, canonical title trimming, catalog fan-out, revision
+  identity, and Durable Object mutations stay explicit.
 - Read bounded external response bodies through stateless, request-local
   helpers that enforce both declared and observed byte limits. Keep byte
   ceilings, errors, response-shape validation, and domain mapping explicit at

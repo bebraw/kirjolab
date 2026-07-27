@@ -79,6 +79,9 @@ continues to use a narrow source revision for stale-selection checks.
   owner-only head.
 - `POST /api/workspaces/{id}/history/{revision}/seed` creates and returns a new
   owner-only workspace summary.
+- Milestone and revision-seed request bodies use bounded Valibot schemas for
+  their names, optional descriptions, and titles before any history or catalog
+  mutation; ownership and revision existence remain separate server policy.
 
 ### Regression Guardrails
 
@@ -89,6 +92,8 @@ continues to use a narrow source revision for stale-selection checks.
 - A document mutation and its logical snapshot must commit atomically.
 - Restore failure must retain the prior live Yjs document and head state.
 - Milestone creation must reject duplicate names without changing the target.
+- Milestone names and seed titles must be nonblank and no longer than 120
+  characters; milestone descriptions must not exceed 2,000 characters.
 - Historical reads and comparisons must not mutate the live project.
 - Closing or reopening History invalidates late timeline, inspection, and
   comparison responses. A mutation that the server has already accepted still
