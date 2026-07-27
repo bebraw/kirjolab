@@ -587,20 +587,10 @@ class WorkspaceApp {
     this.#hasBootstrapSnapshot = true;
     this.#collaboration.setOfflineAvailable(true);
     this.#elements.projectHistoryTrigger.setRevision(restored.snapshot.revision);
-    this.#elements.workspaceCatalogPanel.setData([
-      {
-        id: restored.snapshot.id,
-        title: restored.snapshot.title,
-        href: `/editor/${encodeURIComponent(restored.snapshot.id)}`,
-        createdAt: restored.savedAt,
-        updatedAt: restored.savedAt,
-        archivedAt: null,
-      },
-    ]);
+    this.#elements.workspaceCatalogPanel.presentOfflineWorkspace(restored.snapshot, restored.savedAt);
     this.#elements.projectFileDialog.presentProject(restored.snapshot, `${apiBase}/assets`, appMode === "workspace");
     this.#elements.contextResourcePresenter.presentBoundWorkspace();
-    this.#elements.connectionStatus.presentWorkflow();
-    this.#elements.editorStatus.setSave(pending ? "Saved offline" : "Saved");
+    this.#elements.connectionStatus.presentOfflineRestore(pending);
     void this.#elements.workspacePreview.renderBoundProject();
     return true;
   }

@@ -11611,3 +11611,28 @@ B / 23,373 B, 204,779 B / 62,386 B, and 481,994 B / 146,135 B.
 
 Full native CI passes all 1,753 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Lit Ownership: Offline Restore Presentation
+
+`WorkspaceCatalogPanel` now derives the single authorized offline project row
+from restored snapshot identity, title, and save time. `ConnectionStatus`
+combines restored collaboration/editability projection with pending-versus-
+saved wording. `WorkspaceApp` retains canonical snapshot assignment,
+collaboration recovery, project presentation, and Preview rendering.
+
+This checkpoint reduces `src/client/app.ts` from 619 to 605 lines (-14), grows
+the connection-status owner from 78 to 84 lines (+6), and grows the catalog
+owner from 159 to 172 lines (+13). The five-line combined increase removes
+offline-specific row and status construction from the coordinator while keeping
+canonical state effects explicit. Focused coverage passes encoded offline
+routes, timestamp projection, compact-switcher synchronization, restored
+editability and save wording, and strict types. Direct and unique production
+package counts remain 18 and 150; Lit was already pinned.
+
+The browser application artifact increases from 857,031 B raw / 230,658 B gzip
+to 857,627 B / 230,812 B (+596 B raw / +154 B gzip). Styles and lazy Markdown
+and PDF.js artifacts remain unchanged at 135,411 B / 23,373 B, 204,779 B /
+62,386 B, and 481,994 B / 146,135 B.
+
+Full native CI passes all 1,754 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.

@@ -29,17 +29,20 @@ describe("connection status", () => {
     const source = { disabled: false } as HTMLTextAreaElement;
     const bibliography = { disabled: false } as HTMLTextAreaElement;
     const refreshAvailability = vi.fn();
+    const setSave = vi.fn();
 
     status.presentWorkflow();
     status.bindWorkflow(
       { canEdit: false, status: { connected: false, label: "Offline" } },
-      { assistantGenerationPresenter: { refreshAvailability }, bibliography, source },
+      { assistantGenerationPresenter: { refreshAvailability }, bibliography, editorStatus: { setSave }, source },
     );
     status.presentWorkflow();
+    status.presentOfflineRestore(true);
 
     expect(source.disabled).toBe(true);
     expect(bibliography.disabled).toBe(true);
-    expect(refreshAvailability).toHaveBeenCalledOnce();
+    expect(refreshAvailability).toHaveBeenCalledTimes(2);
+    expect(setSave).toHaveBeenCalledWith("Saved offline");
     expect(status.renderForTest()).toBeDefined();
   });
 });

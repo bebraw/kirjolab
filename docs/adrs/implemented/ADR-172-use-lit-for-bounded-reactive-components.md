@@ -67,8 +67,9 @@ The adopted components own bounded presentation:
   lifecycle, including its server-rendered entry trigger. It also owns catalog
   fetch and response validation, retains the one browser catalog projection,
   synchronizes the compact workspace switcher, and exposes a read-only catalog
-  to settings and template workflows. The coordinator retains canonical route
-  navigation.
+  to settings and template workflows. It also derives the single authorized
+  offline project row from restored snapshot identity, title, and save time.
+  The coordinator retains canonical route navigation.
 - The project history panel owns timeline, comparison controls, busy and error
   states, revision cards, inspectors, and typed revision-operation intents.
 - The project history dialog composes the server-rendered modal and reactive
@@ -1187,8 +1188,10 @@ reason to wrap static markup mechanically.
 - The connection status component replaces separate label and tone element
   references, binds the collaboration workflow and authoring controls once, and
   owns synchronized label/tone, source and companion editability, and assistant-
-  availability refresh. The collaboration session retains state interpretation;
-  the application coordinator retains Library-mode status and save wording.
+  availability refresh. On offline restore it combines that projection with
+  pending-versus-saved wording through its bound editor-status owner. The
+  collaboration session retains state interpretation; the application
+  coordinator retains Library-mode status and other save transitions.
 - The Vim mode control replaces separate toggle and mode-status element
   references and owns browser-local enablement, mode presentation, modal key
   handling, pointer-selection transitions, and editor-listener teardown. The

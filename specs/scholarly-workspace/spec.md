@@ -400,6 +400,11 @@ collaboration.
   delegation, project-copy clearing, and coordinated IndexedDB and shell-cache
   cleanup. Collaboration recovery and restored-state UI projection remain
   outside that persistence boundary.
+  The workspace-catalog owner derives the single authorized offline project row
+  from restored snapshot identity, title, and save time. The connection-status
+  owner combines restored collaboration/editability projection with pending-
+  versus-saved wording. Canonical snapshot assignment, collaboration recovery,
+  project presentation, and Preview rendering remain coordinator effects.
 - **Offline shell updates:** Browser builds derive the Kirjolab Cache Storage
   namespace from emitted shell content. Workspace and Library startup both
   check an existing registration for an update without adding Library

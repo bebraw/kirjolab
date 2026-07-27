@@ -156,8 +156,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   internal template mutations refresh against the same derived input. Let the
   project catalog owner fetch and validate its authorized summaries, retain the
   one browser catalog projection, and synchronize the compact switcher from
-  that state. Other workflows consume its read-only catalog; keep canonical
-  route navigation outside it.
+  that state. Let it derive the single authorized offline project row from a
+  restored snapshot identity, title, and save time. Other workflows consume its
+  read-only catalog; keep canonical route navigation outside it.
 - Let the workspace rail-tabs Lit owner apply each internal or workflow-driven
   rail selection to its active tab and controlled panel before reporting the
   selected mode through one typed navigation callback. Keep URL synchronization,
@@ -844,9 +845,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   interpretation, and offline-save policy in their authorities.
 - Let the connection-status Lit owner bind the collaboration workflow and
   authoring controls once, derive label/tone and source/companion editability,
-  and request assistant-availability refresh after each workflow transition.
+  request assistant-availability refresh after each workflow transition, and
+  combine restored offline presentation with pending-versus-saved wording.
   Keep socket transport, collaboration-state transitions, Library-mode status,
-  and save wording in their existing authorities.
+  and other save transitions in their existing authorities.
 - Let the preview-synchronization Lit owner bind the native source viewport and
   inert highlight lines; own click, selection, and navigation-key follow
   behavior; derive the source offset nearest the viewport center; center the

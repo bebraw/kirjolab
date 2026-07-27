@@ -8,6 +8,7 @@ export interface ConnectionWorkflow {
 export interface ConnectionWorkflowOwners {
   readonly assistantGenerationPresenter: { readonly refreshAvailability: () => void };
   readonly bibliography: HTMLTextAreaElement;
+  readonly editorStatus: { readonly setSave: (message: string) => void };
   readonly source: HTMLTextAreaElement;
 }
 
@@ -47,6 +48,11 @@ export class ConnectionStatus extends LitElement {
     owners.source.disabled = !workflow.canEdit;
     owners.bibliography.disabled = !workflow.canEdit;
     owners.assistantGenerationPresenter.refreshAvailability();
+  }
+
+  presentOfflineRestore(pending: boolean): void {
+    this.presentWorkflow();
+    this.workflowOwners?.editorStatus.setSave(pending ? "Saved offline" : "Saved");
   }
 
   override connectedCallback(): void {

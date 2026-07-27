@@ -1,5 +1,5 @@
 import { html, LitElement, type TemplateResult } from "lit";
-import { isWorkspaceSummaries, type WorkspaceSummary } from "../domain/workspace";
+import { isWorkspaceSummaries, type WorkspaceSnapshot, type WorkspaceSummary } from "../domain/workspace";
 import { formatCalendarDate } from "./format";
 
 interface WorkspaceCatalogSwitcher {
@@ -41,6 +41,19 @@ export class WorkspaceCatalogPanel extends LitElement {
     this.workspaces = workspaces;
     this.currentWorkspaceId = currentWorkspaceId;
     this.switcher?.setData(workspaces, currentWorkspaceId);
+  }
+
+  presentOfflineWorkspace(workspace: Pick<WorkspaceSnapshot, "id" | "title">, savedAt: string): void {
+    this.setData([
+      {
+        id: workspace.id,
+        title: workspace.title,
+        href: `/editor/${encodeURIComponent(workspace.id)}`,
+        createdAt: savedAt,
+        updatedAt: savedAt,
+        archivedAt: null,
+      },
+    ]);
   }
 
   async refresh(): Promise<void> {

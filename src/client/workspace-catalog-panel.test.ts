@@ -71,6 +71,26 @@ describe("workspace catalog presentation", () => {
     expect(panel).toBeInstanceOf(WorkspaceCatalogPanel);
   });
 
+  it("derives the offline project catalog row", () => {
+    const panel = new TestWorkspaceCatalogPanel();
+    const switcher = { setData: vi.fn() };
+    panel.configure("/api/workspaces", "offline/project", switcher);
+
+    panel.presentOfflineWorkspace({ id: "offline/project", title: "Offline inquiry" }, "2026-07-28T12:00:00.000Z");
+
+    expect(panel.catalog).toEqual([
+      {
+        archivedAt: null,
+        createdAt: "2026-07-28T12:00:00.000Z",
+        href: "/editor/offline%2Fproject",
+        id: "offline/project",
+        title: "Offline inquiry",
+        updatedAt: "2026-07-28T12:00:00.000Z",
+      },
+    ]);
+    expect(switcher.setData).toHaveBeenCalledWith(panel.catalog, "offline/project");
+  });
+
   it("loads and validates the shared workspace catalog", async () => {
     const panel = new TestWorkspaceCatalogPanel();
     const switcher = { setData: vi.fn() };
