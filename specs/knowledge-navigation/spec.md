@@ -100,6 +100,11 @@ connection without reconstructing identity from a citation key or filename.
   failure state, and completed-relationship outcomes. Manuscript insertion, PDF
   navigation, canonical refresh, and workspace notification policy remain
   outside it.
+- The candidate-review presentation component resolves the active candidate id
+  against canonical workspace state and owns its local evidence availability,
+  applicability, matching decision progress, retryable failure, and scroll
+  presentation. Assistant workflow transitions, canonical refresh, tab
+  movement, and workspace notification policy remain outside it.
 - The project-map workspace owns authorized search requests, response
   validation, and the shared idle, result, and error state that controls both
   the search presentation and graph-overview visibility. Resource navigation

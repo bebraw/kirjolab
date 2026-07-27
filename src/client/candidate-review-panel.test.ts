@@ -96,10 +96,13 @@ class TestCandidateReviewPanel extends CandidateReviewPanel {
 
 function data(candidate: ModelCandidate = revision, overrides: Partial<CandidateReviewSources> = {}): CandidateReviewSources {
   return {
-    annotations: [{ id: annotation.id, updatedAt: annotation.version }],
-    candidate,
-    claims: [],
-    decisionBusy: false,
+    candidateId: candidate.id,
+    decision: null,
+    snapshot: {
+      annotations: [{ ...annotation, updatedAt: annotation.version }],
+      candidates: [candidate],
+      claims: [],
+    },
     sourceRevision: 3,
     stableDocument: true,
     ...overrides,
@@ -111,13 +114,28 @@ afterEach(() => {
 });
 
 describe("candidate review panel", () => {
+  it("resolves candidates from canonical snapshots", () => {
+    const panel = new TestCandidateReviewPanel();
+
+    expect(panel.setCandidate(data())).toBe(true);
+    expect(panel.setCandidate(data(revision, { candidateId: "missing" }))).toBe(false);
+    expect(panel.setCandidate(data(revision, { snapshot: null }))).toBe(false);
+    expect(panel.renderForTest()).toBeDefined();
+  });
+
   it("renders empty, revision, busy, stale, and failure states", () => {
     const panel = new TestCandidateReviewPanel();
     expect(panel.renderForTest()).toBeDefined();
     panel.setCandidate(data());
     panel.setAvailability(false, true);
     expect(panel.renderForTest()).toBeDefined();
-    panel.setCandidate(data(revision, { currentAction: "apply", decisionBusy: true, sourceRevision: 4, stableDocument: false }));
+    panel.setCandidate(
+      data(revision, {
+        decision: { action: "apply", id: revision.id },
+        sourceRevision: 4,
+        stableDocument: false,
+      }),
+    );
     expect(panel.renderForTest()).toBeDefined();
     panel.showFailure("Could not apply revision");
     expect(panel.renderForTest()).toBeDefined();
@@ -128,9 +146,11 @@ describe("candidate review panel", () => {
     const panel = new TestCandidateReviewPanel();
     panel.setCandidate(data(claim));
     expect(panel.renderForTest()).toBeDefined();
-    panel.setCandidate(data({ ...claim, status: "rejected" }, { currentAction: "reject" }));
+    panel.setCandidate(data({ ...claim, status: "rejected" }, { decision: { action: "reject", id: claim.id } }));
     expect(panel.renderForTest()).toBeDefined();
-    panel.setCandidate(data({ ...claim, status: "pending" }, { annotations: [] }));
+    panel.setCandidate(
+      data({ ...claim, status: "pending" }, { snapshot: { annotations: [], candidates: [{ ...claim, status: "pending" }], claims: [] } }),
+    );
     expect(panel.renderForTest()).toBeDefined();
   });
 
@@ -146,7 +166,9 @@ describe("candidate review panel", () => {
       data({ ...revision, target: { ...revision.target, resolution: { ...revision.target.resolution, exactMatch: false } } }),
     );
     panel.applyForTest();
-    panel.setCandidate(data({ ...claim, status: "pending" }, { annotations: [] }));
+    panel.setCandidate(
+      data({ ...claim, status: "pending" }, { snapshot: { annotations: [], candidates: [{ ...claim, status: "pending" }], claims: [] } }),
+    );
     panel.applyForTest();
     panel.setCandidate(data({ ...claim, status: "pending" }));
     panel.applyForTest();

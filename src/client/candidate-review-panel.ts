@@ -29,11 +29,13 @@ export interface CandidateReviewData {
 }
 
 export interface CandidateReviewSources {
-  readonly annotations: readonly Pick<AnnotationResource, "id" | "updatedAt">[];
-  readonly candidate: ModelCandidate;
-  readonly claims: readonly Pick<ClaimResource, "id">[];
-  readonly currentAction?: "apply" | "reject";
-  readonly decisionBusy: boolean;
+  readonly candidateId: string;
+  readonly decision: { readonly action: "apply" | "reject"; readonly id: string } | null;
+  readonly snapshot: {
+    readonly annotations: readonly Pick<AnnotationResource, "id" | "updatedAt">[];
+    readonly candidates: readonly ModelCandidate[];
+    readonly claims: readonly Pick<ClaimResource, "id">[];
+  } | null;
   readonly sourceRevision: number;
   readonly stableDocument: boolean;
 }
@@ -54,15 +56,15 @@ export class CandidateReviewPanel extends LitElement {
     this.failure = null;
   }
 
-  setCandidate({
-    annotations,
-    candidate,
-    claims,
-    currentAction,
-    decisionBusy,
-    sourceRevision,
-    stableDocument,
-  }: CandidateReviewSources): void {
+  setCandidate({ candidateId, decision, snapshot, sourceRevision, stableDocument }: CandidateReviewSources): boolean {
+    const candidate = snapshot?.candidates.find((item) => item.id === candidateId);
+    if (!candidate || !snapshot) {
+      this.data = null;
+      this.failure = null;
+      return false;
+    }
+    const { annotations, claims } = snapshot;
+    const currentAction = decision?.id === candidate.id ? decision.action : undefined;
     if (this.data?.candidate.id !== candidate.id || candidate.status !== "pending") this.failure = null;
     const applicable =
       candidate.status === "pending" &&
@@ -78,9 +80,10 @@ export class CandidateReviewPanel extends LitElement {
       availableEvidenceIds: new Set([...annotations, ...claims].map(({ id }) => id)),
       candidate,
       ...(currentAction ? { currentAction } : {}),
-      decisionBusy,
+      decisionBusy: decision !== null,
       stableDocument,
     };
+    return true;
   }
 
   configure(apiBase: string): void {

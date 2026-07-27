@@ -2074,17 +2074,12 @@ class WorkspaceApp {
   }
 
   #renderCandidateContext(tab: ResearchResourceTab): void {
-    if (tab.kind !== "candidate" || !this.#snapshot) return;
-    const candidate = this.#snapshot.candidates.find((item) => item.id === tab.id);
-    if (!candidate) return;
+    if (tab.kind !== "candidate") return;
     const candidateDecision = this.#assistantWorkflow.getSnapshot().context.candidateDecision;
-    const currentDecision = candidateDecision?.id === candidate.id ? candidateDecision : null;
     this.#elements.candidateReviewPanel.setCandidate({
-      annotations: this.#snapshot.annotations,
-      candidate,
-      claims: this.#snapshot.claims,
-      ...(currentDecision ? { currentAction: currentDecision.action } : {}),
-      decisionBusy: candidateDecision !== null,
+      candidateId: tab.id,
+      decision: candidateDecision,
+      snapshot: this.#snapshot,
       sourceRevision: this.#revision,
       stableDocument: this.#hasStableDocumentBase(),
     });

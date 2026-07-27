@@ -339,8 +339,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   response. Keep authorized target and evidence derivation, workflow state,
   canonical refresh, context navigation, workflow status, and Yjs edits in the
   coordinator.
-  Let the candidate-review Lit owner derive evidence availability and local
-  applicability from canonical candidate, evidence-version, source-revision,
+  Let the candidate-review Lit owner resolve the active candidate id against
+  the canonical workspace snapshot and derive evidence availability and local
+  applicability from candidate, evidence-version, source-revision,
   anchor-resolution, document-stability, and busy inputs; gate decisions; own
   encoded apply/reject transport, retryable same-candidate failures, and
   decision-specific completion wording; and emit typed start and completed

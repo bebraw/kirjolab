@@ -5507,6 +5507,30 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,615 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Candidate Lookup
+
+`CandidateReviewPanel` now resolves its active candidate id against the
+canonical workspace snapshot and matches the current decision before deriving
+evidence availability and revision or claim-draft applicability. `WorkspaceApp`
+retains canonical inputs, assistant workflow transitions, refresh, context
+navigation, scroll coordination, and notification policy.
+
+This checkpoint reduces `src/client/app.ts` from 3,259 to 3,254 lines (-5) and
+grows the candidate-review owner from 312 to 325 lines. Runtime source across
+those two files grows by eight lines while deleting the coordinator's canonical
+candidate and matching-decision lookups. Eight focused cases cover unavailable
+snapshots and ids, both candidate operations, applicability, evidence and
+decision intents, transport, retryable failure, scroll, and strict client and
+Workers types. The change introduces no new branching in the coordinator.
+
+The browser application artifact changes from 828,056 B raw / 224,005 B gzip
+to 828,028 B raw / 224,000 B gzip (-28 B raw / -5 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,616 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

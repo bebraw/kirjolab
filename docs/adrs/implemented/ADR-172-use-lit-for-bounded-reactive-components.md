@@ -90,9 +90,10 @@ The adopted components own bounded presentation:
   panels; owns resource and link totals, search-versus-overview presentation,
   mode visibility, focus entry, and one typed resource-selection stream; and
   exposes one graph-presentation boundary to the application coordinator.
-- The candidate review panel owns before/after and provenance rendering,
-  evidence-link availability, local revision and claim-draft applicability from
-  canonical inputs, live collaboration and workflow decision availability,
+- The candidate review panel resolves the active candidate id against the
+  canonical workspace snapshot and owns before/after and provenance rendering,
+  evidence-link availability, local revision and claim-draft applicability,
+  live collaboration and workflow decision availability,
   decision gating, encoded apply and reject transport, retryable same-candidate
   failure state, progress, local scroll state, decision-specific completion
   wording, and typed decision-start, completed-decision, and evidence-navigation
