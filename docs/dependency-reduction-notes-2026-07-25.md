@@ -9272,6 +9272,25 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,573 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Valibot Adoption: Bibliographic Record Contract
+
+The shared bibliographic-record boundary now derives its TypeScript field type
+and runtime predicate from one Valibot schema. The schema replaces the parallel
+handwritten interface and ten-field structural guard while retaining the
+existing rule that provenance must be a non-null, non-array object.
+
+This checkpoint reduces `src/domain/bibliographic-record-contract.ts` from 32
+to 22 lines (-10). Focused bibliographic, citation-contract, and Reference
+Library coverage passes all 23 tests alongside strict types.
+
+The browser application artifact changes from 849,083 B raw / 228,788 B gzip
+to 848,903 B raw / 228,835 B gzip (-180 B raw / +47 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150; Valibot was already pinned.
+
+Full native CI passes all 1,721 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Library PDF Project Use Projection
 
 `LibraryPdfProjectUse` now resolves the active bibliographic record and matching
