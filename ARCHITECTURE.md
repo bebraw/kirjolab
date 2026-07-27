@@ -87,6 +87,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   unlink transport, canonical workspace-response validation, and completed
   mutation outcome. Keep canonical snapshot application, project-PDF refresh,
   Library rerendering, and notification policy in the application coordinator.
+- Let the reference-Library Lit workspace own child mutation refresh
+  completion, success/failure notice selection, alternate metadata refresh, and
+  local request finalizers. Keep canonical Library loading and shared toast
+  presentation behind its typed callbacks.
 - Let the reference Library filter Lit owner derive dynamic type choices,
   filtered and sorted reference results, and visible-versus-total counts from
   the canonical Library snapshot, its local filter state, and canonical

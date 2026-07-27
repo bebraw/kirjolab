@@ -240,6 +240,12 @@ The adopted components own bounded presentation:
   metadata-to-CSL projection, import transport, duplicate-submit gating, local
   save progress and retryable failures, refresh-pending state, and a typed
   refresh outcome.
+- The reference Library workspace composes its bounded discovery, import, PDF
+  intake, metadata, personal-field, citation-network, web-source, archive, and
+  unidentified-PDF owners. It owns their refresh completion, success/failure
+  notice selection, alternate metadata refresh, and local request finalizers
+  while delegating canonical Library loading and shared notice presentation
+  through typed callbacks.
 - The citation network panel owns manual source and relationship choices, graph
   geometry, source and edge cards, assertion provenance and review controls,
   snowball candidates, and local candidate-save progress with typed record,
@@ -668,6 +674,10 @@ reason to wrap static markup mechanically.
   save-button renderer while leaving provider requests and response validation
   in its search sibling. It owns CSL import and its local lifecycle while the
   application coordinator retains canonical Library refresh and toast policy.
+- The reference Library workspace removes the coordinator's generic completion
+  wrapper by converging child mutation outcomes and private-PDF markup outcomes
+  through one refresh lifecycle. Canonical Library loading and the shared toast
+  outlet remain in the application coordinator.
 - The citation network panel replaces six internal element references,
   assertion-form binding and option rendering, plus the imperative SVG graph,
   node, edge, assertion, expansion, candidate, and progress renderers while

@@ -359,11 +359,10 @@ class WorkspaceApp {
     this.#elements.referenceLibraryWorkspace.configure(workspaceId, {
       compareSnapshots: (priorId, currentId) => void this.#elements.webSnapshotComparison.compare(priorId, currentId),
       completeProjectMutation: (message, snapshot) => void this.#completeLibraryProjectMutation(message, snapshot),
-      completeRefresh: (message, fallback, options) => void this.#completeLibraryRefresh(message, fallback, options),
       openPdf: (artifact) => void this.#openLibraryPdf(artifact),
       presentNotice: (message) => this.#showToast(message),
       revealExistingPdf: (upload) => void this.#revealExistingPdfReference(upload),
-      refreshLibrary: () => void this.#refreshReferenceLibrary(),
+      refreshLibrary: async () => await this.#refreshReferenceLibrary(),
       refreshMetadata: async () => {
         await this.#refreshReferenceLibrary();
         await this.#refreshSnapshot();
@@ -547,7 +546,11 @@ class WorkspaceApp {
       applyViewerPresentation: (presentation) => this.#applyLibraryPdfViewerPresentation(presentation),
       canInsertCitation: () => this.#resolvedAuthoringCaret() !== null,
       clearViewerDraftSelection: () => this.#pdfViewer.clearDraftSelection(),
-      completeMarkup: (message) => this.#completeLibraryPdfMarkup(message),
+      completeMarkup: (message) =>
+        void this.#elements.referenceLibraryWorkspace.completeRefresh(
+          message,
+          "The annotation changed, but the refreshed Library could not be loaded.",
+        ),
       currentPage: () => this.#pdfViewer.currentPage,
       insertCitation: (citationAlias, locator) => this.#insertCitation(citationAlias, locator),
       library: () => this.#librarySnapshot,
@@ -1228,28 +1231,6 @@ class WorkspaceApp {
     });
   }
 
-  async #completeLibraryRefresh(
-    message: string,
-    fallback: string,
-    options: {
-      readonly complete?: () => void;
-      readonly failure?: (message: string) => void;
-      readonly refresh?: () => Promise<void>;
-      readonly success?: (message: string) => void;
-    } = {},
-  ): Promise<void> {
-    try {
-      await (options.refresh?.() ?? this.#refreshReferenceLibrary());
-      if (options.success) options.success(message);
-      else this.#showToast(message);
-    } catch {
-      if (options.failure) options.failure(fallback);
-      else this.#showToast(fallback);
-    } finally {
-      options.complete?.();
-    }
-  }
-
   #refreshResourcesWithNotice(message: string, failureMessage: string): void {
     void this.#resourceRefresh
       .request()
@@ -1904,10 +1885,6 @@ class WorkspaceApp {
       this.#librarySnapshot,
       this.#pdfViewer.currentPage,
     );
-  }
-
-  #completeLibraryPdfMarkup(message: string): void {
-    void this.#completeLibraryRefresh(message, "The annotation changed, but the refreshed Library could not be loaded.");
   }
 
   async #openLibraryHighlight(highlight: LibraryHighlight): Promise<void> {

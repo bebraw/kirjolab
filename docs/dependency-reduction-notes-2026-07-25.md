@@ -7097,6 +7097,29 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,676 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Library Refresh Completion
+
+`ReferenceLibraryWorkspace` now owns child mutation refresh completion,
+success/failure notice selection, alternate metadata refresh, and local request
+finalizers. Private-PDF markup completion converges through the same composite
+boundary. `WorkspaceApp` retains canonical Library loading and the shared toast
+outlet behind typed callbacks.
+
+This checkpoint reduces `src/client/app.ts` from 2,152 to 2,129 lines (-23) and
+grows the reference-Library workspace from 280 to 288 lines (+8). Runtime source
+across the two files decreases by 15 lines while deleting the coordinator's
+over-general completion options and separate markup wrapper. Focused coverage
+exercises every child outcome family, metadata-specific refresh, success,
+failure, finalizer settlement, private-PDF routing, and strict types.
+
+The browser application artifact shrinks from 840,921 B raw / 227,437 B gzip
+to 840,846 B raw / 227,415 B gzip (-75 B raw / -22 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,677 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

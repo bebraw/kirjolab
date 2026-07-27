@@ -150,16 +150,15 @@ describe("reference Library workspace", () => {
     expect(complete).toHaveBeenCalledWith(3);
   });
 
-  it("routes child Library outcomes through the coordinator boundary", () => {
+  it("routes child Library outcomes through its refresh boundary", async () => {
     const { owners, workspace } = setup();
     const callbacks = {
       compareSnapshots: vi.fn(),
       completeProjectMutation: vi.fn(),
-      completeRefresh: vi.fn(),
       openPdf: vi.fn(),
       presentNotice: vi.fn(),
       revealExistingPdf: vi.fn(),
-      refreshLibrary: vi.fn(),
+      refreshLibrary: vi.fn().mockResolvedValue(undefined),
       refreshMetadata: vi.fn().mockResolvedValue(undefined),
     };
     const completeIdentification = vi.spyOn(owners["unidentified-pdf-list"], "complete");
@@ -201,26 +200,25 @@ describe("reference Library workspace", () => {
     ]);
     expect(callbacks.presentNotice).toHaveBeenCalledWith("Metadata notice");
     expect(callbacks.openPdf).toHaveBeenCalledTimes(2);
-    expect(callbacks.completeRefresh).toHaveBeenCalledTimes(4);
-    expect(callbacks.refreshLibrary).toHaveBeenCalledOnce();
+    await vi.waitFor(() => expect(callbacks.refreshLibrary).toHaveBeenCalledTimes(4));
+    expect(callbacks.refreshMetadata).toHaveBeenCalledOnce();
     expect(captureUrl).toHaveBeenCalledWith("https://example.test");
     expect(callbacks.compareSnapshots).toHaveBeenCalledWith("prior", "current");
-    const metadataOptions = callbacks.completeRefresh.mock.calls[2]?.[2];
-    expect(metadataOptions?.refresh).toBe(callbacks.refreshMetadata);
-    const identificationOptions = callbacks.completeRefresh.mock.calls[3]?.[2];
-    identificationOptions?.complete?.();
-    expect(completeIdentification).toHaveBeenCalledWith(7);
+    await vi.waitFor(() => expect(completeIdentification).toHaveBeenCalledWith(7));
+    expect(callbacks.presentNotice).toHaveBeenCalledWith("Candidate saved");
+    expect(callbacks.presentNotice).toHaveBeenCalledWith("Personal fields saved");
+    expect(callbacks.presentNotice).toHaveBeenCalledWith("Metadata saved");
+    expect(callbacks.presentNotice).toHaveBeenCalledWith("PDF identified");
   });
 
-  it("routes full-surface Library discovery and intake outcomes", () => {
+  it("routes full-surface Library discovery and intake outcomes", async () => {
     const { owners, workspace } = setup();
     const callbacks = {
       compareSnapshots: vi.fn(),
-      completeRefresh: vi.fn(),
       openPdf: vi.fn(),
       presentNotice: vi.fn(),
       revealExistingPdf: vi.fn(),
-      refreshLibrary: vi.fn(),
+      refreshLibrary: vi.fn().mockResolvedValue(undefined),
       refreshMetadata: vi.fn().mockResolvedValue(undefined),
     };
     const setResults = vi.spyOn(owners["library-discovery-results"], "setResults");
@@ -246,10 +244,33 @@ describe("reference Library workspace", () => {
     workspace.dispatchEvent(new CustomEvent(libraryToolsArchiveRefreshEvent, { detail: { message: "Archive restored", requestId: 6 } }));
 
     expect(setResults).toHaveBeenCalledWith([]);
-    expect(callbacks.completeRefresh).toHaveBeenCalledTimes(5);
+    await vi.waitFor(() => expect(callbacks.refreshLibrary).toHaveBeenCalledTimes(6));
     expect(callbacks.presentNotice).toHaveBeenCalledWith("Upload notice");
     expect(callbacks.revealExistingPdf).toHaveBeenCalledWith(existing);
     expect(openNetwork).toHaveBeenCalledOnce();
-    expect(callbacks.refreshLibrary).toHaveBeenCalledOnce();
+    expect(callbacks.presentNotice).toHaveBeenCalledWith("Reference saved");
+    expect(callbacks.presentNotice).toHaveBeenCalledWith("References imported");
+    expect(callbacks.presentNotice).toHaveBeenCalledWith("PDF uploaded");
+    expect(callbacks.presentNotice).toHaveBeenCalledWith("Website captured");
+    expect(callbacks.presentNotice).toHaveBeenCalledWith("Archive restored");
+  });
+
+  it("contains refresh failures and always completes local request state", async () => {
+    const { workspace } = setup();
+    const complete = vi.fn();
+    const presentNotice = vi.fn();
+    workspace.configure("project-1", {
+      compareSnapshots: vi.fn(),
+      openPdf: vi.fn(),
+      presentNotice,
+      revealExistingPdf: vi.fn(),
+      refreshLibrary: vi.fn().mockRejectedValue(new Error("offline")),
+      refreshMetadata: vi.fn().mockResolvedValue(undefined),
+    });
+
+    await workspace.completeRefresh("Saved", "Refresh failed", { complete });
+
+    expect(presentNotice).toHaveBeenCalledWith("Refresh failed");
+    expect(complete).toHaveBeenCalledOnce();
   });
 });

@@ -51,21 +51,19 @@ interface LibraryRefreshOptions {
 export interface ReferenceLibraryWorkspaceCallbacks {
   readonly compareSnapshots: (priorId: string, currentId: string) => void;
   readonly completeProjectMutation?: (message: string, snapshot: ProjectReferenceChanged["snapshot"]) => void;
-  readonly completeRefresh: (message: string, fallback: string, options?: LibraryRefreshOptions) => void;
   readonly openPdf: (artifact: LibraryPdfArtifact) => void;
   readonly presentNotice: (message: string) => void;
   readonly revealExistingPdf: (upload: ExistingPdfUpload) => void;
-  readonly refreshLibrary: () => void;
+  readonly refreshLibrary: () => Promise<void>;
   readonly refreshMetadata: () => Promise<void>;
 }
 
 const emptyCallbacks: ReferenceLibraryWorkspaceCallbacks = {
   compareSnapshots: () => undefined,
-  completeRefresh: () => undefined,
   openPdf: () => undefined,
   presentNotice: () => undefined,
   revealExistingPdf: () => undefined,
-  refreshLibrary: () => undefined,
+  refreshLibrary: () => Promise.resolve(),
   refreshMetadata: () => Promise.resolve(),
 };
 
@@ -92,7 +90,7 @@ export class ReferenceLibraryWorkspace extends LitElement {
       this.callbacks.openPdf(artifact);
     });
     this.addEventListener(libraryReferencePersonalRefreshEvent, (event) => {
-      this.callbacks.completeRefresh(
+      void this.completeRefresh(
         (event as CustomEvent<string>).detail,
         "The private reference was updated, but the refreshed Library could not be loaded.",
       );
@@ -101,7 +99,7 @@ export class ReferenceLibraryWorkspace extends LitElement {
       this.callbacks.presentNotice((event as CustomEvent<string>).detail);
     });
     this.addEventListener(libraryReferenceMetadataRefreshEvent, (event) => {
-      this.callbacks.completeRefresh(
+      void this.completeRefresh(
         (event as CustomEvent<string>).detail,
         "Metadata was applied, but the refreshed Library could not be loaded.",
         { refresh: this.callbacks.refreshMetadata },
@@ -111,13 +109,13 @@ export class ReferenceLibraryWorkspace extends LitElement {
       const detail = (event as CustomEvent<LibraryReferencePdfAction>).detail;
       if (detail.action === "open") this.callbacks.openPdf(detail.artifact);
     });
-    this.addEventListener(libraryReferencePdfRefreshEvent, () => this.callbacks.refreshLibrary());
+    this.addEventListener(libraryReferencePdfRefreshEvent, () => void this.callbacks.refreshLibrary());
     this.addEventListener(libraryReferenceResearchActionEvent, (event) => {
       this.routeResearchAction((event as CustomEvent<LibraryReferenceResearchAction>).detail);
     });
     this.addEventListener(unidentifiedPdfRefreshEvent, (event) => {
       const detail = (event as CustomEvent<UnidentifiedPdfRefresh>).detail;
-      this.callbacks.completeRefresh(detail.message, "The PDF was identified, but the refreshed Library could not be loaded.", {
+      void this.completeRefresh(detail.message, "The PDF was identified, but the refreshed Library could not be loaded.", {
         complete: () => this.completePdfIdentification(detail.requestId),
       });
     });
@@ -128,13 +126,13 @@ export class ReferenceLibraryWorkspace extends LitElement {
     });
     this.addEventListener(libraryDiscoveryRefreshEvent, (event) => {
       const detail = (event as CustomEvent<LibraryDiscoveryRefresh>).detail;
-      this.callbacks.completeRefresh(detail.message, "The reference was saved, but the refreshed Library could not be loaded.", {
+      void this.completeRefresh(detail.message, "The reference was saved, but the refreshed Library could not be loaded.", {
         complete: () => this.element("library-discovery-results", LibraryDiscoveryResults)?.complete(detail.index, detail.requestId),
       });
     });
     this.addEventListener(libraryReferenceImportRefreshEvent, (event) => {
       const detail = (event as CustomEvent<LibraryReferenceImportRefresh>).detail;
-      this.callbacks.completeRefresh(detail.message, "References were imported, but the refreshed Library could not be loaded.", {
+      void this.completeRefresh(detail.message, "References were imported, but the refreshed Library could not be loaded.", {
         complete: () => this.element("library-reference-import-control", LibraryReferenceImportControl)?.complete(detail.requestId),
       });
     });
@@ -145,7 +143,7 @@ export class ReferenceLibraryWorkspace extends LitElement {
       this.callbacks.revealExistingPdf((event as CustomEvent<ExistingPdfUpload>).detail);
     });
     this.addEventListener(webSourceCapturedEvent, (event) => {
-      this.callbacks.completeRefresh(
+      void this.completeRefresh(
         (event as CustomEvent<string>).detail,
         "The web source was captured, but the refreshed Library could not be loaded.",
       );
@@ -155,7 +153,7 @@ export class ReferenceLibraryWorkspace extends LitElement {
     });
     this.addEventListener(libraryToolsArchiveRefreshEvent, (event) => {
       const detail = (event as CustomEvent<LibraryToolsArchiveRefresh>).detail;
-      this.callbacks.completeRefresh(detail.message, "The archive was restored, but the refreshed Library could not be loaded.", {
+      void this.completeRefresh(detail.message, "The archive was restored, but the refreshed Library could not be loaded.", {
         complete: () => this.element("library-tools-menu", LibraryToolsMenu)?.completeArchiveRestore(detail.requestId),
       });
     });
@@ -192,6 +190,17 @@ export class ReferenceLibraryWorkspace extends LitElement {
 
   completePdfIdentification(requestId: number): void {
     this.element("unidentified-pdf-list", UnidentifiedPdfList)?.complete(requestId);
+  }
+
+  async completeRefresh(message: string, fallback: string, options: LibraryRefreshOptions = {}): Promise<void> {
+    try {
+      await (options.refresh?.() ?? this.callbacks.refreshLibrary());
+      this.callbacks.presentNotice(message);
+    } catch {
+      this.callbacks.presentNotice(fallback);
+    } finally {
+      options.complete?.();
+    }
   }
 
   async settled(): Promise<void> {
@@ -246,8 +255,7 @@ export class ReferenceLibraryWorkspace extends LitElement {
 
   private routeCitationOutcome(outcome: CitationNetworkOutcome): void {
     if (outcome.action === "notice") this.callbacks.presentNotice(outcome.message);
-    else
-      this.callbacks.completeRefresh(outcome.message, "The citation candidate was saved, but the refreshed Library could not be loaded.");
+    else void this.completeRefresh(outcome.message, "The citation candidate was saved, but the refreshed Library could not be loaded.");
   }
 
   private routeResearchAction(action: LibraryReferenceResearchAction): void {
@@ -258,14 +266,14 @@ export class ReferenceLibraryWorkspace extends LitElement {
   private routeUploadOutcome(outcome: LibraryPdfUploadOutcome): void {
     if (outcome.action === "notice") this.callbacks.presentNotice(outcome.message);
     else
-      this.callbacks.completeRefresh(outcome.message, "PDF intake completed, but the refreshed Library could not be loaded.", {
+      void this.completeRefresh(outcome.message, "PDF intake completed, but the refreshed Library could not be loaded.", {
         complete: () => this.element("library-pdf-upload-control", LibraryPdfUploadControl)?.complete(outcome.requestId),
       });
   }
 
   private routeToolsAction(action: LibraryToolsAction): void {
     if (action === "open-citation-network") void this.openCitationNetwork();
-    else this.callbacks.refreshLibrary();
+    else void this.callbacks.refreshLibrary();
   }
 }
 

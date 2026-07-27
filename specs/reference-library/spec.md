@@ -272,6 +272,11 @@ memory and makes citation aliases compete with stable source identity.
   deletion converge through one canonical Library refresh. The completion
   notice is shown after refresh, and refresh failure remains visible instead of
   leaving an unhandled completion request.
+- The enclosing reference-Library component owns this same refresh-completion
+  lifecycle for discovery, import, PDF intake, metadata, personal-field,
+  citation-network, web-source, archive, and identification outcomes. It always
+  settles local request state, uses the metadata-specific refresh when needed,
+  and delegates only canonical Library loading and shared notice presentation.
 - One bounded light-DOM component owns the private-highlight, page-note, and
   selected-markup composer values and visibility. Its private-highlight draft
   includes captured rectangles and an optional editing identity. Given the
