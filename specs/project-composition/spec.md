@@ -97,10 +97,13 @@ collaborative, and unambiguous about what preview and export mean.
   cancellation, mutation transport, response validation, duplicate-submit
   gating, retryable local failures, and typed routing of sibling file actions,
   tree actions, upload completion, and save completion. Upload and save
-  snapshots use one canonical mutation binding; save completion carries only
-  the derived stable file identity plus mode, path, and notice. The workspace
-  coordinator retains resource availability, include-caret capture, validated
-  snapshot application, selection, rendering, and toast policy.
+  snapshots use one canonical mutation binding. A create-and-include operation
+  retains one insertion continuation across the dialog lifecycle, invokes it
+  only after applying the validated snapshot, and clears it on success or
+  cancellation; save completion carries only the derived stable file identity,
+  included state, and notice. The workspace coordinator retains resource
+  availability, include-caret capture and continuation construction, validated
+  snapshot application, selection, Yjs insertion, rendering, and toast policy.
 - A visible, client-side Files filter matches complete file, folder, and asset
   paths without changing the project tree or include menu. `Command-P` or
   `Control-P` expands the desktop rail when necessary, activates Files, and

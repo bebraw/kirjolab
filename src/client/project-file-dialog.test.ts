@@ -124,7 +124,7 @@ describe("project file dialog", () => {
     const callbacks = {
       focusEditor: vi.fn(),
       insertImage: vi.fn(),
-      prepareDialog: vi.fn(),
+      prepareInclude: vi.fn(() => vi.fn(() => true)),
       quickOpen: vi.fn(),
       saved: vi.fn(),
       selectFile: vi.fn(),
@@ -148,6 +148,7 @@ describe("project file dialog", () => {
     actions.dispatchEvent(new CustomEvent(projectFileActionEvent, { detail: "upload-images" }));
     actions.dispatchEvent(new CustomEvent(projectFileActionEvent, { detail: "delete" }));
     actions.dispatchEvent(new CustomEvent(projectFileActionEvent, { detail: "create-folder" }));
+    actions.dispatchEvent(new CustomEvent(projectFileActionEvent, { detail: "create-and-include" }));
     tree.dispatchEvent(new CustomEvent(projectTreeActionEvent, { detail: { action: "select-file", fileId: "file-1", focusEditor: true } }));
     tree.dispatchEvent(new CustomEvent(projectTreeActionEvent, { detail: { action: "quick-open" } }));
     tree.dispatchEvent(new CustomEvent(projectTreeActionEvent, { detail: { action: "rename-folder", folderId: "folder-1" } }));
@@ -156,10 +157,10 @@ describe("project file dialog", () => {
 
     expect(imageUpload.choose).toHaveBeenCalledOnce();
     expect(deleteFile).not.toHaveBeenCalled();
-    expect(callbacks.prepareDialog).toHaveBeenNthCalledWith(1, "create-folder", snapshot.files[0]);
-    expect(callbacks.prepareDialog).toHaveBeenNthCalledWith(2, "rename-folder", snapshot.files[0]);
+    expect(callbacks.prepareInclude).toHaveBeenCalledWith(snapshot.files[0]);
     expect(showFor).toHaveBeenNthCalledWith(1, "create-folder", snapshot.files[0], undefined);
-    expect(showFor).toHaveBeenNthCalledWith(2, "rename-folder", snapshot.files[0], undefined);
+    expect(showFor).toHaveBeenNthCalledWith(2, "create-and-include", snapshot.files[0], undefined);
+    expect(showFor).toHaveBeenNthCalledWith(3, "rename-folder", snapshot.files[0], undefined);
     expect(callbacks.selectFile).toHaveBeenCalledWith("file-1");
     expect(callbacks.focusEditor).toHaveBeenCalledOnce();
     expect(callbacks.quickOpen).toHaveBeenCalledOnce();
@@ -261,19 +262,22 @@ describe("project file dialog", () => {
     const created = { ...snapshot.files[0]!, id: "file-2", path: "chapters/results.md" };
     const project = { ...snapshot, files: [...snapshot.files, created] };
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(Response.json(project));
+    const actions = new EventTarget();
+    const include = vi.fn(() => true);
     panel.configureApi("/api/workspaces/workspace", callbacks);
     panel.bindWorkflow({
-      actionControls: [],
+      actionControls: [actions],
       focusEditor: vi.fn(),
       imageUpload: Object.assign(new EventTarget(), { choose: vi.fn() }),
       insertImage: vi.fn(),
-      prepareDialog: vi.fn(),
+      prepareInclude: vi.fn(() => include),
       quickOpen: vi.fn(),
       saved,
       selectFile: vi.fn(),
       tree: Object.assign(new EventTarget(), { focusFilter: vi.fn() }),
     });
-    panel.configureForTest("create-and-include", "", "file-1");
+    panel.presentProject(snapshot, "/assets", true);
+    actions.dispatchEvent(new CustomEvent(projectFileActionEvent, { detail: "create-and-include" }));
     panel.input.value = "  chapters/results.md  ";
 
     await panel.saveForTest();
@@ -283,11 +287,12 @@ describe("project file dialog", () => {
       expect.objectContaining({ body: JSON.stringify({ path: "chapters/results.md" }), method: "POST" }),
     );
     expect(callbacks.commit).toHaveBeenCalledWith(project);
+    expect(include).toHaveBeenCalledWith("chapters/results.md");
+    expect(vi.mocked(callbacks.commit).mock.invocationCallOrder[0]).toBeLessThan(include.mock.invocationCallOrder[0] ?? 0);
     expect(saved).toHaveBeenCalledWith({
       fileId: created.id,
+      included: true,
       message: "Created chapters/results.md and included it at the remembered caret.",
-      mode: "create-and-include",
-      path: "chapters/results.md",
     });
   });
 

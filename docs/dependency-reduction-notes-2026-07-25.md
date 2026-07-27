@@ -8708,6 +8708,31 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,713 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Pending File Includes
+
+`ProjectFileDialog` now retains the one-shot create-and-include continuation
+across open, retry, successful save, and cancellation. It invokes that
+continuation only after applying the validated workspace snapshot and returns a
+derived included flag instead of mode and path. `WorkspaceApp` retains
+Yjs-relative caret capture, continuation construction, canonical insertion,
+snapshot application, selection, and notification effects.
+
+This checkpoint reduces `src/client/app.ts` from 1,338 to 1,327 lines (-11),
+grows the project-file dialog from 463 to 465 lines (+2), and reduces combined
+runtime source by nine lines. It deletes two coordinator fields, the post-save
+include helper, and the redundant saved mode/path protocol. Focused and affected
+coverage passes all 33 dialog and application-contract cases, including
+validated-snapshot-before-insertion ordering, create-and-include routing,
+ordinary file selection, retry, and strict types.
+
+The browser application artifact changes from 849,239 B raw / 228,823 B gzip
+to 849,185 B raw / 228,794 B gzip (-54 B raw / -29 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,713 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

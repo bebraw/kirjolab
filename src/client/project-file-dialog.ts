@@ -11,9 +11,8 @@ export type ProjectFileDialogMode = "create" | "create-and-include" | "rename" |
 
 export interface ProjectFileSaved {
   readonly fileId?: string;
+  readonly included: boolean;
   readonly message: string;
-  readonly mode: ProjectFileDialogMode;
-  readonly path: string;
 }
 
 export interface ProjectImageInsertion {
@@ -55,7 +54,7 @@ export interface ProjectFileWorkflowRouting {
   readonly focusEditor: () => void;
   readonly imageUpload: ProjectImageUploadSource;
   readonly insertImage: (insertion: ProjectImageInsertion) => void;
-  readonly prepareDialog: (mode: ProjectFileDialogMode, activeFile: ProjectFile | null) => void;
+  readonly prepareInclude: (activeFile: ProjectFile) => ((path: string) => boolean) | null;
   readonly quickOpen: () => void;
   readonly saved: (result: ProjectFileSaved) => void;
   readonly selectFile: (fileId: string) => void;
@@ -125,6 +124,7 @@ export class ProjectFileDialog extends LitElement {
   private snapshot: WorkspaceSnapshot | null = null;
   private presentation: ProjectFilePresentationBinding | null = null;
   private liveContent: ProjectFileContentResolver | null = null;
+  private pendingInclude: ((path: string) => boolean) | null = null;
   private routing: ProjectFileWorkflowRouting | null = null;
   private routingAbort: AbortController | null = null;
 
@@ -348,11 +348,12 @@ export class ProjectFileDialog extends LitElement {
       const fileId = snapshot.files.find((file) => file.path === path)?.id;
       this.close();
       this.mutationCallbacks.commit(snapshot);
+      const included = this.pendingInclude?.(path) ?? false;
+      this.pendingInclude = null;
       this.routing?.saved({
         ...(fileId ? { fileId } : {}),
+        included,
         message: projectFileSavedMessage(this.mode, path),
-        mode: this.mode,
-        path,
       });
     } catch (error) {
       this.status = errorMessage(error, "Could not save the project path.");
@@ -362,6 +363,7 @@ export class ProjectFileDialog extends LitElement {
   }
 
   protected cancel(): void {
+    this.pendingInclude = null;
     this.close();
   }
 
@@ -397,7 +399,7 @@ export class ProjectFileDialog extends LitElement {
     if (!routing || !snapshot) return;
     const activeFile = this.activeFile;
     const folder = snapshot.folders.find(({ id }) => id === folderId);
-    routing.prepareDialog(mode, activeFile);
+    this.pendingInclude = mode === "create-and-include" && activeFile ? routing.prepareInclude(activeFile) : null;
     void this.showFor(mode, activeFile ?? undefined, folder);
   }
 

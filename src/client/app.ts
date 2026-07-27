@@ -37,7 +37,6 @@ import { CollaborationSession } from "./collaboration-session";
 import { CollaborationSocket } from "./collaboration-socket";
 import { resolveAssistantTarget } from "./assistant-operations";
 import { createCitationInsertion, type CitationContext } from "./citations";
-import { type ProjectFileDialogMode } from "./project-file-dialog";
 import "./manuscript-map-panel";
 import {
   applicationVersion,
@@ -131,8 +130,6 @@ class WorkspaceApp {
   readonly #editorUndoManagers = new Map<Y.Text, Y.UndoManager>();
   #unbindSourceEditor: () => void = () => undefined;
   #unbindAssistantSourceStale: () => void = () => undefined;
-  #projectFileIncludeTarget: RelativeEditorSelection | null = null;
-  #projectFileIncludeFromPath: string | null = null;
   #workspaceRouteReady = false;
   readonly #layout: WorkspaceLayoutManager;
 
@@ -387,19 +384,20 @@ class WorkspaceApp {
         this.#applySourceSyntax({ text: syntax }, null, caret);
         this.#showToast(message);
       },
-      prepareDialog: (mode, file) => {
-        const include = mode === "create-and-include";
-        this.#projectFileIncludeTarget = include ? captureRelativeSelection(this.#elements.source, this.#activeFileText) : null;
-        this.#projectFileIncludeFromPath = include ? (file?.path ?? null) : null;
+      prepareInclude: (file) => {
+        const target = captureRelativeSelection(this.#elements.source, this.#activeFileText);
+        if (!target) return null;
+        return (path) => {
+          const position = Y.createAbsolutePositionFromRelativePosition(target.end, this.#document);
+          if (position?.type === target.text) this.#insertProjectInclude(target.text, position.index, relativeProjectPath(file.path, path));
+          return true;
+        };
       },
       quickOpen: () => {
         this.#layout.setRailCollapsed(false);
         this.#showRail("files");
       },
-      saved: ({ fileId, message, mode, path }) => {
-        const included = this.#insertRememberedProjectInclude(mode, path);
-        this.#projectFileIncludeTarget = null;
-        this.#projectFileIncludeFromPath = null;
+      saved: ({ fileId, included, message }) => {
         if (!included && fileId) this.#selectProjectFile(fileId);
         this.#showToast(message);
       },
@@ -797,15 +795,6 @@ class WorkspaceApp {
     this.#elements.workspacePreview.resetScroll();
     void this.#renderPreview();
     this.#syncWorkspaceRoute("replace");
-  }
-
-  #insertRememberedProjectInclude(mode: ProjectFileDialogMode, path: string): boolean {
-    const target = this.#projectFileIncludeTarget;
-    const fromPath = this.#projectFileIncludeFromPath;
-    if (mode !== "create-and-include" || !target || !fromPath) return false;
-    const position = Y.createAbsolutePositionFromRelativePosition(target.end, this.#document);
-    if (position?.type === target.text) this.#insertProjectInclude(target.text, position.index, relativeProjectPath(fromPath, path));
-    return true;
   }
 
   #focusProjectRange(fileId: string, from: number, to: number): void {

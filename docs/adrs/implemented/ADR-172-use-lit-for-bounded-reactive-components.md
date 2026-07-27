@@ -417,9 +417,11 @@ The adopted components own bounded presentation:
   create and rename transport, file deletion transport, content-bearing
   workflow-file creation, shared response validation, created-path verification,
   duplicate-submit gating, local busy and retryable failure state, and typed
-  completed outcomes carrying the mode, path, message, and derived stable file
-  identity after applying the validated workspace through its shared mutation
-  binding. It also owns supporting-file optimistic hiding, the
+  completed outcomes carrying the derived included state, message, and stable
+  file identity after applying the validated workspace through its shared
+  mutation binding. For create-and-include it retains the one-shot insertion
+  continuation across open, retry, success, and cancellation. It also owns
+  supporting-file optimistic hiding, the
   deletion grace period, Undo and failed-commit restoration, and exposes the
   hidden-file projection. Its presentation binding fans one canonical snapshot,
   visible file collection, and active/entry state into the project tree, Insert
@@ -867,9 +869,11 @@ reason to wrap static markup mechanically.
   safely delimited Markdown image syntax and normalized alt text when a tree
   asset is selected, and replaces coordinator fan-out to the project tree,
   Insert menu, source completion, and file-action menu with one typed
-  presentation binding. Collaborative include-target capture, active-file and
-  snapshot authority, Yjs insertion, cross-feature rendering, and the toast
-  outlet remain in the application coordinator.
+  presentation binding. Its pending insertion continuation also replaces two
+  coordinator fields, the saved mode/path protocol, and the post-save include
+  helper. Collaborative include-target capture and continuation construction,
+  active-file and snapshot authority, Yjs insertion, cross-feature rendering,
+  and the toast outlet remain in the application coordinator.
 - The project template save dialog replaces seven internal element references
   and imperative replacement-option, value, status, focus, and cancellation
   handling while consuming the starting-point browser's visible template view.
