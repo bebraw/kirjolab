@@ -83,8 +83,10 @@ changing their canonical data, selector, authorization, or rendering contracts.
   coordinates and rerender on page change.
 - The bounded private-PDF inspector owns its visibility, active-artifact
   identity, status, expanded presentation, annotation-details opening, and
-  nested annotation component composition. Closing emits an intent so the
-  workspace coordinator can apply draft-cancellation and focus policy.
+  nested annotation component composition. It routes nested project reference
+  and research mutation completion through one typed binding. Closing emits an
+  intent so the workspace coordinator can apply draft-cancellation and focus
+  policy.
 - On short tablet and desktop viewports, the private PDF rail uses two columns
   for its unchanged touch-sized controls so no tool extends beyond the reader.
   Taller viewports retain the narrower single-column rail.

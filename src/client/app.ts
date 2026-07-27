@@ -42,8 +42,6 @@ import { libraryPdfRoute, readLibraryUiRoute } from "./library-ui-route";
 import "./project-starting-point-browser";
 import { WorkspaceLayoutManager } from "./workspace-layout-manager";
 import "./workspace-layout-control";
-import { projectReferenceChangedEvent, type ProjectReferenceChanged } from "./project-reference-mutation";
-import { projectResearchChangedEvent, type ProjectResearchChanged } from "./project-research-mutation";
 import { researchQuestionWorkflowData, reviewerResponseWorkflowData, type WritingWorkflowBinding } from "./writing-workflow-panel";
 import "./research-diary-summary";
 import { type AssistantAuthoringPassage as AuthoringPassage } from "./assistant-result-panel";
@@ -364,6 +362,7 @@ class WorkspaceApp {
     });
     this.#elements.referenceLibraryWorkspace.configure(workspaceId, {
       compareSnapshots: (priorId, currentId) => void this.#elements.webSnapshotComparison.compare(priorId, currentId),
+      completeProjectMutation: (message, snapshot) => void this.#completeLibraryProjectMutation(message, snapshot),
       completeRefresh: (message, fallback, options) => void this.#completeLibraryRefresh(message, fallback, options),
       openPdf: (artifact) => void this.#openLibraryPdf(artifact),
       presentNotice: (message) => this.#showToast(message),
@@ -519,24 +518,9 @@ class WorkspaceApp {
       refreshLibrary: () => this.#refreshReferenceLibrary(),
       showToast: (message) => this.#showToast(message),
     });
-    for (const target of [this.#elements.referenceLibraryWorkspace, this.#elements.libraryPdfInspector]) {
-      target.addEventListener(projectReferenceChangedEvent, (event) => {
-        const { message, snapshot } = (event as CustomEvent<ProjectReferenceChanged>).detail;
-        void this.#acceptWorkspaceMutation(snapshot).then(() => {
-          this.#renderReferenceLibrary();
-          this.#showToast(message);
-        });
-      });
-    }
-    for (const target of [this.#elements.referenceLibraryWorkspace, this.#elements.libraryPdfInspector]) {
-      target.addEventListener(projectResearchChangedEvent, (event) => {
-        const { message, snapshot } = (event as CustomEvent<ProjectResearchChanged>).detail;
-        void this.#acceptWorkspaceMutation(snapshot).then(() => {
-          this.#renderReferenceLibrary();
-          this.#showToast(message);
-        });
-      });
-    }
+    this.#elements.libraryPdfInspector.bindProjectMutations(
+      (message, snapshot) => void this.#completeLibraryProjectMutation(message, snapshot),
+    );
     this.#elements.claimListPanel.configure(apiBase);
     this.#elements.claimListPanel.bind({
       completeMutation: (message) =>
@@ -1248,6 +1232,12 @@ class WorkspaceApp {
     if (!(await this.#elements.referenceLibraryWorkspace.revealReference(existing.referenceId, existing.referenceKey))) {
       this.#showToast(`Library source ${existing.referenceKey} is not available.`);
     }
+  }
+
+  async #completeLibraryProjectMutation(message: string, snapshot: WorkspaceSnapshot): Promise<void> {
+    await this.#acceptWorkspaceMutation(snapshot);
+    this.#renderReferenceLibrary();
+    this.#showToast(message);
   }
 
   async #acceptWorkspaceMutation(result: Response | WorkspaceSnapshot): Promise<void> {

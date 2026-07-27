@@ -30,6 +30,8 @@ import {
   type LibraryToolsArchiveRefresh,
 } from "./library-tools-menu";
 import type { ExistingPdfUpload } from "./pdf-upload-queue";
+import { projectReferenceChangedEvent, type ProjectReferenceChanged } from "./project-reference-mutation";
+import { projectResearchChangedEvent, type ProjectResearchChanged } from "./project-research-mutation";
 import { ReferenceLibraryFilterPanel, referenceLibraryFilterChangeEvent } from "./reference-library-filters";
 import { unidentifiedPdfRefreshEvent, UnidentifiedPdfList, type UnidentifiedPdfRefresh } from "./unidentified-pdf-list";
 import { webSourceCapturedEvent, WebSourceCapture } from "./web-source-panels";
@@ -48,6 +50,7 @@ interface LibraryRefreshOptions {
 
 export interface ReferenceLibraryWorkspaceCallbacks {
   readonly compareSnapshots: (priorId: string, currentId: string) => void;
+  readonly completeProjectMutation?: (message: string, snapshot: ProjectReferenceChanged["snapshot"]) => void;
   readonly completeRefresh: (message: string, fallback: string, options?: LibraryRefreshOptions) => void;
   readonly openPdf: (artifact: LibraryPdfArtifact) => void;
   readonly presentNotice: (message: string) => void;
@@ -72,6 +75,14 @@ export class ReferenceLibraryWorkspace extends LitElement {
 
   constructor() {
     super();
+    this.addEventListener(projectReferenceChangedEvent, (event) => {
+      const { message, snapshot } = (event as CustomEvent<ProjectReferenceChanged>).detail;
+      this.callbacks.completeProjectMutation?.(message, snapshot);
+    });
+    this.addEventListener(projectResearchChangedEvent, (event) => {
+      const { message, snapshot } = (event as CustomEvent<ProjectResearchChanged>).detail;
+      this.callbacks.completeProjectMutation?.(message, snapshot);
+    });
     this.addEventListener(referenceLibraryFilterChangeEvent, () => this.present());
     this.addEventListener(citationNetworkOutcomeEvent, (event) =>
       this.routeCitationOutcome((event as CustomEvent<CitationNetworkOutcome>).detail),

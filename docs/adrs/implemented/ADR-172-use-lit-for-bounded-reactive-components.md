@@ -364,8 +364,8 @@ The adopted components own bounded presentation:
   result settlement; nested network and identification lifecycle delegation;
   and routing for summary, personal-field, metadata, PDF, research, network,
   and identification outcomes. The application coordinator supplies canonical
-  refresh, PDF navigation, web-capture/comparison, and notice effects through a
-  typed callback boundary.
+  refresh, PDF navigation, web-capture/comparison, project-mutation completion,
+  and notice effects through a typed callback boundary.
 - The model provider settings panel owns connection, endpoint, model, and
   reasoning-effort values, browser-local persistence, Valibot-backed saved-value
   restoration with bounded per-field fallbacks, dynamic model choices,
@@ -419,7 +419,8 @@ The adopted components own bounded presentation:
   and typed tool, completed-undo, export-status, and inspector outcomes.
 - The Library PDF inspector owns its shell visibility, active-artifact identity,
   status presentation, expanded state, annotation-details opening, nested
-  annotation component composition, and typed close intent.
+  annotation component composition, typed close intent, and nested project-
+  mutation completion routing.
 - The Library PDF annotation list owns saved private-highlight and markup cards,
   empty state, comments, share and citation availability, and typed navigation,
   edit, and cite intents. It also owns research-share and revoke transport,
@@ -774,7 +775,9 @@ reason to wrap static markup mechanically.
   subscriptions, seven global registry entries, upload/status binding, archive
   state access, and web-capture delegation. The application coordinator
   supplies canonical snapshots and retains cross-feature navigation, refresh
-  execution, comparison, and notifications.
+  execution, comparison, and notifications. Project reference and research
+  events remain internal to the composite and reach the coordinator through its
+  existing typed callback configuration.
 - The model provider settings panel replaces six internal element references,
   duplicate preference listeners and status synchronization, stored-value
   validation, and imperative model-option rendering. It also removes the
@@ -858,8 +861,10 @@ reason to wrap static markup mechanically.
   coordinator-supplied canonical context into those children and resets their
   local presentation state when the active artifact changes, replacing four
   global registry entries and the coordinator's direct child orchestration.
-  PDF viewer state, navigation, mutations, canonical refreshes, and
-  notifications remain in the application coordinator.
+  It also replaces the coordinator's project reference and research event
+  subscriptions with one typed mutation-completion binding. PDF viewer state,
+  navigation, canonical snapshot application, refreshes, and notifications
+  remain in the application coordinator.
 - The Library PDF annotation list replaces five imperative highlight and markup
   render helpers plus their per-card handlers with one delegated typed action
   stream. It also removes the generic coordinator markup-deletion request by

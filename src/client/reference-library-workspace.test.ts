@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { LibraryPdfArtifact, ReferenceLibrarySnapshot } from "../domain/reference-library";
+import { workspaceSnapshotFixture } from "../test-support/workspace-fixture";
 import { citationNetworkOutcomeEvent, CitationNetworkWorkspace } from "./citation-network-workspace";
 import { libraryReferenceMetadataNoticeEvent, libraryReferenceMetadataRefreshEvent } from "./library-reference-metadata-editor";
 import { libraryReferencePdfActionEvent, libraryReferencePdfRefreshEvent } from "./library-reference-pdf-rows";
@@ -15,6 +16,8 @@ import { libraryPdfUploadRevealEvent, LibraryPdfUploadStatus } from "./library-p
 import { libraryToolsActionEvent, libraryToolsArchiveRefreshEvent, LibraryToolsMenu } from "./library-tools-menu";
 import { ReferenceLibraryFilterPanel, referenceLibraryFilterChangeEvent } from "./reference-library-filters";
 import { ReferenceLibraryWorkspace } from "./reference-library-workspace";
+import { projectReferenceChangedEvent } from "./project-reference-mutation";
+import { projectResearchChangedEvent } from "./project-research-mutation";
 import { unidentifiedPdfRefreshEvent, UnidentifiedPdfList } from "./unidentified-pdf-list";
 import { webSourceCapturedEvent, WebSourceCapture } from "./web-source-panels";
 
@@ -151,6 +154,7 @@ describe("reference Library workspace", () => {
     const { owners, workspace } = setup();
     const callbacks = {
       compareSnapshots: vi.fn(),
+      completeProjectMutation: vi.fn(),
       completeRefresh: vi.fn(),
       openPdf: vi.fn(),
       presentNotice: vi.fn(),
@@ -161,6 +165,13 @@ describe("reference Library workspace", () => {
     const completeIdentification = vi.spyOn(owners["unidentified-pdf-list"], "complete");
     const captureUrl = vi.spyOn(owners["web-source-capture"], "captureUrl").mockResolvedValue();
     workspace.configure("project-1", callbacks);
+
+    workspace.dispatchEvent(
+      new CustomEvent(projectReferenceChangedEvent, { detail: { message: "Reference linked", snapshot: workspaceSnapshotFixture } }),
+    );
+    workspace.dispatchEvent(
+      new CustomEvent(projectResearchChangedEvent, { detail: { message: "Research shared", snapshot: workspaceSnapshotFixture } }),
+    );
 
     workspace.dispatchEvent(new CustomEvent(citationNetworkOutcomeEvent, { detail: { action: "notice", message: "Network notice" } }));
     workspace.dispatchEvent(
@@ -184,6 +195,10 @@ describe("reference Library workspace", () => {
     workspace.dispatchEvent(new CustomEvent(unidentifiedPdfRefreshEvent, { detail: { message: "PDF identified", requestId: 7 } }));
 
     expect(callbacks.presentNotice).toHaveBeenCalledWith("Network notice");
+    expect(callbacks.completeProjectMutation.mock.calls).toEqual([
+      ["Reference linked", workspaceSnapshotFixture],
+      ["Research shared", workspaceSnapshotFixture],
+    ]);
     expect(callbacks.presentNotice).toHaveBeenCalledWith("Metadata notice");
     expect(callbacks.openPdf).toHaveBeenCalledTimes(2);
     expect(callbacks.completeRefresh).toHaveBeenCalledTimes(4);

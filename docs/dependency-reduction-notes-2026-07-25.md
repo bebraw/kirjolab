@@ -6984,6 +6984,30 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,670 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Library Mutation Routing
+
+`ReferenceLibraryWorkspace` and `LibraryPdfInspector` now intercept nested
+project-reference and research mutation outcomes and route them through typed
+coordinator callbacks. The child events remain internal composite transport;
+`WorkspaceApp` retains canonical snapshot application, Library rerendering, and
+toast policy.
+
+This checkpoint reduces `src/client/app.ts` from 2,209 to 2,199 lines (-10) and
+removes two coordinator listener sites representing four runtime subscriptions.
+The two composite owners grow from 557 to 583 lines (+26), increasing runtime
+source across the three files by 16 lines while making the application boundary
+independent of nested child event protocols. Focused coverage exercises both
+mutation families through both composites, existing Library outcome routing,
+PDF projection, and strict types.
+
+The browser application artifact changes from 839,858 B raw / 226,943 B gzip
+to 840,174 B raw / 227,035 B gzip (+316 B raw / +92 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,671 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

@@ -94,9 +94,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   unidentified-PDF queue; own filter-driven rerendering and focused-reference
   reveal; delegate child lifecycle controls; and route its summary, personal-
   field, metadata, PDF, research, citation-network, and unidentified-PDF child
-  outcomes. Keep canonical snapshot loading, cross-feature navigation,
-  mutations, refresh execution, and notification presentation in their
-  authorities behind narrow typed callbacks.
+  outcomes, including project reference and research mutation completion. Keep
+  canonical snapshot loading, cross-feature navigation, snapshot application,
+  refresh execution, and notification presentation in their authorities behind
+  narrow typed callbacks.
 - Keep resource-card lookup, scrolling, and focus inside the Lit component that
   renders those cards. Let the Library reference-list owner route a PDF
   refinement intent to the metadata editor in the same reference row. The
@@ -758,8 +759,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   lifecycle for its annotation forms, imported-highlight review, saved
   annotation list, and project-use block. Supply one canonical artifact,
   project, reference, and Library snapshot from the application coordinator;
-  keep PDF viewer state, navigation, mutations, canonical refreshes, and toast
-  policy in that coordinator.
+  route nested project reference and research mutation completion through one
+  typed callback. Keep PDF viewer state, navigation, canonical snapshot
+  application, refreshes, and toast policy in that coordinator.
 - Let the PDF highlight import panel own bounded client-side detection,
   saved-highlight overlap filtering, reviewed candidate state, stable encoded
   import transport, duplicate-submit gating, and retryable local failures. Keep

@@ -109,8 +109,10 @@ memory and makes citation aliases compete with stable source identity.
   upload and status, web capture, tools, filters, results, citation network, and
   the unidentified-PDF queue; owns their sibling bindings and archive/capture
   delegation; and routes their outcomes through narrow coordinator callbacks.
-  The application coordinator retains canonical loading, cross-feature
-  navigation, refresh execution, comparison effects, and notification
+  Nested project-reference and research mutation events stay inside this
+  composite and resolve through the same callback boundary. The application
+  coordinator retains canonical loading, cross-feature navigation, snapshot
+  application, refresh execution, comparison effects, and notification
   presentation.
 - A bounded light-DOM reference summary owns each result's display title,
   compact metadata, PDF action, project-link state, link and unlink transport,

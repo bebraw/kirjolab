@@ -17,6 +17,8 @@ import type { LibraryPdfProjectUse } from "./library-pdf-project-use";
 import "./library-pdf-project-use";
 import type { PdfHighlightImportPanel } from "./pdf-highlight-import-panel";
 import "./pdf-highlight-import-panel";
+import { projectReferenceChangedEvent, type ProjectReferenceChanged } from "./project-reference-mutation";
+import { projectResearchChangedEvent, type ProjectResearchChanged } from "./project-research-mutation";
 
 export const libraryPdfInspectorCloseEvent = "library-pdf-inspector-close";
 
@@ -52,6 +54,7 @@ export class LibraryPdfInspector extends LitElement {
   declare private inspectorOpen: boolean;
   declare private status: string;
   declare private visible: boolean;
+  private completeProjectMutation: ((message: string, snapshot: ProjectReferenceChanged["snapshot"]) => void) | null = null;
 
   constructor() {
     super();
@@ -59,6 +62,18 @@ export class LibraryPdfInspector extends LitElement {
     this.inspectorOpen = false;
     this.status = "Select text to highlight.";
     this.visible = false;
+    this.addEventListener(projectReferenceChangedEvent, (event) => {
+      const { message, snapshot } = (event as CustomEvent<ProjectReferenceChanged>).detail;
+      this.completeProjectMutation?.(message, snapshot);
+    });
+    this.addEventListener(projectResearchChangedEvent, (event) => {
+      const { message, snapshot } = (event as CustomEvent<ProjectResearchChanged>).detail;
+      this.completeProjectMutation?.(message, snapshot);
+    });
+  }
+
+  bindProjectMutations(complete: (message: string, snapshot: ProjectReferenceChanged["snapshot"]) => void): void {
+    this.completeProjectMutation = complete;
   }
 
   protected setArtifact(artifactId: string): void {

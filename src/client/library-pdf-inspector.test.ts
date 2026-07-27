@@ -7,11 +7,14 @@ import type {
   LibraryPdfNote,
   ReferenceLibrarySnapshot,
 } from "../domain/reference-library";
+import { workspaceSnapshotFixture } from "../test-support/workspace-fixture";
 import type { LibraryPdfAnnotationForms } from "./library-pdf-annotation-forms";
 import type { LibraryPdfAnnotationList } from "./library-pdf-annotation-list";
 import { LibraryPdfInspector, libraryPdfInspectorCloseEvent } from "./library-pdf-inspector";
 import type { LibraryPdfProjectUse } from "./library-pdf-project-use";
 import type { PdfHighlightImportPanel } from "./pdf-highlight-import-panel";
+import { projectReferenceChangedEvent } from "./project-reference-mutation";
+import { projectResearchChangedEvent } from "./project-research-mutation";
 
 const reference: BibliographicRecord = {
   abstract: "",
@@ -173,6 +176,24 @@ describe("library PDF inspector", () => {
     inspector.closeForTest();
 
     expect(closed).toBe(true);
+  });
+
+  it("routes child project mutations through its binding", () => {
+    const inspector = new TestLibraryPdfInspector();
+    const complete = vi.fn();
+    inspector.bindProjectMutations(complete);
+
+    inspector.dispatchEvent(
+      new CustomEvent(projectReferenceChangedEvent, { detail: { message: "Reference linked", snapshot: workspaceSnapshotFixture } }),
+    );
+    inspector.dispatchEvent(
+      new CustomEvent(projectResearchChangedEvent, { detail: { message: "Research shared", snapshot: workspaceSnapshotFixture } }),
+    );
+
+    expect(complete.mock.calls).toEqual([
+      ["Reference linked", workspaceSnapshotFixture],
+      ["Research shared", workspaceSnapshotFixture],
+    ]);
   });
 
   it("projects one active artifact into its owned child components", () => {
