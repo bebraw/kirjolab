@@ -861,16 +861,10 @@ class WorkspaceApp {
     });
     if (!outcome) return;
     this.#renderManuscriptMap(outcome.publicationComposition?.content ?? outcome.renderedSource);
-    this.#elements.previewContextControls.setFile(outcome.filePreview);
     if (outcome.publicationComposition && this.#snapshot) {
       this.#elements.exportDialog.setStatistics(publicationWordStatistics(outcome.publicationComposition, files));
     }
-    if (!outcome.available) {
-      this.#elements.previewContextControls.showUnavailable();
-      return;
-    }
-    this.#elements.previewSyncControls.setSourceMap(outcome.filePreview?.sourceMap ?? []);
-    this.#elements.previewContextControls.setDiagnostics(outcome.diagnostics, outcome.filePreview);
+    if (!outcome.available) return;
     this.#renderPreviewWorkspaceContext(outcome.publicationComposition, bibliography);
   }
 

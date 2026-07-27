@@ -57,7 +57,8 @@ collaborative, and unambiguous about what preview and export mean.
 - The workspace Preview derives publication composition, active-file preview,
   rendered fallback source, and the active source map from coordinator-supplied
   canonical project files, snapshot pins, and active-file identity before
-  invoking its renderer. The coordinator retains canonical Yjs/project-file
+  invoking its renderer. It synchronizes file-mode, diagnostics/unavailable
+  status, and source-map navigation siblings from the same render outcome. The coordinator retains canonical Yjs/project-file
   authority and cross-panel consequences.
 - The bounded Preview status owner derives composed-versus-isolated file labels
   and the combined composition and Markdown-renderer issue count from canonical

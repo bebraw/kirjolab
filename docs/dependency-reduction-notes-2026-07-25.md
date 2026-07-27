@@ -7474,6 +7474,29 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,695 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Preview Sibling Projection
+
+`WorkspacePreview` now synchronizes its file-mode label, diagnostics or
+unavailable summary, and active source map into the bounded Preview status and
+source-sync siblings from the same render outcome. `WorkspaceApp` retains source
+navigation binding, export statistics, manuscript-map projection, knowledge-
+graph refresh, and cross-feature transitions.
+
+This checkpoint reduces `src/client/app.ts` from 1,924 to 1,918 lines (-6) and
+grows the workspace Preview from 354 to 375 lines (+21). Runtime source across
+those two files increases by 15 lines while deleting four coordinator-side
+Preview presentation effects and their unavailable branch. Focused coverage
+exercises successful outcome delegation, existing rendering and failure paths,
+application contracts, and strict types.
+
+The browser application artifact changes from 843,753 B raw / 228,130 B gzip
+to 843,889 B raw / 228,170 B gzip (+136 B raw / +40 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,695 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

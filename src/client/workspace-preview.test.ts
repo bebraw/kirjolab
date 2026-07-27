@@ -9,6 +9,7 @@ import {
   WorkspacePreview,
   workspacePreviewActionEvent,
   type ProjectPreviewImageContext,
+  type ProjectPreviewOutcome,
   type WorkspacePreviewRequest,
 } from "./workspace-preview";
 
@@ -26,6 +27,7 @@ const request: WorkspacePreviewRequest = {
 };
 
 class TestWorkspacePreview extends WorkspacePreview {
+  readonly presentProject = vi.fn();
   readonly resolveImages = vi.fn();
   readonly setDiagnostics = vi.fn();
   readonly showUnavailable = vi.fn();
@@ -49,6 +51,10 @@ class TestWorkspacePreview extends WorkspacePreview {
 
   protected override resolveProjectImages(context: ProjectPreviewImageContext): void {
     this.resolveImages(context);
+  }
+
+  protected override presentProjectOutcome(outcome: ProjectPreviewOutcome): void {
+    this.presentProject(outcome);
   }
 
   protected override get diagnostics(): PreviewDiagnosticsPanel {
@@ -110,6 +116,7 @@ describe("workspace preview", () => {
       }),
     );
     expect(outcome).toMatchObject({ available: true });
+    expect(preview.presentProject).toHaveBeenCalledWith(expect.objectContaining({ available: true }));
   });
 
   it("shows source and a local diagnostic when the renderer is unavailable", async () => {

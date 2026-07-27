@@ -288,7 +288,8 @@ The adopted components own bounded presentation:
   lazy Markdown-runtime loading, stale-render rejection, rendered or escaped-
   source presentation, renderer diagnostics, isolated-file heading-number
   projection, publication composition and active-file preview derivation from
-  supplied canonical project files, authorized local-image resolution, viewport-relative source-span
+  supplied canonical project files, synchronized Preview status and source-map
+  sibling projection, authorized local-image resolution, viewport-relative source-span
   lookup, centering, transient target emphasis, anchor scrolling, interactive-
   click classification, source-offset extraction, and typed source or citation
   intents. It routes those intents and its nested diagnostics panel's source-

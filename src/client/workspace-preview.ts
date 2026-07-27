@@ -14,7 +14,13 @@ import type { WorkspaceSnapshot } from "../domain/workspace";
 import { sourceSpanAt } from "./composition-source-map";
 import { parseCitationKeys, type CitationContext } from "./citations";
 import { loadMarkdownRuntime, type MarkdownRuntime } from "./markdown-runtime";
-import { previewDiagnosticSelectEvent, PreviewDiagnosticsPanel, type PreviewDiagnosticSelection } from "./preview-presentation";
+import {
+  previewDiagnosticSelectEvent,
+  PreviewContextStatus,
+  PreviewDiagnosticsPanel,
+  type PreviewDiagnosticSelection,
+} from "./preview-presentation";
+import { PreviewSyncControls } from "./preview-sync-controls";
 
 export const workspacePreviewActionEvent = "workspace-preview-action";
 
@@ -174,7 +180,7 @@ export class WorkspacePreview extends LitElement {
       renderedSource,
       snapshot,
     });
-    return outcome
+    const projectOutcome: ProjectPreviewOutcome | null = outcome
       ? {
           available: outcome.available,
           diagnostics: outcome.available ? outcome.diagnostics : [],
@@ -183,6 +189,21 @@ export class WorkspacePreview extends LitElement {
           renderedSource,
         }
       : null;
+    if (projectOutcome) this.presentProjectOutcome(projectOutcome);
+    return projectOutcome;
+  }
+
+  protected presentProjectOutcome(outcome: ProjectPreviewOutcome): void {
+    const status = this.ownerDocument?.getElementById("preview-context-controls");
+    if (status instanceof PreviewContextStatus) {
+      status.setFile(outcome.filePreview);
+      if (outcome.available) status.setDiagnostics(outcome.diagnostics, outcome.filePreview);
+      else status.showUnavailable();
+    }
+    if (outcome.available) {
+      const sync = this.ownerDocument?.getElementById("preview-sync-controls");
+      if (sync instanceof PreviewSyncControls) sync.setSourceMap(outcome.filePreview?.sourceMap ?? []);
+    }
   }
 
   centeredSourceOffset(): number | null {

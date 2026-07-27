@@ -146,7 +146,8 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   stale-render rejection, rendered or escaped-source presentation, renderer
   diagnostics, isolated-file heading-number mapping, authorized local-image
   resolution, publication composition and active-file preview derivation from
-  supplied canonical project files, transient DOM navigation, interactive-click classification,
+  supplied canonical project files, synchronized Preview status and source-map
+  sibling projection, transient DOM navigation, interactive-click classification,
   source-offset extraction, and routing of its source, citation, and nested
   diagnostic-selection intents through one typed navigation boundary. Keep
   canonical project-file and Yjs source authority, source-map translation, cross-
