@@ -1,4 +1,6 @@
 import * as Y from "yjs";
+import { resolveWorkspaceSnapshotAnchors } from "../domain/workspace-anchor-projection";
+import { isWorkspaceSnapshot, type WorkspaceSnapshot } from "../domain/workspace";
 
 const databaseName = "kirjolab-offline-v1";
 const databaseVersion = 1;
@@ -21,6 +23,12 @@ export interface OfflineWorkspaceRepository {
   read(key: string): Promise<unknown>;
   write(record: OfflineWorkspaceRecord): Promise<void>;
   delete(key: string): Promise<void>;
+}
+
+export interface RestoredOfflineWorkspace {
+  readonly savedAt: string;
+  readonly serverStateVector: Uint8Array;
+  readonly snapshot: WorkspaceSnapshot;
 }
 
 export class OfflineWorkspaceStore {
@@ -68,6 +76,38 @@ export function createOfflineWorkspaceStore(
   workspaceId: string,
 ): OfflineWorkspaceStore | null {
   return factory ? new OfflineWorkspaceStore(new IndexedDbWorkspaceRepository(factory), identity, workspaceId) : null;
+}
+
+export async function restoreOfflineWorkspaceState(
+  store: OfflineWorkspaceStore,
+  document: Y.Doc,
+  origin: unknown,
+  workspaceId: string,
+): Promise<RestoredOfflineWorkspace | null> {
+  let record: OfflineWorkspaceRecord | null;
+  try {
+    record = await store.load();
+  } catch {
+    return null;
+  }
+  if (!record) return null;
+  if (!isWorkspaceSnapshot(record.snapshot) || record.snapshot.id !== workspaceId) {
+    await store.clear();
+    return null;
+  }
+  try {
+    const serverStateVector = new Uint8Array(record.serverStateVector);
+    Y.decodeStateVector(serverStateVector);
+    Y.applyUpdate(document, new Uint8Array(record.documentUpdate), origin);
+    return {
+      savedAt: record.savedAt,
+      serverStateVector,
+      snapshot: resolveWorkspaceSnapshotAnchors(document, record.snapshot),
+    };
+  } catch {
+    await store.clear();
+    return null;
+  }
 }
 
 export async function clearAllOfflineWorkspaces(factory: IDBFactory | undefined): Promise<void> {

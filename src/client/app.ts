@@ -71,7 +71,12 @@ import {
   clearOfflineShellCaches,
   registerOfflineServiceWorker,
 } from "./offline-service-worker";
-import { clearAllOfflineWorkspaces, createOfflineWorkspaceStore, type OfflineWorkspaceStore } from "./offline-workspace";
+import {
+  clearAllOfflineWorkspaces,
+  createOfflineWorkspaceStore,
+  restoreOfflineWorkspaceState,
+  type OfflineWorkspaceStore,
+} from "./offline-workspace";
 import { PdfEvidenceViewer, type PdfSelectionCapture } from "./pdf-viewer";
 import type { ExistingPdfUpload } from "./pdf-upload-queue";
 import { bindThemePreference } from "./theme";
@@ -1935,35 +1940,20 @@ class WorkspaceApp {
 
   async #restoreOfflineWorkspace(): Promise<boolean> {
     if (!this.#offlineStore) return false;
-    let record;
-    try {
-      record = await this.#offlineStore.load();
-    } catch {
-      return false;
-    }
-    if (!record) return false;
-    if (!isWorkspaceSnapshot(record.snapshot) || record.snapshot.id !== workspaceId) {
-      await this.#offlineStore.clear();
-      return false;
-    }
-    try {
-      Y.applyUpdate(this.#document, new Uint8Array(record.documentUpdate), offlineOrigin);
-    } catch {
-      await this.#offlineStore.clear();
-      return false;
-    }
-    const pending = this.#collaboration.restoreOffline(new Uint8Array(record.serverStateVector));
-    this.#snapshot = resolveWorkspaceSnapshotAnchors(this.#document, record.snapshot);
+    const restored = await restoreOfflineWorkspaceState(this.#offlineStore, this.#document, offlineOrigin, workspaceId);
+    if (!restored) return false;
+    const pending = this.#collaboration.restoreOffline(restored.serverStateVector);
+    this.#snapshot = restored.snapshot;
     this.#hasBootstrapSnapshot = true;
     this.#collaboration.setOfflineAvailable(true);
-    this.#revision = record.snapshot.revision;
+    this.#revision = restored.snapshot.revision;
     this.#renderWorkspaceCatalog([
       {
-        id: record.snapshot.id,
-        title: record.snapshot.title,
-        href: `/editor/${encodeURIComponent(record.snapshot.id)}`,
-        createdAt: record.savedAt,
-        updatedAt: record.savedAt,
+        id: restored.snapshot.id,
+        title: restored.snapshot.title,
+        href: `/editor/${encodeURIComponent(restored.snapshot.id)}`,
+        createdAt: restored.savedAt,
+        updatedAt: restored.savedAt,
         archivedAt: null,
       },
     ]);

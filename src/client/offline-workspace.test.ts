@@ -1,10 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import * as Y from "yjs";
+import { workspaceSnapshotFixture } from "../test-support/workspace-fixture";
 import {
   OfflineWorkspaceStore,
   clearAllOfflineWorkspaces,
   createOfflineWorkspaceStore,
   offlineDocumentDelta,
+  restoreOfflineWorkspaceState,
   type OfflineWorkspaceRecord,
   type OfflineWorkspaceRepository,
 } from "./offline-workspace";
@@ -251,6 +253,33 @@ describe("offline workspace persistence", () => {
     expect(differentSameLengthVector.byteLength).toBe(Y.encodeStateVector(vectorDocument).byteLength);
     expect(offlineDocumentDelta(vectorDocument, differentSameLengthVector)).not.toBeNull();
     expect(offlineDocumentDelta(vectorDocument, Y.encodeStateVector(new Y.Doc()))).not.toBeNull();
+  });
+
+  it("restores validated workspace state and evicts corrupt records", async () => {
+    const repository = new MemoryRepository();
+    const store = new OfflineWorkspaceStore(repository, "writer@example.test", workspaceSnapshotFixture.id);
+    const source = new Y.Doc();
+    source.getText("source").insert(0, "Offline draft");
+    await store.save(workspaceSnapshotFixture, Y.encodeStateAsUpdate(source), Y.encodeStateVector(new Y.Doc()));
+    const restoredDocument = new Y.Doc();
+
+    const restored = await restoreOfflineWorkspaceState(store, restoredDocument, "offline", workspaceSnapshotFixture.id);
+
+    expect(restored?.snapshot.id).toBe(workspaceSnapshotFixture.id);
+    expect(restoredDocument.getText("source").toString()).toBe("Offline draft");
+    expect(restored?.serverStateVector).toEqual(Y.encodeStateVector(new Y.Doc()));
+
+    await store.save({ ...workspaceSnapshotFixture, id: "other" }, Y.encodeStateAsUpdate(source), Y.encodeStateVector(source));
+    await expect(restoreOfflineWorkspaceState(store, new Y.Doc(), "offline", workspaceSnapshotFixture.id)).resolves.toBeNull();
+    await expect(store.load()).resolves.toBeNull();
+
+    await store.save(workspaceSnapshotFixture, new Uint8Array([255]), Y.encodeStateVector(source));
+    await expect(restoreOfflineWorkspaceState(store, new Y.Doc(), "offline", workspaceSnapshotFixture.id)).resolves.toBeNull();
+    await expect(store.load()).resolves.toBeNull();
+
+    await store.save(workspaceSnapshotFixture, Y.encodeStateAsUpdate(source), new Uint8Array([255]));
+    await expect(restoreOfflineWorkspaceState(store, new Y.Doc(), "offline", workspaceSnapshotFixture.id)).resolves.toBeNull();
+    await expect(store.load()).resolves.toBeNull();
   });
 
   it("degrades cleanly when IndexedDB is unavailable", async () => {

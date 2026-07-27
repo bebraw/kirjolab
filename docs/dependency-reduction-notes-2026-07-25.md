@@ -7215,6 +7215,30 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,680 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Offline Restoration Authority
+
+The offline workspace module now owns record loading, canonical snapshot and
+workspace validation, acknowledged server-vector decoding, Yjs update
+application, anchor reprojection, and corrupt-record eviction behind one typed
+restoration result. `WorkspaceApp` retains collaboration queue recovery,
+revision and availability state, and UI projection.
+
+This checkpoint reduces `src/client/app.ts` from 2,075 to 2,065 lines (-10) and
+grows the offline workspace authority from 203 to 243 lines (+40). Runtime
+source across the two files increases by 30 lines while removing persistence
+and corruption policy from the application coordinator. Focused coverage
+exercises valid restoration, workspace mismatch, malformed Yjs updates,
+malformed server vectors, eviction, existing persistence behavior, application
+contracts, and strict types.
+
+The browser application artifact changes from 841,313 B raw / 227,538 B gzip
+to 841,471 B raw / 227,586 B gzip (+158 B raw / +48 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,681 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

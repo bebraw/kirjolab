@@ -43,6 +43,12 @@ delta through the existing FIFO acknowledgement protocol. Duplicate replay
 remains harmless because the document room acknowledges already integrated
 Yjs state without advancing the revision.
 
+Keep record loading, snapshot and workspace validation, server-vector decoding,
+Yjs update application, anchor reprojection, and corrupt-record eviction behind
+the offline persistence module's typed restoration result. The collaboration
+session consumes only the validated server vector; the application coordinator
+retains collaboration recovery and UI projection.
+
 Update the stored server vector only from server binary state and acknowledged
 client updates. Clear the workspace copy before applying a server reset, and
 clear all Kirjolab IndexedDB and service-worker caches before following the

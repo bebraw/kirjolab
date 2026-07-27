@@ -666,7 +666,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   authorized snapshot, full Yjs document state, and acknowledged server state
   vector so existing Markdown files remain editable offline. Reconstruct only
   the state-vector delta on restart, send it after the normal server-led sync,
-  and clear local copies on reset and hosted logout.
+  and clear local copies on reset and hosted logout. Keep offline record loading,
+  snapshot and workspace validation, server-vector decoding, Yjs restoration,
+  anchor reprojection, and corrupt-record eviction in the offline persistence
+  authority. Keep collaboration queue recovery and UI projection in their
+  existing owners.
 - Cache only authenticated canonical editor navigation and the allowlisted
   authoring shell for offline fallback. Never service-worker-cache dashboard,
   review, or Library data, project/library APIs, WebSockets, exports, model

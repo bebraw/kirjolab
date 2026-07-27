@@ -326,7 +326,11 @@ collaboration.
   stores the current Yjs document, last acknowledged server vector, and last
   authorized workspace snapshot per identity and project. Existing Markdown
   files remain editable offline; restart derives one pending Yjs delta and
-  sends it only after the ordinary server-led `sync` boundary.
+  sends it only after the ordinary server-led `sync` boundary. The offline
+  persistence authority validates the snapshot and workspace identity, decodes
+  the server vector, applies the Yjs update, reprojects anchors, and evicts a
+  corrupt record before returning restoration state. Collaboration recovery and
+  UI projection remain outside that persistence boundary.
 - **Offline shell updates:** Browser builds derive the Kirjolab Cache Storage
   namespace from emitted shell content. Workspace and Library startup both
   check an existing registration for an update without adding Library
