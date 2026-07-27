@@ -7729,6 +7729,26 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,698 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Coordinator Pass-Through Removal: Editors and Completion
+
+`WorkspaceApp` now projects collaboration editability directly to its two
+editor controls, passes refreshed template options directly to the save dialog,
+and applies selected include completions through the existing canonical source
+mutation. Three one-purpose methods that added neither policy nor adaptation
+are removed.
+
+This checkpoint reduces `src/client/app.ts` from 1,816 to 1,805 lines (-11)
+without adding runtime source elsewhere. Affected checks pass formatting, lint,
+application contracts, strict types, and all 1,698 unit/coverage tests.
+
+The browser application artifact changes from 845,135 B raw / 229,027 B gzip
+to 845,228 B raw / 229,021 B gzip (+93 B raw / -6 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,698 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

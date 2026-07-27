@@ -223,7 +223,8 @@ class WorkspaceApp {
       return;
     }
     void this.#applyWorkspaceLayout(this.#elements.workspaceLayout.restore(), false);
-    this.#setEditorsEnabled(false);
+    this.#elements.source.disabled = true;
+    this.#elements.bibliography.disabled = true;
     const restored = await this.#restoreOfflineWorkspace();
     try {
       await this.#elements.workspaceCatalogPanel.refresh();
@@ -302,7 +303,7 @@ class WorkspaceApp {
         else this.#openGitHubImportDialog();
       },
       presentNotice: (message, options) => this.#showToast(message, options),
-      templatesChanged: () => this.#syncTemplateReplacementOptions(),
+      templatesChanged: () => this.#elements.saveTemplateDialog.setTemplates(this.#elements.newWorkspaceStartingPoints.availableTemplates),
     });
     this.#elements.gitHubSyncMenu.bindWorkspace(apiBase, {
       settings: this.#elements.workspaceSettingsPanel,
@@ -399,7 +400,7 @@ class WorkspaceApp {
     });
     this.#elements.sourceCompletion.bindAcceptance((intent) => {
       if (intent.kind === "citation") void this.#acceptCitationCompletion(intent);
-      else this.#acceptIncludeCompletion(intent);
+      else this.#applySourceCompletion(intent.context.start, intent.context.end, intent.candidate.reference);
     });
     this.#elements.authoringModeTabs.bindNavigation((mode) => this.#setAuthoringMode(mode));
     this.#elements.projectHistoryDialog.configure(apiBase, {
@@ -721,7 +722,7 @@ class WorkspaceApp {
 
   async #refreshProjectTemplates(): Promise<void> {
     await this.#elements.newWorkspaceStartingPoints.refresh(this.#elements.workspaceCatalogPanel.catalog);
-    this.#syncTemplateReplacementOptions();
+    this.#elements.saveTemplateDialog.setTemplates(this.#elements.newWorkspaceStartingPoints.availableTemplates);
   }
 
   async #openSaveTemplate(): Promise<void> {
@@ -736,10 +737,6 @@ class WorkspaceApp {
     }
   }
 
-  #syncTemplateReplacementOptions(): void {
-    this.#elements.saveTemplateDialog.setTemplates(this.#elements.newWorkspaceStartingPoints.availableTemplates);
-  }
-
   async #completeProjectTemplateSave({ replaced, template }: ProjectTemplateSaved): Promise<void> {
     await this.#refreshProjectTemplates();
     this.#showToast(replaced ? `Replaced template “${template.name}”.` : `Saved “${template.name}” as a personal template.`);
@@ -748,7 +745,8 @@ class WorkspaceApp {
   #renderCollaborationWorkflow(): void {
     const status = this.#collaboration.status;
     this.#elements.connectionStatus.setConnection(status.label, status.connected);
-    this.#setEditorsEnabled(this.#collaboration.canEdit);
+    this.#elements.source.disabled = !this.#collaboration.canEdit;
+    this.#elements.bibliography.disabled = !this.#collaboration.canEdit;
     this.#updateModelAvailability();
   }
 
@@ -1238,10 +1236,6 @@ class WorkspaceApp {
     }
     this.#applySourceCompletion(start, end, candidate.key);
     if (candidate.scope === "library") this.#showToast(`Added and cited ${candidate.key}.`);
-  }
-
-  #acceptIncludeCompletion({ candidate, context }: Extract<SourceCompletionIntent, { kind: "include" }>): void {
-    this.#applySourceCompletion(context.start, context.end, candidate.reference);
   }
 
   #applySourceCompletion(start: number, end: number, value: string): void {
@@ -1758,11 +1752,6 @@ class WorkspaceApp {
       clearAllOfflineWorkspaces(typeof indexedDB === "undefined" ? undefined : indexedDB),
       clearOfflineShellCaches(typeof caches === "undefined" ? undefined : caches),
     ]);
-  }
-
-  #setEditorsEnabled(enabled: boolean): void {
-    this.#elements.source.disabled = !enabled;
-    this.#elements.bibliography.disabled = !enabled;
   }
 
   #showToast(message: string, options?: AppToastOptions): void {
