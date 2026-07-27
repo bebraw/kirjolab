@@ -232,8 +232,10 @@ The adopted components own bounded presentation:
   retryable failure state, and a typed completed outcome carrying the final
   validated workspace snapshot. The project-file dialog owns tree-image
   projection into relative Markdown syntax and a completion message, plus the
-  upload and tree mutation outcome binding. The coordinator retains canonical
-  active-file lookup, snapshot application, cross-feature rendering, Yjs
+  upload and tree mutation outcome binding. The project-file owner retains the
+  canonical snapshot needed to resolve its active file, requested folder,
+  dialog inputs, deletion eligibility, and relative image projection. The
+  coordinator retains snapshot application, cross-feature rendering, Yjs
   insertion, caret and focus authority, and the toast outlet; the project-tree
   panel owns image deletion.
 - The editor Insert menu owns scholarly-syntax choices and their displayed

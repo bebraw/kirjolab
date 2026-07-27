@@ -51,13 +51,11 @@ export interface ProjectFilePresentationBinding {
 }
 
 export interface ProjectFileWorkflowRouting {
-  readonly activeFile: () => ProjectFile | null;
   readonly actionControls: readonly EventTarget[];
-  readonly deleteFile: () => void;
   readonly focusEditor: () => void;
   readonly imageUpload: ProjectImageUploadSource;
   readonly insertImage: (insertion: ProjectImageInsertion) => void;
-  readonly openDialog: (mode: ProjectFileDialogMode, folderId?: string) => void;
+  readonly prepareDialog: (mode: ProjectFileDialogMode, activeFile: ProjectFile | null) => void;
   readonly quickOpen: () => void;
   readonly saved: (result: ProjectFileSaved) => void;
   readonly selectFile: (fileId: string) => void;
@@ -124,6 +122,7 @@ export class ProjectFileDialog extends LitElement {
   private targetId: string | null = null;
   private readonly hiddenFileIds = new Set<string>();
   private selectedFileId: string | null = null;
+  private snapshot: WorkspaceSnapshot | null = null;
   private presentation: ProjectFilePresentationBinding | null = null;
   private routing: ProjectFileWorkflowRouting | null = null;
   private routingAbort: AbortController | null = null;
@@ -164,6 +163,10 @@ export class ProjectFileDialog extends LitElement {
     return this.selectedFileId;
   }
 
+  get activeFile(): ProjectFile | null {
+    return this.snapshot?.files.find(({ id }) => id === this.selectedFileId) ?? null;
+  }
+
   activateFile(snapshot: WorkspaceSnapshot, fileId: string): ProjectFile | null {
     const file = snapshot.files.find(({ id }) => id === fileId);
     if (!file || this.hiddenFileIds.has(fileId) || fileId === this.selectedFileId) return null;
@@ -172,6 +175,7 @@ export class ProjectFileDialog extends LitElement {
   }
 
   presentProject(snapshot: WorkspaceSnapshot, assetBase: string, workspace: boolean): ProjectFile | null {
+    this.snapshot = snapshot;
     const activeFile = this.ensureActiveFile(snapshot);
     const activeFileId = this.selectedFileId;
     const presentation = this.presentation;
@@ -351,8 +355,8 @@ export class ProjectFileDialog extends LitElement {
     if (!routing) return;
     const action = (event as CustomEvent<ProjectFileAction>).detail;
     if (action === "upload-images") routing.imageUpload.choose();
-    else if (action === "delete") routing.deleteFile();
-    else routing.openDialog(action);
+    else if (action === "delete") this.deleteActiveFile();
+    else this.openDialog(action);
   };
 
   private readonly handleTreeAction = (event: Event): void => {
@@ -365,12 +369,29 @@ export class ProjectFileDialog extends LitElement {
     } else if (detail.action === "quick-open") {
       routing.quickOpen();
       routing.tree.focusFilter();
-    } else if (detail.action === "rename-folder") routing.openDialog("rename-folder", detail.folderId);
+    } else if (detail.action === "rename-folder") this.openDialog("rename-folder", detail.folderId);
     else {
-      const activeFile = routing.activeFile();
+      const activeFile = this.activeFile;
       if (activeFile) routing.insertImage(projectImageInsertion(activeFile, detail.asset));
     }
   };
+
+  private openDialog(mode: ProjectFileDialogMode, folderId?: string): void {
+    const routing = this.routing;
+    const snapshot = this.snapshot;
+    if (!routing || !snapshot) return;
+    const activeFile = this.activeFile;
+    const folder = snapshot.folders.find(({ id }) => id === folderId);
+    routing.prepareDialog(mode, activeFile);
+    void this.showFor(mode, activeFile ?? undefined, folder);
+  }
+
+  private deleteActiveFile(): void {
+    const snapshot = this.snapshot;
+    const activeFile = this.activeFile;
+    if (!snapshot || !activeFile || activeFile.id === snapshot.entryFileId) return;
+    this.deleteFile(activeFile, snapshot.entryFileId);
+  }
 
   private readonly handleImagesUploaded = (event: Event): void => {
     const { message, snapshot } = (event as CustomEvent<ProjectImagesUploaded>).detail;

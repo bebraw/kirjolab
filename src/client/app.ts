@@ -382,9 +382,7 @@ class WorkspaceApp {
       selectFile: (fileId) => this.#selectProjectFile(fileId),
     });
     this.#elements.projectFileDialog.bindWorkflow({
-      activeFile: () => this.#snapshot?.files.find((file) => file.id === this.#activeFileId) ?? null,
       actionControls: [this.#elements.projectFileRailActions, this.#elements.projectFileMenuActions],
-      deleteFile: () => this.#deleteProjectFile(),
       focusEditor: () => this.#elements.source.focus(),
       imageUpload: this.#elements.projectImageUpload,
       insertImage: ({ message, syntax }) => {
@@ -392,7 +390,7 @@ class WorkspaceApp {
         this.#applySourceSyntax({ text: syntax }, null, caret);
         this.#showToast(message);
       },
-      openDialog: (mode, folderId) => this.#openProjectFileDialog(mode, folderId),
+      prepareDialog: (mode, file) => this.#rememberProjectFileIncludeTarget(mode, file ?? undefined),
       quickOpen: () => {
         this.#layout.setRailCollapsed(false);
         this.#showRail("files");
@@ -1006,13 +1004,6 @@ class WorkspaceApp {
     this.#syncWorkspaceRoute("replace");
   }
 
-  #openProjectFileDialog(mode: ProjectFileDialogMode, folderId?: string): void {
-    const file = this.#snapshot?.files.find((item) => item.id === this.#activeFileId);
-    const folder = this.#snapshot?.folders.find((item) => item.id === folderId);
-    this.#rememberProjectFileIncludeTarget(mode, file);
-    void this.#elements.projectFileDialog.showFor(mode, file, folder);
-  }
-
   #rememberProjectFileIncludeTarget(mode: ProjectFileDialogMode, file: ProjectFile | undefined): void {
     this.#projectFileIncludeTarget =
       mode === "create-and-include" ? captureRelativeSelection(this.#elements.source, this.#activeFileText) : null;
@@ -1041,13 +1032,6 @@ class WorkspaceApp {
   #resetProjectFileDialogState(): void {
     this.#projectFileIncludeTarget = null;
     this.#projectFileIncludeFromPath = null;
-  }
-
-  #deleteProjectFile(): void {
-    const snapshot = this.#snapshot;
-    const file = snapshot?.files.find((item) => item.id === this.#activeFileId);
-    if (!snapshot || !file || file.id === snapshot.entryFileId) return;
-    this.#elements.projectFileDialog.deleteFile(file, snapshot.entryFileId);
   }
 
   #focusProjectRange(fileId: string, from: number, to: number): void {

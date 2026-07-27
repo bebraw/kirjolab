@@ -244,8 +244,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   notices. It routes its sibling file-action, tree, upload-completion, and save
   streams through typed workflow callbacks. From one canonical snapshot it also
   owns active-file identity, entry fallback, hidden-file selection eligibility,
-  and projects the visible file collection and active/entry state into the project
-  tree, Insert menu, source completion, and file menu. Emit or return the
+  active file/folder resolution for dialogs, active-file deletion eligibility,
+  and relative image insertion projection. It projects the visible file
+  collection and active/entry state into the project tree, Insert menu, source
+  completion, and file menu. Emit or return the
   validated workspace snapshot or created stable file. Keep workflow-template
   selection and navigation, collaborative caret capture, Yjs insertion and
   active-text binding, canonical snapshot authority, cross-feature rendering, and
@@ -261,7 +263,7 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   relative Markdown image syntax and a completion message from the canonical
   active file. Route image-upload and project-tree mutation completions through
   the project-file owner's one canonical snapshot, preview, and notice binding.
-  Keep active-file authority, Yjs insertion, caret and focus, snapshot
+  Keep Yjs insertion, caret and focus, snapshot
   application, cross-feature rendering, and the toast outlet in the workspace
   coordinator. Let the project-tree panel own image deletion as part of its
   local row lifecycle.

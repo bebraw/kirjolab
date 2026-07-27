@@ -123,16 +123,17 @@ describe("project file dialog", () => {
     const imageUpload = Object.assign(new EventTarget(), { choose: vi.fn() });
     const tree = Object.assign(new EventTarget(), { focusFilter: vi.fn() });
     const callbacks = {
-      activeFile: vi.fn(() => snapshot.files[0] ?? null),
-      deleteFile: vi.fn(),
       focusEditor: vi.fn(),
       insertImage: vi.fn(),
-      openDialog: vi.fn(),
+      prepareDialog: vi.fn(),
       quickOpen: vi.fn(),
       saved: vi.fn(),
       selectFile: vi.fn(),
     };
     panel.bindWorkflow({ actionControls: [actions], imageUpload, tree, ...callbacks });
+    panel.presentProject(snapshot, "/assets", true);
+    const showFor = vi.spyOn(panel, "showFor").mockResolvedValue();
+    const deleteFile = vi.spyOn(panel, "deleteFile");
     const asset = {
       createdAt: "now",
       fingerprint: "asset-fingerprint",
@@ -157,9 +158,11 @@ describe("project file dialog", () => {
     panel.dispatchEvent(new CustomEvent(projectFileSavedEvent, { detail: saved }));
 
     expect(imageUpload.choose).toHaveBeenCalledOnce();
-    expect(callbacks.deleteFile).toHaveBeenCalledOnce();
-    expect(callbacks.openDialog).toHaveBeenNthCalledWith(1, "create-folder");
-    expect(callbacks.openDialog).toHaveBeenNthCalledWith(2, "rename-folder", "folder-1");
+    expect(deleteFile).not.toHaveBeenCalled();
+    expect(callbacks.prepareDialog).toHaveBeenNthCalledWith(1, "create-folder", snapshot.files[0]);
+    expect(callbacks.prepareDialog).toHaveBeenNthCalledWith(2, "rename-folder", snapshot.files[0]);
+    expect(showFor).toHaveBeenNthCalledWith(1, "create-folder", snapshot.files[0], undefined);
+    expect(showFor).toHaveBeenNthCalledWith(2, "rename-folder", snapshot.files[0], undefined);
     expect(callbacks.selectFile).toHaveBeenCalledWith("file-1");
     expect(callbacks.focusEditor).toHaveBeenCalledOnce();
     expect(callbacks.quickOpen).toHaveBeenCalledOnce();

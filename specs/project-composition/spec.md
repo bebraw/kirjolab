@@ -152,7 +152,9 @@ collaborative, and unambiguous about what preview and export mean.
   insertion by the workspace coordinator.
   Given a canonical snapshot and active file, the same component filters its
   hidden-file projection once, owns active-file identity, entry fallback, and
-  hidden-file selection eligibility, and supplies the project tree, Insert menu,
+  hidden-file selection eligibility. It resolves the active file and requested
+  folder for dialogs, rejects entry-file deletion, derives relative image
+  insertion from that active file, and supplies the project tree, Insert menu,
   source-completion list, and file-action menu with their bounded views.
   Image-upload completion and project-tree deletion outcomes use its same typed
   snapshot, preview-change, and notice callbacks instead of binding coordinator
@@ -161,7 +163,8 @@ collaborative, and unambiguous about what preview and export mean.
   validation across create, rename, and delete operations, plus the supporting-
   file hidden projection, delayed deletion, Undo, and failed-commit restoration.
   The workspace coordinator must not reconstruct mutation targets from mutable
-  ambient selection; it retains collaborative include-target capture, canonical
+  ambient selection; it retains collaborative include-target capture before a
+  component-owned dialog opens, canonical
   snapshot and active Y.Text/editor authority, cross-feature rendering, and the
   notification outlet.
 - Publication exports consume the versioned source-mapped intermediate defined
