@@ -500,7 +500,7 @@ class WorkspaceApp {
         if (notice) this.#showToast(notice);
       },
       completeSave: (saved) => void this.#completeAnnotationSave(saved),
-      citePage: () => this.#citeActivePdf(),
+      citePage: () => this.#elements.contextResourcePresenter.insertActiveCitation(true),
       removeHighlight: async (annotationId, fragmentId) =>
         await this.#elements.projectEvidencePanel.removeFragment(annotationId, fragmentId),
       revealHighlight: (annotationId) => this.#elements.projectEvidencePanel.revealAnnotation(annotationId),
@@ -528,6 +528,7 @@ class WorkspaceApp {
       showToast: (message) => this.#showToast(message),
     });
     this.#elements.contextResourcePresenter.bindRoutes({
+      insertCitation: (citationAlias, locator) => this.#insertCitation(citationAlias, locator),
       library: () => this.#librarySnapshot,
       openCandidate: (candidate) => this.#openCandidateContext(candidate),
       openLibraryPdf: async (artifact, page) => await this.#openLibraryPdf(artifact, page, false),
@@ -566,7 +567,7 @@ class WorkspaceApp {
     this.#elements.sourceCitationControl.bindNavigation((citation) => this.#openCitation(citation));
     this.#elements.publicationContextPanel.configure(apiBase);
     this.#elements.publicationContextPanel.bind({
-      insertCitation: () => this.#insertActivePublicationCitation(),
+      insertCitation: () => this.#elements.contextResourcePresenter.insertActiveCitation(),
       openPaper: (paper) => void this.#elements.contextResourcePresenter.openPublicationPaper(paper),
       papersChanged: (message) =>
         this.#refreshResourcesWithNotice(message, "The paper links changed, but project resources could not be refreshed."),
@@ -1079,7 +1080,8 @@ class WorkspaceApp {
       stableDocument: this.#collaboration.stable,
     });
     this.#layout.restorePaneWidth();
-    if (presentation.publicationPresented) this.#updateCitationInsertionAvailability();
+    if (presentation.publicationPresented)
+      this.#elements.contextResourcePresenter.setCitationAvailable(this.#resolvedAuthoringCaret() !== null);
     if (loadPdf && (presentation.activeTab?.kind === "pdf" || presentation.activeTab?.kind === "library-pdf")) {
       void this.#elements.contextResourcePresenter.loadActivePdf(false);
     }
@@ -1138,7 +1140,7 @@ class WorkspaceApp {
     this.#authoringSelection = captureRelativeSelection(this.#elements.source, this.#activeFileText);
     this.#elements.sourceCitationControl.setCaret(this.#activeFileText.toString(), this.#elements.source.selectionEnd);
     this.#renderAuthoringTarget();
-    this.#updateCitationInsertionAvailability();
+    this.#elements.contextResourcePresenter.setCitationAvailable(this.#resolvedAuthoringCaret() !== null);
   }
 
   #resolvedAuthoringTarget(): ResolvedAuthoringTarget | null {
@@ -1159,31 +1161,6 @@ class WorkspaceApp {
 
   #resolvedAuthoringCaret(): number | null {
     return this.#resolvedAuthoringTarget()?.end ?? null;
-  }
-
-  #updateCitationInsertionAvailability(): void {
-    const available = this.#elements.contextResourcePresenter.activeTab?.kind === "publication" && this.#resolvedAuthoringCaret() !== null;
-    this.#elements.publicationContextPanel.setCitationAvailable(available);
-  }
-
-  #insertActivePublicationCitation(): void {
-    const tab = this.#elements.contextResourcePresenter.activeTab;
-    const publication = tab?.kind === "publication" ? this.#snapshot?.publications.find((item) => item.id === tab.id) : undefined;
-    if (!publication) return;
-
-    this.#insertPublicationCitation(publication);
-  }
-
-  #citeActivePdf(): void {
-    const tab = this.#elements.contextResourcePresenter.activeTab;
-    if (tab?.kind !== "pdf" || !this.#snapshot) return;
-    const links = this.#snapshot.publicationPdfLinks.filter((link) => link.pdfId === tab.id);
-    const publication = links.length === 1 ? this.#snapshot.publications.find((item) => item.id === links[0]?.publicationId) : undefined;
-    if (publication) this.#insertPublicationCitation(publication, `p. ${tab.page}`);
-  }
-
-  #insertPublicationCitation(publication: PublicationResource, locator?: string): void {
-    this.#insertCitation(publication.citationKey, locator);
   }
 
   #insertCitation(citationKey: string, locator?: string): void {

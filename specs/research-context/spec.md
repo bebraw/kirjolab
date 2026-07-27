@@ -212,7 +212,10 @@ changing their canonical data, selector, authorization, or rendering contracts.
   resolve through the same retained catalog to their annotation form and
   project PDF, while active project-note shares resolve to bounded notice text.
   Typed publication-paper choices dispatch through the same
-  project, private-Library, and shared-reference PDF routes. It also resolves citation keys case-insensitively
+  project, private-Library, and shared-reference PDF routes. The presenter also
+  derives active-publication citation readiness and maps explicit active
+  publication or sole-linked project-PDF citation intents to a key and optional
+  page locator. It delegates Yjs syntax insertion to the coordinator. It also resolves citation keys case-insensitively
   and selects the sole linked project PDF for a supported page locator, falling
   back to publication context. It delegates canonical snapshot acceptance, Yjs
   citation insertion, tab reconciliation, cross-resource navigation, history

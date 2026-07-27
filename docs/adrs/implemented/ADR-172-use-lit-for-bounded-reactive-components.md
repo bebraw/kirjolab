@@ -144,7 +144,10 @@ The adopted components own bounded presentation:
   while annotation edit/open intents resolve to the canonical annotation and
   its project PDF and active note intents resolve to bounded notice text from
   canonical project shares. Typed publication-paper choices dispatch through those same
-  project, private-Library, and shared-reference PDF routes. It resolves citation keys and sole-linked-PDF page
+  project, private-Library, and shared-reference PDF routes. It derives
+  active-publication citation readiness and resolves explicit active-publication
+  or sole-linked project-PDF citation intents to a key and optional page locator
+  while leaving Yjs syntax insertion to the coordinator. It resolves citation keys and sole-linked-PDF page
   locators against the same canonical project catalog and emits the matching
   project-PDF or publication open effect. It restores resource scroll and captures fixed/resource
   scroll plus supplied viewer page and focused-annotation state into the

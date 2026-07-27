@@ -973,7 +973,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   the sole linked project PDF for a supported page locator, otherwise opening
   publication context. Let it dispatch the publication panel's typed project,
   private-Library, and shared-reference paper choices through the same route
-  effects. Route the resulting typed open intent through the application
+  effects. Let it derive active-publication citation readiness and resolve
+  explicit active-publication or sole-linked project-PDF citation intents to a
+  citation key and optional page locator. Route the resulting typed open and
+  citation-insertion intents through the application
   coordinator, which retains tab reconciliation, canonical context state,
   history mutation, navigation transitions, and load timing. Let the presenter
   own private-highlight citation readiness feedback,
@@ -989,7 +992,7 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   resource scroll, presents active-resource failures, and routes captured
   selections to the private-highlight composer or project-annotation form from
   those retained identities. Keep tab state, canonical snapshot acceptance,
-  Yjs citation insertion, cross-resource navigation, routing, project-selection
+  Yjs citation syntax insertion, cross-resource navigation, routing, project-selection
   persistence, remaining viewer gestures, and the shared notification outlet
   in the application coordinator through narrow callbacks.
   Let the presenter also own linked-reference PDF catalog loading, validation,

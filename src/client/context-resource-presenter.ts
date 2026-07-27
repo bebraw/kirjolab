@@ -111,6 +111,7 @@ export interface LibraryPdfCoordinator {
 }
 
 export interface ContextRouteCoordinator {
+  readonly insertCitation: (citationAlias: string, locator?: string) => void;
   readonly library: () => ReferenceLibrarySnapshot | null;
   readonly openCandidate: (candidate: WorkspaceSnapshot["candidates"][number]) => void;
   readonly openLibraryPdf: (artifact: LibraryPdfArtifact, page?: number) => Promise<void>;
@@ -235,6 +236,28 @@ export class ContextResourcePresenter extends LitElement {
       ?.project()
       ?.researchShares.find((item) => item.resourceId === id && item.revokedAt === null && item.content.kind === "note");
     if (coordinator && share?.content.kind === "note") coordinator.presentNotice(noticeExcerpt(share.content.body));
+  }
+
+  insertActiveCitation(includePdfPage = false): void {
+    const coordinator = this.routeCoordinator;
+    const project = coordinator?.project();
+    const tab = this.currentActiveTab;
+    if (!coordinator || !project || !tab) return;
+    if (tab.kind === "publication") {
+      const publication = project.publications.find(({ id }) => id === tab.id);
+      if (publication) coordinator.insertCitation(publication.citationKey);
+      return;
+    }
+    if (!includePdfPage || tab.kind !== "pdf") return;
+    const links = project.publicationPdfLinks.filter(({ pdfId }) => pdfId === tab.id);
+    const publication = links.length === 1 ? project.publications.find(({ id }) => id === links[0]?.publicationId) : undefined;
+    if (publication) coordinator.insertCitation(publication.citationKey, `p. ${tab.page}`);
+  }
+
+  setCitationAvailable(available: boolean): void {
+    this.element("publication-context-panel", PublicationContextPanel)?.setCitationAvailable(
+      this.currentActiveTab?.kind === "publication" && available,
+    );
   }
 
   openCitation(citation: CitationContext): string | null {

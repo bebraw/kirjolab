@@ -8219,6 +8219,29 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,706 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Active Citation Projection
+
+`ContextResourcePresenter` now derives publication citation readiness and maps
+explicit active-publication or sole-linked project-PDF citation intents to the
+canonical citation key and optional page locator. `WorkspaceApp` retains the
+remembered Yjs-relative authoring target, syntax creation, document transaction,
+focus, and completion notice behind one typed insertion effect.
+
+This checkpoint reduces `src/client/app.ts` from 1,527 to 1,504 lines (-23) and
+grows the context-resource presenter from 831 to 854 lines (+23), leaving runtime
+source across those files unchanged. Focused coverage passes all 58
+context-resource, publication-context, annotation-form, and application-contract
+cases, including readiness, publication insertion, sole-linked PDF page
+locators, canonical routing, and strict types.
+
+The browser application artifact changes from 846,580 B raw / 228,607 B gzip
+to 846,821 B raw / 228,573 B gzip (+241 B raw / -34 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,706 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

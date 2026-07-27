@@ -508,6 +508,7 @@ describe("context resource presenter", () => {
     };
     let currentLibrary: ReferenceLibrarySnapshot | null = null;
     const coordinator = {
+      insertCitation: vi.fn(),
       library: vi.fn(() => currentLibrary),
       openCandidate: vi.fn(),
       openLibraryPdf: vi.fn().mockResolvedValue(undefined),
@@ -533,6 +534,16 @@ describe("context resource presenter", () => {
     presenter.openProjectNote(note.resourceId);
     presenter.openProjectNote(longNote.resourceId);
     presenter.openProjectNote("missing");
+    const setCitationAvailable = vi.spyOn(elements["publication-context-panel"], "setCitationAvailable");
+    presenter.present({
+      ...sources({ id: publication.id, key: `publication:${publication.id}`, kind: "publication", scrollTop: 0 }),
+      snapshot: project,
+    });
+    presenter.setCitationAvailable(true);
+    presenter.insertActiveCitation();
+    presenter.present({ ...sources({ ...resourceTab("pdf", pdf.id), page: 8 }), snapshot: project });
+    presenter.setCitationAvailable(true);
+    presenter.insertActiveCitation(true);
     await presenter.openPublicationPaper({ kind: "project", pdf, linkId: "link:route" });
     await presenter.openPublicationPaper({ kind: "library", artifact: libraryPdf });
     await presenter.openPublicationPaper({ kind: "reference", pdf: referencePdf });
@@ -553,6 +564,10 @@ describe("context resource presenter", () => {
     expect(coordinator.openReferencePdf).toHaveBeenCalledWith(referencePdf);
     expect(coordinator.presentNotice).toHaveBeenNthCalledWith(1, "Private note");
     expect(coordinator.presentNotice).toHaveBeenNthCalledWith(2, `${"a".repeat(239)}…`);
+    expect(coordinator.insertCitation).toHaveBeenNthCalledWith(1, publication.citationKey);
+    expect(coordinator.insertCitation).toHaveBeenNthCalledWith(2, publication.citationKey, "p. 8");
+    expect(setCitationAvailable).toHaveBeenNthCalledWith(1, true);
+    expect(setCitationAvailable).toHaveBeenNthCalledWith(2, false);
     expect(presenter.openCitation({ keys: ["one", "two"] })).toBe("Open this grouped citation from Preview to choose a reference.");
     expect(presenter.openCitation({ keys: ["missing"] })).toBe("No publication resource is available for missing.");
   });

@@ -771,7 +771,10 @@ collaboration.
 - [x] Include paths offer keyboard-accessible project-file suggestions using
       references relative to the active source file.
 - [x] Preview citations open publication context and explicit citation
-      insertion uses a remembered collaborative authoring position.
+      insertion uses a remembered collaborative authoring position. The
+      context-resource presenter resolves the active publication or sole-linked
+      project PDF to the citation key and optional page locator before the
+      coordinator performs Yjs syntax insertion.
 - [x] Legacy workspace BibTeX and explicit imports reconcile into stable
       owner-library identities with per-field provenance.
 - [x] Project-local aliases derive reproducible bibliography snapshots without
