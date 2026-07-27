@@ -148,47 +148,65 @@ export class ContextTabStrip extends LitElement {
 
   private syncControlledPanels(sources: ContextTabStripSources): void {
     const active = this.data.items.find((item) => item.tab.key === this.data.activeKey)?.tab;
-    if (active) {
-      const fixedScroll = this.fixedScrollElement(active.key);
-      if (fixedScroll) fixedScroll.scrollTop = active.scrollTop;
-    }
     const preview = this.data.activeKey === "preview";
+    this.restoreFixedScroll(active);
+    this.syncPanelVisibility(active, preview);
+    this.syncPreviewControls(preview);
+    this.syncPdfPresentation(active, sources);
+    this.syncResourceLabel(active);
+  }
+
+  private restoreFixedScroll(active: ResearchContextTab | undefined): void {
+    if (!active) return;
+    const fixedScroll = this.fixedScrollElement(active.key);
+    if (fixedScroll) fixedScroll.scrollTop = active.scrollTop;
+  }
+
+  private syncPanelVisibility(active: ResearchContextTab | undefined, preview: boolean): void {
+    const pdf = active?.kind === "pdf" || active?.kind === "library-pdf";
     const states: readonly [id: string, selected: boolean][] = [
       ["context-preview-panel", preview],
       ["context-library-panel", this.data.activeKey === "library"],
       ["context-assistant-panel", this.data.activeKey === "assistant"],
       ["context-publication-panel", active?.kind === "publication"],
-      ["context-pdf-panel", active?.kind === "pdf" || active?.kind === "library-pdf"],
-      ["pdf-context-controls", active?.kind === "pdf" || active?.kind === "library-pdf"],
+      ["context-pdf-panel", pdf],
+      ["pdf-context-controls", pdf],
       ["context-candidate-panel", active?.kind === "candidate"],
     ];
     for (const [id, selected] of states) {
       const panel = this.controlledPanel(id);
       if (panel) panel.hidden = !selected;
     }
+  }
+
+  private syncPreviewControls(preview: boolean): void {
     const previewStatus = this.controlledPanel("preview-context-controls");
     if (previewStatus) previewStatus.hidden = !preview;
     (this.controlledPanel("preview-sync-controls") as PreviewSyncControls | null)?.setVisible(preview);
     (this.controlledPanel("preview-navigation-control") as PreviewNavigationControl | null)?.setPreviewActive(preview);
+  }
+
+  private syncPdfPresentation(active: ResearchContextTab | undefined, sources: ContextTabStripSources): void {
     const pdfPanel = this.controlledPanel("context-pdf-panel");
-    if (pdfPanel) {
-      const libraryPdf = active?.kind === "library-pdf";
-      const privatePdf = libraryPdf && sources.libraryArtifacts.some(({ id }) => id === active.id);
-      const readonlyPdf = libraryPdf && !privatePdf && sources.referencePdfs.some(({ id }) => id === active.id);
-      pdfPanel.dataset.libraryPdf = String(libraryPdf);
-      pdfPanel.dataset.readonlyPdf = String(readonlyPdf);
-    }
-    if (active && active.kind !== "preview" && active.kind !== "library" && active.kind !== "assistant") {
-      const panelId =
-        active.kind === "publication"
-          ? "context-publication-panel"
-          : active.kind === "candidate"
-            ? "context-candidate-panel"
-            : "context-pdf-panel";
-      const panel = this.controlledPanel(panelId);
-      panel?.setAttribute("aria-labelledby", contextResourceTabId(active));
-      panel?.removeAttribute("aria-label");
-    }
+    if (!pdfPanel) return;
+    const libraryPdf = active?.kind === "library-pdf";
+    const privatePdf = libraryPdf && sources.libraryArtifacts.some(({ id }) => id === active.id);
+    const readonlyPdf = libraryPdf && !privatePdf && sources.referencePdfs.some(({ id }) => id === active.id);
+    pdfPanel.dataset.libraryPdf = String(libraryPdf);
+    pdfPanel.dataset.readonlyPdf = String(readonlyPdf);
+  }
+
+  private syncResourceLabel(active: ResearchContextTab | undefined): void {
+    if (!active || active.kind === "preview" || active.kind === "library" || active.kind === "assistant") return;
+    const panel = this.controlledPanel(this.resourcePanelId(active));
+    panel?.setAttribute("aria-labelledby", contextResourceTabId(active));
+    panel?.removeAttribute("aria-label");
+  }
+
+  private resourcePanelId(tab: ResearchResourceTab): string {
+    if (tab.kind === "publication") return "context-publication-panel";
+    if (tab.kind === "candidate") return "context-candidate-panel";
+    return "context-pdf-panel";
   }
 
   private fixedScrollElement(key: ResearchContextKey): HTMLElement | null {

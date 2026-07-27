@@ -5434,6 +5434,28 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,615 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Context Presentation Readability
+
+The context-tab owner now separates fixed-scroll restoration, controlled-panel
+visibility, Preview sibling controls, PDF mode, and active-resource labelling
+into small derivable presentation steps. Behavior and ownership are unchanged;
+the split removes the 26-cyclomatic `syncControlledPanels` hotspot introduced as
+the component accumulated those responsibilities.
+
+This checkpoint grows `src/client/context-tab-strip.ts` from 249 to 267 lines
+without changing `src/client/app.ts`. The readability audit's high-complexity
+count falls from 26 to 25, and the context-tab owner no longer appears in that
+list. Existing focused coverage passes all eight context-tab cases alongside
+strict client and Workers types.
+
+The browser application artifact changes from 827,643 B raw / 223,905 B gzip
+to 827,932 B raw / 223,962 B gzip (+289 B raw / +57 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,615 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,
