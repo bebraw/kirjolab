@@ -105,6 +105,7 @@ describe("reference Library workspace", () => {
 
     workspace.setData(data);
 
+    expect(workspace.snapshot).toBe(library);
     expect(setReferences).toHaveBeenCalledWith(library.references);
     expect(filterLibrary).toHaveBeenCalledWith(library, []);
     expect(setData).toHaveBeenCalledWith({ ...data, references: library.references });
@@ -113,6 +114,22 @@ describe("reference Library workspace", () => {
     expect(setData).toHaveBeenCalledTimes(2);
     expect(workspace.rootForTest()).toBe(workspace);
     expect(workspace.updatesForTest()).toBe(false);
+  });
+
+  it("loads and validates its canonical Library snapshot", async () => {
+    const { workspace } = setup();
+    const fetcher = vi.fn(async () => Response.json(library));
+
+    await expect(workspace.refresh(fetcher)).resolves.toEqual(library);
+    expect(fetcher).toHaveBeenCalledWith("/api/library", { credentials: "same-origin" });
+    expect(workspace.snapshot).toEqual(library);
+
+    vi.spyOn(workspace, "includesArchivedReferences", "get").mockReturnValue(true);
+    await workspace.refresh(fetcher);
+    expect(fetcher).toHaveBeenLastCalledWith("/api/library?archived=include", { credentials: "same-origin" });
+    await expect(workspace.refresh(async () => Response.json({ references: [] }))).rejects.toThrow(
+      "Reference library returned an invalid snapshot",
+    );
   });
 
   it("owns filter reset, result settlement, and focused-reference reveal", async () => {

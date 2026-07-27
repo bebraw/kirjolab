@@ -1,8 +1,14 @@
 import { LitElement } from "lit";
-import type { LibraryPdfArtifact, ReferenceLibrarySnapshot, ResearchShareSnapshot } from "../domain/reference-library";
+import {
+  isReferenceLibrarySnapshot,
+  type LibraryPdfArtifact,
+  type ReferenceLibrarySnapshot,
+  type ResearchShareSnapshot,
+} from "../domain/reference-library";
 import type { ReferenceDiscoveryResult } from "../domain/reference-discovery";
 import type { ProjectReferenceLink } from "../domain/workspace";
 import { citationNetworkOutcomeEvent, CitationNetworkWorkspace, type CitationNetworkOutcome } from "./citation-network-workspace";
+import { expectOk } from "./http";
 import { libraryReferenceMetadataNoticeEvent, libraryReferenceMetadataRefreshEvent } from "./library-reference-metadata-editor";
 import {
   libraryReferencePdfActionEvent,
@@ -70,6 +76,11 @@ const emptyCallbacks: ReferenceLibraryWorkspaceCallbacks = {
 export class ReferenceLibraryWorkspace extends LitElement {
   private data: ReferenceLibraryWorkspaceData | null = null;
   private callbacks = emptyCallbacks;
+  private librarySnapshot: ReferenceLibrarySnapshot | null = null;
+
+  get snapshot(): ReferenceLibrarySnapshot | null {
+    return this.librarySnapshot;
+  }
 
   constructor() {
     super();
@@ -161,7 +172,18 @@ export class ReferenceLibraryWorkspace extends LitElement {
 
   setData(data: ReferenceLibraryWorkspaceData): void {
     this.data = data;
+    this.librarySnapshot = data.library;
     this.present();
+  }
+
+  async refresh(fetcher: typeof fetch = fetch): Promise<ReferenceLibrarySnapshot> {
+    const archived = this.includesArchivedReferences ? "?archived=include" : "";
+    const response = await fetcher(`/api/library${archived}`, { credentials: "same-origin" });
+    await expectOk(response);
+    const value: unknown = await response.json();
+    if (!isReferenceLibrarySnapshot(value)) throw new Error("Reference library returned an invalid snapshot");
+    this.librarySnapshot = value;
+    return value;
   }
 
   configure(workspaceId: string, callbacks?: ReferenceLibraryWorkspaceCallbacks): void {

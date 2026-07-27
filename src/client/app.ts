@@ -18,13 +18,7 @@ import {
 import { publicationWordStatistics } from "../domain/publication-statistics";
 import { researchQuestionsPath, researchQuestionsTemplate } from "../domain/research-questions";
 import { researchDiaryPath, researchDiaryTemplate } from "../domain/writing-workflows";
-import {
-  isReferenceLibrarySnapshot,
-  type LibraryHighlight,
-  type LibraryPdfArtifact,
-  type ProjectReferencePdf,
-  type ReferenceLibrarySnapshot,
-} from "../domain/reference-library";
+import { type LibraryHighlight, type LibraryPdfArtifact, type ProjectReferencePdf } from "../domain/reference-library";
 import "./application-version-control";
 import "./source-citation-control";
 import "./workspace-surface-switcher";
@@ -174,9 +168,12 @@ class WorkspaceApp {
   #unbindAssistantSourceStale: () => void = () => undefined;
   #projectFileIncludeTarget: RelativeEditorSelection | null = null;
   #projectFileIncludeFromPath: string | null = null;
-  #librarySnapshot: ReferenceLibrarySnapshot | null = null;
   #workspaceRouteReady = false;
   readonly #layout: WorkspaceLayoutManager;
+
+  get #librarySnapshot() {
+    return this.#elements.referenceLibraryWorkspace.snapshot;
+  }
 
   constructor() {
     this.#collaborationSocket = new CollaborationSocket(this.#collaboration, {
@@ -1123,17 +1120,12 @@ class WorkspaceApp {
   }
 
   async #refreshReferenceLibrary(): Promise<void> {
-    const archived = this.#elements.referenceLibraryWorkspace.includesArchivedReferences ? "?archived=include" : "";
-    const response = await fetch(`/api/library${archived}`, { credentials: "same-origin" });
-    await expectOk(response);
-    const value: unknown = await response.json();
-    if (!isReferenceLibrarySnapshot(value)) throw new Error("Reference library returned an invalid snapshot");
+    const library = await this.#elements.referenceLibraryWorkspace.refresh();
     this.#captureActiveContextState();
-    this.#librarySnapshot = value;
     await this.#refreshProjectReferencePdfs(false);
     this.#contextState = reconcileResearchContext(
       this.#contextState,
-      this.#elements.contextResourcePresenter.resourceAuthorization(this.#snapshot, this.#librarySnapshot),
+      this.#elements.contextResourcePresenter.resourceAuthorization(this.#snapshot, library),
     );
     this.#renderReferenceLibrary();
     await this.#elements.referenceLibraryWorkspace.settled();

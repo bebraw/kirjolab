@@ -7358,6 +7358,30 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,690 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Canonical Library Loading
+
+`ReferenceLibraryWorkspace` now owns archive-aware canonical Library fetch,
+response validation, and the single browser Library snapshot projection used
+by its child components and cross-feature consumers. `WorkspaceApp` retains
+refresh timing, context reconciliation, linked-PDF refresh, viewer effects,
+routing, and notification policy through a derived read-only snapshot accessor.
+
+This checkpoint reduces `src/client/app.ts` from 1,994 to 1,986 lines (-8) and
+grows the composed Library workspace from 286 to 310 lines (+24). Runtime source
+across those two files increases by 16 lines while deleting the coordinator's
+duplicate Library field and request/validation policy. Focused coverage
+exercises default and archive-aware loads, invalid responses, snapshot
+projection from both loading and presentation, existing composition,
+application contracts, and strict types.
+
+The browser application artifact changes from 842,968 B raw / 227,865 B gzip
+to 843,175 B raw / 227,879 B gzip (+207 B raw / +14 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,691 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,
