@@ -23,6 +23,7 @@ export interface GitHubSyncStateDetail {
 }
 
 export interface GitHubSyncWorkspaceBinding {
+  readonly ambientRefresh?: boolean;
   readonly settings: WorkspaceSettingsPanel;
   readonly openSettings: (checkGitHub?: boolean) => Promise<void>;
   readonly refreshProject: () => Promise<void>;
@@ -81,6 +82,7 @@ export class GitHubSyncMenu extends LitElement {
     this.addEventListener(gitHubSyncPullEvent, () => void this.openPreview("pull"));
     this.addEventListener(gitHubSyncPushEvent, () => void this.openPreview("push"));
     this.addEventListener(gitHubSyncSettingsEvent, () => void workspace.openSettings());
+    if (workspace.ambientRefresh) this.bindAmbientRefresh();
   }
 
   async refreshWorkspace(force = false, resetReview = true): Promise<void> {
@@ -157,6 +159,11 @@ export class GitHubSyncMenu extends LitElement {
     super.connectedCallback();
   }
 
+  override disconnectedCallback(): void {
+    this.unbindAmbientRefresh();
+    super.disconnectedCallback();
+  }
+
   protected override createRenderRoot(): HTMLElement {
     return this;
   }
@@ -213,6 +220,26 @@ export class GitHubSyncMenu extends LitElement {
     if (mutation === "pull") await this.workspace.refreshProject();
     await this.refreshWorkspace(true, false);
   }
+
+  private bindAmbientRefresh(): void {
+    this.unbindAmbientRefresh();
+    window.addEventListener("online", this.handleOnline);
+    window.addEventListener("focus", this.handleFocus);
+    document.addEventListener("visibilitychange", this.handleVisibilityChange);
+  }
+
+  private unbindAmbientRefresh(): void {
+    if (typeof window === "undefined" || typeof document === "undefined") return;
+    window.removeEventListener("online", this.handleOnline);
+    window.removeEventListener("focus", this.handleFocus);
+    document.removeEventListener("visibilitychange", this.handleVisibilityChange);
+  }
+
+  private readonly handleOnline = (): void => void this.refreshWorkspace(true);
+  private readonly handleFocus = (): void => void this.refreshWorkspace();
+  private readonly handleVisibilityChange = (): void => {
+    if (document.visibilityState === "visible") void this.refreshWorkspace();
+  };
 
   private emitState(message: string): void {
     this.dispatchEvent(

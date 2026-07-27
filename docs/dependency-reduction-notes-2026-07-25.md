@@ -11636,3 +11636,26 @@ and PDF.js artifacts remain unchanged at 135,411 B / 23,373 B, 204,779 B /
 
 Full native CI passes all 1,754 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Lit Ownership: GitHub Browser Lifecycle
+
+`GitHubSyncMenu` now owns ambient online, focus, and visible-document refresh
+subscriptions and teardown, routing every trigger through its existing
+throttling and active-review suppression. `WorkspaceApp` retains only the
+online collaboration reconnect action.
+
+This checkpoint reduces `src/client/app.ts` from 605 to 597 lines (-8) and
+grows the GitHub synchronization owner from 234 to 261 lines (+27). The 19-line
+combined increase makes subscription lifetime explicit beside the refresh
+policy it invokes. Focused coverage passes online forcing, focus throttling,
+hidden-versus-visible behavior, disconnect teardown, and strict types. Direct
+and unique production package counts remain 18 and 150; Lit and Valibot were
+already pinned.
+
+The browser application artifact increases from 857,627 B raw / 230,812 B gzip
+to 858,123 B / 230,941 B (+496 B raw / +129 B gzip). Styles and lazy Markdown
+and PDF.js artifacts remain unchanged at 135,411 B / 23,373 B, 204,779 B /
+62,386 B, and 481,994 B / 146,135 B.
+
+Full native CI passes all 1,755 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.

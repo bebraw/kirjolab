@@ -44,7 +44,10 @@ incoming and outgoing mutation.
 - The GitHub synchronization menu validates serialized owner, repository,
   branch, commit, relationship, and non-negative change counts through one
   inferred Valibot status schema before deriving pull, publish, conflict, or
-  synchronized presentation.
+  synchronized presentation. In a workspace it owns ambient online, focus, and
+  visible-document refresh subscriptions and teardown, routing every trigger
+  through its existing throttling and active-review suppression. Collaboration
+  reconnect and canonical project fetching remain separate authorities.
 - Server orchestration separates new-workspace Import from Pull and Publish on
   an existing workspace binding. Both phases share only the authorized remote
   client, operation-id validation, and safe error-projection contracts. Bounded

@@ -107,6 +107,33 @@ describe("GitHub sync menu", () => {
     expect(settings.resetCount).toBe(1);
   });
 
+  it("owns ambient online, focus, and visibility refresh triggers", () => {
+    const menu = new GitHubSyncMenu();
+    const settings = new TestWorkspaceSettings();
+    const browserWindow = new EventTarget();
+    const browserDocument = Object.assign(new EventTarget(), { visibilityState: "hidden" });
+    vi.stubGlobal("window", browserWindow);
+    vi.stubGlobal("document", browserDocument);
+    const refreshWorkspace = vi.spyOn(menu, "refreshWorkspace").mockResolvedValue(undefined);
+    menu.bindWorkspace("/api/workspaces/project", {
+      ambientRefresh: true,
+      settings,
+      openSettings: async () => undefined,
+      refreshProject: async () => undefined,
+    });
+
+    browserWindow.dispatchEvent(new Event("focus"));
+    browserWindow.dispatchEvent(new Event("online"));
+    browserDocument.dispatchEvent(new Event("visibilitychange"));
+    browserDocument.visibilityState = "visible";
+    browserDocument.dispatchEvent(new Event("visibilitychange"));
+
+    expect(refreshWorkspace.mock.calls).toEqual([[], [true], []]);
+    menu.disconnectedCallback();
+    browserWindow.dispatchEvent(new Event("focus"));
+    expect(refreshWorkspace).toHaveBeenCalledTimes(3);
+  });
+
   it("owns connection and status refresh presentation", async () => {
     const menu = new GitHubSyncMenu();
     menu.configure("/api/workspaces/project");

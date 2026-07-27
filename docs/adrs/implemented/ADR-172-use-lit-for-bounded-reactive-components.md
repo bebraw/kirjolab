@@ -699,7 +699,10 @@ reason to wrap static markup mechanically.
 - The sync menu removes eight internal elements plus their presentation updates
   from the application coordinator's registry. Its workspace binding also
   removes the coordinator's GitHub action listeners and three refresh-routing
-  methods without hiding project-data or settings-view authority.
+  methods without hiding project-data or settings-view authority. It owns
+  ambient online, focus, and visible-document refresh subscriptions plus
+  teardown, reusing its existing throttling and review-aware suppression;
+  collaboration reconnect remains outside it.
 - The import picker replaces ten internal element references, the coordinator's
   repository-option cache, outer form reference and submit binding, and its
   imperative option and preview DOM assembly. It also absorbs the former

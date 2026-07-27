@@ -190,16 +190,7 @@ class WorkspaceApp {
     this.#elements.applicationVersion.bindNotice((message) => this.#elements.toast.show(message));
     this.#elements.connectionStatus.bindWorkflow(this.#collaboration, this.#elements);
     this.#elements.collaboratorSelections.bindSelectionChanged(() => this.#elements.editorStatus.renderHighlight());
-    window.addEventListener("online", () => {
-      this.#collaborationSocket.connect();
-      if (appMode === "workspace") void this.#elements.gitHubSyncMenu.refreshWorkspace(true);
-    });
-    window.addEventListener("focus", () => {
-      if (appMode === "workspace") void this.#elements.gitHubSyncMenu.refreshWorkspace();
-    });
-    document.addEventListener("visibilitychange", () => {
-      if (appMode === "workspace" && document.visibilityState === "visible") void this.#elements.gitHubSyncMenu.refreshWorkspace();
-    });
+    window.addEventListener("online", () => this.#collaborationSocket.connect());
     window.addEventListener("offline", () => this.#collaborationSocket.goOffline());
     window.addEventListener("pagehide", () => this.#offline.schedule(0));
     window.addEventListener("popstate", () => {
@@ -245,6 +236,7 @@ class WorkspaceApp {
       templatesChanged: () => this.#elements.saveTemplateDialog.setTemplates(this.#elements.newWorkspaceStartingPoints.availableTemplates),
     });
     this.#elements.gitHubSyncMenu.bindWorkspace(apiBase, {
+      ambientRefresh: appMode === "workspace",
       settings: this.#elements.workspaceSettingsPanel,
       openSettings: (checkGitHub) => this.#elements.workspaceSettingsPanel.openSettings(checkGitHub),
       refreshProject: () => this.#resourceRefresh.request(),
