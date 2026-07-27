@@ -439,6 +439,7 @@ class WorkspaceApp {
       pushStandaloneLibraryPdfRoute: (artifactId, page) =>
         history.pushState({ view: "library-pdf", artifactId }, "", libraryPdfRoute(artifactId, page)),
       replaceStandaloneLibraryRoute: () => history.replaceState({ view: "library" }, "", "/library"),
+      refreshAssistant: () => this.#elements.assistantGenerationPresenter.refreshAvailability(),
       restorePaneWidth: () => this.#layout.restorePaneWidth(),
       sources: () => ({
         candidateDecision: this.#elements.assistantGenerationPresenter.candidateDecision(),
@@ -540,9 +541,9 @@ class WorkspaceApp {
       void this.#elements.workspacePreview.renderBoundProject();
     }
     this.#elements.projectFileDialog.presentProject(snapshot, `${apiBase}/assets`, appMode === "workspace");
-    this.#renderResources();
+    this.#elements.contextResourcePresenter.presentBoundWorkspace();
     this.#scheduleOfflineSave();
-    await this.#refreshProjectReferencePdfs();
+    await this.#elements.contextResourcePresenter.refreshBoundReferencePdfs();
   }
 
   #activateProjectFile(file: ProjectFile, snapshot: WorkspaceSnapshot): void {
@@ -563,7 +564,7 @@ class WorkspaceApp {
 
   async #refreshReferenceLibrary(): Promise<void> {
     const library = await this.#elements.referenceLibraryWorkspace.refresh();
-    await this.#refreshProjectReferencePdfs(false);
+    await this.#elements.contextResourcePresenter.refreshBoundReferencePdfs(false);
     this.#elements.contextResourcePresenter.reconcileContext(
       this.#elements.contextResourcePresenter.resourceAuthorization(this.#snapshot, library),
     );
@@ -578,26 +579,10 @@ class WorkspaceApp {
     const value: unknown = result instanceof Response ? await result.json() : result;
     const snapshot = parseWorkspaceSnapshot(value, "Project mutation returned an invalid snapshot");
     this.#snapshot = snapshot;
-    await this.#refreshProjectReferencePdfs(false);
-    this.#renderResources();
+    await this.#elements.contextResourcePresenter.refreshBoundReferencePdfs(false);
+    this.#elements.contextResourcePresenter.presentBoundWorkspace();
     this.#elements.projectFileDialog.presentProject(snapshot, `${apiBase}/assets`, appMode === "workspace");
     void this.#elements.workspacePreview.renderBoundProject();
-  }
-
-  async #refreshProjectReferencePdfs(render = true): Promise<void> {
-    await this.#elements.contextResourcePresenter.refreshReferencePdfs(appMode === "workspace" ? apiBase : null);
-    if (render) this.#renderResources();
-  }
-
-  #renderResources(): void {
-    if (!this.#snapshot) return;
-    this.#elements.contextResourcePresenter.reconcileContext(
-      this.#elements.contextResourcePresenter.resourceAuthorization(this.#snapshot, this.#librarySnapshot),
-    );
-    this.#elements.contextResourcePresenter.presentWorkspace(this.#snapshot);
-    this.#elements.contextResourcePresenter.presentBoundContext();
-    this.#elements.assistantGenerationPresenter.refreshAvailability();
-    this.#elements.workspaceSurfaceSwitcher.syncRoute("replace");
   }
 
   async #restoreOfflineWorkspace(): Promise<boolean> {
@@ -620,7 +605,7 @@ class WorkspaceApp {
       },
     ]);
     this.#elements.projectFileDialog.presentProject(restored.snapshot, `${apiBase}/assets`, appMode === "workspace");
-    this.#renderResources();
+    this.#elements.contextResourcePresenter.presentBoundWorkspace();
     this.#elements.connectionStatus.presentWorkflow();
     this.#elements.editorStatus.setSave(pending ? "Saved offline" : "Saved");
     void this.#elements.workspacePreview.renderBoundProject();

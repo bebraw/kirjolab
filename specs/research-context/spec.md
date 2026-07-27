@@ -262,11 +262,14 @@ changing their canonical data, selector, authorization, or rendering contracts.
   text-selection, selected-private-markup, and draft-selection cleanup effects
   directly through its narrow bound-viewer capability.
   It synchronizes active project-PDF annotations and private highlights through
-  the bound viewer. It owns linked-reference PDF catalog loading, validation,
-  storage, and authorization projection. The coordinator retains refresh and
-  load timing, snapshot authority, project-selection persistence, remaining
-  page gestures, context reconciliation, model availability, routing, refresh,
-  and notification policy.
+  the bound viewer. From its bound project, Library, API, assistant, and route
+  sources it reconciles authorization and owns complete workspace-resource
+  presentation, assistant-availability refresh, incidental route
+  synchronization, and linked-reference PDF catalog loading, validation,
+  storage, authorization projection, and optional downstream presentation. The
+  coordinator retains canonical snapshot acceptance, Library refresh and load
+  timing, project-selection persistence, remaining page gestures, mutation
+  consequences, and notification policy.
 - Reconciliation authorizes `pdf:` tabs from the workspace snapshot and
   `library-pdf:` tabs from the current owner-library snapshot; neither scope
   grants the other.

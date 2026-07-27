@@ -136,6 +136,7 @@ export interface ContextPresentationBinding {
   readonly openLibrary: (updateHistory?: boolean) => Promise<void>;
   readonly pushStandaloneLibraryPdfRoute: (artifactId: string, page: number) => void;
   readonly replaceStandaloneLibraryRoute: () => void;
+  readonly refreshAssistant: () => void;
   readonly restorePaneWidth: () => void;
   readonly sources: () => ResearchContextSources;
   readonly syncRoute: (mode: "push" | "replace") => void;
@@ -281,6 +282,13 @@ export class ContextResourcePresenter extends LitElement {
     const value: unknown = await response.json();
     if (!isProjectReferencePdfs(value)) throw new Error("Project reference PDFs returned invalid metadata");
     this.loadedReferencePdfs = value;
+  }
+
+  async refreshBoundReferencePdfs(render = true): Promise<void> {
+    const binding = this.contextPresentation;
+    if (!binding) return;
+    await this.refreshReferencePdfs(binding.sources().projectApiBase);
+    if (render) this.presentBoundWorkspace();
   }
 
   captureContext(state: ResearchContextState, viewer: ContextViewerState): ResearchContextState {
@@ -755,6 +763,17 @@ export class ContextResourcePresenter extends LitElement {
     const annotations = renderedPdfId ? snapshot.annotations.filter(({ pdfId }) => pdfId === renderedPdfId) : [];
     this.pdfViewer?.updateAnnotations(annotations);
     return annotations;
+  }
+
+  presentBoundWorkspace(): void {
+    const binding = this.contextPresentation;
+    const sources = binding?.sources();
+    if (!binding || !sources?.snapshot) return;
+    this.reconcileContext(this.resourceAuthorization(sources.snapshot, sources.library));
+    this.presentWorkspace(sources.snapshot);
+    this.presentBoundContext();
+    binding.refreshAssistant();
+    binding.syncRoute("replace");
   }
 
   presentResolvedWorkspace(snapshot: WorkspaceSnapshot, bibliography: string, source?: string): void {

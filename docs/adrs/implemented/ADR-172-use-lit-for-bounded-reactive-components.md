@@ -202,7 +202,10 @@ The adopted components own bounded presentation:
   selection, and private-markup selection effects directly through its narrow
   viewer binding and synchronizes the bounded
   evidence, annotation, publication, claim, comment, and candidate owners from
-  the canonical workspace snapshot. Let it also project coordinator-resolved
+  the canonical workspace snapshot. From its bound project, Library, API,
+  assistant, and route sources it reconciles authorization and owns complete
+  workspace-resource presentation, assistant-availability refresh, and
+  incidental route synchronization. Let it also project coordinator-resolved
   evidence links, claim links, comments, and project-map inputs across those
   composed owners after Preview rendering while the coordinator retains render
   timing. Let it configure the project-map
@@ -230,12 +233,11 @@ The adopted components own bounded presentation:
   active-resource failures. It also routes captured selections to the private-
   highlight composer or project-annotation form from those retained identities,
   delegating project-selection persistence through the viewer binding. The
-  resource presentation also owns
-  linked-reference PDF catalog loading,
-  validation, storage, and authorization projection. The coordinator retains
-  refresh and load timing alongside canonical context state, active-page
-  gestures, private markup drafts, Yjs citation insertion, model availability,
-  Library refresh, history mutation, routing, navigation transitions, remaining
+  resource presentation also owns bound linked-reference PDF catalog loading,
+  validation, storage, authorization projection, and optional downstream
+  presentation. The coordinator retains canonical snapshot acceptance, Library
+  refresh and load timing, active-page gestures, private markup drafts, Yjs
+  citation insertion, history mutation, navigation transitions, remaining
   viewer effects, and notification policy.
 - The knowledge search panel owns query capture, empty, result, and error
   presentation, and typed search and resource-selection intents. Its enclosing

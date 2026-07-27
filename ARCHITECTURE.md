@@ -1144,7 +1144,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   local text-selection, selected-highlight, and draft-selection cleanup effects
   through its viewer binding and
   synchronize the bounded evidence, annotation, publication, claim, comment,
-  and candidate owners from one canonical workspace snapshot. Let it also
+  and candidate owners from one canonical workspace snapshot. From its bound
+  canonical project, Library, API, assistant, and route sources, let it also
+  reconcile authorization and own complete workspace-resource presentation,
+  assistant-availability refresh, and incidental route synchronization. Let it
+  also
   project coordinator-resolved evidence links, claim links, comments, and
   project-map inputs across those composed owners after Preview rendering while
   the coordinator retains render timing. Through a
@@ -1176,9 +1180,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   Yjs citation syntax insertion, cross-resource navigation, routing, project-selection
   persistence, remaining viewer gestures, and the shared notification outlet
   in the application coordinator through narrow callbacks.
-  Let the presenter also own linked-reference PDF catalog loading, validation,
-  storage, and authorization projection. Keep refresh timing and downstream
-  rendering consequences in the application coordinator.
+  Let the presenter also own bound linked-reference PDF catalog loading,
+  validation, storage, authorization projection, and optional downstream
+  resource presentation. Keep canonical snapshot acceptance, Library refresh
+  timing, and mutation consequences in the application coordinator.
 - Project bounded, reconstructible editor UI selections into query parameters
   only after validating stable ids against authorized snapshots.
   Keep default-file elision and active PDF-page and annotation projection beside

@@ -11562,3 +11562,28 @@ B, and 481,994 B / 146,135 B.
 
 Full native CI passes all 1,751 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Lit Ownership: Bound Resource Presentation
+
+`ContextResourcePresenter` now consumes the canonical project, Library, API,
+assistant, and route sources already bound to it to reconcile authorization and
+present the full workspace resource graph. It also owns bound linked-reference
+PDF refresh with optional downstream presentation. `WorkspaceApp` retains
+canonical snapshot acceptance, Library refresh timing, and mutation effects.
+
+This checkpoint reduces `src/client/app.ts` from 655 to 640 lines (-15) and
+grows the context-resource presenter from 1,217 to 1,236 lines (+19). The
+four-line combined increase removes duplicate source projection and wrapper
+methods from the application coordinator. Focused coverage passes bound catalog
+transport, validation, authorization reconciliation, workspace fan-out,
+context, assistant and route effects, unbound behavior, and strict types.
+Direct and unique production package counts remain 18 and 150; Lit and Valibot
+were already pinned.
+
+The browser application artifact increases from 856,141 B raw / 230,349 B gzip
+to 857,031 B / 230,658 B (+890 B raw / +309 B gzip). Styles and lazy Markdown
+and PDF.js artifacts remain unchanged at 135,411 B / 23,373 B, 204,779 B /
+62,386 B, and 481,994 B / 146,135 B.
+
+Full native CI passes all 1,752 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.

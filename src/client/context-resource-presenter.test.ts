@@ -288,6 +288,7 @@ describe("context resource presenter", () => {
       openLibrary,
       pushStandaloneLibraryPdfRoute: vi.fn(),
       replaceStandaloneLibraryRoute,
+      refreshAssistant: vi.fn(),
       restorePaneWidth,
       sources: () => ({ ...sources(undefined), standaloneLibrary }),
       syncRoute,
@@ -327,6 +328,7 @@ describe("context resource presenter", () => {
       openLibrary,
       pushStandaloneLibraryPdfRoute: vi.fn(),
       replaceStandaloneLibraryRoute: vi.fn(),
+      refreshAssistant: vi.fn(),
       restorePaneWidth: vi.fn(),
       sources: () => ({ ...sources(undefined), standaloneLibrary: false }),
       syncRoute: vi.fn(),
@@ -380,6 +382,7 @@ describe("context resource presenter", () => {
       openLibrary: vi.fn(),
       pushStandaloneLibraryPdfRoute: vi.fn(),
       replaceStandaloneLibraryRoute: vi.fn(),
+      refreshAssistant: vi.fn(),
       restorePaneWidth: vi.fn(),
       sources: () => contextSources,
       syncRoute: vi.fn(),
@@ -417,6 +420,7 @@ describe("context resource presenter", () => {
       openLibrary: vi.fn(),
       pushStandaloneLibraryPdfRoute,
       replaceStandaloneLibraryRoute: vi.fn(),
+      refreshAssistant: vi.fn(),
       restorePaneWidth: vi.fn(),
       sources: () => ({ ...sources(undefined), standaloneLibrary }),
       syncRoute,
@@ -459,6 +463,36 @@ describe("context resource presenter", () => {
     ).rejects.toThrow("Project reference PDFs returned invalid metadata");
     await presenter.refreshReferencePdfs(null);
     expect(presenter.referencePdfs).toEqual([]);
+  });
+
+  it("owns bound reference refresh and workspace resource presentation", async () => {
+    const { presenter } = setup();
+    const refreshAssistant = vi.fn();
+    const syncRoute = vi.fn();
+    const presentWorkspace = vi.spyOn(presenter, "presentWorkspace");
+    const presentBoundContext = vi.spyOn(presenter, "presentBoundContext").mockImplementation(() => undefined);
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json([referencePdf])));
+    presenter.presentBoundWorkspace();
+    await presenter.refreshBoundReferencePdfs();
+    presenter.bindContext({
+      activateSurface: vi.fn(),
+      citationAvailable: () => false,
+      openLibrary: vi.fn(),
+      pushStandaloneLibraryPdfRoute: vi.fn(),
+      replaceStandaloneLibraryRoute: vi.fn(),
+      refreshAssistant,
+      restorePaneWidth: vi.fn(),
+      sources: () => ({ ...sources(undefined), standaloneLibrary: false }),
+      syncRoute,
+    });
+
+    await presenter.refreshBoundReferencePdfs();
+
+    expect(presenter.referencePdfs).toEqual([referencePdf]);
+    expect(presentWorkspace).toHaveBeenCalledWith(workspaceSnapshotFixture);
+    expect(presentBoundContext).toHaveBeenCalledOnce();
+    expect(refreshAssistant).toHaveBeenCalledOnce();
+    expect(syncRoute).toHaveBeenCalledWith("replace");
   });
 
   it("switches project, private-Library, and shared-reference PDF presentation", () => {
