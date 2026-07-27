@@ -75,8 +75,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   effects in the application coordinator.
 - Let the bounded workspace-layout control own its four-option presentation,
   normalization, selected value, workspace-scoped local persistence, and typed
-  change outcome. Keep surface mutation, PDF activation, resize notification,
-  and URL synchronization in the application coordinator.
+  change outcome. Let internal, restored, and route-driven selection apply the
+  workspace's visibility-driving layout and dispatch resize notification before
+  that outcome. Keep PDF activation and URL synchronization in the application
+  coordinator.
 - Let the bounded Library discovery search own its provider request, response
   validation, duplicate-submit guard, and status lifecycle. Route only its
   validated result list to the sibling results component. Let that result owner

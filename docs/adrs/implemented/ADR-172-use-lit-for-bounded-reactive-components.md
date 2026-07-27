@@ -1166,9 +1166,10 @@ reason to wrap static markup mechanically.
 - The workspace layout control replaces the raw select reference and
   coordinator-owned normalization and local-storage access. It owns the
   four-option template, selected value, workspace-scoped resilient persistence,
-  and routes typed layout changes through a binding while the coordinator
-  retains surface mutation, PDF activation, resize notification, and URL
-  synchronization. Its public change event is removed.
+  workspace layout projection, and resize notification for internal, restored,
+  and route-driven navigation before routing the typed outcome through a
+  binding. The coordinator retains PDF activation and URL synchronization. Its
+  public change event is removed.
 - The workspace rail tabs derive their four controlled panel targets from the
   existing `aria-controls` contract and own active-panel visibility alongside
   tab selection and comment-count presentation. Their navigation method applies

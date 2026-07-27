@@ -190,6 +190,10 @@ collaboration.
   The coordinator retains route synchronization. Write/Map mode selection
   follows the same boundary, while its coordinator binding applies Authoring,
   focuses the editor, and replaces the route once for every Write outcome.
+  The project-view Lit control likewise applies normalized internal, restored,
+  and route-driven workspace layouts, resilient local persistence, and resize
+  notification before reporting one typed outcome. The coordinator retains
+  PDF availability and route policy.
   A bounded History trigger presents the current revision and delegates its
   open intent to the coordinator, which loads and opens the history dialog.
   A composed Lit history-dialog boundary owns modal lifecycle, busy state,

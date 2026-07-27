@@ -9165,6 +9165,26 @@ to 848,968 B raw / 228,767 B gzip (-10 B raw / -5 B gzip). Styles and direct
 and unique production package counts remain unchanged at 135,411 B raw /
 23,373 B gzip, 18, and 150.
 
+## Continued Lit Ownership: Workspace Layout Navigation
+
+`WorkspaceLayoutControl` now routes internal, restored, and route-driven
+selection through one navigation method that normalizes and persists the value,
+projects it to the workspace's visibility-driving layout attribute, and emits a
+resize notification before its typed outcome. `WorkspaceApp` retains PDF
+availability and URL policy without its layout-application wrapper.
+
+This checkpoint reduces `src/client/app.ts` from 1,207 to 1,202 lines (-5) and
+grows the layout control from 111 to 118 lines (+7), a combined two-line runtime
+increase. Focused and affected coverage passes normalized persisted navigation,
+workspace projection, resize notification, storage failure, and application
+contracts. Full native CI passes all 1,721 unit/coverage tests, 121
+Workers-runtime tests, and 74 browser tests.
+
+The browser application artifact changes from 848,968 B raw / 228,767 B gzip
+to 848,995 B raw / 228,775 B gzip (+27 B raw / +8 B gzip). Styles and direct and
+unique production package counts remain unchanged at 135,411 B raw / 23,373 B
+gzip, 18, and 150.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

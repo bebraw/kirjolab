@@ -207,7 +207,7 @@ class WorkspaceApp {
       await this.#restoreLibraryRoute();
       return;
     }
-    void this.#applyWorkspaceLayout(this.#elements.workspaceLayout.restore(), false);
+    void this.#elements.workspaceLayout.restore();
     this.#elements.source.disabled = true;
     this.#elements.bibliography.disabled = true;
     const restored = await this.#restoreOfflineWorkspace();
@@ -272,8 +272,11 @@ class WorkspaceApp {
         .then(() => location.assign(href))
         .catch((error: unknown) => this.#showToast(error instanceof Error ? error.message : "Could not clear offline data"));
     });
-    this.#elements.workspaceLayout.configure(workspaceId);
-    this.#elements.workspaceLayout.bindChange((layout) => void this.#applyWorkspaceLayout(layout, false));
+    this.#elements.workspaceLayout.configure(workspaceId, this.#elements.workspaceSurfaces);
+    this.#elements.workspaceLayout.bindChange(async (layout) => {
+      if (layout === "pdf") await this.#ensurePdfLayoutResource();
+      this.#syncWorkspaceRoute("replace");
+    });
     this.#elements.workspaceCatalogPanel.configure(catalogBase, workspaceId, this.#elements.workspaceSwitcher);
     this.#elements.workspaceCatalogPanel.bindTrigger(this.#elements.manageWorkspaces);
     this.#elements.workspaceSettingsPanel.bindWorkspace(this.#elements.workspaceSettings, {
@@ -551,14 +554,6 @@ class WorkspaceApp {
     await this.#refreshProjectReferencePdfs();
   }
 
-  async #applyWorkspaceLayout(value: string, persist = true): Promise<void> {
-    const layout = this.#elements.workspaceLayout.setLayout(value, persist);
-    this.#elements.workspaceSurfaces.dataset.layout = layout;
-    if (layout === "pdf") await this.#ensurePdfLayoutResource();
-    window.dispatchEvent(new Event("resize"));
-    this.#syncWorkspaceRoute("replace");
-  }
-
   async #ensurePdfLayoutResource(): Promise<void> {
     const active = this.#contextState.tabs.find((tab) => tab.key === this.#contextState.activeKey);
     if (active?.kind === "pdf" || active?.kind === "library-pdf") return;
@@ -576,7 +571,7 @@ class WorkspaceApp {
     if (url.searchParams.has("mode")) this.#elements.authoringModeTabs.navigate(route.mode);
     if (route.fileId) this.#elements.projectFileDialog.selectFile(route.fileId);
     if (url.searchParams.has("context")) await this.#restoreWorkspaceContext(route);
-    if (route.layout) await this.#applyWorkspaceLayout(route.layout, false);
+    if (route.layout) await this.#elements.workspaceLayout.navigate(route.layout, false);
     if (url.searchParams.has("surface")) this.#elements.workspaceSurfaceSwitcher.navigate(route.surface);
     this.#workspaceRouteReady = true;
     this.#syncWorkspaceRoute("replace");

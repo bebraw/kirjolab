@@ -2,6 +2,7 @@ import { html, LitElement, type TemplateResult } from "lit";
 import type { WorkspaceLayout } from "./workspace-ui-route";
 
 type WorkspaceLayoutMode = "library" | "workspace";
+type WorkspaceLayoutChange = (layout: WorkspaceLayout) => void | Promise<void>;
 
 export class WorkspaceLayoutControl extends LitElement {
   static override properties = {
@@ -12,7 +13,8 @@ export class WorkspaceLayoutControl extends LitElement {
   declare private layout: WorkspaceLayout;
   declare private mode: WorkspaceLayoutMode;
   private workspaceId = "";
-  private changeLayout: ((layout: WorkspaceLayout) => void) | null = null;
+  private workspace: HTMLElement | null = null;
+  private changeLayout: WorkspaceLayoutChange | null = null;
 
   constructor() {
     super();
@@ -24,25 +26,26 @@ export class WorkspaceLayoutControl extends LitElement {
     return this.layout;
   }
 
-  configure(workspaceId: string): void {
+  configure(workspaceId: string, workspace: HTMLElement): void {
     this.workspaceId = workspaceId;
+    this.workspace = workspace;
   }
 
-  bindChange(changeLayout: (layout: WorkspaceLayout) => void): void {
+  bindChange(changeLayout: WorkspaceLayoutChange): void {
     this.changeLayout = changeLayout;
   }
 
-  restore(): WorkspaceLayout {
+  restore(): Promise<WorkspaceLayout> {
     let stored: string | null = null;
     try {
       stored = localStorage.getItem(this.storageKey);
     } catch {
       // Layout selection remains usable when browser storage is unavailable.
     }
-    return this.setLayout(stored ?? "split", false);
+    return this.navigate(stored ?? "split", false);
   }
 
-  setLayout(value: string, persist = true): WorkspaceLayout {
+  async navigate(value: string, persist = true): Promise<WorkspaceLayout> {
     const layout = normalizeWorkspaceLayout(value);
     this.layout = layout;
     if (persist) {
@@ -52,6 +55,9 @@ export class WorkspaceLayoutControl extends LitElement {
         // Layout selection remains usable when browser storage is unavailable.
       }
     }
+    if (this.workspace) this.workspace.dataset.layout = layout;
+    if (typeof window !== "undefined") window.dispatchEvent(new Event("resize"));
+    await this.changeLayout?.(layout);
     return layout;
   }
 
@@ -88,8 +94,7 @@ export class WorkspaceLayoutControl extends LitElement {
   }
 
   protected change(event: Event): void {
-    const layout = this.setLayout((event.currentTarget as HTMLSelectElement).value);
-    this.changeLayout?.(layout);
+    void this.navigate((event.currentTarget as HTMLSelectElement).value);
   }
 
   private get storageKey(): string {
