@@ -7497,6 +7497,30 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,695 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Active Project File Identity
+
+`ProjectFileDialog` now owns active-file identity, entry-file fallback,
+hidden-file selection eligibility, duplicate-selection rejection, and the
+existing tree/menu/completion projection. `WorkspaceApp` reads that identity
+and retains active Y.Text binding, editor selection, presence, Preview, routing,
+model availability, and canonical snapshot authority.
+
+This checkpoint reduces `src/client/app.ts` from 1,918 to 1,914 lines (-4) and
+grows the project-file dialog from 410 to 432 lines (+22). Runtime source across
+those two files increases by 18 lines while deleting the coordinator's mutable
+active-file ID field and duplicated fallback and eligibility branches. Focused
+coverage exercises entry fallback, valid selection, duplicate rejection,
+removed-file recovery, existing file projection, application contracts, and
+strict types.
+
+The browser application artifact changes from 843,889 B raw / 228,170 B gzip
+to 844,198 B raw / 228,245 B gzip (+309 B raw / +75 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,696 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

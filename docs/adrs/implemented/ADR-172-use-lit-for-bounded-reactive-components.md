@@ -357,8 +357,10 @@ The adopted components own bounded presentation:
   hidden-file projection. Its presentation binding fans one canonical snapshot,
   visible file collection, and active/entry state into the project tree, Insert
   menu, source completion, and file-action menu. The coordinator retains
-  workflow-template selection and navigation, canonical snapshot and active-file
-  authority, Yjs editing, cross-feature rendering, and the notification outlet.
+  workflow-template selection and navigation, canonical snapshot and active
+  Y.Text/editor authority, Yjs editing, cross-feature rendering, and the notification outlet.
+  The dialog owns active-file identity, entry fallback, and hidden-file
+  selection eligibility.
 - Reused project-file action components own the rail and editor-menu action
   presentation, entry-file delete availability, and one typed create, include,
   rename, delete, folder-create, or image-upload intent contract.

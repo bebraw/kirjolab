@@ -206,7 +206,9 @@ describe("project file dialog", () => {
       previewChanged: expect.any(Function),
     });
 
-    panel.presentProject(snapshot, snapshot.entryFileId, "/api/workspaces/demo/assets", true);
+    expect(panel.presentProject(snapshot, "/api/workspaces/demo/assets", true)).toEqual(
+      snapshot.files.find(({ id }) => id === snapshot.entryFileId),
+    );
 
     expect(projectTreePanel.setTree).toHaveBeenCalledWith({
       activeFileId: snapshot.entryFileId,
@@ -219,6 +221,20 @@ describe("project file dialog", () => {
     expect(editorInsertMenu.setFiles).toHaveBeenCalledWith(snapshot.files[0], snapshot.files);
     expect(sourceCompletion.setProject).toHaveBeenCalledWith(snapshot, snapshot.entryFileId, true);
     expect(projectFileMenuActions.setEntryFileActive).toHaveBeenCalledWith(true);
+    expect(panel.activeFileId).toBe(snapshot.entryFileId);
+  });
+
+  it("owns active-file fallback and selection eligibility", () => {
+    const panel = new TestProjectFileDialog();
+    const supporting = { ...snapshot.files[0]!, id: "file-2", path: "chapter.md" };
+    const project = { ...snapshot, files: [...snapshot.files, supporting] };
+
+    expect(panel.presentProject(project, "/assets", true)?.id).toBe(snapshot.entryFileId);
+    expect(panel.activateFile(project, supporting.id)).toBe(supporting);
+    expect(panel.activeFileId).toBe(supporting.id);
+    expect(panel.activateFile(project, supporting.id)).toBeNull();
+    expect(panel.presentProject(snapshot, "/assets", true)?.id).toBe(snapshot.entryFileId);
+    expect(panel.activeFileId).toBe(snapshot.entryFileId);
   });
 
   it("persists a trimmed path and emits the validated workspace", async () => {

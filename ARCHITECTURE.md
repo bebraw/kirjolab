@@ -243,11 +243,12 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   delayed deletion, Undo restoration, failed-commit restoration, and deletion
   notices. It routes its sibling file-action, tree, upload-completion, and save
   streams through typed workflow callbacks. From one canonical snapshot it also
-  projects the visible file collection and active/entry state into the project
+  owns active-file identity, entry fallback, hidden-file selection eligibility,
+  and projects the visible file collection and active/entry state into the project
   tree, Insert menu, source completion, and file menu. Emit or return the
   validated workspace snapshot or created stable file. Keep workflow-template
-  selection and navigation, collaborative caret capture, Yjs insertion,
-  canonical active-file and snapshot authority, cross-feature rendering, and
+  selection and navigation, collaborative caret capture, Yjs insertion and
+  active-text binding, canonical snapshot authority, cross-feature rendering, and
   the global toast outlet in the workspace coordinator.
 - Let the editor Insert menu own the scholarly syntax templates it displays and
   route template and relative-include choices through one typed binding. Keep

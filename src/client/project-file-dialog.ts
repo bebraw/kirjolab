@@ -123,6 +123,7 @@ export class ProjectFileDialog extends LitElement {
   });
   private targetId: string | null = null;
   private readonly hiddenFileIds = new Set<string>();
+  private selectedFileId: string | null = null;
   private presentation: ProjectFilePresentationBinding | null = null;
   private routing: ProjectFileWorkflowRouting | null = null;
   private routingAbort: AbortController | null = null;
@@ -159,11 +160,24 @@ export class ProjectFileDialog extends LitElement {
     });
   }
 
-  presentProject(snapshot: WorkspaceSnapshot, activeFileId: string | null, assetBase: string, workspace: boolean): void {
+  get activeFileId(): string | null {
+    return this.selectedFileId;
+  }
+
+  activateFile(snapshot: WorkspaceSnapshot, fileId: string): ProjectFile | null {
+    const file = snapshot.files.find(({ id }) => id === fileId);
+    if (!file || this.hiddenFileIds.has(fileId) || fileId === this.selectedFileId) return null;
+    this.selectedFileId = fileId;
+    return file;
+  }
+
+  presentProject(snapshot: WorkspaceSnapshot, assetBase: string, workspace: boolean): ProjectFile | null {
+    const activeFile = this.ensureActiveFile(snapshot);
+    const activeFileId = this.selectedFileId;
     const presentation = this.presentation;
-    if (!presentation) return;
+    if (!presentation) return activeFile;
     const files = snapshot.files.filter((file) => !this.hiddenFileIds.has(file.id));
-    const activeFile = files.find((file) => file.id === activeFileId) ?? null;
+    const visibleActiveFile = files.find((file) => file.id === activeFileId) ?? null;
     presentation.projectTreePanel.setTree({
       activeFileId,
       assetBase,
@@ -172,13 +186,21 @@ export class ProjectFileDialog extends LitElement {
       files,
       folders: snapshot.folders,
     });
-    presentation.editorInsertMenu.setFiles(activeFile, files);
+    presentation.editorInsertMenu.setFiles(visibleActiveFile, files);
     presentation.sourceCompletion.setProject(snapshot, activeFileId, workspace);
     presentation.projectFileMenuActions.setEntryFileActive(activeFileId === snapshot.entryFileId);
+    return activeFile;
   }
 
   get hiddenFiles(): ReadonlySet<string> {
     return this.hiddenFileIds;
+  }
+
+  private ensureActiveFile(snapshot: WorkspaceSnapshot): ProjectFile | null {
+    const active = snapshot.files.find(({ id }) => id === this.selectedFileId);
+    if (active) return active;
+    this.selectedFileId = snapshot.entryFileId;
+    return snapshot.files.find(({ id }) => id === snapshot.entryFileId) ?? null;
   }
 
   async show(mode: ProjectFileDialogMode, initialPath = "", targetId: string | null = null): Promise<void> {

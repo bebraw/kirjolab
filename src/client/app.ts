@@ -151,7 +151,6 @@ class WorkspaceApp {
   #renderedPdfContextKey: ResearchContextKey | undefined;
   #contextState: ResearchContextState = createResearchContext();
   #authoringSelection: RelativeEditorSelection | null = null;
-  #activeFileId: string | null = null;
   #activeFileText = this.#source;
   readonly #editorUndoManagers = new Map<Y.Text, Y.UndoManager>();
   #unbindSourceEditor: () => void = () => undefined;
@@ -163,6 +162,10 @@ class WorkspaceApp {
 
   get #librarySnapshot() {
     return this.#elements.referenceLibraryWorkspace.snapshot;
+  }
+
+  get #activeFileId(): string | null {
+    return this.#elements.projectFileDialog.activeFileId;
   }
 
   constructor() {
@@ -979,24 +982,17 @@ class WorkspaceApp {
   #renderProjectFiles(): void {
     const snapshot = this.#snapshot;
     if (!snapshot) return;
-    this.#ensureActiveProjectFile(snapshot);
-    this.#elements.projectFileDialog.presentProject(snapshot, this.#activeFileId, `${apiBase}/assets`, appMode === "workspace");
+    const activeFile = this.#elements.projectFileDialog.presentProject(snapshot, `${apiBase}/assets`, appMode === "workspace");
+    if (activeFile) this.#activeFileText = this.#document.getText(projectFileCollaborationTextName(activeFile, snapshot.entryFileId));
     this.#renderAuthoringTarget();
-  }
-
-  #ensureActiveProjectFile(snapshot: WorkspaceSnapshot): void {
-    if (this.#activeFileId && snapshot.files.some((file) => file.id === this.#activeFileId)) return;
-    this.#activeFileId = snapshot.entryFileId;
-    const entry = snapshot.files.find((file) => file.id === snapshot.entryFileId);
-    this.#activeFileText = entry ? this.#document.getText(projectFileCollaborationTextName(entry, snapshot.entryFileId)) : this.#source;
   }
 
   #selectProjectFile(fileId: string): void {
     const snapshot = this.#snapshot;
-    const file = snapshot?.files.find((item) => item.id === fileId);
-    if (!snapshot || !file || this.#elements.projectFileDialog.hiddenFiles.has(fileId) || fileId === this.#activeFileId) return;
+    if (!snapshot) return;
+    const file = this.#elements.projectFileDialog.activateFile(snapshot, fileId);
+    if (!file) return;
     this.#unbindSourceEditor();
-    this.#activeFileId = fileId;
     this.#activeFileText = this.#document.getText(projectFileCollaborationTextName(file, snapshot.entryFileId));
     this.#elements.source.value = this.#activeFileText.toString();
     this.#authoringSelection = null;
