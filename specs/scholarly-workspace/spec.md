@@ -90,9 +90,11 @@ collaboration.
   control owns its directional actions, Preview-context visibility, current
   composition source map, bidirectional composition-offset resolution,
   centered source-offset derivation, Preview-to-source file-qualified focus
-  intent, and source-viewport centering. The coordinator retains active-file
-  identity, source-to-Preview automatic-versus-explicit policy, Preview DOM
-  navigation, and file, mode, caret, and focus policy.
+  intent, and source-viewport centering. Workspace Preview derives source-to-
+  Preview automatic-versus-explicit eligibility from its bound active-file,
+  context, and layout projections and owns mapped DOM navigation. The
+  coordinator retains those canonical authorities plus file activation, mode,
+  caret, and source-focus policy.
   A bounded progressive Lit control owns browser-local top-navigation
   visibility, persistence, toggle and restore copy, ARIA presentation, and
   focus handoff. In workspace mode the toggle follows Preview availability;

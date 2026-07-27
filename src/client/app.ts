@@ -142,7 +142,7 @@ class WorkspaceApp {
     this.#elements.previewSyncControls.bindSource(this.#elements.source, this.#elements.sourceHighlight, {
       focusSource: ({ fileId, offset }) => this.#focusProjectRange(fileId, offset, offset),
       previewOffset: () => this.#elements.workspacePreview.centeredSourceOffset(),
-      sourceToPreview: (explicit) => this.#syncPreviewFromSource(explicit),
+      sourceToPreview: (explicit) => this.#elements.workspacePreview.syncFromSource(explicit),
     });
   }
 
@@ -581,14 +581,6 @@ class WorkspaceApp {
     this.#scheduleOfflineSave();
     const active = this.#elements.contextResourcePresenter.activeTab;
     if (active?.kind === "candidate") this.#elements.contextResourcePresenter.presentBoundContext(false);
-  }
-
-  #syncPreviewFromSource(explicit = true): void {
-    const fileId = this.#activeFileId ?? this.#snapshot?.entryFileId ?? "";
-    const previewActive = this.#elements.contextResourcePresenter.activeKey === RESEARCH_PREVIEW_KEY;
-    const splitLayout = this.#elements.workspaceSurfaces.dataset.layout === "split";
-    const offsets = this.#elements.previewSyncControls.activeSourcePreviewOffsets(fileId, explicit, previewActive, splitLayout);
-    if (offsets.length > 0) this.#elements.workspacePreview.revealNearestSource(offsets);
   }
 
   #activateProjectFile(file: ProjectFile, snapshot: WorkspaceSnapshot): void {

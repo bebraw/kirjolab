@@ -145,19 +145,26 @@ describe("workspace preview", () => {
   it("owns the bound canonical project request", async () => {
     const preview = new TestWorkspacePreview();
     await expect(preview.renderBoundProject()).resolves.toBeNull();
+    expect(preview.syncFromSource()).toBe(false);
     const documentModel = new Y.Doc();
     documentModel.getText("source").insert(0, "Bound source");
     documentModel.getText("bibliography").insert(0, "Bound bibliography");
     const hiddenAssets = new Set(["asset-1"]);
     const files = workspaceSnapshotFixture.files.map((file) => ({ ...file, content: `${file.content}\nLive` }));
     const renderProject = vi.spyOn(preview, "renderProject").mockResolvedValue(null);
+    const revealNearestSource = vi.spyOn(preview, "revealNearestSource").mockReturnValue(true);
+    const activeSourcePreviewOffsets = vi.fn(() => [4]);
     preview.bindProject(request.apiBase, documentModel, () => workspaceSnapshotFixture, {
+      contextResourcePresenter: { activeKey: "preview" },
+      previewSyncControls: { activeSourcePreviewOffsets },
       projectFileDialog: { activeFileId: workspaceSnapshotFixture.entryFileId, projectFiles: () => files },
       projectTreePanel: { hiddenAssets },
+      workspaceSurfaces: { dataset: { layout: "split" } } as unknown as HTMLElement,
     });
 
     await preview.renderBoundProject();
     await preview.renderBoundProject("Override bibliography");
+    expect(preview.syncFromSource(false)).toBe(true);
 
     expect(renderProject).toHaveBeenNthCalledWith(
       1,
@@ -172,6 +179,8 @@ describe("workspace preview", () => {
       }),
     );
     expect(renderProject.mock.calls[1]?.[0].bibliography).toBe("Override bibliography");
+    expect(activeSourcePreviewOffsets).toHaveBeenCalledWith(workspaceSnapshotFixture.entryFileId, false, true, true);
+    expect(revealNearestSource).toHaveBeenCalledWith([4]);
   });
 
   it("projects one render outcome into manuscript-map and export companions", () => {

@@ -27,6 +27,7 @@ import {
 } from "./preview-presentation";
 import { PreviewSyncControls } from "./preview-sync-controls";
 import { ProjectExportDialog } from "./project-export-dialog";
+import { RESEARCH_PREVIEW_KEY } from "./research-context";
 
 export const workspacePreviewActionEvent = "workspace-preview-action";
 
@@ -60,8 +61,11 @@ export interface ProjectPreviewRequest {
 }
 
 export interface WorkspacePreviewProjectOwners {
+  readonly contextResourcePresenter: { readonly activeKey: string };
+  readonly previewSyncControls: Pick<PreviewSyncControls, "activeSourcePreviewOffsets">;
   readonly projectFileDialog: { readonly activeFileId: string | null; projectFiles(): readonly ProjectFile[] };
   readonly projectTreePanel: { readonly hiddenAssets: ReadonlySet<string> };
+  readonly workspaceSurfaces: HTMLElement;
 }
 
 interface WorkspacePreviewProjectBinding {
@@ -236,6 +240,20 @@ export class WorkspacePreview extends LitElement {
       resolvedSnapshot: snapshot ? resolveWorkspaceSnapshotAnchors(binding.document, snapshot) : null,
       snapshot,
     });
+  }
+
+  syncFromSource(explicit = true): boolean {
+    const binding = this.projectBinding;
+    if (!binding) return false;
+    const snapshot = binding.snapshot();
+    const fileId = binding.owners.projectFileDialog.activeFileId ?? snapshot?.entryFileId ?? "";
+    const offsets = binding.owners.previewSyncControls.activeSourcePreviewOffsets(
+      fileId,
+      explicit,
+      binding.owners.contextResourcePresenter.activeKey === RESEARCH_PREVIEW_KEY,
+      binding.owners.workspaceSurfaces.dataset.layout === "split",
+    );
+    return offsets.length > 0 && this.revealNearestSource(offsets);
   }
 
   protected presentProjectCompanions(request: ProjectPreviewRequest, outcome: ProjectPreviewOutcome): void {

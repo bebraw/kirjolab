@@ -191,14 +191,15 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   transient DOM navigation, interactive-click classification,
   source-offset extraction, and routing of its source, citation, and nested
   diagnostic-selection intents through one typed navigation boundary. Keep
-  canonical project-file and Yjs source authority, Yjs anchor resolution,
-  source-map translation, publication resolution, and resulting transitions in
-  the application coordinator.
+  canonical project-file, snapshot, and Yjs authority, publication resolution,
+  and resulting transitions in the application coordinator.
 - Let the bounded Preview synchronization control own explicit Preview-to-source
   offset capture, composition-map resolution, file-qualified focus intent, and
   source-viewport centering alongside its directional actions and source
-  listeners. Keep source-to-Preview eligibility, Preview DOM navigation, and
-  file, mode, caret, and focus policy in the application coordinator.
+  listeners. Let the workspace Preview derive source-to-Preview eligibility
+  from its bound active file, snapshot, context, layout, and sync owner, then
+  reveal the nearest mapped DOM range itself. Keep file activation, authoring
+  mode, caret, and source-focus policy in the application coordinator.
 - Keep the DOI publication-intake XState actor, preview and acceptance
   requests, stale-response guards, local status, and focus lifecycle inside the
   bounded intake Lit component. Let that component also derive the active PDF's

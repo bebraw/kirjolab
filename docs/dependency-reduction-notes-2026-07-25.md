@@ -11412,3 +11412,27 @@ and PDF.js artifacts remain unchanged at 135,411 B / 23,373 B, 204,779 B /
 
 Full native CI passes all 1,743 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Lit Ownership: Source-to-Preview Navigation
+
+`WorkspacePreview` now derives source-to-Preview eligibility from its bound
+active file, snapshot, context, split layout, and synchronization owner. It asks
+that owner for mapped offsets and reveals its nearest matching DOM range.
+`WorkspaceApp` no longer owns the eligibility projection or Preview navigation
+helper; it retains only cross-direction file activation and editor focus.
+
+This checkpoint reduces `src/client/app.ts` from 746 to 738 lines (-8) and grows
+the workspace Preview owner from 440 to 458 lines (+18). The ten-line combined
+increase moves Preview DOM policy beside the DOM it controls and reuses the
+canonical sources bound in the preceding checkpoint. Focused coverage passes
+unbound behavior, active-file and layout/context projection, mapped-offset
+selection, reveal routing, and strict types. Direct and unique production
+package counts remain 18 and 150; Lit was already pinned.
+
+The browser application artifact increases from 855,000 B raw / 230,058 B gzip
+to 855,108 B / 230,068 B (+108 B raw / +10 B gzip). Styles and lazy Markdown
+and PDF.js artifacts remain unchanged at 135,411 B / 23,373 B, 204,779 B /
+62,386 B, and 481,994 B / 146,135 B.
+
+Full native CI passes all 1,743 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.

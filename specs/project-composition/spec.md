@@ -60,7 +60,10 @@ collaborative, and unambiguous about what preview and export mean.
   rendered fallback source, and the active source map before invoking its
   renderer. It synchronizes file-mode, diagnostics/unavailable
   status, source-map navigation, manuscript-map content, and live export
-  statistics siblings from the same render outcome. For an available outcome,
+  statistics siblings from the same render outcome. For source-to-Preview
+  synchronization it derives active-file, Preview-context, and responsive split-
+  layout inputs, asks the sync owner for eligible offsets, and reveals its own
+  nearest mapped range. For an available outcome,
   it also supplies the coordinator-resolved workspace anchors and composed
   source to research companions. The coordinator retains canonical
   Yjs/project-file authority and anchor resolution.

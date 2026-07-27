@@ -1192,9 +1192,10 @@ reason to wrap static markup mechanically.
   context and layout inputs. For Preview-to-source navigation it captures the
   centered Preview offset, resolves the file-qualified source location, routes
   one focus intent, and centers the source viewport. The application
-  coordinator retains active-file, context, and layout authority,
-  source-to-Preview eligibility and DOM navigation, plus file, mode, caret, and
-  focus policy.
+  coordinator retains active-file, context, and layout authority plus file,
+  mode, caret, and focus policy. The bound workspace Preview consumes those
+  projections, asks the synchronization owner for eligible source offsets, and
+  reveals its nearest mapped DOM range directly.
 - The preview navigation control owns browser-local top-navigation visibility,
   stored restoration, toggle and restore presentation, ARIA and title copy,
   restricted-Preview availability, and focus handoff. The application
