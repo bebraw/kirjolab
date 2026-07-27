@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ModelProviderSettings, modelProviderChangeEvent } from "./model-provider-settings";
+import { OpenAICompatibleBrowserProvider } from "./model-provider";
 
 class TestModelProviderSettings extends ModelProviderSettings {
   focusCount = 0;
@@ -125,6 +126,7 @@ describe("model provider settings", () => {
       "Using qwen-local for new writing assistant requests.",
       null,
     ]);
+    expect(panel.provider()).toBeInstanceOf(OpenAICompatibleBrowserProvider);
   });
 
   it("owns successful model discovery and ignores overlapping requests", async () => {

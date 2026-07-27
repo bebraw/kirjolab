@@ -1,6 +1,6 @@
 import * as v from "valibot";
 import { html, LitElement, type TemplateResult } from "lit";
-import { discoverOpenAICompatibleModels, type ModelReasoningEffort } from "./model-provider";
+import { discoverOpenAICompatibleModels, OpenAICompatibleBrowserProvider, type ModelReasoningEffort } from "./model-provider";
 
 export const modelProviderChangeEvent = "model-provider-change";
 
@@ -59,6 +59,16 @@ export class ModelProviderSettings extends LitElement {
 
   get discoveryBusy(): boolean {
     return this.busy;
+  }
+
+  provider(): OpenAICompatibleBrowserProvider {
+    return new OpenAICompatibleBrowserProvider({
+      endpoint: this.preferences.endpoint,
+      model: this.preferences.model,
+      providerLabel:
+        this.preferences.connection === "companion" ? "Local companion · OpenAI-compatible" : "Browser-local OpenAI-compatible",
+      reasoningEffort: this.preferences.reasoningEffort,
+    });
   }
 
   setDiscoveryAvailable(available: boolean): void {

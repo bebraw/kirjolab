@@ -5928,6 +5928,29 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,639 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Model Provider Derivation
+
+`ModelProviderSettings` now constructs the OpenAI-compatible browser provider
+directly from its owned, Valibot-validated connection, endpoint, model, and
+reasoning preferences. `WorkspaceApp` retains provider failure presentation and
+generation workflow authority but no longer reinterprets another component's
+state.
+
+This checkpoint reduces `src/client/app.ts` from 3,017 to 3,007 lines (-10)
+and grows the model-settings owner from 268 to 278 lines. Runtime source across
+those two files is unchanged while deleting the coordinator-only provider
+factory. Existing model-settings coverage now also verifies provider
+construction after normalized connection, endpoint, model, and reasoning
+changes; affected contracts and strict client and Workers types pass.
+
+The browser application artifact changes from 833,234 B raw / 225,412 B gzip
+to 833,287 B raw / 225,392 B gzip (+53 B raw / -20 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,639 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

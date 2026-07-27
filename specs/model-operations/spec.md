@@ -29,9 +29,10 @@ All mutation operations preserve a human review boundary.
   across the task, result, and candidate-list owners from one canonical
   generation input. It returns only a created candidate, the next transient
   workflow state, and result-specific status. Candidate persistence remains in
-  its bounded list owner; the application retains the XState actor, canonical
-  refresh and context navigation, provider construction, error policy, and
-  manuscript mutation. The presenter also projects canonical stability, target,
+  its bounded list owner; provider instances derive from validated model-
+  settings state; and the application retains the XState actor, canonical
+  refresh and context navigation, error policy, and manuscript mutation. The
+  presenter also projects canonical stability, target,
   and workflow inputs across model-discovery, task-readiness, and candidate-
   review owners, deriving evidence counts and model availability only from the
   components that own them.
@@ -96,9 +97,9 @@ All mutation operations preserve a human review boundary.
 - One bounded model-provider settings component owns connection, endpoint,
   model, and reasoning values, saved-value validation, live option
   presentation, discovery progress, opening its enclosing preferences menu,
-  connection-control focus, and typed change and discovery intents. The
-  workspace coordinator retains browser-local persistence, provider discovery,
-  request construction, generation workflows, and assistant status policy.
+  connection-control focus, provider construction, and typed change and
+  discovery intents. The workspace coordinator retains generation workflows,
+  provider failure presentation, and assistant status policy.
 - One bounded assistant workflow status component owns operation-specific
   attribution and initial status copy, subsequent live status presentation,
   selected evidence keys and their count or limit status, reconciliation

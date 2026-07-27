@@ -348,9 +348,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   derive operation-local request context from coordinator-supplied canonical
   manuscript, target, evidence, provider, and revision inputs and return only a
   created candidate plus workflow and result-status presentation. Keep workflow
-  transitions, canonical refresh, context navigation, provider construction,
-  error policy, and Yjs edits in the coordinator; candidate persistence remains
-  inside the candidate-list owner. The presenter may also fan canonical
+  transitions, canonical refresh, context navigation, error policy, and Yjs
+  edits in the coordinator; candidate persistence remains inside the candidate-
+  list owner, and provider instances derive from validated model-settings state.
+  The presenter may also fan canonical
   stability, target, and workflow inputs out to model discovery, task readiness,
   and candidate-review availability while deriving evidence counts and model
   availability from their owning Lit components.

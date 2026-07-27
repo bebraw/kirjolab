@@ -1225,16 +1225,6 @@ class WorkspaceApp {
     });
   }
 
-  #modelProvider(): OpenAICompatibleBrowserProvider {
-    const preferences = this.#elements.modelProviderSettings.value;
-    return new OpenAICompatibleBrowserProvider({
-      endpoint: preferences.endpoint,
-      providerLabel: preferences.connection === "companion" ? "Local companion · OpenAI-compatible" : "Browser-local OpenAI-compatible",
-      model: preferences.model,
-      reasoningEffort: preferences.reasoningEffort,
-    });
-  }
-
   async #renderPreview(bibliography = this.#bibliography.toString()): Promise<void> {
     const inputs = this.#previewInputs();
     this.#preparePreviewContext(inputs);
@@ -2408,7 +2398,7 @@ class WorkspaceApp {
 
   #modelProviderOrReport(): OpenAICompatibleBrowserProvider | null {
     try {
-      return this.#modelProvider();
+      return this.#elements.modelProviderSettings.provider();
     } catch (error) {
       this.#elements.assistantWorkflowStatus.status = error instanceof Error ? error.message : "Enter a valid local model endpoint.";
       return null;

@@ -87,8 +87,9 @@ The adopted components own bounded presentation:
   the typed task, result, and candidate-list owners from coordinator-supplied
   canonical generation inputs. It returns only a created candidate plus
   workflow and status presentation; candidate persistence remains in its list
-  owner, while the coordinator retains the XState actor, provider construction,
-  canonical refresh and navigation, error policy, and manuscript mutation. The
+  owner and provider construction derives from validated model-settings state,
+  while the coordinator retains the XState actor, canonical refresh and
+  navigation, error policy, and manuscript mutation. The
   presenter also fans canonical stability, target, and workflow inputs out to
   model-discovery, task-readiness, and candidate-review owners while deriving
   evidence and model availability from those bounded owners.
@@ -862,9 +863,8 @@ reason to wrap static markup mechanically.
   visibility. It also removes the coordinator's selected-evidence set and count
   formatting while exposing readonly keys for snapshot resolution and
   requirement validation. The application coordinator retains canonical target
-  and stability derivation, evidence navigation, settings availability,
-  provider construction, generation, discovery-status mirroring, and
-  result-specific status policy.
+  and stability derivation, evidence navigation, generation coordination,
+  discovery-status mirroring, and result-specific status policy.
 - The workspace rail tabs replace five internal element references, four
   native action bindings, four ARIA-selection mutations, and DOM-derived active
   mode. The application coordinator retains panel visibility, guide rendering,
