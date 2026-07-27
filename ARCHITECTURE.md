@@ -798,9 +798,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   coordinator-supplied canonical tab, publication, project-PDF, private-Library,
   shared-reference, and candidate inputs. Let it also own controlled-panel
   visibility, Preview sibling-control availability, active resource labels, and
-  private-versus-read-only PDF presentation. Keep canonical context state,
-  authorization, loading, content rendering, routing, and transitions outside
-  it.
+  private-versus-read-only PDF presentation, and restore supplied fixed-panel
+  scroll positions during the same tab update. Keep canonical context state,
+  authorization, loading, content rendering, routing, and transitions outside it.
 - Project bounded, reconstructible editor UI selections into query parameters
   only after validating stable ids against authorized snapshots.
   Push meaningful context-target navigation, replace incidental view and page

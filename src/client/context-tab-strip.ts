@@ -69,13 +69,6 @@ export class ContextTabStrip extends LitElement {
     return this.fixedScrollElement(key)?.scrollTop ?? null;
   }
 
-  restoreFixedScroll(key: ResearchContextKey, scrollTop: number): boolean {
-    const scroll = this.fixedScrollElement(key);
-    if (!scroll) return false;
-    scroll.scrollTop = scrollTop;
-    return true;
-  }
-
   focusTab(key: ResearchContextKey): void {
     const id =
       key === "preview" || key === "library" || key === "assistant" ? `context-${key}-tab` : `context-tab-${key.replace(":", "-")}`;
@@ -155,6 +148,10 @@ export class ContextTabStrip extends LitElement {
 
   private syncControlledPanels(sources: ContextTabStripSources): void {
     const active = this.data.items.find((item) => item.tab.key === this.data.activeKey)?.tab;
+    if (active) {
+      const fixedScroll = this.fixedScrollElement(active.key);
+      if (fixedScroll) fixedScroll.scrollTop = active.scrollTop;
+    }
     const preview = this.data.activeKey === "preview";
     const states: readonly [id: string, selected: boolean][] = [
       ["context-preview-panel", preview],

@@ -1997,9 +1997,8 @@ class WorkspaceApp {
   }
 
   #renderResearchContext(loadPdf = true): void {
-    const activeKey = this.#contextState.activeKey;
     this.#elements.contextTabStrip.setTabs({
-      activeKey,
+      activeKey: this.#contextState.activeKey,
       candidates: this.#snapshot?.candidates ?? [],
       libraryArtifacts: this.#librarySnapshot?.artifacts ?? [],
       pdfs: this.#snapshot?.pdfs ?? [],
@@ -2015,7 +2014,7 @@ class WorkspaceApp {
       activeTab?.kind === "pdf" ? activeTab.id : null,
       this.#snapshot?.publicationPdfLinks ?? [],
     );
-    this.#renderActiveResearchContext(activeKey, activeTab, loadPdf);
+    if (activeTab) this.#renderActiveResourceContext(activeTab, loadPdf);
   }
 
   #renderContextPdfVisibility(activeTab: ResearchResourceTab | undefined): void {
@@ -2033,17 +2032,6 @@ class WorkspaceApp {
   #activeLibraryPdfArtifact(activeTab: ResearchResourceTab | undefined): LibraryPdfArtifact | undefined {
     if (activeTab?.kind !== "library-pdf") return undefined;
     return this.#librarySnapshot?.artifacts.find((artifact) => artifact.id === activeTab.id);
-  }
-
-  #renderActiveResearchContext(activeKey: ResearchContextKey, activeTab: ResearchResourceTab | undefined, loadPdf: boolean): void {
-    if (this.#restoreFixedResearchContext(activeKey)) return;
-    if (!activeTab) return;
-    this.#renderActiveResourceContext(activeTab, loadPdf);
-  }
-
-  #restoreFixedResearchContext(activeKey: ResearchContextKey): boolean {
-    const scrollTop = this.#contextState.tabs.find((item) => item.key === activeKey)?.scrollTop ?? 0;
-    return this.#elements.contextTabStrip.restoreFixedScroll(activeKey, scrollTop);
   }
 
   #renderActiveResourceContext(activeTab: ResearchResourceTab, loadPdf: boolean): void {

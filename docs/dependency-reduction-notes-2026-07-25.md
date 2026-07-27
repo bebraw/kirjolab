@@ -5412,6 +5412,28 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,615 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Fixed Context Scroll
+
+`ContextTabStrip` now restores Preview, Library, and Writing assistant scroll
+positions directly from the same canonical tab update that drives visibility
+and presentation. `WorkspaceApp` retains capture into canonical local tab state
+and resource-panel scroll restoration, but no longer selects or invokes a
+second fixed-panel restoration path.
+
+This checkpoint reduces `src/client/app.ts` from 3,281 to 3,269 lines (-12)
+and the context-tab owner from 252 to 249 lines (-3), deleting the imperative
+restore API and two coordinator-only wrapper methods. Existing focused coverage
+passes fixed-panel capture and restoration, resource presentation, Preview
+controls, and strict client and Workers types.
+
+The browser application artifact changes from 827,817 B raw / 223,956 B gzip
+to 827,643 B raw / 223,905 B gzip (-174 B raw / -51 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,615 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

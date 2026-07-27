@@ -172,9 +172,9 @@ changing their canonical data, selector, authorization, or rendering contracts.
   presentation. It owns fixed and resource title derivation from canonical
   publication, project-PDF, private-Library, shared-reference, and candidate
   inputs, panel visibility, active resource labels, and PDF-mode presentation
-  plus fixed-panel scroll capture and restoration. The workspace coordinator
-  retains canonical tab state, authorized content loading, content rendering,
-  and resource-panel scroll restoration.
+  plus fixed-panel scroll capture and restoration during the same canonical tab
+  update. The workspace coordinator retains canonical tab state, authorized
+  content loading, content rendering, and resource-panel scroll restoration.
 - Reconciliation authorizes `pdf:` tabs from the workspace snapshot and
   `library-pdf:` tabs from the current owner-library snapshot; neither scope
   grants the other.

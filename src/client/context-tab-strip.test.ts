@@ -314,12 +314,11 @@ describe("context tab strip", () => {
   it("captures and restores fixed-panel scroll positions", () => {
     const strip = new TestContextTabStrip();
 
-    expect(strip.restoreFixedScroll("library", 42)).toBe(true);
+    strip.setTabs(sources("library", [{ kind: "library", key: "library", scrollTop: 42 }]));
     expect(strip.fixedScrollTop("library")).toBe(42);
-    expect(strip.restoreFixedScroll("assistant", 24)).toBe(true);
+    strip.setTabs(sources("assistant", [{ kind: "assistant", key: "assistant", scrollTop: 24 }]));
     expect(strip.panels.get("context-assistant-scroll")?.scrollTop).toBe(24);
     expect(strip.fixedScrollTop("publication:item")).toBeNull();
-    expect(strip.restoreFixedScroll("publication:item", 1)).toBe(false);
   });
 
   it("moves roving focus only for unmodified navigation keys", () => {
