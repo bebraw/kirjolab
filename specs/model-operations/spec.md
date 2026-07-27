@@ -35,7 +35,9 @@ All mutation operations preserve a human review boundary.
   presenter also projects canonical stability, target,
   and workflow inputs across model-discovery, task-readiness, and candidate-
   review owners, deriving evidence counts and model availability only from the
-  components that own them.
+  components that own them. It also derives target scope from task-owned
+  operation state and coordinates operation status, transient-result reset, and
+  target preview from canonical editor-target inputs.
 - A non-empty manuscript selection always resolves exactly. Otherwise the
   remembered Yjs-relative caret expands deterministically to the configured
   sentence, paragraph, or Markdown section, or remains an insertion point.

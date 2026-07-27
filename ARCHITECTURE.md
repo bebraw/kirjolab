@@ -354,7 +354,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   The presenter may also fan canonical
   stability, target, and workflow inputs out to model discovery, task readiness,
   and candidate-review availability while deriving evidence counts and model
-  availability from their owning Lit components.
+  availability from their owning Lit components. It may also derive target
+  scope from task-owned operation state and coordinate operation status, result
+  reset, and target preview from coordinator-supplied canonical target inputs.
   Let the candidate-review Lit owner resolve the active candidate id against
   the canonical workspace snapshot and derive evidence availability and local
   applicability from candidate, evidence-version, source-revision,

@@ -109,7 +109,7 @@ import {
 import { CoalescedRefresh, DebouncedAsyncQueue } from "./collaboration";
 import { CollaborationSession } from "./collaboration-session";
 import { CollaborationSocket } from "./collaboration-socket";
-import { assistantOperationDefinition, resolveAssistantTarget, type AssistantTargetScope } from "./assistant-operations";
+import { assistantOperationDefinition, resolveAssistantTarget } from "./assistant-operations";
 import { assistantTaskChangeEvent, assistantTaskGenerateEvent, type AssistantTaskChange } from "./assistant-task-panel";
 import { assistantWorkflowActionEvent, type AssistantWorkflowAction, type SelectedModelEvidence } from "./assistant-workflow-status";
 import { assistantWorkflowBusy, createAssistantWorkflowActor } from "./assistant-workflow-machine";
@@ -1206,11 +1206,7 @@ class WorkspaceApp {
   }
 
   #updateModelTask(resetInstruction = false): void {
-    const operation = this.#elements.assistantTaskPanel.value.operation;
-    this.#elements.assistantWorkflowStatus.setOperation(operation.id);
-    if (resetInstruction) {
-      this.#elements.assistantInteractiveResult.clear();
-    }
+    this.#elements.assistantGenerationPresenter.presentTask(resetInstruction);
     this.#renderAssistantTargetPreview();
     this.#updateModelAvailability();
   }
@@ -1218,11 +1214,7 @@ class WorkspaceApp {
   #renderAssistantTargetPreview(): void {
     const target = this.#assistantInsertionTarget();
     const passage = this.#assistantAuthoringPassage();
-    this.#elements.assistantTaskPanel.showTarget({
-      passage: passage?.excerpt ?? null,
-      scope: target && target.start !== target.end ? "selection" : this.#assistantTargetScope(),
-      target,
-    });
+    this.#elements.assistantGenerationPresenter.presentTarget(passage?.excerpt ?? null, target);
   }
 
   async #renderPreview(bibliography = this.#bibliography.toString()): Promise<void> {
@@ -2264,17 +2256,12 @@ class WorkspaceApp {
     return start.type === this.#activeFileText && end.type === this.#activeFileText && start.index < end.index;
   }
 
-  #assistantTargetScope(): AssistantTargetScope {
-    const { operation, targetScope: scope } = this.#elements.assistantTaskPanel.value;
-    return operation.scopes.includes(scope) ? scope : (operation.defaultScope ?? "selection");
-  }
-
   #assistantAuthoringPassage(): AuthoringPassage | null {
     if (!this.#activeFileId) return null;
     const target = this.#resolvedAuthoringTarget();
     if (!target) return null;
     const source = this.#activeFileText.toString();
-    const resolved = resolveAssistantTarget(source, target.start, target.end, this.#assistantTargetScope());
+    const resolved = resolveAssistantTarget(source, target.start, target.end, this.#elements.assistantGenerationPresenter.targetScope());
     return resolved.text.trim() ? { fileId: this.#activeFileId, start: resolved.start, end: resolved.end, excerpt: resolved.text } : null;
   }
 

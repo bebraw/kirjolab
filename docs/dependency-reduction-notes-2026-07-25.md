@@ -5951,6 +5951,29 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,639 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Assistant Task Projection
+
+`AssistantGenerationPresenter` now derives effective target scope from the
+task owner's operation state and coordinates operation-status reset, transient-
+result clearing, and target preview from canonical editor-target inputs.
+`WorkspaceApp` retains Yjs-relative selection resolution and canonical source
+text authority.
+
+This checkpoint reduces `src/client/app.ts` from 3,007 to 2,994 lines (-13)
+and grows the generation presenter from 180 to 202 lines. Runtime source across
+those two files grows by nine lines while deleting the coordinator's duplicate
+task-scope interpretation and sibling presentation fan-out. Six direct
+presenter cases cover all operation routes, availability, task reset, effective
+scope, selected-target presentation, and strict client and Workers types.
+
+The browser application artifact changes from 833,287 B raw / 225,392 B gzip
+to 833,593 B raw / 225,465 B gzip (+306 B raw / +73 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,640 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

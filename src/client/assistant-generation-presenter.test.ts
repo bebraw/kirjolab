@@ -198,4 +198,22 @@ describe("assistant generation presenter", () => {
     );
     expect(setReviewAvailability).toHaveBeenCalledWith(true, true);
   });
+
+  it("owns assistant task reset, scope, and target presentation", () => {
+    const { elements, presenter } = setup();
+    const task = elements["assistant-task-panel"];
+    const result = elements["assistant-interactive-result"];
+    const status = elements["assistant-workflow-status"];
+    const setOperation = vi.spyOn(status, "setOperation");
+    const clear = vi.spyOn(result, "clear");
+    const showTarget = vi.spyOn(task, "showTarget");
+
+    presenter.presentTask(true);
+    presenter.presentTarget("Selected target", { end: 12, start: 3 });
+
+    expect(setOperation).toHaveBeenCalledWith("revise-selection");
+    expect(clear).toHaveBeenCalledOnce();
+    expect(showTarget).toHaveBeenCalledWith({ passage: "Selected target", scope: "selection", target: { end: 12, start: 3 } });
+    expect(presenter.targetScope()).toBe("sentence");
+  });
 });

@@ -92,7 +92,9 @@ The adopted components own bounded presentation:
   navigation, error policy, and manuscript mutation. The
   presenter also fans canonical stability, target, and workflow inputs out to
   model-discovery, task-readiness, and candidate-review owners while deriving
-  evidence and model availability from those bounded owners.
+  evidence and model availability from those bounded owners. It derives target
+  scope from task-owned operation state and coordinates operation status,
+  transient-result reset, and target preview from canonical target inputs.
 - The project map panel owns provenance-lane rendering, measured SVG connector
   geometry, responsive relayout, focus and hover emphasis, and a typed resource
   selection intent.

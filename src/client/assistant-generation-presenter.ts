@@ -1,5 +1,5 @@
 import { html, LitElement, type TemplateResult } from "lit";
-import { resolveAssistantTarget, type AssistantOperationDefinition } from "./assistant-operations";
+import { resolveAssistantTarget, type AssistantOperationDefinition, type AssistantTargetScope } from "./assistant-operations";
 import { AssistantResultPanel, type AssistantAuthoringPassage } from "./assistant-result-panel";
 import { AssistantTaskPanel } from "./assistant-task-panel";
 import { AssistantWorkflowStatus, type SelectedModelEvidence } from "./assistant-workflow-status";
@@ -47,6 +47,28 @@ export interface AssistantAvailabilityInput {
 }
 
 export class AssistantGenerationPresenter extends LitElement {
+  presentTask(resetResult = false): void {
+    const task = this.element("assistant-task-panel", AssistantTaskPanel);
+    if (!task) return;
+    this.element("assistant-workflow-status", AssistantWorkflowStatus)?.setOperation(task.value.operation.id);
+    if (resetResult) this.element("assistant-interactive-result", AssistantResultPanel)?.clear();
+  }
+
+  presentTarget(passage: string | null, target: { readonly start: number; readonly end: number } | null): void {
+    this.element("assistant-task-panel", AssistantTaskPanel)?.showTarget({
+      passage,
+      scope: target && target.start !== target.end ? "selection" : this.targetScope(),
+      target,
+    });
+  }
+
+  targetScope(): AssistantTargetScope {
+    const task = this.element("assistant-task-panel", AssistantTaskPanel);
+    if (!task) return "selection";
+    const { operation, targetScope } = task.value;
+    return operation.scopes.includes(targetScope) ? targetScope : (operation.defaultScope ?? "selection");
+  }
+
   presentAvailability(input: AssistantAvailabilityInput): void {
     const settings = this.element("model-provider-settings", ModelProviderSettings);
     settings?.setDiscoveryAvailable(!input.workflowBusy);
