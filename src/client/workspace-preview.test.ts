@@ -3,10 +3,11 @@ import type { Diagnostic } from "../domain/markdown";
 import type { ProjectComposition, ProjectFilePreview } from "../domain/project-files";
 import { workspaceSnapshotFixture } from "../test-support/workspace-fixture";
 import type { MarkdownRuntime } from "./markdown-runtime";
-import type { PreviewDiagnosticsPanel } from "./preview-presentation";
+import { previewDiagnosticSelectEvent, type PreviewDiagnosticsPanel } from "./preview-presentation";
 import {
   previewHeadingNumbers,
   WorkspacePreview,
+  workspacePreviewActionEvent,
   type ProjectPreviewImageContext,
   type WorkspacePreviewRequest,
 } from "./workspace-preview";
@@ -108,6 +109,22 @@ describe("workspace preview", () => {
     await expect(preview.renderDocument(request)).resolves.toEqual({ available: true, diagnostics: [diagnostic] });
     release?.(runtime());
     await expect(stale).resolves.toBeNull();
+  });
+
+  it("routes Preview and diagnostic navigation through one boundary", () => {
+    const preview = new TestWorkspacePreview();
+    const navigation = { openCitation: vi.fn(), selectDiagnostic: vi.fn(), showSource: vi.fn() };
+    preview.bindNavigation(navigation);
+
+    preview.dispatchEvent(new CustomEvent(workspacePreviewActionEvent, { detail: { action: "source", offset: 12 } }));
+    preview.dispatchEvent(
+      new CustomEvent(workspacePreviewActionEvent, { detail: { action: "citation", citation: { keys: ["Source2026"] } } }),
+    );
+    preview.dispatchEvent(new CustomEvent(previewDiagnosticSelectEvent, { detail: { fileId: "chapter", from: 4, to: 9 } }));
+
+    expect(navigation.showSource).toHaveBeenCalledWith(12);
+    expect(navigation.openCitation).toHaveBeenCalledWith({ keys: ["Source2026"] });
+    expect(navigation.selectDiagnostic).toHaveBeenCalledWith({ fileId: "chapter", from: 4, to: 9 });
   });
 
   it("maps composed heading numbers back to an isolated file", () => {

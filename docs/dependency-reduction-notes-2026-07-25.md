@@ -6503,6 +6503,28 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,659 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Workspace Preview Navigation Routing
+
+`WorkspacePreview` now routes rendered-source clicks, semantic citation
+intents, and its nested diagnostics panel's source-range selections through one
+typed navigation boundary. `WorkspaceApp` retains source-map translation,
+project-file switching, publication resolution, citation navigation, and the
+resulting context and editor transitions.
+
+This checkpoint reduces `src/client/app.ts` from 2,425 to 2,416 lines (-9) and
+grows the Preview owner from 276 to 301 lines. Runtime source across those files
+grows by 16 lines while removing two coordinator subscriptions and two child-
+event imports. Five direct Preview cases cover rendering, fallback, stale work,
+heading-number mapping, and the unified navigation boundary under strict types.
+
+The browser application artifact changes from 839,517 B raw / 226,696 B gzip
+to 839,769 B raw / 226,801 B gzip (+252 B raw / +105 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,660 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

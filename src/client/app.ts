@@ -108,8 +108,6 @@ import {
   type LibraryToolsArchiveRefresh,
 } from "./library-tools-menu";
 import { webSourceCapturedEvent } from "./web-source-panels";
-import { previewDiagnosticSelectEvent, type PreviewDiagnosticSelection } from "./preview-presentation";
-import { workspacePreviewActionEvent, type WorkspacePreviewAction } from "./workspace-preview";
 import { publicationIntakeActionEvent, type PublicationIntakeAction } from "./publication-intake-panel";
 import {
   applicationVersion,
@@ -659,17 +657,10 @@ class WorkspaceApp {
       close: (key) => this.#closeContextTab(key),
       openLibrary: () => void this.#openReferenceLibrary(),
     });
-    this.#elements.workspacePreview.addEventListener(workspacePreviewActionEvent, (event) => {
-      const detail = (event as CustomEvent<WorkspacePreviewAction>).detail;
-      if (detail.action === "source") {
-        this.#syncSourceFromPreviewOffset(detail.offset);
-        return;
-      }
-      this.#openCitation(detail.citation);
-    });
-    this.#elements.workspacePreview.addEventListener(previewDiagnosticSelectEvent, (event) => {
-      const { fileId, from, to } = (event as CustomEvent<PreviewDiagnosticSelection>).detail;
-      this.#focusProjectRange(fileId || this.#snapshot?.entryFileId || "", from, to);
+    this.#elements.workspacePreview.bindNavigation({
+      openCitation: (citation) => this.#openCitation(citation),
+      selectDiagnostic: ({ fileId, from, to }) => this.#focusProjectRange(fileId || this.#snapshot?.entryFileId || "", from, to),
+      showSource: (offset) => this.#syncSourceFromPreviewOffset(offset),
     });
     this.#elements.previewSyncControls.addEventListener(previewSyncActionEvent, (event) => {
       const action = (event as CustomEvent<PreviewSyncAction>).detail;

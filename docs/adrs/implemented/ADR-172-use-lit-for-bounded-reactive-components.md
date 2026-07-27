@@ -252,9 +252,11 @@ The adopted components own bounded presentation:
   projection, authorized local-image resolution, viewport-relative source-span
   lookup, centering, transient target emphasis, anchor scrolling, interactive-
   click classification, source-offset extraction, and typed source or citation
-  intents. The coordinator retains project composition, Yjs source authority,
-  source-map translation, cross-panel projection, publication resolution,
-  citation navigation, and routing.
+  intents. It routes those intents and its nested diagnostics panel's source-
+  range selections through one typed navigation boundary. The coordinator
+  retains project composition, Yjs source authority, source-map translation,
+  cross-panel projection, publication resolution, citation navigation, and the
+  resulting transitions.
 - The preview navigation control owns browser-local top-navigation visibility,
   storage restoration, toggle and restore presentation, active-context
   availability, and focus handoff between its spatially separated controls.

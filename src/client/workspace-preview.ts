@@ -6,7 +6,7 @@ import type { WorkspaceSnapshot } from "../domain/workspace";
 import { sourceSpanAt } from "./composition-source-map";
 import { parseCitationKeys, type CitationContext } from "./citations";
 import { loadMarkdownRuntime, type MarkdownRuntime } from "./markdown-runtime";
-import { PreviewDiagnosticsPanel } from "./preview-presentation";
+import { previewDiagnosticSelectEvent, PreviewDiagnosticsPanel, type PreviewDiagnosticSelection } from "./preview-presentation";
 
 export const workspacePreviewActionEvent = "workspace-preview-action";
 
@@ -28,6 +28,18 @@ export type WorkspacePreviewOutcome =
   | { readonly available: false }
   | { readonly available: true; readonly diagnostics: readonly Diagnostic[] };
 
+export interface WorkspacePreviewNavigationCallbacks {
+  readonly openCitation: (citation: CitationContext) => void;
+  readonly selectDiagnostic: (selection: PreviewDiagnosticSelection) => void;
+  readonly showSource: (offset: number) => void;
+}
+
+const emptyNavigation: WorkspacePreviewNavigationCallbacks = {
+  openCitation: () => undefined,
+  selectDiagnostic: () => undefined,
+  showSource: () => undefined,
+};
+
 type PreviewContent = { readonly kind: "html" | "source"; readonly value: string };
 
 export interface ProjectPreviewImageContext {
@@ -42,12 +54,25 @@ export class WorkspacePreview extends LitElement {
   static override properties = { content: { state: true } };
 
   declare private content: PreviewContent;
+  private navigation = emptyNavigation;
   private renderVersion = 0;
   private syncHighlightTimer: number | undefined;
 
   constructor() {
     super();
     this.content = { kind: "html", value: "" };
+    this.addEventListener(workspacePreviewActionEvent, (event) => {
+      const detail = (event as CustomEvent<WorkspacePreviewAction>).detail;
+      if (detail.action === "source") this.navigation.showSource(detail.offset);
+      else this.navigation.openCitation(detail.citation);
+    });
+    this.addEventListener(previewDiagnosticSelectEvent, (event) => {
+      this.navigation.selectDiagnostic((event as CustomEvent<PreviewDiagnosticSelection>).detail);
+    });
+  }
+
+  bindNavigation(callbacks: WorkspacePreviewNavigationCallbacks): void {
+    this.navigation = callbacks;
   }
 
   override connectedCallback(): void {

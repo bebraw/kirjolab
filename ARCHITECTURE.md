@@ -123,10 +123,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   stale-render rejection, rendered or escaped-source presentation, renderer
   diagnostics, isolated-file heading-number mapping, authorized local-image
   resolution, transient DOM navigation, interactive-click classification,
-  source-offset extraction, and typed source or citation intents. Keep project
-  composition, Yjs source authority, source-map translation, cross-panel
-  projection, publication resolution, citation navigation, and routing in the
-  application coordinator.
+  source-offset extraction, and routing of its source, citation, and nested
+  diagnostic-selection intents through one typed navigation boundary. Keep
+  project composition, Yjs source authority, source-map translation, cross-
+  panel projection, publication resolution, citation navigation, and resulting
+  transitions in the application coordinator.
 - Keep the DOI publication-intake XState actor, preview and acceptance
   requests, stale-response guards, local status, and focus lifecycle inside the
   bounded intake Lit component. Let that component also derive the active PDF's
