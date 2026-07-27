@@ -188,14 +188,16 @@ The adopted components own bounded presentation:
   workspace and bind annotation, claim, candidate, note, PDF, and publication
   routes across its composed Lit owners while the application coordinator
   retains document, project, people, and Preview-section navigation. Let it also
-  configure the project-evidence panel and own its annotation-form cleanup and
-  selection, edit and PDF routes, fragment-removal refresh sequencing, and
-  notice dispatch. Keep mutation completion policy, refresh transport, passage
-  linking, and passage navigation in the application coordinator. Let it also
-  configure the claim list and publication list/context panels and route claim
-  annotations, publication context, citation insertion, and paper opening among
-  its composed Lit owners. Keep mutation consequences, passage effects, and
-  Library management in the application coordinator. Through a
+  configure the manuscript-comment, project-evidence, claim-list, and
+  publication list/context panels and own annotation-form cleanup and selection,
+  edit and PDF routes, fragment-removal refresh sequencing, child-specific
+  mutation failure copy, and notice dispatch. Route comment, claim, evidence,
+  publication, citation, and paper intents among those composed owners. Bind
+  canonical project refresh, passage linking, passage navigation, and notice
+  presentation once through the resource-route coordinator. Keep Yjs passage
+  derivation, mutation consequences, canonical refresh transport, cross-feature
+  passage effects, Library management, and the notification outlet in the
+  application coordinator. Through a
   narrow viewer binding it derives
   authorized active-PDF loads, synchronizes project annotations and private
   highlights, rejects stale completions, retains rendered context and project-
@@ -233,8 +235,10 @@ The adopted components own bounded presentation:
   reset, local retryable failure state, self-contained resolution transport,
   duplicate-resolution gating, and typed passage-navigation and completed-
   mutation outcomes. The coordinator supplies one read-only authoring snapshot
-  and retains Yjs selection resolution, revision and collaboration authority,
-  canonical refresh, navigation, and notification presentation.
+  through the enclosing resource presenter, which routes mutation completion,
+  passage navigation, and notice presentation through its one canonical route.
+  The coordinator retains Yjs selection resolution, revision and collaboration
+  authority, canonical refresh, navigation, and notification presentation.
 - The project publication list owns the References collection shell and count,
   reference metadata, alias and DOI labels, empty-state, and action
   presentation. It also owns DOI-enrichment transport, duplicate-submit
@@ -727,11 +731,14 @@ reason to wrap static markup mechanically.
   paths. Its bound authoring resolver also removes two coordinator event routes
   and the create/re-anchor orchestration methods. Its read-only authoring source
   subsequently removes synchronization, missing-selection, and source-revision
-  request derivation from the coordinator binding. It leaves Yjs selection
-  resolution, revision and collaboration authority, canonical refreshes,
-  notification presentation, and passage navigation in the application
-  coordinator. Completing that workspace binding removes the final coordinator
-  subscription and public manuscript-comment action protocol.
+  request derivation from the coordinator binding. Composing that binding under
+  the context-resource presenter later removes the comment owner from the global
+  application element registry and consolidates comment, claim, evidence, and
+  publication mutation, passage, and notice effects behind one canonical route.
+  It leaves Yjs selection resolution, revision and collaboration authority,
+  canonical refreshes, notification presentation, and passage navigation in the
+  application coordinator. Completing that workspace binding removes the final
+  coordinator subscription and public manuscript-comment action protocol.
 - The project publication list replaces one internal list reference and its
   imperative card renderer. It also replaces the separate count reference and
   mutation, the coordinator enrichment method, and the coordinator's

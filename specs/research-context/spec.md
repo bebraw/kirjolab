@@ -184,7 +184,10 @@ changing their canonical data, selector, authorization, or rendering contracts.
   workspace snapshot; projects coordinator-resolved evidence links, claim
   links, comments, and project-map inputs across those composed owners after
   Preview rendering while leaving Yjs anchor resolution and render timing to
-  the coordinator; composes the canonical tab-strip projection, selects and
+  the coordinator; configures comment, evidence, claim, and publication owners
+  and routes their project-mutation completion, passage linking, passage
+  navigation, and notice outcomes through one canonical application boundary;
+  composes the canonical tab-strip projection, selects and
   retains the active resource owner for layout, citation, PDF, and assistant
   consumers; retains the resolved active private-Library artifact for page
   routing, selection capture, and saved-markup projection; captures
@@ -474,8 +477,9 @@ changing their canonical data, selector, authorization, or rendering contracts.
       linking, passage navigation, and mutation completion policy remain outside
       it behind separate typed workspace and assistant bindings. Its enclosing
       resource presenter owns annotation-form synchronization, PDF routing,
-      refresh sequencing, and notice dispatch among the Lit resources it
-      composes.
+      refresh sequencing, mutation failure copy, passage and mutation routing,
+      and notice dispatch among the Lit resources it composes; the application
+      coordinator supplies those canonical effects once.
 - [x] Narrow layouts expose an explicit Authoring/Context switch and preserve
       the hidden surface's local state.
 - [x] Refresh, copied URLs, and browser Back restore authorized file, view,

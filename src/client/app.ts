@@ -423,18 +423,11 @@ class WorkspaceApp {
       presentNotice: (message) => this.#showToast(message),
       trigger: this.#elements.projectHistoryTrigger,
     });
-    this.#elements.manuscriptCommentListPanel.configure(apiBase);
-    this.#elements.manuscriptCommentListPanel.bind({
-      authoring: () => ({
-        passage: this.#selectedAuthoringPassage(),
-        sourceRevision: this.#revision,
-        stable: this.#collaboration.stable,
-      }),
-      completeMutation: (message) =>
-        this.#refreshResourcesWithNotice(message, "The comment changed, but project resources could not be refreshed."),
-      notice: (message) => this.#showToast(message),
-      openPassage: (anchor) => this.#showPassage(anchor),
-    });
+    this.#elements.contextResourcePresenter.bindManuscriptComments(apiBase, () => ({
+      passage: this.#selectedAuthoringPassage(),
+      sourceRevision: this.#revision,
+      stable: this.#collaboration.stable,
+    }));
     this.#source.observe(() => void this.#renderPreview());
     this.#bibliography.observe(() => void this.#renderPreview());
     this.#document.on("update", (update: Uint8Array, origin: unknown) => {
@@ -446,12 +439,7 @@ class WorkspaceApp {
       void this.#renderPreview();
       this.#collaborationSocket.flush();
     });
-    this.#elements.contextResourcePresenter.bindProjectEvidence(apiBase, {
-      completeMutation: (message, refreshFailure) => this.#refreshResourcesWithNotice(message, refreshFailure),
-      linkAnnotation: (annotationId) => void this.#linkSelectedPassage("annotation", annotationId),
-      openPassage: (anchor) => this.#showPassage(anchor),
-      refreshResources: async () => await this.#resourceRefresh.request(),
-    });
+    this.#elements.contextResourcePresenter.bindProjectEvidence(apiBase);
     this.#elements.contextResourcePresenter.bindProjectMap(apiBase, {
       document: () => {
         this.#showWorkspaceSurface("authoring");
@@ -467,8 +455,6 @@ class WorkspaceApp {
       },
     });
     this.#elements.contextResourcePresenter.bindPublicationList(apiBase, {
-      enriched: (message) =>
-        this.#refreshResourcesWithNotice(message, "The reference was enriched, but project resources could not be refreshed."),
       manage: (publicationId) => void this.#openReferenceLibraryEntry(publicationId),
     });
     this.#elements.contextResourcePresenter.bindProjectAnnotationIntake(async () => await this.#resourceRefresh.request());
@@ -492,12 +478,15 @@ class WorkspaceApp {
       projectApiBase: apiBase,
     });
     this.#elements.contextResourcePresenter.bindRoutes({
+      completeProjectMutation: async (message, failureMessage) => await this.#refreshResourcesWithNotice(message, failureMessage),
       insertCitation: (citationAlias, locator) => this.#insertCitation(citationAlias, locator),
       library: () => this.#librarySnapshot,
+      linkPassage: (kind, id) => void this.#linkSelectedPassage(kind, id),
       openCandidate: (candidate) => this.#openCandidateContext(candidate),
       openLibraryPdf: async (artifact, page) => await this.#openLibraryPdf(artifact, page, false),
       openProjectPdf: async (pdf, page, annotationId) => await this.#showPaper(pdf, page, annotationId),
       openPublication: (publication) => this.#openPublicationContext(publication),
+      openPassage: (anchor) => this.#showPassage(anchor),
       openReferencePdf: async (pdf, page) => await this.#openProjectReferencePdf(pdf, page, false),
       presentNotice: (message) => this.#showToast(message),
       project: () => this.#snapshot,
@@ -508,12 +497,7 @@ class WorkspaceApp {
     this.#elements.libraryPdfInspector.bindProjectMutations(
       (message, snapshot) => void this.#completeLibraryProjectMutation(message, snapshot),
     );
-    this.#elements.contextResourcePresenter.bindClaimList(apiBase, {
-      completeMutation: (message) =>
-        this.#refreshResourcesWithNotice(message, "The claim changed, but project resources could not be refreshed."),
-      linkPassage: (claimId) => void this.#linkSelectedPassage("claim", claimId),
-      openPassage: (anchor) => this.#showPassage(anchor),
-    });
+    this.#elements.contextResourcePresenter.bindClaimList(apiBase);
     this.#elements.workspaceSurfaceSwitcher.bindNavigation((surface) => this.#showWorkspaceSurface(surface));
     this.#layout.bind();
     this.#elements.contextTabStrip.bindNavigation({
@@ -527,10 +511,7 @@ class WorkspaceApp {
       showSource: (offset) => this.#syncSourceFromPreviewOffset(offset),
     });
     this.#elements.sourceCitationControl.bindNavigation((citation) => this.#openCitation(citation));
-    this.#elements.contextResourcePresenter.bindPublicationContext(apiBase, {
-      papersChanged: (message) =>
-        this.#refreshResourcesWithNotice(message, "The paper links changed, but project resources could not be refreshed."),
-    });
+    this.#elements.contextResourcePresenter.bindPublicationContext(apiBase);
     this.#elements.assistantGenerationPresenter.bindResources(this.#elements.contextResourcePresenter.assistantResources());
     this.#elements.assistantGenerationPresenter.bindWorkflow({
       applyTable: (target, insertion) => this.#applyGeneratedTable(target, insertion),
@@ -874,11 +855,14 @@ class WorkspaceApp {
     });
   }
 
-  #refreshResourcesWithNotice(message: string, failureMessage: string): void {
-    void this.#resourceRefresh
-      .request()
-      .then(() => this.#showToast(message))
-      .catch(() => this.#showToast(failureMessage));
+  async #refreshResourcesWithNotice(message?: string, failureMessage?: string): Promise<void> {
+    try {
+      await this.#resourceRefresh.request();
+      if (message) this.#showToast(message);
+    } catch (error) {
+      if (!failureMessage) throw error;
+      this.#showToast(failureMessage);
+    }
   }
 
   async #completeLibraryProjectMutation(message: string, snapshot: WorkspaceSnapshot): Promise<void> {

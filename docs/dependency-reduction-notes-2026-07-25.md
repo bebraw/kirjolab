@@ -8681,6 +8681,33 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,713 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Canonical Resource Routes
+
+`ContextResourcePresenter` now configures the manuscript-comment, project-
+evidence, claim-list, and publication list/context owners and routes their
+project refresh, passage linking, passage navigation, mutation feedback, and
+notice effects through one canonical application boundary. Child-specific
+failure copy stays with the composed resource workflow; `WorkspaceApp` retains
+Yjs passage derivation, refresh transport, cross-feature effects, and toast
+presentation.
+
+This checkpoint reduces `src/client/app.ts` from 1,354 to 1,338 lines (-16),
+removes the manuscript-comment owner from the global element registry, reduces
+that registry from 137 to 135 lines and 70 to 69 required elements, and grows
+the context-resource presenter from 982 to 1,004 lines (+22). Runtime source
+across those three files increases by four lines while deleting four per-panel
+mutation callbacks and three repeated passage routes. Focused coverage passes
+all 47 context-resource, element-registry, and application-contract cases;
+affected guardrails and strict types pass.
+
+The browser application artifact changes from 848,851 B raw / 228,822 B gzip
+to 849,239 B raw / 228,823 B gzip (+388 B raw / +1 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,713 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

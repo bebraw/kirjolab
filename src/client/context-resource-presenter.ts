@@ -10,19 +10,19 @@ import type {
 } from "../domain/reference-library";
 import { isProjectReferencePdfs } from "../domain/reference-library";
 import { suggestCitationKey } from "../domain/publication-intake";
-import type { AnnotationResource, WorkspaceSnapshot } from "../domain/workspace";
+import type { AnnotationResource, ManuscriptAnchorSelector, WorkspaceSnapshot } from "../domain/workspace";
 import { AssistantWorkflowStatus } from "./assistant-workflow-status";
 import type { AssistantResourceRoutes } from "./assistant-generation-presenter";
 import { CandidateListPanel } from "./candidate-list-panel";
 import { CandidateReviewPanel } from "./candidate-review-panel";
 import { citationPageFromLocator, type CitationContext } from "./citations";
-import { ClaimListPanel, type ClaimListBinding } from "./claim-list-panel";
+import { ClaimListPanel } from "./claim-list-panel";
 import { ContextTabStrip } from "./context-tab-strip";
 import { expectOk } from "./http";
 import { LibraryPdfAnnotationToolbar } from "./library-pdf-annotation-toolbar";
 import { LibraryPdfInspector } from "./library-pdf-inspector";
 import { LibraryPdfMarkupLayer, type LibraryPdfNoteDraft, type PdfAnnotationTool } from "./library-pdf-markup-layer";
-import { ManuscriptCommentList } from "./manuscript-comment-list";
+import { ManuscriptCommentList, type ManuscriptCommentAuthoring } from "./manuscript-comment-list";
 import type { PdfSelectionCapture } from "./pdf-viewer";
 import type { PdfEvidenceViewer } from "./pdf-viewer";
 import { libraryPdfAnnotationActionEvent, type LibraryPdfAnnotationAction } from "./library-pdf-annotation-forms";
@@ -32,10 +32,10 @@ import { libraryPdfMarkupActionEvent, type LibraryPdfMarkupAction } from "./libr
 import { libraryPdfToolbarActionEvent, type LibraryPdfToolbarAction } from "./library-pdf-annotation-toolbar";
 import { pdfHighlightImportOutcomeEvent, type PdfHighlightImportOutcome } from "./pdf-highlight-import-panel";
 import { ProjectAnnotationForm, type ProjectAnnotationCompletion } from "./project-annotation-form";
-import { ProjectEvidencePanel, type ProjectEvidenceBinding } from "./project-evidence-panel";
+import { ProjectEvidencePanel } from "./project-evidence-panel";
 import { ProjectMapWorkspace, type ProjectMapNavigation } from "./project-map-workspace";
 import { mutateProjectReference } from "./project-reference-mutation";
-import { PublicationContextPanel, type PublicationContextBinding, type PublicationPaperOption } from "./publication-context-panel";
+import { PublicationContextPanel, type PublicationPaperOption } from "./publication-context-panel";
 import { PublicationListPanel, type PublicationListBinding } from "./publication-list-panel";
 import {
   setPdfResearchLocation,
@@ -106,12 +106,15 @@ export interface LibraryPdfMutationCoordinator {
 }
 
 export interface ContextRouteCoordinator {
+  readonly completeProjectMutation: (message?: string, failureMessage?: string) => Promise<void>;
   readonly insertCitation: (citationAlias: string, locator?: string) => void;
   readonly library: () => ReferenceLibrarySnapshot | null;
+  readonly linkPassage: (kind: "annotation" | "claim", id: string) => void;
   readonly openCandidate: (candidate: WorkspaceSnapshot["candidates"][number]) => void;
   readonly openLibraryPdf: (artifact: LibraryPdfArtifact, page?: number) => Promise<void>;
   readonly openProjectPdf: (pdf: WorkspaceSnapshot["pdfs"][number], page?: number, annotationId?: string) => Promise<void>;
   readonly openPublication: (publication: WorkspaceSnapshot["publications"][number]) => void;
+  readonly openPassage: (anchor: ManuscriptAnchorSelector) => void;
   readonly openReferencePdf: (pdf: ProjectReferencePdf, page?: number) => Promise<void>;
   readonly presentNotice: (message: string) => void;
   readonly project: () => WorkspaceSnapshot | null;
@@ -132,16 +135,8 @@ type ContextPdfViewer = Pick<
   Pick<PdfEvidenceViewer, "currentPage" | "focusedAnnotationId" | "open" | "showError" | "updateAnnotations" | "updatePrivateHighlights">;
 
 export type ProjectAnnotationCoordinatorCompletion = Omit<ProjectAnnotationCompletion, "clearDraftSelection">;
-export type ClaimListCoordinator = Omit<ClaimListBinding, "openAnnotation">;
-export interface ProjectEvidenceCoordinator {
-  readonly completeMutation: (message: string, refreshFailure: string) => void;
-  readonly linkAnnotation: ProjectEvidenceBinding["linkAnnotation"];
-  readonly openPassage: ProjectEvidenceBinding["openPassage"];
-  readonly refreshResources: () => Promise<void>;
-}
 export type ProjectMapCoordinator = Pick<ProjectMapNavigation, "document" | "person" | "project" | "section">;
-export type PublicationContextCoordinator = Pick<PublicationContextBinding, "papersChanged">;
-export type PublicationListCoordinator = Pick<PublicationListBinding, "enriched" | "manage">;
+export type PublicationListCoordinator = Pick<PublicationListBinding, "manage">;
 
 export class ContextResourcePresenter extends LitElement {
   private currentActiveTab: ResearchResourceTab | undefined;
@@ -343,34 +338,52 @@ export class ContextResourcePresenter extends LitElement {
     });
   }
 
-  bindClaimList(apiBase: string, coordinator: ClaimListCoordinator): void {
+  bindClaimList(apiBase: string): void {
     const claims = this.element("claim-list-panel", ClaimListPanel);
     claims?.configure(apiBase);
     claims?.bind({
-      ...coordinator,
+      completeMutation: (message) =>
+        void this.routeCoordinator?.completeProjectMutation(message, "The claim changed, but project resources could not be refreshed."),
+      linkPassage: (claimId) => this.routeCoordinator?.linkPassage("claim", claimId),
       openAnnotation: (annotationId) => this.element("project-evidence-panel", ProjectEvidencePanel)?.revealAnnotation(annotationId),
+      openPassage: (anchor) => this.routeCoordinator?.openPassage(anchor),
     });
   }
 
-  bindProjectEvidence(apiBase: string, coordinator: ProjectEvidenceCoordinator): void {
+  bindManuscriptComments(apiBase: string, authoring: () => ManuscriptCommentAuthoring): void {
+    const comments = this.element("manuscript-comment-list-panel", ManuscriptCommentList);
+    comments?.configure(apiBase);
+    comments?.bind({
+      authoring,
+      completeMutation: (message) =>
+        void this.routeCoordinator?.completeProjectMutation(message, "The comment changed, but project resources could not be refreshed."),
+      notice: (message) => this.routeCoordinator?.presentNotice(message),
+      openPassage: (anchor) => this.routeCoordinator?.openPassage(anchor),
+    });
+  }
+
+  bindProjectEvidence(apiBase: string): void {
     const evidence = this.element("project-evidence-panel", ProjectEvidencePanel);
     evidence?.configure(apiBase);
     evidence?.bind({
       annotationRemoved: (annotationId, message) => {
         this.element("project-annotation-form", ProjectAnnotationForm)?.clearAnnotation(annotationId);
-        coordinator.completeMutation(message, "The highlight was deleted, but project resources could not be refreshed.");
+        void this.routeCoordinator?.completeProjectMutation(
+          message,
+          "The highlight was deleted, but project resources could not be refreshed.",
+        );
       },
       completeMutation: (message) =>
-        coordinator.completeMutation(message, "The project changed, but project resources could not be refreshed."),
+        void this.routeCoordinator?.completeProjectMutation(message, "The project changed, but project resources could not be refreshed."),
       editAnnotation: (annotation) => this.openProjectAnnotation(annotation.id, true),
       fragmentRemoved: async ({ annotationDeleted, annotationId, announce }) => {
         if (annotationDeleted) this.element("project-annotation-form", ProjectAnnotationForm)?.clearAnnotation(annotationId);
-        await coordinator.refreshResources();
+        await this.routeCoordinator?.completeProjectMutation();
         if (announce) this.routeCoordinator?.presentNotice("Highlight stroke erased.");
       },
-      linkAnnotation: coordinator.linkAnnotation,
+      linkAnnotation: (annotationId) => this.routeCoordinator?.linkPassage("annotation", annotationId),
       notice: (message) => this.routeCoordinator?.presentNotice(message),
-      openPassage: coordinator.openPassage,
+      openPassage: (anchor) => this.routeCoordinator?.openPassage(anchor),
       openPdf: (pdf, page, annotationId) => {
         this.element("project-annotation-form", ProjectAnnotationForm)?.selectPdf(pdf.id);
         void this.routeCoordinator?.openProjectPdf(pdf, page, annotationId);
@@ -392,13 +405,17 @@ export class ContextResourcePresenter extends LitElement {
     });
   }
 
-  bindPublicationContext(apiBase: string, coordinator: PublicationContextCoordinator): void {
+  bindPublicationContext(apiBase: string): void {
     const publication = this.element("publication-context-panel", PublicationContextPanel);
     publication?.configure(apiBase);
     publication?.bind({
-      ...coordinator,
       insertCitation: () => this.insertActiveCitation(),
       openPaper: (paper) => void this.openPublicationPaper(paper),
+      papersChanged: (message) =>
+        void this.routeCoordinator?.completeProjectMutation(
+          message,
+          "The paper links changed, but project resources could not be refreshed.",
+        ),
     });
   }
 
@@ -407,6 +424,11 @@ export class ContextResourcePresenter extends LitElement {
     publications?.configure(apiBase);
     publications?.bind({
       ...coordinator,
+      enriched: (message) =>
+        void this.routeCoordinator?.completeProjectMutation(
+          message,
+          "The reference was enriched, but project resources could not be refreshed.",
+        ),
       open: (publication) => this.routeCoordinator?.openPublication(publication),
     });
   }

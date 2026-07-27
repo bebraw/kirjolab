@@ -524,6 +524,9 @@ collaboration.
   the supplied source revision, and owns action-specific feedback. Yjs selection
   resolution, revision and collaboration authority, passage navigation,
   canonical refresh, and notification presentation remain outside the panel.
+  Its enclosing resource presenter configures the panel and routes those
+  canonical effects through the same application boundary used by claims,
+  project evidence, and publications.
 - **Blob storage:** The `PAPERS` R2 binding stores immutable private PDF bytes
   and bounded web representations under owner-library keys. Responses stream
   only through an authorized private-library route or active explicit project

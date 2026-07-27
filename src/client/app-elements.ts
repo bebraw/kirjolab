@@ -20,7 +20,6 @@ import { LatexImportPanel } from "./latex-import-panel";
 import { LibraryPdfAnnotationToolbar } from "./library-pdf-annotation-toolbar";
 import { LibraryPdfInspector } from "./library-pdf-inspector";
 import { LibraryPdfMarkupLayer } from "./library-pdf-markup-layer";
-import { ManuscriptCommentList } from "./manuscript-comment-list";
 import { ManuscriptMapPanel } from "./manuscript-map-panel";
 import { ModelProviderSettings } from "./model-provider-settings";
 import { PreviewContextStatus } from "./preview-presentation";
@@ -99,7 +98,6 @@ export function collectAppElements(requireElement = requiredAppElement) {
     vimModeControl: requireElement("vim-mode-control", VimModeControl),
     editorInsertMenu: requireElement("editor-insert-menu-component", EditorInsertMenu),
     bibliography: requireElement("bibliography-editor", HTMLTextAreaElement),
-    manuscriptCommentListPanel: requireElement("manuscript-comment-list-panel", ManuscriptCommentList),
     workspaceSurfaces: requireElement("workspace-surfaces", HTMLElement),
     previewSyncControls: requireElement("preview-sync-controls", PreviewSyncControls),
     workspaceSurfaceSwitcher: requireElement("workspace-surface-switcher", WorkspaceSurfaceSwitcher),

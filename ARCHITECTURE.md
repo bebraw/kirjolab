@@ -780,10 +780,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   derivation from its canonical collection, authoring-action routing,
   synchronization and selection gating, action-specific feedback, and completed
   mutation outcomes. Bind one read-only authoring snapshot, passage navigation,
-  notification presentation, and completed mutations through one typed
-  workspace boundary; keep Yjs selection resolution, revision and collaboration
-  authority, canonical refresh, and cross-feature navigation in the coordinator,
-  and route the derived count to the rail.
+  notification presentation, and completed mutations through the enclosing
+  resource presenter's one canonical route boundary; keep Yjs selection
+  resolution, revision and collaboration authority, canonical refresh, and
+  cross-feature navigation in the coordinator, and route the derived count to
+  the rail.
 - Store imported PDF bytes in R2 and keep annotations as separate scholarly resources.
 - Combine PDF page/geometry identity with exact quote, prefix, and suffix selectors; never require mutation of the imported PDF.
 - Normalize PDF selection rectangles to top-left page coordinates in zero-to-one space so highlights do not depend on viewport pixels.
@@ -1021,15 +1022,16 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   those retained identities. The presenter binds the project-annotation form's
   workflow, applies its tool and draft-clearing effects through the bounded
   viewer, and routes citation, highlight removal, and highlight reveal to the
-  Lit owners it already composes. Let it also configure the project-evidence
-  panel and own annotation-form cleanup and selection, edit and PDF routes,
-  fragment-removal refresh sequencing, and notice dispatch. Only mutation
-  completion policy, canonical refresh transport, passage linking, and passage
-  navigation cross to the application coordinator. Let the presenter configure
-  the claim list and publication list/context panels, route claim annotations to
-  evidence, publication opening to canonical context, and citation and paper
-  intents across its composed Lit owners. Keep claim/publication mutation
-  consequences, passage effects, and Library management in the coordinator.
+  Lit owners it already composes. Let it configure the manuscript-comment,
+  project-evidence, claim-list, and publication list/context panels; own
+  annotation-form cleanup and selection, edit and PDF routes, fragment-removal
+  refresh sequencing, child-specific mutation failure copy, and notice
+  dispatch; and route comment, claim, evidence, publication, citation, and paper
+  intents across those owners. Bind canonical project refresh, passage linking,
+  passage navigation, and notice presentation once through its resource-route
+  boundary. Keep Yjs passage derivation, mutation consequences, canonical
+  refresh transport, cross-feature passage effects, Library management, and the
+  shared notification outlet in the application coordinator.
   Keep tab state, canonical snapshot acceptance,
   Yjs citation syntax insertion, cross-resource navigation, routing, project-selection
   persistence, remaining viewer gestures, and the shared notification outlet
