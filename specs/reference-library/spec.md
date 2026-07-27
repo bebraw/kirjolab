@@ -101,8 +101,12 @@ memory and makes citation aliases compete with stable source identity.
 - One bounded filter component owns Library query and facet values, dynamic
   type choices, validated defaults, canonical reference filtering,
   project-linkage projection from canonical project-reference inputs, result
-  counts, and reset behavior. The workspace coordinator retains result-card
-  assembly and reference navigation.
+  counts, and reset behavior. A composed light-DOM Library workspace supplies
+  the canonical inputs, synchronizes the resulting reference list, citation
+  network, and unidentified-PDF queue, rerenders on filter changes, and owns
+  focused-reference reveal. The application coordinator retains canonical
+  loading, cross-feature navigation, mutations, refresh, and notification
+  policy.
 - A bounded light-DOM reference summary owns each result's display title,
   compact metadata, PDF action, project-link state, link and unlink transport,
   canonical workspace-response validation, and typed completed mutation

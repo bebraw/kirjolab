@@ -362,6 +362,7 @@ describe("renderHomePage", () => {
     expect(html).toContain('<library-reference-import-control class="contents" id="library-reference-import-control">');
     expect(html).toContain('placeholder="Search references…"');
     expect(html).toContain('<reference-library-filters class="contents" id="reference-library-filters">');
+    expect(html).toContain('<reference-library-workspace class="contents" id="reference-library-workspace">');
     expect(html).toContain('<library-discovery-search id="library-discovery-search">');
     expect(html).toContain('id="library-discovery-form"');
     expect(html).toContain('id="library-discovery-query" type="search" maxlength="4000" required');

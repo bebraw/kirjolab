@@ -317,6 +317,12 @@ The adopted components own bounded presentation:
   choices, project-linkage derivation from canonical project-reference inputs,
   canonical filtering and sorting, result counts, reset behavior, and a typed
   filter-change intent.
+- The composed reference Library workspace owns canonical presentation
+  synchronization across the filter, result list, citation network, and
+  unidentified-PDF queue; filter-driven rerendering; focused-reference reveal;
+  result settlement; and nested network and identification lifecycle
+  delegation. Child mutation outcomes continue bubbling to the application
+  coordinator.
 - The model provider settings panel owns connection, endpoint, model, and
   reasoning-effort values, browser-local persistence, Valibot-backed saved-value
   restoration with bounded per-field fallbacks, dynamic model choices,
@@ -691,6 +697,11 @@ reason to wrap static markup mechanically.
   rendering, result-count updates, and coordinator-side canonical filtering.
   It derives linked-reference ids from canonical project-reference inputs; the
   application coordinator retains result-card composition and navigation.
+- The composed reference Library workspace replaces four direct application
+  registry entries, the coordinator's filter-change listener, sibling
+  presentation fan-out, and direct result-settlement and reveal calls. The
+  application coordinator supplies canonical snapshots and retains mutation
+  outcomes, cross-feature navigation, refreshes, and notifications.
 - The model provider settings panel replaces six internal element references,
   duplicate preference listeners and status synchronization, stored-value
   validation, and imperative model-option rendering. It also removes the

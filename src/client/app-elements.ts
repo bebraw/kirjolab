@@ -6,7 +6,6 @@ import { AssistantWorkflowStatus } from "./assistant-workflow-status";
 import { AuthoringModeTabs } from "./authoring-mode-tabs";
 import { CandidateListPanel } from "./candidate-list-panel";
 import { CandidateReviewPanel } from "./candidate-review-panel";
-import { CitationNetworkWorkspace } from "./citation-network-workspace";
 import { ClaimDialog } from "./claim-dialog";
 import { ClaimListPanel } from "./claim-list-panel";
 import { CollaboratorSelectionList } from "./collaborator-selection-list";
@@ -25,7 +24,6 @@ import { LibraryPdfInspector } from "./library-pdf-inspector";
 import { LibraryPdfMarkupLayer } from "./library-pdf-markup-layer";
 import { LibraryPdfUploadControl } from "./library-pdf-upload-control";
 import { LibraryPdfUploadStatus } from "./library-pdf-upload-status";
-import { LibraryReferenceList } from "./library-reference-list";
 import { LibraryReferenceImportControl } from "./library-reference-import-control";
 import { LibraryToolsMenu } from "./library-tools-menu";
 import { ManuscriptCommentList } from "./manuscript-comment-list";
@@ -48,11 +46,10 @@ import { ProjectTreePanel } from "./project-tree-panel";
 import { PublicationContextPanel } from "./publication-context-panel";
 import { PublicationIntakePanel } from "./publication-intake-panel";
 import { PublicationListPanel } from "./publication-list-panel";
-import { ReferenceLibraryFilterPanel } from "./reference-library-filters";
+import { ReferenceLibraryWorkspace } from "./reference-library-workspace";
 import { ResearchDiarySummary } from "./research-diary-summary";
 import { SourceCitationControl } from "./source-citation-control";
 import { SourceCompletion } from "./source-completion";
-import { UnidentifiedPdfList } from "./unidentified-pdf-list";
 import { VimModeControl } from "./vim-mode-control";
 import { WebSnapshotComparisonPanel, WebSourceCapture } from "./web-source-panels";
 import { WorkspaceCatalogPanel } from "./workspace-catalog-panel";
@@ -85,18 +82,15 @@ export function collectAppElements(requireElement = requiredAppElement) {
     saveTemplateDialog: requireElement("project-template-save-dialog", ProjectTemplateSaveDialog),
     shareWorkspace: requireElement("share-workspace", HTMLButtonElement),
     workspaceSharingPanel: requireElement("workspace-sharing-panel", WorkspaceSharingPanel),
-    referenceLibraryList: requireElement("reference-library-list", LibraryReferenceList),
     libraryDiscoverySearch: requireElement("library-discovery-search", LibraryDiscoverySearch),
     libraryDiscoveryResults: requireElement("library-discovery-results", LibraryDiscoveryResults),
     libraryReferenceImport: requireElement("library-reference-import-control", LibraryReferenceImportControl),
     libraryToolsMenu: requireElement("library-tools-menu", LibraryToolsMenu),
     libraryPdfUploadControl: requireElement("library-pdf-upload-control", LibraryPdfUploadControl),
     libraryPdfUploadStatus: requireElement("library-pdf-upload-status", LibraryPdfUploadStatus),
-    referenceLibraryFilters: requireElement("reference-library-filters", ReferenceLibraryFilterPanel),
-    citationNetwork: requireElement("citation-network", CitationNetworkWorkspace),
+    referenceLibraryWorkspace: requireElement("reference-library-workspace", ReferenceLibraryWorkspace),
     webSourceCapture: requireElement("web-source-capture", WebSourceCapture),
     webSnapshotComparison: requireElement("web-snapshot-comparison", WebSnapshotComparisonPanel),
-    unidentifiedPdfList: requireElement("unidentified-pdf-list-panel", UnidentifiedPdfList),
     workspaceRailTabs: requireElement("workspace-rail-tabs", WorkspaceRailTabs),
     manuscriptMapPanel: requireElement("manuscript-map-panel", ManuscriptMapPanel),
     researchDiaryPanel: requireElement("research-diary-panel", ResearchDiarySummary),

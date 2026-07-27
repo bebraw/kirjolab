@@ -403,6 +403,7 @@ export function renderHomePage(
               </library-discovery-search>
               <library-discovery-results class="library-discovery-results" id="library-discovery-results"></library-discovery-results>
             </details>
+            <reference-library-workspace class="contents" id="reference-library-workspace">
             <div class="library-toolbar">
               <reference-library-filters class="contents" id="reference-library-filters">
                 <div class="library-search">
@@ -459,6 +460,7 @@ export function renderHomePage(
                 <div class="mt-3 grid gap-3" id="unidentified-pdf-list"><div class="empty-state">No unidentified PDFs.</div></div>
               </section>
             </unidentified-pdf-list>
+            </reference-library-workspace>
           </div>
         </section>
 

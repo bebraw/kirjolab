@@ -5628,6 +5628,33 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,622 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Composition: Reference Library Workspace
+
+A bounded light-DOM `ReferenceLibraryWorkspace` now synchronizes canonical
+Library inputs across the filter, result list, citation network, and
+unidentified-PDF queue. It owns filter-driven rerendering, result settlement,
+focused-reference reveal, and nested citation-network and identification
+lifecycle delegation. Child mutation outcomes continue bubbling to
+`WorkspaceApp`, which retains canonical loading, cross-feature navigation,
+refresh, and notification policy.
+
+This checkpoint reduces `src/client/app.ts` from 3,185 to 3,174 lines (-11)
+and the typed application registry from 158 to 152 lines while adding a
+100-line composed owner and two server-shell wrapper lines. Runtime source
+across those four files grows by 85 lines, consolidating four direct registry
+entries and their sibling synchronization behind one boundary. Three direct
+workspace cases plus shell, registry, application-contract, and strict-type
+coverage exercise canonical projection, filter changes, open and reveal focus,
+settlement, lifecycle delegation, and light-DOM preservation.
+
+The browser application artifact changes from 829,436 B raw / 224,657 B gzip
+to 830,463 B raw / 225,001 B gzip (+1,027 B raw / +344 B gzip). Styles and
+direct and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,625 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

@@ -138,7 +138,6 @@ import { projectTreeActionEvent, type ProjectTreeAction } from "./project-tree-p
 import { manuscriptMapSelectEvent, type ManuscriptMapSelection } from "./manuscript-map-panel";
 import { libraryDiscoveryRefreshEvent, type LibraryDiscoveryRefresh } from "./library-discovery-results";
 import { libraryDiscoveryResultsEvent } from "./library-discovery-search";
-import { referenceLibraryFilterChangeEvent } from "./reference-library-filters";
 import { libraryPdfUploadRevealEvent } from "./library-pdf-upload-status";
 import { libraryPdfUploadOutcomeEvent, type LibraryPdfUploadOutcome } from "./library-pdf-upload-control";
 import {
@@ -511,7 +510,7 @@ class WorkspaceApp {
     });
     this.#elements.libraryToolsMenu.addEventListener(libraryToolsActionEvent, (event) => {
       const action = (event as CustomEvent<LibraryToolsAction>).detail;
-      if (action === "open-citation-network") void this.#elements.citationNetwork.open();
+      if (action === "open-citation-network") void this.#elements.referenceLibraryWorkspace.openCitationNetwork();
       else void this.#refreshReferenceLibrary();
     });
     this.#elements.libraryToolsMenu.addEventListener(libraryToolsArchiveRefreshEvent, (event) => {
@@ -520,8 +519,8 @@ class WorkspaceApp {
         complete: () => this.#elements.libraryToolsMenu.completeArchiveRestore(detail.requestId),
       });
     });
-    this.#elements.citationNetwork.configure(workspaceId);
-    this.#elements.citationNetwork.addEventListener(citationNetworkOutcomeEvent, (event) => {
+    this.#elements.referenceLibraryWorkspace.configure(workspaceId);
+    this.#elements.referenceLibraryWorkspace.addEventListener(citationNetworkOutcomeEvent, (event) => {
       const outcome = (event as CustomEvent<CitationNetworkOutcome>).detail;
       if (outcome.action === "notice") this.#showToast(outcome.message);
       else
@@ -530,21 +529,20 @@ class WorkspaceApp {
           "The citation candidate was saved, but the refreshed Library could not be loaded.",
         );
     });
-    this.#elements.referenceLibraryFilters.addEventListener(referenceLibraryFilterChangeEvent, () => this.#renderReferenceLibrary());
-    this.#elements.referenceLibraryList.addEventListener(libraryReferenceSummaryActionEvent, (event) => {
+    this.#elements.referenceLibraryWorkspace.addEventListener(libraryReferenceSummaryActionEvent, (event) => {
       const detail = (event as CustomEvent<LibraryReferenceSummaryAction>).detail;
       void this.#openLibraryPdf(detail.artifact);
     });
-    this.#elements.referenceLibraryList.addEventListener(libraryReferencePersonalRefreshEvent, (event) => {
+    this.#elements.referenceLibraryWorkspace.addEventListener(libraryReferencePersonalRefreshEvent, (event) => {
       void this.#completeLibraryRefresh(
         (event as CustomEvent<string>).detail,
         "The private reference was updated, but the refreshed Library could not be loaded.",
       );
     });
-    this.#elements.referenceLibraryList.addEventListener(libraryReferenceMetadataNoticeEvent, (event) => {
+    this.#elements.referenceLibraryWorkspace.addEventListener(libraryReferenceMetadataNoticeEvent, (event) => {
       this.#showToast((event as CustomEvent<string>).detail);
     });
-    this.#elements.referenceLibraryList.addEventListener(libraryReferenceMetadataRefreshEvent, (event) => {
+    this.#elements.referenceLibraryWorkspace.addEventListener(libraryReferenceMetadataRefreshEvent, (event) => {
       void this.#completeLibraryRefresh(
         (event as CustomEvent<string>).detail,
         "Metadata was applied, but the refreshed Library could not be loaded.",
@@ -556,22 +554,22 @@ class WorkspaceApp {
         },
       );
     });
-    this.#elements.referenceLibraryList.addEventListener(libraryReferencePdfActionEvent, (event) => {
+    this.#elements.referenceLibraryWorkspace.addEventListener(libraryReferencePdfActionEvent, (event) => {
       const detail = (event as CustomEvent<LibraryReferencePdfAction>).detail;
       if (detail.action === "open") void this.#openLibraryPdf(detail.artifact);
     });
-    this.#elements.referenceLibraryList.addEventListener(libraryReferencePdfRefreshEvent, () => {
+    this.#elements.referenceLibraryWorkspace.addEventListener(libraryReferencePdfRefreshEvent, () => {
       void this.#refreshReferenceLibrary();
     });
-    this.#elements.referenceLibraryList.addEventListener(libraryReferenceResearchActionEvent, (event) => {
+    this.#elements.referenceLibraryWorkspace.addEventListener(libraryReferenceResearchActionEvent, (event) => {
       const detail = (event as CustomEvent<LibraryReferenceResearchAction>).detail;
       if (detail.action === "capture") void this.#elements.webSourceCapture.captureUrl(detail.canonicalUrl);
       else if (detail.action === "compare") void this.#elements.webSnapshotComparison.compare(detail.priorId, detail.currentId);
     });
-    this.#elements.unidentifiedPdfList.addEventListener(unidentifiedPdfRefreshEvent, (event) => {
+    this.#elements.referenceLibraryWorkspace.addEventListener(unidentifiedPdfRefreshEvent, (event) => {
       const detail = (event as CustomEvent<UnidentifiedPdfRefresh>).detail;
       void this.#completeLibraryRefresh(detail.message, "The PDF was identified, but the refreshed Library could not be loaded.", {
-        complete: () => this.#elements.unidentifiedPdfList.complete(detail.requestId),
+        complete: () => this.#elements.referenceLibraryWorkspace.completePdfIdentification(detail.requestId),
       });
     });
     this.#bindSourceEditor(this.#source);
@@ -723,7 +721,7 @@ class WorkspaceApp {
       else if (detail.action === "edit-note") this.#editLibraryPdfNote(detail.note);
       else this.#completeLibraryPdfMarkup("Private annotation deleted.");
     });
-    for (const target of [this.#elements.referenceLibraryList, this.#elements.libraryPdfInspector]) {
+    for (const target of [this.#elements.referenceLibraryWorkspace, this.#elements.libraryPdfInspector]) {
       target.addEventListener(projectReferenceChangedEvent, (event) => {
         const { message, snapshot } = (event as CustomEvent<ProjectReferenceChanged>).detail;
         void this.#acceptWorkspaceMutation(snapshot).then(() => {
@@ -732,7 +730,7 @@ class WorkspaceApp {
         });
       });
     }
-    for (const target of [this.#elements.referenceLibraryList, this.#elements.libraryPdfInspector]) {
+    for (const target of [this.#elements.referenceLibraryWorkspace, this.#elements.libraryPdfInspector]) {
       target.addEventListener(projectResearchChangedEvent, (event) => {
         const { message, snapshot } = (event as CustomEvent<ProjectResearchChanged>).detail;
         void this.#acceptWorkspaceMutation(snapshot).then(() => {
@@ -1659,9 +1657,7 @@ class WorkspaceApp {
     ) {
       await this.#refreshReferenceLibrary();
     }
-    this.#elements.referenceLibraryFilters.reset();
-    this.#renderReferenceLibrary();
-    if (!(await this.#elements.referenceLibraryList.focusReference(referenceId, { block: "center", expand: true }))) {
+    if (!(await this.#elements.referenceLibraryWorkspace.openReference(referenceId))) {
       this.#showToast("That reference is no longer available in the Library.");
       return false;
     }
@@ -1680,7 +1676,7 @@ class WorkspaceApp {
     await this.#refreshProjectReferencePdfs(false);
     this.#contextState = reconcileResearchContext(this.#contextState, this.#researchContextAuthorization());
     this.#renderReferenceLibrary();
-    await this.#elements.referenceLibraryList.settled();
+    await this.#elements.referenceLibraryWorkspace.settled();
     this.#renderResearchContext();
     this.#syncWorkspaceRoute("replace");
   }
@@ -1688,17 +1684,12 @@ class WorkspaceApp {
   #renderReferenceLibrary(): void {
     const library = this.#librarySnapshot;
     if (!library) return;
-    this.#elements.citationNetwork.setReferences(library.references);
-    const references = this.#elements.referenceLibraryFilters.filterLibrary(library, this.#snapshot?.projectReferences ?? []);
-    this.#elements.referenceLibraryList.setData({
+    this.#elements.referenceLibraryWorkspace.setData({
       library,
       projectApiBase: appMode === "workspace" ? apiBase : null,
       projectReferences: this.#snapshot?.projectReferences ?? [],
-      references,
       researchShares: this.#snapshot?.researchShares ?? [],
     });
-
-    this.#elements.unidentifiedPdfList.setLibrary(library);
   }
 
   async #completeLibraryRefresh(
@@ -1732,9 +1723,7 @@ class WorkspaceApp {
 
   async #revealExistingPdfReference(existing: ExistingPdfUpload): Promise<void> {
     if (existing.archived && this.#elements.libraryToolsMenu.setShowArchived(true)) await this.#refreshReferenceLibrary();
-    this.#elements.referenceLibraryFilters.reset(existing.referenceKey);
-    this.#renderReferenceLibrary();
-    if (!(await this.#elements.referenceLibraryList.focusReference(existing.referenceId, { block: "nearest" }))) {
+    if (!(await this.#elements.referenceLibraryWorkspace.revealReference(existing.referenceId, existing.referenceKey))) {
       this.#showToast(`Library source ${existing.referenceKey} is not available.`);
     }
   }

@@ -388,8 +388,11 @@ collaboration.
   types, filtering and deterministic sorting from the canonical Library
   snapshot, visible-versus-total counts, reset behavior, and its typed change
   intent. It derives current project-linked reference ids from canonical
-  project-reference inputs. The coordinator retains Library loading,
-  result-card composition, navigation, and mutations.
+  project-reference inputs. A composed Library workspace synchronizes the
+  filter, result list, citation network, and unidentified-PDF queue and owns
+  filter-driven rerendering and focused-reference reveal. The coordinator
+  retains Library loading, cross-feature navigation, mutations, refresh, and
+  notifications.
 - **Private PDF reading:** Owner-library PDF artifacts may reuse the context
   PDF renderer through distinct private `library-pdf:` tabs. Their bytes and tab
   authorization remain owner-private. Selection creates only an ephemeral
