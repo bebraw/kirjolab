@@ -40,6 +40,7 @@ import { editorInsertActionEvent, type EditorInsertAction, type EditorSyntaxTemp
 import { sourceSpanAt } from "./composition-source-map";
 import { collaboratorSelectionChangeEvent } from "./collaborator-selection-list";
 import type { AppToastOptions } from "./app-toast";
+import { DeferredDeletionController } from "./deferred-deletion";
 import { expectOk, jsonFetch } from "./http";
 import { sourceCompletionActionEvent, type SourceCompletionIntent } from "./source-completion";
 import { libraryPdfAnnotationActionEvent, type LibraryPdfAnnotationAction } from "./library-pdf-annotation-forms";
@@ -190,22 +191,6 @@ const catalogBase = "/api/workspaces";
 const apiBase = `${catalogBase}/${workspaceId}`;
 const remoteOrigin = Symbol("remote");
 const offlineOrigin = Symbol("offline");
-const deferredDeleteGraceMs = 6_000;
-
-interface DeferredDeletion {
-  readonly key: string;
-  readonly deletedMessage: string;
-  readonly restoredMessage: string;
-  readonly failedMessage: string;
-  readonly hide: () => void;
-  readonly restore: () => void;
-  readonly commit: () => Promise<void>;
-}
-
-interface PendingDeletion {
-  readonly deletion: DeferredDeletion;
-  readonly timer: number;
-}
 
 interface ResolvedAuthoringTarget {
   readonly start: number;
@@ -250,7 +235,7 @@ class WorkspaceApp {
   readonly #hiddenProjectFileIds = new Set<string>();
   readonly #hiddenProjectFolderIds = new Set<string>();
   readonly #hiddenProjectImageIds = new Set<string>();
-  readonly #pendingDeletions = new Map<string, PendingDeletion>();
+  readonly #deferredDeletions = new DeferredDeletionController((message, options) => this.#showToast(message, options));
   #renderedPdfId: string | undefined;
   #renderedPdfContextKey: ResearchContextKey | undefined;
   #contextState: ResearchContextState = createResearchContext();
@@ -1024,7 +1009,7 @@ class WorkspaceApp {
   }
 
   #deleteProjectTemplate(template: ProjectTemplateSummary): void {
-    this.#deferDeletion({
+    this.#deferredDeletions.schedule({
       key: `project-template:${template.id}`,
       deletedMessage: `Deleted template “${template.name}”.`,
       restoredMessage: `Restored template “${template.name}”.`,
@@ -1406,7 +1391,7 @@ class WorkspaceApp {
     const snapshot = this.#snapshot;
     const file = snapshot?.files.find((item) => item.id === this.#activeFileId);
     if (!snapshot || !file || file.id === snapshot.entryFileId) return;
-    this.#deferDeletion({
+    this.#deferredDeletions.schedule({
       key: `project-file:${file.id}`,
       deletedMessage: `Deleted ${file.path}.`,
       restoredMessage: `Restored ${file.path}.`,
@@ -1431,7 +1416,7 @@ class WorkspaceApp {
   #deleteProjectFolder(folderId: string): void {
     const folder = this.#snapshot?.folders.find((item) => item.id === folderId);
     if (!folder) return;
-    this.#deferDeletion({
+    this.#deferredDeletions.schedule({
       key: `project-folder:${folder.id}`,
       deletedMessage: `Deleted ${folder.path}.`,
       restoredMessage: `Restored ${folder.path}.`,
@@ -1479,7 +1464,7 @@ class WorkspaceApp {
   }
 
   #deleteProjectImage(asset: ProjectAsset): void {
-    this.#deferDeletion({
+    this.#deferredDeletions.schedule({
       key: `project-image:${asset.id}`,
       deletedMessage: `Deleted ${asset.path}.`,
       restoredMessage: `Restored ${asset.path}.`,
@@ -1500,39 +1485,6 @@ class WorkspaceApp {
         void this.#renderPreview();
       },
     });
-  }
-
-  #deferDeletion(deletion: DeferredDeletion): void {
-    if (this.#pendingDeletions.has(deletion.key)) return;
-    deletion.hide();
-    const timer = window.setTimeout(() => void this.#commitDeferredDeletion(deletion.key), deferredDeleteGraceMs);
-    this.#pendingDeletions.set(deletion.key, { deletion, timer });
-    this.#showToast(deletion.deletedMessage, {
-      action: () => this.#undoDeferredDeletion(deletion.key),
-      actionLabel: "Undo",
-      durationMs: deferredDeleteGraceMs,
-    });
-  }
-
-  #undoDeferredDeletion(key: string): void {
-    const pending = this.#pendingDeletions.get(key);
-    if (!pending) return;
-    window.clearTimeout(pending.timer);
-    this.#pendingDeletions.delete(key);
-    pending.deletion.restore();
-    this.#showToast(pending.deletion.restoredMessage);
-  }
-
-  async #commitDeferredDeletion(key: string): Promise<void> {
-    const pending = this.#pendingDeletions.get(key);
-    if (!pending) return;
-    this.#pendingDeletions.delete(key);
-    try {
-      await pending.deletion.commit();
-    } catch {
-      pending.deletion.restore();
-      this.#showToast(pending.deletion.failedMessage);
-    }
   }
 
   #focusProjectRange(fileId: string, from: number, to: number): void {

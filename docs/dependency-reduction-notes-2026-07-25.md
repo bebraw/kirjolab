@@ -6247,6 +6247,28 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,650 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Coordinator Reduction: Deferred Deletion Lifecycle
+
+`DeferredDeletionController` now owns the shared grace timer, duplicate-key
+suppression, one-shot Undo path, delayed commit, and failed-commit restoration
+used by project templates, files, folders, and images. `WorkspaceApp` supplies
+only each resource's canonical hide, restore, and commit effects plus the
+existing toast outlet.
+
+This checkpoint reduces `src/client/app.ts` from 2,735 to 2,687 lines (-48).
+The 65-line controller replaces coordinator-local pending state, two private
+contracts, a timing constant, and three workflow methods. Four direct cases
+cover expiry, one-shot Undo, failed commit recovery, and duplicate suppression
+under strict client and Workers types.
+
+The browser application artifact changes from 835,246 B raw / 225,661 B gzip
+to 835,394 B raw / 225,724 B gzip (+148 B raw / +63 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,654 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,
