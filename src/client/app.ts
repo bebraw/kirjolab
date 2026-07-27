@@ -74,7 +74,6 @@ import { citationPageFromLocator, createCitationInsertion, type CitationContext 
 import { projectMapResourceSelectEvent } from "./project-map-workspace";
 import { claimListActionEvent, type ClaimListAction } from "./claim-list-panel";
 import { manuscriptCommentActionEvent, type ManuscriptCommentAction } from "./manuscript-comment-list";
-import { publicationListActionEvent, type PublicationListAction } from "./publication-list-panel";
 import { projectEvidenceActionEvent, type ProjectEvidenceAction } from "./project-evidence-panel";
 import { type ProjectAnnotationSaved, type ProjectHighlightTool } from "./project-annotation-form";
 import { type ProjectFileDialogMode, type ProjectFileSaved } from "./project-file-dialog";
@@ -518,11 +517,11 @@ class WorkspaceApp {
       this.#focusKnowledgeResource((event as CustomEvent<string>).detail);
     });
     this.#elements.publicationListPanel.configure(apiBase);
-    this.#elements.publicationListPanel.addEventListener(publicationListActionEvent, (event) => {
-      const detail = (event as CustomEvent<PublicationListAction>).detail;
-      if (detail.action === "open") this.#openPublicationContext(detail.publication);
-      else if (detail.action === "manage") void this.#openReferenceLibraryEntry(detail.publicationId);
-      else this.#refreshResourcesWithNotice(detail.message, "The reference was enriched, but project resources could not be refreshed.");
+    this.#elements.publicationListPanel.bind({
+      enriched: (message) =>
+        this.#refreshResourcesWithNotice(message, "The reference was enriched, but project resources could not be refreshed."),
+      manage: (publicationId) => void this.#openReferenceLibraryEntry(publicationId),
+      open: (publication) => this.#openPublicationContext(publication),
     });
     this.#elements.projectAnnotationForm.configure(apiBase);
     this.#elements.projectAnnotationForm.bindIntake({

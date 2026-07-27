@@ -3,12 +3,11 @@ import { bibTeXDisplayText } from "../domain/bibliography";
 import type { PublicationResource, WorkspaceSnapshot } from "../domain/workspace";
 import { errorMessage, expectOk } from "./http";
 
-export const publicationListActionEvent = "publication-list-action";
-
-export type PublicationListAction =
-  | { readonly action: "enriched"; readonly message: string }
-  | { readonly action: "manage"; readonly publicationId: string }
-  | { readonly action: "open"; readonly publication: PublicationResource };
+export interface PublicationListBinding {
+  readonly enriched: (message: string) => void;
+  readonly manage: (publicationId: string) => void;
+  readonly open: (publication: PublicationResource) => void;
+}
 
 export class PublicationListPanel extends LitElement {
   static override properties = {
@@ -21,6 +20,7 @@ export class PublicationListPanel extends LitElement {
   declare private enrichingPublicationId: string;
   declare private status: string;
   private apiBase = "";
+  private binding: PublicationListBinding | undefined;
 
   constructor() {
     super();
@@ -31,6 +31,10 @@ export class PublicationListPanel extends LitElement {
 
   configure(apiBase: string): void {
     this.apiBase = apiBase;
+  }
+
+  bind(binding: PublicationListBinding): void {
+    this.binding = binding;
   }
 
   setWorkspace({ projectReferences, publications }: Pick<WorkspaceSnapshot, "projectReferences" | "publications">): void {
@@ -63,8 +67,8 @@ export class PublicationListPanel extends LitElement {
     const publication = this.data.publications.find((item) => item.id === button.dataset.publicationId);
     if (!publication) return;
     const action = button.dataset.publicationAction;
-    if (action === "open") this.emit({ action, publication });
-    else if (action === "manage") this.emit({ action, publicationId: publication.id });
+    if (action === "open") this.binding?.open(publication);
+    else if (action === "manage") this.binding?.manage(publication.id);
     else if (action === "enrich") void this.enrichPublication(publication.id);
   }
 
@@ -79,7 +83,7 @@ export class PublicationListPanel extends LitElement {
       });
       await expectOk(response);
       this.status = "";
-      this.emit({ action: "enriched", message: "Reference enriched from Crossref." });
+      this.binding?.enriched("Reference enriched from Crossref.");
     } catch (error) {
       this.status = errorMessage(error, "Could not enrich the reference.");
     } finally {
@@ -141,10 +145,6 @@ export class PublicationListPanel extends LitElement {
         </div>
       </article>
     `;
-  }
-
-  private emit(detail: PublicationListAction): void {
-    this.dispatchEvent(new CustomEvent(publicationListActionEvent, { bubbles: true, composed: true, detail }));
   }
 }
 

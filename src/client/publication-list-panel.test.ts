@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ProjectReferenceLink, PublicationResource } from "../domain/workspace";
-import { PublicationListPanel, publicationListActionEvent, type PublicationListAction } from "./publication-list-panel";
+import { PublicationListPanel } from "./publication-list-panel";
 
 const publication: PublicationResource = {
   abstract: "",
@@ -71,10 +71,11 @@ describe("publication list panel", () => {
     expect(panel.rootForTest()).toBe(panel);
   });
 
-  it("emits bounded publication intents", () => {
+  it("routes bounded publication intents", () => {
     const panel = new TestPublicationListPanel();
-    const actions: PublicationListAction[] = [];
-    panel.addEventListener(publicationListActionEvent, (event) => actions.push((event as CustomEvent<PublicationListAction>).detail));
+    const manage = vi.fn();
+    const open = vi.fn();
+    panel.bind({ enriched: vi.fn(), manage, open });
     panel.setWorkspace({ projectReferences: [], publications: [publication] });
 
     panel.actForTest();
@@ -82,18 +83,16 @@ describe("publication list panel", () => {
     panel.actForTest("open");
     panel.actForTest("manage");
 
-    expect(actions).toEqual([
-      { action: "open", publication },
-      { action: "manage", publicationId: publication.id },
-    ]);
+    expect(open).toHaveBeenCalledWith(publication);
+    expect(manage).toHaveBeenCalledWith(publication.id);
   });
 
   it("owns enrichment persistence and emits the completed outcome", async () => {
     const panel = new TestPublicationListPanel();
-    const actions: PublicationListAction[] = [];
+    const enriched = vi.fn();
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 200 }));
     panel.configure("/api/workspaces/workspace");
-    panel.addEventListener(publicationListActionEvent, (event) => actions.push((event as CustomEvent<PublicationListAction>).detail));
+    panel.bind({ enriched, manage: vi.fn(), open: vi.fn() });
 
     await panel.enrichForTest("publication/1");
 
@@ -101,7 +100,7 @@ describe("publication list panel", () => {
       "/api/workspaces/workspace/publications/publication%2F1/enrich",
       expect.objectContaining({ method: "POST" }),
     );
-    expect(actions).toEqual([{ action: "enriched", message: "Reference enriched from Crossref." }]);
+    expect(enriched).toHaveBeenCalledWith("Reference enriched from Crossref.");
   });
 
   it("reports provider failures and permits retry", async () => {

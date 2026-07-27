@@ -118,7 +118,8 @@ connection without reconstructing identity from a citation key or filename.
 - A bounded light-DOM project publication list owns reference metadata, alias
   and DOI labels, empty-state, action presentation, DOI-enrichment transport,
   stable encoded targets, duplicate-submit gating, pending and retryable failure
-  state, the completed-enrichment outcome, and its publication and
+  state, one typed binding for navigation, management, and completed enrichment,
+  and its publication and
   project-reference projection from the canonical workspace snapshot. Context
   navigation, Library management, canonical refresh, and workspace notification
   policy remain with the application coordinator.

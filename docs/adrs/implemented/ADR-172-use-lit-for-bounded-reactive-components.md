@@ -161,9 +161,9 @@ The adopted components own bounded presentation:
 - The project publication list owns the References collection shell and count,
   reference metadata, alias and DOI labels, empty-state, and action
   presentation. It also owns DOI-enrichment transport, duplicate-submit
-  gating, pending and retryable failure state, and typed open, manage, and
-  completed-enrichment outcomes. It reads publications and project-reference
-  links directly from the canonical workspace snapshot input.
+  gating, pending and retryable failure state, and one typed binding for open,
+  manage, and completed-enrichment outcomes. It reads publications and
+  project-reference links directly from the canonical workspace snapshot input.
 - The model candidate list owns revision and claim-draft summaries, empty-state,
   revision and claim-draft provider requests, typed creation transport, fixed
   adapter and prompt-version derivation, operation-specific response validation,
@@ -603,7 +603,8 @@ reason to wrap static markup mechanically.
   mutation, the coordinator enrichment method, and the coordinator's
   two-field publication adapter while leaving context navigation, Library
   management, canonical refresh, and notification policy in the application
-  coordinator.
+  coordinator. Its typed binding also removes the coordinator subscription and
+  public publication-list action protocol.
 - The model candidate list replaces one internal list reference and its
   imperative card renderer plus the coordinator's revision- and claim-candidate
   requests, response guards, and provider generation. It leaves authorized
