@@ -9546,6 +9546,22 @@ gzip, 204,779 B / 62,386 B, 481,994 B / 146,135 B, 135,411 B / 23,373 B, and
 Full native CI passes all 1,726 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Shared PDF Overlay Positioning
+
+The PDF viewer now uses one local typed helper to position project, private,
+and draft highlight overlays. This removes two source lines, reduces Fallow's
+clone groups from 29 to 27, and eliminates its three-group `pdf-viewer.ts`
+clone family without creating a cross-module abstraction.
+
+Focused PDF gesture coverage passes all 10 tests alongside strict types. The
+browser application artifact changes from 849,201 B raw / 229,011 B gzip to
+849,004 B raw / 228,979 B gzip (-197 B raw / -32 B gzip). Lazy runtimes,
+styles, and direct and unique production package counts remain unchanged at
+204,779 B / 62,386 B, 481,994 B / 146,135 B, 135,411 B / 23,373 B, and 18 and 150.
+
+Full native CI passes all 1,726 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Library PDF Project Use Projection
 
 `LibraryPdfProjectUse` now resolves the active bibliographic record and matching

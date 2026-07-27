@@ -463,10 +463,7 @@ export class PdfEvidenceViewer {
           highlight.type = "button";
           highlight.className = "pdf-highlight";
           if (annotation.id === this.#focusedAnnotationId) highlight.dataset.focused = "true";
-          highlight.style.left = `${rect.x * 100}%`;
-          highlight.style.top = `${rect.y * 100}%`;
-          highlight.style.width = `${rect.width * 100}%`;
-          highlight.style.height = `${rect.height * 100}%`;
+          positionPdfOverlay(highlight, rect);
           highlight.title = annotation.comment || annotation.quote;
           highlight.dataset.annotationId = annotation.id;
           highlight.dataset.fragmentId = fragment.id;
@@ -483,10 +480,7 @@ export class PdfEvidenceViewer {
         highlight.dataset.private = "true";
         highlight.dataset.highlightId = annotation.id;
         if (annotation.id === this.#selectedPrivateHighlightId) highlight.dataset.selected = "true";
-        highlight.style.left = `${rect.x * 100}%`;
-        highlight.style.top = `${rect.y * 100}%`;
-        highlight.style.width = `${rect.width * 100}%`;
-        highlight.style.height = `${rect.height * 100}%`;
+        positionPdfOverlay(highlight, rect);
         highlight.title = annotation.comment || annotation.quote;
         if (this.#privateHighlightSelection) highlight.addEventListener("click", () => this.#onPrivateHighlight(annotation.id));
         this.#elements.highlights.append(highlight);
@@ -497,10 +491,7 @@ export class PdfEvidenceViewer {
         const highlight = document.createElement("span");
         highlight.className = "pdf-highlight";
         highlight.dataset.draft = "true";
-        highlight.style.left = `${rect.x * 100}%`;
-        highlight.style.top = `${rect.y * 100}%`;
-        highlight.style.width = `${rect.width * 100}%`;
-        highlight.style.height = `${rect.height * 100}%`;
+        positionPdfOverlay(highlight, rect);
         this.#elements.highlights.append(highlight);
       }
     }
@@ -712,6 +703,13 @@ function requiredViewerElement<T extends Element>(root: Document, id: string, ty
   const element = root.getElementById(id);
   if (!(element instanceof type)) throw new Error(`Missing PDF viewer element #${id}`);
   return element;
+}
+
+function positionPdfOverlay(element: HTMLElement, rect: PdfSelectionRect): void {
+  element.style.left = `${rect.x * 100}%`;
+  element.style.top = `${rect.y * 100}%`;
+  element.style.width = `${rect.width * 100}%`;
+  element.style.height = `${rect.height * 100}%`;
 }
 
 function touchDistance(touches: TouchList): number {
