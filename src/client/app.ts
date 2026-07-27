@@ -10,7 +10,6 @@ import { researchDiaryPath, researchDiaryTemplate } from "../domain/writing-work
 import "./application-version-control";
 import "./source-citation-control";
 import "./workspace-surface-switcher";
-import type { AppToastOptions } from "./app-toast";
 import { expectOk, jsonFetch } from "./http";
 import { type SourceCompletionIntent } from "./source-completion";
 import { libraryPdfRoute, readLibraryUiRoute } from "./library-ui-route";
@@ -83,7 +82,7 @@ class WorkspaceApp {
     },
     (error) => {
       if (!this.#collaboration.synced) this.#elements.editorStatus.setSave("Offline save failed");
-      this.#showToast(error instanceof Error ? error.message : "Could not save the manuscript offline");
+      this.#elements.toast.show(error instanceof Error ? error.message : "Could not save the manuscript offline");
     },
   );
   #snapshot: WorkspaceSnapshot | null = null;
@@ -119,7 +118,7 @@ class WorkspaceApp {
       remoteUpdateApplied: () => this.#elements.assistantGenerationPresenter.refreshAvailability(),
       resourcesChanged: () => {
         void this.#resourceRefresh.request().catch((error: unknown) => {
-          this.#showToast(error instanceof Error ? error.message : "Could not refresh project resources");
+          this.#elements.toast.show(error instanceof Error ? error.message : "Could not refresh project resources");
         });
       },
       revisionCompleted: (revision) => {
@@ -175,7 +174,7 @@ class WorkspaceApp {
       this.#elements.workspaceSurfaces.dataset.layout = "context";
       this.#elements.connectionStatus.setConnection("Private library", true);
       await this.#elements.referenceLibraryWorkspace.open(false);
-      await this.#restoreLibraryRoute();
+      await this.#elements.referenceLibraryWorkspace.restoreRoute(readLibraryUiRoute(new URL(location.href)));
       return;
     }
     void this.#elements.workspaceLayout.restore();
@@ -215,7 +214,7 @@ class WorkspaceApp {
       stableDocument: () => this.#collaboration.stable,
       target: () => this.#elements.editorStatus.authoringTarget,
     });
-    this.#elements.applicationVersion.bindNotice((message) => this.#showToast(message));
+    this.#elements.applicationVersion.bindNotice((message) => this.#elements.toast.show(message));
     this.#elements.collaboratorSelections.bindSelectionChanged(() => this.#renderSourceEditorHighlight());
     window.addEventListener("online", () => {
       this.#collaborationSocket.connect();
@@ -230,7 +229,7 @@ class WorkspaceApp {
     window.addEventListener("offline", () => this.#collaborationSocket.goOffline());
     window.addEventListener("pagehide", () => this.#scheduleOfflineSave(0));
     window.addEventListener("popstate", () => {
-      if (appMode === "library") void this.#restoreLibraryRoute();
+      if (appMode === "library") void this.#elements.referenceLibraryWorkspace.restoreRoute(readLibraryUiRoute(new URL(location.href)));
       else {
         this.#workspaceRouteReady = false;
         void this.#restoreWorkspaceRoute();
@@ -242,7 +241,7 @@ class WorkspaceApp {
       const href = logOut.href;
       void this.#clearOfflineBrowserData()
         .then(() => location.assign(href))
-        .catch((error: unknown) => this.#showToast(error instanceof Error ? error.message : "Could not clear offline data"));
+        .catch((error: unknown) => this.#elements.toast.show(error instanceof Error ? error.message : "Could not clear offline data"));
     });
     this.#elements.workspaceLayout.configure(workspaceId, this.#elements.workspaceSurfaces);
     this.#elements.workspaceLayout.bindChange(async (layout) => {
@@ -270,7 +269,7 @@ class WorkspaceApp {
         if (action === "import-latex") this.#elements.latexImportPanel.open();
         else this.#elements.gitHubImportPanel.open();
       },
-      presentNotice: (message, options) => this.#showToast(message, options),
+      presentNotice: (message, options) => this.#elements.toast.show(message, options),
       templatesChanged: () => this.#elements.saveTemplateDialog.setTemplates(this.#elements.newWorkspaceStartingPoints.availableTemplates),
     });
     this.#elements.gitHubSyncMenu.bindWorkspace(apiBase, {
@@ -285,7 +284,7 @@ class WorkspaceApp {
     }
     this.#elements.saveTemplateDialog.configure(apiBase);
     this.#elements.saveTemplateDialog.bindCompletion((message) => {
-      void this.#elements.newWorkspaceStartingPoints.refresh().then(() => this.#showToast(message));
+      void this.#elements.newWorkspaceStartingPoints.refresh().then(() => this.#elements.toast.show(message));
     });
     this.#elements.workspaceRailTabs.bindNavigation(() => this.#syncWorkspaceRoute("replace"));
     this.#elements.researchDiaryPanel.bindOpen(
@@ -297,7 +296,7 @@ class WorkspaceApp {
     this.#elements.manuscriptMapPanel.bindNavigation(({ fileId, from, to }) => this.#focusProjectRange(fileId, from, to));
     this.#elements.manuscriptMapPanel.bindProjectPresentation(this.#elements);
     const writingWorkflow: WritingWorkflowBinding = {
-      notice: (message) => this.#showToast(message),
+      notice: (message) => this.#elements.toast.show(message),
       open: (kind) =>
         void this.#elements.projectFileDialog.openWorkflowFile(
           kind === "research-questions" ? researchQuestionsPath : reviewerResponsePath,
@@ -309,7 +308,7 @@ class WorkspaceApp {
       panel.bind(writingWorkflow);
     }
     this.#elements.workspaceSharingPanel.configure(apiBase, {
-      presentNotice: (message) => this.#showToast(message),
+      presentNotice: (message) => this.#elements.toast.show(message),
       trigger: this.#elements.shareWorkspace,
     });
     this.#elements.referenceLibraryWorkspace.configure(workspaceId, {
@@ -329,7 +328,7 @@ class WorkspaceApp {
         if (appMode === "library")
           history.pushState({ view: "library-reference", referenceId }, "", `/library?reference=${encodeURIComponent(referenceId)}`);
       },
-      presentNotice: (message) => this.#showToast(message),
+      presentNotice: (message) => this.#elements.toast.show(message),
       refreshLibrary: () => this.#refreshReferenceLibrary(),
       refreshMetadata: async () => {
         await this.#refreshReferenceLibrary();
@@ -363,7 +362,7 @@ class WorkspaceApp {
         this.#activeFileText = this.#document.getText(projectFileCollaborationTextName(file, snapshot.entryFileId));
         this.#elements.editorStatus.setAuthoringContext(file.path, file.id, this.#activeFileText);
       },
-      presentNotice: (message, options) => this.#showToast(message, options),
+      presentNotice: (message, options) => this.#elements.toast.show(message, options),
       previewChanged: () => void this.#renderPreview(),
     });
     this.#elements.projectFileDialog.bindWorkflow({
@@ -384,7 +383,7 @@ class WorkspaceApp {
         this.#layout.setRailCollapsed(false);
         this.#elements.workspaceRailTabs.navigate("files");
       },
-      saved: ({ message }) => this.#showToast(message),
+      saved: ({ message }) => this.#elements.toast.show(message),
       tree: this.#elements.projectTreePanel,
     });
     this.#elements.projectFileDialog.bindPresentation(this.#elements);
@@ -406,7 +405,7 @@ class WorkspaceApp {
         const caret = this.#elements.editorStatus.caret ?? this.#elements.source.selectionEnd;
         this.#insertProjectInclude(this.#activeFileText, caret, relativePath);
       },
-      presentNotice: (message) => this.#showToast(message),
+      presentNotice: (message) => this.#elements.toast.show(message),
     });
     this.#elements.sourceCompletion.bindAcceptance((intent) => {
       if (intent.kind === "citation") void this.#acceptCitationCompletion(intent);
@@ -420,7 +419,7 @@ class WorkspaceApp {
       this.#syncWorkspaceRoute("replace");
     });
     this.#elements.projectHistoryDialog.configure(apiBase, {
-      presentNotice: (message) => this.#showToast(message),
+      presentNotice: (message) => this.#elements.toast.show(message),
       trigger: this.#elements.projectHistoryTrigger,
     });
     this.#elements.contextResourcePresenter.bindManuscriptComments(apiBase, () => ({
@@ -493,7 +492,7 @@ class WorkspaceApp {
       library: () => this.#librarySnapshot,
       linkPassage: (kind, id) => void this.#linkSelectedPassage(kind, id),
       openPassage: (anchor) => this.#showPassage(anchor),
-      presentNotice: (message) => this.#showToast(message),
+      presentNotice: (message) => this.#elements.toast.show(message),
       project: () => this.#snapshot,
       referencePdfs: () => this.#elements.contextResourcePresenter.referencePdfs,
       refreshResources: () => this.#resourceRefresh.request(),
@@ -518,7 +517,7 @@ class WorkspaceApp {
         this.#elements.authoringModeTabs.navigate("write");
         this.#elements.editorStatus.selectRange(insertion.caret);
       },
-      presentNotice: (message) => this.#showToast(message),
+      presentNotice: (message) => this.#elements.toast.show(message),
     });
     this.#elements.contextResourcePresenter.bindPublicationContext(apiBase);
     this.#elements.assistantGenerationPresenter.bindResources(this.#elements.contextResourcePresenter.assistantResources());
@@ -532,7 +531,7 @@ class WorkspaceApp {
         this.#elements.assistantGenerationPresenter.refreshAvailability();
       },
       openEvidenceRail: () => this.#elements.workspaceRailTabs.navigate("research"),
-      presentNotice: (message) => this.#showToast(message),
+      presentNotice: (message) => this.#elements.toast.show(message),
       refreshResources: () => this.#resourceRefresh.request(),
       tableState: () => ({
         revision: this.#revision,
@@ -750,18 +749,18 @@ class WorkspaceApp {
       ({ start, end } = range);
     }
     this.#elements.editorInsertMenu.replaceRange(start, end, candidate.key);
-    if (candidate.scope === "library") this.#showToast(`Added and cited ${candidate.key}.`);
+    if (candidate.scope === "library") this.#elements.toast.show(`Added and cited ${candidate.key}.`);
   }
 
   async #linkSelectedPassage(kind: "annotation" | "claim", id: string): Promise<void> {
     const label = kind === "claim" ? "a claim" : "an annotation";
     if (!this.#collaboration.stable) {
-      this.#showToast(`Wait for the manuscript to finish synchronizing before linking ${label}.`);
+      this.#elements.toast.show(`Wait for the manuscript to finish synchronizing before linking ${label}.`);
       return;
     }
     const passage = this.#elements.editorStatus.selectedPassage();
     if (!passage) {
-      this.#showToast(`Select manuscript text before linking ${label}.`);
+      this.#elements.toast.show(`Select manuscript text before linking ${label}.`);
       return;
     }
     const link = { ...passage, sourceRevision: this.#revision };
@@ -779,19 +778,15 @@ class WorkspaceApp {
     }
   }
 
-  async #restoreLibraryRoute(): Promise<void> {
-    await this.#elements.referenceLibraryWorkspace.restoreRoute(readLibraryUiRoute(new URL(location.href)));
-  }
-
   #showPassage(anchor: PassageLink["anchor"]): void {
     const resolution = resolveManuscriptAnchor(this.#document, anchor);
     if (resolution.status !== "resolved") {
-      this.#showToast("This manuscript anchor is stale and needs to be linked again.");
+      this.#elements.toast.show("This manuscript anchor is stale and needs to be linked again.");
       return;
     }
     this.#focusProjectRange(anchor.fileId, resolution.start, resolution.end);
     this.#elements.source.scrollIntoView({ behavior: "smooth", block: "center" });
-    this.#showToast(
+    this.#elements.toast.show(
       resolution.exactMatch ? "Linked manuscript passage selected." : "Changed linked passage selected; review its current text.",
     );
   }
@@ -855,10 +850,6 @@ class WorkspaceApp {
       clearAllOfflineWorkspaces(typeof indexedDB === "undefined" ? undefined : indexedDB),
       clearOfflineShellCaches(typeof caches === "undefined" ? undefined : caches),
     ]);
-  }
-
-  #showToast(message: string, options?: AppToastOptions): void {
-    this.#elements.toast.show(message, options);
   }
 }
 

@@ -11156,3 +11156,24 @@ and PDF.js artifacts remain unchanged at 135,411 B / 23,373 B, 204,779 B /
 
 Full native CI passes all 1,737 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Lit Ownership: Direct Owner Calls
+
+`WorkspaceApp` callers now present notices through the existing `AppToast`
+owner and restore standalone Library routes through `ReferenceLibraryWorkspace`
+directly. The removed coordinator methods only forwarded their arguments and
+added no policy, validation, or sequencing.
+
+This checkpoint reduces `src/client/app.ts` from 887 to 878 lines (-9) without
+growing another runtime module. Canonical message selection, navigation policy,
+workspace routing, and shared mutation authority remain in the coordinator;
+only redundant Lit-owner indirection is gone. Strict types pass. Direct and
+unique production package counts remain 18 and 150; Lit was already pinned.
+
+The browser application artifact changes from 853,318 B raw / 229,932 B gzip
+to 853,556 B / 229,922 B (+238 B raw / -10 B gzip). Styles and lazy Markdown
+and PDF.js artifacts remain unchanged at 135,411 B / 23,373 B, 204,779 B /
+62,386 B, and 481,994 B / 146,135 B.
+
+Full native CI passes all 1,737 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
