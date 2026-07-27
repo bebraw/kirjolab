@@ -6048,6 +6048,27 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,643 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Candidate Setup
+
+`AssistantGenerationPresenter` now configures the candidate-list and candidate-
+review siblings from one API base and owns the candidate-open subscription.
+`WorkspaceApp` retains canonical context activation through one typed callback.
+
+This checkpoint reduces `src/client/app.ts` from 2,948 to 2,943 lines (-5)
+and grows the generation presenter from 307 to 314 lines. Runtime source across
+those two files grows by two lines while deleting two separate sibling setup
+sites and the final candidate-list event import from the coordinator. The nine
+direct presenter cases now also cover shared configuration and candidate-open
+delegation under strict client and Workers types.
+
+The browser application artifact changes from 834,103 B raw / 225,713 B gzip
+to 834,111 B raw / 225,729 B gzip (+8 B raw / +16 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,643 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

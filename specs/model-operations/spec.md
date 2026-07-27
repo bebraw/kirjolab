@@ -47,6 +47,8 @@ All mutation operations preserve a human review boundary.
   resolves evidence destinations against a read-only canonical snapshot
   callback. The application retains decision workflow transitions, canonical
   refresh, PDF navigation, and context rendering.
+  It configures both candidate siblings from one API base and owns candidate-
+  open subscription while delegating canonical context activation.
 - A non-empty manuscript selection always resolves exactly. Otherwise the
   remembered Yjs-relative caret expands deterministically to the configured
   sentence, paragraph, or Markdown section, or remains an insertion point.

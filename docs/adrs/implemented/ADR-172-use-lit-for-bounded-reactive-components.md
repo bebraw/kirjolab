@@ -104,6 +104,9 @@ The adopted components own bounded presentation:
   and evidence-navigation subscriptions and resolves evidence destinations
   against a read-only canonical snapshot callback while the coordinator retains
   workflow transitions, canonical refresh, PDF navigation, and context rendering.
+  It configures the candidate-list and candidate-review siblings from one API
+  base and owns candidate-open subscription while delegating canonical context
+  activation through a typed callback.
 - The project map panel owns provenance-lane rendering, measured SVG connector
   geometry, responsive relayout, focus and hover emphasis, and a typed resource
   selection intent.

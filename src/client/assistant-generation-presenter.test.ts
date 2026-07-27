@@ -4,7 +4,7 @@ import { assistantOperationDefinition } from "./assistant-operations";
 import { AssistantResultPanel, assistantReferenceRefreshEvent, assistantResultActionEvent } from "./assistant-result-panel";
 import { AssistantTaskPanel, assistantTaskChangeEvent, assistantTaskGenerateEvent } from "./assistant-task-panel";
 import { AssistantWorkflowStatus, assistantWorkflowActionEvent } from "./assistant-workflow-status";
-import { CandidateListPanel } from "./candidate-list-panel";
+import { CandidateListPanel, candidateListOpenEvent } from "./candidate-list-panel";
 import {
   CandidateReviewPanel,
   candidateDecisionEvent,
@@ -322,18 +322,25 @@ describe("assistant generation presenter", () => {
     };
     const callbacks = {
       completeDecision: vi.fn(),
+      openCandidate: vi.fn(),
       openPaper: vi.fn(),
       snapshot: () => snapshot,
       startDecision: vi.fn(),
     };
     const revealClaim = vi.spyOn(elements["claim-list-panel"], "revealClaim").mockReturnValue(true);
-    presenter.bindCandidate(callbacks);
+    const configureCandidates = vi.spyOn(elements["candidate-list-panel"], "configure");
+    const configureReview = vi.spyOn(review, "configure");
+    presenter.bindCandidate("/api/workspaces/workspace", callbacks);
 
+    elements["candidate-list-panel"].dispatchEvent(new CustomEvent(candidateListOpenEvent, { detail: revisionCandidate }));
     review.dispatchEvent(new CustomEvent(candidateDecisionEvent, { detail: { action: "apply", candidateId: revisionCandidate.id } }));
     review.dispatchEvent(new CustomEvent(candidateDecisionOutcomeEvent, { detail: outcome }));
     review.dispatchEvent(new CustomEvent(candidateEvidenceEvent, { detail: annotationEvidence }));
     review.dispatchEvent(new CustomEvent(candidateEvidenceEvent, { detail: claimEvidence }));
 
+    expect(configureCandidates).toHaveBeenCalledWith("/api/workspaces/workspace");
+    expect(configureReview).toHaveBeenCalledWith("/api/workspaces/workspace");
+    expect(callbacks.openCandidate).toHaveBeenCalledWith(revisionCandidate);
     expect(callbacks.startDecision).toHaveBeenCalledWith({ action: "apply", candidateId: revisionCandidate.id });
     expect(callbacks.completeDecision).toHaveBeenCalledWith(outcome);
     expect(callbacks.openPaper).toHaveBeenCalledWith(pdf, annotationEvidence);

@@ -15,7 +15,7 @@ import {
   type AssistantWorkflowAction,
   type SelectedModelEvidence,
 } from "./assistant-workflow-status";
-import { CandidateListPanel } from "./candidate-list-panel";
+import { CandidateListPanel, candidateListOpenEvent } from "./candidate-list-panel";
 import {
   CandidateReviewPanel,
   candidateDecisionEvent,
@@ -80,14 +80,21 @@ export interface AssistantResultCallbacks {
 
 export interface AssistantCandidateCallbacks {
   readonly completeDecision: (detail: CandidateDecisionOutcome) => void;
+  readonly openCandidate: (candidate: ModelCandidate) => void;
   readonly openPaper: (pdf: PdfResource, evidence: Extract<ModelEvidence, { readonly kind: "annotation" }>) => void;
   readonly snapshot: () => WorkspaceSnapshot | null;
   readonly startDecision: (detail: CandidateDecisionRequest) => void;
 }
 
 export class AssistantGenerationPresenter extends LitElement {
-  bindCandidate(callbacks: AssistantCandidateCallbacks): void {
+  bindCandidate(apiBase: string, callbacks: AssistantCandidateCallbacks): void {
+    const candidates = this.element("candidate-list-panel", CandidateListPanel);
     const review = this.element("candidate-review-panel", CandidateReviewPanel);
+    candidates?.configure(apiBase);
+    review?.configure(apiBase);
+    candidates?.addEventListener(candidateListOpenEvent, (event) => {
+      callbacks.openCandidate((event as CustomEvent<ModelCandidate>).detail);
+    });
     review?.addEventListener(candidateDecisionEvent, (event) => {
       callbacks.startDecision((event as CustomEvent<CandidateDecisionRequest>).detail);
     });

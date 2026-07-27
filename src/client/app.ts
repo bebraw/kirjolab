@@ -108,7 +108,6 @@ import { claimListActionEvent, type ClaimListAction } from "./claim-list-panel";
 import { claimDialogSavedEvent } from "./claim-dialog";
 import { manuscriptCommentActionEvent, manuscriptCommentCreateEvent, type ManuscriptCommentAction } from "./manuscript-comment-list";
 import { publicationListActionEvent, type PublicationListAction } from "./publication-list-panel";
-import { candidateListOpenEvent } from "./candidate-list-panel";
 import { contextTabOverviewActionEvent, type ContextTabOverviewAction } from "./context-tab-overview";
 import { contextResourceTabActionEvent, type ContextResourceTabAction } from "./context-resource-tabs";
 import { contextPrimaryTabActionEvent, type ContextPrimaryTabAction } from "./context-tab-strip";
@@ -760,10 +759,6 @@ class WorkspaceApp {
       else if (detail.action === "open-annotation") this.#elements.projectEvidencePanel.revealAnnotation(detail.annotationId);
       else this.#showPassage(detail.anchor);
     });
-    this.#elements.candidateListPanel.configure(apiBase);
-    this.#elements.candidateListPanel.addEventListener(candidateListOpenEvent, (event) => {
-      this.#openCandidateContext((event as CustomEvent<ModelCandidate>).detail);
-    });
     this.#elements.claimDialog.configure(apiBase);
     this.#elements.claimDialog.addEventListener(claimDialogSavedEvent, (event) => {
       this.#refreshResourcesWithNotice(
@@ -825,9 +820,9 @@ class WorkspaceApp {
         if (publication) this.#openPublicationContext(publication);
       } else void this.#completePublicationIntake(detail.doi, detail.requestId);
     });
-    this.#elements.candidateReviewPanel.configure(apiBase);
-    this.#elements.assistantGenerationPresenter.bindCandidate({
+    this.#elements.assistantGenerationPresenter.bindCandidate(apiBase, {
       completeDecision: (detail) => void this.#completeCandidateRequest(detail),
+      openCandidate: (candidate) => this.#openCandidateContext(candidate),
       openPaper: (pdf, evidence) => void this.#showPaper(pdf, evidence.page, evidence.id),
       snapshot: () => this.#snapshot,
       startDecision: (detail) => this.#startCandidateDecision(detail),
