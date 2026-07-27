@@ -1229,14 +1229,18 @@ reason to wrap static markup mechanically.
   bindings, ARIA-state mutations, and its public change event. It routes
   internal and workflow-driven selection through one navigation method, owns
   the direct parent workspace's visibility-driving active-surface projection,
-  and reports typed navigation outcomes. The application coordinator retains
-  URL synchronization.
+  and reports typed navigation outcomes. Through one workspace-route binding it
+  also owns route readiness, ordered file, rail, authoring-mode, context,
+  layout, and surface restoration, canonical URL projection and comparison,
+  and push-versus-replace browser-history writes. The application coordinator
+  supplies canonical state and bounded restoration effects.
 - The workspace layout control replaces the raw select reference and
   coordinator-owned normalization and local-storage access. It owns the
   four-option template, selected value, workspace-scoped resilient persistence,
   workspace layout projection, and resize notification for internal, restored,
   and route-driven navigation before routing the typed outcome through a
-  binding. The coordinator retains PDF activation and URL synchronization. Its
+  binding. The coordinator retains PDF activation while the surface-navigation
+  owner consumes the layout state for URL synchronization. Its
   public change event is removed.
 - The workspace rail tabs derive their four controlled panel targets from the
   existing `aria-controls` contract and own active-panel visibility alongside

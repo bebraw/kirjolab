@@ -1171,8 +1171,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Project bounded, reconstructible editor UI selections into query parameters
   only after validating stable ids against authorized snapshots.
   Keep default-file elision and active PDF-page and annotation projection beside
-  parsing and serialization in the pure workspace route adapter; let the
-  application coordinator choose authorized state and history mode.
+  parsing and serialization in the pure workspace route adapter. Let the
+  bounded surface-navigation owner bind authorized file, rail, authoring-mode,
+  context, layout, and surface state once; own route readiness, ordered
+  restoration, canonical URL comparison, and push-versus-replace history
+  writes; and delegate only file, context, and layout restoration effects.
   Push meaningful context-target navigation, replace incidental view and page
   changes, preserve unrelated query parameters, and keep drafts, scroll,
   selection, pane sizing, and inactive-tab session state out of URLs.

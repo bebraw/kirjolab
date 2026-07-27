@@ -11485,3 +11485,28 @@ and PDF.js artifacts remain unchanged at 135,411 B / 23,373 B, 204,779 B /
 
 Full native CI passes all 1,745 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Lit Ownership: Workspace Routes
+
+`WorkspaceSurfaceSwitcher` now binds canonical file, rail, authoring-mode,
+context, layout, and surface state once. It owns route readiness, ordered URL
+restoration, default-state elision through the existing pure adapter, canonical
+URL comparison, and push-versus-replace history writes. `WorkspaceApp` supplies
+the state and bounded restoration effects instead of implementing route policy.
+
+This checkpoint reduces `src/client/app.ts` from 713 to 687 lines (-26) and
+grows the surface-navigation owner from 76 to 147 lines (+71). The 45-line
+combined increase makes the cross-control route contract explicit and tests
+restoration ordering and history semantics outside the application coordinator.
+Focused coverage passes enabled and disabled readiness, file, rail, mode,
+context, layout, and surface restoration, canonical no-op comparison, history
+projection, preserved unrelated parameters, and strict types. Direct and unique
+production package counts remain 18 and 150; Lit was already pinned.
+
+The browser application artifact increases from 855,360 B raw / 230,103 B gzip
+to 855,398 B / 230,128 B (+38 B raw / +25 B gzip). Styles and lazy Markdown and
+PDF.js artifacts remain unchanged at 135,411 B / 23,373 B, 204,779 B / 62,386
+B, and 481,994 B / 146,135 B.
+
+Full native CI passes all 1,747 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.

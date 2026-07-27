@@ -1,11 +1,44 @@
 import { html, LitElement, type TemplateResult } from "lit";
-import type { WorkspaceSurface } from "./workspace-ui-route";
+import type { ResearchContextKey, ResearchContextState } from "./research-context";
+import {
+  readWorkspaceUiRoute,
+  workspaceUiRouteSelection,
+  workspaceUiRouteUrl,
+  type AuthoringMode,
+  type WorkspaceLayout,
+  type WorkspaceRail,
+  type WorkspaceSurface,
+} from "./workspace-ui-route";
+
+export interface WorkspaceRouteBinding {
+  readonly activeFileId: () => string | null;
+  readonly activeTab: () => ResearchContextState["tabs"][number] | undefined;
+  readonly contextKey: () => ResearchContextKey;
+  readonly enabled: boolean;
+  readonly entryFileId: () => string | undefined;
+  readonly layout: {
+    readonly value: WorkspaceLayout;
+    readonly navigate: (layout: string, persist?: boolean) => Promise<WorkspaceLayout>;
+  };
+  readonly mode: {
+    readonly mode: AuthoringMode;
+    readonly navigate: (mode: AuthoringMode) => void;
+  };
+  readonly rail: {
+    readonly mode: WorkspaceRail;
+    readonly navigate: (rail: WorkspaceRail) => void;
+  };
+  readonly restoreContext: (key: ResearchContextKey, page?: number, annotationId?: string) => Promise<void>;
+  readonly selectFile: (fileId: string) => void;
+}
 
 export class WorkspaceSurfaceSwitcher extends LitElement {
   static override properties = { surface: { state: true } };
 
   declare private surface: WorkspaceSurface;
   private navigation: ((surface: WorkspaceSurface) => void) | null = null;
+  private routeBinding: WorkspaceRouteBinding | null = null;
+  private routeReady = false;
 
   constructor() {
     super();
@@ -20,6 +53,44 @@ export class WorkspaceSurfaceSwitcher extends LitElement {
 
   bindNavigation(navigate: (surface: WorkspaceSurface) => void): void {
     this.navigation = navigate;
+  }
+
+  bindWorkspaceRoute(binding: WorkspaceRouteBinding): void {
+    this.routeBinding = binding;
+    this.bindNavigation(() => this.syncRoute("replace"));
+  }
+
+  async restoreRoute(url = new URL(location.href)): Promise<void> {
+    const binding = this.routeBinding;
+    if (!binding?.enabled) return;
+    this.routeReady = false;
+    const route = readWorkspaceUiRoute(url);
+    if (url.searchParams.has("rail")) binding.rail.navigate(route.rail);
+    if (url.searchParams.has("mode")) binding.mode.navigate(route.mode);
+    if (route.fileId) binding.selectFile(route.fileId);
+    if (url.searchParams.has("context")) await binding.restoreContext(route.contextKey, route.page, route.annotationId);
+    if (route.layout) await binding.layout.navigate(route.layout, false);
+    if (url.searchParams.has("surface")) this.navigate(route.surface);
+    this.routeReady = true;
+    this.syncRoute("replace");
+  }
+
+  syncRoute(mode: "push" | "replace"): void {
+    const binding = this.routeBinding;
+    if (!binding?.enabled || !this.routeReady) return;
+    const current = new URL(location.href);
+    const next = workspaceUiRouteUrl(current, {
+      ...workspaceUiRouteSelection(binding.activeFileId(), binding.entryFileId(), binding.activeTab()),
+      rail: binding.rail.mode,
+      mode: binding.mode.mode,
+      surface: this.surface,
+      layout: binding.layout.value,
+      contextKey: binding.contextKey(),
+    });
+    const currentRelative = `${current.pathname}${current.search}${current.hash}`;
+    if (next === currentRelative) return;
+    if (mode === "push") history.pushState({ view: "workspace" }, "", next);
+    else history.replaceState(history.state, "", next);
   }
 
   protected select(event: Event): void {

@@ -37,7 +37,6 @@ import {
 import { PdfEvidenceViewer } from "./pdf-viewer";
 import { bindThemePreference } from "./theme";
 import { RESEARCH_ASSISTANT_KEY, RESEARCH_LIBRARY_KEY, RESEARCH_PREVIEW_KEY } from "./research-context";
-import { readWorkspaceUiRoute, workspaceUiRouteSelection, workspaceUiRouteUrl } from "./workspace-ui-route";
 import "./workspace-rail-tabs";
 import "./authoring-mode-tabs";
 
@@ -77,7 +76,6 @@ class WorkspaceApp {
   #revision = 0;
   #hasBootstrapSnapshot = false;
   #activeFileText = this.#source;
-  #workspaceRouteReady = false;
   readonly #layout: WorkspaceLayoutManager;
 
   get #librarySnapshot() {
@@ -125,7 +123,7 @@ class WorkspaceApp {
       onHighlight: (annotationId, fragmentId) => this.#elements.contextResourcePresenter.activateProjectHighlight(annotationId, fragmentId),
       onPageChange: (page) => {
         const presentation = this.#elements.contextResourcePresenter.presentPdfPage(page);
-        if (presentation.activePdf) this.#syncWorkspaceRoute("replace");
+        if (presentation.activePdf) this.#elements.workspaceSurfaceSwitcher.syncRoute("replace");
         if (appMode === "library" && presentation.libraryPdfId && location.pathname.startsWith("/library/pdfs/")) {
           history.replaceState(history.state, "", libraryPdfRoute(presentation.libraryPdfId, page));
         }
@@ -178,7 +176,7 @@ class WorkspaceApp {
       this.#collaboration.goOffline();
       this.#renderCollaborationWorkflow();
     }
-    await this.#restoreWorkspaceRoute();
+    await this.#elements.workspaceSurfaceSwitcher.restoreRoute();
     void this.#elements.gitHubSyncMenu.refreshWorkspace(true);
     this.#collaborationSocket.connect();
     if (new URL(location.href).searchParams.get("create") === "1") {
@@ -211,10 +209,7 @@ class WorkspaceApp {
     window.addEventListener("pagehide", () => this.#scheduleOfflineSave(0));
     window.addEventListener("popstate", () => {
       if (appMode === "library") void this.#elements.referenceLibraryWorkspace.restoreRoute(readLibraryUiRoute(new URL(location.href)));
-      else {
-        this.#workspaceRouteReady = false;
-        void this.#restoreWorkspaceRoute();
-      }
+      else void this.#elements.workspaceSurfaceSwitcher.restoreRoute();
     });
     const logOut = document.querySelector<HTMLAnchorElement>("#log-out");
     logOut?.addEventListener("click", (event) => {
@@ -227,7 +222,7 @@ class WorkspaceApp {
     this.#elements.workspaceLayout.configure(workspaceId, this.#elements.workspaceSurfaces);
     this.#elements.workspaceLayout.bindChange(async (layout) => {
       if (layout === "pdf") await this.#elements.contextResourcePresenter.ensurePdfResource();
-      this.#syncWorkspaceRoute("replace");
+      this.#elements.workspaceSurfaceSwitcher.syncRoute("replace");
     });
     this.#elements.workspaceCatalogPanel.configure(catalogBase, workspaceId, this.#elements.workspaceSwitcher);
     this.#elements.workspaceCatalogPanel.bindTrigger(this.#elements.manageWorkspaces);
@@ -267,7 +262,7 @@ class WorkspaceApp {
     this.#elements.saveTemplateDialog.bindCompletion((message) => {
       void this.#elements.newWorkspaceStartingPoints.refresh().then(() => this.#elements.toast.show(message));
     });
-    this.#elements.workspaceRailTabs.bindNavigation(() => this.#syncWorkspaceRoute("replace"));
+    this.#elements.workspaceRailTabs.bindNavigation(() => this.#elements.workspaceSurfaceSwitcher.syncRoute("replace"));
     this.#elements.researchDiaryPanel.bindOpen(
       () =>
         void this.#elements.projectFileDialog.openWorkflowFile(researchDiaryPath, () =>
@@ -387,7 +382,7 @@ class WorkspaceApp {
         this.#elements.workspaceSurfaceSwitcher.navigate("authoring", false);
         this.#elements.source.focus();
       }
-      this.#syncWorkspaceRoute("replace");
+      this.#elements.workspaceSurfaceSwitcher.syncRoute("replace");
     });
     this.#elements.projectHistoryDialog.configure(apiBase, {
       presentNotice: (message) => this.#elements.toast.show(message),
@@ -452,7 +447,7 @@ class WorkspaceApp {
         standaloneLibrary: appMode === "library",
         stableDocument: this.#collaboration.stable,
       }),
-      syncRoute: (mode) => this.#syncWorkspaceRoute(mode),
+      syncRoute: (mode) => this.#elements.workspaceSurfaceSwitcher.syncRoute(mode),
     });
     this.#elements.contextResourcePresenter.bindRoutes({
       authoring: () => ({
@@ -478,7 +473,18 @@ class WorkspaceApp {
       (message, snapshot) => void this.#elements.referenceLibraryWorkspace.applyProjectMutation(snapshot, message),
     );
     this.#elements.contextResourcePresenter.bindClaimList(apiBase);
-    this.#elements.workspaceSurfaceSwitcher.bindNavigation(() => this.#syncWorkspaceRoute("replace"));
+    this.#elements.workspaceSurfaceSwitcher.bindWorkspaceRoute({
+      activeFileId: () => this.#activeFileId,
+      activeTab: () => this.#elements.contextResourcePresenter.activeContextTab,
+      contextKey: () => this.#elements.contextResourcePresenter.activeKey,
+      enabled: appMode === "workspace",
+      entryFileId: () => this.#snapshot?.entryFileId,
+      layout: this.#elements.workspaceLayout,
+      mode: this.#elements.authoringModeTabs,
+      rail: this.#elements.workspaceRailTabs,
+      restoreContext: (key, page, annotationId) => this.#elements.contextResourcePresenter.restoreContext(key, page, annotationId),
+      selectFile: (fileId) => this.#elements.projectFileDialog.selectFile(fileId),
+    });
     this.#layout.bind();
     this.#elements.workspacePreview.bindNavigation({
       openCitation: (citation) => this.#elements.contextResourcePresenter.openCitation(citation),
@@ -537,38 +543,6 @@ class WorkspaceApp {
     await this.#refreshProjectReferencePdfs();
   }
 
-  async #restoreWorkspaceRoute(): Promise<void> {
-    const url = new URL(location.href);
-    const route = readWorkspaceUiRoute(url);
-    if (url.searchParams.has("rail")) this.#elements.workspaceRailTabs.navigate(route.rail);
-    if (url.searchParams.has("mode")) this.#elements.authoringModeTabs.navigate(route.mode);
-    if (route.fileId) this.#elements.projectFileDialog.selectFile(route.fileId);
-    if (url.searchParams.has("context"))
-      await this.#elements.contextResourcePresenter.restoreContext(route.contextKey, route.page, route.annotationId);
-    if (route.layout) await this.#elements.workspaceLayout.navigate(route.layout, false);
-    if (url.searchParams.has("surface")) this.#elements.workspaceSurfaceSwitcher.navigate(route.surface);
-    this.#workspaceRouteReady = true;
-    this.#syncWorkspaceRoute("replace");
-  }
-
-  #syncWorkspaceRoute(mode: "push" | "replace"): void {
-    if (appMode !== "workspace" || !this.#workspaceRouteReady) return;
-    const activeTab = this.#elements.contextResourcePresenter.activeContextTab;
-    const current = new URL(location.href);
-    const next = workspaceUiRouteUrl(current, {
-      ...workspaceUiRouteSelection(this.#activeFileId, this.#snapshot?.entryFileId, activeTab),
-      rail: this.#elements.workspaceRailTabs.mode,
-      mode: this.#elements.authoringModeTabs.mode,
-      surface: this.#elements.workspaceSurfaces.dataset.activeSurface === "context" ? "context" : "authoring",
-      layout: this.#elements.workspaceLayout.value,
-      contextKey: this.#elements.contextResourcePresenter.activeKey,
-    });
-    const currentRelative = `${current.pathname}${current.search}${current.hash}`;
-    if (next === currentRelative) return;
-    if (mode === "push") history.pushState({ view: "workspace" }, "", next);
-    else history.replaceState(history.state, "", next);
-  }
-
   #renderCollaborationWorkflow(): void {
     const status = this.#collaboration.status;
     this.#elements.connectionStatus.setConnection(status.label, status.connected);
@@ -594,7 +568,7 @@ class WorkspaceApp {
     this.#elements.assistantGenerationPresenter.refreshAvailability();
     this.#elements.workspacePreview.resetScroll();
     void this.#elements.workspacePreview.renderBoundProject();
-    this.#syncWorkspaceRoute("replace");
+    this.#elements.workspaceSurfaceSwitcher.syncRoute("replace");
   }
 
   #focusProjectRange(fileId: string, from: number, to: number): void {
@@ -612,7 +586,7 @@ class WorkspaceApp {
     this.#elements.referenceLibraryWorkspace.presentProject(this.#snapshot, appMode === "workspace" ? apiBase : null);
     await this.#elements.referenceLibraryWorkspace.settled();
     this.#elements.contextResourcePresenter.presentBoundContext();
-    this.#syncWorkspaceRoute("replace");
+    this.#elements.workspaceSurfaceSwitcher.syncRoute("replace");
   }
 
   async #acceptWorkspaceMutation(result: Response | WorkspaceSnapshot): Promise<void> {
@@ -639,7 +613,7 @@ class WorkspaceApp {
     this.#elements.contextResourcePresenter.presentWorkspace(this.#snapshot);
     this.#elements.contextResourcePresenter.presentBoundContext();
     this.#elements.assistantGenerationPresenter.refreshAvailability();
-    this.#syncWorkspaceRoute("replace");
+    this.#elements.workspaceSurfaceSwitcher.syncRoute("replace");
   }
 
   async #restoreOfflineWorkspace(): Promise<boolean> {

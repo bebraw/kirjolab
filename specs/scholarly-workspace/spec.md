@@ -189,14 +189,17 @@ collaboration.
   labelled menus so the persistent chrome prioritizes authoring and export.
   A bounded direct-child surface switcher owns responsive Authoring/Context
   selection, ARIA presentation, and the parent workspace's visibility-driving
-  active-surface projection before reporting navigation through a typed binding.
-  The coordinator retains route synchronization. Write/Map mode selection
+  active-surface projection. Through one workspace-route binding it also owns
+  readiness, ordered file, rail, Write/Map, context, layout, and surface
+  restoration, canonical URL comparison, and push-versus-replace history
+  writes. The coordinator supplies canonical state and bounded restoration
+  effects. Write/Map mode selection
   follows the same boundary, while its coordinator binding applies Authoring,
   focuses the editor, and replaces the route once for every Write outcome.
   The project-view Lit control likewise applies normalized internal, restored,
   and route-driven workspace layouts, resilient local persistence, and resize
-  notification before reporting one typed outcome. The coordinator retains
-  PDF availability and route policy.
+  notification before reporting one typed outcome. The coordinator retains PDF
+  availability; the surface switcher consumes layout state for route policy.
   A bounded History trigger presents the current revision and delegates its
   open intent to the coordinator, which loads and opens the history dialog.
   A composed Lit history-dialog boundary owns modal lifecycle, busy state,
