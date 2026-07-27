@@ -476,8 +476,7 @@ class WorkspaceApp {
         void this.#showPaper(pdf, page, annotationId);
       },
     });
-    this.#elements.projectMap.configure(apiBase);
-    this.#elements.projectMap.bindNavigation({
+    this.#elements.contextResourcePresenter.bindProjectMap(apiBase, {
       document: () => {
         this.#showWorkspaceSurface("authoring");
         this.#setAuthoringMode("write");
@@ -486,16 +485,10 @@ class WorkspaceApp {
       },
       project: () => this.#elements.workspaceSwitcher.focusSelect(),
       person: () => this.#elements.workspaceSharingPanel.open(),
-      "model-candidate": (id) => void this.#elements.contextResourcePresenter.restoreTarget({ kind: "candidate", id }),
-      note: (id) => this.#elements.contextResourcePresenter.openProjectNote(id),
       section: (id) => {
         this.#activateContext(RESEARCH_PREVIEW_KEY);
         this.#elements.workspacePreview.scrollToAnchor(id);
       },
-      annotation: (id) => this.#elements.contextResourcePresenter.openProjectAnnotation(id),
-      claim: (id) => this.#elements.claimListPanel.revealClaim(id),
-      pdf: (id) => void this.#elements.contextResourcePresenter.restoreTarget({ kind: "pdf", id }),
-      publication: (id) => void this.#elements.contextResourcePresenter.restoreTarget({ kind: "publication", id }),
     });
     this.#elements.publicationListPanel.configure(apiBase);
     this.#elements.publicationListPanel.bind({

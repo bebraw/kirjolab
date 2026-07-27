@@ -32,7 +32,7 @@ import { libraryPdfToolbarActionEvent, type LibraryPdfToolbarAction } from "./li
 import { pdfHighlightImportOutcomeEvent, type PdfHighlightImportOutcome } from "./pdf-highlight-import-panel";
 import { ProjectAnnotationForm, type ProjectAnnotationCompletion } from "./project-annotation-form";
 import { ProjectEvidencePanel } from "./project-evidence-panel";
-import { ProjectMapWorkspace } from "./project-map-workspace";
+import { ProjectMapWorkspace, type ProjectMapNavigation } from "./project-map-workspace";
 import { mutateProjectReference } from "./project-reference-mutation";
 import { PublicationContextPanel, type PublicationPaperOption } from "./publication-context-panel";
 import { PublicationListPanel } from "./publication-list-panel";
@@ -130,6 +130,7 @@ type ContextPdfViewer = Pick<
   Pick<PdfEvidenceViewer, "currentPage" | "focusedAnnotationId" | "open" | "showError" | "updateAnnotations" | "updatePrivateHighlights">;
 
 export type ProjectAnnotationCoordinatorCompletion = Omit<ProjectAnnotationCompletion, "clearDraftSelection">;
+export type ProjectMapCoordinator = Pick<ProjectMapNavigation, "document" | "person" | "project" | "section">;
 
 export class ContextResourcePresenter extends LitElement {
   private currentActiveTab: ResearchResourceTab | undefined;
@@ -317,6 +318,20 @@ export class ContextResourcePresenter extends LitElement {
       removeHighlight: async (annotationId, fragmentId) =>
         (await this.element("project-evidence-panel", ProjectEvidencePanel)?.removeFragment(annotationId, fragmentId)) ?? false,
       revealHighlight: (annotationId) => this.element("project-evidence-panel", ProjectEvidencePanel)?.revealAnnotation(annotationId),
+    });
+  }
+
+  bindProjectMap(apiBase: string, coordinator: ProjectMapCoordinator): void {
+    const map = this.element("project-map", ProjectMapWorkspace);
+    map?.configure(apiBase);
+    map?.bindNavigation({
+      ...coordinator,
+      annotation: (id) => this.openProjectAnnotation(id),
+      claim: (id) => this.element("claim-list-panel", ClaimListPanel)?.revealClaim(id),
+      "model-candidate": (id) => void this.restoreTarget({ kind: "candidate", id }),
+      note: (id) => this.openProjectNote(id),
+      pdf: (id) => void this.restoreTarget({ kind: "pdf", id }),
+      publication: (id) => void this.restoreTarget({ kind: "publication", id }),
     });
   }
 

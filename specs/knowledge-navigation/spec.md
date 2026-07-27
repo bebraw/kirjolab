@@ -32,8 +32,11 @@ connection without reconstructing identity from a citation key or filename.
 - The project-map workspace derives that graph from the resolved canonical
   snapshot, current composed manuscript, and bibliography, then projects it to
   its map and connection children through one Lit-owned boundary. The workspace
-  coordinator retains anchor resolution, canonical state, and navigation
-  effects.
+  coordinator retains anchor resolution and canonical state. Its enclosing
+  resource-context presenter configures the workspace and binds annotation,
+  claim, candidate, note, PDF, and publication navigation across composed Lit
+  owners; document, project, people, and Preview-section routes remain with the
+  workspace coordinator.
 - The visual projection keeps project context above normal-flow lanes for
   source material, evidence and reasoning, and manuscript resources. Decorative
   connectors are redrawn from measured card geometry when the authoring pane
@@ -125,8 +128,9 @@ connection without reconstructing identity from a citation key or filename.
 - The project-map workspace owns authorized search requests, response
   validation, and the shared idle, result, and error state that controls both
   the search presentation and graph-overview visibility. It routes selected
-  resources through one typed navigation binding; resource navigation and graph
-  derivation remain outside it.
+  resources through one typed navigation binding; its enclosing resource-
+  context presenter owns navigation among composed Lit resources, while global
+  workspace navigation and graph derivation remain outside it.
 - A bounded light-DOM project publication list owns reference metadata, alias
   and DOI labels, empty-state, action presentation, DOI-enrichment transport,
   stable encoded targets, duplicate-submit gating, pending and retryable failure

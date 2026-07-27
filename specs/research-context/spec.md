@@ -214,6 +214,10 @@ changing their canonical data, selector, authorization, or rendering contracts.
   supplied resource route or opening project-map resources. Annotation intents
   resolve through the same retained catalog to their annotation form and
   project PDF, while active project-note shares resolve to bounded notice text.
+  The presenter configures the project-map workspace and binds annotation,
+  claim, candidate, note, PDF, and publication routes across its composed Lit
+  owners; document, project, people, and Preview-section routes remain with the
+  application coordinator.
   Typed publication-paper choices dispatch through the same
   project, private-Library, and shared-reference PDF routes. The presenter also
   derives active-publication citation readiness and maps explicit active

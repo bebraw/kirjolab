@@ -176,7 +176,11 @@ The adopted components own bounded presentation:
   the canonical workspace snapshot. Let it also project coordinator-resolved
   evidence links, claim links, comments, and project-map inputs across those
   composed owners after Preview rendering while the coordinator retains Yjs
-  anchor resolution and render timing. Through a narrow viewer binding it derives
+  anchor resolution and render timing. Let it configure the project-map
+  workspace and bind annotation, claim, candidate, note, PDF, and publication
+  routes across its composed Lit owners while the application coordinator
+  retains document, project, people, and Preview-section navigation. Through a
+  narrow viewer binding it derives
   authorized active-PDF loads, synchronizes project annotations and private
   highlights, rejects stale completions, retains rendered context and project-
   PDF identities, opens the viewer, restores resource scroll, and presents

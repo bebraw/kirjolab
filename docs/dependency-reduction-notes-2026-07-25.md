@@ -8520,6 +8520,27 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,707 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Project Map Routes
+
+`ContextResourcePresenter` now configures the project-map workspace and binds
+annotation, claim, candidate, note, PDF, and publication routes across the Lit
+owners it already composes. `WorkspaceApp` retains only document, project,
+people, and Preview-section navigation.
+
+This checkpoint reduces `src/client/app.ts` from 1,430 to 1,423 lines (-7) and
+grows the context-resource presenter from 891 to 906 lines (+15). Focused
+coverage passes all 53 context-resource, project-map workspace, project-map
+presentation, and application-contract cases, including local resource routes,
+retained coordinator routes, configuration, and strict types.
+
+The browser application artifact changes from 846,609 B raw / 228,429 B gzip
+to 846,566 B raw / 228,474 B gzip (-43 B raw / +45 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,708 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

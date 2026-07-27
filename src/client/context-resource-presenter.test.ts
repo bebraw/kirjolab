@@ -485,6 +485,37 @@ describe("context resource presenter", () => {
     expect(presentMap).toHaveBeenCalledWith(snapshot, "@article{source}", "# Manuscript");
   });
 
+  it("owns project-map routes across its composed Lit resources", () => {
+    const { elements, presenter } = setup();
+    const map = elements["project-map"];
+    const configure = vi.spyOn(map, "configure");
+    const bindNavigation = vi.spyOn(map, "bindNavigation");
+    const restoreTarget = vi.spyOn(presenter, "restoreTarget").mockResolvedValue(undefined);
+    const openProjectAnnotation = vi.spyOn(presenter, "openProjectAnnotation").mockImplementation(() => undefined);
+    const openProjectNote = vi.spyOn(presenter, "openProjectNote").mockImplementation(() => undefined);
+    const revealClaim = vi.spyOn(elements["claim-list-panel"], "revealClaim").mockReturnValue(true);
+    const coordinator = { document: vi.fn(), person: vi.fn(), project: vi.fn(), section: vi.fn() };
+
+    presenter.bindProjectMap("/api/workspaces/workspace", coordinator);
+    const navigation = bindNavigation.mock.calls[0]?.[0];
+    navigation?.document("document");
+    navigation?.annotation("annotation-1");
+    navigation?.claim("claim-1");
+    navigation?.["model-candidate"]("candidate-1");
+    navigation?.note("note-1");
+    navigation?.pdf("pdf-1");
+    navigation?.publication("publication-1");
+
+    expect(configure).toHaveBeenCalledWith("/api/workspaces/workspace");
+    expect(coordinator.document).toHaveBeenCalledOnce();
+    expect(openProjectAnnotation).toHaveBeenCalledWith("annotation-1");
+    expect(revealClaim).toHaveBeenCalledWith("claim-1");
+    expect(restoreTarget).toHaveBeenCalledWith({ kind: "candidate", id: "candidate-1" });
+    expect(openProjectNote).toHaveBeenCalledWith("note-1");
+    expect(restoreTarget).toHaveBeenCalledWith({ kind: "pdf", id: "pdf-1" });
+    expect(restoreTarget).toHaveBeenCalledWith({ kind: "publication", id: "publication-1" });
+  });
+
   it("derives research-context authorization from canonical resources", () => {
     const { presenter } = setup();
 

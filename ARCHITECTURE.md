@@ -973,8 +973,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   private-or-linked PDF, and candidate identity sets from canonical resource
   catalogs and resolve a supplied resource route to the matching canonical
   publication, project PDF, private-Library PDF, linked reference PDF, or
-  candidate. Let project-map navigation reuse those lookups, and let the same
-  presenter resolve annotation edit/open intents to their canonical annotation
+  candidate. Let the presenter configure the project-map workspace and bind its
+  annotation, claim, candidate, note, PDF, and publication routes across the Lit
+  owners it already composes. Keep only document, project, people, and Preview-
+  section navigation in the application coordinator. Let the same presenter
+  resolve annotation edit/open intents to their canonical annotation
   and project PDF, and let it resolve active project-note shares to bounded
   notice text through the same canonical project catalog. Let it also resolve citation keys case-insensitively and choose
   the sole linked project PDF for a supported page locator, otherwise opening
