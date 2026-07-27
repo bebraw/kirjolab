@@ -217,12 +217,12 @@ class WorkspaceApp {
     if (appMode === "library") {
       this.#elements.workspaceSurfaces.dataset.activeSurface = "context";
       this.#elements.workspaceSurfaces.dataset.layout = "context";
-      this.#setConnection("Private library", true);
+      this.#elements.connectionStatus.setConnection("Private library", true);
       await this.#openReferenceLibrary(false);
       await this.#restoreLibraryRoute();
       return;
     }
-    this.#restoreWorkspaceLayout();
+    void this.#applyWorkspaceLayout(this.#elements.workspaceLayout.restore(), false);
     this.#setEditorsEnabled(false);
     const restored = await this.#restoreOfflineWorkspace();
     try {
@@ -298,7 +298,7 @@ class WorkspaceApp {
     this.#elements.newWorkspaceStartingPoints.bindTrigger(this.#elements.newWorkspace, async () => await this.#refreshProjectTemplates());
     this.#elements.newWorkspaceStartingPoints.bind({
       openImport: (action) => {
-        if (action === "import-latex") this.#openLatexImportDialog();
+        if (action === "import-latex") this.#elements.latexImportPanel.open();
         else this.#openGitHubImportDialog();
       },
       presentNotice: (message, options) => this.#showToast(message, options),
@@ -412,7 +412,7 @@ class WorkspaceApp {
         this.#refreshResourcesWithNotice(message, "The comment changed, but project resources could not be refreshed."),
       openPassage: (anchor) => this.#showPassage(anchor),
       passage: (action) => {
-        if (!this.#hasStableDocumentBase()) {
+        if (!this.#collaboration.stable) {
           this.#showToast(
             action === "create"
               ? "Wait for the manuscript to finish synchronizing before commenting."
@@ -590,7 +590,7 @@ class WorkspaceApp {
         this.#renderResearchContext(false);
         this.#updateModelAvailability();
       },
-      focusAssistant: () => this.#focusContextTab(RESEARCH_ASSISTANT_KEY),
+      focusAssistant: () => this.#elements.contextTabStrip.focusTab(RESEARCH_ASSISTANT_KEY),
       openCandidate: (candidate) => this.#openCandidateContext(candidate),
       openPaper: (pdf, evidence) => void this.#showPaper(pdf, evidence.page, evidence.id),
       resolveDecision: async (detail) => await this.#completeCandidateRequest(detail),
@@ -604,7 +604,7 @@ class WorkspaceApp {
       tableState: () => ({
         revision: this.#revision,
         source: this.#activeFileText.toString(),
-        stableDocument: this.#hasStableDocumentBase(),
+        stableDocument: this.#collaboration.stable,
       }),
     });
     this.#elements.assistantGenerationPresenter.bindControls({
@@ -629,7 +629,7 @@ class WorkspaceApp {
       this.#elements.source.value = snapshot.source;
       this.#elements.bibliography.value = snapshot.bibliography;
       void this.#renderPreview(snapshot.bibliography);
-      this.#updateRevision();
+      this.#elements.projectHistoryTrigger.setRevision(this.#revision);
     } else {
       void this.#renderPreview();
     }
@@ -643,10 +643,6 @@ class WorkspaceApp {
     this.#elements.workspaceRailTabs.setMode(mode);
     if (mode === "guide") this.#renderManuscriptMap();
     this.#syncWorkspaceRoute("replace");
-  }
-
-  #restoreWorkspaceLayout(): void {
-    void this.#applyWorkspaceLayout(this.#elements.workspaceLayout.restore(), false);
   }
 
   async #applyWorkspaceLayout(value: string, persist = true): Promise<void> {
@@ -718,10 +714,6 @@ class WorkspaceApp {
     else history.replaceState(history.state, "", next);
   }
 
-  #openLatexImportDialog(): void {
-    this.#elements.latexImportPanel.open();
-  }
-
   #openGitHubImportDialog(): void {
     this.#elements.gitHubImportPanel.open();
     void this.#elements.gitHubImportPanel.refreshConnection();
@@ -755,7 +747,7 @@ class WorkspaceApp {
 
   #renderCollaborationWorkflow(): void {
     const status = this.#collaboration.status;
-    this.#setConnection(status.label, status.connected);
+    this.#elements.connectionStatus.setConnection(status.label, status.connected);
     this.#setEditorsEnabled(this.#collaboration.canEdit);
     this.#updateModelAvailability();
   }
@@ -788,7 +780,7 @@ class WorkspaceApp {
     this.#revision = Math.max(this.#revision, revision);
     this.#elements.collaboratorSelections.setData({ files: this.#liveProjectFiles(), revision: this.#revision });
     this.#renderSourceEditorHighlight();
-    this.#updateRevision();
+    this.#elements.projectHistoryTrigger.setRevision(this.#revision);
     this.#scheduleOfflineSave();
     const active = this.#elements.contextResourcePresenter.activeTab;
     if (active?.kind === "candidate") this.#renderResearchContext(false);
@@ -824,15 +816,11 @@ class WorkspaceApp {
     this.#renderSourceEditorHighlight = binding.renderHighlight;
   }
 
-  #hasStableDocumentBase(): boolean {
-    return this.#collaboration.stable;
-  }
-
   #updateModelAvailability(): void {
     this.#elements.assistantGenerationPresenter.presentAvailability({
       hasInsertionTarget: this.#assistantInsertionTarget() !== null,
       hasPassage: this.#assistantAuthoringPassage() !== null,
-      stableDocument: this.#hasStableDocumentBase(),
+      stableDocument: this.#collaboration.stable,
     });
   }
 
@@ -1098,7 +1086,7 @@ class WorkspaceApp {
   }
 
   async #linkClaim(claimId: string): Promise<void> {
-    if (!this.#hasStableDocumentBase()) {
+    if (!this.#collaboration.stable) {
       this.#showToast("Wait for the manuscript to finish synchronizing before linking a claim.");
       return;
     }
@@ -1140,7 +1128,7 @@ class WorkspaceApp {
     this.#contextState = activateResearchTab(this.#contextState, key);
     this.#renderResearchContext();
     this.#showWorkspaceSurface("context", false);
-    this.#focusContextTab(key);
+    this.#elements.contextTabStrip.focusTab(key);
     this.#syncWorkspaceRoute("push");
   }
 
@@ -1149,7 +1137,7 @@ class WorkspaceApp {
     this.#contextState = openResearchResource(this.#contextState, { kind: "publication", id: publication.id });
     this.#renderResearchContext();
     this.#showWorkspaceSurface("context", false);
-    this.#focusContextTab(researchResourceKey({ kind: "publication", id: publication.id }));
+    this.#elements.contextTabStrip.focusTab(researchResourceKey({ kind: "publication", id: publication.id }));
     this.#syncWorkspaceRoute("push");
   }
 
@@ -1158,7 +1146,7 @@ class WorkspaceApp {
     this.#contextState = openResearchResource(this.#contextState, { kind: "candidate", id: candidate.id });
     this.#renderResearchContext();
     this.#showWorkspaceSurface("context", false);
-    this.#focusContextTab(researchResourceKey({ kind: "candidate", id: candidate.id }));
+    this.#elements.contextTabStrip.focusTab(researchResourceKey({ kind: "candidate", id: candidate.id }));
     this.#syncWorkspaceRoute("push");
   }
 
@@ -1172,7 +1160,7 @@ class WorkspaceApp {
       snapshot: this.#snapshot,
       sourceRevision: this.#revision,
       standaloneLibrary: appMode === "library",
-      stableDocument: this.#hasStableDocumentBase(),
+      stableDocument: this.#collaboration.stable,
     });
     this.#layout.restorePaneWidth();
     if (presentation.privateHighlights) {
@@ -1194,12 +1182,8 @@ class WorkspaceApp {
       history.replaceState({ view: "library" }, "", "/library");
     }
     this.#renderResearchContext();
-    this.#focusContextTab(this.#contextState.activeKey);
+    this.#elements.contextTabStrip.focusTab(this.#contextState.activeKey);
     this.#syncWorkspaceRoute("replace");
-  }
-
-  #focusContextTab(key: ResearchContextKey): void {
-    this.#elements.contextTabStrip.focusTab(key);
   }
 
   async #openPublicationPaper(paper: PublicationPaperOption): Promise<void> {
@@ -1392,7 +1376,7 @@ class WorkspaceApp {
   }
 
   async #linkAnnotation(annotationId: string): Promise<void> {
-    if (!this.#hasStableDocumentBase()) {
+    if (!this.#collaboration.stable) {
       this.#showToast("Wait for the manuscript to finish synchronizing before linking an annotation.");
       return;
     }
@@ -1492,7 +1476,7 @@ class WorkspaceApp {
       passage: this.#assistantAuthoringPassage(),
       snapshotAvailable: this.#snapshot !== null,
       sourceRevision: this.#revision,
-      stableDocument: this.#hasStableDocumentBase(),
+      stableDocument: this.#collaboration.stable,
     });
   }
 
@@ -1569,7 +1553,7 @@ class WorkspaceApp {
     this.#contextState = setPdfResearchLocation(openResearchResource(this.#contextState, target), key, location);
     this.#renderResearchContext(false);
     this.#showWorkspaceSurface("context", false);
-    this.#focusContextTab(key);
+    this.#elements.contextTabStrip.focusTab(key);
     return key;
   }
 
@@ -1745,7 +1729,7 @@ class WorkspaceApp {
     ]);
     this.#renderProjectFiles();
     this.#renderResources();
-    this.#updateRevision();
+    this.#elements.projectHistoryTrigger.setRevision(this.#revision);
     this.#renderCollaborationWorkflow();
     this.#elements.editorStatus.setSave(pending ? "Saved offline" : "Saved");
     void this.#renderPreview();
@@ -1785,17 +1769,9 @@ class WorkspaceApp {
     ]);
   }
 
-  #setConnection(label: string, connected: boolean): void {
-    this.#elements.connectionStatus.setConnection(label, connected);
-  }
-
   #setEditorsEnabled(enabled: boolean): void {
     this.#elements.source.disabled = !enabled;
     this.#elements.bibliography.disabled = !enabled;
-  }
-
-  #updateRevision(): void {
-    this.#elements.projectHistoryTrigger.setRevision(this.#revision);
   }
 
   #showToast(message: string, options?: AppToastOptions): void {

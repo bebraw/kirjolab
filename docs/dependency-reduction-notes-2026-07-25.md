@@ -7684,6 +7684,27 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,698 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Coordinator Pass-Through Removal
+
+`WorkspaceApp` now calls the existing connection-status, project-history,
+context-tab, workspace-layout, and LaTeX-import owners directly and reads the
+collaboration session's stable state directly. Six one-purpose coordinator
+methods that added neither policy nor adaptation are removed.
+
+This checkpoint reduces `src/client/app.ts` from 1,849 to 1,825 lines (-24)
+without adding runtime source elsewhere. Full affected coverage passes all
+1,698 unit tests alongside formatting, lint, application contracts, and strict
+types. The first sandboxed coverage attempt reached one unrelated loopback
+`listen EPERM`; the normal loopback-enabled rerun passed.
+
+The browser application artifact changes from 844,976 B raw / 229,062 B gzip
+to 845,115 B raw / 229,025 B gzip (+139 B raw / -37 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,698 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,
