@@ -96,9 +96,7 @@ export interface PdfPagePresentation {
 
 export interface LibraryPdfCoordinator {
   readonly acceptProjectMutation: (snapshot: WorkspaceSnapshot) => Promise<void>;
-  readonly applyViewerPresentation: (presentation: LibraryPdfSelectionPresentation | LibraryPdfToolPresentation) => void;
   readonly canInsertCitation: () => boolean;
-  readonly clearViewerDraftSelection: () => void;
   readonly completeMarkup: (message: string) => void;
   readonly currentPage: () => number;
   readonly insertCitation: (citationAlias: string, locator: string) => void;
@@ -130,10 +128,8 @@ export interface ContextViewerState {
   readonly renderedContextKey: ResearchContextTab["key"] | undefined;
 }
 
-type ContextPdfViewer = Pick<
-  PdfEvidenceViewer,
-  "currentPage" | "focusedAnnotationId" | "open" | "showError" | "updateAnnotations" | "updatePrivateHighlights"
->;
+type ContextPdfViewer = Pick<PdfEvidenceViewer, "clearDraftSelection" | "setPrivateHighlightSelection" | "setTextSelectionEnabled"> &
+  Pick<PdfEvidenceViewer, "currentPage" | "focusedAnnotationId" | "open" | "showError" | "updateAnnotations" | "updatePrivateHighlights">;
 
 export class ContextResourcePresenter extends LitElement {
   private currentActiveTab: ResearchResourceTab | undefined;
@@ -630,7 +626,7 @@ export class ContextResourcePresenter extends LitElement {
   private async completeLibraryHighlightSave(kind: "created" | "extended" | "updated"): Promise<void> {
     const coordinator = this.libraryPdfCoordinator;
     if (!coordinator) return;
-    coordinator.clearViewerDraftSelection();
+    this.pdfViewer?.clearDraftSelection();
     await coordinator.refreshLibrary();
     const inspector = this.element("library-pdf-inspector", LibraryPdfInspector);
     if (kind === "updated") {
@@ -651,16 +647,16 @@ export class ContextResourcePresenter extends LitElement {
     const coordinator = this.libraryPdfCoordinator;
     if (!coordinator) return;
     this.element("library-pdf-inspector", LibraryPdfInspector)?.clearHighlight(coordinator.currentPage(), message);
-    coordinator.clearViewerDraftSelection();
+    this.pdfViewer?.clearDraftSelection();
   }
 
   private closeBoundLibraryPdfInspector(): void {
     const coordinator = this.libraryPdfCoordinator;
     if (!coordinator) return;
     const presentation = this.closeLibraryPdfInspector(coordinator.currentPage());
-    if (presentation.clearDraftSelection) coordinator.clearViewerDraftSelection();
+    if (presentation.clearDraftSelection) this.pdfViewer?.clearDraftSelection();
     if (presentation.privateHighlightSelection !== null)
-      coordinator.applyViewerPresentation({
+      this.applyViewerPresentation({
         clearDraftSelection: false,
         privateHighlightSelection: presentation.privateHighlightSelection,
       });
@@ -682,7 +678,7 @@ export class ContextResourcePresenter extends LitElement {
   }
 
   private clearBoundLibraryPdfMarkupSelection(): void {
-    this.libraryPdfCoordinator?.applyViewerPresentation({
+    this.applyViewerPresentation({
       clearDraftSelection: false,
       privateHighlightSelection: this.clearLibraryPdfMarkupSelection(),
     });
@@ -705,7 +701,12 @@ export class ContextResourcePresenter extends LitElement {
   }
 
   private applyViewerPresentation(presentation: LibraryPdfSelectionPresentation | LibraryPdfToolPresentation): void {
-    this.libraryPdfCoordinator?.applyViewerPresentation(presentation);
+    const viewer = this.pdfViewer;
+    if (!viewer) return;
+    if ("clearDraftSelection" in presentation && presentation.clearDraftSelection) viewer.clearDraftSelection();
+    if (presentation.textSelectionEnabled !== undefined) viewer.setTextSelectionEnabled(presentation.textSelectionEnabled);
+    if (presentation.privateHighlightSelection !== undefined)
+      viewer.setPrivateHighlightSelection(presentation.privateHighlightSelection, presentation.privateHighlightId);
   }
 
   resourceScrollTop(tab: ResearchContextTab): number {

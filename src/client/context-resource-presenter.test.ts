@@ -309,9 +309,12 @@ describe("context resource presenter", () => {
     const tab = { ...resourceTab("pdf", pdf.id), focusedAnnotationId: annotation.id, page: 2, scrollTop: 24 };
     const project = { ...workspaceSnapshotFixture, annotations: [annotation], pdfs: [pdf] };
     const viewer = {
+      clearDraftSelection: vi.fn(),
       currentPage: 3,
       focusedAnnotationId: annotation.id,
       open: vi.fn().mockResolvedValue(true),
+      setPrivateHighlightSelection: vi.fn(),
+      setTextSelectionEnabled: vi.fn(),
       showError: vi.fn(),
       updateAnnotations: vi.fn(),
       updatePrivateHighlights: vi.fn(),
@@ -353,9 +356,12 @@ describe("context resource presenter", () => {
   it("presents active PDF loading failures only while the resource remains active", async () => {
     const { presenter } = setup();
     const viewer = {
+      clearDraftSelection: vi.fn(),
       currentPage: 1,
       focusedAnnotationId: null,
       open: vi.fn().mockRejectedValue(new Error("Could not open PDF")),
+      setPrivateHighlightSelection: vi.fn(),
+      setTextSelectionEnabled: vi.fn(),
       showError: vi.fn(),
       updateAnnotations: vi.fn(),
       updatePrivateHighlights: vi.fn(),
@@ -760,11 +766,20 @@ describe("context resource presenter", () => {
 
   it("routes private-PDF sibling events through the bounded coordinator", async () => {
     const { elements, presenter } = setup();
+    const viewer = {
+      clearDraftSelection: vi.fn(),
+      currentPage: 3,
+      focusedAnnotationId: null,
+      open: vi.fn().mockResolvedValue(true),
+      setPrivateHighlightSelection: vi.fn(),
+      setTextSelectionEnabled: vi.fn(),
+      showError: vi.fn(),
+      updateAnnotations: vi.fn(),
+      updatePrivateHighlights: vi.fn(),
+    };
     const coordinator = {
       acceptProjectMutation: vi.fn(async () => undefined),
-      applyViewerPresentation: vi.fn(),
       canInsertCitation: vi.fn(() => true),
-      clearViewerDraftSelection: vi.fn(),
       completeMarkup: vi.fn(),
       currentPage: vi.fn(() => 3),
       insertCitation: vi.fn(),
@@ -780,6 +795,7 @@ describe("context resource presenter", () => {
     vi.spyOn(elements["library-pdf-inspector"], "clearNote").mockImplementation(() => undefined);
     vi.spyOn(elements["library-pdf-inspector"], "clearMarkup").mockImplementation(() => undefined);
     vi.spyOn(elements["library-pdf-inspector"], "draftState", "get").mockReturnValue({ highlight: false, markup: false, note: false });
+    presenter.bindPdfViewer(viewer, "/api/workspaces/workspace");
     presenter.bindLibraryPdf(coordinator);
 
     elements["library-pdf-annotation-toolbar"].dispatchEvent(
@@ -793,16 +809,13 @@ describe("context resource presenter", () => {
       new CustomEvent("library-pdf-annotation-action", { detail: { action: "highlight-saved", kind: "created" } }),
     );
 
-    expect(coordinator.applyViewerPresentation).toHaveBeenCalledWith({
-      privateHighlightId: null,
-      privateHighlightSelection: false,
-      textSelectionEnabled: true,
-    });
+    expect(viewer.setTextSelectionEnabled).toHaveBeenCalledWith(true);
+    expect(viewer.setPrivateHighlightSelection).toHaveBeenCalledWith(false, null);
     expect(coordinator.completeMarkup).toHaveBeenCalledWith("Drawing saved privately.");
     await vi.waitFor(() => expect(coordinator.openPdf).toHaveBeenCalledWith(libraryPdf, highlight.page));
     expect(setStatus).toHaveBeenCalledWith("Showing saved private highlight on page 2.");
     await vi.waitFor(() => expect(coordinator.refreshLibrary).toHaveBeenCalledOnce());
-    expect(coordinator.clearViewerDraftSelection).toHaveBeenCalledOnce();
+    expect(viewer.clearDraftSelection).toHaveBeenCalledOnce();
     expect(coordinator.showToast).toHaveBeenCalledWith("Private highlight saved to your library.");
   });
 
@@ -835,9 +848,7 @@ describe("context resource presenter", () => {
     const librarySource = vi.fn<() => ReferenceLibrarySnapshot | null>(() => ({ ...library, references: [reference] }));
     const coordinator = {
       acceptProjectMutation: vi.fn(async () => undefined),
-      applyViewerPresentation: vi.fn(),
       canInsertCitation: vi.fn(() => true),
-      clearViewerDraftSelection: vi.fn(),
       completeMarkup: vi.fn(),
       currentPage: vi.fn(() => 3),
       insertCitation: vi.fn(),
@@ -878,9 +889,7 @@ describe("context resource presenter", () => {
     const librarySource = vi.fn<() => ReferenceLibrarySnapshot | null>(() => ({ ...library, references: [reference] }));
     const coordinator = {
       acceptProjectMutation: vi.fn(async () => undefined),
-      applyViewerPresentation: vi.fn(),
       canInsertCitation: vi.fn(() => false),
-      clearViewerDraftSelection: vi.fn(),
       completeMarkup: vi.fn(),
       currentPage: vi.fn(() => 3),
       insertCitation: vi.fn(),

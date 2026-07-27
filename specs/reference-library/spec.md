@@ -308,8 +308,9 @@ memory and makes citation aliases compete with stable source identity.
   one canonical artifact, project, reference, and Library snapshot, it derives
   and projects each child component's context and resets child presentation
   state when the active artifact changes. The application coordinator retains
-  PDF viewer state, navigation, persistence, close policy, canonical refreshes,
-  and notifications.
+  local PDF viewer draft/tool/selection presentation through the composed
+  context-resource presenter. The application coordinator retains navigation,
+  persistence, close policy, canonical refreshes, history, and notifications.
 - A bounded light-DOM markup layer owns saved and draft drawing SVG, note pins,
   tool and saved-resource selection state, note composition, open note cards,
   page-local saved-drawing and note projection from canonical artifact and

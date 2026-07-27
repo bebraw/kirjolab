@@ -165,10 +165,10 @@ The adopted components own bounded presentation:
   readiness feedback, saved-highlight artifact lookup and post-navigation
   inspector status, collision-safe project-reference preparation, and
   validated link transport while delegating canonical snapshot acceptance,
-  Yjs citation insertion, cross-resource navigation, shared toast display, and
-  viewer-only selection effects through typed callbacks; it returns only
-  viewer-owned selection effects
-  and synchronizes the bounded
+  Yjs citation insertion, cross-resource navigation, and shared toast display
+  through typed callbacks. It applies viewer-only draft clearing, text-
+  selection, and private-markup selection effects directly through its narrow
+  viewer binding and synchronizes the bounded
   evidence, annotation, publication, claim, comment, and candidate owners from
   the canonical workspace snapshot. Through a narrow viewer binding it derives
   authorized active-PDF loads, synchronizes project annotations and private

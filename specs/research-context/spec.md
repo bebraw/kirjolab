@@ -219,9 +219,9 @@ changing their canonical data, selector, authorization, or rendering contracts.
   and selects the sole linked project PDF for a supported page locator, falling
   back to publication context. It delegates canonical snapshot acceptance, Yjs
   citation insertion, tab reconciliation, cross-resource navigation, history
-  mutation, toast display, and viewer-only selection effects through typed callbacks,
-  returning only the viewer's text-selection, selected-highlight, and draft-
-  selection cleanup effects.
+  mutation, and toast display through typed callbacks. It applies the viewer's
+  text-selection, selected-private-markup, and draft-selection cleanup effects
+  directly through its narrow bound-viewer capability.
   It synchronizes active project-PDF annotations and private highlights through
   the bound viewer. It owns linked-reference PDF catalog loading, validation,
   storage, and authorization projection. The coordinator retains refresh and

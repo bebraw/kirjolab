@@ -16,7 +16,6 @@ import { type EditorSyntaxKind, type EditorSyntaxTemplate } from "./editor-inser
 import type { AppToastOptions } from "./app-toast";
 import { expectOk, jsonFetch } from "./http";
 import { type SourceCompletionIntent } from "./source-completion";
-import type { LibraryPdfSelectionPresentation, LibraryPdfToolPresentation } from "./context-resource-presenter";
 import { libraryPdfRoute, readLibraryUiRoute } from "./library-ui-route";
 import "./project-starting-point-browser";
 import { WorkspaceLayoutManager } from "./workspace-layout-manager";
@@ -523,9 +522,7 @@ class WorkspaceApp {
         await this.#acceptWorkspaceMutation(snapshot);
         this.#renderReferenceLibrary();
       },
-      applyViewerPresentation: (presentation) => this.#applyLibraryPdfViewerPresentation(presentation),
       canInsertCitation: () => this.#resolvedAuthoringCaret() !== null,
-      clearViewerDraftSelection: () => this.#pdfViewer.clearDraftSelection(),
       completeMarkup: (message) =>
         void this.#elements.referenceLibraryWorkspace.completeRefresh(
           message,
@@ -1343,13 +1340,6 @@ class WorkspaceApp {
     if (appMode === "library" && presentation.libraryPdfId && location.pathname.startsWith("/library/pdfs/")) {
       history.replaceState(history.state, "", libraryPdfRoute(presentation.libraryPdfId, page));
     }
-  }
-
-  #applyLibraryPdfViewerPresentation(presentation: LibraryPdfSelectionPresentation | LibraryPdfToolPresentation): void {
-    if ("clearDraftSelection" in presentation && presentation.clearDraftSelection) this.#pdfViewer.clearDraftSelection();
-    if (presentation.textSelectionEnabled !== undefined) this.#pdfViewer.setTextSelectionEnabled(presentation.textSelectionEnabled);
-    if (presentation.privateHighlightSelection !== undefined)
-      this.#pdfViewer.setPrivateHighlightSelection(presentation.privateHighlightSelection, presentation.privateHighlightId);
   }
 
   #showPassage(anchor: PassageLink["anchor"]): void {

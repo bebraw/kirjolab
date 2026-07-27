@@ -8370,6 +8370,29 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,706 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Bound PDF Viewer Effects
+
+`ContextResourcePresenter` now applies private-PDF draft clearing, text-
+selection mode, and private-markup selection directly through its existing
+bounded PDF-viewer capability. This removes two coordinator effects and the
+`WorkspaceApp` presentation mapper that only forwarded those local effects to
+the same viewer. Canonical context, loading, route history, snapshot, refresh,
+and toast authority remain outside the presenter.
+
+This checkpoint reduces `src/client/app.ts` from 1,471 to 1,461 lines (-10)
+while growing the context-resource presenter from 854 to 855 lines (+1), for a
+nine-line runtime source reduction. Focused coverage passes all 46 context-
+resource, PDF-viewer, inspector, and application-contract cases, including
+tool choice, private selection, draft cleanup, loading, and strict types.
+
+The browser application artifact changes from 846,484 B raw / 228,458 B gzip
+to 846,335 B raw / 228,409 B gzip (-149 B raw / -49 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,706 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

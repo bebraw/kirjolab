@@ -818,8 +818,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   annotation list, and project-use block. Supply one canonical artifact,
   project, reference, and Library snapshot from the application coordinator;
   route nested project reference and research mutation completion through one
-  typed callback. Keep PDF viewer state, navigation, canonical snapshot
-  application, refreshes, and toast policy in that coordinator.
+  typed callback. Let the composed context-resource presenter apply local
+  draft-clearing, text-selection, and private-markup selection presentations
+  directly through its bound viewer. Keep navigation, canonical snapshot
+  application, refreshes, history, and toast policy in the coordinator.
 - Let the PDF highlight import panel own bounded client-side detection,
   saved-highlight overlap filtering, reviewed candidate state, stable encoded
   import transport, duplicate-submit gating, and retryable local failures. Keep
