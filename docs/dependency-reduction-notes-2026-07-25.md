@@ -9332,6 +9332,26 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,721 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Valibot Adoption: Knowledge Graph Responses
+
+Knowledge search results and workspace graph responses now share Valibot
+schemas for resource kinds, relationship kinds, non-empty identities, nodes,
+edges, and arrays. Search ranking, identity construction, graph derivation, and
+navigation policy remain explicit domain behavior.
+
+This checkpoint reduces `src/domain/knowledge.ts` from 471 to 460 lines (-11),
+replacing four handwritten response guards and their primitive helpers. Focused
+knowledge-domain and project-map coverage passes all 14 tests alongside strict
+types.
+
+The browser application artifact changes from 848,275 B raw / 228,825 B gzip
+to 848,300 B raw / 228,857 B gzip (+25 B raw / +32 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip and 18 and 150; Valibot was already pinned.
+
+Full native CI passes all 1,721 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Library PDF Project Use Projection
 
 `LibraryPdfProjectUse` now resolves the active bibliographic record and matching

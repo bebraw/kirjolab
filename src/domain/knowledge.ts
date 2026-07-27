@@ -1,3 +1,4 @@
+import * as v from "valibot";
 import type { WorkspaceMember, WorkspaceSnapshot } from "./workspace";
 
 export type KnowledgeResourceKind =
@@ -55,6 +56,54 @@ interface SectionResource {
   title: string;
   excerpt: string;
 }
+
+const knowledgeResourceKindSchema = v.picklist([
+  "project",
+  "document",
+  "section",
+  "publication",
+  "pdf",
+  "annotation",
+  "claim",
+  "note",
+  "person",
+  "model-candidate",
+]);
+const nonEmptyStringSchema = v.pipe(v.string(), v.minLength(1));
+const knowledgeSearchResultSchema = v.object({
+  resourceId: nonEmptyStringSchema,
+  kind: knowledgeResourceKindSchema,
+  title: nonEmptyStringSchema,
+  excerpt: v.string(),
+  score: v.number(),
+});
+const knowledgeGraphNodeSchema = v.object({
+  id: nonEmptyStringSchema,
+  kind: knowledgeResourceKindSchema,
+  label: nonEmptyStringSchema,
+});
+const knowledgeGraphEdgeSchema = v.object({
+  id: nonEmptyStringSchema,
+  relation: v.picklist([
+    "cites",
+    "contains",
+    "participates-in",
+    "annotates",
+    "has-artifact",
+    "used-in",
+    "supports",
+    "contradicts",
+    "extends",
+    "derived-from",
+  ]),
+  from: nonEmptyStringSchema,
+  to: nonEmptyStringSchema,
+  label: v.string(),
+});
+const workspaceKnowledgeGraphSchema = v.object({
+  nodes: v.array(knowledgeGraphNodeSchema),
+  edges: v.array(knowledgeGraphEdgeSchema),
+});
 
 export function searchWorkspaceKnowledge(
   snapshot: WorkspaceSnapshot,
@@ -302,17 +351,11 @@ export function buildWorkspaceKnowledgeGraph(
 }
 
 export function isKnowledgeSearchResults(value: unknown): value is KnowledgeSearchResult[] {
-  return Array.isArray(value) && value.every(isSearchResult);
+  return v.is(v.array(knowledgeSearchResultSchema), value);
 }
 
 export function isWorkspaceKnowledgeGraph(value: unknown): value is WorkspaceKnowledgeGraph {
-  return (
-    isRecord(value) &&
-    Array.isArray(value.nodes) &&
-    value.nodes.every(isGraphNode) &&
-    Array.isArray(value.edges) &&
-    value.edges.every(isGraphEdge)
-  );
+  return v.is(workspaceKnowledgeGraphSchema, value);
 }
 
 function extractSections(source: string): SectionResource[] {
@@ -412,60 +455,6 @@ function modelCandidateId(id: string): string {
   return `model-candidate:${id}`;
 }
 
-function isSearchResult(value: unknown): value is KnowledgeSearchResult {
-  return (
-    isRecord(value) &&
-    isNonEmptyString(value.resourceId) &&
-    isKnowledgeResourceKind(value.kind) &&
-    isNonEmptyString(value.title) &&
-    typeof value.excerpt === "string" &&
-    typeof value.score === "number"
-  );
-}
-
-function isGraphNode(value: unknown): value is KnowledgeGraphNode {
-  return isRecord(value) && isNonEmptyString(value.id) && isKnowledgeResourceKind(value.kind) && isNonEmptyString(value.label);
-}
-
-function isGraphEdge(value: unknown): value is KnowledgeGraphEdge {
-  return (
-    isRecord(value) &&
-    isNonEmptyString(value.id) &&
-    (value.relation === "cites" ||
-      value.relation === "contains" ||
-      value.relation === "participates-in" ||
-      value.relation === "annotates" ||
-      value.relation === "has-artifact" ||
-      value.relation === "used-in" ||
-      value.relation === "supports" ||
-      value.relation === "contradicts" ||
-      value.relation === "extends" ||
-      value.relation === "derived-from") &&
-    isNonEmptyString(value.from) &&
-    isNonEmptyString(value.to) &&
-    typeof value.label === "string"
-  );
-}
-
 export function isKnowledgeResourceKind(value: unknown): value is KnowledgeResourceKind {
-  return (
-    value === "project" ||
-    value === "document" ||
-    value === "section" ||
-    value === "publication" ||
-    value === "pdf" ||
-    value === "annotation" ||
-    value === "claim" ||
-    value === "note" ||
-    value === "person" ||
-    value === "model-candidate"
-  );
-}
-
-function isNonEmptyString(value: unknown): value is string {
-  return typeof value === "string" && value.length > 0;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
+  return v.is(knowledgeResourceKindSchema, value);
 }

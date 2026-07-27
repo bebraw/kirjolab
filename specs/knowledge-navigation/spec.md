@@ -25,6 +25,9 @@ connection without reconstructing identity from a citation key or filename.
 - `GET /api/workspaces/{id}/search?q={query}` returns at most fifty ranked
   resources for at most ten query tokens.
 - `GET /api/workspaces/{id}/graph` returns the current nodes and typed edges.
+- Search-result and graph-response structure share Valibot schemas for resource
+  kinds, relationship kinds, non-empty identities, nodes, edges, and arrays;
+  ranking and graph derivation remain explicit domain policy.
 - The authoring surface offers peer `Write` and `Map` modes. `Map` renders the
   derived project graph, workspace search, and typed connections while keeping
   every node and connection available as an ordinary keyboard-operable resource
