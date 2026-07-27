@@ -182,7 +182,8 @@ changing their canonical data, selector, authorization, or rendering contracts.
 - A bounded resource-context presenter synchronizes the evidence, annotation,
   publication, claim, comment, and candidate Lit owners from the canonical
   workspace snapshot; composes the canonical tab-strip projection and selects
-  the active resource owner; derives only the active PDF's annotation projection;
+  the active resource owner; captures fixed/resource scroll and supplied viewer
+  page/focused-annotation state into the canonical context; derives only the active PDF's annotation projection;
   derives the authorized publication, project-PDF, private-or-linked PDF, and
   candidate identity sets from the canonical project and Library catalogs;
   and owns private-PDF inspector context, artifact-change markup reset, toolbar

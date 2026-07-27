@@ -247,6 +247,33 @@ describe("context resource presenter", () => {
     expect(presenter.resourceScrollTop(resourceTab("pdf", "pdf:1"))).toBe(36);
   });
 
+  it("captures fixed and active PDF presentation state", () => {
+    const { elements, presenter } = setup();
+    const pdfTab = resourceTab("pdf", "pdf:1");
+    const state = { activeKey: pdfTab.key, tabs: [{ kind: "preview", key: "preview", scrollTop: 0 } as const, pdfTab] };
+    vi.spyOn(elements["context-tab-strip"], "fixedScrollTop").mockReturnValue(null);
+    vi.spyOn(presenter, "resourceScrollTop").mockReturnValue(48);
+
+    const captured = presenter.captureContext(state, {
+      focusedAnnotationId: "annotation:1",
+      page: 3,
+      renderedContextKey: pdfTab.key,
+    });
+
+    expect(captured.tabs.find(({ key }) => key === pdfTab.key)).toMatchObject({
+      focusedAnnotationId: "annotation:1",
+      page: 3,
+      scrollTop: 48,
+    });
+
+    vi.spyOn(elements["context-tab-strip"], "fixedScrollTop").mockReturnValue(24);
+    const fixed = presenter.captureContext(
+      { activeKey: "preview", tabs: [{ kind: "preview", key: "preview", scrollTop: 0 }] },
+      { focusedAnnotationId: null, page: 1, renderedContextKey: undefined },
+    );
+    expect(fixed.tabs[0]?.scrollTop).toBe(24);
+  });
+
   it("projects canonical workspace resources across their bounded Lit owners", () => {
     const { elements, presenter } = setup();
     const snapshot = {

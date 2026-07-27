@@ -133,7 +133,9 @@ The adopted components own bounded presentation:
   tab reconciliation remains coordinator navigation policy. When restoring a
   supplied resource route, it also resolves the matching canonical publication,
   project PDF, private-Library PDF, linked reference PDF, or candidate and emits
-  the typed open effect. It restores and captures resource scroll,
+  the typed open effect. It restores resource scroll and captures fixed/resource
+  scroll plus supplied viewer page and focused-annotation state into the
+  canonical context,
   supplies citation and intake context, switches the project-annotation versus
   private-inspector presentation, owns private-PDF inspector context,
   artifact-change markup reset, toolbar counts and export target, page-local

@@ -32,12 +32,14 @@ import { ProjectEvidencePanel } from "./project-evidence-panel";
 import { mutateProjectReference } from "./project-reference-mutation";
 import { PublicationContextPanel } from "./publication-context-panel";
 import { PublicationListPanel } from "./publication-list-panel";
-import type {
-  ResearchContextAuthorization,
-  ResearchContextState,
-  ResearchContextTab,
-  ResearchResourceTab,
-  ResearchResourceTarget,
+import {
+  setPdfResearchLocation,
+  setResearchTabScroll,
+  type ResearchContextAuthorization,
+  type ResearchContextState,
+  type ResearchContextTab,
+  type ResearchResourceTab,
+  type ResearchResourceTarget,
 } from "./research-context";
 import { WorkspaceRailTabs } from "./workspace-rail-tabs";
 
@@ -113,6 +115,12 @@ export interface ContextRouteCoordinator {
   readonly refreshLibrary: () => Promise<void>;
 }
 
+export interface ContextViewerState {
+  readonly focusedAnnotationId: string | null;
+  readonly page: number;
+  readonly renderedContextKey: ResearchContextTab["key"] | undefined;
+}
+
 export class ContextResourcePresenter extends LitElement {
   private libraryPdfCoordinator: LibraryPdfCoordinator | null = null;
   private routeCoordinator: ContextRouteCoordinator | null = null;
@@ -132,6 +140,20 @@ export class ContextResourcePresenter extends LitElement {
     const value: unknown = await response.json();
     if (!isProjectReferencePdfs(value)) throw new Error("Project reference PDFs returned invalid metadata");
     this.loadedReferencePdfs = value;
+  }
+
+  captureContext(state: ResearchContextState, viewer: ContextViewerState): ResearchContextState {
+    const key = state.activeKey;
+    const fixedScrollTop = this.element("context-tab-strip", ContextTabStrip)?.fixedScrollTop(key) ?? null;
+    if (fixedScrollTop !== null) return setResearchTabScroll(state, key, fixedScrollTop);
+    const tab = state.tabs.find((item) => item.key === key);
+    if (!tab) return state;
+    const scrolled = setResearchTabScroll(state, key, this.resourceScrollTop(tab));
+    if ((tab.kind !== "pdf" && tab.kind !== "library-pdf") || tab.key !== viewer.renderedContextKey) return scrolled;
+    return setPdfResearchLocation(scrolled, key, {
+      page: viewer.page,
+      ...(tab.kind === "pdf" ? { focusedAnnotationId: viewer.focusedAnnotationId } : {}),
+    });
   }
 
   bindRoutes(coordinator: ContextRouteCoordinator): void {

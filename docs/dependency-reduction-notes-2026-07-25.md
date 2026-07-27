@@ -7382,6 +7382,28 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,691 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Context Presentation Capture
+
+`ContextResourcePresenter` now captures fixed-tab or resource-panel scroll and,
+for the rendered PDF, supplied viewer page and focused-annotation state into the
+canonical research context. `WorkspaceApp` retains capture timing, viewer
+authority, canonical context transitions, routing, and persistence.
+
+This checkpoint reduces `src/client/app.ts` from 1,986 to 1,975 lines (-11) and
+grows the context-resource presenter from 637 to 659 lines (+22). Runtime source
+across those two files increases by 11 lines while deleting the coordinator's
+presentation-owned tab and panel inspection policy. Focused coverage exercises
+fixed-tab scroll, resource scroll, PDF page and focused annotation capture,
+existing presentation, application contracts, and strict types.
+
+The browser application artifact changes from 843,175 B raw / 227,879 B gzip
+to 843,313 B raw / 227,968 B gzip (+138 B raw / +89 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,692 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

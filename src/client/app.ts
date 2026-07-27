@@ -82,7 +82,6 @@ import {
   reconcileResearchContext,
   researchResourceKey,
   setPdfResearchLocation,
-  setResearchTabScroll,
   type ResearchContextKey,
   type ResearchContextState,
   type PdfResearchLocation,
@@ -1233,21 +1232,11 @@ class WorkspaceApp {
   }
 
   #captureActiveContextState(): void {
-    const key = this.#contextState.activeKey;
-    const fixedScrollTop = this.#elements.contextTabStrip.fixedScrollTop(key);
-    if (fixedScrollTop !== null) {
-      this.#contextState = setResearchTabScroll(this.#contextState, key, fixedScrollTop);
-      return;
-    }
-    const tab = this.#contextState.tabs.find((item) => item.key === key);
-    if (!tab) return;
-    this.#contextState = setResearchTabScroll(this.#contextState, key, this.#elements.contextResourcePresenter.resourceScrollTop(tab));
-    if ((tab.kind === "pdf" || tab.kind === "library-pdf") && tab.key === this.#renderedPdfContextKey) {
-      this.#contextState = setPdfResearchLocation(this.#contextState, key, {
-        page: this.#pdfViewer.currentPage,
-        ...(tab.kind === "pdf" ? { focusedAnnotationId: this.#pdfViewer.focusedAnnotationId } : {}),
-      });
-    }
+    this.#contextState = this.#elements.contextResourcePresenter.captureContext(this.#contextState, {
+      focusedAnnotationId: this.#pdfViewer.focusedAnnotationId,
+      page: this.#pdfViewer.currentPage,
+      renderedContextKey: this.#renderedPdfContextKey,
+    });
   }
 
   #activateContext(key: ResearchContextKey): void {
