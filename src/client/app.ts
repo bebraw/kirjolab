@@ -1165,7 +1165,7 @@ class WorkspaceApp {
     this.#updateRevision();
     this.#scheduleOfflineSave();
     const active = this.#activeResourceTab();
-    if (active?.kind === "candidate") this.#renderCandidateContext(active);
+    if (active?.kind === "candidate") this.#presentResearchResource(active, false);
   }
 
   #activeEditorPresence(): readonly EditorPresenceRange[] {
@@ -2004,60 +2004,23 @@ class WorkspaceApp {
     });
     const activeTab = this.#activeResourceTab();
     this.#layout.restorePaneWidth();
-    this.#renderContextPdfVisibility(activeTab);
-    this.#elements.projectAnnotationForm.setCitationContext(
-      activeTab?.kind === "pdf" ? activeTab.id : null,
-      this.#snapshot?.publicationPdfLinks ?? [],
-    );
-    if (activeTab) this.#renderActiveResourceContext(activeTab, loadPdf);
+    this.#presentResearchResource(activeTab, loadPdf);
   }
 
-  #renderContextPdfVisibility(activeTab: ResearchResourceTab | undefined): void {
-    const activeLibraryArtifact = this.#activeLibraryPdfArtifact(activeTab);
-    const activeLibraryPdf = Boolean(activeLibraryArtifact);
-    const activeProjectReferencePdf = Boolean(
-      activeTab?.kind === "library-pdf" && !activeLibraryArtifact && this.#projectReferencePdf(activeTab.id),
-    );
-    this.#elements.projectAnnotationForm.setVisible(!activeLibraryPdf && !activeProjectReferencePdf);
-    this.#elements.libraryPdfInspector.setVisible(activeLibraryPdf);
-    if (!activeLibraryPdf) this.#setLibraryPdfInspector(false);
-    this.#renderLibraryHighlightComposer(activeLibraryArtifact);
-  }
-
-  #activeLibraryPdfArtifact(activeTab: ResearchResourceTab | undefined): LibraryPdfArtifact | undefined {
-    if (activeTab?.kind !== "library-pdf") return undefined;
-    return this.#librarySnapshot?.artifacts.find((artifact) => artifact.id === activeTab.id);
-  }
-
-  #renderActiveResourceContext(activeTab: ResearchResourceTab, loadPdf: boolean): void {
-    if (activeTab.kind === "publication") {
-      this.#renderPublicationContext(activeTab);
-      return;
-    }
-    if (activeTab.kind === "candidate") {
-      this.#renderCandidateContext(activeTab);
-      this.#elements.candidateReviewPanel.scrollPosition = activeTab.scrollTop;
-      return;
-    }
-    if (activeTab.kind === "pdf") {
-      this.#elements.publicationIntakePanel.setPdf(
-        activeTab.id,
-        this.#snapshot?.publications ?? [],
-        this.#snapshot?.publicationPdfLinks ?? [],
-      );
-    }
-    if (loadPdf) void this.#loadActivePdf(false);
-  }
-
-  #renderPublicationContext(tab: Extract<ResearchResourceTab, { kind: "publication" }>): void {
-    const rendered = this.#elements.publicationContextPanel.setPublication({
+  #presentResearchResource(activeTab: ResearchResourceTab | undefined, loadPdf: boolean): void {
+    const presentation = this.#elements.contextResourcePresenter.present({
+      activeTab,
+      candidateDecision: this.#assistantWorkflow.getSnapshot().context.candidateDecision,
       libraryArtifacts: this.#librarySnapshot?.artifacts ?? [],
-      publicationId: tab.id,
       referencePdfs: this.#projectReferencePdfs,
       snapshot: this.#snapshot,
+      sourceRevision: this.#revision,
+      stableDocument: this.#hasStableDocumentBase(),
     });
-    if (rendered) this.#updateCitationInsertionAvailability();
-    this.#elements.publicationContextPanel.scrollPosition = tab.scrollTop;
+    if (!presentation.activeLibraryArtifact) this.#setLibraryPdfInspector(false);
+    this.#renderLibraryHighlightComposer(presentation.activeLibraryArtifact);
+    if (presentation.publicationPresented) this.#updateCitationInsertionAvailability();
+    if (loadPdf && (activeTab?.kind === "pdf" || activeTab?.kind === "library-pdf")) void this.#loadActivePdf(false);
   }
 
   async #completePublicationIntake(doi: string, requestId: number): Promise<void> {
@@ -2071,18 +2034,6 @@ class WorkspaceApp {
     } catch (error) {
       this.#elements.publicationIntakePanel.failAcceptance(requestId, error);
     }
-  }
-
-  #renderCandidateContext(tab: ResearchResourceTab): void {
-    if (tab.kind !== "candidate") return;
-    const candidateDecision = this.#assistantWorkflow.getSnapshot().context.candidateDecision;
-    this.#elements.candidateReviewPanel.setCandidate({
-      candidateId: tab.id,
-      decision: candidateDecision,
-      snapshot: this.#snapshot,
-      sourceRevision: this.#revision,
-      stableDocument: this.#hasStableDocumentBase(),
-    });
   }
 
   #closeContextTab(key: ResearchContextKey): void {

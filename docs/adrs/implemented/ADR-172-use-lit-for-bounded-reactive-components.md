@@ -106,6 +106,13 @@ The adopted components own bounded presentation:
   state, and explicit project-PDF link and unlink transport, duplicate-submit
   gating, pending and retryable failure state, and typed citation,
   paper-navigation, and completed-relationship outcomes.
+- The context resource presenter selects and synchronizes the publication,
+  candidate, project-PDF, private-Library PDF, or shared-reference PDF owner from
+  one active-resource projection. It restores resource scroll, supplies
+  citation and intake context, and switches the project-annotation versus
+  private-inspector presentation. The coordinator retains canonical context
+  state, PDF loading, private markup drafts, citation insertion, refresh,
+  routing, and notification policy.
 - The knowledge search panel owns query capture, empty, result, and error
   presentation, and typed search and resource-selection intents. Its enclosing
   project-map workspace owns the authorized search request, response validation,

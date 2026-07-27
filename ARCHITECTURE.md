@@ -804,6 +804,13 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   private-versus-read-only PDF presentation, and restore supplied fixed-panel
   scroll positions during the same tab update. Keep canonical context state,
   authorization, loading, content rendering, routing, and transitions outside it.
+- Let a separate resource-context Lit presenter coordinate the active
+  publication, candidate, project-PDF, private-Library PDF, and shared-reference
+  PDF presentation from those canonical inputs. It may select the owning panel,
+  restore resource scroll, project citation and intake context, and switch the
+  annotation versus private-inspector surface. Keep tab state, PDF loading,
+  private markup drafts, citation insertion, canonical refresh, routing, and
+  notification policy in the application coordinator.
 - Project bounded, reconstructible editor UI selections into query parameters
   only after validating stable ids against authorized snapshots.
   Push meaningful context-target navigation, replace incidental view and page

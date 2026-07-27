@@ -105,6 +105,12 @@ connection without reconstructing identity from a citation key or filename.
   applicability, matching decision progress, retryable failure, and scroll
   presentation. Assistant workflow transitions, canonical refresh, tab
   movement, and workspace notification policy remain outside it.
+- The resource-context presenter must synchronize exactly one active publication,
+  candidate, project PDF, private-Library PDF, or shared-reference PDF owner from
+  canonical context inputs. It may restore resource scroll and select the
+  appropriate annotation or inspector presentation, but PDF loading, markup
+  drafts, citation insertion, routing, refresh, and notification policy remain
+  outside it.
 - The project-map workspace owns authorized search requests, response
   validation, and the shared idle, result, and error state that controls both
   the search presentation and graph-overview visibility. Resource navigation

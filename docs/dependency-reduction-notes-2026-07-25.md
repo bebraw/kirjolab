@@ -5531,6 +5531,34 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,616 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Resource Context Projection
+
+`ContextResourcePresenter` now selects and synchronizes the active publication,
+candidate, project-PDF, private-Library PDF, or shared-reference PDF owner from
+canonical context inputs. It restores publication and candidate scroll,
+projects citation and intake inputs, and switches project-annotation versus
+private-inspector presentation. `WorkspaceApp` retains canonical context state,
+PDF loading, private markup drafts, citation insertion, refresh, routing, and
+notification policy.
+
+This checkpoint reduces `src/client/app.ts` from 3,254 to 3,205 lines (-49) and
+adds a 124-line bounded resource presenter. Runtime source across those two
+files grows by 75 lines while deleting four coordinator presentation methods
+and consolidating five resource variants behind one typed boundary. Three
+direct presenter cases plus the server-rendered shell contract cover inactive,
+publication, candidate, project-PDF, private-Library, and shared-reference
+projection alongside strict client and Workers types. A simplify pass removes
+derivable result flags, and the readability audit remains at 24 high-complexity
+functions without retaining the presenter's initial hotspot.
+
+The browser application artifact changes from 828,028 B raw / 224,000 B gzip
+to 829,260 B raw / 224,606 B gzip (+1,232 B raw / +606 B gzip). Styles and
+direct and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,619 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

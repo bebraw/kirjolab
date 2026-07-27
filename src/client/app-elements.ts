@@ -12,6 +12,7 @@ import { ClaimListPanel } from "./claim-list-panel";
 import { CollaboratorSelectionList } from "./collaborator-selection-list";
 import { ConnectionStatus } from "./connection-status";
 import { ContextTabStrip } from "./context-tab-strip";
+import { ContextResourcePresenter } from "./context-resource-presenter";
 import { EditorInsertMenu } from "./editor-insert-menu";
 import { EditorStatus } from "./editor-status";
 import { GitHubImportPanel } from "./github-import-panel";
@@ -124,6 +125,7 @@ export function collectAppElements(requireElement = requiredAppElement) {
     workspaceSurfaceSwitcher: requireElement("workspace-surface-switcher", WorkspaceSurfaceSwitcher),
     sourceCitationControl: requireElement("source-citation-control", SourceCitationControl),
     contextTabStrip: requireElement("context-tab-strip", ContextTabStrip),
+    contextResourcePresenter: requireElement("context-resource-presenter", ContextResourcePresenter),
     previewContextControls: requireElement("preview-context-controls", PreviewContextStatus),
     workspacePreview: requireElement("workspace-preview", WorkspacePreview),
     publicationContextPanel: requireElement("publication-context-panel", PublicationContextPanel),
