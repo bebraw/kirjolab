@@ -76,7 +76,6 @@ import {
   type ResearchContextState,
   type PdfResearchLocation,
   type ResearchResourceKey,
-  type ResearchResourceTab,
 } from "./research-context";
 import {
   readWorkspaceUiRoute,
@@ -199,7 +198,8 @@ class WorkspaceApp {
       onPrivateHighlight: (highlightId) => this.#elements.contextResourcePresenter.selectLibraryHighlight(highlightId),
     });
     this.#layout = WorkspaceLayoutManager.forWorkspace(this.#elements.workspaceSurfaces, {
-      paneStorageKey: () => `kirjolab:authoring-pane:${workspaceId}:${this.#activeResourceTab()?.kind ?? "preview"}`,
+      paneStorageKey: () =>
+        `kirjolab:authoring-pane:${workspaceId}:${this.#elements.contextResourcePresenter.activeTab?.kind ?? "preview"}`,
       resizePdf: () => void this.#pdfViewer.resize(),
     });
     this.#elements.previewSyncControls.bindSource(this.#elements.source, this.#elements.sourceHighlight, {
@@ -790,7 +790,7 @@ class WorkspaceApp {
     this.#renderSourceEditorHighlight();
     this.#updateRevision();
     this.#scheduleOfflineSave();
-    const active = this.#activeResourceTab();
+    const active = this.#elements.contextResourcePresenter.activeTab;
     if (active?.kind === "candidate") this.#renderResearchContext(false);
   }
 
@@ -1202,13 +1202,6 @@ class WorkspaceApp {
     this.#elements.contextTabStrip.focusTab(key);
   }
 
-  #activeResourceTab(): ResearchResourceTab | undefined {
-    return this.#contextState.tabs.find(
-      (tab): tab is ResearchResourceTab =>
-        tab.kind !== "preview" && tab.kind !== "library" && tab.kind !== "assistant" && tab.key === this.#contextState.activeKey,
-    );
-  }
-
   async #openPublicationPaper(paper: PublicationPaperOption): Promise<void> {
     if (paper.kind === "project") {
       await this.#showPaper(paper.pdf);
@@ -1307,12 +1300,12 @@ class WorkspaceApp {
   }
 
   #updateCitationInsertionAvailability(): void {
-    const available = this.#activeResourceTab()?.kind === "publication" && this.#resolvedAuthoringCaret() !== null;
+    const available = this.#elements.contextResourcePresenter.activeTab?.kind === "publication" && this.#resolvedAuthoringCaret() !== null;
     this.#elements.publicationContextPanel.setCitationAvailable(available);
   }
 
   #insertActivePublicationCitation(): void {
-    const tab = this.#activeResourceTab();
+    const tab = this.#elements.contextResourcePresenter.activeTab;
     const publication = tab?.kind === "publication" ? this.#snapshot?.publications.find((item) => item.id === tab.id) : undefined;
     if (!publication) return;
 
@@ -1320,7 +1313,7 @@ class WorkspaceApp {
   }
 
   #citeActivePdf(): void {
-    const tab = this.#activeResourceTab();
+    const tab = this.#elements.contextResourcePresenter.activeTab;
     if (tab?.kind !== "pdf" || !this.#snapshot) return;
     const links = this.#snapshot.publicationPdfLinks.filter((link) => link.pdfId === tab.id);
     const publication = links.length === 1 ? this.#snapshot.publications.find((item) => item.id === links[0]?.publicationId) : undefined;
@@ -1353,7 +1346,7 @@ class WorkspaceApp {
 
   async #loadActivePdf(force: boolean): Promise<void> {
     const context = activePdfLoadContext({
-      activeTab: this.#activeResourceTab(),
+      activeTab: this.#elements.contextResourcePresenter.activeTab,
       annotations: this.#snapshot?.annotations ?? [],
       apiBase,
       libraryArtifacts: this.#librarySnapshot?.artifacts ?? [],
@@ -1382,13 +1375,13 @@ class WorkspaceApp {
         mode: context.workspacePdf ? "evidence" : context.libraryPdf ? "private-highlight" : "read-only",
         privateHighlights: context.privateHighlights,
       });
-      const active = this.#activeResourceTab();
+      const active = this.#elements.contextResourcePresenter.activeTab;
       if (!opened || active?.key !== context.tab.key) return;
       this.#renderedPdfContextKey = context.tab.key;
       this.#renderedPdfId = context.workspacePdf?.id;
       this.#elements.paperReader.scrollTop = context.tab.scrollTop;
     } catch (error) {
-      if (this.#activeResourceTab()?.key === context.tab.key) this.#pdfViewer.showError(error);
+      if (this.#elements.contextResourcePresenter.activeTab?.key === context.tab.key) this.#pdfViewer.showError(error);
     }
   }
 
@@ -1586,7 +1579,7 @@ class WorkspaceApp {
 
   #handlePdfPageChange(page: number): void {
     this.#renderPdfMarkups();
-    const active = this.#activeResourceTab();
+    const active = this.#elements.contextResourcePresenter.activeTab;
     if (active?.kind === "pdf" || active?.kind === "library-pdf") {
       this.#contextState = setPdfResearchLocation(this.#contextState, active.key, { page });
       this.#syncWorkspaceRoute("replace");
@@ -1598,7 +1591,7 @@ class WorkspaceApp {
   }
 
   #capturePdfSelection(capture: PdfSelectionCapture): void {
-    const activeTab = this.#activeResourceTab();
+    const activeTab = this.#elements.contextResourcePresenter.activeTab;
     if (activeTab?.kind === "library-pdf") {
       const artifact = this.#librarySnapshot?.artifacts.find((item) => item.id === activeTab.id);
       if (!artifact) return;
@@ -1619,7 +1612,7 @@ class WorkspaceApp {
   }
 
   #activeLibraryPdf(): LibraryPdfArtifact | undefined {
-    const tab = this.#activeResourceTab();
+    const tab = this.#elements.contextResourcePresenter.activeTab;
     return tab?.kind === "library-pdf" ? this.#librarySnapshot?.artifacts.find((item) => item.id === tab.id) : undefined;
   }
 

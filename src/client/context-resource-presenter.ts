@@ -122,12 +122,17 @@ export interface ContextViewerState {
 }
 
 export class ContextResourcePresenter extends LitElement {
+  private currentActiveTab: ResearchResourceTab | undefined;
   private libraryPdfCoordinator: LibraryPdfCoordinator | null = null;
   private routeCoordinator: ContextRouteCoordinator | null = null;
   private loadedReferencePdfs: readonly ProjectReferencePdf[] = [];
 
   get referencePdfs(): readonly ProjectReferencePdf[] {
     return this.loadedReferencePdfs;
+  }
+
+  get activeTab(): ResearchResourceTab | undefined {
+    return this.currentActiveTab;
   }
 
   async refreshReferencePdfs(projectApiBase: string | null, fetcher: typeof fetch = fetch): Promise<void> {
@@ -223,6 +228,7 @@ export class ContextResourcePresenter extends LitElement {
       (tab): tab is ResearchResourceTab =>
         tab.kind !== "preview" && tab.kind !== "library" && tab.kind !== "assistant" && tab.key === context.activeKey,
     );
+    this.currentActiveTab = activeTab;
     return { activeTab, ...this.present({ ...resourceSources, activeTab }) };
   }
 

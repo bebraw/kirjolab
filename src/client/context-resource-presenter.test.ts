@@ -195,6 +195,7 @@ describe("context resource presenter", () => {
     );
     expect(present).toHaveBeenCalledWith(expect.objectContaining({ activeTab: tab }));
     expect(presentation.activeTab).toBe(tab);
+    expect(presenter.activeTab).toBe(tab);
   });
 
   it("loads and validates the linked-reference PDF catalog", async () => {

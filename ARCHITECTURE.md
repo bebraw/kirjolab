@@ -924,8 +924,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Let a separate resource-context Lit presenter coordinate the active
   publication, candidate, project-PDF, private-Library PDF, and shared-reference
   PDF presentation from those canonical inputs. It owns the composed canonical
-  tab-strip projection and active resource selection before selecting the owning
-  panel, restores resource scroll, projects supplied viewer state back into canonical
+  tab-strip projection, derives and retains the active resource selection for
+  sibling consumers before selecting the owning panel, restores resource scroll,
+  projects supplied viewer state back into canonical
   fixed-tab scroll, resource scroll, PDF page, and focused-annotation state;
   coordinates project citation and intake context,
   switch the annotation versus private-inspector surface, synchronize the

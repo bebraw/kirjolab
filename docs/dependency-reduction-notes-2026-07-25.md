@@ -7661,6 +7661,29 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,698 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Active Context Resource
+
+`ContextResourcePresenter` now retains the active resource tab it already
+derives while composing each canonical context presentation. Layout, citation,
+PDF, and assistant coordinator effects read that bounded presentation result
+instead of searching the canonical tab collection independently at twelve call
+sites.
+
+This checkpoint reduces `src/client/app.ts` from 1,856 to 1,849 lines (-7) and
+grows the context-resource presenter from 659 to 665 lines (+6). Runtime source
+across those files decreases by one line while deleting the coordinator's
+resource-tab type import and repeated derived-state helper. Focused coverage
+exercises fixed and resource active states, existing context composition,
+application contracts, and strict types.
+
+The browser application artifact changes from 844,654 B raw / 229,069 B gzip
+to 844,976 B raw / 229,062 B gzip (+322 B raw / -7 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,698 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,
