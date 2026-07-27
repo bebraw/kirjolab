@@ -381,7 +381,8 @@ memory and makes citation aliases compete with stable source identity.
   response validation, and the single browser Library snapshot projection used
   by its filters, list, network, PDF queue, and coordinator consumers. It also
   restores standalone Library routes through owned reference focus and artifact
-  lookup. The coordinator retains refresh timing, cross-feature reconciliation,
+  lookup, and owns archive-aware source recovery, focus, and missing-reference
+  feedback for direct entry navigation. The coordinator retains refresh timing, cross-feature reconciliation,
   viewer effects, history mutation, context transitions, and notification policy.
 - A project publication context resolves every authorized paper representation
   for the stable reference identity. The owner sees attached private-library

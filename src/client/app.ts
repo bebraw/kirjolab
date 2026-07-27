@@ -1102,24 +1102,10 @@ class WorkspaceApp {
 
   async #openReferenceLibraryEntry(referenceId: string, updateHistory = true): Promise<void> {
     await this.#openReferenceLibrary(false);
-    const opened = await this.#focusReferenceLibraryEntry(referenceId);
+    const opened = await this.#elements.referenceLibraryWorkspace.focusAvailableReference(referenceId);
     if (opened && appMode === "library" && updateHistory) {
       history.pushState({ view: "library-reference", referenceId }, "", `/library?reference=${encodeURIComponent(referenceId)}`);
     }
-  }
-
-  async #focusReferenceLibraryEntry(referenceId: string): Promise<boolean> {
-    if (
-      !this.#librarySnapshot?.references.some((reference) => reference.id === referenceId) &&
-      this.#elements.referenceLibraryWorkspace.showArchivedReferences()
-    ) {
-      await this.#refreshReferenceLibrary();
-    }
-    if (!(await this.#elements.referenceLibraryWorkspace.openReference(referenceId))) {
-      this.#showToast("That reference is no longer available in the Library.");
-      return false;
-    }
-    return true;
   }
 
   async #refreshReferenceLibrary(): Promise<void> {

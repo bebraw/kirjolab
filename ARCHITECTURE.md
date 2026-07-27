@@ -102,7 +102,8 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   outcomes, including project reference and research mutation completion. Let
   it also own canonical Library loading, response validation, archive-aware
   request scope, the single browser snapshot projection, and standalone Library
-  route lookup plus focused-reference restoration. Keep cross-feature PDF and
+  route lookup plus archive-aware focused-reference restoration and missing-
+  reference feedback. Keep cross-feature PDF and
   context navigation, history mutation, project snapshot application, refresh timing, and notification
   presentation in their authorities behind narrow typed callbacks.
 - Keep resource-card lookup, scrolling, and focus inside the Lit component that

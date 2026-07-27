@@ -7428,6 +7428,29 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,693 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Library Entry Focus
+
+`ReferenceLibraryWorkspace` now owns direct-entry availability checks,
+archive-visibility recovery, canonical refresh requests, focused-reference
+navigation, and missing-reference feedback. `WorkspaceApp` retains Library
+activation and pushes a canonical direct-entry URL only after successful focus.
+
+This checkpoint reduces `src/client/app.ts` from 1,964 to 1,950 lines (-14) and
+grows the composed Library workspace from 328 to 337 lines (+9). Runtime source
+across those two files decreases by five lines while deleting the coordinator's
+Library snapshot inspection, archive recovery, focus, and feedback branches.
+Focused coverage exercises archived recovery, successful focus, missing-source
+feedback, existing Library composition, application contracts, and strict
+types.
+
+The browser application artifact changes from 843,512 B raw / 228,072 B gzip
+to 843,577 B raw / 228,067 B gzip (+65 B raw / -5 B gzip). Styles and direct and
+unique production package counts remain unchanged at 135,411 B raw / 23,373 B
+gzip, 18, and 150.
+
+Full native CI passes all 1,694 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

@@ -251,6 +251,15 @@ export class ReferenceLibraryWorkspace extends LitElement {
     return this.focusReference(referenceId, "", { block: "center", expand: true });
   }
 
+  async focusAvailableReference(referenceId: string): Promise<boolean> {
+    if (!this.snapshot?.references.some(({ id }) => id === referenceId) && this.showArchivedReferences()) {
+      await this.callbacks.refreshLibrary();
+    }
+    if (await this.openReference(referenceId)) return true;
+    this.callbacks.presentNotice("That reference is no longer available in the Library.");
+    return false;
+  }
+
   revealReference(referenceId: string, query: string): Promise<boolean> {
     return this.focusReference(referenceId, query, { block: "nearest" });
   }

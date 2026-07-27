@@ -166,6 +166,29 @@ describe("reference Library workspace", () => {
     expect(presentNotice).toHaveBeenCalledWith("That PDF is no longer in the library.");
   });
 
+  it("focuses an available archived reference and owns missing feedback", async () => {
+    const { workspace } = setup();
+    const presentNotice = vi.fn();
+    const refreshLibrary = vi.fn(async () => undefined);
+    workspace.configure("workspace", {
+      compareSnapshots: vi.fn(),
+      openPdf: vi.fn(),
+      presentNotice,
+      refreshLibrary,
+      refreshMetadata: vi.fn(),
+      revealExistingPdf: vi.fn(),
+    });
+    workspace.setData({ library: { ...library, references: [] }, projectApiBase: null, projectReferences: [], researchShares: [] });
+    vi.spyOn(workspace, "showArchivedReferences").mockReturnValue(true);
+    vi.spyOn(workspace, "openReference").mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+
+    await expect(workspace.focusAvailableReference("reference-1")).resolves.toBe(true);
+    await expect(workspace.focusAvailableReference("missing")).resolves.toBe(false);
+
+    expect(refreshLibrary).toHaveBeenCalledTimes(2);
+    expect(presentNotice).toHaveBeenCalledWith("That reference is no longer available in the Library.");
+  });
+
   it("owns filter reset, result settlement, and focused-reference reveal", async () => {
     const { owners, workspace } = setup();
     const filters = owners["reference-library-filters"];
