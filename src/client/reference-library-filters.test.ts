@@ -34,11 +34,11 @@ describe("reference library filter panel", () => {
   it("renders dynamic types, counts, and reset state", () => {
     const panel = new TestReferenceLibraryFilterPanel();
     expect(panel.rootForTest()).toBe(panel);
-    const references = panel.filterLibrary(library("article", "book"), new Set());
+    const references = panel.filterLibrary(library("article", "book"), []);
     expect(references).toHaveLength(2);
     expect(panel.renderForTest()).toBeDefined();
     panel.changeForTest("type", "article");
-    panel.filterLibrary(library("book"), new Set());
+    panel.filterLibrary(library("book"), []);
     expect(panel.value.type).toBe("");
     panel.reset("sourceunderreview");
     expect(panel.value.query).toBe("sourceunderreview");
@@ -77,6 +77,13 @@ describe("reference library filter panel", () => {
     panel.changeForTest("completeness", "invalid");
     panel.changeForTest("sort", "invalid");
     expect(panel.value).toMatchObject({ completeness: "all", linkage: "all", readingStatus: "all", sort: "updated" });
+  });
+
+  it("derives project linkage from canonical project references", () => {
+    const panel = new TestReferenceLibraryFilterPanel();
+    panel.changeForTest("linkage", "linked");
+
+    expect(panel.filterLibrary(library("article", "book"), [{ referenceId: "reference-1" }]).map(({ id }) => id)).toEqual(["reference-1"]);
   });
 });
 

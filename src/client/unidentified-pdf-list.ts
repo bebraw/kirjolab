@@ -1,6 +1,6 @@
 import { html, LitElement, type TemplateResult } from "lit";
 import { bibTeXDisplayText } from "../domain/bibliography";
-import type { LibraryPdfArtifact } from "../domain/reference-library";
+import type { LibraryPdfArtifact, ReferenceLibrarySnapshot } from "../domain/reference-library";
 import { formatBytes } from "./format";
 import { errorMessage, expectOk, jsonFetch } from "./http";
 
@@ -44,11 +44,11 @@ export class UnidentifiedPdfList extends LitElement {
     this.savingArtifactId = "";
   }
 
-  setData(artifacts: readonly LibraryPdfArtifact[], references: readonly UnidentifiedPdfReference[]): void {
-    this.artifacts = artifacts;
-    this.references = references;
-    const artifactIds = new Set(artifacts.map(({ id }) => id));
-    const referenceIds = new Set(references.map(({ id }) => id));
+  setLibrary(library: Pick<ReferenceLibrarySnapshot, "artifacts" | "references">): void {
+    this.artifacts = library.artifacts.filter(({ referenceId }) => referenceId === null);
+    this.references = library.references;
+    const artifactIds = new Set(this.artifacts.map(({ id }) => id));
+    const referenceIds = new Set(this.references.map(({ id }) => id));
     for (const [artifactId, referenceId] of this.selections) {
       if (!artifactIds.has(artifactId) || !referenceIds.has(referenceId)) this.selections.delete(artifactId);
     }

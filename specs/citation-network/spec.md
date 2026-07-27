@@ -42,9 +42,10 @@ provider result, extraction, or model suggestion as equally trustworthy.
   cards, assertion provenance, review controls, expansion candidates, and
   local save progress. Its enclosing Lit workspace owns network loading,
   current-project filtering, request generations, response validation, prompts,
-  assertion and review mutations, expansion, candidate acceptance, and local
-  failures. The application coordinator retains canonical Library refresh and
-  notice presentation through typed outcomes.
+  assertion and review mutations, expansion, candidate acceptance, canonical
+  bibliographic-title display projection, and local failures. The application
+  coordinator retains canonical Library refresh and notice presentation through
+  typed outcomes.
 
 ### API Contracts
 

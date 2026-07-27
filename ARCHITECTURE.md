@@ -74,8 +74,8 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   Library rerendering, and notification policy in the application coordinator.
 - Let the reference Library filter Lit owner derive dynamic type choices,
   filtered and sorted reference results, and visible-versus-total counts from
-  the canonical Library snapshot, its local filter state, and coordinator-
-  supplied linked-reference ids. Keep canonical snapshot loading, result-card
+  the canonical Library snapshot, its local filter state, and canonical
+  project-reference inputs. Keep canonical snapshot loading, result-card
   composition, navigation, mutations, and refresh policy in their authorities.
 - Keep resource-card lookup, scrolling, and focus inside the Lit component that
   renders those cards. Let the Library reference-list owner route a PDF
@@ -414,8 +414,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   duplicate-source navigation, and toast policy.
 - Keep legacy unattached-PDF selection, identification transport,
   duplicate-submit gating, local progress and retryable failures, and
-  refresh-pending state in the Lit identification queue. The application
-  coordinator retains canonical Library refresh and toast policy.
+  refresh-pending state in the Lit identification queue. Let that queue derive
+  the unattached subset and reference choices from the canonical Library
+  snapshot. The application coordinator retains canonical Library refresh and
+  toast policy.
 - Extract PDF metadata only as bounded, browser-local suggestions. Apply
   canonical library changes per field after the library authority verifies the
   artifact/reference relationship; never change the immutable reference key.
@@ -491,8 +493,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Let the citation-network Lit workspace own loading, project filtering,
   request generations, response guards, manual assertion and review mutations,
   expansion and candidate acceptance, local progress, and retryable failures.
-  Emit only notice and canonical Library-refresh outcomes to the application
-  coordinator.
+  Let it derive human-facing node titles from canonical bibliographic records,
+  and emit only notice and canonical Library-refresh outcomes to the
+  application coordinator.
 - Retain immutable project-wide logical revisions separately from the
   manuscript concurrency revision. Each history snapshot must atomically
   preserve the exact Yjs state, stable file tree, aliases, pinned source and

@@ -14,6 +14,8 @@ const emptyFilters: ReferenceLibraryFilters = {
   type: "",
 };
 
+type LinkedReference = { readonly referenceId: string };
+
 export class ReferenceLibraryFilterPanel extends LitElement {
   static override properties = {
     count: { state: true },
@@ -43,10 +45,10 @@ export class ReferenceLibraryFilterPanel extends LitElement {
     this.filters = query ? { ...emptyFilters, query } : emptyFilters;
   }
 
-  filterLibrary(library: ReferenceLibrarySnapshot, linkedReferenceIds: ReadonlySet<string>): readonly BibliographicRecord[] {
+  filterLibrary(library: ReferenceLibrarySnapshot, projectReferences: readonly LinkedReference[]): readonly BibliographicRecord[] {
     this.types = [...new Set(library.references.map((reference) => reference.type))].sort();
     if (this.filters.type && !this.types.includes(this.filters.type)) this.filters = { ...this.filters, type: "" };
-    const references = filterReferenceLibrary(library, linkedReferenceIds, this.filters);
+    const references = filterReferenceLibrary(library, new Set(projectReferences.map(({ referenceId }) => referenceId)), this.filters);
     this.count = references.length;
     this.total = library.references.length;
     return references;

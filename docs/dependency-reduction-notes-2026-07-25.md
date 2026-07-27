@@ -5581,6 +5581,30 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,620 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Library Projections
+
+The citation-network workspace now derives display titles from canonical
+bibliographic records, the Library filter derives linked-reference ids from
+canonical project references, and the unidentified-PDF queue derives its
+legacy unattached-artifact subset from the canonical Library snapshot.
+`WorkspaceApp` retains canonical snapshot loading, result-card composition,
+navigation, refresh, and notification policy.
+
+This checkpoint reduces `src/client/app.ts` from 3,198 to 3,195 lines (-3).
+Runtime source across the three existing Lit owners grows by three lines, so
+the four-file total is unchanged while three coordinator-side adapter
+projections disappear. Twelve focused cases cover title normalization,
+project-link derivation, unattached-artifact selection, existing presentation
+and mutation behavior, and strict client and Workers types.
+
+The browser application artifact changes from 829,375 B raw / 224,642 B gzip
+to 829,400 B raw / 224,627 B gzip (+25 B raw / -15 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,621 unit/coverage tests, 120 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

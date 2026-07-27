@@ -1,4 +1,5 @@
 import { html, LitElement, type PropertyValues, type TemplateResult } from "lit";
+import { bibTeXDisplayText } from "../domain/bibliography";
 import { isCitationNetwork, type CitationNetwork } from "../domain/citation-assertions";
 import { isCitationCandidateAcceptance } from "../domain/citation-expansion-acceptance";
 import { isCitationExpansionResult } from "../domain/citation-expansion";
@@ -85,7 +86,7 @@ export class CitationNetworkWorkspace extends LitElement {
   }
 
   setReferences(references: readonly CitationReferenceChoice[]): void {
-    this.references = references;
+    this.references = references.map(({ id, title }) => ({ id, title: bibTeXDisplayText(title) }));
   }
 
   setCandidateSaving(doi: string, saving: boolean): void {

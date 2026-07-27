@@ -2,7 +2,6 @@ import * as Y from "yjs";
 import "./action-menu-controller";
 import { collectAppElements } from "./app-elements";
 import { activePdfLoadContext, type ActivePdfLoadContext } from "./active-pdf-context";
-import { bibTeXDisplayText } from "../domain/bibliography";
 import { buildWorkspaceKnowledgeGraph } from "../domain/knowledge";
 import type { ReferenceDiscoveryResult } from "../domain/reference-discovery";
 import { reviewerResponsePath, reviewerResponseTemplate } from "../domain/reviewer-response";
@@ -1691,9 +1690,8 @@ class WorkspaceApp {
   #renderReferenceLibrary(): void {
     const library = this.#librarySnapshot;
     if (!library) return;
-    this.#elements.citationNetwork.setReferences(library.references.map(({ id, title }) => ({ id, title: bibTeXDisplayText(title) })));
-    const linked = new Set(this.#snapshot?.projectReferences.map((reference) => reference.referenceId) ?? []);
-    const references = this.#elements.referenceLibraryFilters.filterLibrary(library, linked);
+    this.#elements.citationNetwork.setReferences(library.references);
+    const references = this.#elements.referenceLibraryFilters.filterLibrary(library, this.#snapshot?.projectReferences ?? []);
     this.#elements.referenceLibraryList.setData({
       library,
       projectApiBase: appMode === "workspace" ? apiBase : null,
@@ -1702,8 +1700,7 @@ class WorkspaceApp {
       researchShares: this.#snapshot?.researchShares ?? [],
     });
 
-    const unidentified = library.artifacts.filter((artifact) => artifact.referenceId === null);
-    this.#elements.unidentifiedPdfList.setData(unidentified, library.references);
+    this.#elements.unidentifiedPdfList.setLibrary(library);
   }
 
   async #completeLibraryRefresh(

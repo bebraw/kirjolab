@@ -210,7 +210,8 @@ The adopted components own bounded presentation:
   generations, response validation, assertion recording and review, expansion,
   candidate acceptance, prompts, local progress and failures, the latest
   network and expansion snapshots, close behavior, reference synchronization,
-  and typed notice or Library-refresh outcomes.
+  canonical bibliographic-title display projection, and typed notice or
+  Library-refresh outcomes.
 - The Preview context status and diagnostics panels derive file-mode and issue
   summaries from canonical preview and diagnostic inputs, and own
   unavailable-state presentation, composition and renderer diagnostic cards,
@@ -313,8 +314,9 @@ The adopted components own bounded presentation:
   components and the application coordinator.
 - The reference Library filter panel owns query, type, reading,
   organization, project-linkage, completeness, and sort values, dynamic type
-  choices, canonical filtering and sorting, result counts, reset behavior, and
-  a typed filter-change intent.
+  choices, project-linkage derivation from canonical project-reference inputs,
+  canonical filtering and sorting, result counts, reset behavior, and a typed
+  filter-change intent.
 - The model provider settings panel owns connection, endpoint, model, and
   reasoning-effort values, browser-local persistence, Valibot-backed saved-value
   restoration with bounded per-field fallbacks, dynamic model choices,
@@ -425,9 +427,9 @@ The adopted components own bounded presentation:
   controlled editor, write-action, and map visibility, map focus entry through
   its composed workspace, plus a typed mode-change intent.
 - The unidentified-PDF queue owns legacy unattached-artifact count, visibility,
-  reference choices, identification transport, duplicate-submit gating, local
-  progress and retryable failures, refresh-pending state, and a typed refresh
-  outcome.
+  reference choices and artifact-subset derivation from the canonical Library
+  snapshot, identification transport, duplicate-submit gating, local progress
+  and retryable failures, refresh-pending state, and a typed refresh outcome.
 - The Library reference summary owns title and metadata presentation, PDF and
   project-link actions, their accessible labels, project-link and unlink
   transport, canonical workspace-response validation, and typed completed
@@ -686,8 +688,8 @@ reason to wrap static markup mechanically.
 - The reference Library filter panel replaces eight internal element references,
   seven control listeners, filter-value validation, dynamic type-option
   rendering, result-count updates, and coordinator-side canonical filtering.
-  The application coordinator supplies linked-reference ids and retains
-  result-card composition and navigation.
+  It derives linked-reference ids from canonical project-reference inputs; the
+  application coordinator retains result-card composition and navigation.
 - The model provider settings panel replaces six internal element references,
   duplicate preference listeners and status synchronization, stored-value
   validation, and imperative model-option rendering. It also removes the
@@ -893,8 +895,9 @@ reason to wrap static markup mechanically.
   retains route synchronization, responsive rail layout, and guide rendering.
 - The unidentified-PDF queue replaces two internal element references,
   imperative section, count, empty-state, card, and option rendering, and
-  per-card action bindings while leaving legacy artifact identification,
-  Library refreshes, and toast policy in the application coordinator.
+  per-card action bindings. It also derives its legacy unattached-artifact
+  subset from the canonical Library snapshot while leaving Library refreshes
+  and toast policy in the application coordinator.
 - The Library reference summary replaces imperative title, metadata, and action
   rendering plus per-card PDF and project-link handlers with one delegated
   action stream while leaving mutations, PDF presentation, result-card

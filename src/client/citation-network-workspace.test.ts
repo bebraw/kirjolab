@@ -62,7 +62,7 @@ function configuredWorkspace() {
   Object.defineProperty(workspace, "scrollIntoView", { value: scrollIntoView });
   workspace.configure("workspace-1");
   workspace.setReferences([
-    { id: "source:1", title: "Source 1" },
+    { id: "source:1", title: "Source {1}" },
     { id: "source:2", title: "Source 2" },
   ]);
   return { panel, scrollIntoView, workspace };
@@ -93,7 +93,10 @@ describe("citation network workspace", () => {
     expect(fetchMock).toHaveBeenNthCalledWith(2, "/api/library/citation-network?projectId=workspace-1", {
       credentials: "same-origin",
     });
-    expect(panel.setReferences).toHaveBeenCalled();
+    expect(panel.setReferences).toHaveBeenCalledWith([
+      { id: "source:1", title: "Source 1" },
+      { id: "source:2", title: "Source 2" },
+    ]);
     expect(panel.setData).toHaveBeenCalled();
     expect(scrollIntoView).toHaveBeenCalledWith({ block: "start" });
     expect(workspace.hidden).toBe(true);

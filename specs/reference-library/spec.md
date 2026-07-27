@@ -72,10 +72,11 @@ memory and makes citation aliases compete with stable source identity.
 - A bounded light-DOM queue owns the count, visibility, reference choices,
   identification request, duplicate-submit gating, local progress and
   retryable failure state, and refresh-pending acknowledgment for legacy PDF
-  artifacts that are not attached to a source. The workspace coordinator
-  retains canonical Library refresh and toast policy. New uploads still create
-  their provisional source atomically and normally bypass this compatibility
-  queue.
+  artifacts that are not attached to a source. It derives that artifact subset
+  and the available choices from the canonical Library snapshot. The workspace
+  coordinator retains canonical Library refresh and toast policy. New uploads
+  still create their provisional source atomically and normally bypass this
+  compatibility queue.
 - A bounded Library tools menu owns portable-archive file selection and reset,
   restore transport, duplicate-submit and refresh-pending state, local restore
   failures, export links, citation-network and archived-reference controls,
@@ -98,9 +99,10 @@ memory and makes citation aliases compete with stable source identity.
   refresh-pending state, and a typed refresh outcome. The workspace coordinator
   routes results and retains canonical Library refresh and toast policy.
 - One bounded filter component owns Library query and facet values, dynamic
-  type choices, validated defaults, result counts, and reset behavior. The
-  workspace coordinator retains canonical reference filtering,
-  project-linkage projection, result-card assembly, and reference navigation.
+  type choices, validated defaults, canonical reference filtering,
+  project-linkage projection from canonical project-reference inputs, result
+  counts, and reset behavior. The workspace coordinator retains result-card
+  assembly and reference navigation.
 - A bounded light-DOM reference summary owns each result's display title,
   compact metadata, PDF action, project-link state, link and unlink transport,
   canonical workspace-response validation, and typed completed mutation

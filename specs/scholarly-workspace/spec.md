@@ -387,8 +387,9 @@ collaboration.
   A bounded light-DOM filter panel owns query and facet state, dynamic reference
   types, filtering and deterministic sorting from the canonical Library
   snapshot, visible-versus-total counts, reset behavior, and its typed change
-  intent. The coordinator supplies current project-linked reference ids and
-  retains Library loading, result-card composition, navigation, and mutations.
+  intent. It derives current project-linked reference ids from canonical
+  project-reference inputs. The coordinator retains Library loading,
+  result-card composition, navigation, and mutations.
 - **Private PDF reading:** Owner-library PDF artifacts may reuse the context
   PDF renderer through distinct private `library-pdf:` tabs. Their bytes and tab
   authorization remain owner-private. Selection creates only an ephemeral

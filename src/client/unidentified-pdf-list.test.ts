@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { LibraryPdfArtifact } from "../domain/reference-library";
+import type { BibliographicRecord, LibraryPdfArtifact } from "../domain/reference-library";
 import { UnidentifiedPdfList, unidentifiedPdfRefreshEvent, type UnidentifiedPdfRefresh } from "./unidentified-pdf-list";
 
 class TestUnidentifiedPdfList extends UnidentifiedPdfList {
@@ -35,9 +35,22 @@ const artifact = {
 } satisfies LibraryPdfArtifact;
 
 const reference = {
+  abstract: "",
+  archivedAt: null,
+  authors: [],
+  createdAt: artifact.createdAt,
+  deletedAt: null,
+  doi: "",
   id: "ref-1",
+  provenance: {},
+  referenceKey: "useful2026",
   title: "A {Useful} Paper",
-};
+  type: "article",
+  updatedAt: artifact.createdAt,
+  url: "",
+  venue: "",
+  year: "2026",
+} satisfies BibliographicRecord;
 
 afterEach(() => vi.restoreAllMocks());
 
@@ -46,9 +59,9 @@ describe("unidentified PDF list", () => {
     const list = new TestUnidentifiedPdfList();
     expect(list.rootForTest()).toBe(list);
     expect(list.renderForTest()).toBeDefined();
-    list.setData([artifact], []);
+    list.setLibrary({ artifacts: [artifact], references: [] });
     expect(list.renderForTest()).toBeDefined();
-    list.setData([artifact], [reference]);
+    list.setLibrary({ artifacts: [artifact], references: [reference] });
     expect(list.renderForTest()).toBeDefined();
   });
 
@@ -59,7 +72,7 @@ describe("unidentified PDF list", () => {
       requests.push((event as CustomEvent<UnidentifiedPdfRefresh>).detail);
     });
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 200 }));
-    list.setData([artifact], [reference]);
+    list.setLibrary({ artifacts: [artifact], references: [reference] });
     list.chooseForTest(artifact.id, reference.id);
     await list.identifyForTest(artifact.id);
     expect(fetchMock).toHaveBeenCalledWith(
@@ -74,9 +87,9 @@ describe("unidentified PDF list", () => {
   it("drops selections for artifacts removed by refresh", async () => {
     const list = new TestUnidentifiedPdfList();
     const fetchMock = vi.spyOn(globalThis, "fetch");
-    list.setData([artifact], [reference]);
+    list.setLibrary({ artifacts: [artifact], references: [reference] });
     list.chooseForTest(artifact.id, reference.id);
-    list.setData([], [reference]);
+    list.setLibrary({ artifacts: [], references: [reference] });
     await list.identifyForTest(artifact.id);
     expect(fetchMock).not.toHaveBeenCalled();
   });
@@ -87,7 +100,7 @@ describe("unidentified PDF list", () => {
       .spyOn(globalThis, "fetch")
       .mockResolvedValueOnce(new Response("Unavailable", { status: 503 }))
       .mockResolvedValueOnce(new Response(null, { status: 200 }));
-    list.setData([artifact], [reference]);
+    list.setLibrary({ artifacts: [artifact], references: [reference] });
     list.chooseForTest(artifact.id, reference.id);
 
     await list.identifyForTest(artifact.id);
