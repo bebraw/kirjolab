@@ -98,7 +98,9 @@ connection without reconstructing identity from a citation key or filename.
 - The project-map presentation component may own derived layout and interaction
   state plus parsing and exhaustive typed routing of kind-qualified resource
   keys, but graph derivation, canonical resource lookup, and navigation effects
-  remain outside it.
+  remain outside it. The composed context-resource presenter resolves note
+  selections against canonical active project shares and emits bounded notice
+  text through the application outlet.
 - The publication-context presentation component resolves the active
   publication id and owns metadata, linked-paper option derivation and rendering
   from canonical project, private-Library, and shared-reference inputs, citation

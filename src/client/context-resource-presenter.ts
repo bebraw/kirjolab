@@ -117,6 +117,7 @@ export interface ContextRouteCoordinator {
   readonly openProjectPdf: (pdf: WorkspaceSnapshot["pdfs"][number], page?: number, annotationId?: string) => Promise<void>;
   readonly openPublication: (publication: WorkspaceSnapshot["publications"][number]) => void;
   readonly openReferencePdf: (pdf: ProjectReferencePdf, page?: number) => Promise<void>;
+  readonly presentNotice: (message: string) => void;
   readonly project: () => WorkspaceSnapshot | null;
   readonly referencePdfs: () => readonly ProjectReferencePdf[];
   readonly refreshLibrary: () => Promise<void>;
@@ -226,6 +227,14 @@ export class ContextResourcePresenter extends LitElement {
     if (paper.kind === "project") return await coordinator.openProjectPdf(paper.pdf);
     if (paper.kind === "library") return await coordinator.openLibraryPdf(paper.artifact);
     await coordinator.openReferencePdf(paper.pdf);
+  }
+
+  openProjectNote(id: string): void {
+    const coordinator = this.routeCoordinator;
+    const share = coordinator
+      ?.project()
+      ?.researchShares.find((item) => item.resourceId === id && item.revokedAt === null && item.content.kind === "note");
+    if (coordinator && share?.content.kind === "note") coordinator.presentNotice(noticeExcerpt(share.content.body));
   }
 
   openCitation(citation: CitationContext): string | null {
@@ -804,6 +813,11 @@ export class ContextResourcePresenter extends LitElement {
     const element = this.ownerDocument.getElementById(id);
     return element instanceof constructor ? element : null;
   }
+}
+
+function noticeExcerpt(value: string): string {
+  const compact = value.replaceAll(/\s+/gu, " ").trim();
+  return compact.length <= 240 ? compact : `${compact.slice(0, 239).trimEnd()}…`;
 }
 
 if (typeof customElements !== "undefined" && !customElements.get("context-resource-presenter")) {

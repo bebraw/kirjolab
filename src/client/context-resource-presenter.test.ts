@@ -481,6 +481,22 @@ describe("context resource presenter", () => {
       relation: "supports" as const,
       status: "pending" as const,
     };
+    const note = {
+      content: { body: "  Private   note  ", kind: "note" as const },
+      createdAt: "created",
+      id: "share:note",
+      kind: "note" as const,
+      projectId: workspaceSnapshotFixture.id,
+      referenceId: "reference:note",
+      resourceId: "note:route",
+      revokedAt: null,
+    } satisfies WorkspaceSnapshot["researchShares"][number];
+    const longNote = {
+      ...note,
+      content: { body: "a".repeat(241), kind: "note" as const },
+      id: "share:long-note",
+      resourceId: "note:long-route",
+    } satisfies WorkspaceSnapshot["researchShares"][number];
     const project = {
       ...workspaceSnapshotFixture,
       annotations: [annotation],
@@ -488,6 +504,7 @@ describe("context resource presenter", () => {
       pdfs: [pdf],
       publicationPdfLinks: [{ createdAt: "created", id: "link:route", pdfId: pdf.id, publicationId: publication.id }],
       publications: [publication],
+      researchShares: [note, longNote],
     };
     let currentLibrary: ReferenceLibrarySnapshot | null = null;
     const coordinator = {
@@ -497,6 +514,7 @@ describe("context resource presenter", () => {
       openProjectPdf: vi.fn().mockResolvedValue(undefined),
       openPublication: vi.fn(),
       openReferencePdf: vi.fn().mockResolvedValue(undefined),
+      presentNotice: vi.fn(),
       project: vi.fn(() => project),
       referencePdfs: vi.fn(() => [referencePdf]),
       refreshLibrary: vi.fn(async () => {
@@ -512,6 +530,9 @@ describe("context resource presenter", () => {
     await presenter.restoreTarget({ kind: "library-pdf", id: referencePdf.id }, 6);
     await presenter.restoreTarget({ kind: "publication", id: "missing" });
     presenter.openProjectAnnotation(annotation.id, true);
+    presenter.openProjectNote(note.resourceId);
+    presenter.openProjectNote(longNote.resourceId);
+    presenter.openProjectNote("missing");
     await presenter.openPublicationPaper({ kind: "project", pdf, linkId: "link:route" });
     await presenter.openPublicationPaper({ kind: "library", artifact: libraryPdf });
     await presenter.openPublicationPaper({ kind: "reference", pdf: referencePdf });
@@ -530,6 +551,8 @@ describe("context resource presenter", () => {
     expect(coordinator.openLibraryPdf).toHaveBeenCalledWith(libraryPdf);
     expect(coordinator.openReferencePdf).toHaveBeenCalledWith(referencePdf, 6);
     expect(coordinator.openReferencePdf).toHaveBeenCalledWith(referencePdf);
+    expect(coordinator.presentNotice).toHaveBeenNthCalledWith(1, "Private note");
+    expect(coordinator.presentNotice).toHaveBeenNthCalledWith(2, `${"a".repeat(239)}…`);
     expect(presenter.openCitation({ keys: ["one", "two"] })).toBe("Open this grouped citation from Preview to choose a reference.");
     expect(presenter.openCitation({ keys: ["missing"] })).toBe("No publication resource is available for missing.");
   });

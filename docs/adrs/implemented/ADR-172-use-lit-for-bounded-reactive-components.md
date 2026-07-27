@@ -142,7 +142,8 @@ The adopted components own bounded presentation:
   project PDF, private-Library PDF, linked reference PDF, or candidate and emits
   the typed open effect. Project-map navigation reuses those catalog lookups,
   while annotation edit/open intents resolve to the canonical annotation and
-  its project PDF. Typed publication-paper choices dispatch through those same
+  its project PDF and active note intents resolve to bounded notice text from
+  canonical project shares. Typed publication-paper choices dispatch through those same
   project, private-Library, and shared-reference PDF routes. It resolves citation keys and sole-linked-PDF page
   locators against the same canonical project catalog and emits the matching
   project-PDF or publication open effect. It restores resource scroll and captures fixed/resource

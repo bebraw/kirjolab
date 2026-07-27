@@ -968,7 +968,8 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   publication, project PDF, private-Library PDF, linked reference PDF, or
   candidate. Let project-map navigation reuse those lookups, and let the same
   presenter resolve annotation edit/open intents to their canonical annotation
-  and project PDF. Let it also resolve citation keys case-insensitively and choose
+  and project PDF, and let it resolve active project-note shares to bounded
+  notice text through the same canonical project catalog. Let it also resolve citation keys case-insensitively and choose
   the sole linked project PDF for a supported page locator, otherwise opening
   publication context. Let it dispatch the publication panel's typed project,
   private-Library, and shared-reference paper choices through the same route

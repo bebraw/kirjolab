@@ -468,12 +468,7 @@ class WorkspaceApp {
       project: () => this.#elements.workspaceSwitcher.focusSelect(),
       person: () => this.#elements.workspaceSharingPanel.open(),
       "model-candidate": (id) => void this.#elements.contextResourcePresenter.restoreTarget({ kind: "candidate", id }),
-      note: (id) => {
-        const share = this.#snapshot?.researchShares.find(
-          (item) => item.resourceId === id && item.revokedAt === null && item.content.kind === "note",
-        );
-        if (share?.content.kind === "note") this.#showToast(excerptForToast(share.content.body));
-      },
+      note: (id) => this.#elements.contextResourcePresenter.openProjectNote(id),
       section: (id) => {
         this.#activateContext(RESEARCH_PREVIEW_KEY);
         this.#elements.workspacePreview.scrollToAnchor(id);
@@ -539,6 +534,7 @@ class WorkspaceApp {
       openProjectPdf: async (pdf, page, annotationId) => await this.#showPaper(pdf, page, annotationId),
       openPublication: (publication) => this.#openPublicationContext(publication),
       openReferencePdf: async (pdf, page) => await this.#openProjectReferencePdf(pdf, page, false),
+      presentNotice: (message) => this.#showToast(message),
       project: () => this.#snapshot,
       referencePdfs: () => this.#elements.contextResourcePresenter.referencePdfs,
       refreshLibrary: async () => await this.#refreshReferenceLibrary(),
@@ -1504,11 +1500,6 @@ function researchTabRouteLocation(tab: ResearchContextState["tabs"][number] | un
   if (tab?.kind !== "pdf" && tab?.kind !== "library-pdf") return {};
   if (tab.kind === "pdf" && tab.focusedAnnotationId) return { page: tab.page, annotationId: tab.focusedAnnotationId };
   return { page: tab.page };
-}
-
-function excerptForToast(value: string): string {
-  const compact = value.replaceAll(/\s+/gu, " ").trim();
-  return compact.length <= 240 ? compact : `${compact.slice(0, 239).trimEnd()}…`;
 }
 
 function readWorkspaceId(): string {
