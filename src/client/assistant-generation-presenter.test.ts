@@ -21,7 +21,7 @@ import {
 import { ClaimListPanel } from "./claim-list-panel";
 import { OpenAICompatibleBrowserProvider } from "./model-provider";
 import { ModelProviderSettings, modelProviderChangeEvent } from "./model-provider-settings";
-import { ProjectEvidencePanel, projectEvidenceActionEvent } from "./project-evidence-panel";
+import { ProjectEvidencePanel } from "./project-evidence-panel";
 import type { ModelAnnotationEvidence, ModelClaimCandidate, ModelClaimEvidence, ModelRevisionCandidate } from "../domain/workspace";
 import { workspaceSnapshotFixture } from "../test-support/workspace-fixture";
 
@@ -366,6 +366,8 @@ describe("assistant generation presenter", () => {
     const openSettings = vi.spyOn(elements["model-provider-settings"], "open").mockImplementation(() => undefined);
     const clearResult = vi.spyOn(elements["assistant-interactive-result"], "clear");
     const setEvidenceSelected = vi.spyOn(elements["assistant-workflow-status"], "setEvidenceSelected");
+    const bindAnnotationSelection = vi.spyOn(elements["project-evidence-panel"], "bindEvidenceSelection");
+    const bindClaimSelection = vi.spyOn(elements["claim-list-panel"], "bindEvidenceSelection");
     vi.spyOn(elements["project-evidence-panel"], "focusEvidence").mockReturnValue(false);
     const focusClaimEvidence = vi.spyOn(elements["claim-list-panel"], "focusEvidence").mockReturnValue(true);
     presenter.bindControls(callbacks);
@@ -377,16 +379,16 @@ describe("assistant generation presenter", () => {
     elements["assistant-workflow-status"].dispatchEvent(new CustomEvent(assistantWorkflowActionEvent, { detail: "open-settings" }));
     elements["assistant-task-panel"].dispatchEvent(new CustomEvent(assistantTaskChangeEvent, { detail: "operation" }));
     elements["assistant-task-panel"].dispatchEvent(new CustomEvent(assistantTaskGenerateEvent));
-    elements["project-evidence-panel"].dispatchEvent(
-      new CustomEvent(projectEvidenceActionEvent, { detail: { action: "evidence", key: "annotation:1", selected: true } }),
-    );
+    bindAnnotationSelection.mock.calls[0]![0]("annotation:1", true);
+    bindClaimSelection.mock.calls[0]![0]("claim:1", false);
 
     expect(callbacks.generationInput).toHaveBeenCalledOnce();
     expect(callbacks.openEvidenceRail).toHaveBeenCalledOnce();
     expect(callbacks.reportNoEvidence).not.toHaveBeenCalled();
-    expect(callbacks.refreshAvailability).toHaveBeenCalledTimes(3);
+    expect(callbacks.refreshAvailability).toHaveBeenCalledTimes(4);
     expect(callbacks.refreshTarget).toHaveBeenCalledOnce();
-    expect(setEvidenceSelected).toHaveBeenCalledWith("annotation:1", true);
+    expect(setEvidenceSelected).toHaveBeenNthCalledWith(1, "annotation:1", true);
+    expect(setEvidenceSelected).toHaveBeenNthCalledWith(2, "claim:1", false);
     expect(openSettings).toHaveBeenCalledOnce();
     expect(clearResult).toHaveBeenCalledOnce();
 

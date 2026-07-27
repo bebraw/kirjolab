@@ -402,7 +402,7 @@ changing their canonical data, selector, authorization, or rendering contracts.
       transport from a coordinator-validated typed passage. Yjs selection
       validation, grounding authority, PDF selection and undo coordination,
       annotation-form synchronization, canonical refreshes, and toast policy
-      remain with the application coordinator.
+      remain outside it behind separate typed workspace and assistant bindings.
 - [x] Narrow layouts expose an explicit Authoring/Context switch and preserve
       the hidden surface's local state.
 - [x] Refresh, copied URLs, and browser Back restore authorized file, view,

@@ -14,14 +14,12 @@ import type { ClaimDialog } from "./claim-dialog";
 import { focusFirstModelEvidence } from "./model-evidence-focus";
 import { accessibleEvidenceExcerpt, anchorActionLabel, anchorMatchState, modelEvidenceKey } from "./research-resource-presentation";
 
-export const claimListActionEvent = "claim-list-action";
-
-export type ClaimListAction =
-  | { readonly action: "mutated"; readonly message: string }
-  | { readonly action: "evidence"; readonly key: string; readonly selected: boolean }
-  | { readonly action: "link-passage"; readonly claimId: string }
-  | { readonly action: "open-annotation"; readonly annotationId: string }
-  | { readonly action: "open-passage"; readonly anchor: ManuscriptAnchorSelector };
+export interface ClaimListBinding {
+  readonly completeMutation: (message: string) => void;
+  readonly linkPassage: (claimId: string) => void;
+  readonly openAnnotation: (annotationId: string) => void;
+  readonly openPassage: (anchor: ManuscriptAnchorSelector) => void;
+}
 
 interface ClaimListData {
   readonly annotations: readonly AnnotationResource[];
@@ -42,6 +40,8 @@ export class ClaimListPanel extends LitElement {
   declare private deletingClaimId: string;
   declare private status: string;
   private apiBase = "";
+  private binding: ClaimListBinding | undefined;
+  private selectModelEvidence: ((key: string, selected: boolean) => void) | undefined;
 
   constructor() {
     super();
@@ -53,6 +53,14 @@ export class ClaimListPanel extends LitElement {
   configure(apiBase: string): void {
     this.apiBase = apiBase;
     void this.updateComplete.then(() => this.dialog.configure(apiBase));
+  }
+
+  bind(binding: ClaimListBinding): void {
+    this.binding = binding;
+  }
+
+  bindEvidenceSelection(selectEvidence: (key: string, selected: boolean) => void): void {
+    this.selectModelEvidence = selectEvidence;
   }
 
   setWorkspace(
@@ -92,7 +100,7 @@ export class ClaimListPanel extends LitElement {
       const response = await jsonFetch(`${this.apiBase}/claim-links`, input);
       await expectOk(response);
       this.status = "";
-      this.emit({ action: "mutated", message: "Claim linked to the selected manuscript passage." });
+      this.binding?.completeMutation("Claim linked to the selected manuscript passage.");
     } catch (error) {
       this.status = errorMessage(error, "Could not link the claim to the selected passage.");
     }
@@ -141,7 +149,7 @@ export class ClaimListPanel extends LitElement {
   protected selectEvidence(event: Event): void {
     const input = event.currentTarget as HTMLInputElement;
     const key = input.dataset.modelEvidenceKey;
-    if (key) this.emit({ action: "evidence", key, selected: input.checked });
+    if (key) this.selectModelEvidence?.(key, input.checked);
   }
 
   protected actOnClaim(event: Event): void {
@@ -151,7 +159,7 @@ export class ClaimListPanel extends LitElement {
     const action = button.dataset.claimAction;
     if (action === "edit") void this.openClaim(claim);
     else if (action === "delete") void this.deleteClaim(claim);
-    else if (action === "link-passage") this.emit({ action, claimId: claim.id });
+    else if (action === "link-passage") this.binding?.linkPassage(claim.id);
   }
 
   protected async deleteClaim(claim: ClaimResource): Promise<void> {
@@ -166,7 +174,7 @@ export class ClaimListPanel extends LitElement {
       });
       await expectOk(response);
       this.status = "";
-      this.emit({ action: "mutated", message: "Claim removed; source evidence remains intact." });
+      this.binding?.completeMutation("Claim removed; source evidence remains intact.");
     } catch (error) {
       this.status = errorMessage(error, "Could not delete the claim.");
     } finally {
@@ -176,17 +184,17 @@ export class ClaimListPanel extends LitElement {
 
   protected openAnnotation(event: Event): void {
     const annotationId = (event.currentTarget as HTMLButtonElement).dataset.annotationId;
-    if (annotationId) this.emit({ action: "open-annotation", annotationId });
+    if (annotationId) this.binding?.openAnnotation(annotationId);
   }
 
   protected openPassage(event: Event): void {
     const claimId = (event.currentTarget as HTMLButtonElement).dataset.claimId;
     const link = this.data.passageLinks.find((item) => item.claimId === claimId);
-    if (link) this.emit({ action: "open-passage", anchor: link.anchor });
+    if (link) this.binding?.openPassage(link.anchor);
   }
 
   protected claimSaved(event: CustomEvent<string>): void {
-    this.emit({ action: "mutated", message: event.detail });
+    this.binding?.completeMutation(event.detail);
   }
 
   private async openClaim(claim?: ClaimResource): Promise<void> {
@@ -289,10 +297,6 @@ export class ClaimListPanel extends LitElement {
         </div>
       </article>
     `;
-  }
-
-  private emit(detail: ClaimListAction): void {
-    this.dispatchEvent(new CustomEvent(claimListActionEvent, { bubbles: true, composed: true, detail }));
   }
 }
 

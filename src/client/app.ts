@@ -71,9 +71,7 @@ import { CollaborationSession } from "./collaboration-session";
 import { CollaborationSocket } from "./collaboration-socket";
 import { resolveAssistantTarget } from "./assistant-operations";
 import { citationPageFromLocator, createCitationInsertion, type CitationContext } from "./citations";
-import { claimListActionEvent, type ClaimListAction } from "./claim-list-panel";
 import { manuscriptCommentActionEvent, type ManuscriptCommentAction } from "./manuscript-comment-list";
-import { projectEvidenceActionEvent, type ProjectEvidenceAction } from "./project-evidence-panel";
 import { type ProjectAnnotationSaved, type ProjectHighlightTool } from "./project-annotation-form";
 import { type ProjectFileDialogMode, type ProjectFileSaved } from "./project-file-dialog";
 import { type ProjectImagesUploaded } from "./project-image-upload-control";
@@ -489,27 +487,22 @@ class WorkspaceApp {
       this.#collaborationSocket.flush();
     });
     this.#elements.projectEvidencePanel.configure(apiBase);
-    this.#elements.projectEvidencePanel.addEventListener(projectEvidenceActionEvent, (event) => {
-      const detail = (event as CustomEvent<ProjectEvidenceAction>).detail;
-      if (detail.action === "open-pdf") {
-        this.#elements.projectAnnotationForm.selectPdf(detail.pdf.id);
-        void this.#showPaper(detail.pdf, detail.page, detail.annotationId);
-      } else if (detail.action === "notice") this.#showToast(detail.message);
-      else if (
-        detail.action === "annotation-linked" ||
-        detail.action === "fragment-updated" ||
-        detail.action === "pdf-imported" ||
-        detail.action === "pdf-removed"
-      )
-        this.#refreshResourcesWithNotice(detail.message, "The project changed, but project resources could not be refreshed.");
-      else if (detail.action === "evidence") return;
-      else if (detail.action === "link-annotation") void this.#linkAnnotation(detail.annotationId);
-      else if (detail.action === "edit-annotation") this.#editAnnotation(detail.annotation);
-      else if (detail.action === "annotation-removed") {
-        this.#elements.projectAnnotationForm.clearAnnotation(detail.annotationId);
-        this.#refreshResourcesWithNotice(detail.message, "The highlight was deleted, but project resources could not be refreshed.");
-      } else if (detail.action === "open-passage") this.#showPassage(detail.anchor);
-      else void this.#removeHighlightFragment(detail.annotationId, detail.fragmentId, true);
+    this.#elements.projectEvidencePanel.bind({
+      annotationRemoved: (annotationId, message) => {
+        this.#elements.projectAnnotationForm.clearAnnotation(annotationId);
+        this.#refreshResourcesWithNotice(message, "The highlight was deleted, but project resources could not be refreshed.");
+      },
+      completeMutation: (message) =>
+        this.#refreshResourcesWithNotice(message, "The project changed, but project resources could not be refreshed."),
+      editAnnotation: (annotation) => this.#editAnnotation(annotation),
+      linkAnnotation: (annotationId) => void this.#linkAnnotation(annotationId),
+      notice: (message) => this.#showToast(message),
+      openPassage: (anchor) => this.#showPassage(anchor),
+      openPdf: (pdf, page, annotationId) => {
+        this.#elements.projectAnnotationForm.selectPdf(pdf.id);
+        void this.#showPaper(pdf, page, annotationId);
+      },
+      removeFragment: (annotationId, fragmentId) => void this.#removeHighlightFragment(annotationId, fragmentId, true),
     });
     this.#elements.projectMap.configure(apiBase);
     this.#elements.projectMap.bindNavigation((resourceKey) => this.#focusKnowledgeResource(resourceKey));
@@ -564,14 +557,12 @@ class WorkspaceApp {
       });
     }
     this.#elements.claimListPanel.configure(apiBase);
-    this.#elements.claimListPanel.addEventListener(claimListActionEvent, (event) => {
-      const detail = (event as CustomEvent<ClaimListAction>).detail;
-      if (detail.action === "evidence") return;
-      else if (detail.action === "mutated")
-        this.#refreshResourcesWithNotice(detail.message, "The claim changed, but project resources could not be refreshed.");
-      else if (detail.action === "link-passage") void this.#linkClaim(detail.claimId);
-      else if (detail.action === "open-annotation") this.#elements.projectEvidencePanel.revealAnnotation(detail.annotationId);
-      else this.#showPassage(detail.anchor);
+    this.#elements.claimListPanel.bind({
+      completeMutation: (message) =>
+        this.#refreshResourcesWithNotice(message, "The claim changed, but project resources could not be refreshed."),
+      linkPassage: (claimId) => void this.#linkClaim(claimId),
+      openAnnotation: (annotationId) => this.#elements.projectEvidencePanel.revealAnnotation(annotationId),
+      openPassage: (anchor) => this.#showPassage(anchor),
     });
     this.#elements.workspaceSurfaceSwitcher.addEventListener(workspaceSurfaceChangeEvent, (event) => {
       this.#showWorkspaceSurface((event as CustomEvent<WorkspaceSurface>).detail);

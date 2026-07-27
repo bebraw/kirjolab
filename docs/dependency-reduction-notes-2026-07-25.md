@@ -6799,6 +6799,32 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,670 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Shared Evidence Bindings
+
+`ProjectEvidencePanel` and `ClaimListPanel` now route workspace mutation and
+navigation outcomes through typed workspace bindings while sending grounding
+choices through separate assistant-selection callbacks. `WorkspaceApp` retains
+canonical refresh, PDF and manuscript coordination, navigation, and notices;
+`AssistantGenerationPresenter` retains browser-local grounding selection and
+availability policy.
+
+This checkpoint reduces `src/client/app.ts` from 2,256 to 2,247 lines (-9) and
+the assistant presenter from 563 to 558 lines (-5). The project-evidence owner
+grows from 558 to 559 lines and the claim owner from 307 to 311 lines. Runtime
+source across the four files decreases by nine lines while removing two
+coordinator listeners, two assistant-presenter subscriptions, both public
+action protocols, and their union imports. Focused coverage exercises all
+mutation, navigation, grounding-selection, persistence, failure, rendering,
+assistant-control, and strict-type paths.
+
+The browser application artifact changes from 842,045 B raw / 227,284 B gzip
+to 841,216 B raw / 227,079 B gzip (-829 B raw / -205 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,670 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

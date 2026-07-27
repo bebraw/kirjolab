@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AnnotationResource, ClaimEvidenceLink, PassageLink, PdfResource, PublicationPdfLink } from "../domain/workspace";
-import { ProjectEvidencePanel, projectEvidenceActionEvent, type ProjectEvidenceAction } from "./project-evidence-panel";
+import { ProjectEvidencePanel } from "./project-evidence-panel";
 
 const createdAt = "2026-07-25T00:00:00.000Z";
 const pdf: PdfResource = {
@@ -127,6 +127,34 @@ function eventWithTarget(target: object): Event {
   return event;
 }
 
+type RecordedAction =
+  | { readonly action: "annotation-removed"; readonly annotationId: string; readonly message: string }
+  | { readonly action: "edit-annotation"; readonly annotation: AnnotationResource }
+  | { readonly action: "evidence"; readonly key: string; readonly selected: boolean }
+  | { readonly action: "link-annotation"; readonly annotationId: string }
+  | { readonly action: "mutation"; readonly message: string }
+  | { readonly action: "notice"; readonly message: string }
+  | { readonly action: "open-passage"; readonly anchor: PassageLink["anchor"] }
+  | { readonly action: "open-pdf"; readonly annotationId?: string; readonly page?: number; readonly pdf: PdfResource }
+  | { readonly action: "remove-fragment"; readonly annotationId: string; readonly fragmentId: string };
+
+function recordActions(panel: ProjectEvidencePanel): RecordedAction[] {
+  const actions: RecordedAction[] = [];
+  panel.bind({
+    annotationRemoved: (annotationId, message) => actions.push({ action: "annotation-removed", annotationId, message }),
+    completeMutation: (message) => actions.push({ action: "mutation", message }),
+    editAnnotation: (annotation) => actions.push({ action: "edit-annotation", annotation }),
+    linkAnnotation: (annotationId) => actions.push({ action: "link-annotation", annotationId }),
+    notice: (message) => actions.push({ action: "notice", message }),
+    openPassage: (anchor) => actions.push({ action: "open-passage", anchor }),
+    openPdf: (pdf, page, annotationId) =>
+      actions.push({ action: "open-pdf", ...(annotationId ? { annotationId } : {}), ...(page ? { page } : {}), pdf }),
+    removeFragment: (annotationId, fragmentId) => actions.push({ action: "remove-fragment", annotationId, fragmentId }),
+  });
+  panel.bindEvidenceSelection((key, selected) => actions.push({ action: "evidence", key, selected }));
+  return actions;
+}
+
 afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
@@ -167,8 +195,7 @@ describe("project evidence panel", () => {
 
   it("emits bounded PDF, annotation, passage, and evidence intents", () => {
     const panel = new TestProjectEvidencePanel();
-    const actions: ProjectEvidenceAction[] = [];
-    panel.addEventListener(projectEvidenceActionEvent, (event) => actions.push((event as CustomEvent<ProjectEvidenceAction>).detail));
+    const actions = recordActions(panel);
     panel.setEvidence(
       {
         annotations: [annotation],
@@ -222,10 +249,9 @@ describe("project evidence panel", () => {
 
   it("owns adjusted fragment persistence and emits completed or removal outcomes", async () => {
     const panel = new TestProjectEvidencePanel();
-    const actions: ProjectEvidenceAction[] = [];
+    const actions = recordActions(panel);
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 200 }));
     panel.configure("/api/workspaces/workspace");
-    panel.addEventListener(projectEvidenceActionEvent, (event) => actions.push((event as CustomEvent<ProjectEvidenceAction>).detail));
     panel.setEvidence(
       {
         annotations: [annotation],
@@ -243,8 +269,8 @@ describe("project evidence panel", () => {
     await panel.fragmentForTest("remove");
 
     expect(actions).toEqual([
-      { action: "fragment-updated", message: "Highlight stroke adjusted." },
-      { action: "fragment-updated", message: "Highlight stroke adjusted." },
+      { action: "mutation", message: "Highlight stroke adjusted." },
+      { action: "mutation", message: "Highlight stroke adjusted." },
       { action: "remove-fragment", annotationId: annotation.id, fragmentId: annotation.fragments[0]!.id },
     ]);
     expect(fetchMock).toHaveBeenNthCalledWith(
@@ -263,10 +289,9 @@ describe("project evidence panel", () => {
 
   it("owns passage-link persistence and emits the completed outcome", async () => {
     const panel = new TestProjectEvidencePanel();
-    const actions: ProjectEvidenceAction[] = [];
+    const actions = recordActions(panel);
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 200 }));
     panel.configure("/api/workspaces/workspace");
-    panel.addEventListener(projectEvidenceActionEvent, (event) => actions.push((event as CustomEvent<ProjectEvidenceAction>).detail));
     const input = {
       annotationId: "annotation/1",
       fileId: "main",
@@ -282,15 +307,14 @@ describe("project evidence panel", () => {
       "/api/workspaces/workspace/links",
       expect.objectContaining({ body: JSON.stringify(input), method: "POST" }),
     );
-    expect(actions).toEqual([{ action: "annotation-linked", message: "Annotation linked to the selected passage." }]);
+    expect(actions).toEqual([{ action: "mutation", message: "Annotation linked to the selected passage." }]);
   });
 
   it("owns project PDF validation, persistence, and completed outcomes", async () => {
     const panel = new TestProjectEvidencePanel();
-    const actions: ProjectEvidenceAction[] = [];
+    const actions = recordActions(panel);
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 200 }));
     panel.configure("/api/workspaces/workspace");
-    panel.addEventListener(projectEvidenceActionEvent, (event) => actions.push((event as CustomEvent<ProjectEvidenceAction>).detail));
     const file = new File(["%PDF-1.7"], "paper draft.pdf", { type: "application/pdf" });
 
     await panel.uploadPdf(new File(["image"], "figure.png", { type: "image/png" }));
@@ -302,7 +326,7 @@ describe("project evidence panel", () => {
       headers: { "content-type": "application/pdf", "x-file-name": "paper%20draft.pdf" },
       method: "POST",
     });
-    expect(actions).toEqual([{ action: "pdf-imported", message: "PDF imported without modifying the source file." }]);
+    expect(actions).toEqual([{ action: "mutation", message: "PDF imported without modifying the source file." }]);
   });
 
   it("keeps project PDF upload failures local and retryable", async () => {
@@ -399,8 +423,7 @@ describe("project evidence panel", () => {
     await panel.removeForTest();
 
     expect(fetchMock).not.toHaveBeenCalled();
-    const notices: ProjectEvidenceAction[] = [];
-    panel.addEventListener(projectEvidenceActionEvent, (event) => notices.push((event as CustomEvent<ProjectEvidenceAction>).detail));
+    const notices = recordActions(panel);
     await panel.removeForTest();
     expect(notices).toEqual([
       { action: "notice", message: "Cannot remove paper.pdf: remove 1 highlight(s) and 1 reference link(s) first." },
@@ -410,19 +433,18 @@ describe("project evidence panel", () => {
 
   it("owns confirmed PDF removal and emits the completed outcome", async () => {
     const panel = new TestProjectEvidencePanel();
-    const actions: ProjectEvidenceAction[] = [];
+    const actions = recordActions(panel);
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 200 }));
     vi.stubGlobal(
       "confirm",
       vi.fn(() => true),
     );
     panel.configure("/api/workspaces/workspace");
-    panel.addEventListener(projectEvidenceActionEvent, (event) => actions.push((event as CustomEvent<ProjectEvidenceAction>).detail));
 
     await panel.removeForTest({ ...pdf, id: "pdf/1" });
 
     expect(fetchMock).toHaveBeenCalledWith("/api/workspaces/workspace/pdfs/pdf%2F1", expect.objectContaining({ method: "DELETE" }));
-    expect(actions).toEqual([{ action: "pdf-removed", message: "paper.pdf removed from the project." }]);
+    expect(actions).toEqual([{ action: "mutation", message: "paper.pdf removed from the project." }]);
   });
 
   it("honors cancellation and permits retry after a provider failure", async () => {
@@ -467,7 +489,7 @@ describe("project evidence panel", () => {
 
   it("blocks annotation deletion while claim evidence remains", async () => {
     const panel = new TestProjectEvidencePanel();
-    const actions: ProjectEvidenceAction[] = [];
+    const actions = recordActions(panel);
     const fetchMock = vi.spyOn(globalThis, "fetch");
     vi.stubGlobal(
       "confirm",
@@ -483,7 +505,6 @@ describe("project evidence panel", () => {
       },
       new Set(),
     );
-    panel.addEventListener(projectEvidenceActionEvent, (event) => actions.push((event as CustomEvent<ProjectEvidenceAction>).detail));
 
     await panel.removeAnnotationForTest();
 
@@ -493,7 +514,7 @@ describe("project evidence panel", () => {
 
   it("owns confirmed annotation deletion and emits the completed outcome", async () => {
     const panel = new TestProjectEvidencePanel();
-    const actions: ProjectEvidenceAction[] = [];
+    const actions = recordActions(panel);
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 200 }));
     vi.stubGlobal(
       "confirm",
@@ -501,7 +522,6 @@ describe("project evidence panel", () => {
     );
     panel.configure("/api/workspaces/workspace");
     panel.setPassageLinks([link]);
-    panel.addEventListener(projectEvidenceActionEvent, (event) => actions.push((event as CustomEvent<ProjectEvidenceAction>).detail));
 
     await panel.removeAnnotationForTest({ ...annotation, id: "annotation/1" });
 

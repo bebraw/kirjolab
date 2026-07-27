@@ -228,9 +228,9 @@ collaboration.
   it retains editor highlighting and assistant refresh.
 - **Project evidence mutations:** The bounded Project evidence panel owns
   guarded PDF and annotation removal plus annotation-passage-link transport
-  from a coordinator-validated typed passage. The coordinator retains Yjs
-  selection stability, PDF interaction, canonical refresh, and notification
-  policy.
+  from a coordinator-validated typed passage. Separate typed workspace and
+  assistant bindings retain Yjs selection stability, PDF interaction, grounding
+  authority, canonical refresh, and notification policy outside the panel.
 - **Access control:** Verified Cloudflare Access identities or loopback-local
   identities resolve explicit owner/member roles before workspace state.
 - **Schema lifecycle:** Every SQLite-backed document, catalog, and access
@@ -464,8 +464,9 @@ collaboration.
   passages through explicit `supports`, `contradicts`, `extends`, and `used-in`
   relationships. The bounded claim list projects claims, annotations, evidence
   links, and passage links directly from the canonical workspace snapshot plus
-  browser-local evidence selection; the coordinator retains selection mutation,
-  dialogs, navigation, refresh, and notification policy.
+  browser-local evidence selection; separate typed workspace and assistant
+  bindings retain selection mutation, navigation, refresh, and notification
+  policy outside the panel.
 - **Manuscript anchors:** New annotation, claim passage links, and comments verify the
   current source revision and exact requested range, then store version 1 Yjs
   relative positions (start association `0`, end association `-1`), stable file

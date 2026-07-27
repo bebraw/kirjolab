@@ -14,21 +14,16 @@ import { focusFirstModelEvidence } from "./model-evidence-focus";
 import { adjustSelectionRects, type HighlightGeometryAdjustment } from "./pdf-selection";
 import { accessibleEvidenceExcerpt, anchorActionLabel, anchorMatchState, modelEvidenceKey } from "./research-resource-presentation";
 
-export const projectEvidenceActionEvent = "project-evidence-action";
-
-export type ProjectEvidenceAction =
-  | { readonly action: "annotation-linked"; readonly message: string }
-  | { readonly action: "annotation-removed"; readonly annotationId: string; readonly message: string }
-  | { readonly action: "edit-annotation"; readonly annotation: AnnotationResource }
-  | { readonly action: "evidence"; readonly key: string; readonly selected: boolean }
-  | { readonly action: "fragment-updated"; readonly message: string }
-  | { readonly action: "link-annotation"; readonly annotationId: string }
-  | { readonly action: "open-passage"; readonly anchor: ManuscriptAnchorSelector }
-  | { readonly action: "open-pdf"; readonly annotationId?: string; readonly page?: number; readonly pdf: PdfResource }
-  | { readonly action: "notice"; readonly message: string }
-  | { readonly action: "pdf-imported"; readonly message: string }
-  | { readonly action: "remove-fragment"; readonly annotationId: string; readonly fragmentId: string }
-  | { readonly action: "pdf-removed"; readonly message: string };
+export interface ProjectEvidenceBinding {
+  readonly annotationRemoved: (annotationId: string, message: string) => void;
+  readonly completeMutation: (message: string) => void;
+  readonly editAnnotation: (annotation: AnnotationResource) => void;
+  readonly linkAnnotation: (annotationId: string) => void;
+  readonly notice: (message: string) => void;
+  readonly openPassage: (anchor: ManuscriptAnchorSelector) => void;
+  readonly openPdf: (pdf: PdfResource, page?: number, annotationId?: string) => void;
+  readonly removeFragment: (annotationId: string, fragmentId: string) => void;
+}
 
 type ProjectEvidenceSnapshot = Pick<WorkspaceSnapshot, "annotations" | "claimEvidenceLinks" | "links" | "pdfs" | "publicationPdfLinks">;
 
@@ -54,6 +49,8 @@ export class ProjectEvidencePanel extends LitElement {
   declare private status: string;
   declare private uploadBusy: boolean;
   private apiBase = "";
+  private binding: ProjectEvidenceBinding | undefined;
+  private selectModelEvidence: ((key: string, selected: boolean) => void) | undefined;
 
   constructor() {
     super();
@@ -67,6 +64,14 @@ export class ProjectEvidencePanel extends LitElement {
 
   configure(apiBase: string): void {
     this.apiBase = apiBase;
+  }
+
+  bind(binding: ProjectEvidenceBinding): void {
+    this.binding = binding;
+  }
+
+  bindEvidenceSelection(selectEvidence: (key: string, selected: boolean) => void): void {
+    this.selectModelEvidence = selectEvidence;
   }
 
   setEvidence(snapshot: ProjectEvidenceSnapshot, selectedEvidenceKeys: ReadonlySet<string>): void {
@@ -110,7 +115,7 @@ export class ProjectEvidencePanel extends LitElement {
       const response = await jsonFetch(`${this.apiBase}/links`, input);
       await expectOk(response);
       this.status = "";
-      this.emit({ action: "annotation-linked", message: "Annotation linked to the selected passage." });
+      this.binding?.completeMutation("Annotation linked to the selected passage.");
     } catch (error) {
       this.status = errorMessage(error, "Could not link the annotation to the selected passage.");
     }
@@ -237,7 +242,7 @@ export class ProjectEvidencePanel extends LitElement {
       });
       await expectOk(response);
       this.status = "";
-      this.emit({ action: "pdf-imported", message: "PDF imported without modifying the source file." });
+      this.binding?.completeMutation("PDF imported without modifying the source file.");
     } catch (error) {
       this.status = errorMessage(error, `Could not import ${file.name}.`);
     } finally {
@@ -264,7 +269,7 @@ export class ProjectEvidencePanel extends LitElement {
     const pdf = this.data.pdfs.find((item) => item.id === button.dataset.pdfId);
     if (!pdf) return;
     if (button.dataset.pdfAction === "remove") void this.removePdf(pdf);
-    else if (button.dataset.pdfAction === "open") this.emit({ action: "open-pdf", pdf });
+    else if (button.dataset.pdfAction === "open") this.binding?.openPdf(pdf);
   }
 
   protected async removePdf(pdf: PdfResource): Promise<void> {
@@ -274,7 +279,7 @@ export class ProjectEvidencePanel extends LitElement {
     if (annotations + references > 0) {
       const message = `Cannot remove ${pdf.name}: remove ${annotations} highlight(s) and ${references} reference link(s) first.`;
       this.status = message;
-      this.emit({ action: "notice", message });
+      this.binding?.notice(message);
       return;
     }
     if (!globalThis.confirm(`Remove ${pdf.name} from this project? The imported PDF bytes will be deleted.`)) return;
@@ -287,7 +292,7 @@ export class ProjectEvidencePanel extends LitElement {
       });
       await expectOk(response);
       this.status = "";
-      this.emit({ action: "pdf-removed", message: `${pdf.name} removed from the project.` });
+      this.binding?.completeMutation(`${pdf.name} removed from the project.`);
     } catch (error) {
       this.status = errorMessage(error, `Could not remove ${pdf.name}.`);
     } finally {
@@ -298,7 +303,7 @@ export class ProjectEvidencePanel extends LitElement {
   protected selectEvidence(event: Event): void {
     const input = event.currentTarget as HTMLInputElement;
     const key = input.dataset.modelEvidenceKey;
-    if (key) this.emit({ action: "evidence", key, selected: input.checked });
+    if (key) this.selectModelEvidence?.(key, input.checked);
   }
 
   protected actOnAnnotation(event: Event): void {
@@ -306,12 +311,12 @@ export class ProjectEvidencePanel extends LitElement {
     const annotation = this.data.annotations.find((item) => item.id === button.dataset.annotationId);
     if (!annotation) return;
     const action = button.dataset.annotationAction;
-    if (action === "link") this.emit({ action: "link-annotation", annotationId: annotation.id });
-    else if (action === "edit") this.emit({ action: "edit-annotation", annotation });
+    if (action === "link") this.binding?.linkAnnotation(annotation.id);
+    else if (action === "edit") this.binding?.editAnnotation(annotation);
     else if (action === "delete") void this.removeAnnotation(annotation);
     else if (action === "open") {
       const pdf = this.data.pdfs.find((item) => item.id === annotation.pdfId);
-      if (pdf) this.emit({ action: "open-pdf", annotationId: annotation.id, page: annotation.page, pdf });
+      if (pdf) this.binding?.openPdf(pdf, annotation.page, annotation.id);
     }
   }
 
@@ -321,7 +326,7 @@ export class ProjectEvidencePanel extends LitElement {
     if (claims > 0) {
       const message = `Remove this highlight from ${claims} claim(s) before deleting it.`;
       this.status = message;
-      this.emit({ action: "notice", message });
+      this.binding?.notice(message);
       return;
     }
     const passages = this.data.links.filter((link) => link.annotationId === annotation.id).length;
@@ -335,7 +340,7 @@ export class ProjectEvidencePanel extends LitElement {
       });
       await expectOk(response);
       this.status = "";
-      this.emit({ action: "annotation-removed", annotationId: annotation.id, message: "Highlight deleted; the PDF remains unchanged." });
+      this.binding?.annotationRemoved(annotation.id, "Highlight deleted; the PDF remains unchanged.");
     } catch (error) {
       this.status = errorMessage(error, "Could not delete the highlight.");
     } finally {
@@ -346,7 +351,7 @@ export class ProjectEvidencePanel extends LitElement {
   protected openPassage(event: Event): void {
     const annotationId = (event.currentTarget as HTMLButtonElement).dataset.annotationId;
     const link = this.data.links.find((item) => item.annotationId === annotationId);
-    if (link) this.emit({ action: "open-passage", anchor: link.anchor });
+    if (link) this.binding?.openPassage(link.anchor);
   }
 
   protected async actOnFragment(event: Event): Promise<void> {
@@ -358,7 +363,7 @@ export class ProjectEvidencePanel extends LitElement {
     const quote = section?.querySelector<HTMLTextAreaElement>("textarea")?.value ?? fragment.quote;
     section?.closest("details")?.removeAttribute("open");
     if (button.dataset.fragmentAction === "remove") {
-      this.emit({ action: "remove-fragment", annotationId: annotation.id, fragmentId: fragment.id });
+      this.binding?.removeFragment(annotation.id, fragment.id);
       return;
     }
     const adjustment = button.dataset.fragmentAdjustment as HighlightGeometryAdjustment | undefined;
@@ -368,7 +373,7 @@ export class ProjectEvidencePanel extends LitElement {
       rects: [...(adjustment ? adjustSelectionRects(fragment.rects, adjustment) : fragment.rects)],
       suffix: fragment.suffix,
     });
-    if (updated) this.emit({ action: "fragment-updated", message: "Highlight stroke adjusted." });
+    if (updated) this.binding?.completeMutation("Highlight stroke adjusted.");
   }
 
   private renderPdf(pdf: PdfResource): TemplateResult {
@@ -540,10 +545,6 @@ export class ProjectEvidencePanel extends LitElement {
         </div>
       </section>
     `;
-  }
-
-  private emit(detail: ProjectEvidenceAction): void {
-    this.dispatchEvent(new CustomEvent(projectEvidenceActionEvent, { bubbles: true, composed: true, detail }));
   }
 }
 

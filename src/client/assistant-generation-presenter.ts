@@ -25,10 +25,10 @@ import {
   type CandidateDecisionOutcome,
   type CandidateDecisionRequest,
 } from "./candidate-review-panel";
-import { ClaimListPanel, claimListActionEvent, type ClaimListAction } from "./claim-list-panel";
+import { ClaimListPanel } from "./claim-list-panel";
 import { ModelProviderSettings, modelProviderChangeEvent } from "./model-provider-settings";
 import type { ModelProvider } from "./model-provider";
-import { ProjectEvidencePanel, projectEvidenceActionEvent, type ProjectEvidenceAction } from "./project-evidence-panel";
+import { ProjectEvidencePanel } from "./project-evidence-panel";
 import { assistantWorkflowBusy, createAssistantWorkflowActor, type AssistantCandidateDecision } from "./assistant-workflow-machine";
 import type {
   ModelCandidate,
@@ -344,17 +344,12 @@ export class AssistantGenerationPresenter extends LitElement {
       callbacks.refreshAvailability();
     });
     task?.addEventListener(assistantTaskGenerateEvent, () => void this.runGeneration(status, callbacks));
-    const selectEvidence = (detail: ProjectEvidenceAction | ClaimListAction): void => {
-      if (detail.action !== "evidence") return;
-      status?.setEvidenceSelected(detail.key, detail.selected);
+    const selectEvidence = (key: string, selected: boolean): void => {
+      status?.setEvidenceSelected(key, selected);
       callbacks.refreshAvailability();
     };
-    this.element("project-evidence-panel", ProjectEvidencePanel)?.addEventListener(projectEvidenceActionEvent, (event) => {
-      selectEvidence((event as CustomEvent<ProjectEvidenceAction>).detail);
-    });
-    this.element("claim-list-panel", ClaimListPanel)?.addEventListener(claimListActionEvent, (event) => {
-      selectEvidence((event as CustomEvent<ClaimListAction>).detail);
-    });
+    this.element("project-evidence-panel", ProjectEvidencePanel)?.bindEvidenceSelection(selectEvidence);
+    this.element("claim-list-panel", ClaimListPanel)?.bindEvidenceSelection(selectEvidence);
     this.presentTask();
     callbacks.refreshTarget();
     callbacks.refreshAvailability();

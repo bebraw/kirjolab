@@ -148,7 +148,8 @@ The adopted components own bounded presentation:
   grounding-choice focus, empty-state, action presentation, confirmed deletion
   and claim-passage-link transport, duplicate-delete gating, local pending and
   retryable failure state, the nested claim editor's create/edit lifecycle, and
-  typed completed mutation and navigation outcomes. It also owns addressed-card
+  one typed workspace binding for completed mutation and navigation outcomes plus
+  a separate assistant evidence-selection binding. It also owns addressed-card
   reveal and optional focus.
   The coordinator supplies browser-local evidence selection and the link
   workflow's Yjs-validated typed passage input.
@@ -189,7 +190,8 @@ The adopted components own bounded presentation:
   highlight-fragment update and deletion transport, trimmed-quote validation,
   annotation-passage-link transport from a coordinator-validated typed passage,
   duplicate-mutation gates, pending and retryable failure state, and typed
-  navigation, mutation, notice, and completed outcomes. It projects its PDFs,
+  workspace navigation, mutation, notice, and completed outcomes plus a separate
+  assistant evidence-selection binding. It projects its PDFs,
   annotations, claim-evidence links, passage links, and publication-PDF links
   directly from the canonical workspace snapshot plus browser-local evidence
   selection, and owns addressed annotation-card reveal.
@@ -591,7 +593,9 @@ reason to wrap static markup mechanically.
   two coordinator subscriptions, create/edit routing, and the coordinator's
   dialog-opening method while leaving Yjs selection validation, evidence-
   selection state, canonical refresh, notification policy, passage navigation,
-  and annotation navigation in the application coordinator.
+  and annotation navigation outside the component. Its separate workspace and
+  assistant bindings remove the remaining coordinator and assistant
+  subscriptions plus the public claim-list action protocol.
 - The manuscript comment panel replaces three composer element references,
   submit binding, reset and saved-status updates, one internal list reference,
   its imperative card renderer, and all three coordinator comment request
@@ -629,7 +633,10 @@ reason to wrap static markup mechanically.
   update validation and transport plus fragment-deletion transport while
   leaving Yjs selection validation, PDF selection and undo coordination,
   grounding authority, PDF navigation, form synchronization, canonical refresh,
-  and toast policy in the application coordinator.
+  and toast policy in the application coordinator. Separate typed workspace and
+  assistant bindings remove two coordinator subscriptions, two assistant
+  subscriptions, and the public project-evidence and claim-list action
+  protocols.
 - The project tree panel replaces three internal element references and the
   imperative filter, hierarchy, row, and action-menu renderers. Its companion
   image upload control also replaces the coordinator file-input listener and

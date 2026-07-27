@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AnnotationResource, ClaimEvidenceLink, ClaimPassageLink, ClaimResource, ManuscriptAnchorSelector } from "../domain/workspace";
 import { ClaimDialog } from "./claim-dialog";
-import { ClaimListPanel, claimListActionEvent, type ClaimListAction } from "./claim-list-panel";
+import { ClaimListPanel } from "./claim-list-panel";
 
 const createdAt = "2026-07-25T00:00:00.000Z";
 const anchor: ManuscriptAnchorSelector = {
@@ -90,6 +90,25 @@ function eventWithTarget(target: object): Event {
   return event;
 }
 
+type RecordedAction =
+  | { readonly action: "evidence"; readonly key: string; readonly selected: boolean }
+  | { readonly action: "link-passage"; readonly claimId: string }
+  | { readonly action: "mutated"; readonly message: string }
+  | { readonly action: "open-annotation"; readonly annotationId: string }
+  | { readonly action: "open-passage"; readonly anchor: ManuscriptAnchorSelector };
+
+function recordActions(panel: ClaimListPanel): RecordedAction[] {
+  const actions: RecordedAction[] = [];
+  panel.bind({
+    completeMutation: (message) => actions.push({ action: "mutated", message }),
+    linkPassage: (claimId) => actions.push({ action: "link-passage", claimId }),
+    openAnnotation: (annotationId) => actions.push({ action: "open-annotation", annotationId }),
+    openPassage: (anchor) => actions.push({ action: "open-passage", anchor }),
+  });
+  panel.bindEvidenceSelection((key, selected) => actions.push({ action: "evidence", key, selected }));
+  return actions;
+}
+
 afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
@@ -162,8 +181,7 @@ describe("claim list panel", () => {
     Object.defineProperty(dialog, "updateComplete", { value: Promise.resolve(true) });
     const openDialog = vi.spyOn(dialog, "open").mockImplementation(() => undefined);
     Object.defineProperty(panel, "querySelector", { value: () => dialog });
-    const actions: ClaimListAction[] = [];
-    panel.addEventListener(claimListActionEvent, (event) => actions.push((event as CustomEvent<ClaimListAction>).detail));
+    const actions = recordActions(panel);
     panel.setWorkspace(
       { annotations: [annotation], claims: [claim], claimEvidenceLinks: [evidenceLink], claimLinks: [passageLink] },
       new Set(),
@@ -198,8 +216,7 @@ describe("claim list panel", () => {
 
   it("converts editor completion into a claim mutation", () => {
     const panel = new TestClaimListPanel();
-    const actions: ClaimListAction[] = [];
-    panel.addEventListener(claimListActionEvent, (event) => actions.push((event as CustomEvent<ClaimListAction>).detail));
+    const actions = recordActions(panel);
 
     panel.savedForTest("Claim saved.");
     expect(actions).toEqual([{ action: "mutated", message: "Claim saved." }]);
@@ -215,14 +232,13 @@ describe("claim list panel", () => {
 
   it("owns confirmed deletion persistence and emits the completed outcome", async () => {
     const panel = new TestClaimListPanel();
-    const actions: ClaimListAction[] = [];
+    const actions = recordActions(panel);
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 200 }));
     vi.stubGlobal(
       "confirm",
       vi.fn(() => true),
     );
     panel.configure("/api/workspaces/workspace");
-    panel.addEventListener(claimListActionEvent, (event) => actions.push((event as CustomEvent<ClaimListAction>).detail));
 
     await panel.deleteForTest({ ...claim, id: "claim/1" });
 
@@ -232,10 +248,9 @@ describe("claim list panel", () => {
 
   it("owns passage-link persistence and emits the completed outcome", async () => {
     const panel = new TestClaimListPanel();
-    const actions: ClaimListAction[] = [];
+    const actions = recordActions(panel);
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 200 }));
     panel.configure("/api/workspaces/workspace");
-    panel.addEventListener(claimListActionEvent, (event) => actions.push((event as CustomEvent<ClaimListAction>).detail));
     const input = {
       claimId: "claim/1",
       fileId: "main",
