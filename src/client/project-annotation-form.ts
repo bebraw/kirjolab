@@ -13,6 +13,12 @@ export interface ProjectAnnotationSaved {
   readonly message: string;
 }
 
+export interface ProjectAnnotationCaptureCompletion {
+  readonly clearDraftSelection: boolean;
+  readonly notice?: string;
+  readonly refreshResources: boolean;
+}
+
 export interface ProjectAnnotationOverlap {
   readonly annotation: AnnotationResource;
   readonly fragment: AnnotationResource["fragments"][number];
@@ -20,6 +26,7 @@ export interface ProjectAnnotationOverlap {
 
 export interface ProjectAnnotationWorkflowBinding {
   readonly chooseTool: (tool: ProjectHighlightTool) => void;
+  readonly completeCapture?: (completion: ProjectAnnotationCaptureCompletion) => Promise<void>;
   readonly completeSave: (saved: ProjectAnnotationSaved) => void;
   readonly citePage: () => void;
   readonly removeHighlight: (annotationId: string, fragmentId: string) => Promise<boolean>;
@@ -151,6 +158,22 @@ export class ProjectAnnotationForm extends LitElement {
     }
     this.status = `Removed ${overlaps.length} overlapping highlight ${overlaps.length === 1 ? "stroke" : "strokes"}.`;
     return true;
+  }
+
+  async persistCapture(annotations: readonly AnnotationResource[], pdfId: string, capture: AnnotationCapture): Promise<void> {
+    const overlaps = this.overlappingFragments(annotations, pdfId, capture);
+    if (this.tool === "erase") {
+      const erased = await this.eraseOverlaps(overlaps);
+      if (erased === null) return;
+      await this.workflowBinding?.completeCapture?.({
+        clearDraftSelection: true,
+        ...(erased ? { notice: "Highlight content erased." } : {}),
+        refreshResources: false,
+      });
+      return;
+    }
+    if (!(await this.saveCapture(pdfId, capture, overlaps[0]?.annotation.id))) return;
+    await this.workflowBinding?.completeCapture?.({ clearDraftSelection: true, refreshResources: true });
   }
 
   private applyCapture(capture: Pick<AnnotationDraft, "page" | "prefix" | "quote" | "suffix">): void {

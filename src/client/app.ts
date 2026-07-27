@@ -40,7 +40,7 @@ import { CollaborationSession } from "./collaboration-session";
 import { CollaborationSocket } from "./collaboration-socket";
 import { resolveAssistantTarget } from "./assistant-operations";
 import { citationPageFromLocator, createCitationInsertion, type CitationContext } from "./citations";
-import { type ProjectAnnotationOverlap, type ProjectAnnotationSaved, type ProjectHighlightTool } from "./project-annotation-form";
+import { type ProjectAnnotationSaved, type ProjectHighlightTool } from "./project-annotation-form";
 import { type ProjectFileDialogMode, type ProjectFileSaved } from "./project-file-dialog";
 import type { ProjectTemplateSaved } from "./project-template-save-dialog";
 import "./manuscript-map-panel";
@@ -56,7 +56,7 @@ import {
   restoreOfflineWorkspaceState,
   type OfflineWorkspaceStore,
 } from "./offline-workspace";
-import { PdfEvidenceViewer, type PdfSelectionCapture } from "./pdf-viewer";
+import { PdfEvidenceViewer } from "./pdf-viewer";
 import type { ExistingPdfUpload } from "./pdf-upload-queue";
 import { bindThemePreference } from "./theme";
 import {
@@ -511,6 +511,11 @@ class WorkspaceApp {
     });
     this.#elements.projectAnnotationForm.bindWorkflow({
       chooseTool: (tool) => this.#setHighlightTool(tool),
+      completeCapture: async ({ clearDraftSelection, notice, refreshResources }) => {
+        if (clearDraftSelection) this.#pdfViewer.clearDraftSelection();
+        if (refreshResources) await this.#resourceRefresh.request();
+        if (notice) this.#showToast(notice);
+      },
       completeSave: (saved) => void this.#completeAnnotationSave(saved),
       citePage: () => this.#citeActivePdf(),
       removeHighlight: async (annotationId, fragmentId) => await this.#removeHighlightFragment(annotationId, fragmentId, false),
@@ -550,7 +555,7 @@ class WorkspaceApp {
       referencePdfs: () => this.#elements.contextResourcePresenter.referencePdfs,
       refreshLibrary: async () => await this.#refreshReferenceLibrary(),
     });
-    this.#elements.contextResourcePresenter.bindPdfViewer(this.#pdfViewer, apiBase, (capture) => void this.#persistPdfSelection(capture));
+    this.#elements.contextResourcePresenter.bindPdfViewer(this.#pdfViewer, apiBase);
     this.#elements.libraryPdfInspector.bindProjectMutations(
       (message, snapshot) => void this.#completeLibraryProjectMutation(message, snapshot),
     );
@@ -1513,30 +1518,6 @@ class WorkspaceApp {
     if (!artifact) return;
     await this.#openLibraryPdf(artifact, highlight.page);
     this.#elements.libraryPdfInspector.setStatus(`Showing saved private highlight on page ${highlight.page}.`);
-  }
-
-  async #persistPdfSelection(capture: PdfSelectionCapture): Promise<void> {
-    const pdfId = this.#elements.contextResourcePresenter.renderedPdfId;
-    if (!pdfId || !this.#snapshot) return;
-    const overlaps = this.#elements.projectAnnotationForm.overlappingFragments(this.#snapshot.annotations, pdfId, capture);
-    if (this.#elements.projectAnnotationForm.selectedTool === "erase") {
-      await this.#erasePdfSelection(overlaps);
-      return;
-    }
-    await this.#savePdfSelection(pdfId, capture, overlaps[0]?.annotation);
-  }
-
-  async #erasePdfSelection(overlaps: readonly ProjectAnnotationOverlap[]): Promise<void> {
-    const erased = await this.#elements.projectAnnotationForm.eraseOverlaps(overlaps);
-    if (erased === null) return;
-    this.#pdfViewer.clearDraftSelection();
-    if (erased) this.#showToast("Highlight content erased.");
-  }
-
-  async #savePdfSelection(pdfId: string, capture: PdfSelectionCapture, target: AnnotationResource | undefined): Promise<void> {
-    if (!(await this.#elements.projectAnnotationForm.saveCapture(pdfId, capture, target?.id))) return;
-    this.#pdfViewer.clearDraftSelection();
-    await this.#resourceRefresh.request();
   }
 
   #setHighlightTool(tool: ProjectHighlightTool): void {

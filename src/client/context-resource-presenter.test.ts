@@ -317,10 +317,10 @@ describe("context resource presenter", () => {
       updatePrivateHighlights: vi.fn(),
     };
     const capture = { page: 2, prefix: "Before", quote: "Evidence", rects: [], suffix: "After" };
-    const persistProjectSelection = vi.fn();
+    const persistCapture = vi.spyOn(elements["project-annotation-form"], "persistCapture").mockResolvedValue(undefined);
     const selectPdf = vi.spyOn(elements["project-annotation-form"], "selectPdf");
     const showCapture = vi.spyOn(elements["project-annotation-form"], "showCapture");
-    presenter.bindPdfViewer(viewer, "/api/workspaces/workspace", persistProjectSelection);
+    presenter.bindPdfViewer(viewer, "/api/workspaces/workspace");
     presenter.present({ ...sources(tab), snapshot: project });
 
     await presenter.loadActivePdf(false);
@@ -335,12 +335,11 @@ describe("context resource presenter", () => {
       privateHighlights: [],
       url: "/api/workspaces/workspace/pdfs/project%2Fpdf",
     });
-    expect(presenter.renderedPdfId).toBe(pdf.id);
     expect(elements["paper-reader"].scrollTop).toBe(24);
     expect(presenter.presentWorkspace(project)).toEqual([annotation]);
     presenter.capturePdfSelection(capture);
     expect(showCapture).toHaveBeenCalledWith(capture);
-    expect(persistProjectSelection).toHaveBeenCalledWith(capture);
+    expect(persistCapture).toHaveBeenCalledWith(project.annotations, pdf.id, capture);
 
     const state = { activeKey: tab.key, tabs: [tab] };
     expect(presenter.captureBoundContext(state).tabs[0]).toMatchObject({ focusedAnnotationId: annotation.id, page: 3 });

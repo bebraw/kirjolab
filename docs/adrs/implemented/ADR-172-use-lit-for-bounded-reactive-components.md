@@ -465,7 +465,9 @@ The adopted components own bounded presentation:
   feedback derived from its local tool and canonical capture, citation
   availability derived from the active PDF and canonical publication-PDF
   links, same-PDF/page saved-stroke overlap classification, ordered removal
-  routing, no-match and completed-erasure status, nested publication-intake
+  routing, paint-versus-erase capture persistence, no-match and completed-
+  erasure status, and typed viewer-clearing, refresh, and notice outcomes,
+  nested publication-intake
   configuration and PDF projection, intake
   refresh acknowledgement and navigation routing, and one typed workflow
   binding for tool, undo, citation, completed save, and link outcomes or intents.
@@ -907,7 +909,8 @@ reason to wrap static markup mechanically.
   lookup from the context presenter. Its typed workflow binding also replaces
   two coordinator subscriptions and the public annotation action and save event
   protocols while retaining cross-feature decisions in the coordinator.
-  It leaves selection and overlap derivation, viewer draft clearing, manuscript
+  It now also replaces coordinator selection/overlap/save/erase orchestration,
+  leaving viewer draft clearing, manuscript
   linking, canonical refreshes, and toast policy in the application coordinator.
 - The Library PDF annotation forms replace seventeen internal element
   references, three submit bindings, cancel and selected-markup action bindings,

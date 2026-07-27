@@ -141,7 +141,6 @@ export class ContextResourcePresenter extends LitElement {
   private libraryPdfCoordinator: LibraryPdfCoordinator | null = null;
   private pdfApiBase = "";
   private pdfViewer: ContextPdfViewer | null = null;
-  private persistProjectSelection: (capture: PdfSelectionCapture) => void = () => undefined;
   private renderedPdfContextKey: ResearchContextTab["key"] | undefined;
   private currentRenderedPdfId: string | undefined;
   private routeCoordinator: ContextRouteCoordinator | null = null;
@@ -153,10 +152,6 @@ export class ContextResourcePresenter extends LitElement {
 
   get activeTab(): ResearchResourceTab | undefined {
     return this.currentActiveTab;
-  }
-
-  get renderedPdfId(): string | undefined {
-    return this.currentRenderedPdfId;
   }
 
   async refreshReferencePdfs(projectApiBase: string | null, fetcher: typeof fetch = fetch): Promise<void> {
@@ -236,10 +231,9 @@ export class ContextResourcePresenter extends LitElement {
     });
   }
 
-  bindPdfViewer(viewer: ContextPdfViewer, apiBase: string, persistProjectSelection?: (capture: PdfSelectionCapture) => void): void {
+  bindPdfViewer(viewer: ContextPdfViewer, apiBase: string): void {
     this.pdfViewer = viewer;
     this.pdfApiBase = apiBase;
-    if (persistProjectSelection) this.persistProjectSelection = persistProjectSelection;
   }
 
   capturePdfSelection(capture: PdfSelectionCapture): void {
@@ -252,7 +246,9 @@ export class ContextResourcePresenter extends LitElement {
     const form = this.element("project-annotation-form", ProjectAnnotationForm);
     if (this.currentRenderedPdfId) form?.selectPdf(this.currentRenderedPdfId);
     form?.showCapture(capture);
-    this.persistProjectSelection(capture);
+    if (form && this.currentRenderedPdfId && this.currentSnapshot) {
+      void form.persistCapture(this.currentSnapshot.annotations, this.currentRenderedPdfId, capture);
+    }
   }
 
   presentContext(sources: ResearchContextSources): ResearchContextPresentation {

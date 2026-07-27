@@ -149,6 +149,45 @@ describe("project annotation form", () => {
     expect(panel.renderForTest().values).toContain("Removed 1 overlapping highlight stroke.");
   });
 
+  it("owns captured-stroke persistence and returns only coordinator effects", async () => {
+    const panel = new TestProjectAnnotationForm();
+    const capture = {
+      page: 2,
+      prefix: "",
+      quote: "Evidence",
+      rects: [{ height: 0.05, width: 0.1, x: 0.15, y: 0.23 }],
+      suffix: "",
+    };
+    const matching = annotation("annotation-1", [{ ...fragment("overlap"), rects: [{ height: 0.1, width: 0.2, x: 0.1, y: 0.2 }] }]);
+    const completeCapture = vi.fn().mockResolvedValue(undefined);
+    const removeHighlight = vi.fn().mockResolvedValue(true);
+    panel.bindWorkflow({
+      chooseTool: vi.fn(),
+      completeCapture,
+      completeSave: vi.fn(),
+      citePage: vi.fn(),
+      removeHighlight,
+      undoHighlight: vi.fn(),
+    });
+
+    panel.setTool("erase");
+    await panel.persistCapture([], "pdf-1", capture);
+    await panel.persistCapture([matching], "pdf-1", capture);
+    expect(removeHighlight).toHaveBeenCalledWith(matching.id, "overlap");
+    expect(completeCapture).toHaveBeenNthCalledWith(1, { clearDraftSelection: true, refreshResources: false });
+    expect(completeCapture).toHaveBeenNthCalledWith(2, {
+      clearDraftSelection: true,
+      notice: "Highlight content erased.",
+      refreshResources: false,
+    });
+
+    panel.setTool("paint");
+    vi.spyOn(panel, "saveCapture").mockResolvedValue(true);
+    await panel.persistCapture([matching], "pdf-1", capture);
+    expect(panel.saveCapture).toHaveBeenCalledWith("pdf-1", capture, matching.id);
+    expect(completeCapture).toHaveBeenLastCalledWith({ clearDraftSelection: true, refreshResources: true });
+  });
+
   it("owns nested publication intake presentation and outcomes", async () => {
     const panel = new TestProjectAnnotationForm();
     const openPublication = vi.fn();

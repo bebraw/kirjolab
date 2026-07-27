@@ -7918,6 +7918,33 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,703 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Project Highlight Capture
+
+`ProjectAnnotationForm` now owns the full paint-versus-erase capture workflow:
+same-PDF/page overlap classification, ordered erase routing, highlight creation
+or extension, and no-match and completion presentation. Its typed workflow
+binding returns only viewer-draft clearing, canonical refresh, and notification
+effects. `ContextResourcePresenter` supplies its retained canonical annotations
+and rendered project-PDF identity; `WorkspaceApp` retains those returned global
+effects.
+
+This checkpoint reduces `src/client/app.ts` from 1,694 to 1,675 lines (-19),
+reduces the context-resource presenter from 776 to 772 lines (-4), and grows the
+project-annotation owner from 462 to 485 lines (+23). Runtime source across the
+three files is unchanged while deleting the coordinator's duplicate selection,
+overlap, save, and erase workflow plus the presenter's callback and rendered-id
+getter. Focused coverage passes all 10 project-annotation cases and 24 context-
+resource cases, including empty and matched erasure plus paint extension and
+typed completion effects, alongside application contracts and strict types.
+
+The browser application artifact changes from 846,294 B raw / 228,523 B gzip
+to 846,261 B raw / 228,550 B gzip (-33 B raw / +27 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,704 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

@@ -43,10 +43,12 @@ with an authored passage.
   versus-erase tool guidance and selection feedback from its local tool and the
   canonical capture, classifies saved strokes that geometrically overlap that
   capture on the active PDF page, routes their ordered removal through its typed
-  workflow binding, owns no-match and completed-erasure status, and derives
+  workflow binding, owns paint-versus-erase capture persistence and no-match
+  and completed-erasure status, returns only viewer-clearing, refresh, and
+  notification effects to the coordinator, and derives
   citation availability from the active PDF and canonical publication-PDF
   links. The workspace coordinator
-  retains PDF selection capture, viewer effects, annotation identity,
+  retains viewer effects, annotation identity,
   manuscript selection, refreshes, and user notifications.
 - `POST /api/workspaces/{id}/annotation-links` validates an annotation and
   current manuscript selection before atomically inserting both the annotation
