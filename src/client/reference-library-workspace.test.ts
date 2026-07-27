@@ -132,6 +132,40 @@ describe("reference Library workspace", () => {
     );
   });
 
+  it("restores Library reference and PDF routes through typed effects", async () => {
+    const { workspace } = setup();
+    const activateLibrary = vi.fn();
+    const clearRoute = vi.fn();
+    const openPdf = vi.fn();
+    const presentNotice = vi.fn();
+    workspace.configure("workspace", {
+      activateLibrary,
+      clearRoute,
+      compareSnapshots: vi.fn(),
+      openPdf,
+      presentNotice,
+      refreshLibrary: vi.fn(),
+      refreshMetadata: vi.fn(),
+      revealExistingPdf: vi.fn(),
+    });
+    workspace.setData({
+      library: { ...library, artifacts: [artifact] },
+      projectApiBase: null,
+      projectReferences: [],
+      researchShares: [],
+    });
+    vi.spyOn(workspace, "openReference").mockResolvedValue(false);
+
+    await workspace.restoreRoute({ kind: "library", referenceId: "missing" });
+    await workspace.restoreRoute({ artifactId: artifact.id, kind: "pdf", page: 4 });
+    await workspace.restoreRoute({ artifactId: "missing", kind: "pdf", page: 1 });
+
+    expect(activateLibrary).toHaveBeenCalledOnce();
+    expect(clearRoute).toHaveBeenCalledTimes(2);
+    expect(openPdf).toHaveBeenCalledWith(artifact, 4, false);
+    expect(presentNotice).toHaveBeenCalledWith("That PDF is no longer in the library.");
+  });
+
   it("owns filter reset, result settlement, and focused-reference reveal", async () => {
     const { owners, workspace } = setup();
     const filters = owners["reference-library-filters"];

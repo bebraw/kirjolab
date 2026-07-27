@@ -28,6 +28,7 @@ import { libraryDiscoveryRefreshEvent, LibraryDiscoveryResults, type LibraryDisc
 import { libraryDiscoveryResultsEvent } from "./library-discovery-search";
 import { libraryPdfUploadOutcomeEvent, LibraryPdfUploadControl, type LibraryPdfUploadOutcome } from "./library-pdf-upload-control";
 import { libraryPdfUploadRevealEvent, LibraryPdfUploadStatus } from "./library-pdf-upload-status";
+import type { LibraryUiRoute } from "./library-ui-route";
 import {
   libraryToolsActionEvent,
   libraryToolsArchiveRefreshEvent,
@@ -55,9 +56,11 @@ interface LibraryRefreshOptions {
 }
 
 export interface ReferenceLibraryWorkspaceCallbacks {
+  readonly activateLibrary?: () => void;
+  readonly clearRoute?: () => void;
   readonly compareSnapshots: (priorId: string, currentId: string) => void;
   readonly completeProjectMutation?: (message: string, snapshot: ProjectReferenceChanged["snapshot"]) => void;
-  readonly openPdf: (artifact: LibraryPdfArtifact) => void;
+  readonly openPdf: (artifact: LibraryPdfArtifact, page?: number, updateHistory?: boolean) => void;
   readonly presentNotice: (message: string) => void;
   readonly revealExistingPdf: (upload: ExistingPdfUpload) => void;
   readonly refreshLibrary: () => Promise<void>;
@@ -184,6 +187,21 @@ export class ReferenceLibraryWorkspace extends LitElement {
     if (!isReferenceLibrarySnapshot(value)) throw new Error("Reference library returned an invalid snapshot");
     this.librarySnapshot = value;
     return value;
+  }
+
+  async restoreRoute(route: LibraryUiRoute): Promise<void> {
+    if (route.kind === "library") {
+      this.callbacks.activateLibrary?.();
+      if (route.referenceId && !(await this.openReference(route.referenceId))) this.callbacks.clearRoute?.();
+      return;
+    }
+    const artifact = this.snapshot?.artifacts.find(({ id }) => id === route.artifactId);
+    if (artifact) {
+      this.callbacks.openPdf(artifact, route.page, false);
+      return;
+    }
+    this.callbacks.clearRoute?.();
+    this.callbacks.presentNotice("That PDF is no longer in the library.");
   }
 
   configure(workspaceId: string, callbacks?: ReferenceLibraryWorkspaceCallbacks): void {

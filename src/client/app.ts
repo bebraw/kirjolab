@@ -352,9 +352,13 @@ class WorkspaceApp {
       trigger: this.#elements.shareWorkspace,
     });
     this.#elements.referenceLibraryWorkspace.configure(workspaceId, {
+      activateLibrary: () => {
+        if (this.#contextState.activeKey !== RESEARCH_LIBRARY_KEY) this.#activateContext(RESEARCH_LIBRARY_KEY);
+      },
+      clearRoute: () => history.replaceState({ view: "library" }, "", "/library"),
       compareSnapshots: (priorId, currentId) => void this.#elements.webSnapshotComparison.compare(priorId, currentId),
       completeProjectMutation: (message, snapshot) => void this.#completeLibraryProjectMutation(message, snapshot),
-      openPdf: (artifact) => void this.#openLibraryPdf(artifact),
+      openPdf: (artifact, page, updateHistory) => void this.#openLibraryPdf(artifact, page, updateHistory),
       presentNotice: (message) => this.#showToast(message),
       revealExistingPdf: (upload) => void this.#revealExistingPdfReference(upload),
       refreshLibrary: async () => await this.#refreshReferenceLibrary(),
@@ -1685,22 +1689,7 @@ class WorkspaceApp {
   }
 
   async #restoreLibraryRoute(): Promise<void> {
-    const route = readLibraryUiRoute(new URL(location.href));
-    if (route.kind === "library") {
-      if (this.#contextState.activeKey !== RESEARCH_LIBRARY_KEY) this.#activateContext(RESEARCH_LIBRARY_KEY);
-      if (!route.referenceId) return;
-      if (!(await this.#focusReferenceLibraryEntry(route.referenceId))) {
-        history.replaceState({ view: "library" }, "", "/library");
-      }
-      return;
-    }
-    const artifact = this.#librarySnapshot?.artifacts.find((item) => item.id === route.artifactId);
-    if (!artifact) {
-      history.replaceState({ view: "library" }, "", "/library");
-      this.#showToast("That PDF is no longer in the library.");
-      return;
-    }
-    await this.#openLibraryPdf(artifact, route.page, false);
+    await this.#elements.referenceLibraryWorkspace.restoreRoute(readLibraryUiRoute(new URL(location.href)));
   }
 
   #handlePdfPageChange(page: number): void {

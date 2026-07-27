@@ -265,8 +265,9 @@ The adopted components own bounded presentation:
   unidentified-PDF owners. It owns their refresh completion, success/failure
   notice selection, alternate metadata refresh, local request finalizers,
   archive-aware canonical Library loading, response validation, and the single
-  browser snapshot projection while delegating refresh timing and shared notice
-  presentation through typed callbacks.
+  browser snapshot projection plus standalone route lookup and focused-reference
+  restoration while delegating context activation, history repair, PDF viewer
+  navigation, refresh timing, and shared notice presentation through typed callbacks.
 - The citation network panel owns manual source and relationship choices, graph
   geometry, source and edge cards, assertion provenance and review controls,
   snowball candidates, and local candidate-save progress with typed record,
@@ -397,7 +398,7 @@ The adopted components own bounded presentation:
   unidentified-PDF queue; filter-driven rerendering; focused-reference reveal;
   result settlement; nested network and identification lifecycle delegation;
   and routing for summary, personal-field, metadata, PDF, research, network,
-  and identification outcomes. The application coordinator supplies refresh
+  identification, and standalone Library-route outcomes. The application coordinator supplies refresh
   timing, PDF navigation, web-capture/comparison, project-mutation completion,
   and notice effects through a typed callback boundary.
 - The model provider settings panel owns connection, endpoint, model, and

@@ -7404,6 +7404,30 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,692 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Standalone Library Routes
+
+`ReferenceLibraryWorkspace` now restores standalone Library routes through its
+owned canonical snapshot, focused-reference workflow, and artifact lookup. Its
+typed effects request Library activation, canonical URL repair, missing-PDF
+notice presentation, or private-PDF opening. `WorkspaceApp` retains context
+transitions, history mutation, viewer navigation, and global toast policy.
+
+This checkpoint reduces `src/client/app.ts` from 1,975 to 1,964 lines (-11) and
+grows the composed Library workspace from 310 to 328 lines (+18). Runtime source
+across those two files increases by seven lines while deleting the coordinator's
+Library-specific reference and artifact lookup branches. Focused coverage
+exercises reference restoration, PDF restoration with page forwarding, missing
+references and artifacts, existing Library composition, application contracts,
+and strict types.
+
+The browser application artifact changes from 843,313 B raw / 227,968 B gzip
+to 843,512 B raw / 228,072 B gzip (+199 B raw / +104 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,693 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

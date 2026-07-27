@@ -379,9 +379,10 @@ memory and makes citation aliases compete with stable source identity.
   application, project-PDF refreshes, and notification policy.
 - The composed Library workspace owns archive-aware canonical Library loading,
   response validation, and the single browser Library snapshot projection used
-  by its filters, list, network, PDF queue, and coordinator consumers. The
-  coordinator retains refresh timing, cross-feature reconciliation, viewer
-  effects, routing, and notification policy.
+  by its filters, list, network, PDF queue, and coordinator consumers. It also
+  restores standalone Library routes through owned reference focus and artifact
+  lookup. The coordinator retains refresh timing, cross-feature reconciliation,
+  viewer effects, history mutation, context transitions, and notification policy.
 - A project publication context resolves every authorized paper representation
   for the stable reference identity. The owner sees attached private-library
   PDFs without converting them into project resources; active artifact shares
