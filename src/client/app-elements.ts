@@ -1,6 +1,7 @@
 import { ApplicationVersionControl } from "./application-version-control";
 import { AppToast } from "./app-toast";
 import { AssistantResultPanel } from "./assistant-result-panel";
+import { AssistantGenerationPresenter } from "./assistant-generation-presenter";
 import { AssistantTaskPanel } from "./assistant-task-panel";
 import { AssistantWorkflowStatus } from "./assistant-workflow-status";
 import { AuthoringModeTabs } from "./authoring-mode-tabs";
@@ -120,6 +121,7 @@ export function collectAppElements(requireElement = requiredAppElement) {
     sourceCitationControl: requireElement("source-citation-control", SourceCitationControl),
     contextTabStrip: requireElement("context-tab-strip", ContextTabStrip),
     contextResourcePresenter: requireElement("context-resource-presenter", ContextResourcePresenter),
+    assistantGenerationPresenter: requireElement("assistant-generation-presenter", AssistantGenerationPresenter),
     previewContextControls: requireElement("preview-context-controls", PreviewContextStatus),
     workspacePreview: requireElement("workspace-preview", WorkspacePreview),
     publicationContextPanel: requireElement("publication-context-panel", PublicationContextPanel),

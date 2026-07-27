@@ -2426,12 +2426,16 @@ class WorkspaceApp {
 
   async #runAssistantGeneration(input: AssistantGenerationContext): Promise<void> {
     if (input.operation.id === "draft-claim") return await this.#generateClaimCandidate(input);
-    if (input.operation.id === "build-table") return await this.#generateTableCandidate(input);
+    const presentation = await this.#elements.assistantGenerationPresenter.generate({
+      ...input,
+      manuscript: this.#activeFileText.toString(),
+    });
+    if (presentation) {
+      this.#elements.assistantWorkflowStatus.status = presentation.status;
+      this.#assistantWorkflow.send({ type: presentation.workflow });
+      return;
+    }
     if (!input.passage) throw new Error("Select manuscript text first");
-    if (input.operation.id === "phrase-passage") return await this.#generatePhrasingCandidate(input, input.passage);
-    if (input.operation.id === "find-references") return await this.#generateReferenceDiscovery(input, input.passage);
-    if (input.operation.id === "ideate") return await this.#generateIdeas(input, input.passage);
-    if (input.operation.id === "clarity-drill") return await this.#generateClarityQuestion(input, input.passage);
     await this.#generateRevisionCandidate(input, input.passage);
   }
 
@@ -2446,65 +2450,6 @@ class WorkspaceApp {
     await this.#openCreatedCandidate(value);
     this.#elements.assistantWorkflowStatus.status = "Claim draft ready. Review its proposition, note, and annotation snapshots in Context.";
     this.#assistantWorkflow.send({ type: "COMPLETE" });
-  }
-
-  async #generateTableCandidate(input: AssistantGenerationContext): Promise<void> {
-    if (!input.insertionTarget) throw new Error("Place the manuscript caret first");
-    const requirements = this.#elements.assistantTaskPanel.tableRequirements;
-    const source = this.#activeFileText.toString();
-    const manuscriptContext = resolveAssistantTarget(source, input.insertionTarget.end, input.insertionTarget.end, "paragraph").text;
-    await this.#elements.assistantInteractiveResult.generateTable(
-      input.provider,
-      { instruction: input.instruction, ...requirements, manuscriptContext },
-      { sourceRevision: input.sourceRevision, target: input.insertionTarget },
-    );
-    this.#elements.assistantWorkflowStatus.status = "Table syntax ready. Review it before inserting at the visible target.";
-    this.#assistantWorkflow.send({ type: "REVIEW" });
-  }
-
-  async #generatePhrasingCandidate(input: AssistantGenerationContext, passage: AuthoringPassage): Promise<void> {
-    const purpose = this.#elements.assistantTaskPanel.phrasingPurpose;
-    await this.#elements.assistantInteractiveResult.generatePhrasing(
-      input.provider,
-      { passage, evidence: input.evidence, instruction: input.instruction, sourceRevision: input.sourceRevision },
-      purpose,
-    );
-    this.#elements.assistantWorkflowStatus.status = "Choose one alternative to open exact before-and-after review.";
-    this.#assistantWorkflow.send({ type: "REVIEW" });
-  }
-
-  async #generateReferenceDiscovery(input: AssistantGenerationContext, passage: AuthoringPassage): Promise<void> {
-    const count = await this.#elements.assistantInteractiveResult.discoverReferences(input.provider, {
-      selectedPassage: passage.excerpt,
-      instruction: input.instruction,
-      evidence: input.evidence.items,
-    });
-    this.#elements.assistantWorkflowStatus.status = count
-      ? `Found ${count} verifiable registry record${count === 1 ? "" : "s"}. Review before saving.`
-      : "No verifiable registry records matched this query. Refine the search focus and try again.";
-    this.#assistantWorkflow.send({ type: "REVIEW" });
-  }
-
-  async #generateIdeas(input: AssistantGenerationContext, passage: AuthoringPassage): Promise<void> {
-    await this.#elements.assistantInteractiveResult.generateIdeas(input.provider, {
-      passage,
-      evidence: input.evidence,
-      instruction: input.instruction,
-      sourceRevision: input.sourceRevision,
-    });
-    this.#elements.assistantWorkflowStatus.status = "Choose a direction to open its complete draft for exact review.";
-    this.#assistantWorkflow.send({ type: "REVIEW" });
-  }
-
-  async #generateClarityQuestion(input: AssistantGenerationContext, passage: AuthoringPassage): Promise<void> {
-    await this.#elements.assistantInteractiveResult.startClarityDrill(input.provider, {
-      passage,
-      evidence: input.evidence,
-      instruction: input.instruction,
-      sourceRevision: input.sourceRevision,
-    });
-    this.#elements.assistantWorkflowStatus.status = "Answer one focused question to make the intended meaning explicit.";
-    this.#assistantWorkflow.send({ type: "AWAIT_INPUT" });
   }
 
   async #generateRevisionCandidate(input: AssistantGenerationContext, passage: AuthoringPassage): Promise<void> {

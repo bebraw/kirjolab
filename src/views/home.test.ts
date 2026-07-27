@@ -234,6 +234,7 @@ describe("renderHomePage", () => {
     expect(html).toContain('aria-controls="context-assistant-panel" aria-selected="false"');
     expect(html).toContain('id="context-assistant-panel" role="tabpanel"');
     expect(html).toContain('<context-resource-presenter id="context-resource-presenter"></context-resource-presenter>');
+    expect(html).toContain('<assistant-generation-presenter id="assistant-generation-presenter"></assistant-generation-presenter>');
     expect(html).toContain('id="context-publication-panel" role="tabpanel"');
     expect(html).toContain('<publication-context-panel id="publication-context-panel">');
     expect(html).toContain('id="context-pdf-panel" role="tabpanel"');

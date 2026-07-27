@@ -25,6 +25,12 @@ All mutation operations preserve a human review boundary.
   same context with a guarded continuation, insertion, or revision-choice
   intent. The application coordinator must not maintain a parallel current-
   result discriminator or reconstruct the context from later editor state.
+- A bounded assistant-generation presenter routes interactive table, phrasing,
+  reference-discovery, ideation, and clarity operations across the task and
+  result owners from one canonical generation input. It returns only the next
+  transient workflow state and result-specific status. The application retains
+  the XState actor, candidate generation and persistence, canonical refresh,
+  provider construction, error policy, and manuscript mutation.
 - A non-empty manuscript selection always resolves exactly. Otherwise the
   remembered Yjs-relative caret expands deterministically to the configured
   sentence, paragraph, or Markdown section, or remains an insertion point.

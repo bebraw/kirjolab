@@ -343,6 +343,13 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   response. Keep authorized target and evidence derivation, workflow state,
   canonical refresh, context navigation, workflow status, and Yjs edits in the
   coordinator.
+  Let a bounded assistant-generation Lit presenter route interactive table,
+  phrasing, reference-discovery, ideation, and clarity operations across the
+  typed task and result owners. It may derive operation-local request context
+  from coordinator-supplied canonical manuscript, target, evidence, provider,
+  and revision inputs and return only workflow and result-status presentation.
+  Keep workflow transitions, candidate generation and persistence, canonical
+  refresh, provider construction, error policy, and Yjs edits in the coordinator.
   Let the candidate-review Lit owner resolve the active candidate id against
   the canonical workspace snapshot and derive evidence availability and local
   applicability from candidate, evidence-version, source-revision,

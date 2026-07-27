@@ -533,6 +533,7 @@ export function renderHomePage(
         </section>
 
         <context-resource-presenter id="context-resource-presenter"></context-resource-presenter>
+        <assistant-generation-presenter id="assistant-generation-presenter"></assistant-generation-presenter>
 
         <section class="context-panel context-publication-panel" id="context-publication-panel" role="tabpanel" aria-label="Publication context" tabindex="0" hidden>
           <publication-context-panel id="publication-context-panel">

@@ -83,6 +83,12 @@ The adopted components own bounded presentation:
   the shared CSL import adapter, duplicate-submit gating, local save progress and
   retryable failures, refresh-pending state, and complete typed continuation,
   selection, insertion, and canonical-refresh outcomes.
+- The assistant-generation presenter routes interactive table, phrasing,
+  reference-discovery, ideation, and clarity operations across the typed task
+  and result owners from coordinator-supplied canonical generation inputs. It
+  returns only workflow and status presentation; the coordinator retains the
+  XState actor, candidate persistence, provider construction, canonical
+  refresh, error policy, and manuscript mutation.
 - The project map panel owns provenance-lane rendering, measured SVG connector
   geometry, responsive relayout, focus and hover emphasis, and a typed resource
   selection intent.
