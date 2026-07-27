@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { LibraryPdfArtifact, ProjectReferencePdf } from "../domain/reference-library";
 import type { PdfResource, PublicationResource } from "../domain/workspace";
 import {
@@ -8,6 +8,8 @@ import {
   type ContextPrimaryTabAction,
   type ContextTabStripSources,
 } from "./context-tab-strip";
+import { contextResourceTabActionEvent } from "./context-resource-tabs";
+import { contextTabOverviewActionEvent } from "./context-tab-overview";
 import type { ResearchContextKey, ResearchContextTab } from "./research-context";
 
 const createdAt = "2026-07-25T00:00:00.000Z";
@@ -219,6 +221,23 @@ describe("context tab strip", () => {
     strip.activateForTest("assistant");
 
     expect(actions).toEqual(["preview", "library", "assistant"]);
+  });
+
+  it("routes primary and child navigation through one boundary", () => {
+    const strip = new TestContextTabStrip();
+    const navigation = { activate: vi.fn(), close: vi.fn(), openLibrary: vi.fn() };
+    strip.bindNavigation(navigation);
+
+    strip.activateForTest("preview");
+    strip.activateForTest("library");
+    strip.dispatchEvent(new CustomEvent(contextResourceTabActionEvent, { detail: { action: "activate", key: "publication:reference-1" } }));
+    strip.dispatchEvent(new CustomEvent(contextResourceTabActionEvent, { detail: { action: "close", key: "pdf:pdf-1" } }));
+    strip.dispatchEvent(new CustomEvent(contextTabOverviewActionEvent, { detail: { action: "activate", key: "candidate:candidate-1" } }));
+    strip.dispatchEvent(new CustomEvent(contextTabOverviewActionEvent, { detail: { action: "close", key: "library-pdf:artifact-1" } }));
+
+    expect(navigation.openLibrary).toHaveBeenCalledOnce();
+    expect(navigation.activate.mock.calls).toEqual([["preview"], ["publication:reference-1"], ["candidate:candidate-1"]]);
+    expect(navigation.close.mock.calls).toEqual([["pdf:pdf-1"], ["library-pdf:artifact-1"]]);
   });
 
   it("resolves roving focus navigation", () => {

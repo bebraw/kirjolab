@@ -175,7 +175,9 @@ The adopted components own bounded presentation:
   focus, delegates resource and overview presentation, and derives fixed and
   canonical resource titles, visibility, resource labels, PDF-mode state, and
   fixed-panel scroll capture and restoration from each canonical tab update for
-  all controlled context panels.
+  all controlled context panels. It also routes fixed-tab and delegated
+  resource/overview activate and close intents through one typed navigation
+  boundary.
 - The context resource-tab strip owns resource tab and close-action markup,
   active-state presentation, panel associations, and typed activate and close
   intents.
@@ -928,7 +930,8 @@ reason to wrap static markup mechanically.
   labelling, PDF-mode presentation, and five coordinator title helpers. It
   composes the existing dynamic resource tabs and overflow overview from
   canonical tab and resource inputs, restores fixed-panel scroll directly from
-  that input, and emits typed intents. The application coordinator retains
+  that input, and replaces three coordinator event subscriptions with one
+  callback configuration. The application coordinator retains
   active-context state, authorized Library loading, resource closure, route
   synchronization, content rendering, PDF-specific form and inspector
   visibility, and resource-panel scroll restoration.

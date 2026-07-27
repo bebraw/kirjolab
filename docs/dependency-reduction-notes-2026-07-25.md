@@ -6480,6 +6480,29 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,658 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Context Tab Navigation Routing
+
+`ContextTabStrip` now routes its fixed-tab actions and the activate/close
+outcomes from its composed resource strip and overflow overview through one
+typed navigation boundary. `WorkspaceApp` retains canonical tab state,
+authorized Library loading, route synchronization, transitions, and content
+rendering without subscribing to all three presentation streams.
+
+This checkpoint reduces `src/client/app.ts` from 2,438 to 2,425 lines (-13)
+and grows the composed context-tab owner from 267 to 303 lines. Runtime source
+across those files grows by 23 lines while removing three coordinator
+subscriptions and three child-event imports. Nine direct strip cases cover
+fixed and resource presentation, title projection, panel control, keyboard
+focus, emitted intents, and the unified navigation boundary under strict types.
+
+The browser application artifact changes from 839,286 B raw / 226,580 B gzip
+to 839,517 B raw / 226,696 B gzip (+231 B raw / +116 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,659 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

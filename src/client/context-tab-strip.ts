@@ -1,11 +1,14 @@
 import { html, LitElement, type PropertyValues, type TemplateResult } from "lit";
 import type { LibraryPdfArtifact, ProjectReferencePdf } from "../domain/reference-library";
 import type { ModelCandidate, PdfResource, PublicationResource } from "../domain/workspace";
-import "./context-resource-tabs";
-import "./context-tab-overview";
 import "./preview-navigation-control";
-import { contextResourceTabId, type ContextResourceTabs } from "./context-resource-tabs";
-import { type ContextTabOverview } from "./context-tab-overview";
+import {
+  contextResourceTabActionEvent,
+  contextResourceTabId,
+  type ContextResourceTabAction,
+  type ContextResourceTabs,
+} from "./context-resource-tabs";
+import { contextTabOverviewActionEvent, type ContextTabOverview, type ContextTabOverviewAction } from "./context-tab-overview";
 import type { PreviewNavigationControl } from "./preview-navigation-control";
 import type { PreviewSyncControls } from "./preview-sync-controls";
 import type { ResearchContextKey, ResearchContextTab, ResearchResourceTab } from "./research-context";
@@ -36,6 +39,18 @@ export interface ContextTabStripSources {
   readonly tabs: readonly ResearchContextTab[];
 }
 
+export interface ContextTabNavigationCallbacks {
+  readonly activate: (key: ResearchContextKey) => void;
+  readonly close: (key: ResearchContextKey) => void;
+  readonly openLibrary: () => void;
+}
+
+const emptyNavigation: ContextTabNavigationCallbacks = {
+  activate: () => undefined,
+  close: () => undefined,
+  openLibrary: () => undefined,
+};
+
 export function contextTabFocusIndex(key: string, currentIndex: number, tabCount: number): number | null {
   if (key === "ArrowRight") return (currentIndex + 1) % tabCount;
   if (key === "ArrowLeft") return (currentIndex - 1 + tabCount) % tabCount;
@@ -50,10 +65,26 @@ export class ContextTabStrip extends LitElement {
   };
 
   declare protected data: ContextTabStripData;
+  private navigation = emptyNavigation;
 
   constructor() {
     super();
     this.data = { activeKey: "preview", items: [], standaloneLibrary: false };
+    this.addEventListener(contextPrimaryTabActionEvent, (event) => {
+      const action = (event as CustomEvent<ContextPrimaryTabAction>).detail;
+      if (action === "library") this.navigation.openLibrary();
+      else this.navigation.activate(action);
+    });
+    this.addEventListener(contextResourceTabActionEvent, (event) => {
+      this.routeNavigation((event as CustomEvent<ContextResourceTabAction>).detail);
+    });
+    this.addEventListener(contextTabOverviewActionEvent, (event) => {
+      this.routeNavigation((event as CustomEvent<ContextTabOverviewAction>).detail);
+    });
+  }
+
+  bindNavigation(callbacks: ContextTabNavigationCallbacks): void {
+    this.navigation = callbacks;
   }
 
   setTabs(sources: ContextTabStripSources): void {
@@ -219,6 +250,11 @@ export class ContextTabStrip extends LitElement {
             ? "context-assistant-scroll"
             : null;
     return id ? this.controlledPanel(id) : null;
+  }
+
+  private routeNavigation(action: ContextResourceTabAction | ContextTabOverviewAction): void {
+    if (action.action === "activate") this.navigation.activate(action.key);
+    else this.navigation.close(action.key);
   }
 
   private tabTitle(tab: ResearchContextTab, sources: ContextTabStripSources): string {

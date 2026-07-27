@@ -173,8 +173,10 @@ changing their canonical data, selector, authorization, or rendering contracts.
   publication, project-PDF, private-Library, shared-reference, and candidate
   inputs, panel visibility, active resource labels, and PDF-mode presentation
   plus fixed-panel scroll capture and restoration during the same canonical tab
-  update. The workspace coordinator retains canonical tab state, authorized
-  content loading, content rendering, and resource-panel scroll restoration.
+  update. It routes fixed, resource-strip, and overview navigation through one
+  typed coordinator boundary. The workspace coordinator retains canonical tab
+  state, authorized content loading, content rendering, route synchronization,
+  transitions, and resource-panel scroll restoration.
 - A bounded resource-context presenter synchronizes the evidence, annotation,
   publication, claim, comment, and candidate Lit owners from the canonical
   workspace snapshot; derives only the active PDF's annotation projection;
@@ -386,9 +388,10 @@ changing their canonical data, selector, authorization, or rendering contracts.
 - [x] The composed context tab strip owns fixed-tab keyboard presentation and
       fixed and canonical resource title derivation, all controlled-panel
       visibility, active resource labels, and PDF-mode state plus fixed-panel
-      scroll capture and restoration. Canonical context state, authorized
-      loading, content rendering, resource-panel scroll, routing, and transitions
-      remain with the application coordinator.
+      scroll capture and restoration, and routes its fixed, resource-strip, and
+      overview intents through one typed boundary. Canonical context state,
+      authorized loading, content rendering, resource-panel scroll, route
+      synchronization, and transitions remain with the application coordinator.
 - [x] A bounded light-DOM project evidence panel owns project-PDF and annotation
       grouping, counts, expanded state, grounding selection, passage-link
       presentation, stroke controls, project-PDF input validation and import

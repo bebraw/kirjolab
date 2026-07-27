@@ -83,9 +83,6 @@ import { claimListActionEvent, type ClaimListAction } from "./claim-list-panel";
 import { claimDialogSavedEvent } from "./claim-dialog";
 import { manuscriptCommentActionEvent, manuscriptCommentCreateEvent, type ManuscriptCommentAction } from "./manuscript-comment-list";
 import { publicationListActionEvent, type PublicationListAction } from "./publication-list-panel";
-import { contextTabOverviewActionEvent, type ContextTabOverviewAction } from "./context-tab-overview";
-import { contextResourceTabActionEvent, type ContextResourceTabAction } from "./context-resource-tabs";
-import { contextPrimaryTabActionEvent, type ContextPrimaryTabAction } from "./context-tab-strip";
 import { projectEvidenceActionEvent, type ProjectEvidenceAction } from "./project-evidence-panel";
 import {
   projectAnnotationActionEvent,
@@ -657,20 +654,10 @@ class WorkspaceApp {
       this.#showWorkspaceSurface((event as CustomEvent<WorkspaceSurface>).detail);
     });
     this.#layout.bind();
-    this.#elements.contextTabStrip.addEventListener(contextPrimaryTabActionEvent, (event) => {
-      const action = (event as CustomEvent<ContextPrimaryTabAction>).detail;
-      if (action === RESEARCH_LIBRARY_KEY) void this.#openReferenceLibrary();
-      else this.#activateContext(action);
-    });
-    this.#elements.contextTabStrip.addEventListener(contextResourceTabActionEvent, (event) => {
-      const detail = (event as CustomEvent<ContextResourceTabAction>).detail;
-      if (detail.action === "activate") this.#activateContext(detail.key);
-      else this.#closeContextTab(detail.key);
-    });
-    this.#elements.contextTabStrip.addEventListener(contextTabOverviewActionEvent, (event) => {
-      const detail = (event as CustomEvent<ContextTabOverviewAction>).detail;
-      if (detail.action === "activate") this.#activateContext(detail.key);
-      else this.#closeContextTab(detail.key);
+    this.#elements.contextTabStrip.bindNavigation({
+      activate: (key) => this.#activateContext(key),
+      close: (key) => this.#closeContextTab(key),
+      openLibrary: () => void this.#openReferenceLibrary(),
     });
     this.#elements.workspacePreview.addEventListener(workspacePreviewActionEvent, (event) => {
       const detail = (event as CustomEvent<WorkspacePreviewAction>).detail;

@@ -848,8 +848,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   shared-reference, and candidate inputs. Let it also own controlled-panel
   visibility, Preview sibling-control availability, active resource labels, and
   private-versus-read-only PDF presentation, and restore supplied fixed-panel
-  scroll positions during the same tab update. Keep canonical context state,
-  authorization, loading, content rendering, routing, and transitions outside it.
+  scroll positions during the same tab update. Route its fixed, resource-strip,
+  and overflow-overview navigation intents through one typed callback boundary.
+  Keep canonical context state, authorization, Library loading, content
+  rendering, route synchronization, and transitions outside it.
 - Let a separate resource-context Lit presenter coordinate the active
   publication, candidate, project-PDF, private-Library PDF, and shared-reference
   PDF presentation from those canonical inputs. It may select the owning panel,
