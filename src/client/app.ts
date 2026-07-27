@@ -72,7 +72,6 @@ import {
   researchTargetFromContextKey,
   workspaceUiRouteUrl,
   type AuthoringMode,
-  type WorkspaceRail,
   type WorkspaceSurface,
 } from "./workspace-ui-route";
 import "./workspace-rail-tabs";
@@ -323,7 +322,7 @@ class WorkspaceApp {
     this.#elements.saveTemplateDialog.bindCompletion((message) => {
       void this.#refreshProjectTemplates().then(() => this.#showToast(message));
     });
-    this.#elements.workspaceRailTabs.bindNavigation((rail) => this.#showRail(rail));
+    this.#elements.workspaceRailTabs.bindNavigation(() => this.#syncWorkspaceRoute("replace"));
     this.#elements.researchDiaryPanel.bindOpen(
       () =>
         void this.#elements.projectFileDialog.openWorkflowFile(researchDiaryPath, () =>
@@ -407,7 +406,7 @@ class WorkspaceApp {
       },
       quickOpen: () => {
         this.#layout.setRailCollapsed(false);
-        this.#showRail("files");
+        this.#elements.workspaceRailTabs.navigate("files");
       },
       saved: ({ message }) => this.#showToast(message),
       tree: this.#elements.projectTreePanel,
@@ -526,7 +525,7 @@ class WorkspaceApp {
         this.#renderResearchContext(false);
         this.#elements.assistantGenerationPresenter.refreshAvailability();
       },
-      openEvidenceRail: () => this.#showRail("research"),
+      openEvidenceRail: () => this.#elements.workspaceRailTabs.navigate("research"),
       openGeneratedCandidate: async (candidate) => await this.#openCreatedCandidate(candidate),
       resolveDecision: async (detail) => await this.#completeCandidateRequest(detail),
       tableState: () => ({
@@ -559,11 +558,6 @@ class WorkspaceApp {
     await this.#refreshProjectReferencePdfs();
   }
 
-  #showRail(mode: WorkspaceRail): void {
-    this.#elements.workspaceRailTabs.setMode(mode);
-    this.#syncWorkspaceRoute("replace");
-  }
-
   async #applyWorkspaceLayout(value: string, persist = true): Promise<void> {
     const layout = this.#elements.workspaceLayout.setLayout(value, persist);
     this.#elements.workspaceSurfaces.dataset.layout = layout;
@@ -585,7 +579,7 @@ class WorkspaceApp {
   async #restoreWorkspaceRoute(): Promise<void> {
     const url = new URL(location.href);
     const route = readWorkspaceUiRoute(url);
-    if (url.searchParams.has("rail")) this.#showRail(route.rail);
+    if (url.searchParams.has("rail")) this.#elements.workspaceRailTabs.navigate(route.rail);
     if (url.searchParams.has("mode")) this.#setAuthoringMode(route.mode);
     if (route.fileId) this.#elements.projectFileDialog.selectFile(route.fileId);
     if (url.searchParams.has("context")) await this.#restoreWorkspaceContext(route);

@@ -8945,6 +8945,29 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,718 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Rail Navigation
+
+`WorkspaceRailTabs` now applies internal clicks and workflow-driven rail
+navigation through one component-owned transition before reporting the selected
+mode for URL synchronization. `WorkspaceApp` retains responsive layout,
+collapse, route persistence, and guide rendering without a rail-selection
+wrapper or the `WorkspaceRail` type dependency.
+
+This checkpoint reduces `src/client/app.ts` from 1,263 to 1,257 lines (-6),
+grows the rail-tabs owner from 100 to 105 lines (+5), and reduces combined
+runtime source by one line while eliminating the coordinator round trip for tab
+selection. Focused and affected coverage passes all 46 related cases, including
+unchanged clicks, internal selection, controlled-panel projection, external
+workflow navigation, application contracts, and strict types.
+
+The browser application artifact changes from 849,498 B raw / 228,878 B gzip
+to 849,575 B raw / 228,872 B gzip (+77 B raw / -6 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,719 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

@@ -18,7 +18,7 @@ export class WorkspaceRailTabs extends LitElement {
 
   declare private commentCount: number;
   declare mode: WorkspaceRail;
-  private navigate: ((mode: WorkspaceRail) => void) | null = null;
+  private navigation: ((mode: WorkspaceRail) => void) | null = null;
 
   constructor() {
     super();
@@ -31,7 +31,7 @@ export class WorkspaceRailTabs extends LitElement {
   }
 
   bindNavigation(navigate: (mode: WorkspaceRail) => void): void {
-    this.navigate = navigate;
+    this.navigation = navigate;
   }
 
   setMode(mode: WorkspaceRail): void {
@@ -39,6 +39,11 @@ export class WorkspaceRailTabs extends LitElement {
     for (const { mode: panelMode } of tabs) {
       this.setPanelHidden(panelMode, panelMode !== mode);
     }
+  }
+
+  navigate(mode: WorkspaceRail): void {
+    this.setMode(mode);
+    this.navigation?.(mode);
   }
 
   protected setPanelHidden(mode: WorkspaceRail, hidden: boolean): void {
@@ -49,7 +54,7 @@ export class WorkspaceRailTabs extends LitElement {
   protected select(event: Event): void {
     const mode = (event.currentTarget as HTMLButtonElement).dataset.railMode as WorkspaceRail | undefined;
     if (!mode || mode === this.mode) return;
-    this.navigate?.(mode);
+    this.navigate(mode);
   }
 
   override connectedCallback(): void {

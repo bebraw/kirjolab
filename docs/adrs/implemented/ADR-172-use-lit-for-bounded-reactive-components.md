@@ -603,8 +603,9 @@ The adopted components own bounded presentation:
   subsets, evidence and connection actions, operation-specific target and
   evidence requirement validation,
   synchronization guidance, generation-start copy, and their typed intents.
-- The workspace rail tabs own active-tab and open-comment-count presentation
-  plus a typed navigation intent.
+- The workspace rail tabs own internal and workflow-driven selection, active-
+  tab, controlled-panel, and open-comment-count presentation plus a typed
+  navigation outcome.
 - The authoring mode tabs own Write and Map active-state presentation,
   controlled editor, write-action, and map visibility, map focus entry through
   its composed workspace, plus a typed navigation binding.
@@ -1161,8 +1162,11 @@ reason to wrap static markup mechanically.
   synchronization. Its public change event is removed.
 - The workspace rail tabs derive their four controlled panel targets from the
   existing `aria-controls` contract and own active-panel visibility alongside
-  tab selection and comment-count presentation. The application coordinator
-  retains route synchronization, responsive rail layout, and guide rendering.
+  tab selection and comment-count presentation. Their navigation method applies
+  the selected mode before reporting it through the typed binding, so internal
+  clicks and external workflows share one state transition. The application
+  coordinator retains route synchronization, responsive rail layout, and guide
+  rendering.
 - The unidentified-PDF queue replaces two internal element references,
   imperative section, count, empty-state, card, and option rendering, and
   per-card action bindings. It also derives its legacy unattached-artifact

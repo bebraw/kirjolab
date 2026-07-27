@@ -133,6 +133,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   validate its authorized summaries, retain the one browser catalog projection,
   and synchronize the compact switcher from that state. Other workflows consume
   its read-only catalog; keep canonical route navigation outside it.
+- Let the workspace rail-tabs Lit owner apply each internal or workflow-driven
+  rail selection to its active tab and controlled panel before reporting the
+  selected mode through one typed navigation callback. Keep URL synchronization,
+  responsive rail layout, collapse, and guide rendering in their existing
+  coordinators.
 - Let the GitHub sync-menu Lit component bind the workspace-settings review,
   own online and active-review refresh policy, route Check/Pull/Push/Settings
   actions, and refresh both canonical project data after Pull and menu status

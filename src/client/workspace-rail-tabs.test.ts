@@ -41,13 +41,29 @@ describe("workspace rail tabs", () => {
     expect(tabs.renderForTest()).toBeDefined();
   });
 
-  it("emits changed rail intents only", () => {
+  it("owns changed rail navigation and emits the selected mode", () => {
     const tabs = new TestWorkspaceRailTabs();
     const modes: WorkspaceRail[] = [];
     tabs.bindNavigation((mode) => modes.push(mode));
     tabs.selectForTest();
     tabs.selectForTest("files");
     tabs.selectForTest("research");
+    expect(tabs.mode).toBe("research");
+    expect([...tabs.hiddenPanels]).toEqual([
+      ["files", true],
+      ["research", false],
+      ["comments", true],
+      ["guide", true],
+    ]);
     expect(modes).toEqual(["research"]);
+  });
+
+  it("offers the same navigation ownership to external workflows", () => {
+    const tabs = new TestWorkspaceRailTabs();
+    const modes: WorkspaceRail[] = [];
+    tabs.bindNavigation((mode) => modes.push(mode));
+    tabs.navigate("guide");
+    expect(tabs.mode).toBe("guide");
+    expect(modes).toEqual(["guide"]);
   });
 });
