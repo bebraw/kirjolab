@@ -80,13 +80,7 @@ import {
   type AssistantResultActionDetail,
   type AssistantRevisionContext as AssistantDraftContext,
 } from "./assistant-result-panel";
-import {
-  candidateDecisionEvent,
-  candidateDecisionOutcomeEvent,
-  candidateEvidenceEvent,
-  type CandidateDecisionOutcome,
-  type CandidateDecisionRequest,
-} from "./candidate-review-panel";
+import { type CandidateDecisionOutcome, type CandidateDecisionRequest } from "./candidate-review-panel";
 import { publicationContextActionEvent, type PublicationContextAction, type PublicationPaperOption } from "./publication-context-panel";
 import {
   isWorkspaceSnapshot,
@@ -94,7 +88,6 @@ import {
   type AnnotationResource,
   type ClaimResource,
   type ModelCandidate,
-  type ModelEvidence,
   type ModelEvidenceReference,
   type PassageLink,
   type PdfResource,
@@ -833,24 +826,11 @@ class WorkspaceApp {
       } else void this.#completePublicationIntake(detail.doi, detail.requestId);
     });
     this.#elements.candidateReviewPanel.configure(apiBase);
-    this.#elements.candidateReviewPanel.addEventListener(candidateDecisionEvent, (event) => {
-      const detail = (event as CustomEvent<CandidateDecisionRequest>).detail;
-      this.#assistantWorkflow.send({ type: "DECIDE", id: detail.candidateId, action: detail.action });
-      this.#renderResearchContext(false);
-      this.#updateModelAvailability();
-    });
-    this.#elements.candidateReviewPanel.addEventListener(candidateDecisionOutcomeEvent, (event) => {
-      void this.#completeCandidateRequest((event as CustomEvent<CandidateDecisionOutcome>).detail);
-    });
-    this.#elements.candidateReviewPanel.addEventListener(candidateEvidenceEvent, (event) => {
-      const evidence = (event as CustomEvent<ModelEvidence>).detail;
-      if (evidence.kind === "annotation") {
-        const pdf = this.#snapshot?.pdfs.find((item) => item.id === evidence.pdfId);
-        const annotation = this.#snapshot?.annotations.find((item) => item.id === evidence.id);
-        if (pdf && annotation) void this.#showPaper(pdf, evidence.page, evidence.id);
-      } else if (this.#snapshot?.claims.some((claim) => claim.id === evidence.id)) {
-        this.#elements.claimListPanel.revealClaim(evidence.id, true);
-      }
+    this.#elements.assistantGenerationPresenter.bindCandidate({
+      completeDecision: (detail) => void this.#completeCandidateRequest(detail),
+      openPaper: (pdf, evidence) => void this.#showPaper(pdf, evidence.page, evidence.id),
+      snapshot: () => this.#snapshot,
+      startDecision: (detail) => this.#startCandidateDecision(detail),
     });
     this.#elements.assistantGenerationPresenter.bindResults({
       handleAction: (detail) => void this.#handleAssistantResultAction(detail),
@@ -2514,6 +2494,12 @@ class WorkspaceApp {
       }
     }
     this.#completeCandidateDecision(detail.action, failure);
+  }
+
+  #startCandidateDecision(detail: CandidateDecisionRequest): void {
+    this.#assistantWorkflow.send({ type: "DECIDE", id: detail.candidateId, action: detail.action });
+    this.#renderResearchContext(false);
+    this.#updateModelAvailability();
   }
 
   #completeCandidateDecision(action: "apply" | "reject", failure: string | null): void {

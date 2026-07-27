@@ -16,10 +16,18 @@ import {
   type SelectedModelEvidence,
 } from "./assistant-workflow-status";
 import { CandidateListPanel } from "./candidate-list-panel";
-import { CandidateReviewPanel } from "./candidate-review-panel";
+import {
+  CandidateReviewPanel,
+  candidateDecisionEvent,
+  candidateDecisionOutcomeEvent,
+  candidateEvidenceEvent,
+  type CandidateDecisionOutcome,
+  type CandidateDecisionRequest,
+} from "./candidate-review-panel";
+import { ClaimListPanel } from "./claim-list-panel";
 import { ModelProviderSettings, modelProviderChangeEvent } from "./model-provider-settings";
 import type { ModelProvider } from "./model-provider";
-import type { ModelCandidate } from "../domain/workspace";
+import type { ModelCandidate, ModelEvidence, PdfResource, WorkspaceSnapshot } from "../domain/workspace";
 
 type InteractiveProvider = Pick<
   ModelProvider,
@@ -70,7 +78,34 @@ export interface AssistantResultCallbacks {
   readonly refreshLibrary: () => Promise<void>;
 }
 
+export interface AssistantCandidateCallbacks {
+  readonly completeDecision: (detail: CandidateDecisionOutcome) => void;
+  readonly openPaper: (pdf: PdfResource, evidence: Extract<ModelEvidence, { readonly kind: "annotation" }>) => void;
+  readonly snapshot: () => WorkspaceSnapshot | null;
+  readonly startDecision: (detail: CandidateDecisionRequest) => void;
+}
+
 export class AssistantGenerationPresenter extends LitElement {
+  bindCandidate(callbacks: AssistantCandidateCallbacks): void {
+    const review = this.element("candidate-review-panel", CandidateReviewPanel);
+    review?.addEventListener(candidateDecisionEvent, (event) => {
+      callbacks.startDecision((event as CustomEvent<CandidateDecisionRequest>).detail);
+    });
+    review?.addEventListener(candidateDecisionOutcomeEvent, (event) => {
+      callbacks.completeDecision((event as CustomEvent<CandidateDecisionOutcome>).detail);
+    });
+    review?.addEventListener(candidateEvidenceEvent, (event) => {
+      const evidence = (event as CustomEvent<ModelEvidence>).detail;
+      const snapshot = callbacks.snapshot();
+      if (evidence.kind === "annotation") {
+        const pdf = snapshot?.pdfs.find(({ id }) => id === evidence.pdfId);
+        if (pdf && snapshot?.annotations.some(({ id }) => id === evidence.id)) callbacks.openPaper(pdf, evidence);
+      } else if (snapshot?.claims.some(({ id }) => id === evidence.id)) {
+        this.element("claim-list-panel", ClaimListPanel)?.revealClaim(evidence.id, true);
+      }
+    });
+  }
+
   bindResults(callbacks: AssistantResultCallbacks): void {
     const result = this.element("assistant-interactive-result", AssistantResultPanel);
     const status = this.element("assistant-workflow-status", AssistantWorkflowStatus);

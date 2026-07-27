@@ -5,10 +5,18 @@ import { AssistantResultPanel, assistantReferenceRefreshEvent, assistantResultAc
 import { AssistantTaskPanel, assistantTaskChangeEvent, assistantTaskGenerateEvent } from "./assistant-task-panel";
 import { AssistantWorkflowStatus, assistantWorkflowActionEvent } from "./assistant-workflow-status";
 import { CandidateListPanel } from "./candidate-list-panel";
-import { CandidateReviewPanel } from "./candidate-review-panel";
+import {
+  CandidateReviewPanel,
+  candidateDecisionEvent,
+  candidateDecisionOutcomeEvent,
+  candidateEvidenceEvent,
+  type CandidateDecisionOutcome,
+} from "./candidate-review-panel";
+import { ClaimListPanel } from "./claim-list-panel";
 import { OpenAICompatibleBrowserProvider } from "./model-provider";
 import { ModelProviderSettings, modelProviderChangeEvent } from "./model-provider-settings";
-import type { ModelClaimCandidate, ModelRevisionCandidate } from "../domain/workspace";
+import type { ModelAnnotationEvidence, ModelClaimCandidate, ModelClaimEvidence, ModelRevisionCandidate } from "../domain/workspace";
+import { workspaceSnapshotFixture } from "../test-support/workspace-fixture";
 
 const passage = { end: 18, excerpt: "Target manuscript", fileId: "main.md", start: 1 };
 const provider = new OpenAICompatibleBrowserProvider({
@@ -60,6 +68,29 @@ const claimCandidate: ModelClaimCandidate = {
   relation: "supports",
   status: "pending",
 };
+const annotationEvidence: ModelAnnotationEvidence = {
+  comment: "Working note",
+  createdAt: "created",
+  id: "annotation:1",
+  kind: "annotation",
+  page: 2,
+  pdfId: "pdf:1",
+  prefix: "Before",
+  quote: "Evidence",
+  rects: [],
+  suffix: "After",
+  updatedAt: "updated",
+  version: "updated",
+};
+const claimEvidence: ModelClaimEvidence = {
+  createdAt: "created",
+  id: "claim:1",
+  kind: "claim",
+  note: "",
+  text: "Grounded claim",
+  updatedAt: "updated",
+  version: "updated",
+};
 
 function input(operationId: string): AssistantGenerationInput {
   return {
@@ -82,6 +113,7 @@ function setup() {
     "assistant-workflow-status": new AssistantWorkflowStatus(),
     "candidate-list-panel": new CandidateListPanel(),
     "candidate-review-panel": new CandidateReviewPanel(),
+    "claim-list-panel": new ClaimListPanel(),
     "model-provider-settings": new ModelProviderSettings(),
   };
   Object.defineProperty(presenter, "ownerDocument", {
@@ -267,5 +299,44 @@ describe("assistant generation presenter", () => {
     expect(handleAction).toHaveBeenCalledWith(action);
     expect(refreshLibrary).toHaveBeenCalledTimes(2);
     expect(elements["assistant-workflow-status"].status).toBe("The reference was saved, but the refreshed Library could not be loaded.");
+  });
+
+  it("owns candidate decision and evidence wiring", () => {
+    const { elements, presenter } = setup();
+    const review = elements["candidate-review-panel"];
+    const outcome: CandidateDecisionOutcome = { action: "apply", failure: null, message: "Candidate applied." };
+    const pdf = {
+      contentType: "application/pdf" as const,
+      createdAt: "created",
+      fingerprint: "fingerprint",
+      id: annotationEvidence.pdfId,
+      name: "paper.pdf",
+      objectKey: "pdfs/paper.pdf",
+      size: 1024,
+    };
+    const snapshot = {
+      ...workspaceSnapshotFixture,
+      annotations: [{ ...annotationEvidence, fragments: [], rects: [...annotationEvidence.rects] }],
+      claims: [{ ...claimEvidence }],
+      pdfs: [pdf],
+    };
+    const callbacks = {
+      completeDecision: vi.fn(),
+      openPaper: vi.fn(),
+      snapshot: () => snapshot,
+      startDecision: vi.fn(),
+    };
+    const revealClaim = vi.spyOn(elements["claim-list-panel"], "revealClaim").mockReturnValue(true);
+    presenter.bindCandidate(callbacks);
+
+    review.dispatchEvent(new CustomEvent(candidateDecisionEvent, { detail: { action: "apply", candidateId: revisionCandidate.id } }));
+    review.dispatchEvent(new CustomEvent(candidateDecisionOutcomeEvent, { detail: outcome }));
+    review.dispatchEvent(new CustomEvent(candidateEvidenceEvent, { detail: annotationEvidence }));
+    review.dispatchEvent(new CustomEvent(candidateEvidenceEvent, { detail: claimEvidence }));
+
+    expect(callbacks.startDecision).toHaveBeenCalledWith({ action: "apply", candidateId: revisionCandidate.id });
+    expect(callbacks.completeDecision).toHaveBeenCalledWith(outcome);
+    expect(callbacks.openPaper).toHaveBeenCalledWith(pdf, annotationEvidence);
+    expect(revealClaim).toHaveBeenCalledWith(claimEvidence.id, true);
   });
 });

@@ -42,7 +42,11 @@ All mutation operations preserve a human review boundary.
   delegating only evidence navigation, canonical target and availability
   refresh, and generation execution to the application. It also owns result-
   action and reference-refresh subscriptions plus result-local completion and
-  status, delegating only canonical Library refresh.
+  status, delegating only canonical Library refresh. It owns candidate-review
+  decision-start, completed-decision, and evidence-navigation subscriptions and
+  resolves evidence destinations against a read-only canonical snapshot
+  callback. The application retains decision workflow transitions, canonical
+  refresh, PDF navigation, and context rendering.
 - A non-empty manuscript selection always resolves exactly. Otherwise the
   remembered Yjs-relative caret expands deterministically to the configured
   sentence, paragraph, or Markdown section, or remains an insertion point.

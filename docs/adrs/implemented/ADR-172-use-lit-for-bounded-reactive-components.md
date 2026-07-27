@@ -99,7 +99,11 @@ The adopted components own bounded presentation:
   subscriptions while delegating evidence navigation, canonical target and
   availability refresh, and generation execution to the coordinator. It also
   owns result-action and reference-refresh subscriptions, result-local save
-  completion, and status presentation while delegating canonical Library refresh.
+  completion, and status presentation while delegating canonical Library
+  refresh. It also owns candidate-review decision-start, completed-decision,
+  and evidence-navigation subscriptions and resolves evidence destinations
+  against a read-only canonical snapshot callback while the coordinator retains
+  workflow transitions, canonical refresh, PDF navigation, and context rendering.
 - The project map panel owns provenance-lane rendering, measured SVG connector
   geometry, responsive relayout, focus and hover emphasis, and a typed resource
   selection intent.
