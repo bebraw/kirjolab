@@ -94,7 +94,8 @@ without accidentally widening access to another resource.
   shell and exposes authored Markdown files and the canonical PDF only. It
   autosaves a bounded whole-file replacement after editing settles. Each
   replacement revalidates the capability, requires an exact same-origin
-  `Origin`, enforces the 2 MB content bound, and rejects a stale expected
+  `Origin`, validates the content and safe-integer revision together through a
+  bounded schema, enforces the 2 MB content bound, and rejects a stale expected
   revision instead of overwriting concurrent work.
 - Neither `/share/*` nor `/edit/*` has a reference-artifact route. A bearer
   secret never substitutes for authenticated project membership, even when its

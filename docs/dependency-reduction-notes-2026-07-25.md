@@ -6570,6 +6570,28 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,663 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Valibot Adoption: Edit Capability Mutations
+
+The edit-link file replacement boundary now validates content and expected
+revision with one Valibot schema. Bounded streaming, bearer-capability and
+same-origin authorization, stale-revision enforcement, and stable response
+mapping remain explicit.
+
+This checkpoint reduces `src/api/edit-share.ts` from 140 to 134 lines (-6),
+removing its local record predicate and manual field checks. The focused suite
+covers malformed JSON, declared-byte overflow, missing and fractional
+revisions, structural arrays, the exact content ceiling, same-origin denial,
+successful mutation, revision conflict, missing file, and domain size errors
+under strict types.
+
+Browser application and style artifacts remain unchanged at 841,301 B raw /
+227,193 B gzip and 135,411 B raw / 23,373 B gzip because this boundary is
+Worker-side. Direct and unique production package counts remain 18 and 150;
+Valibot was already pinned.
+
+Full native CI passes all 1,663 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

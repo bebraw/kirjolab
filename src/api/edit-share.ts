@@ -1,3 +1,4 @@
+import * as v from "valibot";
 import type { WorkspaceSnapshot } from "../domain/workspace";
 import { buildExportBundle } from "../domain/export-pipeline";
 import type { ProjectFileReplaceResult } from "../durable-objects/document-room";
@@ -9,6 +10,10 @@ import { htmlResponse, pdfResponse } from "../views/shared";
 import { renderExportPdf } from "./export-artifacts";
 
 const maximumEditSharePayloadBytes = 8_100_000;
+const editProjectFileSchema = v.object({
+  content: v.pipe(v.string(), v.maxLength(2_000_000)),
+  revision: v.pipe(v.number(), v.safeInteger()),
+});
 
 interface EditShareAccessApi {
   resolveEditShare(token: string): Promise<ResolvedEditShare>;
@@ -82,16 +87,9 @@ async function editProjectFile(request: Request, room: EditShareRoomApi, workspa
       { status: error instanceof RangeError ? 413 : 400 },
     );
   }
-  if (
-    !isRecord(body) ||
-    typeof body.content !== "string" ||
-    body.content.length > 2_000_000 ||
-    typeof body.revision !== "number" ||
-    !Number.isSafeInteger(body.revision)
-  ) {
-    return Response.json({ error: "Invalid project file edit" }, { status: 400 });
-  }
-  const result = await room.replaceProjectFileContent(workspaceId, fileId, body.content, body.revision);
+  const input = v.safeParse(editProjectFileSchema, body);
+  if (!input.success) return Response.json({ error: "Invalid project file edit" }, { status: 400 });
+  const result = await room.replaceProjectFileContent(workspaceId, fileId, input.output.content, input.output.revision);
   if (result.ok) return editShareSnapshotResponse(result.value);
   const status = result.code === "revision-conflict" ? 409 : result.code === "file-not-found" ? 404 : 400;
   return Response.json({ error: result.error }, { status });
@@ -107,10 +105,6 @@ function editShareSnapshotResponse(snapshot: WorkspaceSnapshot): Response {
     },
     { headers: { "cache-control": "no-store", "referrer-policy": "no-referrer" } },
   );
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
 }
 
 async function readBoundedJson(request: Request, maximumBytes: number): Promise<unknown> {

@@ -67,6 +67,10 @@ Adopted boundaries are:
   revision-seed schemas replace parallel request interfaces, record checks, and
   scalar predicates while authorization, canonical title trimming, catalog
   fan-out, revision identity, and Durable Object mutations remain explicit.
+- Edit-capability file mutations: one request schema replaces the record,
+  content, length, numeric, and safe-integer checks while bounded body reading,
+  bearer and same-origin authorization, revision conflicts, and mutation error
+  mapping remain explicit.
 
 Schemas validate local structure only. Stateful invariants, authorization,
 deduplication, provenance, canonicalization, and relationships between records

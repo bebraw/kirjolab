@@ -147,6 +147,12 @@ describe("edit share API", () => {
     const invalid = await handleEditShareRequest(jsonRequest(`${editPath}/files/${fileId}`, { content: "missing revision" }), env);
     expect(invalid?.status).toBe(400);
 
+    for (const body of [{ content: "text", revision: 1.5 }, { content: "x".repeat(2_000_001), revision: 4 }, []]) {
+      const response = await handleEditShareRequest(jsonRequest(`${editPath}/files/${fileId}`, body), env);
+      expect(response?.status).toBe(400);
+      await expect(response?.json()).resolves.toEqual({ error: "Invalid project file edit" });
+    }
+
     for (const [code, message, status] of [
       ["revision-conflict", "Project changed since this edit loaded", 409],
       ["file-not-found", "Project file not found", 404],
