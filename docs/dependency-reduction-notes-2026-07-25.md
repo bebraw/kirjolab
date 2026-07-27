@@ -8106,6 +8106,30 @@ gzip, 18, and 150.
 Full native CI passes all 1,705 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Template Save Handoff
+
+`WorkspaceSettingsPanel` now dismisses itself and hands its current project
+title directly to `ProjectTemplateSaveDialog`. The save dialog owns the supplied
+catalog-loader's loading-to-ready lifecycle and retryable load-error
+presentation. `WorkspaceApp` retains canonical catalog refresh, replacement
+option synchronization, completion refresh, and global notices.
+
+This checkpoint reduces `src/client/app.ts` from 1,582 to 1,571 lines (-11),
+grows the template-save dialog from 221 to 231 lines (+10), and grows workspace
+settings from 423 to 427 lines (+4). Runtime source across those files increases
+by three lines while deleting the coordinator's modal, title, and error
+choreography. Focused coverage passes all 30 template-save, workspace-settings,
+and application-contract cases, including successful loading, retryable errors,
+dismissal, title handoff, lifecycle requests, and strict types.
+
+The browser application artifact changes from 846,812 B raw / 228,687 B gzip
+to 846,726 B raw / 228,675 B gzip (-86 B raw / -12 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,706 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

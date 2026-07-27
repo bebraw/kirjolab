@@ -50,6 +50,16 @@ export class ProjectTemplateSaveDialog extends LitElement {
     this.completeSave = completeSave;
   }
 
+  async open(projectTitle: string, loadTemplates: () => Promise<void>): Promise<void> {
+    await this.showLoading();
+    try {
+      await loadTemplates();
+      await this.showReady(projectTitle);
+    } catch (error) {
+      this.showError(errorMessage(error, "Could not load personal templates."));
+    }
+  }
+
   get value(): ProjectTemplateSave {
     return {
       description: this.description,

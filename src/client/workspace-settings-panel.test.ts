@@ -184,11 +184,11 @@ describe("workspace settings panel", () => {
     await panel.actionForTest("archive");
     await panel.actionForTest("delete");
 
-    expect(saveTemplate).toHaveBeenCalledOnce();
+    expect(saveTemplate).toHaveBeenCalledWith("Study");
     expect(refreshCatalog).toHaveBeenCalledOnce();
     expect(assign.mock.calls).toEqual([["/editor/study?mode=source&file=file-2"], ["/editor/copy"], ["/"]]);
     expect(fetchMock).toHaveBeenCalledTimes(4);
-    expect(panel.closeCount).toBe(1);
+    expect(panel.closeCount).toBe(2);
   });
 
   it("contains failed, malformed, cancelled, and overlapping requests", async () => {
@@ -276,10 +276,11 @@ describe("workspace settings panel", () => {
       snapshot: null,
       workspaceId: "study",
     };
+    const saveTemplate = vi.fn();
     panel.bindWorkspace(trigger, {
       refreshCatalog: vi.fn(),
       refreshGitHub,
-      saveTemplate: vi.fn(),
+      saveTemplate,
       sources: () => sources,
     });
 
@@ -291,6 +292,10 @@ describe("workspace settings panel", () => {
     await panel.openSettings(false);
     expect(panel.open).toBe(true);
     expect(refreshGitHub).toHaveBeenCalledOnce();
+
+    await panel.actionForTest("save-template");
+    expect(saveTemplate).toHaveBeenCalledWith("");
+    expect(panel.open).toBe(false);
   });
 
   it("owns its GitHub review presentation and preview actions", async () => {

@@ -277,7 +277,8 @@ class WorkspaceApp {
     this.#elements.workspaceSettingsPanel.bindWorkspace(this.#elements.workspaceSettings, {
       refreshCatalog: async () => await this.#elements.workspaceCatalogPanel.refresh(),
       refreshGitHub: () => void this.#elements.gitHubSyncMenu.refreshWorkspace(true),
-      saveTemplate: async () => await this.#openSaveTemplate(),
+      saveTemplate: async (projectTitle) =>
+        await this.#elements.saveTemplateDialog.open(projectTitle, async () => await this.#refreshProjectTemplates()),
       sources: () => ({
         catalog: this.#elements.workspaceCatalogPanel.catalog,
         hiddenFileIds: this.#elements.projectFileDialog.hiddenFiles,
@@ -713,18 +714,6 @@ class WorkspaceApp {
   async #refreshProjectTemplates(): Promise<void> {
     await this.#elements.newWorkspaceStartingPoints.refresh(this.#elements.workspaceCatalogPanel.catalog);
     this.#elements.saveTemplateDialog.setTemplates(this.#elements.newWorkspaceStartingPoints.availableTemplates);
-  }
-
-  async #openSaveTemplate(): Promise<void> {
-    const projectTitle = this.#elements.workspaceSettingsPanel.value.title;
-    this.#elements.workspaceSettingsPanel.close();
-    await this.#elements.saveTemplateDialog.showLoading();
-    try {
-      await this.#refreshProjectTemplates();
-      await this.#elements.saveTemplateDialog.showReady(projectTitle);
-    } catch (error) {
-      this.#elements.saveTemplateDialog.showError(error instanceof Error ? error.message : "Could not load personal templates.");
-    }
   }
 
   async #completeProjectTemplateSave({ replaced, template }: ProjectTemplateSaved): Promise<void> {

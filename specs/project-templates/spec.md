@@ -29,9 +29,12 @@ without copying private research or creating a live dependency on the source.
   is explicit and owner-only; it never changes projects already created from
   that template. One bounded save dialog owns visible personal-template
   replacement choices, local name and description values, loading and
-  replacement copy, focus, cancellation, persistence, and typed validated
+  replacement copy, focus, cancellation, supplied catalog-load lifecycle and
+  retryable load errors, persistence, and typed validated
   completion through a coordinator binding. The workspace coordinator retains
-  catalog refresh, hidden-template policy, and success notification.
+  catalog refresh, hidden-template policy, and success notification. The
+  workspace-settings owner dismisses itself and supplies the current project
+  title when starting this workflow.
 - Active projects available to the researcher appear as one-off starting
   points. Selecting one lazily previews its current sanitized structure;
   creation derives a transient `ProjectTemplateSeed` from its authorized

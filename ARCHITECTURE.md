@@ -308,7 +308,8 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   coordinator, and let it navigate to the validated project-creation response's
   canonical workspace href. The
   template-save Lit dialog owns promotion requests, response validation, and
-  local busy and error presentation. The application coordinator retains import
+  its loading-to-ready/error lifecycle. The workspace-settings Lit owner closes
+  before handing the current project title to that workflow. The application coordinator retains import
   workflows, replacement-option synchronization, post-promotion catalog
   refresh, and the toast outlet through typed component bindings.
 - Require every composition result to retain source-map spans back to file

@@ -203,6 +203,21 @@ describe("project template save dialog", () => {
     expect(dialog.modal.open).toBe(false);
   });
 
+  it("owns template loading and retryable open errors", async () => {
+    const dialog = new TestProjectTemplateSaveDialog();
+    const loadTemplates = vi.fn().mockResolvedValue(undefined);
+
+    await dialog.open("Current project", loadTemplates);
+    expect(loadTemplates).toHaveBeenCalledOnce();
+    expect(dialog.showCount).toBe(1);
+    expect(dialog.focusCount).toBe(1);
+
+    const showError = vi.spyOn(dialog, "showError");
+    await dialog.open("Current project", vi.fn().mockRejectedValue(new Error("Template service unavailable")));
+    expect(showError).toHaveBeenCalledWith("Template service unavailable");
+    expect(dialog.focusCount).toBe(1);
+  });
+
   it("reports missing modal internals clearly", () => {
     const dialog = new MissingProjectTemplateSaveDialogElements();
     expect(() => dialog.dialogForTest()).toThrow("Project template save dialog is unavailable");

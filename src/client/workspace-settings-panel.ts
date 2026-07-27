@@ -33,7 +33,7 @@ export interface WorkspaceSettingsSources {
 export interface WorkspaceSettingsBinding {
   readonly refreshCatalog: () => Promise<void> | void;
   readonly refreshGitHub: () => Promise<void> | void;
-  readonly saveTemplate: () => Promise<void> | void;
+  readonly saveTemplate: (projectTitle: string) => Promise<void> | void;
   readonly sources: () => WorkspaceSettingsSources;
 }
 
@@ -317,7 +317,9 @@ export class WorkspaceSettingsPanel extends LitElement {
 
   protected saveTemplate(): void {
     if (this.busy) return;
-    void this.binding?.saveTemplate();
+    const projectTitle = this.view.title;
+    this.close();
+    void this.binding?.saveTemplate(projectTitle);
   }
 
   protected duplicate(): void {

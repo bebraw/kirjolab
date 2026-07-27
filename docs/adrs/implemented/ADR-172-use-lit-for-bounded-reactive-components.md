@@ -393,8 +393,11 @@ The adopted components own bounded presentation:
   rename, delete, folder-create, or image-upload intent contract.
 - The project template save dialog owns replacement choices, local name and
   description values, loading and replacement copy, focus, cancellation,
-  promotion requests, response validation, local busy and error state, and
+  the supplied template-loader lifecycle and retryable load errors, promotion
+  requests, response validation, local busy and error state, and
   typed validated completion outcomes through a coordinator binding.
+- The workspace settings panel dismisses itself and hands its current project
+  title directly to the template-save workflow.
 - The project starting-point browser owns project title, template and existing
   project choices, catalog loading, project-preview loading, project creation,
   personal-template deletion, response validation, post-delete catalog refresh,
