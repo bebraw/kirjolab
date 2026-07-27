@@ -11008,3 +11008,18 @@ Affected coverage passes 94 tests and all 121 Workers-runtime tests alongside
 strict types. Browser artifacts are unchanged because this boundary is server-
 side. Direct and unique production package counts remain 18 and 150; Valibot
 was already pinned.
+
+## Continued Valibot Adoption: Review-Study Decisions
+
+The review-study API now composes screening, final-inclusion, adjudication, and
+duplicate-resolution requests from shared safe-revision, screening-stage,
+outcome, and nullable-criterion schemas. Concurrency, actor identity, evidence
+authorization, and Durable Object mutation remain explicit.
+
+This checkpoint reduces `src/api/review-study.ts` from 702 to 659 lines (-43),
+replacing four repeated record, safe-integer, enum, string, and nullable-string
+validation branches with named contracts and one schema parser. Affected
+coverage passes 94 tests and all 121 Workers-runtime tests alongside strict
+types. Browser artifacts are unchanged because this boundary is server-side.
+Direct and unique production package counts remain 18 and 150; Valibot was
+already pinned.

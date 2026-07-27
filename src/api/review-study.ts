@@ -1,6 +1,5 @@
 import { parseReviewProtocolContent, type ReviewProfile } from "../domain/review-study";
 import { previewReviewBibTeX, reviewBibTeXImport, reviewImportLimits } from "../domain/review-search";
-import type { ScreeningDecisionValue, ScreeningStage } from "../domain/review-screening";
 import { parseReviewModelCandidateRequest, type ReviewModelOperation } from "../domain/review-model";
 import { parseReviewFindingInput, type ReviewFindingInput } from "../domain/review-findings";
 import {
@@ -27,8 +26,35 @@ import {
 } from "../domain/review-export";
 import type { AuthIdentity } from "../security/auth";
 import { canonicalReviewArtifactPath } from "../domain/workspace";
+import * as v from "valibot";
 
 const maximumProtocolRequestBytes = 2 * 1024 * 1024;
+const safeRevisionSchema = v.pipe(v.number(), v.safeInteger());
+const screeningStageSchema = v.picklist(["title-abstract", "full-text"]);
+const screeningDecisionSchema = v.object({
+  expectedRevision: safeRevisionSchema,
+  stage: screeningStageSchema,
+  decision: v.picklist(["include", "exclude", "uncertain"]),
+  reason: v.string(),
+  criterionId: v.nullable(v.string()),
+});
+const finalInclusionDecisionSchema = v.object({
+  expectedRevision: safeRevisionSchema,
+  outcome: v.picklist(["include", "exclude"]),
+  criterionId: v.nullable(v.string()),
+  reason: v.string(),
+});
+const screeningAdjudicationSchema = v.object({
+  expectedRevision: safeRevisionSchema,
+  stage: screeningStageSchema,
+  outcome: v.picklist(["include", "exclude"]),
+  reason: v.string(),
+});
+const duplicateResolutionSchema = v.object({
+  expectedRevision: safeRevisionSchema,
+  action: v.picklist(["merge", "distinct"]),
+  canonicalRecordId: v.nullable(v.string()),
+});
 
 export interface ReviewStudyApiContext {
   readonly reviewId: string;
@@ -400,57 +426,12 @@ async function extractionValueRequest(request: Request): Promise<{
   };
 }
 
-async function screeningDecisionRequest(request: Request): Promise<{
-  expectedRevision: number;
-  stage: ScreeningStage;
-  decision: ScreeningDecisionValue;
-  reason: string;
-  criterionId: string | null;
-}> {
-  const value: unknown = await request.json();
-  if (
-    !isRecord(value) ||
-    typeof value.expectedRevision !== "number" ||
-    !Number.isSafeInteger(value.expectedRevision) ||
-    (value.stage !== "title-abstract" && value.stage !== "full-text") ||
-    (value.decision !== "include" && value.decision !== "exclude" && value.decision !== "uncertain") ||
-    typeof value.reason !== "string" ||
-    (value.criterionId !== null && typeof value.criterionId !== "string")
-  ) {
-    throw new Error("Review screening decision request is invalid");
-  }
-  return {
-    expectedRevision: value.expectedRevision,
-    stage: value.stage,
-    decision: value.decision,
-    reason: value.reason,
-    criterionId: value.criterionId,
-  };
+async function screeningDecisionRequest(request: Request) {
+  return await validatedRequest(request, screeningDecisionSchema, "Review screening decision request is invalid");
 }
 
-async function finalInclusionDecisionRequest(request: Request): Promise<{
-  expectedRevision: number;
-  outcome: "include" | "exclude";
-  criterionId: string | null;
-  reason: string;
-}> {
-  const value: unknown = await request.json();
-  if (
-    !isRecord(value) ||
-    typeof value.expectedRevision !== "number" ||
-    !Number.isSafeInteger(value.expectedRevision) ||
-    (value.outcome !== "include" && value.outcome !== "exclude") ||
-    (value.criterionId !== null && typeof value.criterionId !== "string") ||
-    typeof value.reason !== "string"
-  ) {
-    throw new Error("Review final-inclusion decision request is invalid");
-  }
-  return {
-    expectedRevision: value.expectedRevision,
-    outcome: value.outcome,
-    criterionId: value.criterionId,
-    reason: value.reason,
-  };
+async function finalInclusionDecisionRequest(request: Request) {
+  return await validatedRequest(request, finalInclusionDecisionSchema, "Review final-inclusion decision request is invalid");
 }
 
 async function reassessmentCompletionRequest(request: Request): Promise<{ expectedRevision: number; rationale: string }> {
@@ -469,24 +450,8 @@ async function reassessmentCompletionRequest(request: Request): Promise<{ expect
   return { expectedRevision: value.expectedRevision, rationale: value.rationale.trim() };
 }
 
-async function screeningAdjudicationRequest(request: Request): Promise<{
-  expectedRevision: number;
-  stage: ScreeningStage;
-  outcome: "include" | "exclude";
-  reason: string;
-}> {
-  const value: unknown = await request.json();
-  if (
-    !isRecord(value) ||
-    typeof value.expectedRevision !== "number" ||
-    !Number.isSafeInteger(value.expectedRevision) ||
-    (value.stage !== "title-abstract" && value.stage !== "full-text") ||
-    (value.outcome !== "include" && value.outcome !== "exclude") ||
-    typeof value.reason !== "string"
-  ) {
-    throw new Error("Review screening adjudication request is invalid");
-  }
-  return { expectedRevision: value.expectedRevision, stage: value.stage, outcome: value.outcome, reason: value.reason };
+async function screeningAdjudicationRequest(request: Request) {
+  return await validatedRequest(request, screeningAdjudicationSchema, "Review screening adjudication request is invalid");
 }
 
 async function searchRunRequest(request: Request) {
@@ -536,22 +501,8 @@ async function searchImportBody(request: Request): Promise<Record<string, unknow
   return { ...value, bibtex: value.bibtex };
 }
 
-async function duplicateResolutionRequest(request: Request): Promise<{
-  expectedRevision: number;
-  action: "merge" | "distinct";
-  canonicalRecordId: string | null;
-}> {
-  const value: unknown = await request.json();
-  if (
-    !isRecord(value) ||
-    typeof value.expectedRevision !== "number" ||
-    !Number.isSafeInteger(value.expectedRevision) ||
-    (value.action !== "merge" && value.action !== "distinct") ||
-    (value.canonicalRecordId !== null && typeof value.canonicalRecordId !== "string")
-  ) {
-    throw new Error("Review duplicate resolution is invalid");
-  }
-  return { expectedRevision: value.expectedRevision, action: value.action, canonicalRecordId: value.canonicalRecordId };
+async function duplicateResolutionRequest(request: Request) {
+  return await validatedRequest(request, duplicateResolutionSchema, "Review duplicate resolution is invalid");
 }
 
 async function protocolRequest(request: Request, requireRationale = false) {
@@ -600,6 +551,12 @@ function hasAsciiControlCharacter(value: string): boolean {
     const codePoint = character.codePointAt(0)!;
     return codePoint <= 0x1f || codePoint === 0x7f;
   });
+}
+
+async function validatedRequest<TOutput>(request: Request, schema: v.GenericSchema<unknown, TOutput>, message: string): Promise<TOutput> {
+  const input = v.safeParse(schema, await request.json());
+  if (!input.success) throw new Error(message);
+  return input.output;
 }
 
 async function assertAuthorizedReviewSelector(

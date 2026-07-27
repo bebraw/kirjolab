@@ -43,7 +43,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   identity, and Durable Object mutations stay explicit. At review catalog
   command boundaries, schemas own creation, settings, membership, and project-
   link request structure; authorization, immutable-profile policy, identity
-  normalization, catalog projection, and project access stay explicit.
+  normalization, catalog projection, and project access stay explicit. At
+  review-study decision boundaries, schemas own screening, final-inclusion,
+  adjudication, and duplicate-resolution structure; revision concurrency,
+  evidence authorization, and study mutation stay explicit.
 - Read bounded external response bodies through stateless, request-local
   helpers that enforce both declared and observed byte limits. Keep byte
   ceilings, errors, response-shape validation, and domain mapping explicit at

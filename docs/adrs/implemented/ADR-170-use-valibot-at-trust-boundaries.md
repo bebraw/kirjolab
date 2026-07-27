@@ -71,6 +71,10 @@ Adopted boundaries are:
   link, and project-link schemas replace repeated record and primitive checks
   while immutable-profile policy, email normalization, authorization, project
   access, and multi-catalog projection remain explicit.
+- Review-study decisions: shared safe-revision, screening-stage, outcome, and
+  nullable-criterion primitives compose screening, final-inclusion,
+  adjudication, and duplicate-resolution schemas while concurrency, evidence
+  authorization, actor identity, and Durable Object mutation remain explicit.
 - Edit-capability file mutations: one request schema replaces the record,
   content, length, numeric, and safe-integer checks while bounded body reading,
   bearer and same-origin authorization, revision conflicts, and mutation error

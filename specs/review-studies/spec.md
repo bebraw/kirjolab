@@ -67,6 +67,10 @@ published deliberately into several writing projects.
   project-link request bodies pass named Valibot schemas before domain policy
   runs. Profile immutability, title and identity normalization, authorization,
   project access, and catalog projection remain explicit API or domain rules.
+- Screening decisions, final-inclusion decisions, adjudications, and duplicate
+  resolutions pass composable Valibot schemas with one shared safe-revision
+  primitive. Optimistic revision checks, actor identity, evidence authorization,
+  and study mutation remain explicit workflow rules.
 - The focused review route follows Plan, Search, Screen, Appraise, Extract,
   Synthesize, and Report without embedding the workflow in manuscript authoring
   chrome. It exposes review membership, lifecycle, and explicit many-to-many
