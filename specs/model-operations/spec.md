@@ -58,7 +58,10 @@ All mutation operations preserve a human review boundary.
   availability refresh, and failure policy. It owns evidence-selection
   subscriptions from project evidence and claims plus evidence-focus guidance
   and status while the application retains rail navigation, toast policy, and
-  availability refresh.
+  availability refresh. It owns generation busy gating, prepared-input
+  acquisition, start/result/failure status, operation routing, candidate-open
+  sequencing, and final availability refresh while the application retains
+  XState transitions and canonical candidate refresh.
 - A non-empty manuscript selection always resolves exactly. Otherwise the
   remembered Yjs-relative caret expands deterministically to the configured
   sentence, paragraph, or Markdown section, or remains an insertion point.

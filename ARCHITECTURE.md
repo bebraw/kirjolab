@@ -379,7 +379,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   availability refresh, and failure policy through explicit callbacks. It owns
   evidence-selection subscriptions from the project-evidence and claim owners
   plus evidence-focus guidance and status, delegating only Research-rail
-  navigation, empty-evidence toast policy, and availability refresh.
+  navigation, empty-evidence toast policy, and availability refresh. It owns
+  generation busy gating, prepared-input acquisition, start/result/failure
+  status, operation routing, candidate-open sequencing, and final availability
+  refresh while delegating XState transitions and canonical candidate refresh
+  through typed callbacks.
   Let the candidate-review Lit owner resolve the active candidate id against
   the canonical workspace snapshot and derive evidence availability and local
   applicability from candidate, evidence-version, source-revision,

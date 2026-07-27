@@ -98,7 +98,6 @@ import { CoalescedRefresh, DebouncedAsyncQueue } from "./collaboration";
 import { CollaborationSession } from "./collaboration-session";
 import { CollaborationSocket } from "./collaboration-socket";
 import { resolveAssistantTarget } from "./assistant-operations";
-import type { AssistantGenerationContext } from "./assistant-generation-presenter";
 import { assistantWorkflowBusy, createAssistantWorkflowActor } from "./assistant-workflow-machine";
 import { citationPageFromLocator, createCitationInsertion, type CitationContext } from "./citations";
 import { projectMapResourceSelectEvent } from "./project-map-workspace";
@@ -823,8 +822,8 @@ class WorkspaceApp {
         this.#assistantWorkflow.send({ type: "REVIEW" });
         this.#updateModelAvailability();
       },
-      failClarity: (error) => {
-        this.#failAssistantGeneration(error);
+      failClarity: (message) => {
+        this.#assistantWorkflow.send({ type: "FAIL", message });
         this.#updateModelAvailability();
       },
       handleAction: (detail) => void this.#handleAssistantResultAction(detail),
@@ -835,11 +834,19 @@ class WorkspaceApp {
       },
     });
     this.#elements.assistantGenerationPresenter.bindControls({
-      generate: () => void this.#generateCandidate(),
+      completeGeneration: (workflow) => this.#assistantWorkflow.send({ type: workflow }),
+      failGeneration: (message) => this.#assistantWorkflow.send({ type: "FAIL", message }),
+      generationBusy: () => assistantWorkflowBusy(this.#assistantWorkflow.getSnapshot()),
+      generationInput: () => {
+        const input = this.#assistantGenerationContext();
+        return input ? { ...input, manuscript: this.#activeFileText.toString() } : null;
+      },
       openEvidenceRail: () => this.#showRail("research"),
+      openGeneratedCandidate: async (candidate) => await this.#openCreatedCandidate(candidate),
       refreshAvailability: () => this.#updateModelAvailability(),
       refreshTarget: () => this.#renderAssistantTargetPreview(),
       reportNoEvidence: () => this.#showToast("No project evidence is available yet."),
+      startGeneration: (operation, sourceRevision) => this.#assistantWorkflow.send({ type: "START", operation, sourceRevision }),
     });
   }
 
@@ -2262,29 +2269,7 @@ class WorkspaceApp {
     }
   }
 
-  async #generateCandidate(): Promise<void> {
-    if (assistantWorkflowBusy(this.#assistantWorkflow.getSnapshot())) return;
-    const input = this.#assistantGenerationContext();
-    if (!input) return;
-    this.#assistantWorkflow.send({ type: "START", operation: input.operation.id, sourceRevision: input.sourceRevision });
-    this.#updateModelAvailability();
-    this.#elements.assistantWorkflowStatus.generationStarted(input.operation.id);
-    try {
-      await this.#runAssistantGeneration(input);
-    } catch (error) {
-      this.#failAssistantGeneration(error);
-    } finally {
-      this.#updateModelAvailability();
-    }
-  }
-
-  #failAssistantGeneration(error: unknown): void {
-    const message = error instanceof Error ? error.message : "Local model request failed";
-    this.#assistantWorkflow.send({ type: "FAIL", message });
-    this.#elements.assistantWorkflowStatus.status = message;
-  }
-
-  #assistantGenerationContext(): AssistantGenerationContext | null {
+  #assistantGenerationContext() {
     return this.#elements.assistantGenerationPresenter.prepareGeneration({
       insertionTarget: this.#assistantInsertionTarget(),
       passage: this.#assistantAuthoringPassage(),
@@ -2292,20 +2277,6 @@ class WorkspaceApp {
       sourceRevision: this.#revision,
       stableDocument: this.#hasStableDocumentBase(),
     });
-  }
-
-  async #runAssistantGeneration(input: AssistantGenerationContext): Promise<void> {
-    const presentation = await this.#elements.assistantGenerationPresenter.generate({
-      ...input,
-      manuscript: this.#activeFileText.toString(),
-    });
-    if (presentation) {
-      if (presentation.candidate) await this.#openCreatedCandidate(presentation.candidate);
-      this.#elements.assistantWorkflowStatus.status = presentation.status;
-      this.#assistantWorkflow.send({ type: presentation.workflow });
-      return;
-    }
-    throw new Error("Assistant generation is unavailable");
   }
 
   async #handleAssistantResultAction(detail: Exclude<AssistantResultActionDetail, { readonly action: "continue-clarity" }>): Promise<void> {

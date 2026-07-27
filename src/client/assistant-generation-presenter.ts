@@ -85,17 +85,22 @@ export interface AssistantAvailabilityInput {
 }
 
 export interface AssistantControlCallbacks {
-  readonly generate: () => void;
+  readonly completeGeneration: (workflow: AssistantGenerationPresentation["workflow"]) => void;
+  readonly failGeneration: (message: string) => void;
+  readonly generationBusy: () => boolean;
+  readonly generationInput: () => AssistantGenerationInput | null;
   readonly openEvidenceRail: () => void;
+  readonly openGeneratedCandidate: (candidate: ModelCandidate) => Promise<void>;
   readonly refreshAvailability: () => void;
   readonly refreshTarget: () => void;
   readonly reportNoEvidence: () => void;
+  readonly startGeneration: (operation: AssistantOperationDefinition["id"], sourceRevision: number) => void;
 }
 
 export interface AssistantResultCallbacks {
   readonly clarityState: () => "busy" | "ready" | "stale";
   readonly completeClarity: () => void;
-  readonly failClarity: (error: unknown) => void;
+  readonly failClarity: (message: string) => void;
   readonly handleAction: (detail: Exclude<AssistantResultActionDetail, { readonly action: "continue-clarity" }>) => void;
   readonly refreshLibrary: () => Promise<void>;
   readonly startClarity: () => void;
@@ -243,7 +248,9 @@ export class AssistantGenerationPresenter extends LitElement {
       if (status) status.status = "Choose the wording that best matches your meaning; it will still open for review.";
       callbacks.completeClarity();
     } catch (error) {
-      callbacks.failClarity(error);
+      const message = error instanceof Error ? error.message : "Local model request failed";
+      if (status) status.status = message;
+      callbacks.failClarity(message);
     }
   }
 
@@ -267,7 +274,7 @@ export class AssistantGenerationPresenter extends LitElement {
       if (change === "operation" || change === "target") callbacks.refreshTarget();
       callbacks.refreshAvailability();
     });
-    task?.addEventListener(assistantTaskGenerateEvent, callbacks.generate);
+    task?.addEventListener(assistantTaskGenerateEvent, () => void this.runGeneration(status, callbacks));
     const selectEvidence = (detail: ProjectEvidenceAction | ClaimListAction): void => {
       if (detail.action !== "evidence") return;
       status?.setEvidenceSelected(detail.key, detail.selected);
@@ -295,6 +302,28 @@ export class AssistantGenerationPresenter extends LitElement {
       return;
     }
     if (status) status.status = "Choose one or more evidence resources in the Research rail, then return to the assistant.";
+  }
+
+  private async runGeneration(status: AssistantWorkflowStatus | null, callbacks: AssistantControlCallbacks): Promise<void> {
+    if (callbacks.generationBusy()) return;
+    const input = callbacks.generationInput();
+    if (!input) return;
+    callbacks.startGeneration(input.operation.id, input.sourceRevision);
+    callbacks.refreshAvailability();
+    status?.generationStarted(input.operation.id);
+    try {
+      const presentation = await this.generate(input);
+      if (!presentation) throw new Error("Assistant generation is unavailable");
+      if (presentation.candidate) await callbacks.openGeneratedCandidate(presentation.candidate);
+      if (status) status.status = presentation.status;
+      callbacks.completeGeneration(presentation.workflow);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Local model request failed";
+      if (status) status.status = message;
+      callbacks.failGeneration(message);
+    } finally {
+      callbacks.refreshAvailability();
+    }
   }
 
   presentTask(resetResult = false): void {

@@ -116,7 +116,11 @@ The adopted components own bounded presentation:
   transitions, availability refresh, and failure policy. It owns evidence-
   selection subscriptions from project evidence and claims plus evidence-focus
   guidance and status while the coordinator retains Research-rail navigation,
-  empty-evidence toast policy, and availability refresh.
+  empty-evidence toast policy, and availability refresh. It owns generation
+  busy gating, prepared-input acquisition, start/result/failure status,
+  operation routing, candidate-open sequencing, and final availability refresh
+  while the coordinator retains XState transitions and canonical candidate
+  refresh.
 - The project map panel owns provenance-lane rendering, measured SVG connector
   geometry, responsive relayout, focus and hover emphasis, and a typed resource
   selection intent.

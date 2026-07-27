@@ -324,11 +324,16 @@ describe("assistant generation presenter", () => {
   it("owns local assistant control wiring", () => {
     const { elements, presenter } = setup();
     const callbacks = {
-      generate: vi.fn(),
+      completeGeneration: vi.fn(),
+      failGeneration: vi.fn(),
+      generationBusy: vi.fn().mockReturnValue(false),
+      generationInput: vi.fn().mockReturnValue(null),
       openEvidenceRail: vi.fn(),
+      openGeneratedCandidate: vi.fn().mockResolvedValue(undefined),
       refreshAvailability: vi.fn(),
       refreshTarget: vi.fn(),
       reportNoEvidence: vi.fn(),
+      startGeneration: vi.fn(),
     };
     const openSettings = vi.spyOn(elements["model-provider-settings"], "open").mockImplementation(() => undefined);
     const clearResult = vi.spyOn(elements["assistant-interactive-result"], "clear");
@@ -348,7 +353,7 @@ describe("assistant generation presenter", () => {
       new CustomEvent(projectEvidenceActionEvent, { detail: { action: "evidence", key: "annotation:1", selected: true } }),
     );
 
-    expect(callbacks.generate).toHaveBeenCalledOnce();
+    expect(callbacks.generationInput).toHaveBeenCalledOnce();
     expect(callbacks.openEvidenceRail).toHaveBeenCalledOnce();
     expect(callbacks.reportNoEvidence).not.toHaveBeenCalled();
     expect(callbacks.refreshAvailability).toHaveBeenCalledTimes(3);
@@ -363,6 +368,53 @@ describe("assistant generation presenter", () => {
     expect(elements["assistant-workflow-status"].status).toBe(
       "Add a PDF highlight or researcher-authored claim before choosing model evidence.",
     );
+  });
+
+  it("owns generation workflow and status orchestration", async () => {
+    const { elements, presenter } = setup();
+    const completeGeneration = vi.fn();
+    const failGeneration = vi.fn();
+    const generationBusy = vi.fn().mockReturnValueOnce(true).mockReturnValue(false);
+    const generationInput = vi.fn().mockReturnValue(input("revise-selection"));
+    const openGeneratedCandidate = vi.fn().mockResolvedValue(undefined);
+    const refreshAvailability = vi.fn();
+    const startGeneration = vi.fn();
+    const generate = vi.spyOn(presenter, "generate").mockResolvedValueOnce({
+      candidate: revisionCandidate,
+      status: "Candidate ready.",
+      workflow: "COMPLETE",
+    });
+    presenter.bindControls({
+      completeGeneration,
+      failGeneration,
+      generationBusy,
+      generationInput,
+      openEvidenceRail: vi.fn(),
+      openGeneratedCandidate,
+      refreshAvailability,
+      refreshTarget: vi.fn(),
+      reportNoEvidence: vi.fn(),
+      startGeneration,
+    });
+    for (const callback of [completeGeneration, failGeneration, openGeneratedCandidate, refreshAvailability, startGeneration]) {
+      callback.mockClear();
+    }
+
+    elements["assistant-task-panel"].dispatchEvent(new CustomEvent(assistantTaskGenerateEvent));
+    expect(startGeneration).not.toHaveBeenCalled();
+    elements["assistant-task-panel"].dispatchEvent(new CustomEvent(assistantTaskGenerateEvent));
+    await vi.waitFor(() => expect(completeGeneration).toHaveBeenCalledWith("COMPLETE"));
+
+    expect(startGeneration).toHaveBeenCalledWith("revise-selection", 7);
+    expect(openGeneratedCandidate).toHaveBeenCalledWith(revisionCandidate);
+    expect(elements["assistant-workflow-status"].status).toBe("Candidate ready.");
+    expect(refreshAvailability).toHaveBeenCalledTimes(2);
+
+    generate.mockResolvedValueOnce(null);
+    elements["assistant-task-panel"].dispatchEvent(new CustomEvent(assistantTaskGenerateEvent));
+    await vi.waitFor(() => expect(failGeneration).toHaveBeenCalledWith("Assistant generation is unavailable"));
+    expect(elements["assistant-workflow-status"].status).toBe("Assistant generation is unavailable");
+    expect(refreshAvailability).toHaveBeenCalledTimes(4);
   });
 
   it("owns transient result and reference-refresh wiring", async () => {
@@ -454,7 +506,8 @@ describe("assistant generation presenter", () => {
     result.dispatchEvent(
       new CustomEvent(assistantResultActionEvent, { detail: { action: "continue-clarity", answer: "Editors do.", context } }),
     );
-    await vi.waitFor(() => expect(failClarity).toHaveBeenCalledWith(failure));
+    await vi.waitFor(() => expect(failClarity).toHaveBeenCalledWith(failure.message));
+    expect(elements["assistant-workflow-status"].status).toBe(failure.message);
     expect(startClarity).toHaveBeenCalledTimes(2);
     expect(completeClarity).toHaveBeenCalledOnce();
   });
