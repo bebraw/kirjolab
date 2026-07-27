@@ -942,6 +942,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   keeping tab state, PDF loading, canonical snapshot acceptance, Yjs citation
   insertion, cross-resource navigation, routing, and the shared notification
   outlet in the application coordinator through narrow callbacks.
+  Let the presenter also own linked-reference PDF catalog loading, validation,
+  storage, and authorization projection. Keep refresh timing and downstream
+  rendering consequences in the application coordinator.
 - Project bounded, reconstructible editor UI selections into query parameters
   only after validating stable ids against authorized snapshots.
   Push meaningful context-target navigation, replace incidental view and page

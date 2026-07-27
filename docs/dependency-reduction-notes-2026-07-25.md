@@ -7334,6 +7334,30 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,689 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Linked Reference Catalog
+
+`ContextResourcePresenter` now owns linked-reference PDF catalog loading,
+response validation, storage, and authorization projection. Route lookup,
+context labels, active-PDF selection, and shared-reference presentation consume
+the same presenter-owned catalog. `WorkspaceApp` retains refresh timing,
+context reconciliation, PDF loading, and downstream rendering consequences.
+
+This checkpoint reduces `src/client/app.ts` from 2,004 to 1,994 lines (-10) and
+grows the context-resource presenter from 618 to 637 lines (+19). Runtime source
+across those two files increases by nine lines while deleting the coordinator's
+duplicate catalog field and request/validation policy. Focused coverage
+exercises successful, invalid, and absent-project catalog loading, existing
+authorization and resource presentation, application contracts, and strict
+types.
+
+The browser application artifact changes from 842,648 B raw / 227,878 B gzip
+to 842,968 B raw / 227,865 B gzip (+320 B raw / -13 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,690 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

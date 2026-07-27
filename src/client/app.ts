@@ -19,7 +19,6 @@ import { publicationWordStatistics } from "../domain/publication-statistics";
 import { researchQuestionsPath, researchQuestionsTemplate } from "../domain/research-questions";
 import { researchDiaryPath, researchDiaryTemplate } from "../domain/writing-workflows";
 import {
-  isProjectReferencePdfs,
   isReferenceLibrarySnapshot,
   type LibraryHighlight,
   type LibraryPdfArtifact,
@@ -176,7 +175,6 @@ class WorkspaceApp {
   #projectFileIncludeTarget: RelativeEditorSelection | null = null;
   #projectFileIncludeFromPath: string | null = null;
   #librarySnapshot: ReferenceLibrarySnapshot | null = null;
-  #projectReferencePdfs: readonly ProjectReferencePdf[] = [];
   #workspaceRouteReady = false;
   readonly #layout: WorkspaceLayoutManager;
 
@@ -568,7 +566,7 @@ class WorkspaceApp {
       openPublication: (publication) => this.#openPublicationContext(publication),
       openReferencePdf: async (pdf, page) => await this.#openProjectReferencePdf(pdf, page, false),
       project: () => this.#snapshot,
-      referencePdfs: () => this.#projectReferencePdfs,
+      referencePdfs: () => this.#elements.contextResourcePresenter.referencePdfs,
       refreshLibrary: async () => await this.#refreshReferenceLibrary(),
     });
     this.#elements.libraryPdfInspector.bindProjectMutations(
@@ -1135,7 +1133,7 @@ class WorkspaceApp {
     await this.#refreshProjectReferencePdfs(false);
     this.#contextState = reconcileResearchContext(
       this.#contextState,
-      this.#elements.contextResourcePresenter.resourceAuthorization(this.#snapshot, this.#librarySnapshot, this.#projectReferencePdfs),
+      this.#elements.contextResourcePresenter.resourceAuthorization(this.#snapshot, this.#librarySnapshot),
     );
     this.#renderReferenceLibrary();
     await this.#elements.referenceLibraryWorkspace.settled();
@@ -1185,15 +1183,7 @@ class WorkspaceApp {
   }
 
   async #refreshProjectReferencePdfs(render = true): Promise<void> {
-    if (appMode !== "workspace") {
-      this.#projectReferencePdfs = [];
-      return;
-    }
-    const response = await fetch(`${apiBase}/reference-pdfs`, { credentials: "same-origin" });
-    await expectOk(response);
-    const value: unknown = await response.json();
-    if (!isProjectReferencePdfs(value)) throw new Error("Project reference PDFs returned invalid metadata");
-    this.#projectReferencePdfs = value;
+    await this.#elements.contextResourcePresenter.refreshReferencePdfs(appMode === "workspace" ? apiBase : null);
     if (render) this.#renderResources();
   }
 
@@ -1202,7 +1192,7 @@ class WorkspaceApp {
     this.#captureActiveContextState();
     this.#contextState = reconcileResearchContext(
       this.#contextState,
-      this.#elements.contextResourcePresenter.resourceAuthorization(this.#snapshot, this.#librarySnapshot, this.#projectReferencePdfs),
+      this.#elements.contextResourcePresenter.resourceAuthorization(this.#snapshot, this.#librarySnapshot),
     );
     this.#pdfViewer.updateAnnotations(this.#elements.contextResourcePresenter.presentWorkspace(this.#snapshot, this.#renderedPdfId));
     this.#renderResearchContext();
@@ -1301,7 +1291,7 @@ class WorkspaceApp {
       context: this.#contextState,
       library: this.#librarySnapshot,
       projectApiBase: appMode === "workspace" ? apiBase : null,
-      referencePdfs: this.#projectReferencePdfs,
+      referencePdfs: this.#elements.contextResourcePresenter.referencePdfs,
       snapshot: this.#snapshot,
       sourceRevision: this.#revision,
       standaloneLibrary: appMode === "library",
@@ -1491,7 +1481,7 @@ class WorkspaceApp {
       apiBase,
       libraryArtifacts: this.#librarySnapshot?.artifacts ?? [],
       libraryHighlights: this.#librarySnapshot?.highlights ?? [],
-      projectReferencePdfs: this.#projectReferencePdfs,
+      projectReferencePdfs: this.#elements.contextResourcePresenter.referencePdfs,
       workspacePdfs: this.#snapshot?.pdfs ?? [],
     });
     if (!context) return;

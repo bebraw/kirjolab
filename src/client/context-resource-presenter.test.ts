@@ -197,6 +197,18 @@ describe("context resource presenter", () => {
     expect(presentation.activeTab).toBe(tab);
   });
 
+  it("loads and validates the linked-reference PDF catalog", async () => {
+    const { presenter } = setup();
+
+    await presenter.refreshReferencePdfs("/api/workspaces/workspace", async () => Response.json([referencePdf]));
+    expect(presenter.referencePdfs).toEqual([referencePdf]);
+    await expect(
+      presenter.refreshReferencePdfs("/api/workspaces/workspace", async () => Response.json([{ id: "incomplete" }])),
+    ).rejects.toThrow("Project reference PDFs returned invalid metadata");
+    await presenter.refreshReferencePdfs(null);
+    expect(presenter.referencePdfs).toEqual([]);
+  });
+
   it("switches project, private-Library, and shared-reference PDF presentation", () => {
     const { elements, presenter } = setup();
     const setPdf = vi.spyOn(elements["project-annotation-form"], "setIntakePdf").mockImplementation(() => undefined);

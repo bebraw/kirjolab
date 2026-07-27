@@ -7,6 +7,7 @@ import type {
   ProjectReferencePdf,
   ReferenceLibrarySnapshot,
 } from "../domain/reference-library";
+import { isProjectReferencePdfs } from "../domain/reference-library";
 import { suggestCitationKey } from "../domain/publication-intake";
 import type { AnnotationResource, WorkspaceSnapshot } from "../domain/workspace";
 import { AssistantWorkflowStatus } from "./assistant-workflow-status";
@@ -14,6 +15,7 @@ import { CandidateListPanel } from "./candidate-list-panel";
 import { CandidateReviewPanel } from "./candidate-review-panel";
 import { ClaimListPanel } from "./claim-list-panel";
 import { ContextTabStrip } from "./context-tab-strip";
+import { expectOk } from "./http";
 import { LibraryPdfAnnotationToolbar } from "./library-pdf-annotation-toolbar";
 import { LibraryPdfInspector } from "./library-pdf-inspector";
 import { LibraryPdfMarkupLayer, type LibraryPdfNoteDraft, type PdfAnnotationTool } from "./library-pdf-markup-layer";
@@ -114,6 +116,23 @@ export interface ContextRouteCoordinator {
 export class ContextResourcePresenter extends LitElement {
   private libraryPdfCoordinator: LibraryPdfCoordinator | null = null;
   private routeCoordinator: ContextRouteCoordinator | null = null;
+  private loadedReferencePdfs: readonly ProjectReferencePdf[] = [];
+
+  get referencePdfs(): readonly ProjectReferencePdf[] {
+    return this.loadedReferencePdfs;
+  }
+
+  async refreshReferencePdfs(projectApiBase: string | null, fetcher: typeof fetch = fetch): Promise<void> {
+    if (!projectApiBase) {
+      this.loadedReferencePdfs = [];
+      return;
+    }
+    const response = await fetcher(`${projectApiBase}/reference-pdfs`, { credentials: "same-origin" });
+    await expectOk(response);
+    const value: unknown = await response.json();
+    if (!isProjectReferencePdfs(value)) throw new Error("Project reference PDFs returned invalid metadata");
+    this.loadedReferencePdfs = value;
+  }
 
   bindRoutes(coordinator: ContextRouteCoordinator): void {
     this.routeCoordinator = coordinator;
@@ -209,7 +228,7 @@ export class ContextResourcePresenter extends LitElement {
   resourceAuthorization(
     snapshot: WorkspaceSnapshot | null,
     library: ReferenceLibrarySnapshot | null,
-    referencePdfs: readonly ProjectReferencePdf[],
+    referencePdfs: readonly ProjectReferencePdf[] = this.referencePdfs,
   ): ResearchContextAuthorization {
     return {
       publicationIds: new Set(snapshot?.publications.map(({ id }) => id) ?? []),

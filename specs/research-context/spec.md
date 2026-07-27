@@ -200,7 +200,9 @@ changing their canonical data, selector, authorization, or rendering contracts.
   returning only the viewer's text-selection, selected-highlight, and draft-
   selection cleanup effects.
   It returns only active project-PDF annotations and private highlights to the
-  viewer. The coordinator retains snapshot authority, page selection, context
+  viewer. It owns linked-reference PDF catalog loading, validation, storage, and
+  authorization projection. The coordinator retains refresh timing, snapshot
+  authority, page selection, context
   reconciliation, PDF rendering, model availability, routing, refresh, and
   notification policy.
 - Reconciliation authorizes `pdf:` tabs from the workspace snapshot and

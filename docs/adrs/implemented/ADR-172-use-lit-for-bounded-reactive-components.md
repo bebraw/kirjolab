@@ -150,8 +150,11 @@ The adopted components own bounded presentation:
   and synchronizes the bounded
   evidence, annotation, publication, claim, comment, and candidate owners from
   the canonical workspace snapshot, and derives active PDF annotations and
-  private highlights for the viewer. The coordinator retains canonical context
-  state, active page, PDF loading, private markup drafts, Yjs citation
+  private highlights for the viewer. The resource presentation also owns
+  linked-reference PDF catalog loading,
+  validation, storage, and authorization projection. The coordinator retains
+  refresh timing and downstream rendering consequences alongside canonical
+  context state, active page, PDF loading, private markup drafts, Yjs citation
   insertion, model availability, Library refresh, history mutation, routing,
   navigation transitions, viewer effects, and notification policy.
 - The knowledge search panel owns query capture, empty, result, and error
