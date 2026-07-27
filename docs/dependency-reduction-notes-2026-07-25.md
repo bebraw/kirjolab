@@ -8413,6 +8413,26 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,706 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Simplification: One-Use App Projections
+
+`WorkspaceApp` now keeps PDF page routing at the viewer binding, editor-
+presence projection at the editor binding, and preview workspace projection at
+the preview outcome that consumes it. This removes three one-use private
+methods while retaining route-history, collaborative presence, resolved anchor,
+and project-map behavior at their existing authority boundary.
+
+This checkpoint reduces `src/client/app.ts` from 1,460 to 1,452 lines (-8).
+Focused coverage passes all 42 application-contract, context-resource, editor-
+adapter, and preview-sync cases.
+
+The browser application artifact changes from 846,258 B raw / 228,403 B gzip
+to 846,212 B raw / 228,400 B gzip (-46 B raw / -3 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,706 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

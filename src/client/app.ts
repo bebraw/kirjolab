@@ -4,7 +4,7 @@ import { collectAppElements } from "./app-elements";
 import { reviewerResponsePath, reviewerResponseTemplate } from "../domain/reviewer-response";
 import { resolveManuscriptAnchor } from "../domain/manuscript-anchor";
 import { resolveWorkspaceSnapshotAnchors } from "../domain/workspace-anchor-projection";
-import { projectFileCollaborationTextName, relativeProjectPath, type ProjectComposition, type ProjectFile } from "../domain/project-files";
+import { projectFileCollaborationTextName, relativeProjectPath, type ProjectFile } from "../domain/project-files";
 import { publicationWordStatistics } from "../domain/publication-statistics";
 import { researchQuestionsPath, researchQuestionsTemplate } from "../domain/research-questions";
 import { researchDiaryPath, researchDiaryTemplate } from "../domain/writing-workflows";
@@ -182,7 +182,14 @@ class WorkspaceApp {
     this.#pdfViewer = PdfEvidenceViewer.forDocument(document, {
       onSelection: (capture) => this.#elements.contextResourcePresenter.capturePdfSelection(capture),
       onHighlight: (annotationId, fragmentId) => this.#elements.contextResourcePresenter.activateProjectHighlight(annotationId, fragmentId),
-      onPageChange: (page) => this.#handlePdfPageChange(page),
+      onPageChange: (page) => {
+        const presentation = this.#elements.contextResourcePresenter.presentPdfPage(this.#contextState, page);
+        this.#contextState = presentation.context;
+        if (presentation.activePdf) this.#syncWorkspaceRoute("replace");
+        if (appMode === "library" && presentation.libraryPdfId && location.pathname.startsWith("/library/pdfs/")) {
+          history.replaceState(history.state, "", libraryPdfRoute(presentation.libraryPdfId, page));
+        }
+      },
       onPrivateHighlight: (highlightId) => this.#elements.contextResourcePresenter.selectLibraryHighlight(highlightId),
     });
     this.#layout = WorkspaceLayoutManager.forWorkspace(this.#elements.workspaceSurfaces, {
@@ -751,14 +758,6 @@ class WorkspaceApp {
     if (active?.kind === "candidate") this.#renderResearchContext(false);
   }
 
-  #activeEditorPresence(): readonly EditorPresenceRange[] {
-    const target = this.#resolvedAuthoringTarget();
-    const local: readonly EditorPresenceRange[] = target
-      ? [{ collaboratorId: "local-author", start: target.start, end: target.end, local: true }]
-      : [];
-    return [...local, ...this.#elements.collaboratorSelections.rangesFor(this.#activeFileId)];
-  }
-
   #bindSourceEditor(text: Y.Text): void {
     this.#unbindAssistantSourceStale();
     const markAssistantResultStale = (): void => this.#elements.assistantGenerationPresenter.sourceChanged();
@@ -774,7 +773,13 @@ class WorkspaceApp {
       text,
       this.#document,
       this.#elements.sourceHighlight,
-      () => this.#activeEditorPresence(),
+      () => {
+        const target = this.#resolvedAuthoringTarget();
+        const local: readonly EditorPresenceRange[] = target
+          ? [{ collaboratorId: "local-author", start: target.start, end: target.end, local: true }]
+          : [];
+        return [...local, ...this.#elements.collaboratorSelections.rangesFor(this.#activeFileId)];
+      },
       undoManager,
     );
     this.#unbindSourceEditor = binding.destroy;
@@ -812,17 +817,13 @@ class WorkspaceApp {
       this.#elements.exportDialog.setStatistics(publicationWordStatistics(outcome.publicationComposition, files));
     }
     if (!outcome.available) return;
-    this.#renderPreviewWorkspaceContext(outcome.publicationComposition, bibliography);
-  }
-
-  #renderPreviewWorkspaceContext(publicationComposition: ProjectComposition | null, bibliography: string): void {
     const snapshot = this.#snapshot;
     if (snapshot) {
       const resolved = resolveWorkspaceSnapshotAnchors(this.#document, snapshot);
       this.#elements.projectEvidencePanel.setPassageLinks(resolved.links);
       this.#elements.claimListPanel.setPassageLinks(resolved.claimLinks);
       this.#elements.workspaceRailTabs.setCommentCount(this.#elements.manuscriptCommentListPanel.setComments(resolved.comments));
-      this.#elements.projectMap.presentWorkspace(resolved, bibliography, publicationComposition?.content);
+      this.#elements.projectMap.presentWorkspace(resolved, bibliography, outcome.publicationComposition?.content);
     }
   }
 
@@ -1330,15 +1331,6 @@ class WorkspaceApp {
 
   async #restoreLibraryRoute(): Promise<void> {
     await this.#elements.referenceLibraryWorkspace.restoreRoute(readLibraryUiRoute(new URL(location.href)));
-  }
-
-  #handlePdfPageChange(page: number): void {
-    const presentation = this.#elements.contextResourcePresenter.presentPdfPage(this.#contextState, page);
-    this.#contextState = presentation.context;
-    if (presentation.activePdf) this.#syncWorkspaceRoute("replace");
-    if (appMode === "library" && presentation.libraryPdfId && location.pathname.startsWith("/library/pdfs/")) {
-      history.replaceState(history.state, "", libraryPdfRoute(presentation.libraryPdfId, page));
-    }
   }
 
   #showPassage(anchor: PassageLink["anchor"]): void {
