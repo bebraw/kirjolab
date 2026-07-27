@@ -1112,10 +1112,7 @@ class WorkspaceApp {
       this.#showToast("This manuscript anchor is stale and needs to be linked again.");
       return;
     }
-    this.#elements.projectFileDialog.selectFile(anchor.fileId);
-    this.#elements.authoringModeTabs.navigate("write");
-    this.#elements.source.setSelectionRange(resolution.start, resolution.end);
-    this.#rememberAuthoringSelection();
+    this.#focusProjectRange(anchor.fileId, resolution.start, resolution.end);
     this.#elements.source.scrollIntoView({ behavior: "smooth", block: "center" });
     this.#showToast(
       resolution.exactMatch ? "Linked manuscript passage selected." : "Changed linked passage selected; review its current text.",

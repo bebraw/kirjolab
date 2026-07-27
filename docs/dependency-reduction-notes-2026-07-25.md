@@ -9094,6 +9094,23 @@ to 849,435 B raw / 228,810 B gzip (-160 B raw / -5 B gzip). Styles and direct
 and unique production package counts remain unchanged at 135,411 B raw /
 23,373 B gzip, 18, and 150.
 
+## Coordinator Simplification: Linked Passage Range
+
+Linked-passage navigation now reuses the existing project-range transition for
+file activation, Write-mode selection, editor range selection, and authoring
+selection capture. Its stale-anchor and exact-versus-changed passage policies
+remain local to the linked-passage outcome.
+
+This checkpoint reduces `src/client/app.ts` from 1,223 to 1,220 lines (-3)
+without adding runtime code or changing an ownership boundary. The affected
+gate and full native CI pass all 1,720 unit/coverage tests, 121 Workers-runtime
+tests, and 74 browser tests alongside formatting, lint, and strict types.
+
+The browser application artifact changes from 849,435 B raw / 228,810 B gzip
+to 849,318 B raw / 228,805 B gzip (-117 B raw / -5 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,
