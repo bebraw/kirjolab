@@ -113,8 +113,9 @@ connection without reconstructing identity from a citation key or filename.
   outside it.
 - The project-map workspace owns authorized search requests, response
   validation, and the shared idle, result, and error state that controls both
-  the search presentation and graph-overview visibility. Resource navigation
-  and graph derivation remain outside it.
+  the search presentation and graph-overview visibility. It routes selected
+  resources through one typed navigation binding; resource navigation and graph
+  derivation remain outside it.
 - A bounded light-DOM project publication list owns reference metadata, alias
   and DOI labels, empty-state, action presentation, DOI-enrichment transport,
   stable encoded targets, duplicate-submit gating, pending and retryable failure

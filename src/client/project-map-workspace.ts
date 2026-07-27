@@ -8,8 +8,6 @@ import type { KnowledgeConnectionsPanel } from "./knowledge-connections-panel";
 import type { KnowledgeSearchPanel } from "./knowledge-search-panel";
 import type { ProjectMapPanel } from "./project-map-panel";
 
-export const projectMapResourceSelectEvent = "project-map-resource-select";
-
 type SearchState = { kind: "idle" } | { kind: "results"; results: readonly KnowledgeSearchResult[] } | { kind: "error"; message: string };
 
 const emptyGraph: WorkspaceKnowledgeGraph = { edges: [], nodes: [] };
@@ -23,6 +21,7 @@ export class ProjectMapWorkspace extends LitElement {
   declare private graph: WorkspaceKnowledgeGraph;
   declare private searchState: SearchState;
   private apiBase = "";
+  private selectResource: ((resourceKey: string) => void) | undefined;
 
   constructor() {
     super();
@@ -36,6 +35,10 @@ export class ProjectMapWorkspace extends LitElement {
 
   configure(apiBase: string): void {
     this.apiBase = apiBase;
+  }
+
+  bindNavigation(selectResource: (resourceKey: string) => void): void {
+    this.selectResource = selectResource;
   }
 
   clearSearch(): void {
@@ -144,7 +147,7 @@ export class ProjectMapWorkspace extends LitElement {
 
   protected forwardSelection(event: CustomEvent<string>): void {
     event.stopPropagation();
-    this.dispatchEvent(new CustomEvent<string>(projectMapResourceSelectEvent, { bubbles: true, composed: true, detail: event.detail }));
+    this.selectResource?.(event.detail);
   }
 
   private projectMapPanel(): ProjectMapPanel | null {

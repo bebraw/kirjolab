@@ -70,7 +70,8 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Let the project-map Lit workspace own its authorized knowledge-search request,
   response validation, and idle, result, and error lifecycle because those
   states also determine whether the graph overview is visible. Keep graph
-  derivation and resource navigation in the application coordinator.
+  derivation and resource navigation in the application coordinator, supplied
+  through one typed navigation binding.
 - Let the bounded workspace-layout control own its four-option presentation,
   normalization, selected value, workspace-scoped local persistence, and typed
   change outcome. Keep surface mutation, PDF activation, resize notification,

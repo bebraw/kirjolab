@@ -71,7 +71,6 @@ import { CollaborationSession } from "./collaboration-session";
 import { CollaborationSocket } from "./collaboration-socket";
 import { resolveAssistantTarget } from "./assistant-operations";
 import { citationPageFromLocator, createCitationInsertion, type CitationContext } from "./citations";
-import { projectMapResourceSelectEvent } from "./project-map-workspace";
 import { claimListActionEvent, type ClaimListAction } from "./claim-list-panel";
 import { manuscriptCommentActionEvent, type ManuscriptCommentAction } from "./manuscript-comment-list";
 import { projectEvidenceActionEvent, type ProjectEvidenceAction } from "./project-evidence-panel";
@@ -513,9 +512,7 @@ class WorkspaceApp {
       else void this.#removeHighlightFragment(detail.annotationId, detail.fragmentId, true);
     });
     this.#elements.projectMap.configure(apiBase);
-    this.#elements.projectMap.addEventListener(projectMapResourceSelectEvent, (event) => {
-      this.#focusKnowledgeResource((event as CustomEvent<string>).detail);
-    });
+    this.#elements.projectMap.bindNavigation((resourceKey) => this.#focusKnowledgeResource(resourceKey));
     this.#elements.publicationListPanel.configure(apiBase);
     this.#elements.publicationListPanel.bind({
       enriched: (message) =>

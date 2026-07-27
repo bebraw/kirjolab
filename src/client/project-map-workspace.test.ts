@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { KnowledgeSearchResult, WorkspaceKnowledgeGraph } from "../domain/knowledge";
-import { ProjectMapWorkspace, projectMapResourceSelectEvent } from "./project-map-workspace";
+import { ProjectMapWorkspace } from "./project-map-workspace";
 
 const graph: WorkspaceKnowledgeGraph = {
   edges: [{ from: "publication:source", id: "edge:1", label: "", relation: "supports", to: "claim:result" }],
@@ -55,7 +55,7 @@ describe("project map workspace", () => {
   it("owns project search while forwarding resource-selection intents", async () => {
     const workspace = new TestProjectMapWorkspace();
     const selections: string[] = [];
-    workspace.addEventListener(projectMapResourceSelectEvent, (event) => selections.push((event as CustomEvent<string>).detail));
+    workspace.bindNavigation((resourceKey) => selections.push(resourceKey));
     workspace.configure("/api/documents/document-1");
     const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify(results), { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);

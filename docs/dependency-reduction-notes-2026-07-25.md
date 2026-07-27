@@ -6778,6 +6778,27 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,670 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Project Map Navigation
+
+`ProjectMapWorkspace` now forwards child map, search, and connection selections
+through one typed navigation binding. `WorkspaceApp` retains canonical resource
+resolution, context navigation, editor visibility, and URL policy.
+
+This checkpoint reduces `src/client/app.ts` from 2,259 to 2,256 lines (-3),
+removes one coordinator listener site and the public project-map selection
+event, and grows the map workspace from 163 to 166 lines. Runtime source across
+those two files is unchanged. Focused coverage exercises authorized search,
+selection forwarding, request and contract failures, composed child updates,
+visibility focus, rendering, and strict types.
+
+The browser application artifact changes from 842,086 B raw / 227,286 B gzip
+to 842,045 B raw / 227,284 B gzip (-41 B raw / -2 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,670 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,
