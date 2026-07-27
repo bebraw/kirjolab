@@ -7008,6 +7008,25 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,671 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Collaborator Overlay Refresh
+
+`CollaboratorSelectionList` now reports remote-selection changes through one
+typed callback. `WorkspaceApp` no longer imports or subscribes to the
+component's internal custom-event name and retains local-author presence,
+collaboration transport, revision authority, and editor highlight placement.
+
+This checkpoint reduces `src/client/app.ts` from 2,199 to 2,198 lines (-1) and
+grows the collaborator-selection owner from 96 to 99 lines (+3). Runtime source
+across the two files increases by two lines while deleting the public event
+protocol and its coordinator listener. Focused coverage exercises replacement,
+departure, clearing, stale-revision pruning, callback delivery, and strict
+types.
+
+The browser application artifact changes from 840,174 B raw / 227,035 B gzip
+to 840,220 B raw / 227,049 B gzip (+46 B raw / +14 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

@@ -33,7 +33,6 @@ import "./source-citation-control";
 import "./workspace-surface-switcher";
 import { type EditorSyntaxKind, type EditorSyntaxTemplate } from "./editor-insert-menu";
 import { sourceSpanAt } from "./composition-source-map";
-import { collaboratorSelectionChangeEvent } from "./collaborator-selection-list";
 import type { AppToastOptions } from "./app-toast";
 import { expectOk, jsonFetch } from "./http";
 import { type SourceCompletionIntent } from "./source-completion";
@@ -274,7 +273,7 @@ class WorkspaceApp {
 
   #bindUi(): void {
     this.#elements.applicationVersion.bindNotice((message) => this.#showToast(message));
-    this.#elements.collaboratorSelections.addEventListener(collaboratorSelectionChangeEvent, () => this.#renderSourceEditorHighlight());
+    this.#elements.collaboratorSelections.bindSelectionChanged(() => this.#renderSourceEditorHighlight());
     window.addEventListener("online", () => {
       this.#collaborationSocket.connect();
       if (appMode === "workspace") void this.#elements.gitHubSyncMenu.refreshWorkspace(true);

@@ -455,7 +455,9 @@ The adopted components own bounded presentation:
 - The collaborator selection list owns current-revision and current-file
   filtering; remote selection replacement, departure, clearing, and stale-
   revision pruning; caret and range presentation; accessible excerpts; and
-  missing-file fallbacks for remote editor presence.
+  missing-file fallbacks for remote editor presence. It reports selection
+  changes through one typed overlay-refresh callback rather than a public DOM
+  event protocol.
 - The application toast owns message and action presentation, replacement
   timers, one-shot callback lifecycle, pinned fallback restoration, modal
   reparenting, popover visibility, and typed action and dismissal intents.

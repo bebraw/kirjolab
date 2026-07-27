@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { ServerCollaborationMessage } from "../domain/collaboration";
 import type { ProjectFile } from "../domain/project-files";
-import { CollaboratorSelectionList, collaboratorSelectionChangeEvent } from "./collaborator-selection-list";
+import { CollaboratorSelectionList } from "./collaborator-selection-list";
 
 class TestSelectionList extends CollaboratorSelectionList {
   renderForTest() {
@@ -49,7 +49,7 @@ describe("collaborator selection list", () => {
   it("owns selection replacement, departure, clearing, and stale-revision pruning", () => {
     const list = new TestSelectionList();
     let changes = 0;
-    list.addEventListener(collaboratorSelectionChangeEvent, () => (changes += 1));
+    list.bindSelectionChanged(() => (changes += 1));
     list.setData({ files: [file], revision: 2 });
 
     list.receive(selection);

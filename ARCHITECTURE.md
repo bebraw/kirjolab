@@ -709,9 +709,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   selection metadata for the current file revision, replace client identity
   with a server-assigned socket identity, and never persist selection state.
   Let the collaborator-selection Lit owner store, replace, remove, clear, and
-  prune that browser-local remote selection collection. Keep WebSocket protocol,
-  revision authority, local-author selection, and editor highlighting in the
-  application coordinator.
+  prune that browser-local remote selection collection and request overlay
+  refresh through a typed callback. Keep WebSocket protocol, revision authority,
+  local-author selection, and editor highlighting in the application
+  coordinator.
 - Keep manuscript comments outside canonical Markdown. Attribute them to stable
   workspace-person ids, anchor them with file-qualified Yjs relative positions,
   retain them in project history, and preserve resolved comments as resources.

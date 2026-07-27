@@ -358,7 +358,8 @@ collaboration.
   the current file, renders caret or range copy with an accessible source
   excerpt, and supplies those same ranges to the editor overlay. The workspace
   coordinator retains the local-author range, collaboration transport, revision
-  authority, and highlight placement.
+  authority, and highlight placement; the component requests that placement
+  through a typed callback whenever its remote selection collection changes.
 - **Revision boundary:** Causally new Yjs state materializes Yjs, Markdown, and
   BibTeX together and advances the revision once. Duplicate or replayed updates
   receive an `ack` at the current revision without persistence, rebroadcast, or

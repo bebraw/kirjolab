@@ -6,8 +6,6 @@ import { accessibleEvidenceExcerpt } from "./research-resource-presentation";
 
 type RemoteSelection = Extract<ServerCollaborationMessage, { type: "selection" }>;
 
-export const collaboratorSelectionChangeEvent = "collaborator-selection-change";
-
 export interface CollaboratorSelectionListData {
   readonly files: readonly ProjectFile[];
   readonly revision: number;
@@ -18,6 +16,7 @@ export class CollaboratorSelectionList extends LitElement {
 
   declare private data: CollaboratorSelectionListData | null;
   private readonly selections = new Map<string, RemoteSelection>();
+  private selectionChangedCallback: () => void = () => undefined;
 
   constructor() {
     super();
@@ -29,6 +28,10 @@ export class CollaboratorSelectionList extends LitElement {
     for (const [collaboratorId, selection] of this.selections) {
       if (selection.revision !== data.revision) this.selections.delete(collaboratorId);
     }
+  }
+
+  bindSelectionChanged(callback: () => void): void {
+    this.selectionChangedCallback = callback;
   }
 
   receive(selection: RemoteSelection): void {
@@ -81,7 +84,7 @@ export class CollaboratorSelectionList extends LitElement {
 
   private selectionChanged(): void {
     this.requestUpdate();
-    this.dispatchEvent(new CustomEvent(collaboratorSelectionChangeEvent));
+    this.selectionChangedCallback();
   }
 }
 
