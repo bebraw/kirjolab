@@ -102,7 +102,7 @@ class WorkspaceApp {
   readonly #collaboration = new CollaborationSession(this.#document, remoteOrigin);
   readonly #collaborationSocket: CollaborationSocket;
   readonly #offlineSaves = new DebouncedAsyncQueue(
-    async () => await this.#persistOfflineWorkspace(),
+    () => this.#persistOfflineWorkspace(),
     (version) => {
       document.body.dataset.offlineCached = "true";
       document.body.dataset.offlineSavedAt = String(version);
@@ -277,10 +277,10 @@ class WorkspaceApp {
     this.#elements.workspaceCatalogPanel.configure(catalogBase, workspaceId, this.#elements.workspaceSwitcher);
     this.#elements.workspaceCatalogPanel.bindTrigger(this.#elements.manageWorkspaces);
     this.#elements.workspaceSettingsPanel.bindWorkspace(this.#elements.workspaceSettings, {
-      refreshCatalog: async () => await this.#elements.workspaceCatalogPanel.refresh(),
+      refreshCatalog: () => this.#elements.workspaceCatalogPanel.refresh(),
       refreshGitHub: () => void this.#elements.gitHubSyncMenu.refreshWorkspace(true),
       saveTemplate: async (projectTitle) =>
-        await this.#elements.saveTemplateDialog.open(projectTitle, async () => await this.#refreshProjectTemplates()),
+        await this.#elements.saveTemplateDialog.open(projectTitle, () => this.#refreshProjectTemplates()),
       sources: () => ({
         catalog: this.#elements.workspaceCatalogPanel.catalog,
         hiddenFileIds: this.#elements.projectFileDialog.hiddenFiles,
@@ -288,7 +288,7 @@ class WorkspaceApp {
         workspaceId,
       }),
     });
-    this.#elements.newWorkspaceStartingPoints.bindTrigger(this.#elements.newWorkspace, async () => await this.#refreshProjectTemplates());
+    this.#elements.newWorkspaceStartingPoints.bindTrigger(this.#elements.newWorkspace, () => this.#refreshProjectTemplates());
     this.#elements.newWorkspaceStartingPoints.bind({
       openImport: (action) => {
         if (action === "import-latex") this.#elements.latexImportPanel.open();
@@ -299,8 +299,8 @@ class WorkspaceApp {
     });
     this.#elements.gitHubSyncMenu.bindWorkspace(apiBase, {
       settings: this.#elements.workspaceSettingsPanel,
-      openSettings: async (checkGitHub) => await this.#elements.workspaceSettingsPanel.openSettings(checkGitHub),
-      refreshProject: async () => await this.#resourceRefresh.request(),
+      openSettings: (checkGitHub) => this.#elements.workspaceSettingsPanel.openSettings(checkGitHub),
+      refreshProject: () => this.#resourceRefresh.request(),
     });
     const githubResult = new URL(location.href).searchParams.get("github");
     if (githubResult === "connected" || githubResult === "installed") {
@@ -345,7 +345,7 @@ class WorkspaceApp {
       completeProjectMutation: (message, snapshot) => void this.#completeLibraryProjectMutation(message, snapshot),
       openPdf: (artifact, page, updateHistory) => void this.#openLibraryPdf(artifact, page, updateHistory),
       presentNotice: (message) => this.#showToast(message),
-      refreshLibrary: async () => await this.#refreshReferenceLibrary(),
+      refreshLibrary: () => this.#refreshReferenceLibrary(),
       refreshMetadata: async () => {
         await this.#refreshReferenceLibrary();
         await this.#refreshSnapshot();
@@ -456,7 +456,7 @@ class WorkspaceApp {
     this.#elements.contextResourcePresenter.bindPublicationList(apiBase, {
       manage: (publicationId) => void this.#openReferenceLibraryEntry(publicationId),
     });
-    this.#elements.contextResourcePresenter.bindProjectAnnotationIntake(async () => await this.#resourceRefresh.request());
+    this.#elements.contextResourcePresenter.bindProjectAnnotationIntake(() => this.#resourceRefresh.request());
     this.#elements.contextResourcePresenter.bindProjectAnnotationWorkflow(async ({ linkAnnotationId, notice, refreshResources }) => {
       if (refreshResources) await this.#resourceRefresh.request();
       if (linkAnnotationId) await this.#linkSelectedPassage("annotation", linkAnnotationId);
@@ -473,24 +473,24 @@ class WorkspaceApp {
           message,
           "The annotation changed, but the refreshed Library could not be loaded.",
         ),
-      openPdf: async (artifact, page) => await this.#openLibraryPdf(artifact, page),
+      openPdf: (artifact, page) => this.#openLibraryPdf(artifact, page),
       projectApiBase: apiBase,
     });
     this.#elements.contextResourcePresenter.bindRoutes({
-      completeProjectMutation: async (message, failureMessage) => await this.#refreshResourcesWithNotice(message, failureMessage),
+      completeProjectMutation: (message, failureMessage) => this.#refreshResourcesWithNotice(message, failureMessage),
       insertCitation: (citationAlias, locator) => this.#insertCitation(citationAlias, locator),
       library: () => this.#librarySnapshot,
       linkPassage: (kind, id) => void this.#linkSelectedPassage(kind, id),
       openCandidate: (candidate) => this.#openResourceContext({ kind: "candidate", id: candidate.id }),
-      openLibraryPdf: async (artifact, page) => await this.#openLibraryPdf(artifact, page, false),
-      openProjectPdf: async (pdf, page, annotationId) => await this.#showPaper(pdf, page, annotationId),
+      openLibraryPdf: (artifact, page) => this.#openLibraryPdf(artifact, page, false),
+      openProjectPdf: (pdf, page, annotationId) => this.#showPaper(pdf, page, annotationId),
       openPublication: (publication) => this.#openResourceContext({ kind: "publication", id: publication.id }),
       openPassage: (anchor) => this.#showPassage(anchor),
-      openReferencePdf: async (pdf, page) => await this.#openProjectReferencePdf(pdf, page, false),
+      openReferencePdf: (pdf, page) => this.#openProjectReferencePdf(pdf, page, false),
       presentNotice: (message) => this.#showToast(message),
       project: () => this.#snapshot,
       referencePdfs: () => this.#elements.contextResourcePresenter.referencePdfs,
-      refreshLibrary: async () => await this.#refreshReferenceLibrary(),
+      refreshLibrary: () => this.#refreshReferenceLibrary(),
     });
     this.#elements.contextResourcePresenter.bindPdfViewer(this.#pdfViewer, apiBase);
     this.#elements.libraryPdfInspector.bindProjectMutations(
@@ -519,8 +519,8 @@ class WorkspaceApp {
         this.#elements.assistantGenerationPresenter.refreshAvailability();
       },
       openEvidenceRail: () => this.#elements.workspaceRailTabs.navigate("research"),
-      openGeneratedCandidate: async (candidate) => await this.#openCreatedCandidate(candidate),
-      resolveDecision: async (detail) => await this.#completeCandidateRequest(detail),
+      openGeneratedCandidate: (candidate) => this.#openCreatedCandidate(candidate),
+      resolveDecision: (detail) => this.#completeCandidateRequest(detail),
       tableState: () => ({
         revision: this.#revision,
         source: this.#activeFileText.toString(),

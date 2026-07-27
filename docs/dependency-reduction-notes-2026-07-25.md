@@ -9111,6 +9111,25 @@ to 849,318 B raw / 228,805 B gzip (-117 B raw / -5 B gzip). Styles and direct
 and unique production package counts remain unchanged at 135,411 B raw /
 23,373 B gzip, 18, and 150.
 
+## Coordinator Simplification: Promise Callback Forwarding
+
+Sixteen coordinator bindings now return their existing promise-producing
+operation directly instead of allocating redundant `async`/`await` forwarding
+layers. The arrow boundaries still retain application context and the same
+promise contracts for offline persistence, workspace/template refresh,
+settings, Library and PDF navigation, project mutations, and assistant
+candidate workflows.
+
+This checkpoint leaves `src/client/app.ts` at 1,220 lines while removing
+repeated asynchronous syntax and its generated runtime overhead. The affected
+gate and full native CI pass all 1,720 unit/coverage tests, 121 Workers-runtime
+tests, and 74 browser tests alongside formatting, lint, and strict types.
+
+The browser application artifact changes from 849,318 B raw / 228,805 B gzip
+to 849,139 B raw / 228,781 B gzip (-179 B raw / -24 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,
