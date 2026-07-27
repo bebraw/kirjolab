@@ -27,7 +27,6 @@ import { type AssistantAuthoringPassage as AuthoringPassage } from "./assistant-
 import { type CandidateDecisionOutcome } from "./candidate-review-panel";
 import { type PublicationPaperOption } from "./publication-context-panel";
 import {
-  type AnnotationResource,
   type ModelCandidate,
   type PassageLink,
   type PdfResource,
@@ -446,7 +445,7 @@ class WorkspaceApp {
       },
       completeMutation: (message) =>
         this.#refreshResourcesWithNotice(message, "The project changed, but project resources could not be refreshed."),
-      editAnnotation: (annotation) => this.#editAnnotation(annotation),
+      editAnnotation: (annotation) => this.#elements.contextResourcePresenter.openProjectAnnotation(annotation.id, true),
       fragmentRemoved: async ({ annotationDeleted, annotationId, announce }) => {
         if (annotationDeleted) this.#elements.projectAnnotationForm.clearAnnotation(annotationId);
         await this.#resourceRefresh.request();
@@ -470,10 +469,7 @@ class WorkspaceApp {
       },
       project: () => this.#elements.workspaceSwitcher.focusSelect(),
       person: () => this.#elements.workspaceSharingPanel.open(),
-      "model-candidate": (id) => {
-        const candidate = this.#snapshot?.candidates.find((item) => item.id === id);
-        if (candidate) this.#openCandidateContext(candidate);
-      },
+      "model-candidate": (id) => void this.#elements.contextResourcePresenter.restoreTarget({ kind: "candidate", id }),
       note: (id) => {
         const share = this.#snapshot?.researchShares.find(
           (item) => item.resourceId === id && item.revokedAt === null && item.content.kind === "note",
@@ -484,20 +480,10 @@ class WorkspaceApp {
         this.#activateContext(RESEARCH_PREVIEW_KEY);
         this.#elements.workspacePreview.scrollToAnchor(id);
       },
-      annotation: (id) => {
-        const annotation = this.#snapshot?.annotations.find((item) => item.id === id);
-        const pdf = annotation ? this.#snapshot?.pdfs.find((item) => item.id === annotation.pdfId) : undefined;
-        if (annotation && pdf) void this.#showPaper(pdf, annotation.page, annotation.id);
-      },
+      annotation: (id) => this.#elements.contextResourcePresenter.openProjectAnnotation(id),
       claim: (id) => this.#elements.claimListPanel.revealClaim(id),
-      pdf: (id) => {
-        const pdf = this.#snapshot?.pdfs.find((item) => item.id === id);
-        if (pdf) void this.#showPaper(pdf);
-      },
-      publication: (id) => {
-        const publication = this.#snapshot?.publications.find((item) => item.id === id);
-        if (publication) this.#openPublicationContext(publication);
-      },
+      pdf: (id) => void this.#elements.contextResourcePresenter.restoreTarget({ kind: "pdf", id }),
+      publication: (id) => void this.#elements.contextResourcePresenter.restoreTarget({ kind: "publication", id }),
     });
     this.#elements.publicationListPanel.configure(apiBase);
     this.#elements.publicationListPanel.bind({
@@ -1067,16 +1053,6 @@ class WorkspaceApp {
     this.#renderResearchContext();
     this.#updateModelAvailability();
     this.#syncWorkspaceRoute("replace");
-  }
-
-  #openAnnotationEvidence(annotation: AnnotationResource): void {
-    const pdf = this.#snapshot?.pdfs.find((item) => item.id === annotation.pdfId);
-    if (pdf) void this.#showPaper(pdf, annotation.page, annotation.id);
-  }
-
-  #editAnnotation(annotation: AnnotationResource): void {
-    this.#elements.projectAnnotationForm.showAnnotation(annotation);
-    this.#openAnnotationEvidence(annotation);
   }
 
   async #linkClaim(claimId: string): Promise<void> {

@@ -960,7 +960,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   private-or-linked PDF, and candidate identity sets from canonical resource
   catalogs and resolve a supplied resource route to the matching canonical
   publication, project PDF, private-Library PDF, linked reference PDF, or
-  candidate. Let it also resolve citation keys case-insensitively and choose
+  candidate. Let project-map navigation reuse those lookups, and let the same
+  presenter resolve annotation edit/open intents to their canonical annotation
+  and project PDF. Let it also resolve citation keys case-insensitively and choose
   the sole linked project PDF for a supported page locator, otherwise opening
   publication context. Route the resulting typed open intent through the application
   coordinator, which retains tab reconciliation, canonical context state,

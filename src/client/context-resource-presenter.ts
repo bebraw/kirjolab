@@ -211,6 +211,16 @@ export class ContextResourcePresenter extends LitElement {
     if (referencePdf) await coordinator.openReferencePdf(referencePdf, page);
   }
 
+  openProjectAnnotation(annotationId: string, edit = false): void {
+    const coordinator = this.routeCoordinator;
+    const project = coordinator?.project();
+    const annotation = project?.annotations.find(({ id }) => id === annotationId);
+    const pdf = annotation ? project?.pdfs.find(({ id }) => id === annotation.pdfId) : undefined;
+    if (!coordinator || !annotation || !pdf) return;
+    if (edit) this.element("project-annotation-form", ProjectAnnotationForm)?.showAnnotation(annotation);
+    void coordinator.openProjectPdf(pdf, annotation.page, annotation.id);
+  }
+
   openCitation(citation: CitationContext): string | null {
     if (citation.keys.length > 1) return "Open this grouped citation from Preview to choose a reference.";
     const citationKey = citation.keys[0] ?? "";

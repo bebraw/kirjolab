@@ -207,7 +207,9 @@ changing their canonical data, selector, authorization, or rendering contracts.
   and owns their local private-PDF action and completion routing, including
   citation readiness feedback, collision-safe project-reference preparation,
   validated link transport, and canonical catalog lookup when restoring a
-  supplied resource route. It also resolves citation keys case-insensitively
+  supplied resource route or opening project-map resources. Annotation intents
+  resolve through the same retained catalog to their annotation form and
+  project PDF. It also resolves citation keys case-insensitively
   and selects the sole linked project PDF for a supported page locator, falling
   back to publication context. It delegates canonical snapshot acceptance, Yjs
   citation insertion, tab reconciliation, cross-resource navigation, history

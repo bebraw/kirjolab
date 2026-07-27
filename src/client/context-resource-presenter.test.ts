@@ -427,7 +427,7 @@ describe("context resource presenter", () => {
   });
 
   it("restores resource routes through canonical lookups and typed effects", async () => {
-    const { presenter } = setup();
+    const { elements, presenter } = setup();
     const publication = {
       abstract: "",
       authors: ["Ada Author"],
@@ -443,6 +443,7 @@ describe("context resource presenter", () => {
       venue: "Journal",
       year: "2026",
     };
+    const showAnnotation = vi.spyOn(elements["project-annotation-form"], "showAnnotation");
     const pdf = {
       contentType: "application/pdf" as const,
       createdAt: "created",
@@ -451,6 +452,19 @@ describe("context resource presenter", () => {
       name: "route.pdf",
       objectKey: "pdfs/route.pdf",
       size: 1024,
+    };
+    const annotation = {
+      comment: "Route note",
+      createdAt: "created",
+      fragments: [],
+      id: "annotation:route",
+      page: 3,
+      pdfId: pdf.id,
+      prefix: "",
+      quote: "Route evidence",
+      rects: [],
+      suffix: "",
+      updatedAt: "updated",
     };
     const candidate = {
       createdAt: "created",
@@ -469,6 +483,7 @@ describe("context resource presenter", () => {
     };
     const project = {
       ...workspaceSnapshotFixture,
+      annotations: [annotation],
       candidates: [candidate],
       pdfs: [pdf],
       publicationPdfLinks: [{ createdAt: "created", id: "link:route", pdfId: pdf.id, publicationId: publication.id }],
@@ -496,12 +511,15 @@ describe("context resource presenter", () => {
     await presenter.restoreTarget({ kind: "library-pdf", id: libraryPdf.id }, 5);
     await presenter.restoreTarget({ kind: "library-pdf", id: referencePdf.id }, 6);
     await presenter.restoreTarget({ kind: "publication", id: "missing" });
+    presenter.openProjectAnnotation(annotation.id, true);
     expect(presenter.openCitation({ keys: ["author2026"], locator: "p. 7" })).toBeNull();
     expect(presenter.openCitation({ keys: ["Author2026"] })).toBeNull();
 
     expect(coordinator.openPublication).toHaveBeenCalledWith(publication);
     expect(coordinator.openProjectPdf).toHaveBeenCalledWith(pdf, 4, "annotation-1");
     expect(coordinator.openProjectPdf).toHaveBeenCalledWith(pdf, 7);
+    expect(coordinator.openProjectPdf).toHaveBeenCalledWith(pdf, annotation.page, annotation.id);
+    expect(showAnnotation).toHaveBeenCalledWith(annotation);
     expect(coordinator.openCandidate).toHaveBeenCalledWith(candidate);
     expect(coordinator.refreshLibrary).toHaveBeenCalledOnce();
     expect(coordinator.openLibraryPdf).toHaveBeenCalledWith(libraryPdf, 5);
