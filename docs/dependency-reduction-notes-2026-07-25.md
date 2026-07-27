@@ -6365,6 +6365,28 @@ Valibot was already pinned.
 Full native CI passes all 1,655 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Valibot Adoption: Private PDF Mutations
+
+The owner-library API now validates private highlight creation and comments,
+imported-highlight envelopes, PDF notes, drawings and points, drawing-style and
+note-position updates, and reading-state commands with composable Valibot
+schemas. Imported-highlight candidate semantics still reuse the existing domain
+validator; authorization and Durable Object bounds remain explicit.
+
+This checkpoint reduces `src/api/reference-library.ts` from 1,718 to 1,649
+lines (-69), replacing five parallel request interfaces and nine handwritten
+structure predicates. One focused API case covers malformed highlight, import,
+note, drawing, point, style, position, comment, and reading-state shapes in
+addition to the existing successful mutation workflow.
+
+Browser application and style artifacts remain unchanged at 838,304 B raw /
+226,459 B gzip and 135,411 B raw / 23,373 B gzip because this boundary is
+Worker-side. Direct and unique production package counts remain 18 and 150;
+Valibot was already pinned.
+
+Full native CI passes all 1,656 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

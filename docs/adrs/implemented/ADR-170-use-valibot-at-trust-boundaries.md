@@ -55,6 +55,10 @@ Adopted boundaries are:
   repeated record, operation-id, string, integer, choice, and optional-array
   predicates while authorization, preview freshness, complete conflict
   resolution, remote identity, and reconciliation remain explicit.
+- Owner-library private-PDF mutations: highlight, imported-highlight envelope,
+  note, drawing, point, style, position, and reading-state schemas replace
+  parallel structural interfaces and predicates while imported-candidate
+  semantics, authorization, and Durable Object domain bounds remain explicit.
 
 Schemas validate local structure only. Stateful invariants, authorization,
 deduplication, provenance, canonicalization, and relationships between records

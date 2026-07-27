@@ -418,6 +418,10 @@ memory and makes citation aliases compete with stable source identity.
   owner-private note to a validated normalized anchor and may replace its
   bounded body. It cannot turn a drawing into a note or mutate a resource owned
   by another reference.
+- Drawing, note, highlight, imported-highlight, style, position, and reading-
+  state mutation payloads pass bounded Valibot structure validation before
+  owner-library orchestration. Imported-highlight candidate semantics and
+  Durable Object domain bounds remain explicit.
 - The private PDF drawing tool keeps color, line width, and undo controls in a
   compact vertical group within the annotation rail. Activating drawing must
   not open a horizontal overlay across the document or widen the page.

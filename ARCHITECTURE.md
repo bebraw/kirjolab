@@ -30,7 +30,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   HTTP status mapping and response-size policy stay explicit. At GitHub import,
   Pull, and Publish command boundaries, schemas own local request structure and
   primitive bounds while authorization, preview freshness, conflict coverage,
-  remote identity, and reconciliation stay explicit.
+  remote identity, and reconciliation stay explicit. At the owner-library
+  private-PDF mutation boundary, schemas own highlight, imported-highlight
+  envelope, note, drawing, point, style, position, and reading-state structure;
+  imported-candidate semantics, owner authorization, and Durable Object domain
+  bounds stay explicit.
 - Read bounded external response bodies through stateless, request-local
   helpers that enforce both declared and observed byte limits. Keep byte
   ceilings, errors, response-shape validation, and domain mapping explicit at

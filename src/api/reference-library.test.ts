@@ -579,6 +579,34 @@ describe("reference library API", () => {
     expect(fixture.library.permanentlyDeleteReference).toHaveBeenCalledWith(id, ["project"]);
   });
 
+  it("rejects malformed private-PDF and reading-state mutations at the schema boundary", async () => {
+    const fixture = apiFixture();
+    const id = reference.id;
+    const markupId = "33333333-3333-4333-8333-333333333333";
+    const highlightId = "44444444-4444-4444-8444-444444444444";
+    for (const [path, body, method] of [
+      [`${id}/highlights`, { artifactId: "artifact", page: "2", quote: "Evidence", comment: "", rects: [] }, "POST"],
+      [
+        `${id}/highlight-imports`,
+        { artifactId: "artifact", candidates: [{ page: "3", quote: "Evidence", comment: "", rects: [] }] },
+        "POST",
+      ],
+      [`${id}/pdf-markups`, { kind: "note", artifactId: "artifact", page: 2, x: "0.2", y: 0.3, body: "Note" }, "POST"],
+      [
+        `${id}/pdf-markups`,
+        { kind: "drawing", artifactId: "artifact", page: 2, color: "#000", width: 2, points: [{ x: "0.2", y: 0.3 }] },
+        "POST",
+      ],
+      [`${id}/pdf-markups/${markupId}`, { x: "0.2", y: 0.3 }, "PATCH"],
+      [`${id}/pdf-markups/${markupId}`, { color: "#000", width: "2" }, "PATCH"],
+      [`${id}/highlights/${highlightId}`, { comment: 4 }, "PATCH"],
+      [`${id}/reading`, { status: "started", rating: null, priority: "normal" }, "PUT"],
+    ] as const) {
+      const response = await handleReferenceLibraryApi(jsonRequest(`/api/library/references/${path}`, body, method), fixture.env, identity);
+      expect(response.status).toBe(400);
+    }
+  });
+
   it("identifies PDFs, records rights, and maps domain errors without leaking cacheable responses", async () => {
     const fixture = apiFixture();
     const artifactId = "22222222-2222-4222-8222-222222222222";
