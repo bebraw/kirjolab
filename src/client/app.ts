@@ -30,7 +30,6 @@ import {
   type ReferenceLibrarySnapshot,
 } from "../domain/reference-library";
 import { applicationVersionNoticeEvent } from "./application-version-control";
-import { previewSyncActionEvent, type PreviewSyncAction } from "./preview-sync-controls";
 import { sourceCitationOpenEvent } from "./source-citation-control";
 import { workspaceSurfaceChangeEvent } from "./workspace-surface-switcher";
 import { editorInsertActionEvent, type EditorInsertAction, type EditorSyntaxTemplate } from "./editor-insert-menu";
@@ -261,7 +260,10 @@ class WorkspaceApp {
       paneStorageKey: () => `kirjolab:authoring-pane:${workspaceId}:${this.#activeResourceTab()?.kind ?? "preview"}`,
       resizePdf: () => void this.#pdfViewer.resize(),
     });
-    this.#elements.previewSyncControls.bindSource(this.#elements.source, this.#elements.sourceHighlight);
+    this.#elements.previewSyncControls.bindSource(this.#elements.source, this.#elements.sourceHighlight, {
+      previewToSource: () => this.#syncSourceFromPreviewCenter(),
+      sourceToPreview: (explicit) => this.#syncPreviewFromSource(explicit),
+    });
   }
 
   async start(): Promise<void> {
@@ -520,13 +522,6 @@ class WorkspaceApp {
       else if (detail.action === "reanchor") void this.#reanchorManuscriptComment(detail.commentId);
       else this.#refreshResourcesWithNotice(detail.message, "The comment was resolved, but project resources could not be refreshed.");
     });
-    this.#elements.source.addEventListener("click", () => this.#syncPreviewFromSource(false));
-    this.#elements.source.addEventListener("select", () => this.#syncPreviewFromSource(false));
-    this.#elements.source.addEventListener("keyup", (event) => {
-      if (["ArrowDown", "ArrowLeft", "ArrowRight", "ArrowUp", "End", "Home", "PageDown", "PageUp"].includes(event.key)) {
-        this.#syncPreviewFromSource(false);
-      }
-    });
     this.#source.observe(() => void this.#renderPreview());
     this.#bibliography.observe(() => void this.#renderPreview());
     this.#document.on("update", (update: Uint8Array, origin: unknown) => {
@@ -644,11 +639,6 @@ class WorkspaceApp {
       openCitation: (citation) => this.#openCitation(citation),
       selectDiagnostic: ({ fileId, from, to }) => this.#focusProjectRange(fileId || this.#snapshot?.entryFileId || "", from, to),
       showSource: (offset) => this.#syncSourceFromPreviewOffset(offset),
-    });
-    this.#elements.previewSyncControls.addEventListener(previewSyncActionEvent, (event) => {
-      const action = (event as CustomEvent<PreviewSyncAction>).detail;
-      if (action === "source-to-preview") this.#syncPreviewFromSource();
-      else this.#syncSourceFromPreviewCenter();
     });
     this.#elements.sourceCitationControl.addEventListener(sourceCitationOpenEvent, (event) => {
       this.#openCitation((event as CustomEvent<CitationContext>).detail);

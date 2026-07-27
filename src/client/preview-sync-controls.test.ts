@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { PreviewSyncControls, previewSyncActionEvent, type PreviewSyncAction } from "./preview-sync-controls";
+import { PreviewSyncControls, type PreviewSyncAction } from "./preview-sync-controls";
 
 class TestPreviewSyncControls extends PreviewSyncControls {
   renderForTest() {
@@ -20,25 +20,17 @@ class TestPreviewSyncControls extends PreviewSyncControls {
 describe("preview sync controls", () => {
   afterEach(() => vi.unstubAllGlobals());
 
-  it("owns visibility and emits both synchronization directions", () => {
+  it("owns visibility and source-map translation", () => {
     const controls = new TestPreviewSyncControls();
-    const actions: PreviewSyncAction[] = [];
-    controls.addEventListener(previewSyncActionEvent, (event) => {
-      actions.push((event as CustomEvent<PreviewSyncAction>).detail);
-    });
 
     controls.setVisible(false);
     expect(controls.hidden).toBe(true);
     controls.setVisible(true);
-    controls.syncForTest();
-    controls.syncForTest("source-to-preview");
-    controls.syncForTest("preview-to-source");
 
     controls.setSourceMap([
       { fileId: "part", includeChain: [], outputEnd: 15, outputStart: 5, path: "part.md", sourceEnd: 20, sourceStart: 10 },
     ]);
 
-    expect(actions).toEqual(["source-to-preview", "preview-to-source"]);
     expect(controls.sourceLocation(9)).toEqual({ fileId: "part", offset: 14 });
     expect(controls.previewOffsets("part", 14)).toEqual([9]);
     expect(controls.renderForTest()).toBeDefined();
@@ -47,6 +39,8 @@ describe("preview sync controls", () => {
 
   it("owns source-editor viewport translation in both directions", () => {
     const controls = new TestPreviewSyncControls();
+    const previewToSource = vi.fn();
+    const sourceToPreview = vi.fn();
     expect(controls.sourceOffsetAtCenter()).toBe(0);
     controls.centerSourceOffset(4);
 
@@ -66,13 +60,26 @@ describe("preview sync controls", () => {
             },
       ),
     });
-    const source = document.createElement("textarea");
+    const source = Object.assign(new EventTarget(), { clientHeight: 100, scrollTop: 60, value: "first\nsecond\nthird" });
     const highlight = document.createElement("div");
 
-    controls.bindSource(source, highlight);
+    controls.bindSource(source as HTMLTextAreaElement, highlight, { previewToSource, sourceToPreview });
+
+    source.dispatchEvent(new Event("click"));
+    source.dispatchEvent(new Event("select"));
+    for (const key of ["ArrowDown", "a"]) {
+      const event = new Event("keyup");
+      Object.defineProperty(event, "key", { value: key });
+      source.dispatchEvent(event);
+    }
+    controls.syncForTest();
+    controls.syncForTest("source-to-preview");
+    controls.syncForTest("preview-to-source");
 
     expect(controls.sourceOffsetAtCenter()).toBe(6);
     controls.centerSourceOffset(13);
     expect(source.scrollTop).toBe(160);
+    expect(sourceToPreview.mock.calls).toEqual([[false], [false], [false], [true]]);
+    expect(previewToSource).toHaveBeenCalledOnce();
   });
 });

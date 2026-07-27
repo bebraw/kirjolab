@@ -6592,6 +6592,30 @@ Valibot was already pinned.
 Full native CI passes all 1,663 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Preview Sync Interaction
+
+`PreviewSyncControls` now owns source click, selection, and navigation-key
+listeners, explicit button routing, and scoped listener teardown alongside its
+existing source-map and viewport translation. `WorkspaceApp` retains active-file
+identity, responsive availability, Preview navigation, caret placement, and
+focus policy through one typed callback boundary.
+
+This checkpoint reduces `src/client/app.ts` from 2,399 to 2,389 lines (-10),
+removes four coordinator subscriptions and one event import, and grows the
+existing synchronization owner from 115 to 151 lines. Runtime source across
+those files grows by 26 lines while deleting the coordinator's duplicated
+navigation-key policy. Focused coverage exercises explicit directions,
+automatic click, selection, navigation and typing behavior, source-map
+translation, viewport centering, visibility, and strict types.
+
+The browser application artifact changes from 841,301 B raw / 227,193 B gzip
+to 841,560 B raw / 227,268 B gzip (+259 B raw / +75 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,663 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

@@ -673,11 +673,12 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   Keep Yjs relative-position resolution, editor highlighting, assistant refresh,
   collaboration interpretation, and offline-save policy in their authorities.
 - Let the preview-synchronization Lit owner bind the native source viewport and
-  inert highlight lines, derive the source offset nearest the viewport center,
-  center the editor on a requested source offset, resolve composition-map
-  offsets in both directions, and emit directional sync intents. Keep active
-  file identity, automatic-versus-explicit sync policy, Preview DOM navigation,
-  caret placement, and focus policy in the application coordinator.
+  inert highlight lines; own click, selection, and navigation-key follow
+  behavior; derive the source offset nearest the viewport center; center the
+  editor on a requested source offset; resolve composition-map offsets in both
+  directions; and route explicit and automatic sync through typed callbacks.
+  Keep active file identity, responsive sync availability, Preview DOM
+  navigation, caret placement, and focus policy in the application coordinator.
 - Keep source-completion interaction in its bounded light-DOM component: bind
   editor change, keyboard, and blur behavior there; invoke one coordinator
   callback for authoring-selection, presence, and model-availability

@@ -4,17 +4,27 @@ import type { CompositionSourceSpan } from "../domain/project-files";
 import { renderIcon } from "../ui/icons";
 import { previewOffsetsForSourceLocation, sourceLocationForPreviewOffset, type PreviewSourceLocation } from "./source-preview-sync";
 
-export const previewSyncActionEvent = "preview-sync-action";
 export type PreviewSyncAction = "preview-to-source" | "source-to-preview";
+
+interface PreviewSyncCallbacks {
+  readonly previewToSource: () => void;
+  readonly sourceToPreview: (explicit: boolean) => void;
+}
+
+const sourceNavigationKeys = new Set(["ArrowDown", "ArrowLeft", "ArrowRight", "ArrowUp", "End", "Home", "PageDown", "PageUp"]);
 
 export class PreviewSyncControls extends LitElement {
   #sourceMap: readonly CompositionSourceSpan[] = [];
   #source: HTMLTextAreaElement | null = null;
   #sourceHighlight: HTMLElement | null = null;
+  #callbacks: PreviewSyncCallbacks = { previewToSource: () => undefined, sourceToPreview: () => undefined };
+  #sourceAbort: AbortController | null = null;
 
-  bindSource(source: HTMLTextAreaElement, sourceHighlight: HTMLElement): void {
+  bindSource(source: HTMLTextAreaElement, sourceHighlight: HTMLElement, callbacks: PreviewSyncCallbacks): void {
     this.#source = source;
     this.#sourceHighlight = sourceHighlight;
+    this.#callbacks = callbacks;
+    this.#connectSource();
   }
 
   setSourceMap(sourceMap: readonly CompositionSourceSpan[]): void {
@@ -65,13 +75,20 @@ export class PreviewSyncControls extends LitElement {
 
   protected sync(event: Event): void {
     const action = (event.currentTarget as HTMLButtonElement).dataset.syncAction as PreviewSyncAction | undefined;
-    if (!action) return;
-    this.dispatchEvent(new CustomEvent<PreviewSyncAction>(previewSyncActionEvent, { bubbles: true, composed: true, detail: action }));
+    if (action === "source-to-preview") this.#callbacks.sourceToPreview(true);
+    else if (action === "preview-to-source") this.#callbacks.previewToSource();
   }
 
   override connectedCallback(): void {
     if (!this.hasUpdated) this.replaceChildren();
     super.connectedCallback();
+    this.#connectSource();
+  }
+
+  override disconnectedCallback(): void {
+    this.#sourceAbort?.abort();
+    this.#sourceAbort = null;
+    super.disconnectedCallback();
   }
 
   protected override createRenderRoot(): HTMLElement {
@@ -102,6 +119,25 @@ export class PreviewSyncControls extends LitElement {
       </button>
     `;
   }
+
+  #connectSource(): void {
+    this.#sourceAbort?.abort();
+    const source = this.#source;
+    if (!source) return;
+    this.#sourceAbort = new AbortController();
+    const options = { signal: this.#sourceAbort.signal };
+    source.addEventListener("click", this.#handleSourceSelection, options);
+    source.addEventListener("select", this.#handleSourceSelection, options);
+    source.addEventListener("keyup", this.#handleSourceKey, options);
+  }
+
+  readonly #handleSourceSelection = (): void => {
+    this.#callbacks.sourceToPreview(false);
+  };
+
+  readonly #handleSourceKey = (event: KeyboardEvent): void => {
+    if (sourceNavigationKeys.has(event.key)) this.#callbacks.sourceToPreview(false);
+  };
 }
 
 if (typeof customElements !== "undefined" && !customElements.get("preview-sync-controls")) {

@@ -36,7 +36,10 @@ Preview offset may belong to a supporting file.
   actions.
 - Clicking or selecting source, and moving the caret with navigation keys,
   follows into Preview only when both panes are visible. Typing does not move
-  Preview, so composition remains stable while prose is entered.
+  Preview, so composition remains stable while prose is entered. The bounded
+  synchronization control owns those native source listeners, their navigation-
+  key classification, teardown, and explicit-versus-automatic callback routing;
+  the workspace coordinator decides whether the current layout permits a sync.
 - When a source location occurs more than once through repeated includes, Sync
   chooses the rendered occurrence nearest the current Preview viewport.
 - A synchronized Preview target receives a brief token-colored outline. Sync
