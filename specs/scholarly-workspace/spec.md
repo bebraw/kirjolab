@@ -485,7 +485,9 @@ collaboration.
   ids and stored outside Markdown with a version 1 manuscript anchor, body,
   lifecycle status, and timestamps. Creation and resolution are explicit
   resource mutations retained in project history; neither changes authored
-  source.
+  source. One typed workspace binding supplies validated passages and retains
+  passage navigation, canonical refresh, and notification policy outside the
+  comment panel.
 - **Blob storage:** The `PAPERS` R2 binding stores immutable private PDF bytes
   and bounded web representations under owner-library keys. Responses stream
   only through an authorized private-library route or active explicit project

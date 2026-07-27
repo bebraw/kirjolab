@@ -71,7 +71,6 @@ import { CollaborationSession } from "./collaboration-session";
 import { CollaborationSocket } from "./collaboration-socket";
 import { resolveAssistantTarget } from "./assistant-operations";
 import { citationPageFromLocator, createCitationInsertion, type CitationContext } from "./citations";
-import { manuscriptCommentActionEvent, type ManuscriptCommentAction } from "./manuscript-comment-list";
 import { type ProjectAnnotationSaved, type ProjectHighlightTool } from "./project-annotation-form";
 import { type ProjectFileDialogMode, type ProjectFileSaved } from "./project-file-dialog";
 import { type ProjectImagesUploaded } from "./project-image-upload-control";
@@ -448,7 +447,10 @@ class WorkspaceApp {
       trigger: this.#elements.projectHistoryTrigger,
     });
     this.#elements.manuscriptCommentListPanel.configure(apiBase);
-    this.#elements.manuscriptCommentListPanel.bindAuthoring({
+    this.#elements.manuscriptCommentListPanel.bind({
+      completeMutation: (message) =>
+        this.#refreshResourcesWithNotice(message, "The comment changed, but project resources could not be refreshed."),
+      openPassage: (anchor) => this.#showPassage(anchor),
       passage: (action) => {
         if (!this.#hasStableDocumentBase()) {
           this.#showToast(
@@ -469,11 +471,6 @@ class WorkspaceApp {
         }
         return { ...passage, sourceRevision: this.#revision };
       },
-    });
-    this.#elements.manuscriptCommentListPanel.addEventListener(manuscriptCommentActionEvent, (event) => {
-      const detail = (event as CustomEvent<ManuscriptCommentAction>).detail;
-      if (detail.action === "open") this.#showPassage(detail.anchor);
-      else this.#refreshResourcesWithNotice(detail.message, "The comment changed, but project resources could not be refreshed.");
     });
     this.#source.observe(() => void this.#renderPreview());
     this.#bibliography.observe(() => void this.#renderPreview());

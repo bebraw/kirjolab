@@ -156,9 +156,10 @@ The adopted components own bounded presentation:
 - The manuscript comment panel owns composer body and status state plus comment,
   anchor-status, empty-state, action presentation, and open-comment count
   derivation with typed open intents. Through one coordinator-bound typed
-  passage resolver, it owns create and re-anchor action routing and transport,
+  workspace contract, it owns create and re-anchor action routing and transport,
   body reset, local retryable failure state, self-contained resolution
-  transport, duplicate-resolution gating, and typed completed mutation outcomes.
+  transport, duplicate-resolution gating, and typed passage-navigation and
+  completed-mutation outcomes.
 - The project publication list owns the References collection shell and count,
   reference metadata, alias and DOI labels, empty-state, and action
   presentation. It also owns DOI-enrichment transport, duplicate-submit
@@ -602,7 +603,9 @@ reason to wrap static markup mechanically.
   paths. Its bound authoring resolver also removes two coordinator event routes
   and the create/re-anchor orchestration methods. It leaves Yjs selection
   validation, current-passage derivation, canonical refreshes, notifications,
-  and passage navigation in the application coordinator.
+  and passage navigation in the application coordinator. Completing that
+  workspace binding removes the final coordinator subscription and public
+  manuscript-comment action protocol.
 - The project publication list replaces one internal list reference and its
   imperative card renderer. It also replaces the separate count reference and
   mutation, the coordinator enrichment method, and the coordinator's

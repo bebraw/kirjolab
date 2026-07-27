@@ -8,13 +8,9 @@ import type {
 import { errorMessage, expectOk, jsonFetch } from "./http";
 import { anchorActionLabel } from "./research-resource-presentation";
 
-export const manuscriptCommentActionEvent = "manuscript-comment-action";
-
-export type ManuscriptCommentAction =
-  | { readonly action: "open"; readonly anchor: ManuscriptAnchorSelector }
-  | { readonly action: "mutated"; readonly message: string };
-
-export interface ManuscriptCommentAuthoring {
+export interface ManuscriptCommentBinding {
+  readonly completeMutation: (message: string) => void;
+  readonly openPassage: (anchor: ManuscriptAnchorSelector) => void;
   readonly passage: (action: "create" | "reanchor") => ManuscriptPassageInput | undefined;
 }
 
@@ -31,7 +27,7 @@ export class ManuscriptCommentList extends LitElement {
   declare private resolvingCommentId: string;
   declare private status: string;
   private apiBase = "";
-  private authoring: ManuscriptCommentAuthoring | undefined;
+  private binding: ManuscriptCommentBinding | undefined;
 
   constructor() {
     super();
@@ -45,8 +41,8 @@ export class ManuscriptCommentList extends LitElement {
     this.apiBase = apiBase;
   }
 
-  bindAuthoring(authoring: ManuscriptCommentAuthoring): void {
-    this.authoring = authoring;
+  bind(binding: ManuscriptCommentBinding): void {
+    this.binding = binding;
   }
 
   setComments(comments: readonly ManuscriptComment[]): number {
@@ -146,7 +142,7 @@ export class ManuscriptCommentList extends LitElement {
 
   protected create(event: Event): void {
     event.preventDefault();
-    const passage = this.authoring?.passage("create");
+    const passage = this.binding?.passage("create");
     if (passage) void this.createAt({ ...passage, body: this.body });
   }
 
@@ -159,7 +155,7 @@ export class ManuscriptCommentList extends LitElement {
     const comment = this.comments.find((item) => item.id === button.dataset.commentId);
     if (!comment) return;
     const action = button.dataset.commentAction;
-    if (action === "open") this.emit({ action, anchor: comment.anchor });
+    if (action === "open") this.binding?.openPassage(comment.anchor);
     else if (action === "reanchor") void this.reanchor(comment.id);
     else if (action === "resolve") void this.resolve(comment.id);
   }
@@ -174,7 +170,7 @@ export class ManuscriptCommentList extends LitElement {
         credentials: "same-origin",
       });
       await expectOk(response);
-      this.emit({ action: "mutated", message: "Comment resolved; its revision history is preserved." });
+      this.binding?.completeMutation("Comment resolved; its revision history is preserved.");
     } catch (error) {
       this.status = errorMessage(error, "Could not resolve the comment.");
     } finally {
@@ -183,7 +179,7 @@ export class ManuscriptCommentList extends LitElement {
   }
 
   private async reanchor(commentId: string): Promise<void> {
-    const passage = this.authoring?.passage("reanchor");
+    const passage = this.binding?.passage("reanchor");
     if (passage) await this.reanchorAt(commentId, passage);
   }
 
@@ -194,14 +190,10 @@ export class ManuscriptCommentList extends LitElement {
       await expectOk(response);
       if (reset) this.body = "";
       this.status = reset ? "Comment saved without changing the Markdown source." : message;
-      this.emit({ action: "mutated", message });
+      this.binding?.completeMutation(message);
     } catch (error) {
       this.status = errorMessage(error, reset ? "Could not save the comment." : "Could not re-anchor the comment.");
     }
-  }
-
-  private emit(detail: ManuscriptCommentAction): void {
-    this.dispatchEvent(new CustomEvent(manuscriptCommentActionEvent, { bubbles: true, composed: true, detail }));
   }
 }
 

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { ManuscriptAnchorSelector, ManuscriptComment } from "../domain/workspace";
-import { ManuscriptCommentList, manuscriptCommentActionEvent, type ManuscriptCommentAction } from "./manuscript-comment-list";
+import type { ManuscriptAnchorSelector, ManuscriptComment, ManuscriptPassageInput } from "../domain/workspace";
+import { ManuscriptCommentList } from "./manuscript-comment-list";
 
 const anchor: ManuscriptAnchorSelector = {
   anchoredRevision: 1,
@@ -55,6 +55,23 @@ class TestManuscriptCommentList extends ManuscriptCommentList {
   }
 }
 
+type RecordedAction =
+  | { readonly action: "mutated"; readonly message: string }
+  | { readonly action: "open"; readonly anchor: ManuscriptAnchorSelector };
+
+function bind(
+  list: ManuscriptCommentList,
+  passage: (action: "create" | "reanchor") => ManuscriptPassageInput | undefined = () => undefined,
+): RecordedAction[] {
+  const actions: RecordedAction[] = [];
+  list.bind({
+    completeMutation: (message) => actions.push({ action: "mutated", message }),
+    openPassage: (anchor) => actions.push({ action: "open", anchor }),
+    passage,
+  });
+  return actions;
+}
+
 afterEach(() => vi.restoreAllMocks());
 
 describe("manuscript comment list", () => {
@@ -74,8 +91,7 @@ describe("manuscript comment list", () => {
 
   it("emits editor-dependent open intents", () => {
     const list = new TestManuscriptCommentList();
-    const actions: ManuscriptCommentAction[] = [];
-    list.addEventListener(manuscriptCommentActionEvent, (event) => actions.push((event as CustomEvent<ManuscriptCommentAction>).detail));
+    const actions = bind(list);
     list.setComments([comment]);
     list.actForTest();
     list.actForTest("missing", "missing");
@@ -86,10 +102,9 @@ describe("manuscript comment list", () => {
 
   it("owns resolution persistence and emits the completed outcome", async () => {
     const list = new TestManuscriptCommentList();
-    const actions: ManuscriptCommentAction[] = [];
+    const actions = bind(list);
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 200 }));
     list.configure("/api/workspaces/workspace");
-    list.addEventListener(manuscriptCommentActionEvent, (event) => actions.push((event as CustomEvent<ManuscriptCommentAction>).detail));
 
     await list.resolveForTest("comment/1");
 
@@ -138,11 +153,9 @@ describe("manuscript comment list", () => {
     const passages: string[] = [];
     const passage = { fileId: "main", start: 0, end: 16, excerpt: "Selected passage", sourceRevision: 4 };
     list.configure("/api/workspaces/workspace");
-    list.bindAuthoring({
-      passage: (action) => {
-        passages.push(action);
-        return passage;
-      },
+    bind(list, (action) => {
+      passages.push(action);
+      return passage;
     });
     list.setComments([{ ...comment, resolution: { status: "stale" } }]);
     list.changeForTest("Check this claim");
@@ -177,11 +190,10 @@ describe("manuscript comment list", () => {
 
   it("owns create and re-anchor persistence and emits completed outcomes", async () => {
     const list = new TestManuscriptCommentList();
-    const actions: ManuscriptCommentAction[] = [];
+    const actions = bind(list);
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 200 }));
     list.configure("/api/workspaces/workspace");
     list.changeForTest("Check this claim");
-    list.addEventListener(manuscriptCommentActionEvent, (event) => actions.push((event as CustomEvent<ManuscriptCommentAction>).detail));
     const passage = { fileId: "main", start: 0, end: 16, excerpt: "Selected passage", sourceRevision: 4 };
 
     await list.createAt({ ...passage, body: "Check this claim" });
@@ -205,13 +217,12 @@ describe("manuscript comment list", () => {
 
   it("keeps failed comment creation local and retryable", async () => {
     const list = new TestManuscriptCommentList();
-    const actions: ManuscriptCommentAction[] = [];
+    const actions = bind(list);
     const fetchMock = vi
       .spyOn(globalThis, "fetch")
       .mockResolvedValueOnce(Response.json({ error: "Denied" }, { status: 403 }))
       .mockResolvedValueOnce(new Response(null, { status: 200 }));
     list.configure("/api/workspaces/workspace");
-    list.addEventListener(manuscriptCommentActionEvent, (event) => actions.push((event as CustomEvent<ManuscriptCommentAction>).detail));
     const input = { fileId: "main", start: 0, end: 16, excerpt: "Selected passage", sourceRevision: 4, body: "Check this claim" };
 
     await list.createAt(input);
