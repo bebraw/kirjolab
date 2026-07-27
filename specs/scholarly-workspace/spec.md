@@ -195,8 +195,8 @@ collaboration.
   task-specific surfaces. Writing assistant links back to the shared panel
   rather than duplicating model controls.
   A bounded light-DOM version control owns build-version presentation and both
-  Clipboard API and textarea fallback copying, then emits one typed notice for
-  coordinator-owned toast presentation.
+  Clipboard API and textarea fallback copying, then invokes one typed binding
+  for coordinator-owned toast presentation.
   A bounded light-DOM Vim control owns stored enablement, mode presentation,
   modal keyboard and pointer-selection behavior, and editor-listener teardown;
   the coordinator supplies only the source textarea and its visual shell.

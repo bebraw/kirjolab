@@ -327,13 +327,14 @@ The adopted components own bounded presentation:
 - The project template save dialog owns replacement choices, local name and
   description values, loading and replacement copy, focus, cancellation,
   promotion requests, response validation, local busy and error state, and
-  typed validated completion outcomes.
+  typed validated completion outcomes through a coordinator binding.
 - The project starting-point browser owns project title, template and existing
   project choices, catalog loading, project-preview loading, project creation,
   personal-template deletion, response validation, post-delete catalog refresh,
   optimistic hiding, delayed commit, Undo restoration, failure notices, preview
   and loading state, create readiness and status, local cancel and pre-handoff
-  dismissal, canonical successful-result navigation, and typed import events.
+  dismissal, canonical successful-result navigation, and a typed import
+  binding.
   It also owns
   its native parent-dialog opening, closing, focus containment, listener
   teardown, and return-focus lifecycle.
@@ -731,7 +732,8 @@ reason to wrap static markup mechanically.
   and imperative replacement-option, value, status, focus, and cancellation
   handling while consuming the starting-point browser's visible template view.
   It also replaces the coordinator's promotion request and response guard. The
-  application coordinator retains catalog refresh and toast policy.
+  application coordinator retains catalog refresh and toast policy through a
+  typed completion binding; the public saved event is removed.
 - The project starting-point browser replaces seven internal form and action
   element references, coordinator submit, selection-change, cancel, and import
   bindings, title and selection collection, readiness, loading, and error
@@ -739,7 +741,8 @@ reason to wrap static markup mechanically.
   hidden-ID set plus template-catalog, project-preview, and project-creation
   requests plus the personal-template delayed deletion and Undo lifecycle. The
   application coordinator retains import workflows, replacement-option
-  synchronization, and the toast outlet.
+  synchronization, and the toast outlet through a typed import binding; the
+  public action event is removed.
 - The Library discovery search replaces six internal element references and
   imperative form-value, submit-state, progress, count, empty, and error
   handling plus the provider request and response validation. The application
@@ -949,7 +952,8 @@ reason to wrap static markup mechanically.
 - The application-version control replaces separate value and copy-action
   element references and owns version presentation plus Clipboard API and
   textarea fallback behavior. The application coordinator supplies the active
-  build version and retains toast presentation for the typed copy notice.
+  build version and retains toast presentation through a typed copy-notice
+  binding; the public notice event is removed.
 - The preview synchronization control replaces its container and two button
   references, owns Preview-context visibility, the current composition source
   map, bidirectional composition-offset resolution, native source-viewport
@@ -981,8 +985,9 @@ reason to wrap static markup mechanically.
 - The workspace layout control replaces the raw select reference and
   coordinator-owned normalization and local-storage access. It owns the
   four-option template, selected value, workspace-scoped resilient persistence,
-  and typed layout changes while the coordinator retains surface mutation, PDF
-  activation, resize notification, and URL synchronization.
+  and routes typed layout changes through a binding while the coordinator
+  retains surface mutation, PDF activation, resize notification, and URL
+  synchronization. Its public change event is removed.
 - The workspace rail tabs derive their four controlled panel targets from the
   existing `aria-controls` contract and own active-panel visibility alongside
   tab selection and comment-count presentation. The application coordinator

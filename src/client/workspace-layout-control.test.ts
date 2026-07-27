@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { WorkspaceLayoutControl, workspaceLayoutChangeEvent } from "./workspace-layout-control";
+import { WorkspaceLayoutControl } from "./workspace-layout-control";
 import type { WorkspaceLayout } from "./workspace-ui-route";
 
 class TestWorkspaceLayoutControl extends WorkspaceLayoutControl {
@@ -35,15 +35,13 @@ describe("workspace layout control", () => {
     expect(control.rootForTest()).toBe(control);
   });
 
-  it("emits only normalized persisted layout changes", () => {
+  it("binds only normalized persisted layout changes", () => {
     const storage = { getItem: vi.fn(() => null), setItem: vi.fn() };
     vi.stubGlobal("localStorage", storage);
     const control = new TestWorkspaceLayoutControl();
     const layouts: WorkspaceLayout[] = [];
     control.configure("workspace-2");
-    control.addEventListener(workspaceLayoutChangeEvent, (event) => {
-      layouts.push((event as CustomEvent<WorkspaceLayout>).detail);
-    });
+    control.bindChange((layout) => layouts.push(layout));
 
     control.changeForTest("pdf");
     control.changeForTest("invalid");

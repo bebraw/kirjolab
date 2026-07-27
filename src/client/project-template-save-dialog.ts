@@ -2,8 +2,6 @@ import { html, LitElement, type TemplateResult } from "lit";
 import { isProjectTemplateSummaries, type ProjectTemplateSummary } from "../domain/project-templates";
 import { errorMessage, expectOk, jsonFetch } from "./http";
 
-export const projectTemplateSavedEvent = "project-template-saved";
-
 export interface ProjectTemplateSave {
   readonly description: string;
   readonly name: string;
@@ -32,6 +30,7 @@ export class ProjectTemplateSaveDialog extends LitElement {
   declare private status: string;
   declare private templates: readonly ProjectTemplateSummary[];
   private apiBase = "";
+  private completeSave: ((result: ProjectTemplateSaved) => void) | null = null;
 
   constructor() {
     super();
@@ -45,6 +44,10 @@ export class ProjectTemplateSaveDialog extends LitElement {
 
   configure(apiBase: string): void {
     this.apiBase = apiBase;
+  }
+
+  bindCompletion(completeSave: (result: ProjectTemplateSaved) => void): void {
+    this.completeSave = completeSave;
   }
 
   get value(): ProjectTemplateSave {
@@ -182,12 +185,7 @@ export class ProjectTemplateSaveDialog extends LitElement {
       const templates: unknown[] = [await response.json()];
       if (!isProjectTemplateSummaries(templates) || !templates[0]) throw new Error("Saved project template returned invalid data");
       this.close();
-      this.dispatchEvent(
-        new CustomEvent<ProjectTemplateSaved>(projectTemplateSavedEvent, {
-          bubbles: true,
-          detail: { replaced: Boolean(value.templateId), template: templates[0] },
-        }),
-      );
+      this.completeSave?.({ replaced: Boolean(value.templateId), template: templates[0] });
     } catch (error) {
       this.status = errorMessage(error, "Could not save personal template.");
     } finally {

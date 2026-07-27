@@ -29,9 +29,9 @@ without copying private research or creating a live dependency on the source.
   is explicit and owner-only; it never changes projects already created from
   that template. One bounded save dialog owns visible personal-template
   replacement choices, local name and description values, loading and
-  replacement copy, focus, cancellation, and typed save intents. The workspace
-  coordinator retains catalog refresh, hidden-template policy, seed capture,
-  persistence, and success notification.
+  replacement copy, focus, cancellation, persistence, and typed validated
+  completion through a coordinator binding. The workspace coordinator retains
+  catalog refresh, hidden-template policy, and success notification.
 - Active projects available to the researcher appear as one-off starting
   points. Selecting one lazily previews its current sanitized structure;
   creation derives a transient `ProjectTemplateSeed` from its authorized
@@ -57,7 +57,7 @@ without copying private research or creating a live dependency on the source.
   selection, preview and loading presentation, create readiness and status,
   native modal opening and closing, focus containment and restoration, local
   cancellation, pre-import dismissal, canonical successful-result navigation,
-  and typed import events. `WorkspaceApp` retains import workflows, replacement-
+  and a typed import binding. `WorkspaceApp` retains import workflows, replacement-
   option synchronization, and the global toast outlet.
 - The template-save Lit dialog owns create-or-replace form state, promotion
   requests, saved-summary validation, duplicate-submit gating, local progress

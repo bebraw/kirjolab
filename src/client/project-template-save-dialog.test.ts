@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ProjectTemplateSaveDialog, projectTemplateSavedEvent, type ProjectTemplateSaved } from "./project-template-save-dialog";
+import { ProjectTemplateSaveDialog, type ProjectTemplateSaved } from "./project-template-save-dialog";
 
 const personalTemplates = [
   {
@@ -119,7 +119,7 @@ describe("project template save dialog", () => {
     expect(dialog.renderForTest()).toBeDefined();
   });
 
-  it("owns create and replacement requests and emits validated results", async () => {
+  it("owns create and replacement requests and binds validated results", async () => {
     const dialog = new TestProjectTemplateSaveDialog();
     const fetchMock = vi
       .fn()
@@ -127,7 +127,7 @@ describe("project template save dialog", () => {
     vi.stubGlobal("fetch", fetchMock);
     dialog.configure("/api/workspaces/workspace-1");
     const saves: ProjectTemplateSaved[] = [];
-    dialog.addEventListener(projectTemplateSavedEvent, (event) => saves.push((event as CustomEvent<ProjectTemplateSaved>).detail));
+    dialog.bindCompletion((result) => saves.push(result));
     dialog.nameForTest("New template");
     dialog.descriptionForTest("New description");
     await dialog.saveForTest();

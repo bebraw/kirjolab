@@ -1,8 +1,6 @@
 import { html, LitElement, type TemplateResult } from "lit";
 import type { WorkspaceLayout } from "./workspace-ui-route";
 
-export const workspaceLayoutChangeEvent = "workspace-layout-change";
-
 type WorkspaceLayoutMode = "library" | "workspace";
 
 export class WorkspaceLayoutControl extends LitElement {
@@ -14,6 +12,7 @@ export class WorkspaceLayoutControl extends LitElement {
   declare private layout: WorkspaceLayout;
   declare private mode: WorkspaceLayoutMode;
   private workspaceId = "";
+  private changeLayout: ((layout: WorkspaceLayout) => void) | null = null;
 
   constructor() {
     super();
@@ -27,6 +26,10 @@ export class WorkspaceLayoutControl extends LitElement {
 
   configure(workspaceId: string): void {
     this.workspaceId = workspaceId;
+  }
+
+  bindChange(changeLayout: (layout: WorkspaceLayout) => void): void {
+    this.changeLayout = changeLayout;
   }
 
   restore(): WorkspaceLayout {
@@ -86,7 +89,7 @@ export class WorkspaceLayoutControl extends LitElement {
 
   protected change(event: Event): void {
     const layout = this.setLayout((event.currentTarget as HTMLSelectElement).value);
-    this.dispatchEvent(new CustomEvent<WorkspaceLayout>(workspaceLayoutChangeEvent, { bubbles: true, detail: layout }));
+    this.changeLayout?.(layout);
   }
 
   private get storageKey(): string {

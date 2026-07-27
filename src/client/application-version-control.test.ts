@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ApplicationVersionControl, applicationVersionNoticeEvent } from "./application-version-control";
+import { ApplicationVersionControl } from "./application-version-control";
 
 class TestApplicationVersionControl extends ApplicationVersionControl {
   copyForTest(): Promise<void> {
@@ -23,9 +23,7 @@ describe("application version control", () => {
     vi.stubGlobal("navigator", { clipboard: { writeText } });
     const control = new TestApplicationVersionControl();
     const notices: string[] = [];
-    control.addEventListener(applicationVersionNoticeEvent, (event) => {
-      notices.push((event as CustomEvent<string>).detail);
-    });
+    control.bindNotice((message) => notices.push(message));
 
     control.setVersion("build-123");
     await control.copyForTest();
@@ -53,9 +51,7 @@ describe("application version control", () => {
     });
     const control = new TestApplicationVersionControl();
     const notices: string[] = [];
-    control.addEventListener(applicationVersionNoticeEvent, (event) => {
-      notices.push((event as CustomEvent<string>).detail);
-    });
+    control.bindNotice((message) => notices.push(message));
     control.setVersion("fallback-456");
 
     await control.copyForTest();

@@ -272,7 +272,7 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   template-save Lit dialog owns promotion requests, response validation, and
   local busy and error presentation. The application coordinator retains import
   workflows, replacement-option synchronization, post-promotion catalog
-  refresh, and the toast outlet.
+  refresh, and the toast outlet through typed component bindings.
 - Require every composition result to retain source-map spans back to file
   identity, source range, output range, and include chain. Reject unsafe paths,
   cycles, missing files, and resource-limit violations with navigable
@@ -927,6 +927,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Collapse the two-surface workspace to an explicit Authoring/Context switch
   when both surfaces cannot retain readable measures; preserve editor and
   per-context local state while either surface is hidden.
+- Route workspace-layout changes and application-version copy notices through
+  typed bindings on their Lit owners. Keep responsive surface application and
+  global toast presentation in the workspace coordinator.
 - Allow the ancillary project rail to resize only on desktop, persist its
   bounded width as a cross-project browser-local preference, and contract its
   effective maximum before either primary document surface loses its readable

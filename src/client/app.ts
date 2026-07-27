@@ -28,7 +28,7 @@ import {
   type ProjectReferencePdf,
   type ReferenceLibrarySnapshot,
 } from "../domain/reference-library";
-import { applicationVersionNoticeEvent } from "./application-version-control";
+import "./application-version-control";
 import "./source-citation-control";
 import "./workspace-surface-switcher";
 import { type EditorSyntaxKind, type EditorSyntaxTemplate } from "./editor-insert-menu";
@@ -39,9 +39,9 @@ import { expectOk, jsonFetch } from "./http";
 import { type SourceCompletionIntent } from "./source-completion";
 import type { LibraryPdfSelectionPresentation, LibraryPdfToolPresentation } from "./context-resource-presenter";
 import { libraryPdfRoute, readLibraryUiRoute } from "./library-ui-route";
-import { startingPointActionEvent, type StartingPointAction } from "./project-starting-point-browser";
+import "./project-starting-point-browser";
 import { WorkspaceLayoutManager } from "./workspace-layout-manager";
-import { workspaceLayoutChangeEvent } from "./workspace-layout-control";
+import "./workspace-layout-control";
 import { projectReferenceChangedEvent, type ProjectReferenceChanged } from "./project-reference-mutation";
 import { projectResearchChangedEvent, type ProjectResearchChanged } from "./project-research-mutation";
 import { researchQuestionWorkflowData, reviewerResponseWorkflowData, type WritingWorkflowBinding } from "./writing-workflow-panel";
@@ -69,7 +69,7 @@ import { citationPageFromLocator, createCitationInsertion, type CitationContext 
 import { type ProjectAnnotationSaved, type ProjectHighlightTool } from "./project-annotation-form";
 import { type ProjectFileDialogMode, type ProjectFileSaved } from "./project-file-dialog";
 import { type ProjectImagesUploaded } from "./project-image-upload-control";
-import { projectTemplateSavedEvent, type ProjectTemplateSaved } from "./project-template-save-dialog";
+import type { ProjectTemplateSaved } from "./project-template-save-dialog";
 import "./manuscript-map-panel";
 import {
   applicationVersion,
@@ -104,7 +104,6 @@ import {
   researchTargetFromContextKey,
   workspaceUiRouteUrl,
   type AuthoringMode,
-  type WorkspaceLayout,
   type WorkspaceRail,
   type WorkspaceSurface,
 } from "./workspace-ui-route";
@@ -276,9 +275,7 @@ class WorkspaceApp {
   }
 
   #bindUi(): void {
-    this.#elements.applicationVersion.addEventListener(applicationVersionNoticeEvent, (event) => {
-      this.#showToast((event as CustomEvent<string>).detail);
-    });
+    this.#elements.applicationVersion.bindNotice((message) => this.#showToast(message));
     this.#elements.collaboratorSelections.addEventListener(collaboratorSelectionChangeEvent, () => this.#renderSourceEditorHighlight());
     window.addEventListener("online", () => {
       this.#collaborationSocket.connect();
@@ -308,9 +305,7 @@ class WorkspaceApp {
         .catch((error: unknown) => this.#showToast(error instanceof Error ? error.message : "Could not clear offline data"));
     });
     this.#elements.workspaceLayout.configure(workspaceId);
-    this.#elements.workspaceLayout.addEventListener(workspaceLayoutChangeEvent, (event) => {
-      void this.#applyWorkspaceLayout((event as CustomEvent<WorkspaceLayout>).detail, false);
-    });
+    this.#elements.workspaceLayout.bindChange((layout) => void this.#applyWorkspaceLayout(layout, false));
     this.#elements.manageWorkspaces.addEventListener("click", () => {
       void this.#elements.workspaceCatalogPanel.open();
     });
@@ -326,12 +321,11 @@ class WorkspaceApp {
       }),
     });
     this.#elements.newWorkspace.addEventListener("click", () => void this.#openNewWorkspace());
-    this.#elements.newWorkspaceStartingPoints.addEventListener(startingPointActionEvent, (event) => {
-      const action = (event as CustomEvent<StartingPointAction>).detail;
-      if (action === "import-latex") this.#openLatexImportDialog();
-      else this.#openGitHubImportDialog();
-    });
-    this.#elements.newWorkspaceStartingPoints.bindDeletion({
+    this.#elements.newWorkspaceStartingPoints.bind({
+      openImport: (action) => {
+        if (action === "import-latex") this.#openLatexImportDialog();
+        else this.#openGitHubImportDialog();
+      },
       presentNotice: (message, options) => this.#showToast(message, options),
       templatesChanged: () => this.#syncTemplateReplacementOptions(),
     });
@@ -346,9 +340,7 @@ class WorkspaceApp {
       history.replaceState(history.state, "", location.pathname);
     }
     this.#elements.saveTemplateDialog.configure(apiBase);
-    this.#elements.saveTemplateDialog.addEventListener(projectTemplateSavedEvent, (event) => {
-      void this.#completeProjectTemplateSave((event as CustomEvent<ProjectTemplateSaved>).detail);
-    });
+    this.#elements.saveTemplateDialog.bindCompletion((result) => void this.#completeProjectTemplateSave(result));
     this.#elements.workspaceRailTabs.bindNavigation((rail) => this.#showRail(rail));
     this.#elements.researchDiaryPanel.bindOpen(
       () => void this.#openWorkflowFile(researchDiaryPath, () => researchDiaryTemplate(new Date().toISOString().slice(0, 10))),

@@ -1,11 +1,10 @@
 import { html, LitElement, type TemplateResult } from "lit";
 
-export const applicationVersionNoticeEvent = "application-version-notice";
-
 export class ApplicationVersionControl extends LitElement {
   static override properties = { version: { state: true } };
 
   declare private version: string;
+  private presentNotice: ((message: string) => void) | null = null;
 
   constructor() {
     super();
@@ -14,6 +13,10 @@ export class ApplicationVersionControl extends LitElement {
 
   setVersion(version: string): void {
     this.version = version;
+  }
+
+  bindNotice(presentNotice: (message: string) => void): void {
+    this.presentNotice = presentNotice;
   }
 
   protected async copyVersion(): Promise<void> {
@@ -47,7 +50,7 @@ export class ApplicationVersionControl extends LitElement {
   }
 
   private notice(detail: string): void {
-    this.dispatchEvent(new CustomEvent<string>(applicationVersionNoticeEvent, { bubbles: true, composed: true, detail }));
+    this.presentNotice?.(detail);
   }
 }
 

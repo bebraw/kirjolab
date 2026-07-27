@@ -7,9 +7,8 @@ import { errorMessage, expectOk, jsonFetch } from "./http";
 
 export type StartingPointAction = "import-github" | "import-latex";
 
-export const startingPointActionEvent = "starting-point-action";
-
-interface TemplateDeletionCallbacks {
+interface StartingPointBinding {
+  readonly openImport: (action: StartingPointAction) => void;
   readonly presentNotice: (message: string, options?: DeferredDeletionNoticeOptions) => void;
   readonly templatesChanged: () => void;
 }
@@ -38,10 +37,14 @@ export class ProjectStartingPointBrowser extends LitElement {
   declare private projectTitle: string;
   private parentDialog: HTMLDialogElement | null = null;
   private returnFocus: HTMLElement | null = null;
-  private deletionCallbacks: TemplateDeletionCallbacks = { presentNotice: () => undefined, templatesChanged: () => undefined };
+  private binding: StartingPointBinding = {
+    openImport: () => undefined,
+    presentNotice: () => undefined,
+    templatesChanged: () => undefined,
+  };
   private readonly deletions = new DeferredDeletionController((message, options) => {
     const settled = this.isConnected ? this.updateComplete : Promise.resolve();
-    void settled.then(() => this.deletionCallbacks.presentNotice(message, options));
+    void settled.then(() => this.binding.presentNotice(message, options));
   });
 
   constructor() {
@@ -100,8 +103,8 @@ export class ProjectStartingPointBrowser extends LitElement {
     this.setData(value, workspaces);
   }
 
-  bindDeletion(callbacks: TemplateDeletionCallbacks): void {
-    this.deletionCallbacks = callbacks;
+  bind(binding: StartingPointBinding): void {
+    this.binding = binding;
   }
 
   async deleteTemplate(id: string): Promise<void> {
@@ -124,7 +127,7 @@ export class ProjectStartingPointBrowser extends LitElement {
     else hiddenIds.delete(id);
     this.hiddenTemplateIds = hiddenIds;
     this.normalizeSelection();
-    this.deletionCallbacks.templatesChanged();
+    this.binding.templatesChanged();
   }
 
   focusFirst(): void {
@@ -256,7 +259,7 @@ export class ProjectStartingPointBrowser extends LitElement {
 
   protected openImport(detail: StartingPointAction): void {
     this.close();
-    this.dispatchEvent(new CustomEvent<StartingPointAction>(startingPointActionEvent, { detail }));
+    this.binding.openImport(detail);
   }
 
   protected showModal(): void {
@@ -493,7 +496,7 @@ export class ProjectStartingPointBrowser extends LitElement {
       restore: () => this.setTemplateHidden(template.id, false),
       commit: async () => {
         await this.deleteTemplate(template.id);
-        this.deletionCallbacks.templatesChanged();
+        this.binding.templatesChanged();
       },
     });
   }

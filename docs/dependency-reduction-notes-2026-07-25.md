@@ -6961,6 +6961,29 @@ and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,670 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Shell Control Bindings
+
+`ApplicationVersionControl`, `WorkspaceLayoutControl`,
+`ProjectTemplateSaveDialog`, and `ProjectStartingPointBrowser` now route copy
+notices, layout changes, validated template saves, and import choices through
+narrow typed bindings. `WorkspaceApp` retains global toast policy, responsive
+layout application, catalog refresh, and import workflow coordination.
+
+This checkpoint reduces `src/client/app.ts` from 2,217 to 2,209 lines (-8),
+removes four coordinator listener sites and all four public event contracts.
+The four component owners grow from 957 to 964 lines (+7), reducing runtime
+source across the five files by one line. Focused coverage exercises clipboard
+success and fallback, normalized persisted layouts, create and replacement
+saves, import handoff, project creation, presentation, and strict types.
+
+The browser application artifact changes from 840,110 B raw / 226,976 B gzip
+to 839,858 B raw / 226,943 B gzip (-252 B raw / -33 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
+Full native CI passes all 1,670 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

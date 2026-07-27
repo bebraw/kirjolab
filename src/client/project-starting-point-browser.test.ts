@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ProjectTemplateSummary } from "../domain/project-templates";
 import type { WorkspaceSummary } from "../domain/workspace";
 import type { DeferredDeletionNoticeOptions } from "./deferred-deletion";
-import { ProjectStartingPointBrowser, startingPointActionEvent, type StartingPointAction } from "./project-starting-point-browser";
+import { ProjectStartingPointBrowser, type StartingPointAction } from "./project-starting-point-browser";
 
 const builtIn: ProjectTemplateSummary = {
   createdAt: null,
@@ -186,8 +186,10 @@ describe("project starting point browser", () => {
     const fetchMock = vi.fn().mockResolvedValue(Response.json(workspace));
     vi.stubGlobal("fetch", fetchMock);
     vi.stubGlobal("location", { assign });
-    browser.addEventListener(startingPointActionEvent, (event) => {
-      actions.push((event as CustomEvent<StartingPointAction>).detail);
+    browser.bind({
+      openImport: (action) => actions.push(action),
+      presentNotice: vi.fn(),
+      templatesChanged: vi.fn(),
     });
     browser.setData([builtIn], []);
     browser.changeTitleForTest("Focused inquiry");
@@ -219,7 +221,8 @@ describe("project starting point browser", () => {
     );
     vi.stubGlobal("fetch", fetchMock);
     vi.stubGlobal("location", { assign });
-    browser.bindDeletion({
+    browser.bind({
+      openImport: vi.fn(),
       presentNotice: (message, options) => notices.push({ message, options }),
       templatesChanged: vi.fn(),
     });
@@ -260,7 +263,8 @@ describe("project starting point browser", () => {
       .mockResolvedValueOnce(new Response(null, { status: 204 }))
       .mockResolvedValueOnce(Response.json([builtIn]));
     vi.stubGlobal("fetch", fetchMock);
-    browser.bindDeletion({
+    browser.bind({
+      openImport: vi.fn(),
       presentNotice: (message) => notices.push(message),
       templatesChanged,
     });
