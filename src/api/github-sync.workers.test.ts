@@ -114,6 +114,40 @@ describe("GitHub sync API in the Workers runtime", () => {
     expect(response.status).toBe(409);
   });
 
+  it("rejects malformed GitHub import and sync commands at the schema boundary", async () => {
+    const client = new FakeGitHubClient(snapshot("f".repeat(40), "Initial"));
+    const room = env.DOCUMENT_ROOMS.getByName(`invalid-${crypto.randomUUID()}`);
+    for (const [path, body] of [
+      ["import-previews", { installationId: "7", owner: "owner", repository: "repo", branch: "main", rootPath: "" }],
+      ["imports", { previewId: "not-an-operation", title: "Project" }],
+    ] as const) {
+      const response = await handleGitHubImportApi(
+        jsonRequest(`http://example.com/api/github/${path}`, body),
+        env,
+        identity,
+        client,
+        authorizeSelection,
+      );
+      expect(response.status).toBe(400);
+    }
+    for (const [suffix, body] of [
+      ["/github-sync/pulls", { previewId: crypto.randomUUID(), resolutions: [{ conflict: 0.5, choice: "local" }] }],
+      ["/github-sync/publish-previews", { commitMessage: "   " }],
+      ["/github-sync/publishes", { previewId: "not-an-operation" }],
+    ] as const) {
+      const response = await handleGitHubWorkspaceSyncApi(
+        jsonRequest(`http://example.com/api/workspaces/project${suffix}`, body),
+        env,
+        identity,
+        room,
+        suffix,
+        client,
+        authorizeSelection,
+      );
+      expect(response.status).toBe(400);
+    }
+  });
+
   it("automatically advances the checkpoint when only untracked repository content changed", async () => {
     const client = new FakeGitHubClient(snapshot("1".repeat(40), "Initial"));
     const statusIdentity = { ...identity, ownerKey: `status-${crypto.randomUUID()}` };

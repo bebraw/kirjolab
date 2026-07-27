@@ -46,7 +46,10 @@ incoming and outgoing mutation.
   synchronized presentation.
 - Server orchestration separates new-workspace Import from Pull and Publish on
   an existing workspace binding. Both phases share only the authorized remote
-  client, operation-id validation, and safe error-projection contracts.
+  client, operation-id validation, and safe error-projection contracts. Bounded
+  Valibot schemas validate Import, Pull, and Publish request structure and
+  primitive limits before orchestration; authorization, preview freshness,
+  conflict coverage, remote identity, and reconciliation remain explicit.
 - Import creates a new owner-controlled workspace from one exact remote commit.
   Version 1 accepts bounded UTF-8 `.md` files and folders only. It strips the
   configured repository root from project paths, retains source text without

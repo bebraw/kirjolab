@@ -1,3 +1,4 @@
+import * as v from "valibot";
 import type { GitHubPullResolution } from "../domain/github-sync";
 import type { GitHubPublishConfirmation } from "../durable-objects/document-room";
 import { GitHubClientError, type GitHubRepositorySelection, type GitHubRepositorySnapshot } from "../integrations/github-app";
@@ -7,13 +8,26 @@ import {
   githubClient,
   githubErrorResponse,
   githubOperationId,
-  isRecord,
   jsonError,
   type GitHubSelectionAuthorizer,
   type GitHubSyncRemoteClient,
 } from "./github-sync-contracts";
 
 type DocumentRoomStub = DurableObjectStub<import("../durable-objects/document-room").DocumentRoom>;
+
+const githubOperationIdSchema = v.pipe(v.string(), v.regex(githubOperationId));
+const githubPullConfirmationSchema = v.object({
+  previewId: githubOperationIdSchema,
+  resolutions: v.optional(v.array(v.object({ conflict: v.pipe(v.number(), v.safeInteger()), choice: v.picklist(["local", "remote"]) }))),
+});
+const githubPublishPreviewSchema = v.object({
+  commitMessage: v.pipe(
+    v.string(),
+    v.maxLength(900),
+    v.check((value) => Boolean(value.trim())),
+  ),
+});
+const githubPublishConfirmationSchema = v.object({ previewId: githubOperationIdSchema });
 
 interface GitHubSyncContext {
   readonly env: Env;
@@ -67,12 +81,7 @@ async function previewPull(context: GitHubSyncContext): Promise<Response> {
 
 async function confirmPull(request: Request, context: GitHubSyncContext): Promise<Response> {
   const body: unknown = await request.json();
-  if (
-    !isRecord(body) ||
-    typeof body.previewId !== "string" ||
-    !githubOperationId.test(body.previewId) ||
-    (body.resolutions !== undefined && !isGitHubPullResolutions(body.resolutions))
-  ) {
+  if (!v.is(githubPullConfirmationSchema, body)) {
     return jsonError("Invalid GitHub pull confirmation", 400);
   }
   const resolutions = body.resolutions ?? [];
@@ -95,7 +104,7 @@ async function confirmPull(request: Request, context: GitHubSyncContext): Promis
 
 async function previewPublish(request: Request, context: GitHubSyncContext): Promise<Response> {
   const body: unknown = await request.json();
-  if (!isRecord(body) || typeof body.commitMessage !== "string" || !body.commitMessage.trim() || body.commitMessage.length > 900) {
+  if (!v.is(githubPublishPreviewSchema, body)) {
     return jsonError("Invalid GitHub publish preview", 400);
   }
   const remote = await readConnectedSnapshot(context);
@@ -106,7 +115,7 @@ async function previewPublish(request: Request, context: GitHubSyncContext): Pro
 
 async function confirmPublish(request: Request, context: GitHubSyncContext): Promise<Response> {
   const body: unknown = await request.json();
-  if (!isRecord(body) || typeof body.previewId !== "string" || !githubOperationId.test(body.previewId)) {
+  if (!v.is(githubPublishConfirmationSchema, body)) {
     return jsonError("Invalid GitHub publish confirmation", 400);
   }
   const confirmation = await context.room.getGitHubPublishConfirmation(body.previewId);
@@ -198,18 +207,6 @@ interface GitHubProjectBindingInputLike {
   readonly repository: string;
   readonly branch: string;
   readonly rootPath: string;
-}
-
-function isGitHubPullResolutions(value: unknown): value is GitHubPullResolution[] {
-  return (
-    Array.isArray(value) &&
-    value.every(
-      (resolution) =>
-        isRecord(resolution) &&
-        Number.isSafeInteger(resolution.conflict) &&
-        (resolution.choice === "local" || resolution.choice === "remote"),
-    )
-  );
 }
 
 function hasEveryGitHubPullResolution(resolutions: readonly GitHubPullResolution[], conflictCount: number): boolean {

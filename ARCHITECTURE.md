@@ -27,7 +27,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   Markdown and byte bounds, LFS handling, optimistic concurrency, and stable
   integration errors stay explicit. At its Octokit-authenticated transport,
   schemas also own installation-token and bounded provider-error envelopes while
-  HTTP status mapping and response-size policy stay explicit.
+  HTTP status mapping and response-size policy stay explicit. At GitHub import,
+  Pull, and Publish command boundaries, schemas own local request structure and
+  primitive bounds while authorization, preview freshness, conflict coverage,
+  remote identity, and reconciliation stay explicit.
 - Read bounded external response bodies through stateless, request-local
   helpers that enforce both declared and observed byte limits. Keep byte
   ceilings, errors, response-shape validation, and domain mapping explicit at

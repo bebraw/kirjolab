@@ -6343,6 +6343,28 @@ direct and unique production package counts remain unchanged at 135,411 B raw /
 Full native CI passes all 1,655 unit/coverage tests, 120 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Valibot Adoption: GitHub Commands
+
+GitHub Import, Pull, Publish-preview, and Publish-confirmation requests now use
+bounded Valibot schemas for record shape, operation ids, strings, safe conflict
+indexes, resolution choices, and optional resolution arrays. Authorization,
+preview freshness, complete conflict coverage, remote repository identity, and
+ambiguous-publish reconciliation remain explicit orchestration policy.
+
+This checkpoint reduces the GitHub sync API, import API, and their shared
+contracts from 478 to 463 lines (-15), replacing five request predicates, the
+pull-resolution array guard, and the final shared generic record predicate.
+One focused Workers case exercises malformed Import, Pull, and Publish commands
+alongside the existing end-to-end API coverage and strict types.
+
+Browser application and style artifacts remain unchanged at 838,304 B raw /
+226,459 B gzip and 135,411 B raw / 23,373 B gzip because this boundary is
+Worker-side. Direct and unique production package counts remain 18 and 150;
+Valibot was already pinned.
+
+Full native CI passes all 1,655 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,

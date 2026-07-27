@@ -51,6 +51,10 @@ Adopted boundaries are:
   parallel serialized-status interface, relationship membership check, and
   non-negative integer predicates while presentation remains explicit UI
   policy.
+- GitHub command requests: bounded Import, Pull, and Publish schemas replace
+  repeated record, operation-id, string, integer, choice, and optional-array
+  predicates while authorization, preview freshness, complete conflict
+  resolution, remote identity, and reconciliation remain explicit.
 
 Schemas validate local structure only. Stateful invariants, authorization,
 deduplication, provenance, canonicalization, and relationships between records

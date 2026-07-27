@@ -1,3 +1,4 @@
+import * as v from "valibot";
 import { defaultProjectPublicationProfile } from "../domain/workspace";
 import { resolveTemplateEntryPath, type ProjectTemplateSeed } from "../domain/project-templates";
 import type { GitHubRepositorySelection, GitHubRepositorySnapshot } from "../integrations/github-app";
@@ -7,11 +8,21 @@ import {
   githubClient,
   githubErrorResponse,
   githubOperationId,
-  isRecord,
   jsonError,
   type GitHubSelectionAuthorizer,
   type GitHubSyncRemoteClient,
 } from "./github-sync-contracts";
+
+const githubOperationIdSchema = v.pipe(v.string(), v.regex(githubOperationId));
+const githubImportPreviewSchema = v.object({
+  installationId: v.number(),
+  owner: v.string(),
+  repository: v.string(),
+  branch: v.string(),
+  rootPath: v.string(),
+  entryPath: v.optional(v.string()),
+});
+const githubImportConfirmationSchema = v.object({ previewId: githubOperationIdSchema, title: v.string() });
 
 export async function handleGitHubImportApi(
   request: Request,
@@ -39,7 +50,7 @@ async function previewImport(
   authorize: GitHubSelectionAuthorizer,
 ): Promise<Response> {
   const body: unknown = await request.json();
-  if (!isImportPreviewInput(body)) return jsonError("Invalid GitHub import preview", 400);
+  if (!v.is(githubImportPreviewSchema, body)) return jsonError("Invalid GitHub import preview", 400);
   const selection: GitHubRepositorySelection = {
     installationId: body.installationId,
     owner: body.owner,
@@ -87,7 +98,7 @@ async function confirmImport(
   authorize: GitHubSelectionAuthorizer,
 ): Promise<Response> {
   const body: unknown = await request.json();
-  if (!isRecord(body) || typeof body.previewId !== "string" || !githubOperationId.test(body.previewId) || typeof body.title !== "string") {
+  if (!v.is(githubImportConfirmationSchema, body)) {
     return jsonError("Invalid GitHub import confirmation", 400);
   }
   const title = body.title.trim();
@@ -132,25 +143,6 @@ function seedFromSnapshot(snapshot: GitHubRepositorySnapshot, entryPath?: string
     bibliography: "",
     publicationProfile: defaultProjectPublicationProfile,
   };
-}
-
-function isImportPreviewInput(value: unknown): value is {
-  installationId: number;
-  owner: string;
-  repository: string;
-  branch: string;
-  rootPath: string;
-  entryPath?: string;
-} {
-  return (
-    isRecord(value) &&
-    typeof value.installationId === "number" &&
-    typeof value.owner === "string" &&
-    typeof value.repository === "string" &&
-    typeof value.branch === "string" &&
-    typeof value.rootPath === "string" &&
-    (value.entryPath === undefined || typeof value.entryPath === "string")
-  );
 }
 
 function compareText(left: string, right: string): number {
