@@ -885,6 +885,9 @@ reason to wrap static markup mechanically.
   Its live-content binding now retains the coordinator-supplied readiness
   predicate beside the resolver, removing repeated collaboration-state inputs
   from Preview, manuscript-map, and collaborator projections.
+  Snapshot presentation now ends by supplying the canonical active file and
+  snapshot through one typed callback, removing the coordinator's
+  return-and-reproject wrapper while leaving active Y.Text/editor binding there.
   Collaborative include-target capture and continuation construction,
   snapshot and active Y.Text/editor authority, Yjs insertion, cross-feature
   rendering, and the toast outlet remain in the application coordinator.

@@ -260,7 +260,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   insertion projection. Tree, workflow, save, deletion, Undo, route, and
   cross-feature selections all use that single activation path. It projects the visible file
   collection and active/entry state into the project tree, Insert menu, source
-  completion, and file menu. It also materializes that same visible collection
+  completion, and file menu, then supplies the canonical active file and
+  snapshot through one presentation callback for Yjs/editor binding instead of
+  returning presentation state to the coordinator. It also materializes that same visible collection
   with snapshot or live collaborative content for Preview, manuscript-map, and
   collaborator-selection consumers through a coordinator-supplied content
   resolver and readiness predicate bound together once. Consumers request the

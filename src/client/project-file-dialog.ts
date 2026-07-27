@@ -22,6 +22,7 @@ export interface ProjectImageInsertion {
 export interface ProjectFileMutationCallbacks {
   readonly activateFile: (file: ProjectFile, snapshot: WorkspaceSnapshot) => void;
   readonly commit: (snapshot: WorkspaceSnapshot) => void;
+  readonly presentFile: (file: ProjectFile, snapshot: WorkspaceSnapshot) => void;
   readonly presentNotice: (message: string, options?: DeferredDeletionNoticeOptions) => void;
   readonly previewChanged: () => void;
 }
@@ -110,6 +111,7 @@ export class ProjectFileDialog extends LitElement {
   private mutationCallbacks: ProjectFileMutationCallbacks = {
     activateFile: () => undefined,
     commit: () => undefined,
+    presentFile: () => undefined,
     presentNotice: () => undefined,
     previewChanged: () => undefined,
   };
@@ -196,26 +198,27 @@ export class ProjectFileDialog extends LitElement {
     return file;
   }
 
-  presentProject(snapshot: WorkspaceSnapshot, assetBase: string, workspace: boolean): ProjectFile | null {
+  presentProject(snapshot: WorkspaceSnapshot, assetBase: string, workspace: boolean): void {
     this.snapshot = snapshot;
     const activeFile = this.ensureActiveFile(snapshot);
     const activeFileId = this.selectedFileId;
     const presentation = this.presentation;
-    if (!presentation) return activeFile;
-    const files = this.projectFiles(false);
-    const visibleActiveFile = files.find((file) => file.id === activeFileId) ?? null;
-    presentation.projectTreePanel.setTree({
-      activeFileId,
-      assetBase,
-      assets: snapshot.assets,
-      entryFileId: snapshot.entryFileId,
-      files,
-      folders: snapshot.folders,
-    });
-    presentation.editorInsertMenu.setFiles(visibleActiveFile, files);
-    presentation.sourceCompletion.setProject(snapshot, activeFileId, workspace);
-    presentation.projectFileMenuActions.setEntryFileActive(activeFileId === snapshot.entryFileId);
-    return activeFile;
+    if (presentation) {
+      const files = this.projectFiles(false);
+      const visibleActiveFile = files.find((file) => file.id === activeFileId) ?? null;
+      presentation.projectTreePanel.setTree({
+        activeFileId,
+        assetBase,
+        assets: snapshot.assets,
+        entryFileId: snapshot.entryFileId,
+        files,
+        folders: snapshot.folders,
+      });
+      presentation.editorInsertMenu.setFiles(visibleActiveFile, files);
+      presentation.sourceCompletion.setProject(snapshot, activeFileId, workspace);
+      presentation.projectFileMenuActions.setEntryFileActive(activeFileId === snapshot.entryFileId);
+    }
+    if (activeFile) this.mutationCallbacks.presentFile(activeFile, snapshot);
   }
 
   get hiddenFiles(): ReadonlySet<string> {

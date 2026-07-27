@@ -76,6 +76,7 @@ function mutationCallbacks(): ProjectFileMutationCallbacks {
   return {
     activateFile: vi.fn(),
     commit: vi.fn(),
+    presentFile: vi.fn(),
     presentNotice: vi.fn(),
     previewChanged: vi.fn(),
   };
@@ -210,9 +211,7 @@ describe("project file dialog", () => {
       previewChanged: expect.any(Function),
     });
 
-    expect(panel.presentProject(snapshot, "/api/workspaces/demo/assets", true)).toEqual(
-      snapshot.files.find(({ id }) => id === snapshot.entryFileId),
-    );
+    panel.presentProject(snapshot, "/api/workspaces/demo/assets", true);
 
     expect(projectTreePanel.setTree).toHaveBeenCalledWith({
       activeFileId: snapshot.entryFileId,
@@ -267,13 +266,15 @@ describe("project file dialog", () => {
     const project = { ...snapshot, files: [...snapshot.files, supporting] };
     panel.configureApi("/api/workspaces/workspace", callbacks);
 
-    expect(panel.presentProject(project, "/assets", true)?.id).toBe(snapshot.entryFileId);
+    panel.presentProject(project, "/assets", true);
+    expect(callbacks.presentFile).toHaveBeenLastCalledWith(snapshot.files[0], project);
     expect(panel.selectFile(supporting.id)).toBe(true);
     expect(panel.activeFileId).toBe(supporting.id);
     expect(callbacks.activateFile).toHaveBeenCalledWith(supporting, project);
     expect(panel.selectFile(supporting.id)).toBe(false);
     expect(panel.selectFile("missing-file")).toBe(false);
-    expect(panel.presentProject(snapshot, "/assets", true)?.id).toBe(snapshot.entryFileId);
+    panel.presentProject(snapshot, "/assets", true);
+    expect(callbacks.presentFile).toHaveBeenLastCalledWith(snapshot.files[0], snapshot);
     expect(panel.activeFileId).toBe(snapshot.entryFileId);
   });
 

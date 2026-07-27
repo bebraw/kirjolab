@@ -377,8 +377,12 @@ class WorkspaceApp {
       activateFile: (file, snapshot) => this.#activateProjectFile(file, snapshot),
       commit: (snapshot) => {
         this.#snapshot = snapshot;
-        this.#renderProjectFiles();
+        this.#elements.projectFileDialog.presentProject(snapshot, `${apiBase}/assets`, appMode === "workspace");
         void this.#renderPreview();
+      },
+      presentFile: (file, snapshot) => {
+        this.#activeFileText = this.#document.getText(projectFileCollaborationTextName(file, snapshot.entryFileId));
+        this.#renderAuthoringTarget();
       },
       presentNotice: (message, options) => this.#showToast(message, options),
       previewChanged: () => void this.#renderPreview(),
@@ -549,7 +553,7 @@ class WorkspaceApp {
     } else {
       void this.#renderPreview();
     }
-    this.#renderProjectFiles();
+    this.#elements.projectFileDialog.presentProject(snapshot, `${apiBase}/assets`, appMode === "workspace");
     this.#renderResources();
     this.#scheduleOfflineSave();
     await this.#refreshProjectReferencePdfs();
@@ -731,14 +735,6 @@ class WorkspaceApp {
     this.#elements.workspacePreview.revealNearestSource(offsets);
   }
 
-  #renderProjectFiles(): void {
-    const snapshot = this.#snapshot;
-    if (!snapshot) return;
-    const activeFile = this.#elements.projectFileDialog.presentProject(snapshot, `${apiBase}/assets`, appMode === "workspace");
-    if (activeFile) this.#activeFileText = this.#document.getText(projectFileCollaborationTextName(activeFile, snapshot.entryFileId));
-    this.#renderAuthoringTarget();
-  }
-
   #activateProjectFile(file: ProjectFile, snapshot: WorkspaceSnapshot): void {
     this.#unbindSourceEditor();
     this.#activeFileText = this.#document.getText(projectFileCollaborationTextName(file, snapshot.entryFileId));
@@ -747,7 +743,7 @@ class WorkspaceApp {
     this.#elements.source.setSelectionRange(0, 0);
     this.#bindSourceEditor(this.#activeFileText);
     this.#rememberAuthoringSelection();
-    this.#renderProjectFiles();
+    this.#elements.projectFileDialog.presentProject(snapshot, `${apiBase}/assets`, appMode === "workspace");
     this.#elements.assistantGenerationPresenter.refreshAvailability();
     this.#elements.workspacePreview.resetScroll();
     void this.#renderPreview();
@@ -820,10 +816,11 @@ class WorkspaceApp {
   async #acceptWorkspaceMutation(result: Response | WorkspaceSnapshot): Promise<void> {
     if (result instanceof Response) await expectOk(result);
     const value: unknown = result instanceof Response ? await result.json() : result;
-    this.#snapshot = parseWorkspaceSnapshot(value, "Project mutation returned an invalid snapshot");
+    const snapshot = parseWorkspaceSnapshot(value, "Project mutation returned an invalid snapshot");
+    this.#snapshot = snapshot;
     await this.#refreshProjectReferencePdfs(false);
     this.#renderResources();
-    this.#renderProjectFiles();
+    this.#elements.projectFileDialog.presentProject(snapshot, `${apiBase}/assets`, appMode === "workspace");
     void this.#renderPreview();
   }
 
@@ -1184,7 +1181,7 @@ class WorkspaceApp {
         archivedAt: null,
       },
     ]);
-    this.#renderProjectFiles();
+    this.#elements.projectFileDialog.presentProject(restored.snapshot, `${apiBase}/assets`, appMode === "workspace");
     this.#renderResources();
     this.#elements.projectHistoryTrigger.setRevision(this.#revision);
     this.#renderCollaborationWorkflow();

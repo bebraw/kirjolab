@@ -172,7 +172,10 @@ collaborative, and unambiguous about what preview and export mean.
   choices through a typed activation callback. It resolves the active file and
   requested folder for dialogs, rejects entry-file deletion, derives relative image
   insertion from that active file, and supplies the project tree, Insert menu,
-  source-completion list, and file-action menu with their bounded views.
+  source-completion list, and file-action menu with their bounded views. It then
+  supplies the canonical active file and snapshot through one presentation
+  callback for coordinator-owned Yjs/editor binding; it does not return active
+  presentation state for the coordinator to reconstruct.
   Through a narrow coordinator-supplied live-content resolver and readiness
   predicate bound together once, it also
   materializes that same visible collection with snapshot or collaborative
