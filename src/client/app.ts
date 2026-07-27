@@ -738,8 +738,7 @@ class WorkspaceApp {
   #focusProjectRange(fileId: string, from: number, to: number): void {
     if (fileId) this.#elements.projectFileDialog.selectFile(fileId);
     this.#elements.authoringModeTabs.navigate("write");
-    this.#elements.source.setSelectionRange(from, Math.max(from, to));
-    this.#rememberAuthoringSelection();
+    this.#selectAuthoringRange(from, Math.max(from, to));
   }
 
   async #openReferenceLibrary(updateHistory = true): Promise<void> {
@@ -910,7 +909,11 @@ class WorkspaceApp {
     replaceYTextRange(this.#document, this.#activeFileText, start, end, value, this);
     const caret = start + value.length;
     this.#elements.source.focus();
-    this.#elements.source.setSelectionRange(caret, caret);
+    this.#selectAuthoringRange(caret);
+  }
+
+  #selectAuthoringRange(start: number, end = start): void {
+    this.#elements.source.setSelectionRange(start, end);
     this.#rememberAuthoringSelection();
   }
 
@@ -951,8 +954,7 @@ class WorkspaceApp {
     }
     this.#document.transact(() => this.#activeFileText.insert(insertion.index, insertion.text), this);
     this.#elements.authoringModeTabs.navigate("write");
-    this.#elements.source.setSelectionRange(insertion.caret, insertion.caret);
-    this.#rememberAuthoringSelection();
+    this.#selectAuthoringRange(insertion.caret);
     this.#showToast(`Inserted :cite[${citationKey}]${locator ? ` at ${locator}` : ""} into canonical Markdown.`);
   }
 
@@ -1015,8 +1017,7 @@ class WorkspaceApp {
     replaceYTextRange(this.#document, this.#activeFileText, start, end, template.text, this);
     const selectionStart = template.select ? start + template.text.indexOf(template.select) : start + template.text.length;
     this.#elements.source.focus();
-    this.#elements.source.setSelectionRange(selectionStart, selectionStart + (template.select?.length ?? 0));
-    this.#rememberAuthoringSelection();
+    this.#selectAuthoringRange(selectionStart, selectionStart + (template.select?.length ?? 0));
   }
 
   #insertProjectInclude(text: Y.Text, index: number, path: string): void {
@@ -1025,8 +1026,7 @@ class WorkspaceApp {
     if (text === this.#activeFileText) {
       const caret = index + directive.length;
       this.#elements.source.focus();
-      this.#elements.source.setSelectionRange(caret, caret);
-      this.#rememberAuthoringSelection();
+      this.#selectAuthoringRange(caret);
     }
   }
 
@@ -1034,8 +1034,7 @@ class WorkspaceApp {
     replaceYTextRange(this.#document, this.#activeFileText, target.start, target.end, insertion, this);
     const caret = target.start + insertion.length;
     this.#elements.source.focus();
-    this.#elements.source.setSelectionRange(caret, caret);
-    this.#rememberAuthoringSelection();
+    this.#selectAuthoringRange(caret);
   }
 
   async #openCreatedCandidate(value: ModelCandidate): Promise<void> {

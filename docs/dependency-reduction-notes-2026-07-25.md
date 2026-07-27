@@ -9130,6 +9130,23 @@ to 849,139 B raw / 228,781 B gzip (-179 B raw / -24 B gzip). Styles and direct
 and unique production package counts remain unchanged at 135,411 B raw /
 23,373 B gzip, 18, and 150.
 
+## Coordinator Simplification: Authoring Range Capture
+
+Six manuscript-editing and navigation workflows now share one bounded helper
+for applying an editor range and recapturing its Yjs-relative authoring
+selection. Focus remains explicit in mutation workflows and continues to come
+from the Write-mode navigation policy for range and citation transitions.
+
+This checkpoint reduces `src/client/app.ts` from 1,220 to 1,219 lines (-1) and
+removes five repeated selection-capture sequences. The affected gate and full
+native CI pass all 1,720 unit/coverage tests, 121 Workers-runtime tests, and 74
+browser tests alongside formatting, lint, and strict types.
+
+The browser application artifact changes from 849,139 B raw / 228,781 B gzip
+to 848,978 B raw / 228,772 B gzip (-161 B raw / -9 B gzip). Styles and direct
+and unique production package counts remain unchanged at 135,411 B raw /
+23,373 B gzip, 18, and 150.
+
 ## Continued Lit Ownership: Context Tab Titles
 
 `ContextTabStrip` now derives fixed and resource titles from canonical tab,
