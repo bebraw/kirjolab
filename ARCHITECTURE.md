@@ -459,6 +459,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   that owner start the project workspace in dependency order: open or restore
   the project, restore its UI route, begin ambient GitHub status refresh,
   connect collaboration, then honor the one-shot browser creation request.
+  Complete that project application boundary by installing the workspace-layout
+  and surface-route lifecycle last, so its root-readiness publication observes
+  every preceding project binding.
 - Let the editor-status Lit owner bind the active source, companion
   bibliography, and source-completion workspace atomically as one application
   authoring lifecycle. Install that reciprocal editor lifecycle through the

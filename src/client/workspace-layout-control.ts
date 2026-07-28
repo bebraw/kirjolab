@@ -46,7 +46,7 @@ interface WorkspaceLayoutOwners {
   readonly workspaceSurfaces: WorkspaceLayoutRoot;
 }
 
-type WorkspaceLayoutApplicationOwners = WorkspaceLayoutOwners &
+export type WorkspaceLayoutApplicationOwners = WorkspaceLayoutOwners &
   WorkspaceRouteOwners & {
     readonly workspaceSurfaceSwitcher: { bindWorkspaceRoute(enabled: boolean, owners: WorkspaceRouteOwners): void };
   };

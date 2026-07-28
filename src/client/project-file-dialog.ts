@@ -13,6 +13,7 @@ import { projectTreeActionEvent, type ProjectTreeAction, type ProjectTreeCallbac
 import type { RestoredOfflineWorkspace } from "./offline-workspace";
 import type { WorkspacePreview, WorkspacePreviewProjectOwners } from "./workspace-preview";
 import { loadWorkspaceSnapshot, WorkspaceAccessError } from "./workspace-snapshot-client";
+import type { WorkspaceLayoutApplicationOwners, WorkspaceLayoutControl } from "./workspace-layout-control";
 
 export type ProjectFileDialogMode = "create" | "create-and-include" | "rename" | "create-folder" | "rename-folder";
 
@@ -97,10 +98,11 @@ type ProjectFileApplicationOwners = ProjectFilePresentationBinding &
   ProjectRefreshOwners &
   ProjectRevisionOwners &
   ManuscriptMapApplicationPresentation &
+  WorkspaceLayoutApplicationOwners &
   WorkspacePreviewProjectOwners & {
     readonly manuscriptMapPanel: Pick<ManuscriptMapPanel, "bindApplication">;
     readonly projectHistoryTrigger: Pick<ProjectHistoryTrigger, "bindWorkspace" | "setRevision">;
-    readonly workspaceLayout: { setRailCollapsed(collapsed: boolean): void };
+    readonly workspaceLayout: Pick<WorkspaceLayoutControl, "bindApplication" | "setRailCollapsed">;
     readonly workspacePreview: Pick<WorkspacePreview, "bindProject" | "renderBoundProject" | "resetScroll">;
   };
 
@@ -178,6 +180,7 @@ export class ProjectFileDialog extends LightDomElement {
 
   bindApplication(
     apiBase: string,
+    workspaceId: string,
     workspace: boolean,
     owners: ProjectFileApplicationOwners,
     session: CollaborationSession,
@@ -189,6 +192,7 @@ export class ProjectFileDialog extends LightDomElement {
     owners.workspacePreview.bindProject(apiBase, session.document, owners);
     owners.projectHistoryTrigger.bindWorkspace(apiBase, owners, offline);
     owners.manuscriptMapPanel.bindApplication(owners);
+    owners.workspaceLayout.bindApplication(workspaceId, workspace, owners);
   }
 
   configureApi(

@@ -14523,6 +14523,27 @@ workspace-administration application entry.
 Full native CI passes all 1,777 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Project-Owned Layout Readiness
+
+The project-file Lit owner now completes its atomic application entry by
+installing the workspace-layout and surface-route lifecycle last. Layout remains
+the narrow rail-collapse and resize authority, while its readiness publication
+now structurally follows Context, administration, project companions, and
+project-file binding without a separate composition-root call.
+
+This checkpoint trades three net production lines, including an exported layout
+application-owner contract, for ordered project readiness and reduces
+`src/client/app.ts` from 48 to 47 lines. The affected guardrail passes 36 related
+cases across four suites alongside strict types. The browser application changes
+from 847,285 B raw / 231,055 B gzip to 847,274 B raw / 231,054 B gzip (-11 B raw
+/ -1 B gzip); direct and unique production package counts remain 18 and 150,
+and the other static artifacts remain unchanged. Architecture, ADR, and
+scholarly-workspace contracts now install layout readiness from the project-file
+application entry.
+
+Full native CI passes all 1,777 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,

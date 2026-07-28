@@ -587,8 +587,9 @@ The adopted components own bounded presentation:
   mode, and rail tabs. It owns project-range activation across file or entry
   fallback, Write-mode entry, normalized editor selection, explicit authoring
   and range reveal, image insertion, and quick-open sequencing directly through
-  those owners; only the workspace-layout control remains a narrow rail-collapse
-  capability. The same
+  those owners. The workspace-layout control remains the narrow rail-collapse
+  capability and is installed last by the project-file application entry so its
+  readiness publication follows every preceding project binding. The same
   presentation binding supplies the assistant, editor, Preview, route, and
   notice owners. File activation retains
   the latest projection inputs, reprojects the canonical snapshot with an
