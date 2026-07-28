@@ -219,6 +219,23 @@ describe("reference Library workspace", () => {
     expect(refreshLibrary).toHaveBeenCalledTimes(2);
   });
 
+  it("owns standalone Library shell startup and route restoration", async () => {
+    const { workspace } = setup();
+    const browser = historyHarness();
+    const connection = { setConnection: vi.fn() };
+    const surfaces = { dataset: {} } as HTMLElement;
+    const open = vi.spyOn(workspace, "open").mockResolvedValue(undefined);
+    const restoreBrowserRoute = vi.spyOn(workspace, "restoreBrowserRoute").mockResolvedValue(undefined);
+
+    await expect(workspace.startStandalone(false, { connection, surfaces }, browser.history)).resolves.toBe(false);
+    await expect(workspace.startStandalone(true, { connection, surfaces }, browser.history)).resolves.toBe(true);
+
+    expect(surfaces.dataset).toMatchObject({ activeSurface: "context", layout: "context" });
+    expect(connection.setConnection).toHaveBeenCalledWith("Private library", true);
+    expect(open).toHaveBeenCalledWith(false);
+    expect(restoreBrowserRoute).toHaveBeenCalledOnce();
+  });
+
   it("restores Library reference and PDF routes through typed effects", async () => {
     const { workspace } = setup();
     const activateLibrary = vi.fn();

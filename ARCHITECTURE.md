@@ -133,7 +133,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   management navigation also stays inside this owner for Library activation,
   canonical refresh, archive-aware focus, and successful route intent. General
   Library entry likewise sequences context activation, optional standalone
-  route entry, and canonical refresh through the same typed boundary.
+  route entry, and canonical refresh through the same typed boundary. On the
+  standalone application path, the owner also binds browser history, projects
+  the Context-only shell and private connection state through supplied
+  capabilities, opens the Library, and restores the current route.
   Library-originated project mutations pass through one owned apply-project-
   notice lifecycle; delegate canonical project snapshot acceptance to the
   project-file owner. It also resolves duplicate-PDF upload reveals through

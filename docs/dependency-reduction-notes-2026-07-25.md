@@ -12085,6 +12085,30 @@ and 481,994 B / 146,135 B.
 Full native CI passes all 1,770 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Standalone Library Startup
+
+`ReferenceLibraryWorkspace` now binds standalone browser history, projects the
+Context-only shell and private connection state through typed capabilities,
+opens the canonical Library, and restores the current route. `WorkspaceApp`
+only asks whether that bounded startup path handled the application mode.
+
+This checkpoint reduces `src/client/app.ts` from 482 to 480 lines (-2) and grows
+the composed Library owner from 458 to 478 lines (+20). The 18-line combined
+increase makes the complete standalone startup lifecycle independently testable
+beside the route and refresh authorities it uses. Focused coverage passes
+ignored workspace mode, shell projection, connection presentation, open-before-
+restore sequencing, history binding, affected integrations, and strict types.
+Direct and unique production package counts remain 18 and 150; Lit was already
+pinned.
+
+The browser application artifact changes from 861,973 B raw / 232,094 B gzip to
+862,016 B / 232,139 B (+43 B raw / +45 B gzip). Styles and lazy Markdown and
+PDF.js artifacts remain unchanged at 135,411 B / 23,373 B, 204,779 B / 62,386 B,
+and 481,994 B / 146,135 B.
+
+Full native CI passes all 1,771 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: One-Shot Browser Entry Intents
 
 `ProjectStartingPointBrowser` now consumes the `create=1` editor intent, removes

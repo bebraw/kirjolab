@@ -120,14 +120,13 @@ class WorkspaceApp {
       pinUpdate: (refresh) =>
         this.#elements.toast.pin("A new version of Kirjolab is available.", { action: refresh, actionLabel: "Refresh now" }),
     });
-    if (appMode === "library") {
-      this.#elements.workspaceSurfaces.dataset.activeSurface = "context";
-      this.#elements.workspaceSurfaces.dataset.layout = "context";
-      this.#elements.connectionStatus.setConnection("Private library", true);
-      await this.#elements.referenceLibraryWorkspace.open(false);
-      await this.#elements.referenceLibraryWorkspace.restoreBrowserRoute();
+    if (
+      await this.#elements.referenceLibraryWorkspace.startStandalone(appMode === "library", {
+        connection: this.#elements.connectionStatus,
+        surfaces: this.#elements.workspaceSurfaces,
+      })
+    )
       return;
-    }
     void this.#elements.workspaceLayout.restore();
     this.#elements.source.disabled = true;
     this.#elements.bibliography.disabled = true;
@@ -252,7 +251,6 @@ class WorkspaceApp {
       projectApiBase: appMode === "workspace" ? apiBase : null,
       routes: this.#elements.workspaceSurfaceSwitcher,
     });
-    this.#elements.referenceLibraryWorkspace.bindBrowserRoute(appMode === "library");
     this.#elements.editorStatus.bindAuthoring(this.#document, this.#elements.source, {
       highlight: this.#elements.sourceHighlight,
       presence: (fileId) => (fileId ? this.#elements.collaboratorSelections.rangesFor(fileId) : []),

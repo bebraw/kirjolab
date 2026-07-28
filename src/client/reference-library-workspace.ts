@@ -81,6 +81,11 @@ export interface ReferenceLibraryHistory {
   replaceState(data: unknown, unused: string, url: string): void;
 }
 
+export interface StandaloneLibraryShell {
+  readonly connection: { setConnection(status: string, connected: boolean): void };
+  readonly surfaces: HTMLElement;
+}
+
 const emptyCallbacks: ReferenceLibraryWorkspaceCallbacks = {
   compareSnapshots: () => undefined,
   openPdf: () => undefined,
@@ -241,6 +246,21 @@ export class ReferenceLibraryWorkspace extends LitElement {
   bindBrowserRoute(enabled: boolean, browserHistory: ReferenceLibraryHistory = history): void {
     this.browserHistory = enabled ? browserHistory : null;
     this.bindHistory();
+  }
+
+  async startStandalone(
+    enabled: boolean,
+    shell: StandaloneLibraryShell,
+    browserHistory: ReferenceLibraryHistory = history,
+  ): Promise<boolean> {
+    this.bindBrowserRoute(enabled, browserHistory);
+    if (!enabled) return false;
+    shell.surfaces.dataset.activeSurface = "context";
+    shell.surfaces.dataset.layout = "context";
+    shell.connection.setConnection("Private library", true);
+    await this.open(false);
+    await this.restoreBrowserRoute();
+    return true;
   }
 
   bindProject(binding: ReferenceLibraryProjectBinding): void {

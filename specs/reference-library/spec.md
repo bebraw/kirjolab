@@ -389,7 +389,10 @@ memory and makes citation aliases compete with stable source identity.
   response validation, and the single browser Library snapshot projection used
   by its filters, list, network, PDF queue, and coordinator consumers. It also
   owns general Library entry sequencing across context activation, optional
-  standalone history entry, and canonical refresh. It restores standalone
+  standalone history entry, and canonical refresh. Standalone startup binds
+  browser history, projects the Context-only shell and private connection state
+  through typed capabilities, opens the Library, and restores the current
+  route. It restores standalone
   Library routes through owned reference focus and artifact lookup, owns
   current-location parsing, root, addressed-reference, private-PDF, and active-
   page history mutation, and its browser-history restoration subscription with

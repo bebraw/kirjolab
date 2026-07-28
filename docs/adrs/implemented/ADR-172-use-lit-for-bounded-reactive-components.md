@@ -547,6 +547,9 @@ The adopted components own bounded presentation:
   standalone Library-route outcomes; and the apply-project-notice sequence for
   Library-originated project mutations. General Library entry also owns
   activation, optional standalone-route entry, and canonical refresh sequencing.
+  Standalone startup binds browser history, projects the Context-only shell and
+  private connection state through typed capabilities, opens the Library, and
+  restores the current route.
   It parses the current standalone route and owns root and addressed-reference
   root, addressed-reference, private-PDF, and active-page history mutation plus
   browser-history restoration subscription and lifecycle teardown. The
