@@ -1,13 +1,10 @@
 import { html, type TemplateResult } from "lit";
 
+import { contextTabAction } from "./context-tab-action";
 import { LightDomElement } from "./light-dom-controller";
 import type { ResearchContextKey, ResearchResourceTab } from "./research-context";
 
 export const contextResourceTabActionEvent = "context-resource-tab-action";
-
-export type ContextResourceTabAction =
-  | { readonly action: "activate"; readonly key: ResearchContextKey }
-  | { readonly action: "close"; readonly key: ResearchContextKey };
 
 export interface ContextResourceTabItem {
   readonly tab: ResearchResourceTab;
@@ -46,15 +43,13 @@ export class ContextResourceTabs extends LightDomElement {
   }
 
   protected act(event: Event): void {
-    const button = event.currentTarget as HTMLButtonElement;
-    const key = button.dataset.contextKey as ResearchContextKey | undefined;
-    const action = button.dataset.contextAction;
-    if (!key || (action !== "activate" && action !== "close")) return;
+    const action = contextTabAction(event);
+    if (!action) return;
     this.dispatchEvent(
       new CustomEvent(contextResourceTabActionEvent, {
         bubbles: true,
         composed: true,
-        detail: { action, key } satisfies ContextResourceTabAction,
+        detail: action,
       }),
     );
   }

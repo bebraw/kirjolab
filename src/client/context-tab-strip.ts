@@ -3,13 +3,9 @@ import { LightDomElement } from "./light-dom-controller";
 import type { LibraryPdfArtifact, ProjectReferencePdf } from "../domain/reference-library";
 import type { ModelCandidate, PdfResource, PublicationResource } from "../domain/workspace";
 import "./preview-navigation-control";
-import {
-  contextResourceTabActionEvent,
-  contextResourceTabId,
-  type ContextResourceTabAction,
-  type ContextResourceTabs,
-} from "./context-resource-tabs";
-import { contextTabOverviewActionEvent, type ContextTabOverview, type ContextTabOverviewAction } from "./context-tab-overview";
+import type { ContextTabAction } from "./context-tab-action";
+import { contextResourceTabActionEvent, contextResourceTabId, type ContextResourceTabs } from "./context-resource-tabs";
+import { contextTabOverviewActionEvent, type ContextTabOverview } from "./context-tab-overview";
 import type { PreviewNavigationControl } from "./preview-navigation-control";
 import type { PreviewSyncControls } from "./preview-sync-controls";
 import type { ResearchContextKey, ResearchContextTab, ResearchResourceTab } from "./research-context";
@@ -77,10 +73,10 @@ export class ContextTabStrip extends LightDomElement {
       else this.navigation.activate(action);
     });
     this.addEventListener(contextResourceTabActionEvent, (event) => {
-      this.routeNavigation((event as CustomEvent<ContextResourceTabAction>).detail);
+      this.routeNavigation((event as CustomEvent<ContextTabAction>).detail);
     });
     this.addEventListener(contextTabOverviewActionEvent, (event) => {
-      this.routeNavigation((event as CustomEvent<ContextTabOverviewAction>).detail);
+      this.routeNavigation((event as CustomEvent<ContextTabAction>).detail);
     });
   }
 
@@ -244,7 +240,7 @@ export class ContextTabStrip extends LightDomElement {
     return id ? this.controlledPanel(id) : null;
   }
 
-  private routeNavigation(action: ContextResourceTabAction | ContextTabOverviewAction): void {
+  private routeNavigation(action: ContextTabAction): void {
     if (action.action === "activate") this.navigation.activate(action.key);
     else this.navigation.close(action.key);
   }

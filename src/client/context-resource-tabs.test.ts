@@ -3,9 +3,9 @@ import {
   ContextResourceTabs,
   contextResourceTabActionEvent,
   contextResourceTabId,
-  type ContextResourceTabAction,
   type ContextResourceTabItem,
 } from "./context-resource-tabs";
+import type { ContextTabAction } from "./context-tab-action";
 import type { ResearchResourceTab } from "./research-context";
 
 const publication: ResearchResourceTab = {
@@ -64,8 +64,8 @@ describe("context resource tabs", () => {
 
   it("emits only bounded tab actions", () => {
     const panel = new TestContextResourceTabs();
-    const actions: ContextResourceTabAction[] = [];
-    panel.addEventListener(contextResourceTabActionEvent, (event) => actions.push((event as CustomEvent<ContextResourceTabAction>).detail));
+    const actions: ContextTabAction[] = [];
+    panel.addEventListener(contextResourceTabActionEvent, (event) => actions.push((event as CustomEvent<ContextTabAction>).detail));
 
     panel.actForTest();
     panel.actForTest("missing", publication.key);

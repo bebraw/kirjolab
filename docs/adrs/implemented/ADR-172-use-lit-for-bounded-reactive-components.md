@@ -365,7 +365,8 @@ The adopted components own bounded presentation:
   and evidence derivation, canonical refresh, context navigation, workflow state,
   and decisions.
 - The context-tab overview owns overflow visibility, counts, tab summaries, and
-  typed activate and close intents.
+  typed activate and close intents. It shares one bounded action contract and
+  dataset parser with the resource-tab strip.
 - The composed context tab strip owns fixed-tab presentation and keyboard
   focus, delegates resource and overview presentation, and derives fixed and
   canonical resource titles, visibility, resource labels, PDF-mode state, and
@@ -375,7 +376,7 @@ The adopted components own bounded presentation:
   boundary.
 - The context resource-tab strip owns resource tab and close-action markup,
   active-state presentation, panel associations, and typed activate and close
-  intents.
+  intents while retaining a semantic event name distinct from the overview.
 - The project evidence panel owns project-PDF and annotation grouping, counts,
   expanded state, grounding selection, live passage-resolution presentation,
   grounding-choice focus, stroke controls, project-PDF file input, validation

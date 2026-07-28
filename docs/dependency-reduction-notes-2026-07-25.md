@@ -14852,6 +14852,24 @@ and the other static artifacts remain unchanged.
 Full native CI passes all 1,781 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Reduction: Context Tab Actions
+
+The resource-tab and overflow-overview Lit presenters now share one bounded
+activate-or-close payload and dataset parser. Their semantic event names remain
+distinct, while the composed tab owner consumes one action type instead of a
+union of structurally identical aliases.
+
+This checkpoint removes four net production lines and four test lines. The
+affected guardrail passes 67 related cases across seven suites and all four
+direct presenter cases, alongside formatting, lint, and all strict TypeScript
+targets, and the readability audit drops from 14 to 13 clone groups. The browser
+application changes from 846,917 B raw / 231,180 B gzip to 846,858 B raw /
+231,203 B gzip (-59 B raw / +23 B gzip); direct and unique production package
+counts remain 18 and 150, and the other static artifacts remain unchanged.
+
+Full native CI passes all 1,781 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,

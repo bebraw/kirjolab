@@ -1,11 +1,7 @@
 import { describe, expect, it } from "vitest";
+import type { ContextTabAction } from "./context-tab-action";
+import { ContextTabOverview, contextTabOverviewActionEvent, type ContextTabOverviewItem } from "./context-tab-overview";
 import type { ResearchContextTab } from "./research-context";
-import {
-  ContextTabOverview,
-  contextTabOverviewActionEvent,
-  type ContextTabOverviewAction,
-  type ContextTabOverviewItem,
-} from "./context-tab-overview";
 
 const tabs: readonly ResearchContextTab[] = [
   { key: "preview", kind: "preview", scrollTop: 0 },
@@ -47,8 +43,8 @@ describe("context tab overview", () => {
 
   it("emits only bounded tab actions", () => {
     const panel = new TestContextTabOverview();
-    const actions: ContextTabOverviewAction[] = [];
-    panel.addEventListener(contextTabOverviewActionEvent, (event) => actions.push((event as CustomEvent<ContextTabOverviewAction>).detail));
+    const actions: ContextTabAction[] = [];
+    panel.addEventListener(contextTabOverviewActionEvent, (event) => actions.push((event as CustomEvent<ContextTabAction>).detail));
 
     panel.actForTest();
     panel.actForTest("missing", "preview");

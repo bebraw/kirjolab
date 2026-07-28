@@ -1342,6 +1342,8 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   private-versus-read-only PDF presentation, and restore supplied fixed-panel
   scroll positions during the same tab update. Route its fixed, resource-strip,
   and overflow-overview navigation intents through one typed callback boundary.
+  Resource and overview presenters share one bounded action payload and dataset
+  parser while retaining distinct semantic event names.
   Keep canonical context state, authorization, Library loading, content
   rendering, route synchronization, and transitions outside it.
 - Let a separate resource-context Lit presenter coordinate the active

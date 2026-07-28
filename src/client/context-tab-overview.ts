@@ -1,12 +1,9 @@
 import { html, nothing, type TemplateResult } from "lit";
+import { contextTabAction } from "./context-tab-action";
 import type { ResearchContextKey, ResearchContextTab } from "./research-context";
 import { LightDomElement } from "./light-dom-controller";
 
 export const contextTabOverviewActionEvent = "context-tab-overview-action";
-
-export type ContextTabOverviewAction =
-  | { readonly action: "activate"; readonly key: ResearchContextKey }
-  | { readonly action: "close"; readonly key: ResearchContextKey };
 
 export interface ContextTabOverviewItem {
   readonly tab: ResearchContextTab;
@@ -50,16 +47,14 @@ export class ContextTabOverview extends LightDomElement {
   }
 
   protected act(event: Event): void {
-    const button = event.currentTarget as HTMLButtonElement;
-    const key = button.dataset.contextKey as ResearchContextKey | undefined;
-    const action = button.dataset.contextAction;
-    if (!key || (action !== "activate" && action !== "close")) return;
-    button.closest("details")?.removeAttribute("open");
+    const action = contextTabAction(event);
+    if (!action) return;
+    (event.currentTarget as HTMLButtonElement).closest("details")?.removeAttribute("open");
     this.dispatchEvent(
       new CustomEvent(contextTabOverviewActionEvent, {
         bubbles: true,
         composed: true,
-        detail: { action, key } satisfies ContextTabOverviewAction,
+        detail: action,
       }),
     );
   }

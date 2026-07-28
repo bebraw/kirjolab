@@ -141,7 +141,9 @@ collaboration.
   only PDF presentation, and typed selection or closure intents. The coordinator
   retains canonical active-context state, authorized resource loading, route
   synchronization, content rendering, and PDF-specific form and inspector
-  presentation.
+  presentation. Resource-strip and overflow-overview presenters validate their
+  dataset-backed activate and close intents through one shared typed contract
+  while emitting distinct semantic events.
   Layouts narrower than the split pane's declared minimum width switch between
   one Authoring or Context surface while preserving both states and without
   introducing horizontal page overflow.
