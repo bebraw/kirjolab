@@ -422,7 +422,7 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   policy in the workspace coordinator.
 - Let the editor Insert menu own the scholarly syntax templates it displays and
   route template and relative-include choices through its bound editor and
-  notice owners. Let editor status expose the live insertion target from its
+  notice owners without a one-use wrapper object. Let editor status expose the live insertion target from its
   owned source, caret, and passage state instead of constructing that projection
   in the application coordinator. The menu
   projects passage-aware links, selection ranges, image-template insertions,

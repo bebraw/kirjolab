@@ -13004,6 +13004,24 @@ Markdown, lazy PDF.js, and direct and unique production package counts remain
 unchanged at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip,
 481,994 B raw / 146,135 B gzip, 18, and 150.
 
+## Continued Lit Ownership: Insert-Menu Owners
+
+`EditorInsertMenu` now binds editor status and the toast owner as direct
+capabilities instead of retaining a one-use two-field binding interface. Its
+insertion-target reads, collaborative insertions, and local notices retain the
+same owners with less adapter structure.
+
+This checkpoint reduces `src/client/app.ts` from 250 to 247 lines (-3) and the
+Insert menu from 161 to 156 lines (-5), removing eight runtime lines overall.
+Focused coverage passes all three Insert-menu cases; affected coverage passes
+five related runtime cases and the affected test file alongside strict types.
+
+The browser application artifact changes from 858,442 B raw / 231,741 B gzip
+to 858,392 B raw / 231,754 B gzip (-50 B raw / +13 B gzip). Styles, lazy
+Markdown, lazy PDF.js, and direct and unique production package counts remain
+unchanged at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip,
+481,994 B raw / 146,135 B gzip, 18, and 150.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,

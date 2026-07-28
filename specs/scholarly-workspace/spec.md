@@ -306,7 +306,8 @@ collaboration.
   non-empty passage projection. It also projects one live insertion target from
   its owned source, caret, and passage state. The Insert menu consumes that
   target and the editor and notice owners directly for syntax and relative-file
-  insertion, without coordinator-built insertion callbacks. The application
+  insertion, without a wrapper binding object or coordinator-built insertion
+  callbacks. The application
   coordinator supplies the Yjs document and active text plus save state from
   collaboration workflows; it retains editor highlighting and assistant
   refresh.

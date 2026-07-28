@@ -46,13 +46,13 @@ describe("editor insert menu", () => {
     const menu = new TestEditorInsertMenu();
     const actions: unknown[] = [];
     const include = "\n::include[../main.md]\n";
-    menu.bind({
-      authoring: {
+    menu.bind(
+      {
         applyAuthoringInsertion: (insertion) => actions.push({ action: "insert", insertion }),
         insertionTarget: { caret: 4, passage: null },
       },
-      notices: { show: (message) => actions.push({ action: "notice", message }) },
-    });
+      { show: (message) => actions.push({ action: "notice", message }) },
+    );
     menu.selectSyntaxForTest("citation", { text: ":cite[key]", select: "key" });
     menu.includeFileForTest("../main.md", mainFile.path);
     expect(actions).toEqual([
@@ -73,16 +73,16 @@ describe("editor insert menu", () => {
     const menu = new TestEditorInsertMenu();
     const insertions: EditorInsertion[] = [];
     const notices: string[] = [];
-    menu.bind({
-      authoring: {
+    menu.bind(
+      {
         applyAuthoringInsertion: (insertion) => insertions.push(insertion),
         insertionTarget: {
           caret: 99,
           passage: { end: 8, excerpt: "Evidence", fileId: "file:1", start: 0 },
         },
       },
-      notices: { show: (message) => notices.push(message) },
-    });
+      { show: (message) => notices.push(message) },
+    );
 
     menu.selectSyntaxForTest("link", { text: "[text](url)", select: "text" });
     menu.insert({ text: "![Figure](asset.png)" }, "Inserted figure.");

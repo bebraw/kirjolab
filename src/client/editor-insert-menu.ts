@@ -1,20 +1,13 @@
 import { html, LitElement, type TemplateResult } from "lit";
 import { relativeProjectPath, type ProjectFile } from "../domain/project-files";
-import type { EditorAuthoringInsertionTarget, EditorAuthoringPassage, EditorTextInsertion } from "./editor-status";
+import type { AppToast } from "./app-toast";
+import type { EditorAuthoringPassage, EditorStatus, EditorTextInsertion } from "./editor-status";
 
 export type EditorSyntaxKind = "anchor" | "bibliography" | "citation" | "footnote" | "link" | "reference";
 
 export interface EditorSyntaxTemplate {
   readonly text: string;
   readonly select?: string;
-}
-
-export interface EditorInsertBinding {
-  readonly authoring: {
-    readonly applyAuthoringInsertion: (insertion: EditorInsertion) => void;
-    readonly insertionTarget: EditorAuthoringInsertionTarget | null;
-  };
-  readonly notices: { readonly show: (message: string) => void };
 }
 
 export type EditorInsertion = EditorTextInsertion;
@@ -37,7 +30,8 @@ export class EditorInsertMenu extends LitElement {
   static override properties = { data: { state: true } };
 
   declare private data: EditorInsertData;
-  private binding: EditorInsertBinding | null = null;
+  private authoring: Pick<EditorStatus, "applyAuthoringInsertion" | "insertionTarget"> | null = null;
+  private notices: Pick<AppToast, "show"> | null = null;
 
   constructor() {
     super();
@@ -48,15 +42,16 @@ export class EditorInsertMenu extends LitElement {
     this.data = { activeFile, files };
   }
 
-  bind(binding: EditorInsertBinding): void {
-    this.binding = binding;
+  bind(authoring: Pick<EditorStatus, "applyAuthoringInsertion" | "insertionTarget">, notices: Pick<AppToast, "show">): void {
+    this.authoring = authoring;
+    this.notices = notices;
   }
 
   insert(template: EditorSyntaxTemplate, message: string): void {
-    const target = this.binding?.authoring.insertionTarget;
+    const target = this.authoring?.insertionTarget;
     if (!target) return;
     this.applyTemplate(template, target.passage, target.caret);
-    this.binding?.notices.show(message);
+    this.notices?.show(message);
   }
 
   replacePassage(passage: EditorAuthoringPassage, text: string): void {
@@ -65,7 +60,7 @@ export class EditorInsertMenu extends LitElement {
 
   replaceRange(start: number, end: number, text: string): void {
     const selection = start + text.length;
-    this.binding?.authoring.applyAuthoringInsertion({ end, selectionEnd: selection, selectionStart: selection, start, text });
+    this.authoring?.applyAuthoringInsertion({ end, selectionEnd: selection, selectionStart: selection, start, text });
   }
 
   override connectedCallback(): void {
@@ -99,19 +94,19 @@ export class EditorInsertMenu extends LitElement {
   }
 
   protected includeFile(relativePath: string, path: string): void {
-    const target = this.binding?.authoring.insertionTarget;
+    const target = this.authoring?.insertionTarget;
     if (!target) return;
     this.applyTemplate({ text: `\n::include[${relativePath}]\n` }, null, target.caret);
-    this.binding?.notices.show(`Included ${path}.`);
+    this.notices?.show(`Included ${path}.`);
     this.closeMenu();
   }
 
   protected insertSyntax(kind: EditorSyntaxKind, template: EditorSyntaxTemplate): void {
-    const target = this.binding?.authoring.insertionTarget;
+    const target = this.authoring?.insertionTarget;
     if (!target) return;
     const resolved = kind === "link" && target.passage ? { text: `[${target.passage.excerpt}](url)`, select: "url" } : template;
     this.applyTemplate(resolved, target.passage, target.caret);
-    this.binding?.notices.show("Inserted scholarly syntax.");
+    this.notices?.show("Inserted scholarly syntax.");
     this.closeMenu();
   }
 
@@ -128,7 +123,7 @@ export class EditorInsertMenu extends LitElement {
     const end = passage?.end ?? caret;
     const selectedOffset = template.select ? template.text.indexOf(template.select) : template.text.length;
     const selectionStart = start + (selectedOffset < 0 ? template.text.length : selectedOffset);
-    this.binding?.authoring.applyAuthoringInsertion({
+    this.authoring?.applyAuthoringInsertion({
       end,
       selectionEnd: selectionStart + (selectedOffset < 0 ? 0 : (template.select?.length ?? 0)),
       selectionStart,

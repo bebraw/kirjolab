@@ -357,7 +357,8 @@ The adopted components own bounded presentation:
   panel owns image deletion.
 - The editor Insert menu owns scholarly-syntax choices and their displayed
   templates, relative include-file option rendering, empty state, and local menu
-  closing. It binds the editor-status and notice owners directly; editor status
+  closing. It binds the editor-status and notice owners directly without an
+  intermediate binding object; editor status
   projects the live insertion target from its owned source, caret, and passage
   state instead of requiring coordinator callbacks. From that target it owns passage-aware link
   adaptation, template selection ranges, image-template and immediate relative-

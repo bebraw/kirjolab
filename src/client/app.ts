@@ -184,10 +184,7 @@ class WorkspaceApp {
       workspace: appMode === "workspace",
     });
     this.#elements.workspacePreview.bindProject(apiBase, this.#document, this.#elements);
-    this.#elements.editorInsertMenu.bind({
-      authoring: this.#elements.editorStatus,
-      notices: this.#elements.toast,
-    });
+    this.#elements.editorInsertMenu.bind(this.#elements.editorStatus, this.#elements.toast);
     this.#elements.sourceCompletion.bindProjectAcceptance(apiBase, this.#elements);
     this.#elements.projectHistoryDialog.configure(apiBase, this.#elements);
     this.#elements.projectHistoryTrigger.bindRevision(this.#elements, () => this.#offline.schedule());
