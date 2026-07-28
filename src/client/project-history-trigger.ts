@@ -1,7 +1,8 @@
-import { html, LitElement, type TemplateResult } from "lit";
+import { html, type TemplateResult } from "lit";
 import type { CollaboratorSelectionList } from "./collaborator-selection-list";
 import type { ContextResourcePresenter } from "./context-resource-presenter";
 import type { EditorStatus } from "./editor-status";
+import { LightDomElement } from "./light-dom-controller";
 import type { ProjectHistoryDialog } from "./project-history-dialog";
 import type { ProjectFileDialog } from "./project-file-dialog";
 
@@ -16,7 +17,7 @@ export interface ProjectRevisionOwners {
   readonly toast: { show(message: string): void };
 }
 
-export class ProjectHistoryTrigger extends LitElement {
+export class ProjectHistoryTrigger extends LightDomElement {
   static override properties = { revision: { state: true } };
 
   declare private revision: number;
@@ -56,15 +57,6 @@ export class ProjectHistoryTrigger extends LitElement {
 
   protected open(): void {
     this.dispatchEvent(new CustomEvent(projectHistoryOpenEvent, { bubbles: true, composed: true }));
-  }
-
-  override connectedCallback(): void {
-    if (!this.hasUpdated) this.replaceChildren();
-    super.connectedCallback();
-  }
-
-  protected override createRenderRoot(): HTMLElement {
-    return this;
   }
 
   protected override render(): TemplateResult {

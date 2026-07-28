@@ -14030,6 +14030,23 @@ remain unchanged.
 Full native CI passes all 1,775 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Reduction: App-Wired Element Batch
+
+The catalog, source-completion, editor-status, manuscript-map, History-trigger,
+project-starting-point, template-save, and workspace-layout Lit owners now reuse
+`LightDomElement`. Components with reconnect work retain it after the shared
+first-connection cleanup; components without reconnect work delete both local
+lifecycle overrides entirely.
+
+This checkpoint removes 60 production lines while keeping `src/client/app.ts`
+at 73 lines. The affected guardrail passes 73 related cases across 13 suites
+alongside strict types. The browser application changes from 856,579 B raw /
+231,411 B gzip to 855,703 B raw / 231,478 B gzip (-876 B raw / +67 B gzip);
+direct and unique production package counts remain 18 and 150, and the other
+static artifacts remain unchanged.
+Full native CI passes all 1,775 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,

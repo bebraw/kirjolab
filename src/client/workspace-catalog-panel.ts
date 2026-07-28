@@ -1,6 +1,7 @@
-import { html, LitElement, type TemplateResult } from "lit";
+import { html, type TemplateResult } from "lit";
 import { isWorkspaceSummaries, type WorkspaceSnapshot, type WorkspaceSummary } from "../domain/workspace";
 import { formatCalendarDate } from "./format";
+import { LightDomElement } from "./light-dom-controller";
 
 interface WorkspaceCatalogSwitcher {
   readonly setData: (workspaces: readonly WorkspaceSummary[], currentWorkspaceId: string) => void;
@@ -11,7 +12,7 @@ interface WorkspaceCatalogOwners {
   readonly workspaceSwitcher: WorkspaceCatalogSwitcher;
 }
 
-export class WorkspaceCatalogPanel extends LitElement {
+export class WorkspaceCatalogPanel extends LightDomElement {
   static override properties = {
     currentWorkspaceId: { state: true },
     query: { state: true },
@@ -78,15 +79,6 @@ export class WorkspaceCatalogPanel extends LitElement {
     await this.updateComplete;
     const filter = this.renderRoot.querySelector<HTMLInputElement>("#workspace-catalog-filter");
     filter?.focus();
-  }
-
-  override connectedCallback(): void {
-    if (!this.hasUpdated) this.replaceChildren();
-    super.connectedCallback();
-  }
-
-  protected override createRenderRoot(): HTMLElement {
-    return this;
   }
 
   protected override render(): TemplateResult {

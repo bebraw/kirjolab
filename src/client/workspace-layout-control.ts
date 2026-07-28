@@ -1,5 +1,6 @@
-import { html, LitElement, type TemplateResult } from "lit";
+import { html, type TemplateResult } from "lit";
 import type { ContextResourcePresenter } from "./context-resource-presenter";
+import { LightDomElement } from "./light-dom-controller";
 import type { WorkspaceLayout } from "./workspace-ui-route";
 
 type WorkspaceLayoutMode = "library" | "workspace";
@@ -44,7 +45,7 @@ interface WorkspaceLayoutOwners {
   readonly workspaceSurfaces: WorkspaceLayoutRoot;
 }
 
-export class WorkspaceLayoutControl extends LitElement {
+export class WorkspaceLayoutControl extends LightDomElement {
   static override properties = {
     layout: { state: true },
     mode: { type: String },
@@ -296,15 +297,6 @@ export class WorkspaceLayoutControl extends LitElement {
     } catch {
       // Resizing remains usable when browser storage is unavailable.
     }
-  }
-
-  override connectedCallback(): void {
-    if (!this.hasUpdated) this.replaceChildren();
-    super.connectedCallback();
-  }
-
-  protected override createRenderRoot(): HTMLElement {
-    return this;
   }
 
   protected override render(): TemplateResult {

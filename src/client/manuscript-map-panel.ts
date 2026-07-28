@@ -1,7 +1,8 @@
-import { html, LitElement, type TemplateResult } from "lit";
+import { html, type TemplateResult } from "lit";
 import { runEditingPass, type EditingPass } from "../domain/editing-passes";
 import { buildManuscriptMap } from "../domain/manuscript-map";
 import { composeProject, type CompositionSourceSpan, type ProjectFile } from "../domain/project-files";
+import { LightDomElement } from "./light-dom-controller";
 import { researchQuestionsPath } from "../domain/research-questions";
 import { reviewerResponsePath } from "../domain/reviewer-response";
 import type { WorkspaceSnapshot } from "../domain/workspace";
@@ -23,7 +24,7 @@ interface ManuscriptMapProjectPresentation {
   readonly reviewerResponsePanel: { setData(data: WritingWorkflowData): void };
 }
 
-export class ManuscriptMapPanel extends LitElement {
+export class ManuscriptMapPanel extends LightDomElement {
   static override properties = {
     pass: { state: true },
     source: { state: true },
@@ -59,15 +60,6 @@ export class ManuscriptMapPanel extends LitElement {
     presentation.researchDiaryPanel.setContent(files.find((file) => file.path === researchDiaryPath)?.content ?? null);
     presentation.researchQuestionPanel.setData(researchQuestionWorkflowData(files.find((file) => file.path === researchQuestionsPath)));
     presentation.reviewerResponsePanel.setData(reviewerResponseWorkflowData(files.find((file) => file.path === reviewerResponsePath)));
-  }
-
-  override connectedCallback(): void {
-    if (!this.hasUpdated) this.replaceChildren();
-    super.connectedCallback();
-  }
-
-  protected override createRenderRoot(): HTMLElement {
-    return this;
   }
 
   protected override render(): TemplateResult {

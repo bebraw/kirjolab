@@ -1,6 +1,7 @@
-import { html, LitElement, nothing, type TemplateResult } from "lit";
+import { html, nothing, type TemplateResult } from "lit";
 import { relativeProjectPath, type ProjectFile } from "../domain/project-files";
 import { isReferenceLibrarySnapshot } from "../domain/reference-library";
+import { LightDomElement } from "./light-dom-controller";
 import {
   citationCompletionCandidates,
   citationCompletionContext,
@@ -54,7 +55,7 @@ type SourceCompletionProject = Pick<SourceCompletionInputs, "files" | "projectRe
 const scopeStorageKey = "kirjolab:citation-completion-scope";
 const editorRefreshEvents = ["click", "focus", "input", "keyup", "select"] as const;
 
-export class SourceCompletion extends LitElement {
+export class SourceCompletion extends LightDomElement {
   static override properties = {
     options: { state: true },
     selectedIndex: { state: true },
@@ -195,18 +196,9 @@ export class SourceCompletion extends LitElement {
     return false;
   }
 
-  override connectedCallback(): void {
-    if (!this.hasUpdated) this.replaceChildren();
-    super.connectedCallback();
-  }
-
   override disconnectedCallback(): void {
     this.unbindEditor();
     super.disconnectedCallback();
-  }
-
-  protected override createRenderRoot(): HTMLElement {
-    return this;
   }
 
   protected override render(): TemplateResult {

@@ -1,6 +1,7 @@
-import { html, LitElement, type TemplateResult } from "lit";
+import { html, type TemplateResult } from "lit";
 import { isProjectTemplateSummaries, type ProjectTemplateSummary } from "../domain/project-templates";
 import { errorMessage, expectOk, jsonFetch } from "./http";
+import { LightDomElement } from "./light-dom-controller";
 
 export interface ProjectTemplateSave {
   readonly description: string;
@@ -13,7 +14,7 @@ export interface ProjectTemplateSource {
   refresh(): Promise<void>;
 }
 
-export class ProjectTemplateSaveDialog extends LitElement {
+export class ProjectTemplateSaveDialog extends LightDomElement {
   static override properties = {
     description: { state: true },
     busy: { state: true },
@@ -97,15 +98,6 @@ export class ProjectTemplateSaveDialog extends LitElement {
 
   close(): void {
     this.dialog.close();
-  }
-
-  override connectedCallback(): void {
-    if (!this.hasUpdated) this.replaceChildren();
-    super.connectedCallback();
-  }
-
-  protected override createRenderRoot(): HTMLElement {
-    return this;
   }
 
   protected override render(): TemplateResult {

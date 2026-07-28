@@ -1,7 +1,8 @@
-import { html, LitElement, nothing, type TemplateResult } from "lit";
+import { html, nothing, type TemplateResult } from "lit";
 import { isProjectTemplateSummaries, type ProjectTemplateSummary } from "../domain/project-templates";
 import { demoWorkspaceId, isWorkspaceSummaries, type WorkspaceSummary } from "../domain/workspace";
 import { DeferredDeletionController, type DeferredDeletionNoticeOptions } from "./deferred-deletion";
+import { LightDomElement } from "./light-dom-controller";
 import { formatCalendarDate } from "./format";
 import { errorMessage, expectOk, jsonFetch } from "./http";
 
@@ -19,7 +20,7 @@ interface StartingPointWorkspaceOwners extends StartingPointOwners {
   readonly workspaceCatalogPanel: { readonly catalog: readonly WorkspaceSummary[] };
 }
 
-export class ProjectStartingPointBrowser extends LitElement {
+export class ProjectStartingPointBrowser extends LightDomElement {
   static override properties = {
     busy: { state: true },
     templates: { state: true },
@@ -181,7 +182,6 @@ export class ProjectStartingPointBrowser extends LitElement {
   }
 
   override connectedCallback(): void {
-    if (!this.hasUpdated) this.replaceChildren();
     super.connectedCallback();
     this.parentDialog = this.resolveDialog();
     this.dialog.addEventListener("keydown", this.trapFocus);
@@ -193,10 +193,6 @@ export class ProjectStartingPointBrowser extends LitElement {
     this.parentDialog?.removeEventListener("close", this.restoreFocus);
     this.parentDialog = null;
     super.disconnectedCallback();
-  }
-
-  protected override createRenderRoot(): HTMLElement {
-    return this;
   }
 
   protected override render(): TemplateResult {

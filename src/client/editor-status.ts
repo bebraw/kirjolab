@@ -1,7 +1,8 @@
-import { html, LitElement, type TemplateResult } from "lit";
+import { html, type TemplateResult } from "lit";
 import * as Y from "yjs";
 import { projectFileCollaborationTextName, type ProjectFile } from "../domain/project-files";
 import type { EditorPresenceRange } from "./editor-presence";
+import { LightDomElement } from "./light-dom-controller";
 import type { CitationContext, CitationInsertion } from "./citations";
 import type { EditorInsertMenu } from "./editor-insert-menu";
 import type { VimModeControl } from "./vim-mode-control";
@@ -69,7 +70,7 @@ export interface EditorAuthoringOwners {
   };
 }
 
-export class EditorStatus extends LitElement {
+export class EditorStatus extends LightDomElement {
   static override properties = {
     save: { state: true },
     target: { state: true },
@@ -288,15 +289,6 @@ export class EditorStatus extends LitElement {
     const location = startLine === endLine ? `line ${startLine}` : `lines ${startLine}–${endLine}`;
     const selection = target.start === target.end ? "caret" : `${target.end - target.start} characters selected`;
     this.target = `${path} · ${location} · ${selection}`;
-  }
-
-  override connectedCallback(): void {
-    if (!this.hasUpdated) this.replaceChildren();
-    super.connectedCallback();
-  }
-
-  protected override createRenderRoot(): HTMLElement {
-    return this;
   }
 
   protected override render(): TemplateResult {
