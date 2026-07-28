@@ -1407,7 +1407,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   minimum. Allow independent browser-local collapse with an editor-hosted
   restoration action. Let the layout manager bind the canonical Context owner
   for context-specific pane persistence and the PDF viewer for relayout instead
-  of receiving application callback projections. Keep rail geometry out of URLs
+  of receiving application callback projections. Construction establishes its
+  collapse and resize listener lifecycle; an unbound manager state is not exposed.
+  Keep rail geometry out of URLs
   and collaborative state.
 - Route rail-tab navigation through its Lit owner. Let the manuscript-map owner
   use the project-file capability already present in its project-presentation

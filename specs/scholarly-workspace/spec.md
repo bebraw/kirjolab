@@ -195,7 +195,9 @@ collaboration.
   persistence, PDF resize notification, and resolution of its controls beneath
   the workspace root. It binds the canonical Context owner and PDF viewer
   directly for context-specific pane keys and relayout rather than receiving
-  application callback projections. Widths remain context-specific transient
+  application callback projections. Construction establishes the complete
+  collapse and resize listener lifecycle; no independently usable unbound state
+  exists. Widths remain context-specific transient
   UI state rather than collaborative data or workspace URL state.
   On desktop the rail width is adjustable by pointer or keyboard within bounded
   readable limits and persists as a browser-local, cross-project preference.

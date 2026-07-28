@@ -13425,6 +13425,24 @@ Markdown, lazy PDF.js, and direct and unique production package counts remain
 unchanged at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip,
 481,994 B raw / 146,135 B gzip, 18, and 150.
 
+## Continued Ownership: Layout-Manager Construction
+
+`WorkspaceLayoutManager` now establishes rail-collapse, rail-resize, and
+authoring/context-resize listeners during construction. Every production and
+test caller previously invoked `bind()` immediately, so the independently
+callable unbound state and final application lifecycle stage are removed.
+
+This checkpoint reduces `src/client/app.ts` from 142 to 141 lines (-1) and the
+layout manager from 274 to 271 lines (-3), removing four runtime lines overall.
+Focused and affected coverage pass all five layout-manager cases alongside
+strict types.
+
+The browser application artifact changes from 858,559 B raw / 231,552 B gzip
+to 858,537 B raw / 231,538 B gzip (-22 B raw / -14 B gzip). Styles, lazy
+Markdown, lazy PDF.js, and direct and unique production package counts remain
+unchanged at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip,
+481,994 B raw / 146,135 B gzip, 18, and 150.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,

@@ -121,7 +121,6 @@ describe("workspace layout manager", () => {
       { contextResourcePresenter: { activeTab: undefined }, workspaceSurfaces: fakes.surfaces },
       { resize: vi.fn() },
     );
-    manager.bind();
     manager.restorePaneWidth();
     fakes.collapse.dispatchEvent(event("click"));
     expect(fakes.surfaces.styleValues.get("--authoring-pane-width")).toBe("520px");
@@ -144,8 +143,7 @@ describe("workspace layout manager", () => {
   it("restores and toggles source-rail collapse with focus transfer", () => {
     storage.set("kirjolab:source-rail-collapsed", "true");
     const { elements, fakes } = fixture();
-    const manager = new WorkspaceLayoutManager(elements, { paneStorageKey: () => "pane", resizePdf: vi.fn() });
-    manager.bind();
+    new WorkspaceLayoutManager(elements, { paneStorageKey: () => "pane", resizePdf: vi.fn() });
     expect(fakes.surfaces.dataset.sourceRail).toBe("collapsed");
     fakes.expand.dispatchEvent(event("click"));
     expect(fakes.surfaces.dataset.sourceRail).toBe("expanded");
@@ -158,8 +156,7 @@ describe("workspace layout manager", () => {
   it("owns rail keyboard, pointer, persistence, and responsive restoration", () => {
     const { elements, fakes } = fixture();
     const resizePdf = vi.fn();
-    const manager = new WorkspaceLayoutManager(elements, { paneStorageKey: () => "pane", resizePdf });
-    manager.bind();
+    new WorkspaceLayoutManager(elements, { paneStorageKey: () => "pane", resizePdf });
     fakes.sourceResizer.dispatchEvent(event("keydown", { key: "ArrowRight" }));
     expect(storage.get("kirjolab:source-rail-width")).toBe("288");
     fakes.sourceResizer.dispatchEvent(event("keydown", { key: "Home" }));
@@ -178,7 +175,6 @@ describe("workspace layout manager", () => {
     const { elements, fakes } = fixture();
     const resizePdf = vi.fn();
     const manager = new WorkspaceLayoutManager(elements, { paneStorageKey: () => "pane:preview", resizePdf });
-    manager.bind();
     manager.restorePaneWidth();
     expect(fakes.surfaces.styleValues.get("--authoring-pane-width")).toBe("520px");
     fakes.paneResizer.dispatchEvent(event("keydown", { key: "ArrowLeft" }));

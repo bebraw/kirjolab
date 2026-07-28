@@ -52,6 +52,9 @@ export class WorkspaceLayoutManager {
   constructor(elements: WorkspaceLayoutElements, hooks: WorkspaceLayoutHooks) {
     this.#elements = elements;
     this.#hooks = hooks;
+    this.bindRailCollapse();
+    this.bindRailResize();
+    this.bindPaneResize();
   }
 
   static forWorkspace(
@@ -73,12 +76,6 @@ export class WorkspaceLayoutManager {
         resizePdf: () => void pdfViewer.resize(),
       },
     );
-  }
-
-  bind(): void {
-    this.bindRailCollapse();
-    this.bindRailResize();
-    this.bindPaneResize();
   }
 
   setRailCollapsed(collapsed: boolean, persist = true): void {

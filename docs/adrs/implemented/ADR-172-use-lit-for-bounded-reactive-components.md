@@ -34,7 +34,8 @@ Apply the same direct-owner rule to supporting non-element UI coordinators when
 their policy depends on canonical component state. The workspace layout manager
 binds the Context owner and PDF viewer directly for context-specific pane
 persistence and PDF relayout while retaining injectable low-level hooks for
-focused tests.
+focused tests. Construction establishes its complete collapse and resize
+listener lifecycle rather than exposing a separately callable bind stage.
 
 The adopted components own bounded presentation:
 
