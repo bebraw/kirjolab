@@ -91,7 +91,8 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   workspace's visibility-driving layout and dispatch resize notification before
   that outcome. Let the workspace surface switcher's route binding consume the
   outcome, activate an available PDF through a narrow presenter callback when
-  needed, and replace the canonical URL.
+  needed, and replace the canonical URL. During workspace route restoration,
+  apply the persisted layout first and let an explicit URL layout override it.
 - Let the workspace surface switcher's route binding own Write/Map route
   effects. Every Write outcome activates Authoring without a second navigation
   event, focuses the supplied authoring target, and replaces the canonical URL;

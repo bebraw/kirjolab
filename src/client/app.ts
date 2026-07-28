@@ -127,7 +127,6 @@ class WorkspaceApp {
       })
     )
       return;
-    void this.#elements.workspaceLayout.restore();
     this.#elements.source.disabled = true;
     this.#elements.bibliography.disabled = true;
     await this.#elements.projectFileDialog.openWorkspace();

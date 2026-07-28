@@ -1289,7 +1289,8 @@ reason to wrap static markup mechanically.
   also owns route readiness, ordered file, rail, authoring-mode, context,
   layout, and surface restoration, canonical URL projection and comparison,
   push-versus-replace browser-history writes, and the browser-history
-  restoration subscription with lifecycle teardown. The application
+  restoration subscription with lifecycle teardown. It applies persisted
+  layout before an explicit route layout during restoration. The application
   coordinator supplies canonical state and bounded restoration effects. The
   same binding consumes authoring-mode outcomes, applies Authoring and supplied
   editor focus for Write, and replaces the canonical route for either mode.

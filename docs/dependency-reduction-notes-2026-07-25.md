@@ -12134,6 +12134,29 @@ and 481,994 B / 146,135 B.
 Full native CI passes all 1,773 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Persisted Layout Restoration
+
+`WorkspaceSurfaceSwitcher` now restores the workspace's persisted layout as the
+first step of canonical route restoration, before applying an explicit URL
+layout override. `WorkspaceApp` no longer starts that asynchronous transition
+independently of project and route readiness.
+
+This checkpoint reduces `src/client/app.ts` from 464 to 463 lines (-1) and grows
+the surface/route owner from 182 to 184 lines (+2). The one-line combined
+increase gives persisted and routed layout state one deterministic ordering and
+ensures PDF-only restoration runs after the project is available. Focused
+coverage passes persisted restore, explicit route override, PDF activation,
+canonical replacement, affected integrations, and strict types. Direct and
+unique production package counts remain 18 and 150; Lit was already pinned.
+
+The browser application artifact changes from 862,081 B raw / 232,202 B gzip to
+862,072 B / 232,201 B (-9 B raw / -1 B gzip). Styles and lazy Markdown and PDF.js
+artifacts remain unchanged at 135,411 B / 23,373 B, 204,779 B / 62,386 B, and
+481,994 B / 146,135 B.
+
+Full native CI passes all 1,773 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: One-Shot Browser Entry Intents
 
 `ProjectStartingPointBrowser` now consumes the `create=1` editor intent, removes

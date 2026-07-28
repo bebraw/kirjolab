@@ -195,7 +195,8 @@ collaboration.
   active-surface projection. Through one workspace-route binding it also owns
   readiness, ordered file, rail, Write/Map, context, layout, and surface
   restoration, canonical URL comparison, and push-versus-replace history
-  writes. The coordinator supplies canonical state and bounded restoration
+  writes. It restores the persisted layout before applying any explicit URL
+  override. The coordinator supplies canonical state and bounded restoration
   effects. Write/Map mode selection follows the same boundary, while the
   surface switcher's route binding applies Authoring, focuses the editor through
   a narrow callback, and replaces the route once for every Write outcome.

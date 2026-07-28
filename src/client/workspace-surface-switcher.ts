@@ -22,6 +22,7 @@ export interface WorkspaceRouteBinding {
     readonly value: WorkspaceLayout;
     readonly bindChange: (changeLayout: (layout: WorkspaceLayout) => void | Promise<void>) => void;
     readonly navigate: (layout: string, persist?: boolean) => Promise<WorkspaceLayout>;
+    readonly restore: () => Promise<WorkspaceLayout>;
   };
   readonly mode: {
     readonly mode: AuthoringMode;
@@ -82,6 +83,7 @@ export class WorkspaceSurfaceSwitcher extends LitElement {
     const binding = this.routeBinding;
     if (!binding?.enabled) return;
     this.routeReady = false;
+    await binding.layout.restore();
     const route = readWorkspaceUiRoute(url);
     if (url.searchParams.has("rail")) binding.rail.navigate(route.rail);
     if (url.searchParams.has("mode")) binding.mode.navigate(route.mode);

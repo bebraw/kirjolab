@@ -60,6 +60,7 @@ describe("workspace surface switcher", () => {
       layout = value === "context" ? "context" : "split";
       return layout;
     });
+    const layoutRestore = vi.fn(async () => layout);
     const restoreContext = vi.fn().mockResolvedValue(undefined);
     const selectFile = vi.fn();
     const focusAuthoring = vi.fn();
@@ -86,6 +87,7 @@ describe("workspace surface switcher", () => {
           changeLayout = change;
         },
         navigate: layoutNavigate,
+        restore: layoutRestore,
       },
       mode: {
         get mode() {
@@ -115,6 +117,7 @@ describe("workspace surface switcher", () => {
     expect(modeNavigate).toHaveBeenCalledWith("map");
     expect(selectFile).toHaveBeenCalledWith("notes");
     expect(restoreContext).toHaveBeenCalledWith("pdf:paper", 3, "mark");
+    expect(layoutRestore).toHaveBeenCalledOnce();
     expect(layoutNavigate).toHaveBeenCalledWith("context", false);
     expect(replaceState).not.toHaveBeenCalled();
 
@@ -168,7 +171,7 @@ describe("workspace surface switcher", () => {
       ensurePdfResource: vi.fn(),
       entryFileId: () => undefined,
       focusAuthoring: vi.fn(),
-      layout: { value: "split", bindChange: vi.fn(), navigate: vi.fn() },
+      layout: { value: "split", bindChange: vi.fn(), navigate: vi.fn(), restore: vi.fn() },
       mode: { mode: "write", bindNavigation: vi.fn(), navigate: vi.fn() },
       rail: { mode: "files", bindNavigation: vi.fn(), navigate: vi.fn() },
       restoreContext: vi.fn(),
@@ -192,7 +195,7 @@ describe("workspace surface switcher", () => {
       ensurePdfResource: vi.fn(),
       entryFileId: () => undefined,
       focusAuthoring: vi.fn(),
-      layout: { value: "split", bindChange: vi.fn(), navigate: vi.fn() },
+      layout: { value: "split", bindChange: vi.fn(), navigate: vi.fn(), restore: vi.fn() },
       mode: { mode: "write", bindNavigation: vi.fn(), navigate: vi.fn() },
       rail: { mode: "files", bindNavigation: vi.fn(), navigate: vi.fn() },
       restoreContext: vi.fn(),
