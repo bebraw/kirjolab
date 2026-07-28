@@ -11,10 +11,11 @@ import type {
   TableSyntaxRequest,
 } from "./model-provider";
 import { phrasingPatternsForPurpose, type PhrasingPurpose } from "../domain/phrasing-guidance";
-import { isReferenceDiscoveryResults, referenceDiscoveryIdentifierUrl, type ReferenceDiscoveryResult } from "../domain/reference-discovery";
+import { isReferenceDiscoveryResults, type ReferenceDiscoveryResult } from "../domain/reference-discovery";
 import type { ModelEvidenceReference } from "../domain/workspace";
 import { errorMessage, expectOk, jsonFetch } from "./http";
 import { importDiscoveredReference } from "./reference-discovery-import";
+import { referenceDiscoveryResult } from "./reference-discovery-result";
 import { tableMarkdown } from "./structured-syntax";
 
 export interface AssistantAuthoringPassage {
@@ -361,7 +362,7 @@ export class AssistantResultPanel extends LightDomElement {
 
   protected async saveReference(event: Event): Promise<void> {
     if (this.view.kind !== "references") return;
-    const index = Number((event.currentTarget as HTMLButtonElement).dataset.index);
+    const index = Number((event.currentTarget as HTMLButtonElement).dataset.resultIndex);
     const result = this.view.results[index];
     if (!result || this.referenceSaveState.has(index)) return;
     const requestId = ++this.nextReferenceRequestId;
@@ -398,23 +399,7 @@ export class AssistantResultPanel extends LightDomElement {
         <p class="mt-2 text-xs text-app-text-soft">${view.rationale}</p>
       </section>
       ${view.results.map((result, index) => {
-        const identifier = result.identifiers[0]!;
-        const state = this.referenceSaveState.get(index);
-        return html`<article class="resource-card">
-          <p class="eyebrow">${referenceProviderLabel(result)}</p>
-          <h3 class="mt-2 text-base font-semibold">${result.metadata.title}</h3>
-          <p class="mt-2 text-xs text-app-text-soft">
-            ${[result.metadata.authors.join("; "), result.metadata.year, result.metadata.venue].filter(Boolean).join(" · ")}
-          </p>
-          <div class="mt-3 flex flex-wrap gap-2">
-            <a class="button-secondary" href=${referenceDiscoveryIdentifierUrl(identifier)} target="_blank" rel="noopener noreferrer">
-              Verify ${identifier.scheme === "semantic-scholar" ? "Semantic Scholar" : identifier.scheme.toUpperCase()}
-            </a>
-            <button class="button-primary" type="button" data-index=${index} ?disabled=${state !== undefined} @click=${this.saveReference}>
-              ${state === "saved" ? "Saved to library" : state === "saving" ? "Saving…" : "Save to library"}
-            </button>
-          </div>
-        </article>`;
+        return referenceDiscoveryResult(result, index, this.referenceSaveState.get(index) ?? "idle", this.saveReference);
       })}
       <p class="status-line" role="status" ?hidden=${!this.referenceStatus}>${this.referenceStatus}</p>
     </div>`;
@@ -429,12 +414,6 @@ export class AssistantResultPanel extends LightDomElement {
       }),
     );
   }
-}
-
-function referenceProviderLabel(result: ReferenceDiscoveryResult): string {
-  return result.providers
-    .map(({ provider }) => (provider === "semantic-scholar" ? "Semantic Scholar" : provider === "openalex" ? "OpenAlex" : "Crossref"))
-    .join(" + ");
 }
 
 if (typeof customElements !== "undefined" && !customElements.get("assistant-result-panel")) {

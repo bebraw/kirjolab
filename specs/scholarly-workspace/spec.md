@@ -375,6 +375,9 @@ collaboration.
   claims, retains those collections for model-evidence projection, and exposes
   the resulting evidence without requiring the coordinator to re-supply them;
   the coordinator does not construct or retain a parallel valid-key set.
+  Assistant and Library discovery results share provider, metadata,
+  verification-link, and save-state card presentation while each owner retains
+  its own request, completion, and refresh lifecycle.
 - **Editor status:** One bounded light-DOM component owns the visible authoring
   target, bounded line counting, file, line-range, caret, and selection wording,
   its full tooltip, online or offline save-state presentation, browser-local

@@ -685,7 +685,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   its transient results. Let the candidate-list Lit owner perform revision and
   claim-draft provider requests, persist their typed candidates, derive fixed
   adapter and prompt-version fields, and validate the operation-specific
-  response.
+  response. Assistant and Library discovery owners share one stateless Lit
+  result-card template for provider, metadata, verification-link, and save-state
+  presentation while retaining their independent request and refresh policy.
   Let a bounded assistant-generation Lit presenter own the browser-local XState
   actor and route all registered operations across the typed task, result, and
   candidate-list owners. It derives operation-local request context from

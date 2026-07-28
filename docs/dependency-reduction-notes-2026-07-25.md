@@ -14870,6 +14870,25 @@ counts remain 18 and 150, and the other static artifacts remain unchanged.
 Full native CI passes all 1,781 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Reduction: Discovery Result Cards
+
+Assistant reference discovery and private-Library discovery now render through
+one stateless Lit result-card template with a shared save-state vocabulary.
+Provider labels, metadata summaries, verification links, and save-button state
+no longer drift, while each parent retains its own import request, completion
+copy, refresh event, and retry policy.
+
+This checkpoint removes 14 net production lines. The affected guardrail passes
+53 related cases across five suites and all 12 direct assistant-result cases,
+alongside formatting, lint, and all strict TypeScript targets; the readability
+audit drops from 13 to 12 clone groups. The browser application changes from
+846,858 B raw / 231,203 B gzip to 845,791 B raw / 230,982 B gzip (-1,067 B raw
+/ -221 B gzip); direct and unique production package counts remain 18 and 150,
+and the other static artifacts remain unchanged.
+
+Full native CI passes all 1,781 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,

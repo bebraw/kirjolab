@@ -137,7 +137,9 @@ The adopted components own bounded presentation:
   reference-discovery query formulation and registry transport, validated cards,
   the shared CSL import adapter, duplicate-submit gating, local save progress and
   retryable failures, refresh-pending state, and complete typed continuation,
-  selection, insertion, and canonical-refresh outcomes.
+  selection, insertion, and canonical-refresh outcomes. Its reference cards use
+  the same stateless Lit template and save-state vocabulary as Library discovery
+  without sharing request lifecycle state.
 - The assistant-generation presenter routes all registered operations across
   the typed task, result, and candidate-list owners from coordinator-supplied
   canonical generation inputs. It owns the browser-local assistant XState
@@ -478,7 +480,8 @@ The adopted components own bounded presentation:
 - The Library discovery results panel owns provider, metadata, verification,
   metadata-to-CSL projection, import transport, duplicate-submit gating, local
   save progress and retryable failures, refresh-pending state, and a typed
-  refresh outcome.
+  refresh outcome. It shares only result-card presentation with assistant
+  discovery; transport, completion copy, and refresh policy remain local.
 - The reference Library workspace composes its bounded discovery, import, PDF
   intake, metadata, personal-field, citation-network, web-source, archive, and
   unidentified-PDF owners. It owns their refresh completion, success/failure

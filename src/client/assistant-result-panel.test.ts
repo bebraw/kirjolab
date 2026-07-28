@@ -36,7 +36,7 @@ class TestAssistantResultPanel extends AssistantResultPanel {
 
   saveForTest(index: string): Promise<void> {
     const event = new Event("click");
-    Object.defineProperty(event, "currentTarget", { value: { dataset: { index } } });
+    Object.defineProperty(event, "currentTarget", { value: { dataset: { resultIndex: index } } });
     return this.saveReference(event);
   }
 }
