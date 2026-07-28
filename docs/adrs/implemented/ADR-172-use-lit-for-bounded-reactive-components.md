@@ -351,7 +351,7 @@ The adopted components own bounded presentation:
   projects the visible file collection with snapshot or live collaborative
   content for Preview, manuscript-map, and collaborator-selection consumers
   from its bound Yjs document and collaboration session, deriving canonical
-  text keys and readiness internally. The
+  text keys, readiness, and validated snapshot loading internally. The
   coordinator retains snapshot application, cross-feature rendering, Yjs
   insertion, caret and focus authority, and the toast outlet; the project-tree
   panel owns image deletion.

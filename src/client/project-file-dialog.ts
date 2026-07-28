@@ -9,7 +9,7 @@ import { projectFileActionEvent, type ProjectFileAction } from "./project-file-a
 import { projectImagesUploadedEvent, type ProjectImagesUploaded } from "./project-image-upload-control";
 import { projectTreeActionEvent, type ProjectTreeAction, type ProjectTreeCallbacks, type ProjectTreeData } from "./project-tree-panel";
 import type { RestoredOfflineWorkspace } from "./offline-workspace";
-import { WorkspaceAccessError } from "./workspace-snapshot-client";
+import { loadWorkspaceSnapshot, WorkspaceAccessError } from "./workspace-snapshot-client";
 
 export type ProjectFileDialogMode = "create" | "create-and-include" | "rename" | "create-folder" | "rename-folder";
 
@@ -39,7 +39,6 @@ export interface ProjectRefreshBinding {
     refreshBoundReferencePdfs(render?: boolean): Promise<void>;
   };
   readonly history: { setRevision(revision: number): void };
-  readonly load: () => Promise<WorkspaceSnapshot>;
   readonly offline: {
     clear(): Promise<void>;
     restore(): Promise<RestoredOfflineWorkspace | null>;
@@ -145,7 +144,7 @@ export class ProjectFileDialog extends LitElement {
   private snapshot: WorkspaceSnapshot | null = null;
   private presentation: ProjectFilePresentationBinding | null = null;
   private liveContent: {
-    document: Pick<Y.Doc, "getText">;
+    document: Y.Doc;
     session: Pick<CollaborationSession, "offlineAvailable" | "synced">;
   } | null = null;
   private pendingInclude: ((path: string) => boolean) | null = null;
@@ -181,7 +180,7 @@ export class ProjectFileDialog extends LitElement {
     this.connectOwners();
   }
 
-  bindLiveContent(document: Pick<Y.Doc, "getText">, session: Pick<CollaborationSession, "offlineAvailable" | "synced">): void {
+  bindLiveContent(document: Y.Doc, session: Pick<CollaborationSession, "offlineAvailable" | "synced">): void {
     this.liveContent = { document, session };
   }
 
@@ -317,9 +316,10 @@ export class ProjectFileDialog extends LitElement {
 
   async refreshProject(): Promise<void> {
     const binding = this.refreshBinding;
-    if (!binding) return;
+    const liveContent = this.liveContent;
+    if (!binding || !liveContent) return;
     const initial = this.snapshot === null;
-    const snapshot = await binding.load();
+    const snapshot = await loadWorkspaceSnapshot(this.apiBase, liveContent.document, liveContent.session.synced);
     if (initial) {
       binding.history.setRevision(snapshot.revision);
       binding.source.value = snapshot.source;

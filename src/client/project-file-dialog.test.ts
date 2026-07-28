@@ -157,7 +157,6 @@ function projectRefreshBinding() {
     connection: { presentOfflineRestore: vi.fn(), presentWorkflow: vi.fn() },
     context: { presentBoundWorkspace: vi.fn(), refreshBoundReferencePdfs: vi.fn().mockResolvedValue(undefined) },
     history: { setRevision: vi.fn() },
-    load: vi.fn().mockResolvedValue(snapshot),
     offline: { clear: vi.fn().mockResolvedValue(undefined), restore: vi.fn().mockResolvedValue(null), schedule: vi.fn() },
     preview: { renderBoundProject: vi.fn() },
     source: { disabled: false, value: "" },
@@ -433,8 +432,9 @@ describe("project file dialog", () => {
     const callbacks = mutationCallbacks();
     const refreshed = { ...snapshot, revision: 2 };
     const binding = projectRefreshBinding();
-    binding.load.mockResolvedValueOnce(snapshot).mockResolvedValueOnce(refreshed);
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(Response.json(snapshot)).mockResolvedValueOnce(Response.json(refreshed));
     panel.configureApi("/api/workspaces/workspace", callbacks);
+    panel.bindLiveContent(new Y.Doc(), { offlineAvailable: false, synced: false });
     panel.bindProjectRefresh(binding);
 
     await panel.refreshProject();
@@ -449,7 +449,7 @@ describe("project file dialog", () => {
     expect(binding.context.presentBoundWorkspace).toHaveBeenCalledTimes(2);
     expect(binding.context.refreshBoundReferencePdfs).toHaveBeenCalledTimes(2);
     expect(binding.offline.schedule).toHaveBeenCalledTimes(2);
-    expect(panel.project).toBe(refreshed);
+    expect(panel.project).toEqual(refreshed);
   });
 
   it("owns offline project restoration through the canonical projection", async () => {
@@ -480,18 +480,20 @@ describe("project file dialog", () => {
     const callbacks = mutationCallbacks();
     const binding = projectRefreshBinding();
     panel.configureApi("/api/workspaces/workspace", callbacks);
+    panel.bindLiveContent(new Y.Doc(), { offlineAvailable: false, synced: false });
     panel.bindProjectRefresh(binding);
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(Response.json(snapshot));
 
     await panel.openWorkspace();
     expect(binding.catalog.refresh).toHaveBeenCalledOnce();
-    expect(binding.load).toHaveBeenCalledOnce();
+    expect(fetchMock).toHaveBeenCalledOnce();
     expect(binding.source.disabled).toBe(true);
     expect(binding.bibliography.disabled).toBe(true);
 
     const restored = { savedAt: "2026-07-28T12:00:00.000Z", serverStateVector: new Uint8Array([1]), snapshot };
     binding.offline.restore.mockResolvedValueOnce(restored);
     binding.catalog.refresh.mockRejectedValueOnce(new Error("offline"));
-    binding.load.mockRejectedValueOnce(new Error("offline"));
+    fetchMock.mockRejectedValueOnce(new Error("offline"));
 
     await panel.openWorkspace();
     expect(binding.collaboration.goOffline).toHaveBeenCalledOnce();
@@ -501,11 +503,11 @@ describe("project file dialog", () => {
   it("clears offline state when workspace access is revoked", async () => {
     const panel = new TestProjectFileDialog();
     const binding = projectRefreshBinding();
-    const accessError = new WorkspaceAccessError("Project access is no longer available");
-    binding.load.mockRejectedValue(accessError);
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 403 }));
+    panel.bindLiveContent(new Y.Doc(), { offlineAvailable: false, synced: false });
     panel.bindProjectRefresh(binding);
 
-    await expect(panel.openWorkspace()).rejects.toBe(accessError);
+    await expect(panel.openWorkspace()).rejects.toBeInstanceOf(WorkspaceAccessError);
     expect(binding.offline.clear).toHaveBeenCalledOnce();
   });
 

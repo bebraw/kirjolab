@@ -9,7 +9,6 @@ import "./project-starting-point-browser";
 import { WorkspaceLayoutManager } from "./workspace-layout-manager";
 import "./workspace-layout-control";
 import "./research-diary-summary";
-import { loadWorkspaceSnapshot } from "./workspace-snapshot-client";
 import { CoalescedRefresh } from "./collaboration";
 import { CollaborationSession } from "./collaboration-session";
 import { CollaborationSocket } from "./collaboration-socket";
@@ -177,7 +176,6 @@ class WorkspaceApp {
       connection: this.#elements.connectionStatus,
       context: this.#elements.contextResourcePresenter,
       history: this.#elements.projectHistoryTrigger,
-      load: () => loadWorkspaceSnapshot(apiBase, this.#document, this.#collaboration.synced),
       offline: this.#offline,
       preview: this.#elements.workspacePreview,
       source: this.#elements.source,

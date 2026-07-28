@@ -13022,6 +13022,25 @@ Markdown, lazy PDF.js, and direct and unique production package counts remain
 unchanged at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip,
 481,994 B raw / 146,135 B gzip, 18, and 150.
 
+## Continued Lit Ownership: Project Snapshot Transport
+
+`ProjectFileDialog` now loads validated workspace snapshots from its own API
+base, bound Yjs document, and collaboration readiness. The application no
+longer imports the snapshot client or supplies a one-line loader callback, and
+focused tests exercise the real transport boundary.
+
+This checkpoint reduces `src/client/app.ts` from 247 to 245 lines (-2) while
+keeping the project-file dialog at 649 lines, removing two runtime lines
+overall. Focused coverage passes all 25 project-file cases; affected coverage
+passes 27 related runtime cases and the affected test file alongside strict
+types.
+
+The browser application artifact changes from 858,392 B raw / 231,754 B gzip
+to 858,413 B raw / 231,763 B gzip (+21 B raw / +9 B gzip). Styles, lazy
+Markdown, lazy PDF.js, and direct and unique production package counts remain
+unchanged at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip,
+481,994 B raw / 146,135 B gzip, 18, and 150.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,
