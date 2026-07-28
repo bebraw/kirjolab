@@ -386,7 +386,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   binding the next text. Let the owner expose the active manuscript projection,
   apply bounded active-text insertions and replacements, focus the active
   source, and select their resulting range so those edits share its undo
-  history. The coordinator must not retain a duplicate active Y.Text. The owner
+  history. Bind its source interaction listeners after the Yjs textarea adapter
+  so it captures the updated relative target, schedules collaboration presence,
+  and refreshes assistant availability itself. Completion listeners remain
+  responsible only for completion presentation. The coordinator must not retain a duplicate active Y.Text. The owner
   may preserve an insertion point as a
   Yjs-relative position across an asynchronous authoring workflow and must
   reject it after the active text changes. Before remote updates, let the same

@@ -50,8 +50,9 @@ const authoringBinding = ({
   sourceChanged?: () => void;
   targetChanged?: () => void;
 } = {}): EditorAuthoringBinding => ({
-  assistant: { refreshTarget: targetChanged, sourceChanged },
+  assistant: { refreshAvailability: vi.fn(), refreshTarget: targetChanged, sourceChanged },
   citation: { setCaret: vi.fn() },
+  collaboration: { scheduleSelection: vi.fn() },
   context: { setCitationAvailable: vi.fn() },
   highlight: htmlElement(),
   presence: { bindSelectionChanged: vi.fn(), rangesFor: presence },
@@ -247,11 +248,15 @@ describe("editor status", () => {
     });
     status.bindAuthoring(documentModel, source, binding);
     status.setAuthoringContext("first.md", "first", first, true);
+    Reflect.set(document, "activeElement", source);
 
     source.value = "first edit";
     source.dispatchEvent(new Event("input"));
     expect(first.toString()).toBe("first edit");
     expect(sourceChanges).toBe(1);
+    expect(binding.collaboration.scheduleSelection).toHaveBeenCalledOnce();
+    expect(binding.assistant.refreshAvailability).toHaveBeenCalledOnce();
+    expect(status.caret).toBe(source.selectionEnd);
 
     status.setAuthoringContext("second.md", "second", second, true);
     expect(source.value).toBe("second");

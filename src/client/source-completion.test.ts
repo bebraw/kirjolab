@@ -250,10 +250,9 @@ describe("source completion", () => {
     }) as unknown as HTMLTextAreaElement;
     const scope = Object.assign(new EventTarget(), { value: "project" }) as unknown as HTMLSelectElement;
     const intents: SourceCompletionIntent[] = [];
-    const editorChanged = vi.fn();
     completion.bindAcceptance((intent) => intents.push(intent));
 
-    completion.bindEditor(source, scope, editorChanged);
+    completion.bindEditor(source, scope);
     vi.stubGlobal("document", { activeElement: source });
     completion.setProject(
       {
@@ -279,7 +278,6 @@ describe("source completion", () => {
     vi.runAllTimers();
 
     expect(localStorage.setItem).toHaveBeenCalledWith("kirjolab:citation-completion-scope", "project");
-    expect(editorChanged).toHaveBeenCalledOnce();
     expect(intents).toEqual([includeIntent]);
     expect(completion.hidden).toBe(true);
     vi.useRealTimers();

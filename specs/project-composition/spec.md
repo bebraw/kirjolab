@@ -177,7 +177,10 @@ collaborative, and unambiguous about what preview and export mean.
   Activating another file detaches the prior text observer and editor listeners,
   synchronizes the new text into the source control, applies bounded text
   insertions or replacements, focuses the active source, and selects the
-  resulting range. Derived citation, include, image, completion, and assistant
+  resulting range. Its interaction listeners attach after the Yjs textarea
+  binding, then capture the updated relative target, schedule collaboration
+  presence, and refresh assistant availability. Source completion retains only
+  completion presentation and acceptance behavior. Derived citation, include, image, completion, and assistant
   insertions therefore remain part of that file's undo history; mutation
   decisions and cross-file path projection remain with the workspace
   coordinator.

@@ -12337,6 +12337,31 @@ unchanged at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip,
 Full native CI passes all 1,773 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Editor Interaction Lifecycle
+
+`EditorStatus` now attaches target-tracking listeners after its Yjs textarea
+binding, ensuring each input updates canonical text before capturing the
+relative selection. It owns collaboration-presence scheduling and assistant-
+availability refresh from those interactions. `SourceCompletion` no longer
+transports unrelated editor consequences through a coordinator callback.
+
+This checkpoint reduces `src/client/app.ts` from 439 to 436 lines (-3) and the
+source-completion owner from 347 to 343 lines (-4). The editor-status owner grows
+from 306 to 316 lines (+10), a combined increase of three runtime lines for an
+independent editor lifecycle. Direct component coverage passes all 14 editor-
+status and completion cases; affected coverage passes all 16 related runtime
+cases alongside strict types. Five focused browser scenarios confirm input,
+completion, undo, Preview sync, and remote-caret ordering.
+
+The browser application artifact changes from 862,095 B raw / 232,224 B gzip
+to 862,204 B raw / 232,226 B gzip (+109 B raw / +2 B gzip). Styles, lazy
+Markdown, lazy PDF.js, and direct and unique production package counts remain
+unchanged at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip,
+481,994 B raw / 146,135 B gzip, 18, and 150.
+
+Full native CI passes all 1,773 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: One-Shot Browser Entry Intents
 
 `ProjectStartingPointBrowser` now consumes the `create=1` editor intent, removes

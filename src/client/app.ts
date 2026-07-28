@@ -230,17 +230,14 @@ class WorkspaceApp {
     this.#elements.editorStatus.bindAuthoring(this.#document, this.#elements.source, {
       assistant: this.#elements.assistantGenerationPresenter,
       citation: this.#elements.sourceCitationControl,
+      collaboration: this.#collaborationSocket,
       context: this.#elements.contextResourcePresenter,
       highlight: this.#elements.sourceHighlight,
       presence: this.#elements.collaboratorSelections,
     });
     this.#elements.editorStatus.setAuthoringContext("Manuscript", null, this.#source, true);
     this.#elements.vimModeControl.bindEditor(this.#elements.source, this.#elements.sourceEditorShell);
-    this.#elements.sourceCompletion.bindEditor(this.#elements.source, this.#elements.citationCompletionScope, () => {
-      if (document.activeElement === this.#elements.source) this.#elements.editorStatus.rememberSelection();
-      this.#collaborationSocket.scheduleSelection();
-      this.#elements.assistantGenerationPresenter.refreshAvailability();
-    });
+    this.#elements.sourceCompletion.bindEditor(this.#elements.source, this.#elements.citationCompletionScope);
     this.#elements.editorStatus.bindCompanion(this.#elements.bibliography, this.#bibliography);
     this.#elements.projectImageUpload.configure(apiBase);
     this.#elements.projectFileDialog.configureApi(apiBase, {

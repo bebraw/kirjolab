@@ -12,6 +12,7 @@ import {
 } from "./source-editor-adapter";
 
 const defaultTarget = "main.md · line 1 · caret";
+const authoringTargetEvents = ["click", "focus", "input", "keyup", "select"] as const;
 
 export interface EditorAuthoringTarget {
   readonly start: number;
@@ -38,10 +39,12 @@ interface EditorSelectionSource {
 
 export interface EditorAuthoringBinding {
   readonly assistant: {
+    refreshAvailability(): void;
     refreshTarget(): void;
     sourceChanged(): void;
   };
   readonly citation: { setCaret(source: string, position: number | null): void };
+  readonly collaboration: { scheduleSelection(): void };
   readonly context: { setCitationAvailable(available: boolean): void };
   readonly highlight: HTMLElement;
   readonly presence: {
@@ -70,6 +73,11 @@ export class EditorStatus extends LitElement {
   private readonly sourceChanged = (): void => this.binding?.assistant.sourceChanged();
   private text: Y.Text | null = null;
   private readonly undoManagers = new Map<Y.Text, Y.UndoManager>();
+  private readonly updateAuthoringTarget = (): void => {
+    if (document.activeElement === this.source) this.rememberSelection();
+    this.binding?.collaboration.scheduleSelection();
+    this.binding?.assistant.refreshAvailability();
+  };
 
   constructor() {
     super();
@@ -275,9 +283,11 @@ export class EditorStatus extends LitElement {
       this.undoManagers.set(text, undoManager);
     }
     const textBinding = bindYText(source, text, documentModel, binding.highlight, () => this.editorPresence(), undoManager);
+    for (const eventName of authoringTargetEvents) source.addEventListener(eventName, this.updateAuthoringTarget);
     this.renderEditorHighlight = textBinding.renderHighlight;
     this.releaseText = () => {
       textBinding.destroy();
+      for (const eventName of authoringTargetEvents) source.removeEventListener(eventName, this.updateAuthoringTarget);
       text.unobserve(this.sourceChanged);
     };
   }

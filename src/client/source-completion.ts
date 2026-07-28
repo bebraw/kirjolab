@@ -63,7 +63,6 @@ export class SourceCompletion extends LitElement {
   private inputs: SourceCompletionInputs | null = null;
   private libraryReferences: CitationCompletionReferences | null | undefined = null;
   private dismissTimer: number | undefined;
-  private onEditorChange: () => void = () => undefined;
   private acceptIntent: ((intent: SourceCompletionIntent) => void) | null = null;
 
   constructor() {
@@ -76,11 +75,10 @@ export class SourceCompletion extends LitElement {
     return this.scopeSelect?.value === "library" ? "library" : "project";
   }
 
-  bindEditor(source: HTMLTextAreaElement, scopeSelect: HTMLSelectElement, onEditorChange: () => void = () => undefined): void {
+  bindEditor(source: HTMLTextAreaElement, scopeSelect: HTMLSelectElement): void {
     this.unbindEditor();
     this.source = source;
     this.scopeSelect = scopeSelect;
-    this.onEditorChange = onEditorChange;
     scopeSelect.value = localStorage.getItem(scopeStorageKey) === "library" ? "library" : "project";
     source.addEventListener("keydown", this.handleEditorKey);
     source.addEventListener("blur", this.handleEditorBlur);
@@ -315,7 +313,6 @@ export class SourceCompletion extends LitElement {
 
   private readonly handleEditorChange = (): void => {
     this.refresh();
-    this.onEditorChange();
   };
 
   private readonly handleScopeChange = (): void => {
@@ -332,7 +329,6 @@ export class SourceCompletion extends LitElement {
     this.dismissTimer = undefined;
     this.source = null;
     this.scopeSelect = null;
-    this.onEditorChange = () => undefined;
   }
 }
 

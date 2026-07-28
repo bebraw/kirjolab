@@ -1232,7 +1232,10 @@ reason to wrap static markup mechanically.
   authoring text insertions and replacements, resolves the active Y.Text from a
   project-file and entry-file identity, exposes its manuscript projection,
   focuses the active source, and selects the resulting range so derived edits
-  remain in that undo history. The coordinator no longer retains a duplicate
+  remain in that undo history. Its source interaction listeners run after the
+  Yjs textarea binding and own relative-target capture, collaboration-presence
+  scheduling, and assistant-availability refresh; source completion no longer
+  transports those unrelated consequences. The coordinator no longer retains a duplicate
   active-text field.
   It also preserves an insertion point as a Yjs-relative position across an
   asynchronous authoring workflow and invalidates it when the active text
