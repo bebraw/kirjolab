@@ -304,7 +304,9 @@ changing their canonical data, selector, authorization, or rendering contracts.
   boundary; rendering alone cannot mutate the Library or project.
 - Opening an annotation focuses its PDF, page, and stored highlight. Navigating
   from that annotation to a manuscript passage restores the Authoring surface
-  and selects only a currently resolved durable anchor.
+  and selects only a currently resolved durable anchor. The project-file owner
+  applies file or entry fallback, Write mode, normalized selection, and editor
+  reveal through its bound authoring capabilities.
 - **Add to library**, **Cite in manuscript**, and **Connect as evidence** are
   separate, labelled commands. Context navigation has no implicit mutation
   side effects.

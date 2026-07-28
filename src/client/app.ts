@@ -303,6 +303,7 @@ class WorkspaceApp {
         this.#layout.setRailCollapsed(false);
         this.#elements.workspaceRailTabs.navigate("files");
       },
+      revealEditor: () => this.#elements.source.scrollIntoView({ behavior: "smooth", block: "center" }),
       saved: ({ message }) => this.#elements.toast.show(message),
       selectRange: (from, to) => this.#elements.editorStatus.selectRange(from, to),
       tree: this.#elements.projectTreePanel,
@@ -354,10 +355,7 @@ class WorkspaceApp {
     });
     this.#elements.contextResourcePresenter.bindProjectEvidence(apiBase);
     this.#elements.contextResourcePresenter.bindProjectMap(apiBase, {
-      document: () => {
-        this.#elements.authoringModeTabs.navigate("write");
-        this.#elements.source.scrollIntoView({ behavior: "smooth", block: "center" });
-      },
+      document: () => this.#elements.projectFileDialog.revealAuthoring(),
       project: () => this.#elements.workspaceSwitcher.focusSelect(),
       person: () => this.#elements.workspaceSharingPanel.open(),
       section: (id) => {
@@ -414,10 +412,7 @@ class WorkspaceApp {
       referencePdfs: () => this.#elements.contextResourcePresenter.referencePdfs,
       refreshResources: () => this.#resourceRefresh.request(),
       refreshLibrary: () => this.#elements.referenceLibraryWorkspace.refreshBoundProject(),
-      selectPassage: (fileId, start, end) => {
-        this.#elements.projectFileDialog.focusRange(fileId, start, end);
-        this.#elements.source.scrollIntoView({ behavior: "smooth", block: "center" });
-      },
+      selectPassage: (fileId, start, end) => this.#elements.projectFileDialog.revealRange(fileId, start, end),
     });
     this.#elements.contextResourcePresenter.bindPdfViewer(this.#pdfViewer, apiBase);
     this.#elements.libraryPdfInspector.bindProjectMutations(

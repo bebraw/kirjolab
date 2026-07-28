@@ -478,7 +478,8 @@ The adopted components own bounded presentation:
   visible file collection, and active/entry state into the project tree, Insert
   menu, source completion, and file-action menu. Its workflow binding also owns
   project-range activation across file or entry fallback, Write-mode entry, and
-  normalized editor selection. File activation retains the latest projection
+  normalized editor selection, plus explicit authoring and range reveal through
+  a narrow editor-scroll capability. File activation retains the latest projection
   inputs, reprojects the canonical snapshot with an explicit editor-reset
   signal, and then emits one argument-free cross-feature effect. The owner also
   accepts response-or-snapshot project mutation results, validates and installs

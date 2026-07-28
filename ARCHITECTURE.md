@@ -322,9 +322,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   resolution for dialogs, active-file deletion eligibility, and relative image
   insertion projection. It also owns authoring-range activation: resolve an
   omitted file to the entry file, select it, enter Write mode, and normalize the
-  requested range through bound authoring capabilities. Tree, workflow, save,
-  deletion, Undo, route, and cross-feature selections all use that single
-  activation path. The owner retains its latest projection inputs, reprojects
+  requested range through bound authoring capabilities. It also owns explicit
+  authoring and range reveal operations that reuse that activation path before
+  scrolling through a narrow editor capability. Tree, workflow, save, deletion,
+  Undo, route, and cross-feature selections all use that single activation path.
+  The owner retains its latest projection inputs, reprojects
   the selected file with an explicit editor-reset signal, and then emits one
   argument-free cross-feature activation effect; the coordinator must not call
   back into the file owner to reconstruct activation. It projects the visible file
@@ -1292,8 +1294,8 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   projections from one canonical file set. Let it retain that composition's
   source map and translate guide selections into file-qualified editor ranges.
   Keep general URL synchronization in the workspace coordinator; let the
-  project-file dialog own source-range focus effects, workflow-file creation,
-  existing-file focus, and created-file Guide navigation.
+  project-file dialog own source-range focus and reveal effects, workflow-file
+  creation, existing-file focus, and created-file Guide navigation.
 - Keep project-file quick open bounded to transient client-side path filtering
   over the authorized workspace snapshot. It may reveal the Files rail and
   select a file, but must not introduce a global command registry or persist

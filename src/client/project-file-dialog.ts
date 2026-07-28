@@ -83,6 +83,7 @@ export interface ProjectFileWorkflowRouting {
   readonly insertImage: (insertion: ProjectImageInsertion) => void;
   readonly prepareInclude: () => ((directive: string) => boolean) | null;
   readonly quickOpen: () => void;
+  readonly revealEditor: () => void;
   readonly saved: (result: ProjectFileSaved) => void;
   readonly selectRange: (from: number, to: number) => void;
   readonly tree: ProjectFileTreeSource;
@@ -237,6 +238,16 @@ export class ProjectFileDialog extends LitElement {
     if (targetFileId) this.selectFile(targetFileId);
     this.routing?.activateAuthoring();
     this.routing?.selectRange(from, Math.max(from, to));
+  }
+
+  revealAuthoring(): void {
+    this.routing?.activateAuthoring();
+    this.routing?.revealEditor();
+  }
+
+  revealRange(fileId: string | null, from: number, to: number): void {
+    this.focusRange(fileId, from, to);
+    this.routing?.revealEditor();
   }
 
   private activateFile(snapshot: WorkspaceSnapshot, fileId: string): ProjectFile | null {

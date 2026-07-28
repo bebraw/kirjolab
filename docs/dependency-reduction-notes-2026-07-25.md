@@ -12062,6 +12062,29 @@ and 481,994 B / 146,135 B.
 Full native CI passes all 1,770 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Manuscript Reveal Routing
+
+`ProjectFileDialog` now owns explicit authoring and range reveal operations
+beside its existing file/entry fallback, Write-mode activation, and normalized
+selection. Project-map document navigation and durable passage navigation reuse
+those operations, while editor scrolling remains a narrow bound capability.
+
+This checkpoint reduces `src/client/app.ts` from 487 to 482 lines (-5) and grows
+the project-file owner from 586 to 597 lines (+11). The six-line combined
+increase removes two duplicated cross-feature sequences and makes selection-only
+versus selection-and-reveal intent explicit. Focused coverage passes authoring
+reveal, range reveal, entry fallback, normalized selection, affected
+integrations, and strict types. Direct and unique production package counts
+remain 18 and 150; Lit was already pinned.
+
+The browser application artifact changes from 861,873 B raw / 232,061 B gzip to
+861,973 B / 232,094 B (+100 B raw / +33 B gzip). Styles and lazy Markdown and
+PDF.js artifacts remain unchanged at 135,411 B / 23,373 B, 204,779 B / 62,386 B,
+and 481,994 B / 146,135 B.
+
+Full native CI passes all 1,770 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: One-Shot Browser Entry Intents
 
 `ProjectStartingPointBrowser` now consumes the `create=1` editor intent, removes

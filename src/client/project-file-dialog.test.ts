@@ -147,6 +147,7 @@ describe("project file dialog", () => {
       insertImage: vi.fn(),
       prepareInclude: vi.fn(() => vi.fn(() => true)),
       quickOpen: vi.fn(),
+      revealEditor: vi.fn(),
       saved: vi.fn(),
       selectRange: vi.fn(),
     };
@@ -305,6 +306,7 @@ describe("project file dialog", () => {
     const panel = new TestProjectFileDialog();
     const callbacks = mutationCallbacks();
     const activateAuthoring = vi.fn();
+    const revealEditor = vi.fn();
     const selectRange = vi.fn();
     panel.configureApi("/api/workspaces/workspace", callbacks);
     panel.bindWorkflow({
@@ -315,6 +317,7 @@ describe("project file dialog", () => {
       insertImage: vi.fn(),
       prepareInclude: vi.fn(() => null),
       quickOpen: vi.fn(),
+      revealEditor,
       saved: vi.fn(),
       selectRange,
       tree: Object.assign(new EventTarget(), { focusFilter: vi.fn() }),
@@ -326,6 +329,13 @@ describe("project file dialog", () => {
     expect(panel.activeFileId).toBe(snapshot.entryFileId);
     expect(activateAuthoring).toHaveBeenCalledOnce();
     expect(selectRange).toHaveBeenCalledWith(12, 12);
+
+    panel.revealAuthoring();
+    panel.revealRange(null, 4, 8);
+
+    expect(activateAuthoring).toHaveBeenCalledTimes(3);
+    expect(revealEditor).toHaveBeenCalledTimes(2);
+    expect(selectRange).toHaveBeenLastCalledWith(4, 8);
   });
 
   it("accepts validated project mutations through the canonical projection", async () => {
@@ -410,6 +420,7 @@ describe("project file dialog", () => {
       insertImage: vi.fn(),
       prepareInclude: vi.fn(() => include),
       quickOpen: vi.fn(),
+      revealEditor: vi.fn(),
       saved,
       selectRange: vi.fn(),
       tree: Object.assign(new EventTarget(), { focusFilter: vi.fn() }),
@@ -532,6 +543,7 @@ describe("project file dialog", () => {
       insertImage: vi.fn(),
       prepareInclude: vi.fn(() => null),
       quickOpen: vi.fn(),
+      revealEditor: vi.fn(),
       saved: vi.fn(),
       selectRange: vi.fn(),
       tree: Object.assign(new EventTarget(), { focusFilter: vi.fn() }),
