@@ -1,5 +1,6 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { pathToFileURL } from "node:url";
+import { isRecord } from "./domain/unknown-value";
 
 const maximumRequestBytes = 256 * 1_024;
 const maximumResponseBytes = 256 * 1_024;
@@ -301,10 +302,6 @@ function jsonError(error: string, status: number, headers?: Headers): Response {
   const responseHeaders = new Headers(headers);
   responseHeaders.set("cache-control", "no-store");
   return Response.json({ error }, { status, headers: responseHeaders });
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 const entry = process.argv[1];

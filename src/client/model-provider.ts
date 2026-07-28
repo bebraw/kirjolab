@@ -1,5 +1,6 @@
 import { validateExtractionValue, type ExtractionValue, type ReviewEvidencePointer } from "../domain/review-evidence";
 import type { ExtractionFieldType } from "../domain/review-study";
+import { isRecord } from "../domain/unknown-value";
 import { readBoundedResponseJson } from "../integrations/bounded-response";
 
 const maximumEndpointLength = 2_048;
@@ -1261,8 +1262,4 @@ function malformedCompletionError(): Error {
 
 function malformedModelJsonError(): Error {
   return new Error("Local model returned malformed JSON");
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

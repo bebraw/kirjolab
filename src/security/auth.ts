@@ -1,4 +1,5 @@
 import { localOwnerId } from "../domain/workspace";
+import { isRecord } from "../domain/unknown-value";
 
 export interface AuthIdentity {
   subject: string;
@@ -206,8 +207,4 @@ function unauthorized(error: string): AuthenticationResult {
 
 function unavailable(error: string): AuthenticationResult {
   return { ok: false, response: Response.json({ error }, { status: 503, headers: { "cache-control": "no-store" } }) };
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

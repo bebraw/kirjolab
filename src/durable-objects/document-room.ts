@@ -1,5 +1,6 @@
 import { DurableObject } from "cloudflare:workers";
 import * as Y from "yjs";
+import { isRecord as isRecordValue } from "../domain/unknown-value";
 import {
   buildGitHubPublishPlan,
   buildGitHubPullPlan,
@@ -5410,10 +5411,6 @@ function researchShareFromRow(row: ResearchShareRow): ResearchShareSnapshot {
     };
   }
   throw new Error("Stored project research share is invalid");
-}
-
-function isRecordValue(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function publicationPdfLinkFromRow(row: PublicationPdfLinkRow): PublicationPdfLink {

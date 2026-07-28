@@ -1,3 +1,5 @@
+import { isRecord } from "../domain/unknown-value";
+
 const migrationLedgerTable = "_kirjolab_migrations";
 
 interface MigrationLedgerRow extends Record<string, SqlStorageValue> {
@@ -104,8 +106,4 @@ function bootstrapMigrationLedger(sql: SQLiteMigrationSql): void {
       applied_at TEXT NOT NULL
     );
   `);
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

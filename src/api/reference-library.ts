@@ -1,3 +1,4 @@
+import { isRecord } from "../domain/unknown-value";
 import {
   compareWebSnapshotText,
   crossrefMetadataFields,
@@ -1616,8 +1617,4 @@ function downloadJson(value: unknown, filename: string): Response {
       "cache-control": "no-store",
     },
   });
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

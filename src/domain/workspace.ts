@@ -7,6 +7,7 @@ import {
 import { normalizeProjectPath, type ProjectAsset, type ProjectComposition, type ProjectFile, type ProjectFolder } from "./project-files";
 import type { BibliographicSnapshot } from "./reference-library";
 import type { ResearchShareSnapshot } from "./reference-library";
+import { isRecord } from "./unknown-value";
 
 export type { ManuscriptAnchorResolution, ManuscriptAnchorSelector } from "./manuscript-anchor";
 export type { ProjectAsset, ProjectComposition, ProjectFile, ProjectFolder } from "./project-files";
@@ -1404,10 +1405,6 @@ function isNonNegativeInteger(value: unknown): value is number {
 
 function isPositiveInteger(value: unknown): value is number {
   return typeof value === "number" && Number.isSafeInteger(value) && value > 0;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function hasExactKeys(value: Record<string, unknown>, expected: readonly string[]): boolean {

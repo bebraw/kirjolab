@@ -1,3 +1,4 @@
+import { isRecord } from "./unknown-value";
 import {
   isIsoTimestamp,
   isReviewId,
@@ -267,10 +268,6 @@ function parseReviewRevisionSeed(value: unknown): { readonly reviewRevision: num
   const reviewRevision = Number(match[1]);
   const protocolRevision = Number(match[2]);
   return Number.isSafeInteger(reviewRevision) && Number.isSafeInteger(protocolRevision) ? { reviewRevision, protocolRevision } : null;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function isDigest(value: unknown): value is string {

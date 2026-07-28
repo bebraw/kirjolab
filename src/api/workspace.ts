@@ -1,3 +1,4 @@
+import { isRecord } from "../domain/unknown-value";
 import {
   isAddAnnotationFragmentInput,
   isCreateAnnotationInput,
@@ -1713,8 +1714,4 @@ function projectReferenceIsCurrent(
 
 function arraysEqual(left: readonly string[], right: readonly string[]): boolean {
   return left.length === right.length && left.every((value, index) => value === right[index]);
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

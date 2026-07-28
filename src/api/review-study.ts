@@ -1,3 +1,4 @@
+import { isRecord } from "../domain/unknown-value";
 import { parseReviewProtocolContent, type ReviewProfile } from "../domain/review-study";
 import { previewReviewBibTeX, reviewBibTeXImport, reviewImportLimits } from "../domain/review-search";
 import { parseReviewModelCandidateRequest, type ReviewModelOperation } from "../domain/review-model";
@@ -641,8 +642,4 @@ function binaryDownload(content: Uint8Array, contentType: string, filename: stri
 async function sha256Text(value: string): Promise<string> {
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

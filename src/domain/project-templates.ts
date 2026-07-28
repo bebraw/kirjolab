@@ -1,4 +1,5 @@
 import { normalizeProjectPath, projectEntryPath, resolveProjectEntryFileId, type ProjectFile } from "./project-files";
+import { isRecord } from "./unknown-value";
 import {
   defaultBibliography,
   defaultGuidePath,
@@ -378,8 +379,4 @@ function isPreviewPaths(value: readonly unknown[], count: unknown, kind: "file" 
 
 function isBoundedText(value: unknown, maximum: number, required: boolean): value is string {
   return typeof value === "string" && value.length <= maximum && (!required || value.trim().length > 0);
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

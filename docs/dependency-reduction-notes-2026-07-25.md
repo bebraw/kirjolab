@@ -14967,6 +14967,24 @@ After one infrastructure retry following an unrelated local Worker exit, full
 native CI passes all 1,781 unit/coverage tests, 121 Workers-runtime tests, and 74
 browser tests.
 
+## Continued Contract Reduction: Complete Plain Records
+
+Workspace, project-template, backup, API, Durable Object, authentication,
+browser-model, and loopback-companion boundaries now consume the same shared
+plain-record guard. Production code retains no local copy; only the end-to-end
+test harness keeps its independent test utility.
+
+This checkpoint removes 35 net production lines and reduces the remaining 12
+local production record-guard definitions to zero. The affected guardrail
+passes 608 cases across 47 suites plus all 121 Workers-runtime cases alongside
+formatting, lint, and strict TypeScript targets. The browser application changes
+from 845,776 B raw / 231,162 B gzip to 845,532 B raw / 231,089 B gzip (-244 B
+raw / -73 B gzip); direct and unique production package counts remain 18 and
+150, and the other static artifacts remain unchanged.
+
+Full native CI passes all 1,781 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,

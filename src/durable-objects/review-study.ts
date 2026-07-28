@@ -1,4 +1,5 @@
 import { DurableObject } from "cloudflare:workers";
+import { isRecord as isRecordValue } from "../domain/unknown-value";
 import {
   defaultReviewProtocol,
   materializeProtocolRevision,
@@ -2430,10 +2431,6 @@ function storedExtractionResult(value: unknown, protocol: ReviewProtocolRevision
     evidence: value.evidence === null ? null : parseEvidencePointer(value.evidence, false, true),
     rationale: value.rationale,
   };
-}
-
-function isRecordValue(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function importRecord(value: string): ReviewImportRecord {
