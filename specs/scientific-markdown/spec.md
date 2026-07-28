@@ -77,8 +77,10 @@ second Markdown dialect.
 - The source citation control derives the citation at the resolved authoring
   caret for contextual navigation and projects requested citation aliases and
   optional locators into canonical `:cite[…]` syntax. It owns missing-caret,
-  invalid-key, and completion wording; the workspace coordinator applies the
-  derived insertion through Yjs and restores authoring focus and caret state.
+  invalid-key, and completion wording. Through the editor's existing authoring
+  binding, editor status connects it to Context navigation, applies a successful
+  insertion through Yjs, restores authoring focus and caret state, activates
+  Write, and presents completion or local error feedback.
 - Quoted and unquoted single-token directive attributes are accepted, matching
   the source project's examples.
 - Experimental version 1 `:::figure{kind="boxplot" version=1}` containers

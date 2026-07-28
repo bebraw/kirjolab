@@ -208,11 +208,13 @@ class WorkspaceApp {
       routes: this.#elements.workspaceSurfaceSwitcher,
     });
     this.#elements.editorStatus.bindAuthoring(this.#document, this.#elements.source, {
+      authoring: this.#elements.authoringModeTabs,
       assistant: this.#elements.assistantGenerationPresenter,
       citation: this.#elements.sourceCitationControl,
       collaboration: this.#collaborationSocket,
       context: this.#elements.contextResourcePresenter,
       highlight: this.#elements.sourceHighlight,
+      notices: this.#elements.toast,
       presence: this.#elements.collaboratorSelections,
     });
     this.#elements.editorStatus.setAuthoringContext("Manuscript", null, this.#source, true);
@@ -359,12 +361,6 @@ class WorkspaceApp {
       selectFile: (fileId) => this.#elements.projectFileDialog.selectFile(fileId),
     });
     this.#layout.bind();
-    this.#elements.sourceCitationControl.bindNavigation((citation) => this.#elements.contextResourcePresenter.openCitation(citation));
-    this.#elements.sourceCitationControl.bindInsertion({
-      activateAuthoring: () => this.#elements.authoringModeTabs.navigate("write"),
-      applyInsertion: (insertion) => this.#elements.editorStatus.insertAuthoringText(insertion.index, insertion.text, insertion.caret),
-      presentNotice: (message) => this.#elements.toast.show(message),
-    });
     this.#elements.contextResourcePresenter.bindPublicationContext(apiBase);
     this.#elements.assistantGenerationPresenter.bindResources(this.#elements.contextResourcePresenter.assistantResources());
     this.#elements.assistantGenerationPresenter.bindWorkflow({

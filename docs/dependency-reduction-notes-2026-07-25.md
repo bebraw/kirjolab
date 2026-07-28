@@ -12566,6 +12566,30 @@ at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip, 481,994 B raw /
 Full native CI passes all 1,773 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Editor-Owned Citation Completion
+
+`SourceCitationControl` now binds to Context navigation and editor completion
+through editor status's existing authoring boundary. It sends one nullable
+insertion plus completion or error copy; editor status owns the Yjs edit, Write
+activation, caret consequences, and notice. `WorkspaceApp` no longer maintains
+separate citation navigation and three-effect insertion callback bags.
+
+This checkpoint reduces `src/client/app.ts` from 389 to 385 lines (-4), keeps
+the source-citation owner at 87 lines, and grows editor status from 316 to 331
+lines (+15). The eleven-line combined runtime increase makes citation completion
+one editor transaction rather than three application effects. Focused coverage
+passes all 12 editor and citation cases; affected coverage passes 14 related
+runtime cases and both affected test files alongside strict types.
+
+The browser application artifact changes from 861,772 B raw / 232,212 B gzip to
+861,681 B raw / 232,218 B gzip (-91 B raw / +6 B gzip). Styles, lazy Markdown,
+lazy PDF.js, and direct and unique production package counts remain unchanged
+at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip, 481,994 B raw /
+146,135 B gzip, 18, and 150.
+
+Full native CI passes all 1,774 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: One-Shot Browser Entry Intents
 
 `ProjectStartingPointBrowser` now consumes the `create=1` editor intent, removes

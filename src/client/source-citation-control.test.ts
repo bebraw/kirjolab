@@ -20,7 +20,7 @@ describe("source citation control", () => {
   it("opens the citation context at the active caret", () => {
     const control = new TestSourceCitationControl();
     const contexts: CitationContext[] = [];
-    control.bindNavigation((context) => contexts.push(context));
+    control.bindWorkflow({ openCitation: (context) => contexts.push(context) }, { completeCitationInsertion: () => undefined });
 
     control.setCaret('See :cite[merton1942]{locator="p. 4"}.', 12);
     control.openForTest();
@@ -33,9 +33,14 @@ describe("source citation control", () => {
   it("does not open outside a citation", () => {
     const control = new TestSourceCitationControl();
     let opened = false;
-    control.bindNavigation(() => {
-      opened = true;
-    });
+    control.bindWorkflow(
+      {
+        openCitation: () => {
+          opened = true;
+        },
+      },
+      { completeCitationInsertion: () => undefined },
+    );
 
     control.setCaret("Plain prose", 5);
     control.openForTest();
@@ -45,40 +50,39 @@ describe("source citation control", () => {
 
   it("owns citation insertion projection and notices", () => {
     const control = new TestSourceCitationControl();
-    const actions: unknown[] = [];
-    control.bindInsertion({
-      activateAuthoring: () => actions.push({ action: "activate" }),
-      applyInsertion: (insertion) => actions.push({ action: "insert", insertion }),
-      presentNotice: (message) => actions.push({ action: "notice", message }),
-    });
+    const completions: unknown[] = [];
+    control.bindWorkflow(
+      { openCitation: () => undefined },
+      { completeCitationInsertion: (insertion, message) => completions.push({ insertion, message }) },
+    );
 
     control.setCaret("Claim.", 5);
     control.insertCitation("merton1942", "p. 270");
 
-    expect(actions).toEqual([
-      { action: "insert", insertion: { caret: 41, index: 5, text: ' :cite[merton1942]{locator="p. 270"}' } },
-      { action: "activate" },
-      { action: "notice", message: "Inserted :cite[merton1942] at p. 270 into canonical Markdown." },
+    expect(completions).toEqual([
+      {
+        insertion: { caret: 41, index: 5, text: ' :cite[merton1942]{locator="p. 270"}' },
+        message: "Inserted :cite[merton1942] at p. 270 into canonical Markdown.",
+      },
     ]);
   });
 
   it("rejects insertion without a caret or a representable key", () => {
     const control = new TestSourceCitationControl();
-    const notices: string[] = [];
-    control.bindInsertion({
-      activateAuthoring: () => undefined,
-      applyInsertion: () => undefined,
-      presentNotice: (message) => notices.push(message),
-    });
+    const completions: unknown[] = [];
+    control.bindWorkflow(
+      { openCitation: () => undefined },
+      { completeCitationInsertion: (insertion, message) => completions.push({ insertion, message }) },
+    );
 
     control.setCaret("Claim.", null);
     control.insertCitation("merton1942");
     control.setCaret("Claim.", 5);
     control.insertCitation("two words");
 
-    expect(notices).toEqual([
-      "Place the manuscript caret before inserting a citation.",
-      "This reference key cannot be represented by citation syntax.",
+    expect(completions).toEqual([
+      { insertion: null, message: "Place the manuscript caret before inserting a citation." },
+      { insertion: null, message: "This reference key cannot be represented by citation syntax." },
     ]);
   });
 });

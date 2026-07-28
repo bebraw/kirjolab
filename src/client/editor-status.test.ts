@@ -50,11 +50,13 @@ const authoringBinding = ({
   sourceChanged?: () => void;
   targetChanged?: () => void;
 } = {}): EditorAuthoringBinding => ({
+  authoring: { navigate: vi.fn() },
   assistant: { refreshAvailability: vi.fn(), refreshTarget: targetChanged, sourceChanged },
-  citation: { setCaret: vi.fn() },
+  citation: { bindWorkflow: vi.fn(), setCaret: vi.fn() },
   collaboration: { scheduleSelection: vi.fn() },
-  context: { setCitationAvailable: vi.fn() },
+  context: { openCitation: vi.fn(), setCitationAvailable: vi.fn() },
   highlight: htmlElement(),
+  notices: { show: vi.fn() },
   presence: { bindSelectionChanged: vi.fn(), rangesFor: presence },
 });
 const undoKey = (): KeyboardEvent =>
@@ -173,6 +175,26 @@ describe("editor status", () => {
 
     expect(status.manuscript).toBe("draft! ready");
     expect(source.value).toBe("draft! ready");
+  });
+
+  it("completes citation insertion through the bound authoring owners", () => {
+    const documentModel = new Y.Doc();
+    const text = documentModel.getText("source");
+    text.insert(0, "Claim.");
+    const source = textareaElement(new FakeTextarea());
+    const status = new TestEditorStatus();
+    const binding = authoringBinding();
+    status.bindAuthoring(documentModel, source, binding);
+    status.setAuthoringContext("main.md", "main", text, true);
+
+    expect(binding.citation.bindWorkflow).toHaveBeenCalledWith(binding.context, status);
+    status.completeCitationInsertion({ caret: 26, index: 6, text: " :cite[source2026]" }, "Citation inserted.");
+    status.completeCitationInsertion(null, "Citation unavailable.");
+
+    expect(status.manuscript).toBe("Claim. :cite[source2026]");
+    expect(binding.authoring.navigate).toHaveBeenCalledOnce();
+    expect(binding.notices.show).toHaveBeenNthCalledWith(1, "Citation inserted.");
+    expect(binding.notices.show).toHaveBeenNthCalledWith(2, "Citation unavailable.");
   });
 
   it("preserves a live insertion point across collaborative edits", () => {

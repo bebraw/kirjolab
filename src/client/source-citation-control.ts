@@ -1,25 +1,24 @@
 import { html, LitElement, type TemplateResult } from "lit";
 import { citationContextAtPosition, createCitationInsertion, type CitationContext, type CitationInsertion } from "./citations";
 
-export interface SourceCitationInsertionBinding {
-  readonly activateAuthoring: () => void;
-  readonly applyInsertion: (insertion: CitationInsertion) => void;
-  readonly presentNotice: (message: string) => void;
+export interface SourceCitationNavigation {
+  openCitation(context: CitationContext): void;
+}
+
+export interface SourceCitationEditor {
+  completeCitationInsertion(insertion: CitationInsertion | null, message: string): void;
 }
 
 export class SourceCitationControl extends LitElement {
   #context: CitationContext | null = null;
-  #insertion: SourceCitationInsertionBinding | null = null;
-  #openContext: ((context: CitationContext) => void) | null = null;
+  #editor: SourceCitationEditor | null = null;
+  #navigation: SourceCitationNavigation | null = null;
   #position: number | null = null;
   #source = "";
 
-  bindNavigation(openContext: (context: CitationContext) => void): void {
-    this.#openContext = openContext;
-  }
-
-  bindInsertion(binding: SourceCitationInsertionBinding): void {
-    this.#insertion = binding;
+  bindWorkflow(navigation: SourceCitationNavigation, editor: SourceCitationEditor): void {
+    this.#navigation = navigation;
+    this.#editor = editor;
   }
 
   setCaret(source: string, position: number | null): void {
@@ -31,22 +30,23 @@ export class SourceCitationControl extends LitElement {
 
   insertCitation(citationKey: string, locator?: string): void {
     if (this.#position === null) {
-      this.#insertion?.presentNotice("Place the manuscript caret before inserting a citation.");
+      this.#editor?.completeCitationInsertion(null, "Place the manuscript caret before inserting a citation.");
       return;
     }
     const insertion = createCitationInsertion(this.#source, this.#position, citationKey, locator);
     if (!insertion) {
-      this.#insertion?.presentNotice("This reference key cannot be represented by citation syntax.");
+      this.#editor?.completeCitationInsertion(null, "This reference key cannot be represented by citation syntax.");
       return;
     }
-    this.#insertion?.applyInsertion(insertion);
-    this.#insertion?.activateAuthoring();
-    this.#insertion?.presentNotice(`Inserted :cite[${citationKey}]${locator ? ` at ${locator}` : ""} into canonical Markdown.`);
+    this.#editor?.completeCitationInsertion(
+      insertion,
+      `Inserted :cite[${citationKey}]${locator ? ` at ${locator}` : ""} into canonical Markdown.`,
+    );
   }
 
   protected openCitation(): void {
     if (!this.#context) return;
-    this.#openContext?.(this.#context);
+    this.#navigation?.openCitation(this.#context);
   }
 
   override connectedCallback(): void {

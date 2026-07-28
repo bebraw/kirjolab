@@ -2,6 +2,7 @@ import { html, LitElement, type TemplateResult } from "lit";
 import * as Y from "yjs";
 import { projectFileCollaborationTextName, type ProjectFile } from "../domain/project-files";
 import type { EditorPresenceRange } from "./editor-presence";
+import type { CitationContext, CitationInsertion } from "./citations";
 import {
   bindYText,
   captureRelativeSelection,
@@ -38,15 +39,20 @@ interface EditorSelectionSource {
 }
 
 export interface EditorAuthoringBinding {
+  readonly authoring: { navigate(mode: "write"): void };
   readonly assistant: {
     refreshAvailability(): void;
     refreshTarget(): void;
     sourceChanged(): void;
   };
-  readonly citation: { setCaret(source: string, position: number | null): void };
+  readonly citation: {
+    bindWorkflow(navigation: { openCitation(context: CitationContext): void }, editor: EditorStatus): void;
+    setCaret(source: string, position: number | null): void;
+  };
   readonly collaboration: { scheduleSelection(): void };
-  readonly context: { setCitationAvailable(available: boolean): void };
+  readonly context: { openCitation(context: CitationContext): void; setCitationAvailable(available: boolean): void };
   readonly highlight: HTMLElement;
+  readonly notices: { show(message: string): void };
   readonly presence: {
     bindSelectionChanged(callback: () => void): void;
     rangesFor(fileId: string | null): readonly EditorPresenceRange[];
@@ -93,6 +99,7 @@ export class EditorStatus extends LitElement {
     this.binding = binding;
     this.documentModel = documentModel;
     this.source = source;
+    binding.citation.bindWorkflow(binding.context, this);
     binding.presence.bindSelectionChanged(() => this.renderHighlight());
     if (this.text) this.bindText(this.text);
   }
@@ -159,6 +166,14 @@ export class EditorStatus extends LitElement {
 
   insertAuthoringText(index: number, value: string, caret = index + value.length): void {
     if (this.text) this.insertText(this.text, index, value, caret);
+  }
+
+  completeCitationInsertion(insertion: CitationInsertion | null, message: string): void {
+    if (insertion) {
+      this.insertAuthoringText(insertion.index, insertion.text, insertion.caret);
+      this.binding?.authoring.navigate("write");
+    }
+    this.binding?.notices.show(message);
   }
 
   preserveInsertionPoint(): ((value: string) => boolean) | null {

@@ -252,8 +252,8 @@ changing their canonical data, selector, authorization, or rendering contracts.
   derives active-publication citation readiness and maps explicit active
   publication or sole-linked project-PDF citation intents to a key and optional
   page locator. It delegates syntax projection to the source citation control
-  and Yjs insertion to the coordinator. After successful insertion, the source
-  citation control activates Write before presenting completion. It also resolves citation keys case-insensitively
+  and Yjs insertion to editor status. After successful insertion, editor status
+  activates Write before presenting completion. It also resolves citation keys case-insensitively
   and selects the sole linked project PDF for a supported page locator, falling
   back to publication context. Its route binding is the sole canonical refresh,
   citation-insertion, and notice authority. Project and Library snapshots come

@@ -1401,10 +1401,11 @@ reason to wrap static markup mechanically.
   typed mutation capability for replacement, focus, and caret application.
 - The source citation control owns caret-context parsing and action
   availability. From the same resolved caret it owns canonical citation syntax
-  projection, invalid-key and missing-caret presentation, insertion completion
-  copy, successful Write activation, and typed navigation and insertion
-  bindings. The application coordinator retains the Yjs transaction and caret
-  consequences, publication resolution, grouped-citation policy, and context navigation.
+  projection, invalid-key and missing-caret copy, and insertion completion copy.
+  Its workflow binds through editor status to the existing Context navigation,
+  authoring-mode, and notice owners. Editor status applies the Yjs transaction,
+  caret consequences, successful Write activation, and completion or error
+  notice. Context retains publication resolution and grouped-citation policy.
 - The existing PDF viewer owns its complete status presentation, including
   active-load failures and text-selection pointer routing reported by the
   application coordinator, without exposing its internal elements to
