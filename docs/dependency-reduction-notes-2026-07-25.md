@@ -14501,6 +14501,28 @@ application setup to the Context application entry after assistant setup.
 Full native CI passes all 1,777 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Administration-Owned Project Creation
+
+The workspace-settings Lit owner now installs the project starting-point
+browser and its reciprocal template-save lifecycle through the existing atomic
+workspace-administration entry. Project creation already shares the canonical
+catalog, project API, template owner, toast, and server-rendered administration
+trigger set, so it no longer requires a separate composition-root call.
+
+This checkpoint trades three net production lines, including an exported
+starting-point application-owner contract, for the complete administration
+boundary and reduces `src/client/app.ts` from 49 to 48 lines. The affected
+guardrail passes 26 related cases across four suites alongside strict types and
+directly reruns the modified eight-case settings suite. The browser application
+changes from 847,286 B raw / 231,042 B gzip to 847,285 B raw / 231,055 B gzip
+(-1 B raw / +13 B gzip); direct and unique production package counts remain 18
+and 150, and the other static artifacts remain unchanged. Architecture, ADR,
+and scholarly-workspace contracts now install project creation from the
+workspace-administration application entry.
+
+Full native CI passes all 1,777 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,

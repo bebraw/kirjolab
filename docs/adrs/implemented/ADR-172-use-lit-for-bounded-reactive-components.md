@@ -66,8 +66,9 @@ The adopted components own bounded presentation:
   refresh policy. The menu invokes those owners for settings and preview entry
   and post-Pull project refresh without a second application bind or callback
   projection. The broader settings application entry also installs the
-  workspace catalog's trigger and switcher and the sharing panel's API and
-  trigger from their canonical owners.
+  workspace catalog's trigger and switcher, the project-creation and reciprocal
+  template-save lifecycle, and the sharing panel's API and trigger from their
+  canonical owners.
 - The workspace sync review owns Pull and Publish requests and diff rendering,
   conflict choices, commit-message input, disconnect confirmation, response
   validation, readiness, progress, and one typed completed-mutation event.

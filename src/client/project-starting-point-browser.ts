@@ -20,7 +20,7 @@ interface StartingPointWorkspaceOwners extends StartingPointOwners {
   readonly workspaceCatalogPanel: { readonly catalog: readonly WorkspaceSummary[] };
 }
 
-type StartingPointApplicationOwners = StartingPointWorkspaceOwners & {
+export type StartingPointApplicationOwners = StartingPointWorkspaceOwners & {
   readonly saveTemplateDialog: StartingPointOwners["saveTemplateDialog"] & {
     bindWorkspace(
       apiBase: string,

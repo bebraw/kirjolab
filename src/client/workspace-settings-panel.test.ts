@@ -314,13 +314,18 @@ describe("workspace settings panel", () => {
     const panel = new LifecycleWorkspaceSettingsPanel();
     const bindCatalog = vi.fn();
     const bindGitHub = vi.fn();
+    const bindStartingPoints = vi.fn();
     const configureSharing = vi.fn();
     const projectRefresh = { request: vi.fn() };
     const owners = {
       gitHubSyncMenu: { bindWorkspace: bindGitHub, refreshWorkspace: vi.fn() },
+      gitHubImportPanel: { open: vi.fn() },
+      latexImportPanel: { open: vi.fn() },
       manageWorkspaces: new EventTarget(),
+      newWorkspace: new EventTarget() as HTMLElement,
+      newWorkspaceStartingPoints: { bindApplication: bindStartingPoints },
       projectFileDialog: { hiddenFiles: new Set<string>(), project: null },
-      saveTemplateDialog: { open: vi.fn() },
+      saveTemplateDialog: { bindWorkspace: vi.fn(), open: vi.fn(), syncTemplates: vi.fn() },
       shareWorkspace: new EventTarget(),
       toast: { show: vi.fn() },
       workspaceCatalogPanel: { bindWorkspace: bindCatalog, catalog: [], refresh: vi.fn() },
@@ -332,6 +337,7 @@ describe("workspace settings panel", () => {
     panel.bindApplication("study", "/api/workspaces/study", true, projectRefresh, owners);
 
     expect(bindCatalog).toHaveBeenCalledWith("study", owners);
+    expect(bindStartingPoints).toHaveBeenCalledWith("/api/workspaces/study", owners);
     expect(bindGitHub).toHaveBeenCalledWith("/api/workspaces/study", true, projectRefresh, { workspaceSettingsPanel: panel });
     expect(configureSharing).toHaveBeenCalledWith("/api/workspaces/study", owners);
   });

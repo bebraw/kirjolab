@@ -59,9 +59,10 @@ collaboration.
   project-file, template-save, and GitHub owners directly, reads their live
   projections, and invokes their refresh or open operations without a parallel
   application callback bag. This atomic application binding also installs the
-  catalog trigger and switcher, sharing API and trigger, and GitHub sync menu's
-  reciprocal settings owner, coalesced project-refresh service, and ambient
-  refresh policy for settings and preview entry and post-Pull project refresh.
+  catalog trigger and switcher, project-creation and reciprocal template-save
+  lifecycle, sharing API and trigger, and GitHub sync menu's reciprocal settings
+  owner, coalesced project-refresh service, and ambient refresh policy for
+  settings and preview entry and post-Pull project refresh.
 - **Project creation:** The starting-point browser owns title and starting-point
   selection, catalog and preview loading, project creation, personal-template
   deletion and Undo, modal lifecycle, and its entry trigger. It binds the

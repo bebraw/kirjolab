@@ -194,8 +194,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   canonical workspace inputs. Bind its entry trigger, workspace identity, and
   catalog, project-file, template-save, GitHub, and sharing owners through one
   typed application boundary. That boundary installs the catalog's trigger and
-  switcher lifecycle, the sharing panel's API and trigger lifecycle, and the
-  settings panel and GitHub sync menu's mutual lifecycle, including the
+  switcher lifecycle, the project-creation and reciprocal template-save
+  lifecycle, the sharing panel's API and trigger lifecycle, and the settings
+  panel and GitHub sync menu's mutual lifecycle, including the
   coalesced project-refresh service and ambient refresh policy, rather than
   requiring sibling application binds.
   The component reads owner projections and invokes their refresh or open

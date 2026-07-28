@@ -10,6 +10,7 @@ import { GitHubSyncReview } from "./github-sync-review";
 import { expectOk, jsonFetch } from "./http";
 import type { GitHubSyncMenu } from "./github-sync-menu";
 import { LightDomElement } from "./light-dom-controller";
+import type { ProjectStartingPointBrowser, StartingPointApplicationOwners } from "./project-starting-point-browser";
 import type { WorkspaceCatalogOwners, WorkspaceCatalogPanel } from "./workspace-catalog-panel";
 import type { WorkspaceSharingOwners, WorkspaceSharingPanel } from "./workspace-sharing-panel";
 
@@ -51,8 +52,10 @@ export interface WorkspaceSettingsOwners {
 type ProjectRefresh = { request(): Promise<void> };
 
 type WorkspaceSettingsApplicationOwners = WorkspaceSettingsOwners &
+  StartingPointApplicationOwners &
   WorkspaceCatalogOwners &
   WorkspaceSharingOwners & {
+    readonly newWorkspaceStartingPoints: Pick<ProjectStartingPointBrowser, "bindApplication">;
     readonly workspaceCatalogPanel: WorkspaceSettingsOwners["workspaceCatalogPanel"] & Pick<WorkspaceCatalogPanel, "bindWorkspace">;
     readonly workspaceSharingPanel: Pick<WorkspaceSharingPanel, "configure">;
   };
@@ -164,6 +167,7 @@ export class WorkspaceSettingsPanel extends LightDomElement {
     owners: WorkspaceSettingsApplicationOwners,
   ): void {
     owners.workspaceCatalogPanel.bindWorkspace(workspaceId, owners);
+    owners.newWorkspaceStartingPoints.bindApplication(apiBase, owners);
     this.bindWorkspace(workspaceId, apiBase, ambientGitHubRefresh, projectRefresh, owners);
     owners.workspaceSharingPanel.configure(apiBase, owners);
   }

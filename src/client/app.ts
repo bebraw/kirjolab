@@ -34,7 +34,6 @@ class WorkspaceApp {
     const owners = this.#elements;
     owners.contextResourcePresenter.bindApplication(apiBase, appMode === "workspace", this.#session, this.#refresh, this.#socket, owners);
     owners.workspaceSettingsPanel.bindApplication(workspaceId, apiBase, appMode === "workspace", this.#refresh, owners);
-    owners.newWorkspaceStartingPoints.bindApplication(apiBase, owners);
     owners.projectFileDialog.bindApplication(apiBase, appMode === "workspace", owners, this.#session, this.#offline);
     owners.workspaceLayout.bindApplication(workspaceId, appMode === "workspace", owners);
   }
