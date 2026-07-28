@@ -13892,6 +13892,20 @@ alongside strict types. The browser application changes from 857,183 B raw /
 231,413 B gzip to 857,128 B raw / 231,396 B gzip (-55 B raw / -17 B gzip);
 dependency counts and the other static artifacts remain unchanged.
 
+## Continued Collaboration Ownership: Canonical Document
+
+`WorkspaceApp` now creates the Yjs document inside its `CollaborationSession`
+and reads it through that canonical owner for editor, Preview, Context, and
+project-file bindings. The coordinator no longer retains a second document
+field, and the shorter session identity also collapses the socket construction.
+
+This checkpoint reduces `src/client/app.ts` from 87 to 80 lines (-7), removing
+seven production lines overall. The affected guardrail passes all 1,775
+unit/coverage cases alongside strict types. The browser application changes
+from 857,128 B raw / 231,396 B gzip to 857,144 B raw / 231,395 B gzip (+16 B
+raw / -1 B gzip); dependency counts and the other static artifacts remain
+unchanged.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,

@@ -386,7 +386,7 @@ The adopted components own bounded presentation:
   dialog inputs, deletion eligibility, and relative image projection. It also
   projects the visible file collection with snapshot or live collaborative
   content for Preview, manuscript-map, and collaborator-selection consumers
-  from its bound Yjs document and collaboration session, deriving canonical
+  from its bound collaboration session and session-owned Yjs document, deriving canonical
   text keys, readiness, and validated snapshot loading internally. The
   project-refresh binding consumes the canonical element-registry owners
   directly, retains collaboration and offline persistence as explicit non-DOM

@@ -418,8 +418,8 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   collaborative caret capture and continuation construction, Yjs insertion and
   the global toast outlet in the workspace coordinator. Bind source,
   bibliography, revision, Preview, Context, and offline capabilities once to
-  the project-file owner. From its API base, bound Yjs document, and
-  collaboration readiness, it owns validated snapshot transport without an
+  the project-file owner. From its API base and bound collaboration session, it
+  reads the session-owned Yjs document and readiness and owns validated snapshot transport without an
   application loader callback. It derives initial load from absence of its canonical snapshot, owns
   bootstrap-versus-refresh presentation, installs the snapshot, presents
   Context, schedules offline persistence, and refreshes linked PDFs in order.

@@ -428,7 +428,9 @@ collaboration.
   instances, retry timers, Yjs documents and updates, and IndexedDB records
   remain outside the actor. A typed collaboration session composes that actor
   with the ordered pending-update queue, Yjs server-shadow document,
-  acknowledged server vector, and offline-delta reconstruction. One typed
+  acknowledged server vector, and offline-delta reconstruction. It is also the
+  workspace coordinator's sole owner of the canonical Yjs document; consumers
+  that require document access read it through the session. One typed
   socket authority around the session owns WebSocket creation, reconnect and
   selection timers, online/offline browser subscriptions, strict control
   routing, binary-update application, queue flushing, reset cleanup, reload
