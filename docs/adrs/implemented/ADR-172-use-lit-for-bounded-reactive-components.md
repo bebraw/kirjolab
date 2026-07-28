@@ -38,6 +38,11 @@ focused tests.
 
 The adopted components own bounded presentation:
 
+- The appearance preference control progressively enhances its server-rendered
+  fallback and owns the System, Light, and Dark template, normalization,
+  browser-local restoration and persistence, storage-failure tolerance, and
+  document-root theme and `color-scheme` projection without application
+  startup wiring.
 - The import panel owns connected and disconnected account presentation,
   reactive account actions, local field values, account/repository/branch
   discovery requests, validation, stale-request guards, option rendering, form

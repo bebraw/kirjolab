@@ -15,7 +15,6 @@ import { CollaborationSocket } from "./collaboration-socket";
 import "./manuscript-map-panel";
 import { createOfflineWorkspaceStore, OfflineWorkspaceSession } from "./offline-workspace";
 import { PdfEvidenceViewer } from "./pdf-viewer";
-import { bindThemePreference } from "./theme";
 import "./workspace-rail-tabs";
 import "./authoring-mode-tabs";
 
@@ -69,7 +68,6 @@ class WorkspaceApp {
   }
 
   async start(): Promise<void> {
-    bindThemePreference(document.documentElement, this.#elements.themePreference, localStorage);
     this.#bindUi();
     this.#elements.workspaceSurfaces.dataset.ready = "true";
     void this.#elements.applicationVersion.prepareOfflineShell(appMode === "workspace", this.#offline, this.#elements.toast);

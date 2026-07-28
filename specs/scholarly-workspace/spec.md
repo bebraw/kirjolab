@@ -262,6 +262,10 @@ collaboration.
   layout, sharing, export, and publication controls remain in their
   task-specific surfaces. Writing assistant links back to the shared panel
   rather than duplicating model controls.
+  A bounded light-DOM appearance control progressively enhances its
+  server-rendered selector and owns the System, Light, and Dark template,
+  normalization, browser-local restoration and persistence, storage-failure
+  tolerance, and document-root theme plus color-scheme projection.
   A bounded light-DOM version control owns build-version presentation and both
   Clipboard API and textarea fallback copying. It also derives its version from
   the built offline shell and owns service-worker registration, update refresh

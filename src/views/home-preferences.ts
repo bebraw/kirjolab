@@ -11,9 +11,9 @@ export function renderPreferencesMenu(): string {
               <section class="preferences-section" aria-labelledby="appearance-preference-heading">
                 <div><h3 id="appearance-preference-heading">Appearance</h3><p>Follow your device or keep one theme.</p></div>
                 <label class="sr-only" for="theme-preference">Appearance</label>
-                <select class="field" id="theme-preference" aria-label="Appearance">
-                  <option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option>
-                </select>
+                <theme-preference-control class="contents" id="theme-preference-control"><select class="field" id="theme-preference" aria-label="Appearance">
+                    <option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option>
+                  </select></theme-preference-control>
               </section>
               <section class="preferences-section" aria-labelledby="writing-preference-heading">
                 <div><h3 id="writing-preference-heading">Writing</h3><p>Use modal Vim keybindings in the source editor.</p></div>

@@ -42,6 +42,7 @@ import { ReferenceLibraryWorkspace } from "./reference-library-workspace";
 import { ResearchDiarySummary } from "./research-diary-summary";
 import { SourceCitationControl } from "./source-citation-control";
 import { SourceCompletion } from "./source-completion";
+import { ThemePreferenceControl } from "./theme";
 import { VimModeControl } from "./vim-mode-control";
 import { WebSnapshotComparisonPanel } from "./web-source-panels";
 import { WorkspaceCatalogPanel } from "./workspace-catalog-panel";
@@ -124,7 +125,7 @@ export function collectAppElements(requireElement = requiredAppElement) {
     assistantWorkflowStatus: requireElement("assistant-workflow-status", AssistantWorkflowStatus),
     candidateListPanel: requireElement("candidate-list-panel", CandidateListPanel),
     toast: requireElement("toast", AppToast),
-    themePreference: requireElement("theme-preference", HTMLSelectElement),
+    themePreference: requireElement("theme-preference-control", ThemePreferenceControl),
   };
 }
 

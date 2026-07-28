@@ -27,6 +27,7 @@ describe("renderHomePage", () => {
     expect(html).toContain('accept="image/png,image/jpeg,image/gif,image/webp,image/avif,image/svg+xml"');
     expect(html).toContain('<project-image-upload-control id="project-image-upload-control">');
     expect(html).toContain('id="theme-preference" aria-label="Appearance"');
+    expect(html).toContain('<theme-preference-control class="contents" id="theme-preference-control">');
     expect(html).toContain('id="preferences-menu" data-settings-menu');
     expect(html).toContain('id="citation-completion-scope" aria-label="Citation suggestion scope"');
     expect(html).toContain('id="choose-model-evidence" type="button">Choose evidence</button>');

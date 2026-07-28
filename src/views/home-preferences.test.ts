@@ -11,6 +11,7 @@ describe("renderPreferencesMenu", () => {
     expect(trigger).toContain('aria-label="Open preferences" title="Preferences"');
     expect(trigger).toContain(renderIcon("settings"));
     expect(html).toContain('id="theme-preference" aria-label="Appearance"');
+    expect(html).toContain('<theme-preference-control class="contents" id="theme-preference-control">');
     expect(html).toContain('id="vim-toggle" type="button" aria-pressed="false"');
     expect(html).toContain('id="citation-completion-scope" aria-label="Citation suggestion scope"');
     expect(html).toContain('id="copy-application-version" type="button" aria-label="Copy application version"');

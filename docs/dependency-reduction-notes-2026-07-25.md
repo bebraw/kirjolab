@@ -13236,6 +13236,27 @@ Markdown, lazy PDF.js, and direct and unique production package counts remain
 unchanged at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip,
 481,994 B raw / 146,135 B gzip, 18, and 150.
 
+## Continued Lit Ownership: Appearance Preference
+
+`ThemePreferenceControl` now progressively enhances the server-rendered
+appearance selector and owns its System, Light, and Dark template,
+normalization, browser-local restoration and persistence, storage-failure
+tolerance, and document-root theme plus color-scheme projection. Application
+startup no longer binds a raw select to a standalone imperative utility.
+
+This checkpoint reduces `src/client/app.ts` from 156 to 154 lines (-2) and
+grows the theme module from 49 to 100 lines (+51), adding 49 runtime lines as
+the fixed cost of the bounded reactive owner. Focused coverage passes all three
+theme cases and the element-registry and server-fallback contracts; affected
+coverage passes 81 related runtime cases, 13 affected unit cases, and all 121
+Workers-runtime cases alongside strict types.
+
+The browser application artifact changes from 858,172 B raw / 231,470 B gzip
+to 859,007 B raw / 231,604 B gzip (+835 B raw / +134 B gzip). Styles, lazy
+Markdown, lazy PDF.js, and direct and unique production package counts remain
+unchanged at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip,
+481,994 B raw / 146,135 B gzip, 18, and 150.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,
