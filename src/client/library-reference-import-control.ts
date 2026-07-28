@@ -1,5 +1,6 @@
-import { html, LitElement, nothing, type TemplateResult } from "lit";
+import { html, nothing, type TemplateResult } from "lit";
 import { errorMessage, expectOk, jsonFetch } from "./http";
+import { LightDomElement } from "./light-dom-controller";
 
 type ReferenceImportKind = "bibtex" | "csl-json";
 
@@ -10,7 +11,7 @@ export interface LibraryReferenceImportRefresh {
 
 export const libraryReferenceImportRefreshEvent = "library-reference-import-refresh";
 
-export class LibraryReferenceImportControl extends LitElement {
+export class LibraryReferenceImportControl extends LightDomElement {
   static override properties = {
     busy: { state: true },
     status: { state: true },
@@ -30,15 +31,6 @@ export class LibraryReferenceImportControl extends LitElement {
     if (requestId !== this.requestId) return;
     this.busy = false;
     this.status = "";
-  }
-
-  override connectedCallback(): void {
-    if (!this.hasUpdated) this.replaceChildren();
-    super.connectedCallback();
-  }
-
-  protected override createRenderRoot(): HTMLElement {
-    return this;
   }
 
   protected override render(): TemplateResult {

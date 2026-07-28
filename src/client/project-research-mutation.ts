@@ -1,6 +1,6 @@
-import { LitElement } from "lit";
 import { isWorkspaceSnapshot, type WorkspaceSnapshot } from "../domain/workspace";
 import { expectOk, jsonFetch } from "./http";
+import { LightDomElement } from "./light-dom-controller";
 
 export const projectResearchChangedEvent = "project-research-changed";
 
@@ -19,7 +19,7 @@ export type ProjectResearchMutation =
       readonly resourceId: string;
     };
 
-export abstract class ProjectResearchMutationElement extends LitElement {
+export abstract class ProjectResearchMutationElement extends LightDomElement {
   protected async changeProjectResearch(apiBase: string, mutation: ProjectResearchMutation): Promise<void> {
     const snapshot = await this.requestProjectResearchMutation(apiBase, mutation);
     const message =

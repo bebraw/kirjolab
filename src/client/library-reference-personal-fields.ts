@@ -1,4 +1,5 @@
-import { html, LitElement, type TemplateResult } from "lit";
+import { html, type TemplateResult } from "lit";
+import { LightDomElement } from "./light-dom-controller";
 import type { ReadingState } from "../domain/reference-library";
 import { errorMessage, expectOk, jsonFetch } from "./http";
 
@@ -15,7 +16,7 @@ export interface LibraryReferencePersonalFieldsData {
 
 export const libraryReferencePersonalRefreshEvent = "library-reference-personal-refresh";
 
-export class LibraryReferencePersonalFields extends LitElement {
+export class LibraryReferencePersonalFields extends LightDomElement {
   static override properties = {
     archived: { state: true },
     busy: { state: true },
@@ -69,15 +70,6 @@ export class LibraryReferencePersonalFields extends LitElement {
     this.referenceId = data.referenceId;
     this.status = "";
     this.tags = data.tags.join(", ");
-  }
-
-  override connectedCallback(): void {
-    if (!this.hasUpdated) this.replaceChildren();
-    super.connectedCallback();
-  }
-
-  protected override createRenderRoot(): HTMLElement {
-    return this;
   }
 
   protected override render(): TemplateResult {

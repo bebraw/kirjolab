@@ -34,15 +34,6 @@ export class LibraryReferenceSummary extends ProjectReferenceMutationElement {
     this.data = data;
   }
 
-  override connectedCallback(): void {
-    if (!this.hasUpdated) this.replaceChildren();
-    super.connectedCallback();
-  }
-
-  protected override createRenderRoot(): HTMLElement {
-    return this;
-  }
-
   protected override render(): TemplateResult {
     const data = this.data;
     if (!data) return html``;

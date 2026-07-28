@@ -1,5 +1,6 @@
-import { html, LitElement, type TemplateResult } from "lit";
+import { html, type TemplateResult } from "lit";
 import { bibTeXDisplayText } from "../domain/bibliography";
+import { LightDomElement } from "./light-dom-controller";
 import type { BibliographicRecord, ReferenceLibrarySnapshot, ResearchShareSnapshot } from "../domain/reference-library";
 import type { ProjectReferenceLink } from "../domain/workspace";
 import { LibraryReferenceMetadataEditor } from "./library-reference-metadata-editor";
@@ -21,7 +22,7 @@ interface FocusOptions {
   readonly expand?: boolean;
 }
 
-export class LibraryReferenceList extends LitElement {
+export class LibraryReferenceList extends LightDomElement {
   static override properties = { data: { state: true } };
 
   declare private data: LibraryReferenceListData | null;
@@ -58,15 +59,6 @@ export class LibraryReferenceList extends LitElement {
     card.scrollIntoView({ block: options.block });
     card.focus({ preventScroll: true });
     return true;
-  }
-
-  override connectedCallback(): void {
-    if (!this.hasUpdated) this.replaceChildren();
-    super.connectedCallback();
-  }
-
-  protected override createRenderRoot(): HTMLElement {
-    return this;
   }
 
   protected override render(): TemplateResult {

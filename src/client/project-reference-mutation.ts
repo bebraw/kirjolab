@@ -1,6 +1,6 @@
-import { LitElement } from "lit";
 import { isWorkspaceSnapshot, type WorkspaceSnapshot } from "../domain/workspace";
 import { expectOk, jsonFetch } from "./http";
+import { LightDomElement } from "./light-dom-controller";
 
 export const projectReferenceChangedEvent = "project-reference-changed";
 
@@ -13,7 +13,7 @@ export type ProjectReferenceMutation =
   | { readonly action: "link"; readonly citationAlias: string; readonly referenceId: string }
   | { readonly action: "unlink"; readonly referenceId: string };
 
-export abstract class ProjectReferenceMutationElement extends LitElement {
+export abstract class ProjectReferenceMutationElement extends LightDomElement {
   protected async changeProjectReference(apiBase: string, mutation: ProjectReferenceMutation): Promise<void> {
     const snapshot = await this.requestProjectReferenceMutation(apiBase, mutation);
     const message =

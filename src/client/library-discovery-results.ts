@@ -1,4 +1,5 @@
-import { html, LitElement, type TemplateResult } from "lit";
+import { html, type TemplateResult } from "lit";
+import { LightDomElement } from "./light-dom-controller";
 import { referenceDiscoveryIdentifierUrl, type ReferenceDiscoveryResult } from "../domain/reference-discovery";
 import { errorMessage } from "./http";
 import { importDiscoveredReference } from "./reference-discovery-import";
@@ -13,7 +14,7 @@ export interface LibraryDiscoveryRefresh {
 
 type SaveState = "idle" | "saving" | "saved";
 
-export class LibraryDiscoveryResults extends LitElement {
+export class LibraryDiscoveryResults extends LightDomElement {
   static override properties = {
     results: { state: true },
     saveStates: { state: true },
@@ -52,15 +53,6 @@ export class LibraryDiscoveryResults extends LitElement {
     if (this.requestIds.get(index) !== requestId) return;
     this.requestIds.delete(index);
     this.setSaveState(index, "saved");
-  }
-
-  override connectedCallback(): void {
-    if (!this.hasUpdated) this.replaceChildren();
-    super.connectedCallback();
-  }
-
-  protected override createRenderRoot(): HTMLElement {
-    return this;
   }
 
   protected override render(): TemplateResult {

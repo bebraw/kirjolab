@@ -1,4 +1,5 @@
-import { html, LitElement, nothing, type TemplateResult } from "lit";
+import { html, nothing, type TemplateResult } from "lit";
+import { LightDomElement } from "./light-dom-controller";
 import type { BibliographicRecord, LibraryPdfArtifact } from "../domain/reference-library";
 import { errorMessage, expectOk, jsonFetch } from "./http";
 
@@ -9,7 +10,7 @@ export type LibraryReferencePdfAction =
 export const libraryReferencePdfActionEvent = "library-reference-pdf-action";
 export const libraryReferencePdfRefreshEvent = "library-reference-pdf-refresh";
 
-export class LibraryReferencePdfRows extends LitElement {
+export class LibraryReferencePdfRows extends LightDomElement {
   static override properties = {
     artifacts: { state: true },
     linked: { state: true },
@@ -39,15 +40,6 @@ export class LibraryReferencePdfRows extends LitElement {
     this.linked = linked;
     this.savingArtifactId = "";
     this.status = "";
-  }
-
-  override connectedCallback(): void {
-    if (!this.hasUpdated) this.replaceChildren();
-    super.connectedCallback();
-  }
-
-  protected override createRenderRoot(): HTMLElement {
-    return this;
   }
 
   protected override render(): TemplateResult {

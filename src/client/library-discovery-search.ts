@@ -1,4 +1,5 @@
-import { html, LitElement, type TemplateResult } from "lit";
+import { html, type TemplateResult } from "lit";
+import { LightDomElement } from "./light-dom-controller";
 import {
   isReferenceDiscoveryResults,
   referenceDiscoveryTypes,
@@ -22,7 +23,7 @@ const typeLabels: Readonly<Record<ReferenceDiscoveryType, string>> = {
   techreport: "Report",
 };
 
-export class LibraryDiscoverySearch extends LitElement {
+export class LibraryDiscoverySearch extends LightDomElement {
   static override properties = {
     busy: { state: true },
     status: { state: true },
@@ -47,15 +48,6 @@ export class LibraryDiscoverySearch extends LitElement {
   showError(message: string): void {
     this.busy = false;
     this.status = message;
-  }
-
-  override connectedCallback(): void {
-    if (!this.hasUpdated) this.replaceChildren();
-    super.connectedCallback();
-  }
-
-  protected override createRenderRoot(): HTMLElement {
-    return this;
   }
 
   protected override render(): TemplateResult {

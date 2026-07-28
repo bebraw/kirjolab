@@ -1,4 +1,5 @@
-import { html, LitElement, nothing, type TemplateResult } from "lit";
+import { html, nothing, type TemplateResult } from "lit";
+import { LightDomElement } from "./light-dom-controller";
 import {
   crossrefMetadataFields,
   isMetadataRefinementPreview,
@@ -47,7 +48,7 @@ const emptyValue: LibraryReferenceMetadataValue = {
 const textFields = ["type", "title", "authors", "year", "venue", "doi", "url"] as const;
 const pdfFields = ["title", "authors", "year", "doi"] as const;
 
-export class LibraryReferenceMetadataEditor extends LitElement {
+export class LibraryReferenceMetadataEditor extends LightDomElement {
   static override properties = {
     busy: { state: true },
     value: { state: true },
@@ -132,15 +133,6 @@ export class LibraryReferenceMetadataEditor extends LitElement {
       if (suggested && suggested !== this.currentValue(field)) this.pdfSelections.add(field);
     }
     this.resetProviderSelections();
-  }
-
-  override connectedCallback(): void {
-    if (!this.hasUpdated) this.replaceChildren();
-    super.connectedCallback();
-  }
-
-  protected override createRenderRoot(): HTMLElement {
-    return this;
   }
 
   protected override render(): TemplateResult {

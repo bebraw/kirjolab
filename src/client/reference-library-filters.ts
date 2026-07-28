@@ -1,4 +1,5 @@
-import { html, LitElement, type TemplateResult } from "lit";
+import { html, type TemplateResult } from "lit";
+import { LightDomElement } from "./light-dom-controller";
 import type { BibliographicRecord, ReferenceLibrarySnapshot } from "../domain/reference-library";
 import { filterReferenceLibrary, type ReferenceLibraryFilters } from "../domain/reference-filters";
 
@@ -16,7 +17,7 @@ const emptyFilters: ReferenceLibraryFilters = {
 
 type LinkedReference = { readonly referenceId: string };
 
-export class ReferenceLibraryFilterPanel extends LitElement {
+export class ReferenceLibraryFilterPanel extends LightDomElement {
   static override properties = {
     count: { state: true },
     filters: { state: true },
@@ -52,15 +53,6 @@ export class ReferenceLibraryFilterPanel extends LitElement {
     this.count = references.length;
     this.total = library.references.length;
     return references;
-  }
-
-  override connectedCallback(): void {
-    if (!this.hasUpdated) this.replaceChildren();
-    super.connectedCallback();
-  }
-
-  protected override createRenderRoot(): HTMLElement {
-    return this;
   }
 
   protected override render(): TemplateResult {
