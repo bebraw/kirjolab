@@ -1,4 +1,5 @@
-import { html, LitElement, nothing, type TemplateResult } from "lit";
+import { html, nothing, type TemplateResult } from "lit";
+import { LightDomElement } from "./light-dom-controller";
 import type {
   ModelClarityQuestion,
   ModelClarityRewrites,
@@ -89,7 +90,7 @@ type AssistantResultView =
       readonly options: readonly RevisionOption[];
     };
 
-export class AssistantResultPanel extends LitElement {
+export class AssistantResultPanel extends LightDomElement {
   static override properties = {
     referenceSaveState: { state: true },
     referenceStatus: { state: true },
@@ -277,15 +278,6 @@ export class AssistantResultPanel extends LitElement {
     if (this.referenceRequestIds.get(index) !== requestId) return;
     this.referenceRequestIds.delete(index);
     this.setReferenceSaveState(index, "saved");
-  }
-
-  override connectedCallback(): void {
-    if (!this.hasUpdated) this.replaceChildren();
-    super.connectedCallback();
-  }
-
-  protected override createRenderRoot(): HTMLElement {
-    return this;
   }
 
   protected override render(): TemplateResult | typeof nothing {

@@ -1,4 +1,5 @@
-import { html, LitElement, type TemplateResult } from "lit";
+import { html, type TemplateResult } from "lit";
+import { LightDomElement } from "./light-dom-controller";
 import type { AnnotationResource, ClaimResource, ModelEvidenceReference } from "../domain/workspace";
 import type { AssistantOperationDefinition, AssistantOperationId } from "./assistant-operations";
 import { maximumModelEvidenceItems, type ModelEvidenceItem } from "./model-provider";
@@ -23,7 +24,7 @@ export interface AssistantGenerationRequirements {
   readonly stableDocument: boolean;
 }
 
-export class AssistantWorkflowStatus extends LitElement {
+export class AssistantWorkflowStatus extends LightDomElement {
   static override properties = {
     operationId: { state: true },
     status: { state: true },
@@ -154,15 +155,6 @@ export class AssistantWorkflowStatus extends LitElement {
   protected openSettings(event: Event): void {
     event.stopPropagation();
     this.emitAction("open-settings");
-  }
-
-  override connectedCallback(): void {
-    if (!this.hasUpdated) this.replaceChildren();
-    super.connectedCallback();
-  }
-
-  protected override createRenderRoot(): HTMLElement {
-    return this;
   }
 
   protected override render(): TemplateResult {

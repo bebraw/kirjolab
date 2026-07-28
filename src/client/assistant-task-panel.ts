@@ -1,4 +1,5 @@
-import { html, LitElement, type TemplateResult } from "lit";
+import { html, type TemplateResult } from "lit";
+import { LightDomElement } from "./light-dom-controller";
 import { isPhrasingPurposeId, phrasingPurposes, type PhrasingPurpose } from "../domain/phrasing-guidance";
 import type { ClaimEvidenceRelation } from "../domain/workspace";
 import {
@@ -44,7 +45,7 @@ export interface AssistantGenerationAvailability {
   readonly workflowBusy: boolean;
 }
 
-export class AssistantTaskPanel extends LitElement {
+export class AssistantTaskPanel extends LightDomElement {
   static override properties = {
     generateDisabled: { state: true },
     instruction: { state: true },
@@ -164,15 +165,6 @@ export class AssistantTaskPanel extends LitElement {
     }
     const excerpt = passage.replace(/\s+/gu, " ").trim();
     this.targetPreview = `${assistantTargetScopeLabel(scope)} · “${excerpt.slice(0, 180)}${excerpt.length > 180 ? "…" : ""}”`;
-  }
-
-  override connectedCallback(): void {
-    if (!this.hasUpdated) this.replaceChildren();
-    super.connectedCallback();
-  }
-
-  protected override createRenderRoot(): HTMLElement {
-    return this;
   }
 
   protected override render(): TemplateResult {

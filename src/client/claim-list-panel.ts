@@ -1,4 +1,5 @@
-import { html, LitElement, nothing, type TemplateResult } from "lit";
+import { html, nothing, type TemplateResult } from "lit";
+import { LightDomElement } from "./light-dom-controller";
 import type {
   AnnotationResource,
   ClaimEvidenceLink,
@@ -29,7 +30,7 @@ interface ClaimListData {
   readonly selectedEvidenceKeys: ReadonlySet<string>;
 }
 
-export class ClaimListPanel extends LitElement {
+export class ClaimListPanel extends LightDomElement {
   static override properties = {
     data: { state: true },
     deletingClaimId: { state: true },
@@ -104,15 +105,6 @@ export class ClaimListPanel extends LitElement {
     } catch (error) {
       this.status = errorMessage(error, "Could not link the claim to the selected passage.");
     }
-  }
-
-  override connectedCallback(): void {
-    if (!this.hasUpdated) this.replaceChildren();
-    super.connectedCallback();
-  }
-
-  protected override createRenderRoot(): HTMLElement {
-    return this;
   }
 
   protected override render(): TemplateResult {

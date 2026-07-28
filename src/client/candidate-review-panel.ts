@@ -1,4 +1,5 @@
-import { html, LitElement, nothing, type TemplateResult } from "lit";
+import { html, nothing, type TemplateResult } from "lit";
+import { LightDomElement } from "./light-dom-controller";
 import type { AnnotationResource, ClaimResource, ModelCandidate, ModelEvidence } from "../domain/workspace";
 import { errorMessage, expectOk } from "./http";
 
@@ -40,7 +41,7 @@ export interface CandidateReviewSources {
   readonly stableDocument: boolean;
 }
 
-export class CandidateReviewPanel extends LitElement {
+export class CandidateReviewPanel extends LightDomElement {
   static override properties = {
     data: { state: true },
     failure: { state: true },
@@ -132,15 +133,6 @@ export class CandidateReviewPanel extends LitElement {
   set scrollPosition(value: number) {
     const scroll = this.querySelector<HTMLElement>("#context-candidate-scroll");
     if (scroll) scroll.scrollTop = value;
-  }
-
-  override connectedCallback(): void {
-    if (!this.hasUpdated) this.replaceChildren();
-    super.connectedCallback();
-  }
-
-  protected override createRenderRoot(): HTMLElement {
-    return this;
   }
 
   protected override render(): TemplateResult {

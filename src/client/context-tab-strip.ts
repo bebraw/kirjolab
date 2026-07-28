@@ -1,4 +1,5 @@
-import { html, LitElement, type PropertyValues, type TemplateResult } from "lit";
+import { html, type PropertyValues, type TemplateResult } from "lit";
+import { LightDomElement } from "./light-dom-controller";
 import type { LibraryPdfArtifact, ProjectReferencePdf } from "../domain/reference-library";
 import type { ModelCandidate, PdfResource, PublicationResource } from "../domain/workspace";
 import "./preview-navigation-control";
@@ -59,7 +60,7 @@ export function contextTabFocusIndex(key: string, currentIndex: number, tabCount
   return null;
 }
 
-export class ContextTabStrip extends LitElement {
+export class ContextTabStrip extends LightDomElement {
   static override properties = {
     data: { state: true },
   };
@@ -108,15 +109,6 @@ export class ContextTabStrip extends LitElement {
         .find((tab) => tab.id === id)
         ?.focus(),
     );
-  }
-
-  override connectedCallback(): void {
-    if (!this.hasUpdated) this.replaceChildren();
-    super.connectedCallback();
-  }
-
-  protected override createRenderRoot(): HTMLElement {
-    return this;
   }
 
   protected override render(): TemplateResult {

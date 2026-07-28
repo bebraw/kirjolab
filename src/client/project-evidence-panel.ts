@@ -1,4 +1,5 @@
-import { html, LitElement, nothing, type TemplateResult } from "lit";
+import { html, nothing, type TemplateResult } from "lit";
+import { LightDomElement } from "./light-dom-controller";
 import type {
   AnnotationResource,
   CreatePassageLinkInput,
@@ -38,7 +39,7 @@ type ProjectEvidenceData = Omit<ProjectEvidenceSnapshot, "links"> & {
   readonly selectedEvidenceKeys: ReadonlySet<string>;
 };
 
-export class ProjectEvidencePanel extends LitElement {
+export class ProjectEvidencePanel extends LightDomElement {
   static override properties = {
     data: { state: true },
     evidenceOpen: { state: true },
@@ -172,15 +173,6 @@ export class ProjectEvidencePanel extends LitElement {
     } finally {
       this.mutationKey = "";
     }
-  }
-
-  override connectedCallback(): void {
-    if (!this.hasUpdated) this.replaceChildren();
-    super.connectedCallback();
-  }
-
-  protected override createRenderRoot(): HTMLElement {
-    return this;
   }
 
   protected override render(): TemplateResult {
