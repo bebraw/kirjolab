@@ -342,6 +342,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   entry instead of accepting a duplicate open-settings callback. Let the
   detailed sync review own its Pull, Publish, and disconnect requests because
   their validation, payloads, progress, and results are local to that review.
+  Keep Pull previews, Publish previews, and Publish confirmation results in the
+  shared Valibot response-contract boundary; do not add local generic record
+  predicates for individual GitHub responses.
   Emit completed synchronization mutations so the application coordinator can
   refresh canonical project and cross-component status state; retain page-level
   refresh pause policy, project refresh, and navigation in the coordinator.

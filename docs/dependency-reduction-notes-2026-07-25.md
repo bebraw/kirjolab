@@ -14664,6 +14664,26 @@ immutable route and mode derivation to the validated bootstrap boundary.
 Full native CI passes all 1,779 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Valibot Reuse: GitHub Publish Result
+
+The detailed GitHub sync review now validates Publish confirmation responses
+through the shared Valibot response-contract boundary used by its neighboring
+Pull and Publish previews. This removes its local generic record predicate and
+keeps the serialized GitHub workflow shape in one typed schema authority.
+
+This checkpoint is production-line neutral and adds one focused negative
+contract case. The affected guardrail passes 142 related cases across fourteen
+suites plus all 18 directly affected contract cases, alongside formatting,
+lint, and all strict TypeScript targets. The browser application changes from
+847,239 B raw / 231,226 B gzip to 847,171 B raw / 231,187 B gzip (-68 B raw /
+-39 B gzip); direct and unique production package counts remain 18 and 150, and
+the other static artifacts remain unchanged. Architecture, ADR, and scholarly-
+workspace contracts now require shared Valibot validation for serialized
+GitHub sync-review results.
+
+Full native CI passes all 1,779 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,

@@ -81,6 +81,9 @@ collaboration.
   result once from its connected lifecycle, waits for its light-DOM template,
   opens itself, and removes the one-shot query without application startup
   wiring.
+  The detailed GitHub sync review validates Pull previews, Publish previews,
+  and Publish confirmation results through one shared Valibot response-contract
+  boundary before applying their presentation or completion effects.
   The template-save owner binds its project API, canonical starting-point
   source, and toast owner atomically; it must not expose a partially configured
   production state.

@@ -7,6 +7,7 @@ import {
   isGitHubImportPreview,
   isGitHubInstallationList,
   isGitHubPublishPreview,
+  isGitHubPublishResult,
   isGitHubPullPreview,
   isGitHubRepositoryList,
   isGitHubSyncState,
@@ -65,6 +66,12 @@ describe("app response contracts", () => {
       }),
     ).toBe(false);
     expect(isWebSnapshotComparisonResponse(null)).toBe(false);
+  });
+
+  it("validates GitHub publish results", () => {
+    expect(isGitHubPublishResult({ commitSha: "a".repeat(40) })).toBe(true);
+    expect(isGitHubPublishResult({ commitSha: 1 })).toBe(false);
+    expect(isGitHubPublishResult(null)).toBe(false);
   });
 
   it("validates disconnected and connected GitHub account states", () => {

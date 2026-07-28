@@ -1,4 +1,5 @@
 import { html, nothing, type TemplateResult } from "lit";
+import { isGitHubPublishResult } from "./app-contracts";
 import { isGitHubPublishPreview, isGitHubPullPreview, type GitHubPublishPreview, type GitHubPullPreview } from "./app-contracts";
 import { LightDomElement } from "./light-dom-controller";
 import { errorMessage, expectOk, jsonFetch } from "./http";
@@ -320,7 +321,7 @@ export class GitHubSyncReview extends LightDomElement {
     this.beginPublish();
     try {
       const value = await this.post("publishes", { previewId: this.publishPreview.id });
-      if (!isRecord(value) || typeof value.commitSha !== "string") throw new Error("GitHub returned an invalid publish result");
+      if (!isGitHubPublishResult(value)) throw new Error("GitHub returned an invalid publish result");
       this.showPublishSuccess(value.commitSha);
       this.emitMutation("publish");
     } catch (error) {
@@ -347,10 +348,6 @@ export class GitHubSyncReview extends LightDomElement {
   private emitMutation(detail: GitHubSyncMutation): void {
     this.dispatchEvent(new CustomEvent<GitHubSyncMutation>(gitHubSyncMutationEvent, { bubbles: true, detail }));
   }
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function validConflictChoice(value: string): value is "local" | "remote" {

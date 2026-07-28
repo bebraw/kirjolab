@@ -106,9 +106,11 @@ const gitHubPublishPreviewSchema = v.object({
     blocking: v.array(v.unknown()),
   }),
 });
+const gitHubPublishResultSchema = v.object({ commitSha: v.string() });
 
 export type GitHubPullPreview = v.InferInput<typeof gitHubPullPreviewSchema>;
 export type GitHubPublishPreview = v.InferInput<typeof gitHubPublishPreviewSchema>;
+export type GitHubPublishResult = v.InferInput<typeof gitHubPublishResultSchema>;
 
 const latexArchiveSchema = v.object({
   files: v.array(
@@ -215,6 +217,7 @@ export const isGitHubImportResult = schemaGuard(gitHubImportResultSchema);
 export const isGitHubSyncState = schemaGuard(gitHubSyncStateSchema);
 export const isGitHubPullPreview = schemaGuard(gitHubPullPreviewSchema);
 export const isGitHubPublishPreview = schemaGuard(gitHubPublishPreviewSchema);
+export const isGitHubPublishResult = schemaGuard(gitHubPublishResultSchema);
 export const isLatexImportPreview = schemaGuard(latexImportPreviewSchema);
 export const isLatexImportResult = schemaGuard(latexImportResultSchema);
 

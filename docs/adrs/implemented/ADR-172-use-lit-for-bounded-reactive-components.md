@@ -549,8 +549,10 @@ The adopted components own bounded presentation:
   sync menu owns its read-only connection and status request lifecycle because
   its interval, validation, stale-request protection, and primary result
   presentation are local to that component. The sync review owns its Pull,
-  Publish, and disconnect request lifecycle for the same reason. It emits only
-  completed mutations; the sync menu's explicit workspace binding owns refresh
+  Publish, and disconnect request lifecycle for the same reason, while the
+  shared Valibot contract boundary validates its serialized preview and Publish
+  confirmation results. It emits only completed mutations; the sync menu's
+  explicit workspace binding owns refresh
   pause policy, preview entry points, canonical project refresh after Pull, and
   status refresh after every mutation. The application coordinator retains the
   settings view and canonical project-fetch implementation.
