@@ -11752,6 +11752,29 @@ and PDF.js artifacts remain unchanged at 135,411 B / 23,373 B, 204,779 B /
 Full native CI passes all 1,761 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Preview Document Observation
+
+`WorkspacePreview` now owns one document-wide Yjs update subscription and Lit
+disconnect teardown through its existing project binding. This replaces the
+coordinator's separate source and bibliography observers and its duplicate local
+update render, while ensuring every bound project-file update follows the same
+canonical render path.
+
+This checkpoint reduces `src/client/app.ts` from 566 to 563 lines (-3) and grows
+the Preview owner from 458 to 479 lines (+21). The 18-line combined increase
+makes observer lifetime explicit and removes overlapping render triggers.
+Focused coverage passes document-wide update rendering, disconnect teardown,
+the bound project request, and strict types. Direct and unique production
+package counts remain 18 and 150; Lit and Yjs were already pinned.
+
+The browser application artifact increases from 859,931 B raw / 231,446 B gzip
+to 860,194 B / 231,511 B (+263 B raw / +65 B gzip). Styles and lazy Markdown and
+PDF.js artifacts remain unchanged at 135,411 B / 23,373 B, 204,779 B / 62,386 B,
+and 481,994 B / 146,135 B.
+
+Full native CI passes all 1,761 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Standalone Library PDF History
 
 `ReferenceLibraryWorkspace` now owns private-PDF push routes, active-page route

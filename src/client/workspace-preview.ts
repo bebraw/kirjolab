@@ -132,13 +132,21 @@ export class WorkspacePreview extends LitElement {
   }
 
   bindProject(apiBase: string, document: Y.Doc, snapshot: () => WorkspaceSnapshot | null, owners: WorkspacePreviewProjectOwners): void {
+    this.unbindProjectUpdates();
     this.projectBinding = { apiBase, document, owners, snapshot };
+    this.bindProjectUpdates();
   }
 
   override connectedCallback(): void {
     if (!this.hasUpdated) this.replaceChildren();
     super.connectedCallback();
+    this.bindProjectUpdates();
     void this.loadRuntime().catch(() => undefined);
+  }
+
+  override disconnectedCallback(): void {
+    this.unbindProjectUpdates();
+    super.disconnectedCallback();
   }
 
   protected override createRenderRoot(): HTMLElement {
@@ -241,6 +249,19 @@ export class WorkspacePreview extends LitElement {
       snapshot,
     });
   }
+
+  private bindProjectUpdates(): void {
+    const document = this.projectBinding?.document;
+    if (!document) return;
+    document.off("update", this.renderProjectUpdate);
+    document.on("update", this.renderProjectUpdate);
+  }
+
+  private unbindProjectUpdates(): void {
+    this.projectBinding?.document.off("update", this.renderProjectUpdate);
+  }
+
+  private readonly renderProjectUpdate = (): void => void this.renderBoundProject();
 
   syncFromSource(explicit = true): boolean {
     const binding = this.projectBinding;

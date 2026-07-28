@@ -92,7 +92,8 @@ collaboration.
   centered source-offset derivation, Preview-to-source file-qualified focus
   intent, and source-viewport centering. Workspace Preview derives source-to-
   Preview automatic-versus-explicit eligibility from its bound active-file,
-  context, and layout projections and owns mapped DOM navigation. The
+  context, and layout projections, owns one document-wide Yjs update
+  subscription with disconnect teardown, and owns mapped DOM navigation. The
   coordinator retains those canonical authorities plus file activation, mode,
   caret, and source-focus policy.
   A bounded progressive Lit control owns browser-local top-navigation

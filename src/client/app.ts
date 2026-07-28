@@ -349,15 +349,12 @@ class WorkspaceApp {
     });
     this.#elements.projectHistoryTrigger.bindRevision(this.#elements, () => this.#offline.schedule());
     this.#elements.contextResourcePresenter.bindManuscriptComments(apiBase);
-    this.#source.observe(() => void this.#elements.workspacePreview.renderBoundProject());
-    this.#bibliography.observe(() => void this.#elements.workspacePreview.renderBoundProject());
     this.#document.on("update", (update: Uint8Array, origin: unknown) => {
       this.#offline.schedule();
       if (origin === remoteOrigin || origin === offlineOrigin) return;
       this.#collaboration.enqueue(update);
       this.#elements.editorStatus.setSave(this.#collaboration.synced ? "Saving…" : "Saving offline…");
       this.#elements.assistantGenerationPresenter.refreshAvailability();
-      void this.#elements.workspacePreview.renderBoundProject();
       this.#collaborationSocket.flush();
     });
     this.#elements.contextResourcePresenter.bindProjectEvidence(apiBase);

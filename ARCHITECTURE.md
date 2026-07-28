@@ -190,6 +190,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   resolution. Bind the canonical Yjs document, snapshot source, project-file
   owner, and hidden-asset owner once; let Preview derive its live source,
   bibliography, resolved anchors, publication composition, active-file preview,
+  and subscribe once to document-wide Yjs updates with disconnect teardown so
+  every collaborative file change schedules one canonical project render. Let
+  it also derive
   synchronized status and source-map sibling projection, manuscript-map and
   live export-statistics companion
   projection, and available-outcome projection of a supplied anchor-resolved

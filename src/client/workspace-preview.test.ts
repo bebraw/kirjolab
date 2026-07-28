@@ -166,6 +166,13 @@ describe("workspace preview", () => {
     await preview.renderBoundProject("Override bibliography");
     expect(preview.syncFromSource(false)).toBe(true);
 
+    documentModel.getText("notes").insert(0, "Observed project update");
+    await vi.waitFor(() => expect(renderProject).toHaveBeenCalledTimes(3));
+    preview.disconnectedCallback();
+    documentModel.getText("notes").insert(0, "Detached update");
+    await Promise.resolve();
+    expect(renderProject).toHaveBeenCalledTimes(3);
+
     expect(renderProject).toHaveBeenNthCalledWith(
       1,
       expect.objectContaining({
