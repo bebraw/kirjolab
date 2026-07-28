@@ -337,7 +337,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   owner. It derives initial load from absence of its canonical snapshot, owns
   bootstrap-versus-refresh presentation, installs the snapshot, presents
   Context, schedules offline persistence, and refreshes linked PDFs in order.
-  An offline-restored projection therefore makes the next network load a normal
+  The same binding lets it request offline restoration, recover collaboration
+  state and availability, set revision and the authorized catalog row, install
+  and present the snapshot, project connection status, and render Preview. An
+  offline-restored projection therefore makes the next network load a normal
   refresh without a separate bootstrap flag. The project-file owner is the
   single browser projection and read source for the accepted snapshot; the
   coordinator must not retain a duplicate copy.

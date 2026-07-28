@@ -11919,6 +11919,32 @@ and PDF.js artifacts remain unchanged at 135,411 B / 23,373 B, 204,779 B /
 Full native CI passes all 1,767 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Offline Project Restoration
+
+`ProjectFileDialog` now consumes the typed offline restoration result through
+its existing project-lifecycle binding. It recovers collaboration state and
+availability, sets revision and the authorized catalog row, installs and
+presents the project and Context, projects connection status, and renders
+Preview. `WorkspaceApp` no longer reconstructs this sequence or retains any
+standalone workflow method beyond its binding phase.
+
+This checkpoint reduces `src/client/app.ts` from 515 to 504 lines (-11) and
+grows the project-file owner from 560 to 586 lines (+26). The 15-line combined
+increase unifies online and offline project projection behind the same owner and
+removes a seven-authority coordinator workflow. Focused coverage passes restored
+and absent state, collaboration recovery, catalog and revision presentation,
+project and Context projection, connection status, Preview rendering, affected
+integrations, and strict types. Direct and unique production package counts
+remain 18 and 150; Lit and Valibot were already pinned.
+
+The browser application artifact increases from 861,694 B raw / 231,912 B gzip
+to 861,791 B / 231,953 B (+97 B raw / +41 B gzip). Styles and lazy Markdown and
+PDF.js artifacts remain unchanged at 135,411 B / 23,373 B, 204,779 B / 62,386 B,
+and 481,994 B / 146,135 B.
+
+Full native CI passes all 1,768 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: One-Shot Browser Entry Intents
 
 `ProjectStartingPointBrowser` now consumes the `create=1` editor intent, removes

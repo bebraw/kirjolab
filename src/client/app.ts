@@ -135,7 +135,7 @@ class WorkspaceApp {
     void this.#elements.workspaceLayout.restore();
     this.#elements.source.disabled = true;
     this.#elements.bibliography.disabled = true;
-    const restored = await this.#restoreOfflineWorkspace();
+    const restored = await this.#elements.projectFileDialog.restoreOfflineProject();
     try {
       await this.#elements.workspaceCatalogPanel.refresh();
     } catch (error) {
@@ -324,6 +324,9 @@ class WorkspaceApp {
     this.#elements.projectFileDialog.bindProjectRefresh({
       assetBase: `${apiBase}/assets`,
       bibliography: this.#elements.bibliography,
+      catalog: this.#elements.workspaceCatalogPanel,
+      collaboration: this.#collaboration,
+      connection: this.#elements.connectionStatus,
       context: this.#elements.contextResourcePresenter,
       history: this.#elements.projectHistoryTrigger,
       load: () => loadWorkspaceSnapshot(apiBase, this.#document, this.#collaboration.synced),
@@ -489,20 +492,6 @@ class WorkspaceApp {
     this.#elements.assistantGenerationPresenter.bindCandidate(apiBase);
     this.#elements.assistantGenerationPresenter.bindResults();
     this.#elements.assistantGenerationPresenter.bindControls();
-  }
-
-  async #restoreOfflineWorkspace(): Promise<boolean> {
-    const restored = await this.#offline.restore();
-    if (!restored) return false;
-    const pending = this.#collaboration.restoreOffline(restored.serverStateVector);
-    this.#collaboration.setOfflineAvailable(true);
-    this.#elements.projectHistoryTrigger.setRevision(restored.snapshot.revision);
-    this.#elements.workspaceCatalogPanel.presentOfflineWorkspace(restored.snapshot, restored.savedAt);
-    this.#elements.projectFileDialog.presentProject(restored.snapshot, `${apiBase}/assets`, appMode === "workspace");
-    this.#elements.contextResourcePresenter.presentBoundWorkspace();
-    this.#elements.connectionStatus.presentOfflineRestore(pending);
-    void this.#elements.workspacePreview.renderBoundProject();
-    return true;
   }
 }
 

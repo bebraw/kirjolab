@@ -400,13 +400,15 @@ collaboration.
   snapshot and server-vector sources, availability guard, and save outcomes. It
   owns Yjs encoding, guarded debounced scheduling and flush, restoration
   delegation, project-copy clearing, and coordinated IndexedDB and shell-cache
-  cleanup. Collaboration recovery and restored-state UI projection remain
-  outside that persistence boundary.
+  cleanup. The project-file owner consumes the typed restoration result and
+  sequences collaboration recovery plus restored revision, catalog, project,
+  Context, connection, and Preview projection through its bound lifecycle
+  capabilities.
   The workspace-catalog owner derives the single authorized offline project row
   from restored snapshot identity, title, and save time. The connection-status
   owner combines restored collaboration/editability projection with pending-
-  versus-saved wording. Canonical snapshot assignment, collaboration recovery,
-  project presentation, and Preview rendering remain coordinator effects.
+  versus-saved wording. The coordinator supplies the capabilities but does not
+  reconstruct the restoration sequence.
 - **Offline shell updates:** Browser builds derive the Kirjolab Cache Storage
   namespace from emitted shell content. Workspace and Library startup both
   check an existing registration for an update without adding Library

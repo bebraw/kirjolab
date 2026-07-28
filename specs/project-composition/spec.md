@@ -242,8 +242,11 @@ collaborative, and unambiguous about what preview and export mean.
   state from the absence of its retained snapshot, presents initial source and
   bibliography or refreshes Preview as appropriate, installs the snapshot,
   presents Context, schedules offline persistence, and refreshes linked PDFs in
-  order. Restoring an offline snapshot makes the next network result a normal
-  refresh without separate coordinator state.
+  order. Through the same binding, offline restoration recovers collaboration
+  state and availability, sets revision and the authorized catalog row,
+  installs and presents the project and Context, projects connection status,
+  and renders Preview. The next network result is therefore a normal refresh
+  without separate coordinator state.
   It also owns encoded file deletion transport and shares the same response
   validation across create, rename, and delete operations, plus the supporting-
   file hidden projection, delayed deletion, Undo, and failed-commit restoration.

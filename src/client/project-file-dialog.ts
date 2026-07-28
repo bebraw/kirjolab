@@ -6,6 +6,7 @@ import { errorMessage, expectOk, jsonFetch } from "./http";
 import { projectFileActionEvent, type ProjectFileAction } from "./project-file-actions";
 import { projectImagesUploadedEvent, type ProjectImagesUploaded } from "./project-image-upload-control";
 import { projectTreeActionEvent, type ProjectTreeAction, type ProjectTreeCallbacks, type ProjectTreeData } from "./project-tree-panel";
+import type { RestoredOfflineWorkspace } from "./offline-workspace";
 
 export type ProjectFileDialogMode = "create" | "create-and-include" | "rename" | "create-folder" | "rename-folder";
 
@@ -31,13 +32,22 @@ export interface ProjectFileMutationCallbacks {
 export interface ProjectRefreshBinding {
   readonly assetBase: string;
   readonly bibliography: { value: string };
+  readonly catalog: { presentOfflineWorkspace(workspace: Pick<WorkspaceSnapshot, "id" | "title">, savedAt: string): void };
+  readonly collaboration: {
+    restoreOffline(serverStateVector: Uint8Array): boolean;
+    setOfflineAvailable(available: boolean): void;
+  };
+  readonly connection: { presentOfflineRestore(pending: boolean): void };
   readonly context: {
     presentBoundWorkspace(): void;
     refreshBoundReferencePdfs(): Promise<void>;
   };
   readonly history: { setRevision(revision: number): void };
   readonly load: () => Promise<WorkspaceSnapshot>;
-  readonly offline: { schedule(): void };
+  readonly offline: {
+    restore(): Promise<RestoredOfflineWorkspace | null>;
+    schedule(): void;
+  };
   readonly preview: { renderBoundProject(bibliography?: string): unknown };
   readonly source: { value: string };
   readonly workspace: boolean;
@@ -290,6 +300,22 @@ export class ProjectFileDialog extends LitElement {
     binding.context.presentBoundWorkspace();
     binding.offline.schedule();
     await binding.context.refreshBoundReferencePdfs();
+  }
+
+  async restoreOfflineProject(): Promise<boolean> {
+    const binding = this.refreshBinding;
+    if (!binding) return false;
+    const restored = await binding.offline.restore();
+    if (!restored) return false;
+    const pending = binding.collaboration.restoreOffline(restored.serverStateVector);
+    binding.collaboration.setOfflineAvailable(true);
+    binding.history.setRevision(restored.snapshot.revision);
+    binding.catalog.presentOfflineWorkspace(restored.snapshot, restored.savedAt);
+    this.presentProject(restored.snapshot, binding.assetBase, binding.workspace);
+    binding.context.presentBoundWorkspace();
+    binding.connection.presentOfflineRestore(pending);
+    void binding.preview.renderBoundProject();
+    return true;
   }
 
   private ensureActiveFile(snapshot: WorkspaceSnapshot): ProjectFile | null {

@@ -83,6 +83,23 @@ function mutationCallbacks(): ProjectFileMutationCallbacks {
   };
 }
 
+function projectRefreshBinding() {
+  return {
+    assetBase: "/assets",
+    bibliography: { value: "" },
+    catalog: { presentOfflineWorkspace: vi.fn() },
+    collaboration: { restoreOffline: vi.fn(() => false), setOfflineAvailable: vi.fn() },
+    connection: { presentOfflineRestore: vi.fn() },
+    context: { presentBoundWorkspace: vi.fn(), refreshBoundReferencePdfs: vi.fn().mockResolvedValue(undefined) },
+    history: { setRevision: vi.fn() },
+    load: vi.fn().mockResolvedValue(snapshot),
+    offline: { restore: vi.fn().mockResolvedValue(null), schedule: vi.fn() },
+    preview: { renderBoundProject: vi.fn() },
+    source: { value: "" },
+    workspace: true,
+  };
+}
+
 describe("project file dialog", () => {
   it("classifies file and folder operations", () => {
     expect(projectFileDialogIsFolder("create")).toBe(false);
@@ -332,39 +349,47 @@ describe("project file dialog", () => {
     const panel = new TestProjectFileDialog();
     const callbacks = mutationCallbacks();
     const refreshed = { ...snapshot, revision: 2 };
-    const bibliography = { value: "" };
-    const context = { presentBoundWorkspace: vi.fn(), refreshBoundReferencePdfs: vi.fn().mockResolvedValue(undefined) };
-    const history = { setRevision: vi.fn() };
-    const load = vi.fn().mockResolvedValueOnce(snapshot).mockResolvedValueOnce(refreshed);
-    const offline = { schedule: vi.fn() };
-    const preview = { renderBoundProject: vi.fn() };
-    const source = { value: "" };
+    const binding = projectRefreshBinding();
+    binding.load.mockResolvedValueOnce(snapshot).mockResolvedValueOnce(refreshed);
     panel.configureApi("/api/workspaces/workspace", callbacks);
-    panel.bindProjectRefresh({
-      assetBase: "/assets",
-      bibliography,
-      context,
-      history,
-      load,
-      offline,
-      preview,
-      source,
-      workspace: true,
-    });
+    panel.bindProjectRefresh(binding);
 
     await panel.refreshProject();
     await panel.refreshProject();
 
-    expect(history.setRevision).toHaveBeenCalledWith(snapshot.revision);
-    expect(source.value).toBe(snapshot.source);
-    expect(bibliography.value).toBe(snapshot.bibliography);
-    expect(preview.renderBoundProject).toHaveBeenNthCalledWith(1, snapshot.bibliography);
-    expect(preview.renderBoundProject).toHaveBeenNthCalledWith(2);
+    expect(binding.history.setRevision).toHaveBeenCalledWith(snapshot.revision);
+    expect(binding.source.value).toBe(snapshot.source);
+    expect(binding.bibliography.value).toBe(snapshot.bibliography);
+    expect(binding.preview.renderBoundProject).toHaveBeenNthCalledWith(1, snapshot.bibliography);
+    expect(binding.preview.renderBoundProject).toHaveBeenNthCalledWith(2);
     expect(callbacks.presentFile).toHaveBeenLastCalledWith(refreshed.files[0], refreshed, false);
-    expect(context.presentBoundWorkspace).toHaveBeenCalledTimes(2);
-    expect(context.refreshBoundReferencePdfs).toHaveBeenCalledTimes(2);
-    expect(offline.schedule).toHaveBeenCalledTimes(2);
+    expect(binding.context.presentBoundWorkspace).toHaveBeenCalledTimes(2);
+    expect(binding.context.refreshBoundReferencePdfs).toHaveBeenCalledTimes(2);
+    expect(binding.offline.schedule).toHaveBeenCalledTimes(2);
     expect(panel.project).toBe(refreshed);
+  });
+
+  it("owns offline project restoration through the canonical projection", async () => {
+    const panel = new TestProjectFileDialog();
+    const callbacks = mutationCallbacks();
+    const binding = projectRefreshBinding();
+    const restored = { savedAt: "2026-07-28T12:00:00.000Z", serverStateVector: new Uint8Array([1]), snapshot };
+    binding.offline.restore.mockResolvedValueOnce(restored).mockResolvedValueOnce(null);
+    binding.collaboration.restoreOffline.mockReturnValue(true);
+    panel.configureApi("/api/workspaces/workspace", callbacks);
+    panel.bindProjectRefresh(binding);
+
+    await expect(panel.restoreOfflineProject()).resolves.toBe(true);
+    await expect(panel.restoreOfflineProject()).resolves.toBe(false);
+
+    expect(binding.collaboration.restoreOffline).toHaveBeenCalledWith(restored.serverStateVector);
+    expect(binding.collaboration.setOfflineAvailable).toHaveBeenCalledWith(true);
+    expect(binding.history.setRevision).toHaveBeenCalledWith(snapshot.revision);
+    expect(binding.catalog.presentOfflineWorkspace).toHaveBeenCalledWith(snapshot, restored.savedAt);
+    expect(callbacks.presentFile).toHaveBeenLastCalledWith(snapshot.files[0], snapshot, false);
+    expect(binding.context.presentBoundWorkspace).toHaveBeenCalledOnce();
+    expect(binding.connection.presentOfflineRestore).toHaveBeenCalledWith(true);
+    expect(binding.preview.renderBoundProject).toHaveBeenCalledOnce();
   });
 
   it("commits the validated workspace and emits the saved file identity", async () => {
