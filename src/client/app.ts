@@ -106,8 +106,7 @@ class WorkspaceApp {
     this.#elements.sourceCompletion.bindEditor(this.#elements.source, this.#elements.citationCompletionScope);
     this.#elements.editorStatus.bindCompanion(this.#elements.bibliography, this.#bibliography);
     this.#elements.projectImageUpload.configure(apiBase);
-    this.#elements.projectFileDialog.configureApi(apiBase);
-    this.#elements.projectFileDialog.bindPresentation(this.#elements);
+    this.#elements.projectFileDialog.configureApi(apiBase, this.#elements);
     this.#elements.projectFileDialog.bindLayout(this.#layout);
     this.#elements.projectFileDialog.bindLiveContent(this.#document, this.#collaboration);
     this.#elements.projectFileDialog.bindProjectRefresh(appMode === "workspace", this.#elements, this.#collaboration, this.#offline);

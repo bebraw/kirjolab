@@ -521,6 +521,7 @@ The adopted components own bounded presentation:
   and emits only a typed completed-import outcome.
 - The project file dialog owns file and folder operation copy, initial path,
   active operation mode and stable mutation target, focus, cancellation,
+  atomically bound project API and canonical presentation owners,
   create and rename transport, file deletion transport, content-bearing
   workflow-file lookup, existing-file selection and focus, lazy creation and
   created-file Guide navigation, shared
