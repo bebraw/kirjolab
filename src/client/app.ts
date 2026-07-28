@@ -27,7 +27,7 @@ class WorkspaceApp {
   readonly #pdfViewer: PdfEvidenceViewer;
   readonly #document = new Y.Doc();
   readonly #resourceRefresh = new CoalescedRefresh(async () => this.#elements.projectFileDialog.refreshProject());
-  readonly #collaboration = new CollaborationSession(this.#document, remoteOrigin);
+  readonly #collaboration = new CollaborationSession(this.#document, { remote: remoteOrigin, offline: offlineOrigin });
   readonly #collaborationSocket: CollaborationSocket;
   readonly #offline = new OfflineWorkspaceSession({
     document: this.#document,
@@ -99,7 +99,6 @@ class WorkspaceApp {
     this.#elements.projectHistoryDialog.configure(apiBase, this.#elements);
     this.#elements.projectHistoryTrigger.bindRevision(this.#elements, () => this.#offline.schedule());
     this.#elements.contextResourcePresenter.bindProjectKnowledge(apiBase, this.#elements, this.#pdfViewer);
-    this.#collaborationSocket.bindDocument(this.#document, offlineOrigin);
     this.#elements.contextResourcePresenter.bindContext(appMode === "workspace" ? apiBase : null, this.#elements);
     this.#elements.contextResourcePresenter.bindRoutes(this.#document, this.#collaboration, this.#resourceRefresh, this.#elements);
     this.#elements.workspaceSurfaceSwitcher.bindWorkspaceRoute(appMode === "workspace", this.#elements);

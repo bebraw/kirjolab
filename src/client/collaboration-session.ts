@@ -10,17 +10,18 @@ import {
 } from "./collaboration-workflow-machine";
 import { offlineDocumentDelta } from "./offline-workspace";
 
+type CollaborationOrigins = Readonly<Record<"offline" | "remote", unknown>>;
+
 export class CollaborationSession {
-  readonly #document: Y.Doc;
-  readonly #remoteOrigin: unknown;
   readonly #pendingUpdates = new PendingUpdateQueue();
   readonly #workflow = createCollaborationWorkflowActor();
   #serverDocument: Y.Doc | null = null;
   #serverStateVector: Uint8Array;
 
-  constructor(document: Y.Doc, remoteOrigin: unknown) {
-    this.#document = document;
-    this.#remoteOrigin = remoteOrigin;
+  constructor(
+    readonly document: Y.Doc,
+    readonly origins: CollaborationOrigins,
+  ) {
     this.#serverStateVector = Y.encodeStateVector(document);
   }
 
@@ -106,15 +107,15 @@ export class CollaborationSession {
     this.syncQueue();
   }
 
-  enqueueLocal(update: Uint8Array, origin: unknown, ignoredOrigin: unknown): boolean {
-    if (origin === this.#remoteOrigin || origin === ignoredOrigin) return false;
+  enqueueLocal(update: Uint8Array, origin: unknown): boolean {
+    if (origin === this.origins.remote || origin === this.origins.offline) return false;
     this.enqueue(update);
     return true;
   }
 
   restoreOffline(serverStateVector: Uint8Array): boolean {
     this.#serverStateVector = serverStateVector.slice();
-    const pending = offlineDocumentDelta(this.#document, this.#serverStateVector);
+    const pending = offlineDocumentDelta(this.document, this.#serverStateVector);
     if (pending) this.enqueue(pending);
     return pending !== null;
   }
@@ -123,10 +124,10 @@ export class CollaborationSession {
     if (this.synced) this.#workflow.send({ type: "REMOTE_UPDATE" });
     const update = new Uint8Array(message);
     if (this.#serverDocument) {
-      Y.applyUpdate(this.#serverDocument, update, this.#remoteOrigin);
+      Y.applyUpdate(this.#serverDocument, update, this.origins.remote);
       this.#serverStateVector = Y.encodeStateVector(this.#serverDocument);
     }
-    Y.applyUpdate(this.#document, update, this.#remoteOrigin);
+    Y.applyUpdate(this.document, update, this.origins.remote);
   }
 
   synchronize(): boolean {
@@ -140,7 +141,7 @@ export class CollaborationSession {
     try {
       const acknowledged = this.#pendingUpdates.acknowledge();
       if (this.#serverDocument) {
-        Y.applyUpdate(this.#serverDocument, new Uint8Array(acknowledged.payload), this.#remoteOrigin);
+        Y.applyUpdate(this.#serverDocument, new Uint8Array(acknowledged.payload), this.origins.remote);
         this.#serverStateVector = Y.encodeStateVector(this.#serverDocument);
       }
     } catch {

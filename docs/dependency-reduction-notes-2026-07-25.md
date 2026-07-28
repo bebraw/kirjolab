@@ -13736,6 +13736,22 @@ changes from 857,288 B raw / 231,422 B gzip to 857,270 B raw / 231,422 B gzip
 (-18 B raw / unchanged gzip); dependency counts and the other static artifacts
 remain unchanged.
 
+## Continued Ownership: Atomic Collaboration Document
+
+`CollaborationSocket` now installs its canonical Y.Doc update observer during
+construction and retains only explicit teardown. `CollaborationSession` owns
+the document plus one cohesive remote/offline origin policy, so the observer no
+longer accepts a separately forwarded ignored origin and the application no
+longer exposes document binding as a partial collaboration stage.
+
+This checkpoint reduces `src/client/app.ts` from 117 to 116 lines (-1), grows
+the collaboration session from 164 to 165 lines (+1), and reduces the socket
+from 295 to 290 lines (-5), for a five-line net runtime reduction. The affected
+guardrail and focused coverage pass all 11 session and socket cases. The browser
+application changes from 857,270 B raw / 231,422 B gzip to 857,320 B raw /
+231,473 B gzip (+50 B raw / +51 B gzip); dependency counts and the other static
+artifacts remain unchanged.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,

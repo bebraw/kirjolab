@@ -3,9 +3,10 @@ import * as Y from "yjs";
 import { CollaborationSession } from "./collaboration-session";
 
 const remoteOrigin = Symbol("remote");
+const offlineOrigin = Symbol("offline");
 
 function connectedSession(document = new Y.Doc()): CollaborationSession {
-  const session = new CollaborationSession(document, remoteOrigin);
+  const session = new CollaborationSession(document, { remote: remoteOrigin, offline: offlineOrigin });
   session.connect(true);
   session.beginSocket();
   session.socketOpened();
@@ -15,7 +16,7 @@ function connectedSession(document = new Y.Doc()): CollaborationSession {
 
 describe("collaboration session", () => {
   it("owns workflow status, presence, disconnect, reconnect, and offline availability", () => {
-    const session = new CollaborationSession(new Y.Doc(), remoteOrigin);
+    const session = new CollaborationSession(new Y.Doc(), { remote: remoteOrigin, offline: offlineOrigin });
     expect(session.status).toEqual({ label: "Offline · changes stay on this device", connected: false });
     expect(session.canEdit).toBe(false);
 
@@ -60,13 +61,12 @@ describe("collaboration session", () => {
   });
 
   it("queues only locally authored document updates", () => {
-    const session = new CollaborationSession(new Y.Doc(), remoteOrigin);
+    const session = new CollaborationSession(new Y.Doc(), { remote: remoteOrigin, offline: offlineOrigin });
     const update = new Uint8Array([1, 2, 3]);
-    const offlineOrigin = Symbol("offline");
 
-    expect(session.enqueueLocal(update, remoteOrigin, offlineOrigin)).toBe(false);
-    expect(session.enqueueLocal(update, offlineOrigin, offlineOrigin)).toBe(false);
-    expect(session.enqueueLocal(update, "local", offlineOrigin)).toBe(true);
+    expect(session.enqueueLocal(update, remoteOrigin)).toBe(false);
+    expect(session.enqueueLocal(update, offlineOrigin)).toBe(false);
+    expect(session.enqueueLocal(update, "local")).toBe(true);
     expect(session.pendingCount).toBe(1);
   });
 
@@ -89,7 +89,7 @@ describe("collaboration session", () => {
     const server = new Y.Doc();
     const document = new Y.Doc();
     document.getText("source").insert(0, "Offline change");
-    const session = new CollaborationSession(document, remoteOrigin);
+    const session = new CollaborationSession(document, { remote: remoteOrigin, offline: offlineOrigin });
 
     expect(session.restoreOffline(Y.encodeStateVector(server))).toBe(true);
     expect(session.pendingCount).toBe(1);

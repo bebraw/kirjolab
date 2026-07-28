@@ -4,7 +4,6 @@ import {
   parseServerCollaborationMessage,
   type ServerCollaborationMessage,
 } from "../domain/collaboration";
-import type * as Y from "yjs";
 import type { CollaborationSession } from "./collaboration-session";
 import type { ConnectionStatus, ConnectionWorkflowOwners } from "./connection-status";
 
@@ -92,6 +91,15 @@ export class CollaborationSocket {
     this.#owners = owners;
     this.#environment = environment;
     owners.connectionStatus.bindWorkflow(session, owners);
+    const update = (value: Uint8Array, origin: unknown): void => {
+      this.#offline.schedule();
+      if (!session.enqueueLocal(value, origin)) return;
+      owners.editorStatus.setSave(session.synced ? "Saving…" : "Saving offline…");
+      owners.assistantGenerationPresenter.refreshAvailability();
+      this.flush();
+    };
+    session.document.on("update", update);
+    this.#releaseDocument = () => session.document.off("update", update);
     environment.browserEvents?.addEventListener("online", this.#handleOnline);
     environment.browserEvents?.addEventListener("offline", this.#handleOffline);
   }
@@ -115,19 +123,6 @@ export class CollaborationSocket {
     socket.addEventListener("message", (event) => this.#message(socket, (event as MessageEvent<string | ArrayBuffer>).data));
     socket.addEventListener("close", () => this.#close(socket));
     socket.addEventListener("error", () => socket.close());
-  }
-
-  bindDocument(documentModel: Y.Doc, offlineOrigin: unknown): void {
-    this.#releaseDocument();
-    const update = (value: Uint8Array, origin: unknown): void => {
-      this.#offline.schedule();
-      if (!this.#session.enqueueLocal(value, origin, offlineOrigin)) return;
-      this.#owners.editorStatus.setSave(this.#session.synced ? "Saving…" : "Saving offline…");
-      this.#owners.assistantGenerationPresenter.refreshAvailability();
-      this.flush();
-    };
-    documentModel.on("update", update);
-    this.#releaseDocument = () => documentModel.off("update", update);
   }
 
   unbindDocument(): void {

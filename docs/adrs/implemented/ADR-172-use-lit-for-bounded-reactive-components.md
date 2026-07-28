@@ -1342,8 +1342,10 @@ reason to wrap static markup mechanically.
   application coordinator retains mutation decisions, cross-file path
   projection, while the typed collaboration socket owns the document-wide
   update subscription, offline-save scheduling, session-owned local-origin
-  filtering and enqueueing, immediate flush, and teardown. It binds available
-  online/offline browser events during construction and consumes canonical
+  filtering and enqueueing, immediate flush, and teardown. It binds the
+  canonical session document and available online/offline browser events during
+  construction, eliminating a separately callable document-bind stage. The
+  session stores remote and offline origins as one filtering policy. The socket consumes canonical
   offline, refresh, editor, revision, presence, connection, project-file,
   assistant, and toast owners directly for local and remote update effects
   instead of maintaining a parallel application callback protocol. Socket

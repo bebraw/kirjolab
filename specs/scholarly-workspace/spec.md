@@ -428,8 +428,10 @@ collaboration.
   selection timers, online/offline browser subscriptions, strict control
   routing, binary-update application, queue flushing, reset cleanup, reload
   sequencing, and the document-wide local-update subscription. It binds
-  online/offline browser subscriptions during construction while retaining
-  explicit teardown. It schedules
+  the canonical session document and online/offline browser subscriptions
+  during construction while retaining explicit teardown, so no separately
+  callable unbound document-observer stage exists. The session stores remote
+  and offline origins as one filtering policy. The socket schedules
   offline persistence for every update, delegates remote/offline-origin
   filtering and local enqueueing to the session, selects pending save wording,
   invalidates assistant availability, flushes immediately, and supports

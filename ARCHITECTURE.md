@@ -933,8 +933,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   authority own the document-wide local-update subscription, offline-save
   scheduling, session-owned local-origin filtering and enqueueing, save-status
   selection, assistant invalidation, immediate flush, and explicit teardown.
-  Construction binds the available online/offline browser lifecycle; an
-  independently callable unbound socket state is not exposed.
+  Construction binds both the canonical session document and the available
+  online/offline browser lifecycle; independently callable unbound document or
+  socket states are not exposed. Store remote and offline update origins as one
+  session-owned filtering policy rather than supplying an ignored origin to
+  each observer.
   Bind the canonical offline, refresh, editor, revision, presence, connection,
   project-file, assistant, and toast owners directly for editor-selection
   preservation, canonical revision effects, resource refresh, and UI projection

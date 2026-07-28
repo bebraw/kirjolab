@@ -12,6 +12,7 @@ import {
 } from "./collaboration-socket";
 
 const remoteOrigin = Symbol("remote");
+const offlineOrigin = Symbol("offline");
 
 class TestSocket extends EventTarget implements CollaborationWebSocket {
   binaryType: BinaryType = "blob";
@@ -52,7 +53,7 @@ function createHarness(online = true): {
   readonly sockets: TestSocket[];
 } {
   const document = new Y.Doc();
-  const session = new CollaborationSession(document, remoteOrigin);
+  const session = new CollaborationSession(document, { remote: remoteOrigin, offline: offlineOrigin });
   const sockets: TestSocket[] = [];
   const events: string[] = [];
   const timers = new Map<number, { callback: () => void; delay: number }>();
@@ -262,9 +263,6 @@ describe("collaboration socket", () => {
   it("owns local document update persistence, queueing, status, and teardown", () => {
     const harness = createHarness();
     const connection = createConnection(harness);
-    const offlineOrigin = Symbol("offline");
-    connection.bindDocument(harness.document, offlineOrigin);
-
     harness.document.transact(() => harness.document.getText("source").insert(0, "remote"), remoteOrigin);
     harness.document.transact(() => harness.document.getText("source").insert(6, "offline"), offlineOrigin);
     harness.document.getText("source").insert(13, "local");
