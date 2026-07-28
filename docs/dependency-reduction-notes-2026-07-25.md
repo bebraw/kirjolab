@@ -13815,6 +13815,22 @@ cases pass alongside strict types. The browser application changes from
 857,277 B raw / 231,419 B gzip to 857,265 B raw / 231,418 B gzip (-12 B raw /
 -1 B gzip); dependency counts and the other static artifacts remain unchanged.
 
+## Continued Reduction: Remove Unused Statistics Validation
+
+The publication-statistics structural predicate had no production consumer;
+only its validation-specific tests called it. A Valibot pilot made the unused
+contract shorter but increased the browser artifact, so the final checkpoint
+removes the dead export and its test matrix instead. Generated statistics stay
+inside the typed export pipeline, while Valibot remains reserved for actual
+unknown-data boundaries.
+
+This checkpoint removes 32 production lines from
+`src/domain/publication-statistics.ts` and 32 validation-only test lines. The
+affected guardrail passes 115 related cases, all 17 focused export cases pass,
+and all 121 Workers cases pass alongside strict types. The browser application
+remains byte-identical at 857,265 B raw / 231,418 B gzip; dependency counts and
+the other static artifacts remain unchanged.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,

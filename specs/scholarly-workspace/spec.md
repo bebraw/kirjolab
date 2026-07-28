@@ -744,7 +744,9 @@ collaboration.
   host progressively enhances the server-rendered export dialog, owns modal
   lifecycle, its header and editor-toolbar open triggers, the live word-count
   badge, and its close action, and synchronizes the nested live publication
-  statistics. The application coordinator retains word-count derivation.
+  statistics. The application coordinator retains word-count derivation. The
+  generated statistics value stays within the typed export pipeline and does
+  not maintain a separate runtime validator without an unknown-data consumer.
 
 ### API Contracts
 

@@ -92,7 +92,9 @@ Schemas validate local structure only. Stateful invariants, authorization,
 deduplication, provenance, canonicalization, and relationships between records
 remain explicit domain functions. Existing validators are not migrated merely
 for consistency; each later use must delete equivalent project-owned
-infrastructure and retain focused boundary tests.
+infrastructure and retain focused boundary tests. Values generated and consumed
+inside one typed process do not gain a schema or retain an unused structural
+predicate without an actual unknown-data consumer.
 
 ## Consequences
 

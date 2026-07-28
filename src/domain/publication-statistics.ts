@@ -70,30 +70,6 @@ export function countPublicationWords(markdown: string): number {
   return [...prose.matchAll(wordPattern)].length;
 }
 
-export function isPublicationWordStatistics(value: unknown): value is PublicationWordStatistics {
-  if (!isRecord(value) || value.countingRule !== "kirjolab-prose-v1" || !isNonNegativeInteger(value.totalWords)) return false;
-  if (!Array.isArray(value.files) || !Array.isArray(value.headings)) return false;
-  return (
-    value.files.every(
-      (file) => isRecord(file) && typeof file.fileId === "string" && typeof file.path === "string" && isNonNegativeInteger(file.words),
-    ) &&
-    value.headings.every(
-      (heading) =>
-        isRecord(heading) &&
-        typeof heading.fileId === "string" &&
-        typeof heading.path === "string" &&
-        isNonNegativeInteger(heading.from) &&
-        isNonNegativeInteger(heading.to) &&
-        isNonNegativeInteger(heading.line) &&
-        isNonNegativeInteger(heading.depth) &&
-        typeof heading.heading === "string" &&
-        isNonNegativeInteger(heading.words) &&
-        Array.isArray(heading.includeChain) &&
-        heading.includeChain.every((item) => typeof item === "string"),
-    )
-  );
-}
-
 function headingStatistics(
   composition: Pick<ProjectComposition, "content" | "sourceMap">,
   files: readonly ProjectFile[],
@@ -156,12 +132,4 @@ function sourceLocationAt(
     line: (file?.content ?? "").slice(0, from).split(/\r?\n/u).length,
     includeChain: [...span.includeChain],
   };
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function isNonNegativeInteger(value: unknown): value is number {
-  return typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
 }

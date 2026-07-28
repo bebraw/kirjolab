@@ -11,7 +11,6 @@ import {
   publicationWordStatistics,
 } from "./export-pipeline";
 import { composeProject, type ProjectFile, type ReviewArtifactBinding } from "./project-files";
-import { isPublicationWordStatistics } from "./publication-statistics";
 
 const createdAt = "2026-07-12T00:00:00.000Z";
 
@@ -347,10 +346,6 @@ Published ending.
       files: [{ fileId: "main", path: "main.md", words: 5 }],
       headings: [{ heading: "Heading words", depth: 1, words: 5 }],
     });
-    expect(isPublicationWordStatistics(statistics)).toBe(true);
-    expect(isPublicationWordStatistics({ ...statistics, totalWords: -1 })).toBe(false);
-    expect(isPublicationWordStatistics({ ...statistics, files: [{ path: "main.md", words: 5 }] })).toBe(false);
-    expect(isPublicationWordStatistics({ ...statistics, headings: [{ ...statistics.headings[0], includeChain: [1] }] })).toBe(false);
   });
 
   it("counts visible Unicode prose across every excluded Markdown form without joining adjacent words", () => {
@@ -385,7 +380,7 @@ Published ending.
     }
   });
 
-  it("maps heading statistics to exact authored ranges and rejects malformed public statistics", () => {
+  it("maps heading statistics to exact authored ranges", () => {
     const source = "Prelude\r\n#  *First heading* {#first}\r\nOne word\r\nnot # heading\r\n## `Second`\r\nTwo";
     const files = [file("main", "main.md", source)];
     const statistics = publicationWordStatistics(composeProject(files, "main"), files);
@@ -416,32 +411,6 @@ Published ending.
         words: 1,
       },
     ]);
-
-    const validFile = statistics.files[0]!;
-    const validHeading = statistics.headings[0]!;
-    for (const invalid of [
-      null,
-      [],
-      { ...statistics, countingRule: "other" },
-      { ...statistics, totalWords: 1.5 },
-      { ...statistics, files: null },
-      { ...statistics, files: [validFile, { ...validFile, words: -1 }] },
-      { ...statistics, files: [{ ...validFile, fileId: null }] },
-      { ...statistics, files: [{ ...validFile, path: null }] },
-      { ...statistics, headings: null },
-      { ...statistics, headings: [validHeading, { ...validHeading, heading: null }] },
-      { ...statistics, headings: [{ ...validHeading, from: -1 }] },
-      { ...statistics, headings: [{ ...validHeading, to: 1.5 }] },
-      { ...statistics, headings: [{ ...validHeading, line: null }] },
-      { ...statistics, headings: [{ ...validHeading, depth: -1 }] },
-      { ...statistics, headings: [{ ...validHeading, words: "2" }] },
-      { ...statistics, headings: [{ ...validHeading, path: null }] },
-      { ...statistics, headings: [{ ...validHeading, fileId: null }] },
-      { ...statistics, headings: [{ ...validHeading, includeChain: null }] },
-      { ...statistics, headings: [{ ...validHeading, includeChain: ["main", 2] }] },
-    ]) {
-      expect(isPublicationWordStatistics(invalid), JSON.stringify(invalid)).toBe(false);
-    }
   });
 
   it("maps headings at source-span boundaries and falls back without a source map", () => {
