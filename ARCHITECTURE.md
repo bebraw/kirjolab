@@ -944,8 +944,8 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   requests, or private PDF bytes. Let the application-version Lit owner expose
   the build-derived shell identity and own service-worker registration, update
   refresh sequencing, workspace-navigation caching, ready projection, and
-  fail-open behavior. Bind the offline-persistence and toast owners directly so
-  the control owns the pinned update notice, persistence-before-refresh
+  fail-open behavior. Bind the offline-persistence and toast owners together
+  during shell preparation so the control owns the pinned update notice, persistence-before-refresh
   sequence, reload action, and copy outcomes.
 - Publish immutable browser runtimes under content-fingerprinted URLs. Derive
   the service-worker cache namespace from the built shell so a shell change

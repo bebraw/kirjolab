@@ -18,15 +18,12 @@ export class ApplicationVersionControl extends LitElement {
     this.version = version;
   }
 
-  bindNotices(notices: Pick<AppToast, "show">): void {
-    this.notices = notices;
-  }
-
   async prepareOfflineShell(
     workspace: boolean,
     offline: Pick<OfflineWorkspaceSession, "persist">,
-    notices: Pick<AppToast, "pin">,
+    notices: Pick<AppToast, "pin" | "show">,
   ): Promise<void> {
+    this.notices = notices;
     try {
       const registered = await registerOfflineServiceWorker(navigator.serviceWorker, () => {
         notices.pin("A new version of Kirjolab is available.", {

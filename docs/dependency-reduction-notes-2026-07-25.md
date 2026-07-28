@@ -13368,6 +13368,24 @@ Markdown, lazy PDF.js, and direct and unique production package counts remain
 unchanged at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip,
 481,994 B raw / 146,135 B gzip, 18, and 150.
 
+## Continued Lit Ownership: Application-Version Notices
+
+`ApplicationVersionControl` now binds its toast owner while preparing the
+offline shell. Copy outcomes and pinned update notices no longer require two
+independent bindings to the same toast.
+
+This checkpoint reduces `src/client/app.ts` from 147 to 146 lines (-1) and the
+application-version control from 105 to 103 lines (-2), removing three runtime
+lines overall. Focused coverage passes all four version-control cases; affected
+coverage passes six related runtime cases and the affected test file alongside
+strict types.
+
+The browser application artifact changes from 858,743 B raw / 231,585 B gzip
+to 858,674 B raw / 231,568 B gzip (-69 B raw / -17 B gzip). Styles, lazy
+Markdown, lazy PDF.js, and direct and unique production package counts remain
+unchanged at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip,
+481,994 B raw / 146,135 B gzip, 18, and 150.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,

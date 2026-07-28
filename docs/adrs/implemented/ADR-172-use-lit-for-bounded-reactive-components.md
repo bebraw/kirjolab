@@ -1337,7 +1337,8 @@ reason to wrap static markup mechanically.
   textarea fallback behavior. It derives the active version from the offline
   shell and owns service-worker registration, update refresh sequencing,
   workspace-navigation caching, ready projection, and fail-open behavior. The
-  control binds the offline-persistence and toast owners directly, owns the
+  control binds the offline-persistence and toast owners together during shell
+  preparation, owns the
   pinned update notice and persistence-before-refresh sequence, and presents
   copy outcomes through that toast owner. The application coordinator only
   connects those capabilities, and the public notice event is removed.

@@ -23,7 +23,7 @@ describe("application version control", () => {
     vi.stubGlobal("navigator", { clipboard: { writeText } });
     const control = new TestApplicationVersionControl();
     const notices: string[] = [];
-    control.bindNotices({ show: (message) => notices.push(message) });
+    await control.prepareOfflineShell(false, { persist: vi.fn() }, { pin: vi.fn(), show: (message) => notices.push(message) });
 
     control.setVersion("build-123");
     await control.copyForTest();
@@ -51,7 +51,7 @@ describe("application version control", () => {
     });
     const control = new TestApplicationVersionControl();
     const notices: string[] = [];
-    control.bindNotices({ show: (message) => notices.push(message) });
+    await control.prepareOfflineShell(false, { persist: vi.fn() }, { pin: vi.fn(), show: (message) => notices.push(message) });
     control.setVersion("fallback-456");
 
     await control.copyForTest();
@@ -81,7 +81,7 @@ describe("application version control", () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response("shell"));
     const persist = vi.fn().mockResolvedValue(undefined);
     const reload = vi.fn();
-    const notices = { pin: vi.fn() };
+    const notices = { pin: vi.fn(), show: vi.fn() };
     const body = { dataset: {} as DOMStringMap };
     vi.stubGlobal("navigator", { serviceWorker });
     vi.stubGlobal("caches", cacheStorage);
@@ -112,6 +112,6 @@ describe("application version control", () => {
     vi.stubGlobal("navigator", { serviceWorker: { register: vi.fn().mockRejectedValue(new Error("unavailable")) } });
     const control = new TestApplicationVersionControl();
 
-    await expect(control.prepareOfflineShell(true, { persist: vi.fn() }, { pin: vi.fn() })).resolves.toBeUndefined();
+    await expect(control.prepareOfflineShell(true, { persist: vi.fn() }, { pin: vi.fn(), show: vi.fn() })).resolves.toBeUndefined();
   });
 });
