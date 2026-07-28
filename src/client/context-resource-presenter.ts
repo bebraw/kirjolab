@@ -127,24 +127,27 @@ interface ContextRouteBinding {
   readonly resources: { request(): Promise<void> };
 }
 
-export interface ContextPresentationBinding {
-  readonly assistant: { readonly refreshAvailability: () => void };
-  readonly authoring: { readonly caret: number | null };
-  readonly layout: { readonly restorePaneWidth: () => void };
-  readonly library: {
+export interface ContextPresentationOwners {
+  readonly assistantGenerationPresenter: { readonly refreshAvailability: () => void };
+  readonly editorStatus: { readonly caret: number | null };
+  readonly referenceLibraryWorkspace: {
     readonly snapshot: ReferenceLibrarySnapshot | null;
     readonly open: (updateHistory?: boolean) => Promise<void>;
     readonly pushPdfRoute: (artifactId: string, page: number) => void;
     readonly replacePdfRoute: (artifactId: string | undefined, page: number) => void;
     readonly replaceLibraryRoute: () => void;
   };
-  readonly project: { readonly project: WorkspaceSnapshot | null };
-  readonly projectApiBase: string | null;
-  readonly routes: {
+  readonly projectFileDialog: { readonly project: WorkspaceSnapshot | null };
+  readonly workspaceSurfaceSwitcher: {
     readonly navigate: (surface: "context", notify: false) => void;
     readonly syncRoute: (mode: "push" | "replace") => void;
   };
-  readonly standaloneLibrary: boolean;
+}
+
+interface ContextPresentationBinding {
+  readonly layout: { readonly restorePaneWidth: () => void };
+  readonly owners: ContextPresentationOwners;
+  readonly projectApiBase: string | null;
 }
 
 export interface ContextViewerState {
@@ -201,12 +204,12 @@ export class ContextResourcePresenter extends LitElement {
     return this.contextState.activeKey;
   }
 
-  bindContext(binding: ContextPresentationBinding): void {
-    this.contextPresentation = binding;
+  bindContext(projectApiBase: string | null, layout: ContextPresentationBinding["layout"], owners: ContextPresentationOwners): void {
+    this.contextPresentation = { layout, owners, projectApiBase };
     this.element("context-tab-strip", ContextTabStrip)?.bindNavigation({
       activate: (key) => this.navigateContext(key),
       close: (key) => this.closeBoundContext(key),
-      openLibrary: () => void binding.library.open(),
+      openLibrary: () => void owners.referenceLibraryWorkspace.open(),
     });
   }
 
@@ -228,7 +231,7 @@ export class ContextResourcePresenter extends LitElement {
     if (!binding) return;
     const presentation = this.presentContext(this.boundSources(binding));
     binding.layout.restorePaneWidth();
-    if (presentation.publicationPresented) this.setCitationAvailable(binding.authoring.caret !== null);
+    if (presentation.publicationPresented) this.setCitationAvailable(binding.owners.editorStatus.caret !== null);
     if (loadPdf && (presentation.activeTab?.kind === "pdf" || presentation.activeTab?.kind === "library-pdf")) {
       void this.loadActivePdf(false);
     }
@@ -269,24 +272,24 @@ export class ContextResourcePresenter extends LitElement {
   private closeBoundContext(key: ResearchContextKey): void {
     const binding = this.contextPresentation;
     if (!binding) return;
-    const returnToStandaloneLibrary = binding.standaloneLibrary && this.activeKey === key;
+    const returnToStandaloneLibrary = binding.projectApiBase === null && this.activeKey === key;
     this.closeContext(key);
     if (returnToStandaloneLibrary) {
       this.contextState = activateResearchTab(this.contextState, RESEARCH_LIBRARY_KEY);
-      binding.library.replaceLibraryRoute();
+      binding.owners.referenceLibraryWorkspace.replaceLibraryRoute();
     }
     this.presentBoundContext();
     this.element("context-tab-strip", ContextTabStrip)?.focusTab(this.activeKey);
-    binding.routes.syncRoute("replace");
+    binding.owners.workspaceSurfaceSwitcher.syncRoute("replace");
   }
 
   private presentTransition(key: ResearchContextKey, loadPdf = true, syncRoute = true): void {
     const binding = this.contextPresentation;
     if (!binding) return;
     this.presentBoundContext(loadPdf);
-    binding.routes.navigate("context", false);
+    binding.owners.workspaceSurfaceSwitcher.navigate("context", false);
     this.element("context-tab-strip", ContextTabStrip)?.focusTab(key);
-    if (syncRoute) binding.routes.syncRoute("push");
+    if (syncRoute) binding.owners.workspaceSurfaceSwitcher.syncRoute("push");
   }
 
   async refreshReferencePdfs(projectApiBase: string | null, fetcher: typeof fetch = fetch): Promise<void> {
@@ -359,19 +362,19 @@ export class ContextResourcePresenter extends LitElement {
 
   private boundSources(binding: ContextPresentationBinding): ResearchContextSources {
     return {
-      library: binding.library.snapshot,
+      library: binding.owners.referenceLibraryWorkspace.snapshot,
       projectApiBase: binding.projectApiBase,
-      snapshot: binding.project.project,
-      standaloneLibrary: binding.standaloneLibrary,
+      snapshot: binding.owners.projectFileDialog.project,
+      standaloneLibrary: binding.projectApiBase === null,
     };
   }
 
   private boundProject(): WorkspaceSnapshot | null {
-    return this.contextPresentation ? this.contextPresentation.project.project : this.currentSnapshot;
+    return this.contextPresentation ? this.contextPresentation.owners.projectFileDialog.project : this.currentSnapshot;
   }
 
   private boundLibrary(): ReferenceLibrarySnapshot | null {
-    return this.contextPresentation ? this.contextPresentation.library.snapshot : this.currentLibrary;
+    return this.contextPresentation ? this.contextPresentation.owners.referenceLibraryWorkspace.snapshot : this.currentLibrary;
   }
 
   openPassage(anchor: ManuscriptAnchorSelector): void {
@@ -440,7 +443,7 @@ export class ContextResourcePresenter extends LitElement {
     try {
       const target = researchTargetFromContextKey(key);
       if (target) return await this.restoreTarget(target, page, annotationId);
-      if (key === RESEARCH_LIBRARY_KEY) return await this.contextPresentation?.library.open(false);
+      if (key === RESEARCH_LIBRARY_KEY) return await this.contextPresentation?.owners.referenceLibraryWorkspace.open(false);
       this.navigateContext(key);
     } catch (error) {
       this.activateContext(RESEARCH_PREVIEW_KEY);
@@ -469,26 +472,26 @@ export class ContextResourcePresenter extends LitElement {
         ...(annotationId !== undefined ? { focusedAnnotationId: annotationId } : {}),
       },
     );
-    this.contextPresentation?.routes.syncRoute("push");
+    this.contextPresentation?.owners.workspaceSurfaceSwitcher.syncRoute("push");
     await this.loadActivePdf(page !== undefined || annotationId !== undefined);
   }
 
   async openLibraryPdf(artifact: LibraryPdfArtifact, page?: number, updateHistory = true): Promise<void> {
     this.preparePdfContext({ kind: "library-pdf", id: artifact.id }, page === undefined ? {} : { page });
     const binding = this.contextPresentation;
-    if (binding?.standaloneLibrary) {
+    if (binding?.projectApiBase === null) {
       if (updateHistory) {
         const active = this.activeContextTab;
-        binding.library.pushPdfRoute(artifact.id, page ?? (active?.kind === "library-pdf" ? active.page : 1));
+        binding.owners.referenceLibraryWorkspace.pushPdfRoute(artifact.id, page ?? (active?.kind === "library-pdf" ? active.page : 1));
       }
-    } else binding?.routes.syncRoute("push");
+    } else binding?.owners.workspaceSurfaceSwitcher.syncRoute("push");
     await this.loadActivePdf(page !== undefined);
   }
 
   async openReferencePdf(pdf: ProjectReferencePdf, page?: number, updateHistory = true): Promise<void> {
     this.preparePdfContext({ kind: "library-pdf", id: pdf.id }, page === undefined ? {} : { page });
     const binding = this.contextPresentation;
-    if (!binding?.standaloneLibrary && updateHistory) binding?.routes.syncRoute("push");
+    if (binding?.projectApiBase !== null && updateHistory) binding?.owners.workspaceSurfaceSwitcher.syncRoute("push");
     await this.loadActivePdf(page !== undefined);
   }
 
@@ -840,8 +843,8 @@ export class ContextResourcePresenter extends LitElement {
     this.reconcileContext(this.resourceAuthorization(sources.snapshot, sources.library));
     this.presentWorkspace(sources.snapshot);
     this.presentBoundContext();
-    binding.assistant.refreshAvailability();
-    binding.routes.syncRoute("replace");
+    binding.owners.assistantGenerationPresenter.refreshAvailability();
+    binding.owners.workspaceSurfaceSwitcher.syncRoute("replace");
   }
 
   presentResolvedWorkspace(snapshot: WorkspaceSnapshot, bibliography: string, source?: string): void {
@@ -888,9 +891,9 @@ export class ContextResourcePresenter extends LitElement {
     const activePdf = activeTab?.kind === "pdf" || activeTab?.kind === "library-pdf";
     if (activePdf) {
       this.contextState = setPdfResearchLocation(this.contextState, activeTab.key, { page });
-      this.contextPresentation?.routes.syncRoute("replace");
+      this.contextPresentation?.owners.workspaceSurfaceSwitcher.syncRoute("replace");
     }
-    this.contextPresentation?.library.replacePdfRoute(this.currentLibraryPdf?.id, page);
+    this.contextPresentation?.owners.referenceLibraryWorkspace.replacePdfRoute(this.currentLibraryPdf?.id, page);
   }
 
   setLibraryPdfInspector(open: boolean, showAnnotations = false): void {

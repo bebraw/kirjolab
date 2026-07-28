@@ -84,11 +84,13 @@ collaboration.
   Preview, the owner-private Library, and Writing assistant, and can host
   publication, PDF, and model-candidate resources without making local tab,
   pin, scroll, or reading-position state collaborative.
-  One composed context-resource presenter binds the live assistant, editor,
-  layout, Library, project-file, and surface-route owners and derives canonical
-  context sources and presentation effects from them. The coordinator connects
-  those owners and supplies immutable mode and API configuration without a
-  parallel source factory or effect callbacks. The PDF viewer factory binds
+  One composed context-resource presenter binds the canonical assistant,
+  editor-status, Library, project-file, and surface-route owners alongside the
+  non-element layout manager and derives canonical context sources and
+  presentation effects from them. Standalone-Library mode derives from an
+  absent project API base. The coordinator connects those owners and supplies
+  only that nullable API configuration without a parallel source factory,
+  duplicate mode flag, or effect callbacks. The PDF viewer factory binds
   this presenter directly for selection capture, project-highlight activation,
   page presentation, and private-highlight selection. Project-map navigation
   likewise consumes the canonical project-file, workspace-switcher,

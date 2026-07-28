@@ -222,10 +222,13 @@ The adopted components own bounded presentation:
   selection, and private-markup selection effects directly through its narrow
   viewer binding and synchronizes the bounded
   evidence, annotation, publication, claim, comment, and candidate owners from
-  the canonical workspace snapshot. From its bound project, Library, API,
-  assistant, and route sources it reconciles authorization and owns complete
-  workspace-resource presentation, assistant-availability refresh, and
-  incidental route synchronization. Let it also project coordinator-resolved
+  the canonical workspace snapshot. From its canonical project-file, Library,
+  editor-status, assistant, and surface-route owners plus the non-element layout
+  manager and nullable project API base, it reconciles authorization and owns
+  complete workspace-resource presentation, assistant-availability refresh,
+  and incidental route synchronization. Standalone-Library mode derives from
+  the absent project API base instead of crossing the binding separately. Let
+  it also project coordinator-resolved
   evidence links, claim links, comments, and project-map inputs across those
   composed owners after Preview rendering while the coordinator retains render
   timing. Let it configure the project-map

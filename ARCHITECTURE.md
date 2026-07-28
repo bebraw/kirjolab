@@ -1228,9 +1228,12 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   activate, close, authorization-reconciliation, and PDF-location transitions,
   restores resource scroll, and projects bound viewer state back into canonical
   fixed-tab scroll, resource scroll, PDF page, and focused-annotation state. It
-  binds the live assistant, editor, layout, Library, project-file, and surface-
-  route owners directly, deriving canonical project and Library sources from
-  them instead of accepting a parallel source factory and effect callbacks. It
+  binds the canonical assistant, editor-status, Library, project-file, and
+  surface-route owners directly alongside the non-element layout manager,
+  deriving canonical project and Library sources from them instead of accepting
+  a parallel source factory and effect callbacks. Standalone-Library mode
+  derives from the absence of a project API base rather than crossing the
+  binding as a second mode flag. It
   also restores a routed fixed or resource context against those authorized
   catalogs and owns Preview fallback plus notice presentation when restoration
   fails. When PDF-only layout needs a resource, it preserves an active PDF or
@@ -1240,7 +1243,7 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   focused page/annotation projection, route-effect sequencing, and active load
   timing. URL parsing, concrete browser-history mutation, and layout state
   remain coordinator policy; the coordinator only connects those owners and
-  supplies immutable mode and API configuration. It projects page changes into canonical PDF
+  supplies the nullable project API configuration. It projects page changes into canonical PDF
   context and page-local private markup state, then applies workspace and
   standalone-Library replacement through its bound route owners;
   coordinates project citation and intake context,
