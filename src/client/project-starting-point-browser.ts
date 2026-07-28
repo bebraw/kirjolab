@@ -14,6 +14,11 @@ interface StartingPointOwners {
   readonly toast: { show(message: string, options?: DeferredDeletionNoticeOptions): void };
 }
 
+interface StartingPointWorkspaceOwners extends StartingPointOwners {
+  readonly newWorkspace: HTMLElement;
+  readonly workspaceCatalogPanel: { readonly catalog: readonly WorkspaceSummary[] };
+}
+
 export class ProjectStartingPointBrowser extends LitElement {
   static override properties = {
     busy: { state: true },
@@ -78,15 +83,13 @@ export class ProjectStartingPointBrowser extends LitElement {
     this.startLoading();
   }
 
-  bindTrigger(trigger: HTMLElement, load: () => Promise<void> = () => this.refresh()): void {
+  bindWorkspace(owners: StartingPointWorkspaceOwners, load: () => Promise<void> = () => this.refresh()): void {
     this.trigger?.removeEventListener("click", this.openFromTrigger);
-    this.trigger = trigger;
+    this.trigger = owners.newWorkspace;
     this.loadStartingPoints = load;
-    trigger.addEventListener("click", this.openFromTrigger);
-  }
-
-  bindWorkspaces(source: { readonly catalog: readonly WorkspaceSummary[] }): void {
-    this.workspaceSource = source;
+    this.workspaceSource = owners.workspaceCatalogPanel;
+    this.owners = owners;
+    owners.newWorkspace.addEventListener("click", this.openFromTrigger);
   }
 
   async openFromBoundTrigger(): Promise<void> {
@@ -135,10 +138,6 @@ export class ProjectStartingPointBrowser extends LitElement {
     if (!isProjectTemplateSummaries(value)) throw new Error("Project templates returned invalid data");
     this.setData(value, workspaces);
     this.owners?.saveTemplateDialog.syncTemplates();
-  }
-
-  bind(owners: StartingPointOwners): void {
-    this.owners = owners;
   }
 
   async deleteTemplate(id: string): Promise<void> {

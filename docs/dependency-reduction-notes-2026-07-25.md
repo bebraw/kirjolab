@@ -13295,6 +13295,25 @@ Markdown, lazy PDF.js, and direct and unique production package counts remain
 unchanged at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip,
 481,994 B raw / 146,135 B gzip, 18, and 150.
 
+## Continued Lit Ownership: Starting-Point Binding
+
+`ProjectStartingPointBrowser` now binds its server-rendered trigger, canonical
+project-catalog source, GitHub and LaTeX import owners, template-save owner, and
+toast owner atomically. The application and component no longer maintain three
+independent trigger, catalog, and sibling-owner stages that permit a partially
+wired browser.
+
+This checkpoint reduces `src/client/app.ts` from 152 to 150 lines (-2) and the
+starting-point browser from 580 to 579 lines (-1), removing three runtime lines
+overall. Focused coverage passes all ten browser cases; affected coverage passes
+twelve related runtime cases and the affected test file alongside strict types.
+
+The browser application artifact changes from 859,061 B raw / 231,617 B gzip
+to 858,944 B raw / 231,610 B gzip (-117 B raw / -7 B gzip). Styles, lazy
+Markdown, lazy PDF.js, and direct and unique production package counts remain
+unchanged at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip,
+481,994 B raw / 146,135 B gzip, 18, and 150.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,

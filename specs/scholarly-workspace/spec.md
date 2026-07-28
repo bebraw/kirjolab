@@ -62,9 +62,10 @@ collaboration.
 - **Project creation:** The starting-point browser owns title and starting-point
   selection, catalog and preview loading, project creation, personal-template
   deletion and Undo, modal lifecycle, and its entry trigger. It binds the
-  GitHub-import, LaTeX-import, template-save, and toast owners directly for
-  handoff, replacement synchronization, deferred-deletion notices, and
-  successful template-save notices.
+  GitHub-import, LaTeX-import, template-save, and toast owners atomically with
+  the server-rendered trigger and canonical project-catalog source for handoff,
+  replacement synchronization, deferred-deletion notices, and successful
+  template-save notices.
   The GitHub-import owner consumes a successful OAuth or installation browser
   result once from its connected lifecycle, waits for its light-DOM template,
   opens itself, and removes the one-shot query without application startup

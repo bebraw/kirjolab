@@ -191,11 +191,13 @@ describe("project starting point browser", () => {
     const fetchMock = vi.fn().mockResolvedValue(Response.json(workspace));
     vi.stubGlobal("fetch", fetchMock);
     vi.stubGlobal("location", { assign });
-    browser.bind({
+    browser.bindWorkspace({
       gitHubImportPanel: { open: () => actions.push("import-github") },
       latexImportPanel: { open: () => actions.push("import-latex") },
+      newWorkspace: new EventTarget() as HTMLElement,
       saveTemplateDialog: { syncTemplates: vi.fn() },
       toast: { show: vi.fn() },
+      workspaceCatalogPanel: { catalog: [] },
     });
     browser.setData([builtIn], []);
     browser.changeTitleForTest("Focused inquiry");
@@ -227,11 +229,13 @@ describe("project starting point browser", () => {
     );
     vi.stubGlobal("fetch", fetchMock);
     vi.stubGlobal("location", { assign });
-    browser.bind({
+    browser.bindWorkspace({
       gitHubImportPanel: { open: vi.fn() },
       latexImportPanel: { open: vi.fn() },
+      newWorkspace: new EventTarget() as HTMLElement,
       saveTemplateDialog: { syncTemplates: vi.fn() },
       toast: { show: (message, options) => notices.push({ message, options }) },
+      workspaceCatalogPanel: { catalog: [] },
     });
     browser.setData([builtIn, personal], [workspace]);
     await browser.chooseProjectForTest(workspace);
@@ -255,13 +259,14 @@ describe("project starting point browser", () => {
   it("refreshes and validates the template catalog", async () => {
     const browser = new TestProjectStartingPointBrowser();
     const templatesChanged = vi.fn();
-    browser.bind({
+    browser.bindWorkspace({
       gitHubImportPanel: { open: vi.fn() },
       latexImportPanel: { open: vi.fn() },
+      newWorkspace: new EventTarget() as HTMLElement,
       saveTemplateDialog: { syncTemplates: templatesChanged },
       toast: { show: vi.fn() },
+      workspaceCatalogPanel: { catalog: [workspace] },
     });
-    browser.bindWorkspaces({ catalog: [workspace] });
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json([builtIn, personal])));
     await browser.refresh();
     expect(browser.availableTemplates).toEqual([builtIn, personal]);
@@ -279,11 +284,13 @@ describe("project starting point browser", () => {
       .mockResolvedValueOnce(new Response(null, { status: 204 }))
       .mockResolvedValueOnce(Response.json([builtIn]));
     vi.stubGlobal("fetch", fetchMock);
-    browser.bind({
+    browser.bindWorkspace({
       gitHubImportPanel: { open: vi.fn() },
       latexImportPanel: { open: vi.fn() },
+      newWorkspace: new EventTarget() as HTMLElement,
       saveTemplateDialog: { syncTemplates: templatesChanged },
       toast: { show: (message) => notices.push(message) },
+      workspaceCatalogPanel: { catalog: [] },
     });
     browser.setData([builtIn, encoded], [workspace]);
 
@@ -348,7 +355,17 @@ describe("project starting point browser", () => {
     const browser = new TestProjectStartingPointBrowser();
     const trigger = new EventTarget();
     const load = vi.fn().mockResolvedValue(undefined);
-    browser.bindTrigger(trigger as HTMLElement, load);
+    browser.bindWorkspace(
+      {
+        gitHubImportPanel: { open: vi.fn() },
+        latexImportPanel: { open: vi.fn() },
+        newWorkspace: trigger as HTMLElement,
+        saveTemplateDialog: { syncTemplates: vi.fn() },
+        toast: { show: vi.fn() },
+        workspaceCatalogPanel: { catalog: [] },
+      },
+      load,
+    );
 
     trigger.dispatchEvent(new Event("click"));
     await vi.waitFor(() => expect(load).toHaveBeenCalledOnce());

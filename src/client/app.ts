@@ -89,10 +89,8 @@ class WorkspaceApp {
     this.#elements.workspaceLayout.configure(workspaceId, this.#elements.workspaceSurfaces);
     this.#elements.workspaceCatalogPanel.configure(catalogBase, workspaceId, this.#elements.workspaceSwitcher);
     this.#elements.workspaceCatalogPanel.bindTrigger(this.#elements.manageWorkspaces);
-    this.#elements.newWorkspaceStartingPoints.bindWorkspaces(this.#elements.workspaceCatalogPanel);
     this.#elements.workspaceSettingsPanel.bindWorkspace(this.#elements.workspaceSettings, workspaceId, this.#elements);
-    this.#elements.newWorkspaceStartingPoints.bindTrigger(this.#elements.newWorkspace);
-    this.#elements.newWorkspaceStartingPoints.bind(this.#elements);
+    this.#elements.newWorkspaceStartingPoints.bindWorkspace(this.#elements);
     this.#elements.gitHubSyncMenu.bindWorkspace(apiBase, appMode === "workspace", this.#resourceRefresh, this.#elements);
     this.#elements.saveTemplateDialog.bindWorkspace(apiBase, this.#elements.newWorkspaceStartingPoints, this.#elements.toast);
     this.#elements.researchDiaryPanel.bindProject(this.#elements.projectFileDialog);

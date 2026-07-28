@@ -68,8 +68,8 @@ The adopted components own bounded presentation:
   delayed commit and Undo lifecycle, the derived visible-template view, local
   selection and preview state, bounded preview rendering, local dismissal and
   import handoff, and canonical successful-result navigation. It binds the
-  GitHub-import, LaTeX-import, template-save, and toast owners directly. It also
-  binds its server-rendered entry trigger and owns loading-state
+  GitHub-import, LaTeX-import, template-save, and toast owners atomically with
+  its server-rendered entry trigger and canonical project-catalog source. It owns loading-state
   entry, post-load focus, load-failure presentation, and one-shot browser create
   intent parsing and query cleanup around a typed catalog-
   refresh callback. Every successful refresh reports its derived visible-
