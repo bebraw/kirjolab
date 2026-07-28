@@ -1204,8 +1204,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   in the application coordinator through narrow callbacks.
   Let the presenter also own bound linked-reference PDF catalog loading,
   validation, storage, authorization projection, and optional downstream
-  resource presentation. Keep canonical snapshot acceptance, Library refresh
-  timing, and mutation consequences in the application coordinator.
+  resource presentation. Let the composed Library workspace bind the canonical
+  project source, context presenter, and route owner once, then own Library
+  refresh, linked-PDF refresh, authorization reconciliation, project and context
+  presentation, settlement, and replace-route sequencing. Keep canonical
+  snapshot acceptance and mutation consequences in the application coordinator.
 - Project bounded, reconstructible editor UI selections into query parameters
   only after validating stable ids against authorized snapshots.
   Keep default-file elision and active PDF-page and annotation projection beside

@@ -486,9 +486,11 @@ collaboration.
   artifact, and bounded page locations and writes canonical private-PDF URLs;
   the composed Library workspace owns current-location parsing and the
   browser-history restoration subscription with teardown plus root, addressed-
-  reference, private-PDF, and active-page history mutation. The coordinator
-  retains authorization effects, cross-feature navigation, canonical fallback,
-  and notices.
+  reference, private-PDF, and active-page history mutation. It also owns its
+  bound project refresh sequence across linked-PDF loading, authorization
+  reconciliation, project and context presentation, settlement, and canonical
+  route replacement. The coordinator retains cross-feature navigation and
+  notices.
   One pure active-load projection resolves project evidence, private Library,
   or shared-reference input and its authorized URL from the active typed tab
   and canonical snapshots. The coordinator retains viewer updates, form

@@ -169,6 +169,33 @@ describe("reference Library workspace", () => {
     });
   });
 
+  it("owns bound Library refresh and cross-feature reconciliation sequencing", async () => {
+    const { workspace } = setup();
+    const refresh = vi.spyOn(workspace, "refresh").mockResolvedValue(library);
+    const presentProject = vi.spyOn(workspace, "presentProject").mockImplementation(() => undefined);
+    const settled = vi.spyOn(workspace, "settled").mockResolvedValue();
+    const refreshLibraryContext = vi.fn().mockResolvedValue(undefined);
+    const presentBoundContext = vi.fn();
+    const syncRoute = vi.fn();
+    workspace.bindProject({
+      context: { presentBoundContext, refreshLibraryContext },
+      project: () => workspaceSnapshotFixture,
+      projectApiBase: "/api/workspaces/workspace",
+      routes: { syncRoute },
+    });
+
+    await workspace.refreshBoundProject();
+
+    expect(refresh).toHaveBeenCalledOnce();
+    expect(refreshLibraryContext).toHaveBeenCalledWith(workspaceSnapshotFixture, library);
+    expect(presentProject).toHaveBeenCalledWith(workspaceSnapshotFixture, "/api/workspaces/workspace");
+    expect(settled).toHaveBeenCalledOnce();
+    expect(presentBoundContext).toHaveBeenCalledOnce();
+    expect(syncRoute).toHaveBeenCalledWith("replace");
+    expect(refreshLibraryContext.mock.invocationCallOrder[0]).toBeLessThan(presentProject.mock.invocationCallOrder[0] ?? 0);
+    expect(presentProject.mock.invocationCallOrder[0]).toBeLessThan(presentBoundContext.mock.invocationCallOrder[0] ?? 0);
+  });
+
   it("owns Library activation, optional route entry, and refresh sequencing", async () => {
     const { workspace } = setup();
     const activateLibrary = vi.fn();

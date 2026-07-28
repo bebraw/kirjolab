@@ -494,6 +494,24 @@ describe("context resource presenter", () => {
     expect(syncRoute).toHaveBeenCalledWith("replace");
   });
 
+  it("refreshes and reconciles Library context for its bound project", async () => {
+    const { presenter } = setup();
+    const refreshBoundReferencePdfs = vi.spyOn(presenter, "refreshBoundReferencePdfs").mockResolvedValue();
+    const resourceAuthorization = vi.spyOn(presenter, "resourceAuthorization");
+    const reconcileContext = vi.spyOn(presenter, "reconcileContext").mockImplementation(() => undefined);
+
+    await presenter.refreshLibraryContext(workspaceSnapshotFixture, library);
+
+    expect(refreshBoundReferencePdfs).toHaveBeenCalledWith(false);
+    expect(resourceAuthorization).toHaveBeenCalledWith(workspaceSnapshotFixture, library);
+    expect(reconcileContext).toHaveBeenCalledWith({
+      candidateIds: new Set(workspaceSnapshotFixture.candidates.map(({ id }) => id)),
+      libraryPdfIds: new Set(library.artifacts.map(({ id }) => id)),
+      pdfIds: new Set(workspaceSnapshotFixture.pdfs.map(({ id }) => id)),
+      publicationIds: new Set(workspaceSnapshotFixture.publications.map(({ id }) => id)),
+    });
+  });
+
   it("switches project, private-Library, and shared-reference PDF presentation", () => {
     const { elements, presenter } = setup();
     const setPdf = vi.spyOn(elements["project-annotation-form"], "setIntakePdf").mockImplementation(() => undefined);

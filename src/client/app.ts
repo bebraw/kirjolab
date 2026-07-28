@@ -263,11 +263,16 @@ class WorkspaceApp {
       openPdf: (artifact, page, updateHistory) =>
         void this.#elements.contextResourcePresenter.openLibraryPdf(artifact, page, updateHistory),
       presentNotice: (message) => this.#elements.toast.show(message),
-      refreshLibrary: () => this.#refreshReferenceLibrary(),
       refreshMetadata: async () => {
-        await this.#refreshReferenceLibrary();
+        await this.#elements.referenceLibraryWorkspace.refreshBoundProject();
         await this.#refreshSnapshot();
       },
+    });
+    this.#elements.referenceLibraryWorkspace.bindProject({
+      context: this.#elements.contextResourcePresenter,
+      project: () => this.#snapshot,
+      projectApiBase: appMode === "workspace" ? apiBase : null,
+      routes: this.#elements.workspaceSurfaceSwitcher,
     });
     this.#elements.referenceLibraryWorkspace.bindBrowserRoute(appMode === "library");
     this.#elements.editorStatus.bindAuthoring(this.#document, this.#elements.source, {
@@ -418,7 +423,7 @@ class WorkspaceApp {
       project: () => this.#snapshot,
       referencePdfs: () => this.#elements.contextResourcePresenter.referencePdfs,
       refreshResources: () => this.#resourceRefresh.request(),
-      refreshLibrary: () => this.#refreshReferenceLibrary(),
+      refreshLibrary: () => this.#elements.referenceLibraryWorkspace.refreshBoundProject(),
       selectPassage: (fileId, start, end) => {
         this.#focusProjectRange(fileId, start, end);
         this.#elements.source.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -512,18 +517,6 @@ class WorkspaceApp {
     if (fileId) this.#elements.projectFileDialog.selectFile(fileId);
     this.#elements.authoringModeTabs.navigate("write");
     this.#elements.editorStatus.selectRange(from, Math.max(from, to));
-  }
-
-  async #refreshReferenceLibrary(): Promise<void> {
-    const library = await this.#elements.referenceLibraryWorkspace.refresh();
-    await this.#elements.contextResourcePresenter.refreshBoundReferencePdfs(false);
-    this.#elements.contextResourcePresenter.reconcileContext(
-      this.#elements.contextResourcePresenter.resourceAuthorization(this.#snapshot, library),
-    );
-    this.#elements.referenceLibraryWorkspace.presentProject(this.#snapshot, appMode === "workspace" ? apiBase : null);
-    await this.#elements.referenceLibraryWorkspace.settled();
-    this.#elements.contextResourcePresenter.presentBoundContext();
-    this.#elements.workspaceSurfaceSwitcher.syncRoute("replace");
   }
 
   async #acceptWorkspaceMutation(result: Response | WorkspaceSnapshot): Promise<void> {

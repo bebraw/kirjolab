@@ -11728,6 +11728,32 @@ and PDF.js artifacts remain unchanged at 135,411 B / 23,373 B, 204,779 B /
 Full native CI passes all 1,759 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Bound Library Refresh
+
+`ReferenceLibraryWorkspace` now binds the canonical project source, context
+presenter, project API base, and route owner once, then owns the complete Library
+refresh transaction. It loads the Library, asks `ContextResourcePresenter` to
+refresh linked PDFs and reconcile authorization, presents project consumers,
+waits for Lit settlement, presents the bound context, and replaces the route.
+`WorkspaceApp` no longer duplicates that cross-feature sequence.
+
+This checkpoint reduces `src/client/app.ts` from 563 to 556 lines (-7), grows
+the Library workspace from 429 to 458 lines (+29), and grows the context
+presenter from 1,238 to 1,243 lines (+5). The 27-line combined increase replaces
+an application-level workflow with explicit, independently tested owner
+capabilities. Focused coverage passes bound refresh, reconciliation,
+presentation, settlement, route order, fallback injection, and strict types.
+Direct and unique production package counts remain 18 and 150; Lit and Valibot
+were already pinned.
+
+The browser application artifact increases from 860,194 B raw / 231,511 B gzip
+to 860,382 B / 231,606 B (+188 B raw / +95 B gzip). Styles and lazy Markdown
+and PDF.js artifacts remain unchanged at 135,411 B / 23,373 B, 204,779 B /
+62,386 B, and 481,994 B / 146,135 B.
+
+Full native CI passes all 1,763 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: One-Shot Browser Entry Intents
 
 `ProjectStartingPointBrowser` now consumes the `create=1` editor intent, removes

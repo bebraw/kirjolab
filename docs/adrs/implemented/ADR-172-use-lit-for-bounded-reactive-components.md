@@ -534,9 +534,12 @@ The adopted components own bounded presentation:
   It parses the current standalone route and owns root and addressed-reference
   root, addressed-reference, private-PDF, and active-page history mutation plus
   browser-history restoration subscription and lifecycle teardown. The
-  application coordinator supplies refresh timing, PDF navigation,
-  web-capture/comparison, canonical project snapshot application, and notice
-  presentation through a typed callback boundary.
+  workspace also binds the canonical project source, context presenter, and
+  route owner once, then owns Library refresh, linked-PDF refresh,
+  authorization reconciliation, project and context presentation, settlement,
+  and replace-route sequencing. The application coordinator supplies PDF
+  navigation, web-capture/comparison, canonical project snapshot application,
+  and notice presentation through typed boundaries.
 - The model provider settings panel owns connection, endpoint, model, and
   reasoning-effort values, browser-local persistence, Valibot-backed saved-value
   restoration with bounded per-field fallbacks, dynamic model choices,

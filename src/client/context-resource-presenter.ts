@@ -293,6 +293,11 @@ export class ContextResourcePresenter extends LitElement {
     if (render) this.presentBoundWorkspace();
   }
 
+  async refreshLibraryContext(snapshot: WorkspaceSnapshot | null, library: ReferenceLibrarySnapshot): Promise<void> {
+    await this.refreshBoundReferencePdfs(false);
+    this.reconcileContext(this.resourceAuthorization(snapshot, library));
+  }
+
   captureContext(state: ResearchContextState, viewer: ContextViewerState): ResearchContextState {
     const key = state.activeKey;
     const fixedScrollTop = this.element("context-tab-strip", ContextTabStrip)?.fixedScrollTop(key) ?? null;
