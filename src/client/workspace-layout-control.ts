@@ -1,6 +1,5 @@
 import { html, LitElement, type TemplateResult } from "lit";
 import type { ContextResourcePresenter } from "./context-resource-presenter";
-import type { PdfEvidenceViewer } from "./pdf-viewer";
 import type { WorkspaceLayout } from "./workspace-ui-route";
 
 type WorkspaceLayoutMode = "library" | "workspace";
@@ -41,7 +40,7 @@ interface WorkspaceLayoutRoot extends WorkspaceLayoutElement {
 }
 
 interface WorkspaceLayoutOwners {
-  readonly contextResourcePresenter: Pick<ContextResourcePresenter, "activeTab">;
+  readonly contextResourcePresenter: Pick<ContextResourcePresenter, "activeTab" | "layoutPdfViewer">;
   readonly workspaceSurfaces: WorkspaceLayoutRoot;
 }
 
@@ -69,11 +68,11 @@ export class WorkspaceLayoutControl extends LitElement {
     return this.layout;
   }
 
-  bindWorkspace(workspaceId: string, owners: WorkspaceLayoutOwners, pdfViewer: Pick<PdfEvidenceViewer, "resize">): void {
+  bindWorkspace(workspaceId: string, owners: WorkspaceLayoutOwners): void {
     const workspace = owners.workspaceSurfaces;
     this.workspaceId = workspaceId;
     this.contextResourcePresenter = owners.contextResourcePresenter;
-    this.resizePdf = () => void pdfViewer.resize();
+    this.resizePdf = () => void owners.contextResourcePresenter.layoutPdfViewer?.resize();
     this.elements = {
       authoringContextResizer: requiredLayoutElement(workspace, "#authoring-context-resizer"),
       collapseSourceRail: requiredLayoutElement(workspace, "#collapse-source-rail"),

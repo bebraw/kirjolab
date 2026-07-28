@@ -94,8 +94,8 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   change outcome. Let the same Lit owner resolve the workspace root controls and
   own rail collapse and resizing, authoring/context pane resizing, keyboard and
   pointer interactions, ARIA values, browser-local width persistence, and PDF
-  relayout. Bind the canonical Context owner and PDF viewer once through its
-  atomic workspace lifecycle. Let internal, restored, and route-driven selection apply the
+  relayout. Bind the canonical Context owner once through its atomic workspace
+  lifecycle and consume the viewer owned by that Context. Let internal, restored, and route-driven selection apply the
   workspace's visibility-driving layout and dispatch resize notification before
   that outcome. Let the workspace surface switcher's route binding consume the
   live Context owner, activate an available PDF through that owner when needed,
@@ -1369,10 +1369,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   viewer, owns intake refresh plus completed-workflow refresh, optional passage-
   link, and notice sequencing, and routes citation, highlight removal, and
   highlight reveal to the Lit owners it already composes. The document-level
-  PDF viewer factory binds this presenter directly for selection capture,
+  presenter constructs the document-level PDF viewer during its atomic
+  project-knowledge binding and binds itself directly for selection capture,
   highlight activation, page presentation, and private-highlight selection;
-  the application supplies that viewer once through project knowledge and must
-  not repeat those four pass-through callbacks. Let it configure the manuscript-comment,
+  the application must not construct or forward that viewer or repeat those
+  four pass-through callbacks. Let it configure the manuscript-comment,
   project-evidence, claim-list, and publication list/context panels. Bind the
   project-annotation, manuscript-comment, project-evidence, claim-list, and
   publication list/context panels, project-map routes, the PDF viewer, and
@@ -1450,8 +1451,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   effective maximum before either primary document surface loses its readable
   minimum. Allow independent browser-local collapse with an editor-hosted
   restoration action. Let the workspace-layout Lit owner bind the canonical
-  Context owner for context-specific pane persistence and the PDF viewer for
-  relayout instead of receiving application callback projections. Its atomic
+  Context owner for context-specific pane persistence and consume that owner's
+  PDF viewer for relayout instead of receiving a second application-owned
+  capability. Its atomic
   workspace binding establishes collapse and resize listener lifecycles; a
   separate non-element manager is not exposed.
   Keep rail geometry out of URLs

@@ -98,7 +98,10 @@ function fixture(): { readonly elements: WorkspaceLayoutElements; readonly fakes
 
 function bindLayout(fakes: LayoutFakes, resize = vi.fn()): WorkspaceLayoutControl {
   const control = new WorkspaceLayoutControl();
-  control.bindWorkspace("project", { contextResourcePresenter: { activeTab: undefined }, workspaceSurfaces: fakes.surfaces }, { resize });
+  control.bindWorkspace("project", {
+    contextResourcePresenter: { activeTab: undefined, layoutPdfViewer: { resize } },
+    workspaceSurfaces: fakes.surfaces,
+  });
   return control;
 }
 

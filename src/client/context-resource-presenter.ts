@@ -25,8 +25,7 @@ import { LibraryPdfAnnotationToolbar } from "./library-pdf-annotation-toolbar";
 import { LibraryPdfInspector } from "./library-pdf-inspector";
 import { LibraryPdfMarkupLayer, type LibraryPdfNoteDraft, type PdfAnnotationTool } from "./library-pdf-markup-layer";
 import { ManuscriptCommentList, type ManuscriptCommentAuthoring } from "./manuscript-comment-list";
-import type { PdfSelectionCapture } from "./pdf-viewer";
-import type { PdfEvidenceViewer } from "./pdf-viewer";
+import { PdfEvidenceViewer, type PdfSelectionCapture } from "./pdf-viewer";
 import { libraryPdfAnnotationActionEvent, type LibraryPdfAnnotationAction } from "./library-pdf-annotation-forms";
 import { libraryPdfAnnotationListActionEvent, type LibraryPdfAnnotationListAction } from "./library-pdf-annotation-list";
 import { libraryPdfInspectorCloseEvent } from "./library-pdf-inspector";
@@ -151,7 +150,7 @@ export interface ContextViewerState {
 
 type ContextPdfViewer = Pick<
   PdfEvidenceViewer,
-  "clearDraftSelection" | "setPrivateHighlightSelection" | "setTextSelectionEnabled" | "setTool"
+  "clearDraftSelection" | "resize" | "setPrivateHighlightSelection" | "setTextSelectionEnabled" | "setTool"
 > &
   Pick<PdfEvidenceViewer, "currentPage" | "focusedAnnotationId" | "open" | "showError" | "updateAnnotations" | "updatePrivateHighlights">;
 
@@ -190,6 +189,10 @@ export class ContextResourcePresenter extends LitElement {
 
   get activeTab(): ResearchResourceTab | undefined {
     return this.currentActiveTab;
+  }
+
+  get layoutPdfViewer(): Pick<ContextPdfViewer, "resize"> | null {
+    return this.pdfViewer;
   }
 
   get activeContextTab(): ResearchContextTab | undefined {
@@ -552,7 +555,11 @@ export class ContextResourcePresenter extends LitElement {
     else this.navigateResource({ kind: "publication", id: publication.id });
   }
 
-  bindProjectKnowledge(apiBase: string, owners: ProjectKnowledgeOwners, viewer: ContextPdfViewer): void {
+  bindProjectKnowledge(
+    apiBase: string,
+    owners: ProjectKnowledgeOwners,
+    viewer: ContextPdfViewer = PdfEvidenceViewer.forDocument(document, this),
+  ): void {
     this.pdfViewer = viewer;
     this.pdfApiBase = apiBase;
     this.element("project-annotation-form", ProjectAnnotationForm)?.configure(apiBase);

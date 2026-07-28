@@ -6,7 +6,6 @@ import { CoalescedRefresh } from "./collaboration";
 import { CollaborationSession } from "./collaboration-session";
 import { CollaborationSocket } from "./collaboration-socket";
 import { createOfflineWorkspaceStore, OfflineWorkspaceSession } from "./offline-workspace";
-import { PdfEvidenceViewer } from "./pdf-viewer";
 
 const { workspaceId, identityEmail, appMode } = parseAppBootstrap(document.body.dataset);
 const apiBase = `/api/workspaces/${workspaceId}`;
@@ -15,7 +14,6 @@ const offlineOrigin = Symbol("offline");
 
 class WorkspaceApp {
   readonly #elements = collectAppElements();
-  readonly #pdfViewer: PdfEvidenceViewer;
   readonly #document = new Y.Doc();
   readonly #resourceRefresh = new CoalescedRefresh(async () => this.#elements.projectFileDialog.refreshProject());
   readonly #collaboration = new CollaborationSession(this.#document, { remote: remoteOrigin, offline: offlineOrigin });
@@ -36,8 +34,6 @@ class WorkspaceApp {
       this.#resourceRefresh,
       this.#elements,
     );
-    this.#pdfViewer = PdfEvidenceViewer.forDocument(document, this.#elements.contextResourcePresenter);
-    this.#elements.workspaceLayout.bindWorkspace(workspaceId, this.#elements, this.#pdfViewer);
     this.#elements.previewSyncControls.bindSource(this.#elements);
   }
 
@@ -77,7 +73,8 @@ class WorkspaceApp {
     this.#elements.editorInsertMenu.bind(this.#elements.editorStatus, this.#elements.toast);
     this.#elements.projectHistoryDialog.configure(apiBase, this.#elements);
     this.#elements.projectHistoryTrigger.bindRevision(this.#elements, () => this.#offline.schedule());
-    this.#elements.contextResourcePresenter.bindProjectKnowledge(apiBase, this.#elements, this.#pdfViewer);
+    this.#elements.contextResourcePresenter.bindProjectKnowledge(apiBase, this.#elements);
+    this.#elements.workspaceLayout.bindWorkspace(workspaceId, this.#elements);
     this.#elements.contextResourcePresenter.bindContext(appMode === "workspace" ? apiBase : null, this.#elements);
     this.#elements.contextResourcePresenter.bindRoutes(this.#document, this.#collaboration, this.#resourceRefresh, this.#elements);
     this.#elements.workspaceSurfaceSwitcher.bindWorkspaceRoute(appMode === "workspace", this.#elements);

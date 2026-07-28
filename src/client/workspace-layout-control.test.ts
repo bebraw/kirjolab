@@ -51,11 +51,10 @@ class TestLayoutRoot extends TestLayoutElement {
 }
 
 function bindWorkspace(control: WorkspaceLayoutControl, workspaceId: string, workspace = new TestLayoutRoot()): TestLayoutRoot {
-  control.bindWorkspace(
-    workspaceId,
-    { contextResourcePresenter: { activeTab: undefined }, workspaceSurfaces: workspace },
-    { resize: vi.fn() },
-  );
+  control.bindWorkspace(workspaceId, {
+    contextResourcePresenter: { activeTab: undefined, layoutPdfViewer: { resize: vi.fn() } },
+    workspaceSurfaces: workspace,
+  });
   return workspace;
 }
 

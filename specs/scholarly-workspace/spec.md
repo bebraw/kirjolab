@@ -101,10 +101,11 @@ collaboration.
   assistant owner without a second coordinator binding. Standalone-Library mode derives from an
   absent project API base. The coordinator connects those owners and supplies
   only that nullable API configuration without a parallel source factory,
-  duplicate mode flag, or effect callbacks. The PDF viewer factory binds
-  this presenter directly for selection capture, project-highlight activation,
-  page presentation, and private-highlight selection, and the application
-  installs that viewer through the atomic project-knowledge binding. Project-map navigation
+  duplicate mode flag, or effect callbacks. The presenter constructs the PDF
+  viewer during its atomic project-knowledge binding and binds itself directly
+  for selection capture, project-highlight activation, page presentation, and
+  private-highlight selection; the application does not construct or forward
+  that viewer. Project-map navigation
   likewise consumes the canonical project-file, workspace-switcher,
   sharing-panel, and Preview owners directly without a coordinator alias map.
   One progressive light-DOM tab strip owns fixed-tab presentation, dynamic-tab
@@ -196,9 +197,9 @@ collaboration.
   and resizing, authoring/context
   pane resizing, keyboard and pointer interactions, ARIA values, browser-local
   persistence, PDF resize notification, and resolution of its controls beneath
-  the workspace root. It binds the canonical Context owner and PDF viewer
-  directly for context-specific pane keys and relayout rather than receiving
-  application callback projections. Its atomic workspace binding establishes
+  the workspace root. It binds the canonical Context owner directly for
+  context-specific pane keys and consumes that owner's PDF viewer for relayout
+  rather than receiving a second application-owned capability. Its atomic workspace binding establishes
   the complete selection, collapse, and resize listener lifecycle; no separate
   non-element layout manager exists. Widths remain context-specific transient
   UI state rather than collaborative data or workspace URL state.

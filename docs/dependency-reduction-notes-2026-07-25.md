@@ -13785,6 +13785,21 @@ offline-session cases. The browser application changes from 857,320 B raw /
 231,473 B gzip to 857,248 B raw / 231,454 B gzip (-72 B raw / -19 B gzip);
 dependency counts and the other static artifacts remain unchanged.
 
+## Continued Lit Ownership: Context-Owned PDF Viewer
+
+`ContextResourcePresenter` now constructs and retains the document PDF viewer
+as part of its atomic project-knowledge binding. `WorkspaceLayoutControl`
+consumes only the viewer resize capability exposed by the canonical Context
+owner, so `WorkspaceApp` no longer imports, constructs, stores, or forwards a
+second viewer owner.
+
+This checkpoint reduces `src/client/app.ts` from 95 to 92 lines (-3) and
+reduces the three changed production modules by one line overall. The affected
+guardrail passes 62 related cases and all 47 focused Context and layout cases
+pass alongside strict types. The browser application changes from 857,248 B raw
+/ 231,454 B gzip to 857,277 B raw / 231,419 B gzip (+29 B raw / -35 B gzip);
+dependency counts and the other static artifacts remain unchanged.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,

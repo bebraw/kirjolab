@@ -31,9 +31,9 @@ local interaction. It may navigate only to a canonical href supplied through
 its own authorized inputs or validated request result.
 
 Keep layout interaction in the workspace-layout Lit owner when its policy
-depends on canonical component state. It binds the workspace root, Context
-owner, and PDF viewer directly for rail and pane sizing, context-specific
-persistence, and PDF relayout. One atomic workspace binding establishes its
+depends on canonical component state. It binds the workspace root and Context
+owner directly for rail and pane sizing and context-specific persistence, and
+consumes the PDF viewer owned by that Context for relayout. One atomic workspace binding establishes its
 complete selection, collapse, and resize lifecycle instead of exposing a
 supporting non-element manager.
 
@@ -1433,7 +1433,7 @@ reason to wrap static markup mechanically.
   width persistence, PDF relayout, and resize notification for internal, restored,
   and route-driven navigation before routing the typed outcome through a
   binding. Its atomic workspace binding resolves the root controls and consumes
-  the canonical Context owner and PDF viewer, replacing the former non-element
+  the canonical Context owner plus that owner's PDF viewer, replacing the former non-element
   layout manager. The surface-navigation owner's workspace-route binding consumes the
   layout outcome, activates an available PDF through the supplied Context owner
   for PDF-only mode, and replaces the canonical URL. Its public change
