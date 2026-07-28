@@ -69,6 +69,9 @@ collaboration.
   result once from its connected lifecycle, waits for its light-DOM template,
   opens itself, and removes the one-shot query without application startup
   wiring.
+  The template-save owner binds its project API, canonical starting-point
+  source, and toast owner atomically; it must not expose a partially configured
+  production state.
 - **Project sharing:** One bounded light-DOM panel owns collaborator and
   capability-link presentation, invitation input, clipboard interaction, and
   native modal lifecycle plus membership and capability-link requests and

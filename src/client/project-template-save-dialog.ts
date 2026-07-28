@@ -43,11 +43,8 @@ export class ProjectTemplateSaveDialog extends LitElement {
     this.templates = [];
   }
 
-  configure(apiBase: string): void {
+  bindWorkspace(apiBase: string, source: ProjectTemplateSource, toast: { show(message: string): void }): void {
     this.apiBase = apiBase;
-  }
-
-  bindTemplates(source: ProjectTemplateSource, toast: { show(message: string): void }): void {
     this.templateSource = source;
     this.toast = toast;
   }

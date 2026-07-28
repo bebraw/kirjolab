@@ -567,7 +567,9 @@ The adopted components own bounded presentation:
   description values, loading and replacement copy, focus, cancellation,
   the supplied template-loader lifecycle and retryable load errors, promotion
   requests, response validation, local busy and error state, and the bounded
-  create-or-replace outcome notice handed directly to its bound toast owner.
+  create-or-replace outcome notice handed directly to its bound toast owner. It
+  binds its project API, canonical template source, and toast owner atomically
+  instead of exposing partial configuration stages.
 - The workspace settings panel dismisses itself and hands its current project
   title directly to the template-save workflow.
 - The project starting-point browser owns project title, template and existing

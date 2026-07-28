@@ -192,10 +192,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   restored snapshot identity, title, and save time. Other workflows consume its
   read-only catalog; keep canonical route navigation outside it.
 - Let the template-save Lit dialog bind the starting-point browser as its typed
-  template source and the toast owner once. The dialog owns pre-open and post-save refreshes,
-  replacement-option synchronization, and successful-save notification timing;
-  the starting-point browser retains canonical catalog and hidden-template
-  authority. Bind the starting-point browser directly to the GitHub-import,
+  template source, the toast owner, and its project API atomically so it cannot
+  enter a partially configured production state. The dialog owns pre-open and
+  post-save refreshes, replacement-option synchronization, and successful-save
+  notification timing; the starting-point browser retains canonical catalog and
+  hidden-template authority. Bind the starting-point browser directly to the GitHub-import,
   LaTeX-import, template-save, and toast owners so import handoff, replacement
   synchronization, and deferred-deletion notices do not require parallel
   application callbacks.

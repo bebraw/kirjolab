@@ -13276,6 +13276,25 @@ Markdown, lazy PDF.js, and direct and unique production package counts remain
 unchanged at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip,
 481,994 B raw / 146,135 B gzip, 18, and 150.
 
+## Continued Lit Ownership: Template-Save Binding
+
+`ProjectTemplateSaveDialog` now binds its project API, canonical starting-point
+source, and toast owner atomically. The application and component no longer
+maintain separate configure and template-binding stages that permit a partially
+configured dialog.
+
+This checkpoint reduces `src/client/app.ts` from 153 to 152 lines (-1) and the
+template-save dialog from 246 to 243 lines (-3), removing four runtime lines
+overall. Focused coverage passes all seven dialog cases; affected coverage
+passes nine related runtime cases and the affected test file alongside strict
+types.
+
+The browser application artifact changes from 859,110 B raw / 231,629 B gzip
+to 859,061 B raw / 231,617 B gzip (-49 B raw / -12 B gzip). Styles, lazy
+Markdown, lazy PDF.js, and direct and unique production package counts remain
+unchanged at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip,
+481,994 B raw / 146,135 B gzip, 18, and 150.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,

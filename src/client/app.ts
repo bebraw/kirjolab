@@ -94,8 +94,7 @@ class WorkspaceApp {
     this.#elements.newWorkspaceStartingPoints.bindTrigger(this.#elements.newWorkspace);
     this.#elements.newWorkspaceStartingPoints.bind(this.#elements);
     this.#elements.gitHubSyncMenu.bindWorkspace(apiBase, appMode === "workspace", this.#resourceRefresh, this.#elements);
-    this.#elements.saveTemplateDialog.configure(apiBase);
-    this.#elements.saveTemplateDialog.bindTemplates(this.#elements.newWorkspaceStartingPoints, this.#elements.toast);
+    this.#elements.saveTemplateDialog.bindWorkspace(apiBase, this.#elements.newWorkspaceStartingPoints, this.#elements.toast);
     this.#elements.researchDiaryPanel.bindProject(this.#elements.projectFileDialog);
     this.#elements.manuscriptMapPanel.bindProjectPresentation(this.#elements);
     for (const panel of [this.#elements.researchQuestionPanel, this.#elements.reviewerResponsePanel]) {
