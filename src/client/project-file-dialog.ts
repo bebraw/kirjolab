@@ -22,7 +22,6 @@ export interface ProjectImageInsertion {
 }
 
 export interface ProjectFileMutationCallbacks {
-  readonly commit: (snapshot: WorkspaceSnapshot) => void;
   readonly fileActivated: () => void;
   readonly presentFile: (file: ProjectFile, snapshot: WorkspaceSnapshot, reset: boolean) => void;
   readonly presentNotice: (message: string, options?: DeferredDeletionNoticeOptions) => void;
@@ -147,7 +146,6 @@ export class ProjectFileDialog extends LitElement {
   declare private status: string;
   private apiBase = "";
   private mutationCallbacks: ProjectFileMutationCallbacks = {
-    commit: () => undefined,
     fileActivated: () => undefined,
     presentFile: () => undefined,
     presentNotice: () => undefined,
@@ -206,7 +204,7 @@ export class ProjectFileDialog extends LitElement {
 
   private configureProjectTree(): void {
     this.presentation?.projectTreePanel.configure(this.apiBase, {
-      acceptSnapshot: this.mutationCallbacks.commit,
+      acceptSnapshot: (snapshot) => this.commitSnapshot(snapshot),
       presentNotice: this.mutationCallbacks.presentNotice,
       previewChanged: this.mutationCallbacks.previewChanged,
     });
@@ -408,7 +406,7 @@ export class ProjectFileDialog extends LitElement {
         });
         await expectOk(response);
         this.hiddenFileIds.delete(file.id);
-        this.mutationCallbacks.commit(await this.workspace(response));
+        this.commitSnapshot(await this.workspace(response));
       },
     });
   }
@@ -510,7 +508,7 @@ export class ProjectFileDialog extends LitElement {
       const snapshot = await this.workspace(response);
       const fileId = snapshot.files.find((file) => file.path === path)?.id;
       this.close();
-      this.mutationCallbacks.commit(snapshot);
+      this.commitSnapshot(snapshot);
       const included = this.pendingInclude?.(path) ?? false;
       this.pendingInclude = null;
       if (!included && fileId) this.selectFile(fileId);
@@ -577,9 +575,14 @@ export class ProjectFileDialog extends LitElement {
 
   private readonly handleImagesUploaded = (event: Event): void => {
     const { message, snapshot } = (event as CustomEvent<ProjectImagesUploaded>).detail;
-    this.mutationCallbacks.commit(snapshot);
+    this.commitSnapshot(snapshot);
     this.mutationCallbacks.presentNotice(message);
   };
+
+  private commitSnapshot(snapshot: WorkspaceSnapshot): void {
+    this.presentProject(snapshot, this.assetBase, this.workspaceMode);
+    void this.refreshBinding?.preview.renderBoundProject();
+  }
 
   private connectRouting(): void {
     this.routingAbort?.abort();

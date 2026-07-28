@@ -75,7 +75,6 @@ afterEach(() => {
 
 function mutationCallbacks(): ProjectFileMutationCallbacks {
   return {
-    commit: vi.fn(),
     fileActivated: vi.fn(),
     presentFile: vi.fn(),
     presentNotice: vi.fn(),
@@ -197,7 +196,7 @@ describe("project file dialog", () => {
       message: "Inserted figures/chart.png.",
       syntax: "![chart](figures/chart.png)",
     });
-    expect(mutations.commit).toHaveBeenCalledWith(snapshot);
+    expect(panel.project).toEqual(snapshot);
     expect(mutations.presentNotice).toHaveBeenCalledWith("Uploaded.");
   });
 
@@ -461,6 +460,7 @@ describe("project file dialog", () => {
       tree: Object.assign(new EventTarget(), { focusFilter: vi.fn() }),
     });
     panel.presentProject(snapshot, "/assets", true);
+    const presentProject = vi.spyOn(panel, "presentProject");
     actions.dispatchEvent(new CustomEvent(projectFileActionEvent, { detail: "create-and-include" }));
     panel.input.value = "  chapters/results.md  ";
 
@@ -470,9 +470,9 @@ describe("project file dialog", () => {
       "/api/workspaces/workspace/files",
       expect.objectContaining({ body: JSON.stringify({ path: "chapters/results.md" }), method: "POST" }),
     );
-    expect(callbacks.commit).toHaveBeenCalledWith(project);
+    expect(panel.project).toEqual(project);
     expect(include).toHaveBeenCalledWith("\n::include[results.md]\n");
-    expect(vi.mocked(callbacks.commit).mock.invocationCallOrder[0]).toBeLessThan(include.mock.invocationCallOrder[0] ?? 0);
+    expect(presentProject.mock.invocationCallOrder[0]).toBeLessThan(include.mock.invocationCallOrder[0] ?? 0);
     expect(saved).toHaveBeenCalledWith({
       included: true,
       message: "Created chapters/results.md and included it at the remembered caret.",
@@ -519,7 +519,7 @@ describe("project file dialog", () => {
       method: "DELETE",
     });
     expect(panel.hiddenFiles.has(file.id)).toBe(false);
-    expect(callbacks.commit).toHaveBeenCalledWith(snapshot);
+    expect(panel.project).toEqual(snapshot);
   });
 
   it("restores a project file when deferred deletion is undone", async () => {
@@ -621,7 +621,7 @@ describe("project file dialog", () => {
 
     expect(panel.hiddenFiles.has(file.id)).toBe(false);
     expect(callbacks.presentFile).toHaveBeenLastCalledWith(file, project, true);
-    expect(callbacks.commit).not.toHaveBeenCalled();
+    expect(panel.project).toEqual(project);
     expect(callbacks.presentNotice).toHaveBeenLastCalledWith(`Could not delete ${file.path}.`, undefined);
   });
 

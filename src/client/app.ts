@@ -248,10 +248,6 @@ class WorkspaceApp {
     this.#elements.editorStatus.bindCompanion(this.#elements.bibliography, this.#bibliography);
     this.#elements.projectImageUpload.configure(apiBase);
     this.#elements.projectFileDialog.configureApi(apiBase, {
-      commit: (snapshot) => {
-        this.#elements.projectFileDialog.presentProject(snapshot, `${apiBase}/assets`, appMode === "workspace");
-        void this.#elements.workspacePreview.renderBoundProject();
-      },
       fileActivated: () => {
         this.#elements.assistantGenerationPresenter.refreshAvailability();
         this.#elements.workspacePreview.resetScroll();

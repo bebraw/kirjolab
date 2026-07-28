@@ -104,16 +104,17 @@ collaborative, and unambiguous about what preview and export mean.
   dialog owns file and folder operation copy, initial paths, focus,
   cancellation, mutation transport, response validation, duplicate-submit
   gating, retryable local failures, and typed routing of sibling file actions,
-  tree actions, upload completion, and save completion. Upload and save
-  snapshots use one canonical mutation binding. A create-and-include operation
+  tree actions, upload completion, and save completion. Validated file, folder,
+  tree, deletion, and upload snapshots use one owner-internal canonical
+  mutation path that applies the project projection before requesting Preview.
+  A create-and-include operation
   retains one insertion continuation across the dialog lifecycle, invokes it
   only after applying the validated snapshot, and clears it on success or
   cancellation; an ordinary save selects its created file through the same
   canonical activation path, and save completion carries only included state
-  and notice. The workspace coordinator retains resource
-  availability, include-caret capture and continuation construction, validated
-  snapshot application, active Y.Text/editor binding, Yjs insertion, rendering,
-  and toast policy.
+  and notice. The workspace coordinator retains resource availability,
+  include-caret capture and continuation construction, active Y.Text/editor
+  binding, Yjs insertion, broader rendering, and toast policy.
   For content-bearing workflow files, the dialog resolves the canonical path,
   selects and focuses an existing file without evaluating the lazy content
   factory, or navigates a newly created stable file into the Guide rail while
