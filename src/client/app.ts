@@ -96,11 +96,7 @@ class WorkspaceApp {
     this.#pdfViewer = PdfEvidenceViewer.forDocument(document, {
       onSelection: (capture) => this.#elements.contextResourcePresenter.capturePdfSelection(capture),
       onHighlight: (annotationId, fragmentId) => this.#elements.contextResourcePresenter.activateProjectHighlight(annotationId, fragmentId),
-      onPageChange: (page) => {
-        const presentation = this.#elements.contextResourcePresenter.presentPdfPage(page);
-        if (presentation.activePdf) this.#elements.workspaceSurfaceSwitcher.syncRoute("replace");
-        this.#elements.referenceLibraryWorkspace.replacePdfRoute(presentation.libraryPdfId, page);
-      },
+      onPageChange: (page) => this.#elements.contextResourcePresenter.presentPdfPage(page),
       onPrivateHighlight: (highlightId) => this.#elements.contextResourcePresenter.selectLibraryHighlight(highlightId),
     });
     this.#layout = WorkspaceLayoutManager.forWorkspace(this.#elements.workspaceSurfaces, {

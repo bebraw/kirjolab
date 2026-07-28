@@ -209,8 +209,9 @@ changing their canonical data, selector, authorization, or rendering contracts.
   routing, selection capture, and saved-markup projection; captures
   fixed/resource scroll and bound viewer page/focused-annotation state into its
   owned canonical context; derives the
-  canonical page update and private-PDF route identity from each viewer page
-  change while leaving route and browser-history mutation to the coordinator;
+  canonical page update from each viewer page change and applies workspace and
+  private-PDF replacement through its bound route owners while leaving concrete
+  browser-history mutation to those owners;
   derives the
   authorized active-PDF load from canonical project, Library, and linked-PDF
   catalogs; applies it through a narrow viewer binding; rejects stale load

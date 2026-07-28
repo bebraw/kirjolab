@@ -118,7 +118,7 @@ function sources(activeTab: ResearchResourceTab | undefined): ContextResourceSou
 }
 
 function standaloneLibraryRoutes() {
-  return { pushPdfRoute: vi.fn(), replaceLibraryRoute: vi.fn() };
+  return { pushPdfRoute: vi.fn(), replaceLibraryRoute: vi.fn(), replacePdfRoute: vi.fn() };
 }
 
 function setup() {
@@ -1275,19 +1275,32 @@ describe("context resource presenter", () => {
     const tab = resourceTab("library-pdf", libraryPdf.id);
     presenter.preparePdfContext({ kind: "library-pdf", id: tab.id }, { page: tab.page });
     presenter.present(sources(tab));
-    const presentation = presenter.presentPdfPage(2);
+    const libraryRoutes = standaloneLibraryRoutes();
+    const syncRoute = vi.fn();
+    presenter.bindContext({
+      activateSurface: vi.fn(),
+      citationAvailable: () => false,
+      openLibrary: vi.fn(),
+      refreshAssistant: vi.fn(),
+      restorePaneWidth: vi.fn(),
+      sources: () => ({ ...sources(undefined), standaloneLibrary: false }),
+      standaloneLibraryRoutes: libraryRoutes,
+      syncRoute,
+    });
+    presenter.presentPdfPage(2);
 
     expect(setLibraryPage).toHaveBeenCalledWith(libraryPdf, [], 2, elements["library-pdf-annotation-toolbar"].drawingStyle);
     expect(setUndoDrawings).toHaveBeenCalledWith([]);
-    expect(presentation).toMatchObject({ activePdf: true, libraryPdfId: libraryPdf.id });
     expect(presenter.activeContextTab).toMatchObject({ page: 2 });
+    expect(syncRoute).toHaveBeenCalledWith("replace");
+    expect(libraryRoutes.replacePdfRoute).toHaveBeenCalledWith(libraryPdf.id, 2);
   });
 
   it("leaves canonical context unchanged when a PDF is not active", () => {
     const { presenter } = setup();
     presenter.present(sources(undefined));
 
-    expect(presenter.presentPdfPage(2)).toEqual({ activePdf: false, libraryPdfId: undefined });
+    expect(presenter.presentPdfPage(2)).toBeUndefined();
     expect(presenter.activeKey).toBe("preview");
   });
 

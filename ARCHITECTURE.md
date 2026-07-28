@@ -1154,9 +1154,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   project, private-Library, and linked-reference PDF context preparation,
   focused page/annotation projection, route-effect sequencing, and active load
   timing. URL parsing, concrete browser-history mutation, and layout state
-  remain coordinator policy. It
-  projects page changes into canonical PDF context and page-local private
-  markup state while returning route identities to the coordinator;
+  remain coordinator policy. It projects page changes into canonical PDF
+  context and page-local private markup state, then applies workspace and
+  standalone-Library replacement through its bound route owners;
   coordinates project citation and intake context,
   switch the annotation versus private-inspector surface, synchronize the
   private-PDF inspector, markup reset, toolbar counts, and export target, and

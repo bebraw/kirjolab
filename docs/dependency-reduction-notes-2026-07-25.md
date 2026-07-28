@@ -12040,6 +12040,28 @@ and 481,994 B / 146,135 B.
 Full native CI passes all 1,770 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: PDF Page Route Projection
+
+`ContextResourcePresenter` now completes viewer page changes by projecting the
+canonical PDF location and page-local private markup, then applying workspace
+and standalone-Library replacement through its already bound route owners. The
+return-only page-presentation shape and `WorkspaceApp` fan-out are removed.
+
+This checkpoint reduces `src/client/app.ts` from 491 to 487 lines (-4) and the
+Context presenter from 1,243 to 1,239 lines (-4), for eight fewer production
+lines overall. Focused coverage passes canonical page projection, private markup
+and undo presentation, workspace replacement, standalone PDF replacement,
+inactive-context behavior, affected integrations, and strict types. Direct and
+unique production package counts remain 18 and 150; Lit was already pinned.
+
+The browser application artifact changes from 861,936 B raw / 232,045 B gzip to
+861,873 B / 232,061 B (-63 B raw / +16 B gzip). Styles and lazy Markdown and
+PDF.js artifacts remain unchanged at 135,411 B / 23,373 B, 204,779 B / 62,386 B,
+and 481,994 B / 146,135 B.
+
+Full native CI passes all 1,770 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: One-Shot Browser Entry Intents
 
 `ProjectStartingPointBrowser` now consumes the `create=1` editor intent, removes

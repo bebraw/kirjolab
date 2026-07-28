@@ -104,11 +104,6 @@ export interface LibraryPdfSelectionPresentation {
   readonly textSelectionEnabled?: boolean;
 }
 
-export interface PdfPagePresentation {
-  readonly activePdf: boolean;
-  readonly libraryPdfId: string | undefined;
-}
-
 export interface LibraryPdfMutationCoordinator {
   readonly acceptProjectMutation: (snapshot: WorkspaceSnapshot) => Promise<void>;
   readonly canInsertCitation: () => boolean;
@@ -136,6 +131,7 @@ export interface ContextPresentationBinding {
   readonly openLibrary: (updateHistory?: boolean) => Promise<void>;
   readonly standaloneLibraryRoutes: {
     readonly pushPdfRoute: (artifactId: string, page: number) => void;
+    readonly replacePdfRoute: (artifactId: string | undefined, page: number) => void;
     readonly replaceLibraryRoute: () => void;
   };
   readonly refreshAssistant: () => void;
@@ -821,15 +817,15 @@ export class ContextResourcePresenter extends LitElement {
     if (list) this.element("workspace-rail-tabs", WorkspaceRailTabs)?.setCommentCount(list.setComments(comments));
   }
 
-  presentPdfPage(page: number): PdfPagePresentation {
+  presentPdfPage(page: number): void {
     this.presentLibraryPdfPage(this.currentLibrary, page);
     const activeTab = this.currentActiveTab;
     const activePdf = activeTab?.kind === "pdf" || activeTab?.kind === "library-pdf";
-    if (activePdf) this.contextState = setPdfResearchLocation(this.contextState, activeTab.key, { page });
-    return {
-      activePdf,
-      libraryPdfId: this.currentLibraryPdf?.id,
-    };
+    if (activePdf) {
+      this.contextState = setPdfResearchLocation(this.contextState, activeTab.key, { page });
+      this.contextPresentation?.syncRoute("replace");
+    }
+    this.contextPresentation?.standaloneLibraryRoutes.replacePdfRoute(this.currentLibraryPdf?.id, page);
   }
 
   setLibraryPdfInspector(open: boolean, showAnnotations = false): void {
