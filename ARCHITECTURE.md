@@ -636,10 +636,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   promoted-revision persistence sequencing, candidate decision state,
   candidate-review event subscriptions, generated-candidate refresh-before-
   open, and completed-decision refresh, recovery, notice selection, and
-  workflow completion. Candidate persistence remains inside the candidate-list owner. Bind the assistant presenter once to canonical
+  workflow completion. Candidate persistence remains inside the candidate-list owner. Derive canonical
   candidate, project-PDF, project snapshot, Library-refresh, assistant-tab, and
-  no-evidence notice routes supplied by the context-resource presenter instead
-  of repeating them across task, result, and candidate workflows. Bind all
+  no-evidence notice routes from the context-resource presenter already supplied
+  by the assistant workflow binding instead of installing a parallel resource
+  stage or repeating routes across task, result, and candidate workflows. Bind all
   candidate panels, the interactive result, model and task controls, and
   evidence selection through one atomic workspace-presentation entry so the
   assistant surface cannot be partially wired. Bind all

@@ -308,10 +308,11 @@ collaboration.
   and Claims panels own collection opening, scrolling, and focus for the first
   available grounding choice; the application coordinator retains rail
   selection while the context-resource presenter supplies the shared no-
-  evidence notice route. The assistant-generation presenter binds once to that
-  presenter for canonical candidate, project-PDF, project snapshot, Library-
-  refresh, assistant-tab, and no-evidence notice routes instead of repeating
-  them across task, result, and candidate workflows. Candidate panels, the
+  evidence notice route. The assistant-generation presenter derives canonical
+  candidate, project-PDF, project snapshot, Library-refresh, assistant-tab, and
+  no-evidence notice routes from that presenter during its workflow bind instead
+  of exposing a parallel resource stage or repeating routes across task,
+  result, and candidate workflows. Candidate panels, the
   interactive result, model and task controls, and evidence selection bind
   atomically through one workspace-presentation entry; callers cannot assemble
   only part of the assistant surface. It also binds the remaining

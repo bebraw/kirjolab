@@ -112,7 +112,6 @@ class WorkspaceApp {
     this.#elements.contextResourcePresenter.bindRoutes(this.#document, this.#collaboration, this.#resourceRefresh, this.#elements);
     this.#elements.contextResourcePresenter.bindPdfViewer(this.#pdfViewer, apiBase);
     this.#elements.workspaceSurfaceSwitcher.bindWorkspaceRoute(appMode === "workspace", this.#elements);
-    this.#elements.assistantGenerationPresenter.bindResources(this.#elements.contextResourcePresenter.assistantResources());
     this.#elements.assistantGenerationPresenter.bindWorkflow(this.#resourceRefresh, this.#elements);
     this.#elements.assistantGenerationPresenter.bindWorkspace(apiBase);
   }

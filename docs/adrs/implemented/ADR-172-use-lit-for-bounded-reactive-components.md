@@ -126,10 +126,11 @@ The adopted components own bounded presentation:
   validation and portable spacing, promoted-revision persistence sequencing,
   candidate-review event handling, generated-candidate refresh-before-open,
   and completed-decision refresh, recovery, notice selection, and workflow
-  completion. Candidate persistence remains in its list owner and provider construction derives from validated model-settings state. It binds once to canonical candidate, project-PDF, project snapshot,
-  Library-refresh, assistant-tab, and no-evidence notice routes supplied by the
-  context-resource presenter instead of repeating them across its task, result,
-  and candidate workflow bindings. Bind candidate panels, the interactive
+  completion. Candidate persistence remains in its list owner and provider construction derives from validated model-settings state. It derives canonical candidate, project-PDF, project snapshot,
+  Library-refresh, assistant-tab, and no-evidence notice routes from the
+  context-resource presenter already supplied by its workflow binding instead
+  of exposing a parallel resource stage or repeating them across its task,
+  result, and candidate workflow bindings. Bind candidate panels, the interactive
   result, model and task controls, and evidence selection through one atomic
   workspace-presentation entry rather than exposing independently callable
   partial stages. Bind the remaining Insert-menu, Context,

@@ -97,6 +97,7 @@ export interface AssistantAuthoringOwners {
 export interface AssistantWorkflowOwners {
   readonly contextResourcePresenter: {
     activateContext(key: string): void;
+    assistantResources(): AssistantResourceRoutes;
     presentBoundContext(updateHistory?: boolean): void;
   };
   readonly editorInsertMenu: { replacePassage(target: AssistantAuthoringPassage, insertion: string): void };
@@ -140,10 +141,7 @@ export class AssistantGenerationPresenter extends LitElement {
 
   bindWorkflow(resources: { request(): Promise<void> }, owners: AssistantWorkflowOwners): void {
     this.workflowBinding = { owners, resources };
-  }
-
-  bindResources(resources: AssistantResourceRoutes): void {
-    this.resources = resources;
+    this.resources = owners.contextResourcePresenter.assistantResources();
   }
 
   private get resourceRoutes(): AssistantResourceRoutes {

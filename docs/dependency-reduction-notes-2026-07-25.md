@@ -13619,6 +13619,20 @@ focused presenter cases. The browser application changes from 857,600 B raw /
 231,415 B gzip to 857,520 B raw / 231,400 B gzip (-80 B raw / -15 B gzip);
 dependency counts and the other static artifacts remain unchanged.
 
+## Continued Lit Ownership: Derived Assistant Resource Routes
+
+`AssistantGenerationPresenter` now derives candidate, PDF, project, Library,
+assistant-tab, and notice routes from the context presenter already supplied by
+its workflow owners. The application no longer installs the same Context-owned
+resource family through a parallel binding stage.
+
+This checkpoint reduces `src/client/app.ts` from 127 to 126 lines (-1) and the
+assistant-generation presenter from 664 to 662 lines (-2), for a three-line net
+runtime reduction. The affected guardrail passes 21 related cases and all 19
+focused presenter cases. The browser application changes from 857,520 B raw /
+231,400 B gzip to 857,443 B raw / 231,394 B gzip (-77 B raw / -6 B gzip);
+dependency counts and the other static artifacts remain unchanged.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,
