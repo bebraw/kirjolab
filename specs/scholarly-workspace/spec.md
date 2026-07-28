@@ -260,9 +260,9 @@ collaboration.
   Clipboard API and textarea fallback copying. It also derives its version from
   the built offline shell and owns service-worker registration, update refresh
   sequencing, workspace-navigation caching, ready projection, and fail-open
-  behavior. Narrow bindings retain coordinator-owned persistence and pinned-
-  update presentation, while the control binds the toast owner directly for
-  copy notices.
+  behavior. It binds the offline-persistence and toast owners directly, owns
+  the pinned update notice and persistence-before-refresh sequence, and uses
+  the same toast owner for copy notices.
   A bounded light-DOM Vim control owns stored enablement, mode presentation,
   modal keyboard and pointer-selection behavior, and editor-listener teardown;
   the coordinator supplies only the source textarea and its visual shell.

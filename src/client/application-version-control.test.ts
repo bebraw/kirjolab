@@ -81,7 +81,7 @@ describe("application version control", () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response("shell"));
     const persist = vi.fn().mockResolvedValue(undefined);
     const reload = vi.fn();
-    const pinUpdate = vi.fn();
+    const notices = { pin: vi.fn() };
     const body = { dataset: {} as DOMStringMap };
     vi.stubGlobal("navigator", { serviceWorker });
     vi.stubGlobal("caches", cacheStorage);
@@ -90,7 +90,7 @@ describe("application version control", () => {
     vi.stubGlobal("location", { href: "https://example.test/editor/demo", reload });
     const control = new TestApplicationVersionControl();
 
-    await control.prepareOfflineShell(true, { persist, pinUpdate });
+    await control.prepareOfflineShell(true, { persist }, notices);
 
     expect(register).toHaveBeenCalledWith("/service-worker.js", { scope: "/" });
     expect(update).toHaveBeenCalledOnce();
@@ -98,7 +98,11 @@ describe("application version control", () => {
     expect(put).toHaveBeenCalledOnce();
     expect(body.dataset.offlineReady).toBe("true");
     controllerChanged?.();
-    const refresh = pinUpdate.mock.calls[0]?.[0] as (() => void) | undefined;
+    expect(notices.pin).toHaveBeenCalledWith("A new version of Kirjolab is available.", {
+      action: expect.any(Function),
+      actionLabel: "Refresh now",
+    });
+    const refresh = notices.pin.mock.calls[0]?.[1]?.action;
     refresh?.();
     await vi.waitFor(() => expect(reload).toHaveBeenCalledOnce());
     expect(persist).toHaveBeenCalledOnce();
@@ -108,6 +112,6 @@ describe("application version control", () => {
     vi.stubGlobal("navigator", { serviceWorker: { register: vi.fn().mockRejectedValue(new Error("unavailable")) } });
     const control = new TestApplicationVersionControl();
 
-    await expect(control.prepareOfflineShell(true, { persist: vi.fn(), pinUpdate: vi.fn() })).resolves.toBeUndefined();
+    await expect(control.prepareOfflineShell(true, { persist: vi.fn() }, { pin: vi.fn() })).resolves.toBeUndefined();
   });
 });

@@ -100,11 +100,7 @@ class WorkspaceApp {
     bindThemePreference(document.documentElement, this.#elements.themePreference, localStorage);
     this.#bindUi();
     this.#elements.workspaceSurfaces.dataset.ready = "true";
-    void this.#elements.applicationVersion.prepareOfflineShell(appMode === "workspace", {
-      persist: () => this.#offline.persist(),
-      pinUpdate: (refresh) =>
-        this.#elements.toast.pin("A new version of Kirjolab is available.", { action: refresh, actionLabel: "Refresh now" }),
-    });
+    void this.#elements.applicationVersion.prepareOfflineShell(appMode === "workspace", this.#offline, this.#elements.toast);
     if (
       await this.#elements.referenceLibraryWorkspace.startStandalone(appMode === "library", {
         connection: this.#elements.connectionStatus,

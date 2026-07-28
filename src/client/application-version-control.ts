@@ -1,11 +1,7 @@
 import { html, LitElement, type TemplateResult } from "lit";
 import type { AppToast } from "./app-toast";
+import type { OfflineWorkspaceSession } from "./offline-workspace";
 import { applicationVersion, cacheOfflineNavigation, registerOfflineServiceWorker } from "./offline-service-worker";
-
-export interface OfflineShellBinding {
-  readonly persist: () => Promise<void>;
-  readonly pinUpdate: (refresh: () => void) => void;
-}
 
 export class ApplicationVersionControl extends LitElement {
   static override properties = { version: { state: true } };
@@ -26,10 +22,17 @@ export class ApplicationVersionControl extends LitElement {
     this.notices = notices;
   }
 
-  async prepareOfflineShell(workspace: boolean, binding: OfflineShellBinding): Promise<void> {
+  async prepareOfflineShell(
+    workspace: boolean,
+    offline: Pick<OfflineWorkspaceSession, "persist">,
+    notices: Pick<AppToast, "pin">,
+  ): Promise<void> {
     try {
       const registered = await registerOfflineServiceWorker(navigator.serviceWorker, () => {
-        binding.pinUpdate(() => void binding.persist().finally(() => location.reload()));
+        notices.pin("A new version of Kirjolab is available.", {
+          action: () => void offline.persist().finally(() => location.reload()),
+          actionLabel: "Refresh now",
+        });
       });
       if (!registered || !workspace || typeof caches === "undefined") return;
       if (await cacheOfflineNavigation(caches, fetch, location.href)) document.body.dataset.offlineReady = "true";

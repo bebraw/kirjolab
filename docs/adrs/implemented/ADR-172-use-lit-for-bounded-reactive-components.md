@@ -1305,9 +1305,10 @@ reason to wrap static markup mechanically.
   textarea fallback behavior. It derives the active version from the offline
   shell and owns service-worker registration, update refresh sequencing,
   workspace-navigation caching, ready projection, and fail-open behavior. The
-  application coordinator supplies persistence and pinned-update effects; the
-  control binds the toast owner directly for copy outcomes, and the public
-  notice event is removed.
+  control binds the offline-persistence and toast owners directly, owns the
+  pinned update notice and persistence-before-refresh sequence, and presents
+  copy outcomes through that toast owner. The application coordinator only
+  connects those capabilities, and the public notice event is removed.
 - The preview synchronization control replaces its container and two button
   references, owns Preview-context visibility, the current composition source
   map, bidirectional composition-offset resolution, native source-viewport
