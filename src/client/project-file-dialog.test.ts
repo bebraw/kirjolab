@@ -154,7 +154,12 @@ function bindTestWorkflow(
 function projectRefreshBinding() {
   return {
     collaboration: { goOffline: vi.fn(), restoreOffline: vi.fn(() => false), setOfflineAvailable: vi.fn() },
-    offline: { clear: vi.fn().mockResolvedValue(undefined), restore: vi.fn().mockResolvedValue(null), schedule: vi.fn() },
+    offline: {
+      clear: vi.fn().mockResolvedValue(undefined),
+      persist: vi.fn().mockResolvedValue(undefined),
+      restore: vi.fn().mockResolvedValue(null),
+      schedule: vi.fn(),
+    },
     owners: {
       bibliography: { disabled: false, value: "" },
       connectionStatus: { presentOfflineRestore: vi.fn(), presentWorkflow: vi.fn() },
@@ -210,7 +215,7 @@ describe("project file dialog", () => {
     expect(connect.mock.invocationCallOrder[0]).toBeLessThan(openFromBrowserRequest.mock.invocationCallOrder[0]!);
   });
 
-  it("installs project application owners through one binding", () => {
+  it("installs project application owners through one startup entry", async () => {
     const panel = new TestProjectFileDialog();
     const presentation = mutationCallbacks();
     const refresh = projectRefreshBinding();
@@ -220,12 +225,16 @@ describe("project file dialog", () => {
     const bindHistory = vi.fn();
     const bindMap = vi.fn();
     const bindLayout = vi.fn();
+    const prepareOfflineShell = vi.fn().mockResolvedValue(undefined);
+    const startLibrary = vi.fn().mockResolvedValue(true);
     const owners = {
       ...presentation,
       ...refresh.owners,
+      applicationVersion: { prepareOfflineShell },
       contextResourcePresenter: { ...refresh.owners.contextResourcePresenter, bindApplication: bindContext },
       manuscriptMapPanel: { bindApplication: bindMap },
       projectHistoryTrigger: { bindWorkspace: bindHistory, setRevision: vi.fn() },
+      referenceLibraryWorkspace: { start: startLibrary },
       workspaceLayout: { bindApplication: bindLayout, setRailCollapsed: vi.fn() },
       workspacePreview: { ...presentation.workspacePreview, bindProject: bindPreview },
       workspaceSettingsPanel: { bindApplication: bindSettings },
@@ -233,7 +242,7 @@ describe("project file dialog", () => {
     const session = new CollaborationSession(new Y.Doc());
     const socket = { connect: vi.fn(), scheduleSelection: vi.fn() };
 
-    panel.bindApplication("/api/workspaces/paper", "paper", true, owners as never, session, refresh.offline, socket);
+    await panel.startApplication("/api/workspaces/paper", "paper", true, owners as never, session, refresh.offline, socket);
 
     expect(bindContext).toHaveBeenCalledWith("/api/workspaces/paper", true, session, panel.refreshCoordinator, socket, owners);
     expect(bindSettings).toHaveBeenCalledWith("paper", "/api/workspaces/paper", true, panel.refreshCoordinator, owners);
@@ -241,6 +250,8 @@ describe("project file dialog", () => {
     expect(bindHistory).toHaveBeenCalledOnce();
     expect(bindMap).toHaveBeenCalledOnce();
     expect(bindLayout).toHaveBeenCalledOnce();
+    expect(prepareOfflineShell).toHaveBeenCalledWith(true, refresh.offline, owners.toast);
+    expect(startLibrary).toHaveBeenCalledWith("paper", "/api/workspaces/paper", owners);
     expect(bindContext.mock.invocationCallOrder[0]).toBeLessThan(bindSettings.mock.invocationCallOrder[0]!);
     expect(bindSettings.mock.invocationCallOrder[0]).toBeLessThan(bindPreview.mock.invocationCallOrder[0]!);
   });

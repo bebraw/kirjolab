@@ -14,10 +14,7 @@ const offline = createBrowserOfflineWorkspaceSession(identityEmail, workspaceId,
 const socket = new CollaborationSocket(session, apiBase, offline, refresh, elements);
 
 async function start(): Promise<void> {
-  elements.projectFileDialog.bindApplication(apiBase, workspaceId, workspaceMode, elements, session, offline, socket);
-  void elements.applicationVersion.prepareOfflineShell(workspaceMode, offline, elements.toast);
-  if (await elements.referenceLibraryWorkspace.start(workspaceId, workspaceMode ? apiBase : null, elements)) return;
-  await elements.projectFileDialog.startWorkspace(elements, socket);
+  await elements.projectFileDialog.startApplication(apiBase, workspaceId, workspaceMode, elements, session, offline, socket);
 }
 
 void start().catch((error: unknown) => {

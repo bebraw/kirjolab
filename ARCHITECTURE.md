@@ -392,7 +392,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   independently. Let that binding install the Context/editor and settings/
   catalog application roots before its Preview, History, manuscript-map, and
   layout lifecycles, and configure the owned project-image upload transport from
-  the same API authority.
+  the same API authority. Let the same entry prepare the offline shell, start
+  standalone Library mode when selected, or continue through the ordered
+  project-workspace startup; the browser composition root only awaits that
+  owner.
   It owns file/folder create and rename transport, file deletion transport,
   content-bearing workflow-file lookup, existing-file selection and focus,
   lazy creation and created-file Guide navigation, shared response validation, created-path verification,

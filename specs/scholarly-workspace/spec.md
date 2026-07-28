@@ -459,7 +459,9 @@ collaboration.
   the UI route, starts ambient GitHub refresh, connects collaboration, and then
   honors the one-shot browser creation request in that dependency order; the
   workspace-layout owner retains rail-collapse state and is installed last by
-  the project-file application entry before publishing root readiness.
+  the project-file application entry before publishing root readiness. The same
+  application entry prepares the offline shell and starts standalone Library
+  mode instead of the project sequence when the validated bootstrap selects it.
 - **Collaboration:** `DocumentRoom` is a SQLite-backed Durable Object for each
   composed project. On a hibernatable WebSocket connection it sends full binary Yjs
   state followed by a versioned `sync` control. The browser sends no state on

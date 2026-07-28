@@ -416,7 +416,9 @@ The adopted components own bounded presentation:
   derives its asset base from the configured workspace API. Its atomic
   application entry also installs the Context/editor and settings/catalog roots
   before Preview, History, manuscript-map, and layout from the same registry.
-  The
+  It then prepares the offline shell and owns the standalone-Library versus
+  project-workspace startup branch, leaving one awaited Lit entry in the browser
+  composition root. The
   offline service's browser factory derives its IndexedDB store and hosted-
   logout binding from identity, workspace, collaboration, and owner inputs so
   those browser policies do not remain in the composition root. The

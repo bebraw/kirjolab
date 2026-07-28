@@ -14743,6 +14743,27 @@ workspace contracts now define one ordered project-root application entry.
 Full native CI passes all 1,780 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: One Application Startup Entry
+
+The project-file Lit owner now completes its atomic application entry by
+preparing the offline shell and owning the standalone-Library versus project-
+workspace startup branch after root binding. The browser composition module
+constructs shared services and awaits that single owner instead of sequencing
+three more lifecycle calls itself.
+
+This checkpoint reduces `src/client/app.ts` from 25 to 22 lines and trades ten
+net production lines for the expanded capability contract. The affected
+guardrail passes 29 related cases across two suites and all 27 directly affected
+project-file cases, alongside formatting, lint, and all strict TypeScript
+targets. The browser application changes from 847,207 B raw / 231,190 B gzip to
+847,194 B raw / 231,186 B gzip (-13 B raw / -4 B gzip); direct and unique
+production package counts remain 18 and 150, and the other static artifacts
+remain unchanged. Architecture, ADR, and scholarly-workspace contracts now
+define one mode-aware Lit startup entry after service construction.
+
+Full native CI passes all 1,780 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,

@@ -1,6 +1,8 @@
 import { html, type TemplateResult } from "lit";
 import { projectFileCollaborationTextName, relativeProjectPath, type ProjectAsset, type ProjectFile } from "../domain/project-files";
 import { isWorkspaceSnapshot, type WorkspaceSnapshot } from "../domain/workspace";
+import type { ApplicationVersionControl } from "./application-version-control";
+import type { AppToast } from "./app-toast";
 import { CoalescedRefresh } from "./collaboration";
 import { DeferredDeletionController, type DeferredDeletionNoticeOptions } from "./deferred-deletion";
 import type { CollaborationSession } from "./collaboration-session";
@@ -14,6 +16,7 @@ import { projectImagesUploadedEvent, type ProjectImagesUploaded } from "./projec
 import type { ProjectHistoryTrigger, ProjectRevisionOwners } from "./project-history-trigger";
 import { projectTreeActionEvent, type ProjectTreeAction, type ProjectTreeCallbacks, type ProjectTreeData } from "./project-tree-panel";
 import type { RestoredOfflineWorkspace } from "./offline-workspace";
+import type { ReferenceLibraryWorkspace, ReferenceLibraryWorkspaceOwners, StandaloneLibraryOwners } from "./reference-library-workspace";
 import type { WorkspacePreview, WorkspacePreviewProjectOwners } from "./workspace-preview";
 import { loadWorkspaceSnapshot, WorkspaceAccessError } from "./workspace-snapshot-client";
 import type { WorkspaceLayoutApplicationOwners, WorkspaceLayoutControl } from "./workspace-layout-control";
@@ -59,6 +62,7 @@ interface ProjectRefreshBinding {
   };
   readonly offline: {
     clear(): Promise<void>;
+    persist(): Promise<void>;
     restore(): Promise<RestoredOfflineWorkspace | null>;
     schedule(): void;
   };
@@ -101,14 +105,20 @@ export interface ProjectFilePresentationBinding {
 type ProjectFileApplicationOwners = ProjectFilePresentationBinding &
   ProjectRefreshOwners &
   ProjectRevisionOwners &
+  ProjectWorkspaceStartupOwners &
   ManuscriptMapApplicationPresentation &
   ContextApplicationOwners &
+  ReferenceLibraryWorkspaceOwners &
+  StandaloneLibraryOwners &
   WorkspaceSettingsApplicationOwners &
   WorkspaceLayoutApplicationOwners &
   WorkspacePreviewProjectOwners & {
+    readonly applicationVersion: Pick<ApplicationVersionControl, "prepareOfflineShell">;
     readonly contextResourcePresenter: ProjectRefreshOwners["contextResourcePresenter"] & Pick<ContextResourcePresenter, "bindApplication">;
     readonly manuscriptMapPanel: Pick<ManuscriptMapPanel, "bindApplication">;
     readonly projectHistoryTrigger: Pick<ProjectHistoryTrigger, "bindWorkspace" | "setRevision">;
+    readonly referenceLibraryWorkspace: Pick<ReferenceLibraryWorkspace, "start">;
+    readonly toast: ProjectFilePresentationBinding["toast"] & Pick<AppToast, "pin">;
     readonly workspaceLayout: Pick<WorkspaceLayoutControl, "bindApplication" | "setRailCollapsed">;
     readonly workspacePreview: Pick<WorkspacePreview, "bindProject" | "renderBoundProject" | "resetScroll">;
     readonly workspaceSettingsPanel: Pick<WorkspaceSettingsPanel, "bindApplication">;
@@ -187,7 +197,7 @@ export class ProjectFileDialog extends LightDomElement {
     this.status = "";
   }
 
-  bindApplication(
+  async startApplication(
     apiBase: string,
     workspaceId: string,
     workspace: boolean,
@@ -195,7 +205,7 @@ export class ProjectFileDialog extends LightDomElement {
     session: CollaborationSession,
     offline: ProjectRefreshBinding["offline"],
     socket: Pick<CollaborationSocket, "connect" | "scheduleSelection">,
-  ): void {
+  ): Promise<void> {
     owners.contextResourcePresenter.bindApplication(apiBase, workspace, session, this.refreshCoordinator, socket, owners);
     owners.workspaceSettingsPanel.bindApplication(workspaceId, apiBase, workspace, this.refreshCoordinator, owners);
     this.configureApi(apiBase, owners, owners.workspaceLayout);
@@ -205,6 +215,9 @@ export class ProjectFileDialog extends LightDomElement {
     owners.projectHistoryTrigger.bindWorkspace(apiBase, owners, offline);
     owners.manuscriptMapPanel.bindApplication(owners);
     owners.workspaceLayout.bindApplication(workspaceId, workspace, owners);
+    void owners.applicationVersion.prepareOfflineShell(workspace, offline, owners.toast);
+    if (await owners.referenceLibraryWorkspace.start(workspaceId, workspace ? apiBase : null, owners)) return;
+    await this.startWorkspace(owners, socket);
   }
 
   configureApi(
