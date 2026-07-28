@@ -7,9 +7,9 @@ export type WorkspaceShareKind = "read-only" | "edit";
 
 export const workspaceSharingNoticeEvent = "workspace-sharing-notice";
 
-interface WorkspaceSharingOptions {
-  readonly presentNotice?: (message: string) => void;
-  readonly trigger?: EventTarget;
+interface WorkspaceSharingOwners {
+  readonly shareWorkspace: EventTarget;
+  readonly toast: { show(message: string): void };
 }
 
 interface ShareLinkPresentation {
@@ -41,7 +41,7 @@ export class WorkspaceSharingPanel extends LitElement {
   declare private membersError: string;
   declare private readOnlyShare: ShareLinkPresentation;
   private apiBase = "";
-  private presentNotice: (message: string) => void = () => undefined;
+  private owners: WorkspaceSharingOwners | null = null;
   private trigger: EventTarget | null = null;
 
   constructor() {
@@ -53,11 +53,11 @@ export class WorkspaceSharingPanel extends LitElement {
     this.readOnlyShare = checkingShareLink;
   }
 
-  configure(apiBase: string, options: WorkspaceSharingOptions = {}): void {
+  configure(apiBase: string, owners?: WorkspaceSharingOwners): void {
     this.trigger?.removeEventListener("click", this.handleOpen);
     this.apiBase = apiBase;
-    this.presentNotice = options.presentNotice ?? (() => undefined);
-    this.trigger = options.trigger ?? null;
+    if (owners) this.owners = owners;
+    this.trigger = owners?.shareWorkspace ?? null;
     this.trigger?.addEventListener("click", this.handleOpen);
   }
 
@@ -293,7 +293,7 @@ export class WorkspaceSharingPanel extends LitElement {
   }
 
   private emitNotice(message: string): void {
-    this.presentNotice(message);
+    this.owners?.toast.show(message);
     this.dispatchEvent(new CustomEvent<string>(workspaceSharingNoticeEvent, { bubbles: true, composed: true, detail: message }));
   }
 }

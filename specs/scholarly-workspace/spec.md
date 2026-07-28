@@ -64,8 +64,9 @@ collaboration.
   handoff, replacement synchronization, and deferred-deletion notices.
 - **Project sharing:** One bounded light-DOM panel owns collaborator and
   capability-link presentation, invitation input, clipboard interaction, and
-  native modal lifecycle. The workspace coordinator retains membership and
-  capability-link requests, authorization outcomes, and toast policy.
+  native modal lifecycle plus membership and capability-link requests and
+  authorization outcomes. It binds its sibling entry trigger and toast owner
+  directly, while the toast owner retains global notice policy.
 - **Browser runtime loading:** The generated application module is minified and
   excludes the Markdown pipeline and PDF.js. Content-fingerprinted immutable
   Markdown and PDF.js runtime URLs are compiled into each application build.

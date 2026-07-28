@@ -823,9 +823,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   disconnected when the capability rotates or is revoked.
 - Keep authenticated member listing and invitation plus read-only and edit-link
   status, creation, and revocation inside the bounded sharing Lit component.
-  Validate responses there, bind its sibling trigger, and forward user-facing
-  notices through typed configuration; keep the application coordinator
-  responsible only for global toast presentation.
+  Validate responses there and bind the sibling trigger and global toast owner
+  directly, avoiding parallel trigger and notice adapters in the application
+  coordinator.
 - Keep public read-only viewers outside cross-origin embedder isolation so
   browser-native PDF extension frames can render their share-scoped,
   independently authorized same-origin PDF response. Keep authoring pages

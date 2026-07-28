@@ -142,7 +142,10 @@ describe("workspace sharing presentation", () => {
     const presentNotice = vi.fn();
     vi.stubGlobal("HTMLDialogElement", FakeDialog);
     Object.defineProperty(panel, "closest", { value: () => dialog });
-    panel.configure("/api/workspaces/workspace-1", { presentNotice, trigger });
+    panel.configure("/api/workspaces/workspace-1", {
+      shareWorkspace: trigger,
+      toast: { show: presentNotice },
+    });
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("Sharing unavailable")));
 
     trigger.dispatchEvent(new Event("click"));

@@ -63,7 +63,8 @@ The adopted components own bounded presentation:
   deletion and Undo, keeping replacement consumers synchronized.
 - The workspace sharing panel owns member and capability-link requests,
   response validation and presentation, invitation input and submission,
-  clipboard interaction, native parent-dialog lifecycle, and typed notices.
+  clipboard interaction, native parent-dialog lifecycle, and typed notices. It
+  binds its sibling trigger and toast owner directly.
 - The workspace catalog panel owns project filtering, result and empty-state
   rendering, metadata labels, filter focus reset, and native parent-dialog
   lifecycle, including its server-rendered entry trigger. It also owns catalog
@@ -1435,10 +1436,11 @@ reason to wrap static markup mechanically.
   centering, transient emphasis, image lookup, and anchor scrolling. This
   keeps Lit focused on reactive presentation while still removing raw Preview
   elements from `WorkspaceApp`.
-- The project-history dialog and workspace-sharing panel each bind their
-  sibling entry trigger and forward local notices through typed configuration.
-  This removes four coordinator subscriptions while retaining global toast
-  policy in the application coordinator.
+- The project-history dialog binds its sibling entry trigger and forwards local
+  notices through typed configuration. The workspace-sharing panel binds its
+  sibling trigger and toast owner directly. This removes coordinator
+  subscriptions and adapters while retaining global toast policy in the toast
+  owner.
 - The action-menu controller owns document-level outside-action dismissal,
   settings-menu containment, Escape ordering, focus restoration, and listener
   teardown for spatially separate native `details` menus.

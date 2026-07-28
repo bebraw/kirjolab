@@ -166,10 +166,7 @@ class WorkspaceApp {
     for (const panel of [this.#elements.researchQuestionPanel, this.#elements.reviewerResponsePanel]) {
       panel.bindProject(this.#elements.projectFileDialog, this.#elements.toast);
     }
-    this.#elements.workspaceSharingPanel.configure(apiBase, {
-      presentNotice: (message) => this.#elements.toast.show(message),
-      trigger: this.#elements.shareWorkspace,
-    });
+    this.#elements.workspaceSharingPanel.configure(apiBase, this.#elements);
     this.#elements.referenceLibraryWorkspace.configure(workspaceId);
     this.#elements.referenceLibraryWorkspace.bindProject(appMode === "workspace" ? apiBase : null, this.#elements);
     this.#elements.editorStatus.bindAuthoring(this.#document, this.#elements.source, {
