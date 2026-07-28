@@ -211,8 +211,10 @@ collaboration.
   persistence, PDF resize notification, and resolution of its controls beneath
   the workspace root. It binds the canonical Context owner directly for
   context-specific pane keys and consumes that owner's PDF viewer for relayout
-  rather than receiving a second application-owned capability. Its atomic workspace binding establishes
-  the complete selection, collapse, and resize listener lifecycle; no separate
+  while one atomic application entry also installs the surface switcher's
+  complete workspace-route lifecycle rather than requiring a second
+  application call. That binding establishes the complete selection, collapse,
+  and resize listener lifecycle; no separate
   non-element layout manager exists. Widths remain context-specific transient
   UI state rather than collaborative data or workspace URL state.
   On desktop the rail width is adjustable by pointer or keyboard within bounded

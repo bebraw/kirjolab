@@ -14295,6 +14295,25 @@ name the reciprocal binding explicitly.
 Full native CI passes all 1,775 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Atomic Layout and Route Binding
+
+The workspace-layout Lit owner now installs both its DOM sizing lifecycle and
+the surface switcher's workspace-route lifecycle through one production
+application entry. Route subscriptions therefore cannot precede layout owner
+configuration, while each component retains its focused public behavior.
+
+This checkpoint trades ten net production lines for the atomic navigation
+boundary and reduces `src/client/app.ts` from 67 to 66 lines. The affected
+guardrail passes 10 related cases across three suites alongside strict types.
+The browser application changes from 847,073 B raw / 230,957 B gzip to 847,124
+B raw / 230,982 B gzip (+51 B raw / +25 B gzip); direct and unique production
+package counts remain 18 and 150, and the other static artifacts remain
+unchanged. Architecture, ADR, and scholarly-workspace contracts now require
+the combined application lifecycle.
+
+Full native CI passes all 1,775 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,

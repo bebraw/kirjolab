@@ -1,6 +1,7 @@
 import { html, type TemplateResult } from "lit";
 import type { ContextResourcePresenter } from "./context-resource-presenter";
 import { LightDomElement } from "./light-dom-controller";
+import type { WorkspaceRouteOwners } from "./workspace-surface-switcher";
 import type { WorkspaceLayout } from "./workspace-ui-route";
 
 type WorkspaceLayoutMode = "library" | "workspace";
@@ -45,6 +46,11 @@ interface WorkspaceLayoutOwners {
   readonly workspaceSurfaces: WorkspaceLayoutRoot;
 }
 
+type WorkspaceLayoutApplicationOwners = WorkspaceLayoutOwners &
+  WorkspaceRouteOwners & {
+    readonly workspaceSurfaceSwitcher: { bindWorkspaceRoute(enabled: boolean, owners: WorkspaceRouteOwners): void };
+  };
+
 export class WorkspaceLayoutControl extends LightDomElement {
   static override properties = {
     layout: { state: true },
@@ -67,6 +73,11 @@ export class WorkspaceLayoutControl extends LightDomElement {
 
   get value(): WorkspaceLayout {
     return this.layout;
+  }
+
+  bindApplication(workspaceId: string, enabled: boolean, owners: WorkspaceLayoutApplicationOwners): void {
+    this.bindWorkspace(workspaceId, owners);
+    owners.workspaceSurfaceSwitcher.bindWorkspaceRoute(enabled, owners);
   }
 
   bindWorkspace(workspaceId: string, owners: WorkspaceLayoutOwners): void {

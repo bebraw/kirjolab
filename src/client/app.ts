@@ -52,9 +52,8 @@ class WorkspaceApp {
     owners.projectFileDialog.bindApplication(apiBase, appMode === "workspace", owners, this.#session, this.#offline);
     owners.workspacePreview.bindProject(apiBase, this.#session.document, owners);
     owners.projectHistoryTrigger.bindWorkspace(apiBase, owners, this.#offline);
-    owners.workspaceLayout.bindWorkspace(workspaceId, owners);
+    owners.workspaceLayout.bindApplication(workspaceId, appMode === "workspace", owners);
     owners.contextResourcePresenter.bindApplication(apiBase, appMode === "workspace", this.#session, this.#refresh, owners);
-    owners.workspaceSurfaceSwitcher.bindWorkspaceRoute(appMode === "workspace", owners);
   }
 }
 

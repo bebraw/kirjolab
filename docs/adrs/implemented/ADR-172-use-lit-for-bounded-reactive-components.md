@@ -1469,9 +1469,10 @@ reactive owner and adds only empty rendering and typed sibling lookup.
   pane resizing, pointer and keyboard interaction, ARIA values, browser-local
   width persistence, PDF relayout, and resize notification for internal, restored,
   and route-driven navigation before routing the typed outcome through a
-  binding. Its atomic workspace binding resolves the root controls and consumes
-  the canonical Context owner plus that owner's PDF viewer, replacing the former non-element
-  layout manager. The surface-navigation owner's workspace-route binding consumes the
+  binding. Its atomic application binding resolves the root controls, consumes
+  the canonical Context owner plus that owner's PDF viewer, and installs the
+  surface-navigation owner's complete workspace-route lifecycle, replacing the former non-element
+  layout manager. That route binding consumes the
   layout outcome, activates an available PDF through the supplied Context owner
   for PDF-only mode, and replaces the canonical URL. Its public change
   event is removed.
