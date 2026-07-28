@@ -269,7 +269,8 @@ The adopted components own bounded presentation:
   publication, citation, and paper intents among those composed owners. Bind
   publication-list management directly to the reference-Library workspace;
   bind private-PDF project mutation outcomes directly to the same workspace's
-  canonical apply-project lifecycle instead of adapting either route in the
+  canonical apply-project lifecycle, deriving the inspector route from that
+  already-bound workspace instead of adapting or binding either route in the
   application coordinator. Bind
   canonical project refresh, authoring state, passage navigation, citation
   insertion, and notice presentation once through the resource-route owner

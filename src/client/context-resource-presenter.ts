@@ -559,6 +559,7 @@ export class ContextResourcePresenter extends LitElement {
   bindLibraryPdf(apiBase: string, owners: LibraryPdfOwners): void {
     this.libraryPdfProject = { apiBase, owners };
     const inspector = this.element("library-pdf-inspector", LibraryPdfInspector);
+    inspector?.bindProjectMutations(owners.referenceLibraryWorkspace);
     inspector?.addEventListener(libraryPdfAnnotationActionEvent, (event) => {
       this.handleLibraryPdfAnnotationAction((event as CustomEvent<LibraryPdfAnnotationAction>).detail);
     });

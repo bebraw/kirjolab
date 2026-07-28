@@ -1588,14 +1588,18 @@ describe("context resource presenter", () => {
       projectApiBase: "/api/workspaces/workspace",
     };
     vi.spyOn(elements["paper-markups"], "chooseTool").mockImplementation(() => undefined);
-    const setStatus = vi.spyOn(elements["library-pdf-inspector"], "setStatus");
-    vi.spyOn(elements["library-pdf-inspector"], "clearNote").mockImplementation(() => undefined);
-    vi.spyOn(elements["library-pdf-inspector"], "clearMarkup").mockImplementation(() => undefined);
-    vi.spyOn(elements["library-pdf-inspector"], "draftState", "get").mockReturnValue({ highlight: false, markup: false, note: false });
+    const inspector = elements["library-pdf-inspector"];
+    const bindProjectMutations = vi.spyOn(inspector, "bindProjectMutations");
+    const setStatus = vi.spyOn(inspector, "setStatus");
+    vi.spyOn(inspector, "clearNote").mockImplementation(() => undefined);
+    vi.spyOn(inspector, "clearMarkup").mockImplementation(() => undefined);
+    vi.spyOn(inspector, "draftState", "get").mockReturnValue({ highlight: false, markup: false, note: false });
     presenter.bindPdfViewer(viewer, "/api/workspaces/workspace");
     const openPdf = vi.spyOn(presenter, "openLibraryPdf").mockResolvedValue(undefined);
     bindTestLibraryPdf(presenter, coordinator);
     presenter.present(sources(undefined));
+
+    expect(bindProjectMutations).toHaveBeenCalledWith(expect.objectContaining({ applyProjectMutation: coordinator.acceptProjectMutation }));
 
     elements["library-pdf-annotation-toolbar"].dispatchEvent(
       new CustomEvent("library-pdf-toolbar-action", { detail: { action: "choose-tool", tool: "text" } }),

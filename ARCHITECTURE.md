@@ -1113,7 +1113,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   annotation list, and project-use block. Supply one canonical artifact,
   project, reference, and Library snapshot from the application coordinator;
   route nested project reference and research mutation completion through one
-  typed callback. Let the composed context-resource presenter apply local
+  typed callback. Let the composed context-resource presenter derive that
+  inspector mutation route from its already-bound canonical reference-Library
+  owner instead of requiring a separate application binding, and apply local
   draft-clearing, text-selection, and private-markup selection presentations
   directly through its bound viewer. Keep navigation, canonical snapshot
   application, refreshes, history, and toast policy in the coordinator.

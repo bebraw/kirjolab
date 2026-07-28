@@ -602,7 +602,9 @@ collaboration.
   bound project refresh sequence, reads the live snapshot directly from its
   project-file owner, and sequences linked-PDF loading, authorization
   reconciliation, project and context presentation, settlement, and canonical
-  route replacement. Bound feature owners retain cross-feature navigation and
+  route replacement. The composed context presenter derives the inspector's
+  project-mutation route from the canonical Library workspace already supplied
+  to its private-PDF binding. Bound feature owners retain cross-feature navigation and
   notices.
   One pure active-load projection resolves project evidence, private Library,
   or shared-reference input and its authorized URL from the active typed tab
