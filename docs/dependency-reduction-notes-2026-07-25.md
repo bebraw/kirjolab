@@ -14129,6 +14129,23 @@ static artifacts remain unchanged.
 Full native CI passes all 1,775 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Reduction: Secondary Workspace Controls
+
+Context-resource tabs, export statistics, manuscript comments, model-provider
+settings, Preview synchronization controls, and project history now reuse
+`LightDomElement`. Model preference restoration and Preview source reconnection
+remain local lifecycle work layered around the shared light-DOM behavior.
+
+This checkpoint removes 34 production lines while keeping `src/client/app.ts`
+at 73 lines. The affected guardrail passes 114 related cases across 14 suites
+alongside strict types. The browser application changes from 850,108 B raw /
+231,395 B gzip to 849,513 B raw / 231,280 B gzip (-595 B raw / -115 B gzip);
+direct and unique production package counts remain 18 and 150, and the other
+static artifacts remain unchanged.
+
+Full native CI passes all 1,775 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,

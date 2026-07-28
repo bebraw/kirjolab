@@ -1,4 +1,6 @@
-import { html, LitElement, nothing, type TemplateResult } from "lit";
+import { html, nothing, type TemplateResult } from "lit";
+
+import { LightDomElement } from "./light-dom-controller";
 import type { ProjectRevisionContent, ProjectRevisionDiff, ProjectRevisionSummary } from "../domain/project-history";
 import type { ProjectHistoryOperation } from "./project-history-machine";
 
@@ -9,7 +11,7 @@ type ProjectHistoryInspector =
   | { readonly kind: "revision"; readonly value: ProjectRevisionContent }
   | { readonly kind: "comparison"; readonly value: ProjectRevisionDiff };
 
-export class ProjectHistoryPanel extends LitElement {
+export class ProjectHistoryPanel extends LightDomElement {
   static override properties = {
     busy: { state: true },
     fromRevision: { state: true },
@@ -61,15 +63,6 @@ export class ProjectHistoryPanel extends LitElement {
 
   showComparison(value: ProjectRevisionDiff): void {
     this.inspector = { kind: "comparison", value };
-  }
-
-  override connectedCallback(): void {
-    if (!this.hasUpdated) this.replaceChildren();
-    super.connectedCallback();
-  }
-
-  protected override createRenderRoot(): HTMLElement {
-    return this;
   }
 
   protected override render(): TemplateResult {

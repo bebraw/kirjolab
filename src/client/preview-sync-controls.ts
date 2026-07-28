@@ -1,5 +1,7 @@
-import { html, LitElement, type TemplateResult } from "lit";
+import { html, type TemplateResult } from "lit";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
+
+import { LightDomElement } from "./light-dom-controller";
 import type { CompositionSourceSpan } from "../domain/project-files";
 import { renderIcon } from "../ui/icons";
 import { previewOffsetsForSourceLocation, sourceLocationForPreviewOffset, type PreviewSourceLocation } from "./source-preview-sync";
@@ -15,7 +17,7 @@ export interface PreviewSyncOwners {
 
 const sourceNavigationKeys = new Set(["ArrowDown", "ArrowLeft", "ArrowRight", "ArrowUp", "End", "Home", "PageDown", "PageUp"]);
 
-export class PreviewSyncControls extends LitElement {
+export class PreviewSyncControls extends LightDomElement {
   #sourceMap: readonly CompositionSourceSpan[] = [];
   #owners: PreviewSyncOwners | null = null;
   #sourceAbort: AbortController | null = null;
@@ -94,7 +96,6 @@ export class PreviewSyncControls extends LitElement {
   }
 
   override connectedCallback(): void {
-    if (!this.hasUpdated) this.replaceChildren();
     super.connectedCallback();
     this.#connectSource();
   }
@@ -103,10 +104,6 @@ export class PreviewSyncControls extends LitElement {
     this.#sourceAbort?.abort();
     this.#sourceAbort = null;
     super.disconnectedCallback();
-  }
-
-  protected override createRenderRoot(): HTMLElement {
-    return this;
   }
 
   protected override render(): TemplateResult {

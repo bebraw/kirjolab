@@ -1,5 +1,7 @@
 import * as v from "valibot";
-import { html, LitElement, type TemplateResult } from "lit";
+import { html, type TemplateResult } from "lit";
+
+import { LightDomElement } from "./light-dom-controller";
 import { discoverOpenAICompatibleModels, OpenAICompatibleBrowserProvider, type ModelReasoningEffort } from "./model-provider";
 
 export const modelProviderChangeEvent = "model-provider-change";
@@ -29,7 +31,7 @@ const storedPreferencesSchema = v.object({
   reasoningEffort: v.fallback(v.picklist(["provider-default", "none", "low", "medium", "high"]), initialPreferences.reasoningEffort),
 });
 
-export class ModelProviderSettings extends LitElement {
+export class ModelProviderSettings extends LightDomElement {
   static override properties = {
     busy: { state: true },
     discoveryAvailable: { state: true },
@@ -119,13 +121,8 @@ export class ModelProviderSettings extends LitElement {
   override connectedCallback(): void {
     if (!this.hasUpdated) {
       this.restoreStoredPreferences();
-      this.replaceChildren();
     }
     super.connectedCallback();
-  }
-
-  protected override createRenderRoot(): HTMLElement {
-    return this;
   }
 
   protected override render(): TemplateResult {

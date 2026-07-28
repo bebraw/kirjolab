@@ -1,4 +1,6 @@
-import { html, LitElement, type TemplateResult } from "lit";
+import { html, type TemplateResult } from "lit";
+
+import { LightDomElement } from "./light-dom-controller";
 import type {
   CreateManuscriptCommentInput,
   ManuscriptAnchorSelector,
@@ -21,7 +23,7 @@ export interface ManuscriptCommentAuthoring {
   readonly stable: boolean;
 }
 
-export class ManuscriptCommentList extends LitElement {
+export class ManuscriptCommentList extends LightDomElement {
   static override properties = {
     body: { state: true },
     comments: { state: true },
@@ -67,15 +69,6 @@ export class ManuscriptCommentList extends LitElement {
       input,
       "Comment linked to the selected passage; earlier anchors remain in project history.",
     );
-  }
-
-  override connectedCallback(): void {
-    if (!this.hasUpdated) this.replaceChildren();
-    super.connectedCallback();
-  }
-
-  protected override createRenderRoot(): HTMLElement {
-    return this;
   }
 
   protected override render(): TemplateResult {

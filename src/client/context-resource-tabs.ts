@@ -1,4 +1,6 @@
-import { html, LitElement, type TemplateResult } from "lit";
+import { html, type TemplateResult } from "lit";
+
+import { LightDomElement } from "./light-dom-controller";
 import type { ResearchContextKey, ResearchResourceTab } from "./research-context";
 
 export const contextResourceTabActionEvent = "context-resource-tab-action";
@@ -21,7 +23,7 @@ export function contextResourceTabId(tab: ResearchResourceTab): string {
   return `context-tab-${tab.kind}-${tab.id}`;
 }
 
-export class ContextResourceTabs extends LitElement {
+export class ContextResourceTabs extends LightDomElement {
   static override properties = {
     data: { state: true },
   };
@@ -35,15 +37,6 @@ export class ContextResourceTabs extends LitElement {
 
   setTabs(data: ContextResourceTabsData): void {
     this.data = data;
-  }
-
-  override connectedCallback(): void {
-    if (!this.hasUpdated) this.replaceChildren();
-    super.connectedCallback();
-  }
-
-  protected override createRenderRoot(): HTMLElement {
-    return this;
   }
 
   protected override render(): TemplateResult {
