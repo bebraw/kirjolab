@@ -12018,6 +12018,28 @@ and 481,994 B / 146,135 B.
 Full native CI passes all 1,770 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Project-Rail Route Effects
+
+`WorkspaceSurfaceSwitcher` now consumes project-rail navigation through its
+existing workspace-route binding and replaces the canonical URL beside its
+other route-producing controls. `WorkspaceApp` no longer installs a detached
+rail subscription.
+
+This checkpoint reduces `src/client/app.ts` from 492 to 491 lines (-1) and grows
+the surface/route owner from 180 to 182 lines (+2). The one-line combined
+increase completes route synchronization for the three controls already carried
+by the binding. Focused coverage passes rail replacement, canonical projection,
+restoration, affected integrations, and strict types. Direct and unique
+production package counts remain 18 and 150; Lit was already pinned.
+
+The browser application artifact changes from 861,983 B raw / 232,053 B gzip to
+861,936 B / 232,045 B (-47 B raw / -8 B gzip). Styles and lazy Markdown and
+PDF.js artifacts remain unchanged at 135,411 B / 23,373 B, 204,779 B / 62,386 B,
+and 481,994 B / 146,135 B.
+
+Full native CI passes all 1,770 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: One-Shot Browser Entry Intents
 
 `ProjectStartingPointBrowser` now consumes the `create=1` editor intent, removes

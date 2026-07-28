@@ -1186,8 +1186,9 @@ reason to wrap static markup mechanically.
 - The workspace rail tabs replace five internal element references, four
   native action bindings, four ARIA-selection mutations, and DOM-derived active
   mode plus their public change event. They route selection through a typed
-  navigation binding; the application coordinator retains panel visibility,
-  guide rendering, URL synchronization, collapse, and resize authority.
+  navigation binding; the workspace surface switcher's route binding consumes
+  the outcome and replaces the canonical URL. The application coordinator
+  retains guide rendering, collapse, and resize authority.
 - The authoring mode tabs replace two internal element references, two native
   action bindings, two ARIA-state mutations, DOM-derived active mode, one
   write-action reference, three coordinator-owned visibility mutations, and
@@ -1298,9 +1299,9 @@ reason to wrap static markup mechanically.
   existing `aria-controls` contract and own active-panel visibility alongside
   tab selection and comment-count presentation. Their navigation method applies
   the selected mode before reporting it through the typed binding, so internal
-  clicks and external workflows share one state transition. The application
-  coordinator retains route synchronization, responsive rail layout, and guide
-  rendering.
+  clicks and external workflows share one state transition. The workspace
+  surface switcher's route binding owns route synchronization; the application
+  coordinator retains responsive rail layout and guide rendering.
 - The unidentified-PDF queue replaces two internal element references,
   imperative section, count, empty-state, card, and option rendering, and
   per-card action bindings. It also derives its legacy unattached-artifact

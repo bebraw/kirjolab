@@ -138,9 +138,10 @@ collaboration.
   One bounded light-DOM tab component owns its active mode, open-comment count,
   ARIA selection state, controlled-panel visibility, and the selection
   transition used by both tab clicks and workflow-driven navigation. It reports
-  the selected mode through one typed callback. The application coordinator
-  retains guide rendering and URL routing; the layout manager retains collapse
-  and resize behavior.
+  the selected mode through one typed callback. The workspace surface switcher's
+  route binding consumes that outcome and replaces the canonical URL. The
+  application coordinator retains guide rendering; the layout manager retains
+  collapse and resize behavior.
   The bounded project-tree panel owns the workspace-only Cmd/Ctrl+P shortcut
   and emits a typed quick-open intent; the coordinator reveals the Files rail
   before asking the panel to focus its filter.

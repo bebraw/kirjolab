@@ -209,7 +209,6 @@ class WorkspaceApp {
     this.#elements.saveTemplateDialog.bindCompletion((message) => {
       void this.#elements.newWorkspaceStartingPoints.refresh().then(() => this.#elements.toast.show(message));
     });
-    this.#elements.workspaceRailTabs.bindNavigation(() => this.#elements.workspaceSurfaceSwitcher.syncRoute("replace"));
     this.#elements.researchDiaryPanel.bindOpen(
       () =>
         void this.#elements.projectFileDialog.openWorkflowFile(researchDiaryPath, () =>

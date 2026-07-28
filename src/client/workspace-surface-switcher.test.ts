@@ -49,6 +49,7 @@ describe("workspace surface switcher", () => {
     let layout: WorkspaceLayout = "context";
     let changeLayout: ((layout: WorkspaceLayout) => void | Promise<void>) | undefined;
     let navigateMode: ((mode: AuthoringMode) => void) | undefined;
+    let navigateRail: ((rail: WorkspaceRail) => void) | undefined;
     const railNavigate = vi.fn((value: typeof railMode) => {
       railMode = value;
     });
@@ -99,6 +100,9 @@ describe("workspace surface switcher", () => {
         get mode() {
           return railMode;
         },
+        bindNavigation: (navigate) => {
+          navigateRail = navigate;
+        },
         navigate: railNavigate,
       },
       restoreContext,
@@ -126,6 +130,12 @@ describe("workspace surface switcher", () => {
     );
 
     railMode = "comments";
+    navigateRail?.("comments");
+    expect(replaceState).toHaveBeenLastCalledWith(
+      { retained: true },
+      "",
+      "/editor/demo?keep=yes&file=notes&rail=comments&layout=context&context=pdf%3Apaper&page=3&annotation=mark",
+    );
     switcher.syncRoute("push");
     expect(pushState).toHaveBeenCalledWith(
       { view: "workspace" },
@@ -160,7 +170,7 @@ describe("workspace surface switcher", () => {
       focusAuthoring: vi.fn(),
       layout: { value: "split", bindChange: vi.fn(), navigate: vi.fn() },
       mode: { mode: "write", bindNavigation: vi.fn(), navigate: vi.fn() },
-      rail: { mode: "files", navigate: vi.fn() },
+      rail: { mode: "files", bindNavigation: vi.fn(), navigate: vi.fn() },
       restoreContext: vi.fn(),
       selectFile: vi.fn(),
     });
@@ -184,7 +194,7 @@ describe("workspace surface switcher", () => {
       focusAuthoring: vi.fn(),
       layout: { value: "split", bindChange: vi.fn(), navigate: vi.fn() },
       mode: { mode: "write", bindNavigation: vi.fn(), navigate: vi.fn() },
-      rail: { mode: "files", navigate: vi.fn() },
+      rail: { mode: "files", bindNavigation: vi.fn(), navigate: vi.fn() },
       restoreContext: vi.fn(),
       selectFile: vi.fn(),
     });

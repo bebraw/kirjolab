@@ -30,6 +30,7 @@ export interface WorkspaceRouteBinding {
   };
   readonly rail: {
     readonly mode: WorkspaceRail;
+    readonly bindNavigation: (navigate: (rail: WorkspaceRail) => void) => void;
     readonly navigate: (rail: WorkspaceRail) => void;
   };
   readonly restoreContext: (key: ResearchContextKey, page?: number, annotationId?: string) => Promise<void>;
@@ -73,6 +74,7 @@ export class WorkspaceSurfaceSwitcher extends LitElement {
       if (layout === "pdf") await binding.ensurePdfResource();
       this.syncRoute("replace");
     });
+    binding.rail.bindNavigation(() => this.syncRoute("replace"));
     this.bindHistory();
   }
 

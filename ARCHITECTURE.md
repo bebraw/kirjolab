@@ -97,6 +97,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   event, focuses the supplied authoring target, and replaces the canonical URL;
   Map outcomes only replace the URL. Keep editor focus behind a narrow callback
   instead of giving the route owner direct editor access.
+- Let that route binding also consume project-rail navigation outcomes and
+  replace the canonical URL. Keep rail presentation, collapse, and geometry in
+  their existing owners.
 - Let the bounded Library discovery search own its provider request, response
   validation, duplicate-submit guard, and status lifecycle. Route only its
   validated result list to the sibling results component. Let that result owner
