@@ -8,6 +8,11 @@ export interface ProjectTemplateSave {
   readonly templateId?: string;
 }
 
+export interface ProjectTemplateSource {
+  readonly availableTemplates: readonly ProjectTemplateSummary[];
+  refresh(): Promise<void>;
+}
+
 export class ProjectTemplateSaveDialog extends LitElement {
   static override properties = {
     description: { state: true },
@@ -25,7 +30,8 @@ export class ProjectTemplateSaveDialog extends LitElement {
   declare private status: string;
   declare private templates: readonly ProjectTemplateSummary[];
   private apiBase = "";
-  private completeSave: ((message: string) => void) | null = null;
+  private presentNotice: (message: string) => void = () => undefined;
+  private templateSource: ProjectTemplateSource | null = null;
 
   constructor() {
     super();
@@ -41,14 +47,15 @@ export class ProjectTemplateSaveDialog extends LitElement {
     this.apiBase = apiBase;
   }
 
-  bindCompletion(completeSave: (message: string) => void): void {
-    this.completeSave = completeSave;
+  bindTemplates(source: ProjectTemplateSource, presentNotice: (message: string) => void): void {
+    this.templateSource = source;
+    this.presentNotice = presentNotice;
   }
 
-  async open(projectTitle: string, loadTemplates: () => Promise<void>): Promise<void> {
+  async open(projectTitle: string): Promise<void> {
     await this.showLoading();
     try {
-      await loadTemplates();
+      await this.refreshTemplates();
       await this.showReady(projectTitle);
     } catch (error) {
       this.showError(errorMessage(error, "Could not load personal templates."));
@@ -85,6 +92,10 @@ export class ProjectTemplateSaveDialog extends LitElement {
   setTemplates(templates: readonly ProjectTemplateSummary[]): void {
     this.templates = templates.filter((template) => template.source === "personal");
     if (!this.templates.some((template) => template.id === this.selectedTemplateId)) this.selectedTemplateId = "";
+  }
+
+  syncTemplates(): void {
+    if (this.templateSource) this.setTemplates(this.templateSource.availableTemplates);
   }
 
   close(): void {
@@ -190,9 +201,10 @@ export class ProjectTemplateSaveDialog extends LitElement {
       const templates: unknown[] = [await response.json()];
       if (!isProjectTemplateSummaries(templates) || !templates[0]) throw new Error("Saved project template returned invalid data");
       this.close();
-      this.completeSave?.(
-        value.templateId ? `Replaced template “${templates[0].name}”.` : `Saved “${templates[0].name}” as a personal template.`,
-      );
+      const message = value.templateId
+        ? `Replaced template “${templates[0].name}”.`
+        : `Saved “${templates[0].name}” as a personal template.`;
+      void this.refreshTemplates().then(() => this.presentNotice(message));
     } catch (error) {
       this.status = errorMessage(error, "Could not save personal template.");
     } finally {
@@ -202,6 +214,12 @@ export class ProjectTemplateSaveDialog extends LitElement {
 
   protected cancel(): void {
     this.close();
+  }
+
+  private async refreshTemplates(): Promise<void> {
+    if (!this.templateSource) throw new Error("Project template source is not configured");
+    await this.templateSource.refresh();
+    this.syncTemplates();
   }
 
   protected get dialog(): HTMLDialogElement {

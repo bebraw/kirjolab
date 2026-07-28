@@ -12247,6 +12247,30 @@ and 481,994 B / 146,135 B.
 Full native CI passes all 1,773 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Template Save Refresh Lifecycle
+
+`ProjectTemplateSaveDialog` now binds the starting-point browser once as a
+typed template source. The dialog owns its pre-open load, post-save catalog
+refresh, replacement-option synchronization, and successful-save notification
+timing instead of returning those steps to `WorkspaceApp` through loader and
+completion callbacks. The starting-point browser remains the canonical catalog
+and hidden-template owner.
+
+This checkpoint reduces `src/client/app.ts` from 453 to 452 lines (-1). The
+template-save owner grows from 228 to 246 lines (+18) to replace coordinator
+policy with an explicit reusable boundary. Direct component coverage passes all
+seven save-dialog cases and all ten starting-point cases; affected coverage
+passes all nine related runtime cases alongside strict types.
+
+The browser application artifact changes from 862,122 B raw / 232,231 B gzip
+to 862,354 B raw / 232,259 B gzip (+232 B raw / +28 B gzip). Styles, lazy
+Markdown, lazy PDF.js, and direct and unique production package counts remain
+unchanged at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip,
+481,994 B raw / 146,135 B gzip, 18, and 150.
+
+Full native CI passes all 1,773 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: One-Shot Browser Entry Intents
 
 `ProjectStartingPointBrowser` now consumes the `create=1` editor intent, removes

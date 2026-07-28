@@ -127,13 +127,16 @@ describe("project template save dialog", () => {
     vi.stubGlobal("fetch", fetchMock);
     dialog.configure("/api/workspaces/workspace-1");
     const saves: string[] = [];
-    dialog.bindCompletion((result) => saves.push(result));
+    const source = { availableTemplates: personalTemplates, refresh: vi.fn().mockResolvedValue(undefined) };
+    dialog.bindTemplates(source, (result) => saves.push(result));
     dialog.nameForTest("New template");
     dialog.descriptionForTest("New description");
     await dialog.saveForTest();
+    await vi.waitFor(() => expect(saves).toHaveLength(1));
     dialog.setTemplates(personalTemplates);
     dialog.selectForTest("template-1");
     await dialog.saveForTest();
+    await vi.waitFor(() => expect(saves).toHaveLength(2));
 
     expect(saves).toEqual([
       `Saved “${personalTemplates[0].name}” as a personal template.`,
@@ -173,6 +176,7 @@ describe("project template save dialog", () => {
   it("ignores a duplicate submission while a save is pending", async () => {
     const dialog = new TestProjectTemplateSaveDialog();
     dialog.configure("/api/workspaces/workspace-1");
+    dialog.bindTemplates({ availableTemplates: personalTemplates, refresh: vi.fn().mockResolvedValue(undefined) }, () => undefined);
     dialog.nameForTest("New template");
     let resolveResponse = (_response: Response): void => undefined;
     const pendingResponse = new Promise<Response>((resolve) => {
@@ -206,14 +210,16 @@ describe("project template save dialog", () => {
   it("owns template loading and retryable open errors", async () => {
     const dialog = new TestProjectTemplateSaveDialog();
     const loadTemplates = vi.fn().mockResolvedValue(undefined);
+    dialog.bindTemplates({ availableTemplates: personalTemplates, refresh: loadTemplates }, () => undefined);
 
-    await dialog.open("Current project", loadTemplates);
+    await dialog.open("Current project");
     expect(loadTemplates).toHaveBeenCalledOnce();
     expect(dialog.showCount).toBe(1);
     expect(dialog.focusCount).toBe(1);
 
     const showError = vi.spyOn(dialog, "showError");
-    await dialog.open("Current project", vi.fn().mockRejectedValue(new Error("Template service unavailable")));
+    loadTemplates.mockRejectedValueOnce(new Error("Template service unavailable"));
+    await dialog.open("Current project");
     expect(showError).toHaveBeenCalledWith("Template service unavailable");
     expect(dialog.focusCount).toBe(1);
   });

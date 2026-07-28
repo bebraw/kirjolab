@@ -156,8 +156,7 @@ class WorkspaceApp {
     this.#elements.workspaceSettingsPanel.bindWorkspace(this.#elements.workspaceSettings, {
       refreshCatalog: () => this.#elements.workspaceCatalogPanel.refresh(),
       refreshGitHub: () => void this.#elements.gitHubSyncMenu.refreshWorkspace(true),
-      saveTemplate: async (projectTitle) =>
-        await this.#elements.saveTemplateDialog.open(projectTitle, () => this.#elements.newWorkspaceStartingPoints.refresh()),
+      saveTemplate: (projectTitle) => this.#elements.saveTemplateDialog.open(projectTitle),
       sources: () => ({
         catalog: this.#elements.workspaceCatalogPanel.catalog,
         hiddenFileIds: this.#elements.projectFileDialog.hiddenFiles,
@@ -172,7 +171,7 @@ class WorkspaceApp {
         else this.#elements.gitHubImportPanel.open();
       },
       presentNotice: (message, options) => this.#elements.toast.show(message, options),
-      templatesChanged: () => this.#elements.saveTemplateDialog.setTemplates(this.#elements.newWorkspaceStartingPoints.availableTemplates),
+      templatesChanged: () => this.#elements.saveTemplateDialog.syncTemplates(),
     });
     this.#elements.gitHubSyncMenu.bindWorkspace(apiBase, {
       ambientRefresh: appMode === "workspace",
@@ -182,9 +181,9 @@ class WorkspaceApp {
     });
     this.#elements.gitHubImportPanel.openFromBrowserResult();
     this.#elements.saveTemplateDialog.configure(apiBase);
-    this.#elements.saveTemplateDialog.bindCompletion((message) => {
-      void this.#elements.newWorkspaceStartingPoints.refresh().then(() => this.#elements.toast.show(message));
-    });
+    this.#elements.saveTemplateDialog.bindTemplates(this.#elements.newWorkspaceStartingPoints, (message) =>
+      this.#elements.toast.show(message),
+    );
     this.#elements.researchDiaryPanel.bindOpen(
       () =>
         void this.#elements.projectFileDialog.openWorkflowFile(researchDiaryPath, () =>

@@ -29,10 +29,11 @@ without copying private research or creating a live dependency on the source.
   is explicit and owner-only; it never changes projects already created from
   that template. One bounded save dialog owns visible personal-template
   replacement choices, local name and description values, loading and
-  replacement copy, focus, cancellation, supplied catalog-load lifecycle and
-  retryable load errors, persistence, and typed validated
-  completion through a coordinator binding. The workspace coordinator retains
-  catalog refresh, hidden-template policy, and success notification. The
+  replacement copy, focus, cancellation, a once-bound typed template source,
+  pre-open and post-save catalog refresh, retryable load errors, persistence,
+  replacement-option synchronization, and successful-save notification timing.
+  The starting-point browser retains catalog and hidden-template authority; the
+  workspace coordinator only connects it and the global toast outlet. The
   workspace-settings owner dismisses itself and supplies the current project
   title when starting this workflow.
 - Active projects available to the researcher appear as one-off starting
@@ -69,8 +70,9 @@ without copying private research or creating a live dependency on the source.
   the same typed change binding used by optimistic deletion and Undo.
 - The template-save Lit dialog owns create-or-replace form state, promotion
   requests, saved-summary validation, duplicate-submit gating, local progress
-  and error presentation, and create-or-replace success wording.
-  `WorkspaceApp` refreshes the shared catalog and presents the supplied toast.
+  and error presentation, create-or-replace success wording, and shared-catalog
+  refresh through its bound source. It presents success through the supplied
+  global toast outlet.
 - The modal keeps Tab focus within its enabled controls. Cancel or Escape
   returns focus to the Project disclosure; transferring into an import modal
   gives focus to that import's first required field instead.

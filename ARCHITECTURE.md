@@ -170,13 +170,18 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   entry, post-load focus, local load-failure presentation, and the one-shot
   browser create intent with canonical query cleanup around the catalog owner's
   canonical refresh. Bind the catalog owner's read-only
-  workspace projection once so trigger, settings, save-template completion, and
+  workspace projection once so trigger, settings, save-template refreshes, and
   internal template mutations refresh against the same derived input. Let the
   project catalog owner fetch and validate its authorized summaries, retain the
   one browser catalog projection, and synchronize the compact switcher from
   that state. Let it derive the single authorized offline project row from a
   restored snapshot identity, title, and save time. Other workflows consume its
   read-only catalog; keep canonical route navigation outside it.
+- Let the template-save Lit dialog bind the starting-point browser as its typed
+  template source once. The dialog owns pre-open and post-save refreshes,
+  replacement-option synchronization, and successful-save notification timing;
+  the starting-point browser retains canonical catalog and hidden-template
+  authority, while the application coordinator only connects the owners.
 - Let the workspace rail-tabs Lit owner apply each internal or workflow-driven
   rail selection to its active tab and controlled panel before reporting the
   selected mode through one typed navigation callback. Keep URL synchronization,

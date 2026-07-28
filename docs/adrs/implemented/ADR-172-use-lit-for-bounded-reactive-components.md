@@ -994,8 +994,11 @@ reason to wrap static markup mechanically.
   and imperative replacement-option, value, status, focus, and cancellation
   handling while consuming the starting-point browser's visible template view.
   It also replaces the coordinator's promotion request and response guard. The
-  application coordinator retains catalog refresh and toast policy through a
-  typed completion binding; the public saved event is removed.
+  dialog binds the starting-point browser once as a typed template source and
+  owns pre-open and post-save catalog refresh, replacement-option
+  synchronization, and successful-save notification timing. The application
+  coordinator retains only the global toast outlet; the public saved event is
+  removed.
 - The project starting-point browser replaces seven internal form and action
   element references, coordinator submit, selection-change, cancel, and import
   bindings, title and selection collection, readiness, loading, and error
@@ -1003,7 +1006,7 @@ reason to wrap static markup mechanically.
   hidden-ID set plus template-catalog, project-preview, and project-creation
   requests plus the personal-template delayed deletion and Undo lifecycle. The
   owner binds the canonical read-only workspace catalog once and derives it for
-  trigger, settings, save-template completion, and internal mutation refreshes
+  trigger, settings, save-template refreshes, and internal mutation refreshes
   instead of requiring each caller to re-supply the same collection. The
   application coordinator retains import workflows, replacement-option
   consumption, and the toast outlet through typed bindings; the public action
