@@ -498,21 +498,22 @@ The adopted components own bounded presentation:
   workflow-file lookup, existing-file selection and focus, lazy creation and
   created-file Guide navigation, shared
   response validation, created-path verification, duplicate-submit gating, local
-  busy and retryable failure state, and typed
-  completed outcomes carrying the derived included state and message after
-  applying the validated workspace through its shared
-  mutation binding. For create-and-include it retains the one-shot insertion
+  busy and retryable failure state, applies the validated workspace through its
+  shared mutation binding, and presents completion through its bound toast
+  owner. For create-and-include it retains the one-shot insertion
   continuation across open, retry, success, and cancellation and derives the
   project-relative directive from the active and created paths. It also owns
   supporting-file optimistic hiding, the
   deletion grace period, Undo and failed-commit restoration, and exposes the
   hidden-file projection. Its presentation binding fans one canonical snapshot,
   visible file collection, and active/entry state into the project tree, Insert
-  menu, source completion, and file-action menu. Its workflow binding also owns
-  project-range activation across file or entry fallback, Write-mode entry, and
-  normalized editor selection, plus explicit authoring and range reveal through
-  a narrow editor-scroll capability. The same presentation binding supplies the
-  assistant, editor, Preview, route, and notice owners. File activation retains
+  menu, source completion, file-action menu, image upload, source, authoring
+  mode, and rail tabs. It owns project-range activation across file or entry
+  fallback, Write-mode entry, normalized editor selection, explicit authoring
+  and range reveal, image insertion, and quick-open sequencing directly through
+  those owners; only rail collapse remains a narrow layout capability. The same
+  presentation binding supplies the assistant, editor, Preview, route, and
+  notice owners. File activation retains
   the latest projection inputs, reprojects the canonical snapshot with an
   explicit editor-reset signal, then refreshes assistant availability, resets
   and renders Preview, and replaces the canonical route directly. The owner also

@@ -12908,6 +12908,26 @@ at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip, 481,994 B raw /
 Full native CI passes all 1,774 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Project-File Workflow Owners
+
+`ProjectFileDialog` now consumes its existing action, image-upload, tree,
+Insert-menu, editor-status, source, authoring-mode, rail-tab, and toast owners
+directly. File and folder actions, include and image insertion, range focus,
+saved notices, and quick-open sequencing no longer pass through a ten-member
+application callback bag; only rail collapse remains a narrow layout binding.
+
+This checkpoint reduces `src/client/app.ts` from 280 to 265 lines (-15) and the
+project-file dialog from 647 to 643 lines (-4), removing nineteen runtime lines
+overall. Focused coverage passes all 25 project-file cases; affected coverage
+passes 27 related runtime cases and the affected test file alongside strict
+types.
+
+The browser application artifact changes from 859,045 B raw / 231,884 B gzip
+to 858,741 B raw / 231,785 B gzip (-304 B raw / -99 B gzip). Styles, lazy
+Markdown, lazy PDF.js, and direct and unique production package counts remain
+unchanged at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip,
+481,994 B raw / 146,135 B gzip, 18, and 150.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,

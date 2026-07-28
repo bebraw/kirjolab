@@ -5,7 +5,6 @@ import {
   projectFileDialogIsCreating,
   projectFileDialogIsFolder,
   type ProjectFileDialogMode,
-  type ProjectFileSaved,
 } from "./project-file-dialog";
 import { workspaceSnapshotFixture as snapshot } from "../test-support/workspace-fixture";
 import { projectFileActionEvent } from "./project-file-actions";
@@ -79,19 +78,73 @@ function mutationCallbacks() {
   const previewChanged = vi.fn().mockResolvedValue(undefined);
   return {
     assistantGenerationPresenter: { refreshAvailability: vi.fn() },
-    editorInsertMenu: { setFiles: vi.fn() },
-    editorStatus: { setProjectFile: presentFile },
+    authoringModeTabs: { navigate: vi.fn() },
+    editorInsertMenu: { insert: vi.fn(), setFiles: vi.fn() },
+    editorStatus: { preserveInsertionPoint: vi.fn(() => null), selectRange: vi.fn(), setProjectFile: presentFile },
     fileActivated,
     presentFile,
     presentNotice,
     previewChanged,
-    projectFileMenuActions: { setEntryFileActive: vi.fn() },
-    projectTreePanel: { configure: vi.fn(), setTree: vi.fn() },
+    projectFileMenuActions: Object.assign(new EventTarget(), { setEntryFileActive: vi.fn() }),
+    projectFileRailActions: new EventTarget(),
+    projectImageUpload: Object.assign(new EventTarget(), { choose: vi.fn() }),
+    projectTreePanel: Object.assign(new EventTarget(), { configure: vi.fn(), focusFilter: vi.fn(), setTree: vi.fn() }),
+    source: { focus: vi.fn(), scrollIntoView: vi.fn() },
     sourceCompletion: { setProject: vi.fn() },
     toast: { show: presentNotice },
     workspacePreview: { renderBoundProject: previewChanged, resetScroll: vi.fn() },
+    workspaceRailTabs: { navigate: vi.fn() },
     workspaceSurfaceSwitcher: { syncRoute: fileActivated },
   };
+}
+
+interface TestWorkflowRouting {
+  readonly activateAuthoring: () => void;
+  readonly actionControls: readonly EventTarget[];
+  readonly focusEditor: () => void;
+  readonly imageUpload: EventTarget & { choose(): void };
+  readonly insertImage: (insertion: { readonly message: string; readonly syntax: string }) => void;
+  readonly prepareInclude: () => ((directive: string) => boolean) | null;
+  readonly quickOpen: () => void;
+  readonly revealEditor: () => void;
+  readonly selectRange: (from: number, to: number) => void;
+  readonly tree: EventTarget & { focusFilter(): void };
+}
+
+function bindTestWorkflow(
+  panel: ProjectFileDialog,
+  presentation: ReturnType<typeof mutationCallbacks>,
+  routing: TestWorkflowRouting,
+): ReturnType<typeof vi.fn> {
+  const menuActions = Object.assign(routing.actionControls[1] ?? new EventTarget(), {
+    setEntryFileActive: presentation.projectFileMenuActions.setEntryFileActive,
+  });
+  const tree = Object.assign(routing.tree, {
+    configure: presentation.projectTreePanel.configure,
+    setTree: presentation.projectTreePanel.setTree,
+  });
+  panel.bindPresentation({
+    ...presentation,
+    authoringModeTabs: { navigate: routing.activateAuthoring },
+    editorInsertMenu: {
+      ...presentation.editorInsertMenu,
+      insert: ({ text }, message = "") => routing.insertImage({ message, syntax: text }),
+    },
+    editorStatus: {
+      ...presentation.editorStatus,
+      preserveInsertionPoint: routing.prepareInclude,
+      selectRange: routing.selectRange,
+    },
+    projectFileMenuActions: menuActions,
+    projectFileRailActions: routing.actionControls[0] ?? new EventTarget(),
+    projectImageUpload: routing.imageUpload,
+    projectTreePanel: tree,
+    source: { focus: routing.focusEditor, scrollIntoView: routing.revealEditor },
+    workspaceRailTabs: { navigate: routing.quickOpen },
+  });
+  const setRailCollapsed = vi.fn();
+  panel.bindLayout({ setRailCollapsed });
+  return setRailCollapsed;
 }
 
 function projectRefreshBinding() {
@@ -159,10 +212,9 @@ describe("project file dialog", () => {
       prepareInclude: vi.fn(() => vi.fn(() => true)),
       quickOpen: vi.fn(),
       revealEditor: vi.fn(),
-      saved: vi.fn(),
       selectRange: vi.fn(),
     };
-    panel.bindWorkflow({ actionControls: [actions], imageUpload, tree, ...callbacks });
+    const setRailCollapsed = bindTestWorkflow(panel, mutations, { actionControls: [actions], imageUpload, tree, ...callbacks });
     const supporting = { ...snapshot.files[0]!, id: "file-2", path: "chapter.md" };
     const project = { ...snapshot, files: [...snapshot.files, supporting] };
     panel.presentProject(project, "/assets", true);
@@ -202,6 +254,7 @@ describe("project file dialog", () => {
     expect(mutations.fileActivated).toHaveBeenCalledOnce();
     expect(callbacks.focusEditor).toHaveBeenCalledOnce();
     expect(callbacks.quickOpen).toHaveBeenCalledOnce();
+    expect(setRailCollapsed).toHaveBeenCalledWith(false);
     expect(tree.focusFilter).toHaveBeenCalledOnce();
     expect(callbacks.insertImage).toHaveBeenCalledWith({
       message: "Inserted figures/chart.png.",
@@ -232,10 +285,10 @@ describe("project file dialog", () => {
 
   it("presents canonical project files through the bound Lit owners", () => {
     const panel = new TestProjectFileDialog();
-    const editorInsertMenu = { setFiles: vi.fn() };
-    const projectFileMenuActions = { setEntryFileActive: vi.fn() };
+    const editorInsertMenu = { insert: vi.fn(), setFiles: vi.fn() };
+    const projectFileMenuActions = Object.assign(new EventTarget(), { setEntryFileActive: vi.fn() });
     const sourceCompletion = { setProject: vi.fn() };
-    const projectTreePanel = { configure: vi.fn(), setTree: vi.fn() };
+    const projectTreePanel = Object.assign(new EventTarget(), { configure: vi.fn(), focusFilter: vi.fn(), setTree: vi.fn() });
     panel.bindPresentation({
       ...mutationCallbacks(),
       editorInsertMenu,
@@ -326,7 +379,7 @@ describe("project file dialog", () => {
     const revealEditor = vi.fn();
     const selectRange = vi.fn();
     panel.configureApi("/api/workspaces/workspace", callbacks);
-    panel.bindWorkflow({
+    bindTestWorkflow(panel, callbacks, {
       activateAuthoring,
       actionControls: [],
       focusEditor: vi.fn(),
@@ -335,7 +388,6 @@ describe("project file dialog", () => {
       prepareInclude: vi.fn(() => null),
       quickOpen: vi.fn(),
       revealEditor,
-      saved: vi.fn(),
       selectRange,
       tree: Object.assign(new EventTarget(), { focusFilter: vi.fn() }),
     });
@@ -460,14 +512,13 @@ describe("project file dialog", () => {
   it("commits the validated workspace and emits the saved file identity", async () => {
     const panel = new TestProjectFileDialog();
     const callbacks = mutationCallbacks();
-    const saved = vi.fn<(result: ProjectFileSaved) => void>();
     const created = { ...snapshot.files[0]!, id: "file-2", path: "chapters/results.md" };
     const project = { ...snapshot, files: [...snapshot.files, created] };
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(Response.json(project));
     const actions = new EventTarget();
     const include = vi.fn(() => true);
     panel.configureApi("/api/workspaces/workspace", callbacks);
-    panel.bindWorkflow({
+    bindTestWorkflow(panel, callbacks, {
       activateAuthoring: vi.fn(),
       actionControls: [actions],
       focusEditor: vi.fn(),
@@ -476,7 +527,6 @@ describe("project file dialog", () => {
       prepareInclude: vi.fn(() => include),
       quickOpen: vi.fn(),
       revealEditor: vi.fn(),
-      saved,
       selectRange: vi.fn(),
       tree: Object.assign(new EventTarget(), { focusFilter: vi.fn() }),
     });
@@ -494,10 +544,7 @@ describe("project file dialog", () => {
     expect(panel.project).toEqual(project);
     expect(include).toHaveBeenCalledWith("\n::include[results.md]\n");
     expect(presentProject.mock.invocationCallOrder[0]).toBeLessThan(include.mock.invocationCallOrder[0] ?? 0);
-    expect(saved).toHaveBeenCalledWith({
-      included: true,
-      message: "Created chapters/results.md and included it at the remembered caret.",
-    });
+    expect(callbacks.presentNotice).toHaveBeenCalledWith("Created chapters/results.md and included it at the remembered caret.", undefined);
   });
 
   it("uses the stable target for rename and permits retry after failure", async () => {
@@ -591,7 +638,7 @@ describe("project file dialog", () => {
     const assign = vi.fn();
     vi.stubGlobal("location", { assign, href: "https://example.test/editor/workspace?context=preview#paper" });
     panel.configureApi("/api/workspaces/workspace", callbacks);
-    panel.bindWorkflow({
+    bindTestWorkflow(panel, callbacks, {
       activateAuthoring: vi.fn(),
       actionControls: [],
       focusEditor,
@@ -600,7 +647,6 @@ describe("project file dialog", () => {
       prepareInclude: vi.fn(() => null),
       quickOpen: vi.fn(),
       revealEditor: vi.fn(),
-      saved: vi.fn(),
       selectRange: vi.fn(),
       tree: Object.assign(new EventTarget(), { focusFilter: vi.fn() }),
     });

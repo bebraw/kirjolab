@@ -429,8 +429,8 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   insertion and preserved asynchronous
   insertion point through the editor-status owner. Let the project-file dialog
   derive the eventual create-and-include directive from its active and created
-  paths; keep continuation decisions and the toast outlet in the workspace
-  coordinator.
+  paths, then delegate insertion and completion notice directly to the bound
+  editor and toast owners.
 - Let the source citation control own citation-at-caret interpretation,
   citation insertion syntax projection, local insertion errors, and completion
   copy from a resolved authoring caret. Route navigation through the Context
@@ -444,9 +444,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   message. Let the project-file dialog project a selected tree asset into
   relative Markdown image syntax and a completion message from the canonical
   active file. Route image-upload and project-tree mutation completions through
-  the project-file owner's canonical snapshot, Preview, and notice bindings.
-  Keep Yjs insertion, caret and focus, broader cross-feature rendering, and the
-  toast outlet in the workspace coordinator. Let the project-tree panel own image deletion as part of its
+  the project-file owner's canonical snapshot, Preview, editor, and notice
+  bindings. Keep broader cross-feature rendering in the workspace coordinator.
+  Let the project-tree panel own image deletion as part of its
   local row lifecycle.
 - Let the project-tree panel own encoded empty-folder and image deletion
   transport and response validation plus optimistic row hiding, the six-second
@@ -1370,7 +1370,8 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   source map and translate guide selections into file-qualified editor ranges.
   Keep general URL synchronization in the workspace coordinator; let the
   project-file dialog own source-range focus and reveal effects, workflow-file
-  creation, existing-file focus, and created-file Guide navigation.
+  creation, existing-file focus, created-file Guide navigation, and Files-rail
+  quick-open sequencing through its bound owners and narrow layout capability.
 - Keep project-file quick open bounded to transient client-side path filtering
   over the authorized workspace snapshot. It may reveal the Files rail and
   select a file, but must not introduce a global command registry or persist

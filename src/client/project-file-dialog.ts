@@ -11,11 +11,6 @@ import { WorkspaceAccessError } from "./workspace-snapshot-client";
 
 export type ProjectFileDialogMode = "create" | "create-and-include" | "rename" | "create-folder" | "rename-folder";
 
-export interface ProjectFileSaved {
-  readonly included: boolean;
-  readonly message: string;
-}
-
 export interface ProjectImageInsertion {
   readonly message: string;
   readonly syntax: string;
@@ -57,22 +52,30 @@ interface ProjectImageUploadSource extends EventTarget {
   readonly choose: () => void;
 }
 
-interface ProjectFileTreeSource extends EventTarget {
-  readonly focusFilter: () => void;
-}
-
 type ProjectFileContentResolver = (file: ProjectFile, entryFileId: string) => string;
 
 export interface ProjectFilePresentationBinding {
   readonly assistantGenerationPresenter: { readonly refreshAvailability: () => void };
-  readonly editorStatus: { readonly setProjectFile: (file: ProjectFile, entryFileId: string, reset: boolean) => void };
-  readonly editorInsertMenu: { setFiles(activeFile: ProjectFile | null, files: readonly ProjectFile[]): void };
+  readonly authoringModeTabs: { navigate(mode: "write"): void };
+  readonly editorStatus: {
+    preserveInsertionPoint(): ((directive: string) => boolean) | null;
+    selectRange(from: number, to: number): void;
+    setProjectFile(file: ProjectFile, entryFileId: string, reset: boolean): void;
+  };
+  readonly editorInsertMenu: {
+    insert(insertion: { readonly text: string }, message?: string): void;
+    setFiles(activeFile: ProjectFile | null, files: readonly ProjectFile[]): void;
+  };
   readonly toast: { readonly show: (message: string, options?: DeferredDeletionNoticeOptions) => void };
-  readonly projectFileMenuActions: { setEntryFileActive(active: boolean): void };
-  readonly projectTreePanel: {
+  readonly projectFileMenuActions: EventTarget & { setEntryFileActive(active: boolean): void };
+  readonly projectFileRailActions: EventTarget;
+  readonly projectImageUpload: ProjectImageUploadSource;
+  readonly projectTreePanel: EventTarget & {
     configure(apiBase: string, callbacks: ProjectTreeCallbacks): void;
+    focusFilter(): void;
     setTree(data: ProjectTreeData): void;
   };
+  readonly source: { focus(): void; scrollIntoView(options?: ScrollIntoViewOptions): void };
   readonly sourceCompletion: {
     setProject(project: WorkspaceSnapshot, activeFileId: string | null, workspace: boolean): void;
   };
@@ -80,21 +83,8 @@ export interface ProjectFilePresentationBinding {
     readonly renderBoundProject: () => Promise<unknown>;
     readonly resetScroll: () => void;
   };
+  readonly workspaceRailTabs: { navigate(tab: "files"): void };
   readonly workspaceSurfaceSwitcher: { readonly syncRoute: (mode: "replace") => void };
-}
-
-export interface ProjectFileWorkflowRouting {
-  readonly activateAuthoring: () => void;
-  readonly actionControls: readonly EventTarget[];
-  readonly focusEditor: () => void;
-  readonly imageUpload: ProjectImageUploadSource;
-  readonly insertImage: (insertion: ProjectImageInsertion) => void;
-  readonly prepareInclude: () => ((directive: string) => boolean) | null;
-  readonly quickOpen: () => void;
-  readonly revealEditor: () => void;
-  readonly saved: (result: ProjectFileSaved) => void;
-  readonly selectRange: (from: number, to: number) => void;
-  readonly tree: ProjectFileTreeSource;
 }
 
 export function projectImageInsertion(activeFile: ProjectFile, asset: ProjectAsset): ProjectImageInsertion {
@@ -158,8 +148,8 @@ export class ProjectFileDialog extends LitElement {
   private liveContentReady: () => boolean = () => false;
   private pendingInclude: ((path: string) => boolean) | null = null;
   private refreshBinding: ProjectRefreshBinding | null = null;
-  private routing: ProjectFileWorkflowRouting | null = null;
-  private routingAbort: AbortController | null = null;
+  private layout: { setRailCollapsed(collapsed: boolean): void } | null = null;
+  private ownerAbort: AbortController | null = null;
   private workspaceMode = false;
 
   constructor() {
@@ -172,18 +162,21 @@ export class ProjectFileDialog extends LitElement {
 
   configureApi(apiBase: string, presentation?: ProjectFilePresentationBinding): void {
     this.apiBase = apiBase;
-    if (presentation) this.presentation = presentation;
+    if (presentation) {
+      this.presentation = presentation;
+      this.connectOwners();
+    }
     this.configureProjectTree();
   }
 
-  bindWorkflow(routing: ProjectFileWorkflowRouting): void {
-    this.routing = routing;
-    this.connectRouting();
+  bindLayout(layout: { setRailCollapsed(collapsed: boolean): void }): void {
+    this.layout = layout;
   }
 
   bindPresentation(binding: ProjectFilePresentationBinding): void {
     this.presentation = binding;
     this.configureProjectTree();
+    this.connectOwners();
   }
 
   bindLiveContent(resolver: ProjectFileContentResolver, ready: () => boolean = () => true): void {
@@ -253,18 +246,18 @@ export class ProjectFileDialog extends LitElement {
   focusRange(fileId: string | null, from: number, to: number): void {
     const targetFileId = fileId || this.snapshot?.entryFileId;
     if (targetFileId) this.selectFile(targetFileId);
-    this.routing?.activateAuthoring();
-    this.routing?.selectRange(from, Math.max(from, to));
+    this.presentation?.authoringModeTabs.navigate("write");
+    this.presentation?.editorStatus.selectRange(from, Math.max(from, to));
   }
 
   revealAuthoring(): void {
-    this.routing?.activateAuthoring();
-    this.routing?.revealEditor();
+    this.presentation?.authoringModeTabs.navigate("write");
+    this.presentation?.source.scrollIntoView({ behavior: "smooth", block: "center" });
   }
 
   revealRange(fileId: string | null, from: number, to: number): void {
     this.focusRange(fileId, from, to);
-    this.routing?.revealEditor();
+    this.presentation?.source.scrollIntoView({ behavior: "smooth", block: "center" });
   }
 
   private activateFile(snapshot: WorkspaceSnapshot, fileId: string): ProjectFile | null {
@@ -438,7 +431,7 @@ export class ProjectFileDialog extends LitElement {
     const existing = this.snapshot?.files.find((file) => file.path === path);
     if (existing) {
       this.selectFile(existing.id);
-      this.routing?.focusEditor();
+      this.presentation?.source.focus();
       return;
     }
     const created = await this.createFile(path, content());
@@ -451,12 +444,12 @@ export class ProjectFileDialog extends LitElement {
   override connectedCallback(): void {
     if (!this.hasUpdated) this.replaceChildren();
     super.connectedCallback();
-    this.connectRouting();
+    this.connectOwners();
   }
 
   override disconnectedCallback(): void {
-    this.routingAbort?.abort();
-    this.routingAbort = null;
+    this.ownerAbort?.abort();
+    this.ownerAbort = null;
     super.disconnectedCallback();
   }
 
@@ -526,10 +519,7 @@ export class ProjectFileDialog extends LitElement {
       const included = this.pendingInclude?.(path) ?? false;
       this.pendingInclude = null;
       if (!included && fileId) this.selectFile(fileId);
-      this.routing?.saved({
-        included,
-        message: projectFileSavedMessage(this.mode, path),
-      });
+      this.presentNotice(projectFileSavedMessage(this.mode, path));
     } catch (error) {
       this.status = errorMessage(error, "Could not save the project path.");
     } finally {
@@ -543,38 +533,42 @@ export class ProjectFileDialog extends LitElement {
   }
 
   private readonly handleFileAction = (event: Event): void => {
-    const routing = this.routing;
-    if (!routing) return;
+    const owners = this.presentation;
+    if (!owners) return;
     const action = (event as CustomEvent<ProjectFileAction>).detail;
-    if (action === "upload-images") routing.imageUpload.choose();
+    if (action === "upload-images") owners.projectImageUpload.choose();
     else if (action === "delete") this.deleteActiveFile();
     else this.openDialog(action);
   };
 
   private readonly handleTreeAction = (event: Event): void => {
-    const routing = this.routing;
-    if (!routing) return;
+    const owners = this.presentation;
+    if (!owners) return;
     const detail = (event as CustomEvent<ProjectTreeAction>).detail;
     if (detail.action === "select-file") {
       this.selectFile(detail.fileId);
-      if (detail.focusEditor) routing.focusEditor();
+      if (detail.focusEditor) owners.source.focus();
     } else if (detail.action === "quick-open") {
-      routing.quickOpen();
-      routing.tree.focusFilter();
+      this.layout?.setRailCollapsed(false);
+      owners.workspaceRailTabs.navigate("files");
+      owners.projectTreePanel.focusFilter();
     } else if (detail.action === "rename-folder") this.openDialog("rename-folder", detail.folderId);
     else {
       const activeFile = this.activeFile;
-      if (activeFile) routing.insertImage(projectImageInsertion(activeFile, detail.asset));
+      if (activeFile) {
+        const insertion = projectImageInsertion(activeFile, detail.asset);
+        owners.editorInsertMenu.insert({ text: insertion.syntax }, insertion.message);
+      }
     }
   };
 
   private openDialog(mode: ProjectFileDialogMode, folderId?: string): void {
-    const routing = this.routing;
+    const owners = this.presentation;
     const snapshot = this.snapshot;
-    if (!routing || !snapshot) return;
+    if (!owners || !snapshot) return;
     const activeFile = this.activeFile;
     const folder = snapshot.folders.find(({ id }) => id === folderId);
-    const insertInclude = mode === "create-and-include" && activeFile ? routing.prepareInclude() : null;
+    const insertInclude = mode === "create-and-include" && activeFile ? owners.editorStatus.preserveInsertionPoint() : null;
     this.pendingInclude =
       insertInclude && activeFile ? (path) => insertInclude(`\n::include[${relativeProjectPath(activeFile.path, path)}]\n`) : null;
     void this.showFor(mode, activeFile ?? undefined, folder);
@@ -598,15 +592,16 @@ export class ProjectFileDialog extends LitElement {
     void this.refreshBinding?.preview.renderBoundProject();
   }
 
-  private connectRouting(): void {
-    this.routingAbort?.abort();
-    const routing = this.routing;
-    if (!routing) return;
-    this.routingAbort = new AbortController();
-    const options = { signal: this.routingAbort.signal };
-    for (const actions of routing.actionControls) actions.addEventListener(projectFileActionEvent, this.handleFileAction, options);
-    routing.tree.addEventListener(projectTreeActionEvent, this.handleTreeAction, options);
-    routing.imageUpload.addEventListener(projectImagesUploadedEvent, this.handleImagesUploaded, options);
+  private connectOwners(): void {
+    this.ownerAbort?.abort();
+    const owners = this.presentation;
+    if (!owners) return;
+    this.ownerAbort = new AbortController();
+    const options = { signal: this.ownerAbort.signal };
+    for (const actions of [owners.projectFileRailActions, owners.projectFileMenuActions])
+      actions.addEventListener(projectFileActionEvent, this.handleFileAction, options);
+    owners.projectTreePanel.addEventListener(projectTreeActionEvent, this.handleTreeAction, options);
+    owners.projectImageUpload.addEventListener(projectImagesUploadedEvent, this.handleImagesUploaded, options);
   }
 
   protected get dialog(): HTMLDialogElement {

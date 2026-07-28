@@ -167,8 +167,9 @@ collaboration.
   application coordinator retains guide rendering; the layout manager retains
   collapse and resize behavior.
   The bounded project-tree panel owns the workspace-only Cmd/Ctrl+P shortcut
-  and emits a typed quick-open intent; the coordinator reveals the Files rail
-  before asking the panel to focus its filter.
+  and emits a typed quick-open intent; the project-file owner reveals the Files
+  rail through its bound rail-tab owner and narrow layout capability before
+  asking the panel to focus its filter.
   Research is limited to the actionable Project evidence, Claims, and
   References inventories; project search and graph controls belong to Map. The
   bounded project-publication component owns the complete References collection
@@ -346,12 +347,14 @@ collaboration.
   path together. Two instances of one bounded light-DOM action component own
   the rail and editor-menu commands plus entry-file delete availability and
   emit one typed action contract. The dialog's presentation binding supplies
-  the assistant, editor, Preview, route, and notice owners; file activation
+  the assistant, editor, Preview, route, notice, action, image-upload, source,
+  authoring-mode, and rail-tab owners; file activation
   refreshes assistant availability, resets and renders Preview, replaces the
   canonical route, and applies the active file to editor status directly. The
-  workspace coordinator connects those owners and retains Yjs text resolution,
-  transport construction, layout-dependent quick-open policy, and upload and
-  include entry points.
+  workspace coordinator connects those owners and retains Yjs text resolution
+  and canonical snapshot transport. The dialog owns upload and include entry
+  points, image insertion, range focus and reveal, saved notices, and quick-open
+  sequencing; the layout manager retains rail-collapse state.
 - **Collaboration:** `DocumentRoom` is a SQLite-backed Durable Object for each
   composed project. On a hibernatable WebSocket connection it sends full binary Yjs
   state followed by a versioned `sync` control. The browser sends no state on

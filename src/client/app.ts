@@ -178,23 +178,8 @@ class WorkspaceApp {
     this.#elements.editorStatus.bindCompanion(this.#elements.bibliography, this.#bibliography);
     this.#elements.projectImageUpload.configure(apiBase);
     this.#elements.projectFileDialog.configureApi(apiBase);
-    this.#elements.projectFileDialog.bindWorkflow({
-      activateAuthoring: () => this.#elements.authoringModeTabs.navigate("write"),
-      actionControls: [this.#elements.projectFileRailActions, this.#elements.projectFileMenuActions],
-      focusEditor: () => this.#elements.source.focus(),
-      imageUpload: this.#elements.projectImageUpload,
-      insertImage: ({ message, syntax }) => this.#elements.editorInsertMenu.insert({ text: syntax }, message),
-      prepareInclude: () => this.#elements.editorStatus.preserveInsertionPoint(),
-      quickOpen: () => {
-        this.#layout.setRailCollapsed(false);
-        this.#elements.workspaceRailTabs.navigate("files");
-      },
-      revealEditor: () => this.#elements.source.scrollIntoView({ behavior: "smooth", block: "center" }),
-      saved: ({ message }) => this.#elements.toast.show(message),
-      selectRange: (from, to) => this.#elements.editorStatus.selectRange(from, to),
-      tree: this.#elements.projectTreePanel,
-    });
     this.#elements.projectFileDialog.bindPresentation(this.#elements);
+    this.#elements.projectFileDialog.bindLayout(this.#layout);
     this.#elements.projectFileDialog.bindLiveContent(
       (file, entryFileId) => this.#document.getText(projectFileCollaborationTextName(file, entryFileId)).toString(),
       () => this.#collaboration.synced || this.#collaboration.offlineAvailable,
