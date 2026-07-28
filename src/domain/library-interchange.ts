@@ -70,7 +70,7 @@ const portableResearchSchema = v.object({
   ),
 });
 
-export type CslName = Readonly<v.InferInput<typeof cslNameSchema>>;
+type CslName = Readonly<v.InferInput<typeof cslNameSchema>>;
 export type CslJsonItem = Readonly<v.InferInput<typeof cslJsonItemSchema>>;
 export type PortableLibraryResearch = Readonly<v.InferInput<typeof portableResearchSchema>>;
 

@@ -118,7 +118,7 @@ async function requireInstallation(client: GitHubUserRemoteClient, token: string
   }
 }
 
-export async function githubUserAccessToken(
+async function githubUserAccessToken(
   env: Env,
   identity: AuthIdentity,
   client: GitHubUserRemoteClient = githubUserClient(env),

@@ -25,7 +25,7 @@ const initialContext: PublicationIntakeContext = {
   error: null,
 };
 
-export const publicationIntakeMachine = setup({
+const publicationIntakeMachine = setup({
   types: {
     context: {} as PublicationIntakeContext,
     events: {} as PublicationIntakeEvent,

@@ -7,7 +7,7 @@ import {
 import type { CollaborationSession } from "./collaboration-session";
 import type { ConnectionStatus, ConnectionWorkflowOwners } from "./connection-status";
 
-export interface CollaborationSelectionState {
+interface CollaborationSelectionState {
   readonly fileId: string;
   readonly start: number;
   readonly end: number;

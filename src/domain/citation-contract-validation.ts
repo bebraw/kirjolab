@@ -53,10 +53,6 @@ export function isTimestamp(value: unknown): value is string {
   return typeof value === "string" && Number.isFinite(Date.parse(value));
 }
 
-export function boundedString(value: unknown, maximum: number): value is string {
-  return typeof value === "string" && value.length <= maximum;
-}
-
 export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }

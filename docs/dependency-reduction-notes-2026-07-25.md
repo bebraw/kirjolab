@@ -13906,6 +13906,22 @@ from 857,128 B raw / 231,396 B gzip to 857,144 B raw / 231,395 B gzip (+16 B
 raw / -1 B gzip); dependency counts and the other static artifacts remain
 unchanged.
 
+## Continued Reduction: Narrow Internal Module APIs
+
+Fallow's production trace identified workflow-machine definitions, export
+metadata, GitHub token resolution, review limits, and two helper types that are
+live only inside their defining modules. Those symbols are now private instead
+of maintained as public API. The trace also exposed an entirely unused citation
+validation helper, which is deleted.
+
+This checkpoint keeps `src/client/app.ts` at 80 lines, removes four production
+lines, and reduces Fallow's dead-code report from 13 unused exports and two
+unused types to one test-support export and no unused types. The affected
+guardrail passes 481 related cases and all 121 Workers cases alongside strict
+types. The browser application remains byte-identical at 857,144 B raw /
+231,395 B gzip; dependency counts and the other static artifacts remain
+unchanged.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,
