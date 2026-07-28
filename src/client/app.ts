@@ -153,14 +153,11 @@ class WorkspaceApp {
     this.#elements.gitHubSyncMenu.bindWorkspace(apiBase, {
       ambientRefresh: appMode === "workspace",
       settings: this.#elements.workspaceSettingsPanel,
-      openSettings: (checkGitHub) => this.#elements.workspaceSettingsPanel.openSettings(checkGitHub),
       refreshProject: () => this.#resourceRefresh.request(),
     });
     this.#elements.gitHubImportPanel.openFromBrowserResult();
     this.#elements.saveTemplateDialog.configure(apiBase);
-    this.#elements.saveTemplateDialog.bindTemplates(this.#elements.newWorkspaceStartingPoints, (message) =>
-      this.#elements.toast.show(message),
-    );
+    this.#elements.saveTemplateDialog.bindTemplates(this.#elements.newWorkspaceStartingPoints, this.#elements.toast);
     this.#elements.researchDiaryPanel.bindProject(this.#elements.projectFileDialog);
     this.#elements.manuscriptMapPanel.bindProjectPresentation(this.#elements);
     for (const panel of [this.#elements.researchQuestionPanel, this.#elements.reviewerResponsePanel]) {

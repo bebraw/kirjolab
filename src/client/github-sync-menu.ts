@@ -25,7 +25,6 @@ export interface GitHubSyncStateDetail {
 export interface GitHubSyncWorkspaceBinding {
   readonly ambientRefresh?: boolean;
   readonly settings: WorkspaceSettingsPanel;
-  readonly openSettings: (checkGitHub?: boolean) => Promise<void>;
   readonly refreshProject: () => Promise<void>;
 }
 
@@ -81,7 +80,7 @@ export class GitHubSyncMenu extends LitElement {
     });
     this.addEventListener(gitHubSyncPullEvent, () => void this.openPreview("pull"));
     this.addEventListener(gitHubSyncPushEvent, () => void this.openPreview("push"));
-    this.addEventListener(gitHubSyncSettingsEvent, () => void workspace.openSettings());
+    this.addEventListener(gitHubSyncSettingsEvent, () => void workspace.settings.openSettings());
     if (workspace.ambientRefresh) this.bindAmbientRefresh();
   }
 
@@ -211,7 +210,7 @@ export class GitHubSyncMenu extends LitElement {
 
   private async openPreview(operation: "pull" | "push"): Promise<void> {
     if (!this.workspace) return;
-    await this.workspace.openSettings(false);
+    await this.workspace.settings.openSettings(false);
     await this.workspace.settings.previewGitHub(operation);
   }
 

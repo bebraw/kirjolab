@@ -12885,6 +12885,29 @@ at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip, 481,994 B raw /
 Full native CI passes all 1,774 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: GitHub and Template Workflow Owners
+
+`GitHubSyncMenu` now invokes its already-bound settings owner for settings and
+preview entry instead of receiving a duplicate open-settings callback.
+`ProjectTemplateSaveDialog` likewise binds the toast owner directly for
+successful create-or-replace notices instead of storing an application notice
+adapter.
+
+This checkpoint reduces `src/client/app.ts` from 315 to 312 lines (-3), reduces
+the GitHub sync menu from 261 to 260 lines (-1), and keeps the template-save
+dialog at 246 lines, removing four runtime lines overall. Focused coverage
+passes all 13 workflow cases; affected coverage passes 15 related runtime cases
+and both affected test files alongside strict types.
+
+The browser application artifact changes from 859,718 B raw / 231,985 B gzip to
+859,642 B raw / 231,970 B gzip (-76 B raw / -15 B gzip). Styles, lazy Markdown,
+lazy PDF.js, and direct and unique production package counts remain unchanged
+at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip, 481,994 B raw /
+146,135 B gzip, 18, and 150.
+
+Full native CI passes all 1,774 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: One-Shot Browser Entry Intents
 
 `ProjectStartingPointBrowser` now consumes the `create=1` editor intent, removes

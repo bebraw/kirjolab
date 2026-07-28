@@ -44,6 +44,7 @@ The adopted components own bounded presentation:
   lifecycle, interval, validation and stale-request guard, typed Check, Pull,
   Push, and Settings intents, online and active-review refresh policy, settings
   mirroring and preview routing, and completed-mutation refresh coordination.
+  It invokes its bound settings owner directly for settings and preview entry.
 - The workspace sync review owns Pull and Publish requests and diff rendering,
   conflict choices, commit-message input, disconnect confirmation, response
   validation, readiness, progress, and one typed completed-mutation event.
@@ -535,7 +536,7 @@ The adopted components own bounded presentation:
   description values, loading and replacement copy, focus, cancellation,
   the supplied template-loader lifecycle and retryable load errors, promotion
   requests, response validation, local busy and error state, and the bounded
-  create-or-replace outcome notice handed through a coordinator binding.
+  create-or-replace outcome notice handed directly to its bound toast owner.
 - The workspace settings panel dismisses itself and hands its current project
   title directly to the template-save workflow.
 - The project starting-point browser owns project title, template and existing
@@ -1036,10 +1037,10 @@ reason to wrap static markup mechanically.
   handling while consuming the starting-point browser's visible template view.
   It also replaces the coordinator's promotion request and response guard. The
   dialog binds the starting-point browser once as a typed template source and
+  binds the toast owner directly. It
   owns pre-open and post-save catalog refresh, replacement-option
-  synchronization, and successful-save notification timing. The application
-  coordinator retains only the global toast outlet; the public saved event is
-  removed.
+  synchronization, and successful-save notification timing; the public saved
+  event and application notice adapter are removed.
 - The project starting-point browser replaces seven internal form and action
   element references, coordinator submit, selection-change, cancel, and import
   bindings, title and selection collection, readiness, loading, and error

@@ -60,11 +60,11 @@ describe("GitHub sync menu", () => {
   it("coordinates workspace settings, previews, and mutation refreshes", async () => {
     const menu = new GitHubSyncMenu();
     const settings = new TestWorkspaceSettings();
-    const openSettings = vi.fn(async () => undefined);
+    const openSettings = vi.spyOn(settings, "openSettings").mockResolvedValue(undefined);
     const refreshProject = vi.fn(async () => undefined);
     vi.stubGlobal("navigator", { onLine: true });
     vi.spyOn(globalThis, "fetch").mockResolvedValue(Response.json(null));
-    menu.bindWorkspace("/api/workspaces/project", { settings, openSettings, refreshProject });
+    menu.bindWorkspace("/api/workspaces/project", { settings, refreshProject });
 
     menu.dispatchEvent(new CustomEvent<GitHubSyncStateDetail>(gitHubSyncStateEvent, { detail: { connected: true, message: "Synced" } }));
     menu.dispatchEvent(new CustomEvent(gitHubSyncPullEvent));
@@ -91,7 +91,6 @@ describe("GitHub sync menu", () => {
     const refresh = vi.spyOn(menu, "refresh").mockResolvedValue();
     menu.bindWorkspace("/api/workspaces/project", {
       settings,
-      openSettings: async () => undefined,
       refreshProject: async () => undefined,
     });
 
@@ -118,7 +117,6 @@ describe("GitHub sync menu", () => {
     menu.bindWorkspace("/api/workspaces/project", {
       ambientRefresh: true,
       settings,
-      openSettings: async () => undefined,
       refreshProject: async () => undefined,
     });
 

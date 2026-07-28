@@ -185,7 +185,7 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   restored snapshot identity, title, and save time. Other workflows consume its
   read-only catalog; keep canonical route navigation outside it.
 - Let the template-save Lit dialog bind the starting-point browser as its typed
-  template source once. The dialog owns pre-open and post-save refreshes,
+  template source and the toast owner once. The dialog owns pre-open and post-save refreshes,
   replacement-option synchronization, and successful-save notification timing;
   the starting-point browser retains canonical catalog and hidden-template
   authority. Bind the starting-point browser directly to the GitHub-import,
@@ -287,6 +287,8 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   menu likewise own its bounded connection
   and status refresh interval, validation, stale-request guard, and primary
   presentation, then emit one state event for the settings mirror. Let the
+  menu invoke the already-bound settings owner directly for settings and preview
+  entry instead of accepting a duplicate open-settings callback. Let the
   detailed sync review own its Pull, Publish, and disconnect requests because
   their validation, payloads, progress, and results are local to that review.
   Emit completed synchronization mutations so the application coordinator can
@@ -487,9 +489,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   template-save Lit dialog owns promotion requests, response validation,
   create-or-replace outcome wording, and its loading-to-ready/error lifecycle.
   The workspace-settings Lit owner closes
-  before handing the current project title to that workflow. The application coordinator retains import
-  workflows, replacement-option synchronization, post-promotion catalog
-  refresh, and the toast outlet through typed component bindings.
+  before handing the current project title to that workflow. The starting-point
+  owner supplies the template catalog and the toast owner supplies successful
+  promotion notices directly; the application coordinator retains only import
+  workflow connections.
 - Require every composition result to retain source-map spans back to file
   identity, source range, output range, and include chain. Reject unsafe paths,
   cycles, missing files, and resource-limit violations with navigable

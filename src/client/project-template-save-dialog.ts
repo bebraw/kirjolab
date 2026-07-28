@@ -30,8 +30,8 @@ export class ProjectTemplateSaveDialog extends LitElement {
   declare private status: string;
   declare private templates: readonly ProjectTemplateSummary[];
   private apiBase = "";
-  private presentNotice: (message: string) => void = () => undefined;
   private templateSource: ProjectTemplateSource | null = null;
+  private toast: { show(message: string): void } | null = null;
 
   constructor() {
     super();
@@ -47,9 +47,9 @@ export class ProjectTemplateSaveDialog extends LitElement {
     this.apiBase = apiBase;
   }
 
-  bindTemplates(source: ProjectTemplateSource, presentNotice: (message: string) => void): void {
+  bindTemplates(source: ProjectTemplateSource, toast: { show(message: string): void }): void {
     this.templateSource = source;
-    this.presentNotice = presentNotice;
+    this.toast = toast;
   }
 
   async open(projectTitle: string): Promise<void> {
@@ -204,7 +204,7 @@ export class ProjectTemplateSaveDialog extends LitElement {
       const message = value.templateId
         ? `Replaced template “${templates[0].name}”.`
         : `Saved “${templates[0].name}” as a personal template.`;
-      void this.refreshTemplates().then(() => this.presentNotice(message));
+      void this.refreshTemplates().then(() => this.toast?.show(message));
     } catch (error) {
       this.status = errorMessage(error, "Could not save personal template.");
     } finally {

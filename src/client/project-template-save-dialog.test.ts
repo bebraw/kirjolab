@@ -128,7 +128,7 @@ describe("project template save dialog", () => {
     dialog.configure("/api/workspaces/workspace-1");
     const saves: string[] = [];
     const source = { availableTemplates: personalTemplates, refresh: vi.fn().mockResolvedValue(undefined) };
-    dialog.bindTemplates(source, (result) => saves.push(result));
+    dialog.bindTemplates(source, { show: (result) => saves.push(result) });
     dialog.nameForTest("New template");
     dialog.descriptionForTest("New description");
     await dialog.saveForTest();
@@ -176,7 +176,10 @@ describe("project template save dialog", () => {
   it("ignores a duplicate submission while a save is pending", async () => {
     const dialog = new TestProjectTemplateSaveDialog();
     dialog.configure("/api/workspaces/workspace-1");
-    dialog.bindTemplates({ availableTemplates: personalTemplates, refresh: vi.fn().mockResolvedValue(undefined) }, () => undefined);
+    dialog.bindTemplates(
+      { availableTemplates: personalTemplates, refresh: vi.fn().mockResolvedValue(undefined) },
+      { show: () => undefined },
+    );
     dialog.nameForTest("New template");
     let resolveResponse = (_response: Response): void => undefined;
     const pendingResponse = new Promise<Response>((resolve) => {
@@ -210,7 +213,7 @@ describe("project template save dialog", () => {
   it("owns template loading and retryable open errors", async () => {
     const dialog = new TestProjectTemplateSaveDialog();
     const loadTemplates = vi.fn().mockResolvedValue(undefined);
-    dialog.bindTemplates({ availableTemplates: personalTemplates, refresh: loadTemplates }, () => undefined);
+    dialog.bindTemplates({ availableTemplates: personalTemplates, refresh: loadTemplates }, { show: () => undefined });
 
     await dialog.open("Current project");
     expect(loadTemplates).toHaveBeenCalledOnce();
