@@ -1,3 +1,4 @@
+import { boundedReviewText as boundedText } from "./review-validation";
 import { isRecord } from "./unknown-value";
 
 const reviewStudyLimits = {
@@ -880,13 +881,6 @@ function stableId(value: unknown, label: string): string {
   const id = boundedText(value, `${label} ID`, 100);
   if (!/^[a-z0-9][a-z0-9_-]*$/iu.test(id)) throw new Error(`${label} ID is invalid`);
   return id;
-}
-
-function boundedText(value: unknown, label: string, maximum: number, allowEmpty = false): string {
-  if (typeof value !== "string") throw new Error(`${label} is invalid`);
-  const text = value.trim();
-  if ((!allowEmpty && !text) || text.length > maximum) throw new Error(`${label} is invalid`);
-  return text;
 }
 
 function positiveSafeInteger(value: unknown, label: string): number {

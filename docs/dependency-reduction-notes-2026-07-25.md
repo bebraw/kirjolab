@@ -15004,6 +15004,25 @@ package counts remain 18 and 150.
 Full native CI passes all 1,781 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Domain Reduction: Review Text Bounds
+
+Review-study and review-finding validation now share one pure trimmed bounded-
+text primitive. Their different array error labels, ID alphabets and lengths,
+uniqueness rules, and feature invariants remain local rather than being forced
+through a broader abstraction.
+
+This checkpoint removes five net production lines. The affected guardrail
+passes 344 related runtime cases across 20 suites plus all 121 Workers-runtime
+cases alongside formatting, lint, and strict TypeScript targets. The readability
+audit drops from 41 to 40 clone groups and from seven to six clone families.
+The browser application changes from 845,532 B raw / 231,089 B gzip to 845,532
+B raw / 231,088 B gzip (raw-neutral / -1 B gzip); direct and unique production
+package counts remain 18 and 150, and the other static artifacts remain
+unchanged.
+
+Full native CI passes all 1,781 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,

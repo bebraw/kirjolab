@@ -52,7 +52,9 @@ published deliberately into several writing projects.
   that resolve project evidence or publish into a project require an explicitly
   selected active link plus independent access to both resources.
 - `src/domain/review-study.ts` owns portable types, bounds, validation, query
-  rendering, projections, report calculations, and interchange contracts.
+  rendering, projections, report calculations, and interchange contracts. Its
+  study and finding validators share only the pure trimmed bounded-text
+  primitive; array labels, IDs, uniqueness, and feature invariants stay local.
 - Review catalog, study, search, screening, evidence, findings, synthesis,
   backup, and model boundaries share the dependency-free plain-record guard;
   their feature-specific validators retain all bounds and domain invariants.
