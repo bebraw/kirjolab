@@ -25,6 +25,11 @@ export interface EditorAuthoringPassage extends EditorAuthoringTarget {
   readonly fileId: string;
 }
 
+export interface EditorAuthoringInsertionTarget {
+  readonly caret: number;
+  readonly passage: EditorAuthoringPassage | null;
+}
+
 export interface EditorTextInsertion {
   readonly end: number;
   readonly selectionEnd: number;
@@ -255,6 +260,11 @@ export class EditorStatus extends LitElement {
     if (!resolved || resolved.start === resolved.end) return null;
     const excerpt = text.toString().slice(resolved.start, resolved.end);
     return excerpt.trim() ? { fileId: this.fileId, ...resolved, excerpt } : null;
+  }
+
+  get insertionTarget(): EditorAuthoringInsertionTarget | null {
+    const source = this.source;
+    return source ? { caret: this.caret ?? source.selectionEnd, passage: this.selectedPassage() } : null;
   }
 
   setAuthoringTarget(path: string, source: string, target: EditorAuthoringTarget | null): void {

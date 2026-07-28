@@ -128,6 +128,10 @@ describe("editor status", () => {
     expect(status.authoringTarget).toEqual({ start: 6, end: 10 });
     expect(status.caret).toBe(10);
     expect(status.selectedPassage()).toEqual({ fileId: "file-1", start: 6, end: 10, excerpt: "beta" });
+    expect(status.insertionTarget).toEqual({
+      caret: 10,
+      passage: { fileId: "file-1", start: 6, end: 10, excerpt: "beta" },
+    });
 
     text.insert(0, "x ");
     status.refreshAuthoringTarget();
@@ -140,6 +144,7 @@ describe("editor status", () => {
     expect(source.selectionStart).toBe(2);
     expect(source.selectionEnd).toBe(2);
     expect(status.selectedPassage()).toBeNull();
+    expect(status.insertionTarget).toEqual({ caret: 2, passage: null });
     expect(changes).toBe(4);
     expect(binding.citation.setCaret).toHaveBeenLastCalledWith("x alpha beta", 2);
     expect(binding.context.setCitationAvailable).toHaveBeenLastCalledWith(true);

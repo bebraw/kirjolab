@@ -12657,6 +12657,30 @@ at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip, 481,994 B raw /
 Full native CI passes all 1,774 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Editor-Owned Insertion Target
+
+`EditorStatus` now projects the live insertion target from its owned source,
+caret, and passage state. `EditorInsertMenu` binds directly to the editor and
+notice owners, so `WorkspaceApp` no longer constructs the target or adapts
+insertion and notice methods through three callbacks.
+
+This checkpoint reduces `src/client/app.ts` from 379 to 375 lines (-4), grows
+editor status from 331 to 341 lines (+10), and grows the Insert menu from 159 to
+161 lines (+2). The eight-line combined runtime increase makes insertion-target
+resolution an explicit editor contract and leaves menu policy independent of
+application wiring. Focused coverage passes all 11 editor and Insert-menu cases;
+affected coverage passes 13 related runtime cases and both affected test files
+alongside strict types.
+
+The browser application artifact changes from 861,277 B raw / 232,163 B gzip to
+861,271 B raw / 232,162 B gzip (-6 B raw / -1 B gzip). Styles, lazy Markdown,
+lazy PDF.js, and direct and unique production package counts remain unchanged
+at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip, 481,994 B raw /
+146,135 B gzip, 18, and 150.
+
+Full native CI passes all 1,774 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: One-Shot Browser Entry Intents
 
 `ProjectStartingPointBrowser` now consumes the `create=1` editor intent, removes

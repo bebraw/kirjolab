@@ -47,9 +47,11 @@ describe("editor insert menu", () => {
     const actions: unknown[] = [];
     const include = "\n::include[../main.md]\n";
     menu.bind({
-      applyInsertion: (insertion) => actions.push({ action: "insert", insertion }),
-      authoringTarget: () => ({ caret: 4, passage: null }),
-      presentNotice: (message) => actions.push({ action: "notice", message }),
+      authoring: {
+        applyAuthoringInsertion: (insertion) => actions.push({ action: "insert", insertion }),
+        insertionTarget: { caret: 4, passage: null },
+      },
+      notices: { show: (message) => actions.push({ action: "notice", message }) },
     });
     menu.selectSyntaxForTest("citation", { text: ":cite[key]", select: "key" });
     menu.includeFileForTest("../main.md", mainFile.path);
@@ -72,12 +74,14 @@ describe("editor insert menu", () => {
     const insertions: EditorInsertion[] = [];
     const notices: string[] = [];
     menu.bind({
-      applyInsertion: (insertion) => insertions.push(insertion),
-      authoringTarget: () => ({
-        caret: 99,
-        passage: { end: 8, excerpt: "Evidence", fileId: "file:1", start: 0 },
-      }),
-      presentNotice: (message) => notices.push(message),
+      authoring: {
+        applyAuthoringInsertion: (insertion) => insertions.push(insertion),
+        insertionTarget: {
+          caret: 99,
+          passage: { end: 8, excerpt: "Evidence", fileId: "file:1", start: 0 },
+        },
+      },
+      notices: { show: (message) => notices.push(message) },
     });
 
     menu.selectSyntaxForTest("link", { text: "[text](url)", select: "text" });

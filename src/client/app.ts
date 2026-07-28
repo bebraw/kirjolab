@@ -269,12 +269,8 @@ class WorkspaceApp {
     });
     this.#elements.workspacePreview.bindProject(apiBase, this.#document, this.#elements);
     this.#elements.editorInsertMenu.bind({
-      applyInsertion: (insertion) => this.#elements.editorStatus.applyAuthoringInsertion(insertion),
-      authoringTarget: () => ({
-        caret: this.#elements.editorStatus.caret ?? this.#elements.source.selectionEnd,
-        passage: this.#elements.editorStatus.selectedPassage(),
-      }),
-      presentNotice: (message) => this.#elements.toast.show(message),
+      authoring: this.#elements.editorStatus,
+      notices: this.#elements.toast,
     });
     this.#elements.sourceCompletion.bindProjectAcceptance(apiBase, {
       acceptMutation: (response) => this.#elements.projectFileDialog.acceptProjectMutation(response),

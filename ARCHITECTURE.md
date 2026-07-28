@@ -407,10 +407,13 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   projection, assistant consequences, collaboration policy, and offline-save
   policy in the workspace coordinator.
 - Let the editor Insert menu own the scholarly syntax templates it displays and
-  route template and relative-include choices through one typed binding. It
+  route template and relative-include choices through its bound editor and
+  notice owners. Let editor status expose the live insertion target from its
+  owned source, caret, and passage state instead of constructing that projection
+  in the application coordinator. The menu
   projects passage-aware links, selection ranges, image-template insertions,
-  and immediate relative-include directives from a coordinator-supplied
-  authoring target. Route the derived insertion and preserved asynchronous
+  and immediate relative-include directives from that target. Route the derived
+  insertion and preserved asynchronous
   insertion point through the editor-status owner. Let the project-file dialog
   derive the eventual create-and-include directive from its active and created
   paths; keep continuation decisions and the toast outlet in the workspace

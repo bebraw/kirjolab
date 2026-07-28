@@ -1,6 +1,6 @@
 import { html, LitElement, type TemplateResult } from "lit";
 import { relativeProjectPath, type ProjectFile } from "../domain/project-files";
-import type { EditorAuthoringPassage, EditorTextInsertion } from "./editor-status";
+import type { EditorAuthoringInsertionTarget, EditorAuthoringPassage, EditorTextInsertion } from "./editor-status";
 
 export type EditorSyntaxKind = "anchor" | "bibliography" | "citation" | "footnote" | "link" | "reference";
 
@@ -10,9 +10,11 @@ export interface EditorSyntaxTemplate {
 }
 
 export interface EditorInsertBinding {
-  readonly applyInsertion: (insertion: EditorInsertion) => void;
-  readonly authoringTarget: () => { readonly caret: number; readonly passage: EditorAuthoringPassage | null };
-  readonly presentNotice: (message: string) => void;
+  readonly authoring: {
+    readonly applyAuthoringInsertion: (insertion: EditorInsertion) => void;
+    readonly insertionTarget: EditorAuthoringInsertionTarget | null;
+  };
+  readonly notices: { readonly show: (message: string) => void };
 }
 
 export type EditorInsertion = EditorTextInsertion;
@@ -51,10 +53,10 @@ export class EditorInsertMenu extends LitElement {
   }
 
   insert(template: EditorSyntaxTemplate, message: string): void {
-    const target = this.binding?.authoringTarget();
+    const target = this.binding?.authoring.insertionTarget;
     if (!target) return;
     this.applyTemplate(template, target.passage, target.caret);
-    this.binding?.presentNotice(message);
+    this.binding?.notices.show(message);
   }
 
   replacePassage(passage: EditorAuthoringPassage, text: string): void {
@@ -63,7 +65,7 @@ export class EditorInsertMenu extends LitElement {
 
   replaceRange(start: number, end: number, text: string): void {
     const selection = start + text.length;
-    this.binding?.applyInsertion({ end, selectionEnd: selection, selectionStart: selection, start, text });
+    this.binding?.authoring.applyAuthoringInsertion({ end, selectionEnd: selection, selectionStart: selection, start, text });
   }
 
   override connectedCallback(): void {
@@ -97,19 +99,19 @@ export class EditorInsertMenu extends LitElement {
   }
 
   protected includeFile(relativePath: string, path: string): void {
-    const target = this.binding?.authoringTarget();
+    const target = this.binding?.authoring.insertionTarget;
     if (!target) return;
     this.applyTemplate({ text: `\n::include[${relativePath}]\n` }, null, target.caret);
-    this.binding?.presentNotice(`Included ${path}.`);
+    this.binding?.notices.show(`Included ${path}.`);
     this.closeMenu();
   }
 
   protected insertSyntax(kind: EditorSyntaxKind, template: EditorSyntaxTemplate): void {
-    const target = this.binding?.authoringTarget();
+    const target = this.binding?.authoring.insertionTarget;
     if (!target) return;
     const resolved = kind === "link" && target.passage ? { text: `[${target.passage.excerpt}](url)`, select: "url" } : template;
     this.applyTemplate(resolved, target.passage, target.caret);
-    this.binding?.presentNotice("Inserted scholarly syntax.");
+    this.binding?.notices.show("Inserted scholarly syntax.");
     this.closeMenu();
   }
 
@@ -126,7 +128,7 @@ export class EditorInsertMenu extends LitElement {
     const end = passage?.end ?? caret;
     const selectedOffset = template.select ? template.text.indexOf(template.select) : template.text.length;
     const selectionStart = start + (selectedOffset < 0 ? template.text.length : selectedOffset);
-    this.binding?.applyInsertion({
+    this.binding?.authoring.applyAuthoringInsertion({
       end,
       selectionEnd: selectionStart + (selectedOffset < 0 ? 0 : (template.select?.length ?? 0)),
       selectionStart,

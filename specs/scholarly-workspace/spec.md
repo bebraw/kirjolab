@@ -278,9 +278,13 @@ collaboration.
   target, bounded line counting, file, line-range, caret, and selection wording,
   its full tooltip, online or offline save-state presentation, browser-local
   Yjs-relative target, active file context, range selection, resolved caret, and
-  non-empty passage projection. The application coordinator supplies the Yjs
-  document and active text plus save state from collaboration workflows; it
-  retains canonical mutation, editor highlighting, and assistant refresh.
+  non-empty passage projection. It also projects one live insertion target from
+  its owned source, caret, and passage state. The Insert menu consumes that
+  target and the editor and notice owners directly for syntax and relative-file
+  insertion, without coordinator-built insertion callbacks. The application
+  coordinator supplies the Yjs document and active text plus save state from
+  collaboration workflows; it retains editor highlighting and assistant
+  refresh.
 - **Project evidence mutations:** The bounded Project evidence panel owns
   guarded PDF and annotation removal plus annotation-passage-link transport
   from a resource-presenter-validated typed passage. Its enclosing resource presenter
