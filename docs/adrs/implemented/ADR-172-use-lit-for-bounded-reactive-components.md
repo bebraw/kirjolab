@@ -1226,7 +1226,9 @@ reason to wrap static markup mechanically.
   temporary range preservation across asynchronous authoring operations. It
   owns the active Yjs-text/editor binding and teardown, per-file undo managers,
   external text synchronization, assistant-staleness observation, and local plus
-  collaborator presence highlighting from supplied ranges. It applies bounded
+  collaborator presence highlighting from a once-bound presence owner. It
+  subscribes directly to remote-selection changes and publishes each resolved
+  target to the bound citation, assistant, and Context authorities. It applies bounded
   authoring text insertions and replacements, resolves the active Y.Text from a
   project-file and entry-file identity, exposes its manuscript projection,
   focuses the active source, and selects the resulting range so derived edits

@@ -380,7 +380,8 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   derive that text from the selected project-file identity and entry-file
   contract,
   retain per-file undo history, synchronize external text changes, and render
-  local plus collaborator presence from coordinator-supplied ranges. Switching
+  local plus collaborator presence from a once-bound presence owner and
+  subscribe directly to its selection changes. Switching
   active files must release the prior text observer and editor listeners before
   binding the next text. Let the owner expose the active manuscript projection,
   apply bounded active-text insertions and replacements, focus the active
@@ -909,9 +910,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   preservation across asynchronous authoring operations, and file, line-range,
   caret, and selection wording. Reuse relative-position capture and resolution
   from the source-editor adapter. Apply bounded authoring text mutations,
-  active-source focus, and resulting selection in this owner. Keep mutation
-  decisions, editor highlighting, assistant refresh, collaboration
-  interpretation, and offline-save policy in their authorities.
+  active-source focus, and resulting selection in this owner. Publish each
+  resolved target directly to the bound citation, assistant, and Context
+  authorities. Keep mutation decisions, downstream feature policy,
+  collaboration interpretation, and offline-save policy in those authorities.
 - Let the connection-status Lit owner bind the collaboration workflow and
   authoring controls once, derive label/tone and source/companion editability,
   request assistant-availability refresh after each workflow transition, and

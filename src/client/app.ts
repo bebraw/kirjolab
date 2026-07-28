@@ -144,7 +144,6 @@ class WorkspaceApp {
     });
     this.#elements.applicationVersion.bindNotice((message) => this.#elements.toast.show(message));
     this.#elements.connectionStatus.bindWorkflow(this.#collaboration, this.#elements);
-    this.#elements.collaboratorSelections.bindSelectionChanged(() => this.#elements.editorStatus.renderHighlight());
     this.#collaborationSocket.bindBrowserLifecycle();
     this.#offline.bindBrowserLifecycle(document.querySelector<HTMLAnchorElement>("#log-out"), (error) =>
       this.#elements.toast.show(error instanceof Error ? error.message : "Could not clear offline data"),
@@ -229,14 +228,11 @@ class WorkspaceApp {
       routes: this.#elements.workspaceSurfaceSwitcher,
     });
     this.#elements.editorStatus.bindAuthoring(this.#document, this.#elements.source, {
+      assistant: this.#elements.assistantGenerationPresenter,
+      citation: this.#elements.sourceCitationControl,
+      context: this.#elements.contextResourcePresenter,
       highlight: this.#elements.sourceHighlight,
-      presence: (fileId) => (fileId ? this.#elements.collaboratorSelections.rangesFor(fileId) : []),
-      sourceChanged: () => this.#elements.assistantGenerationPresenter.sourceChanged(),
-      targetChanged: () => {
-        this.#elements.sourceCitationControl.setCaret(this.#elements.editorStatus.manuscript, this.#elements.editorStatus.caret);
-        this.#elements.assistantGenerationPresenter.refreshTarget();
-        this.#elements.contextResourcePresenter.setCitationAvailable(this.#elements.editorStatus.caret !== null);
-      },
+      presence: this.#elements.collaboratorSelections,
     });
     this.#elements.editorStatus.setAuthoringContext("Manuscript", null, this.#source, true);
     this.#elements.vimModeControl.bindEditor(this.#elements.source, this.#elements.sourceEditorShell);

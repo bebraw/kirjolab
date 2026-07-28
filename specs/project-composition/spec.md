@@ -170,7 +170,9 @@ collaborative, and unambiguous about what preview and export mean.
   editor, resolves it from the selected project-file and entry-file identity,
   exposes its manuscript projection, preserves an independent undo history for
   every opened text, and combines the resolved local target with collaborator
-  ranges for highlighting. The workspace coordinator does not retain a
+  ranges from a once-bound presence owner for highlighting. It subscribes to
+  that owner's changes and publishes each resolved target directly to citation,
+  assistant, and Context authorities. The workspace coordinator does not retain a
   duplicate active Y.Text.
   Activating another file detaches the prior text observer and editor listeners,
   synchronizes the new text into the source control, applies bounded text

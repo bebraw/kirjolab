@@ -37,10 +37,17 @@ interface EditorSelectionSource {
 }
 
 export interface EditorAuthoringBinding {
+  readonly assistant: {
+    refreshTarget(): void;
+    sourceChanged(): void;
+  };
+  readonly citation: { setCaret(source: string, position: number | null): void };
+  readonly context: { setCitationAvailable(available: boolean): void };
   readonly highlight: HTMLElement;
-  readonly presence: (fileId: string | null) => readonly EditorPresenceRange[];
-  readonly sourceChanged: () => void;
-  readonly targetChanged: () => void;
+  readonly presence: {
+    bindSelectionChanged(callback: () => void): void;
+    rangesFor(fileId: string | null): readonly EditorPresenceRange[];
+  };
 }
 
 export class EditorStatus extends LitElement {
@@ -60,6 +67,7 @@ export class EditorStatus extends LitElement {
   private renderEditorHighlight: () => void = () => undefined;
   private selection: RelativeEditorSelection | null = null;
   private source: HTMLTextAreaElement | null = null;
+  private readonly sourceChanged = (): void => this.binding?.assistant.sourceChanged();
   private text: Y.Text | null = null;
   private readonly undoManagers = new Map<Y.Text, Y.UndoManager>();
 
@@ -77,6 +85,7 @@ export class EditorStatus extends LitElement {
     this.binding = binding;
     this.documentModel = documentModel;
     this.source = source;
+    binding.presence.bindSelectionChanged(() => this.renderHighlight());
     if (this.text) this.bindText(this.text);
   }
 
@@ -190,7 +199,12 @@ export class EditorStatus extends LitElement {
   refreshAuthoringTarget(): void {
     this.setAuthoringTarget(this.path, this.text?.toString() ?? "", this.authoringTarget);
     this.renderEditorHighlight();
-    this.binding?.targetChanged();
+    const binding = this.binding;
+    if (!binding) return;
+    const caret = this.caret;
+    binding.citation.setCaret(this.manuscript, caret);
+    binding.assistant.refreshTarget();
+    binding.context.setCitationAvailable(caret !== null);
   }
 
   renderHighlight(): void {
@@ -254,7 +268,7 @@ export class EditorStatus extends LitElement {
     const binding = this.binding;
     if (!documentModel || !source || !binding) return;
     this.releaseText();
-    text.observe(binding.sourceChanged);
+    text.observe(this.sourceChanged);
     let undoManager = this.undoManagers.get(text);
     if (!undoManager) {
       undoManager = new Y.UndoManager(text, { trackedOrigins: new Set([source, this]) });
@@ -264,7 +278,7 @@ export class EditorStatus extends LitElement {
     this.renderEditorHighlight = textBinding.renderHighlight;
     this.releaseText = () => {
       textBinding.destroy();
-      text.unobserve(binding.sourceChanged);
+      text.unobserve(this.sourceChanged);
     };
   }
 
@@ -273,7 +287,7 @@ export class EditorStatus extends LitElement {
     const local: readonly EditorPresenceRange[] = target
       ? [{ collaboratorId: "local-author", start: target.start, end: target.end, local: true }]
       : [];
-    return [...local, ...(this.binding?.presence(this.fileId) ?? [])];
+    return [...local, ...(this.binding?.presence.rangesFor(this.fileId) ?? [])];
   }
 }
 

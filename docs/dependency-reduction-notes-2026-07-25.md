@@ -12315,6 +12315,28 @@ unchanged at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip,
 Full native CI passes all 1,773 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Authoring Target Publication
+
+`EditorStatus` now binds the collaborator-presence, citation, assistant, and
+Context owners structurally. The owner subscribes directly to remote-selection
+changes and publishes each resolved caret or selection to its consumers instead
+of asking `WorkspaceApp` to repeat its derived state across four callbacks.
+
+This checkpoint reduces `src/client/app.ts` from 443 to 439 lines (-4). The
+editor-status owner grows from 292 to 306 lines (+14) to make the structural
+boundary explicit. Direct component coverage passes all seven editor-status
+cases; affected coverage passes all nine related runtime cases alongside strict
+types.
+
+The browser application artifact changes from 862,156 B raw / 232,216 B gzip
+to 862,095 B raw / 232,224 B gzip (-61 B raw / +8 B gzip). Styles, lazy
+Markdown, lazy PDF.js, and direct and unique production package counts remain
+unchanged at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip,
+481,994 B raw / 146,135 B gzip, 18, and 150.
+
+Full native CI passes all 1,773 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: One-Shot Browser Entry Intents
 
 `ProjectStartingPointBrowser` now consumes the `create=1` editor intent, removes
