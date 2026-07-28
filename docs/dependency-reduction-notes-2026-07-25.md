@@ -13547,6 +13547,19 @@ editor-status cases. The browser application changes from 857,977 B raw /
 231,477 B gzip to 857,885 B raw / 231,456 B gzip (-92 B raw / -21 B gzip);
 dependency counts and the other static artifacts remain unchanged.
 
+## Continued Lit Ownership: Derived Candidate Presentation
+
+`ContextResourcePresenter` now derives model-candidate presentation from the
+canonical assistant owner already supplied by its context binding. The
+application no longer repeats that presenter through a second lifecycle stage.
+
+This checkpoint reduces `src/client/app.ts` from 132 to 131 lines (-1) and the
+context-resource presenter from 1,282 to 1,279 lines (-3), for a four-line net
+runtime reduction. The affected guardrail passes 54 related cases and all 39
+focused presenter cases. The browser application changes from 857,885 B raw /
+231,456 B gzip to 857,788 B raw / 231,445 B gzip (-97 B raw / -11 B gzip);
+dependency counts and the other static artifacts remain unchanged.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,

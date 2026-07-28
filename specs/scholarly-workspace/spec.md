@@ -97,7 +97,8 @@ collaboration.
   One composed context-resource presenter binds the canonical assistant,
   editor-status, Library, project-file, and surface-route owners alongside the
   non-element layout manager and derives canonical context sources and
-  presentation effects from them. Standalone-Library mode derives from an
+  presentation effects from them. Candidate presentation uses that same
+  assistant owner without a second coordinator binding. Standalone-Library mode derives from an
   absent project API base. The coordinator connects those owners and supplies
   only that nullable API configuration without a parallel source factory,
   duplicate mode flag, or effect callbacks. The PDF viewer factory binds

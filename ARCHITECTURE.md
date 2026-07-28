@@ -1259,7 +1259,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   binds the canonical assistant, editor-status, Library, project-file, and
   surface-route owners directly alongside the non-element layout manager,
   deriving canonical project and Library sources from them instead of accepting
-  a parallel source factory and effect callbacks. Standalone-Library mode
+  a parallel source factory and effect callbacks. Candidate presentation derives
+  from that same assistant owner instead of a second presenter binding.
+  Standalone-Library mode
   derives from the absence of a project API base rather than crossing the
   binding as a second mode flag. It
   also restores a routed fixed or resource context against those authorized

@@ -128,7 +128,7 @@ interface ContextRouteBinding {
 }
 
 export interface ContextPresentationOwners {
-  readonly assistantGenerationPresenter: { readonly refreshAvailability: () => void };
+  readonly assistantGenerationPresenter: AssistantCandidatePresenter & { readonly refreshAvailability: () => void };
   readonly editorStatus: { readonly caret: number | null };
   readonly referenceLibraryWorkspace: {
     readonly snapshot: ReferenceLibrarySnapshot | null;
@@ -206,15 +206,12 @@ export class ContextResourcePresenter extends LitElement {
 
   bindContext(projectApiBase: string | null, layout: ContextPresentationBinding["layout"], owners: ContextPresentationOwners): void {
     this.contextPresentation = { layout, owners, projectApiBase };
+    this.candidatePresenter = owners.assistantGenerationPresenter;
     this.element("context-tab-strip", ContextTabStrip)?.bindNavigation({
       activate: (key) => this.navigateContext(key),
       close: (key) => this.closeBoundContext(key),
       openLibrary: () => void owners.referenceLibraryWorkspace.open(),
     });
-  }
-
-  bindCandidatePresentation(presenter: AssistantCandidatePresenter): void {
-    this.candidatePresenter = presenter;
   }
 
   navigateContext(key: ResearchContextKey): void {

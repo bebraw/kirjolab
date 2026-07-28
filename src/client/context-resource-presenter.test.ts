@@ -15,7 +15,12 @@ import { AssistantWorkflowStatus } from "./assistant-workflow-status";
 import { CandidateListPanel } from "./candidate-list-panel";
 import { CandidateReviewPanel } from "./candidate-review-panel";
 import { ClaimListPanel } from "./claim-list-panel";
-import { ContextResourcePresenter, type ContextResourceSources, type ResearchContextSources } from "./context-resource-presenter";
+import {
+  type AssistantCandidatePresenter,
+  ContextResourcePresenter,
+  type ContextResourceSources,
+  type ResearchContextSources,
+} from "./context-resource-presenter";
 import { ContextTabStrip } from "./context-tab-strip";
 import { LibraryPdfAnnotationToolbar } from "./library-pdf-annotation-toolbar";
 import { LibraryPdfInspector } from "./library-pdf-inspector";
@@ -122,6 +127,7 @@ interface TestContextBinding {
   readonly activateSurface: () => void;
   readonly citationAvailable: () => boolean;
   readonly openLibrary: (updateHistory?: boolean) => Promise<void>;
+  readonly presentCandidate?: AssistantCandidatePresenter["presentCandidate"];
   readonly refreshAssistant: () => void;
   readonly restorePaneWidth: () => void;
   readonly sources: () => ResearchContextSources;
@@ -135,7 +141,10 @@ function contextBinding(options: TestContextBinding): Parameters<ContextResource
     source().standaloneLibrary ? null : source().projectApiBase,
     { restorePaneWidth: options.restorePaneWidth },
     {
-      assistantGenerationPresenter: { refreshAvailability: options.refreshAssistant },
+      assistantGenerationPresenter: {
+        presentCandidate: options.presentCandidate ?? vi.fn(),
+        refreshAvailability: options.refreshAssistant,
+      },
       editorStatus: {
         get caret() {
           return options.citationAvailable() ? 0 : null;
@@ -295,7 +304,19 @@ describe("context resource presenter", () => {
     const { elements, presenter } = setup();
     const setPublication = vi.spyOn(elements["publication-context-panel"], "setPublication").mockReturnValue(true);
     const candidatePresenter = { presentCandidate: vi.fn() };
-    presenter.bindCandidatePresentation(candidatePresenter);
+    presenter.bindContext(
+      ...contextBinding({
+        activateSurface: vi.fn(),
+        citationAvailable: () => false,
+        openLibrary: vi.fn().mockResolvedValue(undefined),
+        presentCandidate: candidatePresenter.presentCandidate,
+        refreshAssistant: vi.fn(),
+        restorePaneWidth: vi.fn(),
+        sources: () => ({ ...sources(undefined), standaloneLibrary: false }),
+        standaloneLibraryRoutes: standaloneLibraryRoutes(),
+        syncRoute: vi.fn(),
+      }),
+    );
     const publicationTab = { id: "publication:1", key: "publication:publication:1", kind: "publication", scrollTop: 12 } as const;
     const candidateTab = { id: "candidate:1", key: "candidate:candidate:1", kind: "candidate", scrollTop: 24 } as const;
 

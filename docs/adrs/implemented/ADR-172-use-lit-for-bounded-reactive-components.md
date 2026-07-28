@@ -242,7 +242,9 @@ The adopted components own bounded presentation:
   evidence, annotation, publication, claim, comment, and candidate owners from
   the canonical workspace snapshot. From its canonical project-file, Library,
   editor-status, assistant, and surface-route owners plus the non-element layout
-  manager and nullable project API base, it reconciles authorization and owns
+  manager and nullable project API base, it derives candidate presentation from
+  the already-bound assistant rather than accepting a duplicate presenter
+  binding, reconciles authorization, and owns
   complete workspace-resource presentation, assistant-availability refresh,
   and incidental route synchronization. Standalone-Library mode derives from
   the absent project API base instead of crossing the binding separately. Let
