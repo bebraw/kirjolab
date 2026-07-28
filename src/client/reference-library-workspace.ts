@@ -28,7 +28,7 @@ import { libraryDiscoveryRefreshEvent, LibraryDiscoveryResults, type LibraryDisc
 import { libraryDiscoveryResultsEvent } from "./library-discovery-search";
 import { libraryPdfUploadOutcomeEvent, LibraryPdfUploadControl, type LibraryPdfUploadOutcome } from "./library-pdf-upload-control";
 import { libraryPdfUploadRevealEvent, LibraryPdfUploadStatus } from "./library-pdf-upload-status";
-import { readLibraryUiRoute, type LibraryUiRoute } from "./library-ui-route";
+import { libraryPdfRoute, readLibraryUiRoute, type LibraryUiRoute } from "./library-ui-route";
 import {
   libraryToolsActionEvent,
   libraryToolsArchiveRefreshEvent,
@@ -231,6 +231,19 @@ export class ReferenceLibraryWorkspace extends LitElement {
   bindBrowserRoute(enabled: boolean, browserHistory: ReferenceLibraryHistory = history): void {
     this.browserHistory = enabled ? browserHistory : null;
     this.bindHistory();
+  }
+
+  pushPdfRoute(artifactId: string, page: number): void {
+    this.pushBrowserRoute(libraryPdfRoute(artifactId, page), { view: "library-pdf", artifactId });
+  }
+
+  replacePdfRoute(artifactId: string | undefined, page: number, pathname = location.pathname): void {
+    if (!artifactId || !pathname.startsWith("/library/pdfs/")) return;
+    this.browserHistory?.replaceState(this.browserHistory.state, "", libraryPdfRoute(artifactId, page));
+  }
+
+  replaceLibraryRoute(): void {
+    this.replaceBrowserRoute();
   }
 
   async open(updateHistory = true): Promise<void> {

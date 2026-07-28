@@ -232,12 +232,26 @@ describe("reference Library workspace", () => {
     vi.stubGlobal("window", browser);
     vi.stubGlobal("location", { href: "https://example.test/library?reference=reference-1" });
     const restoreRoute = vi.spyOn(workspace, "restoreRoute").mockResolvedValue();
-    workspace.bindBrowserRoute(true, historyHarness().history);
+    const routeHistory = historyHarness();
+    workspace.bindBrowserRoute(true, routeHistory.history);
 
     await workspace.restoreBrowserRoute();
     browser.dispatchEvent(new Event("popstate"));
     expect(restoreRoute).toHaveBeenCalledTimes(2);
     expect(restoreRoute).toHaveBeenLastCalledWith({ kind: "library", referenceId: "reference-1" });
+
+    workspace.pushPdfRoute("artifact/id", 3);
+    workspace.replacePdfRoute("artifact/id", 4, "/library/pdfs/artifact%2Fid");
+    workspace.replacePdfRoute(undefined, 5, "/library/pdfs/artifact%2Fid");
+    workspace.replacePdfRoute("artifact/id", 5, "/library");
+    workspace.replaceLibraryRoute();
+    expect(routeHistory.pushState).toHaveBeenCalledWith(
+      { view: "library-pdf", artifactId: "artifact/id" },
+      "",
+      "/library/pdfs/artifact%2Fid?page=3",
+    );
+    expect(routeHistory.replaceState).toHaveBeenNthCalledWith(1, null, "", "/library/pdfs/artifact%2Fid?page=4");
+    expect(routeHistory.replaceState).toHaveBeenNthCalledWith(2, { view: "library" }, "", "/library");
 
     workspace.disconnectedCallback();
     browser.dispatchEvent(new Event("popstate"));

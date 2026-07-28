@@ -134,8 +134,10 @@ export interface ContextPresentationBinding {
   readonly activateSurface: () => void;
   readonly citationAvailable: () => boolean;
   readonly openLibrary: (updateHistory?: boolean) => Promise<void>;
-  readonly pushStandaloneLibraryPdfRoute: (artifactId: string, page: number) => void;
-  readonly replaceStandaloneLibraryRoute: () => void;
+  readonly standaloneLibraryRoutes: {
+    readonly pushPdfRoute: (artifactId: string, page: number) => void;
+    readonly replaceLibraryRoute: () => void;
+  };
   readonly refreshAssistant: () => void;
   readonly restorePaneWidth: () => void;
   readonly sources: () => ResearchContextSources;
@@ -256,7 +258,7 @@ export class ContextResourcePresenter extends LitElement {
     this.closeContext(key);
     if (returnToStandaloneLibrary) {
       this.contextState = activateResearchTab(this.contextState, RESEARCH_LIBRARY_KEY);
-      binding.replaceStandaloneLibraryRoute();
+      binding.standaloneLibraryRoutes.replaceLibraryRoute();
     }
     this.presentBoundContext();
     this.element("context-tab-strip", ContextTabStrip)?.focusTab(this.activeKey);
@@ -417,7 +419,7 @@ export class ContextResourcePresenter extends LitElement {
     if (binding?.sources().standaloneLibrary) {
       if (updateHistory) {
         const active = this.activeContextTab;
-        binding.pushStandaloneLibraryPdfRoute(artifact.id, page ?? (active?.kind === "library-pdf" ? active.page : 1));
+        binding.standaloneLibraryRoutes.pushPdfRoute(artifact.id, page ?? (active?.kind === "library-pdf" ? active.page : 1));
       }
     } else binding?.syncRoute("push");
     await this.loadActivePdf(page !== undefined);

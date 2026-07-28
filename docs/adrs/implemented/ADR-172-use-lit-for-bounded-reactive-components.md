@@ -162,14 +162,15 @@ The adopted components own bounded presentation:
   supplied context route, it activates a safe Preview baseline, resolves fixed
   contexts or the matching canonical publication, project PDF, private-Library
   PDF, linked reference PDF, or candidate, emits the typed open effect, and
-  returns to Preview with a notice after failures. URL parsing and browser-
-  history mutation remain application-coordinator policy. It also resolves the
+  returns to Preview with a notice after failures. URL parsing remains in the
+  bounded route adapters, while workspace and standalone-Library owners supply
+  history effects through structural bindings. It also resolves the
   PDF-only layout's active-or-first authorized project/private PDF choice and
   empty state through the same catalogs and route effects while layout state
   remains application policy. Project, private-Library, and linked-reference
   PDF opens no longer round-trip through application methods: the presenter
   prepares canonical context, sequences workspace or standalone-Library route
-  effects, and loads the active viewer, while the application supplies the
+  effects, and loads the active viewer, while the Library workspace supplies
   concrete standalone URL mutation. Project-map
   navigation reuses those catalog lookups,
   while annotation edit/open intents resolve to the canonical annotation and
@@ -239,8 +240,8 @@ The adopted components own bounded presentation:
   validation, storage, authorization projection, and optional downstream
   presentation. The coordinator retains canonical snapshot acceptance, Library
   refresh and load timing, active-page gestures, private markup drafts, Yjs
-  citation insertion, history mutation, navigation transitions, remaining
-  viewer effects, and notification policy.
+  citation insertion, workspace-route synchronization, navigation transitions,
+  remaining viewer effects, and notification policy.
 - The knowledge search panel owns query capture, empty, result, and error
   presentation, and typed search and resource-selection intents. Its enclosing
   project-map workspace owns the authorized search request, response validation,
@@ -529,9 +530,9 @@ The adopted components own bounded presentation:
   Library-originated project mutations. General Library entry also owns
   activation, optional standalone-route entry, and canonical refresh sequencing.
   It parses the current standalone route and owns root and addressed-reference
-  history mutation plus browser-history restoration subscription and lifecycle
-  teardown. The application coordinator supplies PDF-route mutation, refresh
-  timing, PDF navigation,
+  root, addressed-reference, private-PDF, and active-page history mutation plus
+  browser-history restoration subscription and lifecycle teardown. The
+  application coordinator supplies refresh timing, PDF navigation,
   web-capture/comparison, canonical project snapshot application, and notice
   presentation through a typed callback boundary.
 - The model provider settings panel owns connection, endpoint, model, and
@@ -1244,8 +1245,8 @@ reason to wrap static markup mechanically.
   closure, PDF location, resource-panel scroll restoration, tab presentation,
   focus, route-effect sequencing, surface activation, and active-PDF load
   timing. The application coordinator supplies authorized Library loading,
-  canonical context sources, browser-history mutation, and the underlying
-  cross-surface and layout effects.
+  canonical context sources, the workspace and standalone-Library route owners,
+  and the underlying cross-surface and layout effects.
 - The workspace surface switcher replaces two button references, native action
   bindings, ARIA-state mutations, and its public change event. It routes
   internal and workflow-driven selection through one navigation method, owns

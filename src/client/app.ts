@@ -10,7 +10,6 @@ import "./application-version-control";
 import "./source-citation-control";
 import "./workspace-surface-switcher";
 import { expectOk } from "./http";
-import { libraryPdfRoute } from "./library-ui-route";
 import "./project-starting-point-browser";
 import { WorkspaceLayoutManager } from "./workspace-layout-manager";
 import "./workspace-layout-control";
@@ -115,9 +114,7 @@ class WorkspaceApp {
       onPageChange: (page) => {
         const presentation = this.#elements.contextResourcePresenter.presentPdfPage(page);
         if (presentation.activePdf) this.#elements.workspaceSurfaceSwitcher.syncRoute("replace");
-        if (appMode === "library" && presentation.libraryPdfId && location.pathname.startsWith("/library/pdfs/")) {
-          history.replaceState(history.state, "", libraryPdfRoute(presentation.libraryPdfId, page));
-        }
+        this.#elements.referenceLibraryWorkspace.replacePdfRoute(presentation.libraryPdfId, page);
       },
       onPrivateHighlight: (highlightId) => this.#elements.contextResourcePresenter.selectLibraryHighlight(highlightId),
     });
@@ -396,9 +393,7 @@ class WorkspaceApp {
       activateSurface: () => this.#elements.workspaceSurfaceSwitcher.navigate("context", false),
       citationAvailable: () => this.#elements.editorStatus.caret !== null,
       openLibrary: (updateHistory) => this.#elements.referenceLibraryWorkspace.open(updateHistory),
-      pushStandaloneLibraryPdfRoute: (artifactId, page) =>
-        history.pushState({ view: "library-pdf", artifactId }, "", libraryPdfRoute(artifactId, page)),
-      replaceStandaloneLibraryRoute: () => history.replaceState({ view: "library" }, "", "/library"),
+      standaloneLibraryRoutes: this.#elements.referenceLibraryWorkspace,
       refreshAssistant: () => this.#elements.assistantGenerationPresenter.refreshAvailability(),
       restorePaneWidth: () => this.#layout.restorePaneWidth(),
       sources: () => ({

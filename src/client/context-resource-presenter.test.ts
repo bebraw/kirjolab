@@ -117,6 +117,10 @@ function sources(activeTab: ResearchResourceTab | undefined): ContextResourceSou
   };
 }
 
+function standaloneLibraryRoutes() {
+  return { pushPdfRoute: vi.fn(), replaceLibraryRoute: vi.fn() };
+}
+
 function setup() {
   const presenter = new ContextResourcePresenter();
   const elements = {
@@ -278,7 +282,7 @@ describe("context resource presenter", () => {
     });
     const activateSurface = vi.fn();
     const openLibrary = vi.fn().mockResolvedValue(undefined);
-    const replaceStandaloneLibraryRoute = vi.fn();
+    const libraryRoutes = standaloneLibraryRoutes();
     const restorePaneWidth = vi.fn();
     const syncRoute = vi.fn();
     let standaloneLibrary = false;
@@ -286,8 +290,7 @@ describe("context resource presenter", () => {
       activateSurface,
       citationAvailable: () => true,
       openLibrary,
-      pushStandaloneLibraryPdfRoute: vi.fn(),
-      replaceStandaloneLibraryRoute,
+      standaloneLibraryRoutes: libraryRoutes,
       refreshAssistant: vi.fn(),
       restorePaneWidth,
       sources: () => ({ ...sources(undefined), standaloneLibrary }),
@@ -309,7 +312,7 @@ describe("context resource presenter", () => {
     standaloneLibrary = true;
     navigation?.close("publication:publication:1");
     expect(presenter.activeKey).toBe("library");
-    expect(replaceStandaloneLibraryRoute).toHaveBeenCalledOnce();
+    expect(libraryRoutes.replaceLibraryRoute).toHaveBeenCalledOnce();
     expect(syncRoute).toHaveBeenCalledWith("replace");
     expect(presentContext).toHaveBeenCalled();
     expect(restorePaneWidth).toHaveBeenCalled();
@@ -326,8 +329,7 @@ describe("context resource presenter", () => {
       activateSurface: vi.fn(),
       citationAvailable: () => false,
       openLibrary,
-      pushStandaloneLibraryPdfRoute: vi.fn(),
-      replaceStandaloneLibraryRoute: vi.fn(),
+      standaloneLibraryRoutes: standaloneLibraryRoutes(),
       refreshAssistant: vi.fn(),
       restorePaneWidth: vi.fn(),
       sources: () => ({ ...sources(undefined), standaloneLibrary: false }),
@@ -380,8 +382,7 @@ describe("context resource presenter", () => {
       activateSurface: vi.fn(),
       citationAvailable: () => false,
       openLibrary: vi.fn(),
-      pushStandaloneLibraryPdfRoute: vi.fn(),
-      replaceStandaloneLibraryRoute: vi.fn(),
+      standaloneLibraryRoutes: standaloneLibraryRoutes(),
       refreshAssistant: vi.fn(),
       restorePaneWidth: vi.fn(),
       sources: () => contextSources,
@@ -411,15 +412,14 @@ describe("context resource presenter", () => {
     pdfRoutes.openReferencePdf.mockRestore();
     const preparePdfContext = vi.spyOn(presenter, "preparePdfContext").mockImplementation((target) => `${target.kind}:${target.id}`);
     const loadActivePdf = vi.spyOn(presenter, "loadActivePdf").mockResolvedValue(undefined);
-    const pushStandaloneLibraryPdfRoute = vi.fn();
+    const libraryRoutes = standaloneLibraryRoutes();
     const syncRoute = vi.fn();
     let standaloneLibrary = false;
     presenter.bindContext({
       activateSurface: vi.fn(),
       citationAvailable: () => false,
       openLibrary: vi.fn(),
-      pushStandaloneLibraryPdfRoute,
-      replaceStandaloneLibraryRoute: vi.fn(),
+      standaloneLibraryRoutes: libraryRoutes,
       refreshAssistant: vi.fn(),
       restorePaneWidth: vi.fn(),
       sources: () => ({ ...sources(undefined), standaloneLibrary }),
@@ -447,8 +447,8 @@ describe("context resource presenter", () => {
     expect(preparePdfContext).toHaveBeenNthCalledWith(3, { kind: "library-pdf", id: referencePdf.id }, { page: 6 });
     expect(syncRoute).toHaveBeenCalledTimes(2);
     expect(syncRoute).toHaveBeenCalledWith("push");
-    expect(pushStandaloneLibraryPdfRoute).toHaveBeenCalledOnce();
-    expect(pushStandaloneLibraryPdfRoute).toHaveBeenCalledWith(libraryPdf.id, 7);
+    expect(libraryRoutes.pushPdfRoute).toHaveBeenCalledOnce();
+    expect(libraryRoutes.pushPdfRoute).toHaveBeenCalledWith(libraryPdf.id, 7);
     expect(loadActivePdf).toHaveBeenCalledTimes(5);
     expect(loadActivePdf).toHaveBeenCalledWith(true);
   });
@@ -478,8 +478,7 @@ describe("context resource presenter", () => {
       activateSurface: vi.fn(),
       citationAvailable: () => false,
       openLibrary: vi.fn(),
-      pushStandaloneLibraryPdfRoute: vi.fn(),
-      replaceStandaloneLibraryRoute: vi.fn(),
+      standaloneLibraryRoutes: standaloneLibraryRoutes(),
       refreshAssistant,
       restorePaneWidth: vi.fn(),
       sources: () => ({ ...sources(undefined), standaloneLibrary: false }),
