@@ -985,6 +985,9 @@ reason to wrap static markup mechanically.
   deletion, and upload snapshots to its own projection and requests Preview
   rendering through its existing project-refresh binding, removing the
   coordinator's snapshot-return round trip.
+  Accepted cross-feature mutations now also refresh reference PDFs, present
+  Context, and request Preview through that same binding, removing a second
+  post-acceptance coordinator callback.
   Its live-content binding now retains the coordinator-supplied readiness
   predicate beside the resolver, removing repeated collaboration-state inputs
   from Preview, manuscript-map, and collaborator projections.

@@ -79,7 +79,6 @@ function mutationCallbacks(): ProjectFileMutationCallbacks {
     presentFile: vi.fn(),
     presentNotice: vi.fn(),
     previewChanged: vi.fn(),
-    projectAccepted: vi.fn().mockResolvedValue(undefined),
   };
 }
 
@@ -342,14 +341,18 @@ describe("project file dialog", () => {
     const panel = new TestProjectFileDialog();
     const callbacks = mutationCallbacks();
     const updated = { ...snapshot, title: "Updated" };
+    const binding = projectRefreshBinding();
     panel.configureApi("/api/workspaces/workspace", callbacks);
+    panel.bindProjectRefresh(binding);
     panel.presentProject(snapshot, "/assets", true);
 
     await panel.acceptProjectMutation(Response.json(updated));
 
     expect(panel.project).toEqual(updated);
     expect(callbacks.presentFile).toHaveBeenLastCalledWith(updated.files[0], updated, false);
-    expect(callbacks.projectAccepted).toHaveBeenCalledOnce();
+    expect(binding.context.refreshBoundReferencePdfs).toHaveBeenCalledWith(false);
+    expect(binding.context.presentBoundWorkspace).toHaveBeenCalledOnce();
+    expect(binding.preview.renderBoundProject).toHaveBeenCalledOnce();
     await expect(panel.acceptProjectMutation(Response.json({ id: "incomplete" }))).rejects.toThrow(
       "Project mutation returned an invalid snapshot",
     );

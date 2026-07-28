@@ -334,7 +334,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   resolution for dialogs, active-file deletion eligibility, and relative image
   insertion projection. It also owns authoring-range activation: resolve an
   omitted file to the entry file, select it, enter Write mode, and normalize the
-  requested range through bound authoring capabilities. It also owns explicit
+  requested range through bound authoring capabilities. The accepted cross-
+  feature mutation path likewise refreshes reference PDFs, presents Context,
+  and requests Preview through that bound authority after applying the
+  validated snapshot. It also owns explicit
   authoring and range reveal operations that reuse that activation path before
   scrolling through a narrow editor capability. Tree, workflow, save, deletion,
   Undo, route, and cross-feature selections all use that single activation path.

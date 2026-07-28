@@ -257,11 +257,6 @@ class WorkspaceApp {
       presentFile: (file, snapshot, reset) => this.#elements.editorStatus.setProjectFile(file, snapshot.entryFileId, reset),
       presentNotice: (message, options) => this.#elements.toast.show(message, options),
       previewChanged: () => void this.#elements.workspacePreview.renderBoundProject(),
-      projectAccepted: async () => {
-        await this.#elements.contextResourcePresenter.refreshBoundReferencePdfs(false);
-        this.#elements.contextResourcePresenter.presentBoundWorkspace();
-        void this.#elements.workspacePreview.renderBoundProject();
-      },
     });
     this.#elements.projectFileDialog.bindWorkflow({
       activateAuthoring: () => this.#elements.authoringModeTabs.navigate("write"),

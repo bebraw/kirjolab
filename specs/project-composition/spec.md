@@ -107,6 +107,8 @@ collaborative, and unambiguous about what preview and export mean.
   tree actions, upload completion, and save completion. Validated file, folder,
   tree, deletion, and upload snapshots use one owner-internal canonical
   mutation path that applies the project projection before requesting Preview.
+  Accepted cross-feature mutations use the same bound authorities to refresh
+  reference PDFs and present Context after applying the validated snapshot.
   A create-and-include operation
   retains one insertion continuation across the dialog lifecycle, invokes it
   only after applying the validated snapshot, and clears it on success or

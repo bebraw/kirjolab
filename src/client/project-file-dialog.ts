@@ -26,7 +26,6 @@ export interface ProjectFileMutationCallbacks {
   readonly presentFile: (file: ProjectFile, snapshot: WorkspaceSnapshot, reset: boolean) => void;
   readonly presentNotice: (message: string, options?: DeferredDeletionNoticeOptions) => void;
   readonly previewChanged: () => void;
-  readonly projectAccepted: () => Promise<void>;
 }
 
 export interface ProjectRefreshBinding {
@@ -47,7 +46,7 @@ export interface ProjectRefreshBinding {
   };
   readonly context: {
     presentBoundWorkspace(): void;
-    refreshBoundReferencePdfs(): Promise<void>;
+    refreshBoundReferencePdfs(render?: boolean): Promise<void>;
   };
   readonly history: { setRevision(revision: number): void };
   readonly load: () => Promise<WorkspaceSnapshot>;
@@ -150,7 +149,6 @@ export class ProjectFileDialog extends LitElement {
     presentFile: () => undefined,
     presentNotice: () => undefined,
     previewChanged: () => undefined,
-    projectAccepted: () => Promise.resolve(),
   };
   private readonly deletions = new DeferredDeletionController((message, options) => {
     this.mutationCallbacks.presentNotice(message, options);
@@ -298,7 +296,11 @@ export class ProjectFileDialog extends LitElement {
     const value: unknown = result instanceof Response ? await result.json() : result;
     if (!isWorkspaceSnapshot(value)) throw new Error("Project mutation returned an invalid snapshot");
     this.presentProject(value, this.assetBase, this.workspaceMode);
-    await this.mutationCallbacks.projectAccepted();
+    const binding = this.refreshBinding;
+    if (!binding) return;
+    await binding.context.refreshBoundReferencePdfs(false);
+    binding.context.presentBoundWorkspace();
+    void binding.preview.renderBoundProject();
   }
 
   async refreshProject(): Promise<void> {
