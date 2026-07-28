@@ -14907,6 +14907,27 @@ unchanged.
 Full native CI passes all 1,781 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Valibot Reduction: Reference Snapshot Contracts
+
+The persisted reference-Library boundary now validates Crossref metadata, web-
+source rows, immutable web-snapshot rows, and string-array maps through shared
+Valibot schemas. Record-versus-array identity stays explicit because Valibot's
+structural record schema also accepts arrays; cross-record Library invariants
+remain in domain code. The snapshot's existing permissive numeric semantics
+remain explicit while capture-time semantic checks stay with the writing
+authority.
+
+This checkpoint removes 39 net production lines and lowers the readability
+audit from 38 to 36 high-complexity functions while retaining 12 clone groups.
+The focused reference-library suite passes all 21 cases alongside strict
+TypeScript targets. The browser application changes from 845,765 B raw /
+230,981 B gzip to 845,989 B raw / 231,150 B gzip (+224 B raw / +169 B gzip);
+direct and unique production package counts remain 18 and 150, and the other
+static artifacts remain unchanged.
+
+Full native CI passes all 1,781 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,

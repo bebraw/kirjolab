@@ -1620,6 +1620,12 @@ components do not duplicate query-and-error boilerplate.
   constructor value imports are also the registration edge for collected
   custom elements; the application entry retains side-effect imports only for
   registration-only elements absent from the registry.
+- The persisted reference-Library boundary uses shared Valibot schemas for
+  Crossref metadata, web-source rows, immutable web-snapshot rows, and string-
+  array maps instead of parallel structural predicates. Explicit domain guards
+  retain record-versus-array identity and cross-record invariants. The stored
+  snapshot's legacy number fields remain type-only checks; capture-time
+  semantics stay with the writing authority.
 - Related template, visibility rules, and local event binding now have one
   browser owner.
 - Later bounded extractions can reuse the same reactive component model without

@@ -1,3 +1,4 @@
+import * as v from "valibot";
 import { normalizeDoi, projectBibTeXPublication, type BibTeXEntry } from "./bibliography";
 import { hasBibliographicRecordFields } from "./bibliographic-record-contract";
 
@@ -9,6 +10,56 @@ export type MetadataProvenanceMethod = "bibtex" | ScholarlyMetadataProvider | "f
 export const crossrefMetadataFields = ["type", "title", "authors", "year", "venue", "doi", "url", "abstract"] as const;
 export const maximumMetadataRefinementCandidates = 12;
 
+const boundedString = (maximum: number) => v.pipe(v.string(), v.maxLength(maximum));
+const requiredBoundedString = (maximum: number) => v.pipe(v.string(), v.minLength(1), v.maxLength(maximum));
+const stringArraySchema = v.array(v.string());
+const readonlyStringArraySchema = v.pipe(stringArraySchema, v.readonly());
+const storedNumberSchema = v.custom<number>((value) => typeof value === "number");
+const crossrefMetadataSchema = v.pipe(
+  v.object({
+    type: requiredBoundedString(100),
+    title: requiredBoundedString(2_000),
+    authors: v.pipe(v.array(boundedString(500)), v.maxLength(100)),
+    year: boundedString(100),
+    venue: boundedString(2_000),
+    doi: requiredBoundedString(500),
+    url: boundedString(2_000),
+    abstract: boundedString(20_000),
+  }),
+  v.readonly(),
+);
+const stringArrayRecordSchema = v.record(v.string(), stringArraySchema);
+const webSourceSchema = v.pipe(
+  v.object({ referenceId: v.string(), canonicalUrl: v.string(), createdAt: v.string(), updatedAt: v.string() }),
+  v.readonly(),
+);
+const webSnapshotSchema = v.pipe(
+  v.object({
+    id: v.string(),
+    referenceId: v.string(),
+    requestedUrl: v.string(),
+    finalUrl: v.string(),
+    accessedAt: v.string(),
+    status: storedNumberSchema,
+    contentType: v.string(),
+    rawObjectKey: v.nullable(v.string()),
+    readableObjectKey: v.nullable(v.string()),
+    rawSize: storedNumberSchema,
+    readableSize: storedNumberSchema,
+    contentHash: v.string(),
+    title: v.string(),
+    authors: readonlyStringArraySchema,
+    publisher: v.string(),
+    publishedAt: v.string(),
+    complete: v.boolean(),
+    diagnostics: readonlyStringArraySchema,
+    redirectChain: readonlyStringArraySchema,
+    etag: v.string(),
+    lastModified: v.string(),
+  }),
+  v.readonly(),
+);
+
 export interface ReviewedPdfMetadata {
   readonly title?: string;
   readonly authors?: readonly string[];
@@ -16,16 +67,7 @@ export interface ReviewedPdfMetadata {
   readonly doi?: string;
 }
 
-export interface CrossrefMetadata {
-  readonly type: string;
-  readonly title: string;
-  readonly authors: string[];
-  readonly year: string;
-  readonly venue: string;
-  readonly doi: string;
-  readonly url: string;
-  readonly abstract: string;
-}
+export type CrossrefMetadata = v.InferOutput<typeof crossrefMetadataSchema>;
 
 export interface MetadataRefinementCandidate {
   readonly provider: ScholarlyMetadataProvider;
@@ -85,36 +127,9 @@ export interface BibliographicSnapshot {
   readonly webSnapshot: WebCitationSnapshot | null;
 }
 
-export interface WebSource {
-  readonly referenceId: string;
-  readonly canonicalUrl: string;
-  readonly createdAt: string;
-  readonly updatedAt: string;
-}
+export type WebSource = v.InferOutput<typeof webSourceSchema>;
 
-export interface WebSnapshot {
-  readonly id: string;
-  readonly referenceId: string;
-  readonly requestedUrl: string;
-  readonly finalUrl: string;
-  readonly accessedAt: string;
-  readonly status: number;
-  readonly contentType: string;
-  readonly rawObjectKey: string | null;
-  readonly readableObjectKey: string | null;
-  readonly rawSize: number;
-  readonly readableSize: number;
-  readonly contentHash: string;
-  readonly title: string;
-  readonly authors: readonly string[];
-  readonly publisher: string;
-  readonly publishedAt: string;
-  readonly complete: boolean;
-  readonly diagnostics: readonly string[];
-  readonly redirectChain: readonly string[];
-  readonly etag: string;
-  readonly lastModified: string;
-}
+export type WebSnapshot = v.InferOutput<typeof webSnapshotSchema>;
 
 export interface WebCitationSnapshot {
   readonly id: string;
@@ -733,73 +748,19 @@ function isMetadataRefinementCandidate(value: unknown): value is MetadataRefinem
 }
 
 export function isCrossrefMetadata(value: unknown): value is CrossrefMetadata {
-  return (
-    isRecord(value) &&
-    typeof value.type === "string" &&
-    value.type.length > 0 &&
-    value.type.length <= 100 &&
-    typeof value.title === "string" &&
-    value.title.length > 0 &&
-    value.title.length <= 2_000 &&
-    Array.isArray(value.authors) &&
-    value.authors.length <= 100 &&
-    value.authors.every((author) => typeof author === "string" && author.length <= 500) &&
-    typeof value.year === "string" &&
-    value.year.length <= 100 &&
-    typeof value.venue === "string" &&
-    value.venue.length <= 2_000 &&
-    typeof value.doi === "string" &&
-    value.doi.length > 0 &&
-    value.doi.length <= 500 &&
-    typeof value.url === "string" &&
-    value.url.length <= 2_000 &&
-    typeof value.abstract === "string" &&
-    value.abstract.length <= 20_000
-  );
+  return v.is(crossrefMetadataSchema, value);
 }
 
 function isStringArrayRecord(value: unknown): value is Readonly<Record<string, readonly string[]>> {
-  return isRecord(value) && Object.values(value).every((items) => Array.isArray(items) && items.every((item) => typeof item === "string"));
+  return isRecord(value) && v.is(stringArrayRecordSchema, value);
 }
 
 function isWebSource(value: unknown): value is WebSource {
-  return (
-    isRecord(value) &&
-    typeof value.referenceId === "string" &&
-    typeof value.canonicalUrl === "string" &&
-    typeof value.createdAt === "string" &&
-    typeof value.updatedAt === "string"
-  );
+  return v.is(webSourceSchema, value);
 }
 
 function isWebSnapshot(value: unknown): value is WebSnapshot {
-  return (
-    isRecord(value) &&
-    typeof value.id === "string" &&
-    typeof value.referenceId === "string" &&
-    typeof value.requestedUrl === "string" &&
-    typeof value.finalUrl === "string" &&
-    typeof value.accessedAt === "string" &&
-    typeof value.status === "number" &&
-    typeof value.contentType === "string" &&
-    (value.rawObjectKey === null || typeof value.rawObjectKey === "string") &&
-    (value.readableObjectKey === null || typeof value.readableObjectKey === "string") &&
-    typeof value.rawSize === "number" &&
-    typeof value.readableSize === "number" &&
-    typeof value.contentHash === "string" &&
-    typeof value.title === "string" &&
-    Array.isArray(value.authors) &&
-    value.authors.every((author) => typeof author === "string") &&
-    typeof value.publisher === "string" &&
-    typeof value.publishedAt === "string" &&
-    typeof value.complete === "boolean" &&
-    Array.isArray(value.diagnostics) &&
-    value.diagnostics.every((diagnostic) => typeof diagnostic === "string") &&
-    Array.isArray(value.redirectChain) &&
-    value.redirectChain.every((url) => typeof url === "string") &&
-    typeof value.etag === "string" &&
-    typeof value.lastModified === "string"
-  );
+  return v.is(webSnapshotSchema, value);
 }
 
 const referenceKeyStopWords = new Set(["a", "an", "and", "for", "from", "in", "of", "on", "the", "to", "with"]);

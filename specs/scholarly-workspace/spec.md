@@ -736,7 +736,13 @@ collaboration.
   readable R2 objects. Project citations pin one exact access timestamp and
   content hash; normal reference refresh cannot move the pin. Capture requests
   contain exactly one non-empty URL of at most 4,096 characters, enforced by a
-  strict Valibot request schema before URL normalization.
+  strict Valibot request schema before URL normalization. Persisted Crossref
+  metadata, web-source rows, immutable web snapshots, and tag and collection
+  maps are validated through shared Valibot schemas; the Library snapshot
+  boundary separately rejects arrays where keyed records are required and
+  retains its cross-record invariants. Snapshot number fields preserve their
+  existing type-only acceptance; capture-time semantic checks remain with the
+  writing authority.
 - **Citation assertions:** Source-to-source relationships live in the private
   shared library as directional provenance-bearing assertions, not manuscript
   `cites` edges. The bounded derived network can focus on current-project

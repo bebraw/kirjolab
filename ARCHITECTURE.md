@@ -49,7 +49,12 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   review-study decision boundaries, schemas own screening, final-inclusion,
   adjudication, duplicate-resolution, quality-answer, extraction-value, and
   reassessment-completion structure; revision concurrency, evidence parsing and
-  authorization, and study mutation stay explicit.
+  authorization, and study mutation stay explicit. At the persisted reference-
+  library boundary, schemas own Crossref metadata, web-source rows, immutable
+  web-snapshot rows, and string-array maps; record-versus-array identity and
+  cross-record Library invariants stay explicit. Preserve the legacy snapshot
+  number fields' type-only acceptance; capture-time semantic checks remain with
+  the writing authority.
 - Validate the server-rendered workspace/Library browser bootstrap as one
   Valibot contract before constructing the application. The contract owns the
   bounded workspace id, non-empty bounded identity email, and explicit
