@@ -211,8 +211,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   preview inputs. Let the light-DOM workspace Preview own lazy renderer loading,
   stale-render rejection, rendered or escaped-source presentation, renderer
   diagnostics, isolated-file heading-number mapping, and authorized local-image
-  resolution. Bind the canonical Yjs document, snapshot source, project-file
-  owner, and hidden-asset owner once; let Preview derive its live source,
+  resolution. Bind the canonical Yjs document, project-file owner, and
+  hidden-asset owner once; let Preview read the canonical snapshot from the
+  project-file owner and derive its live source,
   bibliography, resolved anchors, publication composition, active-file preview,
   and subscribe once to document-wide Yjs updates with disconnect teardown so
   every collaborative file change schedules one canonical project render. Let
@@ -225,7 +226,8 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   source-offset extraction, and routing of its source, citation, and nested
   diagnostic-selection intents directly through the sync, Context, and
   project-file owners already supplied by its project binding. Do not repeat
-  those owners in a second navigation callback bag. Keep
+  those owners in a second navigation callback bag or repeat the project
+  snapshot as a separate callback. Keep
   canonical project-file, snapshot, and Yjs authority, publication resolution,
   and resulting transitions in the application coordinator.
 - Let the bounded Preview synchronization control own explicit Preview-to-source

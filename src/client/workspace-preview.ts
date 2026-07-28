@@ -64,7 +64,7 @@ export interface ProjectPreviewRequest {
 export interface WorkspacePreviewProjectOwners {
   readonly contextResourcePresenter: Pick<ContextResourcePresenter, "activeKey" | "openCitation">;
   readonly previewSyncControls: Pick<PreviewSyncControls, "activeSourcePreviewOffsets" | "showSource">;
-  readonly projectFileDialog: Pick<ProjectFileDialog, "activeFileId" | "focusRange" | "projectFiles">;
+  readonly projectFileDialog: Pick<ProjectFileDialog, "activeFileId" | "focusRange" | "project" | "projectFiles">;
   readonly projectTreePanel: { readonly hiddenAssets: ReadonlySet<string> };
   readonly workspaceSurfaces: HTMLElement;
 }
@@ -73,7 +73,6 @@ interface WorkspacePreviewProjectBinding {
   readonly apiBase: string;
   readonly document: Y.Doc;
   readonly owners: WorkspacePreviewProjectOwners;
-  readonly snapshot: () => WorkspaceSnapshot | null;
 }
 
 export interface ProjectPreviewOutcome {
@@ -117,9 +116,9 @@ export class WorkspacePreview extends LitElement {
     });
   }
 
-  bindProject(apiBase: string, document: Y.Doc, snapshot: () => WorkspaceSnapshot | null, owners: WorkspacePreviewProjectOwners): void {
+  bindProject(apiBase: string, document: Y.Doc, owners: WorkspacePreviewProjectOwners): void {
     this.unbindProjectUpdates();
-    this.projectBinding = { apiBase, document, owners, snapshot };
+    this.projectBinding = { apiBase, document, owners };
     this.bindProjectUpdates();
   }
 
@@ -221,7 +220,7 @@ export class WorkspacePreview extends LitElement {
   renderBoundProject(bibliography?: string): Promise<ProjectPreviewOutcome | null> {
     const binding = this.projectBinding;
     if (!binding) return Promise.resolve(null);
-    const snapshot = binding.snapshot();
+    const snapshot = binding.owners.projectFileDialog.project;
     const source = binding.document.getText("source");
     const bibliographyText = binding.document.getText("bibliography");
     return this.renderProject({
@@ -252,7 +251,7 @@ export class WorkspacePreview extends LitElement {
   syncFromSource(explicit = true): boolean {
     const binding = this.projectBinding;
     if (!binding) return false;
-    const snapshot = binding.snapshot();
+    const snapshot = binding.owners.projectFileDialog.project;
     const fileId = binding.owners.projectFileDialog.activeFileId ?? snapshot?.entryFileId ?? "";
     const offsets = binding.owners.previewSyncControls.activeSourcePreviewOffsets(
       fileId,

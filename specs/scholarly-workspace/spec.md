@@ -93,9 +93,11 @@ collaboration.
   intent, and source-viewport centering. Workspace Preview derives source-to-
   Preview automatic-versus-explicit eligibility from its bound active-file,
   context, and layout projections, owns one document-wide Yjs update
-  subscription with disconnect teardown, and owns mapped DOM navigation. The
-  coordinator retains those canonical authorities plus file activation, mode,
-  caret, and source-focus policy.
+  subscription with disconnect teardown, reads the canonical snapshot directly
+  from its bound project-file owner, and owns mapped DOM navigation. No parallel
+  snapshot callback duplicates that owner. The coordinator retains those
+  canonical authorities plus file activation, mode, caret, and source-focus
+  policy.
   A bounded progressive Lit control owns browser-local top-navigation
   visibility, persistence, toggle and restore copy, ARIA presentation, and
   focus handoff. In workspace mode the toggle follows Preview availability;

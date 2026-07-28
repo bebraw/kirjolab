@@ -12613,6 +12613,27 @@ lazy PDF.js, and direct and unique production package counts remain unchanged at
 Full native CI passes all 1,774 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Preview-Owned Project Snapshot Source
+
+`WorkspacePreview` now reads the canonical project snapshot from its already
+bound project-file owner. Its project binding no longer accepts a parallel
+snapshot getter, and `WorkspaceApp` no longer projects that owner state through
+an extra callback.
+
+This checkpoint keeps `src/client/app.ts` at 380 lines and reduces the Preview
+owner from 465 to 464 lines (-1), reducing combined runtime source by one line.
+Focused coverage passes all eight Preview cases; affected coverage passes 15
+related runtime cases and the affected test file alongside strict types.
+
+The browser application artifact changes from 861,348 B raw / 232,159 B gzip to
+861,341 B raw / 232,159 B gzip (-7 B raw / unchanged gzip). Styles, lazy
+Markdown, lazy PDF.js, and direct and unique production package counts remain
+unchanged at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip,
+481,994 B raw / 146,135 B gzip, 18, and 150.
+
+Full native CI passes all 1,774 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: One-Shot Browser Entry Intents
 
 `ProjectStartingPointBrowser` now consumes the `create=1` editor intent, removes

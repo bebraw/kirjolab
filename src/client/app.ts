@@ -268,7 +268,7 @@ class WorkspaceApp {
       source: this.#elements.source,
       workspace: appMode === "workspace",
     });
-    this.#elements.workspacePreview.bindProject(apiBase, this.#document, () => this.#elements.projectFileDialog.project, this.#elements);
+    this.#elements.workspacePreview.bindProject(apiBase, this.#document, this.#elements);
     this.#elements.editorInsertMenu.bind({
       applyInsertion: (insertion) => this.#elements.editorStatus.applyAuthoringInsertion(insertion),
       authoringTarget: () => ({

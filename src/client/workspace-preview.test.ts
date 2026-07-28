@@ -154,10 +154,15 @@ describe("workspace preview", () => {
     const renderProject = vi.spyOn(preview, "renderProject").mockResolvedValue(null);
     const revealNearestSource = vi.spyOn(preview, "revealNearestSource").mockReturnValue(true);
     const activeSourcePreviewOffsets = vi.fn(() => [4]);
-    preview.bindProject(request.apiBase, documentModel, () => workspaceSnapshotFixture, {
+    preview.bindProject(request.apiBase, documentModel, {
       contextResourcePresenter: { activeKey: "preview", openCitation: vi.fn() },
       previewSyncControls: { activeSourcePreviewOffsets, showSource: vi.fn() },
-      projectFileDialog: { activeFileId: workspaceSnapshotFixture.entryFileId, focusRange: vi.fn(), projectFiles: () => files },
+      projectFileDialog: {
+        activeFileId: workspaceSnapshotFixture.entryFileId,
+        focusRange: vi.fn(),
+        project: workspaceSnapshotFixture,
+        projectFiles: () => files,
+      },
       projectTreePanel: { hiddenAssets },
       workspaceSurfaces: { dataset: { layout: "split" } } as unknown as HTMLElement,
     });
@@ -267,10 +272,10 @@ describe("workspace preview", () => {
     const openCitation = vi.fn();
     const focusRange = vi.fn();
     const showSource = vi.fn();
-    preview.bindProject("/api/workspaces/workspace-1", new Y.Doc(), () => workspaceSnapshotFixture, {
+    preview.bindProject("/api/workspaces/workspace-1", new Y.Doc(), {
       contextResourcePresenter: { activeKey: "preview", openCitation },
       previewSyncControls: { activeSourcePreviewOffsets: () => [], showSource },
-      projectFileDialog: { activeFileId: null, focusRange, projectFiles: () => [] },
+      projectFileDialog: { activeFileId: null, focusRange, project: workspaceSnapshotFixture, projectFiles: () => [] },
       projectTreePanel: { hiddenAssets: new Set() },
       workspaceSurfaces: { dataset: {} } as unknown as HTMLElement,
     });

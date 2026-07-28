@@ -424,7 +424,8 @@ The adopted components own bounded presentation:
   intents. It routes those intents and its nested diagnostics panel's source-
   range selections directly through the sync, Context, and project-file owners
   already present in its project binding; no duplicate navigation callback bag
-  remains. The coordinator
+  remains. It also reads the canonical project snapshot from that project-file
+  owner instead of accepting a parallel snapshot callback. The coordinator
   retains canonical project-file and Yjs source authority, Yjs anchor
   resolution, source-map translation, publication resolution, citation
   navigation, and the resulting transitions.
