@@ -65,7 +65,9 @@ The adopted components own bounded presentation:
   reciprocal settings owner, coalesced project-refresh service, and ambient
   refresh policy. The menu invokes those owners for settings and preview entry
   and post-Pull project refresh without a second application bind or callback
-  projection.
+  projection. The broader settings application entry also installs the
+  workspace catalog's trigger and switcher and the sharing panel's API and
+  trigger from their canonical owners.
 - The workspace sync review owns Pull and Publish requests and diff rendering,
   conflict choices, commit-message input, disconnect confirmation, response
   validation, readiness, progress, and one typed completed-mutation event.
@@ -645,8 +647,10 @@ The adopted components own bounded presentation:
   confirmation, local busy and error state, archive and template visibility,
   modal lifecycle, the nested GitHub-sync presentation boundary, canonical
   post-request navigation, and its sibling entry trigger. Its typed workspace
-  boundary binds the catalog, project-file, template-save, and GitHub owners;
-  the panel reads their live projections and invokes their operations directly.
+  boundary binds the catalog, project-file, template-save, GitHub, and sharing
+  owners; its application entry installs the catalog and sharing sibling
+  lifecycles, and the panel reads their live projections and invokes their
+  operations directly.
 - One shared client HTTP adapter owns same-origin JSON serialization, supported
   write methods, non-success parsing, Valibot validation of the bounded API
   error contract, and caught-value fallback messages used by request-owning

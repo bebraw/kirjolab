@@ -49,7 +49,8 @@ collaboration.
 - **Project catalog:** One bounded light-DOM panel owns filtering, result and
   empty-state presentation, native modal lifecycle, and initial filter focus.
   It owns the stable `/api/workspaces` route and atomically binds current-project
-  identity, compact switcher, and server-rendered trigger once. The project starting-point browser
+  identity, compact switcher, and server-rendered trigger once through the
+  settings application boundary. The project starting-point browser
   binds that catalog owner directly and reads its live catalog without a
   parallel getter. The workspace coordinator retains navigation authority.
 - **Project settings:** One bounded light-DOM panel owns current values, view
@@ -57,10 +58,10 @@ collaboration.
   modal lifecycle, and its sibling entry trigger. It binds the catalog,
   project-file, template-save, and GitHub owners directly, reads their live
   projections, and invokes their refresh or open operations without a parallel
-  application callback bag. This atomic workspace binding also establishes the
-  GitHub sync menu's reciprocal settings owner, coalesced project-refresh
-  service, and ambient refresh policy for settings and preview entry and
-  post-Pull project refresh.
+  application callback bag. This atomic application binding also installs the
+  catalog trigger and switcher, sharing API and trigger, and GitHub sync menu's
+  reciprocal settings owner, coalesced project-refresh service, and ambient
+  refresh policy for settings and preview entry and post-Pull project refresh.
 - **Project creation:** The starting-point browser owns title and starting-point
   selection, catalog and preview loading, project creation, personal-template
   deletion and Undo, modal lifecycle, and its entry trigger. It binds the

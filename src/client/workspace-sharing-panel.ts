@@ -8,7 +8,7 @@ export type WorkspaceShareKind = "read-only" | "edit";
 
 export const workspaceSharingNoticeEvent = "workspace-sharing-notice";
 
-interface WorkspaceSharingOwners {
+export interface WorkspaceSharingOwners {
   readonly shareWorkspace: EventTarget;
   readonly toast: { show(message: string): void };
 }

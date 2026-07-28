@@ -310,6 +310,32 @@ describe("workspace settings panel", () => {
     expect(panel.open).toBe(false);
   });
 
+  it("binds workspace administration atomically", () => {
+    const panel = new LifecycleWorkspaceSettingsPanel();
+    const bindCatalog = vi.fn();
+    const bindGitHub = vi.fn();
+    const configureSharing = vi.fn();
+    const projectRefresh = { request: vi.fn() };
+    const owners = {
+      gitHubSyncMenu: { bindWorkspace: bindGitHub, refreshWorkspace: vi.fn() },
+      manageWorkspaces: new EventTarget(),
+      projectFileDialog: { hiddenFiles: new Set<string>(), project: null },
+      saveTemplateDialog: { open: vi.fn() },
+      shareWorkspace: new EventTarget(),
+      toast: { show: vi.fn() },
+      workspaceCatalogPanel: { bindWorkspace: bindCatalog, catalog: [], refresh: vi.fn() },
+      workspaceSettings: new EventTarget(),
+      workspaceSharingPanel: { configure: configureSharing },
+      workspaceSwitcher: { setData: vi.fn() },
+    };
+
+    panel.bindApplication("study", "/api/workspaces/study", true, projectRefresh, owners);
+
+    expect(bindCatalog).toHaveBeenCalledWith("study", owners);
+    expect(bindGitHub).toHaveBeenCalledWith("/api/workspaces/study", true, projectRefresh, { workspaceSettingsPanel: panel });
+    expect(configureSharing).toHaveBeenCalledWith("/api/workspaces/study", owners);
+  });
+
   it("owns its GitHub review presentation and preview actions", async () => {
     const panel = new LifecycleWorkspaceSettingsPanel();
     const connected = vi.spyOn(panel.review, "setConnected");

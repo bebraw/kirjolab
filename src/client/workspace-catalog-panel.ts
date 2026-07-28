@@ -7,8 +7,8 @@ interface WorkspaceCatalogSwitcher {
   readonly setData: (workspaces: readonly WorkspaceSummary[], currentWorkspaceId: string) => void;
 }
 
-interface WorkspaceCatalogOwners {
-  readonly manageWorkspaces: HTMLElement;
+export interface WorkspaceCatalogOwners {
+  readonly manageWorkspaces: EventTarget;
   readonly workspaceSwitcher: WorkspaceCatalogSwitcher;
 }
 

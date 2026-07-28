@@ -10,6 +10,8 @@ import { GitHubSyncReview } from "./github-sync-review";
 import { expectOk, jsonFetch } from "./http";
 import type { GitHubSyncMenu } from "./github-sync-menu";
 import { LightDomElement } from "./light-dom-controller";
+import type { WorkspaceCatalogOwners, WorkspaceCatalogPanel } from "./workspace-catalog-panel";
+import type { WorkspaceSharingOwners, WorkspaceSharingPanel } from "./workspace-sharing-panel";
 
 export interface WorkspaceSettingsValue {
   readonly entryFileId: string;
@@ -47,6 +49,13 @@ export interface WorkspaceSettingsOwners {
 }
 
 type ProjectRefresh = { request(): Promise<void> };
+
+type WorkspaceSettingsApplicationOwners = WorkspaceSettingsOwners &
+  WorkspaceCatalogOwners &
+  WorkspaceSharingOwners & {
+    readonly workspaceCatalogPanel: WorkspaceSettingsOwners["workspaceCatalogPanel"] & Pick<WorkspaceCatalogPanel, "bindWorkspace">;
+    readonly workspaceSharingPanel: Pick<WorkspaceSharingPanel, "configure">;
+  };
 
 export class WorkspaceSettingsPanel extends LightDomElement {
   static override properties = {
@@ -145,6 +154,18 @@ export class WorkspaceSettingsPanel extends LightDomElement {
   configureGitHub(apiBase: string): void {
     this.gitHubApiBase = apiBase;
     if (this.hasUpdated) this.gitHubReview.configure(apiBase);
+  }
+
+  bindApplication(
+    workspaceId: string,
+    apiBase: string,
+    ambientGitHubRefresh: boolean,
+    projectRefresh: ProjectRefresh,
+    owners: WorkspaceSettingsApplicationOwners,
+  ): void {
+    owners.workspaceCatalogPanel.bindWorkspace(workspaceId, owners);
+    this.bindWorkspace(workspaceId, apiBase, ambientGitHubRefresh, projectRefresh, owners);
+    owners.workspaceSharingPanel.configure(apiBase, owners);
   }
 
   bindWorkspace(

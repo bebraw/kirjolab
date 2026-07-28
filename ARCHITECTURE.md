@@ -192,10 +192,12 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   failure state, and its current title, archived state, visible entry-file
   choices, publication defaults, and template eligibility derived from
   canonical workspace inputs. Bind its entry trigger, workspace identity, and
-  catalog, project-file, template-save, and GitHub owners through one typed
-  workspace boundary. That boundary establishes the settings panel and GitHub
-  sync menu's mutual lifecycle, including the coalesced project-refresh service
-  and ambient refresh policy, rather than requiring a second application bind.
+  catalog, project-file, template-save, GitHub, and sharing owners through one
+  typed application boundary. That boundary installs the catalog's trigger and
+  switcher lifecycle, the sharing panel's API and trigger lifecycle, and the
+  settings panel and GitHub sync menu's mutual lifecycle, including the
+  coalesced project-refresh service and ambient refresh policy, rather than
+  requiring sibling application binds.
   The component reads owner projections and invokes their refresh or open
   operations directly instead of accepting parallel callbacks.
 - Let the project catalog and starting-point Lit owners bind their server-
@@ -205,9 +207,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   canonical refresh. Bind the read-only workspace-catalog owner once so
   trigger, settings, save-template refreshes, and internal template mutations
   read the same live projection without a parallel getter callback. Let the
-  project catalog owner retain its stable `/api/workspaces` route and bind only
+  project catalog owner retain its stable `/api/workspaces` route and receive
   current-project identity, compact switcher, and server-rendered trigger
-  atomically once, fetch and validate its
+  atomically from the workspace-settings application boundary, fetch and validate its
   authorized summaries, retain the one browser catalog projection, and
   synchronize the switcher from that state. Let it derive the single authorized
   offline project row from a restored snapshot identity, title, and save time.

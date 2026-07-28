@@ -14392,6 +14392,28 @@ lifecycle.
 Full native CI passes all 1,775 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Atomic Workspace Administration Binding
+
+The workspace-settings Lit owner now installs the catalog trigger and switcher,
+sharing API and trigger, and its existing reciprocal GitHub lifecycle through
+one application entry. These project-administration peers receive the same
+workspace identity, API, refresh service, and canonical owner registry without
+three independent composition-root calls.
+
+This checkpoint trades nineteen net production lines, including narrowed and
+exported peer-owner contracts, for the atomic administration boundary and
+reduces `src/client/app.ts` from 58 to 56 lines. The affected guardrail passes
+23 related cases across four suites alongside strict types and directly reruns
+the modified eight-case settings suite. The browser application changes from
+847,202 B raw / 230,992 B gzip to 847,259 B raw / 230,998 B gzip (+57 B raw /
++6 B gzip); direct and unique production package counts remain 18 and 150, and
+the other static artifacts remain unchanged. Architecture, ADR, and scholarly-
+workspace contracts now assign the project-administration sibling lifecycles to
+the settings application entry.
+
+Full native CI passes all 1,776 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,
