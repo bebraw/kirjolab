@@ -461,7 +461,10 @@ collaboration.
   cleanup. The project-file owner consumes the typed restoration result and
   sequences collaboration recovery plus restored revision, catalog, project,
   Context, connection, and Preview projection through its bound lifecycle
-  capabilities. It also owns workspace opening across restoration, catalog
+  capabilities. Those lifecycle capabilities use the canonical application
+  element owners directly, while collaboration and offline persistence remain
+  explicit non-DOM services and the asset path derives from the configured
+  workspace API. It also owns workspace opening across restoration, catalog
   refresh, and canonical project refresh. Source and bibliography editing stay
   locked until connection-state projection establishes editability. First use requires network data,
   revoked access clears offline state, and other network failures retain a

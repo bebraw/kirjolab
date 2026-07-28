@@ -150,18 +150,25 @@ function bindTestWorkflow(
 
 function projectRefreshBinding() {
   return {
-    assetBase: "/assets",
-    bibliography: { disabled: false, value: "" },
-    catalog: { presentOfflineWorkspace: vi.fn(), refresh: vi.fn().mockResolvedValue(undefined) },
     collaboration: { goOffline: vi.fn(), restoreOffline: vi.fn(() => false), setOfflineAvailable: vi.fn() },
-    connection: { presentOfflineRestore: vi.fn(), presentWorkflow: vi.fn() },
-    context: { presentBoundWorkspace: vi.fn(), refreshBoundReferencePdfs: vi.fn().mockResolvedValue(undefined) },
-    history: { setRevision: vi.fn() },
     offline: { clear: vi.fn().mockResolvedValue(undefined), restore: vi.fn().mockResolvedValue(null), schedule: vi.fn() },
-    preview: { renderBoundProject: vi.fn() },
-    source: { disabled: false, value: "" },
-    workspace: true,
+    owners: {
+      bibliography: { disabled: false, value: "" },
+      connectionStatus: { presentOfflineRestore: vi.fn(), presentWorkflow: vi.fn() },
+      contextResourcePresenter: {
+        presentBoundWorkspace: vi.fn(),
+        refreshBoundReferencePdfs: vi.fn().mockResolvedValue(undefined),
+      },
+      projectHistoryTrigger: { setRevision: vi.fn() },
+      source: { disabled: false, value: "" },
+      workspaceCatalogPanel: { presentOfflineWorkspace: vi.fn(), refresh: vi.fn().mockResolvedValue(undefined) },
+      workspacePreview: { renderBoundProject: vi.fn() },
+    },
   };
+}
+
+function bindProjectRefresh(panel: ProjectFileDialog, binding: ReturnType<typeof projectRefreshBinding>): void {
+  panel.bindProjectRefresh(true, binding.owners, binding.collaboration, binding.offline);
 }
 
 describe("project file dialog", () => {
@@ -412,16 +419,16 @@ describe("project file dialog", () => {
     const updated = { ...snapshot, title: "Updated" };
     const binding = projectRefreshBinding();
     panel.configureApi("/api/workspaces/workspace", callbacks);
-    panel.bindProjectRefresh(binding);
+    bindProjectRefresh(panel, binding);
     panel.presentProject(snapshot, "/assets", true);
 
     await panel.acceptProjectMutation(Response.json(updated));
 
     expect(panel.project).toEqual(updated);
     expect(callbacks.presentFile).toHaveBeenLastCalledWith(updated.files[0], updated.entryFileId, false);
-    expect(binding.context.refreshBoundReferencePdfs).toHaveBeenCalledWith(false);
-    expect(binding.context.presentBoundWorkspace).toHaveBeenCalledOnce();
-    expect(binding.preview.renderBoundProject).toHaveBeenCalledOnce();
+    expect(binding.owners.contextResourcePresenter.refreshBoundReferencePdfs).toHaveBeenCalledWith(false);
+    expect(binding.owners.contextResourcePresenter.presentBoundWorkspace).toHaveBeenCalledOnce();
+    expect(binding.owners.workspacePreview.renderBoundProject).toHaveBeenCalledOnce();
     await expect(panel.acceptProjectMutation(Response.json({ id: "incomplete" }))).rejects.toThrow(
       "Project mutation returned an invalid snapshot",
     );
@@ -435,19 +442,19 @@ describe("project file dialog", () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(Response.json(snapshot)).mockResolvedValueOnce(Response.json(refreshed));
     panel.configureApi("/api/workspaces/workspace", callbacks);
     panel.bindLiveContent(new Y.Doc(), { offlineAvailable: false, synced: false });
-    panel.bindProjectRefresh(binding);
+    bindProjectRefresh(panel, binding);
 
     await panel.refreshProject();
     await panel.refreshProject();
 
-    expect(binding.history.setRevision).toHaveBeenCalledWith(snapshot.revision);
-    expect(binding.source.value).toBe(snapshot.source);
-    expect(binding.bibliography.value).toBe(snapshot.bibliography);
-    expect(binding.preview.renderBoundProject).toHaveBeenNthCalledWith(1, snapshot.bibliography);
-    expect(binding.preview.renderBoundProject).toHaveBeenNthCalledWith(2);
+    expect(binding.owners.projectHistoryTrigger.setRevision).toHaveBeenCalledWith(snapshot.revision);
+    expect(binding.owners.source.value).toBe(snapshot.source);
+    expect(binding.owners.bibliography.value).toBe(snapshot.bibliography);
+    expect(binding.owners.workspacePreview.renderBoundProject).toHaveBeenNthCalledWith(1, snapshot.bibliography);
+    expect(binding.owners.workspacePreview.renderBoundProject).toHaveBeenNthCalledWith(2);
     expect(callbacks.presentFile).toHaveBeenLastCalledWith(refreshed.files[0], refreshed.entryFileId, false);
-    expect(binding.context.presentBoundWorkspace).toHaveBeenCalledTimes(2);
-    expect(binding.context.refreshBoundReferencePdfs).toHaveBeenCalledTimes(2);
+    expect(binding.owners.contextResourcePresenter.presentBoundWorkspace).toHaveBeenCalledTimes(2);
+    expect(binding.owners.contextResourcePresenter.refreshBoundReferencePdfs).toHaveBeenCalledTimes(2);
     expect(binding.offline.schedule).toHaveBeenCalledTimes(2);
     expect(panel.project).toEqual(refreshed);
   });
@@ -460,19 +467,19 @@ describe("project file dialog", () => {
     binding.offline.restore.mockResolvedValueOnce(restored).mockResolvedValueOnce(null);
     binding.collaboration.restoreOffline.mockReturnValue(true);
     panel.configureApi("/api/workspaces/workspace", callbacks);
-    panel.bindProjectRefresh(binding);
+    bindProjectRefresh(panel, binding);
 
     await expect(panel.restoreOfflineProject()).resolves.toBe(true);
     await expect(panel.restoreOfflineProject()).resolves.toBe(false);
 
     expect(binding.collaboration.restoreOffline).toHaveBeenCalledWith(restored.serverStateVector);
     expect(binding.collaboration.setOfflineAvailable).toHaveBeenCalledWith(true);
-    expect(binding.history.setRevision).toHaveBeenCalledWith(snapshot.revision);
-    expect(binding.catalog.presentOfflineWorkspace).toHaveBeenCalledWith(snapshot, restored.savedAt);
+    expect(binding.owners.projectHistoryTrigger.setRevision).toHaveBeenCalledWith(snapshot.revision);
+    expect(binding.owners.workspaceCatalogPanel.presentOfflineWorkspace).toHaveBeenCalledWith(snapshot, restored.savedAt);
     expect(callbacks.presentFile).toHaveBeenLastCalledWith(snapshot.files[0], snapshot.entryFileId, false);
-    expect(binding.context.presentBoundWorkspace).toHaveBeenCalledOnce();
-    expect(binding.connection.presentOfflineRestore).toHaveBeenCalledWith(true);
-    expect(binding.preview.renderBoundProject).toHaveBeenCalledOnce();
+    expect(binding.owners.contextResourcePresenter.presentBoundWorkspace).toHaveBeenCalledOnce();
+    expect(binding.owners.connectionStatus.presentOfflineRestore).toHaveBeenCalledWith(true);
+    expect(binding.owners.workspacePreview.renderBoundProject).toHaveBeenCalledOnce();
   });
 
   it("owns online and restored-offline workspace opening policy", async () => {
@@ -481,23 +488,23 @@ describe("project file dialog", () => {
     const binding = projectRefreshBinding();
     panel.configureApi("/api/workspaces/workspace", callbacks);
     panel.bindLiveContent(new Y.Doc(), { offlineAvailable: false, synced: false });
-    panel.bindProjectRefresh(binding);
+    bindProjectRefresh(panel, binding);
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(Response.json(snapshot));
 
     await panel.openWorkspace();
-    expect(binding.catalog.refresh).toHaveBeenCalledOnce();
+    expect(binding.owners.workspaceCatalogPanel.refresh).toHaveBeenCalledOnce();
     expect(fetchMock).toHaveBeenCalledOnce();
-    expect(binding.source.disabled).toBe(true);
-    expect(binding.bibliography.disabled).toBe(true);
+    expect(binding.owners.source.disabled).toBe(true);
+    expect(binding.owners.bibliography.disabled).toBe(true);
 
     const restored = { savedAt: "2026-07-28T12:00:00.000Z", serverStateVector: new Uint8Array([1]), snapshot };
     binding.offline.restore.mockResolvedValueOnce(restored);
-    binding.catalog.refresh.mockRejectedValueOnce(new Error("offline"));
+    binding.owners.workspaceCatalogPanel.refresh.mockRejectedValueOnce(new Error("offline"));
     fetchMock.mockRejectedValueOnce(new Error("offline"));
 
     await panel.openWorkspace();
     expect(binding.collaboration.goOffline).toHaveBeenCalledOnce();
-    expect(binding.connection.presentWorkflow).toHaveBeenCalledOnce();
+    expect(binding.owners.connectionStatus.presentWorkflow).toHaveBeenCalledOnce();
   });
 
   it("clears offline state when workspace access is revoked", async () => {
@@ -505,7 +512,7 @@ describe("project file dialog", () => {
     const binding = projectRefreshBinding();
     vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 403 }));
     panel.bindLiveContent(new Y.Doc(), { offlineAvailable: false, synced: false });
-    panel.bindProjectRefresh(binding);
+    bindProjectRefresh(panel, binding);
 
     await expect(panel.openWorkspace()).rejects.toBeInstanceOf(WorkspaceAccessError);
     expect(binding.offline.clear).toHaveBeenCalledOnce();

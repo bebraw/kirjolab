@@ -345,7 +345,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   supplies only the derived included state and message through its typed
   workflow callback. It commits validated file, folder, tree, deletion, and
   upload snapshots to its own canonical projection and requests Preview
-  rendering through its existing project-refresh binding. Its one presentation
+  rendering through its existing project-refresh binding. That binding consumes
+  the canonical source, bibliography, catalog, connection, Context, history,
+  and Preview owners directly; collaboration and offline persistence remain
+  explicit non-DOM services, and the asset base derives from the configured API
+  base. Its one presentation
   binding also supplies the assistant, editor, Preview, route, and notice
   owners. File activation sequences assistant availability, Preview reset and
   rendering, and canonical route replacement directly; project presentation

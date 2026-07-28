@@ -18,35 +18,37 @@ export interface ProjectImageInsertion {
   readonly syntax: string;
 }
 
-export interface ProjectRefreshBinding {
-  readonly assetBase: string;
+export interface ProjectRefreshOwners {
   readonly bibliography: { disabled: boolean; value: string };
-  readonly catalog: {
+  readonly workspaceCatalogPanel: {
     presentOfflineWorkspace(workspace: Pick<WorkspaceSnapshot, "id" | "title">, savedAt: string): void;
     refresh(): Promise<unknown>;
   };
+  readonly connectionStatus: {
+    presentOfflineRestore(pending: boolean): void;
+    presentWorkflow(): void;
+  };
+  readonly contextResourcePresenter: {
+    presentBoundWorkspace(): void;
+    refreshBoundReferencePdfs(render?: boolean): Promise<void>;
+  };
+  readonly projectHistoryTrigger: { setRevision(revision: number): void };
+  readonly workspacePreview: { renderBoundProject(bibliography?: string): unknown };
+  readonly source: { disabled: boolean; value: string };
+}
+
+interface ProjectRefreshBinding {
   readonly collaboration: {
     goOffline(): void;
     restoreOffline(serverStateVector: Uint8Array): boolean;
     setOfflineAvailable(available: boolean): void;
   };
-  readonly connection: {
-    presentOfflineRestore(pending: boolean): void;
-    presentWorkflow(): void;
-  };
-  readonly context: {
-    presentBoundWorkspace(): void;
-    refreshBoundReferencePdfs(render?: boolean): Promise<void>;
-  };
-  readonly history: { setRevision(revision: number): void };
   readonly offline: {
     clear(): Promise<void>;
     restore(): Promise<RestoredOfflineWorkspace | null>;
     schedule(): void;
   };
-  readonly preview: { renderBoundProject(bibliography?: string): unknown };
-  readonly source: { disabled: boolean; value: string };
-  readonly workspace: boolean;
+  readonly owners: ProjectRefreshOwners;
 }
 
 interface ProjectImageUploadSource extends EventTarget {
@@ -163,6 +165,7 @@ export class ProjectFileDialog extends LitElement {
 
   configureApi(apiBase: string, presentation?: ProjectFilePresentationBinding): void {
     this.apiBase = apiBase;
+    this.assetBase = `${apiBase}/assets`;
     if (presentation) {
       this.presentation = presentation;
       this.connectOwners();
@@ -184,8 +187,14 @@ export class ProjectFileDialog extends LitElement {
     this.liveContent = { document, session };
   }
 
-  bindProjectRefresh(binding: ProjectRefreshBinding): void {
-    this.refreshBinding = binding;
+  bindProjectRefresh(
+    workspace: boolean,
+    owners: ProjectRefreshOwners,
+    collaboration: ProjectRefreshBinding["collaboration"],
+    offline: ProjectRefreshBinding["offline"],
+  ): void {
+    this.workspaceMode = workspace;
+    this.refreshBinding = { collaboration, offline, owners };
   }
 
   private configureProjectTree(): void {
@@ -309,9 +318,9 @@ export class ProjectFileDialog extends LitElement {
     this.presentProject(value, this.assetBase, this.workspaceMode);
     const binding = this.refreshBinding;
     if (!binding) return;
-    await binding.context.refreshBoundReferencePdfs(false);
-    binding.context.presentBoundWorkspace();
-    void binding.preview.renderBoundProject();
+    await binding.owners.contextResourcePresenter.refreshBoundReferencePdfs(false);
+    binding.owners.contextResourcePresenter.presentBoundWorkspace();
+    void binding.owners.workspacePreview.renderBoundProject();
   }
 
   async refreshProject(): Promise<void> {
@@ -321,17 +330,17 @@ export class ProjectFileDialog extends LitElement {
     const initial = this.snapshot === null;
     const snapshot = await loadWorkspaceSnapshot(this.apiBase, liveContent.document, liveContent.session.synced);
     if (initial) {
-      binding.history.setRevision(snapshot.revision);
-      binding.source.value = snapshot.source;
-      binding.bibliography.value = snapshot.bibliography;
-      void binding.preview.renderBoundProject(snapshot.bibliography);
+      binding.owners.projectHistoryTrigger.setRevision(snapshot.revision);
+      binding.owners.source.value = snapshot.source;
+      binding.owners.bibliography.value = snapshot.bibliography;
+      void binding.owners.workspacePreview.renderBoundProject(snapshot.bibliography);
     } else {
-      void binding.preview.renderBoundProject();
+      void binding.owners.workspacePreview.renderBoundProject();
     }
-    this.presentProject(snapshot, binding.assetBase, binding.workspace);
-    binding.context.presentBoundWorkspace();
+    this.presentProject(snapshot, this.assetBase, this.workspaceMode);
+    binding.owners.contextResourcePresenter.presentBoundWorkspace();
     binding.offline.schedule();
-    await binding.context.refreshBoundReferencePdfs();
+    await binding.owners.contextResourcePresenter.refreshBoundReferencePdfs();
   }
 
   async restoreOfflineProject(): Promise<boolean> {
@@ -341,23 +350,23 @@ export class ProjectFileDialog extends LitElement {
     if (!restored) return false;
     const pending = binding.collaboration.restoreOffline(restored.serverStateVector);
     binding.collaboration.setOfflineAvailable(true);
-    binding.history.setRevision(restored.snapshot.revision);
-    binding.catalog.presentOfflineWorkspace(restored.snapshot, restored.savedAt);
-    this.presentProject(restored.snapshot, binding.assetBase, binding.workspace);
-    binding.context.presentBoundWorkspace();
-    binding.connection.presentOfflineRestore(pending);
-    void binding.preview.renderBoundProject();
+    binding.owners.projectHistoryTrigger.setRevision(restored.snapshot.revision);
+    binding.owners.workspaceCatalogPanel.presentOfflineWorkspace(restored.snapshot, restored.savedAt);
+    this.presentProject(restored.snapshot, this.assetBase, this.workspaceMode);
+    binding.owners.contextResourcePresenter.presentBoundWorkspace();
+    binding.owners.connectionStatus.presentOfflineRestore(pending);
+    void binding.owners.workspacePreview.renderBoundProject();
     return true;
   }
 
   async openWorkspace(): Promise<void> {
     const binding = this.refreshBinding;
     if (!binding) return;
-    binding.source.disabled = true;
-    binding.bibliography.disabled = true;
+    binding.owners.source.disabled = true;
+    binding.owners.bibliography.disabled = true;
     const restored = await this.restoreOfflineProject();
     try {
-      await binding.catalog.refresh();
+      await binding.owners.workspaceCatalogPanel.refresh();
     } catch (error) {
       if (!restored) throw new Error("Open Kirjolab online once before using it offline", { cause: error });
     }
@@ -370,7 +379,7 @@ export class ProjectFileDialog extends LitElement {
       }
       if (!restored) throw new Error("Open this project online once before editing it offline", { cause: error });
       binding.collaboration.goOffline();
-      binding.connection.presentWorkflow();
+      binding.owners.connectionStatus.presentWorkflow();
     }
   }
 
@@ -596,7 +605,7 @@ export class ProjectFileDialog extends LitElement {
 
   private commitSnapshot(snapshot: WorkspaceSnapshot): void {
     this.presentProject(snapshot, this.assetBase, this.workspaceMode);
-    void this.refreshBinding?.preview.renderBoundProject();
+    void this.refreshBinding?.owners.workspacePreview.renderBoundProject();
   }
 
   private connectOwners(): void {

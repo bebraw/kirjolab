@@ -153,19 +153,7 @@ class WorkspaceApp {
     this.#elements.projectFileDialog.bindPresentation(this.#elements);
     this.#elements.projectFileDialog.bindLayout(this.#layout);
     this.#elements.projectFileDialog.bindLiveContent(this.#document, this.#collaboration);
-    this.#elements.projectFileDialog.bindProjectRefresh({
-      assetBase: `${apiBase}/assets`,
-      bibliography: this.#elements.bibliography,
-      catalog: this.#elements.workspaceCatalogPanel,
-      collaboration: this.#collaboration,
-      connection: this.#elements.connectionStatus,
-      context: this.#elements.contextResourcePresenter,
-      history: this.#elements.projectHistoryTrigger,
-      offline: this.#offline,
-      preview: this.#elements.workspacePreview,
-      source: this.#elements.source,
-      workspace: appMode === "workspace",
-    });
+    this.#elements.projectFileDialog.bindProjectRefresh(appMode === "workspace", this.#elements, this.#collaboration, this.#offline);
     this.#elements.workspacePreview.bindProject(apiBase, this.#document, this.#elements);
     this.#elements.editorInsertMenu.bind(this.#elements.editorStatus, this.#elements.toast);
     this.#elements.sourceCompletion.bindProjectAcceptance(apiBase, this.#elements);

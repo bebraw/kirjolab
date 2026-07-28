@@ -352,6 +352,9 @@ The adopted components own bounded presentation:
   content for Preview, manuscript-map, and collaborator-selection consumers
   from its bound Yjs document and collaboration session, deriving canonical
   text keys, readiness, and validated snapshot loading internally. The
+  project-refresh binding consumes the canonical element-registry owners
+  directly, retains collaboration and offline persistence as explicit non-DOM
+  services, and derives its asset base from the configured workspace API. The
   coordinator retains snapshot application, cross-feature rendering, Yjs
   insertion, caret and focus authority, and the toast outlet; the project-tree
   panel owns image deletion.
