@@ -111,7 +111,7 @@ class WorkspaceApp {
     this.#collaborationSocket.bindDocument(this.#document, offlineOrigin);
     this.#elements.contextResourcePresenter.bindProjectEvidence(apiBase);
     this.#elements.contextResourcePresenter.bindProjectMap(apiBase, this.#elements);
-    this.#elements.contextResourcePresenter.bindPublicationList(apiBase, this.#elements.referenceLibraryWorkspace);
+    this.#elements.contextResourcePresenter.bindPublications(apiBase, this.#elements.referenceLibraryWorkspace);
     this.#elements.contextResourcePresenter.bindProjectAnnotations();
     this.#elements.contextResourcePresenter.bindLibraryPdf(apiBase, this.#elements);
     this.#elements.contextResourcePresenter.bindContext(appMode === "workspace" ? apiBase : null, this.#layout, this.#elements);
@@ -120,7 +120,6 @@ class WorkspaceApp {
     this.#elements.libraryPdfInspector.bindProjectMutations(this.#elements.referenceLibraryWorkspace);
     this.#elements.contextResourcePresenter.bindClaimList(apiBase);
     this.#elements.workspaceSurfaceSwitcher.bindWorkspaceRoute(appMode === "workspace", this.#elements);
-    this.#elements.contextResourcePresenter.bindPublicationContext(apiBase);
     this.#elements.assistantGenerationPresenter.bindResources(this.#elements.contextResourcePresenter.assistantResources());
     this.#elements.assistantGenerationPresenter.bindWorkflow(this.#resourceRefresh, this.#elements);
     this.#elements.assistantGenerationPresenter.bindWorkspace(apiBase);

@@ -1032,8 +1032,7 @@ describe("context resource presenter", () => {
 
     presenter.bindClaimList("/api/workspaces/workspace");
     presenter.bindManuscriptComments("/api/workspaces/workspace");
-    presenter.bindPublicationContext("/api/workspaces/workspace");
-    presenter.bindPublicationList("/api/workspaces/workspace", library);
+    presenter.bindPublications("/api/workspaces/workspace", library);
     claimBind.mock.calls[0]?.[0].completeMutation("Claim changed.");
     claimBind.mock.calls[0]?.[0].linkPassage("claim-1");
     claimBind.mock.calls[0]?.[0].openAnnotation("annotation-1");

@@ -694,7 +694,7 @@ export class ContextResourcePresenter extends LitElement {
     });
   }
 
-  bindPublicationContext(apiBase: string): void {
+  bindPublications(apiBase: string, library: PublicationLibrary): void {
     const publication = this.element("publication-context-panel", PublicationContextPanel);
     publication?.configure(apiBase);
     publication?.bind({
@@ -703,9 +703,6 @@ export class ContextResourcePresenter extends LitElement {
       papersChanged: (message) =>
         void this.completeProjectMutation(message, "The paper links changed, but project resources could not be refreshed."),
     });
-  }
-
-  bindPublicationList(apiBase: string, library: PublicationLibrary): void {
     const publications = this.element("publication-list-panel", PublicationListPanel);
     publications?.configure(apiBase);
     publications?.bind({

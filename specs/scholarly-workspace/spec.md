@@ -351,7 +351,9 @@ collaboration.
   passage linking.
 - **Claim and publication routes:** The enclosing resource presenter configures
   the claim list and publication list/context panels and routes claim
-  annotations to project evidence, publication opening to canonical context,
+  annotations to project evidence. It binds publication list and context routes
+  atomically against one project API and canonical Library owner, routing
+  publication opening to canonical context,
   and citation and linked-paper intents among its composed Lit owners. The
   application coordinator retains mutation consequences, passage effects,
   Library entry management, and refresh policy.

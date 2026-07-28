@@ -1347,7 +1347,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   project-evidence, claim-list, and publication list/context panels; own
   annotation-form cleanup and selection, edit and PDF routes, fragment-removal
   refresh sequencing, child-specific mutation failure copy, and notice
-  dispatch; and route comment, claim, evidence, publication, citation, and paper
+  dispatch; bind publication list and context routes atomically against one
+  project API and Library owner; and route comment, claim, evidence,
+  publication, citation, and paper
   intents across those owners. Derive canonical authoring state and delegate
   project refresh execution, passage navigation, citation insertion, Library
   refresh, and notice presentation through the directly bound owners. Let the presenter validate synchronization and a

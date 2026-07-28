@@ -13505,6 +13505,20 @@ focused presenter cases. The browser application changes from 858,328 B raw /
 231,525 B gzip to 858,221 B raw / 231,508 B gzip (-107 B raw / -17 B gzip);
 dependency counts and the other static artifacts remain unchanged.
 
+## Continued Lit Ownership: Publication Surface Binding
+
+`ContextResourcePresenter` now configures publication-list and publication-
+context routes through one project-scoped lifecycle with the canonical Library
+owner. The application no longer stages the two halves of publication routing
+independently.
+
+This checkpoint reduces `src/client/app.ts` from 136 to 135 lines (-1) and the
+context-resource presenter from 1,291 to 1,288 lines (-3), for a four-line net
+runtime reduction. The affected guardrail passes 54 related cases and all 39
+focused presenter cases. The browser application changes from 858,221 B raw /
+231,508 B gzip to 858,129 B raw / 231,498 B gzip (-92 B raw / -10 B gzip);
+dependency counts and the other static artifacts remain unchanged.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,
