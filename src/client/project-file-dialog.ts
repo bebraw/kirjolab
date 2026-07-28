@@ -7,8 +7,10 @@ import { errorMessage, expectOk, jsonFetch } from "./http";
 import { LightDomElement } from "./light-dom-controller";
 import { projectFileActionEvent, type ProjectFileAction } from "./project-file-actions";
 import { projectImagesUploadedEvent, type ProjectImagesUploaded } from "./project-image-upload-control";
+import type { ProjectHistoryTrigger, ProjectRevisionOwners } from "./project-history-trigger";
 import { projectTreeActionEvent, type ProjectTreeAction, type ProjectTreeCallbacks, type ProjectTreeData } from "./project-tree-panel";
 import type { RestoredOfflineWorkspace } from "./offline-workspace";
+import type { WorkspacePreview, WorkspacePreviewProjectOwners } from "./workspace-preview";
 import { loadWorkspaceSnapshot, WorkspaceAccessError } from "./workspace-snapshot-client";
 
 export type ProjectFileDialogMode = "create" | "create-and-include" | "rename" | "create-folder" | "rename-folder";
@@ -85,7 +87,13 @@ export interface ProjectFilePresentationBinding {
 }
 
 type ProjectFileApplicationOwners = ProjectFilePresentationBinding &
-  ProjectRefreshOwners & { readonly workspaceLayout: { setRailCollapsed(collapsed: boolean): void } };
+  ProjectRefreshOwners &
+  ProjectRevisionOwners &
+  WorkspacePreviewProjectOwners & {
+    readonly projectHistoryTrigger: Pick<ProjectHistoryTrigger, "bindWorkspace" | "setRevision">;
+    readonly workspaceLayout: { setRailCollapsed(collapsed: boolean): void };
+    readonly workspacePreview: Pick<WorkspacePreview, "bindProject" | "renderBoundProject" | "resetScroll">;
+  };
 
 export function projectImageInsertion(activeFile: ProjectFile, asset: ProjectAsset): ProjectImageInsertion {
   const path = relativeProjectPath(activeFile.path, asset.path);
@@ -169,6 +177,8 @@ export class ProjectFileDialog extends LightDomElement {
     this.configureApi(apiBase, owners, owners.workspaceLayout);
     this.bindLiveContent(session);
     this.bindProjectRefresh(workspace, owners, session, offline);
+    owners.workspacePreview.bindProject(apiBase, session.document, owners);
+    owners.projectHistoryTrigger.bindWorkspace(apiBase, owners, offline);
   }
 
   configureApi(

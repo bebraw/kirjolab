@@ -14371,6 +14371,27 @@ source completion in the atomic editor application lifecycle.
 Full native CI passes all 1,775 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Atomic Project Companion Binding
+
+The project-file Lit owner now installs the reciprocal workspace Preview and
+History-trigger project lifecycles through its existing atomic application
+entry. Both companions receive the same canonical API, Yjs document, element
+registry, and offline owner already required by project-file setup, removing
+their independent composition-root calls without introducing another wrapper.
+
+This checkpoint trades eight net production lines for the broader atomic
+project boundary and reduces `src/client/app.ts` from 60 to 58 lines. The
+affected guardrail passes 27 related cases across two suites alongside strict
+types. The browser application changes from 847,216 B raw / 230,994 B gzip to
+847,202 B raw / 230,992 B gzip (-14 B raw / -2 B gzip); direct and unique
+production package counts remain 18 and 150, and the other static artifacts
+remain unchanged. Architecture, ADR, and scholarly-workspace contracts now
+assign reciprocal Preview and History setup to the project-file application
+lifecycle.
+
+Full native CI passes all 1,775 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,

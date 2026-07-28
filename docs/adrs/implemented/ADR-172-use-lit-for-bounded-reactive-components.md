@@ -594,7 +594,10 @@ The adopted components own bounded presentation:
   owner also uses one atomic application entry for its API base, workspace
   mode, presentation owners, collaboration session, and offline lifecycle,
   thereby binding snapshot transport, source, bibliography, revision, Preview,
-  Context, catalog, and connection capabilities once;
+  Context, catalog, and connection capabilities once. That application entry
+  also installs the reciprocal Preview project binding and History trigger
+  workspace binding from the same canonical Yjs, API, owner, and offline
+  capabilities;
   it derives initial load from absent snapshot state and owns bootstrap-versus-
   refresh presentation, snapshot installation, Context presentation, offline
   scheduling, and linked-PDF refresh order. Through the same binding it owns

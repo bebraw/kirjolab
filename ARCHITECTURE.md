@@ -270,7 +270,7 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   those owners in a second navigation callback bag or repeat the project
   snapshot as a separate callback. Keep
   canonical project-file, snapshot, and Yjs authority, publication resolution,
-  and resulting transitions in the application coordinator.
+  and resulting transitions in the project-file application lifecycle.
 - Let the bounded Preview synchronization control own explicit Preview-to-source
   offset capture, composition-map resolution, file-qualified focus intent, and
   source-viewport centering alongside its directional actions and source
@@ -431,7 +431,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   the global toast outlet in the workspace coordinator. Use one atomic
   application binding for the API base, workspace mode, presentation owners,
   collaboration session, and offline lifecycle; source, bibliography,
-  revision, Preview, and Context capabilities arrive through those owners.
+  revision, Preview, and Context capabilities arrive through those owners. The
+  same project-file application binding installs Preview's canonical Yjs
+  project lifecycle and the revision trigger's workspace lifecycle, so neither
+  reciprocal project companion requires a second composition-root setup call.
   From its API base and bound collaboration session, it
   reads the session-owned Yjs document and readiness and owns validated snapshot transport without an
   application loader callback. It derives initial load from absence of its canonical snapshot, owns
