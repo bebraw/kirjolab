@@ -161,9 +161,8 @@ function resourceRoutes(overrides: Partial<AssistantResourceRoutes> = {}): Assis
 
 function workflowCoordinator(overrides: Partial<AssistantWorkflowCoordinator> = {}): AssistantWorkflowCoordinator {
   return {
-    activateAssistant: vi.fn(),
     applyTable: vi.fn(),
-    decisionChanged: vi.fn(),
+    context: { activateContext: vi.fn(), presentBoundContext: vi.fn() },
     openEvidenceRail: vi.fn(),
     presentNotice: vi.fn(),
     refreshResources: vi.fn().mockResolvedValue(undefined),
@@ -400,7 +399,9 @@ describe("assistant generation presenter", () => {
     const focusClaimEvidence = vi.spyOn(elements["claim-list-panel"], "focusEvidence").mockReturnValue(true);
     presenter.bindWorkflow(callbacks);
     presenter.bindControls();
-    for (const callback of Object.values(callbacks)) callback.mockClear();
+    for (const callback of Object.values(callbacks)) {
+      if (typeof callback === "function") callback.mockClear();
+    }
     refreshAvailability.mockClear();
     refreshTarget.mockClear();
     vi.mocked(resources.reportNoEvidence).mockClear();
@@ -679,7 +680,7 @@ describe("assistant generation presenter", () => {
       claims: [{ ...claimEvidence }],
       pdfs: [pdf],
     };
-    const callbacks = workflowCoordinator({ decisionChanged: vi.fn() });
+    const callbacks = workflowCoordinator();
     const resources = resourceRoutes({ project: () => snapshot });
     const revealClaim = vi.spyOn(elements["claim-list-panel"], "revealClaim").mockReturnValue(true);
     const configureCandidates = vi.spyOn(elements["candidate-list-panel"], "configure");
@@ -698,10 +699,10 @@ describe("assistant generation presenter", () => {
     expect(configureCandidates).toHaveBeenCalledWith("/api/workspaces/workspace");
     expect(configureReview).toHaveBeenCalledWith("/api/workspaces/workspace");
     expect(resources.openCandidate).toHaveBeenCalledWith(revisionCandidate);
-    await vi.waitFor(() => expect(callbacks.decisionChanged).toHaveBeenCalledTimes(2));
+    await vi.waitFor(() => expect(callbacks.context.presentBoundContext).toHaveBeenCalledTimes(2));
     expect(callbacks.refreshResources).toHaveBeenCalledOnce();
     expect(callbacks.presentNotice).toHaveBeenCalledWith(outcome.message);
-    expect(callbacks.activateAssistant).toHaveBeenCalledOnce();
+    expect(callbacks.context.activateContext).toHaveBeenCalledWith("assistant");
     expect(resources.focusAssistant).toHaveBeenCalledOnce();
     expect(presenter.candidateDecision()).toBeNull();
     expect(resources.openPaper).toHaveBeenCalledWith(pdf, annotationEvidence);
@@ -724,7 +725,7 @@ describe("assistant generation presenter", () => {
     async ({ expected, outcome, refreshes }) => {
       const { elements, presenter, resources } = setup();
       const callbacks = workflowCoordinator({
-        decisionChanged: vi.fn(),
+        context: { activateContext: vi.fn(), presentBoundContext: vi.fn() },
         refreshResources: vi.fn().mockRejectedValue(new Error("Could not refresh candidates")),
       });
       presenter.bindWorkflow(callbacks);
@@ -735,10 +736,10 @@ describe("assistant generation presenter", () => {
       );
       elements["candidate-review-panel"].dispatchEvent(new CustomEvent(candidateDecisionOutcomeEvent, { detail: outcome }));
 
-      await vi.waitFor(() => expect(callbacks.decisionChanged).toHaveBeenCalledTimes(2));
+      await vi.waitFor(() => expect(callbacks.context.presentBoundContext).toHaveBeenCalledTimes(2));
       expect(callbacks.refreshResources).toHaveBeenCalledTimes(refreshes);
       expect(callbacks.presentNotice).toHaveBeenCalledWith(expected);
-      expect(callbacks.activateAssistant).not.toHaveBeenCalled();
+      expect(callbacks.context.activateContext).not.toHaveBeenCalled();
       expect(resources.focusAssistant).not.toHaveBeenCalled();
     },
   );

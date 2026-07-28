@@ -18,7 +18,7 @@ import "./manuscript-map-panel";
 import { createOfflineWorkspaceStore, OfflineWorkspaceSession } from "./offline-workspace";
 import { PdfEvidenceViewer } from "./pdf-viewer";
 import { bindThemePreference } from "./theme";
-import { RESEARCH_ASSISTANT_KEY, RESEARCH_LIBRARY_KEY } from "./research-context";
+import { RESEARCH_LIBRARY_KEY } from "./research-context";
 import "./workspace-rail-tabs";
 import "./authoring-mode-tabs";
 
@@ -383,14 +383,8 @@ class WorkspaceApp {
     this.#elements.contextResourcePresenter.bindPublicationContext(apiBase);
     this.#elements.assistantGenerationPresenter.bindResources(this.#elements.contextResourcePresenter.assistantResources());
     this.#elements.assistantGenerationPresenter.bindWorkflow({
-      activateAssistant: () => {
-        this.#elements.contextResourcePresenter.activateContext(RESEARCH_ASSISTANT_KEY);
-      },
       applyTable: (target, insertion) => this.#elements.editorInsertMenu.replacePassage(target, insertion),
-      decisionChanged: () => {
-        this.#elements.contextResourcePresenter.presentBoundContext(false);
-        this.#elements.assistantGenerationPresenter.refreshAvailability();
-      },
+      context: this.#elements.contextResourcePresenter,
       openEvidenceRail: () => this.#elements.workspaceRailTabs.navigate("research"),
       presentNotice: (message) => this.#elements.toast.show(message),
       refreshResources: () => this.#resourceRefresh.request(),

@@ -296,6 +296,9 @@ All mutation operations preserve a human review boundary.
 - Assistant generation and candidate decisions are mutually exclusive machine
   states; stale, failed, or superseded transient results cannot continue their
   prior operation.
+- The assistant presenter binds the Context owner directly. Candidate decisions
+  re-present assistant Context and refresh presenter availability internally;
+  rejection also activates assistant Context without a coordinator round trip.
 - Result presentation must not acquire model, candidate, manuscript, or Library
   mutation authority; every continuation or mutation crosses a typed intent to
   the assistant presenter and then a typed application effect where canonical

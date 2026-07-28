@@ -138,8 +138,10 @@ The adopted components own bounded presentation:
   failure state, progress, local scroll state, decision-specific completion
   wording, and typed decision-start, completed-decision, and evidence-navigation
   outcomes. The assistant-generation presenter retains assistant workflow
-  transitions; the coordinator retains canonical refresh, tab movement, and
-  notification policy. The server remains authoritative for mutation safety.
+  transitions, binds the Context owner directly, activates or re-presents the
+  assistant Context after decisions, and refreshes its own availability. The
+  coordinator retains canonical refresh and notification policy. The server
+  remains authoritative for mutation safety.
 - The publication context panel resolves the active publication id and owns
   scholarly metadata, linked-paper and project-PDF option derivation and
   rendering from canonical reference inputs, citation readiness, local scroll

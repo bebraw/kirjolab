@@ -29,6 +29,7 @@ import { ClaimListPanel } from "./claim-list-panel";
 import { ModelProviderSettings, modelProviderChangeEvent } from "./model-provider-settings";
 import type { ModelProvider } from "./model-provider";
 import { ProjectEvidencePanel } from "./project-evidence-panel";
+import { RESEARCH_ASSISTANT_KEY } from "./research-context";
 import { assistantWorkflowBusy, createAssistantWorkflowActor, type AssistantCandidateDecision } from "./assistant-workflow-machine";
 import type {
   ModelCandidate,
@@ -93,9 +94,11 @@ export interface AssistantAuthoringSources {
 }
 
 export interface AssistantWorkflowCoordinator {
-  readonly activateAssistant: () => void;
   readonly applyTable: (target: AssistantAuthoringPassage, insertion: string) => void;
-  readonly decisionChanged: () => void;
+  readonly context: {
+    activateContext(key: string): void;
+    presentBoundContext(updateHistory?: boolean): void;
+  };
   readonly openEvidenceRail: () => void;
   readonly presentNotice: (message: string) => void;
   readonly refreshResources: () => Promise<void>;
@@ -184,7 +187,7 @@ export class AssistantGenerationPresenter extends LitElement {
     review?.addEventListener(candidateDecisionEvent, (event) => {
       const detail = (event as CustomEvent<CandidateDecisionRequest>).detail;
       this.workflow.send({ type: "DECIDE", id: detail.candidateId, action: detail.action });
-      callbacks.decisionChanged();
+      this.decisionChanged();
     });
     review?.addEventListener(candidateDecisionOutcomeEvent, (event) => {
       void this.completeDecision((event as CustomEvent<CandidateDecisionOutcome>).detail, callbacks);
@@ -209,7 +212,7 @@ export class AssistantGenerationPresenter extends LitElement {
     } else {
       try {
         await callbacks.refreshResources();
-        if (detail.action === "reject") callbacks.activateAssistant();
+        if (detail.action === "reject") callbacks.context.activateContext(RESEARCH_ASSISTANT_KEY);
         callbacks.presentNotice(detail.message);
       } catch (error) {
         failure = error instanceof Error ? error.message : "Candidate decision failed";
@@ -218,7 +221,7 @@ export class AssistantGenerationPresenter extends LitElement {
       }
     }
     this.workflow.send(failure ? { type: "DECISION_FAILED", message: failure } : { type: "DECISION_DONE" });
-    callbacks.decisionChanged();
+    this.decisionChanged();
     if (!failure && detail.action === "reject") this.resourceRoutes.focusAssistant();
   }
 
@@ -529,6 +532,11 @@ export class AssistantGenerationPresenter extends LitElement {
 
   candidateDecision(): AssistantCandidateDecision | null {
     return this.workflow.getSnapshot().context.candidateDecision;
+  }
+
+  private decisionChanged(): void {
+    this.workflowCoordinator.context.presentBoundContext(false);
+    this.refreshAvailability();
   }
 
   sourceChanged(): void {

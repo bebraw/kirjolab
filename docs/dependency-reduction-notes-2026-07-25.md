@@ -12408,6 +12408,28 @@ unchanged at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip,
 Full native CI passes all 1,773 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Assistant Decision Context
+
+`AssistantGenerationPresenter` now binds the Context owner directly. Candidate
+decision start and completion re-present assistant Context and refresh presenter
+availability internally; rejection also activates assistant Context without
+returning fixed effects through `WorkspaceApp`.
+
+This checkpoint reduces `src/client/app.ts` from 415 to 409 lines (-6). The
+assistant presenter grows from 649 to 657 lines (+8) to replace two callback
+concepts with one structural capability. Direct presenter coverage passes all
+19 cases; affected coverage passes all 21 related runtime cases alongside
+strict types.
+
+The browser application artifact changes from 862,061 B raw / 232,220 B gzip
+to 862,003 B raw / 232,248 B gzip (-58 B raw / +28 B gzip). Styles, lazy
+Markdown, lazy PDF.js, and direct and unique production package counts remain
+unchanged at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip,
+481,994 B raw / 146,135 B gzip, 18, and 150.
+
+Full native CI passes all 1,773 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: One-Shot Browser Entry Intents
 
 `ProjectStartingPointBrowser` now consumes the `create=1` editor intent, removes
