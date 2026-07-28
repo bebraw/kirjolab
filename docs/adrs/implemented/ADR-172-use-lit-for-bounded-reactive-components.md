@@ -1458,7 +1458,8 @@ reactive owner and adds only empty rendering and typed sibling lookup.
   Library, project-file, and surface-route owners, and derives canonical
   context sources from their live state. The same entry installs the assistant
   presenter's reciprocal authoring, workflow, resource-route, and API binding
-  from the shared collaboration, refresh, and owner capabilities. The
+  followed by the editor owner's authoring and source-completion binding from
+  the shared collaboration, refresh, socket, and owner capabilities. The
   application coordinator only connects the remaining owners and supplies immutable workspace-versus-Library mode and project API
   configuration; it does not retain a parallel source factory or effect
   adapters.

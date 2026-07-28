@@ -71,7 +71,7 @@ export interface EditorAuthoringOwners {
   };
 }
 
-type EditorApplicationOwners = EditorAuthoringOwners &
+export type EditorApplicationOwners = EditorAuthoringOwners &
   SourceCompletionOwners & { readonly sourceCompletion: Pick<SourceCompletion, "bindWorkspace"> };
 
 export class EditorStatus extends LightDomElement {

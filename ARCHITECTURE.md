@@ -460,7 +460,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   connect collaboration, then honor the one-shot browser creation request.
 - Let the editor-status Lit owner bind the active source, companion
   bibliography, and source-completion workspace atomically as one application
-  authoring lifecycle, then bind the active Yjs
+  authoring lifecycle. Install that reciprocal editor lifecycle through the
+  Context application entry after its assistant companion and before Context
+  presentation and routes, then bind the active Yjs
   text to the source editor,
   derive that text from the selected project-file identity and entry-file
   contract,

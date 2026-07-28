@@ -19,6 +19,7 @@ import { CandidateReviewPanel } from "./candidate-review-panel";
 import { citationPageFromLocator, type CitationContext } from "./citations";
 import { ClaimListPanel } from "./claim-list-panel";
 import { ContextTabStrip } from "./context-tab-strip";
+import type { EditorApplicationOwners, EditorStatus } from "./editor-status";
 import { expectOk } from "./http";
 import { LibraryPdfAnnotationToolbar } from "./library-pdf-annotation-toolbar";
 import { LibraryPdfInspector } from "./library-pdf-inspector";
@@ -170,9 +171,11 @@ export interface ProjectKnowledgeOwners {
 type ContextApplicationOwners = AssistantApplicationOwners &
   ContextPresentationOwners &
   ContextRouteOwners &
+  EditorApplicationOwners &
   ProjectKnowledgeOwners & {
     readonly assistantGenerationPresenter: ContextPresentationOwners["assistantGenerationPresenter"] &
       Pick<AssistantGenerationPresenter, "bindApplication">;
+    readonly editorStatus: Pick<EditorStatus, "bindApplication">;
   };
 
 export class ContextResourcePresenter extends LightDomController {
@@ -196,9 +199,11 @@ export class ContextResourcePresenter extends LightDomController {
     workspace: boolean,
     session: ContextRouteBinding["collaboration"] & { readonly document: Y.Doc },
     resources: ContextRouteBinding["resources"],
+    collaborationSocket: { scheduleSelection(): void },
     owners: ContextApplicationOwners,
   ): void {
     owners.assistantGenerationPresenter.bindApplication(apiBase, session, resources, owners);
+    owners.editorStatus.bindApplication(apiBase, session.document, owners, collaborationSocket);
     this.bindProjectKnowledge(apiBase, owners);
     this.bindContext(workspace ? apiBase : null, owners);
     this.bindRoutes(session.document, session, resources, owners);

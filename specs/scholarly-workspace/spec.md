@@ -104,7 +104,8 @@ collaboration.
   presentation effects from them. Candidate presentation uses that same
   assistant owner without a second coordinator binding. The Context application
   entry also installs the assistant's reciprocal authoring, workflow,
-  resource-route, and API lifecycle from the same collaboration, refresh, and
+  resource-route, and API lifecycle followed by the editor's authoring and
+  source-completion lifecycle from the same collaboration, refresh, socket, and
   owner capabilities. This context owner and
   the non-rendering assistant presenter share one light-DOM Lit controller and
   typed sibling-lookup base while retaining independent domain bindings. That

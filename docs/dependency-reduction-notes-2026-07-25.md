@@ -14479,6 +14479,28 @@ assistant application setup to the Context application entry.
 Full native CI passes all 1,777 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Context-Owned Editor Binding
+
+The Context Lit owner now installs the editor-status owner's atomic authoring
+and source-completion lifecycle immediately after its assistant companion.
+Context consumes editor caret and selection state while editor authoring routes
+citations and availability through Context and assistant owners, so the
+reciprocal boundary now receives the canonical Yjs document, collaboration
+socket, and owner registry without a separate composition-root call.
+
+This checkpoint trades four net production lines, including one shared editor
+application-owner contract, for the reciprocal Context/editor boundary and
+reduces `src/client/app.ts` from 50 to 49 lines. The affected guardrail passes
+62 related cases across five suites alongside strict types. The browser
+application changes from 847,289 B raw / 231,041 B gzip to 847,286 B raw /
+231,042 B gzip (-3 B raw / +1 B gzip); direct and unique production package
+counts remain 18 and 150, and the other static artifacts remain unchanged.
+Architecture, ADR, and scholarly-workspace contracts now assign editor
+application setup to the Context application entry after assistant setup.
+
+Full native CI passes all 1,777 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,
