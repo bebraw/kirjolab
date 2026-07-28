@@ -221,10 +221,7 @@ class WorkspaceApp {
       openPdf: (artifact, page, updateHistory) =>
         void this.#elements.contextResourcePresenter.openLibraryPdf(artifact, page, updateHistory),
       presentNotice: (message) => this.#elements.toast.show(message),
-      refreshMetadata: async () => {
-        await this.#elements.referenceLibraryWorkspace.refreshBoundProject();
-        await this.#elements.projectFileDialog.refreshProject();
-      },
+      refreshProject: () => this.#elements.projectFileDialog.refreshProject(),
     });
     this.#elements.referenceLibraryWorkspace.bindProject({
       context: this.#elements.contextResourcePresenter,

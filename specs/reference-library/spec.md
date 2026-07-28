@@ -388,6 +388,8 @@ memory and makes citation aliases compete with stable source identity.
 - The composed Library workspace owns archive-aware canonical Library loading,
   response validation, and the single browser Library snapshot projection used
   by its filters, list, network, PDF queue, and coordinator consumers. It also
+  completes metadata changes by refreshing that canonical Library itself before
+  requesting one bound project refresh.
   owns general Library entry sequencing across context activation, optional
   standalone history entry, and canonical refresh. Standalone startup binds
   browser history, projects the Context-only shell and private connection state

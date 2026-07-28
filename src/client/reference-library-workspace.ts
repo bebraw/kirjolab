@@ -62,7 +62,7 @@ export interface ReferenceLibraryWorkspaceCallbacks {
   readonly openPdf: (artifact: LibraryPdfArtifact, page?: number, updateHistory?: boolean) => void;
   readonly presentNotice: (message: string) => void;
   readonly refreshLibrary?: () => Promise<void>;
-  readonly refreshMetadata: () => Promise<void>;
+  readonly refreshProject: () => Promise<void>;
 }
 
 export interface ReferenceLibraryProjectBinding {
@@ -90,7 +90,7 @@ const emptyCallbacks: ReferenceLibraryWorkspaceCallbacks = {
   compareSnapshots: () => undefined,
   openPdf: () => undefined,
   presentNotice: () => undefined,
-  refreshMetadata: () => Promise.resolve(),
+  refreshProject: () => Promise.resolve(),
 };
 
 export class ReferenceLibraryWorkspace extends LitElement {
@@ -135,7 +135,12 @@ export class ReferenceLibraryWorkspace extends LitElement {
       void this.completeRefresh(
         (event as CustomEvent<string>).detail,
         "Metadata was applied, but the refreshed Library could not be loaded.",
-        { refresh: this.callbacks.refreshMetadata },
+        {
+          refresh: async () => {
+            await this.refreshBoundProject();
+            await this.callbacks.refreshProject();
+          },
+        },
       );
     });
     this.addEventListener(libraryReferencePdfActionEvent, (event) => {

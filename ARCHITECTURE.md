@@ -113,8 +113,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   Library rerendering, and notification policy in the application coordinator.
 - Let the reference-Library Lit workspace own child mutation refresh
   completion, success/failure notice selection, alternate metadata refresh, and
-  local request finalizers. Keep canonical Library loading and shared toast
-  presentation behind its typed callbacks.
+  local request finalizers. Metadata completion refreshes its own canonical
+  Library before invoking one bound project refresh; do not route that Library
+  refresh back through the application. Keep shared toast presentation behind
+  its typed callback.
 - Let the reference Library filter Lit owner derive dynamic type choices,
   filtered and sorted reference results, and visible-versus-total counts from
   the canonical Library snapshot, its local filter state, and canonical

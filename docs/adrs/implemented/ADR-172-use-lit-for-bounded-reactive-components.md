@@ -551,6 +551,8 @@ The adopted components own bounded presentation:
   standalone Library-route outcomes; and the apply-project-notice sequence for
   Library-originated project mutations. General Library entry also owns
   activation, optional standalone-route entry, and canonical refresh sequencing.
+  Metadata completion refreshes the bound Library itself before requesting the
+  remaining canonical project refresh, removing an application round trip.
   Standalone startup binds browser history, projects the Context-only shell and
   private connection state through typed capabilities, opens the Library, and
   restores the current route.

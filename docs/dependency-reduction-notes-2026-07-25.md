@@ -12204,6 +12204,28 @@ and 481,994 B / 146,135 B.
 Full native CI passes all 1,773 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Library Metadata Refresh
+
+`ReferenceLibraryWorkspace` now completes metadata mutations by refreshing its
+own canonical Library before requesting the remaining project refresh. The
+application no longer receives a callback that immediately calls back into the
+Library owner.
+
+This checkpoint reduces `src/client/app.ts` from 458 to 455 lines (-3) and grows
+the Library owner from 478 to 483 lines (+5). The two-line combined increase
+removes an inverted ownership round trip and makes refresh ordering explicit at
+the mutation owner. Focused coverage passes Library-before-project sequencing,
+success and failure completion, affected integrations, and strict types. Direct
+and unique production package counts remain 18 and 150; Lit was already pinned.
+
+The browser application artifact changes from 862,099 B raw / 232,231 B gzip to
+862,073 B / 232,225 B (-26 B raw / -6 B gzip). Styles and lazy Markdown and
+PDF.js artifacts remain unchanged at 135,411 B / 23,373 B, 204,779 B / 62,386 B,
+and 481,994 B / 146,135 B.
+
+Full native CI passes all 1,773 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: One-Shot Browser Entry Intents
 
 `ProjectStartingPointBrowser` now consumes the `create=1` editor intent, removes

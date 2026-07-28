@@ -150,7 +150,7 @@ describe("reference Library workspace", () => {
       openPdf: vi.fn(),
       presentNotice: vi.fn(),
       refreshLibrary: vi.fn(),
-      refreshMetadata: vi.fn(),
+      refreshProject: vi.fn(),
     });
 
     workspace.presentProject(workspaceSnapshotFixture, "/api/workspaces/workspace");
@@ -207,7 +207,7 @@ describe("reference Library workspace", () => {
       openPdf: vi.fn(),
       presentNotice: vi.fn(),
       refreshLibrary,
-      refreshMetadata: vi.fn(),
+      refreshProject: vi.fn(),
     });
     workspace.bindBrowserRoute(true, browser.history);
 
@@ -248,7 +248,7 @@ describe("reference Library workspace", () => {
       openPdf,
       presentNotice,
       refreshLibrary: vi.fn(),
-      refreshMetadata: vi.fn(),
+      refreshProject: vi.fn(),
     });
     workspace.bindBrowserRoute(true, browser.history);
     workspace.setData({
@@ -311,7 +311,7 @@ describe("reference Library workspace", () => {
       openPdf: vi.fn(),
       presentNotice,
       refreshLibrary,
-      refreshMetadata: vi.fn(),
+      refreshProject: vi.fn(),
     });
     workspace.setData({ library: { ...library, references: [] }, projectApiBase: null, projectReferences: [], researchShares: [] });
     vi.spyOn(workspace, "showArchivedReferences").mockReturnValue(true);
@@ -335,7 +335,7 @@ describe("reference Library workspace", () => {
       openPdf: vi.fn(),
       presentNotice: vi.fn(),
       refreshLibrary,
-      refreshMetadata: vi.fn(),
+      refreshProject: vi.fn(),
     });
     workspace.bindBrowserRoute(true, browser.history);
     vi.spyOn(workspace, "focusAvailableReference").mockResolvedValue(true);
@@ -394,7 +394,7 @@ describe("reference Library workspace", () => {
       openPdf: vi.fn(),
       presentNotice: vi.fn(),
       refreshLibrary: vi.fn().mockResolvedValue(undefined),
-      refreshMetadata: vi.fn().mockResolvedValue(undefined),
+      refreshProject: vi.fn().mockResolvedValue(undefined),
     };
     const completeIdentification = vi.spyOn(owners["unidentified-pdf-list"], "complete");
     const captureUrl = vi.spyOn(owners["web-source-capture"], "captureUrl").mockResolvedValue();
@@ -438,8 +438,8 @@ describe("reference Library workspace", () => {
     });
     expect(callbacks.presentNotice).toHaveBeenCalledWith("Metadata notice");
     expect(callbacks.openPdf).toHaveBeenCalledTimes(2);
-    await vi.waitFor(() => expect(callbacks.refreshLibrary).toHaveBeenCalledTimes(4));
-    expect(callbacks.refreshMetadata).toHaveBeenCalledOnce();
+    await vi.waitFor(() => expect(callbacks.refreshLibrary).toHaveBeenCalledTimes(5));
+    expect(callbacks.refreshProject).toHaveBeenCalledOnce();
     expect(captureUrl).toHaveBeenCalledWith("https://example.test");
     expect(callbacks.compareSnapshots).toHaveBeenCalledWith("prior", "current");
     await vi.waitFor(() => expect(completeIdentification).toHaveBeenCalledWith(7));
@@ -456,7 +456,7 @@ describe("reference Library workspace", () => {
       openPdf: vi.fn(),
       presentNotice: vi.fn(),
       refreshLibrary: vi.fn().mockResolvedValue(undefined),
-      refreshMetadata: vi.fn().mockResolvedValue(undefined),
+      refreshProject: vi.fn().mockResolvedValue(undefined),
     };
     const setResults = vi.spyOn(owners["library-discovery-results"], "setResults");
     const openNetwork = vi.spyOn(owners["citation-network-workspace"], "open").mockResolvedValue();
@@ -503,7 +503,7 @@ describe("reference Library workspace", () => {
       openPdf: vi.fn(),
       presentNotice,
       refreshLibrary: vi.fn().mockRejectedValue(new Error("offline")),
-      refreshMetadata: vi.fn().mockResolvedValue(undefined),
+      refreshProject: vi.fn().mockResolvedValue(undefined),
     });
 
     await workspace.completeRefresh("Saved", "Refresh failed", { complete });
