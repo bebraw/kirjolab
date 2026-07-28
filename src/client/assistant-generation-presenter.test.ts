@@ -687,6 +687,18 @@ describe("assistant generation presenter", () => {
     elements["candidate-list-panel"].dispatchEvent(new CustomEvent(candidateListOpenEvent, { detail: revisionCandidate }));
     review.dispatchEvent(new CustomEvent(candidateDecisionEvent, { detail: { action: "reject", candidateId: revisionCandidate.id } }));
     expect(presenter.candidateDecision()).toEqual({ action: "reject", id: revisionCandidate.id });
+    const setCandidate = vi.spyOn(review, "setCandidate");
+    const candidateScroll = { scrollTop: 0 };
+    Object.defineProperty(review, "querySelector", { configurable: true, value: () => candidateScroll });
+    presenter.presentCandidate(revisionCandidate.id, snapshot, 24);
+    expect(setCandidate).toHaveBeenCalledWith({
+      candidateId: revisionCandidate.id,
+      decision: { action: "reject", id: revisionCandidate.id },
+      snapshot,
+      sourceRevision: 7,
+      stableDocument: true,
+    });
+    expect(candidateScroll.scrollTop).toBe(24);
     review.dispatchEvent(new CustomEvent(candidateDecisionOutcomeEvent, { detail: outcome }));
     review.dispatchEvent(new CustomEvent(candidateEvidenceEvent, { detail: annotationEvidence }));
     review.dispatchEvent(new CustomEvent(candidateEvidenceEvent, { detail: claimEvidence }));

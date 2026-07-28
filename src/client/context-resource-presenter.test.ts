@@ -107,13 +107,10 @@ function resourceTab(kind: "pdf" | "library-pdf", id: string): Extract<ResearchR
 function sources(activeTab: ResearchResourceTab | undefined): ContextResourceSources {
   return {
     activeTab,
-    candidateDecision: null,
     library,
     projectApiBase: "/api/workspaces/workspace",
     referencePdfs: [referencePdf],
     snapshot: workspaceSnapshotFixture,
-    sourceRevision: 3,
-    stableDocument: true,
   };
 }
 
@@ -208,17 +205,16 @@ describe("context resource presenter", () => {
   it("presents publication and candidate resources through their Lit owners", () => {
     const { elements, presenter } = setup();
     const setPublication = vi.spyOn(elements["publication-context-panel"], "setPublication").mockReturnValue(true);
-    const setCandidate = vi.spyOn(elements["candidate-review-panel"], "setCandidate").mockReturnValue(true);
+    const candidatePresenter = { presentCandidate: vi.fn() };
+    presenter.bindCandidatePresentation(candidatePresenter);
     const publicationTab = { id: "publication:1", key: "publication:publication:1", kind: "publication", scrollTop: 12 } as const;
     const candidateTab = { id: "candidate:1", key: "candidate:candidate:1", kind: "candidate", scrollTop: 24 } as const;
 
     expect(presenter.present(sources(publicationTab))).toMatchObject({ publicationPresented: true });
-    presenter.present({ ...sources(candidateTab), candidateDecision: { action: "apply", id: candidateTab.id } });
+    presenter.present(sources(candidateTab));
 
     expect(setPublication).toHaveBeenCalledWith(expect.objectContaining({ publicationId: publicationTab.id }));
-    expect(setCandidate).toHaveBeenCalledWith(
-      expect.objectContaining({ candidateId: candidateTab.id, decision: { action: "apply", id: candidateTab.id } }),
-    );
+    expect(candidatePresenter.presentCandidate).toHaveBeenCalledWith(candidateTab.id, workspaceSnapshotFixture, 24);
   });
 
   it("composes canonical tabs and the active resource presentation", () => {

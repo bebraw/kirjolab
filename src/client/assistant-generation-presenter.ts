@@ -530,6 +530,18 @@ export class AssistantGenerationPresenter extends LitElement {
     return this.workflow.getSnapshot().context.candidateDecision;
   }
 
+  presentCandidate(candidateId: string, snapshot: WorkspaceSnapshot, scrollPosition: number): void {
+    const panel = this.element("candidate-review-panel", CandidateReviewPanel);
+    panel?.setCandidate({
+      candidateId,
+      decision: this.candidateDecision(),
+      snapshot,
+      sourceRevision: this.authoringSources.sourceRevision(),
+      stableDocument: this.authoringSources.stableDocument(),
+    });
+    if (panel) panel.scrollPosition = scrollPosition;
+  }
+
   private decisionChanged(): void {
     this.workflowCoordinator.context.presentBoundContext(false);
     this.refreshAvailability();

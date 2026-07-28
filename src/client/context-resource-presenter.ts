@@ -65,13 +65,10 @@ import { researchTargetFromContextKey } from "./workspace-ui-route";
 
 export interface ContextResourceSources {
   readonly activeTab: ResearchResourceTab | undefined;
-  readonly candidateDecision: { readonly action: "apply" | "reject"; readonly id: string } | null;
   readonly library: ReferenceLibrarySnapshot | null;
   readonly projectApiBase: string | null;
   readonly referencePdfs: readonly ProjectReferencePdf[];
   readonly snapshot: WorkspaceSnapshot | null;
-  readonly sourceRevision: number;
-  readonly stableDocument: boolean;
 }
 
 export interface ContextResourcePresentation {
@@ -82,8 +79,10 @@ export interface ResearchContextPresentation extends ContextResourcePresentation
   readonly activeTab: ResearchResourceTab | undefined;
 }
 
-export interface ResearchContextSources extends Omit<ContextResourceSources, "activeTab" | "referencePdfs"> {
-  readonly standaloneLibrary: boolean;
+export type ResearchContextSources = Omit<ContextResourceSources, "activeTab" | "referencePdfs"> & { readonly standaloneLibrary: boolean };
+
+export interface AssistantCandidatePresenter {
+  presentCandidate(candidateId: string, snapshot: WorkspaceSnapshot, scrollPosition: number): void;
 }
 
 export interface LibraryPdfToolPresentation {
@@ -162,6 +161,7 @@ export interface PublicationLibrary {
 export class ContextResourcePresenter extends LitElement {
   private contextState = createResearchContext();
   private contextPresentation: ContextPresentationBinding | null = null;
+  private candidatePresenter: AssistantCandidatePresenter | null = null;
   private currentActiveTab: ResearchResourceTab | undefined;
   private currentLibraryPdf: LibraryPdfArtifact | undefined;
   private currentLibrary: ReferenceLibrarySnapshot | null = null;
@@ -197,6 +197,10 @@ export class ContextResourcePresenter extends LitElement {
       close: (key) => this.closeBoundContext(key),
       openLibrary: () => void binding.openLibrary(),
     });
+  }
+
+  bindCandidatePresentation(presenter: AssistantCandidatePresenter): void {
+    this.candidatePresenter = presenter;
   }
 
   navigateContext(key: ResearchContextKey): void {
@@ -696,7 +700,11 @@ export class ContextResourcePresenter extends LitElement {
 
   presentContext(sources: ResearchContextSources): ResearchContextPresentation {
     const { standaloneLibrary, ...contextSources } = sources;
-    const resourceSources: ContextResourceSources = { ...contextSources, activeTab: undefined, referencePdfs: this.referencePdfs };
+    const resourceSources: ContextResourceSources = {
+      ...contextSources,
+      activeTab: undefined,
+      referencePdfs: this.referencePdfs,
+    };
     const context = this.contextState;
     this.element("context-tab-strip", ContextTabStrip)?.setTabs({
       activeKey: context.activeKey,
@@ -1160,16 +1168,7 @@ export class ContextResourcePresenter extends LitElement {
 
   private presentCandidate(sources: ContextResourceSources): void {
     const tab = sources.activeTab;
-    if (tab?.kind !== "candidate") return;
-    const panel = this.element("candidate-review-panel", CandidateReviewPanel);
-    panel?.setCandidate({
-      candidateId: tab.id,
-      decision: sources.candidateDecision,
-      snapshot: sources.snapshot,
-      sourceRevision: sources.sourceRevision,
-      stableDocument: sources.stableDocument,
-    });
-    if (panel) panel.scrollPosition = tab.scrollTop;
+    if (tab?.kind === "candidate" && sources.snapshot) this.candidatePresenter?.presentCandidate(tab.id, sources.snapshot, tab.scrollTop);
   }
 
   private presentProjectPdf(sources: ContextResourceSources): void {

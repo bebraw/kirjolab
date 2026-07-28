@@ -591,7 +591,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   the presenter derive scoped and insertion passages, generation input,
   availability, target presentation, and captured-table validity from those
   same sources, including snapshot availability from its canonical project
-  route. Keep
+  route. Let it also present candidate review from its owned decision and
+  authoring state when the Context owner supplies only candidate identity,
+  canonical snapshot, and restored scroll position. Keep
   authorized Yjs mutation, editor selection, remembered authoring selection,
   canonical refresh execution, context-state mutation, and notice presentation
   in the application coordinator through narrow typed callbacks.

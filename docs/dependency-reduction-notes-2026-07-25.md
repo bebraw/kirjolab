@@ -12519,6 +12519,31 @@ at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip, 481,994 B raw /
 Full native CI passes all 1,773 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Assistant Candidate Presentation
+
+`AssistantGenerationPresenter` now presents candidate review using the decision,
+source revision, and collaboration stability it already owns. The context
+presenter supplies only candidate identity, canonical snapshot, and restored
+scroll position; `WorkspaceApp` no longer projects the three assistant-owned
+values through its general context source.
+
+This checkpoint reduces `src/client/app.ts` from 396 to 394 lines (-2) and the
+context presenter from 1,256 to 1,255 lines (-1), while growing the assistant
+presenter from 653 to 665 lines (+12). The nine-line combined runtime increase
+places candidate presentation with its decision and authoring authority.
+Focused coverage passes all 58 assistant and context presenter cases; affected
+coverage passes 73 related runtime cases and both affected test files alongside
+strict types.
+
+The browser application artifact changes from 861,890 B raw / 232,236 B gzip to
+862,035 B raw / 232,259 B gzip (+145 B raw / +23 B gzip). Styles, lazy Markdown,
+lazy PDF.js, and direct and unique production package counts remain unchanged
+at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip, 481,994 B raw /
+146,135 B gzip, 18, and 150.
+
+Full native CI passes all 1,773 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: One-Shot Browser Entry Intents
 
 `ProjectStartingPointBrowser` now consumes the `create=1` editor intent, removes

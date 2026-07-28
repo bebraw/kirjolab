@@ -138,6 +138,7 @@ class WorkspaceApp {
       stableDocument: () => this.#collaboration.stable,
       target: () => this.#elements.editorStatus.authoringTarget,
     });
+    this.#elements.contextResourcePresenter.bindCandidatePresentation(this.#elements.assistantGenerationPresenter);
     this.#elements.applicationVersion.bindNotice((message) => this.#elements.toast.show(message));
     this.#elements.connectionStatus.bindWorkflow(this.#collaboration, this.#elements);
     this.#collaborationSocket.bindBrowserLifecycle();
@@ -320,13 +321,10 @@ class WorkspaceApp {
       refreshAssistant: () => this.#elements.assistantGenerationPresenter.refreshAvailability(),
       restorePaneWidth: () => this.#layout.restorePaneWidth(),
       sources: () => ({
-        candidateDecision: this.#elements.assistantGenerationPresenter.candidateDecision(),
         library: this.#elements.referenceLibraryWorkspace.snapshot,
         projectApiBase: appMode === "workspace" ? apiBase : null,
         snapshot: this.#elements.projectFileDialog.project,
-        sourceRevision: this.#elements.projectHistoryTrigger.value,
         standaloneLibrary: appMode === "library",
-        stableDocument: this.#collaboration.stable,
       }),
       syncRoute: (mode) => this.#elements.workspaceSurfaceSwitcher.syncRoute(mode),
     });

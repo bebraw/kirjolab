@@ -118,7 +118,10 @@ The adopted components own bounded presentation:
   manuscript text, target range, source revision, and collaboration stability
   once as authoring sources; derive scoped and insertion passages, generation
   input, availability, target presentation, captured-table validation, and
-  snapshot availability inside the presenter. The application coordinator retains
+  snapshot availability inside the presenter. The context-resource presenter
+  delegates candidate review presentation with only candidate identity,
+  canonical snapshot, and scroll position; the assistant presenter supplies
+  its owned decision, revision, and stability state. The application coordinator retains
   authorized Yjs mutation, editor selection, remembered authoring selection,
   canonical refresh execution, context-state mutation, and notice presentation
   through narrow typed callbacks.
