@@ -501,9 +501,11 @@ The adopted components own bounded presentation:
   menu, source completion, and file-action menu. Its workflow binding also owns
   project-range activation across file or entry fallback, Write-mode entry, and
   normalized editor selection, plus explicit authoring and range reveal through
-  a narrow editor-scroll capability. File activation retains the latest projection
-  inputs, reprojects the canonical snapshot with an explicit editor-reset
-  signal, and then emits one argument-free cross-feature effect. The owner also
+  a narrow editor-scroll capability. The same presentation binding supplies the
+  assistant, editor, Preview, route, and notice owners. File activation retains
+  the latest projection inputs, reprojects the canonical snapshot with an
+  explicit editor-reset signal, then refreshes assistant availability, resets
+  and renders Preview, and replaces the canonical route directly. The owner also
   accepts response-or-snapshot project mutation results, validates and installs
   the canonical workspace, and awaits one argument-free post-accept effect. The
   owner also binds snapshot transport, source, bibliography, revision, Preview,

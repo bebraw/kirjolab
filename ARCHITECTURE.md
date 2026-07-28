@@ -336,7 +336,12 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   supplies only the derived included state and message through its typed
   workflow callback. It commits validated file, folder, tree, deletion, and
   upload snapshots to its own canonical projection and requests Preview
-  rendering through its existing project-refresh binding. From one canonical snapshot it also
+  rendering through its existing project-refresh binding. Its one presentation
+  binding also supplies the assistant, editor, Preview, route, and notice
+  owners. File activation sequences assistant availability, Preview reset and
+  rendering, and canonical route replacement directly; project presentation
+  applies the active file to editor status without an application callback bag.
+  From one canonical snapshot it also
   owns active-file identity, entry fallback, hidden-file selection eligibility,
   canonical selection validation and activation routing, active file/folder
   resolution for dialogs, active-file deletion eligibility, and relative image

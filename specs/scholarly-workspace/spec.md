@@ -331,9 +331,13 @@ collaboration.
   cancellation. Its typed save intent carries the operation mode and submitted
   path together. Two instances of one bounded light-DOM action component own
   the rail and editor-menu commands plus entry-file delete availability and
-  emit one typed action contract. The workspace coordinator retains active-file
-  identity, resource checks, target and include capture, upload selection,
-  persistence, deferred deletion, selection, refresh, and toast policy.
+  emit one typed action contract. The dialog's presentation binding supplies
+  the assistant, editor, Preview, route, and notice owners; file activation
+  refreshes assistant availability, resets and renders Preview, replaces the
+  canonical route, and applies the active file to editor status directly. The
+  workspace coordinator connects those owners and retains Yjs text resolution,
+  transport construction, layout-dependent quick-open policy, and upload and
+  include entry points.
 - **Collaboration:** `DocumentRoom` is a SQLite-backed Durable Object for each
   composed project. On a hibernatable WebSocket connection it sends full binary Yjs
   state followed by a versioned `sync` control. The browser sends no state on

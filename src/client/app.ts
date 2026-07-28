@@ -221,17 +221,7 @@ class WorkspaceApp {
     this.#elements.sourceCompletion.bindEditor(this.#elements.source, this.#elements.citationCompletionScope);
     this.#elements.editorStatus.bindCompanion(this.#elements.bibliography, this.#bibliography);
     this.#elements.projectImageUpload.configure(apiBase);
-    this.#elements.projectFileDialog.configureApi(apiBase, {
-      fileActivated: () => {
-        this.#elements.assistantGenerationPresenter.refreshAvailability();
-        this.#elements.workspacePreview.resetScroll();
-        void this.#elements.workspacePreview.renderBoundProject();
-        this.#elements.workspaceSurfaceSwitcher.syncRoute("replace");
-      },
-      presentFile: (file, snapshot, reset) => this.#elements.editorStatus.setProjectFile(file, snapshot.entryFileId, reset),
-      presentNotice: (message, options) => this.#elements.toast.show(message, options),
-      previewChanged: () => void this.#elements.workspacePreview.renderBoundProject(),
-    });
+    this.#elements.projectFileDialog.configureApi(apiBase);
     this.#elements.projectFileDialog.bindWorkflow({
       activateAuthoring: () => this.#elements.authoringModeTabs.navigate("write"),
       actionControls: [this.#elements.projectFileRailActions, this.#elements.projectFileMenuActions],

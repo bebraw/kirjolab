@@ -12726,6 +12726,30 @@ unchanged at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip,
 Full native CI passes all 1,774 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Project-File Presentation Owners
+
+`ProjectFileDialog` now receives assistant, editor-status, workspace-preview,
+surface-route, and toast owners through its existing presentation binding. Its
+file-activation sequence invokes those owners directly, while `configureApi`
+is again limited to API configuration. `WorkspaceApp` no longer maintains ten
+parallel presentation adapters for project-file operations.
+
+This checkpoint reduces `src/client/app.ts` from 370 to 360 lines (-10) and
+grows the project-file dialog from 635 to 647 lines (+12). The two-line combined
+runtime increase replaces an application callback bag with an explicit owner
+boundary. Focused coverage passes all 25 project-file dialog cases; affected
+coverage passes 27 related runtime cases and the affected test file alongside
+strict types.
+
+The browser application artifact changes from 861,131 B raw / 232,140 B gzip to
+860,912 B raw / 232,149 B gzip (-219 B raw / +9 B gzip). Styles, lazy Markdown,
+lazy PDF.js, and direct and unique production package counts remain unchanged
+at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip, 481,994 B raw /
+146,135 B gzip, 18, and 150.
+
+Full native CI passes all 1,774 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: One-Shot Browser Entry Intents
 
 `ProjectStartingPointBrowser` now consumes the `create=1` editor intent, removes

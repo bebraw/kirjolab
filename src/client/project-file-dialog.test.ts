@@ -4,7 +4,6 @@ import {
   projectImageInsertion,
   projectFileDialogIsCreating,
   projectFileDialogIsFolder,
-  type ProjectFileMutationCallbacks,
   type ProjectFileDialogMode,
   type ProjectFileSaved,
 } from "./project-file-dialog";
@@ -73,12 +72,25 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-function mutationCallbacks(): ProjectFileMutationCallbacks {
+function mutationCallbacks() {
+  const fileActivated = vi.fn();
+  const presentFile = vi.fn();
+  const presentNotice = vi.fn();
+  const previewChanged = vi.fn().mockResolvedValue(undefined);
   return {
-    fileActivated: vi.fn(),
-    presentFile: vi.fn(),
-    presentNotice: vi.fn(),
-    previewChanged: vi.fn(),
+    assistantGenerationPresenter: { refreshAvailability: vi.fn() },
+    editorInsertMenu: { setFiles: vi.fn() },
+    editorStatus: { setProjectFile: presentFile },
+    fileActivated,
+    presentFile,
+    presentNotice,
+    previewChanged,
+    projectFileMenuActions: { setEntryFileActive: vi.fn() },
+    projectTreePanel: { configure: vi.fn(), setTree: vi.fn() },
+    sourceCompletion: { setProject: vi.fn() },
+    toast: { show: presentNotice },
+    workspacePreview: { renderBoundProject: previewChanged, resetScroll: vi.fn() },
+    workspaceSurfaceSwitcher: { syncRoute: fileActivated },
   };
 }
 
@@ -186,7 +198,7 @@ describe("project file dialog", () => {
     expect(showFor).toHaveBeenNthCalledWith(1, "create-folder", snapshot.files[0], undefined);
     expect(showFor).toHaveBeenNthCalledWith(2, "create-and-include", snapshot.files[0], undefined);
     expect(showFor).toHaveBeenNthCalledWith(3, "rename-folder", supporting, undefined);
-    expect(mutations.presentFile).toHaveBeenCalledWith(supporting, project, true);
+    expect(mutations.presentFile).toHaveBeenCalledWith(supporting, project.entryFileId, true);
     expect(mutations.fileActivated).toHaveBeenCalledOnce();
     expect(callbacks.focusEditor).toHaveBeenCalledOnce();
     expect(callbacks.quickOpen).toHaveBeenCalledOnce();
@@ -196,7 +208,7 @@ describe("project file dialog", () => {
       syntax: "![chart](figures/chart.png)",
     });
     expect(panel.project).toEqual(snapshot);
-    expect(mutations.presentNotice).toHaveBeenCalledWith("Uploaded.");
+    expect(mutations.presentNotice).toHaveBeenCalledWith("Uploaded.", undefined);
   });
 
   it("projects image assets relative to the active file", () => {
@@ -224,7 +236,13 @@ describe("project file dialog", () => {
     const projectFileMenuActions = { setEntryFileActive: vi.fn() };
     const sourceCompletion = { setProject: vi.fn() };
     const projectTreePanel = { configure: vi.fn(), setTree: vi.fn() };
-    panel.bindPresentation({ editorInsertMenu, projectFileMenuActions, projectTreePanel, sourceCompletion });
+    panel.bindPresentation({
+      ...mutationCallbacks(),
+      editorInsertMenu,
+      projectFileMenuActions,
+      projectTreePanel,
+      sourceCompletion,
+    });
 
     expect(projectTreePanel.configure).toHaveBeenCalledWith("", {
       acceptSnapshot: expect.any(Function),
@@ -289,15 +307,15 @@ describe("project file dialog", () => {
     panel.configureApi("/api/workspaces/workspace", callbacks);
 
     panel.presentProject(project, "/assets", true);
-    expect(callbacks.presentFile).toHaveBeenLastCalledWith(snapshot.files[0], project, false);
+    expect(callbacks.presentFile).toHaveBeenLastCalledWith(snapshot.files[0], project.entryFileId, false);
     expect(panel.selectFile(supporting.id)).toBe(true);
     expect(panel.activeFileId).toBe(supporting.id);
-    expect(callbacks.presentFile).toHaveBeenLastCalledWith(supporting, project, true);
+    expect(callbacks.presentFile).toHaveBeenLastCalledWith(supporting, project.entryFileId, true);
     expect(callbacks.fileActivated).toHaveBeenCalledOnce();
     expect(panel.selectFile(supporting.id)).toBe(false);
     expect(panel.selectFile("missing-file")).toBe(false);
     panel.presentProject(snapshot, "/assets", true);
-    expect(callbacks.presentFile).toHaveBeenLastCalledWith(snapshot.files[0], snapshot, false);
+    expect(callbacks.presentFile).toHaveBeenLastCalledWith(snapshot.files[0], snapshot.entryFileId, false);
     expect(panel.activeFileId).toBe(snapshot.entryFileId);
   });
 
@@ -349,7 +367,7 @@ describe("project file dialog", () => {
     await panel.acceptProjectMutation(Response.json(updated));
 
     expect(panel.project).toEqual(updated);
-    expect(callbacks.presentFile).toHaveBeenLastCalledWith(updated.files[0], updated, false);
+    expect(callbacks.presentFile).toHaveBeenLastCalledWith(updated.files[0], updated.entryFileId, false);
     expect(binding.context.refreshBoundReferencePdfs).toHaveBeenCalledWith(false);
     expect(binding.context.presentBoundWorkspace).toHaveBeenCalledOnce();
     expect(binding.preview.renderBoundProject).toHaveBeenCalledOnce();
@@ -375,7 +393,7 @@ describe("project file dialog", () => {
     expect(binding.bibliography.value).toBe(snapshot.bibliography);
     expect(binding.preview.renderBoundProject).toHaveBeenNthCalledWith(1, snapshot.bibliography);
     expect(binding.preview.renderBoundProject).toHaveBeenNthCalledWith(2);
-    expect(callbacks.presentFile).toHaveBeenLastCalledWith(refreshed.files[0], refreshed, false);
+    expect(callbacks.presentFile).toHaveBeenLastCalledWith(refreshed.files[0], refreshed.entryFileId, false);
     expect(binding.context.presentBoundWorkspace).toHaveBeenCalledTimes(2);
     expect(binding.context.refreshBoundReferencePdfs).toHaveBeenCalledTimes(2);
     expect(binding.offline.schedule).toHaveBeenCalledTimes(2);
@@ -399,7 +417,7 @@ describe("project file dialog", () => {
     expect(binding.collaboration.setOfflineAvailable).toHaveBeenCalledWith(true);
     expect(binding.history.setRevision).toHaveBeenCalledWith(snapshot.revision);
     expect(binding.catalog.presentOfflineWorkspace).toHaveBeenCalledWith(snapshot, restored.savedAt);
-    expect(callbacks.presentFile).toHaveBeenLastCalledWith(snapshot.files[0], snapshot, false);
+    expect(callbacks.presentFile).toHaveBeenLastCalledWith(snapshot.files[0], snapshot.entryFileId, false);
     expect(binding.context.presentBoundWorkspace).toHaveBeenCalledOnce();
     expect(binding.connection.presentOfflineRestore).toHaveBeenCalledWith(true);
     expect(binding.preview.renderBoundProject).toHaveBeenCalledOnce();
@@ -513,7 +531,7 @@ describe("project file dialog", () => {
 
     panel.deleteFile(file, snapshot.entryFileId);
     expect(panel.hiddenFiles.has(file.id)).toBe(true);
-    expect(callbacks.presentFile).toHaveBeenLastCalledWith(snapshot.files[0], project, true);
+    expect(callbacks.presentFile).toHaveBeenLastCalledWith(snapshot.files[0], project.entryFileId, true);
     expect(callbacks.presentNotice).toHaveBeenCalledWith(`Deleted ${file.path}.`, expect.objectContaining({ actionLabel: "Undo" }));
     await vi.advanceTimersByTimeAsync(6_000);
 
@@ -542,7 +560,7 @@ describe("project file dialog", () => {
     await vi.advanceTimersByTimeAsync(6_000);
 
     expect(panel.hiddenFiles.has(file.id)).toBe(false);
-    expect(callbacks.presentFile).toHaveBeenLastCalledWith(file, project, true);
+    expect(callbacks.presentFile).toHaveBeenLastCalledWith(file, project.entryFileId, true);
     expect(callbacks.presentNotice).toHaveBeenLastCalledWith(`Restored ${file.path}.`, undefined);
     expect(fetchMock).not.toHaveBeenCalled();
   });
@@ -589,7 +607,7 @@ describe("project file dialog", () => {
     panel.presentProject(project, "/assets", true);
 
     await expect(panel.openWorkflowFile(existing.path, content)).resolves.toBeUndefined();
-    expect(callbacks.presentFile).toHaveBeenLastCalledWith(existing, project, true);
+    expect(callbacks.presentFile).toHaveBeenLastCalledWith(existing, project.entryFileId, true);
     expect(focusEditor).toHaveBeenCalledOnce();
     expect(content).not.toHaveBeenCalled();
     expect(assign).not.toHaveBeenCalled();
@@ -623,7 +641,7 @@ describe("project file dialog", () => {
     await vi.advanceTimersByTimeAsync(6_000);
 
     expect(panel.hiddenFiles.has(file.id)).toBe(false);
-    expect(callbacks.presentFile).toHaveBeenLastCalledWith(file, project, true);
+    expect(callbacks.presentFile).toHaveBeenLastCalledWith(file, project.entryFileId, true);
     expect(panel.project).toEqual(project);
     expect(callbacks.presentNotice).toHaveBeenLastCalledWith(`Could not delete ${file.path}.`, undefined);
   });

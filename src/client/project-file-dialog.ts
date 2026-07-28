@@ -21,13 +21,6 @@ export interface ProjectImageInsertion {
   readonly syntax: string;
 }
 
-export interface ProjectFileMutationCallbacks {
-  readonly fileActivated: () => void;
-  readonly presentFile: (file: ProjectFile, snapshot: WorkspaceSnapshot, reset: boolean) => void;
-  readonly presentNotice: (message: string, options?: DeferredDeletionNoticeOptions) => void;
-  readonly previewChanged: () => void;
-}
-
 export interface ProjectRefreshBinding {
   readonly assetBase: string;
   readonly bibliography: { disabled: boolean; value: string };
@@ -71,7 +64,10 @@ interface ProjectFileTreeSource extends EventTarget {
 type ProjectFileContentResolver = (file: ProjectFile, entryFileId: string) => string;
 
 export interface ProjectFilePresentationBinding {
+  readonly assistantGenerationPresenter: { readonly refreshAvailability: () => void };
+  readonly editorStatus: { readonly setProjectFile: (file: ProjectFile, entryFileId: string, reset: boolean) => void };
   readonly editorInsertMenu: { setFiles(activeFile: ProjectFile | null, files: readonly ProjectFile[]): void };
+  readonly toast: { readonly show: (message: string, options?: DeferredDeletionNoticeOptions) => void };
   readonly projectFileMenuActions: { setEntryFileActive(active: boolean): void };
   readonly projectTreePanel: {
     configure(apiBase: string, callbacks: ProjectTreeCallbacks): void;
@@ -80,6 +76,11 @@ export interface ProjectFilePresentationBinding {
   readonly sourceCompletion: {
     setProject(project: WorkspaceSnapshot, activeFileId: string | null, workspace: boolean): void;
   };
+  readonly workspacePreview: {
+    readonly renderBoundProject: () => Promise<unknown>;
+    readonly resetScroll: () => void;
+  };
+  readonly workspaceSurfaceSwitcher: { readonly syncRoute: (mode: "replace") => void };
 }
 
 export interface ProjectFileWorkflowRouting {
@@ -144,14 +145,8 @@ export class ProjectFileDialog extends LitElement {
   declare private saving: boolean;
   declare private status: string;
   private apiBase = "";
-  private mutationCallbacks: ProjectFileMutationCallbacks = {
-    fileActivated: () => undefined,
-    presentFile: () => undefined,
-    presentNotice: () => undefined,
-    previewChanged: () => undefined,
-  };
   private readonly deletions = new DeferredDeletionController((message, options) => {
-    this.mutationCallbacks.presentNotice(message, options);
+    this.presentNotice(message, options);
   });
   private targetId: string | null = null;
   private assetBase = "";
@@ -175,9 +170,9 @@ export class ProjectFileDialog extends LitElement {
     this.status = "";
   }
 
-  configureApi(apiBase: string, mutationCallbacks?: ProjectFileMutationCallbacks): void {
+  configureApi(apiBase: string, presentation?: ProjectFilePresentationBinding): void {
     this.apiBase = apiBase;
-    if (mutationCallbacks) this.mutationCallbacks = mutationCallbacks;
+    if (presentation) this.presentation = presentation;
     this.configureProjectTree();
   }
 
@@ -203,9 +198,26 @@ export class ProjectFileDialog extends LitElement {
   private configureProjectTree(): void {
     this.presentation?.projectTreePanel.configure(this.apiBase, {
       acceptSnapshot: (snapshot) => this.commitSnapshot(snapshot),
-      presentNotice: this.mutationCallbacks.presentNotice,
-      previewChanged: this.mutationCallbacks.previewChanged,
+      presentNotice: (message, options) => this.presentNotice(message, options),
+      previewChanged: () => this.refreshPreview(),
     });
+  }
+
+  private presentFileActivation(): void {
+    const presentation = this.presentation;
+    if (!presentation) return;
+    presentation.assistantGenerationPresenter.refreshAvailability();
+    presentation.workspacePreview.resetScroll();
+    this.refreshPreview();
+    presentation.workspaceSurfaceSwitcher.syncRoute("replace");
+  }
+
+  private presentNotice(message: string, options?: DeferredDeletionNoticeOptions): void {
+    this.presentation?.toast.show(message, options);
+  }
+
+  private refreshPreview(): void {
+    void this.presentation?.workspacePreview.renderBoundProject();
   }
 
   get activeFileId(): string | null {
@@ -234,7 +246,7 @@ export class ProjectFileDialog extends LitElement {
     const file = this.activateFile(snapshot, fileId);
     if (!file) return false;
     this.presentProject(snapshot, this.assetBase, this.workspaceMode, true);
-    this.mutationCallbacks.fileActivated();
+    this.presentFileActivation();
     return true;
   }
 
@@ -284,7 +296,7 @@ export class ProjectFileDialog extends LitElement {
       presentation.sourceCompletion.setProject(snapshot, activeFileId, workspace);
       presentation.projectFileMenuActions.setEntryFileActive(activeFileId === snapshot.entryFileId);
     }
-    if (activeFile) this.mutationCallbacks.presentFile(activeFile, snapshot, resetFile);
+    if (activeFile) this.presentation?.editorStatus.setProjectFile(activeFile, snapshot.entryFileId, resetFile);
   }
 
   get hiddenFiles(): ReadonlySet<string> {
@@ -578,7 +590,7 @@ export class ProjectFileDialog extends LitElement {
   private readonly handleImagesUploaded = (event: Event): void => {
     const { message, snapshot } = (event as CustomEvent<ProjectImagesUploaded>).detail;
     this.commitSnapshot(snapshot);
-    this.mutationCallbacks.presentNotice(message);
+    this.presentNotice(message);
   };
 
   private commitSnapshot(snapshot: WorkspaceSnapshot): void {
