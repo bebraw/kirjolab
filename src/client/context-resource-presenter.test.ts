@@ -19,7 +19,6 @@ import {
   ContextResourcePresenter,
   type ContextPresentationBinding,
   type ContextResourceSources,
-  type LibraryPdfMutationCoordinator,
   type ResearchContextSources,
 } from "./context-resource-presenter";
 import { ContextTabStrip } from "./context-tab-strip";
@@ -205,6 +204,27 @@ function bindTestRoutes(presenter: ContextResourcePresenter, routes: ReturnType<
       toast: { show: routes.presentNotice },
     },
   );
+}
+
+interface TestLibraryPdfCoordinator {
+  readonly acceptProjectMutation: (snapshot: WorkspaceSnapshot) => Promise<void>;
+  readonly canInsertCitation: ReturnType<typeof vi.fn<() => boolean>>;
+  readonly completeMarkup: (message: string) => void;
+  readonly projectApiBase: string;
+}
+
+function bindTestLibraryPdf(presenter: ContextResourcePresenter, coordinator: TestLibraryPdfCoordinator): void {
+  presenter.bindLibraryPdf(coordinator.projectApiBase, {
+    editorStatus: {
+      get caret() {
+        return coordinator.canInsertCitation() ? 0 : null;
+      },
+    },
+    referenceLibraryWorkspace: {
+      applyProjectMutation: coordinator.acceptProjectMutation,
+      completeRefresh: async (message) => coordinator.completeMarkup(message),
+    },
+  });
 }
 
 function setup() {
@@ -1561,7 +1581,8 @@ describe("context resource presenter", () => {
     vi.spyOn(elements["library-pdf-inspector"], "clearMarkup").mockImplementation(() => undefined);
     vi.spyOn(elements["library-pdf-inspector"], "draftState", "get").mockReturnValue({ highlight: false, markup: false, note: false });
     presenter.bindPdfViewer(viewer, "/api/workspaces/workspace");
-    presenter.bindLibraryPdf(coordinator);
+    const openPdf = vi.spyOn(presenter, "openLibraryPdf").mockResolvedValue(undefined);
+    bindTestLibraryPdf(presenter, coordinator);
     presenter.present(sources(undefined));
 
     elements["library-pdf-annotation-toolbar"].dispatchEvent(
@@ -1578,7 +1599,7 @@ describe("context resource presenter", () => {
     expect(viewer.setTextSelectionEnabled).toHaveBeenCalledWith(true);
     expect(viewer.setPrivateHighlightSelection).toHaveBeenCalledWith(false, null);
     expect(coordinator.completeMarkup).toHaveBeenCalledWith("Drawing saved privately.");
-    await vi.waitFor(() => expect(coordinator.openPdf).toHaveBeenCalledWith(libraryPdf, highlight.page));
+    await vi.waitFor(() => expect(openPdf).toHaveBeenCalledWith(libraryPdf, highlight.page));
     expect(setStatus).toHaveBeenCalledWith("Showing saved private highlight on page 2.");
     await vi.waitFor(() => expect(routes.refreshLibrary).toHaveBeenCalledOnce());
     expect(viewer.clearDraftSelection).toHaveBeenCalledOnce();
@@ -1618,9 +1639,9 @@ describe("context resource presenter", () => {
       completeMarkup: vi.fn(),
       openPdf: vi.fn().mockResolvedValue(undefined),
       projectApiBase: "/api/workspaces/workspace",
-    } satisfies LibraryPdfMutationCoordinator;
+    };
     presenter.present({ ...sources(undefined), library: librarySource(), snapshot: project() });
-    presenter.bindLibraryPdf(coordinator);
+    bindTestLibraryPdf(presenter, coordinator);
 
     await presenter.citeLibraryHighlight(highlight);
 
@@ -1655,9 +1676,9 @@ describe("context resource presenter", () => {
       completeMarkup: vi.fn(),
       openPdf: vi.fn().mockResolvedValue(undefined),
       projectApiBase: "/api/workspaces/workspace",
-    } satisfies LibraryPdfMutationCoordinator;
+    };
     presenter.present({ ...sources(undefined), library: librarySource() });
-    presenter.bindLibraryPdf(coordinator);
+    bindTestLibraryPdf(presenter, coordinator);
 
     await presenter.citeLibraryHighlight(highlight);
     expect(routes.presentNotice).toHaveBeenLastCalledWith("Place the manuscript caret before citing a highlight.");

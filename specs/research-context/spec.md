@@ -262,10 +262,11 @@ changing their canonical data, selector, authorization, or rendering contracts.
   owners directly instead of duplicating them as callback adapters. Project and Library snapshots come
   from its existing context source; linked-reference PDFs come from its owned
   validated catalog, so none are duplicated on the route binding and the owned
-  catalog is not fed back through the context source. A separate private-PDF
-  mutation binding retains only snapshot
-  acceptance, caret readiness, markup completion, artifact opening, and API
-  scope. It delegates citation projection, Yjs insertion, tab reconciliation,
+  catalog is not fed back through the context source. The private-PDF project
+  binding consumes API scope plus editor-status and reference-Library owners
+  directly for caret readiness, snapshot acceptance, markup completion, and
+  artifact opening; it does not duplicate those effects or the presenter's own
+  PDF navigation as callbacks. It delegates citation projection, Yjs insertion, tab reconciliation,
   cross-resource navigation, and history mutation through typed callbacks. It applies the viewer's
   text-selection, selected-private-markup, and draft-selection cleanup effects
   directly through its narrow bound-viewer capability.

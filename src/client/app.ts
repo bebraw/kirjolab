@@ -241,17 +241,7 @@ class WorkspaceApp {
     this.#elements.contextResourcePresenter.bindPublicationList(apiBase, this.#elements.referenceLibraryWorkspace);
     this.#elements.contextResourcePresenter.bindProjectAnnotationIntake();
     this.#elements.contextResourcePresenter.bindProjectAnnotationWorkflow();
-    this.#elements.contextResourcePresenter.bindLibraryPdf({
-      acceptProjectMutation: (snapshot) => this.#elements.referenceLibraryWorkspace.applyProjectMutation(snapshot),
-      canInsertCitation: () => this.#elements.editorStatus.caret !== null,
-      completeMarkup: (message) =>
-        void this.#elements.referenceLibraryWorkspace.completeRefresh(
-          message,
-          "The annotation changed, but the refreshed Library could not be loaded.",
-        ),
-      openPdf: (artifact, page) => this.#elements.contextResourcePresenter.openLibraryPdf(artifact, page),
-      projectApiBase: apiBase,
-    });
+    this.#elements.contextResourcePresenter.bindLibraryPdf(apiBase, this.#elements);
     this.#elements.contextResourcePresenter.bindContext({
       assistant: this.#elements.assistantGenerationPresenter,
       authoring: this.#elements.editorStatus,

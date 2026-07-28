@@ -103,12 +103,12 @@ export interface LibraryPdfSelectionPresentation {
   readonly textSelectionEnabled?: boolean;
 }
 
-export interface LibraryPdfMutationCoordinator {
-  readonly acceptProjectMutation: (snapshot: WorkspaceSnapshot) => Promise<void>;
-  readonly canInsertCitation: () => boolean;
-  readonly completeMarkup: (message: string) => void;
-  readonly openPdf: (artifact: LibraryPdfArtifact, page: number) => Promise<void>;
-  readonly projectApiBase: string;
+export interface LibraryPdfOwners {
+  readonly editorStatus: { readonly caret: number | null };
+  readonly referenceLibraryWorkspace: {
+    applyProjectMutation(snapshot: WorkspaceSnapshot): Promise<void>;
+    completeRefresh(message: string, failureMessage: string): Promise<void>;
+  };
 }
 
 export interface ContextRouteOwners {
@@ -177,7 +177,7 @@ export class ContextResourcePresenter extends LitElement {
   private currentLibraryPdf: LibraryPdfArtifact | undefined;
   private currentLibrary: ReferenceLibrarySnapshot | null = null;
   private currentSnapshot: WorkspaceSnapshot | null = null;
-  private libraryPdfMutations: LibraryPdfMutationCoordinator | null = null;
+  private libraryPdfProject: { readonly apiBase: string; readonly owners: LibraryPdfOwners } | null = null;
   private pdfApiBase = "";
   private pdfViewer: ContextPdfViewer | null = null;
   private renderedPdfContextKey: ResearchContextTab["key"] | undefined;
@@ -556,8 +556,8 @@ export class ContextResourcePresenter extends LitElement {
     else this.navigateResource({ kind: "publication", id: publication.id });
   }
 
-  bindLibraryPdf(coordinator: LibraryPdfMutationCoordinator): void {
-    this.libraryPdfMutations = coordinator;
+  bindLibraryPdf(apiBase: string, owners: LibraryPdfOwners): void {
+    this.libraryPdfProject = { apiBase, owners };
     const inspector = this.element("library-pdf-inspector", LibraryPdfInspector);
     inspector?.addEventListener(libraryPdfAnnotationActionEvent, (event) => {
       this.handleLibraryPdfAnnotationAction((event as CustomEvent<LibraryPdfAnnotationAction>).detail);
@@ -967,10 +967,10 @@ export class ContextResourcePresenter extends LitElement {
   }
 
   async citeLibraryHighlight(highlight: LibraryHighlight): Promise<void> {
-    const coordinator = this.libraryPdfMutations;
+    const projectBinding = this.libraryPdfProject;
     const binding = this.routeBinding;
-    if (!coordinator || !binding) return;
-    if (!coordinator.canInsertCitation()) {
+    if (!projectBinding || !binding) return;
+    if (projectBinding.owners.editorStatus.caret === null) {
       this.presentNotice("Place the manuscript caret before citing a highlight.");
       return;
     }
@@ -986,13 +986,13 @@ export class ContextResourcePresenter extends LitElement {
       const preferredAlias = reservedAliases.some((alias) => alias.toLocaleLowerCase() === reference.referenceKey.toLocaleLowerCase())
         ? suggestCitationKey({ authors: [...reference.authors], year: reference.year }, reservedAliases)
         : reference.referenceKey;
-      const snapshot = await mutateProjectReference(coordinator.projectApiBase, {
+      const snapshot = await mutateProjectReference(projectBinding.apiBase, {
         action: "link",
         citationAlias: preferredAlias,
         referenceId: reference.id,
       });
       projectReference = snapshot.projectReferences.find((item) => item.referenceId === reference.id);
-      await coordinator.acceptProjectMutation(snapshot);
+      await projectBinding.owners.referenceLibraryWorkspace.applyProjectMutation(snapshot);
     }
     if (!projectReference) throw new Error("Project reference was not created");
     binding.owners.sourceCitationControl.insertCitation(projectReference.citationAlias, `p. ${highlight.page}`);
@@ -1028,41 +1028,43 @@ export class ContextResourcePresenter extends LitElement {
   }
 
   private handleLibraryPdfAnnotationListAction(action: LibraryPdfAnnotationListAction): void {
-    const coordinator = this.libraryPdfMutations;
-    if (!coordinator) return;
+    const projectBinding = this.libraryPdfProject;
+    if (!projectBinding) return;
     if (action.action === "open-highlight") void this.openBoundLibraryHighlight(action.highlight);
     else if (action.action === "edit-highlight") this.applyViewerPresentation(this.editLibraryHighlight(action.highlight));
     else if (action.action === "cite-highlight") void this.citeLibraryHighlight(action.highlight);
-    else if (action.action === "open-markup") void coordinator.openPdf(action.artifact, action.page);
+    else if (action.action === "open-markup") void this.openLibraryPdf(action.artifact, action.page);
     else if (action.action === "edit-note") this.applyViewerPresentation(this.editLibraryPdfNote(action.note));
-    else coordinator.completeMarkup("Private annotation deleted.");
+    else this.completeLibraryMarkup("Private annotation deleted.");
   }
 
   private async openBoundLibraryHighlight(highlight: LibraryHighlight): Promise<void> {
-    const coordinator = this.libraryPdfMutations;
     const artifact = this.boundLibrary()?.artifacts.find(({ id }) => id === highlight.artifactId);
-    if (!coordinator || !artifact) return;
-    await coordinator.openPdf(artifact, highlight.page);
+    if (!this.libraryPdfProject || !artifact) return;
+    await this.openLibraryPdf(artifact, highlight.page);
     this.element("library-pdf-inspector", LibraryPdfInspector)?.setStatus(`Showing saved private highlight on page ${highlight.page}.`);
   }
 
   private handleLibraryPdfToolbarAction(action: LibraryPdfToolbarAction): void {
-    const coordinator = this.libraryPdfMutations;
-    if (!coordinator) return;
+    if (!this.libraryPdfProject) return;
     if (action.action === "choose-tool") this.applyViewerPresentation(this.chooseLibraryPdfTool(action.tool));
-    else if (action.action === "drawing-undone") coordinator.completeMarkup("Private annotation deleted.");
+    else if (action.action === "drawing-undone") this.completeLibraryMarkup("Private annotation deleted.");
     else if (action.action === "export-status") this.presentNotice(action.message);
     else this.setLibraryPdfInspector(true, true);
   }
 
   private handleLibraryPdfMarkupAction(action: LibraryPdfMarkupAction): void {
-    const coordinator = this.libraryPdfMutations;
-    if (!coordinator) return;
+    if (!this.libraryPdfProject) return;
     if (action.action === "drawing-saved" || action.action === "note-moved") {
-      coordinator.completeMarkup(action.action === "drawing-saved" ? "Drawing saved privately." : "Note moved.");
+      this.completeLibraryMarkup(action.action === "drawing-saved" ? "Drawing saved privately." : "Note moved.");
     } else if (action.action === "select-markup") this.selectBoundLibraryPdfMarkup(action.id);
     else if (action.action === "status") this.element("library-pdf-inspector", LibraryPdfInspector)?.setStatus(action.message);
     else this.beginLibraryPdfNote(action.draft);
+  }
+
+  private completeLibraryMarkup(message: string): void {
+    const library = this.libraryPdfProject?.owners.referenceLibraryWorkspace;
+    if (library) void library.completeRefresh(message, "The annotation changed, but the refreshed Library could not be loaded.");
   }
 
   private async completePdfHighlightImport(count: number): Promise<void> {

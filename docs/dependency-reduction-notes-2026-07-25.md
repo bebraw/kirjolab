@@ -12908,6 +12908,26 @@ at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip, 481,994 B raw /
 Full native CI passes all 1,774 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Private-PDF Project Owners
+
+`ContextResourcePresenter` now binds private-PDF project API scope alongside
+the existing editor-status and reference-Library owners. Caret readiness,
+project snapshot acceptance, markup completion, and artifact navigation no
+longer pass through five application callbacks, including a callback to the
+presenter's own `openLibraryPdf` method.
+
+This checkpoint reduces `src/client/app.ts` from 300 to 290 lines (-10) and
+grows the context presenter from 1,289 to 1,291 lines (+2), removing eight
+runtime lines overall. Focused coverage passes all 39 context-presenter cases;
+affected coverage passes 54 related runtime cases and the affected test file
+alongside strict types.
+
+The browser application artifact changes from 859,446 B raw / 232,032 B gzip
+to 859,335 B raw / 231,986 B gzip (-111 B raw / -46 B gzip). Styles, lazy
+Markdown, lazy PDF.js, and direct and unique production package counts remain
+unchanged at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip,
+481,994 B raw / 146,135 B gzip, 18, and 150.
+
 ## Continued Lit Ownership: Context Route Owners
 
 `ContextResourcePresenter` now binds the canonical Yjs document,

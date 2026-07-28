@@ -1266,9 +1266,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   Use its route binding to consume the canonical Yjs document, collaboration
   and refresh capabilities, plus project-file, editor-status, history-trigger,
   citation-control, Library, and toast owners directly instead of projecting
-  them through application callback adapters. Keep the separate
-  private-PDF mutation binding limited to snapshot acceptance, caret readiness,
-  markup completion, artifact opening, and API scope. Let the presenter apply
+  them through application callback adapters. Bind the private-PDF project API
+  scope plus editor-status and reference-Library owners directly so caret
+  readiness, project snapshot acceptance, markup completion, and artifact
+  opening do not require another application callback bag or a self-callback.
+  Let the presenter apply
   local text-selection, selected-highlight, and draft-selection cleanup effects
   through its viewer binding and
   synchronize the bounded evidence, annotation, publication, claim, comment,

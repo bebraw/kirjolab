@@ -212,9 +212,11 @@ The adopted components own bounded presentation:
   validated link transport. Its route binding consumes the canonical Yjs
   document, collaboration and refresh capabilities, plus project-file,
   editor-status, history-trigger, citation-control, Library, and toast owners
-  directly instead of receiving a parallel callback coordinator;
-  its separate private-PDF mutation binding retains only snapshot acceptance,
-  caret readiness, markup completion, artifact opening, and API scope. It
+  directly instead of receiving a parallel callback coordinator. Its private-
+  PDF project binding likewise consumes API scope plus editor-status and
+  reference-Library owners directly for caret readiness, snapshot acceptance,
+  markup completion, and artifact opening instead of wrapping those effects or
+  its own PDF navigation in callbacks. It
   delegates Yjs citation insertion and passage navigation to their bound owners
   and applies viewer-only draft clearing, text-
   selection, and private-markup selection effects directly through its narrow
