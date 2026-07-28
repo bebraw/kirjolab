@@ -14703,6 +14703,25 @@ bibliographic update shape and bounds to Valibot.
 Full native CI passes all 1,779 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Valibot Reuse: Strict Web Capture Requests
+
+The reference-Library API now validates web-capture registration through a
+strict Valibot object schema. It preserves the single `url` key, non-empty
+value, and 4,096-character bound while replacing the bespoke exact-key type
+predicate.
+
+This checkpoint removes seven production lines. The affected guardrail passes
+all 94 related API cases, including the existing extra-key rejection, all 121
+Workers-runtime cases, formatting, lint, and all strict TypeScript targets. The
+browser application remains byte-identical at 847,171 B raw / 231,186 B gzip;
+direct and unique production package counts remain 18 and 150, and the other
+static artifacts remain unchanged. Architecture, ADR, and scholarly-workspace
+contracts now assign the exact web-capture request shape and URL bound to
+Valibot.
+
+Full native CI passes all 1,779 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,

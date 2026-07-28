@@ -721,7 +721,9 @@ collaboration.
 - **Web sources:** Public HTTP(S) pages are captured through bounded,
   redirect-controlled Worker retrieval into immutable owner-private raw and
   readable R2 objects. Project citations pin one exact access timestamp and
-  content hash; normal reference refresh cannot move the pin.
+  content hash; normal reference refresh cannot move the pin. Capture requests
+  contain exactly one non-empty URL of at most 4,096 characters, enforced by a
+  strict Valibot request schema before URL normalization.
 - **Citation assertions:** Source-to-source relationships live in the private
   shared library as directional provenance-bearing assertions, not manuscript
   `cites` edges. The bounded derived network can focus on current-project

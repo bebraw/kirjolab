@@ -737,7 +737,8 @@ The adopted components own bounded presentation:
 - The web source panels own URL capture and reset state, capture and comparison
   requests, comparison-response validation, duplicate-submit guards, local
   progress and failure state, readable-text comparison presentation, and a
-  typed captured outcome.
+  typed captured outcome. Their capture API accepts only the strict Valibot-
+  validated URL request shape before applying public-URL normalization.
 - The project annotation form owns its complete composer: visibility,
   publication-intake composition, citation availability, highlight-tool and
   undo state and presentation, active annotation identity, visible-PDF choices,

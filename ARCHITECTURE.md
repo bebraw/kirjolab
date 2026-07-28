@@ -859,7 +859,8 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   timestamped captures. Retrieve only bounded public HTTP(S) content through
   manually validated redirects, store raw/readable representations privately
   as inert R2 objects, and make projects pin an exact capture rather than a
-  mutable latest URL.
+  mutable latest URL. Validate capture registration as a strict single-key
+  Valibot request contract with a non-empty, bounded URL before normalization.
 - Treat web-capture comparison as neutral readable-text change data. Never
   render fetched markup, silently move a project pin, or infer authority or
   correctness from a capture or diff.

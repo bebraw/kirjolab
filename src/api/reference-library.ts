@@ -213,6 +213,7 @@ const pdfPointSchema = v.object({ x: v.number(), y: v.number() });
 const pdfNotePositionUpdateSchema = v.object({ x: v.number(), y: v.number(), body: v.optional(v.string()) });
 const pdfDrawingUpdateSchema = v.object({ color: v.string(), width: v.number() });
 const libraryHighlightCommentSchema = v.object({ comment: v.string() });
+const webCaptureBodySchema = v.strictObject({ url: v.pipe(v.string(), v.minLength(1), v.maxLength(4_096)) });
 const libraryHighlightCreationSchema = v.object({
   artifactId: v.string(),
   page: v.number(),
@@ -1208,7 +1209,7 @@ async function captureWebSource(
   fetchWeb: ExternalFetch,
 ): Promise<Response> {
   const body: unknown = await request.json();
-  if (!isWebCaptureBody(body)) return jsonError("Invalid web source capture", 400);
+  if (!v.is(webCaptureBodySchema, body)) return jsonError("Invalid web source capture", 400);
   let requestedUrl: string;
   try {
     requestedUrl = normalizeWebSourceUrl(body.url);
@@ -1546,14 +1547,6 @@ function annotatedPdfFilename(value: string): string {
     .replaceAll(/^[-.\s]+|[-.\s]+$/gu, "")
     .slice(0, 180);
   return `${stem || "paper"}-annotated.pdf`;
-}
-
-function isWebCaptureBody(value: unknown): value is {
-  readonly url: string;
-} {
-  return (
-    isRecord(value) && Object.keys(value).length === 1 && typeof value.url === "string" && value.url.length > 0 && value.url.length <= 4096
-  );
 }
 
 function safeFilename(value: string): string {
