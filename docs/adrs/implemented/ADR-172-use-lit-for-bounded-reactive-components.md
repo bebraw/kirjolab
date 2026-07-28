@@ -253,15 +253,16 @@ The adopted components own bounded presentation:
   composed owners after Preview rendering while the coordinator retains render
   timing. Let it configure the project-map
   workspace and bind annotation, claim, candidate, note, PDF, and publication
-  routes across its composed Lit owners. Project-file, workspace-switcher,
-  sharing-panel, and Preview destination owners are supplied directly under
-  their canonical application-registry names, and the presenter owns
-  the Preview context switch before section scrolling. Let it also
+  routes across its composed Lit owners as part of the atomic project-knowledge
+  lifecycle. Project-file, workspace-switcher, sharing-panel, Preview, and
+  canonical Library destination owners are supplied together under their
+  application-registry names, and the presenter owns the Preview context switch
+  before section scrolling. Let it also
   configure the manuscript-comment, project-evidence, claim-list, and
   publication list/context panels. Bind annotation intake/workflow, comments,
-  evidence, claims, and publications together as one project-knowledge
-  lifecycle so shared authoring, mutation, citation, and paper routes are
-  installed atomically, and own annotation-form cleanup and selection,
+  evidence, claims, publications, and project-map navigation together as one
+  project-knowledge lifecycle so shared authoring, mutation, citation, paper,
+  and map routes are installed atomically, and own annotation-form cleanup and selection,
   edit and PDF routes, fragment-removal refresh sequencing, child-specific
   mutation failure copy, and notice dispatch. Bind that complete lifecycle
   against the same project API and canonical Library owner. Route comment, claim, evidence,

@@ -209,11 +209,20 @@ function bindTestRoutes(presenter: ContextResourcePresenter, routes: ReturnType<
   );
 }
 
-function bindTestProjectKnowledge(
-  presenter: ContextResourcePresenter,
+function projectKnowledgeOwners(
   library = { openAvailableReference: vi.fn().mockResolvedValue(undefined) },
-): void {
-  presenter.bindProjectKnowledge("/api/workspaces/workspace", library);
+): Parameters<ContextResourcePresenter["bindProjectKnowledge"]>[1] {
+  return {
+    projectFileDialog: { revealAuthoring: vi.fn() },
+    referenceLibraryWorkspace: library,
+    workspaceSharingPanel: { open: vi.fn() },
+    workspacePreview: { scrollToAnchor: vi.fn() },
+    workspaceSwitcher: { focusSelect: vi.fn() },
+  };
+}
+
+function bindTestProjectKnowledge(presenter: ContextResourcePresenter, owners = projectKnowledgeOwners()): void {
+  presenter.bindProjectKnowledge("/api/workspaces/workspace", owners);
 }
 
 interface TestLibraryPdfCoordinator {
@@ -997,12 +1006,13 @@ describe("context resource presenter", () => {
     const revealClaim = vi.spyOn(elements["claim-list-panel"], "revealClaim").mockReturnValue(true);
     const owners = {
       projectFileDialog: { revealAuthoring: vi.fn() },
+      referenceLibraryWorkspace: { openAvailableReference: vi.fn().mockResolvedValue(undefined) },
       workspaceSharingPanel: { open: vi.fn() },
       workspacePreview: { scrollToAnchor: vi.fn() },
       workspaceSwitcher: { focusSelect: vi.fn() },
     };
 
-    presenter.bindProjectMap("/api/workspaces/workspace", owners);
+    bindTestProjectKnowledge(presenter, owners);
     const navigation = bindNavigation.mock.calls[0]?.[0];
     navigation?.document("document");
     navigation?.person("person");
@@ -1058,7 +1068,7 @@ describe("context resource presenter", () => {
       year: "2026",
     };
 
-    bindTestProjectKnowledge(presenter, library);
+    bindTestProjectKnowledge(presenter, projectKnowledgeOwners(library));
     claimBind.mock.calls[0]?.[0].completeMutation("Claim changed.");
     claimBind.mock.calls[0]?.[0].linkPassage("claim-1");
     claimBind.mock.calls[0]?.[0].openAnnotation("annotation-1");

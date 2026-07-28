@@ -344,8 +344,9 @@ collaboration.
   guarded PDF and annotation removal plus annotation-passage-link transport
   from a resource-presenter-validated typed passage. Its enclosing resource presenter
   binds annotation intake/workflow, manuscript comments, project evidence,
-  claims, and publication list/context routes atomically as one project-knowledge
-  lifecycle against one project API and canonical Library owner, then owns annotation-form cleanup and selection,
+  claims, publication list/context routes, and project-map navigation atomically
+  as one project-knowledge lifecycle against one project API and canonical
+  Library, project-file, sharing, workspace-switcher, and Preview owners, then owns annotation-form cleanup and selection,
   edit and PDF routes, fragment-
   removal refresh sequencing, and notice dispatch. The form and its sibling
   knowledge owners are never left with only part of their route family.
@@ -354,6 +355,10 @@ collaboration.
   canonical refresh transport, passage navigation, and mutation completion
   policy outside the panel; the resource presenter validates and delegates
   passage linking.
+- **Project-map routes:** The same atomic project-knowledge binding configures
+  the map and routes annotation, claim, candidate, note, PDF, publication,
+  document, collaborator, project, and section destinations through its
+  canonical composed owners.
 - **Claim and publication routes:** The enclosing resource presenter configures
   the claim list and publication list/context panels and routes claim
   annotations to project evidence. Within the atomic project-knowledge binding,

@@ -162,14 +162,12 @@ type ContextPdfViewer = Pick<
 > &
   Pick<PdfEvidenceViewer, "currentPage" | "focusedAnnotationId" | "open" | "showError" | "updateAnnotations" | "updatePrivateHighlights">;
 
-export interface ProjectMapOwners {
+export interface ProjectKnowledgeOwners {
   readonly projectFileDialog: { revealAuthoring(): void };
+  readonly referenceLibraryWorkspace: { openAvailableReference(referenceId: string): Promise<void> };
   readonly workspaceSharingPanel: { open(): void };
   readonly workspacePreview: { scrollToAnchor(id: string): void };
   readonly workspaceSwitcher: { focusSelect(): void };
-}
-export interface PublicationLibrary {
-  openAvailableReference(referenceId: string): Promise<void>;
 }
 
 export class ContextResourcePresenter extends LitElement {
@@ -584,7 +582,7 @@ export class ContextResourcePresenter extends LitElement {
     this.element("project-annotation-form", ProjectAnnotationForm)?.configure(apiBase);
   }
 
-  bindProjectKnowledge(apiBase: string, library: PublicationLibrary): void {
+  bindProjectKnowledge(apiBase: string, owners: ProjectKnowledgeOwners): void {
     this.element("project-annotation-form", ProjectAnnotationForm)?.bindIntake({
       openPublication: (publication) => this.navigateResource({ kind: "publication", id: publication.id }),
       presentNotice: (message) => this.presentNotice(message),
@@ -658,28 +656,9 @@ export class ContextResourcePresenter extends LitElement {
     publications?.bind({
       enriched: (message) =>
         void this.completeProjectMutation(message, "The reference was enriched, but project resources could not be refreshed."),
-      manage: (publicationId) => void library.openAvailableReference(publicationId),
+      manage: (publicationId) => void owners.referenceLibraryWorkspace.openAvailableReference(publicationId),
       open: (publication) => this.navigateResource({ kind: "publication", id: publication.id }),
     });
-  }
-
-  private async linkSelectedPassage(kind: "annotation" | "claim", id: string): Promise<void> {
-    const authoring = this.authoring();
-    const label = kind === "claim" ? "a claim" : "an annotation";
-    if (!authoring.stable) {
-      this.presentNotice(`Wait for the manuscript to finish synchronizing before linking ${label}.`);
-      return;
-    }
-    if (!authoring.passage) {
-      this.presentNotice(`Select manuscript text before linking ${label}.`);
-      return;
-    }
-    const link = { ...authoring.passage, sourceRevision: authoring.sourceRevision };
-    if (kind === "claim") await this.element("claim-list-panel", ClaimListPanel)?.linkPassage({ claimId: id, ...link });
-    else await this.element("project-evidence-panel", ProjectEvidencePanel)?.linkPassage({ annotationId: id, ...link });
-  }
-
-  bindProjectMap(apiBase: string, owners: ProjectMapOwners): void {
     const map = this.element("project-map", ProjectMapWorkspace);
     map?.configure(apiBase);
     map?.bindNavigation({
@@ -697,6 +676,22 @@ export class ContextResourcePresenter extends LitElement {
         owners.workspacePreview.scrollToAnchor(id);
       },
     });
+  }
+
+  private async linkSelectedPassage(kind: "annotation" | "claim", id: string): Promise<void> {
+    const authoring = this.authoring();
+    const label = kind === "claim" ? "a claim" : "an annotation";
+    if (!authoring.stable) {
+      this.presentNotice(`Wait for the manuscript to finish synchronizing before linking ${label}.`);
+      return;
+    }
+    if (!authoring.passage) {
+      this.presentNotice(`Select manuscript text before linking ${label}.`);
+      return;
+    }
+    const link = { ...authoring.passage, sourceRevision: authoring.sourceRevision };
+    if (kind === "claim") await this.element("claim-list-panel", ClaimListPanel)?.linkPassage({ claimId: id, ...link });
+    else await this.element("project-evidence-panel", ProjectEvidencePanel)?.linkPassage({ annotationId: id, ...link });
   }
 
   capturePdfSelection(capture: PdfSelectionCapture): void {
