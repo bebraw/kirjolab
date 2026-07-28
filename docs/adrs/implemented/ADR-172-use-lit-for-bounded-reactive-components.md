@@ -349,8 +349,8 @@ The adopted components own bounded presentation:
   acceptance preserves the collaborative range, requests project linking,
   delegates canonical snapshot application, resolves the range again, applies
   the citation through the editor insertion owner, and presents completion.
-  It invokes one coordinator callback for authoring-selection, presence, and
-  model-availability consequences. Its pure
+  The editor-status owner observes source interaction directly for authoring-
+  selection, presence, and model-availability consequences. Its pure
   citation-completion domain adapter owns
   project and available unlinked Library candidate construction from canonical
   reference inputs, while the component owns project-relative include candidate
@@ -360,8 +360,9 @@ The adopted components own bounded presentation:
 - The manuscript map panel owns summary metrics, heading outline, structural
   cues, local editing-pass selection, editing cues, canonical composed-source
   derivation for the guide, research-diary and writing-workflow sibling
-  projection, composition source-map translation, and typed file-qualified
-  source-range selection through a navigation binding.
+  projection, composition source-map translation, and file-qualified source-
+  range selection through the project-file capability in its existing
+  presentation binding.
 - The Library discovery results panel owns provider, metadata, verification,
   metadata-to-CSL projection, import transport, duplicate-submit gating, local
   save progress and retryable failures, refresh-pending state, and a typed
@@ -895,9 +896,9 @@ reason to wrap static markup mechanically.
   removing its public selection event. It also removes coordinator-side guide
   composition fallback and diary, question, and reviewer-response projection.
   It also reuses its retained composition source map for file-qualified range
-  navigation instead of making the coordinator compose the project again. It
-  leaves workflow navigation, file creation, and editor focus effects in the
-  application coordinator.
+  navigation instead of making the coordinator compose the project again, and
+  routes that range through the project-file owner without a second navigation
+  callback. The project-file owner retains file creation and editor focus.
 - The Library discovery results panel replaces its imperative result-card and
   save-button renderer while leaving provider requests and response validation
   in its search sibling. It owns CSL import and its local lifecycle while the

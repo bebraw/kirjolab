@@ -180,9 +180,6 @@ class WorkspaceApp {
       this.#elements.toast.show(message),
     );
     this.#elements.researchDiaryPanel.bindProject(this.#elements.projectFileDialog);
-    this.#elements.manuscriptMapPanel.bindNavigation(({ fileId, from, to }) =>
-      this.#elements.projectFileDialog.focusRange(fileId, from, to),
-    );
     this.#elements.manuscriptMapPanel.bindProjectPresentation(this.#elements);
     for (const panel of [this.#elements.researchQuestionPanel, this.#elements.reviewerResponsePanel]) {
       panel.bindProject(this.#elements.projectFileDialog, this.#elements.toast);

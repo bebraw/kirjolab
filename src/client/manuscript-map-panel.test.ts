@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { ManuscriptMapPanel, type ManuscriptMapSelection } from "./manuscript-map-panel";
+import { ManuscriptMapPanel } from "./manuscript-map-panel";
 import { researchQuestionsPath } from "../domain/research-questions";
 import { reviewerResponsePath } from "../domain/reviewer-response";
 import { workspaceSnapshotFixture } from "../test-support/workspace-fixture";
@@ -45,15 +45,21 @@ describe("manuscript map panel", () => {
 
   it("emits only valid source-range selections", () => {
     const panel = new TestManuscriptMapPanel();
-    const selections: ManuscriptMapSelection[] = [];
-    panel.bindNavigation((selection) => selections.push(selection));
+    const projectFileDialog = { focusRange: vi.fn() };
+    panel.bindProjectPresentation({
+      projectFileDialog,
+      researchDiaryPanel: { setContent: vi.fn() },
+      researchQuestionPanel: { setData: vi.fn() },
+      reviewerResponsePanel: { setData: vi.fn() },
+    });
 
     panel.selectForTest("2", "9");
     panel.selectForTest("-1", "4");
     panel.selectForTest("8", "4");
     panel.selectForTest("missing", "4");
 
-    expect(selections).toEqual([{ fileId: "", from: 2, to: 9 }]);
+    expect(projectFileDialog.focusRange).toHaveBeenCalledOnce();
+    expect(projectFileDialog.focusRange).toHaveBeenCalledWith("", 2, 9);
   });
 
   it("projects the canonical project into the writing-guide siblings", () => {
@@ -61,15 +67,14 @@ describe("manuscript map panel", () => {
     const researchDiaryPanel = { setContent: vi.fn() };
     const researchQuestionPanel = { setData: vi.fn() };
     const reviewerResponsePanel = { setData: vi.fn() };
-    const selections: ManuscriptMapSelection[] = [];
+    const projectFileDialog = { focusRange: vi.fn() };
     const files = [
       { ...workspaceSnapshotFixture.files[0]!, content: "# Composed manuscript" },
       { ...workspaceSnapshotFixture.files[0]!, id: "diary", path: researchDiaryPath, content: "## 2026-07-27" },
       { ...workspaceSnapshotFixture.files[0]!, id: "questions", path: researchQuestionsPath, content: "## RQ1: Does it work?" },
       { ...workspaceSnapshotFixture.files[0]!, id: "responses", path: reviewerResponsePath, content: "## R1.1: Clarify" },
     ];
-    panel.bindProjectPresentation({ researchDiaryPanel, researchQuestionPanel, reviewerResponsePanel });
-    panel.bindNavigation((selection) => selections.push(selection));
+    panel.bindProjectPresentation({ projectFileDialog, researchDiaryPanel, researchQuestionPanel, reviewerResponsePanel });
 
     panel.presentProject({ fallbackSource: "fallback", files, snapshot: { ...workspaceSnapshotFixture, files } });
     panel.selectForTest("0", "5");
@@ -81,7 +86,7 @@ describe("manuscript map panel", () => {
     expect(reviewerResponsePanel.setData).toHaveBeenCalledWith(
       expect.objectContaining({ fileId: "responses", kind: "reviewer-responses" }),
     );
-    expect(selections).toEqual([{ fileId: workspaceSnapshotFixture.entryFileId, from: 0, to: 21 }]);
+    expect(projectFileDialog.focusRange).toHaveBeenCalledWith(workspaceSnapshotFixture.entryFileId, 0, 21);
     expect(panel.renderForTest()).toBeDefined();
   });
 });

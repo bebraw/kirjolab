@@ -9,12 +9,6 @@ import { researchDiaryPath } from "../domain/writing-workflows";
 import { sourceSpanAt } from "./composition-source-map";
 import { researchQuestionWorkflowData, reviewerResponseWorkflowData, type WritingWorkflowData } from "./writing-workflow-panel";
 
-export interface ManuscriptMapSelection {
-  readonly fileId: string;
-  readonly from: number;
-  readonly to: number;
-}
-
 interface ManuscriptMapProjectRequest {
   readonly fallbackSource: string;
   readonly files: readonly ProjectFile[];
@@ -23,6 +17,7 @@ interface ManuscriptMapProjectRequest {
 }
 
 interface ManuscriptMapProjectPresentation {
+  readonly projectFileDialog: { focusRange(fileId: string | null, from: number, to: number): void };
   readonly researchDiaryPanel: { setContent(content: string | null): void };
   readonly researchQuestionPanel: { setData(data: WritingWorkflowData): void };
   readonly reviewerResponsePanel: { setData(data: WritingWorkflowData): void };
@@ -37,7 +32,6 @@ export class ManuscriptMapPanel extends LitElement {
   declare private pass: EditingPass;
   declare private source: string;
   private entryFileId = "";
-  private navigate: ((selection: ManuscriptMapSelection) => void) | null = null;
   private projectPresentation: ManuscriptMapProjectPresentation | null = null;
   private sourceMap: readonly CompositionSourceSpan[] = [];
 
@@ -65,10 +59,6 @@ export class ManuscriptMapPanel extends LitElement {
     presentation.researchDiaryPanel.setContent(files.find((file) => file.path === researchDiaryPath)?.content ?? null);
     presentation.researchQuestionPanel.setData(researchQuestionWorkflowData(files.find((file) => file.path === researchQuestionsPath)));
     presentation.reviewerResponsePanel.setData(reviewerResponseWorkflowData(files.find((file) => file.path === reviewerResponsePath)));
-  }
-
-  bindNavigation(navigate: (selection: ManuscriptMapSelection) => void): void {
-    this.navigate = navigate;
   }
 
   override connectedCallback(): void {
@@ -172,11 +162,11 @@ export class ManuscriptMapPanel extends LitElement {
     if (!Number.isSafeInteger(from) || !Number.isSafeInteger(to) || from < 0 || to < from) return;
     const start = sourceSpanAt(this.sourceMap, from);
     const end = sourceSpanAt(this.sourceMap, Math.max(from, to - 1));
-    this.navigate?.(
+    const selection =
       start && end && start.fileId === end.fileId
         ? { fileId: start.fileId, from: start.sourceStart, to: end.sourceEnd }
-        : { fileId: this.entryFileId, from, to },
-    );
+        : { fileId: this.entryFileId, from, to };
+    this.projectPresentation?.projectFileDialog.focusRange(selection.fileId, selection.from, selection.to);
   }
 
   private metric(value: number, label: string): TemplateResult {

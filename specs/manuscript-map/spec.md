@@ -15,8 +15,10 @@ review cues visible without claiming to judge scientific validity.
   bounded reactive view. Its manuscript-map owner derives the composed guide
   source and research-diary, research-question, and reviewer-response sibling
   projections from one canonical project-file set. It retains the corresponding
-  composition source map and emits file-qualified authored ranges, which the
-  workspace uses to move editor focus without recomposing the project.
+  composition source map and routes file-qualified authored ranges through the
+  project-file capability in that same presentation binding, moving editor
+  focus without recomposing the project or returning through the workspace
+  coordinator.
 - Maps and cues are disposable browser state and never enter collaboration history.
 - Summary metrics use one consistent value-over-label hierarchy so words,
   sections, and citations remain aligned at constrained rail widths.

@@ -1315,8 +1315,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   effective maximum before either primary document surface loses its readable
   minimum. Allow independent browser-local collapse with an editor-hosted
   restoration action. Keep rail geometry out of URLs and collaborative state.
-- Route rail-tab and manuscript-map range navigation through typed bindings on
-  their Lit owners. Let the manuscript-map owner derive its composed guide
+- Route rail-tab navigation through its Lit owner. Let the manuscript-map owner
+  use the project-file capability already present in its project-presentation
+  binding for range navigation, and derive its composed guide
   source plus research-diary, research-question, and reviewer-response sibling
   projections from one canonical file set. Let it retain that composition's
   source map and translate guide selections into file-qualified editor ranges.

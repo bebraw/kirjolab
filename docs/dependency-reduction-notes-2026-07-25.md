@@ -12386,6 +12386,28 @@ unchanged at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip,
 Full native CI passes all 1,773 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Manuscript-Map Project Routing
+
+`ManuscriptMapPanel` now routes its translated file-qualified ranges through the
+project-file capability already present in its project-presentation binding.
+The separate navigation callback and selection protocol are removed, leaving
+one structural boundary for guide sibling projection and authored-range focus.
+
+This checkpoint reduces `src/client/app.ts` from 418 to 415 lines (-3) and the
+manuscript-map owner from 200 to 190 lines (-10), reducing combined runtime
+source by 13 lines. Direct component coverage passes all three manuscript-map
+cases; affected coverage passes all 18 related runtime cases alongside strict
+types.
+
+The browser application artifact changes from 862,160 B raw / 232,230 B gzip
+to 862,061 B raw / 232,220 B gzip (-99 B raw / -10 B gzip). Styles, lazy
+Markdown, lazy PDF.js, and direct and unique production package counts remain
+unchanged at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip,
+481,994 B raw / 146,135 B gzip, 18, and 150.
+
+Full native CI passes all 1,773 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: One-Shot Browser Entry Intents
 
 `ProjectStartingPointBrowser` now consumes the `create=1` editor intent, removes
