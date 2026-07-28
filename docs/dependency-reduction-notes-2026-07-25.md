@@ -13831,6 +13831,21 @@ and all 121 Workers cases pass alongside strict types. The browser application
 remains byte-identical at 857,265 B raw / 231,418 B gzip; dependency counts and
 the other static artifacts remain unchanged.
 
+## Continued Reduction: Remove Test-Only Domain Contracts
+
+The exported Crossref-preview interface and predicate and the review-summary
+array predicate had no production callers; only their validator-specific tests
+referenced them. The live Crossref metadata, individual review-summary, and
+nested Library markup validators remain because production workflows consume
+those boundaries.
+
+This checkpoint removes 22 production lines and 34 validation-only test lines
+across the Reference Library and review catalog. The affected guardrail passes
+273 related cases, all 24 focused domain cases pass, and all 121 Workers cases
+pass alongside strict types. The browser application remains byte-identical at
+857,265 B raw / 231,418 B gzip; dependency counts and the other static
+artifacts remain unchanged.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,

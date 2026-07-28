@@ -4,7 +4,6 @@ import {
   compareWebSnapshotText,
   crossrefMetadataFields,
   extractWebDocument,
-  isCrossrefLibraryPreview,
   isCrossrefMetadata,
   isLibraryHighlightImportCandidate,
   isLibraryPdfMarkup,
@@ -216,32 +215,7 @@ describe("shared reference library", () => {
     }
   });
 
-  it("accepts only bounded, fingerprinted Crossref library previews", () => {
-    const preview = {
-      referenceId: "reference-1",
-      doi: "10.5555/example",
-      metadata: {
-        type: "article",
-        title: "Inspectable evidence",
-        authors: ["Doe, Jane"],
-        year: "2026",
-        venue: "Open Research",
-        doi: "10.5555/example",
-        url: "https://doi.org/10.5555/example",
-        abstract: "Evidence",
-      },
-      metadataFingerprint: "a".repeat(64),
-    };
-    expect(isCrossrefLibraryPreview(preview)).toBe(true);
-    for (const metadataFingerprint of ["stale", "a".repeat(63), "a".repeat(65), "A".repeat(64)]) {
-      expect(isCrossrefLibraryPreview({ ...preview, metadataFingerprint })).toBe(false);
-    }
-    expect(isCrossrefLibraryPreview({ ...preview, metadataFingerprint: `x${"a".repeat(64)}` })).toBe(false);
-    expect(isCrossrefLibraryPreview({ ...preview, metadataFingerprint: `${"a".repeat(64)}x` })).toBe(false);
-    expect(isCrossrefLibraryPreview({ ...preview, referenceId: 1 })).toBe(false);
-    expect(isCrossrefLibraryPreview({ ...preview, doi: null })).toBe(false);
-    expect(isCrossrefLibraryPreview({ ...preview, metadata: null })).toBe(false);
-
+  it("accepts only bounded Crossref metadata", () => {
     expect(crossrefMetadataFields).toEqual(["type", "title", "authors", "year", "venue", "doi", "url", "abstract"]);
     const atBounds = {
       type: "x".repeat(100),

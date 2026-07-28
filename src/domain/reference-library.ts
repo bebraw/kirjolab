@@ -27,13 +27,6 @@ export interface CrossrefMetadata {
   readonly abstract: string;
 }
 
-export interface CrossrefLibraryPreview {
-  readonly referenceId: string;
-  readonly doi: string;
-  readonly metadata: CrossrefMetadata;
-  readonly metadataFingerprint: string;
-}
-
 export interface MetadataRefinementCandidate {
   readonly provider: ScholarlyMetadataProvider;
   readonly match: "doi" | "bibliographic";
@@ -713,17 +706,6 @@ function normalizedCoordinate(value: unknown): value is number {
 export function isPdfDraftResult(value: unknown): value is PdfDraftResult {
   return (
     isRecord(value) && isBibliographicRecord(value.reference) && isLibraryPdfArtifact(value.artifact) && typeof value.created === "boolean"
-  );
-}
-
-export function isCrossrefLibraryPreview(value: unknown): value is CrossrefLibraryPreview {
-  return (
-    isRecord(value) &&
-    typeof value.referenceId === "string" &&
-    typeof value.doi === "string" &&
-    isCrossrefMetadata(value.metadata) &&
-    typeof value.metadataFingerprint === "string" &&
-    /^[a-f0-9]{64}$/u.test(value.metadataFingerprint)
   );
 }
 

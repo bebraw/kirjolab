@@ -5,12 +5,10 @@ import {
   isReviewProfile,
   isReviewRole,
   isReviewStorageKey,
-  isReviewSummaries,
   isReviewSummary,
   isWorkspaceRouteId,
   normalizeReviewEmail,
   normalizeReviewTitle,
-  reviewResourceLimits,
   type ReviewSummary,
 } from "./review-catalog";
 
@@ -63,7 +61,6 @@ describe("review catalog boundaries", () => {
 
   it("validates the public summary fields", () => {
     expect(isReviewSummary(summary)).toBe(true);
-    expect(isReviewSummaries([summary, { ...summary, profile: "mlr", role: "member" }])).toBe(true);
     expect(isReviewSummary({ ...summary, href: "/review/workspace-1" })).toBe(false);
     expect(isReviewSummary({ ...summary, title: " padded " })).toBe(false);
     expect(isReviewSummary({ ...summary, archivedAt: "invalid" })).toBe(false);
@@ -78,9 +75,5 @@ describe("review catalog boundaries", () => {
     ]) {
       expect(isReviewSummary({ ...summary, ...change }), JSON.stringify(change)).toBe(false);
     }
-    expect(isReviewSummaries([summary, { ...summary, title: "" }])).toBe(false);
-    expect(isReviewSummaries(Array.from({ length: reviewResourceLimits.catalogEntries }, () => summary))).toBe(true);
-    expect(isReviewSummaries(Array.from({ length: reviewResourceLimits.catalogEntries + 1 }, () => summary))).toBe(false);
-    expect(isReviewSummaries("not-an-array")).toBe(false);
   });
 });

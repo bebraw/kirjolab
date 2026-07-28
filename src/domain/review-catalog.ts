@@ -187,10 +187,6 @@ export function isReviewSummary(value: unknown): value is ReviewSummary {
   );
 }
 
-export function isReviewSummaries(value: unknown): value is ReviewSummary[] {
-  return Array.isArray(value) && value.length <= reviewResourceLimits.catalogEntries && value.every(isReviewSummary);
-}
-
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
