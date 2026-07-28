@@ -22,7 +22,7 @@ import "./manuscript-map-panel";
 import { createOfflineWorkspaceStore, OfflineWorkspaceSession } from "./offline-workspace";
 import { PdfEvidenceViewer } from "./pdf-viewer";
 import { bindThemePreference } from "./theme";
-import { RESEARCH_ASSISTANT_KEY, RESEARCH_LIBRARY_KEY, RESEARCH_PREVIEW_KEY } from "./research-context";
+import { RESEARCH_ASSISTANT_KEY, RESEARCH_LIBRARY_KEY } from "./research-context";
 import "./workspace-rail-tabs";
 import "./authoring-mode-tabs";
 
@@ -334,13 +334,10 @@ class WorkspaceApp {
     });
     this.#elements.contextResourcePresenter.bindProjectEvidence(apiBase);
     this.#elements.contextResourcePresenter.bindProjectMap(apiBase, {
-      document: () => this.#elements.projectFileDialog.revealAuthoring(),
-      project: () => this.#elements.workspaceSwitcher.focusSelect(),
-      person: () => this.#elements.workspaceSharingPanel.open(),
-      section: (id) => {
-        this.#elements.contextResourcePresenter.navigateContext(RESEARCH_PREVIEW_KEY);
-        this.#elements.workspacePreview.scrollToAnchor(id);
-      },
+      document: this.#elements.projectFileDialog,
+      person: this.#elements.workspaceSharingPanel,
+      preview: this.#elements.workspacePreview,
+      project: this.#elements.workspaceSwitcher,
     });
     this.#elements.contextResourcePresenter.bindPublicationList(apiBase, {
       manage: (publicationId) => void this.#elements.referenceLibraryWorkspace.openAvailableReference(publicationId),

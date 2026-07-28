@@ -35,7 +35,7 @@ import { libraryPdfToolbarActionEvent, type LibraryPdfToolbarAction } from "./li
 import { pdfHighlightImportOutcomeEvent, type PdfHighlightImportOutcome } from "./pdf-highlight-import-panel";
 import { ProjectAnnotationForm } from "./project-annotation-form";
 import { ProjectEvidencePanel } from "./project-evidence-panel";
-import { ProjectMapWorkspace, type ProjectMapNavigation } from "./project-map-workspace";
+import { ProjectMapWorkspace } from "./project-map-workspace";
 import { mutateProjectReference } from "./project-reference-mutation";
 import { PublicationContextPanel, type PublicationPaperOption } from "./publication-context-panel";
 import { PublicationListPanel, type PublicationListBinding } from "./publication-list-panel";
@@ -152,7 +152,12 @@ type ContextPdfViewer = Pick<
 > &
   Pick<PdfEvidenceViewer, "currentPage" | "focusedAnnotationId" | "open" | "showError" | "updateAnnotations" | "updatePrivateHighlights">;
 
-export type ProjectMapCoordinator = Pick<ProjectMapNavigation, "document" | "person" | "project" | "section">;
+export interface ProjectMapCoordinator {
+  readonly document: { revealAuthoring(): void };
+  readonly person: { open(): void };
+  readonly preview: { scrollToAnchor(id: string): void };
+  readonly project: { focusSelect(): void };
+}
 export type PublicationListCoordinator = Pick<PublicationListBinding, "manage">;
 
 export class ContextResourcePresenter extends LitElement {
@@ -624,13 +629,19 @@ export class ContextResourcePresenter extends LitElement {
     const map = this.element("project-map", ProjectMapWorkspace);
     map?.configure(apiBase);
     map?.bindNavigation({
-      ...coordinator,
       annotation: (id) => this.openProjectAnnotation(id),
       claim: (id) => this.element("claim-list-panel", ClaimListPanel)?.revealClaim(id),
+      document: () => coordinator.document.revealAuthoring(),
       "model-candidate": (id) => void this.restoreTarget({ kind: "candidate", id }),
       note: (id) => this.openProjectNote(id),
       pdf: (id) => void this.restoreTarget({ kind: "pdf", id }),
+      person: () => coordinator.person.open(),
       publication: (id) => void this.restoreTarget({ kind: "publication", id }),
+      project: () => coordinator.project.focusSelect(),
+      section: (id) => {
+        this.navigateContext(RESEARCH_PREVIEW_KEY);
+        coordinator.preview.scrollToAnchor(id);
+      },
     });
   }
 

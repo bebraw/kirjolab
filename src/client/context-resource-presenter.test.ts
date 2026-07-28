@@ -888,11 +888,19 @@ describe("context resource presenter", () => {
     const openProjectAnnotation = vi.spyOn(presenter, "openProjectAnnotation").mockImplementation(() => undefined);
     const openProjectNote = vi.spyOn(presenter, "openProjectNote").mockImplementation(() => undefined);
     const revealClaim = vi.spyOn(elements["claim-list-panel"], "revealClaim").mockReturnValue(true);
-    const coordinator = { document: vi.fn(), person: vi.fn(), project: vi.fn(), section: vi.fn() };
+    const coordinator = {
+      document: { revealAuthoring: vi.fn() },
+      person: { open: vi.fn() },
+      preview: { scrollToAnchor: vi.fn() },
+      project: { focusSelect: vi.fn() },
+    };
 
     presenter.bindProjectMap("/api/workspaces/workspace", coordinator);
     const navigation = bindNavigation.mock.calls[0]?.[0];
     navigation?.document("document");
+    navigation?.person("person");
+    navigation?.project("project");
+    navigation?.section("section-1");
     navigation?.annotation("annotation-1");
     navigation?.claim("claim-1");
     navigation?.["model-candidate"]("candidate-1");
@@ -901,7 +909,11 @@ describe("context resource presenter", () => {
     navigation?.publication("publication-1");
 
     expect(configure).toHaveBeenCalledWith("/api/workspaces/workspace");
-    expect(coordinator.document).toHaveBeenCalledOnce();
+    expect(coordinator.document.revealAuthoring).toHaveBeenCalledOnce();
+    expect(coordinator.person.open).toHaveBeenCalledOnce();
+    expect(coordinator.project.focusSelect).toHaveBeenCalledOnce();
+    expect(coordinator.preview.scrollToAnchor).toHaveBeenCalledWith("section-1");
+    expect(presenter.activeKey).toBe("preview");
     expect(openProjectAnnotation).toHaveBeenCalledWith("annotation-1");
     expect(revealClaim).toHaveBeenCalledWith("claim-1");
     expect(restoreTarget).toHaveBeenCalledWith({ kind: "candidate", id: "candidate-1" });

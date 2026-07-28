@@ -12179,6 +12179,31 @@ and 481,994 B / 146,135 B.
 Full native CI passes all 1,773 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Project-Map Destination Binding
+
+`ContextResourcePresenter` now consumes the document, project, people, and
+Preview destination owners as typed capabilities when binding its composed
+project map. It routes those selections itself and applies the Preview context
+transition before section scrolling; `WorkspaceApp` no longer expands four
+destination-specific closures.
+
+This checkpoint reduces `src/client/app.ts` from 461 to 458 lines (-3) and grows
+the Context presenter from 1,239 to 1,250 lines (+11). The eight-line combined
+increase makes every project-map destination independently testable at the
+composed owner boundary and keeps the application binding declarative. Focused
+coverage passes document, project, person, Preview section, annotation, claim,
+candidate, note, PDF, and publication routes, affected integrations, and strict
+types. Direct and unique production package counts remain 18 and 150; Lit was
+already pinned.
+
+The browser application artifact changes from 862,060 B raw / 232,203 B gzip to
+862,099 B / 232,231 B (+39 B raw / +28 B gzip). Styles and lazy Markdown and
+PDF.js artifacts remain unchanged at 135,411 B / 23,373 B, 204,779 B / 62,386 B,
+and 481,994 B / 146,135 B.
+
+Full native CI passes all 1,773 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: One-Shot Browser Entry Intents
 
 `ProjectStartingPointBrowser` now consumes the `create=1` editor intent, removes

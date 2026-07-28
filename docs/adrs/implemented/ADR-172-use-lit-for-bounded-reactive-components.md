@@ -214,8 +214,9 @@ The adopted components own bounded presentation:
   composed owners after Preview rendering while the coordinator retains render
   timing. Let it configure the project-map
   workspace and bind annotation, claim, candidate, note, PDF, and publication
-  routes across its composed Lit owners while the application coordinator
-  retains document, project, people, and Preview-section navigation. Let it also
+  routes across its composed Lit owners. Document, project, people, and Preview
+  destination owners are supplied as typed capabilities, and the presenter owns
+  the Preview context switch before section scrolling. Let it also
   configure the manuscript-comment, project-evidence, claim-list, and
   publication list/context panels and own annotation-form cleanup and selection,
   edit and PDF routes, fragment-removal refresh sequencing, child-specific

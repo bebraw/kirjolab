@@ -38,8 +38,9 @@ connection without reconstructing identity from a citation key or filename.
   coordinator retains anchor resolution and canonical state. Its enclosing
   resource-context presenter configures the workspace and binds annotation,
   claim, candidate, note, PDF, and publication navigation across composed Lit
-  owners; document, project, people, and Preview-section routes remain with the
-  workspace coordinator.
+  owners. It consumes document, project, people, and Preview destination owners
+  through typed capabilities and applies the Preview context switch before
+  section scrolling.
 - The visual projection keeps project context above normal-flow lanes for
   source material, evidence and reasoning, and manuscript resources. Decorative
   connectors are redrawn from measured card geometry when the authoring pane

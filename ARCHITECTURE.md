@@ -1187,8 +1187,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   publication, project PDF, private-Library PDF, linked reference PDF, or
   candidate. Let the presenter configure the project-map workspace and bind its
   annotation, claim, candidate, note, PDF, and publication routes across the Lit
-  owners it already composes. Keep only document, project, people, and Preview-
-  section navigation in the application coordinator. Let the same presenter
+  owners it already composes. Bind document, project, people, and Preview
+  destination owners as typed capabilities; let the presenter apply the Preview
+  context switch before section scrolling. Let the same presenter
   resolve annotation edit/open intents to their canonical annotation
   and project PDF, and let it resolve active project-note shares to bounded
   notice text through the same canonical project catalog. Let it also resolve citation keys case-insensitively and choose
