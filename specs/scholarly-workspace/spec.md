@@ -439,11 +439,12 @@ collaboration.
   cancellation. Its typed save intent carries the operation mode and submitted
   path together. Two instances of one bounded light-DOM action component own
   the rail and editor-menu commands plus entry-file delete availability and
-  emit one typed action contract. The dialog's presentation binding supplies
-  one application binding atomically supplies its project API, workspace mode,
-  collaboration session, offline lifecycle, assistant, editor, Preview, route,
-  notice, action, image-upload, source, authoring-mode, rail-tab owners, and
-  narrow rail-collapse capability. It configures the owned image-upload
+  emit one typed action contract. The dialog's atomic application binding
+  supplies its project API, workspace mode, collaboration session, offline
+  lifecycle, assistant, editor, Preview, route, notice, action, image-upload,
+  source, authoring-mode, rail-tab owners, and narrow rail-collapse capability.
+  It installs the Context/editor and settings/catalog application roots before
+  Preview, History, manuscript-map, and layout, and configures the owned image-upload
   transport from that API, owns and exposes the shared coalesced project-refresh
   coordinator, and installs the reciprocal Preview project and History workspace
   bindings from those same canonical capabilities; file activation

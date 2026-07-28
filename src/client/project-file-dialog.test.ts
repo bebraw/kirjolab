@@ -12,6 +12,7 @@ import { projectFileActionEvent } from "./project-file-actions";
 import { projectImagesUploadedEvent } from "./project-image-upload-control";
 import { projectTreeActionEvent } from "./project-tree-panel";
 import { WorkspaceAccessError } from "./workspace-snapshot-client";
+import { CollaborationSession } from "./collaboration-session";
 
 class TestProjectFileDialog extends ProjectFileDialog {
   focusCount = 0;
@@ -207,6 +208,41 @@ describe("project file dialog", () => {
     expect(openWorkspace.mock.invocationCallOrder[0]).toBeLessThan(restoreRoute.mock.invocationCallOrder[0]!);
     expect(restoreRoute.mock.invocationCallOrder[0]).toBeLessThan(connect.mock.invocationCallOrder[0]!);
     expect(connect.mock.invocationCallOrder[0]).toBeLessThan(openFromBrowserRequest.mock.invocationCallOrder[0]!);
+  });
+
+  it("installs project application owners through one binding", () => {
+    const panel = new TestProjectFileDialog();
+    const presentation = mutationCallbacks();
+    const refresh = projectRefreshBinding();
+    const bindContext = vi.fn();
+    const bindSettings = vi.fn();
+    const bindPreview = vi.fn();
+    const bindHistory = vi.fn();
+    const bindMap = vi.fn();
+    const bindLayout = vi.fn();
+    const owners = {
+      ...presentation,
+      ...refresh.owners,
+      contextResourcePresenter: { ...refresh.owners.contextResourcePresenter, bindApplication: bindContext },
+      manuscriptMapPanel: { bindApplication: bindMap },
+      projectHistoryTrigger: { bindWorkspace: bindHistory, setRevision: vi.fn() },
+      workspaceLayout: { bindApplication: bindLayout, setRailCollapsed: vi.fn() },
+      workspacePreview: { ...presentation.workspacePreview, bindProject: bindPreview },
+      workspaceSettingsPanel: { bindApplication: bindSettings },
+    };
+    const session = new CollaborationSession(new Y.Doc());
+    const socket = { connect: vi.fn(), scheduleSelection: vi.fn() };
+
+    panel.bindApplication("/api/workspaces/paper", "paper", true, owners as never, session, refresh.offline, socket);
+
+    expect(bindContext).toHaveBeenCalledWith("/api/workspaces/paper", true, session, panel.refreshCoordinator, socket, owners);
+    expect(bindSettings).toHaveBeenCalledWith("paper", "/api/workspaces/paper", true, panel.refreshCoordinator, owners);
+    expect(bindPreview).toHaveBeenCalledOnce();
+    expect(bindHistory).toHaveBeenCalledOnce();
+    expect(bindMap).toHaveBeenCalledOnce();
+    expect(bindLayout).toHaveBeenCalledOnce();
+    expect(bindContext.mock.invocationCallOrder[0]).toBeLessThan(bindSettings.mock.invocationCallOrder[0]!);
+    expect(bindSettings.mock.invocationCallOrder[0]).toBeLessThan(bindPreview.mock.invocationCallOrder[0]!);
   });
 
   it("renders each operation from bounded mode and path state", () => {

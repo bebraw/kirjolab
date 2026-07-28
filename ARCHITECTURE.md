@@ -389,8 +389,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   every accepted refresh applies through that same project-file authority.
   Bind its project API, canonical presentation owners, and narrow layout
   capability atomically rather than staging those production inputs
-  independently. Let that binding configure the owned project-image upload
-  transport from the same API authority.
+  independently. Let that binding install the Context/editor and settings/
+  catalog application roots before its Preview, History, manuscript-map, and
+  layout lifecycles, and configure the owned project-image upload transport from
+  the same API authority.
   It owns file/folder create and rename transport, file deletion transport,
   content-bearing workflow-file lookup, existing-file selection and focus,
   lazy creation and created-file Guide navigation, shared response validation, created-path verification,

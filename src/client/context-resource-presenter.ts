@@ -168,7 +168,7 @@ export interface ProjectKnowledgeOwners {
   readonly workspaceSwitcher: { focusSelect(): void };
 }
 
-type ContextApplicationOwners = AssistantApplicationOwners &
+export type ContextApplicationOwners = AssistantApplicationOwners &
   ContextPresentationOwners &
   ContextRouteOwners &
   EditorApplicationOwners &

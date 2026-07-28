@@ -4,6 +4,8 @@ import { isWorkspaceSnapshot, type WorkspaceSnapshot } from "../domain/workspace
 import { CoalescedRefresh } from "./collaboration";
 import { DeferredDeletionController, type DeferredDeletionNoticeOptions } from "./deferred-deletion";
 import type { CollaborationSession } from "./collaboration-session";
+import type { CollaborationSocket } from "./collaboration-socket";
+import type { ContextApplicationOwners, ContextResourcePresenter } from "./context-resource-presenter";
 import { errorMessage, expectOk, jsonFetch } from "./http";
 import { LightDomElement } from "./light-dom-controller";
 import type { ManuscriptMapApplicationPresentation, ManuscriptMapPanel } from "./manuscript-map-panel";
@@ -15,6 +17,7 @@ import type { RestoredOfflineWorkspace } from "./offline-workspace";
 import type { WorkspacePreview, WorkspacePreviewProjectOwners } from "./workspace-preview";
 import { loadWorkspaceSnapshot, WorkspaceAccessError } from "./workspace-snapshot-client";
 import type { WorkspaceLayoutApplicationOwners, WorkspaceLayoutControl } from "./workspace-layout-control";
+import type { WorkspaceSettingsApplicationOwners, WorkspaceSettingsPanel } from "./workspace-settings-panel";
 
 export type ProjectFileDialogMode = "create" | "create-and-include" | "rename" | "create-folder" | "rename-folder";
 
@@ -99,12 +102,16 @@ type ProjectFileApplicationOwners = ProjectFilePresentationBinding &
   ProjectRefreshOwners &
   ProjectRevisionOwners &
   ManuscriptMapApplicationPresentation &
+  ContextApplicationOwners &
+  WorkspaceSettingsApplicationOwners &
   WorkspaceLayoutApplicationOwners &
   WorkspacePreviewProjectOwners & {
+    readonly contextResourcePresenter: ProjectRefreshOwners["contextResourcePresenter"] & Pick<ContextResourcePresenter, "bindApplication">;
     readonly manuscriptMapPanel: Pick<ManuscriptMapPanel, "bindApplication">;
     readonly projectHistoryTrigger: Pick<ProjectHistoryTrigger, "bindWorkspace" | "setRevision">;
     readonly workspaceLayout: Pick<WorkspaceLayoutControl, "bindApplication" | "setRailCollapsed">;
     readonly workspacePreview: Pick<WorkspacePreview, "bindProject" | "renderBoundProject" | "resetScroll">;
+    readonly workspaceSettingsPanel: Pick<WorkspaceSettingsPanel, "bindApplication">;
   };
 
 export function projectImageInsertion(activeFile: ProjectFile, asset: ProjectAsset): ProjectImageInsertion {
@@ -187,7 +194,10 @@ export class ProjectFileDialog extends LightDomElement {
     owners: ProjectFileApplicationOwners,
     session: CollaborationSession,
     offline: ProjectRefreshBinding["offline"],
+    socket: Pick<CollaborationSocket, "connect" | "scheduleSelection">,
   ): void {
+    owners.contextResourcePresenter.bindApplication(apiBase, workspace, session, this.refreshCoordinator, socket, owners);
+    owners.workspaceSettingsPanel.bindApplication(workspaceId, apiBase, workspace, this.refreshCoordinator, owners);
     this.configureApi(apiBase, owners, owners.workspaceLayout);
     this.bindLiveContent(session);
     this.bindProjectRefresh(workspace, owners, session, offline);

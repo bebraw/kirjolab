@@ -413,7 +413,10 @@ The adopted components own bounded presentation:
   project-refresh binding consumes the canonical element-registry owners
   directly, owns and exposes the shared coalesced refresh coordinator, retains
   collaboration and offline persistence as explicit non-DOM services, and
-  derives its asset base from the configured workspace API. The
+  derives its asset base from the configured workspace API. Its atomic
+  application entry also installs the Context/editor and settings/catalog roots
+  before Preview, History, manuscript-map, and layout from the same registry.
+  The
   offline service's browser factory derives its IndexedDB store and hosted-
   logout binding from identity, workspace, collaboration, and owner inputs so
   those browser policies do not remain in the composition root. The

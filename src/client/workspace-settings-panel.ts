@@ -51,7 +51,7 @@ export interface WorkspaceSettingsOwners {
 
 type ProjectRefresh = { request(): Promise<void> };
 
-type WorkspaceSettingsApplicationOwners = WorkspaceSettingsOwners &
+export type WorkspaceSettingsApplicationOwners = WorkspaceSettingsOwners &
   StartingPointApplicationOwners &
   WorkspaceCatalogOwners &
   WorkspaceSharingOwners & {

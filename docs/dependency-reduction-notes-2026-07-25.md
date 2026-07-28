@@ -14722,6 +14722,27 @@ Valibot.
 Full native CI passes all 1,779 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Atomic Project Roots
+
+The project-file Lit owner now installs the Context/editor and settings/catalog
+application roots through the same atomic entry that already owns project
+refresh and installs Preview, History, manuscript-map, and layout. The browser
+composition root no longer stages those two project-domain bindings in
+parallel.
+
+This checkpoint reduces `src/client/app.ts` from 27 to 25 lines and trades eight
+net production lines for explicit capability typing plus one atomic-binding
+regression test. The affected guardrail passes 95 related cases across seven
+suites and all 27 directly affected project-file cases, alongside formatting,
+lint, and all strict TypeScript targets. The browser application changes from
+847,171 B raw / 231,186 B gzip to 847,207 B raw / 231,190 B gzip (+36 B raw /
++4 B gzip); direct and unique production package counts remain 18 and 150, and
+the other static artifacts remain unchanged. Architecture, ADR, and scholarly-
+workspace contracts now define one ordered project-root application entry.
+
+Full native CI passes all 1,780 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,
