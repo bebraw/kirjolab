@@ -482,7 +482,9 @@ collaboration.
   while navigation never creates project evidence or sharing state.
   A pure Library route adapter reads root, addressed-reference, encoded
   artifact, and bounded page locations and writes canonical private-PDF URLs;
-  the coordinator retains history mutation, authorization, navigation,
+  the composed Library workspace owns current-location parsing and the
+  browser-history restoration subscription with teardown. The coordinator
+  retains history mutation, authorization effects, cross-feature navigation,
   canonical fallback, and notices.
   One pure active-load projection resolves project evidence, private Library,
   or shared-reference input and its authorized URL from the active typed tab

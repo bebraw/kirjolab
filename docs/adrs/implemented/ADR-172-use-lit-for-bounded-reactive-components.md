@@ -525,9 +525,11 @@ The adopted components own bounded presentation:
   standalone Library-route outcomes; and the apply-project-notice sequence for
   Library-originated project mutations. General Library entry also owns
   activation, optional standalone-route entry, and canonical refresh sequencing.
-  The application coordinator supplies concrete history mutation, refresh
-  timing, PDF navigation, web-capture/comparison, canonical project snapshot
-  application, and notice presentation through a typed callback boundary.
+  It parses the current standalone route and owns its browser-history restoration
+  subscription and lifecycle teardown. The application coordinator supplies
+  concrete history mutation, refresh timing, PDF navigation,
+  web-capture/comparison, canonical project snapshot application, and notice
+  presentation through a typed callback boundary.
 - The model provider settings panel owns connection, endpoint, model, and
   reasoning-effort values, browser-local persistence, Valibot-backed saved-value
   restoration with bounded per-field fallbacks, dynamic model choices,
@@ -1247,8 +1249,9 @@ reason to wrap static markup mechanically.
   and reports typed navigation outcomes. Through one workspace-route binding it
   also owns route readiness, ordered file, rail, authoring-mode, context,
   layout, and surface restoration, canonical URL projection and comparison,
-  and push-versus-replace browser-history writes. The application coordinator
-  supplies canonical state and bounded restoration effects.
+  push-versus-replace browser-history writes, and the browser-history
+  restoration subscription with lifecycle teardown. The application
+  coordinator supplies canonical state and bounded restoration effects.
 - The workspace layout control replaces the raw select reference and
   coordinator-owned normalization and local-storage access. It owns the
   four-option template, selected value, workspace-scoped resilient persistence,

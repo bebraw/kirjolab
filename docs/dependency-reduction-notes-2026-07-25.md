@@ -11659,3 +11659,27 @@ and PDF.js artifacts remain unchanged at 135,411 B / 23,373 B, 204,779 B /
 
 Full native CI passes all 1,755 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Lit Ownership: Browser History Restoration
+
+`WorkspaceSurfaceSwitcher` now owns the workspace `popstate` subscription that
+invokes its existing ordered route restoration. `ReferenceLibraryWorkspace`
+now owns current-location parsing and the corresponding standalone-Library
+history subscription. Both Lit owners remove their listeners when disconnected;
+`WorkspaceApp` retains concrete history mutations and cross-feature effects.
+
+This checkpoint reduces `src/client/app.ts` from 597 to 594 lines (-3), grows
+the surface switcher from 147 to 165 lines (+18), and grows the Library workspace
+from 372 to 403 lines (+31). The 46-line combined owner increase replaces an
+application-global mode branch with independently testable lifecycle boundaries.
+Focused coverage passes workspace and Library history restoration, route
+parsing, listener teardown, and strict types. Direct and unique production
+package counts remain 18 and 150; Lit was already pinned.
+
+The browser application artifact increases from 858,123 B raw / 230,941 B gzip
+to 858,956 B / 231,126 B (+833 B raw / +185 B gzip). Styles and lazy Markdown
+and PDF.js artifacts remain unchanged at 135,411 B / 23,373 B, 204,779 B /
+62,386 B, and 481,994 B / 146,135 B.
+
+Full native CI passes all 1,757 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.

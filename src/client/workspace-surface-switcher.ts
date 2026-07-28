@@ -58,6 +58,7 @@ export class WorkspaceSurfaceSwitcher extends LitElement {
   bindWorkspaceRoute(binding: WorkspaceRouteBinding): void {
     this.routeBinding = binding;
     this.bindNavigation(() => this.syncRoute("replace"));
+    this.bindHistory();
   }
 
   async restoreRoute(url = new URL(location.href)): Promise<void> {
@@ -102,6 +103,12 @@ export class WorkspaceSurfaceSwitcher extends LitElement {
   override connectedCallback(): void {
     if (!this.hasUpdated) this.replaceChildren();
     super.connectedCallback();
+    this.bindHistory();
+  }
+
+  override disconnectedCallback(): void {
+    this.unbindHistory();
+    super.disconnectedCallback();
   }
 
   protected override createRenderRoot(): HTMLElement {
@@ -134,6 +141,17 @@ export class WorkspaceSurfaceSwitcher extends LitElement {
       </button>
     `;
   }
+
+  private bindHistory(): void {
+    this.unbindHistory();
+    if (this.routeBinding?.enabled && typeof window !== "undefined") window.addEventListener("popstate", this.handlePopState);
+  }
+
+  private unbindHistory(): void {
+    if (typeof window !== "undefined") window.removeEventListener("popstate", this.handlePopState);
+  }
+
+  private readonly handlePopState = (): void => void this.restoreRoute();
 }
 
 if (typeof customElements !== "undefined" && !customElements.get("workspace-surface-switcher")) {

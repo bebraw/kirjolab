@@ -134,4 +134,30 @@ describe("workspace surface switcher", () => {
 
     expect(replaceState).not.toHaveBeenCalled();
   });
+
+  it("owns browser history restoration and tears its listener down", () => {
+    const switcher = new TestWorkspaceSurfaceSwitcher();
+    const browser = new EventTarget();
+    vi.stubGlobal("window", browser);
+    const restoreRoute = vi.spyOn(switcher, "restoreRoute").mockResolvedValue();
+    switcher.bindWorkspaceRoute({
+      activeFileId: () => null,
+      activeTab: () => undefined,
+      contextKey: () => "preview",
+      enabled: true,
+      entryFileId: () => undefined,
+      layout: { value: "split", navigate: vi.fn() },
+      mode: { mode: "write", navigate: vi.fn() },
+      rail: { mode: "files", navigate: vi.fn() },
+      restoreContext: vi.fn(),
+      selectFile: vi.fn(),
+    });
+
+    browser.dispatchEvent(new Event("popstate"));
+    expect(restoreRoute).toHaveBeenCalledOnce();
+
+    switcher.disconnectedCallback();
+    browser.dispatchEvent(new Event("popstate"));
+    expect(restoreRoute).toHaveBeenCalledOnce();
+  });
 });

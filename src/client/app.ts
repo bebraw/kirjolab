@@ -10,7 +10,7 @@ import "./application-version-control";
 import "./source-citation-control";
 import "./workspace-surface-switcher";
 import { expectOk } from "./http";
-import { libraryPdfRoute, readLibraryUiRoute } from "./library-ui-route";
+import { libraryPdfRoute } from "./library-ui-route";
 import "./project-starting-point-browser";
 import { WorkspaceLayoutManager } from "./workspace-layout-manager";
 import "./workspace-layout-control";
@@ -147,7 +147,7 @@ class WorkspaceApp {
       this.#elements.workspaceSurfaces.dataset.layout = "context";
       this.#elements.connectionStatus.setConnection("Private library", true);
       await this.#elements.referenceLibraryWorkspace.open(false);
-      await this.#elements.referenceLibraryWorkspace.restoreRoute(readLibraryUiRoute(new URL(location.href)));
+      await this.#elements.referenceLibraryWorkspace.restoreBrowserRoute();
       return;
     }
     void this.#elements.workspaceLayout.restore();
@@ -193,10 +193,6 @@ class WorkspaceApp {
     window.addEventListener("online", () => this.#collaborationSocket.connect());
     window.addEventListener("offline", () => this.#collaborationSocket.goOffline());
     window.addEventListener("pagehide", () => this.#offline.schedule(0));
-    window.addEventListener("popstate", () => {
-      if (appMode === "library") void this.#elements.referenceLibraryWorkspace.restoreRoute(readLibraryUiRoute(new URL(location.href)));
-      else void this.#elements.workspaceSurfaceSwitcher.restoreRoute();
-    });
     const logOut = document.querySelector<HTMLAnchorElement>("#log-out");
     logOut?.addEventListener("click", (event) => {
       event.preventDefault();
@@ -299,6 +295,7 @@ class WorkspaceApp {
         await this.#refreshSnapshot();
       },
     });
+    this.#elements.referenceLibraryWorkspace.bindBrowserRoute(appMode === "library");
     this.#elements.editorStatus.bindAuthoring(this.#document, this.#elements.source, {
       highlight: this.#elements.sourceHighlight,
       presence: (fileId) => (fileId ? this.#elements.collaboratorSelections.rangesFor(fileId) : []),

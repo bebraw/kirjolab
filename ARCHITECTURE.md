@@ -117,8 +117,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   it also own canonical Library loading, response validation, archive-aware
   request scope, the single browser snapshot projection, and derivation of its
   project-reference and research-share inputs from the canonical project
-  snapshot. It owns standalone Library route lookup plus archive-aware focused-
-  reference restoration and missing-reference feedback. Direct publication-
+  snapshot. It owns standalone Library route lookup, browser-history restoration
+  subscription and teardown, archive-aware focused-reference restoration, and
+  missing-reference feedback. Direct publication-
   management navigation also stays inside this owner for Library activation,
   canonical refresh, archive-aware focus, and successful route intent. General
   Library entry likewise sequences context activation, optional standalone
@@ -938,8 +939,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   resolve it before any contextual insertion or replacement.
 - Keep standalone private PDF locations routable in browser history. Parse and
   write their canonical Library root, addressed-reference, artifact, and page
-  locations through one pure route adapter; keep history mutation,
-  authorization checks, navigation, and notices in the application coordinator.
+  locations through one pure route adapter. Let the composed Library workspace
+  own route lookup and the browser-history restoration subscription while the
+  application coordinator supplies history mutation, authorization effects,
+  cross-feature navigation, and notices through typed callbacks.
   Coalesce selected PDF text into normalized visual-line rectangles, and export
   each saved highlight as one interoperable multi-quad PDF annotation without
   mutating source bytes.
@@ -1199,7 +1202,8 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   bounded surface-navigation owner bind authorized file, rail, authoring-mode,
   context, layout, and surface state once; own route readiness, ordered
   restoration, canonical URL comparison, and push-versus-replace history
-  writes; and delegate only file, context, and layout restoration effects.
+  writes; subscribe to browser-history restoration with lifecycle teardown; and
+  delegate only file, context, and layout restoration effects.
   Push meaningful context-target navigation, replace incidental view and page
   changes, preserve unrelated query parameters, and keep drafts, scroll,
   selection, pane sizing, and inactive-tab session state out of URLs.

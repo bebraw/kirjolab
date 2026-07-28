@@ -28,7 +28,7 @@ import { libraryDiscoveryRefreshEvent, LibraryDiscoveryResults, type LibraryDisc
 import { libraryDiscoveryResultsEvent } from "./library-discovery-search";
 import { libraryPdfUploadOutcomeEvent, LibraryPdfUploadControl, type LibraryPdfUploadOutcome } from "./library-pdf-upload-control";
 import { libraryPdfUploadRevealEvent, LibraryPdfUploadStatus } from "./library-pdf-upload-status";
-import type { LibraryUiRoute } from "./library-ui-route";
+import { readLibraryUiRoute, type LibraryUiRoute } from "./library-ui-route";
 import {
   libraryToolsActionEvent,
   libraryToolsArchiveRefreshEvent,
@@ -80,6 +80,7 @@ export class ReferenceLibraryWorkspace extends LitElement {
   private data: ReferenceLibraryWorkspaceData | null = null;
   private callbacks = emptyCallbacks;
   private librarySnapshot: ReferenceLibrarySnapshot | null = null;
+  private browserRouteEnabled = false;
 
   get snapshot(): ReferenceLibrarySnapshot | null {
     return this.librarySnapshot;
@@ -220,6 +221,15 @@ export class ReferenceLibraryWorkspace extends LitElement {
     this.callbacks.presentNotice("That PDF is no longer in the library.");
   }
 
+  restoreBrowserRoute(url = new URL(location.href)): Promise<void> {
+    return this.restoreRoute(readLibraryUiRoute(url));
+  }
+
+  bindBrowserRoute(enabled: boolean): void {
+    this.browserRouteEnabled = enabled;
+    this.bindHistory();
+  }
+
   async open(updateHistory = true): Promise<void> {
     this.callbacks.activateLibrary?.();
     if (updateHistory) this.callbacks.openLibraryRoute?.();
@@ -328,6 +338,16 @@ export class ReferenceLibraryWorkspace extends LitElement {
     return this;
   }
 
+  override connectedCallback(): void {
+    super.connectedCallback();
+    this.bindHistory();
+  }
+
+  override disconnectedCallback(): void {
+    this.unbindHistory();
+    super.disconnectedCallback();
+  }
+
   protected override shouldUpdate(): boolean {
     return false;
   }
@@ -359,6 +379,17 @@ export class ReferenceLibraryWorkspace extends LitElement {
     if (action === "open-citation-network") void this.openCitationNetwork();
     else void this.callbacks.refreshLibrary();
   }
+
+  private bindHistory(): void {
+    this.unbindHistory();
+    if (this.browserRouteEnabled && typeof window !== "undefined") window.addEventListener("popstate", this.handlePopState);
+  }
+
+  private unbindHistory(): void {
+    if (typeof window !== "undefined") window.removeEventListener("popstate", this.handlePopState);
+  }
+
+  private readonly handlePopState = (): void => void this.restoreBrowserRoute();
 }
 
 if (typeof customElements !== "undefined" && !customElements.get("reference-library-workspace")) {

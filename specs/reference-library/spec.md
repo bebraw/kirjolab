@@ -389,10 +389,12 @@ memory and makes citation aliases compete with stable source identity.
   response validation, and the single browser Library snapshot projection used
   by its filters, list, network, PDF queue, and coordinator consumers. It also
   owns general Library entry sequencing across context activation, optional
-  standalone history entry, and canonical refresh. It
-  restores standalone Library routes through owned reference focus and artifact
-  lookup, and owns archive-aware source recovery, focus, and missing-reference
-  feedback for direct entry navigation and duplicate-PDF upload reveals. The
+  standalone history entry, and canonical refresh. It restores standalone
+  Library routes through owned reference focus and artifact lookup, owns
+  current-location parsing and its browser-history restoration subscription with
+  lifecycle teardown, and owns archive-aware source recovery, focus, and
+  missing-reference feedback for direct entry navigation and duplicate-PDF
+  upload reveals. The
   latter enables archived visibility, refreshes canonically, reuses owned
   filter/list focus, and reports a missing source locally. The context-resource
   presenter's route binding is the single Library snapshot, refresh, citation-

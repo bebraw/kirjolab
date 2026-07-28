@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { LibraryPdfArtifact, ReferenceLibrarySnapshot } from "../domain/reference-library";
 import { workspaceSnapshotFixture } from "../test-support/workspace-fixture";
 import { citationNetworkOutcomeEvent, CitationNetworkWorkspace } from "./citation-network-workspace";
@@ -95,6 +95,8 @@ const artifact: LibraryPdfArtifact = {
 };
 
 describe("reference Library workspace", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
   it("composes canonical Library presentation and filter changes", () => {
     const { owners, workspace } = setup();
     const setReferences = vi.spyOn(owners["citation-network-workspace"], "setReferences");
@@ -215,6 +217,24 @@ describe("reference Library workspace", () => {
     expect(clearRoute).toHaveBeenCalledTimes(2);
     expect(openPdf).toHaveBeenCalledWith(artifact, 4, false);
     expect(presentNotice).toHaveBeenCalledWith("That PDF is no longer in the library.");
+  });
+
+  it("owns browser route parsing, restoration, and listener teardown", async () => {
+    const { workspace } = setup();
+    const browser = new EventTarget();
+    vi.stubGlobal("window", browser);
+    vi.stubGlobal("location", { href: "https://example.test/library?reference=reference-1" });
+    const restoreRoute = vi.spyOn(workspace, "restoreRoute").mockResolvedValue();
+    workspace.bindBrowserRoute(true);
+
+    await workspace.restoreBrowserRoute();
+    browser.dispatchEvent(new Event("popstate"));
+    expect(restoreRoute).toHaveBeenCalledTimes(2);
+    expect(restoreRoute).toHaveBeenLastCalledWith({ kind: "library", referenceId: "reference-1" });
+
+    workspace.disconnectedCallback();
+    browser.dispatchEvent(new Event("popstate"));
+    expect(restoreRoute).toHaveBeenCalledTimes(2);
   });
 
   it("focuses an available archived reference and owns missing feedback", async () => {
