@@ -13646,6 +13646,21 @@ focused catalog cases. The browser application changes from 857,443 B raw /
 231,394 B gzip to 857,423 B raw / 231,381 B gzip (-20 B raw / -13 B gzip);
 dependency counts and the other static artifacts remain unchanged.
 
+## Continued Lit Ownership: Private PDF Knowledge Binding
+
+`ContextResourcePresenter` now binds private-Library PDF mutation, inspector,
+toolbar, and markup streams inside the same project-knowledge lifecycle as
+annotations, comments, evidence, claims, publications, and the project map. The
+application no longer exposes private-PDF setup as a partial initialization
+stage with duplicate API and owner inputs.
+
+This checkpoint reduces `src/client/app.ts` from 125 to 124 lines (-1) and the
+context-resource presenter from 1,269 to 1,263 lines (-6), for a seven-line net
+runtime reduction. The affected guardrail passes 54 related cases and all 39
+focused presenter cases. The browser application changes from 857,423 B raw /
+231,381 B gzip to 857,343 B raw / 231,367 B gzip (-80 B raw / -14 B gzip);
+dependency counts and the other static artifacts remain unchanged.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,

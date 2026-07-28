@@ -106,7 +106,6 @@ class WorkspaceApp {
     this.#elements.projectHistoryTrigger.bindRevision(this.#elements, () => this.#offline.schedule());
     this.#elements.contextResourcePresenter.bindProjectKnowledge(apiBase, this.#elements);
     this.#collaborationSocket.bindDocument(this.#document, offlineOrigin);
-    this.#elements.contextResourcePresenter.bindLibraryPdf(apiBase, this.#elements);
     this.#elements.contextResourcePresenter.bindContext(appMode === "workspace" ? apiBase : null, this.#layout, this.#elements);
     this.#elements.contextResourcePresenter.bindRoutes(this.#document, this.#collaboration, this.#resourceRefresh, this.#elements);
     this.#elements.contextResourcePresenter.bindPdfViewer(this.#pdfViewer, apiBase);

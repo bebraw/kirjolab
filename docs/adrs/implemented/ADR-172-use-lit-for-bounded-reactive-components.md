@@ -260,17 +260,18 @@ The adopted components own bounded presentation:
   canonical Library destination owners are supplied together under their
   application-registry names, and the presenter owns the Preview context switch
   before section scrolling. Let it also
-  configure the manuscript-comment, project-evidence, claim-list, and
-  publication list/context panels. Bind annotation intake/workflow, comments,
-  evidence, claims, publications, and project-map navigation together as one
-  project-knowledge lifecycle so shared authoring, mutation, citation, paper,
-  and map routes are installed atomically, and own annotation-form cleanup and selection,
+  configure the manuscript-comment, project-evidence, claim-list, publication
+  list/context, private-PDF inspector, annotation toolbar, and markup owners.
+  Bind annotation intake/workflow, comments, evidence, claims, publications,
+  project-map navigation, and private-PDF mutation and markup streams together
+  as one project-knowledge lifecycle so shared authoring, mutation, citation,
+  paper, map, and private-PDF routes are installed atomically, and own annotation-form cleanup and selection,
   edit and PDF routes, fragment-removal refresh sequencing, child-specific
   mutation failure copy, and notice dispatch. Bind that complete lifecycle
   against the same project API and canonical Library owner. Route comment, claim, evidence,
-  publication, citation, and paper intents among those composed owners. Bind
-  publication-list management directly to the reference-Library workspace;
-  bind private-PDF project mutation outcomes directly to the same workspace's
+  publication, citation, paper, and private-PDF intents among those composed
+  owners. Bind publication-list management directly to the reference-Library
+  workspace; bind private-PDF project mutation outcomes directly to the same workspace's
   canonical apply-project lifecycle, deriving the inspector route from that
   already-bound workspace instead of adapting or binding either route in the
   application coordinator. Bind

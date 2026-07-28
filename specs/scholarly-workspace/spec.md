@@ -345,9 +345,10 @@ collaboration.
   guarded PDF and annotation removal plus annotation-passage-link transport
   from a resource-presenter-validated typed passage. Its enclosing resource presenter
   binds annotation intake/workflow, manuscript comments, project evidence,
-  claims, publication list/context routes, and project-map navigation atomically
-  as one project-knowledge lifecycle against one project API and canonical
-  Library, project-file, sharing, workspace-switcher, and Preview owners, then owns annotation-form cleanup and selection,
+  claims, publication list/context routes, project-map navigation, and private-
+  PDF mutation and markup streams atomically as one project-knowledge lifecycle
+  against one project API and canonical Library, editor-status, project-file,
+  sharing, workspace-switcher, and Preview owners, then owns annotation-form cleanup and selection,
   edit and PDF routes, fragment-
   removal refresh sequencing, and notice dispatch. The form and its sibling
   knowledge owners are never left with only part of their route family.

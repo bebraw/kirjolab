@@ -1322,8 +1322,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   Use its route binding to consume the canonical Yjs document, collaboration
   and refresh capabilities, plus project-file, editor-status, history-trigger,
   citation-control, Library, and toast owners directly instead of projecting
-  them through application callback adapters. Bind the private-PDF project API
-  scope plus editor-status and reference-Library owners directly so caret
+  them through application callback adapters. Include the private-PDF project
+  API scope plus editor-status and reference-Library owners in the atomic
+  project-knowledge lifecycle so caret
   readiness, project snapshot acceptance, markup completion, and artifact
   opening do not require another application callback bag or a self-callback.
   Let the presenter apply
@@ -1354,9 +1355,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   the application must not repeat those four pass-through callbacks. Let it configure the manuscript-comment,
   project-evidence, claim-list, and publication list/context panels. Bind the
   project-annotation, manuscript-comment, project-evidence, claim-list, and
-  publication list/context panels and project-map routes atomically as one
-  project-knowledge lifecycle so intake, workflow, authoring, mutation,
-  citation, paper, and map navigation routes cannot be only partly installed;
+  publication list/context panels, project-map routes, and private-PDF mutation
+  and markup streams atomically as one project-knowledge lifecycle so intake,
+  workflow, authoring, mutation, citation, paper, map navigation, and private-
+  PDF routes cannot be only partly installed;
   own
   annotation-form cleanup and selection, edit and PDF routes, fragment-removal
   refresh sequencing, child-specific mutation failure copy, and notice

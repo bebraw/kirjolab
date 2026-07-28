@@ -103,14 +103,6 @@ export interface LibraryPdfSelectionPresentation {
   readonly textSelectionEnabled?: boolean;
 }
 
-export interface LibraryPdfOwners {
-  readonly editorStatus: { readonly caret: number | null };
-  readonly referenceLibraryWorkspace: {
-    applyProjectMutation(snapshot: WorkspaceSnapshot): Promise<void>;
-    completeRefresh(message: string, failureMessage: string): Promise<void>;
-  };
-}
-
 export interface ContextRouteOwners {
   readonly editorStatus: { selectedPassage(): ManuscriptCommentAuthoring["passage"] };
   readonly projectFileDialog: { revealRange(fileId: string, start: number, end: number): void };
@@ -163,8 +155,13 @@ type ContextPdfViewer = Pick<
   Pick<PdfEvidenceViewer, "currentPage" | "focusedAnnotationId" | "open" | "showError" | "updateAnnotations" | "updatePrivateHighlights">;
 
 export interface ProjectKnowledgeOwners {
+  readonly editorStatus: { readonly caret: number | null };
   readonly projectFileDialog: { revealAuthoring(): void };
-  readonly referenceLibraryWorkspace: { openAvailableReference(referenceId: string): Promise<void> };
+  readonly referenceLibraryWorkspace: {
+    applyProjectMutation(snapshot: WorkspaceSnapshot): Promise<void>;
+    completeRefresh(message: string, failureMessage: string): Promise<void>;
+    openAvailableReference(referenceId: string): Promise<void>;
+  };
   readonly workspaceSharingPanel: { open(): void };
   readonly workspacePreview: { scrollToAnchor(id: string): void };
   readonly workspaceSwitcher: { focusSelect(): void };
@@ -178,7 +175,7 @@ export class ContextResourcePresenter extends LitElement {
   private currentLibraryPdf: LibraryPdfArtifact | undefined;
   private currentLibrary: ReferenceLibrarySnapshot | null = null;
   private currentSnapshot: WorkspaceSnapshot | null = null;
-  private libraryPdfProject: { readonly apiBase: string; readonly owners: LibraryPdfOwners } | null = null;
+  private libraryPdfProject: { readonly apiBase: string; readonly owners: ProjectKnowledgeOwners } | null = null;
   private pdfApiBase = "";
   private pdfViewer: ContextPdfViewer | null = null;
   private renderedPdfContextKey: ResearchContextTab["key"] | undefined;
@@ -554,7 +551,13 @@ export class ContextResourcePresenter extends LitElement {
     else this.navigateResource({ kind: "publication", id: publication.id });
   }
 
-  bindLibraryPdf(apiBase: string, owners: LibraryPdfOwners): void {
+  bindPdfViewer(viewer: ContextPdfViewer, apiBase: string): void {
+    this.pdfViewer = viewer;
+    this.pdfApiBase = apiBase;
+    this.element("project-annotation-form", ProjectAnnotationForm)?.configure(apiBase);
+  }
+
+  bindProjectKnowledge(apiBase: string, owners: ProjectKnowledgeOwners): void {
     this.libraryPdfProject = { apiBase, owners };
     const inspector = this.element("library-pdf-inspector", LibraryPdfInspector);
     inspector?.bindProjectMutations(owners.referenceLibraryWorkspace);
@@ -574,15 +577,6 @@ export class ContextResourcePresenter extends LitElement {
     this.element("paper-markups", LibraryPdfMarkupLayer)?.addEventListener(libraryPdfMarkupActionEvent, (event) => {
       this.handleLibraryPdfMarkupAction((event as CustomEvent<LibraryPdfMarkupAction>).detail);
     });
-  }
-
-  bindPdfViewer(viewer: ContextPdfViewer, apiBase: string): void {
-    this.pdfViewer = viewer;
-    this.pdfApiBase = apiBase;
-    this.element("project-annotation-form", ProjectAnnotationForm)?.configure(apiBase);
-  }
-
-  bindProjectKnowledge(apiBase: string, owners: ProjectKnowledgeOwners): void {
     this.element("project-annotation-form", ProjectAnnotationForm)?.bindIntake({
       openPublication: (publication) => this.navigateResource({ kind: "publication", id: publication.id }),
       presentNotice: (message) => this.presentNotice(message),

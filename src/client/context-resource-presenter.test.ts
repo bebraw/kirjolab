@@ -213,8 +213,13 @@ function projectKnowledgeOwners(
   library = { openAvailableReference: vi.fn().mockResolvedValue(undefined) },
 ): Parameters<ContextResourcePresenter["bindProjectKnowledge"]>[1] {
   return {
+    editorStatus: { caret: null },
     projectFileDialog: { revealAuthoring: vi.fn() },
-    referenceLibraryWorkspace: library,
+    referenceLibraryWorkspace: {
+      applyProjectMutation: vi.fn().mockResolvedValue(undefined),
+      completeRefresh: vi.fn().mockResolvedValue(undefined),
+      ...library,
+    },
     workspaceSharingPanel: { open: vi.fn() },
     workspacePreview: { scrollToAnchor: vi.fn() },
     workspaceSwitcher: { focusSelect: vi.fn() },
@@ -233,13 +238,16 @@ interface TestLibraryPdfCoordinator {
 }
 
 function bindTestLibraryPdf(presenter: ContextResourcePresenter, coordinator: TestLibraryPdfCoordinator): void {
-  presenter.bindLibraryPdf(coordinator.projectApiBase, {
+  const owners = projectKnowledgeOwners();
+  presenter.bindProjectKnowledge(coordinator.projectApiBase, {
+    ...owners,
     editorStatus: {
       get caret() {
         return coordinator.canInsertCitation() ? 0 : null;
       },
     },
     referenceLibraryWorkspace: {
+      ...owners.referenceLibraryWorkspace,
       applyProjectMutation: coordinator.acceptProjectMutation,
       completeRefresh: async (message) => coordinator.completeMarkup(message),
     },
@@ -1004,13 +1012,7 @@ describe("context resource presenter", () => {
     const openProjectAnnotation = vi.spyOn(presenter, "openProjectAnnotation").mockImplementation(() => undefined);
     const openProjectNote = vi.spyOn(presenter, "openProjectNote").mockImplementation(() => undefined);
     const revealClaim = vi.spyOn(elements["claim-list-panel"], "revealClaim").mockReturnValue(true);
-    const owners = {
-      projectFileDialog: { revealAuthoring: vi.fn() },
-      referenceLibraryWorkspace: { openAvailableReference: vi.fn().mockResolvedValue(undefined) },
-      workspaceSharingPanel: { open: vi.fn() },
-      workspacePreview: { scrollToAnchor: vi.fn() },
-      workspaceSwitcher: { focusSelect: vi.fn() },
-    };
+    const owners = projectKnowledgeOwners();
 
     bindTestProjectKnowledge(presenter, owners);
     const navigation = bindNavigation.mock.calls[0]?.[0];
