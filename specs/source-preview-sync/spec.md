@@ -75,6 +75,9 @@ Preview offset may belong to a supporting file.
 - Do not let Preview synchronization scroll the outer workspace document.
 - Do not let Sync override citations, links, or other interactive Preview
   elements.
+- Bind the native source, highlight layer, project-file owner, and workspace
+  Preview directly to the synchronization control; do not duplicate focus,
+  centered-offset, or source-follow effects as application callbacks.
 
 ### Validation
 

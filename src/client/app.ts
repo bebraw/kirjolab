@@ -99,11 +99,7 @@ class WorkspaceApp {
         `kirjolab:authoring-pane:${workspaceId}:${this.#elements.contextResourcePresenter.activeTab?.kind ?? "preview"}`,
       resizePdf: () => void this.#pdfViewer.resize(),
     });
-    this.#elements.previewSyncControls.bindSource(this.#elements.source, this.#elements.sourceHighlight, {
-      focusSource: ({ fileId, offset }) => this.#elements.projectFileDialog.focusRange(fileId, offset, offset),
-      previewOffset: () => this.#elements.workspacePreview.centeredSourceOffset(),
-      sourceToPreview: (explicit) => this.#elements.workspacePreview.syncFromSource(explicit),
-    });
+    this.#elements.previewSyncControls.bindSource(this.#elements);
   }
 
   async start(): Promise<void> {

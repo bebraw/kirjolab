@@ -1310,12 +1310,12 @@ reason to wrap static markup mechanically.
   references, owns Preview-context visibility, the current composition source
   map, bidirectional composition-offset resolution, native source-viewport
   centering and centered-offset derivation, native click, select, and
-  navigation-key listeners, and explicit-versus-automatic typed callback
-  routing. It also derives responsive automatic-sync availability and chooses
+  navigation-key listeners, and explicit-versus-automatic routing through
+  directly bound project-file and workspace-Preview owners. It also derives responsive automatic-sync availability and chooses
   the centered or selected source offset from coordinator-supplied active
   context and layout inputs. For Preview-to-source navigation it captures the
-  centered Preview offset, resolves the file-qualified source location, routes
-  one focus intent, and centers the source viewport. The application
+  centered Preview offset, resolves the file-qualified source location,
+  delegates focus to the project-file owner, and centers the source viewport. The application
   coordinator retains active-file, context, and layout authority plus file,
   mode, caret, and focus policy. The bound workspace Preview consumes those
   projections, asks the synchronization owner for eligible source offsets, and

@@ -111,7 +111,8 @@ collaboration.
   control owns its directional actions, Preview-context visibility, current
   composition source map, bidirectional composition-offset resolution,
   centered source-offset derivation, Preview-to-source file-qualified focus
-  intent, and source-viewport centering. Workspace Preview derives source-to-
+  delegation through its directly bound project-file owner, and source-viewport
+  centering. Workspace Preview derives source-to-
   Preview automatic-versus-explicit eligibility from its bound active-file,
   context, and layout projections, owns one document-wide Yjs update
   subscription with disconnect teardown, reads the canonical snapshot directly

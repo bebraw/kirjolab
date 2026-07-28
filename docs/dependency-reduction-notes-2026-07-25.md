@@ -12908,6 +12908,25 @@ at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip, 481,994 B raw /
 Full native CI passes all 1,774 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Preview Synchronization Owners
+
+`PreviewSyncControls` now binds the native source, highlight layer,
+project-file owner, and workspace Preview directly. File-qualified focus,
+centered Preview-offset reads, and automatic or explicit source following no
+longer pass through three application callbacks or inert default functions.
+
+This checkpoint reduces `src/client/app.ts` from 284 to 280 lines (-4) and the
+Preview synchronization control from 171 to 165 lines (-6), removing ten
+runtime lines overall. Focused coverage passes both synchronization-control
+cases; affected coverage passes 17 related runtime cases and the affected test
+file alongside strict types.
+
+The browser application artifact changes from 859,197 B raw / 231,950 B gzip
+to 859,045 B raw / 231,884 B gzip (-152 B raw / -66 B gzip). Styles, lazy
+Markdown, lazy PDF.js, and direct and unique production package counts remain
+unchanged at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip,
+481,994 B raw / 146,135 B gzip, 18, and 150.
+
 ## Continued Lit Ownership: Assistant Workflow Owners
 
 `AssistantGenerationPresenter` now binds the Insert-menu, Context,

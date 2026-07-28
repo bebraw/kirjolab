@@ -63,10 +63,11 @@ describe("preview sync controls", () => {
     const source = Object.assign(new EventTarget(), { clientHeight: 100, scrollTop: 60, selectionEnd: 13, value: "first\nsecond\nthird" });
     const highlight = document.createElement("div");
 
-    controls.bindSource(source as HTMLTextAreaElement, highlight, {
-      focusSource,
-      previewOffset: () => 13,
-      sourceToPreview,
+    controls.bindSource({
+      projectFileDialog: { focusRange: (fileId, start) => focusSource({ fileId, offset: start }) },
+      source: source as HTMLTextAreaElement,
+      sourceHighlight: highlight,
+      workspacePreview: { centeredSourceOffset: () => 13, syncFromSource: sourceToPreview },
     });
     controls.setSourceMap([
       { fileId: "part", includeChain: [], outputEnd: 20, outputStart: 0, path: "part.md", sourceEnd: 20, sourceStart: 0 },

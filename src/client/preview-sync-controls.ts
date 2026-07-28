@@ -6,29 +6,22 @@ import { previewOffsetsForSourceLocation, sourceLocationForPreviewOffset, type P
 
 export type PreviewSyncAction = "preview-to-source" | "source-to-preview";
 
-interface PreviewSyncCallbacks {
-  readonly focusSource: (location: PreviewSourceLocation) => void;
-  readonly previewOffset: () => number | null;
-  readonly sourceToPreview: (explicit: boolean) => void;
+interface PreviewSyncOwners {
+  readonly projectFileDialog: { focusRange(fileId: string, start: number, end: number): void };
+  readonly source: HTMLTextAreaElement;
+  readonly sourceHighlight: HTMLElement;
+  readonly workspacePreview: { centeredSourceOffset(): number | null; syncFromSource(explicit: boolean): void };
 }
 
 const sourceNavigationKeys = new Set(["ArrowDown", "ArrowLeft", "ArrowRight", "ArrowUp", "End", "Home", "PageDown", "PageUp"]);
 
 export class PreviewSyncControls extends LitElement {
   #sourceMap: readonly CompositionSourceSpan[] = [];
-  #source: HTMLTextAreaElement | null = null;
-  #sourceHighlight: HTMLElement | null = null;
-  #callbacks: PreviewSyncCallbacks = {
-    focusSource: () => undefined,
-    previewOffset: () => null,
-    sourceToPreview: () => undefined,
-  };
+  #owners: PreviewSyncOwners | null = null;
   #sourceAbort: AbortController | null = null;
 
-  bindSource(source: HTMLTextAreaElement, sourceHighlight: HTMLElement, callbacks: PreviewSyncCallbacks): void {
-    this.#source = source;
-    this.#sourceHighlight = sourceHighlight;
-    this.#callbacks = callbacks;
+  bindSource(owners: PreviewSyncOwners): void {
+    this.#owners = owners;
     this.#connectSource();
   }
 
@@ -46,13 +39,13 @@ export class PreviewSyncControls extends LitElement {
 
   activeSourcePreviewOffsets(fileId: string, explicit: boolean, previewActive: boolean, splitLayout: boolean): readonly number[] {
     if (!previewActive || (!explicit && (!splitLayout || !window.matchMedia("(min-width: 72rem)").matches))) return [];
-    const sourceOffset = explicit ? this.sourceOffsetAtCenter() : (this.#source?.selectionEnd ?? 0);
+    const sourceOffset = explicit ? this.sourceOffsetAtCenter() : (this.#owners?.source.selectionEnd ?? 0);
     return this.previewOffsets(fileId, sourceOffset);
   }
 
   centerSourceOffset(sourceOffset: number): void {
-    const source = this.#source;
-    const sourceHighlight = this.#sourceHighlight;
+    const source = this.#owners?.source;
+    const sourceHighlight = this.#owners?.sourceHighlight;
     if (!source || !sourceHighlight) return;
     const beforeOffset = source.value.slice(0, Math.max(0, sourceOffset));
     const lineNumber = [...beforeOffset.matchAll(/\r\n|\r|\n/gu)].length + 1;
@@ -61,8 +54,8 @@ export class PreviewSyncControls extends LitElement {
   }
 
   sourceOffsetAtCenter(): number {
-    const source = this.#source;
-    const sourceHighlight = this.#sourceHighlight;
+    const source = this.#owners?.source;
+    const sourceHighlight = this.#owners?.sourceHighlight;
     if (!source || !sourceHighlight) return 0;
     const center = source.scrollTop + source.clientHeight / 2;
     const lines = [...sourceHighlight.querySelectorAll<HTMLElement>(".source-editor-line")];
@@ -87,15 +80,15 @@ export class PreviewSyncControls extends LitElement {
   showSource(previewOffset: number, centerEditor = false): void {
     const location = this.sourceLocation(previewOffset);
     if (!location) return;
-    this.#callbacks.focusSource(location);
+    this.#owners?.projectFileDialog.focusRange(location.fileId, location.offset, location.offset);
     if (centerEditor) this.centerSourceOffset(location.offset);
   }
 
   protected sync(event: Event): void {
     const action = (event.currentTarget as HTMLButtonElement).dataset.syncAction as PreviewSyncAction | undefined;
-    if (action === "source-to-preview") this.#callbacks.sourceToPreview(true);
+    if (action === "source-to-preview") this.#owners?.workspacePreview.syncFromSource(true);
     else if (action === "preview-to-source") {
-      const offset = this.#callbacks.previewOffset();
+      const offset = this.#owners?.workspacePreview.centeredSourceOffset() ?? null;
       if (offset !== null) this.showSource(offset, true);
     }
   }
@@ -143,7 +136,7 @@ export class PreviewSyncControls extends LitElement {
 
   #connectSource(): void {
     this.#sourceAbort?.abort();
-    const source = this.#source;
+    const source = this.#owners?.source;
     if (!source) return;
     this.#sourceAbort = new AbortController();
     const options = { signal: this.#sourceAbort.signal };
@@ -153,11 +146,11 @@ export class PreviewSyncControls extends LitElement {
   }
 
   readonly #handleSourceSelection = (): void => {
-    this.#callbacks.sourceToPreview(false);
+    this.#owners?.workspacePreview.syncFromSource(false);
   };
 
   readonly #handleSourceKey = (event: KeyboardEvent): void => {
-    if (sourceNavigationKeys.has(event.key)) this.#callbacks.sourceToPreview(false);
+    if (sourceNavigationKeys.has(event.key)) this.#owners?.workspacePreview.syncFromSource(false);
   };
 }
 

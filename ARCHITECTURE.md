@@ -961,8 +961,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   behavior; derive the source offset nearest the viewport center; center the
   editor on a requested source offset; resolve composition-map offsets in both
   directions; derive explicit versus wide split-layout availability and the
-  corresponding centered or selected source offset; and route sync through
-  typed callbacks. Keep active file, context, and layout authority, Preview DOM
+  corresponding centered or selected source offset; and delegate file focus
+  and Preview synchronization through directly bound project-file and Preview
+  owners. Keep active file, context, and layout authority, Preview DOM
   navigation, caret placement, and focus policy in the application coordinator.
 - Keep source-completion interaction in its bounded light-DOM component: bind
   editor change, keyboard, and blur behavior there; invoke one coordinator
