@@ -1525,7 +1525,10 @@ reason to wrap static markup mechanically.
 - The browser shell resolves its native and Lit elements through one typed
   registry. TypeScript infers the returned registry shape from the validated
   constructors, replacing a separately maintained 86-field interface and
-  keeping startup-only DOM lookup outside the application coordinator.
+  keeping startup-only DOM lookup outside the application coordinator. Those
+  constructor value imports are also the registration edge for collected
+  custom elements; the application entry retains side-effect imports only for
+  registration-only elements absent from the registry.
 - Related template, visibility rules, and local event binding now have one
   browser owner.
 - Later bounded extractions can reuse the same reactive component model without

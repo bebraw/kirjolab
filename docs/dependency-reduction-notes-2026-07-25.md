@@ -13752,6 +13752,22 @@ application changes from 857,270 B raw / 231,422 B gzip to 857,320 B raw /
 231,473 B gzip (+50 B raw / +51 B gzip); dependency counts and the other static
 artifacts remain unchanged.
 
+## Continued Coordinator Reduction: Registry-Owned Imports
+
+`collectAppElements` already value-imports and registers every Lit owner it
+collects. `WorkspaceApp` now keeps only the registration-only action-menu import
+and removes nine duplicate side-effect imports for components already reached
+through that typed registry.
+
+This checkpoint reduces `src/client/app.ts` from 116 to 107 lines (-9) without
+changing another runtime module. The affected guardrail passes the complete
+1,775-case unit coverage gate; its loopback model-companion case required the
+ordinary local-network permission after the sandbox correctly rejected the
+first bind attempt. The browser and other static artifacts remain byte-identical
+at 857,320 B raw / 231,473 B gzip, 135,411 B raw / 23,373 B gzip, 204,779 B raw
+/ 62,386 B gzip, and 481,994 B raw / 146,135 B gzip. Dependency counts remain
+18 direct and 150 unique production package/version nodes.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,

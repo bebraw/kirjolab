@@ -273,7 +273,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   intent.
 - Keep the browser shell's required-element lookup in one typed registry whose
   return shape is inferred from its constructors. Do not duplicate that shape
-  in a manually synchronized application interface.
+  in a manually synchronized application interface. Treat the registry's value
+  imports as the registration edge for every collected custom element; the
+  application entry imports only registration-only elements absent from that
+  registry and must not repeat side-effect imports for collected owners.
 - Keep duplicated `.github/skills/` content and vendored
   `.codex/skills/**/references/` material outside the Prettier baseline.
   Continue formatting project-owned skill entrypoints, specs, ADRs, and docs.
