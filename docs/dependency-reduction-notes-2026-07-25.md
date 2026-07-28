@@ -14455,6 +14455,30 @@ project-file owner.
 Full native CI passes all 1,777 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Context-Owned Assistant Binding
+
+The Context Lit owner now installs the assistant presenter's reciprocal
+authoring, workflow, resource-route, and API lifecycle through its existing
+atomic application entry. Context already supplies assistant resource routes
+and consumes assistant candidate presentation, so the cyclic sibling boundary
+now receives one canonical collaboration session, refresh service, and owner
+registry without a separate composition-root call.
+
+This checkpoint trades ten net production lines, including one shared assistant
+application-owner contract, for the reciprocal Context/assistant boundary and
+reduces `src/client/app.ts` from 51 to 50 lines. The affected guardrail passes
+74 related cases across five suites alongside strict types. The browser
+application changes from 847,302 B raw / 231,041 B gzip to 847,289 B raw /
+231,041 B gzip (-13 B raw / unchanged gzip); direct and unique production
+package counts remain 18 and 150, and the other static artifacts remain
+unchanged. The previously order-sensitive Library browser path passes after the
+Context/assistant boundary is installed before downstream editor and project
+bindings. Architecture, ADR, and scholarly-workspace contracts now assign
+assistant application setup to the Context application entry.
+
+Full native CI passes all 1,777 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,

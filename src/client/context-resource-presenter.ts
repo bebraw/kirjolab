@@ -13,7 +13,7 @@ import { isProjectReferencePdfs } from "../domain/reference-library";
 import { suggestCitationKey } from "../domain/publication-intake";
 import type { AnnotationResource, ManuscriptAnchorSelector, WorkspaceSnapshot } from "../domain/workspace";
 import { AssistantWorkflowStatus } from "./assistant-workflow-status";
-import type { AssistantResourceRoutes } from "./assistant-generation-presenter";
+import type { AssistantApplicationOwners, AssistantGenerationPresenter, AssistantResourceRoutes } from "./assistant-generation-presenter";
 import { CandidateListPanel } from "./candidate-list-panel";
 import { CandidateReviewPanel } from "./candidate-review-panel";
 import { citationPageFromLocator, type CitationContext } from "./citations";
@@ -167,6 +167,14 @@ export interface ProjectKnowledgeOwners {
   readonly workspaceSwitcher: { focusSelect(): void };
 }
 
+type ContextApplicationOwners = AssistantApplicationOwners &
+  ContextPresentationOwners &
+  ContextRouteOwners &
+  ProjectKnowledgeOwners & {
+    readonly assistantGenerationPresenter: ContextPresentationOwners["assistantGenerationPresenter"] &
+      Pick<AssistantGenerationPresenter, "bindApplication">;
+  };
+
 export class ContextResourcePresenter extends LightDomController {
   private contextState = createResearchContext();
   private contextPresentation: ContextPresentationBinding | null = null;
@@ -188,8 +196,9 @@ export class ContextResourcePresenter extends LightDomController {
     workspace: boolean,
     session: ContextRouteBinding["collaboration"] & { readonly document: Y.Doc },
     resources: ContextRouteBinding["resources"],
-    owners: ContextPresentationOwners & ContextRouteOwners & ProjectKnowledgeOwners,
+    owners: ContextApplicationOwners,
   ): void {
+    owners.assistantGenerationPresenter.bindApplication(apiBase, session, resources, owners);
     this.bindProjectKnowledge(apiBase, owners);
     this.bindContext(workspace ? apiBase : null, owners);
     this.bindRoutes(session.document, session, resources, owners);

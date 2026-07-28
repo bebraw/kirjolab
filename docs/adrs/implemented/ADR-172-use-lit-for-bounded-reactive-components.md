@@ -1456,8 +1456,10 @@ reactive owner and adds only empty rendering and typed sibling lookup.
   timing. One atomic application entry binds its project-knowledge,
   presentation, and route sources, including the assistant, editor, layout,
   Library, project-file, and surface-route owners, and derives canonical
-  context sources from their live state. The application coordinator only
-  connects those owners and supplies immutable workspace-versus-Library mode and project API
+  context sources from their live state. The same entry installs the assistant
+  presenter's reciprocal authoring, workflow, resource-route, and API binding
+  from the shared collaboration, refresh, and owner capabilities. The
+  application coordinator only connects the remaining owners and supplies immutable workspace-versus-Library mode and project API
   configuration; it does not retain a parallel source factory or effect
   adapters.
 - The workspace surface switcher replaces two button references, native action

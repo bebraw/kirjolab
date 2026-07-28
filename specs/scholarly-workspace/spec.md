@@ -102,7 +102,10 @@ collaboration.
   assistant, editor-status, Library, project-file, surface-route, and
   workspace-layout owners, and derives canonical context sources and
   presentation effects from them. Candidate presentation uses that same
-  assistant owner without a second coordinator binding. This context owner and
+  assistant owner without a second coordinator binding. The Context application
+  entry also installs the assistant's reciprocal authoring, workflow,
+  resource-route, and API lifecycle from the same collaboration, refresh, and
+  owner capabilities. This context owner and
   the non-rendering assistant presenter share one light-DOM Lit controller and
   typed sibling-lookup base while retaining independent domain bindings. That
   controller specializes the normal first-connection cleanup over the common

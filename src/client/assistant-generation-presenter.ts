@@ -105,6 +105,8 @@ export interface AssistantWorkflowOwners {
   readonly workspaceRailTabs: { navigate(tab: "research"): void };
 }
 
+export type AssistantApplicationOwners = AssistantAuthoringOwners & AssistantWorkflowOwners;
+
 export interface AssistantResourceRoutes {
   readonly focusAssistant: () => void;
   readonly openCandidate: (candidate: ModelCandidate) => void;
@@ -138,7 +140,7 @@ export class AssistantGenerationPresenter extends LightDomController {
     apiBase: string,
     collaboration: { readonly stable: boolean },
     resources: { request(): Promise<void> },
-    owners: AssistantAuthoringOwners & AssistantWorkflowOwners,
+    owners: AssistantApplicationOwners,
   ): void {
     this.bindAuthoring(collaboration, owners);
     this.bindWorkflow(resources, owners);

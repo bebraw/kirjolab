@@ -1326,8 +1326,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   application entry, including the canonical assistant, editor-status,
   Library, project-file, surface-route, and workspace-layout owners,
   deriving canonical project and Library sources from them instead of accepting
-  a parallel source factory and effect callbacks. Candidate presentation derives
-  from that same assistant owner instead of a second presenter binding.
+  a parallel source factory and effect callbacks. That entry also installs the
+  assistant presenter's reciprocal authoring, workflow, resource-route, and API
+  lifecycle from the same collaboration, refresh, and owner capabilities.
+  Candidate presentation derives from that same assistant owner instead of a
+  second presenter binding.
   Standalone-Library mode
   derives from the absence of a project API base rather than crossing the
   binding as a second mode flag. It
