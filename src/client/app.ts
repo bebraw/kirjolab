@@ -161,12 +161,7 @@ class WorkspaceApp {
       save: (status) => this.#elements.editorStatus.setSave(status),
     });
     this.#elements.contextResourcePresenter.bindProjectEvidence(apiBase);
-    this.#elements.contextResourcePresenter.bindProjectMap(apiBase, {
-      document: this.#elements.projectFileDialog,
-      person: this.#elements.workspaceSharingPanel,
-      preview: this.#elements.workspacePreview,
-      project: this.#elements.workspaceSwitcher,
-    });
+    this.#elements.contextResourcePresenter.bindProjectMap(apiBase, this.#elements);
     this.#elements.contextResourcePresenter.bindPublicationList(apiBase, this.#elements.referenceLibraryWorkspace);
     this.#elements.contextResourcePresenter.bindProjectAnnotationIntake();
     this.#elements.contextResourcePresenter.bindProjectAnnotationWorkflow();

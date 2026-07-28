@@ -90,7 +90,9 @@ collaboration.
   those owners and supplies immutable mode and API configuration without a
   parallel source factory or effect callbacks. The PDF viewer factory binds
   this presenter directly for selection capture, project-highlight activation,
-  page presentation, and private-highlight selection.
+  page presentation, and private-highlight selection. Project-map navigation
+  likewise consumes the canonical project-file, workspace-switcher,
+  sharing-panel, and Preview owners directly without a coordinator alias map.
   One progressive light-DOM tab strip owns fixed-tab presentation, dynamic-tab
   and overflow-overview composition from one input, keyboard focus, controlled-
   panel and Preview-control visibility, resource labels, private-versus-read-

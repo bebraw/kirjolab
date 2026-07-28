@@ -159,11 +159,11 @@ type ContextPdfViewer = Pick<
 > &
   Pick<PdfEvidenceViewer, "currentPage" | "focusedAnnotationId" | "open" | "showError" | "updateAnnotations" | "updatePrivateHighlights">;
 
-export interface ProjectMapCoordinator {
-  readonly document: { revealAuthoring(): void };
-  readonly person: { open(): void };
-  readonly preview: { scrollToAnchor(id: string): void };
-  readonly project: { focusSelect(): void };
+export interface ProjectMapOwners {
+  readonly projectFileDialog: { revealAuthoring(): void };
+  readonly workspaceSharingPanel: { open(): void };
+  readonly workspacePreview: { scrollToAnchor(id: string): void };
+  readonly workspaceSwitcher: { focusSelect(): void };
 }
 export interface PublicationLibrary {
   openAvailableReference(referenceId: string): Promise<void>;
@@ -674,22 +674,22 @@ export class ContextResourcePresenter extends LitElement {
     else await this.element("project-evidence-panel", ProjectEvidencePanel)?.linkPassage({ annotationId: id, ...link });
   }
 
-  bindProjectMap(apiBase: string, coordinator: ProjectMapCoordinator): void {
+  bindProjectMap(apiBase: string, owners: ProjectMapOwners): void {
     const map = this.element("project-map", ProjectMapWorkspace);
     map?.configure(apiBase);
     map?.bindNavigation({
       annotation: (id) => this.openProjectAnnotation(id),
       claim: (id) => this.element("claim-list-panel", ClaimListPanel)?.revealClaim(id),
-      document: () => coordinator.document.revealAuthoring(),
+      document: () => owners.projectFileDialog.revealAuthoring(),
       "model-candidate": (id) => void this.restoreTarget({ kind: "candidate", id }),
       note: (id) => this.openProjectNote(id),
       pdf: (id) => void this.restoreTarget({ kind: "pdf", id }),
-      person: () => coordinator.person.open(),
+      person: () => owners.workspaceSharingPanel.open(),
       publication: (id) => void this.restoreTarget({ kind: "publication", id }),
-      project: () => coordinator.project.focusSelect(),
+      project: () => owners.workspaceSwitcher.focusSelect(),
       section: (id) => {
         this.navigateContext(RESEARCH_PREVIEW_KEY);
-        coordinator.preview.scrollToAnchor(id);
+        owners.workspacePreview.scrollToAnchor(id);
       },
     });
   }

@@ -13139,6 +13139,25 @@ Markdown, lazy PDF.js, and direct and unique production package counts remain
 unchanged at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip,
 481,994 B raw / 146,135 B gzip, 18, and 150.
 
+## Continued Lit Ownership: Project-Map Destination Owners
+
+`ContextResourcePresenter` now consumes the canonical project-file,
+workspace-switcher, sharing-panel, and Preview owners directly for project-map
+document, project, person, and section destinations. The application no longer
+translates those four elements through generic route aliases.
+
+This checkpoint reduces `src/client/app.ts` from 205 to 200 lines (-5) while
+keeping the Context presenter at 1,291 lines, removing five runtime lines
+overall. Focused coverage passes all 39 Context-presenter cases; affected
+coverage passes 54 related runtime cases and the affected test file alongside
+strict types.
+
+The browser application artifact changes from 858,542 B raw / 231,710 B gzip
+to 858,452 B raw / 231,692 B gzip (-90 B raw / -18 B gzip). Styles, lazy
+Markdown, lazy PDF.js, and direct and unique production package counts remain
+unchanged at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip,
+481,994 B raw / 146,135 B gzip, 18, and 150.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,

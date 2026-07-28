@@ -973,14 +973,14 @@ describe("context resource presenter", () => {
     const openProjectAnnotation = vi.spyOn(presenter, "openProjectAnnotation").mockImplementation(() => undefined);
     const openProjectNote = vi.spyOn(presenter, "openProjectNote").mockImplementation(() => undefined);
     const revealClaim = vi.spyOn(elements["claim-list-panel"], "revealClaim").mockReturnValue(true);
-    const coordinator = {
-      document: { revealAuthoring: vi.fn() },
-      person: { open: vi.fn() },
-      preview: { scrollToAnchor: vi.fn() },
-      project: { focusSelect: vi.fn() },
+    const owners = {
+      projectFileDialog: { revealAuthoring: vi.fn() },
+      workspaceSharingPanel: { open: vi.fn() },
+      workspacePreview: { scrollToAnchor: vi.fn() },
+      workspaceSwitcher: { focusSelect: vi.fn() },
     };
 
-    presenter.bindProjectMap("/api/workspaces/workspace", coordinator);
+    presenter.bindProjectMap("/api/workspaces/workspace", owners);
     const navigation = bindNavigation.mock.calls[0]?.[0];
     navigation?.document("document");
     navigation?.person("person");
@@ -994,10 +994,10 @@ describe("context resource presenter", () => {
     navigation?.publication("publication-1");
 
     expect(configure).toHaveBeenCalledWith("/api/workspaces/workspace");
-    expect(coordinator.document.revealAuthoring).toHaveBeenCalledOnce();
-    expect(coordinator.person.open).toHaveBeenCalledOnce();
-    expect(coordinator.project.focusSelect).toHaveBeenCalledOnce();
-    expect(coordinator.preview.scrollToAnchor).toHaveBeenCalledWith("section-1");
+    expect(owners.projectFileDialog.revealAuthoring).toHaveBeenCalledOnce();
+    expect(owners.workspaceSharingPanel.open).toHaveBeenCalledOnce();
+    expect(owners.workspaceSwitcher.focusSelect).toHaveBeenCalledOnce();
+    expect(owners.workspacePreview.scrollToAnchor).toHaveBeenCalledWith("section-1");
     expect(presenter.activeKey).toBe("preview");
     expect(openProjectAnnotation).toHaveBeenCalledWith("annotation-1");
     expect(revealClaim).toHaveBeenCalledWith("claim-1");
