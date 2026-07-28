@@ -11683,3 +11683,24 @@ and PDF.js artifacts remain unchanged at 135,411 B / 23,373 B, 204,779 B /
 
 Full native CI passes all 1,757 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Coordinator Extraction: Collaboration Browser Lifecycle
+
+`CollaborationSocket` now owns online and offline browser subscriptions and
+routes them through its existing connect and offline transitions. The
+environment boundary keeps those subscriptions deterministic in unit tests and
+supports explicit teardown. `WorkspaceApp` activates the lifecycle once.
+
+This checkpoint reduces `src/client/app.ts` from 594 to 593 lines (-1) and
+grows the socket owner from 228 to 248 lines (+20). The 19-line combined increase
+places browser connectivity triggers beside the transport policy they invoke.
+Focused coverage passes online connection, offline transition, teardown, and
+strict types. Direct and unique production package counts remain 18 and 150.
+
+The browser application artifact increases from 858,956 B raw / 231,126 B gzip
+to 859,264 B / 231,208 B (+308 B raw / +82 B gzip). Styles and lazy Markdown
+and PDF.js artifacts remain unchanged at 135,411 B / 23,373 B, 204,779 B /
+62,386 B, and 481,994 B / 146,135 B.
+
+Full native CI passes all 1,758 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.

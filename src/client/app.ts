@@ -190,8 +190,7 @@ class WorkspaceApp {
     this.#elements.applicationVersion.bindNotice((message) => this.#elements.toast.show(message));
     this.#elements.connectionStatus.bindWorkflow(this.#collaboration, this.#elements);
     this.#elements.collaboratorSelections.bindSelectionChanged(() => this.#elements.editorStatus.renderHighlight());
-    window.addEventListener("online", () => this.#collaborationSocket.connect());
-    window.addEventListener("offline", () => this.#collaborationSocket.goOffline());
+    this.#collaborationSocket.bindBrowserLifecycle();
     window.addEventListener("pagehide", () => this.#offline.schedule(0));
     const logOut = document.querySelector<HTMLAnchorElement>("#log-out");
     logOut?.addEventListener("click", (event) => {

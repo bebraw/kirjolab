@@ -51,13 +51,13 @@ Implement the browser-side protocol state through one typed collaboration
 session. The session composes the connection XState actor, pending-update FIFO,
 Yjs server-shadow document, acknowledged server state vector, and offline delta
 reconstruction. A typed socket authority around that session owns the actual
-WebSocket, reconnect and selection timers, strict control routing, binary-update
-application, queue flushing, reset cleanup, and reload sequencing. The
-application coordinator supplies editor-selection preservation, revision
-consequences, resource refresh, collaborator presentation, and connection UI
-through explicit callbacks. This keeps transport and protocol invariants
-independently tested without turning either authority into a DOM or navigation
-owner.
+WebSocket, reconnect and selection timers, online/offline browser subscriptions,
+strict control routing, binary-update application, queue flushing, reset
+cleanup, and reload sequencing. The application coordinator supplies editor-
+selection preservation, revision consequences, resource refresh, collaborator
+presentation, and connection UI through explicit callbacks. This keeps
+transport and protocol invariants independently tested without turning either
+authority into a DOM or navigation owner.
 
 Determine whether an update is new from Yjs update integration, not from a
 visible-string comparison. Causally new state is persisted and materialized,

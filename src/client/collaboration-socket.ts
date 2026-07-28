@@ -29,6 +29,7 @@ export interface CollaborationSocketCallbacks {
 }
 
 export interface CollaborationSocketEnvironment {
+  readonly browserEvents?: EventTarget;
   readonly clearTimer: (timer: number | undefined) => void;
   readonly createSocket: (url: string) => CollaborationWebSocket;
   readonly online: () => boolean;
@@ -45,6 +46,7 @@ export interface CollaborationWebSocket {
 }
 
 const browserEnvironment: CollaborationSocketEnvironment = {
+  ...(typeof window === "undefined" ? {} : { browserEvents: window }),
   clearTimer: (timer) => window.clearTimeout(timer),
   createSocket: (url) => new WebSocket(url),
   online: () => navigator.onLine,
@@ -91,6 +93,21 @@ export class CollaborationSocket {
     socket.addEventListener("message", (event) => this.#message(socket, (event as MessageEvent<string | ArrayBuffer>).data));
     socket.addEventListener("close", () => this.#close(socket));
     socket.addEventListener("error", () => socket.close());
+  }
+
+  bindBrowserLifecycle(): void {
+    const events = this.#environment.browserEvents;
+    if (!events) return;
+    this.unbindBrowserLifecycle();
+    events.addEventListener("online", this.#handleOnline);
+    events.addEventListener("offline", this.#handleOffline);
+  }
+
+  unbindBrowserLifecycle(): void {
+    const events = this.#environment.browserEvents;
+    if (!events) return;
+    events.removeEventListener("online", this.#handleOnline);
+    events.removeEventListener("offline", this.#handleOffline);
   }
 
   goOffline(): void {
@@ -225,4 +242,7 @@ export class CollaborationSocket {
       this.connect();
     }, 1_200);
   }
+
+  readonly #handleOnline = (): void => this.connect();
+  readonly #handleOffline = (): void => this.goOffline();
 }

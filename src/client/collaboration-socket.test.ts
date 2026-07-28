@@ -199,4 +199,27 @@ describe("collaboration socket", () => {
     expect(socket?.closes).toContainEqual({ code: 1000, reason: "Workspace reset" });
     expect(harness.events).toContain("reload");
   });
+
+  it("owns online and offline browser lifecycle triggers", () => {
+    const harness = createHarness();
+    const browserEvents = new EventTarget();
+    const connection = new CollaborationSocket(harness.session, harness.callbacks, {
+      ...harness.environment,
+      browserEvents,
+    });
+    const connect = vi.spyOn(connection, "connect");
+    const goOffline = vi.spyOn(connection, "goOffline");
+    connection.bindBrowserLifecycle();
+
+    browserEvents.dispatchEvent(new Event("online"));
+    browserEvents.dispatchEvent(new Event("offline"));
+    expect(connect).toHaveBeenCalledOnce();
+    expect(goOffline).toHaveBeenCalledOnce();
+
+    connection.unbindBrowserLifecycle();
+    browserEvents.dispatchEvent(new Event("online"));
+    browserEvents.dispatchEvent(new Event("offline"));
+    expect(connect).toHaveBeenCalledOnce();
+    expect(goOffline).toHaveBeenCalledOnce();
+  });
 });
