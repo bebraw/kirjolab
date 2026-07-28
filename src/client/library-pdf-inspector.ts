@@ -42,6 +42,10 @@ export interface LibraryPdfInspectorDraftState {
   readonly note: boolean;
 }
 
+export interface LibraryProjectMutations {
+  applyProjectMutation(snapshot: ProjectReferenceChanged["snapshot"], message?: string): Promise<void>;
+}
+
 export class LibraryPdfInspector extends LitElement {
   static override properties = {
     artifactId: { state: true },
@@ -54,7 +58,7 @@ export class LibraryPdfInspector extends LitElement {
   declare private inspectorOpen: boolean;
   declare private status: string;
   declare private visible: boolean;
-  private completeProjectMutation: ((message: string, snapshot: ProjectReferenceChanged["snapshot"]) => void) | null = null;
+  private projectMutations: LibraryProjectMutations | null = null;
 
   constructor() {
     super();
@@ -64,16 +68,16 @@ export class LibraryPdfInspector extends LitElement {
     this.visible = false;
     this.addEventListener(projectReferenceChangedEvent, (event) => {
       const { message, snapshot } = (event as CustomEvent<ProjectReferenceChanged>).detail;
-      this.completeProjectMutation?.(message, snapshot);
+      void this.projectMutations?.applyProjectMutation(snapshot, message);
     });
     this.addEventListener(projectResearchChangedEvent, (event) => {
       const { message, snapshot } = (event as CustomEvent<ProjectResearchChanged>).detail;
-      this.completeProjectMutation?.(message, snapshot);
+      void this.projectMutations?.applyProjectMutation(snapshot, message);
     });
   }
 
-  bindProjectMutations(complete: (message: string, snapshot: ProjectReferenceChanged["snapshot"]) => void): void {
-    this.completeProjectMutation = complete;
+  bindProjectMutations(projectMutations: LibraryProjectMutations): void {
+    this.projectMutations = projectMutations;
   }
 
   protected setArtifact(artifactId: string): void {

@@ -38,7 +38,7 @@ import { ProjectEvidencePanel } from "./project-evidence-panel";
 import { ProjectMapWorkspace } from "./project-map-workspace";
 import { mutateProjectReference } from "./project-reference-mutation";
 import { PublicationContextPanel, type PublicationPaperOption } from "./publication-context-panel";
-import { PublicationListPanel, type PublicationListBinding } from "./publication-list-panel";
+import { PublicationListPanel } from "./publication-list-panel";
 import {
   activateResearchTab,
   closeResearchTab,
@@ -158,7 +158,9 @@ export interface ProjectMapCoordinator {
   readonly preview: { scrollToAnchor(id: string): void };
   readonly project: { focusSelect(): void };
 }
-export type PublicationListCoordinator = Pick<PublicationListBinding, "manage">;
+export interface PublicationLibrary {
+  openAvailableReference(referenceId: string): Promise<void>;
+}
 
 export class ContextResourcePresenter extends LitElement {
   private contextState = createResearchContext();
@@ -656,13 +658,13 @@ export class ContextResourcePresenter extends LitElement {
     });
   }
 
-  bindPublicationList(apiBase: string, coordinator: PublicationListCoordinator): void {
+  bindPublicationList(apiBase: string, library: PublicationLibrary): void {
     const publications = this.element("publication-list-panel", PublicationListPanel);
     publications?.configure(apiBase);
     publications?.bind({
-      ...coordinator,
       enriched: (message) =>
         void this.completeProjectMutation(message, "The reference was enriched, but project resources could not be refreshed."),
+      manage: (publicationId) => void library.openAvailableReference(publicationId),
       open: (publication) => this.navigateResource({ kind: "publication", id: publication.id }),
     });
   }

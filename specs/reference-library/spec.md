@@ -401,6 +401,11 @@ memory and makes citation aliases compete with stable source identity.
   lifecycle teardown, and owns archive-aware source recovery, focus, and
   missing-reference feedback for direct entry navigation and duplicate-PDF
   upload reveals. The
+  project publication list delegates its manage intent directly to this
+  workspace's available-reference workflow. The private-PDF inspector delegates
+  project reference and research mutation snapshots directly to this
+  workspace's apply-project-notice lifecycle. Neither path requires an
+  application-level callback adapter. The
   latter enables archived visibility, refreshes canonically, reuses owned
   filter/list focus, and reports a missing source locally. The context-resource
   presenter's route binding is the single Library snapshot, refresh, citation-

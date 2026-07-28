@@ -135,6 +135,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   restoration; and missing-reference feedback. Direct publication-
   management navigation also stays inside this owner for Library activation,
   canonical refresh, archive-aware focus, and successful route intent. General
+  Context publication-list management binds this owner directly, without an
+  application-level callback adapter. Private-PDF project mutation outcomes
+  likewise bind directly to its apply-project-notice lifecycle.
   Library entry likewise sequences context activation, optional standalone
   route entry, and canonical refresh through the same typed boundary. On the
   standalone application path, the owner also binds browser history, projects

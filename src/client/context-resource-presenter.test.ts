@@ -933,7 +933,7 @@ describe("context resource presenter", () => {
     const revealAnnotation = vi.spyOn(elements["project-evidence-panel"], "revealAnnotation").mockReturnValue(true);
     const insertActiveCitation = vi.spyOn(presenter, "insertActiveCitation").mockImplementation(() => undefined);
     const openPublicationPaper = vi.spyOn(presenter, "openPublicationPaper").mockResolvedValue(undefined);
-    const listCoordinator = { manage: vi.fn() };
+    const library = { openAvailableReference: vi.fn().mockResolvedValue(undefined) };
     const linkPassage = vi.spyOn(elements["claim-list-panel"], "linkPassage").mockResolvedValue(undefined);
     const publication = {
       abstract: "",
@@ -954,7 +954,7 @@ describe("context resource presenter", () => {
     presenter.bindClaimList("/api/workspaces/workspace");
     presenter.bindManuscriptComments("/api/workspaces/workspace");
     presenter.bindPublicationContext("/api/workspaces/workspace");
-    presenter.bindPublicationList("/api/workspaces/workspace", listCoordinator);
+    presenter.bindPublicationList("/api/workspaces/workspace", library);
     claimBind.mock.calls[0]?.[0].completeMutation("Claim changed.");
     claimBind.mock.calls[0]?.[0].linkPassage("claim-1");
     claimBind.mock.calls[0]?.[0].openAnnotation("annotation-1");
@@ -964,6 +964,7 @@ describe("context resource presenter", () => {
     commentBind.mock.calls[0]?.[0].completeMutation("Comment changed.");
     commentBind.mock.calls[0]?.[0].notice("Comment notice.");
     listBind.mock.calls[0]?.[0].enriched("Reference enriched.");
+    listBind.mock.calls[0]?.[0].manage(publication.id);
     listBind.mock.calls[0]?.[0].open(publication);
 
     expect(completeProjectMutation).toHaveBeenNthCalledWith(
@@ -999,6 +1000,7 @@ describe("context resource presenter", () => {
     expect(revealAnnotation).toHaveBeenCalledWith("annotation-1");
     expect(insertActiveCitation).toHaveBeenCalledOnce();
     expect(openPublicationPaper).toHaveBeenCalledWith({ kind: "reference", pdf: referencePdf });
+    expect(library.openAvailableReference).toHaveBeenCalledWith(publication.id);
     expect(navigateResource).toHaveBeenCalledWith({ kind: "publication", id: publication.id });
   });
 

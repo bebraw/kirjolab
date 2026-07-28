@@ -298,9 +298,7 @@ class WorkspaceApp {
       preview: this.#elements.workspacePreview,
       project: this.#elements.workspaceSwitcher,
     });
-    this.#elements.contextResourcePresenter.bindPublicationList(apiBase, {
-      manage: (publicationId) => void this.#elements.referenceLibraryWorkspace.openAvailableReference(publicationId),
-    });
+    this.#elements.contextResourcePresenter.bindPublicationList(apiBase, this.#elements.referenceLibraryWorkspace);
     this.#elements.contextResourcePresenter.bindProjectAnnotationIntake();
     this.#elements.contextResourcePresenter.bindProjectAnnotationWorkflow();
     this.#elements.contextResourcePresenter.bindLibraryPdf({
@@ -350,9 +348,7 @@ class WorkspaceApp {
       selectPassage: (fileId, start, end) => this.#elements.projectFileDialog.revealRange(fileId, start, end),
     });
     this.#elements.contextResourcePresenter.bindPdfViewer(this.#pdfViewer, apiBase);
-    this.#elements.libraryPdfInspector.bindProjectMutations(
-      (message, snapshot) => void this.#elements.referenceLibraryWorkspace.applyProjectMutation(snapshot, message),
-    );
+    this.#elements.libraryPdfInspector.bindProjectMutations(this.#elements.referenceLibraryWorkspace);
     this.#elements.contextResourcePresenter.bindClaimList(apiBase);
     this.#elements.workspaceSurfaceSwitcher.bindWorkspaceRoute({
       activeFileId: () => this.#elements.projectFileDialog.activeFileId,

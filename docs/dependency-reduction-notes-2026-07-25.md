@@ -12451,6 +12451,30 @@ unchanged at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip,
 Full native CI passes all 1,773 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Direct Library Mutation Routing
+
+`ContextResourcePresenter` now delegates publication-list management directly
+to `ReferenceLibraryWorkspace`, while `LibraryPdfInspector` delegates project
+reference and research mutation snapshots directly to the same workspace's
+apply-project lifecycle. `WorkspaceApp` no longer adapts either owner through a
+callback closure.
+
+This checkpoint reduces `src/client/app.ts` from 404 to 400 lines (-4). The two
+structural capability contracts grow the context presenter by two lines and the
+PDF inspector by four, for a two-line combined runtime-source increase that
+removes two application-level routing seams. Focused coverage passes all 45
+presenter and inspector cases; affected coverage passes 60 related runtime
+cases and both affected test files alongside strict types.
+
+The browser application artifact changes from 861,876 B raw / 232,236 B gzip to
+861,848 B raw / 232,232 B gzip (-28 B raw / -4 B gzip). Styles, lazy Markdown,
+lazy PDF.js, and direct and unique production package counts remain unchanged
+at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip, 481,994 B raw /
+146,135 B gzip, 18, and 150.
+
+Full native CI passes all 1,773 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: One-Shot Browser Entry Intents
 
 `ProjectStartingPointBrowser` now consumes the `create=1` editor intent, removes

@@ -180,8 +180,8 @@ describe("library PDF inspector", () => {
 
   it("routes child project mutations through its binding", () => {
     const inspector = new TestLibraryPdfInspector();
-    const complete = vi.fn();
-    inspector.bindProjectMutations(complete);
+    const projectMutations = { applyProjectMutation: vi.fn().mockResolvedValue(undefined) };
+    inspector.bindProjectMutations(projectMutations);
 
     inspector.dispatchEvent(
       new CustomEvent(projectReferenceChangedEvent, { detail: { message: "Reference linked", snapshot: workspaceSnapshotFixture } }),
@@ -190,9 +190,9 @@ describe("library PDF inspector", () => {
       new CustomEvent(projectResearchChangedEvent, { detail: { message: "Research shared", snapshot: workspaceSnapshotFixture } }),
     );
 
-    expect(complete.mock.calls).toEqual([
-      ["Reference linked", workspaceSnapshotFixture],
-      ["Research shared", workspaceSnapshotFixture],
+    expect(projectMutations.applyProjectMutation.mock.calls).toEqual([
+      [workspaceSnapshotFixture, "Reference linked"],
+      [workspaceSnapshotFixture, "Research shared"],
     ]);
   });
 
