@@ -342,7 +342,9 @@ collaboration.
   guarded PDF and annotation removal plus annotation-passage-link transport
   from a resource-presenter-validated typed passage. Its enclosing resource presenter
   owns annotation-form cleanup and selection, edit and PDF routes, fragment-
-  removal refresh sequencing, and notice dispatch. Separate typed workspace and
+  removal refresh sequencing, and notice dispatch. It binds annotation intake
+  and workflow atomically; the form is never left with only one route family.
+  Separate typed workspace and
   assistant bindings retain Yjs selection stability, grounding authority,
   canonical refresh transport, passage navigation, and mutation completion
   policy outside the panel; the resource presenter validates and delegates

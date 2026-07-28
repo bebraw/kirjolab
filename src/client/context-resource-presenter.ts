@@ -586,16 +586,13 @@ export class ContextResourcePresenter extends LitElement {
     this.element("project-annotation-form", ProjectAnnotationForm)?.configure(apiBase);
   }
 
-  bindProjectAnnotationIntake(): void {
+  bindProjectAnnotations(): void {
     this.element("project-annotation-form", ProjectAnnotationForm)?.bindIntake({
       openPublication: (publication) => this.navigateResource({ kind: "publication", id: publication.id }),
       presentNotice: (message) => this.presentNotice(message),
       publications: () => this.boundProject()?.publications ?? [],
       refresh: () => this.refreshResources(),
     });
-  }
-
-  bindProjectAnnotationWorkflow(): void {
     this.element("project-annotation-form", ProjectAnnotationForm)?.bindWorkflow({
       chooseTool: (tool) => this.pdfViewer?.setTool(tool),
       completeWorkflow: async ({ clearDraftSelection, ...completion }) => {

@@ -258,7 +258,9 @@ The adopted components own bounded presentation:
   configure the manuscript-comment, project-evidence, claim-list, and
   publication list/context panels and own annotation-form cleanup and selection,
   edit and PDF routes, fragment-removal refresh sequencing, child-specific
-  mutation failure copy, and notice dispatch. Route comment, claim, evidence,
+  mutation failure copy, and notice dispatch. Bind project-annotation intake
+  and workflow together so the composed form cannot expose a partially routed
+  lifecycle. Route comment, claim, evidence,
   publication, citation, and paper intents among those composed owners. Bind
   publication-list management directly to the reference-Library workspace;
   bind private-PDF project mutation outcomes directly to the same workspace's

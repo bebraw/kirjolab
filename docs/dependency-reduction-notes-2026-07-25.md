@@ -13492,6 +13492,19 @@ presenter cases. The browser application changes from 858,392 B raw / 231,521 B
 gzip to 858,328 B raw / 231,525 B gzip (-64 B raw / +4 B gzip); dependency
 counts and the other static artifacts remain unchanged.
 
+## Continued Lit Ownership: Project Annotation Binding
+
+`ContextResourcePresenter` now binds the project-annotation form's intake and
+workflow routes through one lifecycle. The application no longer exposes two
+independent stages that could leave the composed form only partly routed.
+
+This checkpoint reduces `src/client/app.ts` from 137 to 136 lines (-1) and the
+context-resource presenter from 1,294 to 1,291 lines (-3), for a four-line net
+runtime reduction. The affected guardrail passes 54 related cases and all 39
+focused presenter cases. The browser application changes from 858,328 B raw /
+231,525 B gzip to 858,221 B raw / 231,508 B gzip (-107 B raw / -17 B gzip);
+dependency counts and the other static artifacts remain unchanged.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,

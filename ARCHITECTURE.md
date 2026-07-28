@@ -1336,7 +1336,8 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   resource scroll, presents active-resource failures, and routes captured
   selections to the private-highlight composer or project-annotation form from
   those retained identities. The presenter binds the project-annotation form's
-  workflow, applies its tool and draft-clearing effects through the bounded
+  intake and workflow atomically so the composed form cannot retain only half
+  of its routes. It applies tool and draft-clearing effects through the bounded
   viewer, owns intake refresh plus completed-workflow refresh, optional passage-
   link, and notice sequencing, and routes citation, highlight removal, and
   highlight reveal to the Lit owners it already composes. The document-level

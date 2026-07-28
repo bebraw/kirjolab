@@ -112,8 +112,7 @@ class WorkspaceApp {
     this.#elements.contextResourcePresenter.bindProjectEvidence(apiBase);
     this.#elements.contextResourcePresenter.bindProjectMap(apiBase, this.#elements);
     this.#elements.contextResourcePresenter.bindPublicationList(apiBase, this.#elements.referenceLibraryWorkspace);
-    this.#elements.contextResourcePresenter.bindProjectAnnotationIntake();
-    this.#elements.contextResourcePresenter.bindProjectAnnotationWorkflow();
+    this.#elements.contextResourcePresenter.bindProjectAnnotations();
     this.#elements.contextResourcePresenter.bindLibraryPdf(apiBase, this.#elements);
     this.#elements.contextResourcePresenter.bindContext(appMode === "workspace" ? apiBase : null, this.#layout, this.#elements);
     this.#elements.contextResourcePresenter.bindRoutes(this.#document, this.#collaboration, this.#resourceRefresh, this.#elements);
