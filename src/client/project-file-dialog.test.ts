@@ -182,6 +182,33 @@ describe("project file dialog", () => {
     expect(projectFileDialogIsCreating("rename")).toBe(false);
   });
 
+  it("starts the bound project workspace in dependency order", async () => {
+    const panel = new TestProjectFileDialog();
+    const openWorkspace = vi.spyOn(panel, "openWorkspace").mockResolvedValue();
+    const restoreRoute = vi.fn().mockResolvedValue(undefined);
+    const refreshWorkspace = vi.fn().mockResolvedValue(undefined);
+    const connect = vi.fn();
+    const openFromBrowserRequest = vi.fn().mockResolvedValue(false);
+
+    await panel.startWorkspace(
+      {
+        gitHubSyncMenu: { refreshWorkspace },
+        newWorkspaceStartingPoints: { openFromBrowserRequest },
+        workspaceSurfaceSwitcher: { restoreRoute },
+      },
+      { connect },
+    );
+
+    expect(openWorkspace).toHaveBeenCalledOnce();
+    expect(restoreRoute).toHaveBeenCalledOnce();
+    expect(refreshWorkspace).toHaveBeenCalledWith(true);
+    expect(connect).toHaveBeenCalledOnce();
+    expect(openFromBrowserRequest).toHaveBeenCalledOnce();
+    expect(openWorkspace.mock.invocationCallOrder[0]).toBeLessThan(restoreRoute.mock.invocationCallOrder[0]!);
+    expect(restoreRoute.mock.invocationCallOrder[0]).toBeLessThan(connect.mock.invocationCallOrder[0]!);
+    expect(connect.mock.invocationCallOrder[0]).toBeLessThan(openFromBrowserRequest.mock.invocationCallOrder[0]!);
+  });
+
   it("renders each operation from bounded mode and path state", () => {
     const panel = new TestProjectFileDialog();
     expect(panel.rootForTest()).toBe(panel);

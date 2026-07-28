@@ -14434,6 +14434,27 @@ manuscript-map lifecycle from the project-file application entry.
 Full native CI passes all 1,776 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Project Workspace Startup
+
+The project-file Lit owner now sequences the project-mode startup lifecycle
+after its existing atomic binding: offline-aware project opening, UI-route
+restoration, ambient GitHub refresh, collaboration connection, and the one-shot
+browser creation request. The application root retains the Library-mode branch
+but no longer spells out five project-owned startup steps.
+
+This checkpoint trades ten net production lines for explicit project startup
+ownership and reduces `src/client/app.ts` from 55 to 51 lines. The affected
+guardrail passes 28 related cases across two suites alongside strict types and
+directly reruns the modified 26-case project-file suite. The browser application
+changes from 847,259 B raw / 231,004 B gzip to 847,302 B raw / 231,041 B gzip
+(+43 B raw / +37 B gzip); direct and unique production package counts remain 18
+and 150, and the other static artifacts remain unchanged. Architecture, ADR,
+and scholarly-workspace contracts now assign ordered project startup to the
+project-file owner.
+
+Full native CI passes all 1,777 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,

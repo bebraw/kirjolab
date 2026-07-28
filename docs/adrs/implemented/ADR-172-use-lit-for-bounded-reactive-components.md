@@ -609,7 +609,9 @@ The adopted components own bounded presentation:
   connection, and Preview projection. It also owns offline-first workspace
   opening, initial source and bibliography locking, catalog and project refresh
   failure policy, revoked-access cleanup, and restored-offline fallback. The
-  connection owner remains the only unlock authority. The coordinator retains workflow-template selection, active
+  same Lit owner sequences route restoration, ambient GitHub refresh,
+  collaboration connection, and the one-shot browser creation request after
+  project opening. The connection owner remains the only unlock authority. The coordinator retains workflow-template selection, active
   Y.Text/editor authority, Yjs editing, transport construction, and the notification outlet.
   The project-file owner retains and exposes the single accepted browser
   snapshot instead of the coordinator storing a duplicate.

@@ -454,7 +454,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   clears offline data when access is revoked, and otherwise projects an offline
   collaboration fallback through the bound authorities. The project-file owner is the
   single browser projection and read source for the accepted snapshot; the
-  coordinator must not retain a duplicate copy.
+  coordinator must not retain a duplicate copy. After application binding, let
+  that owner start the project workspace in dependency order: open or restore
+  the project, restore its UI route, begin ambient GitHub status refresh,
+  connect collaboration, then honor the one-shot browser creation request.
 - Let the editor-status Lit owner bind the active source, companion
   bibliography, and source-completion workspace atomically as one application
   authoring lifecycle, then bind the active Yjs

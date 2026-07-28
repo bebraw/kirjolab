@@ -439,7 +439,10 @@ collaboration.
   keys, live-content readiness, and validated snapshot transport from its API
   base and those owners. It also owns upload and include entry
   points, image insertion, range focus and reveal, saved notices, and quick-open
-  sequencing; the workspace-layout owner retains rail-collapse state.
+  sequencing. Its project startup entry opens or restores the project, restores
+  the UI route, starts ambient GitHub refresh, connects collaboration, and then
+  honors the one-shot browser creation request in that dependency order; the
+  workspace-layout owner retains rail-collapse state.
 - **Collaboration:** `DocumentRoom` is a SQLite-backed Durable Object for each
   composed project. On a hibernatable WebSocket connection it sends full binary Yjs
   state followed by a versioned `sync` control. The browser sends no state on

@@ -21,6 +21,12 @@ export interface ProjectImageInsertion {
   readonly syntax: string;
 }
 
+export interface ProjectWorkspaceStartupOwners {
+  readonly gitHubSyncMenu: { refreshWorkspace(force?: boolean): Promise<void> };
+  readonly newWorkspaceStartingPoints: { openFromBrowserRequest(): Promise<boolean> };
+  readonly workspaceSurfaceSwitcher: { restoreRoute(): Promise<void> };
+}
+
 export interface ProjectRefreshOwners {
   readonly bibliography: { disabled: boolean; value: string };
   readonly workspaceCatalogPanel: {
@@ -403,6 +409,14 @@ export class ProjectFileDialog extends LightDomElement {
       binding.collaboration.goOffline();
       binding.owners.connectionStatus.presentWorkflow();
     }
+  }
+
+  async startWorkspace(owners: ProjectWorkspaceStartupOwners, collaboration: { connect(): void }): Promise<void> {
+    await this.openWorkspace();
+    await owners.workspaceSurfaceSwitcher.restoreRoute();
+    void owners.gitHubSyncMenu.refreshWorkspace(true);
+    collaboration.connect();
+    await owners.newWorkspaceStartingPoints.openFromBrowserRequest();
   }
 
   private ensureActiveFile(snapshot: WorkspaceSnapshot): ProjectFile | null {

@@ -27,11 +27,7 @@ class WorkspaceApp {
     this.#bindUi();
     void this.#elements.applicationVersion.prepareOfflineShell(appMode === "workspace", this.#offline, this.#elements.toast);
     if (await this.#elements.referenceLibraryWorkspace.start(workspaceId, appMode === "workspace" ? apiBase : null, this.#elements)) return;
-    await this.#elements.projectFileDialog.openWorkspace();
-    await this.#elements.workspaceSurfaceSwitcher.restoreRoute();
-    void this.#elements.gitHubSyncMenu.refreshWorkspace(true);
-    this.#socket.connect();
-    await this.#elements.newWorkspaceStartingPoints.openFromBrowserRequest();
+    await this.#elements.projectFileDialog.startWorkspace(this.#elements, this.#socket);
   }
 
   #bindUi(): void {
