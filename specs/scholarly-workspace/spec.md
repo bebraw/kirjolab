@@ -95,8 +95,8 @@ collaboration.
   publication, PDF, and model-candidate resources without making local tab,
   pin, scroll, or reading-position state collaborative.
   One composed context-resource presenter binds the canonical assistant,
-  editor-status, Library, project-file, and surface-route owners alongside the
-  non-element layout manager and derives canonical context sources and
+  editor-status, Library, project-file, surface-route, and workspace-layout
+  owners and derives canonical context sources and
   presentation effects from them. Candidate presentation uses that same
   assistant owner without a second coordinator binding. Standalone-Library mode derives from an
   absent project API base. The coordinator connects those owners and supplies
@@ -182,8 +182,8 @@ collaboration.
   transition used by both tab clicks and workflow-driven navigation. It reports
   the selected mode through one typed callback. The workspace surface switcher's
   route binding consumes that outcome and replaces the canonical URL. The
-  application coordinator retains guide rendering; the layout manager retains
-  collapse and resize behavior.
+  application coordinator retains guide rendering; the workspace-layout Lit
+  owner retains collapse and resize behavior.
   The bounded project-tree panel owns the workspace-only Cmd/Ctrl+P shortcut
   and emits a typed quick-open intent; the project-file owner reveals the Files
   rail through its bound rail-tab owner and narrow layout capability before
@@ -192,14 +192,15 @@ collaboration.
   References inventories; project search and graph controls belong to Map. The
   bounded project-publication component owns the complete References collection
   shell and count from its authoritative publication data.
-  One bounded layout manager owns rail collapse and resizing, authoring/context
+  One bounded workspace-layout Lit owner owns layout selection, rail collapse
+  and resizing, authoring/context
   pane resizing, keyboard and pointer interactions, ARIA values, browser-local
   persistence, PDF resize notification, and resolution of its controls beneath
   the workspace root. It binds the canonical Context owner and PDF viewer
   directly for context-specific pane keys and relayout rather than receiving
-  application callback projections. Construction establishes the complete
-  collapse and resize listener lifecycle; no independently usable unbound state
-  exists. Widths remain context-specific transient
+  application callback projections. Its atomic workspace binding establishes
+  the complete selection, collapse, and resize listener lifecycle; no separate
+  non-element layout manager exists. Widths remain context-specific transient
   UI state rather than collaborative data or workspace URL state.
   On desktop the rail width is adjustable by pointer or keyboard within bounded
   readable limits and persists as a browser-local, cross-project preference.
@@ -407,7 +408,7 @@ collaboration.
   text keys, live-content readiness, and validated snapshot transport from its
   API base and those owners. It also owns upload and include entry
   points, image insertion, range focus and reveal, saved notices, and quick-open
-  sequencing; the layout manager retains rail-collapse state.
+  sequencing; the workspace-layout owner retains rail-collapse state.
 - **Collaboration:** `DocumentRoom` is a SQLite-backed Durable Object for each
   composed project. On a hibernatable WebSocket connection it sends full binary Yjs
   state followed by a versioned `sync` control. The browser sends no state on

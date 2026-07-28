@@ -91,7 +91,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   effects in the application coordinator.
 - Let the bounded workspace-layout control own its four-option presentation,
   normalization, selected value, workspace-scoped local persistence, and typed
-  change outcome. Let internal, restored, and route-driven selection apply the
+  change outcome. Let the same Lit owner resolve the workspace root controls and
+  own rail collapse and resizing, authoring/context pane resizing, keyboard and
+  pointer interactions, ARIA values, browser-local width persistence, and PDF
+  relayout. Bind the canonical Context owner and PDF viewer once through its
+  atomic workspace lifecycle. Let internal, restored, and route-driven selection apply the
   workspace's visibility-driving layout and dispatch resize notification before
   that outcome. Let the workspace surface switcher's route binding consume the
   live Context owner, activate an available PDF through that owner when needed,
@@ -1263,7 +1267,7 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   restores resource scroll, and projects bound viewer state back into canonical
   fixed-tab scroll, resource scroll, PDF page, and focused-annotation state. It
   binds the canonical assistant, editor-status, Library, project-file, and
-  surface-route owners directly alongside the non-element layout manager,
+  surface-route and workspace-layout owners directly,
   deriving canonical project and Library sources from them instead of accepting
   a parallel source factory and effect callbacks. Candidate presentation derives
   from that same assistant owner instead of a second presenter binding.
@@ -1432,10 +1436,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   bounded width as a cross-project browser-local preference, and contract its
   effective maximum before either primary document surface loses its readable
   minimum. Allow independent browser-local collapse with an editor-hosted
-  restoration action. Let the layout manager bind the canonical Context owner
-  for context-specific pane persistence and the PDF viewer for relayout instead
-  of receiving application callback projections. Construction establishes its
-  collapse and resize listener lifecycle; an unbound manager state is not exposed.
+  restoration action. Let the workspace-layout Lit owner bind the canonical
+  Context owner for context-specific pane persistence and the PDF viewer for
+  relayout instead of receiving application callback projections. Its atomic
+  workspace binding establishes collapse and resize listener lifecycles; a
+  separate non-element manager is not exposed.
   Keep rail geometry out of URLs
   and collaborative state.
 - Route rail-tab navigation through its Lit owner. Let the manuscript-map owner

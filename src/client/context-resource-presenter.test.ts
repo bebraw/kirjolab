@@ -139,7 +139,6 @@ function contextBinding(options: TestContextBinding): Parameters<ContextResource
   const source = options.sources;
   return [
     source().standaloneLibrary ? null : source().projectApiBase,
-    { restorePaneWidth: options.restorePaneWidth },
     {
       assistantGenerationPresenter: {
         presentCandidate: options.presentCandidate ?? vi.fn(),
@@ -162,6 +161,7 @@ function contextBinding(options: TestContextBinding): Parameters<ContextResource
           return source().snapshot;
         },
       },
+      workspaceLayout: { restorePaneWidth: options.restorePaneWidth },
       workspaceSurfaceSwitcher: { navigate: () => options.activateSurface(), syncRoute: options.syncRoute },
     },
   ];

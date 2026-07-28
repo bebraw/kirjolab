@@ -134,6 +134,7 @@ export interface ContextPresentationOwners {
     readonly navigate: (surface: "context", notify: false) => void;
     readonly syncRoute: (mode: "push" | "replace") => void;
   };
+  readonly workspaceLayout: ContextPresentationBinding["layout"];
 }
 
 interface ContextPresentationBinding {
@@ -199,8 +200,8 @@ export class ContextResourcePresenter extends LitElement {
     return this.contextState.activeKey;
   }
 
-  bindContext(projectApiBase: string | null, layout: ContextPresentationBinding["layout"], owners: ContextPresentationOwners): void {
-    this.contextPresentation = { layout, owners, projectApiBase };
+  bindContext(projectApiBase: string | null, owners: ContextPresentationOwners): void {
+    this.contextPresentation = { layout: owners.workspaceLayout, owners, projectApiBase };
     this.candidatePresenter = owners.assistantGenerationPresenter;
     this.element("context-tab-strip", ContextTabStrip)?.bindNavigation({
       activate: (key) => this.navigateContext(key),

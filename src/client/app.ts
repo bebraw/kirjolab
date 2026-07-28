@@ -6,7 +6,6 @@ import "./application-version-control";
 import "./source-citation-control";
 import "./workspace-surface-switcher";
 import "./project-starting-point-browser";
-import { WorkspaceLayoutManager } from "./workspace-layout-manager";
 import "./workspace-layout-control";
 import "./research-diary-summary";
 import { CoalescedRefresh } from "./collaboration";
@@ -48,8 +47,6 @@ class WorkspaceApp {
     store: createOfflineWorkspaceStore(typeof indexedDB === "undefined" ? undefined : indexedDB, identityEmail, workspaceId),
     workspaceId,
   });
-  readonly #layout: WorkspaceLayoutManager;
-
   constructor() {
     const socketUrl = `${location.protocol === "https:" ? "wss:" : "ws:"}//${location.host}${apiBase}/socket`;
     this.#collaborationSocket = new CollaborationSocket(
@@ -60,7 +57,7 @@ class WorkspaceApp {
       this.#elements,
     );
     this.#pdfViewer = PdfEvidenceViewer.forDocument(document, this.#elements.contextResourcePresenter);
-    this.#layout = WorkspaceLayoutManager.forWorkspace(workspaceId, this.#elements, this.#pdfViewer);
+    this.#elements.workspaceLayout.bindWorkspace(workspaceId, this.#elements, this.#pdfViewer);
     this.#elements.previewSyncControls.bindSource(this.#elements);
   }
 
@@ -80,7 +77,6 @@ class WorkspaceApp {
     this.#elements.assistantGenerationPresenter.bindAuthoring(this.#collaboration, this.#elements);
     this.#elements.connectionStatus.bindWorkflow(this.#collaboration, this.#elements);
     this.#offline.bindBrowserLifecycle(document.querySelector<HTMLAnchorElement>("#log-out"), this.#elements.toast);
-    this.#elements.workspaceLayout.configure(workspaceId, this.#elements.workspaceSurfaces);
     this.#elements.workspaceCatalogPanel.bindWorkspace(workspaceId, this.#elements);
     this.#elements.workspaceSettingsPanel.bindWorkspace(this.#elements.workspaceSettings, workspaceId, this.#elements);
     this.#elements.newWorkspaceStartingPoints.bindWorkspace(this.#elements);
@@ -96,7 +92,7 @@ class WorkspaceApp {
     this.#elements.editorStatus.bindAuthoring(this.#document, this.#elements.source, this.#elements, this.#collaborationSocket);
     this.#elements.vimModeControl.bindEditor(this.#elements.source, this.#elements.sourceEditorShell);
     this.#elements.sourceCompletion.bindWorkspace(apiBase, this.#elements);
-    this.#elements.projectFileDialog.configureApi(apiBase, this.#elements, this.#layout);
+    this.#elements.projectFileDialog.configureApi(apiBase, this.#elements, this.#elements.workspaceLayout);
     this.#elements.projectFileDialog.bindLiveContent(this.#document, this.#collaboration);
     this.#elements.projectFileDialog.bindProjectRefresh(appMode === "workspace", this.#elements, this.#collaboration, this.#offline);
     this.#elements.workspacePreview.bindProject(apiBase, this.#document, this.#elements);
@@ -105,7 +101,7 @@ class WorkspaceApp {
     this.#elements.projectHistoryTrigger.bindRevision(this.#elements, () => this.#offline.schedule());
     this.#elements.contextResourcePresenter.bindProjectKnowledge(apiBase, this.#elements, this.#pdfViewer);
     this.#collaborationSocket.bindDocument(this.#document, offlineOrigin);
-    this.#elements.contextResourcePresenter.bindContext(appMode === "workspace" ? apiBase : null, this.#layout, this.#elements);
+    this.#elements.contextResourcePresenter.bindContext(appMode === "workspace" ? apiBase : null, this.#elements);
     this.#elements.contextResourcePresenter.bindRoutes(this.#document, this.#collaboration, this.#resourceRefresh, this.#elements);
     this.#elements.workspaceSurfaceSwitcher.bindWorkspaceRoute(appMode === "workspace", this.#elements);
     this.#elements.assistantGenerationPresenter.bindWorkflow(this.#resourceRefresh, this.#elements);

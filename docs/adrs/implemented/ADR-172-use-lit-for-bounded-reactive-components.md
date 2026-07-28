@@ -30,12 +30,12 @@ lifecycle, payload, validation, progress, and result serve only that component's
 local interaction. It may navigate only to a canonical href supplied through
 its own authorized inputs or validated request result.
 
-Apply the same direct-owner rule to supporting non-element UI coordinators when
-their policy depends on canonical component state. The workspace layout manager
-binds the Context owner and PDF viewer directly for context-specific pane
-persistence and PDF relayout while retaining injectable low-level hooks for
-focused tests. Construction establishes its complete collapse and resize
-listener lifecycle rather than exposing a separately callable bind stage.
+Keep layout interaction in the workspace-layout Lit owner when its policy
+depends on canonical component state. It binds the workspace root, Context
+owner, and PDF viewer directly for rail and pane sizing, context-specific
+persistence, and PDF relayout. One atomic workspace binding establishes its
+complete selection, collapse, and resize lifecycle instead of exposing a
+supporting non-element manager.
 
 The adopted components own bounded presentation:
 
@@ -244,8 +244,8 @@ The adopted components own bounded presentation:
   installed by its atomic project-knowledge binding and synchronizes the bounded
   evidence, annotation, publication, claim, comment, and candidate owners from
   the canonical workspace snapshot. From its canonical project-file, Library,
-  editor-status, assistant, and surface-route owners plus the non-element layout
-  manager and nullable project API base, it derives candidate presentation from
+  editor-status, assistant, surface-route, and workspace-layout owners plus the
+  nullable project API base, it derives candidate presentation from
   the already-bound assistant rather than accepting a duplicate presenter
   binding, reconciles authorization, and owns
   complete workspace-resource presentation, assistant-availability refresh,
@@ -561,7 +561,8 @@ The adopted components own bounded presentation:
   mode, and rail tabs. It owns project-range activation across file or entry
   fallback, Write-mode entry, normalized editor selection, explicit authoring
   and range reveal, image insertion, and quick-open sequencing directly through
-  those owners; only rail collapse remains a narrow layout capability. The same
+  those owners; only the workspace-layout control remains a narrow rail-collapse
+  capability. The same
   presentation binding supplies the assistant, editor, Preview, route, and
   notice owners. File activation retains
   the latest projection inputs, reprojects the canonical snapshot with an
@@ -1422,9 +1423,13 @@ reason to wrap static markup mechanically.
 - The workspace layout control replaces the raw select reference and
   coordinator-owned normalization and local-storage access. It owns the
   four-option template, selected value, workspace-scoped resilient persistence,
-  workspace layout projection, and resize notification for internal, restored,
+  workspace layout projection, rail collapse and resizing, authoring/context
+  pane resizing, pointer and keyboard interaction, ARIA values, browser-local
+  width persistence, PDF relayout, and resize notification for internal, restored,
   and route-driven navigation before routing the typed outcome through a
-  binding. The surface-navigation owner's workspace-route binding consumes the
+  binding. Its atomic workspace binding resolves the root controls and consumes
+  the canonical Context owner and PDF viewer, replacing the former non-element
+  layout manager. The surface-navigation owner's workspace-route binding consumes the
   layout outcome, activates an available PDF through the supplied Context owner
   for PDF-only mode, and replaces the canonical URL. Its public change
   event is removed.

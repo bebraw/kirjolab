@@ -13703,6 +13703,23 @@ browser application changes from 857,198 B raw / 231,343 B gzip to 857,108 B
 raw / 231,329 B gzip (-90 B raw / -14 B gzip); dependency counts and the other
 static artifacts remain unchanged.
 
+## Continued Lit Ownership: Unified Workspace Layout
+
+`WorkspaceLayoutControl` now owns layout selection, workspace projection, rail
+collapse and resizing, authoring/context pane resizing, keyboard and pointer
+interaction, ARIA values, browser-local persistence, and PDF relayout through
+one atomic workspace binding. The separate `WorkspaceLayoutManager`, its app
+field, and the presenter's detached layout argument are removed.
+
+This checkpoint reduces `src/client/app.ts` from 122 to 118 lines (-4), grows
+the context presenter from 1,260 to 1,261 lines (+1), and replaces the 118-line
+layout control plus 271-line manager with one 379-line Lit owner (-10), for a
+13-line net runtime reduction. The affected guardrail passes 62 related cases
+and all 47 focused layout and context cases. The browser application changes
+from 857,108 B raw / 231,329 B gzip to 857,288 B raw / 231,422 B gzip (+180 B
+raw / +93 B gzip); dependency counts and the other static artifacts remain
+unchanged.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,

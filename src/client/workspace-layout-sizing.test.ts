@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { WorkspaceLayoutManager, type WorkspaceLayoutElements } from "./workspace-layout-manager";
+import { WorkspaceLayoutControl, type WorkspaceLayoutElements } from "./workspace-layout-control";
 
 class FakeElement extends EventTarget {
   readonly attributes = new Map<string, string>();
@@ -96,6 +96,12 @@ function fixture(): { readonly elements: WorkspaceLayoutElements; readonly fakes
   };
 }
 
+function bindLayout(fakes: LayoutFakes, resize = vi.fn()): WorkspaceLayoutControl {
+  const control = new WorkspaceLayoutControl();
+  control.bindWorkspace("project", { contextResourcePresenter: { activeTab: undefined }, workspaceSurfaces: fakes.surfaces }, { resize });
+  return control;
+}
+
 const storage = new Map<string, string>();
 const browserWindow = new EventTarget();
 
@@ -112,16 +118,12 @@ beforeEach(() => {
 
 afterEach(() => vi.unstubAllGlobals());
 
-describe("workspace layout manager", () => {
+describe("workspace layout control sizing", () => {
   it("resolves workspace-owned controls from the layout root", () => {
     const { fakes } = fixture();
     storage.set("kirjolab:authoring-pane:project:preview", "520");
-    const manager = WorkspaceLayoutManager.forWorkspace(
-      "project",
-      { contextResourcePresenter: { activeTab: undefined }, workspaceSurfaces: fakes.surfaces },
-      { resize: vi.fn() },
-    );
-    manager.restorePaneWidth();
+    const control = bindLayout(fakes);
+    control.restorePaneWidth();
     fakes.collapse.dispatchEvent(event("click"));
     expect(fakes.surfaces.styleValues.get("--authoring-pane-width")).toBe("520px");
     expect(fakes.surfaces.dataset.sourceRail).toBe("collapsed");
@@ -131,19 +133,13 @@ describe("workspace layout manager", () => {
   it("rejects an incomplete workspace layout", () => {
     const { fakes } = fixture();
     fakes.surfaces.descendants.delete("#source-rail-resizer");
-    expect(() =>
-      WorkspaceLayoutManager.forWorkspace(
-        "project",
-        { contextResourcePresenter: { activeTab: undefined }, workspaceSurfaces: fakes.surfaces },
-        { resize: vi.fn() },
-      ),
-    ).toThrow("Required workspace layout control is missing: #source-rail-resizer");
+    expect(() => bindLayout(fakes)).toThrow("Required workspace layout control is missing: #source-rail-resizer");
   });
 
   it("restores and toggles source-rail collapse with focus transfer", () => {
     storage.set("kirjolab:source-rail-collapsed", "true");
-    const { elements, fakes } = fixture();
-    new WorkspaceLayoutManager(elements, { paneStorageKey: () => "pane", resizePdf: vi.fn() });
+    const { fakes } = fixture();
+    bindLayout(fakes);
     expect(fakes.surfaces.dataset.sourceRail).toBe("collapsed");
     fakes.expand.dispatchEvent(event("click"));
     expect(fakes.surfaces.dataset.sourceRail).toBe("expanded");
@@ -154,9 +150,9 @@ describe("workspace layout manager", () => {
   });
 
   it("owns rail keyboard, pointer, persistence, and responsive restoration", () => {
-    const { elements, fakes } = fixture();
+    const { fakes } = fixture();
     const resizePdf = vi.fn();
-    new WorkspaceLayoutManager(elements, { paneStorageKey: () => "pane", resizePdf });
+    bindLayout(fakes, resizePdf);
     fakes.sourceResizer.dispatchEvent(event("keydown", { key: "ArrowRight" }));
     expect(storage.get("kirjolab:source-rail-width")).toBe("288");
     fakes.sourceResizer.dispatchEvent(event("keydown", { key: "Home" }));
@@ -171,18 +167,18 @@ describe("workspace layout manager", () => {
   });
 
   it("restores context-specific pane widths and handles keyboard and cancelled drags", () => {
-    storage.set("pane:preview", "520");
-    const { elements, fakes } = fixture();
+    storage.set("kirjolab:authoring-pane:project:preview", "520");
+    const { fakes } = fixture();
     const resizePdf = vi.fn();
-    const manager = new WorkspaceLayoutManager(elements, { paneStorageKey: () => "pane:preview", resizePdf });
-    manager.restorePaneWidth();
+    const control = bindLayout(fakes, resizePdf);
+    control.restorePaneWidth();
     expect(fakes.surfaces.styleValues.get("--authoring-pane-width")).toBe("520px");
     fakes.paneResizer.dispatchEvent(event("keydown", { key: "ArrowLeft" }));
-    expect(storage.get("pane:preview")).toBe("476");
+    expect(storage.get("kirjolab:authoring-pane:project:preview")).toBe("476");
     fakes.paneResizer.dispatchEvent(event("pointerdown", { clientX: 600, pointerId: 4 }));
     fakes.paneResizer.dispatchEvent(event("pointercancel", { clientX: 610, pointerId: 4 }));
     fakes.paneResizer.dispatchEvent(event("keydown", { key: "Home" }));
-    expect(storage.has("pane:preview")).toBe(false);
+    expect(storage.has("kirjolab:authoring-pane:project:preview")).toBe(false);
     expect(fakes.paneResizer.attributes.get("aria-valuenow")).toBe("48");
     expect(resizePdf).toHaveBeenCalledTimes(3);
   });
