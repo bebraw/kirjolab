@@ -1,4 +1,5 @@
-import { html, LitElement, type PropertyValues, type TemplateResult } from "lit";
+import { html, type PropertyValues, type TemplateResult } from "lit";
+import { LightDomElement } from "./light-dom-controller";
 import {
   buildWorkspaceKnowledgeGraph,
   isKnowledgeResourceKind,
@@ -21,7 +22,7 @@ type SearchState = { kind: "idle" } | { kind: "results"; results: readonly Knowl
 const emptyGraph: WorkspaceKnowledgeGraph = { edges: [], nodes: [] };
 export type ProjectMapNavigation = Readonly<Record<KnowledgeResourceKind, (id: string) => void>>;
 
-export class ProjectMapWorkspace extends LitElement {
+export class ProjectMapWorkspace extends LightDomElement {
   static override properties = {
     graph: { state: true },
     searchState: { state: true },
@@ -74,15 +75,6 @@ export class ProjectMapWorkspace extends LitElement {
       this.projectMapPanel()?.refreshLayout();
       this.querySelector<HTMLButtonElement>(".project-map-node")?.focus();
     });
-  }
-
-  override connectedCallback(): void {
-    if (!this.hasUpdated) this.replaceChildren();
-    super.connectedCallback();
-  }
-
-  protected override createRenderRoot(): HTMLElement {
-    return this;
   }
 
   protected override updated(changed: PropertyValues): void {

@@ -1,9 +1,10 @@
-import { html, LitElement, nothing, type TemplateResult } from "lit";
+import { html, nothing, type TemplateResult } from "lit";
 import type { WorkspaceKnowledgeGraph } from "../domain/knowledge";
+import { LightDomElement } from "./light-dom-controller";
 
 export const knowledgeConnectionSelectEvent = "knowledge-connection-select";
 
-export class KnowledgeConnectionsPanel extends LitElement {
+export class KnowledgeConnectionsPanel extends LightDomElement {
   static override properties = {
     graph: { state: true },
   };
@@ -17,15 +18,6 @@ export class KnowledgeConnectionsPanel extends LitElement {
 
   setGraph(graph: WorkspaceKnowledgeGraph): void {
     this.graph = graph;
-  }
-
-  override connectedCallback(): void {
-    if (!this.hasUpdated) this.replaceChildren();
-    super.connectedCallback();
-  }
-
-  protected override createRenderRoot(): HTMLElement {
-    return this;
   }
 
   protected override render(): TemplateResult {

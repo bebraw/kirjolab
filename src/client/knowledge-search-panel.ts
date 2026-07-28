@@ -1,10 +1,11 @@
-import { html, LitElement, type TemplateResult } from "lit";
+import { html, type TemplateResult } from "lit";
 import type { KnowledgeSearchResult } from "../domain/knowledge";
+import { LightDomElement } from "./light-dom-controller";
 
 export const knowledgeSearchEvent = "knowledge-search";
 export const knowledgeSearchSelectEvent = "knowledge-search-select";
 
-export class KnowledgeSearchPanel extends LitElement {
+export class KnowledgeSearchPanel extends LightDomElement {
   static override properties = {
     error: { state: true },
     results: { state: true },
@@ -38,15 +39,6 @@ export class KnowledgeSearchPanel extends LitElement {
     this.error = null;
     this.results = [];
     this.visible = false;
-  }
-
-  override connectedCallback(): void {
-    if (!this.hasUpdated) this.replaceChildren();
-    super.connectedCallback();
-  }
-
-  protected override createRenderRoot(): HTMLElement {
-    return this;
   }
 
   protected override render(): TemplateResult {

@@ -1,8 +1,9 @@
-import { html, LitElement, type TemplateResult } from "lit";
+import { html, type TemplateResult } from "lit";
 import { isGitHubSyncState } from "./app-contracts";
 import { gitHubSyncPresentation, isGitHubSyncStatus, type GitHubSyncStatus } from "./github-sync-status";
 import { gitHubSyncMutationEvent, type GitHubSyncMutation } from "./github-sync-review";
 import { expectOk } from "./http";
+import { LightDomElement } from "./light-dom-controller";
 import type { WorkspaceSettingsPanel } from "./workspace-settings-panel";
 
 export interface GitHubSyncConnectionPresentation {
@@ -25,7 +26,7 @@ export interface GitHubSyncStateDetail {
 type GitHubSyncOwners = { readonly workspaceSettingsPanel: WorkspaceSettingsPanel };
 type GitHubRefresh = { request(): Promise<void> };
 
-export class GitHubSyncMenu extends LitElement {
+export class GitHubSyncMenu extends LightDomElement {
   static override properties = {
     connected: { state: true },
     label: { state: true },
@@ -154,18 +155,9 @@ export class GitHubSyncMenu extends LitElement {
     return `${this.repository} · ${this.detail}`;
   }
 
-  override connectedCallback(): void {
-    if (!this.hasUpdated) this.replaceChildren();
-    super.connectedCallback();
-  }
-
   override disconnectedCallback(): void {
     this.unbindAmbientRefresh();
     super.disconnectedCallback();
-  }
-
-  protected override createRenderRoot(): HTMLElement {
-    return this;
   }
 
   protected override render(): TemplateResult {

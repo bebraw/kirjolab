@@ -1,5 +1,6 @@
-import { html, LitElement, nothing, type TemplateResult } from "lit";
+import { html, nothing, type TemplateResult } from "lit";
 import { isGitHubPublishPreview, isGitHubPullPreview, type GitHubPublishPreview, type GitHubPullPreview } from "./app-contracts";
+import { LightDomElement } from "./light-dom-controller";
 import { errorMessage, expectOk, jsonFetch } from "./http";
 
 export interface GitHubPullResolutionSelection {
@@ -11,7 +12,7 @@ export const gitHubSyncMutationEvent = "github-sync-mutation";
 
 export type GitHubSyncMutation = "disconnect" | "publish" | "pull";
 
-export class GitHubSyncReview extends LitElement {
+export class GitHubSyncReview extends LightDomElement {
   static override properties = {
     connected: { state: true },
     pullPreview: { state: true },
@@ -133,15 +134,6 @@ export class GitHubSyncReview extends LitElement {
   showPublishSuccess(commitSha: string): void {
     this.reset();
     this.publishStatus = `Published commit ${commitSha.slice(0, 10)}.`;
-  }
-
-  override connectedCallback(): void {
-    if (!this.hasUpdated) this.replaceChildren();
-    super.connectedCallback();
-  }
-
-  protected override createRenderRoot(): HTMLElement {
-    return this;
   }
 
   protected override render(): TemplateResult {

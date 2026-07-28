@@ -1,5 +1,6 @@
-import { html, LitElement, type PropertyValues, type TemplateResult } from "lit";
+import { html, type PropertyValues, type TemplateResult } from "lit";
 import { bibTeXDisplayText } from "../domain/bibliography";
+import { LightDomElement } from "./light-dom-controller";
 import { isCitationNetwork, type CitationNetwork } from "../domain/citation-assertions";
 import { isCitationCandidateAcceptance } from "../domain/citation-expansion-acceptance";
 import { isCitationExpansionResult } from "../domain/citation-expansion";
@@ -23,7 +24,7 @@ type CitationNetworkPresentation = Omit<CitationNetworkData, "filterProject">;
 
 const emptyData: CitationNetworkPresentation = { expansion: null, network: null, referenceTitles: {} };
 
-export class CitationNetworkWorkspace extends LitElement {
+export class CitationNetworkWorkspace extends LightDomElement {
   static override properties = {
     data: { state: true },
     filterProject: { state: true },
@@ -94,7 +95,6 @@ export class CitationNetworkWorkspace extends LitElement {
   }
 
   override connectedCallback(): void {
-    if (!this.hasUpdated) this.replaceChildren();
     super.connectedCallback();
     this.addEventListener(citationNetworkActionEvent, this.handleActionEvent);
   }
@@ -102,10 +102,6 @@ export class CitationNetworkWorkspace extends LitElement {
   override disconnectedCallback(): void {
     this.removeEventListener(citationNetworkActionEvent, this.handleActionEvent);
     super.disconnectedCallback();
-  }
-
-  protected override createRenderRoot(): HTMLElement {
-    return this;
   }
 
   protected override updated(changed: PropertyValues): void {

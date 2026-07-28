@@ -14112,6 +14112,23 @@ static artifacts remain unchanged.
 Full native CI passes all 1,775 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Reduction: Discovery and Map Elements
+
+Citation-network, GitHub import/sync, knowledge search/connections, LaTeX import,
+and project-map Lit owners now reuse `LightDomElement`. Components with browser
+result, ambient refresh, or event-listener reconnect work retain those actions
+after the shared first-connection cleanup.
+
+This checkpoint removes 72 production lines while keeping `src/client/app.ts`
+at 73 lines. The affected guardrail passes 122 related cases across 16 suites
+alongside strict types. The browser application changes from 851,186 B raw /
+231,456 B gzip to 850,108 B raw / 231,395 B gzip (-1,078 B raw / -61 B gzip);
+direct and unique production package counts remain 18 and 150, and the other
+static artifacts remain unchanged.
+
+Full native CI passes all 1,775 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,

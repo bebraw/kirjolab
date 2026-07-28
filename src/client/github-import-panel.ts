@@ -1,4 +1,5 @@
-import { html, LitElement, type TemplateResult } from "lit";
+import { html, type TemplateResult } from "lit";
+import { LightDomElement } from "./light-dom-controller";
 import {
   isGitHubBranchList,
   isGitHubConnectionState,
@@ -27,7 +28,7 @@ export interface GitHubConnectionPresentation {
   readonly message: string;
 }
 
-export class GitHubImportPanel extends LitElement {
+export class GitHubImportPanel extends LightDomElement {
   static override properties = {
     projectTitleValue: { state: true },
     installations: { state: true },
@@ -319,16 +320,11 @@ export class GitHubImportPanel extends LitElement {
   }
 
   override connectedCallback(): void {
-    if (!this.hasUpdated) this.replaceChildren();
     super.connectedCallback();
     if (!this.browserResultInitialized) {
       this.browserResultInitialized = true;
       void this.updateComplete.then(() => this.openFromBrowserResult());
     }
-  }
-
-  protected override createRenderRoot(): HTMLElement {
-    return this;
   }
 
   protected override render(): TemplateResult {

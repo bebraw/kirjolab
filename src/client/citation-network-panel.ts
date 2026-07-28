@@ -1,4 +1,5 @@
-import { html, LitElement, nothing, svg, type TemplateResult } from "lit";
+import { html, nothing, svg, type TemplateResult } from "lit";
+import { LightDomElement } from "./light-dom-controller";
 import type { CitationAssertionView, CitationNetwork } from "../domain/citation-assertions";
 import type { CitationExpansionCandidate, CitationExpansionResult } from "../domain/citation-expansion-types";
 
@@ -31,7 +32,7 @@ export interface CitationReferenceChoice {
   readonly title: string;
 }
 
-export class CitationNetworkPanel extends LitElement {
+export class CitationNetworkPanel extends LightDomElement {
   static override properties = {
     data: { state: true },
     citedReferenceId: { state: true },
@@ -73,15 +74,6 @@ export class CitationNetworkPanel extends LitElement {
     if (saving) next.add(doi);
     else next.delete(doi);
     this.savingDois = next;
-  }
-
-  override connectedCallback(): void {
-    if (!this.hasUpdated) this.replaceChildren();
-    super.connectedCallback();
-  }
-
-  protected override createRenderRoot(): HTMLElement {
-    return this;
   }
 
   protected override render(): TemplateResult {

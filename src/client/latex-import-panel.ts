@@ -1,12 +1,13 @@
-import { html, LitElement, nothing, type TemplateResult } from "lit";
+import { html, nothing, type TemplateResult } from "lit";
 import { isLatexImportPreview, isLatexImportResult, type LatexImportPreview } from "./app-contracts";
+import { LightDomElement } from "./light-dom-controller";
 import { formatBytes } from "./format";
 import { errorMessage, expectOk } from "./http";
 
 type LatexImportBusyState = "confirm" | "preview" | null;
 type LatexConversion = NonNullable<LatexImportPreview["conversion"]>;
 
-export class LatexImportPanel extends LitElement {
+export class LatexImportPanel extends LightDomElement {
   static override properties = {
     busy: { state: true },
     conversion: { state: true },
@@ -89,15 +90,6 @@ export class LatexImportPanel extends LitElement {
   confirmFailed(message: string): void {
     this.busy = null;
     this.status = message;
-  }
-
-  override connectedCallback(): void {
-    if (!this.hasUpdated) this.replaceChildren();
-    super.connectedCallback();
-  }
-
-  protected override createRenderRoot(): HTMLElement {
-    return this;
   }
 
   protected override render(): TemplateResult {

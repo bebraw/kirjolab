@@ -1,5 +1,6 @@
-import { html, LitElement, nothing, svg, type PropertyValues, type TemplateResult } from "lit";
+import { html, nothing, svg, type PropertyValues, type TemplateResult } from "lit";
 import type { KnowledgeGraphNode, WorkspaceKnowledgeGraph } from "../domain/knowledge";
+import { LightDomElement } from "./light-dom-controller";
 import {
   groupProjectMapNodes,
   layoutProjectMapEdges,
@@ -14,7 +15,7 @@ export const projectMapSelectEvent = "project-map-select";
 
 const emptyGraph: WorkspaceKnowledgeGraph = { edges: [], nodes: [] };
 
-export class ProjectMapPanel extends LitElement {
+export class ProjectMapPanel extends LightDomElement {
   static override properties = {
     activeId: { state: true },
     edges: { state: true },
@@ -49,19 +50,10 @@ export class ProjectMapPanel extends LitElement {
     if (typeof requestAnimationFrame === "function") requestAnimationFrame(() => this.measureEdges());
   }
 
-  override connectedCallback(): void {
-    if (!this.hasUpdated) this.replaceChildren();
-    super.connectedCallback();
-  }
-
   override disconnectedCallback(): void {
     this.resizeObserver?.disconnect();
     this.resizeObserver = null;
     super.disconnectedCallback();
-  }
-
-  protected override createRenderRoot(): HTMLElement {
-    return this;
   }
 
   protected override updated(changed: PropertyValues): void {
