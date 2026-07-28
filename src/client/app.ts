@@ -87,8 +87,7 @@ class WorkspaceApp {
     this.#collaborationSocket.bindBrowserLifecycle();
     this.#offline.bindBrowserLifecycle(document.querySelector<HTMLAnchorElement>("#log-out"), this.#elements.toast);
     this.#elements.workspaceLayout.configure(workspaceId, this.#elements.workspaceSurfaces);
-    this.#elements.workspaceCatalogPanel.configure(catalogBase, workspaceId, this.#elements.workspaceSwitcher);
-    this.#elements.workspaceCatalogPanel.bindTrigger(this.#elements.manageWorkspaces);
+    this.#elements.workspaceCatalogPanel.bindWorkspace(catalogBase, workspaceId, this.#elements);
     this.#elements.workspaceSettingsPanel.bindWorkspace(this.#elements.workspaceSettings, workspaceId, this.#elements);
     this.#elements.newWorkspaceStartingPoints.bindWorkspace(this.#elements);
     this.#elements.gitHubSyncMenu.bindWorkspace(apiBase, appMode === "workspace", this.#resourceRefresh, this.#elements);

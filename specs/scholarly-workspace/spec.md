@@ -48,9 +48,10 @@ collaboration.
   catalog fetching and canonical route navigation.
 - **Project catalog:** One bounded light-DOM panel owns filtering, result and
   empty-state presentation, native modal lifecycle, and initial filter focus.
-  The project starting-point browser binds that catalog owner directly and
-  reads its live catalog without a parallel getter. The workspace coordinator
-  retains catalog fetching and navigation authority.
+  It atomically binds its catalog API, current-project identity, compact
+  switcher, and server-rendered trigger once. The project starting-point browser
+  binds that catalog owner directly and reads its live catalog without a
+  parallel getter. The workspace coordinator retains navigation authority.
 - **Project settings:** One bounded light-DOM panel owns current values, view
   derivation, persistence, archive/restore, duplication, permanent deletion,
   modal lifecycle, and its sibling entry trigger. It binds the catalog,

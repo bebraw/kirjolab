@@ -186,11 +186,13 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   canonical refresh. Bind the read-only workspace-catalog owner once so
   trigger, settings, save-template refreshes, and internal template mutations
   read the same live projection without a parallel getter callback. Let the
-  project catalog owner fetch and validate its authorized summaries, retain the
-  one browser catalog projection, and synchronize the compact switcher from
-  that state. Let it derive the single authorized offline project row from a
-  restored snapshot identity, title, and save time. Other workflows consume its
-  read-only catalog; keep canonical route navigation outside it.
+  project catalog owner bind its API, current-project identity, compact
+  switcher, and server-rendered trigger atomically once, fetch and validate its
+  authorized summaries, retain the one browser catalog projection, and
+  synchronize the switcher from that state. Let it derive the single authorized
+  offline project row from a restored snapshot identity, title, and save time.
+  Other workflows consume its read-only catalog; keep canonical route
+  navigation outside it.
 - Let the template-save Lit dialog bind the starting-point browser as its typed
   template source, the toast owner, and its project API atomically so it cannot
   enter a partially configured production state. The dialog owns pre-open and

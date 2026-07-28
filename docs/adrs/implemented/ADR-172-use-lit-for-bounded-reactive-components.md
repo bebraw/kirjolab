@@ -81,12 +81,13 @@ The adopted components own bounded presentation:
   binds its sibling trigger and toast owner directly.
 - The workspace catalog panel owns project filtering, result and empty-state
   rendering, metadata labels, filter focus reset, and native parent-dialog
-  lifecycle, including its server-rendered entry trigger. It also owns catalog
+  lifecycle. It atomically binds its catalog API, current-project identity,
+  compact switcher, and server-rendered entry trigger once. It also owns catalog
   fetch and response validation, retains the one browser catalog projection,
-  synchronizes the compact workspace switcher, and exposes a read-only catalog
-  to settings and template workflows. It also derives the single authorized
-  offline project row from restored snapshot identity, title, and save time.
-  The coordinator retains canonical route navigation.
+  synchronizes the compact workspace switcher, exposes a read-only catalog to
+  settings and template workflows, and derives the single authorized offline
+  project row from restored snapshot identity, title, and save time. The
+  coordinator retains canonical route navigation.
 - The project history panel owns timeline, comparison controls, busy and error
   states, revision cards, inspectors, and typed revision-operation intents.
 - The project history dialog composes the server-rendered modal and reactive

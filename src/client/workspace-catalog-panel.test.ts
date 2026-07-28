@@ -46,6 +46,18 @@ const archived: WorkspaceSummary = {
   title: "Archived inquiry",
 };
 
+function bindWorkspace(
+  panel: WorkspaceCatalogPanel,
+  currentWorkspaceId: string,
+  switcher = { setData: vi.fn() },
+  trigger = new EventTarget(),
+): void {
+  panel.bindWorkspace("/api/workspaces", currentWorkspaceId, {
+    manageWorkspaces: trigger as HTMLElement,
+    workspaceSwitcher: switcher,
+  });
+}
+
 describe("workspace catalog presentation", () => {
   it("filters project titles without case or surrounding-space sensitivity", () => {
     expect(filterWorkspaceCatalog([current, archived], "  ARCHIVED ")).toEqual([archived]);
@@ -63,7 +75,7 @@ describe("workspace catalog presentation", () => {
     const panel = new TestWorkspaceCatalogPanel();
     const switcher = { setData: vi.fn() };
     expect(panel.renderForTest()).toBeDefined();
-    panel.configure("/api/workspaces", current.id, switcher);
+    bindWorkspace(panel, current.id, switcher);
     panel.setData([current, archived], current.id);
     expect(panel.renderForTest()).toBeDefined();
     expect(panel.catalog).toEqual([current, archived]);
@@ -74,7 +86,7 @@ describe("workspace catalog presentation", () => {
   it("derives the offline project catalog row", () => {
     const panel = new TestWorkspaceCatalogPanel();
     const switcher = { setData: vi.fn() };
-    panel.configure("/api/workspaces", "offline/project", switcher);
+    bindWorkspace(panel, "offline/project", switcher);
 
     panel.presentOfflineWorkspace({ id: "offline/project", title: "Offline inquiry" }, "2026-07-28T12:00:00.000Z");
 
@@ -99,7 +111,7 @@ describe("workspace catalog presentation", () => {
       .mockResolvedValueOnce(Response.json([current, archived]))
       .mockResolvedValueOnce(Response.json({ invalid: true }))
       .mockResolvedValueOnce(new Response("Unavailable", { status: 503 }));
-    panel.configure("/api/workspaces", current.id, switcher);
+    bindWorkspace(panel, current.id, switcher);
 
     await panel.refresh();
     expect(fetchMock).toHaveBeenNthCalledWith(1, "/api/workspaces");
@@ -129,7 +141,7 @@ describe("workspace catalog presentation", () => {
     vi.stubGlobal("HTMLDialogElement", FakeDialog);
     Object.defineProperty(panel, "closest", { value: () => dialog });
 
-    panel.bindTrigger(trigger as HTMLElement);
+    bindWorkspace(panel, current.id, undefined, trigger);
     trigger.dispatchEvent(new Event("click"));
     await Promise.resolve();
 

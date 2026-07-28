@@ -13314,6 +13314,25 @@ Markdown, lazy PDF.js, and direct and unique production package counts remain
 unchanged at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip,
 481,994 B raw / 146,135 B gzip, 18, and 150.
 
+## Continued Lit Ownership: Project-Catalog Binding
+
+`WorkspaceCatalogPanel` now binds its catalog API, current-project identity,
+compact switcher, and server-rendered trigger atomically once. The application
+and component no longer maintain independent configuration and trigger-binding
+stages or rebind-only trigger state.
+
+This checkpoint reduces `src/client/app.ts` from 150 to 149 lines (-1) and the
+workspace catalog panel from 172 to 171 lines (-1), removing two runtime lines
+overall. Focused coverage passes all seven catalog cases; affected coverage
+passes nine related runtime cases and the affected test file alongside strict
+types.
+
+The browser application artifact changes from 858,944 B raw / 231,610 B gzip
+to 858,794 B raw / 231,589 B gzip (-150 B raw / -21 B gzip). Styles, lazy
+Markdown, lazy PDF.js, and direct and unique production package counts remain
+unchanged at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip,
+481,994 B raw / 146,135 B gzip, 18, and 150.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,

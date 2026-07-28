@@ -6,6 +6,11 @@ interface WorkspaceCatalogSwitcher {
   readonly setData: (workspaces: readonly WorkspaceSummary[], currentWorkspaceId: string) => void;
 }
 
+interface WorkspaceCatalogOwners {
+  readonly manageWorkspaces: HTMLElement;
+  readonly workspaceSwitcher: WorkspaceCatalogSwitcher;
+}
+
 export class WorkspaceCatalogPanel extends LitElement {
   static override properties = {
     currentWorkspaceId: { state: true },
@@ -18,7 +23,6 @@ export class WorkspaceCatalogPanel extends LitElement {
   declare private workspaces: readonly WorkspaceSummary[];
   private catalogBase = "";
   private switcher: WorkspaceCatalogSwitcher | null = null;
-  private trigger: HTMLElement | null = null;
 
   constructor() {
     super();
@@ -27,10 +31,11 @@ export class WorkspaceCatalogPanel extends LitElement {
     this.workspaces = [];
   }
 
-  configure(catalogBase: string, currentWorkspaceId: string, switcher: WorkspaceCatalogSwitcher): void {
+  bindWorkspace(catalogBase: string, currentWorkspaceId: string, owners: WorkspaceCatalogOwners): void {
     this.catalogBase = catalogBase;
     this.currentWorkspaceId = currentWorkspaceId;
-    this.switcher = switcher;
+    this.switcher = owners.workspaceSwitcher;
+    owners.manageWorkspaces.addEventListener("click", this.openFromTrigger);
   }
 
   get catalog(): readonly WorkspaceSummary[] {
@@ -62,12 +67,6 @@ export class WorkspaceCatalogPanel extends LitElement {
     const value: unknown = await response.json();
     if (!isWorkspaceSummaries(value)) throw new Error("Project catalog returned invalid data");
     this.setData(value);
-  }
-
-  bindTrigger(trigger: HTMLElement): void {
-    this.trigger?.removeEventListener("click", this.openFromTrigger);
-    this.trigger = trigger;
-    trigger.addEventListener("click", this.openFromTrigger);
   }
 
   async open(): Promise<void> {
