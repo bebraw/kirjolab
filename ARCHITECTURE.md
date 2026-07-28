@@ -63,8 +63,8 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Do not place executable browser code inline in Worker-rendered HTML. Client behavior should live in typed TypeScript modules before it is served to browsers.
 - Keep the authenticated browser entry as a module-private composition root,
   not a one-instance application class. Derive immutable bootstrap mode once,
-  construct shared services once, and expose only ordered binding and startup
-  functions inside that module; cohesive reactive lifecycle belongs in the
+  construct shared services once, and expose one ordered startup function
+  inside that module; cohesive reactive lifecycle belongs in the
   bounded Lit owners. Because bootstrap validation already reads the browser
   document, do not retain a later unreachable document-availability branch.
 - Use XState only for bounded event-driven browser workflows whose mutually

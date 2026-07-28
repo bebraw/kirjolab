@@ -22,14 +22,10 @@ const offline = new OfflineWorkspaceSession({
 });
 const socket = new CollaborationSocket(session, apiBase, offline, refresh, elements);
 
-function bindUi(): void {
+async function start(): Promise<void> {
   elements.contextResourcePresenter.bindApplication(apiBase, workspaceMode, session, refresh, socket, elements);
   elements.workspaceSettingsPanel.bindApplication(workspaceId, apiBase, workspaceMode, refresh, elements);
   elements.projectFileDialog.bindApplication(apiBase, workspaceId, workspaceMode, elements, session, offline);
-}
-
-async function start(): Promise<void> {
-  bindUi();
   void elements.applicationVersion.prepareOfflineShell(workspaceMode, offline, elements.toast);
   if (await elements.referenceLibraryWorkspace.start(workspaceId, workspaceMode ? apiBase : null, elements)) return;
   await elements.projectFileDialog.startWorkspace(elements, socket);

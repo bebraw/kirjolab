@@ -14584,6 +14584,25 @@ browser-only bootstrap precondition explicit.
 Full native CI passes all 1,778 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Root Reduction: One Ordered Startup
+
+The module-private binding helper had one caller and no independent policy or
+teardown. Inlining its three remaining domain-root bindings into startup makes
+the full order visible in one place without introducing a second lifecycle
+concept.
+
+This checkpoint removes four production lines and reduces `src/client/app.ts`
+from 40 to 36 lines. The affected guardrail passes the complete 1,778-test
+coverage baseline alongside strict types with the required loopback permission.
+The browser application changes from 847,069 B raw / 231,052 B gzip to 847,050
+B raw / 231,052 B gzip (-19 B raw / unchanged gzip); direct and unique
+production package counts remain 18 and 150, and the other static artifacts
+remain unchanged. Architecture, ADR, and scholarly-workspace contracts now
+define one module-private ordered startup function.
+
+Full native CI passes all 1,778 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,
