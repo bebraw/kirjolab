@@ -59,8 +59,7 @@ class WorkspaceApp {
     this.#elements.projectFileDialog.bindLiveContent(this.#session);
     this.#elements.projectFileDialog.bindProjectRefresh(appMode === "workspace", this.#elements, this.#session, this.#offline);
     this.#elements.workspacePreview.bindProject(apiBase, this.#session.document, this.#elements);
-    this.#elements.projectHistoryDialog.configure(apiBase, this.#elements);
-    this.#elements.projectHistoryTrigger.bindRevision(this.#elements, () => this.#offline.schedule());
+    this.#elements.projectHistoryTrigger.bindWorkspace(apiBase, this.#elements, this.#offline);
     this.#elements.contextResourcePresenter.bindProjectKnowledge(apiBase, this.#elements);
     this.#elements.workspaceLayout.bindWorkspace(workspaceId, this.#elements);
     this.#elements.contextResourcePresenter.bindContext(appMode === "workspace" ? apiBase : null, this.#elements);

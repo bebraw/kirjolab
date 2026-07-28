@@ -2,6 +2,7 @@ import { html, LitElement, type TemplateResult } from "lit";
 import type { CollaboratorSelectionList } from "./collaborator-selection-list";
 import type { ContextResourcePresenter } from "./context-resource-presenter";
 import type { EditorStatus } from "./editor-status";
+import type { ProjectHistoryDialog } from "./project-history-dialog";
 import type { ProjectFileDialog } from "./project-file-dialog";
 
 export const projectHistoryOpenEvent = "project-history-open";
@@ -11,14 +12,16 @@ export interface ProjectRevisionOwners {
   readonly contextResourcePresenter: Pick<ContextResourcePresenter, "activeTab" | "presentBoundContext">;
   readonly editorStatus: Pick<EditorStatus, "renderHighlight">;
   readonly projectFileDialog: Pick<ProjectFileDialog, "projectFiles">;
+  readonly projectHistoryDialog: Pick<ProjectHistoryDialog, "configure">;
+  readonly toast: { show(message: string): void };
 }
 
 export class ProjectHistoryTrigger extends LitElement {
   static override properties = { revision: { state: true } };
 
   declare private revision: number;
+  private offline: { schedule(): void } | null = null;
   private revisionOwners: ProjectRevisionOwners | null = null;
-  private scheduleOfflineSave: () => void = () => undefined;
 
   constructor() {
     super();
@@ -33,9 +36,10 @@ export class ProjectHistoryTrigger extends LitElement {
     return this.revision;
   }
 
-  bindRevision(owners: ProjectRevisionOwners, scheduleOfflineSave: () => void): void {
+  bindWorkspace(apiBase: string, owners: ProjectRevisionOwners, offline: { schedule(): void }): void {
+    this.offline = offline;
     this.revisionOwners = owners;
-    this.scheduleOfflineSave = scheduleOfflineSave;
+    owners.projectHistoryDialog.configure(apiBase, { projectHistoryTrigger: this, toast: owners.toast });
   }
 
   observeRevision(revision: number): void {
@@ -44,7 +48,7 @@ export class ProjectHistoryTrigger extends LitElement {
     if (!owners) return;
     owners.collaboratorSelections.setData({ files: owners.projectFileDialog.projectFiles(), revision: this.revision });
     owners.editorStatus.renderHighlight();
-    this.scheduleOfflineSave();
+    this.offline?.schedule();
     if (owners.contextResourcePresenter.activeTab?.kind === "candidate") {
       owners.contextResourcePresenter.presentBoundContext(false);
     }

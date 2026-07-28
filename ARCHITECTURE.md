@@ -858,9 +858,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Keep the browser-local history actor, timeline and operation requests,
   response guards, confirmations, busy state, and stale-response rejection in
   the project-history Lit dialog. Let it own canonical successful branch
-  navigation, post-restore reload, its sibling trigger, and notice forwarding.
-  Bind the sibling trigger and global toast owner directly so the application
-  coordinator does not adapt either capability.
+  navigation, post-restore reload, and notice forwarding. Let the History
+  trigger's workspace binding configure that dialog with itself and the global
+  toast owner while retaining revision and offline-save consequences, so the
+  application coordinator does not initialize the sibling relationship or
+  adapt offline scheduling.
 - Treat project unlink, library archive, share revocation, and permanent owner
   deletion as distinct operations. Revocation is forward-only; deletion keeps
   only the tombstoned provenance needed by historical project revisions.

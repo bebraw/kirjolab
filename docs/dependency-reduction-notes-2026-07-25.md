@@ -13922,6 +13922,22 @@ types. The browser application remains byte-identical at 857,144 B raw /
 231,395 B gzip; dependency counts and the other static artifacts remain
 unchanged.
 
+## Continued Lit Ownership: Atomic History Workspace
+
+`ProjectHistoryTrigger` now establishes the History sibling lifecycle during
+one workspace binding: it configures `ProjectHistoryDialog` with itself and the
+toast owner, retains revision consequence owners, and consumes the offline
+session directly. `WorkspaceApp` no longer configures the dialog separately or
+creates an offline-scheduling callback adapter.
+
+This checkpoint reduces `src/client/app.ts` from 80 to 79 lines (-1) and grows
+the History trigger from 81 to 85 lines (+4), adding three production lines in
+exchange for the atomic lifecycle. The affected guardrail passes 10 related
+cases and all eight focused History cases pass alongside strict types. The
+browser application changes from 857,144 B raw / 231,395 B gzip to 857,136 B
+raw / 231,395 B gzip (-8 B raw / unchanged gzip); dependency counts and the
+other static artifacts remain unchanged.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,

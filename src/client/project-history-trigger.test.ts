@@ -38,6 +38,8 @@ describe("project history trigger", () => {
     const renderHighlight = vi.fn();
     const presentBoundContext = vi.fn();
     const scheduleOfflineSave = vi.fn();
+    const configureHistory = vi.fn();
+    const toast = { show: vi.fn() };
     const owners = {
       collaboratorSelections: { setData },
       contextResourcePresenter: {
@@ -46,8 +48,10 @@ describe("project history trigger", () => {
       },
       editorStatus: { renderHighlight },
       projectFileDialog: { projectFiles: vi.fn(() => []) },
+      projectHistoryDialog: { configure: configureHistory },
+      toast,
     } satisfies ProjectRevisionOwners;
-    trigger.bindRevision(owners, scheduleOfflineSave);
+    trigger.bindWorkspace("/api/workspaces/workspace", owners, { schedule: scheduleOfflineSave });
 
     trigger.observeRevision(5);
     trigger.observeRevision(3);
@@ -57,5 +61,9 @@ describe("project history trigger", () => {
     expect(renderHighlight).toHaveBeenCalledTimes(2);
     expect(scheduleOfflineSave).toHaveBeenCalledTimes(2);
     expect(presentBoundContext).toHaveBeenCalledTimes(2);
+    expect(configureHistory).toHaveBeenCalledWith("/api/workspaces/workspace", {
+      projectHistoryTrigger: trigger,
+      toast,
+    });
   });
 });

@@ -260,11 +260,14 @@ collaboration.
   A bounded History trigger owns the monotonic presented revision and badge,
   delegates its open intent to the history dialog, and routes revision-dependent
   collaborator data, highlight refresh, offline scheduling, and active-candidate
-  refresh through bound owners. Collaboration retains server revision authority.
+  refresh through bound owners. Its atomic workspace binding configures the
+  history dialog with the trigger and toast owner and consumes the offline owner
+  directly. Collaboration retains server revision authority.
   A composed Lit history-dialog boundary owns modal lifecycle, busy state,
   panel-close handling, and timeline, inspection, and comparison presentation;
   it also owns the revision XState workflow, requests, mutations, navigation,
-  and failure policy and binds the History trigger and toast owner directly.
+  and failure policy and binds the History trigger and toast owner supplied by
+  the trigger's workspace lifecycle.
   A bounded connection-status owner binds the collaboration workflow and
   authoring controls once. It derives connection label/tone plus source and
   companion editability and requests assistant-availability refresh after each

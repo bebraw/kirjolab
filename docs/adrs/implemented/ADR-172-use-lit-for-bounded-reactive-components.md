@@ -98,13 +98,15 @@ The adopted components own bounded presentation:
   stale-response rejection, busy and error state, canonical successful branch
   navigation, post-restore reload, and typed notice outcomes. Its modal close
   lifecycle is internal and emits no unused external event. It binds its sibling
-  trigger and toast owner directly.
+  trigger and toast owner directly after the trigger's atomic workspace binding
+  configures that relationship.
 - The project history trigger owns the monotonic presented revision and its
   badge, emits one typed open intent, and routes revision-dependent collaborator
   data, highlight refresh, offline scheduling, and active-candidate refresh
-  through bound owners. Collaboration retains server revision authority; the
-  application coordinator retains toast presentation and non-history browser
-  navigation policy.
+  through bound owners. Its workspace binding supplies itself and the global
+  toast to the history dialog and consumes the offline owner directly.
+  Collaboration retains server revision authority; the application coordinator
+  retains toast presentation and non-history browser navigation policy.
 - Reused writing-workflow panels own research-question and reviewer-response
   Markdown-to-item adaptation, counts, empty states, action labels, reviewer-
   response letter derivation and browser download. They bind project-file and
