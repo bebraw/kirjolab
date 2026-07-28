@@ -104,11 +104,10 @@ class WorkspaceApp {
     this.#elements.sourceCompletion.bindProjectAcceptance(apiBase, this.#elements);
     this.#elements.projectHistoryDialog.configure(apiBase, this.#elements);
     this.#elements.projectHistoryTrigger.bindRevision(this.#elements, () => this.#offline.schedule());
-    this.#elements.contextResourcePresenter.bindProjectKnowledge(apiBase, this.#elements);
+    this.#elements.contextResourcePresenter.bindProjectKnowledge(apiBase, this.#elements, this.#pdfViewer);
     this.#collaborationSocket.bindDocument(this.#document, offlineOrigin);
     this.#elements.contextResourcePresenter.bindContext(appMode === "workspace" ? apiBase : null, this.#layout, this.#elements);
     this.#elements.contextResourcePresenter.bindRoutes(this.#document, this.#collaboration, this.#resourceRefresh, this.#elements);
-    this.#elements.contextResourcePresenter.bindPdfViewer(this.#pdfViewer, apiBase);
     this.#elements.workspaceSurfaceSwitcher.bindWorkspaceRoute(appMode === "workspace", this.#elements);
     this.#elements.assistantGenerationPresenter.bindWorkflow(this.#resourceRefresh, this.#elements);
     this.#elements.assistantGenerationPresenter.bindWorkspace(apiBase);

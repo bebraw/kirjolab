@@ -103,7 +103,8 @@ collaboration.
   only that nullable API configuration without a parallel source factory,
   duplicate mode flag, or effect callbacks. The PDF viewer factory binds
   this presenter directly for selection capture, project-highlight activation,
-  page presentation, and private-highlight selection. Project-map navigation
+  page presentation, and private-highlight selection, and the application
+  installs that viewer through the atomic project-knowledge binding. Project-map navigation
   likewise consumes the canonical project-file, workspace-switcher,
   sharing-panel, and Preview owners directly without a coordinator alias map.
   One progressive light-DOM tab strip owns fixed-tab presentation, dynamic-tab
@@ -345,8 +346,8 @@ collaboration.
   guarded PDF and annotation removal plus annotation-passage-link transport
   from a resource-presenter-validated typed passage. Its enclosing resource presenter
   binds annotation intake/workflow, manuscript comments, project evidence,
-  claims, publication list/context routes, project-map navigation, and private-
-  PDF mutation and markup streams atomically as one project-knowledge lifecycle
+  claims, publication list/context routes, project-map navigation, the PDF
+  viewer, and private-PDF mutation and markup streams atomically as one project-knowledge lifecycle
   against one project API and canonical Library, editor-status, project-file,
   sharing, workspace-switcher, and Preview owners, then owns annotation-form cleanup and selection,
   edit and PDF routes, fragment-

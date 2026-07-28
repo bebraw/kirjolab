@@ -13661,6 +13661,20 @@ focused presenter cases. The browser application changes from 857,423 B raw /
 231,381 B gzip to 857,343 B raw / 231,367 B gzip (-80 B raw / -14 B gzip);
 dependency counts and the other static artifacts remain unchanged.
 
+## Continued Lit Ownership: Atomic Knowledge Viewer Binding
+
+`ContextResourcePresenter` now installs the PDF viewer and annotation-form API
+inside its complete project-knowledge lifecycle. The application no longer
+binds viewer effects as a partial stage after the knowledge, private-PDF, and
+map owners have already been configured.
+
+This checkpoint reduces `src/client/app.ts` from 124 to 123 lines (-1) and the
+context-resource presenter from 1,263 to 1,260 lines (-3), for a four-line net
+runtime reduction. The affected guardrail passes 54 related cases and all 39
+focused presenter cases. The browser application changes from 857,343 B raw /
+231,367 B gzip to 857,275 B raw / 231,351 B gzip (-68 B raw / -16 B gzip);
+dependency counts and the other static artifacts remain unchanged.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,

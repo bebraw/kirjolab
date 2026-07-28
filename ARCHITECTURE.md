@@ -1338,8 +1338,8 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   also
   project coordinator-resolved evidence links, claim links, comments, and
   project-map inputs across those composed owners after Preview rendering while
-  the coordinator retains render timing. Through a
-  narrow viewer binding it derives the authorized active PDF load, synchronizes project
+  the coordinator retains render timing. Through the viewer installed by the
+  same atomic project-knowledge binding it derives the authorized active PDF load, synchronizes project
   annotations and private highlights, rejects stale completions, retains the
   rendered context and project-PDF identities, opens the viewer, restores
   resource scroll, presents active-resource failures, and routes captured
@@ -1352,11 +1352,12 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   highlight reveal to the Lit owners it already composes. The document-level
   PDF viewer factory binds this presenter directly for selection capture,
   highlight activation, page presentation, and private-highlight selection;
-  the application must not repeat those four pass-through callbacks. Let it configure the manuscript-comment,
+  the application supplies that viewer once through project knowledge and must
+  not repeat those four pass-through callbacks. Let it configure the manuscript-comment,
   project-evidence, claim-list, and publication list/context panels. Bind the
   project-annotation, manuscript-comment, project-evidence, claim-list, and
-  publication list/context panels, project-map routes, and private-PDF mutation
-  and markup streams atomically as one project-knowledge lifecycle so intake,
+  publication list/context panels, project-map routes, the PDF viewer, and
+  private-PDF mutation and markup streams atomically as one project-knowledge lifecycle so intake,
   workflow, authoring, mutation, citation, paper, map navigation, and private-
   PDF routes cannot be only partly installed;
   own

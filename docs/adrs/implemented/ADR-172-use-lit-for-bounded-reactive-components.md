@@ -239,8 +239,8 @@ The adopted components own bounded presentation:
   its own PDF navigation in callbacks. It
   delegates Yjs citation insertion and passage navigation to their bound owners
   and applies viewer-only draft clearing, text-
-  selection, and private-markup selection effects directly through its narrow
-  viewer binding and synchronizes the bounded
+  selection, and private-markup selection effects directly through the viewer
+  installed by its atomic project-knowledge binding and synchronizes the bounded
   evidence, annotation, publication, claim, comment, and candidate owners from
   the canonical workspace snapshot. From its canonical project-file, Library,
   editor-status, assistant, and surface-route owners plus the non-element layout
@@ -263,9 +263,10 @@ The adopted components own bounded presentation:
   configure the manuscript-comment, project-evidence, claim-list, publication
   list/context, private-PDF inspector, annotation toolbar, and markup owners.
   Bind annotation intake/workflow, comments, evidence, claims, publications,
-  project-map navigation, and private-PDF mutation and markup streams together
-  as one project-knowledge lifecycle so shared authoring, mutation, citation,
-  paper, map, and private-PDF routes are installed atomically, and own annotation-form cleanup and selection,
+  project-map navigation, the PDF viewer, and private-PDF mutation and markup
+  streams together as one project-knowledge lifecycle so shared authoring,
+  mutation, citation, paper, map, viewer, and private-PDF routes are installed
+  atomically, and own annotation-form cleanup and selection,
   edit and PDF routes, fragment-removal refresh sequencing, child-specific
   mutation failure copy, and notice dispatch. Bind that complete lifecycle
   against the same project API and canonical Library owner. Route comment, claim, evidence,

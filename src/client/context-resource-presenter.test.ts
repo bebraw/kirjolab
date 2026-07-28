@@ -226,8 +226,23 @@ function projectKnowledgeOwners(
   };
 }
 
-function bindTestProjectKnowledge(presenter: ContextResourcePresenter, owners = projectKnowledgeOwners()): void {
-  presenter.bindProjectKnowledge("/api/workspaces/workspace", owners);
+function testPdfViewer(): Parameters<ContextResourcePresenter["bindProjectKnowledge"]>[2] {
+  return {
+    clearDraftSelection: vi.fn(),
+    currentPage: 1,
+    focusedAnnotationId: null,
+    open: vi.fn().mockResolvedValue(true),
+    setPrivateHighlightSelection: vi.fn(),
+    setTextSelectionEnabled: vi.fn(),
+    setTool: vi.fn(),
+    showError: vi.fn(),
+    updateAnnotations: vi.fn(),
+    updatePrivateHighlights: vi.fn(),
+  };
+}
+
+function bindTestProjectKnowledge(presenter: ContextResourcePresenter, owners = projectKnowledgeOwners(), viewer = testPdfViewer()): void {
+  presenter.bindProjectKnowledge("/api/workspaces/workspace", owners, viewer);
 }
 
 interface TestLibraryPdfCoordinator {
@@ -237,21 +252,25 @@ interface TestLibraryPdfCoordinator {
   readonly projectApiBase: string;
 }
 
-function bindTestLibraryPdf(presenter: ContextResourcePresenter, coordinator: TestLibraryPdfCoordinator): void {
+function bindTestLibraryPdf(presenter: ContextResourcePresenter, coordinator: TestLibraryPdfCoordinator, viewer = testPdfViewer()): void {
   const owners = projectKnowledgeOwners();
-  presenter.bindProjectKnowledge(coordinator.projectApiBase, {
-    ...owners,
-    editorStatus: {
-      get caret() {
-        return coordinator.canInsertCitation() ? 0 : null;
+  presenter.bindProjectKnowledge(
+    coordinator.projectApiBase,
+    {
+      ...owners,
+      editorStatus: {
+        get caret() {
+          return coordinator.canInsertCitation() ? 0 : null;
+        },
+      },
+      referenceLibraryWorkspace: {
+        ...owners.referenceLibraryWorkspace,
+        applyProjectMutation: coordinator.acceptProjectMutation,
+        completeRefresh: async (message) => coordinator.completeMarkup(message),
       },
     },
-    referenceLibraryWorkspace: {
-      ...owners.referenceLibraryWorkspace,
-      applyProjectMutation: coordinator.acceptProjectMutation,
-      completeRefresh: async (message) => coordinator.completeMarkup(message),
-    },
-  });
+    viewer,
+  );
 }
 
 function setup() {
@@ -752,7 +771,7 @@ describe("context resource presenter", () => {
     const selectPdf = vi.spyOn(elements["project-annotation-form"], "selectPdf");
     const showCapture = vi.spyOn(elements["project-annotation-form"], "showCapture");
     vi.spyOn(elements["context-tab-strip"], "fixedScrollTop").mockReturnValue(null);
-    presenter.bindPdfViewer(viewer, "/api/workspaces/workspace");
+    bindTestProjectKnowledge(presenter, projectKnowledgeOwners(), viewer);
     expect(configureAnnotation).toHaveBeenCalledWith("/api/workspaces/workspace");
     presenter.preparePdfContext({ kind: "pdf", id: pdf.id }, { focusedAnnotationId: annotation.id, page: tab.page });
     presenter.present({ ...sources(tab), snapshot: project });
@@ -797,7 +816,7 @@ describe("context resource presenter", () => {
       updateAnnotations: vi.fn(),
       updatePrivateHighlights: vi.fn(),
     };
-    presenter.bindPdfViewer(viewer, "/api/workspaces/workspace");
+    bindTestProjectKnowledge(presenter, projectKnowledgeOwners(), viewer);
     presenter.present(sources(resourceTab("library-pdf", libraryPdf.id)));
 
     await presenter.loadActivePdf(true);
@@ -824,9 +843,7 @@ describe("context resource presenter", () => {
     const linkPassage = vi.spyOn(elements["project-evidence-panel"], "linkPassage").mockResolvedValue(undefined);
     const revealAnnotation = vi.spyOn(elements["project-evidence-panel"], "revealAnnotation").mockReturnValue(true);
     const insertCitation = vi.spyOn(presenter, "insertActiveCitation");
-    presenter.bindPdfViewer(viewer, "/api/workspaces/workspace");
-
-    bindTestProjectKnowledge(presenter);
+    bindTestProjectKnowledge(presenter, projectKnowledgeOwners(), viewer);
     const workflow = bindWorkflow.mock.calls[0]?.[0];
     expect(workflow).toBeDefined();
     workflow?.chooseTool("erase");
@@ -1012,6 +1029,7 @@ describe("context resource presenter", () => {
     const openProjectAnnotation = vi.spyOn(presenter, "openProjectAnnotation").mockImplementation(() => undefined);
     const openProjectNote = vi.spyOn(presenter, "openProjectNote").mockImplementation(() => undefined);
     const revealClaim = vi.spyOn(elements["claim-list-panel"], "revealClaim").mockReturnValue(true);
+    vi.spyOn(elements["context-tab-strip"], "fixedScrollTop").mockReturnValue(null);
     const owners = projectKnowledgeOwners();
 
     bindTestProjectKnowledge(presenter, owners);
@@ -1612,9 +1630,8 @@ describe("context resource presenter", () => {
     vi.spyOn(inspector, "clearNote").mockImplementation(() => undefined);
     vi.spyOn(inspector, "clearMarkup").mockImplementation(() => undefined);
     vi.spyOn(inspector, "draftState", "get").mockReturnValue({ highlight: false, markup: false, note: false });
-    presenter.bindPdfViewer(viewer, "/api/workspaces/workspace");
     const openPdf = vi.spyOn(presenter, "openLibraryPdf").mockResolvedValue(undefined);
-    bindTestLibraryPdf(presenter, coordinator);
+    bindTestLibraryPdf(presenter, coordinator, viewer);
     presenter.present(sources(undefined));
 
     expect(bindProjectMutations).toHaveBeenCalledWith(expect.objectContaining({ applyProjectMutation: coordinator.acceptProjectMutation }));

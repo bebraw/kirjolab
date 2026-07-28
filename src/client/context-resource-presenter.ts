@@ -551,13 +551,10 @@ export class ContextResourcePresenter extends LitElement {
     else this.navigateResource({ kind: "publication", id: publication.id });
   }
 
-  bindPdfViewer(viewer: ContextPdfViewer, apiBase: string): void {
+  bindProjectKnowledge(apiBase: string, owners: ProjectKnowledgeOwners, viewer: ContextPdfViewer): void {
     this.pdfViewer = viewer;
     this.pdfApiBase = apiBase;
     this.element("project-annotation-form", ProjectAnnotationForm)?.configure(apiBase);
-  }
-
-  bindProjectKnowledge(apiBase: string, owners: ProjectKnowledgeOwners): void {
     this.libraryPdfProject = { apiBase, owners };
     const inspector = this.element("library-pdf-inspector", LibraryPdfInspector);
     inspector?.bindProjectMutations(owners.referenceLibraryWorkspace);
