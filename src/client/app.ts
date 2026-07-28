@@ -127,8 +127,6 @@ class WorkspaceApp {
       })
     )
       return;
-    this.#elements.source.disabled = true;
-    this.#elements.bibliography.disabled = true;
     await this.#elements.projectFileDialog.openWorkspace();
     await this.#elements.workspaceSurfaceSwitcher.restoreRoute();
     void this.#elements.gitHubSyncMenu.refreshWorkspace(true);

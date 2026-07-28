@@ -12157,6 +12157,28 @@ artifacts remain unchanged at 135,411 B / 23,373 B, 204,779 B / 62,386 B, and
 Full native CI passes all 1,773 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Project-Opening Editor Lock
+
+`ProjectFileDialog` now locks source and bibliography editing before offline
+restoration or network work begins. The connection-status owner remains the
+single authority that unlocks those fields after editability is established;
+`WorkspaceApp` no longer mutates them during startup.
+
+This checkpoint reduces `src/client/app.ts` from 463 to 461 lines (-2) and grows
+the project-file owner from 628 to 630 lines (+2), keeping total production
+lines flat. Focused coverage passes initial locking, online opening, offline
+fallback, connection-driven unlocking, affected integrations, and strict types.
+Direct and unique production package counts remain 18 and 150; Lit was already
+pinned.
+
+The browser application artifact changes from 862,072 B raw / 232,201 B gzip to
+862,060 B / 232,203 B (-12 B raw / +2 B gzip). Styles and lazy Markdown and
+PDF.js artifacts remain unchanged at 135,411 B / 23,373 B, 204,779 B / 62,386 B,
+and 481,994 B / 146,135 B.
+
+Full native CI passes all 1,773 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: One-Shot Browser Entry Intents
 
 `ProjectStartingPointBrowser` now consumes the `create=1` editor intent, removes

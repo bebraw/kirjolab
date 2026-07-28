@@ -358,7 +358,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   offline-restored projection therefore makes the next network load a normal
   refresh without a separate bootstrap flag. The owner also sequences workspace
   opening across offline restoration, catalog refresh, and canonical project
-  refresh. It distinguishes missing first-use data from usable restored state,
+  refresh. It locks the source and bibliography before restoration or network
+  work; connection-state projection remains the only authority that unlocks
+  them. It distinguishes missing first-use data from usable restored state,
   clears offline data when access is revoked, and otherwise projects an offline
   collaboration fallback through the bound authorities. The project-file owner is the
   single browser projection and read source for the accepted snapshot; the

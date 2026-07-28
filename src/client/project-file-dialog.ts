@@ -32,7 +32,7 @@ export interface ProjectFileMutationCallbacks {
 
 export interface ProjectRefreshBinding {
   readonly assetBase: string;
-  readonly bibliography: { value: string };
+  readonly bibliography: { disabled: boolean; value: string };
   readonly catalog: {
     presentOfflineWorkspace(workspace: Pick<WorkspaceSnapshot, "id" | "title">, savedAt: string): void;
     refresh(): Promise<unknown>;
@@ -58,7 +58,7 @@ export interface ProjectRefreshBinding {
     schedule(): void;
   };
   readonly preview: { renderBoundProject(bibliography?: string): unknown };
-  readonly source: { value: string };
+  readonly source: { disabled: boolean; value: string };
   readonly workspace: boolean;
 }
 
@@ -341,6 +341,8 @@ export class ProjectFileDialog extends LitElement {
   async openWorkspace(): Promise<void> {
     const binding = this.refreshBinding;
     if (!binding) return;
+    binding.source.disabled = true;
+    binding.bibliography.disabled = true;
     const restored = await this.restoreOfflineProject();
     try {
       await binding.catalog.refresh();

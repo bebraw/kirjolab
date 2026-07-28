@@ -87,7 +87,7 @@ function mutationCallbacks(): ProjectFileMutationCallbacks {
 function projectRefreshBinding() {
   return {
     assetBase: "/assets",
-    bibliography: { value: "" },
+    bibliography: { disabled: false, value: "" },
     catalog: { presentOfflineWorkspace: vi.fn(), refresh: vi.fn().mockResolvedValue(undefined) },
     collaboration: { goOffline: vi.fn(), restoreOffline: vi.fn(() => false), setOfflineAvailable: vi.fn() },
     connection: { presentOfflineRestore: vi.fn(), presentWorkflow: vi.fn() },
@@ -96,7 +96,7 @@ function projectRefreshBinding() {
     load: vi.fn().mockResolvedValue(snapshot),
     offline: { clear: vi.fn().mockResolvedValue(undefined), restore: vi.fn().mockResolvedValue(null), schedule: vi.fn() },
     preview: { renderBoundProject: vi.fn() },
-    source: { value: "" },
+    source: { disabled: false, value: "" },
     workspace: true,
   };
 }
@@ -413,6 +413,8 @@ describe("project file dialog", () => {
     await panel.openWorkspace();
     expect(binding.catalog.refresh).toHaveBeenCalledOnce();
     expect(binding.load).toHaveBeenCalledOnce();
+    expect(binding.source.disabled).toBe(true);
+    expect(binding.bibliography.disabled).toBe(true);
 
     const restored = { savedAt: "2026-07-28T12:00:00.000Z", serverStateVector: new Uint8Array([1]), snapshot };
     binding.offline.restore.mockResolvedValueOnce(restored);
