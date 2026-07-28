@@ -1344,7 +1344,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   PDF viewer factory binds this presenter directly for selection capture,
   highlight activation, page presentation, and private-highlight selection;
   the application must not repeat those four pass-through callbacks. Let it configure the manuscript-comment,
-  project-evidence, claim-list, and publication list/context panels; own
+  project-evidence, claim-list, and publication list/context panels. Bind the
+  manuscript-comment, project-evidence, and claim-list panels atomically as one
+  project-knowledge lifecycle so their shared authoring and mutation routes
+  cannot be only partly installed; own
   annotation-form cleanup and selection, edit and PDF routes, fragment-removal
   refresh sequencing, child-specific mutation failure copy, and notice
   dispatch; bind publication list and context routes atomically against one

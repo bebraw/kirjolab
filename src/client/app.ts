@@ -107,9 +107,8 @@ class WorkspaceApp {
     this.#elements.sourceCompletion.bindProjectAcceptance(apiBase, this.#elements);
     this.#elements.projectHistoryDialog.configure(apiBase, this.#elements);
     this.#elements.projectHistoryTrigger.bindRevision(this.#elements, () => this.#offline.schedule());
-    this.#elements.contextResourcePresenter.bindManuscriptComments(apiBase);
+    this.#elements.contextResourcePresenter.bindProjectKnowledge(apiBase);
     this.#collaborationSocket.bindDocument(this.#document, offlineOrigin);
-    this.#elements.contextResourcePresenter.bindProjectEvidence(apiBase);
     this.#elements.contextResourcePresenter.bindProjectMap(apiBase, this.#elements);
     this.#elements.contextResourcePresenter.bindPublications(apiBase, this.#elements.referenceLibraryWorkspace);
     this.#elements.contextResourcePresenter.bindProjectAnnotations();
@@ -118,7 +117,6 @@ class WorkspaceApp {
     this.#elements.contextResourcePresenter.bindRoutes(this.#document, this.#collaboration, this.#resourceRefresh, this.#elements);
     this.#elements.contextResourcePresenter.bindPdfViewer(this.#pdfViewer, apiBase);
     this.#elements.libraryPdfInspector.bindProjectMutations(this.#elements.referenceLibraryWorkspace);
-    this.#elements.contextResourcePresenter.bindClaimList(apiBase);
     this.#elements.workspaceSurfaceSwitcher.bindWorkspaceRoute(appMode === "workspace", this.#elements);
     this.#elements.assistantGenerationPresenter.bindResources(this.#elements.contextResourcePresenter.assistantResources());
     this.#elements.assistantGenerationPresenter.bindWorkflow(this.#resourceRefresh, this.#elements);

@@ -843,7 +843,7 @@ describe("context resource presenter", () => {
     const selectPdf = vi.spyOn(elements["project-annotation-form"], "selectPdf");
     const linkPassage = vi.spyOn(elements["project-evidence-panel"], "linkPassage").mockResolvedValue(undefined);
     const openProjectAnnotation = vi.spyOn(presenter, "openProjectAnnotation").mockImplementation(() => undefined);
-    presenter.bindProjectEvidence("/api/workspaces/workspace");
+    presenter.bindProjectKnowledge("/api/workspaces/workspace");
     const binding = bind.mock.calls[0]?.[0];
     binding?.annotationRemoved(annotation.id, "Highlight deleted.");
     binding?.completeMutation("Project changed.");
@@ -1030,8 +1030,7 @@ describe("context resource presenter", () => {
       year: "2026",
     };
 
-    presenter.bindClaimList("/api/workspaces/workspace");
-    presenter.bindManuscriptComments("/api/workspaces/workspace");
+    presenter.bindProjectKnowledge("/api/workspaces/workspace");
     presenter.bindPublications("/api/workspaces/workspace", library);
     claimBind.mock.calls[0]?.[0].completeMutation("Claim changed.");
     claimBind.mock.calls[0]?.[0].linkPassage("claim-1");
@@ -1086,8 +1085,7 @@ describe("context resource presenter", () => {
     const { elements, presenter, routes } = setup();
     const claimBind = vi.spyOn(elements["claim-list-panel"], "bind");
     const evidenceBind = vi.spyOn(elements["project-evidence-panel"], "bind");
-    presenter.bindClaimList("/api/workspaces/workspace");
-    presenter.bindProjectEvidence("/api/workspaces/workspace");
+    presenter.bindProjectKnowledge("/api/workspaces/workspace");
 
     routes.authoring.mockReturnValue({ passage: null, sourceRevision: 3, stable: false });
     claimBind.mock.calls[0]?.[0].linkPassage("claim-1");

@@ -256,7 +256,9 @@ The adopted components own bounded presentation:
   their canonical application-registry names, and the presenter owns
   the Preview context switch before section scrolling. Let it also
   configure the manuscript-comment, project-evidence, claim-list, and
-  publication list/context panels and own annotation-form cleanup and selection,
+  publication list/context panels. Bind comments, evidence, and claims together
+  as one project-knowledge lifecycle so shared authoring and mutation routes are
+  installed atomically, and own annotation-form cleanup and selection,
   edit and PDF routes, fragment-removal refresh sequencing, child-specific
   mutation failure copy, and notice dispatch. Bind project-annotation intake
   and workflow together so the composed form cannot expose a partially routed

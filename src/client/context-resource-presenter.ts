@@ -608,7 +608,7 @@ export class ContextResourcePresenter extends LitElement {
     });
   }
 
-  bindClaimList(apiBase: string): void {
+  bindProjectKnowledge(apiBase: string): void {
     const claims = this.element("claim-list-panel", ClaimListPanel);
     claims?.configure(apiBase);
     claims?.bind({
@@ -618,9 +618,6 @@ export class ContextResourcePresenter extends LitElement {
       openAnnotation: (annotationId) => this.element("project-evidence-panel", ProjectEvidencePanel)?.revealAnnotation(annotationId),
       openPassage: (anchor) => this.openPassage(anchor),
     });
-  }
-
-  bindManuscriptComments(apiBase: string): void {
     const comments = this.element("manuscript-comment-list-panel", ManuscriptCommentList);
     comments?.configure(apiBase);
     comments?.bind({
@@ -630,9 +627,6 @@ export class ContextResourcePresenter extends LitElement {
       notice: (message) => this.presentNotice(message),
       openPassage: (anchor) => this.openPassage(anchor),
     });
-  }
-
-  bindProjectEvidence(apiBase: string): void {
     const evidence = this.element("project-evidence-panel", ProjectEvidencePanel);
     evidence?.configure(apiBase);
     evidence?.bind({
