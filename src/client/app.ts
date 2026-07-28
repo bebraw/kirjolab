@@ -148,17 +148,7 @@ class WorkspaceApp {
     this.#elements.workspaceCatalogPanel.configure(catalogBase, workspaceId, this.#elements.workspaceSwitcher);
     this.#elements.workspaceCatalogPanel.bindTrigger(this.#elements.manageWorkspaces);
     this.#elements.newWorkspaceStartingPoints.bindWorkspaces(this.#elements.workspaceCatalogPanel);
-    this.#elements.workspaceSettingsPanel.bindWorkspace(this.#elements.workspaceSettings, {
-      refreshCatalog: () => this.#elements.workspaceCatalogPanel.refresh(),
-      refreshGitHub: () => void this.#elements.gitHubSyncMenu.refreshWorkspace(true),
-      saveTemplate: (projectTitle) => this.#elements.saveTemplateDialog.open(projectTitle),
-      sources: () => ({
-        catalog: this.#elements.workspaceCatalogPanel.catalog,
-        hiddenFileIds: this.#elements.projectFileDialog.hiddenFiles,
-        snapshot: this.#elements.projectFileDialog.project,
-        workspaceId,
-      }),
-    });
+    this.#elements.workspaceSettingsPanel.bindWorkspace(this.#elements.workspaceSettings, workspaceId, this.#elements);
     this.#elements.newWorkspaceStartingPoints.bindTrigger(this.#elements.newWorkspace);
     this.#elements.newWorkspaceStartingPoints.bind({
       openImport: (action) => {

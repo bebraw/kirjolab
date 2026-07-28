@@ -12750,6 +12750,30 @@ at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip, 481,994 B raw /
 Full native CI passes all 1,774 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Workspace-Settings Owners
+
+`WorkspaceSettingsPanel` now binds the live catalog, project-file,
+template-save, and GitHub owners through one typed workspace boundary. It reads
+the canonical catalog, snapshot, and hidden-file projection when opening, and
+invokes owner refresh and template operations directly. `WorkspaceApp` no
+longer constructs a settings-specific source factory plus three adapters.
+
+This checkpoint reduces `src/client/app.ts` from 360 to 350 lines (-10) and
+grows the settings panel from 427 to 441 lines (+14). The four-line combined
+runtime increase replaces duplicated projections with one explicit owner
+boundary. Focused coverage passes all 7 settings-panel cases; affected coverage
+passes 15 related runtime cases and the affected test file alongside strict
+types.
+
+The browser application artifact changes from 860,912 B raw / 232,149 B gzip to
+860,780 B raw / 232,130 B gzip (-132 B raw / -19 B gzip). Styles, lazy Markdown,
+lazy PDF.js, and direct and unique production package counts remain unchanged
+at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip, 481,994 B raw /
+146,135 B gzip, 18, and 150.
+
+Full native CI passes all 1,774 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: One-Shot Browser Entry Intents
 
 `ProjectStartingPointBrowser` now consumes the `create=1` editor intent, removes

@@ -166,9 +166,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   lifecycles, their canonical successful-result navigation, local busy and
   failure state, and its current title, archived state, visible entry-file
   choices, publication defaults, and template eligibility derived from
-  canonical workspace inputs. Bind its entry trigger and request canonical
-  inputs, catalog refresh, save-as-template, and GitHub refresh through one
-  typed workspace boundary instead of exposing local action events.
+  canonical workspace inputs. Bind its entry trigger, workspace identity, and
+  catalog, project-file, template-save, and GitHub owners through one typed
+  workspace boundary. The component reads their live projections and invokes
+  their refresh or open operations directly instead of accepting parallel
+  callbacks.
 - Let the project catalog and starting-point Lit owners bind their server-
   rendered entry triggers. The starting-point owner also owns loading-state
   entry, post-load focus, local load-failure presentation, and the one-shot

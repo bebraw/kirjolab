@@ -170,11 +170,11 @@ describe("workspace settings panel", () => {
     vi.stubGlobal("location", { assign, href: "https://example.test/editor/study?mode=source" });
     vi.stubGlobal("prompt", vi.fn().mockReturnValueOnce("Study copy").mockReturnValueOnce("DELETE"));
     panel.configureGitHub("/api/workspaces/study");
-    panel.bindWorkspace(new EventTarget(), {
-      refreshCatalog,
-      refreshGitHub: vi.fn(),
-      saveTemplate,
-      sources: () => ({ catalog: [], hiddenFileIds: new Set(), snapshot: null, workspaceId: "study" }),
+    panel.bindWorkspace(new EventTarget(), "study", {
+      gitHubSyncMenu: { refreshWorkspace: vi.fn() },
+      projectFileDialog: { hiddenFiles: new Set(), project: null },
+      saveTemplateDialog: { open: saveTemplate },
+      workspaceCatalogPanel: { catalog: [], refresh: refreshCatalog },
     });
     panel.setViewForTest(view);
 
@@ -277,16 +277,16 @@ describe("workspace settings panel", () => {
       workspaceId: "study",
     };
     const saveTemplate = vi.fn();
-    panel.bindWorkspace(trigger, {
-      refreshCatalog: vi.fn(),
-      refreshGitHub,
-      saveTemplate,
-      sources: () => sources,
+    panel.bindWorkspace(trigger, sources.workspaceId, {
+      gitHubSyncMenu: { refreshWorkspace: refreshGitHub },
+      projectFileDialog: { hiddenFiles: sources.hiddenFileIds, project: sources.snapshot },
+      saveTemplateDialog: { open: saveTemplate },
+      workspaceCatalogPanel: { catalog: sources.catalog, refresh: vi.fn() },
     });
 
     trigger.dispatchEvent(new Event("click"));
     await vi.waitFor(() => expect(panel.open).toBe(true));
-    expect(refreshGitHub).toHaveBeenCalledOnce();
+    expect(refreshGitHub).toHaveBeenCalledWith(true);
 
     panel.close();
     await panel.openSettings(false);

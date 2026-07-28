@@ -30,11 +30,17 @@ export interface WorkspaceSettingsSources {
   readonly workspaceId: string;
 }
 
-export interface WorkspaceSettingsBinding {
-  readonly refreshCatalog: () => Promise<void> | void;
-  readonly refreshGitHub: () => Promise<void> | void;
-  readonly saveTemplate: (projectTitle: string) => Promise<void> | void;
-  readonly sources: () => WorkspaceSettingsSources;
+export interface WorkspaceSettingsOwners {
+  readonly gitHubSyncMenu: { refreshWorkspace(force?: boolean): Promise<void> };
+  readonly projectFileDialog: {
+    readonly hiddenFiles: ReadonlySet<string>;
+    readonly project: Pick<WorkspaceSnapshot, "entryFileId" | "files" | "publicationProfile"> | null;
+  };
+  readonly saveTemplateDialog: { open(projectTitle: string): Promise<void> | void };
+  readonly workspaceCatalogPanel: {
+    readonly catalog: readonly WorkspaceSummary[];
+    refresh(): Promise<void> | void;
+  };
 }
 
 export class WorkspaceSettingsPanel extends LitElement {
@@ -50,9 +56,10 @@ export class WorkspaceSettingsPanel extends LitElement {
   declare private status: string;
   declare protected view: WorkspaceSettingsView;
   private gitHubApiBase = "";
-  private binding: WorkspaceSettingsBinding | undefined;
+  private owners: WorkspaceSettingsOwners | undefined;
   private trigger: EventTarget | undefined;
   private triggerBinding: AbortController | undefined;
+  private workspaceId = "";
 
   constructor() {
     super();
@@ -135,10 +142,11 @@ export class WorkspaceSettingsPanel extends LitElement {
     if (this.hasUpdated) this.gitHubReview.configure(apiBase);
   }
 
-  bindWorkspace(trigger: EventTarget, binding: WorkspaceSettingsBinding): void {
+  bindWorkspace(trigger: EventTarget, workspaceId: string, owners: WorkspaceSettingsOwners): void {
     this.triggerBinding?.abort();
-    this.binding = binding;
+    this.owners = owners;
     this.trigger = trigger;
+    this.workspaceId = workspaceId;
     this.bindTrigger();
   }
 
@@ -149,9 +157,15 @@ export class WorkspaceSettingsPanel extends LitElement {
   }
 
   async openSettings(checkGitHub = true): Promise<void> {
-    if (!this.binding) return;
-    await this.show(this.binding.sources());
-    if (checkGitHub) void this.binding.refreshGitHub();
+    const owners = this.owners;
+    if (!owners) return;
+    await this.show({
+      catalog: owners.workspaceCatalogPanel.catalog,
+      hiddenFileIds: owners.projectFileDialog.hiddenFiles,
+      snapshot: owners.projectFileDialog.project,
+      workspaceId: this.workspaceId,
+    });
+    if (checkGitHub) void owners.gitHubSyncMenu.refreshWorkspace(true);
   }
 
   override connectedCallback(): void {
@@ -319,7 +333,7 @@ export class WorkspaceSettingsPanel extends LitElement {
     if (this.busy) return;
     const projectTitle = this.view.title;
     this.close();
-    void this.binding?.saveTemplate(projectTitle);
+    void this.owners?.saveTemplateDialog.open(projectTitle);
   }
 
   protected duplicate(): void {
@@ -358,7 +372,7 @@ export class WorkspaceSettingsPanel extends LitElement {
     await this.runRequest(async () => {
       await expectOk(await jsonFetch(`${this.gitHubApiBase}/settings`, { archived: !this.view.archived }, "PATCH"));
       this.close();
-      await this.binding?.refreshCatalog();
+      await this.owners?.workspaceCatalogPanel.refresh();
     });
   }
 

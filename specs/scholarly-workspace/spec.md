@@ -51,6 +51,12 @@ collaboration.
   The project starting-point browser binds that catalog owner directly and
   reads its live catalog without a parallel getter. The workspace coordinator
   retains catalog fetching and navigation authority.
+- **Project settings:** One bounded light-DOM panel owns current values, view
+  derivation, persistence, archive/restore, duplication, permanent deletion,
+  modal lifecycle, and its sibling entry trigger. It binds the catalog,
+  project-file, template-save, and GitHub owners directly, reads their live
+  projections, and invokes their refresh or open operations without a parallel
+  application callback bag.
 - **Project sharing:** One bounded light-DOM panel owns collaborator and
   capability-link presentation, invitation input, clipboard interaction, and
   native modal lifecycle. The workspace coordinator retains membership and

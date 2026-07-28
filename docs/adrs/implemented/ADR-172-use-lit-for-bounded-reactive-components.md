@@ -554,8 +554,9 @@ The adopted components own bounded presentation:
   archive/restore, duplication and permanent deletion requests, destructive
   confirmation, local busy and error state, archive and template visibility,
   modal lifecycle, the nested GitHub-sync presentation boundary, canonical
-  post-request navigation, its sibling entry trigger, and typed canonical-input,
-  catalog-refresh, save-as-template, and GitHub-refresh callbacks.
+  post-request navigation, and its sibling entry trigger. Its typed workspace
+  boundary binds the catalog, project-file, template-save, and GitHub owners;
+  the panel reads their live projections and invokes their operations directly.
 - One shared client HTTP adapter owns same-origin JSON serialization, supported
   write methods, non-success parsing, Valibot validation of the bounded API
   error contract, and caught-value fallback messages used by request-owning
