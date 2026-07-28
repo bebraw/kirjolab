@@ -444,21 +444,15 @@ export class WorkspaceSettingsPanel extends LightDomElement {
   }
 
   protected get dialog(): HTMLDialogElement {
-    const dialog = this.querySelector<HTMLDialogElement>("#workspace-settings-dialog");
-    if (!dialog) throw new Error("Workspace settings dialog is unavailable");
-    return dialog;
+    return this.requiredElement("#workspace-settings-dialog", "Workspace settings dialog");
   }
 
   protected get titleInput(): HTMLInputElement {
-    const input = this.querySelector<HTMLInputElement>("#workspace-settings-title");
-    if (!input) throw new Error("Workspace settings title is unavailable");
-    return input;
+    return this.requiredElement("#workspace-settings-title", "Workspace settings title");
   }
 
   protected select(id: string): HTMLSelectElement {
-    const select = this.querySelector<HTMLSelectElement>(`#${id}`);
-    if (!select) throw new Error(`Workspace settings select ${id} is unavailable`);
-    return select;
+    return this.requiredElement(`#${id}`, `Workspace settings select ${id}`);
   }
 }
 

@@ -116,15 +116,11 @@ export class LibraryDiscoverySearch extends LightDomElement {
   }
 
   protected input(id: string): HTMLInputElement {
-    const input = this.querySelector<HTMLInputElement>(`#${id}`);
-    if (!input) throw new Error(`Library discovery input ${id} is unavailable`);
-    return input;
+    return this.requiredElement(`#${id}`, `Library discovery input ${id}`);
   }
 
   protected select(id: string): HTMLSelectElement {
-    const select = this.querySelector<HTMLSelectElement>(`#${id}`);
-    if (!select) throw new Error(`Library discovery select ${id} is unavailable`);
-    return select;
+    return this.requiredElement(`#${id}`, `Library discovery select ${id}`);
   }
 }
 

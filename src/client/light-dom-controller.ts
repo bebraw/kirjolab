@@ -11,6 +11,12 @@ export abstract class LightDomElement extends LightDomHost {
     if (!this.hasUpdated && typeof this.replaceChildren === "function") this.replaceChildren();
     super.connectedCallback();
   }
+
+  protected requiredElement<T extends Element>(selector: string, label: string): T {
+    const element = this.querySelector<T>(selector);
+    if (!element) throw new Error(`${label} is unavailable`);
+    return element;
+  }
 }
 
 export abstract class EagerLightDomElement extends LightDomHost {

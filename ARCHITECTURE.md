@@ -96,7 +96,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   owners extend its normal first-connection server-markup cleanup or synchronous
   first-render specialization; passive owners retain server markup. Non-rendering
   presenters extend the normal owner's controller specialization for empty
-  rendering and typed sibling lookup; keep domain bindings, effects, and
+  rendering and typed sibling lookup. Reactive owners use the shared host's
+  fail-fast typed descendant lookup instead of repeating local query-and-error
+  helpers. Keep domain bindings, effects, and
   reconnect work in the concrete components.
 - Let the project-map Lit workspace own its authorized knowledge-search request,
   response validation, and idle, result, and error lifecycle because those

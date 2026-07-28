@@ -882,7 +882,9 @@ Bounded components share one light-DOM host for render-root selection. Normal
 reactive owners remove fallback markup before Lit connects, eager owners retain
 the existing synchronous first-render contract, and passive coordination owners
 leave server markup intact. The controller specialization builds on the normal
-reactive owner and adds only empty rendering and typed sibling lookup.
+reactive owner and adds only empty rendering and typed sibling lookup. The
+shared reactive base also owns fail-fast typed descendant lookup so individual
+components do not duplicate query-and-error boilerplate.
 
 ## Consequences
 

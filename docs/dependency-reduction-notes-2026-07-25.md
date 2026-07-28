@@ -14818,6 +14818,24 @@ package counts remain 18 and 150.
 Full native CI passes all 1,781 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Reduction: Required Descendants
+
+The shared reactive light-DOM base now owns fail-fast typed descendant lookup.
+Library discovery and workspace settings use that primitive instead of keeping
+five local query-and-error implementations, while preserving their exact
+missing-control messages.
+
+This checkpoint removes four net production lines. The affected guardrail
+passes 538 cases across 93 suites, alongside formatting, lint, and all strict
+TypeScript targets, and the readability audit drops from 16 to 15 clone groups.
+The browser application changes from 847,152 B raw /
+231,160 B gzip to 847,035 B raw / 231,170 B gzip (-117 B raw / +10 B gzip);
+direct and unique production package counts remain 18 and 150, and the other
+static artifacts remain unchanged.
+
+Full native CI passes all 1,781 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,
