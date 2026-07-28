@@ -109,12 +109,7 @@ class WorkspaceApp {
   }
 
   #bindUi(): void {
-    this.#elements.assistantGenerationPresenter.bindAuthoring({
-      collaboration: this.#collaboration,
-      editor: this.#elements.editorStatus,
-      history: this.#elements.projectHistoryTrigger,
-      project: this.#elements.projectFileDialog,
-    });
+    this.#elements.assistantGenerationPresenter.bindAuthoring(this.#collaboration, this.#elements);
     this.#elements.contextResourcePresenter.bindCandidatePresentation(this.#elements.assistantGenerationPresenter);
     this.#elements.applicationVersion.bindNotices(this.#elements.toast);
     this.#elements.connectionStatus.bindWorkflow(this.#collaboration, this.#elements);

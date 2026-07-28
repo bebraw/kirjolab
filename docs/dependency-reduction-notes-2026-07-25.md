@@ -13100,6 +13100,26 @@ Markdown, lazy PDF.js, and direct and unique production package counts remain
 unchanged at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip,
 481,994 B raw / 146,135 B gzip, 18, and 150.
 
+## Continued Lit Ownership: Assistant Authoring Owners
+
+`AssistantGenerationPresenter` now consumes the canonical project-file,
+editor-status, and history owners directly for active-file identity, manuscript
+and target reads, and revision authority. Collaboration stability remains an
+explicit non-DOM service, while the application no longer translates the four
+sources through a second set of aliases.
+
+This checkpoint reduces `src/client/app.ts` from 218 to 213 lines (-5) while
+keeping the assistant presenter at 662 lines, removing five runtime lines
+overall. Focused coverage passes all 19 assistant-presenter cases; affected
+coverage passes 21 related runtime cases and the affected test file alongside
+strict types.
+
+The browser application artifact changes from 858,462 B raw / 231,738 B gzip
+to 858,452 B raw / 231,736 B gzip (-10 B raw / -2 B gzip). Styles, lazy
+Markdown, lazy PDF.js, and direct and unique production package counts remain
+unchanged at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip,
+481,994 B raw / 146,135 B gzip, 18, and 150.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,

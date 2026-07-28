@@ -290,8 +290,9 @@ collaboration.
   refresh, assistant-tab, and no-evidence notice routes instead of repeating
   them across task, result, and candidate workflows. It also binds the remaining
   Insert-menu, Context, Research-rail, toast, and canonical refresh owners
-  directly instead of a workflow callback bag. It binds the live project, editor, history, and collaboration
-  owners once as authoring sources instead of duplicating their values through
+  directly instead of a workflow callback bag. It binds the canonical project-
+  file, editor-status, and history owners once as authoring sources, with
+  collaboration stability as a separate non-DOM service, instead of duplicating their values through
   getter adapters, then derives scoped and insertion passages, generation
   input, availability, target presentation,
   and snapshot readiness internally. The bounded workflow-status owner reconciles its

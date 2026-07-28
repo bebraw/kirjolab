@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   AssistantGenerationPresenter,
-  type AssistantAuthoringSources,
+  type AssistantAuthoringOwners,
   type AssistantGenerationInput,
   type AssistantGenerationPresentation,
   type AssistantResourceRoutes,
@@ -134,7 +134,7 @@ function setup() {
   });
   const resources = resourceRoutes();
   const coordinator = workflowCoordinator();
-  presenter.bindAuthoring(authoringSources());
+  bindAuthoring(presenter);
   presenter.bindResources(resources);
   bindTestWorkflow(presenter, coordinator);
   return { coordinator, elements, presenter, resources };
@@ -148,7 +148,10 @@ interface TestAuthoringValues {
   readonly target: Pick<AssistantAuthoringPassage, "start" | "end"> | null;
 }
 
-function authoringSources(overrides: Partial<TestAuthoringValues> = {}): AssistantAuthoringSources {
+function authoringSources(overrides: Partial<TestAuthoringValues> = {}): {
+  readonly collaboration: { readonly stable: boolean };
+  readonly owners: AssistantAuthoringOwners;
+} {
   const values: TestAuthoringValues = {
     fileId: passage.fileId,
     manuscript: input("revise-selection").manuscript,
@@ -159,10 +162,17 @@ function authoringSources(overrides: Partial<TestAuthoringValues> = {}): Assista
   };
   return {
     collaboration: { stable: values.stableDocument },
-    editor: { authoringTarget: values.target, manuscript: values.manuscript },
-    history: { value: values.sourceRevision },
-    project: { activeFileId: values.fileId },
+    owners: {
+      editorStatus: { authoringTarget: values.target, manuscript: values.manuscript },
+      projectFileDialog: { activeFileId: values.fileId },
+      projectHistoryTrigger: { value: values.sourceRevision },
+    },
   };
+}
+
+function bindAuthoring(presenter: AssistantGenerationPresenter, overrides: Partial<TestAuthoringValues> = {}): void {
+  const { collaboration, owners } = authoringSources(overrides);
+  presenter.bindAuthoring(collaboration, owners);
 }
 
 function resourceRoutes(overrides: Partial<AssistantResourceRoutes> = {}): AssistantResourceRoutes {
@@ -477,13 +487,11 @@ describe("assistant generation presenter", () => {
     const generate = vi.spyOn(presenter, "generate").mockResolvedValue(null);
     const presentAvailability = vi.spyOn(presenter, "presentAvailability");
     const presentTarget = vi.spyOn(presenter, "presentTarget");
-    presenter.bindAuthoring(
-      authoringSources({
-        manuscript: input("revise-selection").manuscript,
-        sourceRevision: 11,
-        stableDocument: false,
-      }),
-    );
+    bindAuthoring(presenter, {
+      manuscript: input("revise-selection").manuscript,
+      sourceRevision: 11,
+      stableDocument: false,
+    });
     presenter.bindResources(resourceRoutes({ project: () => null }));
 
     presenter.refreshAvailability();
@@ -542,7 +550,7 @@ describe("assistant generation presenter", () => {
     const applyTable = vi.fn();
     const refreshLibrary = vi.fn().mockResolvedValueOnce(undefined).mockRejectedValueOnce(new Error("offline"));
     const completeReferenceSave = vi.spyOn(result, "completeReferenceSave").mockImplementation(() => undefined);
-    presenter.bindAuthoring(authoringSources({ manuscript: `x${passage.excerpt}` }));
+    bindAuthoring(presenter, { manuscript: `x${passage.excerpt}` });
     presenter.bindResources(resourceRoutes({ refreshLibrary }));
     bindTestWorkflow(presenter, resultCallbacks({ applyTable }));
     presenter.bindResults();
@@ -562,7 +570,7 @@ describe("assistant generation presenter", () => {
     expect(refreshLibrary).toHaveBeenCalledTimes(2);
     expect(elements["assistant-workflow-status"].status).toBe("The reference was saved, but the refreshed Library could not be loaded.");
 
-    presenter.bindAuthoring(authoringSources({ manuscript: `x${passage.excerpt}`, stableDocument: false }));
+    bindAuthoring(presenter, { manuscript: `x${passage.excerpt}`, stableDocument: false });
     result.dispatchEvent(new CustomEvent(assistantResultActionEvent, { detail: action }));
     expect(elements["assistant-workflow-status"].status).toBe("The manuscript changed. Generate the table again for the current target.");
   });

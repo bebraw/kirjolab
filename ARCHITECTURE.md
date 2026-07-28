@@ -620,9 +620,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   Context, Research-rail, toast, and canonical refresh owners instead of a
   workflow callback bag. Bind the Context owner directly;
   the presenter owns assistant-context activation and decision-state
-  re-presentation plus its resulting availability refresh. Bind canonical file identity, manuscript text, target range,
-  source revision, and collaboration stability once through the live project,
-  editor, history, and collaboration owners rather than five getter adapters;
+  re-presentation plus its resulting availability refresh. Bind canonical file
+  identity, manuscript text, target range, and source revision directly through
+  the project-file, editor-status, and history owners; keep collaboration
+  stability as an explicit non-DOM service rather than translating these
+  sources through aliases or getter adapters;
   let the presenter derive scoped and insertion passages, generation input,
   availability, target presentation, and captured-table validity from those
   same sources, including snapshot availability from its canonical project

@@ -117,8 +117,9 @@ The adopted components own bounded presentation:
   and candidate workflow bindings. Bind the remaining Insert-menu, Context,
   Research-rail, toast, and canonical refresh owners directly instead of a
   workflow callback bag. Bind the Context owner directly for assistant activation and decision
-  re-presentation. Bind the live project, editor, history, and collaboration
-  owners once as authoring sources instead of projecting file identity,
+  re-presentation. Bind the canonical project-file, editor-status, and history
+  owners once as authoring sources, with collaboration stability as a separate
+  non-DOM service, instead of projecting file identity,
   manuscript text, target range, source revision, and stability through getter
   adapters; derive scoped and insertion passages, generation
   input, availability, target presentation, captured-table validation, and
