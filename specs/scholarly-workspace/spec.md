@@ -48,7 +48,9 @@ collaboration.
   catalog fetching and canonical route navigation.
 - **Project catalog:** One bounded light-DOM panel owns filtering, result and
   empty-state presentation, native modal lifecycle, and initial filter focus.
-  The workspace coordinator retains catalog fetching and navigation authority.
+  The project starting-point browser binds that catalog owner directly and
+  reads its live catalog without a parallel getter. The workspace coordinator
+  retains catalog fetching and navigation authority.
 - **Project sharing:** One bounded light-DOM panel owns collaborator and
   capability-link presentation, invitation input, clipboard interaction, and
   native modal lifecycle. The workspace coordinator retains membership and
@@ -510,7 +512,8 @@ collaboration.
   the composed Library workspace owns current-location parsing and the
   browser-history restoration subscription with teardown plus root, addressed-
   reference, private-PDF, and active-page history mutation. It also owns its
-  bound project refresh sequence across linked-PDF loading, authorization
+  bound project refresh sequence, reads the live snapshot directly from its
+  project-file owner, and sequences linked-PDF loading, authorization
   reconciliation, project and context presentation, settlement, and canonical
   route replacement. The coordinator retains cross-feature navigation and
   notices.

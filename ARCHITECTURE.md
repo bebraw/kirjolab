@@ -173,9 +173,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   rendered entry triggers. The starting-point owner also owns loading-state
   entry, post-load focus, local load-failure presentation, and the one-shot
   browser create intent with canonical query cleanup around the catalog owner's
-  canonical refresh. Bind the catalog owner's read-only
-  workspace projection once so trigger, settings, save-template refreshes, and
-  internal template mutations refresh against the same derived input. Let the
+  canonical refresh. Bind the read-only workspace-catalog owner once so
+  trigger, settings, save-template refreshes, and internal template mutations
+  read the same live projection without a parallel getter callback. Let the
   project catalog owner fetch and validate its authorized summaries, retain the
   one browser catalog projection, and synchronize the compact switcher from
   that state. Let it derive the single authorized offline project row from a
@@ -1290,8 +1290,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   Let the presenter also own bound linked-reference PDF catalog loading,
   validation, storage, authorization projection, and optional downstream
   resource presentation. Let the composed Library workspace bind the canonical
-  project source, context presenter, and route owner once, then own Library
-  refresh, linked-PDF refresh, authorization reconciliation, project and context
+  project-file owner, context presenter, and route owner once, then read the
+  live project snapshot directly and own Library refresh, linked-PDF refresh,
+  authorization reconciliation, project and context
   presentation, settlement, and replace-route sequencing. Keep canonical
   snapshot acceptance and mutation consequences in the application coordinator.
 - Project bounded, reconstructible editor UI selections into query parameters

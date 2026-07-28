@@ -540,7 +540,9 @@ The adopted components own bounded presentation:
   binding.
   It also owns
   its native parent-dialog opening, closing, focus containment, listener
-  teardown, and return-focus lifecycle.
+  teardown, and return-focus lifecycle. It binds the workspace-catalog owner
+  directly and reads its live catalog instead of accepting a parallel catalog
+  getter.
 - The Library discovery search owns query inputs, publication-type choices,
   provider requests and response validation, duplicate-submit gating, progress
   and result-count copy, and typed validated-result events.
@@ -580,8 +582,9 @@ The adopted components own bounded presentation:
   It parses the current standalone route and owns root and addressed-reference
   root, addressed-reference, private-PDF, and active-page history mutation plus
   browser-history restoration subscription and lifecycle teardown. The
-  workspace also binds the canonical project source, context presenter, and
-  route owner once, then owns Library refresh, linked-PDF refresh,
+  workspace also binds the canonical project-file owner, context presenter, and
+  route owner once, reads the live project snapshot directly, then owns Library
+  refresh, linked-PDF refresh,
   authorization reconciliation, project and context presentation, settlement,
   and replace-route sequencing. The application coordinator supplies PDF
   navigation, web-capture/comparison, delegation to the project-file snapshot

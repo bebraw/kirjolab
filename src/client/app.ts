@@ -147,7 +147,7 @@ class WorkspaceApp {
     this.#elements.workspaceLayout.configure(workspaceId, this.#elements.workspaceSurfaces);
     this.#elements.workspaceCatalogPanel.configure(catalogBase, workspaceId, this.#elements.workspaceSwitcher);
     this.#elements.workspaceCatalogPanel.bindTrigger(this.#elements.manageWorkspaces);
-    this.#elements.newWorkspaceStartingPoints.bindWorkspaces(() => this.#elements.workspaceCatalogPanel.catalog);
+    this.#elements.newWorkspaceStartingPoints.bindWorkspaces(this.#elements.workspaceCatalogPanel);
     this.#elements.workspaceSettingsPanel.bindWorkspace(this.#elements.workspaceSettings, {
       refreshCatalog: () => this.#elements.workspaceCatalogPanel.refresh(),
       refreshGitHub: () => void this.#elements.gitHubSyncMenu.refreshWorkspace(true),
@@ -202,7 +202,7 @@ class WorkspaceApp {
     });
     this.#elements.referenceLibraryWorkspace.bindProject({
       context: this.#elements.contextResourcePresenter,
-      project: () => this.#elements.projectFileDialog.project,
+      project: this.#elements.projectFileDialog,
       projectApiBase: appMode === "workspace" ? apiBase : null,
       routes: this.#elements.workspaceSurfaceSwitcher,
     });

@@ -179,7 +179,7 @@ describe("reference Library workspace", () => {
     const syncRoute = vi.fn();
     workspace.bindProject({
       context: { presentBoundContext, refreshLibraryContext },
-      project: () => workspaceSnapshotFixture,
+      project: { project: workspaceSnapshotFixture },
       projectApiBase: "/api/workspaces/workspace",
       routes: { syncRoute },
     });

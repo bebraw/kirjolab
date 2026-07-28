@@ -70,7 +70,7 @@ export interface ReferenceLibraryProjectBinding {
     presentBoundContext(): void;
     refreshLibraryContext(snapshot: WorkspaceSnapshot | null, library: ReferenceLibrarySnapshot): Promise<void>;
   };
-  readonly project: () => WorkspaceSnapshot | null;
+  readonly project: { readonly project: WorkspaceSnapshot | null };
   readonly projectApiBase: string | null;
   readonly routes: { syncRoute(mode: "replace"): void };
 }
@@ -279,7 +279,7 @@ export class ReferenceLibraryWorkspace extends LitElement {
       return;
     }
     const library = await this.refresh();
-    const project = binding.project();
+    const project = binding.project.project;
     await binding.context.refreshLibraryContext(project, library);
     this.presentProject(project, binding.projectApiBase);
     await this.settled();

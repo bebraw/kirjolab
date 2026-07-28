@@ -12681,6 +12681,27 @@ at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip, 481,994 B raw /
 Full native CI passes all 1,774 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Canonical Catalog and Project Owners
+
+`ProjectStartingPointBrowser` now reads the live workspace catalog from its
+bound catalog owner, and `ReferenceLibraryWorkspace` reads the live project
+snapshot from its bound project-file owner. `WorkspaceApp` no longer wraps
+either canonical owner in a parallel getter callback.
+
+This checkpoint keeps `src/client/app.ts` at 375 lines and leaves both owning
+components' line counts unchanged at 582 and 483 lines. Focused coverage passes
+all 25 starting-point and Library workspace cases; affected coverage passes 27
+related runtime cases and both affected test files alongside strict types.
+
+The browser application artifact changes from 861,271 B raw / 232,162 B gzip to
+861,262 B raw / 232,157 B gzip (-9 B raw / -5 B gzip). Styles, lazy Markdown,
+lazy PDF.js, and direct and unique production package counts remain unchanged
+at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip, 481,994 B raw /
+146,135 B gzip, 18, and 150.
+
+Full native CI passes all 1,774 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: One-Shot Browser Entry Intents
 
 `ProjectStartingPointBrowser` now consumes the `create=1` editor intent, removes
