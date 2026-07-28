@@ -2,7 +2,7 @@ import { html, LitElement, type TemplateResult } from "lit";
 
 export abstract class LightDomElement extends LitElement {
   override connectedCallback(): void {
-    if (!this.hasUpdated) this.replaceChildren();
+    if (!this.hasUpdated && typeof this.replaceChildren === "function") this.replaceChildren();
     super.connectedCallback();
   }
 

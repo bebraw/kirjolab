@@ -1,11 +1,12 @@
-import { html, LitElement, type TemplateResult } from "lit";
+import { html, type TemplateResult } from "lit";
 import type { WebSnapshotComparison } from "../domain/reference-library";
 import { isWebSnapshotComparisonResponse } from "./app-contracts";
 import { errorMessage, expectOk, jsonFetch } from "./http";
+import { LightDomElement } from "./light-dom-controller";
 
 export const webSourceCapturedEvent = "web-source-captured";
 
-export class WebSourceCapture extends LitElement {
+export class WebSourceCapture extends LightDomElement {
   static override properties = {
     busy: { state: true },
     status: { state: true },
@@ -43,17 +44,6 @@ export class WebSourceCapture extends LitElement {
     }
   }
 
-  /* v8 ignore start -- exercised by browser fallback rendering */
-  override connectedCallback(): void {
-    if (!this.hasUpdated && typeof this.replaceChildren === "function") this.replaceChildren();
-    super.connectedCallback();
-  }
-  /* v8 ignore stop */
-
-  protected override createRenderRoot(): HTMLElement {
-    return this;
-  }
-
   protected override render(): TemplateResult {
     return html`
       <form class="library-url-form" id="web-source-form" @submit=${this.capture}>
@@ -86,7 +76,7 @@ export class WebSourceCapture extends LitElement {
   }
 }
 
-export class WebSnapshotComparisonPanel extends LitElement {
+export class WebSnapshotComparisonPanel extends LightDomElement {
   static override properties = {
     busy: { state: true },
     comparison: { state: true },
@@ -130,17 +120,6 @@ export class WebSnapshotComparisonPanel extends LitElement {
     this.status = "";
     this.classList?.remove("hidden");
     void this.updateComplete.then(() => this.scrollIntoView?.({ block: "nearest" }));
-  }
-
-  /* v8 ignore start -- exercised by browser fallback rendering */
-  override connectedCallback(): void {
-    if (!this.hasUpdated && typeof this.replaceChildren === "function") this.replaceChildren();
-    super.connectedCallback();
-  }
-  /* v8 ignore stop */
-
-  protected override createRenderRoot(): HTMLElement {
-    return this;
   }
 
   protected override render(): TemplateResult {

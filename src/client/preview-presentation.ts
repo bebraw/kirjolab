@@ -1,7 +1,8 @@
-import { html, LitElement, type TemplateResult } from "lit";
+import { html, type TemplateResult } from "lit";
 import type { Diagnostic } from "../domain/markdown";
 import type { ProjectFilePreview } from "../domain/project-files";
 import { sourceSpanAt } from "./composition-source-map";
+import { LightDomElement } from "./light-dom-controller";
 
 export const previewDiagnosticSelectEvent = "preview-diagnostic-select";
 
@@ -21,7 +22,7 @@ interface PreviewDiagnosticItem extends PreviewDiagnosticSelection {
   readonly selectable: boolean;
 }
 
-export class PreviewContextStatus extends LitElement {
+export class PreviewContextStatus extends LightDomElement {
   static override properties = { data: { state: true } };
   declare private data: PreviewStatusData;
 
@@ -46,15 +47,6 @@ export class PreviewContextStatus extends LitElement {
     this.data = { ...this.data, summary: "Preview unavailable" };
   }
 
-  override connectedCallback(): void {
-    if (!this.hasUpdated) this.replaceChildren();
-    super.connectedCallback();
-  }
-
-  protected override createRenderRoot(): HTMLElement {
-    return this;
-  }
-
   protected override render(): TemplateResult {
     return html`
       <span class="preview-file-context" id="preview-file-context" title=${this.data.context}>${this.data.context}</span>
@@ -63,7 +55,7 @@ export class PreviewContextStatus extends LitElement {
   }
 }
 
-export class PreviewDiagnosticsPanel extends LitElement {
+export class PreviewDiagnosticsPanel extends LightDomElement {
   static override properties = { items: { state: true } };
   declare private items: readonly PreviewDiagnosticItem[];
 
@@ -87,15 +79,6 @@ export class PreviewDiagnosticsPanel extends LitElement {
       })) ?? []),
       ...diagnostics.map((diagnostic) => rendererDiagnosticItem(diagnostic, filePreview)),
     ];
-  }
-
-  override connectedCallback(): void {
-    if (!this.hasUpdated) this.replaceChildren();
-    super.connectedCallback();
-  }
-
-  protected override createRenderRoot(): HTMLElement {
-    return this;
   }
 
   protected override render(): TemplateResult {

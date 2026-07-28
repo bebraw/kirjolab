@@ -14163,6 +14163,23 @@ static artifacts remain unchanged.
 Full native CI passes all 1,775 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Reduction: Paired Presentation Owners
+
+Preview context/diagnostics and web-source capture/comparison owners now reuse
+`LightDomElement`. The shared first-connection cleanup remains unconditional in
+browsers while capability-checking `replaceChildren` for the existing minimal
+unit-host seam.
+
+This checkpoint removes 38 production lines while keeping `src/client/app.ts`
+at 73 lines. The affected guardrail passes 527 related cases across 91 suites
+alongside strict types. The browser application changes from 848,623 B raw /
+231,139 B gzip to 848,113 B raw / 231,082 B gzip (-510 B raw / -57 B gzip);
+direct and unique production package counts remain 18 and 150, and the other
+static artifacts remain unchanged.
+
+Full native CI passes all 1,775 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,
