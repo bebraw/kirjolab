@@ -355,7 +355,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   state and availability, set revision and the authorized catalog row, install
   and present the snapshot, project connection status, and render Preview. An
   offline-restored projection therefore makes the next network load a normal
-  refresh without a separate bootstrap flag. The project-file owner is the
+  refresh without a separate bootstrap flag. The owner also sequences workspace
+  opening across offline restoration, catalog refresh, and canonical project
+  refresh. It distinguishes missing first-use data from usable restored state,
+  clears offline data when access is revoked, and otherwise projects an offline
+  collaboration fallback through the bound authorities. The project-file owner is the
   single browser projection and read source for the accepted snapshot; the
   coordinator must not retain a duplicate copy.
 - Let the editor-status Lit owner bind the active Yjs text to the source editor,

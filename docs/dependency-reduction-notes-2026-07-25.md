@@ -12109,6 +12109,31 @@ and 481,994 B / 146,135 B.
 Full native CI passes all 1,771 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Offline-First Workspace Opening
+
+`ProjectFileDialog` now owns workspace opening across offline restoration,
+catalog refresh, and canonical project refresh through its existing lifecycle
+binding. It distinguishes first-use network failure from usable restored state,
+clears offline data when access is revoked, and otherwise projects the restored
+project into explicit offline collaboration mode.
+
+This checkpoint reduces `src/client/app.ts` from 480 to 464 lines (-16) and
+grows the project-file owner from 597 to 628 lines (+31). The 15-line combined
+increase moves a multi-authority fallback workflow beside the online and offline
+project projections it controls and makes all branches independently testable.
+Focused coverage passes online opening, first-use catalog and project failure,
+restored catalog and project failure, offline transition, revoked-access
+cleanup, affected integrations, and strict types. Direct and unique production
+package counts remain 18 and 150; Lit and Valibot were already pinned.
+
+The browser application artifact changes from 862,016 B raw / 232,139 B gzip to
+862,081 B / 232,202 B (+65 B raw / +63 B gzip). Styles and lazy Markdown and
+PDF.js artifacts remain unchanged at 135,411 B / 23,373 B, 204,779 B / 62,386 B,
+and 481,994 B / 146,135 B.
+
+Full native CI passes all 1,773 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: One-Shot Browser Entry Intents
 
 `ProjectStartingPointBrowser` now consumes the `create=1` editor intent, removes

@@ -490,7 +490,9 @@ The adopted components own bounded presentation:
   refresh presentation, snapshot installation, Context presentation, offline
   scheduling, and linked-PDF refresh order. Through the same binding it owns
   restored collaboration state, revision, catalog, snapshot, Context,
-  connection, and Preview projection. The coordinator retains workflow-template selection, active
+  connection, and Preview projection. It also owns offline-first workspace
+  opening, catalog and project refresh failure policy, revoked-access cleanup,
+  and restored-offline fallback. The coordinator retains workflow-template selection, active
   Y.Text/editor authority, Yjs editing, transport construction, and the notification outlet.
   The project-file owner retains and exposes the single accepted browser
   snapshot instead of the coordinator storing a duplicate.

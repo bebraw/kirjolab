@@ -12,6 +12,7 @@ import { workspaceSnapshotFixture as snapshot } from "../test-support/workspace-
 import { projectFileActionEvent } from "./project-file-actions";
 import { projectImagesUploadedEvent } from "./project-image-upload-control";
 import { projectTreeActionEvent } from "./project-tree-panel";
+import { WorkspaceAccessError } from "./workspace-snapshot-client";
 
 class TestProjectFileDialog extends ProjectFileDialog {
   focusCount = 0;
@@ -87,13 +88,13 @@ function projectRefreshBinding() {
   return {
     assetBase: "/assets",
     bibliography: { value: "" },
-    catalog: { presentOfflineWorkspace: vi.fn() },
-    collaboration: { restoreOffline: vi.fn(() => false), setOfflineAvailable: vi.fn() },
-    connection: { presentOfflineRestore: vi.fn() },
+    catalog: { presentOfflineWorkspace: vi.fn(), refresh: vi.fn().mockResolvedValue(undefined) },
+    collaboration: { goOffline: vi.fn(), restoreOffline: vi.fn(() => false), setOfflineAvailable: vi.fn() },
+    connection: { presentOfflineRestore: vi.fn(), presentWorkflow: vi.fn() },
     context: { presentBoundWorkspace: vi.fn(), refreshBoundReferencePdfs: vi.fn().mockResolvedValue(undefined) },
     history: { setRevision: vi.fn() },
     load: vi.fn().mockResolvedValue(snapshot),
-    offline: { restore: vi.fn().mockResolvedValue(null), schedule: vi.fn() },
+    offline: { clear: vi.fn().mockResolvedValue(undefined), restore: vi.fn().mockResolvedValue(null), schedule: vi.fn() },
     preview: { renderBoundProject: vi.fn() },
     source: { value: "" },
     workspace: true,
@@ -400,6 +401,38 @@ describe("project file dialog", () => {
     expect(binding.context.presentBoundWorkspace).toHaveBeenCalledOnce();
     expect(binding.connection.presentOfflineRestore).toHaveBeenCalledWith(true);
     expect(binding.preview.renderBoundProject).toHaveBeenCalledOnce();
+  });
+
+  it("owns online and restored-offline workspace opening policy", async () => {
+    const panel = new TestProjectFileDialog();
+    const callbacks = mutationCallbacks();
+    const binding = projectRefreshBinding();
+    panel.configureApi("/api/workspaces/workspace", callbacks);
+    panel.bindProjectRefresh(binding);
+
+    await panel.openWorkspace();
+    expect(binding.catalog.refresh).toHaveBeenCalledOnce();
+    expect(binding.load).toHaveBeenCalledOnce();
+
+    const restored = { savedAt: "2026-07-28T12:00:00.000Z", serverStateVector: new Uint8Array([1]), snapshot };
+    binding.offline.restore.mockResolvedValueOnce(restored);
+    binding.catalog.refresh.mockRejectedValueOnce(new Error("offline"));
+    binding.load.mockRejectedValueOnce(new Error("offline"));
+
+    await panel.openWorkspace();
+    expect(binding.collaboration.goOffline).toHaveBeenCalledOnce();
+    expect(binding.connection.presentWorkflow).toHaveBeenCalledOnce();
+  });
+
+  it("clears offline state when workspace access is revoked", async () => {
+    const panel = new TestProjectFileDialog();
+    const binding = projectRefreshBinding();
+    const accessError = new WorkspaceAccessError("Project access is no longer available");
+    binding.load.mockRejectedValue(accessError);
+    panel.bindProjectRefresh(binding);
+
+    await expect(panel.openWorkspace()).rejects.toBe(accessError);
+    expect(binding.offline.clear).toHaveBeenCalledOnce();
   });
 
   it("commits the validated workspace and emits the saved file identity", async () => {

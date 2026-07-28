@@ -7,6 +7,7 @@ import { projectFileActionEvent, type ProjectFileAction } from "./project-file-a
 import { projectImagesUploadedEvent, type ProjectImagesUploaded } from "./project-image-upload-control";
 import { projectTreeActionEvent, type ProjectTreeAction, type ProjectTreeCallbacks, type ProjectTreeData } from "./project-tree-panel";
 import type { RestoredOfflineWorkspace } from "./offline-workspace";
+import { WorkspaceAccessError } from "./workspace-snapshot-client";
 
 export type ProjectFileDialogMode = "create" | "create-and-include" | "rename" | "create-folder" | "rename-folder";
 
@@ -32,12 +33,19 @@ export interface ProjectFileMutationCallbacks {
 export interface ProjectRefreshBinding {
   readonly assetBase: string;
   readonly bibliography: { value: string };
-  readonly catalog: { presentOfflineWorkspace(workspace: Pick<WorkspaceSnapshot, "id" | "title">, savedAt: string): void };
+  readonly catalog: {
+    presentOfflineWorkspace(workspace: Pick<WorkspaceSnapshot, "id" | "title">, savedAt: string): void;
+    refresh(): Promise<unknown>;
+  };
   readonly collaboration: {
+    goOffline(): void;
     restoreOffline(serverStateVector: Uint8Array): boolean;
     setOfflineAvailable(available: boolean): void;
   };
-  readonly connection: { presentOfflineRestore(pending: boolean): void };
+  readonly connection: {
+    presentOfflineRestore(pending: boolean): void;
+    presentWorkflow(): void;
+  };
   readonly context: {
     presentBoundWorkspace(): void;
     refreshBoundReferencePdfs(): Promise<void>;
@@ -45,6 +53,7 @@ export interface ProjectRefreshBinding {
   readonly history: { setRevision(revision: number): void };
   readonly load: () => Promise<WorkspaceSnapshot>;
   readonly offline: {
+    clear(): Promise<void>;
     restore(): Promise<RestoredOfflineWorkspace | null>;
     schedule(): void;
   };
@@ -327,6 +336,28 @@ export class ProjectFileDialog extends LitElement {
     binding.connection.presentOfflineRestore(pending);
     void binding.preview.renderBoundProject();
     return true;
+  }
+
+  async openWorkspace(): Promise<void> {
+    const binding = this.refreshBinding;
+    if (!binding) return;
+    const restored = await this.restoreOfflineProject();
+    try {
+      await binding.catalog.refresh();
+    } catch (error) {
+      if (!restored) throw new Error("Open Kirjolab online once before using it offline", { cause: error });
+    }
+    try {
+      await this.refreshProject();
+    } catch (error) {
+      if (error instanceof WorkspaceAccessError) {
+        await binding.offline.clear();
+        throw error;
+      }
+      if (!restored) throw new Error("Open this project online once before editing it offline", { cause: error });
+      binding.collaboration.goOffline();
+      binding.connection.presentWorkflow();
+    }
   }
 
   private ensureActiveFile(snapshot: WorkspaceSnapshot): ProjectFile | null {

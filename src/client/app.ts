@@ -14,7 +14,7 @@ import { WorkspaceLayoutManager } from "./workspace-layout-manager";
 import "./workspace-layout-control";
 import { type WritingWorkflowBinding } from "./writing-workflow-panel";
 import "./research-diary-summary";
-import { loadWorkspaceSnapshot, WorkspaceAccessError } from "./workspace-snapshot-client";
+import { loadWorkspaceSnapshot } from "./workspace-snapshot-client";
 import { CoalescedRefresh } from "./collaboration";
 import { CollaborationSession } from "./collaboration-session";
 import { CollaborationSocket } from "./collaboration-socket";
@@ -130,23 +130,7 @@ class WorkspaceApp {
     void this.#elements.workspaceLayout.restore();
     this.#elements.source.disabled = true;
     this.#elements.bibliography.disabled = true;
-    const restored = await this.#elements.projectFileDialog.restoreOfflineProject();
-    try {
-      await this.#elements.workspaceCatalogPanel.refresh();
-    } catch (error) {
-      if (!restored) throw new Error("Open Kirjolab online once before using it offline", { cause: error });
-    }
-    try {
-      await this.#resourceRefresh.request();
-    } catch (error) {
-      if (error instanceof WorkspaceAccessError) {
-        await this.#offline.clear();
-        throw error;
-      }
-      if (!restored) throw new Error("Open this project online once before editing it offline", { cause: error });
-      this.#collaboration.goOffline();
-      this.#elements.connectionStatus.presentWorkflow();
-    }
+    await this.#elements.projectFileDialog.openWorkspace();
     await this.#elements.workspaceSurfaceSwitcher.restoreRoute();
     void this.#elements.gitHubSyncMenu.refreshWorkspace(true);
     this.#collaborationSocket.connect();

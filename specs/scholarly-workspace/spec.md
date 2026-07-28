@@ -410,7 +410,10 @@ collaboration.
   cleanup. The project-file owner consumes the typed restoration result and
   sequences collaboration recovery plus restored revision, catalog, project,
   Context, connection, and Preview projection through its bound lifecycle
-  capabilities.
+  capabilities. It also owns workspace opening across restoration, catalog
+  refresh, and canonical project refresh: first use requires network data,
+  revoked access clears offline state, and other network failures retain a
+  restored project in explicit offline mode.
   The workspace-catalog owner derives the single authorized offline project row
   from restored snapshot identity, title, and save time. The connection-status
   owner combines restored collaboration/editability projection with pending-
