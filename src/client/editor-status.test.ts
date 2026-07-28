@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as Y from "yjs";
 import { workspaceSnapshotFixture } from "../test-support/workspace-fixture";
-import { EditorStatus, type EditorAuthoringBinding } from "./editor-status";
+import { EditorStatus, type EditorAuthoringOwners } from "./editor-status";
 
 class FakeElement extends EventTarget {
   readonly children: unknown[] = [];
@@ -46,19 +46,19 @@ const authoringBinding = ({
   sourceChanged = () => undefined,
   targetChanged = () => undefined,
 }: {
-  presence?: EditorAuthoringBinding["presence"]["rangesFor"];
+  presence?: EditorAuthoringOwners["collaboratorSelections"]["rangesFor"];
   sourceChanged?: () => void;
   targetChanged?: () => void;
-} = {}): EditorAuthoringBinding => ({
-  authoring: { navigate: vi.fn() },
-  assistant: { refreshAvailability: vi.fn(), refreshTarget: targetChanged, sourceChanged },
-  citation: { bindWorkflow: vi.fn(), setCaret: vi.fn() },
-  collaboration: { scheduleSelection: vi.fn() },
-  context: { openCitation: vi.fn(), setCitationAvailable: vi.fn() },
-  highlight: htmlElement(),
-  notices: { show: vi.fn() },
-  presence: { bindSelectionChanged: vi.fn(), rangesFor: presence },
+} = {}): EditorAuthoringOwners => ({
+  authoringModeTabs: { navigate: vi.fn() },
+  assistantGenerationPresenter: { refreshAvailability: vi.fn(), refreshTarget: targetChanged, sourceChanged },
+  sourceCitationControl: { bindWorkflow: vi.fn(), setCaret: vi.fn() },
+  contextResourcePresenter: { openCitation: vi.fn(), setCitationAvailable: vi.fn() },
+  sourceHighlight: htmlElement(),
+  toast: { show: vi.fn() },
+  collaboratorSelections: { bindSelectionChanged: vi.fn(), rangesFor: presence },
 });
+const authoringSocket = () => ({ scheduleSelection: vi.fn() });
 const undoKey = (): KeyboardEvent =>
   Object.assign(new Event("keydown", { cancelable: true }), {
     altKey: false,
@@ -119,7 +119,7 @@ describe("editor status", () => {
     const status = new TestEditorStatus();
     let changes = 0;
     const binding = authoringBinding({ targetChanged: () => changes++ });
-    status.bindAuthoring(documentModel, source, binding);
+    status.bindAuthoring(documentModel, source, binding, authoringSocket());
     status.setAuthoringContext("chapter.md", "file-1", text, true);
 
     source.setSelectionRange(6, 10);
@@ -146,8 +146,8 @@ describe("editor status", () => {
     expect(status.selectedPassage()).toBeNull();
     expect(status.insertionTarget).toEqual({ caret: 2, passage: null });
     expect(changes).toBe(4);
-    expect(binding.citation.setCaret).toHaveBeenLastCalledWith("x alpha beta", 2);
-    expect(binding.context.setCitationAvailable).toHaveBeenLastCalledWith(true);
+    expect(binding.sourceCitationControl.setCaret).toHaveBeenLastCalledWith("x alpha beta", 2);
+    expect(binding.contextResourcePresenter.setCitationAvailable).toHaveBeenLastCalledWith(true);
   });
 
   it("invalidates a preserved range when the authoring text changes", () => {
@@ -158,7 +158,7 @@ describe("editor status", () => {
     second.insert(0, "second text");
     const source = textareaElement(new FakeTextarea());
     const status = new TestEditorStatus();
-    status.bindAuthoring(documentModel, source, authoringBinding());
+    status.bindAuthoring(documentModel, source, authoringBinding(), authoringSocket());
     status.setAuthoringContext("first.md", "first", first);
     const resolveRange = status.preserveRange(0, 5);
 
@@ -172,7 +172,7 @@ describe("editor status", () => {
     documentModel.getText("source").insert(0, "draft");
     const source = textareaElement(new FakeTextarea());
     const status = new TestEditorStatus();
-    status.bindAuthoring(documentModel, source, authoringBinding());
+    status.bindAuthoring(documentModel, source, authoringBinding(), authoringSocket());
 
     status.setProjectFile(workspaceSnapshotFixture.files[0]!, workspaceSnapshotFixture.entryFileId, true);
     status.applyAuthoringInsertion({ end: 5, selectionEnd: 6, selectionStart: 6, start: 5, text: "!" });
@@ -189,17 +189,17 @@ describe("editor status", () => {
     const source = textareaElement(new FakeTextarea());
     const status = new TestEditorStatus();
     const binding = authoringBinding();
-    status.bindAuthoring(documentModel, source, binding);
+    status.bindAuthoring(documentModel, source, binding, authoringSocket());
     status.setAuthoringContext("main.md", "main", text, true);
 
-    expect(binding.citation.bindWorkflow).toHaveBeenCalledWith(binding.context, status);
+    expect(binding.sourceCitationControl.bindWorkflow).toHaveBeenCalledWith(binding.contextResourcePresenter, status);
     status.completeCitationInsertion({ caret: 26, index: 6, text: " :cite[source2026]" }, "Citation inserted.");
     status.completeCitationInsertion(null, "Citation unavailable.");
 
     expect(status.manuscript).toBe("Claim. :cite[source2026]");
-    expect(binding.authoring.navigate).toHaveBeenCalledOnce();
-    expect(binding.notices.show).toHaveBeenNthCalledWith(1, "Citation inserted.");
-    expect(binding.notices.show).toHaveBeenNthCalledWith(2, "Citation unavailable.");
+    expect(binding.authoringModeTabs.navigate).toHaveBeenCalledOnce();
+    expect(binding.toast.show).toHaveBeenNthCalledWith(1, "Citation inserted.");
+    expect(binding.toast.show).toHaveBeenNthCalledWith(2, "Citation unavailable.");
   });
 
   it("preserves a live insertion point across collaborative edits", () => {
@@ -211,7 +211,7 @@ describe("editor status", () => {
     const source = textareaElement(new FakeTextarea());
     const status = new TestEditorStatus();
     expect(status.preserveInsertionPoint()).toBeNull();
-    status.bindAuthoring(documentModel, source, authoringBinding());
+    status.bindAuthoring(documentModel, source, authoringBinding(), authoringSocket());
     status.setAuthoringContext("first.md", "first", first, true);
     source.setSelectionRange(5, 5);
     const insert = status.preserveInsertionPoint();
@@ -235,7 +235,7 @@ describe("editor status", () => {
     const source = textareaElement(new FakeTextarea());
     const companionSource = textareaElement(new FakeTextarea());
     const status = new TestEditorStatus();
-    status.bindAuthoring(documentModel, source, authoringBinding());
+    status.bindAuthoring(documentModel, source, authoringBinding(), authoringSocket());
     status.setAuthoringContext("source.md", "source", text, true);
     status.bindCompanion(companionSource, companion);
     source.setSelectionRange(2, 6);
@@ -273,7 +273,8 @@ describe("editor status", () => {
       },
       sourceChanged: () => sourceChanges++,
     });
-    status.bindAuthoring(documentModel, source, binding);
+    const collaborationSocket = authoringSocket();
+    status.bindAuthoring(documentModel, source, binding, collaborationSocket);
     status.setAuthoringContext("first.md", "first", first, true);
     Reflect.set(document, "activeElement", source);
 
@@ -281,8 +282,8 @@ describe("editor status", () => {
     source.dispatchEvent(new Event("input"));
     expect(first.toString()).toBe("first edit");
     expect(sourceChanges).toBe(1);
-    expect(binding.collaboration.scheduleSelection).toHaveBeenCalledOnce();
-    expect(binding.assistant.refreshAvailability).toHaveBeenCalledOnce();
+    expect(collaborationSocket.scheduleSelection).toHaveBeenCalledOnce();
+    expect(binding.assistantGenerationPresenter.refreshAvailability).toHaveBeenCalledOnce();
     expect(status.caret).toBe(source.selectionEnd);
 
     status.setAuthoringContext("second.md", "second", second, true);
@@ -304,7 +305,7 @@ describe("editor status", () => {
     status.insertText(first, first.length, " background");
     expect(first.toString()).toBe("old first edit background");
     expect(source.value).toBe("new second");
-    const selectionChanged = vi.mocked(binding.presence.bindSelectionChanged).mock.calls[0]?.[0];
+    const selectionChanged = vi.mocked(binding.collaboratorSelections.bindSelectionChanged).mock.calls[0]?.[0];
     selectionChanged?.();
     expect(presenceReads).toBeGreaterThan(0);
   });

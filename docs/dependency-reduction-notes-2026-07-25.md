@@ -13060,6 +13060,26 @@ Markdown, lazy PDF.js, and direct and unique production package counts remain
 unchanged at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip,
 481,994 B raw / 146,135 B gzip, 18, and 150.
 
+## Continued Lit Ownership: Editor Authoring Owners
+
+`EditorStatus` now consumes the canonical authoring-mode, assistant, citation,
+Context, highlight, toast, and collaborator-selection owners directly from the
+application element registry. The non-DOM collaboration socket remains an
+explicit scheduling capability, while the application no longer translates
+eight owners through a second set of aliases.
+
+This checkpoint reduces `src/client/app.ts` from 239 to 230 lines (-9) and
+grows the editor-status owner from 341 to 347 lines (+6), removing three runtime
+lines overall. Focused coverage passes all eight editor-status cases; affected
+coverage passes ten related runtime cases and the affected test file alongside
+strict types.
+
+The browser application artifact changes from 858,372 B raw / 231,752 B gzip
+to 858,305 B raw / 231,743 B gzip (-67 B raw / -9 B gzip). Styles, lazy
+Markdown, lazy PDF.js, and direct and unique production package counts remain
+unchanged at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip,
+481,994 B raw / 146,135 B gzip, 18, and 150.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,

@@ -378,8 +378,10 @@ The adopted components own bounded presentation:
   delegates canonical snapshot application, resolves the range again, applies
   the citation through the editor insertion owner, and presents completion.
   The editor-status owner observes source interaction directly for authoring-
-  selection, presence, and model-availability consequences. Its pure
-  citation-completion domain adapter owns
+  selection, presence, and model-availability consequences. Its authoring
+  binding consumes canonical element-registry owner names directly;
+  the collaboration socket remains a separate non-DOM scheduling capability.
+  Its pure citation-completion domain adapter owns
   project and available unlinked Library candidate construction from canonical
   reference inputs, while the component owns project-relative include candidate
   construction from canonical files and the active file id.

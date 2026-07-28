@@ -143,16 +143,7 @@ class WorkspaceApp {
     this.#elements.workspaceSharingPanel.configure(apiBase, this.#elements);
     this.#elements.referenceLibraryWorkspace.configure(workspaceId);
     this.#elements.referenceLibraryWorkspace.bindProject(appMode === "workspace" ? apiBase : null, this.#elements);
-    this.#elements.editorStatus.bindAuthoring(this.#document, this.#elements.source, {
-      authoring: this.#elements.authoringModeTabs,
-      assistant: this.#elements.assistantGenerationPresenter,
-      citation: this.#elements.sourceCitationControl,
-      collaboration: this.#collaborationSocket,
-      context: this.#elements.contextResourcePresenter,
-      highlight: this.#elements.sourceHighlight,
-      notices: this.#elements.toast,
-      presence: this.#elements.collaboratorSelections,
-    });
+    this.#elements.editorStatus.bindAuthoring(this.#document, this.#elements.source, this.#elements, this.#collaborationSocket);
     this.#elements.editorStatus.setAuthoringContext("Manuscript", null, this.#source, true);
     this.#elements.vimModeControl.bindEditor(this.#elements.source, this.#elements.sourceEditorShell);
     this.#elements.sourceCompletion.bindEditor(this.#elements.source, this.#elements.citationCompletionScope);

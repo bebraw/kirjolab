@@ -43,22 +43,21 @@ interface EditorSelectionSource {
   readonly text: Y.Text;
 }
 
-export interface EditorAuthoringBinding {
-  readonly authoring: { navigate(mode: "write"): void };
-  readonly assistant: {
+export interface EditorAuthoringOwners {
+  readonly authoringModeTabs: { navigate(mode: "write"): void };
+  readonly assistantGenerationPresenter: {
     refreshAvailability(): void;
     refreshTarget(): void;
     sourceChanged(): void;
   };
-  readonly citation: {
+  readonly sourceCitationControl: {
     bindWorkflow(navigation: { openCitation(context: CitationContext): void }, editor: EditorStatus): void;
     setCaret(source: string, position: number | null): void;
   };
-  readonly collaboration: { scheduleSelection(): void };
-  readonly context: { openCitation(context: CitationContext): void; setCitationAvailable(available: boolean): void };
-  readonly highlight: HTMLElement;
-  readonly notices: { show(message: string): void };
-  readonly presence: {
+  readonly contextResourcePresenter: { openCitation(context: CitationContext): void; setCitationAvailable(available: boolean): void };
+  readonly sourceHighlight: HTMLElement;
+  readonly toast: { show(message: string): void };
+  readonly collaboratorSelections: {
     bindSelectionChanged(callback: () => void): void;
     rangesFor(fileId: string | null): readonly EditorPresenceRange[];
   };
@@ -72,7 +71,8 @@ export class EditorStatus extends LitElement {
 
   declare private save: string;
   declare protected target: string;
-  private binding: EditorAuthoringBinding | null = null;
+  private owners: EditorAuthoringOwners | null = null;
+  private collaborationSocket: { scheduleSelection(): void } | null = null;
   private readonly companions: EditorSelectionSource[] = [];
   private documentModel: Y.Doc | null = null;
   private fileId: string | null = null;
@@ -81,13 +81,13 @@ export class EditorStatus extends LitElement {
   private renderEditorHighlight: () => void = () => undefined;
   private selection: RelativeEditorSelection | null = null;
   private source: HTMLTextAreaElement | null = null;
-  private readonly sourceChanged = (): void => this.binding?.assistant.sourceChanged();
+  private readonly sourceChanged = (): void => this.owners?.assistantGenerationPresenter.sourceChanged();
   private text: Y.Text | null = null;
   private readonly undoManagers = new Map<Y.Text, Y.UndoManager>();
   private readonly updateAuthoringTarget = (): void => {
     if (document.activeElement === this.source) this.rememberSelection();
-    this.binding?.collaboration.scheduleSelection();
-    this.binding?.assistant.refreshAvailability();
+    this.collaborationSocket?.scheduleSelection();
+    this.owners?.assistantGenerationPresenter.refreshAvailability();
   };
 
   constructor() {
@@ -100,12 +100,18 @@ export class EditorStatus extends LitElement {
     this.save = save;
   }
 
-  bindAuthoring(documentModel: Y.Doc, source: HTMLTextAreaElement, binding: EditorAuthoringBinding): void {
-    this.binding = binding;
+  bindAuthoring(
+    documentModel: Y.Doc,
+    source: HTMLTextAreaElement,
+    owners: EditorAuthoringOwners,
+    collaborationSocket: { scheduleSelection(): void },
+  ): void {
+    this.owners = owners;
+    this.collaborationSocket = collaborationSocket;
     this.documentModel = documentModel;
     this.source = source;
-    binding.citation.bindWorkflow(binding.context, this);
-    binding.presence.bindSelectionChanged(() => this.renderHighlight());
+    owners.sourceCitationControl.bindWorkflow(owners.contextResourcePresenter, this);
+    owners.collaboratorSelections.bindSelectionChanged(() => this.renderHighlight());
     if (this.text) this.bindText(this.text);
   }
 
@@ -176,9 +182,9 @@ export class EditorStatus extends LitElement {
   completeCitationInsertion(insertion: CitationInsertion | null, message: string): void {
     if (insertion) {
       this.insertAuthoringText(insertion.index, insertion.text, insertion.caret);
-      this.binding?.authoring.navigate("write");
+      this.owners?.authoringModeTabs.navigate("write");
     }
-    this.binding?.notices.show(message);
+    this.owners?.toast.show(message);
   }
 
   preserveInsertionPoint(): ((value: string) => boolean) | null {
@@ -227,12 +233,12 @@ export class EditorStatus extends LitElement {
   refreshAuthoringTarget(): void {
     this.setAuthoringTarget(this.path, this.text?.toString() ?? "", this.authoringTarget);
     this.renderEditorHighlight();
-    const binding = this.binding;
-    if (!binding) return;
+    const owners = this.owners;
+    if (!owners) return;
     const caret = this.caret;
-    binding.citation.setCaret(this.manuscript, caret);
-    binding.assistant.refreshTarget();
-    binding.context.setCitationAvailable(caret !== null);
+    owners.sourceCitationControl.setCaret(this.manuscript, caret);
+    owners.assistantGenerationPresenter.refreshTarget();
+    owners.contextResourcePresenter.setCitationAvailable(caret !== null);
   }
 
   renderHighlight(): void {
@@ -298,8 +304,8 @@ export class EditorStatus extends LitElement {
   private bindText(text: Y.Text): void {
     const documentModel = this.documentModel;
     const source = this.source;
-    const binding = this.binding;
-    if (!documentModel || !source || !binding) return;
+    const owners = this.owners;
+    if (!documentModel || !source || !owners) return;
     this.releaseText();
     text.observe(this.sourceChanged);
     let undoManager = this.undoManagers.get(text);
@@ -307,7 +313,7 @@ export class EditorStatus extends LitElement {
       undoManager = new Y.UndoManager(text, { trackedOrigins: new Set([source, this]) });
       this.undoManagers.set(text, undoManager);
     }
-    const textBinding = bindYText(source, text, documentModel, binding.highlight, () => this.editorPresence(), undoManager);
+    const textBinding = bindYText(source, text, documentModel, owners.sourceHighlight, () => this.editorPresence(), undoManager);
     for (const eventName of authoringTargetEvents) source.addEventListener(eventName, this.updateAuthoringTarget);
     this.renderEditorHighlight = textBinding.renderHighlight;
     this.releaseText = () => {
@@ -322,7 +328,7 @@ export class EditorStatus extends LitElement {
     const local: readonly EditorPresenceRange[] = target
       ? [{ collaboratorId: "local-author", start: target.start, end: target.end, local: true }]
       : [];
-    return [...local, ...(this.binding?.presence.rangesFor(this.fileId) ?? [])];
+    return [...local, ...(this.owners?.collaboratorSelections.rangesFor(this.fileId) ?? [])];
   }
 }
 

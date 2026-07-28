@@ -407,7 +407,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   local plus collaborator presence from a once-bound presence owner and
   subscribe directly to its selection changes. Switching
   active files must release the prior text observer and editor listeners before
-  binding the next text. Let the owner expose the active manuscript projection,
+  binding the next text. Bind the canonical application element registry
+  directly for authoring-mode, assistant, citation, Context, highlight, toast,
+  and collaborator-selection capabilities; pass the non-DOM collaboration
+  socket separately instead of translating either boundary through aliases.
+  Let the owner expose the active manuscript projection,
   apply bounded active-text insertions and replacements, focus the active
   source, and select their resulting range so those edits share its undo
   history. Bind its source interaction listeners after the Yjs textarea adapter

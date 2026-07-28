@@ -389,7 +389,11 @@ collaboration.
 - **Editor ownership:** After `sync`, source and bibliography inputs derive from
   `Y.Text`; server collaboration controls own the displayed revision. REST
   workspace refreshes cannot assign those values. The editor reports `Saved`
-  once initial synchronization completes with no queued local updates.
+  once initial synchronization completes with no queued local updates. Editor
+  status consumes the canonical authoring-mode, assistant, citation, Context,
+  highlight, toast, and collaborator-selection owners directly from the
+  application element registry. Collaboration selection scheduling remains an
+  explicit non-DOM socket capability.
 - **Source editor adapter:** One bounded browser adapter owns textarea-to-Yjs
   synchronization and history, syntax and presence mirroring, scroll alignment,
   completion geometry, and relative-selection capture and validated resolution
