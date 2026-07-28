@@ -216,10 +216,10 @@ describe("offline workspace persistence", () => {
     const events = new EventTarget();
     const logout = Object.assign(new EventTarget(), { href: "https://example.test/log-out" });
     const navigate = vi.fn();
-    const failed = vi.fn();
+    const notices = { show: vi.fn() };
     const schedule = vi.spyOn(session, "schedule");
     const clearBrowserData = vi.spyOn(session, "clearBrowserData").mockResolvedValue();
-    session.bindBrowserLifecycle(logout, failed, {
+    session.bindBrowserLifecycle(logout, notices, {
       cacheStorage: undefined,
       databaseFactory: undefined,
       events,
@@ -233,13 +233,17 @@ describe("offline workspace persistence", () => {
     expect(schedule).toHaveBeenCalledWith(0);
     expect(click.defaultPrevented).toBe(true);
     expect(clearBrowserData).toHaveBeenCalledWith(undefined, undefined);
-    expect(failed).not.toHaveBeenCalled();
+    expect(notices.show).not.toHaveBeenCalled();
+
+    clearBrowserData.mockRejectedValueOnce(new Error("Could not remove cached data"));
+    logout.dispatchEvent(new Event("click", { cancelable: true }));
+    await vi.waitFor(() => expect(notices.show).toHaveBeenCalledWith("Could not remove cached data"));
 
     session.unbindBrowserLifecycle();
     events.dispatchEvent(new Event("pagehide"));
     logout.dispatchEvent(new Event("click"));
     expect(schedule).toHaveBeenCalledOnce();
-    expect(clearBrowserData).toHaveBeenCalledOnce();
+    expect(clearBrowserData).toHaveBeenCalledTimes(2);
   });
 
   it("round-trips isolated copied state and clears one project", async () => {

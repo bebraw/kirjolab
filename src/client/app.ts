@@ -132,12 +132,10 @@ class WorkspaceApp {
       project: this.#elements.projectFileDialog,
     });
     this.#elements.contextResourcePresenter.bindCandidatePresentation(this.#elements.assistantGenerationPresenter);
-    this.#elements.applicationVersion.bindNotice((message) => this.#elements.toast.show(message));
+    this.#elements.applicationVersion.bindNotices(this.#elements.toast);
     this.#elements.connectionStatus.bindWorkflow(this.#collaboration, this.#elements);
     this.#collaborationSocket.bindBrowserLifecycle();
-    this.#offline.bindBrowserLifecycle(document.querySelector<HTMLAnchorElement>("#log-out"), (error) =>
-      this.#elements.toast.show(error instanceof Error ? error.message : "Could not clear offline data"),
-    );
+    this.#offline.bindBrowserLifecycle(document.querySelector<HTMLAnchorElement>("#log-out"), this.#elements.toast);
     this.#elements.workspaceLayout.configure(workspaceId, this.#elements.workspaceSurfaces);
     this.#elements.workspaceCatalogPanel.configure(catalogBase, workspaceId, this.#elements.workspaceSwitcher);
     this.#elements.workspaceCatalogPanel.bindTrigger(this.#elements.manageWorkspaces);

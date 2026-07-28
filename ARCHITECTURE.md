@@ -904,7 +904,8 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   and save outcomes once; own Yjs encoding, debounced scheduling and flush,
   restoration delegation, project-copy clearing, and combined IndexedDB/shell-
   cache cleanup. Let that session also own page-exit persistence and hosted-
-  logout interception, cleanup, navigation, failure routing, and explicit
+  logout interception, cleanup, navigation, failure presentation through its
+  bound toast owner, and explicit
   listener teardown. Keep collaboration queue recovery and restored-state UI
   projection in their existing owners.
 - Cache only authenticated canonical editor navigation and the allowlisted
@@ -914,7 +915,8 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   the build-derived shell identity and own service-worker registration, update
   refresh sequencing, workspace-navigation caching, ready projection, and
   fail-open behavior. Supply project persistence and pinned-notice effects
-  through a narrow binding.
+  through a narrow binding, and bind the toast owner directly for copy
+  outcomes.
 - Publish immutable browser runtimes under content-fingerprinted URLs. Derive
   the service-worker cache namespace from the built shell so a shell change
   installs a new cache generation and activation removes older Kirjolab shell

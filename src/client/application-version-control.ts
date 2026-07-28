@@ -1,4 +1,5 @@
 import { html, LitElement, type TemplateResult } from "lit";
+import type { AppToast } from "./app-toast";
 import { applicationVersion, cacheOfflineNavigation, registerOfflineServiceWorker } from "./offline-service-worker";
 
 export interface OfflineShellBinding {
@@ -10,7 +11,7 @@ export class ApplicationVersionControl extends LitElement {
   static override properties = { version: { state: true } };
 
   declare private version: string;
-  private presentNotice: ((message: string) => void) | null = null;
+  private notices: Pick<AppToast, "show"> | null = null;
 
   constructor() {
     super();
@@ -21,8 +22,8 @@ export class ApplicationVersionControl extends LitElement {
     this.version = version;
   }
 
-  bindNotice(presentNotice: (message: string) => void): void {
-    this.presentNotice = presentNotice;
+  bindNotices(notices: Pick<AppToast, "show">): void {
+    this.notices = notices;
   }
 
   async prepareOfflineShell(workspace: boolean, binding: OfflineShellBinding): Promise<void> {
@@ -68,7 +69,7 @@ export class ApplicationVersionControl extends LitElement {
   }
 
   private notice(detail: string): void {
-    this.presentNotice?.(detail);
+    this.notices?.show(detail);
   }
 }
 

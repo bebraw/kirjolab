@@ -258,8 +258,9 @@ collaboration.
   Clipboard API and textarea fallback copying. It also derives its version from
   the built offline shell and owns service-worker registration, update refresh
   sequencing, workspace-navigation caching, ready projection, and fail-open
-  behavior. Narrow bindings retain coordinator-owned persistence, pinned-update
-  presentation, and copy notices.
+  behavior. Narrow bindings retain coordinator-owned persistence and pinned-
+  update presentation, while the control binds the toast owner directly for
+  copy notices.
   A bounded light-DOM Vim control owns stored enablement, mode presentation,
   modal keyboard and pointer-selection behavior, and editor-listener teardown;
   the coordinator supplies only the source textarea and its visual shell.
@@ -836,7 +837,8 @@ collaboration.
       offline reload, and converges those edits after reconnection.
 - [x] Hosted logout clears Kirjolab's offline workspace database and shell
       caches before leaving the application; the offline session owns that
-      browser lifecycle together with page-exit persistence and teardown.
+      browser lifecycle together with page-exit persistence, failure notices
+      through the bound toast owner, and teardown.
 - [x] Yjs owns live editor text after synchronization while coalesced resource
       refreshes update only non-editor workspace state.
 - [x] Markdown changes update a semantic preview and diagnostics immediately.

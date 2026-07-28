@@ -2,6 +2,7 @@ import * as Y from "yjs";
 import * as v from "valibot";
 import { resolveWorkspaceSnapshotAnchors } from "../domain/workspace-anchor-projection";
 import { isWorkspaceSnapshot, type WorkspaceSnapshot } from "../domain/workspace";
+import type { AppToast } from "./app-toast";
 import { DebouncedAsyncQueue } from "./collaboration";
 import { clearOfflineShellCaches } from "./offline-service-worker";
 
@@ -99,8 +100,8 @@ export interface OfflineWorkspaceBrowserEnvironment {
 }
 
 interface OfflineWorkspaceBrowserBinding extends OfflineWorkspaceBrowserEnvironment {
-  readonly failed: (error: unknown) => void;
   readonly logout: (EventTarget & { readonly href: string }) | null;
+  readonly notices: Pick<AppToast, "show">;
 }
 
 export class OfflineWorkspaceSession {
@@ -142,11 +143,11 @@ export class OfflineWorkspaceSession {
 
   bindBrowserLifecycle(
     logout: (EventTarget & { readonly href: string }) | null,
-    failed: (error: unknown) => void,
+    notices: Pick<AppToast, "show">,
     environment: OfflineWorkspaceBrowserEnvironment = browserOfflineWorkspaceEnvironment(),
   ): void {
     this.unbindBrowserLifecycle();
-    this.#browserBinding = { ...environment, failed, logout };
+    this.#browserBinding = { ...environment, logout, notices };
     environment.events.addEventListener("pagehide", this.#handlePageHide);
     logout?.addEventListener("click", this.#handleLogout);
   }
@@ -169,7 +170,7 @@ export class OfflineWorkspaceSession {
     const { cacheStorage, databaseFactory, navigate } = binding;
     void this.clearBrowserData(databaseFactory, cacheStorage)
       .then(() => navigate(href))
-      .catch(binding.failed);
+      .catch((error: unknown) => binding.notices.show(error instanceof Error ? error.message : "Could not clear offline data"));
   };
 }
 

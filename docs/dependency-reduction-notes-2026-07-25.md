@@ -12947,6 +12947,26 @@ Markdown, lazy PDF.js, and direct and unique production package counts remain
 unchanged at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip,
 481,994 B raw / 146,135 B gzip, 18, and 150.
 
+## Continued Ownership: Browser Notice Owners
+
+`ApplicationVersionControl` now presents copy outcomes through its bound toast
+owner, and `OfflineWorkspaceSession` owns logout-cleanup error wording through
+the same narrow capability. The application no longer adapts either browser-
+local notice flow through callbacks.
+
+This checkpoint reduces `src/client/app.ts` from 261 to 259 lines (-2), grows
+the application-version control from 102 to 103 lines (+1), and grows the
+offline session module from 335 to 336 lines (+1), keeping runtime source flat
+while moving both notice rules to their behavioral owners. Focused coverage
+passes all 15 component and persistence cases; affected coverage passes 27
+related runtime cases and both affected test files alongside strict types.
+
+The browser application artifact changes from 858,724 B raw / 231,784 B gzip
+to 858,703 B raw / 231,780 B gzip (-21 B raw / -4 B gzip). Styles, lazy
+Markdown, lazy PDF.js, and direct and unique production package counts remain
+unchanged at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip,
+481,994 B raw / 146,135 B gzip, 18, and 150.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,

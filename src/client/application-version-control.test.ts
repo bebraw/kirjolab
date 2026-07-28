@@ -23,7 +23,7 @@ describe("application version control", () => {
     vi.stubGlobal("navigator", { clipboard: { writeText } });
     const control = new TestApplicationVersionControl();
     const notices: string[] = [];
-    control.bindNotice((message) => notices.push(message));
+    control.bindNotices({ show: (message) => notices.push(message) });
 
     control.setVersion("build-123");
     await control.copyForTest();
@@ -51,7 +51,7 @@ describe("application version control", () => {
     });
     const control = new TestApplicationVersionControl();
     const notices: string[] = [];
-    control.bindNotice((message) => notices.push(message));
+    control.bindNotices({ show: (message) => notices.push(message) });
     control.setVersion("fallback-456");
 
     await control.copyForTest();
