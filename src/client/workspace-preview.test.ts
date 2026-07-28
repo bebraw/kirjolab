@@ -155,9 +155,9 @@ describe("workspace preview", () => {
     const revealNearestSource = vi.spyOn(preview, "revealNearestSource").mockReturnValue(true);
     const activeSourcePreviewOffsets = vi.fn(() => [4]);
     preview.bindProject(request.apiBase, documentModel, () => workspaceSnapshotFixture, {
-      contextResourcePresenter: { activeKey: "preview" },
-      previewSyncControls: { activeSourcePreviewOffsets },
-      projectFileDialog: { activeFileId: workspaceSnapshotFixture.entryFileId, projectFiles: () => files },
+      contextResourcePresenter: { activeKey: "preview", openCitation: vi.fn() },
+      previewSyncControls: { activeSourcePreviewOffsets, showSource: vi.fn() },
+      projectFileDialog: { activeFileId: workspaceSnapshotFixture.entryFileId, focusRange: vi.fn(), projectFiles: () => files },
       projectTreePanel: { hiddenAssets },
       workspaceSurfaces: { dataset: { layout: "split" } } as unknown as HTMLElement,
     });
@@ -264,8 +264,16 @@ describe("workspace preview", () => {
 
   it("routes Preview and diagnostic navigation through one boundary", () => {
     const preview = new TestWorkspacePreview();
-    const navigation = { openCitation: vi.fn(), selectDiagnostic: vi.fn(), showSource: vi.fn() };
-    preview.bindNavigation(navigation);
+    const openCitation = vi.fn();
+    const focusRange = vi.fn();
+    const showSource = vi.fn();
+    preview.bindProject("/api/workspaces/workspace-1", new Y.Doc(), () => workspaceSnapshotFixture, {
+      contextResourcePresenter: { activeKey: "preview", openCitation },
+      previewSyncControls: { activeSourcePreviewOffsets: () => [], showSource },
+      projectFileDialog: { activeFileId: null, focusRange, projectFiles: () => [] },
+      projectTreePanel: { hiddenAssets: new Set() },
+      workspaceSurfaces: { dataset: {} } as unknown as HTMLElement,
+    });
 
     preview.dispatchEvent(new CustomEvent(workspacePreviewActionEvent, { detail: { action: "source", offset: 12 } }));
     preview.dispatchEvent(
@@ -273,9 +281,9 @@ describe("workspace preview", () => {
     );
     preview.dispatchEvent(new CustomEvent(previewDiagnosticSelectEvent, { detail: { fileId: "chapter", from: 4, to: 9 } }));
 
-    expect(navigation.showSource).toHaveBeenCalledWith(12);
-    expect(navigation.openCitation).toHaveBeenCalledWith({ keys: ["Source2026"] });
-    expect(navigation.selectDiagnostic).toHaveBeenCalledWith({ fileId: "chapter", from: 4, to: 9 });
+    expect(showSource).toHaveBeenCalledWith(12);
+    expect(openCitation).toHaveBeenCalledWith({ keys: ["Source2026"] });
+    expect(focusRange).toHaveBeenCalledWith("chapter", 4, 9);
   });
 
   it("maps composed heading numbers back to an isolated file", () => {

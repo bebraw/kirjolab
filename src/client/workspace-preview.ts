@@ -26,6 +26,7 @@ import {
   type PreviewDiagnosticSelection,
 } from "./preview-presentation";
 import { PreviewSyncControls } from "./preview-sync-controls";
+import type { ProjectFileDialog } from "./project-file-dialog";
 import { ProjectExportDialog } from "./project-export-dialog";
 import { RESEARCH_PREVIEW_KEY } from "./research-context";
 
@@ -61,9 +62,9 @@ export interface ProjectPreviewRequest {
 }
 
 export interface WorkspacePreviewProjectOwners {
-  readonly contextResourcePresenter: { readonly activeKey: string };
-  readonly previewSyncControls: Pick<PreviewSyncControls, "activeSourcePreviewOffsets">;
-  readonly projectFileDialog: { readonly activeFileId: string | null; projectFiles(): readonly ProjectFile[] };
+  readonly contextResourcePresenter: Pick<ContextResourcePresenter, "activeKey" | "openCitation">;
+  readonly previewSyncControls: Pick<PreviewSyncControls, "activeSourcePreviewOffsets" | "showSource">;
+  readonly projectFileDialog: Pick<ProjectFileDialog, "activeFileId" | "focusRange" | "projectFiles">;
   readonly projectTreePanel: { readonly hiddenAssets: ReadonlySet<string> };
   readonly workspaceSurfaces: HTMLElement;
 }
@@ -83,18 +84,6 @@ export interface ProjectPreviewOutcome {
   readonly renderedSource: string;
 }
 
-export interface WorkspacePreviewNavigationCallbacks {
-  readonly openCitation: (citation: CitationContext) => void;
-  readonly selectDiagnostic: (selection: PreviewDiagnosticSelection) => void;
-  readonly showSource: (offset: number) => void;
-}
-
-const emptyNavigation: WorkspacePreviewNavigationCallbacks = {
-  openCitation: () => undefined,
-  selectDiagnostic: () => undefined,
-  showSource: () => undefined,
-};
-
 type PreviewContent = { readonly kind: "html" | "source"; readonly value: string };
 
 export interface ProjectPreviewImageContext {
@@ -109,7 +98,6 @@ export class WorkspacePreview extends LitElement {
   static override properties = { content: { state: true } };
 
   declare private content: PreviewContent;
-  private navigation = emptyNavigation;
   private projectBinding: WorkspacePreviewProjectBinding | null = null;
   private renderVersion = 0;
   private syncHighlightTimer: number | undefined;
@@ -119,16 +107,14 @@ export class WorkspacePreview extends LitElement {
     this.content = { kind: "html", value: "" };
     this.addEventListener(workspacePreviewActionEvent, (event) => {
       const detail = (event as CustomEvent<WorkspacePreviewAction>).detail;
-      if (detail.action === "source") this.navigation.showSource(detail.offset);
-      else this.navigation.openCitation(detail.citation);
+      const owners = this.projectBinding?.owners;
+      if (detail.action === "source") owners?.previewSyncControls.showSource(detail.offset);
+      else owners?.contextResourcePresenter.openCitation(detail.citation);
     });
     this.addEventListener(previewDiagnosticSelectEvent, (event) => {
-      this.navigation.selectDiagnostic((event as CustomEvent<PreviewDiagnosticSelection>).detail);
+      const { fileId, from, to } = (event as CustomEvent<PreviewDiagnosticSelection>).detail;
+      this.projectBinding?.owners.projectFileDialog.focusRange(fileId, from, to);
     });
-  }
-
-  bindNavigation(callbacks: WorkspacePreviewNavigationCallbacks): void {
-    this.navigation = callbacks;
   }
 
   bindProject(apiBase: string, document: Y.Doc, snapshot: () => WorkspaceSnapshot | null, owners: WorkspacePreviewProjectOwners): void {

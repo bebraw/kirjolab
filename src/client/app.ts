@@ -359,11 +359,6 @@ class WorkspaceApp {
       selectFile: (fileId) => this.#elements.projectFileDialog.selectFile(fileId),
     });
     this.#layout.bind();
-    this.#elements.workspacePreview.bindNavigation({
-      openCitation: (citation) => this.#elements.contextResourcePresenter.openCitation(citation),
-      selectDiagnostic: ({ fileId, from, to }) => this.#elements.projectFileDialog.focusRange(fileId, from, to),
-      showSource: (offset) => this.#elements.previewSyncControls.showSource(offset),
-    });
     this.#elements.sourceCitationControl.bindNavigation((citation) => this.#elements.contextResourcePresenter.openCitation(citation));
     this.#elements.sourceCitationControl.bindInsertion({
       activateAuthoring: () => this.#elements.authoringModeTabs.navigate("write"),

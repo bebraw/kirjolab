@@ -12544,6 +12544,28 @@ at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip, 481,994 B raw /
 Full native CI passes all 1,773 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Preview Project-Owner Navigation
+
+`WorkspacePreview` now routes source offsets, semantic citations, and diagnostic
+ranges through the sync, Context, and project-file owners already supplied by
+its canonical project binding. The separate navigation callback bag and its
+three application-level adapters are removed.
+
+This checkpoint reduces `src/client/app.ts` from 394 to 389 lines (-5) and the
+Preview owner from 479 to 465 lines (-14), reducing combined runtime source by
+19 lines. Direct Preview coverage passes all eight cases; affected coverage
+passes 15 related runtime cases and the affected test file alongside strict
+types.
+
+The browser application artifact changes from 862,035 B raw / 232,259 B gzip to
+861,772 B raw / 232,212 B gzip (-263 B raw / -47 B gzip). Styles, lazy Markdown,
+lazy PDF.js, and direct and unique production package counts remain unchanged
+at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip, 481,994 B raw /
+146,135 B gzip, 18, and 150.
+
+Full native CI passes all 1,773 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: One-Shot Browser Entry Intents
 
 `ProjectStartingPointBrowser` now consumes the `create=1` editor intent, removes

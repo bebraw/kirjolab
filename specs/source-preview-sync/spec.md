@@ -23,7 +23,8 @@ Preview offset may belong to a supporting file.
   classification. It converts non-interactive rendered spans and semantic
   citation buttons into typed source-offset or citation intents without
   exposing Preview elements, and routes those intents plus nested diagnostic
-  selections through one typed navigation boundary. The workspace coordinator
+  selections directly through the sync, Context, and project-file owners in
+  its existing project binding. The workspace coordinator
   retains source-map translation, project-file selection, canonical image
   metadata and hidden-id inputs, publication resolution, citation navigation,
   and resulting transitions.

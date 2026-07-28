@@ -222,7 +222,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   workspace into research companions from the same project render outcome,
   transient DOM navigation, interactive-click classification,
   source-offset extraction, and routing of its source, citation, and nested
-  diagnostic-selection intents through one typed navigation boundary. Keep
+  diagnostic-selection intents directly through the sync, Context, and
+  project-file owners already supplied by its project binding. Do not repeat
+  those owners in a second navigation callback bag. Keep
   canonical project-file, snapshot, and Yjs authority, publication resolution,
   and resulting transitions in the application coordinator.
 - Let the bounded Preview synchronization control own explicit Preview-to-source

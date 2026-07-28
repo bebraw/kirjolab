@@ -422,7 +422,9 @@ The adopted components own bounded presentation:
   lookup, centering, transient target emphasis, anchor scrolling, interactive-
   click classification, source-offset extraction, and typed source or citation
   intents. It routes those intents and its nested diagnostics panel's source-
-  range selections through one typed navigation boundary. The coordinator
+  range selections directly through the sync, Context, and project-file owners
+  already present in its project binding; no duplicate navigation callback bag
+  remains. The coordinator
   retains canonical project-file and Yjs source authority, Yjs anchor
   resolution, source-map translation, publication resolution, citation
   navigation, and the resulting transitions.
