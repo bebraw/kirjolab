@@ -20,7 +20,7 @@ export class CollaborationSession {
 
   constructor(
     readonly document: Y.Doc,
-    readonly origins: CollaborationOrigins,
+    readonly origins: CollaborationOrigins = { offline: Symbol(), remote: Symbol() },
   ) {
     this.#serverStateVector = Y.encodeStateVector(document);
   }

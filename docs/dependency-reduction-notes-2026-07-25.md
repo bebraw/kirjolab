@@ -13846,6 +13846,21 @@ pass alongside strict types. The browser application remains byte-identical at
 857,265 B raw / 231,418 B gzip; dependency counts and the other static
 artifacts remain unchanged.
 
+## Continued Collaboration Ownership: Session-Owned Origins
+
+`CollaborationSession` now creates its opaque remote and offline Yjs origin
+tokens by default. `WorkspaceApp` no longer names or constructs state that only
+the session interprets, while explicit origins remain injectable for focused
+filtering tests.
+
+This checkpoint reduces `src/client/app.ts` from 91 to 89 lines (-2) while the
+collaboration-session module remains at 165 lines, removing two production
+lines overall. The affected guardrail passes 11 related cases and all 22
+focused session, socket, and offline cases pass alongside strict types. The
+browser application changes from 857,265 B raw / 231,418 B gzip to 857,236 B
+raw / 231,403 B gzip (-29 B raw / -15 B gzip); dependency counts and the other
+static artifacts remain unchanged.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,

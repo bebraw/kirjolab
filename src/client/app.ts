@@ -9,14 +9,12 @@ import { createOfflineWorkspaceStore, OfflineWorkspaceSession } from "./offline-
 
 const { workspaceId, identityEmail, appMode } = parseAppBootstrap(document.body.dataset);
 const apiBase = `/api/workspaces/${workspaceId}`;
-const remoteOrigin = Symbol("remote");
-const offlineOrigin = Symbol("offline");
 
 class WorkspaceApp {
   readonly #elements = collectAppElements();
   readonly #document = new Y.Doc();
   readonly #resourceRefresh = new CoalescedRefresh(async () => this.#elements.projectFileDialog.refreshProject());
-  readonly #collaboration = new CollaborationSession(this.#document, { remote: remoteOrigin, offline: offlineOrigin });
+  readonly #collaboration = new CollaborationSession(this.#document);
   readonly #collaborationSocket: CollaborationSocket;
   readonly #offline = new OfflineWorkspaceSession({
     browser: { logout: document.querySelector<HTMLAnchorElement>("#log-out") },

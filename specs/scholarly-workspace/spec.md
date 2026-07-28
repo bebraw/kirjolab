@@ -433,8 +433,9 @@ collaboration.
   sequencing, and the document-wide local-update subscription. It binds
   the canonical session document and online/offline browser subscriptions
   during construction while retaining explicit teardown, so no separately
-  callable unbound document-observer stage exists. The session stores remote
-  and offline origins as one filtering policy. The socket schedules
+  callable unbound document-observer stage exists. The session creates and
+  stores opaque remote and offline origins as one filtering policy; the
+  workspace application does not construct those derivable tokens. The socket schedules
   offline persistence for every update, delegates remote/offline-origin
   filtering and local enqueueing to the session, selects pending save wording,
   invalidates assistant availability, flushes immediately, and supports

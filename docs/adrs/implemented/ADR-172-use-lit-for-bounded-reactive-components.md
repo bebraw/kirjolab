@@ -1345,7 +1345,8 @@ reason to wrap static markup mechanically.
   filtering and enqueueing, immediate flush, and teardown. It binds the
   canonical session document and available online/offline browser events during
   construction, eliminating a separately callable document-bind stage. The
-  session stores remote and offline origins as one filtering policy. The socket consumes canonical
+  session creates and stores its opaque remote and offline origins as one
+  filtering policy, so the application does not construct derivable tokens. The socket consumes canonical
   offline, refresh, editor, revision, presence, connection, project-file,
   assistant, and toast owners directly for local and remote update effects
   instead of maintaining a parallel application callback protocol. Socket

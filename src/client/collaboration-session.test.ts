@@ -16,7 +16,8 @@ function connectedSession(document = new Y.Doc()): CollaborationSession {
 
 describe("collaboration session", () => {
   it("owns workflow status, presence, disconnect, reconnect, and offline availability", () => {
-    const session = new CollaborationSession(new Y.Doc(), { remote: remoteOrigin, offline: offlineOrigin });
+    const session = new CollaborationSession(new Y.Doc());
+    expect(session.origins.offline).not.toBe(session.origins.remote);
     expect(session.status).toEqual({ label: "Offline · changes stay on this device", connected: false });
     expect(session.canEdit).toBe(false);
 
