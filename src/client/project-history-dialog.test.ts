@@ -107,7 +107,10 @@ describe("project history dialog", () => {
     const { control } = controls();
     const trigger = new EventTarget();
     const presentNotice = vi.fn();
-    control.configure("/api/workspaces/workspace-1", { presentNotice, trigger });
+    control.configure("/api/workspaces/workspace-1", {
+      projectHistoryTrigger: trigger,
+      toast: { show: presentNotice },
+    });
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(json({ invalid: true })));
 
     trigger.dispatchEvent(new Event("project-history-open"));

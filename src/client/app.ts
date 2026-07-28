@@ -226,10 +226,7 @@ class WorkspaceApp {
       notices: this.#elements.toast,
     });
     this.#elements.sourceCompletion.bindProjectAcceptance(apiBase, this.#elements);
-    this.#elements.projectHistoryDialog.configure(apiBase, {
-      presentNotice: (message) => this.#elements.toast.show(message),
-      trigger: this.#elements.projectHistoryTrigger,
-    });
+    this.#elements.projectHistoryDialog.configure(apiBase, this.#elements);
     this.#elements.projectHistoryTrigger.bindRevision(this.#elements, () => this.#offline.schedule());
     this.#elements.contextResourcePresenter.bindManuscriptComments(apiBase);
     this.#collaborationSocket.bindDocument(this.#document, {

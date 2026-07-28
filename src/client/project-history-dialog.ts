@@ -8,22 +8,22 @@ import { projectHistoryOpenEvent } from "./project-history-trigger";
 
 export const projectHistoryOutcomeEvent = "project-history-outcome";
 
-interface ProjectHistoryDialogOptions {
-  readonly presentNotice?: (message: string) => void;
-  readonly trigger?: EventTarget;
+interface ProjectHistoryDialogOwners {
+  readonly projectHistoryTrigger: EventTarget;
+  readonly toast: { show(message: string): void };
 }
 
 export class ProjectHistoryDialog extends LitElement {
   private readonly workflow = createProjectHistoryActor();
   private apiBase = "";
-  private presentNotice: (message: string) => void = () => undefined;
+  private owners: ProjectHistoryDialogOwners | null = null;
   private trigger: EventTarget | null = null;
 
-  configure(apiBase: string, options: ProjectHistoryDialogOptions = {}): void {
+  configure(apiBase: string, owners?: ProjectHistoryDialogOwners): void {
     this.trigger?.removeEventListener(projectHistoryOpenEvent, this.handleOpen);
     this.apiBase = apiBase;
-    this.presentNotice = options.presentNotice ?? (() => undefined);
-    this.trigger = options.trigger ?? null;
+    if (owners) this.owners = owners;
+    this.trigger = owners?.projectHistoryTrigger ?? null;
     this.trigger?.addEventListener(projectHistoryOpenEvent, this.handleOpen);
   }
 
@@ -210,7 +210,7 @@ export class ProjectHistoryDialog extends LitElement {
   }
 
   private emitNotice(message: string): void {
-    this.presentNotice(message);
+    this.owners?.toast.show(message);
     this.dispatchEvent(new CustomEvent<string>(projectHistoryOutcomeEvent, { bubbles: true, detail: message }));
   }
 

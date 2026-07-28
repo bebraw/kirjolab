@@ -12864,6 +12864,27 @@ at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip, 481,994 B raw /
 Full native CI passes all 1,774 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Project-History Owners
+
+`ProjectHistoryDialog` now binds its sibling History trigger and the global
+toast owner directly. The application no longer adapts them into a
+configure-time trigger and notice callback pair; the dialog retains its typed
+bubbling outcome event for independent consumers.
+
+This checkpoint reduces `src/client/app.ts` from 318 to 315 lines (-3) while
+keeping the history dialog at 234 lines. Focused coverage passes all 6 dialog
+cases; affected coverage passes 8 related runtime cases and the affected test
+file alongside strict types.
+
+The browser application artifact changes from 859,807 B raw / 232,000 B gzip to
+859,718 B raw / 231,985 B gzip (-89 B raw / -15 B gzip). Styles, lazy Markdown,
+lazy PDF.js, and direct and unique production package counts remain unchanged
+at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip, 481,994 B raw /
+146,135 B gzip, 18, and 150.
+
+Full native CI passes all 1,774 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: One-Shot Browser Entry Intents
 
 `ProjectStartingPointBrowser` now consumes the `create=1` editor intent, removes

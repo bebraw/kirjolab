@@ -802,8 +802,8 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   response guards, confirmations, busy state, and stale-response rejection in
   the project-history Lit dialog. Let it own canonical successful branch
   navigation, post-restore reload, its sibling trigger, and notice forwarding.
-  The application coordinator supplies only global toast policy through typed
-  configuration.
+  Bind the sibling trigger and global toast owner directly so the application
+  coordinator does not adapt either capability.
 - Treat project unlink, library archive, share revocation, and permanent owner
   deletion as distinct operations. Revocation is forward-only; deletion keeps
   only the tombstoned provenance needed by historical project revisions.

@@ -80,7 +80,8 @@ The adopted components own bounded presentation:
   operation requests, response validation, confirmations, request generations,
   stale-response rejection, busy and error state, canonical successful branch
   navigation, post-restore reload, and typed notice outcomes. Its modal close
-  lifecycle is internal and emits no unused external event.
+  lifecycle is internal and emits no unused external event. It binds its sibling
+  trigger and toast owner directly.
 - The project history trigger owns the monotonic presented revision and its
   badge, emits one typed open intent, and routes revision-dependent collaborator
   data, highlight refresh, offline scheduling, and active-candidate refresh
@@ -1436,9 +1437,8 @@ reason to wrap static markup mechanically.
   centering, transient emphasis, image lookup, and anchor scrolling. This
   keeps Lit focused on reactive presentation while still removing raw Preview
   elements from `WorkspaceApp`.
-- The project-history dialog binds its sibling entry trigger and forwards local
-  notices through typed configuration. The workspace-sharing panel binds its
-  sibling trigger and toast owner directly. This removes coordinator
+- The project-history dialog and workspace-sharing panel bind their sibling
+  triggers and toast owner directly. This removes coordinator
   subscriptions and adapters while retaining global toast policy in the toast
   owner.
 - The action-menu controller owns document-level outside-action dismissal,

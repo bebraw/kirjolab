@@ -234,8 +234,8 @@ collaboration.
   refresh through bound owners. Collaboration retains server revision authority.
   A composed Lit history-dialog boundary owns modal lifecycle, busy state,
   panel-close handling, and timeline, inspection, and comparison presentation;
-  the coordinator retains the revision XState workflow, requests, mutations,
-  navigation, and failure policy.
+  it also owns the revision XState workflow, requests, mutations, navigation,
+  and failure policy and binds the History trigger and toast owner directly.
   A bounded connection-status owner binds the collaboration workflow and
   authoring controls once. It derives connection label/tone plus source and
   companion editability and requests assistant-availability refresh after each
