@@ -5,6 +5,7 @@ import type { EditorPresenceRange } from "./editor-presence";
 import { LightDomElement } from "./light-dom-controller";
 import type { CitationContext, CitationInsertion } from "./citations";
 import type { EditorInsertMenu } from "./editor-insert-menu";
+import type { SourceCompletion, SourceCompletionOwners } from "./source-completion";
 import type { VimModeControl } from "./vim-mode-control";
 import {
   bindYText,
@@ -70,6 +71,9 @@ export interface EditorAuthoringOwners {
   };
 }
 
+type EditorApplicationOwners = EditorAuthoringOwners &
+  SourceCompletionOwners & { readonly sourceCompletion: Pick<SourceCompletion, "bindWorkspace"> };
+
 export class EditorStatus extends LightDomElement {
   static override properties = {
     save: { state: true },
@@ -105,6 +109,16 @@ export class EditorStatus extends LightDomElement {
 
   setSave(save: string): void {
     this.save = save;
+  }
+
+  bindApplication(
+    apiBase: string,
+    documentModel: Y.Doc,
+    owners: EditorApplicationOwners,
+    collaborationSocket: { scheduleSelection(): void },
+  ): void {
+    this.bindAuthoring(documentModel, owners.source, owners, collaborationSocket);
+    owners.sourceCompletion.bindWorkspace(apiBase, owners);
   }
 
   bindAuthoring(

@@ -365,10 +365,11 @@ collaboration.
   insertion, without a wrapper binding object or coordinator-built insertion
   callbacks. The application
   coordinator supplies the Yjs document plus save state from collaboration
-  workflows; one atomic authoring bind installs the active source and companion
-  bibliography, and the component derives their initial Y.Text values from that
-  document. That same bind installs the Vim control against the source and
-  shell and the Insert menu against editor status and toast. The coordinator retains editor highlighting and assistant
+  workflows; one atomic application bind installs the active source, companion
+  bibliography, and source-completion workspace, and the component derives the
+  initial Y.Text values from that document. That same bind installs the Vim
+  control against the source and shell and the Insert menu against editor
+  status and toast. The coordinator retains editor highlighting and assistant
   refresh.
 - **Project evidence mutations:** The bounded Project evidence panel owns
   guarded PDF and annotation removal plus annotation-passage-link transport

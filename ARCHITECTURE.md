@@ -450,8 +450,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   collaboration fallback through the bound authorities. The project-file owner is the
   single browser projection and read source for the accepted snapshot; the
   coordinator must not retain a duplicate copy.
-- Let the editor-status Lit owner bind the active source and companion
-  bibliography atomically as one authoring lifecycle, then bind the active Yjs
+- Let the editor-status Lit owner bind the active source, companion
+  bibliography, and source-completion workspace atomically as one application
+  authoring lifecycle, then bind the active Yjs
   text to the source editor,
   derive that text from the selected project-file identity and entry-file
   contract,

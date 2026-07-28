@@ -436,9 +436,10 @@ The adopted components own bounded presentation:
   selection, presence, and model-availability consequences. Its authoring
   binding consumes canonical element-registry owner names directly;
   the collaboration socket remains a separate non-DOM scheduling capability.
-  The same atomic authoring binding installs the bounded Vim control against
-  the canonical source and shell and the Insert menu against editor status and
-  toast.
+  The same atomic application binding installs the bounded Vim control against
+  the canonical source and shell, the Insert menu against editor status and
+  toast, and source completion against its API, scope, project, insertion, and
+  notice owners.
   Its pure citation-completion domain adapter owns
   project and available unlinked Library candidate construction from canonical
   reference inputs, while the component owns project-relative include candidate

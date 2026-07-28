@@ -42,8 +42,7 @@ class WorkspaceApp {
     owners.newWorkspaceStartingPoints.bindApplication(apiBase, owners);
     owners.manuscriptMapPanel.bindApplication(owners);
     owners.workspaceSharingPanel.configure(apiBase, owners);
-    owners.editorStatus.bindAuthoring(this.#session.document, owners.source, owners, this.#socket);
-    owners.sourceCompletion.bindWorkspace(apiBase, owners);
+    owners.editorStatus.bindApplication(apiBase, this.#session.document, owners, this.#socket);
     owners.projectFileDialog.bindApplication(apiBase, appMode === "workspace", owners, this.#session, this.#offline);
     owners.workspacePreview.bindProject(apiBase, this.#session.document, owners);
     owners.projectHistoryTrigger.bindWorkspace(apiBase, owners, this.#offline);

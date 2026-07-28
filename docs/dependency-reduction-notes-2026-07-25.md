@@ -14352,6 +14352,25 @@ assign workflow binding completeness to the composed manuscript-map owner.
 Full native CI passes all 1,775 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Atomic Editor and Completion Binding
+
+The editor-status Lit owner now installs the canonical Yjs authoring lifecycle
+and the source-completion owner's API, scope, editor, project, insertion, and
+notice dependencies through one production application entry. Vim and Insert-
+menu setup remain part of the same authoring boundary.
+
+This checkpoint trades thirteen net production lines for the atomic authoring
+boundary and reduces `src/client/app.ts` from 61 to 60 lines. The affected
+guardrail passes 10 related cases across two suites alongside strict types. The
+browser application changes from 847,161 B raw / 230,982 B gzip to 847,216 B
+raw / 230,994 B gzip (+55 B raw / +12 B gzip); direct and unique production
+package counts remain 18 and 150, and the other static artifacts remain
+unchanged. Architecture, ADR, and scholarly-workspace contracts now include
+source completion in the atomic editor application lifecycle.
+
+Full native CI passes all 1,775 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,
