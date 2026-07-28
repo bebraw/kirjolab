@@ -259,11 +259,12 @@ The adopted components own bounded presentation:
   the Preview context switch before section scrolling. Let it also
   configure the manuscript-comment, project-evidence, claim-list, and
   publication list/context panels. Bind annotation intake/workflow, comments,
-  evidence, and claims together as one project-knowledge lifecycle so shared
-  authoring and mutation routes are installed atomically, and own annotation-form cleanup and selection,
+  evidence, claims, and publications together as one project-knowledge
+  lifecycle so shared authoring, mutation, citation, and paper routes are
+  installed atomically, and own annotation-form cleanup and selection,
   edit and PDF routes, fragment-removal refresh sequencing, child-specific
-  mutation failure copy, and notice dispatch. Bind publication list and context routes together against the same
-  project API and canonical Library owner. Route comment, claim, evidence,
+  mutation failure copy, and notice dispatch. Bind that complete lifecycle
+  against the same project API and canonical Library owner. Route comment, claim, evidence,
   publication, citation, and paper intents among those composed owners. Bind
   publication-list management directly to the reference-Library workspace;
   bind private-PDF project mutation outcomes directly to the same workspace's

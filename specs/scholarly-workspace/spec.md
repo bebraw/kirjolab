@@ -343,8 +343,9 @@ collaboration.
 - **Project evidence mutations:** The bounded Project evidence panel owns
   guarded PDF and annotation removal plus annotation-passage-link transport
   from a resource-presenter-validated typed passage. Its enclosing resource presenter
-  binds annotation intake/workflow, manuscript comments, project evidence, and
-  claims atomically as one project-knowledge lifecycle, then owns annotation-form cleanup and selection,
+  binds annotation intake/workflow, manuscript comments, project evidence,
+  claims, and publication list/context routes atomically as one project-knowledge
+  lifecycle against one project API and canonical Library owner, then owns annotation-form cleanup and selection,
   edit and PDF routes, fragment-
   removal refresh sequencing, and notice dispatch. The form and its sibling
   knowledge owners are never left with only part of their route family.
@@ -355,8 +356,8 @@ collaboration.
   passage linking.
 - **Claim and publication routes:** The enclosing resource presenter configures
   the claim list and publication list/context panels and routes claim
-  annotations to project evidence. It binds publication list and context routes
-  atomically against one project API and canonical Library owner, routing
+  annotations to project evidence. Within the atomic project-knowledge binding,
+  it routes
   publication opening to canonical context,
   and citation and linked-paper intents among its composed Lit owners. The
   application coordinator retains mutation consequences, passage effects,

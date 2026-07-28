@@ -13589,6 +13589,21 @@ cases. The browser application changes from 857,757 B raw / 231,439 B gzip to
 857,674 B raw / 231,419 B gzip (-83 B raw / -20 B gzip); dependency counts and
 the other static artifacts remain unchanged.
 
+## Continued Lit Ownership: Complete Publication Knowledge Binding
+
+`ContextResourcePresenter` now binds publication list and context routes with
+annotation intake/workflow, manuscript comments, project evidence, and claims
+as one complete project-knowledge lifecycle. The application supplies the
+canonical Library owner once instead of exposing publication binding as a
+separate initialization stage.
+
+This checkpoint reduces `src/client/app.ts` from 129 to 128 lines (-1) and the
+context-resource presenter from 1,277 to 1,274 lines (-3), for a four-line net
+runtime reduction. The affected guardrail passes 54 related cases and all 39
+focused presenter cases. The browser application changes from 857,674 B raw /
+231,419 B gzip to 857,600 B raw / 231,415 B gzip (-74 B raw / -4 B gzip);
+dependency counts and the other static artifacts remain unchanged.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,

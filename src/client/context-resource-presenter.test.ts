@@ -209,6 +209,13 @@ function bindTestRoutes(presenter: ContextResourcePresenter, routes: ReturnType<
   );
 }
 
+function bindTestProjectKnowledge(
+  presenter: ContextResourcePresenter,
+  library = { openAvailableReference: vi.fn().mockResolvedValue(undefined) },
+): void {
+  presenter.bindProjectKnowledge("/api/workspaces/workspace", library);
+}
+
 interface TestLibraryPdfCoordinator {
   readonly acceptProjectMutation: (snapshot: WorkspaceSnapshot) => Promise<void>;
   readonly canInsertCitation: ReturnType<typeof vi.fn<() => boolean>>;
@@ -802,7 +809,7 @@ describe("context resource presenter", () => {
     const insertCitation = vi.spyOn(presenter, "insertActiveCitation");
     presenter.bindPdfViewer(viewer, "/api/workspaces/workspace");
 
-    presenter.bindProjectKnowledge("/api/workspaces/workspace");
+    bindTestProjectKnowledge(presenter);
     const workflow = bindWorkflow.mock.calls[0]?.[0];
     expect(workflow).toBeDefined();
     workflow?.chooseTool("erase");
@@ -864,7 +871,7 @@ describe("context resource presenter", () => {
     const selectPdf = vi.spyOn(elements["project-annotation-form"], "selectPdf");
     const linkPassage = vi.spyOn(elements["project-evidence-panel"], "linkPassage").mockResolvedValue(undefined);
     const openProjectAnnotation = vi.spyOn(presenter, "openProjectAnnotation").mockImplementation(() => undefined);
-    presenter.bindProjectKnowledge("/api/workspaces/workspace");
+    bindTestProjectKnowledge(presenter);
     const binding = bind.mock.calls[0]?.[0];
     binding?.annotationRemoved(annotation.id, "Highlight deleted.");
     binding?.completeMutation("Project changed.");
@@ -1051,8 +1058,7 @@ describe("context resource presenter", () => {
       year: "2026",
     };
 
-    presenter.bindProjectKnowledge("/api/workspaces/workspace");
-    presenter.bindPublications("/api/workspaces/workspace", library);
+    bindTestProjectKnowledge(presenter, library);
     claimBind.mock.calls[0]?.[0].completeMutation("Claim changed.");
     claimBind.mock.calls[0]?.[0].linkPassage("claim-1");
     claimBind.mock.calls[0]?.[0].openAnnotation("annotation-1");
@@ -1106,7 +1112,7 @@ describe("context resource presenter", () => {
     const { elements, presenter, routes } = setup();
     const claimBind = vi.spyOn(elements["claim-list-panel"], "bind");
     const evidenceBind = vi.spyOn(elements["project-evidence-panel"], "bind");
-    presenter.bindProjectKnowledge("/api/workspaces/workspace");
+    bindTestProjectKnowledge(presenter);
 
     routes.authoring.mockReturnValue({ passage: null, sourceRevision: 3, stable: false });
     claimBind.mock.calls[0]?.[0].linkPassage("claim-1");
@@ -1353,7 +1359,7 @@ describe("context resource presenter", () => {
     expect(coordinator.presentNotice).toHaveBeenNthCalledWith(3, "Open this grouped citation from Preview to choose a reference.");
     expect(coordinator.presentNotice).toHaveBeenNthCalledWith(4, "No publication resource is available for missing.");
 
-    presenter.bindProjectKnowledge("/api/workspaces/workspace");
+    bindTestProjectKnowledge(presenter);
     const intake = bindIntake.mock.calls[0]?.[0];
     expect(intake?.publications()).toEqual(project.publications);
     intake?.openPublication(publication);

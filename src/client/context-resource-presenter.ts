@@ -584,7 +584,7 @@ export class ContextResourcePresenter extends LitElement {
     this.element("project-annotation-form", ProjectAnnotationForm)?.configure(apiBase);
   }
 
-  bindProjectKnowledge(apiBase: string): void {
+  bindProjectKnowledge(apiBase: string, library: PublicationLibrary): void {
     this.element("project-annotation-form", ProjectAnnotationForm)?.bindIntake({
       openPublication: (publication) => this.navigateResource({ kind: "publication", id: publication.id }),
       presentNotice: (message) => this.presentNotice(message),
@@ -645,6 +645,22 @@ export class ContextResourcePresenter extends LitElement {
         void this.openProjectPdf(pdf, page, annotationId);
       },
     });
+    const publication = this.element("publication-context-panel", PublicationContextPanel);
+    publication?.configure(apiBase);
+    publication?.bind({
+      insertCitation: () => this.insertActiveCitation(),
+      openPaper: (paper) => void this.openPublicationPaper(paper),
+      papersChanged: (message) =>
+        void this.completeProjectMutation(message, "The paper links changed, but project resources could not be refreshed."),
+    });
+    const publications = this.element("publication-list-panel", PublicationListPanel);
+    publications?.configure(apiBase);
+    publications?.bind({
+      enriched: (message) =>
+        void this.completeProjectMutation(message, "The reference was enriched, but project resources could not be refreshed."),
+      manage: (publicationId) => void library.openAvailableReference(publicationId),
+      open: (publication) => this.navigateResource({ kind: "publication", id: publication.id }),
+    });
   }
 
   private async linkSelectedPassage(kind: "annotation" | "claim", id: string): Promise<void> {
@@ -680,25 +696,6 @@ export class ContextResourcePresenter extends LitElement {
         this.navigateContext(RESEARCH_PREVIEW_KEY);
         owners.workspacePreview.scrollToAnchor(id);
       },
-    });
-  }
-
-  bindPublications(apiBase: string, library: PublicationLibrary): void {
-    const publication = this.element("publication-context-panel", PublicationContextPanel);
-    publication?.configure(apiBase);
-    publication?.bind({
-      insertCitation: () => this.insertActiveCitation(),
-      openPaper: (paper) => void this.openPublicationPaper(paper),
-      papersChanged: (message) =>
-        void this.completeProjectMutation(message, "The paper links changed, but project resources could not be refreshed."),
-    });
-    const publications = this.element("publication-list-panel", PublicationListPanel);
-    publications?.configure(apiBase);
-    publications?.bind({
-      enriched: (message) =>
-        void this.completeProjectMutation(message, "The reference was enriched, but project resources could not be refreshed."),
-      manage: (publicationId) => void library.openAvailableReference(publicationId),
-      open: (publication) => this.navigateResource({ kind: "publication", id: publication.id }),
     });
   }
 
