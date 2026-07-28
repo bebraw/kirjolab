@@ -350,13 +350,6 @@ class WorkspaceApp {
       presentNotice: (message) => this.#elements.toast.show(message),
       replaceRange: (start, end, replacement) => this.#elements.editorInsertMenu.replaceRange(start, end, replacement),
     });
-    this.#elements.authoringModeTabs.bindNavigation((mode) => {
-      if (mode === "write") {
-        this.#elements.workspaceSurfaceSwitcher.navigate("authoring", false);
-        this.#elements.source.focus();
-      }
-      this.#elements.workspaceSurfaceSwitcher.syncRoute("replace");
-    });
     this.#elements.projectHistoryDialog.configure(apiBase, {
       presentNotice: (message) => this.#elements.toast.show(message),
       trigger: this.#elements.projectHistoryTrigger,
@@ -446,6 +439,7 @@ class WorkspaceApp {
       contextKey: () => this.#elements.contextResourcePresenter.activeKey,
       enabled: appMode === "workspace",
       entryFileId: () => this.#elements.projectFileDialog.project?.entryFileId,
+      focusAuthoring: () => this.#elements.source.focus(),
       layout: this.#elements.workspaceLayout,
       mode: this.#elements.authoringModeTabs,
       rail: this.#elements.workspaceRailTabs,

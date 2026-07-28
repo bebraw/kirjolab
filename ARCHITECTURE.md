@@ -91,6 +91,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   workspace's visibility-driving layout and dispatch resize notification before
   that outcome. Keep PDF activation and URL synchronization in the application
   coordinator.
+- Let the workspace surface switcher's route binding own Write/Map route
+  effects. Every Write outcome activates Authoring without a second navigation
+  event, focuses the supplied authoring target, and replaces the canonical URL;
+  Map outcomes only replace the URL. Keep editor focus behind a narrow callback
+  instead of giving the route owner direct editor access.
 - Let the bounded Library discovery search own its provider request, response
   validation, duplicate-submit guard, and status lifecycle. Route only its
   validated result list to the sibling results component. Let that result owner

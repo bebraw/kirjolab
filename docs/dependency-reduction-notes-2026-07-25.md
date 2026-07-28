@@ -11971,6 +11971,30 @@ and 481,994 B / 146,135 B.
 Full native CI passes all 1,770 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Authoring-Mode Route Effects
+
+`WorkspaceSurfaceSwitcher` now consumes Write/Map outcomes through its existing
+workspace-route binding. A Write outcome activates Authoring without emitting a
+second surface event, focuses a narrowly supplied authoring target, and replaces
+the canonical route; Map only replaces the route. `WorkspaceApp` no longer owns
+that cross-component branch.
+
+This checkpoint reduces `src/client/app.ts` from 501 to 495 lines (-6) and grows
+the surface/route owner from 165 to 174 lines (+9). The three-line combined
+increase locates route policy beside restoration and history mutation and keeps
+editor access behind a capability callback. Focused coverage passes Write focus
+and surface activation, Map focus avoidance, canonical replacement, restoration,
+affected integrations, and strict types. Direct and unique production package
+counts remain 18 and 150; Lit was already pinned.
+
+The browser application artifact changes from 862,019 B raw / 232,029 B gzip to
+861,982 B / 232,038 B (-37 B raw / +9 B gzip). Styles and lazy Markdown and
+PDF.js artifacts remain unchanged at 135,411 B / 23,373 B, 204,779 B / 62,386 B,
+and 481,994 B / 146,135 B.
+
+Full native CI passes all 1,770 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: One-Shot Browser Entry Intents
 
 `ProjectStartingPointBrowser` now consumes the `create=1` editor intent, removes

@@ -683,9 +683,10 @@ The adopted components own bounded presentation:
 - The authoring mode tabs own internal and workflow-driven Write and Map
   selection, active-state presentation, controlled editor, write-action, and
   map visibility, map focus entry through its composed workspace, plus a typed
-  navigation outcome. For Write outcomes, the application coordinator applies
-  the Authoring surface and editor focus before performing one URL replacement;
-  this cross-component policy stays outside the tab owner.
+  navigation outcome. The workspace surface switcher's route binding applies
+  the Authoring surface and supplied editor focus before performing one URL
+  replacement for Write outcomes; this cross-component policy stays outside
+  the tab owner.
 - The unidentified-PDF queue owns legacy unattached-artifact count, visibility,
   reference choices and artifact-subset derivation from the canonical Library
   snapshot, identification transport, duplicate-submit gating, local progress
@@ -1192,9 +1193,9 @@ reason to wrap static markup mechanically.
   write-action reference, three coordinator-owned visibility mutations, and
   its public mode-change event. Their navigation method applies the selected
   mode before reporting it through the typed binding, so internal clicks and
-  external workflows share one state transition. The application coordinator
-  retains cross-surface policy, applying Authoring and editor focus for every
-  Write outcome before one URL replacement.
+  external workflows share one state transition. The workspace surface
+  switcher's route binding owns the cross-surface policy, applying Authoring and
+  supplied editor focus for every Write outcome before one URL replacement.
 - The editor status component replaces separate target and save-status element
   references and owns their text and target-tooltip presentation, including
   bounded line counting and file, line-range, caret, and selection wording. It
@@ -1281,7 +1282,9 @@ reason to wrap static markup mechanically.
   layout, and surface restoration, canonical URL projection and comparison,
   push-versus-replace browser-history writes, and the browser-history
   restoration subscription with lifecycle teardown. The application
-  coordinator supplies canonical state and bounded restoration effects.
+  coordinator supplies canonical state and bounded restoration effects. The
+  same binding consumes authoring-mode outcomes, applies Authoring and supplied
+  editor focus for Write, and replaces the canonical route for either mode.
 - The workspace layout control replaces the raw select reference and
   coordinator-owned normalization and local-storage access. It owns the
   four-option template, selected value, workspace-scoped resilient persistence,

@@ -47,6 +47,7 @@ describe("workspace surface switcher", () => {
     let railMode: WorkspaceRail = "guide";
     let authoringMode: AuthoringMode = "map";
     let layout: WorkspaceLayout = "context";
+    let navigateMode: ((mode: AuthoringMode) => void) | undefined;
     const railNavigate = vi.fn((value: typeof railMode) => {
       railMode = value;
     });
@@ -59,6 +60,7 @@ describe("workspace surface switcher", () => {
     });
     const restoreContext = vi.fn().mockResolvedValue(undefined);
     const selectFile = vi.fn();
+    const focusAuthoring = vi.fn();
     const replaceState = vi.fn();
     const pushState = vi.fn();
     vi.stubGlobal("location", {
@@ -71,6 +73,7 @@ describe("workspace surface switcher", () => {
       contextKey: () => "pdf:paper",
       enabled: true,
       entryFileId: () => "main",
+      focusAuthoring,
       layout: {
         get value() {
           return layout;
@@ -80,6 +83,9 @@ describe("workspace surface switcher", () => {
       mode: {
         get mode() {
           return authoringMode;
+        },
+        bindNavigation: (navigate) => {
+          navigateMode = navigate;
         },
         navigate: modeNavigate,
       },
@@ -102,12 +108,23 @@ describe("workspace surface switcher", () => {
     expect(layoutNavigate).toHaveBeenCalledWith("context", false);
     expect(replaceState).not.toHaveBeenCalled();
 
+    navigateMode?.("map");
+    expect(focusAuthoring).not.toHaveBeenCalled();
+    authoringMode = "write";
+    navigateMode?.("write");
+    expect(focusAuthoring).toHaveBeenCalledOnce();
+    expect(replaceState).toHaveBeenCalledWith(
+      { retained: true },
+      "",
+      "/editor/demo?keep=yes&file=notes&rail=guide&layout=context&context=pdf%3Apaper&page=3&annotation=mark",
+    );
+
     railMode = "comments";
     switcher.syncRoute("push");
     expect(pushState).toHaveBeenCalledWith(
       { view: "workspace" },
       "",
-      "/editor/demo?keep=yes&file=notes&rail=comments&mode=map&surface=context&layout=context&context=pdf%3Apaper&page=3&annotation=mark",
+      "/editor/demo?keep=yes&file=notes&rail=comments&layout=context&context=pdf%3Apaper&page=3&annotation=mark",
     );
   });
 
@@ -124,8 +141,9 @@ describe("workspace surface switcher", () => {
       contextKey: () => "preview",
       enabled: false,
       entryFileId: () => undefined,
+      focusAuthoring: vi.fn(),
       layout: { value: "split", navigate: vi.fn() },
-      mode: { mode: "write", navigate: vi.fn() },
+      mode: { mode: "write", bindNavigation: vi.fn(), navigate: vi.fn() },
       rail: { mode: "files", navigate: vi.fn() },
       restoreContext: vi.fn(),
       selectFile: vi.fn(),
@@ -146,8 +164,9 @@ describe("workspace surface switcher", () => {
       contextKey: () => "preview",
       enabled: true,
       entryFileId: () => undefined,
+      focusAuthoring: vi.fn(),
       layout: { value: "split", navigate: vi.fn() },
-      mode: { mode: "write", navigate: vi.fn() },
+      mode: { mode: "write", bindNavigation: vi.fn(), navigate: vi.fn() },
       rail: { mode: "files", navigate: vi.fn() },
       restoreContext: vi.fn(),
       selectFile: vi.fn(),

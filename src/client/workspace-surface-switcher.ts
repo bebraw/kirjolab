@@ -16,12 +16,14 @@ export interface WorkspaceRouteBinding {
   readonly contextKey: () => ResearchContextKey;
   readonly enabled: boolean;
   readonly entryFileId: () => string | undefined;
+  readonly focusAuthoring: () => void;
   readonly layout: {
     readonly value: WorkspaceLayout;
     readonly navigate: (layout: string, persist?: boolean) => Promise<WorkspaceLayout>;
   };
   readonly mode: {
     readonly mode: AuthoringMode;
+    readonly bindNavigation: (navigate: (mode: AuthoringMode) => void) => void;
     readonly navigate: (mode: AuthoringMode) => void;
   };
   readonly rail: {
@@ -58,6 +60,13 @@ export class WorkspaceSurfaceSwitcher extends LitElement {
   bindWorkspaceRoute(binding: WorkspaceRouteBinding): void {
     this.routeBinding = binding;
     this.bindNavigation(() => this.syncRoute("replace"));
+    binding.mode.bindNavigation((mode) => {
+      if (mode === "write") {
+        this.navigate("authoring", false);
+        binding.focusAuthoring();
+      }
+      this.syncRoute("replace");
+    });
     this.bindHistory();
   }
 

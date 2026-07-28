@@ -125,9 +125,10 @@ collaboration.
   resource and link totals, search and overview presentation, graph and
   connection-panel synchronization, visibility, focus entry, and one typed
   resource-selection stream. The application coordinator retains authorized
-  search requests, response validation, resource navigation, and the policy
-  that every Write outcome applies the Authoring surface, editor focus, and one
-  URL replacement.
+  search requests, response validation, and resource navigation. The surface
+  switcher's workspace-route binding applies the Authoring surface, supplied
+  editor focus, and one URL replacement for every Write outcome; Map outcomes
+  replace the route without changing surfaces or focus.
 - **Left project rail:** Files, Research, and Comments are peer local navigation
   modes. Comments contains the selected-passage composer and durable comment
   history without taking vertical space from the manuscript editor. Derived
@@ -194,9 +195,9 @@ collaboration.
   readiness, ordered file, rail, Write/Map, context, layout, and surface
   restoration, canonical URL comparison, and push-versus-replace history
   writes. The coordinator supplies canonical state and bounded restoration
-  effects. Write/Map mode selection
-  follows the same boundary, while its coordinator binding applies Authoring,
-  focuses the editor, and replaces the route once for every Write outcome.
+  effects. Write/Map mode selection follows the same boundary, while the
+  surface switcher's route binding applies Authoring, focuses the editor through
+  a narrow callback, and replaces the route once for every Write outcome.
   The project-view Lit control likewise applies normalized internal, restored,
   and route-driven workspace layouts, resilient local persistence, and resize
   notification before reporting one typed outcome. The coordinator retains PDF
