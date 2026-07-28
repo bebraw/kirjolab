@@ -1,6 +1,7 @@
 import * as v from "valibot";
 import { normalizeDoi, projectBibTeXPublication, type BibTeXEntry } from "./bibliography";
 import { hasBibliographicRecordFields } from "./bibliographic-record-contract";
+import { isRecord } from "./unknown-value";
 
 export type ReferenceMetadataField = "type" | "title" | "authors" | "year" | "venue" | "doi" | "url" | "abstract";
 export type CrossrefMetadataField = ReferenceMetadataField;
@@ -918,8 +919,4 @@ function nearestLineSync(
     }
   }
   return null;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

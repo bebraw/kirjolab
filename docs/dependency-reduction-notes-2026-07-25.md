@@ -14928,6 +14928,26 @@ static artifacts remain unchanged.
 Full native CI passes all 1,781 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Contract Reduction: Shared Plain Records
+
+Crossref, DataCite, OpenAlex, Semantic Scholar, reference discovery, reference
+Library, and citation-contract validation now share one dependency-free plain-
+record guard. The non-null object and non-array rule no longer has seven local
+definitions, while the citation acceptance boundary imports the primitive from
+its owning module instead of receiving it indirectly through a feature contract.
+
+This checkpoint removes 17 net production lines and reduces production record-
+guard definitions from 28 local copies to 21 local copies plus one shared
+authority. The affected guardrail passes 390 cases across 30 suites plus all
+121 Workers-runtime cases alongside formatting, lint, and strict TypeScript
+targets. The browser application changes from 845,989 B raw / 231,150 B gzip
+to 845,847 B raw / 231,150 B gzip (-142 B raw / gzip-neutral); direct and
+unique production package counts remain 18 and 150, and the other static
+artifacts remain unchanged.
+
+Full native CI passes all 1,781 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,

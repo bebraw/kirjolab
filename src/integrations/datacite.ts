@@ -1,5 +1,6 @@
 import { normalizeDoi } from "../domain/bibliography";
 import { isValidDoi, normalizePublicationDoi } from "../domain/publication-intake";
+import { isRecord } from "../domain/unknown-value";
 import type { PublicationEnrichment } from "../domain/workspace";
 import { readBoundedResponseJson } from "./bounded-response";
 
@@ -111,8 +112,4 @@ function stripMarkup(value: string): string {
 
 function bound(value: string, maximumLength: number): string {
   return value.slice(0, maximumLength);
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

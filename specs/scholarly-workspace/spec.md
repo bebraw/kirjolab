@@ -742,7 +742,9 @@ collaboration.
   boundary separately rejects arrays where keyed records are required and
   retains its cross-record invariants. Snapshot number fields preserve their
   existing type-only acceptance; capture-time semantic checks remain with the
-  writing authority.
+  writing authority. Scholarly provider, discovery, citation, and Library
+  boundaries share one dependency-free plain-record guard rather than
+  independently defining object-versus-array semantics.
 - **Citation assertions:** Source-to-source relationships live in the private
   shared library as directional provenance-bearing assertions, not manuscript
   `cites` edges. The bounded derived network can focus on current-project

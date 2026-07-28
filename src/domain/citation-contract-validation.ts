@@ -1,6 +1,7 @@
 import type { CitationAssertion } from "./citation-assertions";
 import { hasBibliographicRecordFields } from "./bibliographic-record-contract";
 import type { BibliographicRecord } from "./reference-library";
+import { isRecord } from "./unknown-value";
 
 export function isCitationAssertionContract(value: unknown): value is CitationAssertion {
   return isRecord(value) && hasCitationIdentity(value) && hasCitationEvidence(value) && isTimestamp(value.createdAt);
@@ -51,8 +52,4 @@ export function isIdentifier(value: unknown): value is string {
 
 export function isTimestamp(value: unknown): value is string {
   return typeof value === "string" && Number.isFinite(Date.parse(value));
-}
-
-export function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

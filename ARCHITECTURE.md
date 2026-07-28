@@ -55,6 +55,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   cross-record Library invariants stay explicit. Preserve the legacy snapshot
   number fields' type-only acceptance; capture-time semantic checks remain with
   the writing authority.
+- Reuse the dependency-free unknown-value guard when a handwritten trust
+  boundary only needs the shared plain-record rule: a non-null object that is
+  not an array. Do not duplicate that semantic locally or introduce a schema
+  solely to replace it.
 - Validate the server-rendered workspace/Library browser bootstrap as one
   Valibot contract before constructing the application. The contract owns the
   bounded workspace id, non-empty bounded identity email, and explicit

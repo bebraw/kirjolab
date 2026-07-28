@@ -1,5 +1,6 @@
 import { normalizeDoi } from "../domain/bibliography";
 import { isValidDoi, normalizePublicationDoi } from "../domain/publication-intake";
+import { isRecord } from "../domain/unknown-value";
 import type { PublicationEnrichment } from "../domain/workspace";
 import type { ReferenceDiscoveryIdentifier } from "../domain/reference-discovery";
 import { readBoundedResponseJson } from "./bounded-response";
@@ -141,8 +142,4 @@ async function readSemanticScholarJson(response: Response): Promise<unknown> {
 
 function bound(value: string, maximumLength: number): string {
   return value.slice(0, maximumLength);
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

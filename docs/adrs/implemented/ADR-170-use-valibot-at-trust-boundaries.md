@@ -96,6 +96,10 @@ infrastructure and retain focused boundary tests. Values generated and consumed
 inside one typed process do not gain a schema or retain an unused structural
 predicate without an actual unknown-data consumer.
 
+For boundaries that still need only the common plain-record predicate, use the
+dependency-free unknown-value guard. It owns the non-null, object, and non-array
+semantics without requiring a Valibot schema or repeating a local helper.
+
 ## Consequences
 
 **Positive:**
@@ -107,6 +111,8 @@ predicate without an actual unknown-data consumer.
 - Browser response contracts no longer maintain parallel interfaces, nested
   predicates, and record helpers for the same payload shapes.
 - Later trust-boundary migrations have an explicit adoption threshold.
+- Handwritten boundaries share one plain-record semantic instead of carrying
+  local copies.
 
 **Negative:**
 

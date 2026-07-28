@@ -3,6 +3,7 @@ import { isValidDoi, normalizePublicationDoi } from "../domain/publication-intak
 import type { PublicationEnrichment } from "../domain/workspace";
 import type { ReferenceDiscoveryIdentifier } from "../domain/reference-discovery";
 import type { CitationExpansionCandidate } from "../domain/citation-expansion-types";
+import { isRecord } from "../domain/unknown-value";
 import { readBoundedResponseJson } from "./bounded-response";
 
 type Fetcher = (input: string | URL | Request, init?: RequestInit) => Promise<Response>;
@@ -219,8 +220,4 @@ function crossrefHeaders(contact: string): Record<string, string> {
     accept: "application/vnd.crossref-api-message+json",
     "user-agent": contact ? `Kirjolab/0.1 (mailto:${contact})` : "Kirjolab/0.1",
   };
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

@@ -1,4 +1,5 @@
 import type { PublicationEnrichment } from "./workspace";
+import { isRecord } from "./unknown-value";
 
 export type ReferenceDiscoveryProvider = "openalex" | "crossref" | "semantic-scholar";
 export type ReferenceDiscoveryIdentifierScheme = "doi" | "openalex" | "semantic-scholar" | "arxiv" | "pmid";
@@ -221,8 +222,4 @@ function isDiscoveryMetadata(value: unknown): value is PublicationEnrichment {
 
 function boundedString(value: unknown, maximumLength: number, required = false): value is string {
   return typeof value === "string" && value.length <= maximumLength && (!required || value.trim().length > 0);
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

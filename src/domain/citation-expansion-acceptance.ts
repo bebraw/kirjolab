@@ -1,4 +1,5 @@
-import { isBibliographicRecordContract, isCitationAssertionContract, isRecord, isResponseId } from "./citation-contract-validation";
+import { isBibliographicRecordContract, isCitationAssertionContract, isResponseId } from "./citation-contract-validation";
+import { isRecord } from "./unknown-value";
 import type { AcceptCitationCandidateInput, CitationCandidateAcceptance } from "./citation-expansion-types";
 import { isValidDoi } from "./publication-intake";
 
