@@ -360,7 +360,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   that separates non-mutating inspection from reviewed project creation. Keep
   Markdown canonical; never retain TeX as a second editable authority or
   execute uploaded TeX. Let the bounded Lit import panel own dialog dismissal
-  and navigation to the successful response's canonical workspace href.
+  and navigation to the successful response's canonical workspace href. Keep
+  constructor and reopened-dialog state aligned through one local reset
+  operation rather than duplicated initialization lists.
 - Preserve explicit TikZ source as canonical fenced Markdown. Do not render it
   until a separately approved isolated server boundary can compile it and its
   SVG output can pass inert-SVG validation.

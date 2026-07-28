@@ -75,7 +75,8 @@ collaboration.
   GitHub-import, LaTeX-import, template-save, and toast owners atomically with
   the server-rendered trigger and canonical project-catalog source for handoff,
   replacement synchronization, deferred-deletion notices, and successful
-  template-save notices. That application binding also installs the template-
+  template-save notices. The LaTeX-import owner applies the same complete local
+  state reset at construction and before reopening. That application binding also installs the template-
   save owner's reciprocal project API, starting-point source, and toast binding.
   The GitHub-import owner consumes a successful OAuth or installation browser
   result once from its connected lifecycle, waits for its light-DOM template,

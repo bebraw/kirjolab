@@ -25,22 +25,19 @@ export class LatexImportPanel extends LightDomElement {
   declare private selectedRoot: string;
   declare private status: string;
   declare private projectTitle: string;
-  private bibliographyPath: string | null;
+  private bibliographyPath!: string | null;
 
   constructor() {
     super();
-    this.busy = null;
-    this.conversion = null;
-    this.previewDigest = null;
-    this.rootCandidates = [];
-    this.selectedRoot = "";
-    this.status = "";
-    this.projectTitle = "";
-    this.bibliographyPath = null;
+    this.resetState();
   }
 
   reset(): void {
     this.querySelector<HTMLFormElement>("#latex-import-form")?.reset();
+    this.resetState();
+  }
+
+  private resetState(): void {
     this.busy = null;
     this.conversion = null;
     this.previewDigest = null;

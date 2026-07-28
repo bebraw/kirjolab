@@ -14836,6 +14836,22 @@ static artifacts remain unchanged.
 Full native CI passes all 1,781 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Reduction: LaTeX Import Reset
+
+The LaTeX-import Lit owner now uses one complete local-state reset for both
+construction and dialog reopening. Constructor defaults and reopened-dialog
+defaults can no longer drift across duplicate assignment lists.
+
+This checkpoint removes three net production lines. The affected guardrail
+passes all seven related cases across two suites, alongside formatting, lint,
+and all strict TypeScript targets. The browser application changes from
+847,035 B raw / 231,170 B gzip to 846,917 B raw / 231,180 B gzip (-118 B raw /
++10 B gzip); direct and unique production package counts remain 18 and 150,
+and the other static artifacts remain unchanged.
+
+Full native CI passes all 1,781 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,

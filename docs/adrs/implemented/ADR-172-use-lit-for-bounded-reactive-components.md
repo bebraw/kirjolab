@@ -541,7 +541,8 @@ The adopted components own bounded presentation:
   validation, converted-file and diagnostic review, preview identity, busy and
   status presentation, native dialog lifecycle, authenticated preview and
   creation request lifecycles, Valibot response validation, local dismissal,
-  and navigation to the successful response's canonical workspace href.
+  and navigation to the successful response's canonical workspace href. One
+  local state reset establishes both construction and reopened-dialog defaults.
 - The GitHub import and detailed sync-review panels own their opaque preview
   identities and confirmation working state. The import panel additionally
   owns its read-only connection and repository-picker discovery lifecycle plus
