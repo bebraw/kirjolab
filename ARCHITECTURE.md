@@ -53,8 +53,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Validate the server-rendered workspace/Library browser bootstrap as one
   Valibot contract before constructing the application. The contract owns the
   bounded workspace id, non-empty bounded identity email, and explicit
-  `workspace`/`library` mode; malformed or missing bootstrap values must fail
-  initialization instead of silently selecting another application mode.
+  `workspace`/`library` mode, and returns the derived project API base and
+  workspace-mode flag consumed by composition; malformed or missing bootstrap
+  values must fail initialization instead of silently selecting another mode.
 - Read bounded external response bodies through stateless, request-local
   helpers that enforce both declared and observed byte limits. Keep byte
   ceilings, errors, response-shape validation, and domain mapping explicit at

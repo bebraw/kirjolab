@@ -27,11 +27,12 @@ describe("app response contracts", () => {
       unrelated: "ignored",
     };
     expect(parseAppBootstrap(bootstrap)).toEqual({
-      appMode: "workspace",
+      apiBase: "/api/workspaces/paper-1",
       identityEmail: "writer@example.test",
       workspaceId: "paper-1",
+      workspaceMode: true,
     });
-    expect(parseAppBootstrap({ ...bootstrap, appMode: "library" }).appMode).toBe("library");
+    expect(parseAppBootstrap({ ...bootstrap, appMode: "library" }).workspaceMode).toBe(false);
     for (const invalid of [
       null,
       { ...bootstrap, workspaceId: "" },

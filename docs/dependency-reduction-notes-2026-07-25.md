@@ -14644,6 +14644,26 @@ authority.
 Full native CI passes all 1,779 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Boundary Ownership: Derived Browser Bootstrap
+
+The existing Valibot bootstrap contract now derives the project API base and
+workspace-mode flag from the validated workspace identity and explicit
+application mode. The composition root consumes application-ready bootstrap
+values instead of repeating those two immutable transformations.
+
+This checkpoint removes one net production line and reduces
+`src/client/app.ts` from 29 to 27 lines. The affected guardrail passes 141
+related cases across fourteen suites plus all 17 directly affected contract
+cases, alongside formatting, lint, and all strict TypeScript targets. The
+browser application changes from 847,132 B raw / 231,196 B gzip to 847,239 B
+raw / 231,226 B gzip (+107 B raw / +30 B gzip); direct and unique production
+package counts remain 18 and 150, and the other static artifacts remain
+unchanged. Architecture, ADR, and scholarly-workspace contracts now assign
+immutable route and mode derivation to the validated bootstrap boundary.
+
+Full native CI passes all 1,779 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,

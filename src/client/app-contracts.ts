@@ -181,7 +181,7 @@ export type GitHubRepositoryOption = Readonly<v.InferInput<typeof gitHubReposito
 export type GitHubBranchOption = Readonly<v.InferInput<typeof gitHubBranchOptionSchema>>;
 export type GitHubImportPreview = Readonly<v.InferInput<typeof gitHubImportPreviewSchema>>;
 export type LatexImportPreview = Readonly<v.InferInput<typeof latexImportPreviewSchema>>;
-export type AppBootstrap = Readonly<v.InferInput<typeof appBootstrapSchema>>;
+export type AppBootstrap = Readonly<Omit<v.InferInput<typeof appBootstrapSchema>, "appMode"> & { apiBase: string; workspaceMode: boolean }>;
 
 export interface WebSnapshotComparisonResponse {
   readonly before: WebSnapshot;
@@ -198,7 +198,8 @@ export interface ShareLinkStatus {
 export function parseAppBootstrap(value: unknown): AppBootstrap {
   const result = v.safeParse(appBootstrapSchema, value);
   if (!result.success) throw new Error("Invalid application bootstrap");
-  return result.output;
+  const { workspaceId, identityEmail, appMode } = result.output;
+  return { workspaceId, identityEmail, apiBase: `/api/workspaces/${workspaceId}`, workspaceMode: appMode === "workspace" };
 }
 
 export function isWebSnapshotComparisonResponse(value: unknown): value is WebSnapshotComparisonResponse {

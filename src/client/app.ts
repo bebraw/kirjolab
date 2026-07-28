@@ -6,9 +6,7 @@ import { CollaborationSession } from "./collaboration-session";
 import { CollaborationSocket } from "./collaboration-socket";
 import { createBrowserOfflineWorkspaceSession } from "./offline-workspace";
 
-const { workspaceId, identityEmail, appMode } = parseAppBootstrap(document.body.dataset);
-const apiBase = `/api/workspaces/${workspaceId}`;
-const workspaceMode = appMode === "workspace";
+const { workspaceId, identityEmail, apiBase, workspaceMode } = parseAppBootstrap(document.body.dataset);
 const elements = collectAppElements();
 const refresh = elements.projectFileDialog.refreshCoordinator;
 const session = new CollaborationSession(new Y.Doc());

@@ -37,8 +37,9 @@ Concrete components retain every domain binding, reconnect action, and effect.
 After those ownership extractions, keep the remaining one-instance browser
 composition as module-private constants plus one ordered startup function; do
 not retain a class or single-use binding wrapper that adds no encapsulation over
-module scope, or repeat a document-availability guard after browser bootstrap
-has already required that document.
+module scope. Let the Valibot bootstrap boundary return its derived project API
+base and workspace-mode flag, and do not repeat a document-availability guard
+after browser bootstrap has already required that document.
 
 Keep layout interaction in the workspace-layout Lit owner when its policy
 depends on canonical component state. It binds the workspace root and Context

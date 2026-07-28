@@ -22,9 +22,10 @@ collaboration.
 - **Application shell:** `src/views/home.ts` renders the accessible workspace;
   `src/client/app.ts` provides typed browser behavior bundled into
   `.generated/app.txt`. Its module-private composition root derives immutable
-  bootstrap mode once, constructs shared services once, and sequences bounded
-  Lit bindings and startup in one function without a one-instance application
-  class or single-use binding wrapper.
+  project API and workspace mode through the validated bootstrap contract,
+  constructs shared services once, and sequences bounded Lit bindings and
+  startup in one function without a one-instance application class or
+  single-use binding wrapper.
   Browser bootstrap requires `document` before startup and reports a rejected
   startup directly into the document body without a redundant later guard.
   Persistent interface copy names the user's next action and keeps
