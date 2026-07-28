@@ -53,6 +53,9 @@ published deliberately into several writing projects.
   selected active link plus independent access to both resources.
 - `src/domain/review-study.ts` owns portable types, bounds, validation, query
   rendering, projections, report calculations, and interchange contracts.
+- Review catalog, study, search, screening, evidence, findings, synthesis,
+  backup, and model boundaries share the dependency-free plain-record guard;
+  their feature-specific validators retain all bounds and domain invariants.
 - `src/durable-objects/review-study.ts` owns versioned structured persistence,
   atomic mutation, reviewer decisions, and append-only provenance.
 - `src/domain/review-catalog.ts` owns independent review, membership, locator,

@@ -1,4 +1,5 @@
 import type { ReviewRecord } from "./review-search";
+import { isRecord } from "./unknown-value";
 
 export type ScreeningStage = "title-abstract" | "full-text";
 export type ScreeningDecisionValue = "include" | "exclude" | "uncertain";
@@ -266,8 +267,4 @@ function text(value: unknown): string {
 
 function nullableText(value: unknown): string | null {
   return value === null ? null : text(value);
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

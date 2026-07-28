@@ -10,6 +10,7 @@ import { currentReviewFindings, parseReviewFindingsSnapshot, type ReviewFinding,
 import type { ReviewScreeningSnapshot } from "./review-screening";
 import type { ReviewSearchSnapshot } from "./review-search";
 import type { ReviewReassessmentSnapshot, ReviewStudySnapshot } from "./review-study";
+import { isRecord } from "./unknown-value";
 
 export const reviewAnalysisDefinitionSchemaVersion = "kirjolab-review-analysis-v1" as const;
 
@@ -758,8 +759,4 @@ function integer(value: unknown): number {
 function text(value: unknown): string {
   if (typeof value !== "string") throw new Error("Review synthesis text is invalid");
   return value;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

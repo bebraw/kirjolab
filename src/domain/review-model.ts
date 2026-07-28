@@ -8,6 +8,7 @@ import {
 } from "./review-evidence";
 import type { ExtractionFieldDefinition } from "./review-study";
 import type { ScreeningDecisionValue } from "./review-screening";
+import { isRecord } from "./unknown-value";
 
 const reviewModelOperationSchema = v.picklist(["screen-record", "extract-field"]);
 const reviewModelDispositionSchema = v.picklist(["pending", "accepted", "rejected"]);
@@ -158,8 +159,4 @@ function parseStoredExtraction(value: unknown): ExtractionModelResult {
     evidence: parsed.output.evidence === null ? null : parseEvidencePointer(parsed.output.evidence, false, true),
     rationale: parsed.output.rationale,
   };
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

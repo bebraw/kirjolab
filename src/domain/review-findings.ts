@@ -1,4 +1,5 @@
 import { parseEvidencePointer, type ReviewEvidencePointer } from "./review-evidence";
+import { isRecord } from "./unknown-value";
 
 export const reviewFindingLimits = {
   findings: 10_000,
@@ -219,10 +220,6 @@ function hasExactKeys(value: Record<string, unknown>, keys: readonly string[]): 
   const actual = Object.keys(value).sort();
   const expected = [...keys].sort();
   return actual.length === expected.length && actual.every((key, index) => key === expected[index]);
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 const findingInputKeys = [

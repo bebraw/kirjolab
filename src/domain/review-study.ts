@@ -1,3 +1,5 @@
+import { isRecord } from "./unknown-value";
+
 const reviewStudyLimits = {
   researchQuestions: 128,
   conceptGroups: 128,
@@ -918,10 +920,6 @@ function stableTextHash(value: string): string {
     hash = Math.imul(hash, 0x01000193);
   }
   return (hash >>> 0).toString(16).padStart(8, "0");
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function normalizedExtractionFieldType(value: unknown): ExtractionFieldType | undefined {

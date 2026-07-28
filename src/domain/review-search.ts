@@ -1,4 +1,5 @@
 import { normalizeDoi, parseBibTeX, projectBibTeXPublication } from "./bibliography";
+import { isRecord } from "./unknown-value";
 
 export const reviewImportLimits = {
   bibtexBytes: 32 * 1024 * 1024,
@@ -413,8 +414,4 @@ function textArray(value: unknown, message: string): string[] {
 function text(value: unknown): string {
   if (typeof value !== "string") throw new Error("Review text value is invalid");
   return value;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

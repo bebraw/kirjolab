@@ -3,6 +3,7 @@ import { canonicalJson } from "./canonical-json";
 import { isSha256Hex, sha256Text } from "./sha256";
 import { compareText } from "./text-order";
 import { assertReviewBackupPayloadByteCount, maximumReviewBackupPayloadBytes } from "./review-backup-limits";
+import { isRecord } from "./unknown-value";
 
 export { maximumReviewBackupPayloadBytes } from "./review-backup-limits";
 
@@ -238,8 +239,4 @@ function normalizedDigest(value: string, label: string): string {
 
 function integerAtLeast(value: unknown, minimum: number): value is number {
   return typeof value === "number" && Number.isSafeInteger(value) && value >= minimum;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

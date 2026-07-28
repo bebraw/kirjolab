@@ -6,6 +6,7 @@ import {
   type ReviewProtocolRevision,
 } from "./review-study";
 import type { ReviewRecord } from "./review-search";
+import { isRecord } from "./unknown-value";
 
 export type ReviewSourceSelectorKind = "pdf-annotation" | "web-passage";
 export type ReviewEvidenceSelectorKind = ReviewSourceSelectorKind | "legacy-unresolved";
@@ -396,8 +397,4 @@ function integer(value: unknown): number {
 function text(value: unknown): string {
   if (typeof value !== "string") throw new Error("Review evidence text is invalid");
   return value;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

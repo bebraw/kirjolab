@@ -14948,6 +14948,25 @@ artifacts remain unchanged.
 Full native CI passes all 1,781 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Contract Reduction: Review Plain Records
+
+Review catalog, study, search, screening, evidence, findings, synthesis, backup,
+and model boundaries now reuse the shared dependency-free plain-record guard.
+Nine identical local definitions no longer carry independently driftable object-
+versus-array semantics; all feature-specific bounds and invariants remain local.
+
+This checkpoint removes 18 net production lines and reduces remaining local
+production record-guard definitions from 21 to 12. The affected guardrail
+passes 358 related runtime cases across 23 suites plus all 121 Workers-runtime
+cases alongside formatting, lint, and strict TypeScript targets. The browser
+application changes from 845,847 B raw / 231,150 B gzip to 845,776 B raw /
+231,162 B gzip (-71 B raw / +12 B gzip); direct and unique production package
+counts remain 18 and 150, and the other static artifacts remain unchanged.
+
+After one infrastructure retry following an unrelated local Worker exit, full
+native CI passes all 1,781 unit/coverage tests, 121 Workers-runtime tests, and 74
+browser tests.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,

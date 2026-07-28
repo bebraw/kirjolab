@@ -1,4 +1,5 @@
 import type { ReviewProfile } from "./review-study";
+import { isRecord } from "./unknown-value";
 
 export const reviewResourceLimits = {
   catalogEntries: 200,
@@ -185,8 +186,4 @@ export function isReviewSummary(value: unknown): value is ReviewSummary {
     isIsoTimestamp(value.updatedAt) &&
     (value.archivedAt === null || (typeof value.archivedAt === "string" && isIsoTimestamp(value.archivedAt)))
   );
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
