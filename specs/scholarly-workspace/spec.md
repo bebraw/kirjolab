@@ -774,7 +774,8 @@ collaboration.
 - [x] A previously opened project reloads offline, retains edits across another
       offline reload, and converges those edits after reconnection.
 - [x] Hosted logout clears Kirjolab's offline workspace database and shell
-      caches before leaving the application.
+      caches before leaving the application; the offline session owns that
+      browser lifecycle together with page-exit persistence and teardown.
 - [x] Yjs owns live editor text after synchronization while coalesced resource
       refreshes update only non-editor workspace state.
 - [x] Markdown changes update a semantic preview and diagnostics immediately.

@@ -49,9 +49,11 @@ the offline persistence module's typed restoration result. Bind the store,
 document, canonical snapshot and server-vector sources, availability guard, and
 save outcomes once through one typed offline session. That session owns Yjs
 encoding, guarded debounced scheduling and flush, restoration delegation,
-project-copy clearing, and coordinated IndexedDB and shell-cache cleanup. The
-collaboration session consumes only the validated server vector; the application
-coordinator retains collaboration recovery and restored-state UI projection.
+project-copy clearing, coordinated IndexedDB and shell-cache cleanup, page-exit
+persistence, and hosted-logout interception, cleanup, navigation, failure
+routing, and listener teardown. The collaboration session consumes only the
+validated server vector; the application coordinator retains collaboration
+recovery and restored-state UI projection.
 
 Update the stored server vector only from server binary state and acknowledged
 client updates. Clear the workspace copy before applying a server reset, and

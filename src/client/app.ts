@@ -191,16 +191,9 @@ class WorkspaceApp {
     this.#elements.connectionStatus.bindWorkflow(this.#collaboration, this.#elements);
     this.#elements.collaboratorSelections.bindSelectionChanged(() => this.#elements.editorStatus.renderHighlight());
     this.#collaborationSocket.bindBrowserLifecycle();
-    window.addEventListener("pagehide", () => this.#offline.schedule(0));
-    const logOut = document.querySelector<HTMLAnchorElement>("#log-out");
-    logOut?.addEventListener("click", (event) => {
-      event.preventDefault();
-      const href = logOut.href;
-      void this.#offline
-        .clearBrowserData(typeof indexedDB === "undefined" ? undefined : indexedDB, typeof caches === "undefined" ? undefined : caches)
-        .then(() => location.assign(href))
-        .catch((error: unknown) => this.#elements.toast.show(error instanceof Error ? error.message : "Could not clear offline data"));
-    });
+    this.#offline.bindBrowserLifecycle(document.querySelector<HTMLAnchorElement>("#log-out"), (error) =>
+      this.#elements.toast.show(error instanceof Error ? error.message : "Could not clear offline data"),
+    );
     this.#elements.workspaceLayout.configure(workspaceId, this.#elements.workspaceSurfaces);
     this.#elements.workspaceLayout.bindChange(async (layout) => {
       if (layout === "pdf") await this.#elements.contextResourcePresenter.ensurePdfResource();

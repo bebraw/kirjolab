@@ -91,9 +91,22 @@ export interface OfflineWorkspaceSessionOptions {
   readonly workspaceId: string;
 }
 
+export interface OfflineWorkspaceBrowserEnvironment {
+  readonly cacheStorage: CacheStorage | undefined;
+  readonly databaseFactory: IDBFactory | undefined;
+  readonly events: EventTarget;
+  readonly navigate: (href: string) => void;
+}
+
+interface OfflineWorkspaceBrowserBinding extends OfflineWorkspaceBrowserEnvironment {
+  readonly failed: (error: unknown) => void;
+  readonly logout: (EventTarget & { readonly href: string }) | null;
+}
+
 export class OfflineWorkspaceSession {
   readonly #options: OfflineWorkspaceSessionOptions;
   readonly #saves: DebouncedAsyncQueue;
+  #browserBinding: OfflineWorkspaceBrowserBinding | null = null;
 
   constructor(options: OfflineWorkspaceSessionOptions) {
     this.#options = options;
@@ -126,6 +139,47 @@ export class OfflineWorkspaceSession {
     await this.#saves.flush();
     await Promise.all([clearAllOfflineWorkspaces(factory), clearOfflineShellCaches(storage)]);
   }
+
+  bindBrowserLifecycle(
+    logout: (EventTarget & { readonly href: string }) | null,
+    failed: (error: unknown) => void,
+    environment: OfflineWorkspaceBrowserEnvironment = browserOfflineWorkspaceEnvironment(),
+  ): void {
+    this.unbindBrowserLifecycle();
+    this.#browserBinding = { ...environment, failed, logout };
+    environment.events.addEventListener("pagehide", this.#handlePageHide);
+    logout?.addEventListener("click", this.#handleLogout);
+  }
+
+  unbindBrowserLifecycle(): void {
+    const binding = this.#browserBinding;
+    if (!binding) return;
+    binding.events.removeEventListener("pagehide", this.#handlePageHide);
+    binding.logout?.removeEventListener("click", this.#handleLogout);
+    this.#browserBinding = null;
+  }
+
+  readonly #handlePageHide = (): void => this.schedule(0);
+
+  readonly #handleLogout = (event: Event): void => {
+    const binding = this.#browserBinding;
+    if (!binding?.logout) return;
+    event.preventDefault();
+    const { href } = binding.logout;
+    const { cacheStorage, databaseFactory, navigate } = binding;
+    void this.clearBrowserData(databaseFactory, cacheStorage)
+      .then(() => navigate(href))
+      .catch(binding.failed);
+  };
+}
+
+function browserOfflineWorkspaceEnvironment(): OfflineWorkspaceBrowserEnvironment {
+  return {
+    cacheStorage: typeof caches === "undefined" ? undefined : caches,
+    databaseFactory: typeof indexedDB === "undefined" ? undefined : indexedDB,
+    events: window,
+    navigate: (href) => location.assign(href),
+  };
 }
 
 export function createOfflineWorkspaceStore(

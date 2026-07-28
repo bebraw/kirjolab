@@ -11704,3 +11704,26 @@ and PDF.js artifacts remain unchanged at 135,411 B / 23,373 B, 204,779 B /
 
 Full native CI passes all 1,758 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Coordinator Extraction: Offline Browser Lifecycle
+
+`OfflineWorkspaceSession` now owns page-exit persistence and hosted-logout
+interception, queued-save flush, IndexedDB and shell-cache cleanup, navigation,
+failure routing, and listener teardown. `WorkspaceApp` supplies only the logout
+element and user-facing failure presentation.
+
+This checkpoint reduces `src/client/app.ts` from 593 to 586 lines (-7) and
+grows the offline session module from 281 to 335 lines (+54). The 47-line
+combined increase moves browser event lifetime and destructive cleanup ordering
+beside the persistence authority. Focused coverage passes page-exit scheduling,
+logout prevention, cleanup-before-navigation, teardown, and strict types. Direct
+and unique production package counts remain 18 and 150; Valibot and Yjs were
+already pinned.
+
+The browser application artifact increases from 859,264 B raw / 231,208 B gzip
+to 859,748 B / 231,347 B (+484 B raw / +139 B gzip). Styles and lazy Markdown
+and PDF.js artifacts remain unchanged at 135,411 B / 23,373 B, 204,779 B /
+62,386 B, and 481,994 B / 146,135 B.
+
+Full native CI passes all 1,759 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.

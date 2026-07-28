@@ -200,6 +200,48 @@ describe("offline workspace persistence", () => {
     expect(repository.records.size).toBe(0);
   });
 
+  it("owns page-exit persistence and logout browser-data cleanup", async () => {
+    const document = new Y.Doc();
+    const session = new OfflineWorkspaceSession({
+      document,
+      failed: vi.fn(),
+      offlineAvailable: () => true,
+      origin: "offline",
+      saved: vi.fn(),
+      serverStateVector: () => Y.encodeStateVector(document),
+      snapshot: () => workspaceSnapshotFixture,
+      store: null,
+      workspaceId: workspaceSnapshotFixture.id,
+    });
+    const events = new EventTarget();
+    const logout = Object.assign(new EventTarget(), { href: "https://example.test/log-out" });
+    const navigate = vi.fn();
+    const failed = vi.fn();
+    const schedule = vi.spyOn(session, "schedule");
+    const clearBrowserData = vi.spyOn(session, "clearBrowserData").mockResolvedValue();
+    session.bindBrowserLifecycle(logout, failed, {
+      cacheStorage: undefined,
+      databaseFactory: undefined,
+      events,
+      navigate,
+    });
+
+    events.dispatchEvent(new Event("pagehide"));
+    const click = new Event("click", { cancelable: true });
+    logout.dispatchEvent(click);
+    await vi.waitFor(() => expect(navigate).toHaveBeenCalledWith("https://example.test/log-out"));
+    expect(schedule).toHaveBeenCalledWith(0);
+    expect(click.defaultPrevented).toBe(true);
+    expect(clearBrowserData).toHaveBeenCalledWith(undefined, undefined);
+    expect(failed).not.toHaveBeenCalled();
+
+    session.unbindBrowserLifecycle();
+    events.dispatchEvent(new Event("pagehide"));
+    logout.dispatchEvent(new Event("click"));
+    expect(schedule).toHaveBeenCalledOnce();
+    expect(clearBrowserData).toHaveBeenCalledOnce();
+  });
+
   it("round-trips isolated copied state and clears one project", async () => {
     const repository = new MemoryRepository();
     const store = new OfflineWorkspaceStore(repository, "writer@example.test", "paper-a");
