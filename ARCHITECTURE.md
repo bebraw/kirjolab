@@ -662,11 +662,12 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   no-evidence notice routes from the context-resource presenter already supplied
   by the assistant workflow binding, and store those derived routes in that same
   atomic binding instead of maintaining parallel nullable lifecycle state or installing a parallel resource
-  stage or repeating routes across task, result, and candidate workflows. Bind all
-  candidate panels, the interactive result, model and task controls, and
-  evidence selection through one atomic workspace-presentation entry so the
-  assistant surface cannot be partially wired. Bind all
-  remaining application-owned generation inputs directly from the Insert-menu,
+  stage or repeating routes across task, result, and candidate workflows. Use
+  one atomic application binding for the API base, collaboration stability,
+  authoring and workflow owners, candidate panels, interactive result, model
+  and task controls, and evidence selection so production startup cannot expose
+  a partially wired assistant surface. Bind all remaining application-owned
+  generation inputs directly from the Insert-menu,
   Context, Research-rail, toast, and canonical refresh owners instead of a
   workflow callback bag. Bind the Context owner directly;
   the presenter owns assistant-context activation and decision-state

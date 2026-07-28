@@ -332,10 +332,11 @@ collaboration.
   no-evidence notice routes from that presenter during its workflow bind instead
   of exposing a parallel resource stage or nullable lifecycle state; the same
   atomic binding stores those routes instead of repeating them across task,
-  result, and candidate workflows. Candidate panels, the
-  interactive result, model and task controls, and evidence selection bind
-  atomically through one workspace-presentation entry; callers cannot assemble
-  only part of the assistant surface. It also binds the remaining
+  result, and candidate workflows. One application entry atomically binds the
+  API base, collaboration stability, authoring and workflow owners, candidate
+  panels, interactive result, model and task controls, and evidence selection;
+  production callers cannot assemble only part of the assistant surface. It
+  also binds the remaining
   Insert-menu, Context, Research-rail, toast, and canonical refresh owners
   directly instead of a workflow callback bag. It binds the canonical project-
   file, editor-status, and history owners once as authoring sources, with

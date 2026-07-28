@@ -36,7 +36,7 @@ class WorkspaceApp {
   }
 
   #bindUi(): void {
-    this.#elements.assistantGenerationPresenter.bindAuthoring(this.#session, this.#elements);
+    this.#elements.assistantGenerationPresenter.bindApplication(apiBase, this.#session, this.#refresh, this.#elements);
     this.#elements.workspaceCatalogPanel.bindWorkspace(workspaceId, this.#elements);
     this.#elements.workspaceSettingsPanel.bindWorkspace(workspaceId, apiBase, appMode === "workspace", this.#refresh, this.#elements);
     this.#elements.newWorkspaceStartingPoints.bindWorkspace(this.#elements);
@@ -59,8 +59,6 @@ class WorkspaceApp {
     this.#elements.contextResourcePresenter.bindContext(appMode === "workspace" ? apiBase : null, this.#elements);
     this.#elements.contextResourcePresenter.bindRoutes(this.#session.document, this.#session, this.#refresh, this.#elements);
     this.#elements.workspaceSurfaceSwitcher.bindWorkspaceRoute(appMode === "workspace", this.#elements);
-    this.#elements.assistantGenerationPresenter.bindWorkflow(this.#refresh, this.#elements);
-    this.#elements.assistantGenerationPresenter.bindWorkspace(apiBase);
   }
 }
 

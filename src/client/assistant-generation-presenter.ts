@@ -134,6 +134,17 @@ export class AssistantGenerationPresenter extends LightDomController {
     readonly routes: AssistantResourceRoutes;
   } | null = null;
 
+  bindApplication(
+    apiBase: string,
+    collaboration: { readonly stable: boolean },
+    resources: { request(): Promise<void> },
+    owners: AssistantAuthoringOwners & AssistantWorkflowOwners,
+  ): void {
+    this.bindAuthoring(collaboration, owners);
+    this.bindWorkflow(resources, owners);
+    this.bindWorkspace(apiBase);
+  }
+
   bindAuthoring(collaboration: { readonly stable: boolean }, authoring: AssistantAuthoringOwners): void {
     this.collaboration = collaboration;
     this.authoring = authoring;

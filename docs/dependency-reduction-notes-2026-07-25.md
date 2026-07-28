@@ -14216,6 +14216,26 @@ static artifacts remain unchanged.
 Full native CI passes all 1,775 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Atomic Assistant Application Binding
+
+The assistant-generation Lit presenter now installs its API base,
+collaboration stability, authoring owners, workflow owners, and child-control
+wiring through one production application entry. Narrow authoring and workflow
+rebinding remain available for live source changes and focused tests, but
+`WorkspaceApp` no longer assembles three separated assistant lifecycle stages.
+
+This checkpoint trades nine net production lines for one atomic ownership
+boundary and reduces `src/client/app.ts` from 73 to 71 lines. The affected
+guardrail passes 22 related cases across two suites alongside strict types. The
+browser application changes from 847,296 B raw / 230,896 B gzip to 847,281 B
+raw / 230,913 B gzip (-15 B raw / +17 B gzip); direct and unique production
+package counts remain 18 and 150, and the other static artifacts remain
+unchanged. Architecture, ADR, and scholarly-workspace contracts now require
+the atomic production binding.
+
+Full native CI passes all 1,775 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,

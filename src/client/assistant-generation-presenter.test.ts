@@ -243,6 +243,27 @@ describe("assistant generation presenter", () => {
   beforeEach(() => vi.stubGlobal("HTMLElement", class {}));
   afterEach(() => vi.unstubAllGlobals());
 
+  it("binds application sources and child controls atomically", () => {
+    const { coordinator, presenter, resources } = setup();
+    const authoring = authoringSources();
+    const owners = {
+      ...authoring.owners,
+      contextResourcePresenter: { ...coordinator.context, assistantResources: () => resources },
+      editorInsertMenu: { replacePassage: coordinator.applyTable },
+      toast: { show: coordinator.presentNotice },
+      workspaceRailTabs: { navigate: () => coordinator.openEvidenceRail() },
+    };
+    const bindAuthoring = vi.spyOn(presenter, "bindAuthoring");
+    const bindWorkflow = vi.spyOn(presenter, "bindWorkflow");
+    const bindWorkspace = vi.spyOn(presenter, "bindWorkspace");
+
+    presenter.bindApplication("/api/workspaces/workspace", authoring.collaboration, { request: coordinator.refreshResources }, owners);
+
+    expect(bindAuthoring).toHaveBeenCalledWith(authoring.collaboration, owners);
+    expect(bindWorkflow).toHaveBeenCalledWith({ request: coordinator.refreshResources }, owners);
+    expect(bindWorkspace).toHaveBeenCalledWith("/api/workspaces/workspace");
+  });
+
   it("routes table generation and returns review presentation", async () => {
     const { elements, presenter } = setup();
     vi.spyOn(elements["assistant-task-panel"], "tableRequirements", "get").mockReturnValue({

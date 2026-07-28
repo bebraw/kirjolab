@@ -141,10 +141,12 @@ The adopted components own bounded presentation:
   context-resource presenter already supplied by its workflow binding instead
   of exposing a parallel resource stage or nullable lifecycle state; the same
   atomic binding stores the derived routes instead of repeating them across its task,
-  result, and candidate workflow bindings. Bind candidate panels, the interactive
-  result, model and task controls, and evidence selection through one atomic
-  workspace-presentation entry rather than exposing independently callable
-  partial stages. Bind the remaining Insert-menu, Context,
+  result, and candidate workflow bindings. One production application entry
+  atomically installs the API base, collaboration stability, authoring and
+  workflow owners, candidate panels, interactive result, model and task
+  controls, and evidence selection. Narrow authoring and workflow rebinding
+  remain available without making production startup assemble partial stages.
+  Bind the remaining Insert-menu, Context,
   Research-rail, toast, and canonical refresh owners directly instead of a
   workflow callback bag. Bind the Context owner directly for assistant activation and decision
   re-presentation. Bind the canonical project-file, editor-status, and history
