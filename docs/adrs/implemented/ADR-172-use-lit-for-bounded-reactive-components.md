@@ -35,9 +35,9 @@ cleanup and render-root selection. Non-rendering presenters extend its
 controller specialization for empty rendering and typed sibling lookup.
 Concrete components retain every domain binding, reconnect action, and effect.
 After those ownership extractions, keep the remaining one-instance browser
-composition as module-private constants plus one ordered startup function; do
-not retain a class or single-use binding wrapper that adds no encapsulation over
-module scope. Let the Valibot bootstrap boundary return its derived project API
+composition as module-private constants plus one directly invoked Lit startup
+promise; do not retain a class, function, or single-use binding wrapper that
+adds no encapsulation over module scope. Let the Valibot bootstrap boundary return its derived project API
 base and workspace-mode flag, and do not repeat a document-availability guard
 after browser bootstrap has already required that document.
 

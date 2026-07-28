@@ -23,8 +23,8 @@ collaboration.
   `src/client/app.ts` provides typed browser behavior bundled into
   `.generated/app.txt`. Its module-private composition root derives immutable
   project API and workspace mode through the validated bootstrap contract,
-  constructs shared services once, and sequences bounded Lit bindings and
-  startup in one function without a one-instance application class or
+  constructs shared services once, and directly invokes the bounded Lit startup
+  promise without a one-instance application class, startup function, or
   single-use binding wrapper.
   Browser bootstrap requires `document` before startup and reports a rejected
   startup directly into the document body without a redundant later guard.

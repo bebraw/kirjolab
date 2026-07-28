@@ -14740,7 +14740,7 @@ lint, and all strict TypeScript targets. The browser application changes from
 the other static artifacts remain unchanged. Architecture, ADR, and scholarly-
 workspace contracts now define one ordered project-root application entry.
 
-Full native CI passes all 1,780 unit/coverage tests, 121 Workers-runtime tests,
+Full native CI passes all 1,781 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
 ## Continued Lit Ownership: One Application Startup Entry
@@ -14761,7 +14761,27 @@ production package counts remain 18 and 150, and the other static artifacts
 remain unchanged. Architecture, ADR, and scholarly-workspace contracts now
 define one mode-aware Lit startup entry after service construction.
 
-Full native CI passes all 1,780 unit/coverage tests, 121 Workers-runtime tests,
+Full native CI passes all 1,781 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
+## Continued Root Reduction: Direct Startup Promise
+
+The browser entry now invokes the project-file Lit startup promise directly and
+attaches its existing fail-visible rejection handler. The one-call async wrapper
+added no policy, state, or teardown after startup ownership moved into the Lit
+owner.
+
+This checkpoint removes two production lines and reduces `src/client/app.ts`
+from 22 to 20 lines. Because the entry has no direct unit file, the affected
+guardrail passes the complete 1,781-test unit/coverage baseline with loopback
+permission, alongside formatting, lint, and all strict TypeScript targets. The
+browser application changes from 847,194 B raw / 231,186 B gzip to 847,163 B
+raw / 231,177 B gzip (-31 B raw / -9 B gzip); direct and unique production
+package counts remain 18 and 150, and the other static artifacts remain
+unchanged. Architecture, ADR, and scholarly-workspace contracts now retain no
+single-use startup wrapper in the composition root.
+
+Full native CI passes all 1,781 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
 ## Continued Lit Ownership: Preview Synchronization Owners

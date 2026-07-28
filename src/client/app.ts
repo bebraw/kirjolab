@@ -13,10 +13,8 @@ const session = new CollaborationSession(new Y.Doc());
 const offline = createBrowserOfflineWorkspaceSession(identityEmail, workspaceId, session, elements);
 const socket = new CollaborationSocket(session, apiBase, offline, refresh, elements);
 
-async function start(): Promise<void> {
-  await elements.projectFileDialog.startApplication(apiBase, workspaceId, workspaceMode, elements, session, offline, socket);
-}
-
-void start().catch((error: unknown) => {
-  document.body.textContent = error instanceof Error ? error.message : "Kirjolab failed to start";
-});
+void elements.projectFileDialog
+  .startApplication(apiBase, workspaceId, workspaceMode, elements, session, offline, socket)
+  .catch((error: unknown) => {
+    document.body.textContent = error instanceof Error ? error.message : "Kirjolab failed to start";
+  });
