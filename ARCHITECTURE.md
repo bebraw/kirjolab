@@ -117,9 +117,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   it also own canonical Library loading, response validation, archive-aware
   request scope, the single browser snapshot projection, and derivation of its
   project-reference and research-share inputs from the canonical project
-  snapshot. It owns standalone Library route lookup, browser-history restoration
-  subscription and teardown, archive-aware focused-reference restoration, and
-  missing-reference feedback. Direct publication-
+  snapshot. It owns standalone Library route lookup, root and addressed-
+  reference history writes, browser-history restoration subscription and
+  teardown, archive-aware focused-reference restoration, and missing-reference
+  feedback. Direct publication-
   management navigation also stays inside this owner for Library activation,
   canonical refresh, archive-aware focus, and successful route intent. General
   Library entry likewise sequences context activation, optional standalone
@@ -128,9 +129,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   notice lifecycle; keep canonical project snapshot application behind the
   coordinator callback. It also resolves duplicate-PDF upload reveals through
   archive visibility, canonical refresh, owned filter/list focus, and missing-
-  source feedback. Keep cross-feature PDF and
-  context navigation, history mutation, project snapshot application, refresh timing, and notification
-  presentation in their authorities behind narrow typed callbacks.
+  source feedback. Keep cross-feature PDF and context navigation, PDF-route
+  history mutation, project snapshot application, refresh timing, and
+  notification presentation in their authorities behind narrow typed callbacks.
 - Keep resource-card lookup, scrolling, and focus inside the Lit component that
   renders those cards. Let the Library reference-list owner route a PDF
   refinement intent to the metadata editor in the same reference row. The
@@ -942,9 +943,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Keep standalone private PDF locations routable in browser history. Parse and
   write their canonical Library root, addressed-reference, artifact, and page
   locations through one pure route adapter. Let the composed Library workspace
-  own route lookup and the browser-history restoration subscription while the
-  application coordinator supplies history mutation, authorization effects,
-  cross-feature navigation, and notices through typed callbacks.
+  own root and addressed-reference history mutation, route lookup, and the
+  browser-history restoration subscription while the application coordinator
+  supplies PDF-route mutation, authorization effects, cross-feature navigation,
+  and notices through typed callbacks.
   Coalesce selected PDF text into normalized visual-line rectangles, and export
   each saved highlight as one interoperable multi-quad PDF annotation without
   mutating source bytes.

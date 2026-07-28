@@ -58,14 +58,17 @@ interface LibraryRefreshOptions {
 export interface ReferenceLibraryWorkspaceCallbacks {
   readonly activateLibrary?: () => void;
   readonly applyProjectMutation?: (snapshot: ProjectReferenceChanged["snapshot"]) => Promise<void>;
-  readonly clearRoute?: () => void;
   readonly compareSnapshots: (priorId: string, currentId: string) => void;
   readonly openPdf: (artifact: LibraryPdfArtifact, page?: number, updateHistory?: boolean) => void;
-  readonly openLibraryRoute?: () => void;
-  readonly openReferenceRoute?: (referenceId: string) => void;
   readonly presentNotice: (message: string) => void;
   readonly refreshLibrary: () => Promise<void>;
   readonly refreshMetadata: () => Promise<void>;
+}
+
+export interface ReferenceLibraryHistory {
+  readonly state: unknown;
+  pushState(data: unknown, unused: string, url: string): void;
+  replaceState(data: unknown, unused: string, url: string): void;
 }
 
 const emptyCallbacks: ReferenceLibraryWorkspaceCallbacks = {
@@ -80,7 +83,7 @@ export class ReferenceLibraryWorkspace extends LitElement {
   private data: ReferenceLibraryWorkspaceData | null = null;
   private callbacks = emptyCallbacks;
   private librarySnapshot: ReferenceLibrarySnapshot | null = null;
-  private browserRouteEnabled = false;
+  private browserHistory: ReferenceLibraryHistory | null = null;
 
   get snapshot(): ReferenceLibrarySnapshot | null {
     return this.librarySnapshot;
@@ -209,7 +212,7 @@ export class ReferenceLibraryWorkspace extends LitElement {
   async restoreRoute(route: LibraryUiRoute): Promise<void> {
     if (route.kind === "library") {
       this.callbacks.activateLibrary?.();
-      if (route.referenceId && !(await this.openReference(route.referenceId))) this.callbacks.clearRoute?.();
+      if (route.referenceId && !(await this.openReference(route.referenceId))) this.replaceBrowserRoute();
       return;
     }
     const artifact = this.snapshot?.artifacts.find(({ id }) => id === route.artifactId);
@@ -217,7 +220,7 @@ export class ReferenceLibraryWorkspace extends LitElement {
       this.callbacks.openPdf(artifact, route.page, false);
       return;
     }
-    this.callbacks.clearRoute?.();
+    this.replaceBrowserRoute();
     this.callbacks.presentNotice("That PDF is no longer in the library.");
   }
 
@@ -225,14 +228,14 @@ export class ReferenceLibraryWorkspace extends LitElement {
     return this.restoreRoute(readLibraryUiRoute(url));
   }
 
-  bindBrowserRoute(enabled: boolean): void {
-    this.browserRouteEnabled = enabled;
+  bindBrowserRoute(enabled: boolean, browserHistory: ReferenceLibraryHistory = history): void {
+    this.browserHistory = enabled ? browserHistory : null;
     this.bindHistory();
   }
 
   async open(updateHistory = true): Promise<void> {
     this.callbacks.activateLibrary?.();
-    if (updateHistory) this.callbacks.openLibraryRoute?.();
+    if (updateHistory) this.pushBrowserRoute("/library", { view: "library" });
     await this.callbacks.refreshLibrary();
   }
 
@@ -295,7 +298,9 @@ export class ReferenceLibraryWorkspace extends LitElement {
   async openAvailableReference(referenceId: string): Promise<void> {
     this.callbacks.activateLibrary?.();
     await this.callbacks.refreshLibrary();
-    if (await this.focusAvailableReference(referenceId)) this.callbacks.openReferenceRoute?.(referenceId);
+    if (await this.focusAvailableReference(referenceId)) {
+      this.pushBrowserRoute(`/library?reference=${encodeURIComponent(referenceId)}`, { view: "library-reference", referenceId });
+    }
   }
 
   revealReference(referenceId: string, query: string): Promise<boolean> {
@@ -382,7 +387,7 @@ export class ReferenceLibraryWorkspace extends LitElement {
 
   private bindHistory(): void {
     this.unbindHistory();
-    if (this.browserRouteEnabled && typeof window !== "undefined") window.addEventListener("popstate", this.handlePopState);
+    if (this.browserHistory && typeof window !== "undefined") window.addEventListener("popstate", this.handlePopState);
   }
 
   private unbindHistory(): void {
@@ -390,6 +395,14 @@ export class ReferenceLibraryWorkspace extends LitElement {
   }
 
   private readonly handlePopState = (): void => void this.restoreBrowserRoute();
+
+  private pushBrowserRoute(url: string, state: unknown): void {
+    this.browserHistory?.pushState(state, "", url);
+  }
+
+  private replaceBrowserRoute(): void {
+    this.browserHistory?.replaceState({ view: "library" }, "", "/library");
+  }
 }
 
 if (typeof customElements !== "undefined" && !customElements.get("reference-library-workspace")) {

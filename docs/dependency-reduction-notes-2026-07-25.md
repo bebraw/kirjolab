@@ -11727,3 +11727,26 @@ and PDF.js artifacts remain unchanged at 135,411 B / 23,373 B, 204,779 B /
 
 Full native CI passes all 1,759 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
+
+## Continued Lit Ownership: Library History Mutation
+
+`ReferenceLibraryWorkspace` now owns standalone Library root and addressed-
+reference push/replace history writes beside its existing route parsing,
+restoration subscription, and fallback behavior. Three history-effect callbacks
+and their application-mode branches are removed from `WorkspaceApp`; private-PDF
+route effects remain at the cross-feature viewer boundary.
+
+This checkpoint reduces `src/client/app.ts` from 586 to 578 lines (-8) and grows
+the Library workspace from 403 to 416 lines (+13). The five-line combined
+increase completes one cohesive browser-route authority and narrows its callback
+surface. Focused coverage passes optional root entry, encoded reference entry,
+canonical fallback replacement, restoration, and strict types. Direct and unique
+production package counts remain 18 and 150; Lit was already pinned.
+
+The browser application artifact changes from 859,748 B raw / 231,347 B gzip to
+859,676 B / 231,348 B (-72 B raw / +1 B gzip). Styles and lazy Markdown and
+PDF.js artifacts remain unchanged at 135,411 B / 23,373 B, 204,779 B / 62,386 B,
+and 481,994 B / 146,135 B.
+
+Full native CI passes all 1,759 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.

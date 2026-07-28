@@ -391,10 +391,10 @@ memory and makes citation aliases compete with stable source identity.
   owns general Library entry sequencing across context activation, optional
   standalone history entry, and canonical refresh. It restores standalone
   Library routes through owned reference focus and artifact lookup, owns
-  current-location parsing and its browser-history restoration subscription with
-  lifecycle teardown, and owns archive-aware source recovery, focus, and
-  missing-reference feedback for direct entry navigation and duplicate-PDF
-  upload reveals. The
+  current-location parsing, root and addressed-reference history mutation, and
+  its browser-history restoration subscription with lifecycle teardown, and owns
+  archive-aware source recovery, focus, and missing-reference feedback for
+  direct entry navigation and duplicate-PDF upload reveals. The
   latter enables archived visibility, refreshes canonically, reuses owned
   filter/list focus, and reports a missing source locally. The context-resource
   presenter's route binding is the single Library snapshot, refresh, citation-
@@ -403,7 +403,7 @@ memory and makes citation aliases compete with stable source identity.
   canonical sources. Reference, research-share, and private-PDF project
   mutations use one Library-workspace apply-project-notice lifecycle. The
   coordinator retains canonical project snapshot application, refresh timing,
-  cross-feature reconciliation, viewer effects, history mutation, context
+  cross-feature reconciliation, viewer effects, PDF-route mutation, context
   transitions, and notification presentation.
 - A project publication context resolves every authorized paper representation
   for the stable reference identity. The owner sees attached private-library

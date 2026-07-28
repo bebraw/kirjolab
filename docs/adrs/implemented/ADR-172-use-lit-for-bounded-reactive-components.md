@@ -525,9 +525,10 @@ The adopted components own bounded presentation:
   standalone Library-route outcomes; and the apply-project-notice sequence for
   Library-originated project mutations. General Library entry also owns
   activation, optional standalone-route entry, and canonical refresh sequencing.
-  It parses the current standalone route and owns its browser-history restoration
-  subscription and lifecycle teardown. The application coordinator supplies
-  concrete history mutation, refresh timing, PDF navigation,
+  It parses the current standalone route and owns root and addressed-reference
+  history mutation plus browser-history restoration subscription and lifecycle
+  teardown. The application coordinator supplies PDF-route mutation, refresh
+  timing, PDF navigation,
   web-capture/comparison, canonical project snapshot application, and notice
   presentation through a typed callback boundary.
 - The model provider settings panel owns connection, endpoint, model, and

@@ -484,9 +484,10 @@ collaboration.
   A pure Library route adapter reads root, addressed-reference, encoded
   artifact, and bounded page locations and writes canonical private-PDF URLs;
   the composed Library workspace owns current-location parsing and the
-  browser-history restoration subscription with teardown. The coordinator
-  retains history mutation, authorization effects, cross-feature navigation,
-  canonical fallback, and notices.
+  browser-history restoration subscription with teardown plus root and
+  addressed-reference history mutation. The coordinator retains PDF-route
+  mutation, authorization effects, cross-feature navigation, canonical fallback,
+  and notices.
   One pure active-load projection resolves project evidence, private Library,
   or shared-reference input and its authorized URL from the active typed tab
   and canonical snapshots. The coordinator retains viewer updates, form

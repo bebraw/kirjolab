@@ -51,6 +51,12 @@ function setup() {
   return { owners, workspace };
 }
 
+function historyHarness() {
+  const pushState = vi.fn();
+  const replaceState = vi.fn();
+  return { history: { pushState, replaceState, state: null }, pushState, replaceState };
+}
+
 const library: ReferenceLibrarySnapshot = {
   artifacts: [],
   collections: {},
@@ -166,41 +172,41 @@ describe("reference Library workspace", () => {
   it("owns Library activation, optional route entry, and refresh sequencing", async () => {
     const { workspace } = setup();
     const activateLibrary = vi.fn();
-    const openLibraryRoute = vi.fn();
+    const browser = historyHarness();
     const refreshLibrary = vi.fn().mockResolvedValue(undefined);
     workspace.configure("workspace", {
       activateLibrary,
       compareSnapshots: vi.fn(),
-      openLibraryRoute,
       openPdf: vi.fn(),
       presentNotice: vi.fn(),
       refreshLibrary,
       refreshMetadata: vi.fn(),
     });
+    workspace.bindBrowserRoute(true, browser.history);
 
     await workspace.open(false);
     await workspace.open();
 
     expect(activateLibrary).toHaveBeenCalledTimes(2);
-    expect(openLibraryRoute).toHaveBeenCalledOnce();
+    expect(browser.pushState).toHaveBeenCalledWith({ view: "library" }, "", "/library");
     expect(refreshLibrary).toHaveBeenCalledTimes(2);
   });
 
   it("restores Library reference and PDF routes through typed effects", async () => {
     const { workspace } = setup();
     const activateLibrary = vi.fn();
-    const clearRoute = vi.fn();
+    const browser = historyHarness();
     const openPdf = vi.fn();
     const presentNotice = vi.fn();
     workspace.configure("workspace", {
       activateLibrary,
-      clearRoute,
       compareSnapshots: vi.fn(),
       openPdf,
       presentNotice,
       refreshLibrary: vi.fn(),
       refreshMetadata: vi.fn(),
     });
+    workspace.bindBrowserRoute(true, browser.history);
     workspace.setData({
       library: { ...library, artifacts: [artifact] },
       projectApiBase: null,
@@ -214,7 +220,8 @@ describe("reference Library workspace", () => {
     await workspace.restoreRoute({ artifactId: "missing", kind: "pdf", page: 1 });
 
     expect(activateLibrary).toHaveBeenCalledOnce();
-    expect(clearRoute).toHaveBeenCalledTimes(2);
+    expect(browser.replaceState).toHaveBeenCalledTimes(2);
+    expect(browser.replaceState).toHaveBeenLastCalledWith({ view: "library" }, "", "/library");
     expect(openPdf).toHaveBeenCalledWith(artifact, 4, false);
     expect(presentNotice).toHaveBeenCalledWith("That PDF is no longer in the library.");
   });
@@ -225,7 +232,7 @@ describe("reference Library workspace", () => {
     vi.stubGlobal("window", browser);
     vi.stubGlobal("location", { href: "https://example.test/library?reference=reference-1" });
     const restoreRoute = vi.spyOn(workspace, "restoreRoute").mockResolvedValue();
-    workspace.bindBrowserRoute(true);
+    workspace.bindBrowserRoute(true, historyHarness().history);
 
     await workspace.restoreBrowserRoute();
     browser.dispatchEvent(new Event("popstate"));
@@ -262,24 +269,28 @@ describe("reference Library workspace", () => {
   it("owns activate, refresh, focus, and route sequencing for available references", async () => {
     const { workspace } = setup();
     const activateLibrary = vi.fn();
-    const openReferenceRoute = vi.fn();
+    const browser = historyHarness();
     const refreshLibrary = vi.fn().mockResolvedValue(undefined);
     workspace.configure("workspace", {
       activateLibrary,
       compareSnapshots: vi.fn(),
       openPdf: vi.fn(),
-      openReferenceRoute,
       presentNotice: vi.fn(),
       refreshLibrary,
       refreshMetadata: vi.fn(),
     });
+    workspace.bindBrowserRoute(true, browser.history);
     vi.spyOn(workspace, "focusAvailableReference").mockResolvedValue(true);
 
     await workspace.openAvailableReference("reference-1");
 
     expect(activateLibrary).toHaveBeenCalledOnce();
     expect(refreshLibrary).toHaveBeenCalledOnce();
-    expect(openReferenceRoute).toHaveBeenCalledWith("reference-1");
+    expect(browser.pushState).toHaveBeenCalledWith(
+      { view: "library-reference", referenceId: "reference-1" },
+      "",
+      "/library?reference=reference-1",
+    );
   });
 
   it("owns filter reset, result settlement, and focused-reference reveal", async () => {

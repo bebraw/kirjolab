@@ -269,17 +269,9 @@ class WorkspaceApp {
           this.#elements.contextResourcePresenter.navigateContext(RESEARCH_LIBRARY_KEY);
       },
       applyProjectMutation: (snapshot) => this.#acceptWorkspaceMutation(snapshot),
-      clearRoute: () => history.replaceState({ view: "library" }, "", "/library"),
       compareSnapshots: (priorId, currentId) => void this.#elements.webSnapshotComparison.compare(priorId, currentId),
       openPdf: (artifact, page, updateHistory) =>
         void this.#elements.contextResourcePresenter.openLibraryPdf(artifact, page, updateHistory),
-      openLibraryRoute: () => {
-        if (appMode === "library") history.pushState({ view: "library" }, "", "/library");
-      },
-      openReferenceRoute: (referenceId) => {
-        if (appMode === "library")
-          history.pushState({ view: "library-reference", referenceId }, "", `/library?reference=${encodeURIComponent(referenceId)}`);
-      },
       presentNotice: (message) => this.#elements.toast.show(message),
       refreshLibrary: () => this.#refreshReferenceLibrary(),
       refreshMetadata: async () => {
