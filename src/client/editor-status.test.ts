@@ -145,7 +145,7 @@ describe("editor status", () => {
     expect(source.selectionEnd).toBe(2);
     expect(status.selectedPassage()).toBeNull();
     expect(status.insertionTarget).toEqual({ caret: 2, passage: null });
-    expect(changes).toBe(4);
+    expect(changes).toBe(5);
     expect(binding.sourceCitationControl.setCaret).toHaveBeenLastCalledWith("x alpha beta", 2);
     expect(binding.contextResourcePresenter.setCitationAvailable).toHaveBeenLastCalledWith(true);
   });
@@ -237,7 +237,7 @@ describe("editor status", () => {
     const status = new TestEditorStatus();
     status.bindAuthoring(documentModel, source, authoringBinding(), authoringSocket());
     status.setAuthoringContext("source.md", "source", text, true);
-    status.bindCompanion(companionSource, companion);
+    status.bindBibliography(companionSource);
     source.setSelectionRange(2, 6);
     companionSource.setSelectionRange(3, 8, "backward");
     const restore = status.preserveSelections();

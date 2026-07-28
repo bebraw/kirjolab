@@ -13405,6 +13405,26 @@ Markdown, lazy PDF.js, and direct and unique production package counts remain
 unchanged at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip,
 481,994 B raw / 146,135 B gzip, 18, and 150.
 
+## Continued Lit Ownership: Derivable Editor Text Binding
+
+`EditorStatus` now derives the initial manuscript and bibliography Y.Text
+values from its bound Yjs document. The application no longer caches either
+derivable text or stages the initial authoring context separately.
+
+This checkpoint reduces `src/client/app.ts` from 145 to 142 lines (-3) and
+grows editor status from 347 to 349 lines (+2), removing one runtime line
+overall. Focused coverage passes all eight editor-status cases; affected
+coverage passes ten related runtime cases and the affected test file alongside
+strict types.
+
+The browser application artifact changes from 858,622 B raw / 231,565 B gzip
+to 858,559 B raw / 231,552 B gzip (-63 B raw / -13 B gzip). The focused
+resource-context browser workflow also passes with its bind-time remembered
+insertion point. Styles, lazy
+Markdown, lazy PDF.js, and direct and unique production package counts remain
+unchanged at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip,
+481,994 B raw / 146,135 B gzip, 18, and 150.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,

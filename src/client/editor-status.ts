@@ -112,12 +112,14 @@ export class EditorStatus extends LitElement {
     this.source = source;
     owners.sourceCitationControl.bindWorkflow(owners.contextResourcePresenter, this);
     owners.collaboratorSelections.bindSelectionChanged(() => this.renderHighlight());
-    if (this.text) this.bindText(this.text);
+    this.bindText((this.text ??= documentModel.getText("source")));
+    this.rememberSelection();
   }
 
-  bindCompanion(source: HTMLTextAreaElement, text: Y.Text): void {
+  bindBibliography(source: HTMLTextAreaElement): void {
     const documentModel = this.documentModel;
     if (!documentModel) return;
+    const text = documentModel.getText("bibliography");
     this.companions.push({ source, text });
     bindYText(source, text, documentModel);
   }

@@ -28,8 +28,6 @@ class WorkspaceApp {
   readonly #elements = collectAppElements();
   readonly #pdfViewer: PdfEvidenceViewer;
   readonly #document = new Y.Doc();
-  readonly #source = this.#document.getText("source");
-  readonly #bibliography = this.#document.getText("bibliography");
   readonly #resourceRefresh = new CoalescedRefresh(async () => this.#elements.projectFileDialog.refreshProject());
   readonly #collaboration = new CollaborationSession(this.#document, remoteOrigin);
   readonly #collaborationSocket: CollaborationSocket;
@@ -99,10 +97,9 @@ class WorkspaceApp {
     this.#elements.workspaceSharingPanel.configure(apiBase, this.#elements);
     this.#elements.referenceLibraryWorkspace.bindWorkspace(workspaceId, appMode === "workspace" ? apiBase : null, this.#elements);
     this.#elements.editorStatus.bindAuthoring(this.#document, this.#elements.source, this.#elements, this.#collaborationSocket);
-    this.#elements.editorStatus.setAuthoringContext("Manuscript", null, this.#source, true);
     this.#elements.vimModeControl.bindEditor(this.#elements.source, this.#elements.sourceEditorShell);
     this.#elements.sourceCompletion.bindEditor(this.#elements.source, this.#elements.citationCompletionScope);
-    this.#elements.editorStatus.bindCompanion(this.#elements.bibliography, this.#bibliography);
+    this.#elements.editorStatus.bindBibliography(this.#elements.bibliography);
     this.#elements.projectFileDialog.configureApi(apiBase, this.#elements);
     this.#elements.projectFileDialog.bindLayout(this.#layout);
     this.#elements.projectFileDialog.bindLiveContent(this.#document, this.#collaboration);

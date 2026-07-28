@@ -448,7 +448,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   restore Yjs-relative selections for the active source and those companions.
   Keep mutation decisions, cross-file path
   projection, assistant consequences, collaboration policy, and offline-save
-  policy in the workspace coordinator.
+  policy in the workspace coordinator. Let editor status derive the initial
+  `source` and companion `bibliography` Y.Text values from its bound document;
+  the coordinator must not cache or pass those derivable values.
 - Let the editor Insert menu own the scholarly syntax templates it displays and
   route template and relative-include choices through its bound editor and
   notice owners without a one-use wrapper object. Let editor status expose the live insertion target from its

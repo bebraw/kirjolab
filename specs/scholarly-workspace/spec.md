@@ -329,8 +329,9 @@ collaboration.
   target and the editor and notice owners directly for syntax and relative-file
   insertion, without a wrapper binding object or coordinator-built insertion
   callbacks. The application
-  coordinator supplies the Yjs document and active text plus save state from
-  collaboration workflows; it retains editor highlighting and assistant
+  coordinator supplies the Yjs document plus save state from collaboration
+  workflows; the component derives the initial `source` and companion
+  `bibliography` Y.Text values from that document, while the coordinator retains editor highlighting and assistant
   refresh.
 - **Project evidence mutations:** The bounded Project evidence panel owns
   guarded PDF and annotation removal plus annotation-passage-link transport
