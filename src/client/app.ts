@@ -97,8 +97,7 @@ class WorkspaceApp {
       panel.bindProject(this.#elements.projectFileDialog, this.#elements.toast);
     }
     this.#elements.workspaceSharingPanel.configure(apiBase, this.#elements);
-    this.#elements.referenceLibraryWorkspace.configure(workspaceId);
-    this.#elements.referenceLibraryWorkspace.bindProject(appMode === "workspace" ? apiBase : null, this.#elements);
+    this.#elements.referenceLibraryWorkspace.bindWorkspace(workspaceId, appMode === "workspace" ? apiBase : null, this.#elements);
     this.#elements.editorStatus.bindAuthoring(this.#document, this.#elements.source, this.#elements, this.#collaborationSocket);
     this.#elements.editorStatus.setAuthoringContext("Manuscript", null, this.#source, true);
     this.#elements.vimModeControl.bindEditor(this.#elements.source, this.#elements.sourceEditorShell);

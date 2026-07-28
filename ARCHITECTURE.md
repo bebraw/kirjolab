@@ -136,7 +136,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   it also own canonical Library loading, response validation, archive-aware
   request scope, the single browser snapshot projection, and derivation of its
   project-reference and research-share inputs from the canonical project
-  snapshot. It owns standalone Library route lookup; root, addressed-reference,
+  snapshot. Bind workspace identity, optional project API scope, canonical
+  feature owners, citation-network configuration, and PDF-upload status
+  ownership atomically. It owns standalone Library route lookup; root, addressed-reference,
   and private-PDF history writes; active-page replacement; browser-history
   restoration subscription and teardown; archive-aware focused-reference
   restoration; and missing-reference feedback. Direct publication-

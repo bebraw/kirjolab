@@ -260,9 +260,13 @@ export class ReferenceLibraryWorkspace extends LitElement {
     return true;
   }
 
-  bindProject(projectApiBase: string | null, owners: ReferenceLibraryWorkspaceOwners): void {
+  bindWorkspace(workspaceId: string, projectApiBase: string | null, owners: ReferenceLibraryWorkspaceOwners): void {
     this.projectApiBase = projectApiBase;
     this.owners = owners;
+    this.element("citation-network-workspace", CitationNetworkWorkspace)?.configure(workspaceId);
+    const upload = this.element("library-pdf-upload-control", LibraryPdfUploadControl);
+    const status = this.element("library-pdf-upload-status", LibraryPdfUploadStatus);
+    if (upload && status) upload.bindStatus(status);
   }
 
   async refreshBoundProject(): Promise<void> {
@@ -294,13 +298,6 @@ export class ReferenceLibraryWorkspace extends LitElement {
     this.activateLibrary();
     if (updateHistory) this.pushBrowserRoute("/library", { view: "library" });
     await this.refreshBoundProject();
-  }
-
-  configure(workspaceId: string): void {
-    this.element("citation-network-workspace", CitationNetworkWorkspace)?.configure(workspaceId);
-    const upload = this.element("library-pdf-upload-control", LibraryPdfUploadControl);
-    const status = this.element("library-pdf-upload-status", LibraryPdfUploadStatus);
-    if (upload && status) upload.bindStatus(status);
   }
 
   openCitationNetwork(): Promise<void> {

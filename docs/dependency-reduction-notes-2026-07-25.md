@@ -13386,6 +13386,25 @@ Markdown, lazy PDF.js, and direct and unique production package counts remain
 unchanged at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip,
 481,994 B raw / 146,135 B gzip, 18, and 150.
 
+## Continued Lit Ownership: Reference-Library Workspace Binding
+
+`ReferenceLibraryWorkspace` now binds workspace identity, optional project API
+scope, canonical feature owners, citation-network configuration, and PDF-upload
+status ownership atomically. The application no longer stages child setup and
+project ownership independently.
+
+This checkpoint reduces `src/client/app.ts` from 146 to 145 lines (-1) and the
+reference-Library workspace from 485 to 482 lines (-3), removing four runtime
+lines overall. Focused coverage passes all 15 workspace cases; affected
+coverage passes 17 related runtime cases and the affected test file alongside
+strict types.
+
+The browser application artifact changes from 858,674 B raw / 231,568 B gzip
+to 858,622 B raw / 231,565 B gzip (-52 B raw / -3 B gzip). Styles, lazy
+Markdown, lazy PDF.js, and direct and unique production package counts remain
+unchanged at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip,
+481,994 B raw / 146,135 B gzip, 18, and 150.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,

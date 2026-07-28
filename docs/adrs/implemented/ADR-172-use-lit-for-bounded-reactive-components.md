@@ -426,7 +426,9 @@ The adopted components own bounded presentation:
   archive-aware canonical Library loading, response validation, and the single
   browser snapshot projection plus standalone route lookup and focused-reference
   restoration, including archive-aware recovery, duplicate-upload source reveal,
-  and missing-reference feedback,
+  and missing-reference feedback. Workspace identity, optional project API
+  scope, canonical feature owners, citation-network configuration, and PDF-upload
+  status ownership bind atomically,
   while delegating context activation, history repair, PDF viewer
   navigation, refresh timing, and shared notice presentation through typed callbacks.
 - The citation network panel owns manual source and relationship choices, graph
