@@ -13460,6 +13460,24 @@ Markdown, lazy PDF.js, and direct and unique production package counts remain
 unchanged at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip,
 481,994 B raw / 146,135 B gzip, 18, and 150.
 
+## Continued Lit Ownership: Project-File Layout Binding
+
+`ProjectFileDialog` now receives its narrow rail-collapse capability through
+the same project API and presentation binding used for file workflow owners.
+The duplicate presentation setup path and independent layout stage are removed.
+
+This checkpoint reduces `src/client/app.ts` from 140 to 139 lines (-1) and the
+project-file dialog from 655 to 654 lines (-1), removing two runtime lines
+overall. Focused coverage passes all 25 project-file cases; affected coverage
+passes 27 related runtime cases and the affected test file alongside strict
+types.
+
+The browser application artifact changes from 858,450 B raw / 231,525 B gzip
+to 858,392 B raw / 231,521 B gzip (-58 B raw / -4 B gzip). Styles, lazy
+Markdown, lazy PDF.js, and direct and unique production package counts remain
+unchanged at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip,
+481,994 B raw / 146,135 B gzip, 18, and 150.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,

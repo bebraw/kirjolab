@@ -124,27 +124,29 @@ function bindTestWorkflow(
     configure: presentation.projectTreePanel.configure,
     setTree: presentation.projectTreePanel.setTree,
   });
-  panel.bindPresentation({
-    ...presentation,
-    authoringModeTabs: { navigate: routing.activateAuthoring },
-    editorInsertMenu: {
-      ...presentation.editorInsertMenu,
-      insert: ({ text }, message = "") => routing.insertImage({ message, syntax: text }),
-    },
-    editorStatus: {
-      ...presentation.editorStatus,
-      preserveInsertionPoint: routing.prepareInclude,
-      selectRange: routing.selectRange,
-    },
-    projectFileMenuActions: menuActions,
-    projectFileRailActions: routing.actionControls[0] ?? new EventTarget(),
-    projectImageUpload: routing.imageUpload,
-    projectTreePanel: tree,
-    source: { focus: routing.focusEditor, scrollIntoView: routing.revealEditor },
-    workspaceRailTabs: { navigate: routing.quickOpen },
-  });
   const setRailCollapsed = vi.fn();
-  panel.bindLayout({ setRailCollapsed });
+  panel.bindPresentation(
+    {
+      ...presentation,
+      authoringModeTabs: { navigate: routing.activateAuthoring },
+      editorInsertMenu: {
+        ...presentation.editorInsertMenu,
+        insert: ({ text }, message = "") => routing.insertImage({ message, syntax: text }),
+      },
+      editorStatus: {
+        ...presentation.editorStatus,
+        preserveInsertionPoint: routing.prepareInclude,
+        selectRange: routing.selectRange,
+      },
+      projectFileMenuActions: menuActions,
+      projectFileRailActions: routing.actionControls[0] ?? new EventTarget(),
+      projectImageUpload: routing.imageUpload,
+      projectTreePanel: tree,
+      source: { focus: routing.focusEditor, scrollIntoView: routing.revealEditor },
+      workspaceRailTabs: { navigate: routing.quickOpen },
+    },
+    { setRailCollapsed },
+  );
   return setRailCollapsed;
 }
 

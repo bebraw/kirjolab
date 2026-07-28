@@ -99,8 +99,7 @@ class WorkspaceApp {
     this.#elements.vimModeControl.bindEditor(this.#elements.source, this.#elements.sourceEditorShell);
     this.#elements.sourceCompletion.bindEditor(this.#elements.source, this.#elements.citationCompletionScope);
     this.#elements.editorStatus.bindBibliography(this.#elements.bibliography);
-    this.#elements.projectFileDialog.configureApi(apiBase, this.#elements);
-    this.#elements.projectFileDialog.bindLayout(this.#layout);
+    this.#elements.projectFileDialog.configureApi(apiBase, this.#elements, this.#layout);
     this.#elements.projectFileDialog.bindLiveContent(this.#document, this.#collaboration);
     this.#elements.projectFileDialog.bindProjectRefresh(appMode === "workspace", this.#elements, this.#collaboration, this.#offline);
     this.#elements.workspacePreview.bindProject(apiBase, this.#document, this.#elements);

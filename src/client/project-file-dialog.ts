@@ -159,23 +159,22 @@ export class ProjectFileDialog extends LitElement {
     this.status = "";
   }
 
-  configureApi(apiBase: string, presentation?: ProjectFilePresentationBinding): void {
+  configureApi(
+    apiBase: string,
+    presentation?: ProjectFilePresentationBinding,
+    layout?: { setRailCollapsed(collapsed: boolean): void },
+  ): void {
     this.apiBase = apiBase;
     this.assetBase = `${apiBase}/assets`;
     if (presentation) {
-      this.presentation = presentation;
       presentation.projectImageUpload.configure(apiBase);
-      this.connectOwners();
-    }
-    this.configureProjectTree();
+      this.bindPresentation(presentation, layout);
+    } else this.configureProjectTree();
   }
 
-  bindLayout(layout: { setRailCollapsed(collapsed: boolean): void }): void {
-    this.layout = layout;
-  }
-
-  bindPresentation(binding: ProjectFilePresentationBinding): void {
+  bindPresentation(binding: ProjectFilePresentationBinding, layout?: { setRailCollapsed(collapsed: boolean): void }): void {
     this.presentation = binding;
+    if (layout) this.layout = layout;
     this.configureProjectTree();
     this.connectOwners();
   }
