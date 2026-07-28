@@ -13533,6 +13533,20 @@ focused presenter cases. The browser application changes from 858,129 B raw /
 231,498 B gzip to 857,977 B raw / 231,477 B gzip (-152 B raw / -21 B gzip);
 dependency counts and the other static artifacts remain unchanged.
 
+## Continued Lit Ownership: Atomic Editor Text Binding
+
+`EditorStatus` now installs the active source and companion bibliography through
+one authoring lifecycle. The application no longer binds the bibliography as a
+second stage after authoring setup, and the Lit owner derives both initial
+Y.Text values from its document.
+
+This checkpoint reduces `src/client/app.ts` from 133 to 132 lines (-1) and the
+editor-status owner from 349 to 345 lines (-4), for a five-line net runtime
+reduction. The affected guardrail passes 10 related cases and all 8 focused
+editor-status cases. The browser application changes from 857,977 B raw /
+231,477 B gzip to 857,885 B raw / 231,456 B gzip (-92 B raw / -21 B gzip);
+dependency counts and the other static artifacts remain unchanged.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,

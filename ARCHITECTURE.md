@@ -424,7 +424,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   collaboration fallback through the bound authorities. The project-file owner is the
   single browser projection and read source for the accepted snapshot; the
   coordinator must not retain a duplicate copy.
-- Let the editor-status Lit owner bind the active Yjs text to the source editor,
+- Let the editor-status Lit owner bind the active source and companion
+  bibliography atomically as one authoring lifecycle, then bind the active Yjs
+  text to the source editor,
   derive that text from the selected project-file identity and entry-file
   contract,
   retain per-file undo history, synchronize external text changes, and render
@@ -445,7 +447,7 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   may preserve an insertion point as a
   Yjs-relative position across an asynchronous authoring workflow and must
   reject it after the active text changes. Before remote updates, let the same
-  owner bind companion Yjs textareas such as the bibliography, then capture and
+  owner capture and
   restore Yjs-relative selections for the active source and those companions.
   Keep mutation decisions, cross-file path
   projection, assistant consequences, collaboration policy, and offline-save

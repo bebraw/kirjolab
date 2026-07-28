@@ -45,6 +45,7 @@ interface EditorSelectionSource {
 
 export interface EditorAuthoringOwners {
   readonly authoringModeTabs: { navigate(mode: "write"): void };
+  readonly bibliography: HTMLTextAreaElement;
   readonly assistantGenerationPresenter: {
     refreshAvailability(): void;
     refreshTarget(): void;
@@ -113,15 +114,10 @@ export class EditorStatus extends LitElement {
     owners.sourceCitationControl.bindWorkflow(owners.contextResourcePresenter, this);
     owners.collaboratorSelections.bindSelectionChanged(() => this.renderHighlight());
     this.bindText((this.text ??= documentModel.getText("source")));
+    const bibliographyText = documentModel.getText("bibliography");
+    this.companions.push({ source: owners.bibliography, text: bibliographyText });
+    bindYText(owners.bibliography, bibliographyText, documentModel);
     this.rememberSelection();
-  }
-
-  bindBibliography(source: HTMLTextAreaElement): void {
-    const documentModel = this.documentModel;
-    if (!documentModel) return;
-    const text = documentModel.getText("bibliography");
-    this.companions.push({ source, text });
-    bindYText(source, text, documentModel);
   }
 
   setAuthoringContext(path: string, fileId: string | null, text: Y.Text, reset = false): void {

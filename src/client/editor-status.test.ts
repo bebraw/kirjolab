@@ -42,15 +42,18 @@ class FakeTextarea extends FakeElement {
 const textareaElement = (textarea: FakeTextarea): HTMLTextAreaElement => textarea as never;
 const htmlElement = (element = new FakeElement()): HTMLElement => element as never;
 const authoringBinding = ({
+  bibliography = textareaElement(new FakeTextarea()),
   presence = () => [],
   sourceChanged = () => undefined,
   targetChanged = () => undefined,
 }: {
+  bibliography?: HTMLTextAreaElement;
   presence?: EditorAuthoringOwners["collaboratorSelections"]["rangesFor"];
   sourceChanged?: () => void;
   targetChanged?: () => void;
 } = {}): EditorAuthoringOwners => ({
   authoringModeTabs: { navigate: vi.fn() },
+  bibliography,
   assistantGenerationPresenter: { refreshAvailability: vi.fn(), refreshTarget: targetChanged, sourceChanged },
   sourceCitationControl: { bindWorkflow: vi.fn(), setCaret: vi.fn() },
   contextResourcePresenter: { openCitation: vi.fn(), setCitationAvailable: vi.fn() },
@@ -235,9 +238,8 @@ describe("editor status", () => {
     const source = textareaElement(new FakeTextarea());
     const companionSource = textareaElement(new FakeTextarea());
     const status = new TestEditorStatus();
-    status.bindAuthoring(documentModel, source, authoringBinding(), authoringSocket());
+    status.bindAuthoring(documentModel, source, authoringBinding({ bibliography: companionSource }), authoringSocket());
     status.setAuthoringContext("source.md", "source", text, true);
-    status.bindBibliography(companionSource);
     source.setSelectionRange(2, 6);
     companionSource.setSelectionRange(3, 8, "backward");
     const restore = status.preserveSelections();

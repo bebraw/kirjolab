@@ -1311,8 +1311,9 @@ reason to wrap static markup mechanically.
   owns the active Yjs-text/editor binding and teardown, per-file undo managers,
   external text synchronization, assistant-staleness observation, and local plus
   collaborator presence highlighting from a once-bound presence owner. Its
-  document binding derives the initial `source` and companion `bibliography`
-  Y.Text values without coordinator-cached duplicates. It
+  document binding atomically installs the active source and companion
+  bibliography as one authoring lifecycle, deriving their initial Y.Text values
+  without coordinator-cached duplicates. It
   subscribes directly to remote-selection changes and publishes each resolved
   target to the bound citation, assistant, and Context authorities. It applies bounded
   authoring text insertions and replacements, resolves the active Y.Text from a

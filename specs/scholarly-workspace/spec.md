@@ -335,8 +335,9 @@ collaboration.
   insertion, without a wrapper binding object or coordinator-built insertion
   callbacks. The application
   coordinator supplies the Yjs document plus save state from collaboration
-  workflows; the component derives the initial `source` and companion
-  `bibliography` Y.Text values from that document, while the coordinator retains editor highlighting and assistant
+  workflows; one atomic authoring bind installs the active source and companion
+  bibliography, and the component derives their initial Y.Text values from that
+  document, while the coordinator retains editor highlighting and assistant
   refresh.
 - **Project evidence mutations:** The bounded Project evidence panel owns
   guarded PDF and annotation removal plus annotation-passage-link transport
