@@ -65,7 +65,8 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   not a one-instance application class. Derive immutable bootstrap mode once,
   construct shared services once, and expose only ordered binding and startup
   functions inside that module; cohesive reactive lifecycle belongs in the
-  bounded Lit owners.
+  bounded Lit owners. Because bootstrap validation already reads the browser
+  document, do not retain a later unreachable document-availability branch.
 - Use XState only for bounded event-driven browser workflows whose mutually
   exclusive states, asynchronous lifecycle, or guarded transitions would
   otherwise span several independent fields. Keep route values, persisted

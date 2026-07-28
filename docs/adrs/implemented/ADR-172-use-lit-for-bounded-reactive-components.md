@@ -37,7 +37,8 @@ Concrete components retain every domain binding, reconnect action, and effect.
 After those ownership extractions, keep the remaining one-instance browser
 composition as module-private constants plus ordered binding and startup
 functions; do not retain a class whose only instance adds no encapsulation over
-module scope.
+module scope or repeat a document-availability guard after browser bootstrap has
+already required that document.
 
 Keep layout interaction in the workspace-layout Lit owner when its policy
 depends on canonical component state. It binds the workspace root and Context

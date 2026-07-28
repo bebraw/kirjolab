@@ -14565,6 +14565,25 @@ contracts now define the browser entry as a module-private composition root.
 Full native CI passes all 1,778 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Root Reduction: Proven Browser Bootstrap
+
+The browser entry already requires `document` to validate server-rendered
+bootstrap data and collect canonical elements, making its later document guard
+unreachable. Removing that branch and deriving the one-use startup failure copy
+at assignment keeps the fail-visible behavior without redundant control flow.
+
+This checkpoint removes three production lines and reduces `src/client/app.ts`
+from 43 to 40 lines. The affected guardrail passes the complete 1,778-test
+coverage baseline alongside strict types with the required loopback permission.
+The browser application changes from 847,098 B raw / 231,062 B gzip to 847,069
+B raw / 231,052 B gzip (-29 B raw / -10 B gzip); direct and unique production
+package counts remain 18 and 150, and the other static artifacts remain
+unchanged. Architecture, ADR, and scholarly-workspace contracts now make the
+browser-only bootstrap precondition explicit.
+
+Full native CI passes all 1,778 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,

@@ -24,6 +24,8 @@ collaboration.
   `.generated/app.txt`. Its module-private composition root derives immutable
   bootstrap mode once, constructs shared services once, and sequences bounded
   Lit bindings and startup functions without a one-instance application class.
+  Browser bootstrap requires `document` before startup and reports a rejected
+  startup directly into the document body without a redundant later guard.
   Persistent interface copy names the user's next action and keeps
   implementation detail in feature documentation rather than the task surface.
 - **Capability-scoped editor shell:** Read-only `/share/{token}` and writable

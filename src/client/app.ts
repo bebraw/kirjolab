@@ -35,9 +35,6 @@ async function start(): Promise<void> {
   await elements.projectFileDialog.startWorkspace(elements, socket);
 }
 
-if (typeof document !== "undefined") {
-  void start().catch((error: unknown) => {
-    const message = error instanceof Error ? error.message : "Kirjolab failed to start";
-    document.body.textContent = message;
-  });
-}
+void start().catch((error: unknown) => {
+  document.body.textContent = error instanceof Error ? error.message : "Kirjolab failed to start";
+});
