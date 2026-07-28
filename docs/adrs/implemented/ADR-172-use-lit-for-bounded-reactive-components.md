@@ -1534,7 +1534,10 @@ reactive owner and adds only empty rendering and typed sibling lookup.
   extraction, provider preview and acceptance requests, response validation,
   its refinement state machine, request supersession, local busy and retryable
   error state, PDF-metadata persistence, and typed refresh and notice outcomes.
-  The application coordinator retains canonical refreshes and toast policy.
+  The application coordinator retains canonical refreshes and toast policy. The
+  direct bibliographic update endpoint validates the complete serialized field
+  set and text bounds through one inferred Valibot request schema rather than a
+  parallel key list and handwritten predicate.
 - The Library reference PDF rows replace two imperative row render helpers and
   per-artifact open, rights, and secondary-refinement handlers while leaving
   PDF presentation and canonical refresh policy in the application coordinator. A

@@ -199,9 +199,16 @@ interface LibraryReferenceRouteContext extends ReferenceLibraryRouteContext {
   readonly action: string | undefined;
 }
 
-type ReferenceMetadataUpdate = Pick<BibliographicRecord, "type" | "title" | "authors" | "year" | "venue" | "doi" | "url" | "abstract">;
-
-const referenceMetadataStringFields = ["type", "year", "venue", "doi", "url"] as const;
+const referenceMetadataUpdateSchema = v.object({
+  type: v.string(),
+  title: v.pipe(v.string(), v.maxLength(2_000)),
+  authors: v.array(v.string()),
+  year: v.string(),
+  venue: v.string(),
+  doi: v.string(),
+  url: v.string(),
+  abstract: v.pipe(v.string(), v.maxLength(20_000)),
+});
 const pdfPointSchema = v.object({ x: v.number(), y: v.number() });
 const pdfNotePositionUpdateSchema = v.object({ x: v.number(), y: v.number(), body: v.optional(v.string()) });
 const pdfDrawingUpdateSchema = v.object({ color: v.string(), width: v.number() });
@@ -639,25 +646,12 @@ async function handleLibraryReferenceMetadataRoutes(context: LibraryReferenceRou
   const body: unknown = await request.json();
   if (!isRecord(body)) return jsonError("Invalid reference update", 400);
   if (typeof body.archived === "boolean") return Response.json(await library.archiveReference(referenceId, body.archived), noStore());
-  if (!isReferenceMetadataUpdate(body)) return jsonError("Invalid bibliographic metadata", 400);
+  if (!v.is(referenceMetadataUpdateSchema, body)) return jsonError("Invalid bibliographic metadata", 400);
   return Response.json(
     await mutateReferenceMetadata(referenceId, identity, env, library, () =>
       library.updateReferenceMetadata(referenceId, body, identity.email),
     ),
     noStore(),
-  );
-}
-
-function isReferenceMetadataUpdate(value: unknown): value is ReferenceMetadataUpdate {
-  return (
-    isRecord(value) &&
-    referenceMetadataStringFields.every((field) => typeof value[field] === "string") &&
-    Array.isArray(value.authors) &&
-    value.authors.every((author) => typeof author === "string") &&
-    typeof value.title === "string" &&
-    value.title.length <= 2_000 &&
-    typeof value.abstract === "string" &&
-    value.abstract.length <= 20_000
   );
 }
 

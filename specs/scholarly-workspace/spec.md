@@ -646,7 +646,9 @@ collaboration.
   legacy workspace data reconcile into it; project-local aliases derive
   bibliography snapshots without exposing private notes, tags, PDFs,
   highlights, or reading state. Additional research enters a project only by
-  explicit rights-checked snapshot sharing and forward-only revocation.
+  explicit rights-checked snapshot sharing and forward-only revocation. Direct
+  metadata updates require the complete typed field set and enforce bounded
+  title and abstract text through the server's Valibot request contract.
   A bounded light-DOM filter panel owns query and facet state, dynamic reference
   types, filtering and deterministic sorting from the canonical Library
   snapshot, visible-versus-total counts, reset behavior, and its typed change

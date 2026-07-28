@@ -14675,11 +14675,30 @@ This checkpoint is production-line neutral and adds one focused negative
 contract case. The affected guardrail passes 142 related cases across fourteen
 suites plus all 18 directly affected contract cases, alongside formatting,
 lint, and all strict TypeScript targets. The browser application changes from
-847,239 B raw / 231,226 B gzip to 847,171 B raw / 231,187 B gzip (-68 B raw /
--39 B gzip); direct and unique production package counts remain 18 and 150, and
+847,239 B raw / 231,226 B gzip to 847,171 B raw / 231,186 B gzip (-68 B raw /
+-40 B gzip); direct and unique production package counts remain 18 and 150, and
 the other static artifacts remain unchanged. Architecture, ADR, and scholarly-
 workspace contracts now require shared Valibot validation for serialized
 GitHub sync-review results.
+
+Full native CI passes all 1,779 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
+## Continued Valibot Reuse: Bibliographic Metadata Updates
+
+The reference-Library API now validates complete direct bibliographic metadata
+updates with one inferred Valibot schema. The schema replaces a parallel field-
+name list and handwritten predicate while retaining the existing 2,000-character
+title and 20,000-character abstract limits.
+
+This checkpoint removes six production lines and adds an explicit over-limit
+regression case. The affected guardrail passes 94 related API cases, all 29
+directly affected cases, all 121 Workers-runtime cases, formatting, lint, and
+all strict TypeScript targets. The browser application remains byte-identical
+at 847,171 B raw / 231,186 B gzip; direct and unique production package counts
+remain 18 and 150, and the other static artifacts remain unchanged.
+Architecture, ADR, and scholarly-workspace contracts now assign the complete
+bibliographic update shape and bounds to Valibot.
 
 Full native CI passes all 1,779 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.

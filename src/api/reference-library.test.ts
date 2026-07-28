@@ -601,6 +601,7 @@ describe("reference library API", () => {
       [`${id}/pdf-markups/${markupId}`, { color: "#000", width: "2" }, "PATCH"],
       [`${id}/highlights/${highlightId}`, { comment: 4 }, "PATCH"],
       [`${id}/reading`, { status: "started", rating: null, priority: "normal" }, "PUT"],
+      [id, { type: "article", title: "x".repeat(2_001), authors: [], year: "", venue: "", doi: "", url: "", abstract: "" }, "PATCH"],
     ] as const) {
       const response = await handleReferenceLibraryApi(jsonRequest(`/api/library/references/${path}`, body, method), fixture.env, identity);
       expect(response.status).toBe(400);

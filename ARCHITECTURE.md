@@ -1495,6 +1495,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   provider on acceptance into the owner library with per-field provenance and
   no partial batch update; reuse stable likely-duplicate identity only after
   normalized identifier or reviewed bibliographic matching.
+- Validate direct bibliographic metadata updates through one inferred Valibot
+  request schema that owns the complete field set and title and abstract bounds;
+  do not maintain a parallel field-name list and handwritten predicate.
 - Persist publication-to-PDF associations as explicit library-owned links.
   Never infer the canonical association from citation aliases, titles,
   authors, or filenames; an unidentified PDF remains private intake until its
