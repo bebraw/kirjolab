@@ -8,10 +8,9 @@ import { createBrowserOfflineWorkspaceSession } from "./offline-workspace";
 
 const { workspaceId, identityEmail, apiBase, workspaceMode } = parseAppBootstrap(document.body.dataset);
 const elements = collectAppElements();
-const refresh = elements.projectFileDialog.refreshCoordinator;
 const session = new CollaborationSession(new Y.Doc());
 const offline = createBrowserOfflineWorkspaceSession(identityEmail, workspaceId, session, elements);
-const socket = new CollaborationSocket(session, apiBase, offline, refresh, elements);
+const socket = new CollaborationSocket(session, apiBase, offline, elements);
 
 void elements.projectFileDialog
   .startApplication(apiBase, workspaceId, workspaceMode, elements, session, offline, socket)

@@ -22,7 +22,7 @@ export interface CollaborationSocketOwners extends ConnectionWorkflowOwners {
   };
   readonly connectionStatus: Pick<ConnectionStatus, "bindWorkflow" | "presentWorkflow">;
   readonly editorStatus: { preserveSelections(): () => void; setSave(status: string): void };
-  readonly projectFileDialog: { readonly activeFileId: string | null };
+  readonly projectFileDialog: { readonly activeFileId: string | null; readonly refreshCoordinator: CollaborationRefreshOwner };
   readonly projectHistoryTrigger: { readonly value: number; observeRevision(revision: number): void };
   readonly toast: { show(message: string): void };
 }
@@ -82,14 +82,13 @@ export class CollaborationSocket {
     session: CollaborationSession,
     apiBase: string,
     offline: CollaborationOfflineOwner,
-    refresh: CollaborationRefreshOwner,
     owners: CollaborationSocketOwners,
     environment: CollaborationSocketEnvironment = browserEnvironment,
   ) {
     this.#session = session;
     this.#socketUrl = environment.socketUrl(apiBase);
     this.#offline = offline;
-    this.#refresh = refresh;
+    this.#refresh = owners.projectFileDialog.refreshCoordinator;
     this.#owners = owners;
     this.#environment = environment;
     owners.connectionStatus.bindWorkflow(session, owners);

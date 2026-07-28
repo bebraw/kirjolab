@@ -621,7 +621,9 @@ collaboration.
   excerpt, and supplies those same ranges to the editor overlay. The workspace
   collaboration socket derives the local-author range from canonical project-
   file, source, and revision owners and routes remote selection state directly
-  to this component. Revision authority and highlight placement remain in their
+  to this component. The socket also derives the shared project-refresh
+  coordinator from that canonical project-file owner instead of accepting a
+  duplicate composition-root capability. Revision authority and highlight placement remain in their
   canonical owners; the component requests placement through its typed callback
   whenever its remote selection collection changes.
 - **Revision boundary:** Causally new Yjs state materializes Yjs, Markdown, and

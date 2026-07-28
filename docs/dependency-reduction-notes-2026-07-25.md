@@ -14784,6 +14784,23 @@ single-use startup wrapper in the composition root.
 Full native CI passes all 1,781 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Socket Refresh Owner
+
+`CollaborationSocket` now derives the shared coalesced refresh coordinator from
+the canonical project-file Lit owner already present in its owner registry. The
+browser composition root no longer extracts and forwards a duplicate refresh
+capability alongside that registry.
+
+This checkpoint reduces `src/client/app.ts` from 20 to 19 lines and removes one
+net production line. The affected guardrail passes all six socket cases,
+alongside formatting, lint, and all strict TypeScript targets. The browser
+application changes from 847,163 B raw / 231,177 B gzip to 847,152 B raw /
+231,160 B gzip (-11 B raw / -17 B gzip); direct and unique production package
+counts remain 18 and 150, and the other static artifacts remain unchanged.
+
+Full native CI passes all 1,781 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,

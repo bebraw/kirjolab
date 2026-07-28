@@ -82,6 +82,7 @@ function createHarness(online = true): {
     },
     schedule: vi.fn(),
   };
+  const refresh = { request: async () => void events.push("resources") };
   const owners: CollaborationSocketOwners = {
     assistantGenerationPresenter: { refreshAvailability: () => events.push("document-update") },
     bibliography: { disabled: false } as HTMLTextAreaElement,
@@ -101,7 +102,7 @@ function createHarness(online = true): {
       },
       setSave: (status) => events.push(`save:${status}`),
     },
-    projectFileDialog: { activeFileId: "main" },
+    projectFileDialog: { activeFileId: "main", refreshCoordinator: refresh },
     projectHistoryTrigger: {
       value: 3,
       observeRevision: (revision) => events.push(`revision:${revision}`),
@@ -115,7 +116,7 @@ function createHarness(online = true): {
     events,
     offline,
     owners,
-    refresh: { request: async () => void events.push("resources") },
+    refresh,
     runTimer: (delay) => {
       const timer = [...timers.entries()].find(([, value]) => value.delay === delay);
       if (!timer) throw new Error(`Timer ${delay} is unavailable`);
@@ -128,7 +129,7 @@ function createHarness(online = true): {
 }
 
 function createConnection(harness: ReturnType<typeof createHarness>, environment = harness.environment): CollaborationSocket {
-  return new CollaborationSocket(harness.session, "/api/workspaces/project", harness.offline, harness.refresh, harness.owners, environment);
+  return new CollaborationSocket(harness.session, "/api/workspaces/project", harness.offline, harness.owners, environment);
 }
 
 describe("collaboration socket", () => {

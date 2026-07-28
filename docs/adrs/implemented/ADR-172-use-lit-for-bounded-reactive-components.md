@@ -1417,6 +1417,9 @@ reactive owner and adds only empty rendering and typed sibling lookup.
   offline, refresh, editor, revision, presence, connection, project-file,
   assistant, and toast owners directly for local and remote update effects
   instead of maintaining a parallel application callback protocol. Socket
+  construction derives refresh from the canonical project-file owner rather
+  than accepting a duplicate coordinator argument from the composition root.
+  Socket
   construction also installs the connection-status workflow binding from that
   same session and owner set, removing a partial application lifecycle stage.
 - The connection status component replaces separate label and tone element
