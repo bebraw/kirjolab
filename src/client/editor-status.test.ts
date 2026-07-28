@@ -57,8 +57,11 @@ const authoringBinding = ({
   assistantGenerationPresenter: { refreshAvailability: vi.fn(), refreshTarget: targetChanged, sourceChanged },
   sourceCitationControl: { bindWorkflow: vi.fn(), setCaret: vi.fn() },
   contextResourcePresenter: { openCitation: vi.fn(), setCitationAvailable: vi.fn() },
+  editorInsertMenu: { bind: vi.fn() },
   sourceHighlight: htmlElement(),
+  sourceEditorShell: htmlElement(),
   toast: { show: vi.fn() },
+  vimModeControl: { bindEditor: vi.fn() },
   collaboratorSelections: { bindSelectionChanged: vi.fn(), rangesFor: presence },
 });
 const authoringSocket = () => ({ scheduleSelection: vi.fn() });
@@ -123,6 +126,8 @@ describe("editor status", () => {
     let changes = 0;
     const binding = authoringBinding({ targetChanged: () => changes++ });
     status.bindAuthoring(documentModel, source, binding, authoringSocket());
+    expect(binding.vimModeControl.bindEditor).toHaveBeenCalledWith(source, binding.sourceEditorShell);
+    expect(binding.editorInsertMenu.bind).toHaveBeenCalledWith(status, binding.toast);
     status.setAuthoringContext("chapter.md", "file-1", text, true);
 
     source.setSelectionRange(6, 10);

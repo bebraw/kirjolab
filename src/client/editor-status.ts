@@ -3,6 +3,8 @@ import * as Y from "yjs";
 import { projectFileCollaborationTextName, type ProjectFile } from "../domain/project-files";
 import type { EditorPresenceRange } from "./editor-presence";
 import type { CitationContext, CitationInsertion } from "./citations";
+import type { EditorInsertMenu } from "./editor-insert-menu";
+import type { VimModeControl } from "./vim-mode-control";
 import {
   bindYText,
   captureRelativeSelection,
@@ -56,8 +58,11 @@ export interface EditorAuthoringOwners {
     setCaret(source: string, position: number | null): void;
   };
   readonly contextResourcePresenter: { openCitation(context: CitationContext): void; setCitationAvailable(available: boolean): void };
+  readonly editorInsertMenu: Pick<EditorInsertMenu, "bind">;
   readonly sourceHighlight: HTMLElement;
+  readonly sourceEditorShell: HTMLElement;
   readonly toast: { show(message: string): void };
+  readonly vimModeControl: Pick<VimModeControl, "bindEditor">;
   readonly collaboratorSelections: {
     bindSelectionChanged(callback: () => void): void;
     rangesFor(fileId: string | null): readonly EditorPresenceRange[];
@@ -118,6 +123,8 @@ export class EditorStatus extends LitElement {
     this.companions.push({ source: owners.bibliography, text: bibliographyText });
     bindYText(owners.bibliography, bibliographyText, documentModel);
     this.rememberSelection();
+    owners.vimModeControl.bindEditor(source, owners.sourceEditorShell);
+    owners.editorInsertMenu.bind(this, owners.toast);
   }
 
   setAuthoringContext(path: string, fileId: string | null, text: Y.Text, reset = false): void {

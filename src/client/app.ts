@@ -61,13 +61,11 @@ class WorkspaceApp {
     this.#elements.workspaceSharingPanel.configure(apiBase, this.#elements);
     this.#elements.referenceLibraryWorkspace.bindWorkspace(workspaceId, appMode === "workspace" ? apiBase : null, this.#elements);
     this.#elements.editorStatus.bindAuthoring(this.#document, this.#elements.source, this.#elements, this.#collaborationSocket);
-    this.#elements.vimModeControl.bindEditor(this.#elements.source, this.#elements.sourceEditorShell);
     this.#elements.sourceCompletion.bindWorkspace(apiBase, this.#elements);
     this.#elements.projectFileDialog.configureApi(apiBase, this.#elements, this.#elements.workspaceLayout);
     this.#elements.projectFileDialog.bindLiveContent(this.#document, this.#collaboration);
     this.#elements.projectFileDialog.bindProjectRefresh(appMode === "workspace", this.#elements, this.#collaboration, this.#offline);
     this.#elements.workspacePreview.bindProject(apiBase, this.#document, this.#elements);
-    this.#elements.editorInsertMenu.bind(this.#elements.editorStatus, this.#elements.toast);
     this.#elements.projectHistoryDialog.configure(apiBase, this.#elements);
     this.#elements.projectHistoryTrigger.bindRevision(this.#elements, () => this.#offline.schedule());
     this.#elements.contextResourcePresenter.bindProjectKnowledge(apiBase, this.#elements);

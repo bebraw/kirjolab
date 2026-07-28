@@ -402,6 +402,8 @@ The adopted components own bounded presentation:
   state instead of requiring coordinator callbacks. From that target it owns passage-aware link
   adaptation, template selection ranges, image-template and immediate relative-
   include insertion projection, and local completion notices. The application
+  editor-status authoring lifecycle binds this menu and its canonical notice
+  owner atomically instead of leaving a separate application setup stage. The
   coordinator retains editor focus, asynchronous cross-file include
   continuation, and the global toast outlet.
 - The source completion list owns citation and include option presentation,
@@ -421,6 +423,9 @@ The adopted components own bounded presentation:
   selection, presence, and model-availability consequences. Its authoring
   binding consumes canonical element-registry owner names directly;
   the collaboration socket remains a separate non-DOM scheduling capability.
+  The same atomic authoring binding installs the bounded Vim control against
+  the canonical source and shell and the Insert menu against editor status and
+  toast.
   Its pure citation-completion domain adapter owns
   project and available unlinked Library candidate construction from canonical
   reference inputs, while the component owns project-relative include candidate

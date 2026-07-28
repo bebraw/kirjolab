@@ -295,7 +295,8 @@ collaboration.
   the same toast owner for copy notices.
   A bounded light-DOM Vim control owns stored enablement, mode presentation,
   modal keyboard and pointer-selection behavior, and editor-listener teardown;
-  the coordinator supplies only the source textarea and its visual shell.
+  the editor-status authoring lifecycle supplies the source textarea and its
+  visual shell instead of requiring a separate application setup stage.
 - **Model provider settings:** A bounded light-DOM component owns browser-local
   provider preferences, Valibot-backed bounded restoration, persistence, model
   options, discovery requests, overlapping-request suppression, busy and result
@@ -347,7 +348,8 @@ collaboration.
   coordinator supplies the Yjs document plus save state from collaboration
   workflows; one atomic authoring bind installs the active source and companion
   bibliography, and the component derives their initial Y.Text values from that
-  document, while the coordinator retains editor highlighting and assistant
+  document. That same bind installs the Vim control against the source and
+  shell and the Insert menu against editor status and toast. The coordinator retains editor highlighting and assistant
   refresh.
 - **Project evidence mutations:** The bounded Project evidence panel owns
   guarded PDF and annotation removal plus annotation-passage-link transport

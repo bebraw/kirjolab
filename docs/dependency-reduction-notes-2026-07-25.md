@@ -13861,6 +13861,23 @@ browser application changes from 857,265 B raw / 231,418 B gzip to 857,236 B
 raw / 231,403 B gzip (-29 B raw / -15 B gzip); dependency counts and the other
 static artifacts remain unchanged.
 
+## Continued Lit Ownership: Atomic Authoring Siblings
+
+`EditorStatus` now installs `VimModeControl` against its canonical source and
+shell and binds `EditorInsertMenu` against its own insertion state and the
+canonical toast during the existing authoring lifecycle. `WorkspaceApp` no
+longer exposes either sibling as a separately initialized stage. The
+API-scoped source-completion lifecycle remains independent.
+
+This checkpoint reduces `src/client/app.ts` from 89 to 87 lines (-2) and grows
+the editor-status module from 345 to 352 lines (+7), adding five production
+lines overall in exchange for the atomic lifecycle. The affected guardrail
+passes 10 related cases and all 19 focused editor-status, Vim, Insert, and
+completion cases pass alongside strict types. The browser application changes
+from 857,236 B raw / 231,403 B gzip to 857,183 B raw / 231,413 B gzip (-53 B
+raw / +10 B gzip); dependency counts and the other static artifacts remain
+unchanged.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,

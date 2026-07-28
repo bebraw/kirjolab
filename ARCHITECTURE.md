@@ -1017,6 +1017,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   resolved target directly to the bound citation, assistant, and Context
   authorities. Keep mutation decisions, downstream feature policy,
   collaboration interpretation, and offline-save policy in those authorities.
+  Install the bounded Vim control against the same source and shell and bind
+  the Insert menu against this editor and the canonical toast as part of that
+  atomic authoring lifecycle; the application must not expose separate partial
+  setup stages for either sibling.
 - Let the connection-status Lit owner bind the collaboration workflow and
   authoring controls once, derive label/tone and source/companion editability,
   request assistant-availability refresh after each workflow transition, and
@@ -1059,6 +1063,8 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Implement optional editor keymaps as bounded textarea command adapters that
   emit ordinary input changes. Keep keymap preference browser-local, preserve
   IME and modified browser shortcuts, and never create a second document model.
+  Let the editor-status authoring lifecycle supply the canonical textarea and
+  visual shell to that adapter.
 - Keep collaborator selections ephemeral. Accept only bounded, versioned
   selection metadata for the current file revision, replace client identity
   with a server-assigned socket identity, and never persist selection state.
