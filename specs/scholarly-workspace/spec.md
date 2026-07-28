@@ -99,7 +99,10 @@ collaboration.
   editor-status, Library, project-file, surface-route, and workspace-layout
   owners and derives canonical context sources and
   presentation effects from them. Candidate presentation uses that same
-  assistant owner without a second coordinator binding. Standalone-Library mode derives from an
+  assistant owner without a second coordinator binding. This context owner and
+  the non-rendering assistant presenter share one light-DOM Lit lifecycle and
+  typed sibling-lookup base while retaining independent domain bindings.
+  Standalone-Library mode derives from an
   absent project API base. The coordinator connects those owners and supplies
   only that nullable API configuration without a parallel source factory,
   duplicate mode flag, or effect callbacks. The presenter constructs the PDF

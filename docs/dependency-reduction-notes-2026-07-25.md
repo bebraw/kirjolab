@@ -13995,6 +13995,23 @@ remain unchanged.
 Full native CI passes all 1,775 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Reduction: Shared Presenter Base
+
+`AssistantGenerationPresenter` and `ContextResourcePresenter` now extend one
+`LightDomController`. The base owns their identical first-connection markup
+cleanup, empty Lit render, light-DOM root selection, and typed sibling lookup;
+the concrete presenters retain all domain bindings and effects.
+
+This checkpoint removes 18 lines from each presenter and adds a 21-line shared
+base, removing 15 production lines overall while keeping `src/client/app.ts` at
+73 lines. The focused presenter suites pass all 58 cases, and the affected
+guardrail passes 73 related cases alongside strict types. The browser
+application changes from 857,102 B raw / 231,411 B gzip to 856,907 B raw /
+231,429 B gzip (-195 B raw / +18 B gzip); direct and unique production package
+counts remain 18 and 150, and the other static artifacts remain unchanged.
+Full native CI passes all 1,775 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,

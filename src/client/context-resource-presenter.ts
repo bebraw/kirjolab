@@ -1,4 +1,3 @@
-import { html, LitElement, type TemplateResult } from "lit";
 import type * as Y from "yjs";
 import { activePdfLoadContext } from "./active-pdf-context";
 import { resolveManuscriptAnchor } from "../domain/manuscript-anchor";
@@ -23,6 +22,7 @@ import { ContextTabStrip } from "./context-tab-strip";
 import { expectOk } from "./http";
 import { LibraryPdfAnnotationToolbar } from "./library-pdf-annotation-toolbar";
 import { LibraryPdfInspector } from "./library-pdf-inspector";
+import { LightDomController } from "./light-dom-controller";
 import { LibraryPdfMarkupLayer, type LibraryPdfNoteDraft, type PdfAnnotationTool } from "./library-pdf-markup-layer";
 import { ManuscriptCommentList, type ManuscriptCommentAuthoring } from "./manuscript-comment-list";
 import { PdfEvidenceViewer, type PdfSelectionCapture } from "./pdf-viewer";
@@ -167,7 +167,7 @@ export interface ProjectKnowledgeOwners {
   readonly workspaceSwitcher: { focusSelect(): void };
 }
 
-export class ContextResourcePresenter extends LitElement {
+export class ContextResourcePresenter extends LightDomController {
   private contextState = createResearchContext();
   private contextPresentation: ContextPresentationBinding | null = null;
   private candidatePresenter: AssistantCandidatePresenter | null = null;
@@ -1231,24 +1231,6 @@ export class ContextResourcePresenter extends LitElement {
   private activeReferencePdf(sources: ContextResourceSources, activeLibraryArtifact: LibraryPdfArtifact | undefined): boolean {
     const tab = sources.activeTab;
     return tab?.kind === "library-pdf" && !activeLibraryArtifact && sources.referencePdfs.some(({ id }) => id === tab.id);
-  }
-
-  override connectedCallback(): void {
-    if (!this.hasUpdated) this.replaceChildren();
-    super.connectedCallback();
-  }
-
-  protected override createRenderRoot(): HTMLElement {
-    return this;
-  }
-
-  protected override render(): TemplateResult {
-    return html``;
-  }
-
-  protected element<T extends HTMLElement>(id: string, constructor: abstract new () => T): T | null {
-    const element = this.ownerDocument.getElementById(id);
-    return element instanceof constructor ? element : null;
   }
 }
 

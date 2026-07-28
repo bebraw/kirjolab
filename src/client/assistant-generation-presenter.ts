@@ -1,4 +1,3 @@
-import { html, LitElement, type TemplateResult } from "lit";
 import { resolveAssistantTarget, type AssistantOperationDefinition, type AssistantTargetScope } from "./assistant-operations";
 import {
   AssistantResultPanel,
@@ -26,6 +25,7 @@ import {
   type CandidateDecisionRequest,
 } from "./candidate-review-panel";
 import { ClaimListPanel } from "./claim-list-panel";
+import { LightDomController } from "./light-dom-controller";
 import { ModelProviderSettings, modelProviderChangeEvent } from "./model-provider-settings";
 import type { ModelProvider } from "./model-provider";
 import { ProjectEvidencePanel } from "./project-evidence-panel";
@@ -124,7 +124,7 @@ export interface AssistantRevisionCandidateInput {
   readonly sourceRevision: number;
 }
 
-export class AssistantGenerationPresenter extends LitElement {
+export class AssistantGenerationPresenter extends LightDomController {
   private readonly workflow = createAssistantWorkflowActor();
   private authoring: AssistantAuthoringOwners | null = null;
   private collaboration: { readonly stable: boolean } | null = null;
@@ -628,24 +628,6 @@ export class AssistantGenerationPresenter extends LitElement {
       return { status: "Answer one focused question to make the intended meaning explicit.", workflow: "AWAIT_INPUT" };
     }
     return null;
-  }
-
-  override connectedCallback(): void {
-    if (!this.hasUpdated) this.replaceChildren();
-    super.connectedCallback();
-  }
-
-  protected override createRenderRoot(): HTMLElement {
-    return this;
-  }
-
-  protected override render(): TemplateResult {
-    return html``;
-  }
-
-  protected element<T extends HTMLElement>(id: string, constructor: abstract new () => T): T | null {
-    const element = this.ownerDocument.getElementById(id);
-    return element instanceof constructor ? element : null;
   }
 }
 

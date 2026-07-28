@@ -84,7 +84,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   wrap static server-rendered markup mechanically or turn Lit into the
   application shell. Keep Yjs and cross-feature XState actors in application
   authorities; a component may own an actor whose full lifecycle is confined
-  to its interaction and whose outward effects are typed outcomes.
+  to its interaction and whose outward effects are typed outcomes. Let
+  non-rendering light-DOM presenters share one Lit base for connection cleanup,
+  empty rendering, render-root selection, and typed sibling lookup; keep their
+  domain bindings and effects in the concrete presenters.
 - Let the project-map Lit workspace own its authorized knowledge-search request,
   response validation, and idle, result, and error lifecycle because those
   states also determine whether the graph overview is visible. Let it parse and
