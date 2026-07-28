@@ -1,3 +1,6 @@
+import type { ContextResourcePresenter } from "./context-resource-presenter";
+import type { PdfEvidenceViewer } from "./pdf-viewer";
+
 const railWidthKey = "kirjolab:source-rail-width";
 const railCollapsedKey = "kirjolab:source-rail-collapsed";
 const defaultRailWidth = 272;
@@ -32,6 +35,11 @@ interface WorkspaceLayoutRoot extends WorkspaceLayoutElement {
   querySelector(selectors: string): Element | WorkspaceLayoutElement | null;
 }
 
+interface WorkspaceLayoutOwners {
+  readonly contextResourcePresenter: Pick<ContextResourcePresenter, "activeTab">;
+  readonly workspaceSurfaces: WorkspaceLayoutRoot;
+}
+
 export interface WorkspaceLayoutHooks {
   readonly paneStorageKey: () => string;
   readonly resizePdf: () => void;
@@ -46,7 +54,12 @@ export class WorkspaceLayoutManager {
     this.#hooks = hooks;
   }
 
-  static forWorkspace(workspaceSurfaces: WorkspaceLayoutRoot, hooks: WorkspaceLayoutHooks): WorkspaceLayoutManager {
+  static forWorkspace(
+    workspaceId: string,
+    owners: WorkspaceLayoutOwners,
+    pdfViewer: Pick<PdfEvidenceViewer, "resize">,
+  ): WorkspaceLayoutManager {
+    const workspaceSurfaces = owners.workspaceSurfaces;
     return new WorkspaceLayoutManager(
       {
         authoringContextResizer: requiredLayoutElement(workspaceSurfaces, "#authoring-context-resizer"),
@@ -55,7 +68,10 @@ export class WorkspaceLayoutManager {
         sourceRailResizer: requiredLayoutElement(workspaceSurfaces, "#source-rail-resizer"),
         workspaceSurfaces,
       },
-      hooks,
+      {
+        paneStorageKey: () => `kirjolab:authoring-pane:${workspaceId}:${owners.contextResourcePresenter.activeTab?.kind ?? "preview"}`,
+        resizePdf: () => void pdfViewer.resize(),
+      },
     );
   }
 

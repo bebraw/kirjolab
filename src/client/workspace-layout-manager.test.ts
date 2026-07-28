@@ -115,9 +115,16 @@ afterEach(() => vi.unstubAllGlobals());
 describe("workspace layout manager", () => {
   it("resolves workspace-owned controls from the layout root", () => {
     const { fakes } = fixture();
-    const manager = WorkspaceLayoutManager.forWorkspace(fakes.surfaces, { paneStorageKey: () => "pane", resizePdf: vi.fn() });
+    storage.set("kirjolab:authoring-pane:project:preview", "520");
+    const manager = WorkspaceLayoutManager.forWorkspace(
+      "project",
+      { contextResourcePresenter: { activeTab: undefined }, workspaceSurfaces: fakes.surfaces },
+      { resize: vi.fn() },
+    );
     manager.bind();
+    manager.restorePaneWidth();
     fakes.collapse.dispatchEvent(event("click"));
+    expect(fakes.surfaces.styleValues.get("--authoring-pane-width")).toBe("520px");
     expect(fakes.surfaces.dataset.sourceRail).toBe("collapsed");
     expect(fakes.expand.focused).toBe(true);
   });
@@ -125,9 +132,13 @@ describe("workspace layout manager", () => {
   it("rejects an incomplete workspace layout", () => {
     const { fakes } = fixture();
     fakes.surfaces.descendants.delete("#source-rail-resizer");
-    expect(() => WorkspaceLayoutManager.forWorkspace(fakes.surfaces, { paneStorageKey: () => "pane", resizePdf: vi.fn() })).toThrow(
-      "Required workspace layout control is missing: #source-rail-resizer",
-    );
+    expect(() =>
+      WorkspaceLayoutManager.forWorkspace(
+        "project",
+        { contextResourcePresenter: { activeTab: undefined }, workspaceSurfaces: fakes.surfaces },
+        { resize: vi.fn() },
+      ),
+    ).toThrow("Required workspace layout control is missing: #source-rail-resizer");
   });
 
   it("restores and toggles source-rail collapse with focus transfer", () => {

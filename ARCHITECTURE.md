@@ -1388,7 +1388,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   bounded width as a cross-project browser-local preference, and contract its
   effective maximum before either primary document surface loses its readable
   minimum. Allow independent browser-local collapse with an editor-hosted
-  restoration action. Keep rail geometry out of URLs and collaborative state.
+  restoration action. Let the layout manager bind the canonical Context owner
+  for context-specific pane persistence and the PDF viewer for relayout instead
+  of receiving application callback projections. Keep rail geometry out of URLs
+  and collaborative state.
 - Route rail-tab navigation through its Lit owner. Let the manuscript-map owner
   use the project-file capability already present in its project-presentation
   binding for range navigation, and derive its composed guide

@@ -30,6 +30,12 @@ lifecycle, payload, validation, progress, and result serve only that component's
 local interaction. It may navigate only to a canonical href supplied through
 its own authorized inputs or validated request result.
 
+Apply the same direct-owner rule to supporting non-element UI coordinators when
+their policy depends on canonical component state. The workspace layout manager
+binds the Context owner and PDF viewer directly for context-specific pane
+persistence and PDF relayout while retaining injectable low-level hooks for
+focused tests.
+
 The adopted components own bounded presentation:
 
 - The import panel owns connected and disconnected account presentation,

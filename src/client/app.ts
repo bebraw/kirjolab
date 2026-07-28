@@ -87,11 +87,7 @@ class WorkspaceApp {
       socketUrl: `${location.protocol === "https:" ? "wss:" : "ws:"}//${location.host}${apiBase}/socket`,
     });
     this.#pdfViewer = PdfEvidenceViewer.forDocument(document, this.#elements.contextResourcePresenter);
-    this.#layout = WorkspaceLayoutManager.forWorkspace(this.#elements.workspaceSurfaces, {
-      paneStorageKey: () =>
-        `kirjolab:authoring-pane:${workspaceId}:${this.#elements.contextResourcePresenter.activeTab?.kind ?? "preview"}`,
-      resizePdf: () => void this.#pdfViewer.resize(),
-    });
+    this.#layout = WorkspaceLayoutManager.forWorkspace(workspaceId, this.#elements, this.#pdfViewer);
     this.#elements.previewSyncControls.bindSource(this.#elements);
   }
 

@@ -13198,6 +13198,24 @@ Markdown, lazy PDF.js, and direct and unique production package counts remain
 unchanged at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip,
 481,994 B raw / 146,135 B gzip, 18, and 150.
 
+## Continued Ownership: Workspace Layout Owners
+
+`WorkspaceLayoutManager` now binds the canonical Context owner and PDF viewer
+directly in its workspace factory. Context-specific pane persistence and PDF
+relayout no longer pass through application-authored callback projections;
+injectable low-level layout hooks remain available for focused tests.
+
+This checkpoint reduces `src/client/app.ts` from 187 to 183 lines (-4) and
+grows the layout manager from 258 to 273 lines (+15), adding eleven runtime
+lines overall to make the stable owner contract explicit. Focused and affected
+coverage pass all five layout-manager cases alongside strict types.
+
+The browser application artifact changes from 858,565 B raw / 231,646 B gzip
+to 858,571 B raw / 231,630 B gzip (+6 B raw / -16 B gzip). Styles, lazy
+Markdown, lazy PDF.js, and direct and unique production package counts remain
+unchanged at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip,
+481,994 B raw / 146,135 B gzip, 18, and 150.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,
