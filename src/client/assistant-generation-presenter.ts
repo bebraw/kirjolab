@@ -95,15 +95,14 @@ export interface AssistantAuthoringSources {
   readonly project: { readonly activeFileId: string | null };
 }
 
-export interface AssistantWorkflowCoordinator {
-  readonly applyTable: (target: AssistantAuthoringPassage, insertion: string) => void;
-  readonly context: {
+export interface AssistantWorkflowOwners {
+  readonly contextResourcePresenter: {
     activateContext(key: string): void;
     presentBoundContext(updateHistory?: boolean): void;
   };
-  readonly openEvidenceRail: () => void;
-  readonly presentNotice: (message: string) => void;
-  readonly refreshResources: () => Promise<void>;
+  readonly editorInsertMenu: { replacePassage(target: AssistantAuthoringPassage, insertion: string): void };
+  readonly toast: { show(message: string): void };
+  readonly workspaceRailTabs: { navigate(tab: "research"): void };
 }
 
 export interface AssistantResourceRoutes {
@@ -128,15 +127,18 @@ export interface AssistantRevisionCandidateInput {
 export class AssistantGenerationPresenter extends LitElement {
   private readonly workflow = createAssistantWorkflowActor();
   private authoring: AssistantAuthoringSources | null = null;
-  private coordinator: AssistantWorkflowCoordinator | null = null;
+  private workflowBinding: {
+    readonly owners: AssistantWorkflowOwners;
+    readonly resources: { request(): Promise<void> };
+  } | null = null;
   private resources: AssistantResourceRoutes | null = null;
 
   bindAuthoring(authoring: AssistantAuthoringSources): void {
     this.authoring = authoring;
   }
 
-  bindWorkflow(coordinator: AssistantWorkflowCoordinator): void {
-    this.coordinator = coordinator;
+  bindWorkflow(resources: { request(): Promise<void> }, owners: AssistantWorkflowOwners): void {
+    this.workflowBinding = { owners, resources };
   }
 
   bindResources(resources: AssistantResourceRoutes): void {
@@ -167,13 +169,12 @@ export class AssistantGenerationPresenter extends LitElement {
     return { fileId, start, end, excerpt: text };
   }
 
-  private get workflowCoordinator(): AssistantWorkflowCoordinator {
-    if (!this.coordinator) throw new Error("Assistant workflow coordinator is not bound");
-    return this.coordinator;
+  private get boundWorkflow() {
+    if (!this.workflowBinding) throw new Error("Assistant workflow owners are not bound");
+    return this.workflowBinding;
   }
 
   bindCandidate(apiBase: string): void {
-    const callbacks = this.workflowCoordinator;
     const candidates = this.element("candidate-list-panel", CandidateListPanel);
     const review = this.element("candidate-review-panel", CandidateReviewPanel);
     candidates?.configure(apiBase);
@@ -187,7 +188,7 @@ export class AssistantGenerationPresenter extends LitElement {
       this.decisionChanged();
     });
     review?.addEventListener(candidateDecisionOutcomeEvent, (event) => {
-      void this.completeDecision((event as CustomEvent<CandidateDecisionOutcome>).detail, callbacks);
+      void this.completeDecision((event as CustomEvent<CandidateDecisionOutcome>).detail);
     });
     review?.addEventListener(candidateEvidenceEvent, (event) => {
       const evidence = (event as CustomEvent<ModelEvidence>).detail;
@@ -201,20 +202,21 @@ export class AssistantGenerationPresenter extends LitElement {
     });
   }
 
-  private async completeDecision(detail: CandidateDecisionOutcome, callbacks: AssistantWorkflowCoordinator): Promise<void> {
+  private async completeDecision(detail: CandidateDecisionOutcome): Promise<void> {
+    const workflow = this.boundWorkflow;
     let failure = detail.failure;
     if (failure) {
-      await callbacks.refreshResources().catch(() => undefined);
-      callbacks.presentNotice(failure);
+      await workflow.resources.request().catch(() => undefined);
+      workflow.owners.toast.show(failure);
     } else {
       try {
-        await callbacks.refreshResources();
-        if (detail.action === "reject") callbacks.context.activateContext(RESEARCH_ASSISTANT_KEY);
-        callbacks.presentNotice(detail.message);
+        await workflow.resources.request();
+        if (detail.action === "reject") workflow.owners.contextResourcePresenter.activateContext(RESEARCH_ASSISTANT_KEY);
+        workflow.owners.toast.show(detail.message);
       } catch (error) {
         failure = error instanceof Error ? error.message : "Candidate decision failed";
-        await callbacks.refreshResources().catch(() => undefined);
-        callbacks.presentNotice(failure);
+        await workflow.resources.request().catch(() => undefined);
+        workflow.owners.toast.show(failure);
       }
     }
     this.workflow.send(failure ? { type: "DECISION_FAILED", message: failure } : { type: "DECISION_DONE" });
@@ -223,7 +225,7 @@ export class AssistantGenerationPresenter extends LitElement {
   }
 
   private async openGeneratedCandidate(candidate: ModelCandidate): Promise<void> {
-    await this.workflowCoordinator.refreshResources();
+    await this.boundWorkflow.resources.request();
     this.resourceRoutes.openCandidate(candidate);
   }
 
@@ -289,14 +291,13 @@ export class AssistantGenerationPresenter extends LitElement {
   }
 
   bindResults(): void {
-    const callbacks = this.workflowCoordinator;
     const result = this.element("assistant-interactive-result", AssistantResultPanel);
     const status = this.element("assistant-workflow-status", AssistantWorkflowStatus);
     result?.addEventListener(assistantResultActionEvent, (event) => {
       const detail = (event as CustomEvent<AssistantResultActionDetail>).detail;
       if (detail.action === "continue-clarity") {
         void this.continueClarity(result, status, detail);
-      } else if (detail.action === "insert-table") this.insertTable(status, detail.context, detail.markdown, callbacks);
+      } else if (detail.action === "insert-table") this.insertTable(status, detail.context, detail.markdown);
       else void this.chooseRevision(status, detail);
     });
     result?.addEventListener(assistantReferenceRefreshEvent, (event) => {
@@ -343,12 +344,7 @@ export class AssistantGenerationPresenter extends LitElement {
     }
   }
 
-  private insertTable(
-    status: AssistantWorkflowStatus | null,
-    context: AssistantTableContext,
-    markdown: string,
-    callbacks: AssistantWorkflowCoordinator,
-  ): void {
+  private insertTable(status: AssistantWorkflowStatus | null, context: AssistantTableContext, markdown: string): void {
     const authoring = this.authoringSources;
     const source = authoring.editor.manuscript;
     if (
@@ -363,7 +359,7 @@ export class AssistantGenerationPresenter extends LitElement {
     const prefix = context.target.start > 0 && source[context.target.start - 1] !== "\n" ? "\n\n" : "";
     const suffix = context.target.end < source.length && source[context.target.end] !== "\n" ? "\n\n" : "\n";
     this.workflow.send({ type: "COMPLETE" });
-    callbacks.applyTable(context.target, `${prefix}${markdown}${suffix}`);
+    this.boundWorkflow.owners.editorInsertMenu.replacePassage(context.target, `${prefix}${markdown}${suffix}`);
     if (status) status.status = "Table inserted into the manuscript.";
   }
 
@@ -401,7 +397,6 @@ export class AssistantGenerationPresenter extends LitElement {
   }
 
   bindControls(): void {
-    const callbacks = this.workflowCoordinator;
     const settings = this.element("model-provider-settings", ModelProviderSettings);
     const status = this.element("assistant-workflow-status", AssistantWorkflowStatus);
     const task = this.element("assistant-task-panel", AssistantTaskPanel);
@@ -412,7 +407,7 @@ export class AssistantGenerationPresenter extends LitElement {
     });
     status?.addEventListener(assistantWorkflowActionEvent, (event) => {
       const action = (event as CustomEvent<AssistantWorkflowAction>).detail;
-      if (action === "choose-evidence") this.chooseEvidence(status, callbacks);
+      if (action === "choose-evidence") this.chooseEvidence(status);
       else settings?.open();
     });
     task?.addEventListener(assistantTaskChangeEvent, (event) => {
@@ -433,8 +428,8 @@ export class AssistantGenerationPresenter extends LitElement {
     this.refreshAvailability();
   }
 
-  private chooseEvidence(status: AssistantWorkflowStatus | null, callbacks: AssistantWorkflowCoordinator): void {
-    callbacks.openEvidenceRail();
+  private chooseEvidence(status: AssistantWorkflowStatus | null): void {
+    this.boundWorkflow.owners.workspaceRailTabs.navigate("research");
     const focused =
       this.element("project-evidence-panel", ProjectEvidencePanel)?.focusEvidence() ||
       this.element("claim-list-panel", ClaimListPanel)?.focusEvidence();
@@ -545,7 +540,7 @@ export class AssistantGenerationPresenter extends LitElement {
   }
 
   private decisionChanged(): void {
-    this.workflowCoordinator.context.presentBoundContext(false);
+    this.boundWorkflow.owners.contextResourcePresenter.presentBoundContext(false);
     this.refreshAvailability();
   }
 

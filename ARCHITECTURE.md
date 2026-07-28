@@ -605,9 +605,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   candidate, project-PDF, project snapshot, Library-refresh, assistant-tab, and
   no-evidence notice routes supplied by the context-resource presenter instead
   of repeating them across task, result, and candidate workflows. Bind all
-  remaining application-owned generation inputs and narrow canonical refresh
-  and notice effects once through one workflow coordinator instead of separate
-  candidate, result, and control callback bags. Bind the Context owner directly;
+  remaining application-owned generation inputs directly from the Insert-menu,
+  Context, Research-rail, toast, and canonical refresh owners instead of a
+  workflow callback bag. Bind the Context owner directly;
   the presenter owns assistant-context activation and decision-state
   re-presentation plus its resulting availability refresh. Bind canonical file identity, manuscript text, target range,
   source revision, and collaboration stability once through the live project,

@@ -188,9 +188,10 @@ All mutation operations preserve a human review boundary.
   their typed persistence because those results immediately become candidate
   resources. XState transitions, authorized target and evidence derivation,
   generated-candidate refresh-before-open, decision refresh and recovery, and
-  cross-panel workflow status belong to the assistant presenter. Canonical
-  Markdown edits, refresh execution, context-state mutation, and notice
-  presentation remain application effects behind its typed workflow binding.
+  cross-panel workflow status belong to the assistant presenter. It delegates
+  canonical Markdown edits, refresh execution, context-state mutation,
+  Research-rail navigation, and notice presentation directly to their bound
+  Insert-menu, refresh, Context, rail, and toast owners.
 - The assistant keeps a visible **Choose evidence** action beside its status.
   It opens the Research rail, expands the collection containing the first
   available grounding control, and focuses that control; an empty project

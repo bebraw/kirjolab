@@ -12908,6 +12908,25 @@ at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip, 481,994 B raw /
 Full native CI passes all 1,774 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Assistant Workflow Owners
+
+`AssistantGenerationPresenter` now binds the Insert-menu, Context,
+Research-rail, toast, and canonical refresh owners directly. Table insertion,
+decision refresh and context presentation, evidence-rail entry, and notices no
+longer pass through a five-member application workflow callback bag.
+
+This checkpoint reduces `src/client/app.ts` from 290 to 284 lines (-6) and the
+assistant presenter from 667 to 662 lines (-5), removing eleven runtime lines
+overall. Focused coverage passes all 19 assistant-presenter cases; affected
+coverage passes 21 related runtime cases and the affected test file alongside
+strict types.
+
+The browser application artifact changes from 859,335 B raw / 231,986 B gzip
+to 859,197 B raw / 231,950 B gzip (-138 B raw / -36 B gzip). Styles, lazy
+Markdown, lazy PDF.js, and direct and unique production package counts remain
+unchanged at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip,
+481,994 B raw / 146,135 B gzip, 18, and 150.
+
 ## Continued Lit Ownership: Private-PDF Project Owners
 
 `ContextResourcePresenter` now binds private-PDF project API scope alongside

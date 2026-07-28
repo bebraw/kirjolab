@@ -284,9 +284,8 @@ collaboration.
   presenter for canonical candidate, project-PDF, project snapshot, Library-
   refresh, assistant-tab, and no-evidence notice routes instead of repeating
   them across task, result, and candidate workflows. It also binds the remaining
-  application-owned generation inputs and consequences once through one
-  workflow coordinator instead of separate candidate, result, and control
-  callback bags. It binds the live project, editor, history, and collaboration
+  Insert-menu, Context, Research-rail, toast, and canonical refresh owners
+  directly instead of a workflow callback bag. It binds the live project, editor, history, and collaboration
   owners once as authoring sources instead of duplicating their values through
   getter adapters, then derives scoped and insertion passages, generation
   input, availability, target presentation,

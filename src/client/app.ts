@@ -268,13 +268,7 @@ class WorkspaceApp {
     this.#layout.bind();
     this.#elements.contextResourcePresenter.bindPublicationContext(apiBase);
     this.#elements.assistantGenerationPresenter.bindResources(this.#elements.contextResourcePresenter.assistantResources());
-    this.#elements.assistantGenerationPresenter.bindWorkflow({
-      applyTable: (target, insertion) => this.#elements.editorInsertMenu.replacePassage(target, insertion),
-      context: this.#elements.contextResourcePresenter,
-      openEvidenceRail: () => this.#elements.workspaceRailTabs.navigate("research"),
-      presentNotice: (message) => this.#elements.toast.show(message),
-      refreshResources: () => this.#resourceRefresh.request(),
-    });
+    this.#elements.assistantGenerationPresenter.bindWorkflow(this.#resourceRefresh, this.#elements);
     this.#elements.assistantGenerationPresenter.bindCandidate(apiBase);
     this.#elements.assistantGenerationPresenter.bindResults();
     this.#elements.assistantGenerationPresenter.bindControls();
