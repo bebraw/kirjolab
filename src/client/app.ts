@@ -311,19 +311,14 @@ class WorkspaceApp {
       projectApiBase: apiBase,
     });
     this.#elements.contextResourcePresenter.bindContext({
-      activateSurface: () => this.#elements.workspaceSurfaceSwitcher.navigate("context", false),
-      citationAvailable: () => this.#elements.editorStatus.caret !== null,
-      openLibrary: (updateHistory) => this.#elements.referenceLibraryWorkspace.open(updateHistory),
-      standaloneLibraryRoutes: this.#elements.referenceLibraryWorkspace,
-      refreshAssistant: () => this.#elements.assistantGenerationPresenter.refreshAvailability(),
-      restorePaneWidth: () => this.#layout.restorePaneWidth(),
-      sources: () => ({
-        library: this.#elements.referenceLibraryWorkspace.snapshot,
-        projectApiBase: appMode === "workspace" ? apiBase : null,
-        snapshot: this.#elements.projectFileDialog.project,
-        standaloneLibrary: appMode === "library",
-      }),
-      syncRoute: (mode) => this.#elements.workspaceSurfaceSwitcher.syncRoute(mode),
+      assistant: this.#elements.assistantGenerationPresenter,
+      authoring: this.#elements.editorStatus,
+      layout: this.#layout,
+      library: this.#elements.referenceLibraryWorkspace,
+      project: this.#elements.projectFileDialog,
+      projectApiBase: appMode === "workspace" ? apiBase : null,
+      routes: this.#elements.workspaceSurfaceSwitcher,
+      standaloneLibrary: appMode === "library",
     });
     this.#elements.contextResourcePresenter.bindRoutes({
       authoring: () => ({

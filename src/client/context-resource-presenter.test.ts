@@ -15,7 +15,13 @@ import { AssistantWorkflowStatus } from "./assistant-workflow-status";
 import { CandidateListPanel } from "./candidate-list-panel";
 import { CandidateReviewPanel } from "./candidate-review-panel";
 import { ClaimListPanel } from "./claim-list-panel";
-import { ContextResourcePresenter, type ContextResourceSources, type LibraryPdfMutationCoordinator } from "./context-resource-presenter";
+import {
+  ContextResourcePresenter,
+  type ContextPresentationBinding,
+  type ContextResourceSources,
+  type LibraryPdfMutationCoordinator,
+  type ResearchContextSources,
+} from "./context-resource-presenter";
 import { ContextTabStrip } from "./context-tab-strip";
 import { LibraryPdfAnnotationToolbar } from "./library-pdf-annotation-toolbar";
 import { LibraryPdfInspector } from "./library-pdf-inspector";
@@ -116,6 +122,47 @@ function sources(activeTab: ResearchResourceTab | undefined): ContextResourceSou
 
 function standaloneLibraryRoutes() {
   return { pushPdfRoute: vi.fn(), replaceLibraryRoute: vi.fn(), replacePdfRoute: vi.fn() };
+}
+
+interface TestContextBinding {
+  readonly activateSurface: () => void;
+  readonly citationAvailable: () => boolean;
+  readonly openLibrary: (updateHistory?: boolean) => Promise<void>;
+  readonly refreshAssistant: () => void;
+  readonly restorePaneWidth: () => void;
+  readonly sources: () => ResearchContextSources;
+  readonly standaloneLibraryRoutes: ReturnType<typeof standaloneLibraryRoutes>;
+  readonly syncRoute: (mode: "push" | "replace") => void;
+}
+
+function contextBinding(options: TestContextBinding): ContextPresentationBinding {
+  const source = options.sources;
+  return {
+    assistant: { refreshAvailability: options.refreshAssistant },
+    authoring: {
+      get caret() {
+        return options.citationAvailable() ? 0 : null;
+      },
+    },
+    layout: { restorePaneWidth: options.restorePaneWidth },
+    library: {
+      get snapshot() {
+        return source().library;
+      },
+      open: options.openLibrary,
+      ...options.standaloneLibraryRoutes,
+    },
+    project: {
+      get project() {
+        return source().snapshot;
+      },
+    },
+    projectApiBase: source().projectApiBase,
+    routes: { navigate: () => options.activateSurface(), syncRoute: options.syncRoute },
+    get standaloneLibrary() {
+      return source().standaloneLibrary;
+    },
+  };
 }
 
 function setup() {
@@ -280,16 +327,18 @@ describe("context resource presenter", () => {
     const restorePaneWidth = vi.fn();
     const syncRoute = vi.fn();
     let standaloneLibrary = false;
-    presenter.bindContext({
-      activateSurface,
-      citationAvailable: () => true,
-      openLibrary,
-      standaloneLibraryRoutes: libraryRoutes,
-      refreshAssistant: vi.fn(),
-      restorePaneWidth,
-      sources: () => ({ ...sources(undefined), standaloneLibrary }),
-      syncRoute,
-    });
+    presenter.bindContext(
+      contextBinding({
+        activateSurface,
+        citationAvailable: () => true,
+        openLibrary,
+        standaloneLibraryRoutes: libraryRoutes,
+        refreshAssistant: vi.fn(),
+        restorePaneWidth,
+        sources: () => ({ ...sources(undefined), standaloneLibrary }),
+        syncRoute,
+      }),
+    );
     const navigation = bindNavigation.mock.calls[0]?.[0];
 
     navigation?.activate("library");
@@ -319,16 +368,18 @@ describe("context resource presenter", () => {
     vi.spyOn(elements["context-tab-strip"], "focusTab").mockImplementation(() => undefined);
     vi.spyOn(presenter, "presentContext").mockReturnValue({ activeTab: undefined, publicationPresented: false });
     const restoreTarget = vi.spyOn(presenter, "restoreTarget").mockResolvedValue(undefined);
-    presenter.bindContext({
-      activateSurface: vi.fn(),
-      citationAvailable: () => false,
-      openLibrary,
-      standaloneLibraryRoutes: standaloneLibraryRoutes(),
-      refreshAssistant: vi.fn(),
-      restorePaneWidth: vi.fn(),
-      sources: () => ({ ...sources(undefined), standaloneLibrary: false }),
-      syncRoute: vi.fn(),
-    });
+    presenter.bindContext(
+      contextBinding({
+        activateSurface: vi.fn(),
+        citationAvailable: () => false,
+        openLibrary,
+        standaloneLibraryRoutes: standaloneLibraryRoutes(),
+        refreshAssistant: vi.fn(),
+        restorePaneWidth: vi.fn(),
+        sources: () => ({ ...sources(undefined), standaloneLibrary: false }),
+        syncRoute: vi.fn(),
+      }),
+    );
     presenter.bindRoutes({
       authoring: () => ({ passage: null, sourceRevision: 0, stable: false }),
       document: () => new Y.Doc(),
@@ -369,16 +420,18 @@ describe("context resource presenter", () => {
       snapshot: { ...workspaceSnapshotFixture, pdfs: [pdf] },
       standaloneLibrary: false,
     };
-    presenter.bindContext({
-      activateSurface: vi.fn(),
-      citationAvailable: () => false,
-      openLibrary: vi.fn(),
-      standaloneLibraryRoutes: standaloneLibraryRoutes(),
-      refreshAssistant: vi.fn(),
-      restorePaneWidth: vi.fn(),
-      sources: () => contextSources,
-      syncRoute: vi.fn(),
-    });
+    presenter.bindContext(
+      contextBinding({
+        activateSurface: vi.fn(),
+        citationAvailable: () => false,
+        openLibrary: vi.fn(),
+        standaloneLibraryRoutes: standaloneLibraryRoutes(),
+        refreshAssistant: vi.fn(),
+        restorePaneWidth: vi.fn(),
+        sources: () => contextSources,
+        syncRoute: vi.fn(),
+      }),
+    );
 
     await presenter.ensurePdfResource();
     contextSources = { ...contextSources, snapshot: workspaceSnapshotFixture };
@@ -406,16 +459,18 @@ describe("context resource presenter", () => {
     const libraryRoutes = standaloneLibraryRoutes();
     const syncRoute = vi.fn();
     let standaloneLibrary = false;
-    presenter.bindContext({
-      activateSurface: vi.fn(),
-      citationAvailable: () => false,
-      openLibrary: vi.fn(),
-      standaloneLibraryRoutes: libraryRoutes,
-      refreshAssistant: vi.fn(),
-      restorePaneWidth: vi.fn(),
-      sources: () => ({ ...sources(undefined), standaloneLibrary }),
-      syncRoute,
-    });
+    presenter.bindContext(
+      contextBinding({
+        activateSurface: vi.fn(),
+        citationAvailable: () => false,
+        openLibrary: vi.fn(),
+        standaloneLibraryRoutes: libraryRoutes,
+        refreshAssistant: vi.fn(),
+        restorePaneWidth: vi.fn(),
+        sources: () => ({ ...sources(undefined), standaloneLibrary }),
+        syncRoute,
+      }),
+    );
     const pdf = {
       contentType: "application/pdf",
       createdAt: "created",
@@ -465,16 +520,18 @@ describe("context resource presenter", () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json([referencePdf])));
     presenter.presentBoundWorkspace();
     await presenter.refreshBoundReferencePdfs();
-    presenter.bindContext({
-      activateSurface: vi.fn(),
-      citationAvailable: () => false,
-      openLibrary: vi.fn(),
-      standaloneLibraryRoutes: standaloneLibraryRoutes(),
-      refreshAssistant,
-      restorePaneWidth: vi.fn(),
-      sources: () => ({ ...sources(undefined), standaloneLibrary: false }),
-      syncRoute,
-    });
+    presenter.bindContext(
+      contextBinding({
+        activateSurface: vi.fn(),
+        citationAvailable: () => false,
+        openLibrary: vi.fn(),
+        standaloneLibraryRoutes: standaloneLibraryRoutes(),
+        refreshAssistant,
+        restorePaneWidth: vi.fn(),
+        sources: () => ({ ...sources(undefined), standaloneLibrary: false }),
+        syncRoute,
+      }),
+    );
 
     await presenter.refreshBoundReferencePdfs();
 
@@ -1170,16 +1227,18 @@ describe("context resource presenter", () => {
       researchShares: [note, longNote],
     };
     let currentLibrary: ReferenceLibrarySnapshot | null = null;
-    presenter.bindContext({
-      activateSurface: vi.fn(),
-      citationAvailable: () => false,
-      openLibrary: vi.fn(),
-      standaloneLibraryRoutes: standaloneLibraryRoutes(),
-      refreshAssistant: vi.fn(),
-      restorePaneWidth: vi.fn(),
-      sources: () => ({ ...sources(undefined), library: currentLibrary, snapshot: project, standaloneLibrary: false }),
-      syncRoute: vi.fn(),
-    });
+    presenter.bindContext(
+      contextBinding({
+        activateSurface: vi.fn(),
+        citationAvailable: () => false,
+        openLibrary: vi.fn(),
+        standaloneLibraryRoutes: standaloneLibraryRoutes(),
+        refreshAssistant: vi.fn(),
+        restorePaneWidth: vi.fn(),
+        sources: () => ({ ...sources(undefined), library: currentLibrary, snapshot: project, standaloneLibrary: false }),
+        syncRoute: vi.fn(),
+      }),
+    );
     vi.spyOn(presenter, "referencePdfs", "get").mockReturnValue([referencePdf]);
     const coordinator = {
       authoring: vi.fn(() => ({ passage: null, sourceRevision: 0, stable: false })),
@@ -1291,16 +1350,18 @@ describe("context resource presenter", () => {
     presenter.present(sources(tab));
     const libraryRoutes = standaloneLibraryRoutes();
     const syncRoute = vi.fn();
-    presenter.bindContext({
-      activateSurface: vi.fn(),
-      citationAvailable: () => false,
-      openLibrary: vi.fn(),
-      refreshAssistant: vi.fn(),
-      restorePaneWidth: vi.fn(),
-      sources: () => ({ ...sources(undefined), standaloneLibrary: false }),
-      standaloneLibraryRoutes: libraryRoutes,
-      syncRoute,
-    });
+    presenter.bindContext(
+      contextBinding({
+        activateSurface: vi.fn(),
+        citationAvailable: () => false,
+        openLibrary: vi.fn(),
+        refreshAssistant: vi.fn(),
+        restorePaneWidth: vi.fn(),
+        sources: () => ({ ...sources(undefined), standaloneLibrary: false }),
+        standaloneLibraryRoutes: libraryRoutes,
+        syncRoute,
+      }),
+    );
     presenter.presentPdfPage(2);
 
     expect(setLibraryPage).toHaveBeenCalledWith(libraryPdf, [], 2, elements["library-pdf-annotation-toolbar"].drawingStyle);

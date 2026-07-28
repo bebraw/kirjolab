@@ -12702,6 +12702,30 @@ at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip, 481,994 B raw /
 Full native CI passes all 1,774 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Direct Context Presentation Owners
+
+`ContextResourcePresenter` now binds the live assistant, editor, layout,
+Library, project-file, and surface-route owners. It derives canonical project
+and Library sources, citation availability, pane restoration, Context-surface
+activation, and route effects directly instead of receiving a source factory
+plus seven application-level adapters.
+
+This checkpoint reduces `src/client/app.ts` from 375 to 370 lines (-5) and grows
+the Context presenter from 1,255 to 1,269 lines (+14). The nine-line combined
+runtime increase replaces parallel state/effect projections with one explicit
+owner boundary. Focused coverage passes all 39 Context presenter cases;
+affected coverage passes 54 related runtime cases and the affected test file
+alongside strict types.
+
+The browser application artifact changes from 861,262 B raw / 232,157 B gzip to
+861,131 B raw / 232,140 B gzip (-131 B raw / -17 B gzip). Styles, lazy
+Markdown, lazy PDF.js, and direct and unique production package counts remain
+unchanged at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip,
+481,994 B raw / 146,135 B gzip, 18, and 150.
+
+Full native CI passes all 1,774 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: One-Shot Browser Entry Intents
 
 `ProjectStartingPointBrowser` now consumes the `create=1` editor intent, removes

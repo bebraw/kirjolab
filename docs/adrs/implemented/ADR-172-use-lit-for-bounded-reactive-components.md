@@ -1322,9 +1322,12 @@ reason to wrap static markup mechanically.
   browser-local canonical context state, authorization reconciliation, resource
   closure, PDF location, resource-panel scroll restoration, tab presentation,
   focus, route-effect sequencing, surface activation, and active-PDF load
-  timing. The application coordinator supplies authorized Library loading,
-  canonical context sources, the workspace and standalone-Library route owners,
-  and the underlying cross-surface and layout effects.
+  timing. It binds the assistant, editor, layout, Library, project-file, and
+  surface-route owners directly and derives canonical context sources from
+  their live state. The application coordinator only connects those owners and
+  supplies immutable workspace-versus-Library mode and project API
+  configuration; it does not retain a parallel source factory or effect
+  adapters.
 - The workspace surface switcher replaces two button references, native action
   bindings, ARIA-state mutations, and its public change event. It routes
   internal and workflow-driven selection through one navigation method, owns

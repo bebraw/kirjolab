@@ -70,6 +70,11 @@ collaboration.
   Preview, the owner-private Library, and Writing assistant, and can host
   publication, PDF, and model-candidate resources without making local tab,
   pin, scroll, or reading-position state collaborative.
+  One composed context-resource presenter binds the live assistant, editor,
+  layout, Library, project-file, and surface-route owners and derives canonical
+  context sources and presentation effects from them. The coordinator connects
+  those owners and supplies immutable mode and API configuration without a
+  parallel source factory or effect callbacks.
   One progressive light-DOM tab strip owns fixed-tab presentation, dynamic-tab
   and overflow-overview composition from one input, keyboard focus, controlled-
   panel and Preview-control visibility, resource labels, private-versus-read-
