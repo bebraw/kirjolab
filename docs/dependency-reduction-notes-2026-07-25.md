@@ -14199,6 +14199,23 @@ contracts now name all three lifecycle variants explicitly.
 Full native CI passes all 1,775 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Valibot Reduction: Schema Guard Factory
+
+Twelve response guards for GitHub, LaTeX import, and share-link contracts now
+derive their type predicates from one typed Valibot schema-guard factory. The
+three guards that intentionally expose richer domain interfaces remain explicit
+and cast-free.
+
+This checkpoint removes 29 production lines while keeping `src/client/app.ts`
+at 73 lines. The affected guardrail passes 140 related cases across 14 suites
+alongside strict types. The browser application changes from 847,512 B raw /
+230,891 B gzip to 847,296 B raw / 230,896 B gzip (-216 B raw / +5 B gzip);
+direct and unique production package counts remain 18 and 150, and the other
+static artifacts remain unchanged.
+
+Full native CI passes all 1,775 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,

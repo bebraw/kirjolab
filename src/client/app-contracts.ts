@@ -171,6 +171,11 @@ const shareLinkStatusSchema = v.object({
 });
 const shareLinkResultSchema = v.object({ href: v.string() });
 
+const schemaGuard =
+  <const TSchema extends v.BaseSchema<unknown, unknown, v.BaseIssue<unknown>>>(schema: TSchema) =>
+  (value: unknown): value is v.InferOutput<TSchema> =>
+    v.is(schema, value);
+
 export type GitHubInstallationOption = Readonly<v.InferInput<typeof gitHubInstallationOptionSchema>>;
 export type GitHubRepositoryOption = Readonly<v.InferInput<typeof gitHubRepositoryOptionSchema>>;
 export type GitHubBranchOption = Readonly<v.InferInput<typeof gitHubBranchOptionSchema>>;
@@ -200,49 +205,17 @@ export function isWebSnapshotComparisonResponse(value: unknown): value is WebSna
   return v.is(webSnapshotComparisonResponseSchema, value);
 }
 
-export function isGitHubConnectionState(value: unknown): value is v.InferInput<typeof gitHubConnectionStateSchema> {
-  return v.is(gitHubConnectionStateSchema, value);
-}
-
-export function isGitHubInstallationList(value: unknown): value is v.InferInput<typeof gitHubInstallationListSchema> {
-  return v.is(gitHubInstallationListSchema, value);
-}
-
-export function isGitHubRepositoryList(value: unknown): value is v.InferInput<typeof gitHubRepositoryListSchema> {
-  return v.is(gitHubRepositoryListSchema, value);
-}
-
-export function isGitHubBranchList(value: unknown): value is v.InferInput<typeof gitHubBranchListSchema> {
-  return v.is(gitHubBranchListSchema, value);
-}
-
-export function isGitHubImportPreview(value: unknown): value is v.InferInput<typeof gitHubImportPreviewSchema> {
-  return v.is(gitHubImportPreviewSchema, value);
-}
-
-export function isGitHubImportResult(value: unknown): value is v.InferInput<typeof gitHubImportResultSchema> {
-  return v.is(gitHubImportResultSchema, value);
-}
-
-export function isGitHubSyncState(value: unknown): value is v.InferInput<typeof gitHubSyncStateSchema> {
-  return v.is(gitHubSyncStateSchema, value);
-}
-
-export function isGitHubPullPreview(value: unknown): value is v.InferInput<typeof gitHubPullPreviewSchema> {
-  return v.is(gitHubPullPreviewSchema, value);
-}
-
-export function isGitHubPublishPreview(value: unknown): value is v.InferInput<typeof gitHubPublishPreviewSchema> {
-  return v.is(gitHubPublishPreviewSchema, value);
-}
-
-export function isLatexImportPreview(value: unknown): value is LatexImportPreview {
-  return v.is(latexImportPreviewSchema, value);
-}
-
-export function isLatexImportResult(value: unknown): value is v.InferInput<typeof latexImportResultSchema> {
-  return v.is(latexImportResultSchema, value);
-}
+export const isGitHubConnectionState = schemaGuard(gitHubConnectionStateSchema);
+export const isGitHubInstallationList = schemaGuard(gitHubInstallationListSchema);
+export const isGitHubRepositoryList = schemaGuard(gitHubRepositoryListSchema);
+export const isGitHubBranchList = schemaGuard(gitHubBranchListSchema);
+export const isGitHubImportPreview = schemaGuard(gitHubImportPreviewSchema);
+export const isGitHubImportResult = schemaGuard(gitHubImportResultSchema);
+export const isGitHubSyncState = schemaGuard(gitHubSyncStateSchema);
+export const isGitHubPullPreview = schemaGuard(gitHubPullPreviewSchema);
+export const isGitHubPublishPreview = schemaGuard(gitHubPublishPreviewSchema);
+export const isLatexImportPreview = schemaGuard(latexImportPreviewSchema);
+export const isLatexImportResult = schemaGuard(latexImportResultSchema);
 
 export function isCreatedAnnotation(value: unknown): value is AnnotationResource {
   return v.is(createdAnnotationSchema, value);
@@ -252,6 +225,4 @@ export function isShareLinkStatus(value: unknown): value is ShareLinkStatus {
   return v.is(shareLinkStatusSchema, value);
 }
 
-export function isShareLinkResult(value: unknown): value is { readonly href: string } {
-  return v.is(shareLinkResultSchema, value);
-}
+export const isShareLinkResult = schemaGuard(shareLinkResultSchema);
