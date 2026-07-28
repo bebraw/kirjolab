@@ -14889,6 +14889,24 @@ and the other static artifacts remain unchanged.
 Full native CI passes all 1,781 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Root Reduction: Startup Error Normalization
+
+The browser entry now uses the existing unknown-error normalization helper for
+its fail-visible startup rejection instead of repeating the `Error` branch and
+fallback selection inline.
+
+This checkpoint removes one production line and reduces `src/client/app.ts`
+from 19 to 18 lines. Because the entry has no direct unit file, the affected
+guardrail passes the complete 1,781-test unit/coverage baseline with loopback
+permission, alongside formatting, lint, and all strict TypeScript targets. The
+browser application changes from 845,791 B raw / 230,982 B gzip to 845,765 B
+raw / 230,981 B gzip (-26 B raw / -1 B gzip); direct and unique production
+package counts remain 18 and 150, and the other static artifacts remain
+unchanged.
+
+Full native CI passes all 1,781 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,

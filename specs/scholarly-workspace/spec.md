@@ -27,7 +27,8 @@ collaboration.
   promise without a one-instance application class, startup function, or
   single-use binding wrapper.
   Browser bootstrap requires `document` before startup and reports a rejected
-  startup directly into the document body without a redundant later guard.
+  startup directly into the document body through the shared unknown-error
+  normalizer, without a redundant later guard.
   Persistent interface copy names the user's next action and keeps
   implementation detail in feature documentation rather than the task surface.
 - **Capability-scoped editor shell:** Read-only `/share/{token}` and writable

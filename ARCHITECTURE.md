@@ -65,8 +65,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Keep the authenticated browser entry as a module-private composition root,
   not a one-instance application class. Derive immutable bootstrap mode once,
   construct shared services once, invoke one ordered Lit startup entry directly,
-  and attach fail-visible reporting to that promise; cohesive reactive lifecycle belongs in the
-  bounded Lit owners. Because bootstrap validation already reads the browser
+  and attach fail-visible reporting through the shared unknown-error normalizer
+  to that promise; cohesive reactive lifecycle belongs in the bounded Lit
+  owners. Because bootstrap validation already reads the browser
   document, do not retain a later unreachable document-availability branch.
 - Use XState only for bounded event-driven browser workflows whose mutually
   exclusive states, asynchronous lifecycle, or guarded transitions would

@@ -39,7 +39,9 @@ composition as module-private constants plus one directly invoked Lit startup
 promise; do not retain a class, function, or single-use binding wrapper that
 adds no encapsulation over module scope. Let the Valibot bootstrap boundary return its derived project API
 base and workspace-mode flag, and do not repeat a document-availability guard
-after browser bootstrap has already required that document.
+after browser bootstrap has already required that document. The fail-visible
+startup rejection uses the same unknown-error normalizer as bounded request
+owners instead of repeating its fallback branch.
 
 Keep layout interaction in the workspace-layout Lit owner when its policy
 depends on canonical component state. It binds the workspace root and Context
