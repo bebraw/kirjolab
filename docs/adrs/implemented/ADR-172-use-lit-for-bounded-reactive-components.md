@@ -1290,9 +1290,10 @@ reason to wrap static markup mechanically.
   four-option template, selected value, workspace-scoped resilient persistence,
   workspace layout projection, and resize notification for internal, restored,
   and route-driven navigation before routing the typed outcome through a
-  binding. The coordinator retains PDF activation while the surface-navigation
-  owner consumes the layout state for URL synchronization. Its
-  public change event is removed.
+  binding. The surface-navigation owner's workspace-route binding consumes the
+  layout outcome, activates an available PDF through a narrow presenter
+  callback for PDF-only mode, and replaces the canonical URL. Its public change
+  event is removed.
 - The workspace rail tabs derive their four controlled panel targets from the
   existing `aria-controls` contract and own active-panel visibility alongside
   tab selection and comment-count presentation. Their navigation method applies

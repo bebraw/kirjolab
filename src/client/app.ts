@@ -174,10 +174,6 @@ class WorkspaceApp {
       this.#elements.toast.show(error instanceof Error ? error.message : "Could not clear offline data"),
     );
     this.#elements.workspaceLayout.configure(workspaceId, this.#elements.workspaceSurfaces);
-    this.#elements.workspaceLayout.bindChange(async (layout) => {
-      if (layout === "pdf") await this.#elements.contextResourcePresenter.ensurePdfResource();
-      this.#elements.workspaceSurfaceSwitcher.syncRoute("replace");
-    });
     this.#elements.workspaceCatalogPanel.configure(catalogBase, workspaceId, this.#elements.workspaceSwitcher);
     this.#elements.workspaceCatalogPanel.bindTrigger(this.#elements.manageWorkspaces);
     this.#elements.newWorkspaceStartingPoints.bindWorkspaces(() => this.#elements.workspaceCatalogPanel.catalog);
@@ -438,6 +434,7 @@ class WorkspaceApp {
       activeTab: () => this.#elements.contextResourcePresenter.activeContextTab,
       contextKey: () => this.#elements.contextResourcePresenter.activeKey,
       enabled: appMode === "workspace",
+      ensurePdfResource: () => this.#elements.contextResourcePresenter.ensurePdfResource(),
       entryFileId: () => this.#elements.projectFileDialog.project?.entryFileId,
       focusAuthoring: () => this.#elements.source.focus(),
       layout: this.#elements.workspaceLayout,

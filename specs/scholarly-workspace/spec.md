@@ -200,8 +200,9 @@ collaboration.
   a narrow callback, and replaces the route once for every Write outcome.
   The project-view Lit control likewise applies normalized internal, restored,
   and route-driven workspace layouts, resilient local persistence, and resize
-  notification before reporting one typed outcome. The coordinator retains PDF
-  availability; the surface switcher consumes layout state for route policy.
+  notification before reporting one typed outcome. The surface switcher's route
+  binding consumes that outcome, asks the presenter to ensure an available PDF
+  for PDF-only mode, and replaces the canonical route.
   A bounded History trigger owns the monotonic presented revision and badge,
   delegates its open intent to the history dialog, and routes revision-dependent
   collaborator data, highlight refresh, offline scheduling, and active-candidate

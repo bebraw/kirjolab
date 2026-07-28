@@ -47,6 +47,7 @@ describe("workspace surface switcher", () => {
     let railMode: WorkspaceRail = "guide";
     let authoringMode: AuthoringMode = "map";
     let layout: WorkspaceLayout = "context";
+    let changeLayout: ((layout: WorkspaceLayout) => void | Promise<void>) | undefined;
     let navigateMode: ((mode: AuthoringMode) => void) | undefined;
     const railNavigate = vi.fn((value: typeof railMode) => {
       railMode = value;
@@ -61,6 +62,7 @@ describe("workspace surface switcher", () => {
     const restoreContext = vi.fn().mockResolvedValue(undefined);
     const selectFile = vi.fn();
     const focusAuthoring = vi.fn();
+    const ensurePdfResource = vi.fn().mockResolvedValue(undefined);
     const replaceState = vi.fn();
     const pushState = vi.fn();
     vi.stubGlobal("location", {
@@ -72,11 +74,15 @@ describe("workspace surface switcher", () => {
       activeTab: () => ({ focusedAnnotationId: "mark", id: "paper", key: "pdf:paper", kind: "pdf", page: 3, scrollTop: 0 }),
       contextKey: () => "pdf:paper",
       enabled: true,
+      ensurePdfResource,
       entryFileId: () => "main",
       focusAuthoring,
       layout: {
         get value() {
           return layout;
+        },
+        bindChange: (change) => {
+          changeLayout = change;
         },
         navigate: layoutNavigate,
       },
@@ -126,6 +132,15 @@ describe("workspace surface switcher", () => {
       "",
       "/editor/demo?keep=yes&file=notes&rail=comments&layout=context&context=pdf%3Apaper&page=3&annotation=mark",
     );
+
+    layout = "pdf";
+    await changeLayout?.("pdf");
+    expect(ensurePdfResource).toHaveBeenCalledOnce();
+    expect(replaceState).toHaveBeenLastCalledWith(
+      { retained: true },
+      "",
+      "/editor/demo?keep=yes&file=notes&rail=comments&layout=pdf&context=pdf%3Apaper&page=3&annotation=mark",
+    );
   });
 
   it("ignores route work until an enabled route is bound and restored", async () => {
@@ -140,9 +155,10 @@ describe("workspace surface switcher", () => {
       activeTab: () => undefined,
       contextKey: () => "preview",
       enabled: false,
+      ensurePdfResource: vi.fn(),
       entryFileId: () => undefined,
       focusAuthoring: vi.fn(),
-      layout: { value: "split", navigate: vi.fn() },
+      layout: { value: "split", bindChange: vi.fn(), navigate: vi.fn() },
       mode: { mode: "write", bindNavigation: vi.fn(), navigate: vi.fn() },
       rail: { mode: "files", navigate: vi.fn() },
       restoreContext: vi.fn(),
@@ -163,9 +179,10 @@ describe("workspace surface switcher", () => {
       activeTab: () => undefined,
       contextKey: () => "preview",
       enabled: true,
+      ensurePdfResource: vi.fn(),
       entryFileId: () => undefined,
       focusAuthoring: vi.fn(),
-      layout: { value: "split", navigate: vi.fn() },
+      layout: { value: "split", bindChange: vi.fn(), navigate: vi.fn() },
       mode: { mode: "write", bindNavigation: vi.fn(), navigate: vi.fn() },
       rail: { mode: "files", navigate: vi.fn() },
       restoreContext: vi.fn(),

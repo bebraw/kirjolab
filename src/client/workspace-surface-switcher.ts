@@ -15,10 +15,12 @@ export interface WorkspaceRouteBinding {
   readonly activeTab: () => ResearchContextState["tabs"][number] | undefined;
   readonly contextKey: () => ResearchContextKey;
   readonly enabled: boolean;
+  readonly ensurePdfResource: () => Promise<void>;
   readonly entryFileId: () => string | undefined;
   readonly focusAuthoring: () => void;
   readonly layout: {
     readonly value: WorkspaceLayout;
+    readonly bindChange: (changeLayout: (layout: WorkspaceLayout) => void | Promise<void>) => void;
     readonly navigate: (layout: string, persist?: boolean) => Promise<WorkspaceLayout>;
   };
   readonly mode: {
@@ -65,6 +67,10 @@ export class WorkspaceSurfaceSwitcher extends LitElement {
         this.navigate("authoring", false);
         binding.focusAuthoring();
       }
+      this.syncRoute("replace");
+    });
+    binding.layout.bindChange(async (layout) => {
+      if (layout === "pdf") await binding.ensurePdfResource();
       this.syncRoute("replace");
     });
     this.bindHistory();
