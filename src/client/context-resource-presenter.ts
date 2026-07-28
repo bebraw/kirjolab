@@ -584,7 +584,7 @@ export class ContextResourcePresenter extends LitElement {
     this.element("project-annotation-form", ProjectAnnotationForm)?.configure(apiBase);
   }
 
-  bindProjectAnnotations(): void {
+  bindProjectKnowledge(apiBase: string): void {
     this.element("project-annotation-form", ProjectAnnotationForm)?.bindIntake({
       openPublication: (publication) => this.navigateResource({ kind: "publication", id: publication.id }),
       presentNotice: (message) => this.presentNotice(message),
@@ -604,9 +604,6 @@ export class ContextResourcePresenter extends LitElement {
         (await this.element("project-evidence-panel", ProjectEvidencePanel)?.removeFragment(annotationId, fragmentId)) ?? false,
       revealHighlight: (annotationId) => this.element("project-evidence-panel", ProjectEvidencePanel)?.revealAnnotation(annotationId),
     });
-  }
-
-  bindProjectKnowledge(apiBase: string): void {
     const claims = this.element("claim-list-panel", ClaimListPanel);
     claims?.configure(apiBase);
     claims?.bind({

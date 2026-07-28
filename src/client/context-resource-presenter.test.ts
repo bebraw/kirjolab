@@ -802,7 +802,7 @@ describe("context resource presenter", () => {
     const insertCitation = vi.spyOn(presenter, "insertActiveCitation");
     presenter.bindPdfViewer(viewer, "/api/workspaces/workspace");
 
-    presenter.bindProjectAnnotations();
+    presenter.bindProjectKnowledge("/api/workspaces/workspace");
     const workflow = bindWorkflow.mock.calls[0]?.[0];
     expect(workflow).toBeDefined();
     workflow?.chooseTool("erase");
@@ -1353,7 +1353,7 @@ describe("context resource presenter", () => {
     expect(coordinator.presentNotice).toHaveBeenNthCalledWith(3, "Open this grouped citation from Preview to choose a reference.");
     expect(coordinator.presentNotice).toHaveBeenNthCalledWith(4, "No publication resource is available for missing.");
 
-    presenter.bindProjectAnnotations();
+    presenter.bindProjectKnowledge("/api/workspaces/workspace");
     const intake = bindIntake.mock.calls[0]?.[0];
     expect(intake?.publications()).toEqual(project.publications);
     intake?.openPublication(publication);

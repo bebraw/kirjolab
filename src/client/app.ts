@@ -109,7 +109,6 @@ class WorkspaceApp {
     this.#collaborationSocket.bindDocument(this.#document, offlineOrigin);
     this.#elements.contextResourcePresenter.bindProjectMap(apiBase, this.#elements);
     this.#elements.contextResourcePresenter.bindPublications(apiBase, this.#elements.referenceLibraryWorkspace);
-    this.#elements.contextResourcePresenter.bindProjectAnnotations();
     this.#elements.contextResourcePresenter.bindLibraryPdf(apiBase, this.#elements);
     this.#elements.contextResourcePresenter.bindContext(appMode === "workspace" ? apiBase : null, this.#layout, this.#elements);
     this.#elements.contextResourcePresenter.bindRoutes(this.#document, this.#collaboration, this.#resourceRefresh, this.#elements);
