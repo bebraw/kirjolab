@@ -183,6 +183,18 @@ export class ContextResourcePresenter extends LightDomController {
   private routeBinding: ContextRouteBinding | null = null;
   private loadedReferencePdfs: readonly ProjectReferencePdf[] = [];
 
+  bindApplication(
+    apiBase: string,
+    workspace: boolean,
+    session: ContextRouteBinding["collaboration"] & { readonly document: Y.Doc },
+    resources: ContextRouteBinding["resources"],
+    owners: ContextPresentationOwners & ContextRouteOwners & ProjectKnowledgeOwners,
+  ): void {
+    this.bindProjectKnowledge(apiBase, owners);
+    this.bindContext(workspace ? apiBase : null, owners);
+    this.bindRoutes(session.document, session, resources, owners);
+  }
+
   get referencePdfs(): readonly ProjectReferencePdf[] {
     return this.loadedReferencePdfs;
   }

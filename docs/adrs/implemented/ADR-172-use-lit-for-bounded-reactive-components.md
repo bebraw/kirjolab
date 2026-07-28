@@ -1435,10 +1435,11 @@ reactive owner and adds only empty rendering and typed sibling lookup.
   browser-local canonical context state, authorization reconciliation, resource
   closure, PDF location, resource-panel scroll restoration, tab presentation,
   focus, route-effect sequencing, surface activation, and active-PDF load
-  timing. It binds the assistant, editor, layout, Library, project-file, and
-  surface-route owners directly and derives canonical context sources from
-  their live state. The application coordinator only connects those owners and
-  supplies immutable workspace-versus-Library mode and project API
+  timing. One atomic application entry binds its project-knowledge,
+  presentation, and route sources, including the assistant, editor, layout,
+  Library, project-file, and surface-route owners, and derives canonical
+  context sources from their live state. The application coordinator only
+  connects those owners and supplies immutable workspace-versus-Library mode and project API
   configuration; it does not retain a parallel source factory or effect
   adapters.
 - The workspace surface switcher replaces two button references, native action

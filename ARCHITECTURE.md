@@ -1304,8 +1304,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   activate, close, authorization-reconciliation, and PDF-location transitions,
   restores resource scroll, and projects bound viewer state back into canonical
   fixed-tab scroll, resource scroll, PDF page, and focused-annotation state. It
-  binds the canonical assistant, editor-status, Library, project-file, and
-  surface-route and workspace-layout owners directly,
+  binds project-knowledge, presentation, and route sources through one atomic
+  application entry, including the canonical assistant, editor-status,
+  Library, project-file, surface-route, and workspace-layout owners,
   deriving canonical project and Library sources from them instead of accepting
   a parallel source factory and effect callbacks. Candidate presentation derives
   from that same assistant owner instead of a second presenter binding.

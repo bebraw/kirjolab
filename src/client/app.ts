@@ -36,29 +36,28 @@ class WorkspaceApp {
   }
 
   #bindUi(): void {
-    this.#elements.assistantGenerationPresenter.bindApplication(apiBase, this.#session, this.#refresh, this.#elements);
-    this.#elements.workspaceCatalogPanel.bindWorkspace(workspaceId, this.#elements);
-    this.#elements.workspaceSettingsPanel.bindWorkspace(workspaceId, apiBase, appMode === "workspace", this.#refresh, this.#elements);
-    this.#elements.newWorkspaceStartingPoints.bindWorkspace(this.#elements);
-    this.#elements.saveTemplateDialog.bindWorkspace(apiBase, this.#elements.newWorkspaceStartingPoints, this.#elements.toast);
-    this.#elements.researchDiaryPanel.bindProject(this.#elements.projectFileDialog);
-    this.#elements.manuscriptMapPanel.bindProjectPresentation(this.#elements);
-    for (const panel of [this.#elements.researchQuestionPanel, this.#elements.reviewerResponsePanel]) {
-      panel.bindProject(this.#elements.projectFileDialog, this.#elements.toast);
+    const owners = this.#elements;
+    owners.assistantGenerationPresenter.bindApplication(apiBase, this.#session, this.#refresh, owners);
+    owners.workspaceCatalogPanel.bindWorkspace(workspaceId, owners);
+    owners.workspaceSettingsPanel.bindWorkspace(workspaceId, apiBase, appMode === "workspace", this.#refresh, owners);
+    owners.newWorkspaceStartingPoints.bindWorkspace(owners);
+    owners.saveTemplateDialog.bindWorkspace(apiBase, owners.newWorkspaceStartingPoints, owners.toast);
+    owners.researchDiaryPanel.bindProject(owners.projectFileDialog);
+    owners.manuscriptMapPanel.bindProjectPresentation(owners);
+    for (const panel of [owners.researchQuestionPanel, owners.reviewerResponsePanel]) {
+      panel.bindProject(owners.projectFileDialog, owners.toast);
     }
-    this.#elements.workspaceSharingPanel.configure(apiBase, this.#elements);
-    this.#elements.editorStatus.bindAuthoring(this.#session.document, this.#elements.source, this.#elements, this.#socket);
-    this.#elements.sourceCompletion.bindWorkspace(apiBase, this.#elements);
-    this.#elements.projectFileDialog.configureApi(apiBase, this.#elements, this.#elements.workspaceLayout);
-    this.#elements.projectFileDialog.bindLiveContent(this.#session);
-    this.#elements.projectFileDialog.bindProjectRefresh(appMode === "workspace", this.#elements, this.#session, this.#offline);
-    this.#elements.workspacePreview.bindProject(apiBase, this.#session.document, this.#elements);
-    this.#elements.projectHistoryTrigger.bindWorkspace(apiBase, this.#elements, this.#offline);
-    this.#elements.contextResourcePresenter.bindProjectKnowledge(apiBase, this.#elements);
-    this.#elements.workspaceLayout.bindWorkspace(workspaceId, this.#elements);
-    this.#elements.contextResourcePresenter.bindContext(appMode === "workspace" ? apiBase : null, this.#elements);
-    this.#elements.contextResourcePresenter.bindRoutes(this.#session.document, this.#session, this.#refresh, this.#elements);
-    this.#elements.workspaceSurfaceSwitcher.bindWorkspaceRoute(appMode === "workspace", this.#elements);
+    owners.workspaceSharingPanel.configure(apiBase, owners);
+    owners.editorStatus.bindAuthoring(this.#session.document, owners.source, owners, this.#socket);
+    owners.sourceCompletion.bindWorkspace(apiBase, owners);
+    owners.projectFileDialog.configureApi(apiBase, owners, owners.workspaceLayout);
+    owners.projectFileDialog.bindLiveContent(this.#session);
+    owners.projectFileDialog.bindProjectRefresh(appMode === "workspace", owners, this.#session, this.#offline);
+    owners.workspacePreview.bindProject(apiBase, this.#session.document, owners);
+    owners.projectHistoryTrigger.bindWorkspace(apiBase, owners, this.#offline);
+    owners.workspaceLayout.bindWorkspace(workspaceId, owners);
+    owners.contextResourcePresenter.bindApplication(apiBase, appMode === "workspace", this.#session, this.#refresh, owners);
+    owners.workspaceSurfaceSwitcher.bindWorkspaceRoute(appMode === "workspace", owners);
   }
 }
 

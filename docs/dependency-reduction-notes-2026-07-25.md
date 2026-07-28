@@ -14236,6 +14236,26 @@ the atomic production binding.
 Full native CI passes all 1,775 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Atomic Context Application Binding
+
+The context-resource Lit presenter now installs project-knowledge,
+presentation, and route sources through one production application entry. A
+local `owners` alias keeps the composition root declarative without introducing
+a parallel registry, while the presenter's focused binding methods remain
+available for independent domain tests and runtime transitions.
+
+This checkpoint trades eleven net production lines for the atomic Context
+boundary and reduces `src/client/app.ts` from 71 to 70 lines. The affected
+guardrail passes 54 related cases across four suites alongside strict types.
+The browser application changes from 847,281 B raw / 230,913 B gzip to 847,027
+B raw / 230,927 B gzip (-254 B raw / +14 B gzip); direct and unique production
+package counts remain 18 and 150, and the other static artifacts remain
+unchanged. Architecture, ADR, and scholarly-workspace contracts now require
+the atomic application binding.
+
+Full native CI passes all 1,775 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,

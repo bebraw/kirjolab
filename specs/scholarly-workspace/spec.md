@@ -95,9 +95,10 @@ collaboration.
   Preview, the owner-private Library, and Writing assistant, and can host
   publication, PDF, and model-candidate resources without making local tab,
   pin, scroll, or reading-position state collaborative.
-  One composed context-resource presenter binds the canonical assistant,
-  editor-status, Library, project-file, surface-route, and workspace-layout
-  owners and derives canonical context sources and
+  One composed context-resource presenter atomically binds its project-
+  knowledge, presentation, and route sources, including the canonical
+  assistant, editor-status, Library, project-file, surface-route, and
+  workspace-layout owners, and derives canonical context sources and
   presentation effects from them. Candidate presentation uses that same
   assistant owner without a second coordinator binding. This context owner and
   the non-rendering assistant presenter share one light-DOM Lit controller and
