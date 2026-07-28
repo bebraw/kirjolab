@@ -102,8 +102,10 @@ collaboration.
   assistant owner without a second coordinator binding. This context owner and
   the non-rendering assistant presenter share one light-DOM Lit controller and
   typed sibling-lookup base while retaining independent domain bindings. That
-  controller specializes the common first-connection cleanup and render-root
-  lifecycle used by bounded light-DOM workspace components.
+  controller specializes the normal first-connection cleanup over the common
+  light-DOM render-root host. Components that require synchronous initial
+  rendering use the host's eager specialization, while passive coordination
+  owners retain server markup.
   Standalone-Library mode derives from an
   absent project API base. The coordinator connects those owners and supplies
   only that nullable API configuration without a parallel source factory,

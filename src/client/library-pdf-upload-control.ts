@@ -1,4 +1,6 @@
-import { html, LitElement, nothing, type TemplateResult } from "lit";
+import { html, nothing, type TemplateResult } from "lit";
+
+import { EagerLightDomElement } from "./light-dom-controller";
 import { isPdfDraftResult } from "../domain/reference-library";
 import { errorMessage, expectOk } from "./http";
 import { libraryPdfUploadRetryEvent, type LibraryPdfUploadStatus } from "./library-pdf-upload-status";
@@ -10,7 +12,7 @@ export type LibraryPdfUploadOutcome =
   | { readonly action: "notice"; readonly message: string }
   | { readonly action: "refresh"; readonly message: string; readonly requestId: number };
 
-export class LibraryPdfUploadControl extends LitElement {
+export class LibraryPdfUploadControl extends EagerLightDomElement {
   static override properties = {
     dragging: { state: true },
     uploadBusy: { state: true },
@@ -49,20 +51,6 @@ export class LibraryPdfUploadControl extends LitElement {
   complete(requestId: number): void {
     if (requestId !== this.requestId) return;
     this.finish();
-  }
-
-  /* v8 ignore start -- exercised by browser fallback rendering */
-  override connectedCallback(): void {
-    super.connectedCallback();
-    if (!this.hasUpdated && typeof this.replaceChildren === "function") {
-      this.replaceChildren();
-      this.performUpdate();
-    }
-  }
-  /* v8 ignore stop */
-
-  protected override createRenderRoot(): HTMLElement {
-    return this;
   }
 
   protected override render(): TemplateResult {

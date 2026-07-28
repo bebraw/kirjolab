@@ -1,4 +1,6 @@
-import { html, LitElement, nothing, type TemplateResult } from "lit";
+import { html, nothing, type TemplateResult } from "lit";
+
+import { EagerLightDomElement } from "./light-dom-controller";
 import { errorMessage, expectOk } from "./http";
 
 export const libraryToolsActionEvent = "library-tools-action";
@@ -11,7 +13,7 @@ export interface LibraryToolsArchiveRefresh {
 
 export type LibraryToolsAction = "archive-visibility-change" | "open-citation-network";
 
-export class LibraryToolsMenu extends LitElement {
+export class LibraryToolsMenu extends EagerLightDomElement {
   static override properties = {
     archiveBusy: { state: true },
     archiveStatus: { state: true },
@@ -44,20 +46,6 @@ export class LibraryToolsMenu extends LitElement {
     if (requestId !== this.archiveRequestId) return;
     this.archiveBusy = false;
     this.archiveStatus = "";
-  }
-
-  /* v8 ignore start -- exercised by browser fallback rendering */
-  override connectedCallback(): void {
-    super.connectedCallback();
-    if (!this.hasUpdated && typeof this.replaceChildren === "function") {
-      this.replaceChildren();
-      this.performUpdate();
-    }
-  }
-  /* v8 ignore stop */
-
-  protected override createRenderRoot(): HTMLElement {
-    return this;
   }
 
   protected override render(): TemplateResult {

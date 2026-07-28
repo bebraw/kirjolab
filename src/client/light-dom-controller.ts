@@ -1,13 +1,25 @@
 import { html, LitElement, type TemplateResult } from "lit";
 
-export abstract class LightDomElement extends LitElement {
+export abstract class LightDomHost extends LitElement {
+  protected override createRenderRoot(): HTMLElement {
+    return this;
+  }
+}
+
+export abstract class LightDomElement extends LightDomHost {
   override connectedCallback(): void {
     if (!this.hasUpdated && typeof this.replaceChildren === "function") this.replaceChildren();
     super.connectedCallback();
   }
+}
 
-  protected override createRenderRoot(): HTMLElement {
-    return this;
+export abstract class EagerLightDomElement extends LightDomHost {
+  override connectedCallback(): void {
+    super.connectedCallback();
+    if (!this.hasUpdated && typeof this.replaceChildren === "function") {
+      this.replaceChildren();
+      this.performUpdate();
+    }
   }
 }
 

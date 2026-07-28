@@ -1,4 +1,5 @@
-import { html, LitElement, type TemplateResult } from "lit";
+import { html, type TemplateResult } from "lit";
+import { EagerLightDomElement } from "./light-dom-controller";
 import type {
   LibraryHighlight,
   LibraryPdfArtifact,
@@ -46,7 +47,7 @@ export interface LibraryProjectMutations {
   applyProjectMutation(snapshot: ProjectReferenceChanged["snapshot"], message?: string): Promise<void>;
 }
 
-export class LibraryPdfInspector extends LitElement {
+export class LibraryPdfInspector extends EagerLightDomElement {
   static override properties = {
     artifactId: { state: true },
     inspectorOpen: { state: true },
@@ -205,20 +206,6 @@ export class LibraryPdfInspector extends LitElement {
     this.annotationForms.clearMarkup();
     this.setStatus("Select text to highlight.");
     this.setInspectorOpen(false);
-  }
-
-  /* v8 ignore start -- exercised by browser fallback rendering */
-  override connectedCallback(): void {
-    super.connectedCallback();
-    if (!this.hasUpdated && typeof this.replaceChildren === "function") {
-      this.replaceChildren();
-      this.performUpdate();
-    }
-  }
-  /* v8 ignore stop */
-
-  protected override createRenderRoot(): HTMLElement {
-    return this;
   }
 
   protected override render(): TemplateResult {

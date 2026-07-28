@@ -85,10 +85,12 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   application shell. Keep Yjs and cross-feature XState actors in application
   authorities; a component may own an actor whose full lifecycle is confined
   to its interaction and whose outward effects are typed outcomes. Let
-  light-DOM components share one Lit base for first-connection server-markup
-  cleanup and render-root selection. Non-rendering presenters extend its
-  controller specialization for empty rendering and typed sibling lookup; keep
-  domain bindings, effects, and reconnect work in the concrete components.
+  light-DOM components share one Lit host for render-root selection. Reactive
+  owners extend its normal first-connection server-markup cleanup or synchronous
+  first-render specialization; passive owners retain server markup. Non-rendering
+  presenters extend the normal owner's controller specialization for empty
+  rendering and typed sibling lookup; keep domain bindings, effects, and
+  reconnect work in the concrete components.
 - Let the project-map Lit workspace own its authorized knowledge-search request,
   response validation, and idle, result, and error lifecycle because those
   states also determine whether the graph overview is visible. Let it parse and

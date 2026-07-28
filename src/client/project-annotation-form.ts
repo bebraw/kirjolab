@@ -1,8 +1,9 @@
-import { html, LitElement, type TemplateResult } from "lit";
+import { html, type TemplateResult } from "lit";
 import { libraryPdfRectsOverlap } from "../domain/reference-library";
 import type { AnnotationResource, CreateAnnotationInput, PdfResource, PublicationPdfLink, PublicationResource } from "../domain/workspace";
 import { isCreatedAnnotation } from "./app-contracts";
 import { errorMessage, expectOk, jsonFetch } from "./http";
+import { EagerLightDomElement } from "./light-dom-controller";
 import "./publication-intake-panel";
 import type { PublicationIntakeAction, PublicationIntakePanel } from "./publication-intake-panel";
 
@@ -44,7 +45,7 @@ interface IntakeContext {
   readonly publications: readonly PublicationResource[];
 }
 
-export class ProjectAnnotationForm extends LitElement {
+export class ProjectAnnotationForm extends EagerLightDomElement {
   static override properties = {
     comment: { state: true },
     citationCount: { state: true },
@@ -244,20 +245,6 @@ export class ProjectAnnotationForm extends LitElement {
       this.status = errorMessage(error, "Could not save the highlight.");
       return false;
     }
-  }
-
-  /* v8 ignore start -- exercised by browser fallback rendering */
-  override connectedCallback(): void {
-    super.connectedCallback();
-    if (!this.hasUpdated && typeof this.replaceChildren === "function") {
-      this.replaceChildren();
-      this.performUpdate();
-    }
-  }
-  /* v8 ignore stop */
-
-  protected override createRenderRoot(): HTMLElement {
-    return this;
   }
 
   protected override firstUpdated(): void {

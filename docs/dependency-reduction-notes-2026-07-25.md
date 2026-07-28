@@ -14180,6 +14180,25 @@ static artifacts remain unchanged.
 Full native CI passes all 1,775 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Reduction: Explicit Light-DOM Lifecycle Variants
+
+The shared Lit foundation now separates passive light-DOM hosts, normal
+first-connection cleanup, and eager synchronous first rendering. Action-menu
+and reference-Library coordination use the passive host; the PDF inspector,
+PDF upload, Library tools, and project annotation form use the eager variant.
+No concrete client component retains a local `createRenderRoot()` override.
+
+This checkpoint removes 45 production lines while keeping `src/client/app.ts`
+at 73 lines. The affected guardrail passes 534 related cases across 93 suites
+alongside strict types. The browser application changes from 848,113 B raw /
+231,082 B gzip to 847,512 B raw / 230,891 B gzip (-601 B raw / -191 B gzip);
+direct and unique production package counts remain 18 and 150, and the other
+static artifacts remain unchanged. Architecture, ADR, and scholarly-workspace
+contracts now name all three lifecycle variants explicitly.
+
+Full native CI passes all 1,775 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,

@@ -1,6 +1,7 @@
-import { LitElement, nothing, type TemplateResult } from "lit";
+import { nothing, type TemplateResult } from "lit";
+import { LightDomHost } from "./light-dom-controller";
 
-export class ActionMenuController extends LitElement {
+export class ActionMenuController extends LightDomHost {
   protected get menuDocument(): Document {
     return this.ownerDocument;
   }
@@ -36,10 +37,6 @@ export class ActionMenuController extends LitElement {
     this.menuDocument.removeEventListener("click", this.closeFromClick);
     this.menuDocument.removeEventListener("keydown", this.closeFromKeyboard);
     super.disconnectedCallback();
-  }
-
-  protected override createRenderRoot(): HTMLElement {
-    return this;
   }
 
   protected override render(): TemplateResult | typeof nothing {

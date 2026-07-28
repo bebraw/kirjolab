@@ -1,4 +1,3 @@
-import { LitElement } from "lit";
 import {
   isReferenceLibrarySnapshot,
   type LibraryPdfArtifact,
@@ -29,6 +28,7 @@ import { libraryDiscoveryResultsEvent } from "./library-discovery-search";
 import { libraryPdfUploadOutcomeEvent, LibraryPdfUploadControl, type LibraryPdfUploadOutcome } from "./library-pdf-upload-control";
 import { libraryPdfUploadRevealEvent, LibraryPdfUploadStatus } from "./library-pdf-upload-status";
 import { libraryPdfRoute, readLibraryUiRoute, type LibraryUiRoute } from "./library-ui-route";
+import { LightDomHost } from "./light-dom-controller";
 import {
   libraryToolsActionEvent,
   libraryToolsArchiveRefreshEvent,
@@ -85,7 +85,7 @@ export interface StandaloneLibraryOwners {
   readonly workspaceSurfaces: HTMLElement;
 }
 
-export class ReferenceLibraryWorkspace extends LitElement {
+export class ReferenceLibraryWorkspace extends LightDomHost {
   private data: ReferenceLibraryWorkspaceData | null = null;
   private librarySnapshot: ReferenceLibrarySnapshot | null = null;
   private browserHistory: ReferenceLibraryHistory | null = null;
@@ -392,10 +392,6 @@ export class ReferenceLibraryWorkspace extends LitElement {
     network.setReferences(data.library.references);
     list.setData({ ...data, references: filters.filterLibrary(data.library, data.projectReferences) });
     unidentified.setLibrary(data.library);
-  }
-
-  protected override createRenderRoot(): HTMLElement {
-    return this;
   }
 
   override connectedCallback(): void {
