@@ -1,6 +1,6 @@
 import { html, LitElement, type TemplateResult } from "lit";
 
-export abstract class LightDomController extends LitElement {
+export abstract class LightDomElement extends LitElement {
   override connectedCallback(): void {
     if (!this.hasUpdated) this.replaceChildren();
     super.connectedCallback();
@@ -9,7 +9,9 @@ export abstract class LightDomController extends LitElement {
   protected override createRenderRoot(): HTMLElement {
     return this;
   }
+}
 
+export abstract class LightDomController extends LightDomElement {
   protected override render(): TemplateResult {
     return html``;
   }

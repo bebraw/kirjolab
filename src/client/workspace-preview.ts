@@ -1,4 +1,4 @@
-import { html, LitElement, type TemplateResult } from "lit";
+import { html, type TemplateResult } from "lit";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import type * as Y from "yjs";
 import type { Diagnostic } from "../domain/markdown";
@@ -18,6 +18,7 @@ import { sourceSpanAt } from "./composition-source-map";
 import { ContextResourcePresenter } from "./context-resource-presenter";
 import { parseCitationKeys, type CitationContext } from "./citations";
 import { loadMarkdownRuntime, type MarkdownRuntime } from "./markdown-runtime";
+import { LightDomElement } from "./light-dom-controller";
 import { ManuscriptMapPanel } from "./manuscript-map-panel";
 import {
   previewDiagnosticSelectEvent,
@@ -93,7 +94,7 @@ export interface ProjectPreviewImageContext {
   readonly sourceMap: readonly CompositionSourceSpan[];
 }
 
-export class WorkspacePreview extends LitElement {
+export class WorkspacePreview extends LightDomElement {
   static override properties = { content: { state: true } };
 
   declare private content: PreviewContent;
@@ -124,7 +125,6 @@ export class WorkspacePreview extends LitElement {
   }
 
   override connectedCallback(): void {
-    if (!this.hasUpdated) this.replaceChildren();
     super.connectedCallback();
     this.bindProjectUpdates();
     void this.loadRuntime().catch(() => undefined);
@@ -133,10 +133,6 @@ export class WorkspacePreview extends LitElement {
   override disconnectedCallback(): void {
     this.unbindProjectUpdates();
     super.disconnectedCallback();
-  }
-
-  protected override createRenderRoot(): HTMLElement {
-    return this;
   }
 
   protected override render(): TemplateResult {

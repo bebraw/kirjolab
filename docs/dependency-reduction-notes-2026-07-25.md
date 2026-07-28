@@ -14012,6 +14012,24 @@ counts remain 18 and 150, and the other static artifacts remain unchanged.
 Full native CI passes all 1,775 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Reduction: Workspace Element Base Pilot
+
+`LightDomElement` now owns first-connection server-markup cleanup and light-DOM
+render-root selection. Project files, Preview, settings, sharing, and surface
+switching extend that common element while retaining their reconnect work;
+`LightDomController` specializes it for the existing non-rendering presenters.
+
+This pilot removes four repeated lines from each of five workspace owners and
+adds two lines to the shared base, removing 18 production lines overall while
+keeping `src/client/app.ts` at 73 lines. The seven focused suites pass all 110
+cases, and the affected guardrail passes 123 related cases alongside strict
+types. The browser application changes from 856,907 B raw / 231,429 B gzip to
+856,579 B raw / 231,411 B gzip (-328 B raw / -18 B gzip); direct and unique
+production package counts remain 18 and 150, and the other static artifacts
+remain unchanged.
+Full native CI passes all 1,775 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,

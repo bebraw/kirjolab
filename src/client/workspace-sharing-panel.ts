@@ -1,7 +1,8 @@
-import { html, LitElement, type TemplateResult } from "lit";
+import { html, type TemplateResult } from "lit";
 import { isWorkspaceMembers, type WorkspaceMember } from "../domain/workspace";
 import { isShareLinkResult, isShareLinkStatus, type ShareLinkStatus } from "./app-contracts";
 import { errorMessage, expectOk, jsonFetch } from "./http";
+import { LightDomElement } from "./light-dom-controller";
 
 export type WorkspaceShareKind = "read-only" | "edit";
 
@@ -26,7 +27,7 @@ const checkingShareLink: ShareLinkPresentation = {
   href: null,
 };
 
-export class WorkspaceSharingPanel extends LitElement {
+export class WorkspaceSharingPanel extends LightDomElement {
   static override properties = {
     editShare: { state: true },
     inviteEmail: { state: true },
@@ -85,7 +86,6 @@ export class WorkspaceSharingPanel extends LitElement {
   }
 
   override connectedCallback(): void {
-    if (!this.hasUpdated) this.replaceChildren();
     super.connectedCallback();
     this.trigger?.addEventListener("click", this.handleOpen);
   }
@@ -93,10 +93,6 @@ export class WorkspaceSharingPanel extends LitElement {
   override disconnectedCallback(): void {
     this.trigger?.removeEventListener("click", this.handleOpen);
     super.disconnectedCallback();
-  }
-
-  protected override createRenderRoot(): HTMLElement {
-    return this;
   }
 
   protected override render(): TemplateResult {

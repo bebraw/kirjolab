@@ -1,5 +1,6 @@
-import { html, LitElement, type TemplateResult } from "lit";
+import { html, type TemplateResult } from "lit";
 import type { ResearchContextKey, ResearchContextState } from "./research-context";
+import { LightDomElement } from "./light-dom-controller";
 import {
   readWorkspaceUiRoute,
   workspaceUiRouteSelection,
@@ -41,7 +42,7 @@ export interface WorkspaceRouteOwners {
   readonly source: Pick<HTMLElement, "focus">;
 }
 
-export class WorkspaceSurfaceSwitcher extends LitElement {
+export class WorkspaceSurfaceSwitcher extends LightDomElement {
   static override properties = { surface: { state: true } };
 
   declare private surface: WorkspaceSurface;
@@ -130,7 +131,6 @@ export class WorkspaceSurfaceSwitcher extends LitElement {
   }
 
   override connectedCallback(): void {
-    if (!this.hasUpdated) this.replaceChildren();
     super.connectedCallback();
     this.bindHistory();
   }
@@ -138,10 +138,6 @@ export class WorkspaceSurfaceSwitcher extends LitElement {
   override disconnectedCallback(): void {
     this.unbindHistory();
     super.disconnectedCallback();
-  }
-
-  protected override createRenderRoot(): HTMLElement {
-    return this;
   }
 
   protected override render(): TemplateResult {

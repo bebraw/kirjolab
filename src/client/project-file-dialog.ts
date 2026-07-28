@@ -1,9 +1,10 @@
-import { html, LitElement, type TemplateResult } from "lit";
+import { html, type TemplateResult } from "lit";
 import { projectFileCollaborationTextName, relativeProjectPath, type ProjectAsset, type ProjectFile } from "../domain/project-files";
 import { isWorkspaceSnapshot, type WorkspaceSnapshot } from "../domain/workspace";
 import { DeferredDeletionController, type DeferredDeletionNoticeOptions } from "./deferred-deletion";
 import type { CollaborationSession } from "./collaboration-session";
 import { errorMessage, expectOk, jsonFetch } from "./http";
+import { LightDomElement } from "./light-dom-controller";
 import { projectFileActionEvent, type ProjectFileAction } from "./project-file-actions";
 import { projectImagesUploadedEvent, type ProjectImagesUploaded } from "./project-image-upload-control";
 import { projectTreeActionEvent, type ProjectTreeAction, type ProjectTreeCallbacks, type ProjectTreeData } from "./project-tree-panel";
@@ -118,7 +119,7 @@ function projectFileDialogHelp(mode: ProjectFileDialogMode): string {
   return "Compose this file from the project entry with ::include[path].";
 }
 
-export class ProjectFileDialog extends LitElement {
+export class ProjectFileDialog extends LightDomElement {
   static override properties = {
     initialPath: { state: true },
     mode: { state: true },
@@ -450,7 +451,6 @@ export class ProjectFileDialog extends LitElement {
   }
 
   override connectedCallback(): void {
-    if (!this.hasUpdated) this.replaceChildren();
     super.connectedCallback();
     this.connectOwners();
   }
@@ -459,10 +459,6 @@ export class ProjectFileDialog extends LitElement {
     this.ownerAbort?.abort();
     this.ownerAbort = null;
     super.disconnectedCallback();
-  }
-
-  protected override createRenderRoot(): HTMLElement {
-    return this;
   }
 
   protected override render(): TemplateResult {

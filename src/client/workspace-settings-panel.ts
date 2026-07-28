@@ -1,4 +1,4 @@
-import { html, LitElement, type TemplateResult } from "lit";
+import { html, type TemplateResult } from "lit";
 import {
   defaultProjectPublicationProfile,
   isWorkspaceSummaries,
@@ -9,6 +9,7 @@ import {
 import { GitHubSyncReview } from "./github-sync-review";
 import { expectOk, jsonFetch } from "./http";
 import type { GitHubSyncMenu } from "./github-sync-menu";
+import { LightDomElement } from "./light-dom-controller";
 
 export interface WorkspaceSettingsValue {
   readonly entryFileId: string;
@@ -47,7 +48,7 @@ export interface WorkspaceSettingsOwners {
 
 type ProjectRefresh = { request(): Promise<void> };
 
-export class WorkspaceSettingsPanel extends LitElement {
+export class WorkspaceSettingsPanel extends LightDomElement {
   static override properties = {
     busy: { state: true },
     gitHubStatus: { state: true },
@@ -180,7 +181,6 @@ export class WorkspaceSettingsPanel extends LitElement {
   }
 
   override connectedCallback(): void {
-    if (!this.hasUpdated) this.replaceChildren();
     super.connectedCallback();
     if (this.triggerBinding?.signal.aborted) this.bindTrigger();
   }
@@ -188,10 +188,6 @@ export class WorkspaceSettingsPanel extends LitElement {
   override disconnectedCallback(): void {
     this.triggerBinding?.abort();
     super.disconnectedCallback();
-  }
-
-  protected override createRenderRoot(): HTMLElement {
-    return this;
   }
 
   protected setView(view: WorkspaceSettingsView): void {

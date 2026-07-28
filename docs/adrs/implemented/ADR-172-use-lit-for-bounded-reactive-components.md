@@ -30,9 +30,10 @@ lifecycle, payload, validation, progress, and result serve only that component's
 local interaction. It may navigate only to a canonical href supplied through
 its own authorized inputs or validated request result.
 
-Non-rendering light-DOM presenters share one Lit base for first-connection
-server-markup cleanup, empty rendering, light-DOM root selection, and typed
-sibling lookup. Concrete presenters retain every domain binding and effect.
+Light-DOM components share one Lit base for first-connection server-markup
+cleanup and render-root selection. Non-rendering presenters extend its
+controller specialization for empty rendering and typed sibling lookup.
+Concrete components retain every domain binding, reconnect action, and effect.
 
 Keep layout interaction in the workspace-layout Lit owner when its policy
 depends on canonical component state. It binds the workspace root and Context
