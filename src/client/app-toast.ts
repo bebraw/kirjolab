@@ -1,4 +1,5 @@
-import { html, LitElement, nothing, type TemplateResult } from "lit";
+import { html, nothing, type TemplateResult } from "lit";
+import { LightDomElement } from "./light-dom-controller";
 
 export const appToastActionEvent = "kirjolab-app-toast-action";
 export const appToastDismissEvent = "kirjolab-app-toast-dismiss";
@@ -14,7 +15,7 @@ interface AppToastNotice extends AppToastOptions {
   readonly message: string;
 }
 
-export class AppToast extends LitElement {
+export class AppToast extends LightDomElement {
   static override properties = { notice: { state: true } };
 
   declare private notice: AppToastNotice | null;
@@ -52,15 +53,6 @@ export class AppToast extends LitElement {
     this.requestUpdate();
     this.notice?.action?.();
     this.dispatchEvent(new CustomEvent(appToastActionEvent, { bubbles: true, composed: true }));
-  }
-
-  override connectedCallback(): void {
-    if (!this.hasUpdated) this.replaceChildren();
-    super.connectedCallback();
-  }
-
-  protected override createRenderRoot(): HTMLElement {
-    return this;
   }
 
   protected override render(): TemplateResult {

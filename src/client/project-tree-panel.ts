@@ -1,6 +1,7 @@
-import { html, LitElement, nothing, type TemplateResult } from "lit";
+import { html, nothing, type TemplateResult } from "lit";
 import type { ProjectAsset, ProjectFile, ProjectFolder } from "../domain/project-files";
 import { isWorkspaceSnapshot, type WorkspaceSnapshot } from "../domain/workspace";
+import { LightDomElement } from "./light-dom-controller";
 import { DeferredDeletionController, type DeferredDeletionNoticeOptions } from "./deferred-deletion";
 import { expectOk } from "./http";
 
@@ -32,7 +33,7 @@ export interface ProjectTreeCallbacks {
   readonly previewChanged: () => void;
 }
 
-export class ProjectTreePanel extends LitElement {
+export class ProjectTreePanel extends LightDomElement {
   static override properties = {
     data: { state: true },
     openMenuKey: { state: true },
@@ -82,7 +83,6 @@ export class ProjectTreePanel extends LitElement {
   }
 
   override connectedCallback(): void {
-    if (!this.hasUpdated) this.replaceChildren();
     super.connectedCallback();
     this.ownerDocument.addEventListener("keydown", this.handleQuickOpen);
   }
@@ -90,10 +90,6 @@ export class ProjectTreePanel extends LitElement {
   override disconnectedCallback(): void {
     this.ownerDocument.removeEventListener("keydown", this.handleQuickOpen);
     super.disconnectedCallback();
-  }
-
-  protected override createRenderRoot(): HTMLElement {
-    return this;
   }
 
   protected override render(): TemplateResult {

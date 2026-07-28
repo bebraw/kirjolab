@@ -1,9 +1,10 @@
-import { html, LitElement, type TemplateResult } from "lit";
+import { html, type TemplateResult } from "lit";
 import type { AppToast } from "./app-toast";
+import { LightDomElement } from "./light-dom-controller";
 import type { OfflineWorkspaceSession } from "./offline-workspace";
 import { applicationVersion, cacheOfflineNavigation, registerOfflineServiceWorker } from "./offline-service-worker";
 
-export class ApplicationVersionControl extends LitElement {
+export class ApplicationVersionControl extends LightDomElement {
   static override properties = { version: { state: true } };
 
   declare private version: string;
@@ -45,15 +46,6 @@ export class ApplicationVersionControl extends LitElement {
     } catch {
       this.notice("Could not copy the application version");
     }
-  }
-
-  override connectedCallback(): void {
-    if (!this.hasUpdated) this.replaceChildren();
-    super.connectedCallback();
-  }
-
-  protected override createRenderRoot(): HTMLElement {
-    return this;
   }
 
   protected override render(): TemplateResult {

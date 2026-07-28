@@ -1,4 +1,5 @@
-import { html, LitElement, type TemplateResult } from "lit";
+import { html, type TemplateResult } from "lit";
+import { LightDomElement } from "./light-dom-controller";
 
 export interface ConnectionWorkflow {
   readonly canEdit: boolean;
@@ -12,7 +13,7 @@ export interface ConnectionWorkflowOwners {
   readonly source: HTMLTextAreaElement;
 }
 
-export class ConnectionStatus extends LitElement {
+export class ConnectionStatus extends LightDomElement {
   static override properties = {
     connected: { state: true },
     label: { state: true },
@@ -53,15 +54,6 @@ export class ConnectionStatus extends LitElement {
   presentOfflineRestore(pending: boolean): void {
     this.presentWorkflow();
     this.workflowOwners?.editorStatus.setSave(pending ? "Saved offline" : "Saved");
-  }
-
-  override connectedCallback(): void {
-    if (!this.hasUpdated) this.replaceChildren();
-    super.connectedCallback();
-  }
-
-  protected override createRenderRoot(): HTMLElement {
-    return this;
   }
 
   protected override render(): TemplateResult {

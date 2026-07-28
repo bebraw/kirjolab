@@ -1,6 +1,7 @@
-import { html, LitElement, type TemplateResult } from "lit";
+import { html, type TemplateResult } from "lit";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { renderIcon } from "../ui/icons";
+import { LightDomElement } from "./light-dom-controller";
 
 export const projectFileActionEvent = "project-file-action";
 
@@ -8,7 +9,7 @@ export type ProjectFileAction = "create" | "create-and-include" | "create-folder
 
 type ProjectFileActionsVariant = "menu" | "rail";
 
-export class ProjectFileActions extends LitElement {
+export class ProjectFileActions extends LightDomElement {
   static override properties = {
     entryFileActive: { state: true },
     variant: { type: String },
@@ -25,15 +26,6 @@ export class ProjectFileActions extends LitElement {
 
   setEntryFileActive(entryFileActive: boolean): void {
     this.entryFileActive = entryFileActive;
-  }
-
-  override connectedCallback(): void {
-    if (!this.hasUpdated) this.replaceChildren();
-    super.connectedCallback();
-  }
-
-  protected override createRenderRoot(): HTMLElement {
-    return this;
   }
 
   protected override render(): TemplateResult {

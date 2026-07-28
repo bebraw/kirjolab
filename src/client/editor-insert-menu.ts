@@ -1,6 +1,7 @@
-import { html, LitElement, type TemplateResult } from "lit";
+import { html, type TemplateResult } from "lit";
 import { relativeProjectPath, type ProjectFile } from "../domain/project-files";
 import type { AppToast } from "./app-toast";
+import { LightDomElement } from "./light-dom-controller";
 import type { EditorAuthoringPassage, EditorStatus, EditorTextInsertion } from "./editor-status";
 
 export type EditorSyntaxKind = "anchor" | "bibliography" | "citation" | "footnote" | "link" | "reference";
@@ -26,7 +27,7 @@ const syntaxOptions: readonly { readonly kind: EditorSyntaxKind; readonly label:
   { kind: "bibliography", label: "Bibliography", template: { text: "::bibliography[]" } },
 ];
 
-export class EditorInsertMenu extends LitElement {
+export class EditorInsertMenu extends LightDomElement {
   static override properties = { data: { state: true } };
 
   declare private data: EditorInsertData;
@@ -61,15 +62,6 @@ export class EditorInsertMenu extends LitElement {
   replaceRange(start: number, end: number, text: string): void {
     const selection = start + text.length;
     this.authoring?.applyAuthoringInsertion({ end, selectionEnd: selection, selectionStart: selection, start, text });
-  }
-
-  override connectedCallback(): void {
-    if (!this.hasUpdated) this.replaceChildren();
-    super.connectedCallback();
-  }
-
-  protected override createRenderRoot(): HTMLElement {
-    return this;
   }
 
   protected override render(): TemplateResult {

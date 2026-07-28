@@ -1,6 +1,7 @@
-import { html, LitElement, type TemplateResult } from "lit";
+import { html, type TemplateResult } from "lit";
 import type { ServerCollaborationMessage } from "../domain/collaboration";
 import type { ProjectFile } from "../domain/project-files";
+import { LightDomElement } from "./light-dom-controller";
 import type { EditorPresenceRange } from "./editor-presence";
 import { accessibleEvidenceExcerpt } from "./research-resource-presentation";
 
@@ -11,7 +12,7 @@ export interface CollaboratorSelectionListData {
   readonly revision: number;
 }
 
-export class CollaboratorSelectionList extends LitElement {
+export class CollaboratorSelectionList extends LightDomElement {
   static override properties = { data: { state: true } };
 
   declare private data: CollaboratorSelectionListData | null;
@@ -57,15 +58,6 @@ export class CollaboratorSelectionList extends LitElement {
     return [...this.selections.values()]
       .filter((selection) => selection.revision === data.revision && selection.fileId === fileId)
       .map(({ collaboratorId, end, start }) => ({ collaboratorId, end, start }));
-  }
-
-  override connectedCallback(): void {
-    if (!this.hasUpdated) this.replaceChildren();
-    super.connectedCallback();
-  }
-
-  protected override createRenderRoot(): HTMLElement {
-    return this;
   }
 
   protected override render(): TemplateResult {
