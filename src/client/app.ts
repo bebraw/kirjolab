@@ -31,7 +31,7 @@ class WorkspaceApp {
     this.#bindUi();
     this.#elements.workspaceSurfaces.dataset.ready = "true";
     void this.#elements.applicationVersion.prepareOfflineShell(appMode === "workspace", this.#offline, this.#elements.toast);
-    if (await this.#elements.referenceLibraryWorkspace.startStandalone(appMode === "library", this.#elements)) return;
+    if (await this.#elements.referenceLibraryWorkspace.start(workspaceId, appMode === "workspace" ? apiBase : null, this.#elements)) return;
     await this.#elements.projectFileDialog.openWorkspace();
     await this.#elements.workspaceSurfaceSwitcher.restoreRoute();
     void this.#elements.gitHubSyncMenu.refreshWorkspace(true);
@@ -51,7 +51,6 @@ class WorkspaceApp {
       panel.bindProject(this.#elements.projectFileDialog, this.#elements.toast);
     }
     this.#elements.workspaceSharingPanel.configure(apiBase, this.#elements);
-    this.#elements.referenceLibraryWorkspace.bindWorkspace(workspaceId, appMode === "workspace" ? apiBase : null, this.#elements);
     this.#elements.editorStatus.bindAuthoring(this.#session.document, this.#elements.source, this.#elements, this.#collaborationSocket);
     this.#elements.sourceCompletion.bindWorkspace(apiBase, this.#elements);
     this.#elements.projectFileDialog.configureApi(apiBase, this.#elements, this.#elements.workspaceLayout);

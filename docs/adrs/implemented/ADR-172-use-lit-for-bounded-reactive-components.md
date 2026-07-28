@@ -639,7 +639,10 @@ The adopted components own bounded presentation:
   choices, project-linkage derivation from canonical project-reference inputs,
   canonical filtering and sorting, result counts, reset behavior, and a typed
   filter-change intent.
-- The composed reference Library workspace owns canonical presentation
+- The composed reference Library workspace starts workspace or standalone mode
+  through one boundary that establishes its workspace identity, optional project
+  API scope, feature owners, nested component bindings, and standalone browser
+  history before any conditional load. It owns canonical presentation
   synchronization across the filter, result list, citation network, and
   unidentified-PDF queue; filter-driven rerendering; focused-reference reveal;
   result settlement; derivation of project-reference and research-share inputs

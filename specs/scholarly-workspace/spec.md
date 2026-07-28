@@ -612,8 +612,9 @@ collaboration.
   intent. It derives current project-linked reference ids from canonical
   project-reference inputs. A composed Library workspace synchronizes the
   filter, result list, citation network, and unidentified-PDF queue and owns
-  filter-driven rerendering and focused-reference reveal. It binds the context,
-  project-file, web-comparison, route, and toast owners atomically with workspace
+  filter-driven rerendering and focused-reference reveal. Its single start
+  boundary binds the context, project-file, web-comparison, route, and toast
+  owners atomically with workspace
   identity, optional project API scope, citation-network configuration, and
   PDF-upload status ownership for Library
   loading, cross-feature navigation, mutations, refresh, and notifications. On

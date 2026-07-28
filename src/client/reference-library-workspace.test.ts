@@ -269,9 +269,27 @@ describe("reference Library workspace", () => {
     const open = vi.spyOn(workspace, "open").mockResolvedValue(undefined);
     const restoreBrowserRoute = vi.spyOn(workspace, "restoreBrowserRoute").mockResolvedValue(undefined);
 
-    const owners = { connectionStatus: connection, workspaceSurfaces: surfaces };
-    await expect(workspace.startStandalone(false, owners, browser.history)).resolves.toBe(false);
-    await expect(workspace.startStandalone(true, owners, browser.history)).resolves.toBe(true);
+    const owners = {
+      connectionStatus: connection,
+      contextResourcePresenter: {
+        activeKey: "preview",
+        navigateContext: vi.fn(),
+        openLibraryPdf: vi.fn().mockResolvedValue(undefined),
+        presentBoundContext: vi.fn(),
+        refreshLibraryContext: vi.fn().mockResolvedValue(undefined),
+      },
+      projectFileDialog: {
+        project: workspaceSnapshotFixture,
+        acceptProjectMutation: vi.fn().mockResolvedValue(undefined),
+        refreshProject: vi.fn().mockResolvedValue(undefined),
+      },
+      toast: { show: vi.fn() },
+      webSnapshotComparison: { compare: vi.fn().mockResolvedValue(undefined) },
+      workspaceSurfaceSwitcher: { syncRoute: vi.fn() },
+      workspaceSurfaces: surfaces,
+    };
+    await expect(workspace.start("workspace", "/api/workspaces/workspace", owners, browser.history)).resolves.toBe(false);
+    await expect(workspace.start("workspace", null, owners, browser.history)).resolves.toBe(true);
 
     expect(surfaces.dataset).toMatchObject({ activeSurface: "context", layout: "context" });
     expect(connection.setConnection).toHaveBeenCalledWith("Private library", true);

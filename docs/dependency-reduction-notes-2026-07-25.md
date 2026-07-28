@@ -13958,6 +13958,25 @@ counts remain 18 and 150, and the other static artifacts remain unchanged.
 Full native CI passes all 1,775 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Atomic Library Startup
+
+`ReferenceLibraryWorkspace.start(...)` now establishes its workspace identity,
+optional project API scope, canonical feature owners, nested component links,
+and browser-history mode before conditionally loading the standalone Library.
+`WorkspaceApp` no longer performs a detached Library bind before asking the same
+owner to start its mode.
+
+This checkpoint reduces `src/client/app.ts` from 78 to 77 lines (-1) while the
+Library workspace grows from 482 to 484 lines (+2), adding one production line
+in exchange for an atomic startup boundary. The focused Library suite passes all
+15 cases, and the affected guardrail passes 17 related cases alongside strict
+types. The browser application changes from 857,154 B raw / 231,417 B gzip to
+857,104 B raw / 231,406 B gzip (-50 B raw / -11 B gzip); direct and unique
+production package counts remain 18 and 150, and the other static artifacts
+remain unchanged.
+Full native CI passes all 1,775 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,

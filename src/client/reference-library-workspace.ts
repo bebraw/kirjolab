@@ -245,13 +245,15 @@ export class ReferenceLibraryWorkspace extends LitElement {
     this.bindHistory();
   }
 
-  async startStandalone(
-    enabled: boolean,
-    owners: StandaloneLibraryOwners,
+  async start(
+    workspaceId: string,
+    projectApiBase: string | null,
+    owners: ReferenceLibraryWorkspaceOwners & StandaloneLibraryOwners,
     browserHistory: ReferenceLibraryHistory = history,
   ): Promise<boolean> {
-    this.bindBrowserRoute(enabled, browserHistory);
-    if (!enabled) return false;
+    this.bindWorkspace(workspaceId, projectApiBase, owners);
+    this.bindBrowserRoute(projectApiBase === null, browserHistory);
+    if (projectApiBase !== null) return false;
     owners.workspaceSurfaces.dataset.activeSurface = "context";
     owners.workspaceSurfaces.dataset.layout = "context";
     owners.connectionStatus.setConnection("Private library", true);
