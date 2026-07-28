@@ -20,6 +20,16 @@ interface StartingPointWorkspaceOwners extends StartingPointOwners {
   readonly workspaceCatalogPanel: { readonly catalog: readonly WorkspaceSummary[] };
 }
 
+type StartingPointApplicationOwners = StartingPointWorkspaceOwners & {
+  readonly saveTemplateDialog: StartingPointOwners["saveTemplateDialog"] & {
+    bindWorkspace(
+      apiBase: string,
+      source: { readonly availableTemplates: readonly ProjectTemplateSummary[]; refresh(): Promise<void> },
+      toast: { show(message: string): void },
+    ): void;
+  };
+};
+
 export class ProjectStartingPointBrowser extends LightDomElement {
   static override properties = {
     busy: { state: true },
@@ -82,6 +92,11 @@ export class ProjectStartingPointBrowser extends LightDomElement {
     this.returnFocus = this.returnTarget(trigger);
     this.showModal();
     this.startLoading();
+  }
+
+  bindApplication(apiBase: string, owners: StartingPointApplicationOwners): void {
+    this.bindWorkspace(owners);
+    owners.saveTemplateDialog.bindWorkspace(apiBase, this, owners.toast);
   }
 
   bindWorkspace(owners: StartingPointWorkspaceOwners, load: () => Promise<void> = () => this.refresh()): void {

@@ -216,7 +216,8 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   enter a partially configured production state. The dialog owns pre-open and
   post-save refreshes, replacement-option synchronization, and successful-save
   notification timing; the starting-point browser retains canonical catalog and
-  hidden-template authority. Bind the starting-point browser's GitHub-import,
+  hidden-template authority. One starting-point application binding also
+  installs that reciprocal template-save binding. Bind the starting-point browser's GitHub-import,
   LaTeX-import, template-save, and toast owners atomically with its
   server-rendered trigger and canonical project-catalog source so import
   handoff, replacement synchronization, and deferred-deletion notices do not

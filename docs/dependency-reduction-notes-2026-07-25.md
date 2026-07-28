@@ -14276,6 +14276,25 @@ the atomic application binding.
 Full native CI passes all 1,775 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Atomic Starting-Point Application Binding
+
+The project starting-point Lit owner now installs its own workspace/catalog
+binding and the template-save dialog's reciprocal API, source, and toast binding
+through one production application entry. Focused tests can still bind the
+browser independently without requiring the save workflow.
+
+This checkpoint trades fourteen net production lines for the atomic project-
+creation boundary and reduces `src/client/app.ts` from 68 to 67 lines. The
+affected guardrail passes 12 related cases across two suites alongside strict
+types. The browser application changes from 847,050 B raw / 230,940 B gzip to
+847,073 B raw / 230,957 B gzip (+23 B raw / +17 B gzip); direct and unique
+production package counts remain 18 and 150, and the other static artifacts
+remain unchanged. Architecture, ADR, and scholarly-workspace contracts now
+name the reciprocal binding explicitly.
+
+Full native CI passes all 1,775 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,

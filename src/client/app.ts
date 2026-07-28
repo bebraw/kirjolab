@@ -40,8 +40,7 @@ class WorkspaceApp {
     owners.assistantGenerationPresenter.bindApplication(apiBase, this.#session, this.#refresh, owners);
     owners.workspaceCatalogPanel.bindWorkspace(workspaceId, owners);
     owners.workspaceSettingsPanel.bindWorkspace(workspaceId, apiBase, appMode === "workspace", this.#refresh, owners);
-    owners.newWorkspaceStartingPoints.bindWorkspace(owners);
-    owners.saveTemplateDialog.bindWorkspace(apiBase, owners.newWorkspaceStartingPoints, owners.toast);
+    owners.newWorkspaceStartingPoints.bindApplication(apiBase, owners);
     owners.researchDiaryPanel.bindProject(owners.projectFileDialog);
     owners.manuscriptMapPanel.bindProjectPresentation(owners);
     for (const panel of [owners.researchQuestionPanel, owners.reviewerResponsePanel]) {
