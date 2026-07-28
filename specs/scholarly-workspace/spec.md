@@ -21,9 +21,11 @@ collaboration.
 
 - **Application shell:** `src/views/home.ts` renders the accessible workspace;
   `src/client/app.ts` provides typed browser behavior bundled into
-  `.generated/app.txt`. Persistent interface copy names the user's next action
-  and keeps implementation detail in feature documentation rather than the
-  task surface.
+  `.generated/app.txt`. Its module-private composition root derives immutable
+  bootstrap mode once, constructs shared services once, and sequences bounded
+  Lit bindings and startup functions without a one-instance application class.
+  Persistent interface copy names the user's next action and keeps
+  implementation detail in feature documentation rather than the task surface.
 - **Capability-scoped editor shell:** Read-only `/share/{token}` and writable
   `/edit/{token}` project links render one shared project-file, source, and PDF
   layout without loading the authenticated application runtime. The validated

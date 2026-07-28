@@ -61,6 +61,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   each provider boundary; never retain response I/O in module state.
 - Model external scholarly works as typed sets of stable identifiers. Prefer DOI when present, but do not make DOI a prerequisite for discovery or review.
 - Do not place executable browser code inline in Worker-rendered HTML. Client behavior should live in typed TypeScript modules before it is served to browsers.
+- Keep the authenticated browser entry as a module-private composition root,
+  not a one-instance application class. Derive immutable bootstrap mode once,
+  construct shared services once, and expose only ordered binding and startup
+  functions inside that module; cohesive reactive lifecycle belongs in the
+  bounded Lit owners.
 - Use XState only for bounded event-driven browser workflows whose mutually
   exclusive states, asynchronous lifecycle, or guarded transitions would
   otherwise span several independent fields. Keep route values, persisted

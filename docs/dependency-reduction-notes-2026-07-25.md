@@ -14544,6 +14544,27 @@ application entry.
 Full native CI passes all 1,777 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Root Reduction: Module-Private Composition
+
+With reactive and startup lifecycles delegated to their bounded Lit owners, the
+remaining `WorkspaceApp` class had exactly one instance and no encapsulation
+beyond its module. The browser entry now derives workspace mode once, constructs
+the same canonical services as module-private constants, and retains only two
+ordered functions for binding and startup.
+
+This checkpoint removes four net production lines and reduces
+`src/client/app.ts` from 47 to 43 lines. Because the entry has no related unit
+suite, the affected guardrail passes the complete 1,778-test coverage baseline
+alongside strict types after being rerun with the loopback permission required
+by the real Node companion test. The browser application changes from 847,274 B
+raw / 231,054 B gzip to 847,098 B raw / 231,062 B gzip (-176 B raw / +8 B gzip);
+direct and unique production package counts remain 18 and 150, and the other
+static artifacts remain unchanged. Architecture, ADR, and scholarly-workspace
+contracts now define the browser entry as a module-private composition root.
+
+Full native CI passes all 1,778 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,

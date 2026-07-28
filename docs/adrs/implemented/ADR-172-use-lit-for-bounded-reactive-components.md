@@ -21,8 +21,8 @@ component boundary has a fixed cost.
 ## Decision
 
 Use pinned Lit for bounded reactive browser components whose local template,
-presentation state, element references, and DOM events can leave
-`WorkspaceApp`. Components emit typed intent or completion events; the existing
+presentation state, element references, and DOM events can leave the browser
+composition root. Components emit typed intent or completion events; the
 application coordinator retains cross-feature network workflows, canonical
 project refresh, cross-feature navigation, Yjs and XState actors, and persisted
 domain state. A component may own a bounded request workflow when its complete
@@ -34,6 +34,10 @@ Light-DOM components share one Lit base for first-connection server-markup
 cleanup and render-root selection. Non-rendering presenters extend its
 controller specialization for empty rendering and typed sibling lookup.
 Concrete components retain every domain binding, reconnect action, and effect.
+After those ownership extractions, keep the remaining one-instance browser
+composition as module-private constants plus ordered binding and startup
+functions; do not retain a class whose only instance adds no encapsulation over
+module scope.
 
 Keep layout interaction in the workspace-layout Lit owner when its policy
 depends on canonical component state. It binds the workspace root and Context
