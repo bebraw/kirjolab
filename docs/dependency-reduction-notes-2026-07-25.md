@@ -13633,6 +13633,19 @@ focused presenter cases. The browser application changes from 857,520 B raw /
 231,400 B gzip to 857,443 B raw / 231,394 B gzip (-77 B raw / -6 B gzip);
 dependency counts and the other static artifacts remain unchanged.
 
+## Continued Lit Ownership: Catalog Route Ownership
+
+`WorkspaceCatalogPanel` now owns its stable `/api/workspaces` route. The
+application supplies only the current workspace identity and canonical element
+owners instead of retaining and forwarding a component-private route constant.
+
+This checkpoint reduces `src/client/app.ts` from 126 to 125 lines (-1) and the
+workspace-catalog panel from 171 to 170 lines (-1), for a two-line net runtime
+reduction. The affected guardrail passes nine related cases and all seven
+focused catalog cases. The browser application changes from 857,443 B raw /
+231,394 B gzip to 857,423 B raw / 231,381 B gzip (-20 B raw / -13 B gzip);
+dependency counts and the other static artifacts remain unchanged.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,

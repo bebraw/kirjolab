@@ -21,7 +21,7 @@ export class WorkspaceCatalogPanel extends LitElement {
   declare private currentWorkspaceId: string;
   declare private query: string;
   declare private workspaces: readonly WorkspaceSummary[];
-  private catalogBase = "";
+  private readonly catalogBase = "/api/workspaces";
   private switcher: WorkspaceCatalogSwitcher | null = null;
 
   constructor() {
@@ -31,8 +31,7 @@ export class WorkspaceCatalogPanel extends LitElement {
     this.workspaces = [];
   }
 
-  bindWorkspace(catalogBase: string, currentWorkspaceId: string, owners: WorkspaceCatalogOwners): void {
-    this.catalogBase = catalogBase;
+  bindWorkspace(currentWorkspaceId: string, owners: WorkspaceCatalogOwners): void {
     this.currentWorkspaceId = currentWorkspaceId;
     this.switcher = owners.workspaceSwitcher;
     owners.manageWorkspaces.addEventListener("click", this.openFromTrigger);

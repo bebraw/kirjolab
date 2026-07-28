@@ -188,8 +188,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   canonical refresh. Bind the read-only workspace-catalog owner once so
   trigger, settings, save-template refreshes, and internal template mutations
   read the same live projection without a parallel getter callback. Let the
-  project catalog owner bind its API, current-project identity, compact
-  switcher, and server-rendered trigger atomically once, fetch and validate its
+  project catalog owner retain its stable `/api/workspaces` route and bind only
+  current-project identity, compact switcher, and server-rendered trigger
+  atomically once, fetch and validate its
   authorized summaries, retain the one browser catalog projection, and
   synchronize the switcher from that state. Let it derive the single authorized
   offline project row from a restored snapshot identity, title, and save time.

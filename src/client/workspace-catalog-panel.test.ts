@@ -52,7 +52,7 @@ function bindWorkspace(
   switcher = { setData: vi.fn() },
   trigger = new EventTarget(),
 ): void {
-  panel.bindWorkspace("/api/workspaces", currentWorkspaceId, {
+  panel.bindWorkspace(currentWorkspaceId, {
     manageWorkspaces: trigger as HTMLElement,
     workspaceSwitcher: switcher,
   });

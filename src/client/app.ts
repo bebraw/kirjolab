@@ -19,8 +19,7 @@ import "./workspace-rail-tabs";
 import "./authoring-mode-tabs";
 
 const { workspaceId, identityEmail, appMode } = parseAppBootstrap(document.body.dataset);
-const catalogBase = "/api/workspaces";
-const apiBase = `${catalogBase}/${workspaceId}`;
+const apiBase = `/api/workspaces/${workspaceId}`;
 const remoteOrigin = Symbol("remote");
 const offlineOrigin = Symbol("offline");
 
@@ -82,7 +81,7 @@ class WorkspaceApp {
     this.#elements.connectionStatus.bindWorkflow(this.#collaboration, this.#elements);
     this.#offline.bindBrowserLifecycle(document.querySelector<HTMLAnchorElement>("#log-out"), this.#elements.toast);
     this.#elements.workspaceLayout.configure(workspaceId, this.#elements.workspaceSurfaces);
-    this.#elements.workspaceCatalogPanel.bindWorkspace(catalogBase, workspaceId, this.#elements);
+    this.#elements.workspaceCatalogPanel.bindWorkspace(workspaceId, this.#elements);
     this.#elements.workspaceSettingsPanel.bindWorkspace(this.#elements.workspaceSettings, workspaceId, this.#elements);
     this.#elements.newWorkspaceStartingPoints.bindWorkspace(this.#elements);
     this.#elements.gitHubSyncMenu.bindWorkspace(apiBase, appMode === "workspace", this.#resourceRefresh, this.#elements);

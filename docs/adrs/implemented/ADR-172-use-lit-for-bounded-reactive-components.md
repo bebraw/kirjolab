@@ -82,8 +82,9 @@ The adopted components own bounded presentation:
   binds its sibling trigger and toast owner directly.
 - The workspace catalog panel owns project filtering, result and empty-state
   rendering, metadata labels, filter focus reset, and native parent-dialog
-  lifecycle. It atomically binds its catalog API, current-project identity,
-  compact switcher, and server-rendered entry trigger once. It also owns catalog
+  lifecycle. It owns the stable `/api/workspaces` catalog route and atomically
+  binds current-project identity, compact switcher, and server-rendered entry
+  trigger once. It also owns catalog
   fetch and response validation, retains the one browser catalog projection,
   synchronizes the compact workspace switcher, exposes a read-only catalog to
   settings and template workflows, and derives the single authorized offline
