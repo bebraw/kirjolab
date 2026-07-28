@@ -1,5 +1,6 @@
-import { html, LitElement, type TemplateResult } from "lit";
+import { html, type TemplateResult } from "lit";
 import { bibTeXDisplayText } from "../domain/bibliography";
+import { LightDomElement } from "./light-dom-controller";
 import type { LibraryPdfArtifact, ProjectReferencePdf } from "../domain/reference-library";
 import type { PdfResource, PublicationPdfLink, PublicationResource } from "../domain/workspace";
 import { formatBytes } from "./format";
@@ -33,7 +34,7 @@ export interface PublicationContextSources {
   } | null;
 }
 
-export class PublicationContextPanel extends LitElement {
+export class PublicationContextPanel extends LightDomElement {
   static override properties = {
     busy: { state: true },
     citationAvailable: { state: true },
@@ -103,15 +104,6 @@ export class PublicationContextPanel extends LitElement {
   set scrollPosition(value: number) {
     const body = this.querySelector<HTMLElement>("#context-publication-body");
     if (body) body.scrollTop = value;
-  }
-
-  override connectedCallback(): void {
-    if (!this.hasUpdated) this.replaceChildren();
-    super.connectedCallback();
-  }
-
-  protected override createRenderRoot(): HTMLElement {
-    return this;
   }
 
   protected override render(): TemplateResult {

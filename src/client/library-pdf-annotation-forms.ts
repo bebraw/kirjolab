@@ -1,4 +1,5 @@
-import { html, LitElement, type TemplateResult } from "lit";
+import { html, type TemplateResult } from "lit";
+import { LightDomElement } from "./light-dom-controller";
 import { libraryPdfRectsOverlap, type LibraryHighlight } from "../domain/reference-library";
 import type { PdfSelectionRect } from "../domain/workspace";
 import { errorMessage, expectOk, jsonFetch } from "./http";
@@ -45,7 +46,7 @@ export type LibraryPdfAnnotationAction =
 
 export const libraryPdfAnnotationActionEvent = "library-pdf-annotation-action";
 
-export class LibraryPdfAnnotationForms extends LitElement {
+export class LibraryPdfAnnotationForms extends LightDomElement {
   static override properties = {
     highlightPage: { state: true },
     highlightQuote: { state: true },
@@ -171,15 +172,6 @@ export class LibraryPdfAnnotationForms extends LitElement {
 
   focusNote(): void {
     void this.updateComplete.then(() => this.querySelector<HTMLTextAreaElement>("#library-note-body")?.focus());
-  }
-
-  override connectedCallback(): void {
-    if (!this.hasUpdated) this.replaceChildren();
-    super.connectedCallback();
-  }
-
-  protected override createRenderRoot(): HTMLElement {
-    return this;
   }
 
   protected override render(): TemplateResult {

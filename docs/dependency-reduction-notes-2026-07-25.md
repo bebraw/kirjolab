@@ -14080,6 +14080,22 @@ other static artifacts remain unchanged.
 Full native CI passes all 1,775 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Reduction: PDF and Publication Elements
+
+PDF annotation forms, lists, toolbar, markup, project-use, upload status, and
+highlight import plus unidentified-PDF and publication context/intake components
+now reuse `LightDomElement`. The project mutation bases already supply the same
+lifecycle to their annotation-list and project-use descendants.
+
+This checkpoint removes 82 production lines while keeping `src/client/app.ts`
+at 73 lines. The affected guardrail passes 150 related cases across 18 suites
+alongside strict types. The browser application changes from 853,363 B raw /
+231,446 B gzip to 852,193 B raw / 231,495 B gzip (-1,170 B raw / +49 B gzip);
+direct and unique production package counts remain 18 and 150, and the other
+static artifacts remain unchanged.
+Full native CI passes all 1,775 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,

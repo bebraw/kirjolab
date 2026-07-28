@@ -1,4 +1,5 @@
-import { html, LitElement, type TemplateResult } from "lit";
+import { html, type TemplateResult } from "lit";
+import { LightDomElement } from "./light-dom-controller";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import type { LibraryPdfDrawing } from "../domain/reference-library";
 import { renderIcon, type IconName } from "../ui/icons";
@@ -14,7 +15,7 @@ export const libraryPdfToolbarActionEvent = "library-pdf-toolbar-action";
 
 type UndoDrawing = Pick<LibraryPdfDrawing, "createdAt" | "id" | "referenceId">;
 
-export class LibraryPdfAnnotationToolbar extends LitElement {
+export class LibraryPdfAnnotationToolbar extends LightDomElement {
   static override properties = {
     tool: { state: true },
     drawingColor: { state: true },
@@ -86,15 +87,6 @@ export class LibraryPdfAnnotationToolbar extends LitElement {
 
   focusInspectorButton(): void {
     void this.updateComplete.then(() => this.querySelector<HTMLButtonElement>("#open-library-pdf-inspector")?.focus());
-  }
-
-  override connectedCallback(): void {
-    if (!this.hasUpdated) this.replaceChildren();
-    super.connectedCallback();
-  }
-
-  protected override createRenderRoot(): HTMLElement {
-    return this;
   }
 
   protected override render(): TemplateResult {

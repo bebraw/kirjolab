@@ -1,4 +1,5 @@
-import { html, LitElement, nothing, type TemplateResult } from "lit";
+import { html, nothing, type TemplateResult } from "lit";
+import { LightDomElement } from "./light-dom-controller";
 import {
   isPublicationIntakePreview,
   type PublicationIntakePreview,
@@ -21,7 +22,7 @@ interface PublicationIntakeView {
   readonly publications: readonly PublicationResource[];
 }
 
-export class PublicationIntakePanel extends LitElement {
+export class PublicationIntakePanel extends LightDomElement {
   static override properties = {
     citationKey: { state: true },
     doi: { state: true },
@@ -91,15 +92,6 @@ export class PublicationIntakePanel extends LitElement {
     this.status = message;
     this.syncView();
     this.focusCitationKey();
-  }
-
-  override connectedCallback(): void {
-    if (!this.hasUpdated) this.replaceChildren();
-    super.connectedCallback();
-  }
-
-  protected override createRenderRoot(): HTMLElement {
-    return this;
   }
 
   protected override render(): TemplateResult {

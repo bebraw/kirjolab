@@ -1,5 +1,6 @@
-import { html, LitElement, type TemplateResult } from "lit";
+import { html, type TemplateResult } from "lit";
 import { bibTeXDisplayText } from "../domain/bibliography";
+import { LightDomElement } from "./light-dom-controller";
 import type { LibraryPdfArtifact, ReferenceLibrarySnapshot } from "../domain/reference-library";
 import { formatBytes } from "./format";
 import { errorMessage, expectOk, jsonFetch } from "./http";
@@ -16,7 +17,7 @@ export interface UnidentifiedPdfRefresh {
 
 export const unidentifiedPdfRefreshEvent = "unidentified-pdf-refresh";
 
-export class UnidentifiedPdfList extends LitElement {
+export class UnidentifiedPdfList extends LightDomElement {
   static override properties = {
     artifacts: { state: true },
     references: { state: true },
@@ -52,15 +53,6 @@ export class UnidentifiedPdfList extends LitElement {
     for (const [artifactId, referenceId] of this.selections) {
       if (!artifactIds.has(artifactId) || !referenceIds.has(referenceId)) this.selections.delete(artifactId);
     }
-  }
-
-  override connectedCallback(): void {
-    if (!this.hasUpdated) this.replaceChildren();
-    super.connectedCallback();
-  }
-
-  protected override createRenderRoot(): HTMLElement {
-    return this;
   }
 
   protected override render(): TemplateResult {

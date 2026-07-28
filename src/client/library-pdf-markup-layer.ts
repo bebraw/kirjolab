@@ -1,5 +1,6 @@
-import { html, LitElement, nothing, type TemplateResult } from "lit";
+import { html, nothing, type TemplateResult } from "lit";
 import type { LibraryPdfArtifact, LibraryPdfDrawing, LibraryPdfMarkup, LibraryPdfNote, LibraryPdfPoint } from "../domain/reference-library";
+import { LightDomElement } from "./light-dom-controller";
 import { manipulateRecognizedShape, recognizeDrawnShape, type RecognizedDrawnShape } from "./drawn-shape-recognition";
 import { errorMessage, expectOk, jsonFetch } from "./http";
 
@@ -93,7 +94,7 @@ export type LibraryPdfMarkupAction =
     }
   | { readonly action: "status"; readonly message: string };
 
-export class LibraryPdfMarkupLayer extends LitElement {
+export class LibraryPdfMarkupLayer extends LightDomElement {
   static override properties = { data: { state: true }, savingDrawing: { state: true }, status: { state: true } };
 
   declare private data: LibraryPdfMarkupLayerData | null;
@@ -499,20 +500,11 @@ export class LibraryPdfMarkupLayer extends LitElement {
       ?.focus();
   }
 
-  override connectedCallback(): void {
-    if (!this.hasUpdated) this.replaceChildren();
-    super.connectedCallback();
-  }
-
   override disconnectedCallback(): void {
     this.cancelDrawing();
     this.cancelNoteDrag();
     this.cancelNotePress();
     super.disconnectedCallback();
-  }
-
-  protected override createRenderRoot(): HTMLElement {
-    return this;
   }
 
   protected override render(): TemplateResult {

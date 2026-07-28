@@ -1,10 +1,11 @@
-import { html, LitElement, nothing, type TemplateResult } from "lit";
+import { html, nothing, type TemplateResult } from "lit";
 import type { ExistingPdfUpload, PdfUploadQueueSnapshot } from "./pdf-upload-queue";
+import { LightDomElement } from "./light-dom-controller";
 
 export const libraryPdfUploadRetryEvent = "library-pdf-upload-retry";
 export const libraryPdfUploadRevealEvent = "library-pdf-upload-reveal";
 
-export class LibraryPdfUploadStatus extends LitElement {
+export class LibraryPdfUploadStatus extends LightDomElement {
   static override properties = {
     error: { state: true },
     retryFailed: { state: true },
@@ -37,15 +38,6 @@ export class LibraryPdfUploadStatus extends LitElement {
     this.retryFailed = retryFailed;
     this.snapshot = snapshot;
     this.classList?.remove("hidden");
-  }
-
-  override connectedCallback(): void {
-    if (!this.hasUpdated) this.replaceChildren();
-    super.connectedCallback();
-  }
-
-  protected override createRenderRoot(): HTMLElement {
-    return this;
   }
 
   protected override render(): TemplateResult {
