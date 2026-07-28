@@ -13689,6 +13689,20 @@ focused source-completion cases. The browser application changes from 857,275 B
 raw / 231,351 B gzip to 857,198 B raw / 231,343 B gzip (-77 B raw / -8 B
 gzip); dependency counts and the other static artifacts remain unchanged.
 
+## Continued Lit Ownership: Atomic Assistant Workflow State
+
+`AssistantGenerationPresenter` now stores Context-derived candidate, PDF,
+project, Library-refresh, assistant-tab, and notice routes inside the workflow
+binding that creates them. A second nullable resource-route lifecycle is no
+longer maintained beside the canonical workflow owners.
+
+This checkpoint leaves `src/client/app.ts` at 122 lines and reduces the
+assistant-generation presenter from 662 to 660 lines (-2). The affected
+guardrail passes 21 related cases and all 19 focused presenter cases. The
+browser application changes from 857,198 B raw / 231,343 B gzip to 857,108 B
+raw / 231,329 B gzip (-90 B raw / -14 B gzip); dependency counts and the other
+static artifacts remain unchanged.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,

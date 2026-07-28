@@ -130,7 +130,8 @@ The adopted components own bounded presentation:
   completion. Candidate persistence remains in its list owner and provider construction derives from validated model-settings state. It derives canonical candidate, project-PDF, project snapshot,
   Library-refresh, assistant-tab, and no-evidence notice routes from the
   context-resource presenter already supplied by its workflow binding instead
-  of exposing a parallel resource stage or repeating them across its task,
+  of exposing a parallel resource stage or nullable lifecycle state; the same
+  atomic binding stores the derived routes instead of repeating them across its task,
   result, and candidate workflow bindings. Bind candidate panels, the interactive
   result, model and task controls, and evidence selection through one atomic
   workspace-presentation entry rather than exposing independently callable

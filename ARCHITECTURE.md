@@ -640,7 +640,8 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   workflow completion. Candidate persistence remains inside the candidate-list owner. Derive canonical
   candidate, project-PDF, project snapshot, Library-refresh, assistant-tab, and
   no-evidence notice routes from the context-resource presenter already supplied
-  by the assistant workflow binding instead of installing a parallel resource
+  by the assistant workflow binding, and store those derived routes in that same
+  atomic binding instead of maintaining parallel nullable lifecycle state or installing a parallel resource
   stage or repeating routes across task, result, and candidate workflows. Bind all
   candidate panels, the interactive result, model and task controls, and
   evidence selection through one atomic workspace-presentation entry so the

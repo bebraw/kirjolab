@@ -131,8 +131,8 @@ export class AssistantGenerationPresenter extends LitElement {
   private workflowBinding: {
     readonly owners: AssistantWorkflowOwners;
     readonly resources: { request(): Promise<void> };
+    readonly routes: AssistantResourceRoutes;
   } | null = null;
-  private resources: AssistantResourceRoutes | null = null;
 
   bindAuthoring(collaboration: { readonly stable: boolean }, authoring: AssistantAuthoringOwners): void {
     this.collaboration = collaboration;
@@ -140,13 +140,11 @@ export class AssistantGenerationPresenter extends LitElement {
   }
 
   bindWorkflow(resources: { request(): Promise<void> }, owners: AssistantWorkflowOwners): void {
-    this.workflowBinding = { owners, resources };
-    this.resources = owners.contextResourcePresenter.assistantResources();
+    this.workflowBinding = { owners, resources, routes: owners.contextResourcePresenter.assistantResources() };
   }
 
   private get resourceRoutes(): AssistantResourceRoutes {
-    if (!this.resources) throw new Error("Assistant resource routes are not bound");
-    return this.resources;
+    return this.boundWorkflow.routes;
   }
 
   private get authoringSources(): AssistantAuthoringOwners {
