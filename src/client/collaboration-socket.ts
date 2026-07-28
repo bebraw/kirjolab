@@ -92,6 +92,8 @@ export class CollaborationSocket {
     this.#refresh = refresh;
     this.#owners = owners;
     this.#environment = environment;
+    environment.browserEvents?.addEventListener("online", this.#handleOnline);
+    environment.browserEvents?.addEventListener("offline", this.#handleOffline);
   }
 
   connect(): void {
@@ -113,14 +115,6 @@ export class CollaborationSocket {
     socket.addEventListener("message", (event) => this.#message(socket, (event as MessageEvent<string | ArrayBuffer>).data));
     socket.addEventListener("close", () => this.#close(socket));
     socket.addEventListener("error", () => socket.close());
-  }
-
-  bindBrowserLifecycle(): void {
-    const events = this.#environment.browserEvents;
-    if (!events) return;
-    this.unbindBrowserLifecycle();
-    events.addEventListener("online", this.#handleOnline);
-    events.addEventListener("offline", this.#handleOffline);
   }
 
   bindDocument(documentModel: Y.Doc, offlineOrigin: unknown): void {

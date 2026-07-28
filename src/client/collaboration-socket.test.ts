@@ -230,8 +230,6 @@ describe("collaboration socket", () => {
     });
     const connect = vi.spyOn(connection, "connect");
     const goOffline = vi.spyOn(connection, "goOffline");
-    connection.bindBrowserLifecycle();
-
     browserEvents.dispatchEvent(new Event("online"));
     browserEvents.dispatchEvent(new Event("offline"));
     expect(connect).toHaveBeenCalledOnce();

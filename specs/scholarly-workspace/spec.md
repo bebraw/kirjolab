@@ -402,7 +402,9 @@ collaboration.
   socket authority around the session owns WebSocket creation, reconnect and
   selection timers, online/offline browser subscriptions, strict control
   routing, binary-update application, queue flushing, reset cleanup, reload
-  sequencing, and the document-wide local-update subscription. It schedules
+  sequencing, and the document-wide local-update subscription. It binds
+  online/offline browser subscriptions during construction while retaining
+  explicit teardown. It schedules
   offline persistence for every update, delegates remote/offline-origin
   filtering and local enqueueing to the session, selects pending save wording,
   invalidates assistant availability, flushes immediately, and supports
