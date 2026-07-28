@@ -102,11 +102,6 @@ export interface AssistantWorkflowCoordinator {
   readonly openEvidenceRail: () => void;
   readonly presentNotice: (message: string) => void;
   readonly refreshResources: () => Promise<void>;
-  readonly tableState: () => {
-    readonly revision: number;
-    readonly source: string;
-    readonly stableDocument: boolean;
-  };
 }
 
 export interface AssistantResourceRoutes {
@@ -352,18 +347,19 @@ export class AssistantGenerationPresenter extends LitElement {
     markdown: string,
     callbacks: AssistantWorkflowCoordinator,
   ): void {
-    const state = callbacks.tableState();
+    const authoring = this.authoringSources;
+    const source = authoring.manuscript();
     if (
       !this.workflow.getSnapshot().matches("reviewing") ||
-      !state.stableDocument ||
-      state.revision !== context.sourceRevision ||
-      state.source.slice(context.target.start, context.target.end) !== context.target.excerpt
+      !authoring.stableDocument() ||
+      authoring.sourceRevision() !== context.sourceRevision ||
+      source.slice(context.target.start, context.target.end) !== context.target.excerpt
     ) {
       if (status) status.status = "The manuscript changed. Generate the table again for the current target.";
       return;
     }
-    const prefix = context.target.start > 0 && state.source[context.target.start - 1] !== "\n" ? "\n\n" : "";
-    const suffix = context.target.end < state.source.length && state.source[context.target.end] !== "\n" ? "\n\n" : "\n";
+    const prefix = context.target.start > 0 && source[context.target.start - 1] !== "\n" ? "\n\n" : "";
+    const suffix = context.target.end < source.length && source[context.target.end] !== "\n" ? "\n\n" : "\n";
     this.workflow.send({ type: "COMPLETE" });
     callbacks.applyTable(context.target, `${prefix}${markdown}${suffix}`);
     if (status) status.status = "Table inserted into the manuscript.";

@@ -166,7 +166,6 @@ function workflowCoordinator(overrides: Partial<AssistantWorkflowCoordinator> = 
     openEvidenceRail: vi.fn(),
     presentNotice: vi.fn(),
     refreshResources: vi.fn().mockResolvedValue(undefined),
-    tableState: vi.fn(() => ({ revision: 7, source: `x${passage.excerpt}`, stableDocument: true })),
     ...overrides,
   };
 }
@@ -505,13 +504,9 @@ describe("assistant generation presenter", () => {
     const applyTable = vi.fn();
     const refreshLibrary = vi.fn().mockResolvedValueOnce(undefined).mockRejectedValueOnce(new Error("offline"));
     const completeReferenceSave = vi.spyOn(result, "completeReferenceSave").mockImplementation(() => undefined);
-    const tableState = vi.fn().mockReturnValue({
-      revision: 7,
-      source: `x${passage.excerpt}`,
-      stableDocument: true,
-    });
+    presenter.bindAuthoring(authoringSources({ manuscript: () => `x${passage.excerpt}` }));
     presenter.bindResources(resourceRoutes({ refreshLibrary }));
-    presenter.bindWorkflow(resultCallbacks({ applyTable, tableState }));
+    presenter.bindWorkflow(resultCallbacks({ applyTable }));
     presenter.bindResults();
     const action = { action: "insert-table", context: { sourceRevision: 7, target: passage }, markdown: "| Result |" } as const;
 
@@ -529,7 +524,7 @@ describe("assistant generation presenter", () => {
     expect(refreshLibrary).toHaveBeenCalledTimes(2);
     expect(elements["assistant-workflow-status"].status).toBe("The reference was saved, but the refreshed Library could not be loaded.");
 
-    tableState.mockReturnValue({ revision: 7, source: `x${passage.excerpt}`, stableDocument: false });
+    presenter.bindAuthoring(authoringSources({ manuscript: () => `x${passage.excerpt}`, stableDocument: () => false }));
     result.dispatchEvent(new CustomEvent(assistantResultActionEvent, { detail: action }));
     expect(elements["assistant-workflow-status"].status).toBe("The manuscript changed. Generate the table again for the current target.");
   });

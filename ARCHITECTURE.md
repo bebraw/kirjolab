@@ -586,8 +586,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   re-presentation plus its resulting availability refresh. Bind canonical file identity, manuscript text, target range,
   source revision, and collaboration stability once as authoring sources; let
   the presenter derive scoped and insertion passages, generation input,
-  availability, and target presentation, including snapshot availability from
-  its canonical project route. Keep
+  availability, target presentation, and captured-table validity from those
+  same sources, including snapshot availability from its canonical project
+  route. Keep
   authorized Yjs mutation, editor selection, remembered authoring selection,
   canonical refresh execution, context-state mutation, and notice presentation
   in the application coordinator through narrow typed callbacks.

@@ -12430,6 +12430,27 @@ unchanged at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip,
 Full native CI passes all 1,773 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Canonical Assistant Table State
+
+`AssistantGenerationPresenter` now derives captured-table manuscript text,
+source revision, and collaboration stability from its existing authoring source
+binding. The duplicate `tableState` callback and its second projection of the
+same canonical values are removed from `WorkspaceApp`.
+
+This checkpoint reduces `src/client/app.ts` from 409 to 404 lines (-5) and the
+assistant presenter from 657 to 653 lines (-4), reducing combined runtime source
+by nine lines. Direct presenter coverage passes all 19 cases; affected coverage
+passes all 21 related runtime cases alongside strict types.
+
+The browser application artifact changes from 862,003 B raw / 232,248 B gzip
+to 861,876 B raw / 232,236 B gzip (-127 B raw / -12 B gzip). Styles, lazy
+Markdown, lazy PDF.js, and direct and unique production package counts remain
+unchanged at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip,
+481,994 B raw / 146,135 B gzip, 18, and 150.
+
+Full native CI passes all 1,773 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: One-Shot Browser Entry Intents
 
 `ProjectStartingPointBrowser` now consumes the `create=1` editor intent, removes

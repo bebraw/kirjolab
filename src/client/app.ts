@@ -388,11 +388,6 @@ class WorkspaceApp {
       openEvidenceRail: () => this.#elements.workspaceRailTabs.navigate("research"),
       presentNotice: (message) => this.#elements.toast.show(message),
       refreshResources: () => this.#resourceRefresh.request(),
-      tableState: () => ({
-        revision: this.#elements.projectHistoryTrigger.value,
-        source: this.#elements.editorStatus.manuscript,
-        stableDocument: this.#collaboration.stable,
-      }),
     });
     this.#elements.assistantGenerationPresenter.bindCandidate(apiBase);
     this.#elements.assistantGenerationPresenter.bindResults();

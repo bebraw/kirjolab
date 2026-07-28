@@ -111,13 +111,14 @@ The adopted components own bounded presentation:
   Library-refresh, assistant-tab, and no-evidence notice routes supplied by the
   context-resource presenter instead of repeating them across its task, result,
   and candidate workflow bindings. Bind the remaining application-owned inputs
-  and narrow canonical refresh, assistant-context activation, and notice
-  effects once through one workflow coordinator instead of separate candidate,
-  result, and control callback bags. Bind canonical file identity,
+  and narrow canonical refresh and notice effects once through one workflow
+  coordinator instead of separate candidate, result, and control callback bags.
+  Bind the Context owner directly for assistant activation and decision
+  re-presentation. Bind canonical file identity,
   manuscript text, target range, source revision, and collaboration stability
   once as authoring sources; derive scoped and insertion passages, generation
-  input, availability, target presentation, and snapshot availability inside
-  the presenter. The application coordinator retains
+  input, availability, target presentation, captured-table validation, and
+  snapshot availability inside the presenter. The application coordinator retains
   authorized Yjs mutation, editor selection, remembered authoring selection,
   canonical refresh execution, context-state mutation, and notice presentation
   through narrow typed callbacks.

@@ -34,7 +34,9 @@ All mutation operations preserve a human review boundary.
   settings subscriptions, evidence selection and focus guidance, generation
   routing, clarity continuation, captured-table validation and portable
   spacing, promoted-revision persistence sequencing, and candidate-review event
-  handling. Candidate persistence remains in its bounded list owner; provider
+  handling. Captured-table validation derives manuscript text, source revision,
+  and collaboration stability from the same canonical authoring binding used by
+  generation, without a duplicate table-state callback. Candidate persistence remains in its bounded list owner; provider
   instances derive from validated model-settings state. The application retains
   canonical workspace and Library refresh, context and PDF navigation, toast
   policy, authorized Yjs mutation, editor selection, and remembered authoring
