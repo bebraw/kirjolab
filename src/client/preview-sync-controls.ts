@@ -6,7 +6,7 @@ import { previewOffsetsForSourceLocation, sourceLocationForPreviewOffset, type P
 
 export type PreviewSyncAction = "preview-to-source" | "source-to-preview";
 
-interface PreviewSyncOwners {
+export interface PreviewSyncOwners {
   readonly projectFileDialog: { focusRange(fileId: string, start: number, end: number): void };
   readonly source: HTMLTextAreaElement;
   readonly sourceHighlight: HTMLElement;

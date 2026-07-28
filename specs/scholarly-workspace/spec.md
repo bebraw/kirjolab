@@ -131,7 +131,9 @@ collaboration.
   composition source map, bidirectional composition-offset resolution,
   centered source-offset derivation, Preview-to-source file-qualified focus
   delegation through its directly bound project-file owner, and source-viewport
-  centering. Workspace Preview derives source-to-
+  centering. Workspace Preview installs that complete source binding as part of
+  its atomic project lifecycle rather than requiring a separate application
+  setup stage. Workspace Preview derives source-to-
   Preview automatic-versus-explicit eligibility from its bound active-file,
   context, and layout projections, owns one document-wide Yjs update
   subscription with disconnect teardown, reads the canonical snapshot directly

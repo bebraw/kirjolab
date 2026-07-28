@@ -34,7 +34,6 @@ class WorkspaceApp {
       this.#resourceRefresh,
       this.#elements,
     );
-    this.#elements.previewSyncControls.bindSource(this.#elements);
   }
 
   async start(): Promise<void> {

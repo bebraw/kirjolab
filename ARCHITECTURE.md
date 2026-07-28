@@ -260,7 +260,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Let the bounded Preview synchronization control own explicit Preview-to-source
   offset capture, composition-map resolution, file-qualified focus intent, and
   source-viewport centering alongside its directional actions and source
-  listeners. Let the workspace Preview derive source-to-Preview eligibility
+  listeners. Install that complete source lifecycle through the workspace
+  Preview's atomic project binding rather than a separate application setup
+  stage. Let the workspace Preview derive source-to-Preview eligibility
   from its bound active file, snapshot, context, layout, and sync owner, then
   reveal the nearest mapped DOM range itself. Keep file activation, authoring
   mode, caret, and source-focus policy in the application coordinator.
@@ -1028,7 +1030,8 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   directions; derive explicit versus wide split-layout availability and the
   corresponding centered or selected source offset; and delegate file focus
   and Preview synchronization through directly bound project-file and Preview
-  owners. Keep active file, context, and layout authority, Preview DOM
+  owners. The workspace Preview installs this complete source binding with its
+  project lifecycle. Keep active file, context, and layout authority, Preview DOM
   navigation, caret placement, and focus policy in the application coordinator.
 - Keep source-completion interaction in its bounded light-DOM component: use
   one atomic workspace binding for the editor, citation-scope control, project

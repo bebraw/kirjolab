@@ -13800,6 +13800,21 @@ pass alongside strict types. The browser application changes from 857,248 B raw
 / 231,454 B gzip to 857,277 B raw / 231,419 B gzip (+29 B raw / -35 B gzip);
 dependency counts and the other static artifacts remain unchanged.
 
+## Continued Lit Ownership: Atomic Preview Synchronization
+
+`WorkspacePreview` now installs `PreviewSyncControls` from the typed project
+owners it already receives. Native source listeners, project-file focus, and
+Preview navigation can no longer be initialized as a separate partial
+application stage, and both components share one owner contract instead of
+redeclaring source capabilities.
+
+This checkpoint reduces `src/client/app.ts` from 92 to 91 lines (-1) while the
+two participating production modules remain line-neutral overall. The affected
+guardrail passes 17 related cases and all 10 focused Preview and synchronization
+cases pass alongside strict types. The browser application changes from
+857,277 B raw / 231,419 B gzip to 857,265 B raw / 231,418 B gzip (-12 B raw /
+-1 B gzip); dependency counts and the other static artifacts remain unchanged.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,

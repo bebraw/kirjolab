@@ -1382,8 +1382,10 @@ reason to wrap static markup mechanically.
   the centered or selected source offset from coordinator-supplied active
   context and layout inputs. For Preview-to-source navigation it captures the
   centered Preview offset, resolves the file-qualified source location,
-  delegates focus to the project-file owner, and centers the source viewport. The application
-  coordinator retains active-file, context, and layout authority plus file,
+  delegates focus to the project-file owner, and centers the source viewport.
+  The workspace Preview installs the source listeners and owners atomically
+  with its project binding, so the application has no separate synchronization
+  setup stage. The coordinator retains active-file, context, and layout authority plus file,
   mode, caret, and focus policy. The bound workspace Preview consumes those
   projections, asks the synchronization owner for eligible source offsets, and
   reveals its nearest mapped DOM range directly.

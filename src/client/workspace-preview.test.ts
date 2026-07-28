@@ -154,9 +154,10 @@ describe("workspace preview", () => {
     const renderProject = vi.spyOn(preview, "renderProject").mockResolvedValue(null);
     const revealNearestSource = vi.spyOn(preview, "revealNearestSource").mockReturnValue(true);
     const activeSourcePreviewOffsets = vi.fn(() => [4]);
+    const bindSource = vi.fn();
     preview.bindProject(request.apiBase, documentModel, {
       contextResourcePresenter: { activeKey: "preview", openCitation: vi.fn() },
-      previewSyncControls: { activeSourcePreviewOffsets, showSource: vi.fn() },
+      previewSyncControls: { activeSourcePreviewOffsets, bindSource, showSource: vi.fn() },
       projectFileDialog: {
         activeFileId: workspaceSnapshotFixture.entryFileId,
         focusRange: vi.fn(),
@@ -164,8 +165,12 @@ describe("workspace preview", () => {
         projectFiles: () => files,
       },
       projectTreePanel: { hiddenAssets },
+      source: new EventTarget() as HTMLTextAreaElement,
+      sourceHighlight: new EventTarget() as HTMLElement,
+      workspacePreview: preview,
       workspaceSurfaces: { dataset: { layout: "split" } } as unknown as HTMLElement,
     });
+    expect(bindSource).toHaveBeenCalledWith(expect.objectContaining({ workspacePreview: preview }));
 
     await preview.renderBoundProject();
     await preview.renderBoundProject("Override bibliography");
@@ -274,9 +279,12 @@ describe("workspace preview", () => {
     const showSource = vi.fn();
     preview.bindProject("/api/workspaces/workspace-1", new Y.Doc(), {
       contextResourcePresenter: { activeKey: "preview", openCitation },
-      previewSyncControls: { activeSourcePreviewOffsets: () => [], showSource },
+      previewSyncControls: { activeSourcePreviewOffsets: () => [], bindSource: vi.fn(), showSource },
       projectFileDialog: { activeFileId: null, focusRange, project: workspaceSnapshotFixture, projectFiles: () => [] },
       projectTreePanel: { hiddenAssets: new Set() },
+      source: new EventTarget() as HTMLTextAreaElement,
+      sourceHighlight: new EventTarget() as HTMLElement,
+      workspacePreview: preview,
       workspaceSurfaces: { dataset: {} } as unknown as HTMLElement,
     });
 

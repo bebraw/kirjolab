@@ -25,7 +25,7 @@ import {
   PreviewDiagnosticsPanel,
   type PreviewDiagnosticSelection,
 } from "./preview-presentation";
-import { PreviewSyncControls } from "./preview-sync-controls";
+import { PreviewSyncControls, type PreviewSyncOwners } from "./preview-sync-controls";
 import type { ProjectFileDialog } from "./project-file-dialog";
 import { ProjectExportDialog } from "./project-export-dialog";
 import { RESEARCH_PREVIEW_KEY } from "./research-context";
@@ -61,9 +61,9 @@ export interface ProjectPreviewRequest {
   readonly snapshot: WorkspaceSnapshot | null;
 }
 
-export interface WorkspacePreviewProjectOwners {
+export interface WorkspacePreviewProjectOwners extends PreviewSyncOwners {
   readonly contextResourcePresenter: Pick<ContextResourcePresenter, "activeKey" | "openCitation">;
-  readonly previewSyncControls: Pick<PreviewSyncControls, "activeSourcePreviewOffsets" | "showSource">;
+  readonly previewSyncControls: Pick<PreviewSyncControls, "activeSourcePreviewOffsets" | "bindSource" | "showSource">;
   readonly projectFileDialog: Pick<ProjectFileDialog, "activeFileId" | "focusRange" | "project" | "projectFiles">;
   readonly projectTreePanel: { readonly hiddenAssets: ReadonlySet<string> };
   readonly workspaceSurfaces: HTMLElement;
@@ -119,6 +119,7 @@ export class WorkspacePreview extends LitElement {
   bindProject(apiBase: string, document: Y.Doc, owners: WorkspacePreviewProjectOwners): void {
     this.unbindProjectUpdates();
     this.projectBinding = { apiBase, document, owners };
+    owners.previewSyncControls.bindSource(owners);
     this.bindProjectUpdates();
   }
 
