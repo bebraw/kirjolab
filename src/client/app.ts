@@ -57,11 +57,10 @@ class WorkspaceApp {
       if (!this.#collaboration.synced) this.#elements.editorStatus.setSave("Saved offline");
     },
     serverStateVector: () => this.#collaboration.serverStateVector,
-    snapshot: () => this.#snapshot,
+    snapshot: () => this.#elements.projectFileDialog.project,
     store: createOfflineWorkspaceStore(typeof indexedDB === "undefined" ? undefined : indexedDB, identityEmail, workspaceId),
     workspaceId,
   });
-  #snapshot: WorkspaceSnapshot | null = null;
   #hasBootstrapSnapshot = false;
   #activeFileText = this.#source;
   readonly #layout: WorkspaceLayoutManager;
@@ -204,7 +203,7 @@ class WorkspaceApp {
       sources: () => ({
         catalog: this.#elements.workspaceCatalogPanel.catalog,
         hiddenFileIds: this.#elements.projectFileDialog.hiddenFiles,
-        snapshot: this.#snapshot,
+        snapshot: this.#elements.projectFileDialog.project,
         workspaceId,
       }),
     });
@@ -272,7 +271,7 @@ class WorkspaceApp {
     });
     this.#elements.referenceLibraryWorkspace.bindProject({
       context: this.#elements.contextResourcePresenter,
-      project: () => this.#snapshot,
+      project: () => this.#elements.projectFileDialog.project,
       projectApiBase: appMode === "workspace" ? apiBase : null,
       routes: this.#elements.workspaceSurfaceSwitcher,
     });
@@ -299,7 +298,6 @@ class WorkspaceApp {
     this.#elements.projectFileDialog.configureApi(apiBase, {
       activateFile: (file, snapshot) => this.#activateProjectFile(file, snapshot),
       commit: (snapshot) => {
-        this.#snapshot = snapshot;
         this.#elements.projectFileDialog.presentProject(snapshot, `${apiBase}/assets`, appMode === "workspace");
         void this.#elements.workspacePreview.renderBoundProject();
       },
@@ -330,7 +328,7 @@ class WorkspaceApp {
       (file, entryFileId) => this.#document.getText(projectFileCollaborationTextName(file, entryFileId)).toString(),
       () => this.#collaboration.synced || this.#collaboration.offlineAvailable,
     );
-    this.#elements.workspacePreview.bindProject(apiBase, this.#document, () => this.#snapshot, this.#elements);
+    this.#elements.workspacePreview.bindProject(apiBase, this.#document, () => this.#elements.projectFileDialog.project, this.#elements);
     this.#elements.editorInsertMenu.bind({
       applyInsertion: (insertion) => this.#elements.editorStatus.applyInsertion(this.#activeFileText, insertion),
       authoringTarget: () => ({
@@ -407,7 +405,7 @@ class WorkspaceApp {
         library: this.#librarySnapshot,
         projectApiBase: appMode === "workspace" ? apiBase : null,
         referencePdfs: this.#elements.contextResourcePresenter.referencePdfs,
-        snapshot: this.#snapshot,
+        snapshot: this.#elements.projectFileDialog.project,
         sourceRevision: this.#revision,
         standaloneLibrary: appMode === "library",
         stableDocument: this.#collaboration.stable,
@@ -424,7 +422,7 @@ class WorkspaceApp {
       insertCitation: (citationAlias, locator) => this.#elements.sourceCitationControl.insertCitation(citationAlias, locator),
       library: () => this.#librarySnapshot,
       presentNotice: (message) => this.#elements.toast.show(message),
-      project: () => this.#snapshot,
+      project: () => this.#elements.projectFileDialog.project,
       referencePdfs: () => this.#elements.contextResourcePresenter.referencePdfs,
       refreshResources: () => this.#resourceRefresh.request(),
       refreshLibrary: () => this.#elements.referenceLibraryWorkspace.refreshBoundProject(),
@@ -443,7 +441,7 @@ class WorkspaceApp {
       activeTab: () => this.#elements.contextResourcePresenter.activeContextTab,
       contextKey: () => this.#elements.contextResourcePresenter.activeKey,
       enabled: appMode === "workspace",
-      entryFileId: () => this.#snapshot?.entryFileId,
+      entryFileId: () => this.#elements.projectFileDialog.project?.entryFileId,
       layout: this.#elements.workspaceLayout,
       mode: this.#elements.authoringModeTabs,
       rail: this.#elements.workspaceRailTabs,
@@ -491,7 +489,6 @@ class WorkspaceApp {
 
   async #refreshSnapshot(): Promise<void> {
     const snapshot = await loadWorkspaceSnapshot(apiBase, this.#document, this.#collaboration.synced);
-    this.#snapshot = snapshot;
     if (!this.#hasBootstrapSnapshot) {
       this.#hasBootstrapSnapshot = true;
       this.#elements.projectHistoryTrigger.setRevision(snapshot.revision);
@@ -521,10 +518,9 @@ class WorkspaceApp {
     if (result instanceof Response) await expectOk(result);
     const value: unknown = result instanceof Response ? await result.json() : result;
     const snapshot = parseWorkspaceSnapshot(value, "Project mutation returned an invalid snapshot");
-    this.#snapshot = snapshot;
+    this.#elements.projectFileDialog.presentProject(snapshot, `${apiBase}/assets`, appMode === "workspace");
     await this.#elements.contextResourcePresenter.refreshBoundReferencePdfs(false);
     this.#elements.contextResourcePresenter.presentBoundWorkspace();
-    this.#elements.projectFileDialog.presentProject(snapshot, `${apiBase}/assets`, appMode === "workspace");
     void this.#elements.workspacePreview.renderBoundProject();
   }
 
@@ -532,7 +528,6 @@ class WorkspaceApp {
     const restored = await this.#offline.restore();
     if (!restored) return false;
     const pending = this.#collaboration.restoreOffline(restored.serverStateVector);
-    this.#snapshot = restored.snapshot;
     this.#hasBootstrapSnapshot = true;
     this.#collaboration.setOfflineAvailable(true);
     this.#elements.projectHistoryTrigger.setRevision(restored.snapshot.revision);

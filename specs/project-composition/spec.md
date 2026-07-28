@@ -53,7 +53,8 @@ collaborative, and unambiguous about what preview and export mean.
 - Preview presents composition and Markdown-renderer diagnostics through one
   bounded list. Diagnostic selection emits a file-qualified authored range
   resolved from the active preview source map; the project-file dialog validates
-  file selection and the workspace coordinator owns editor binding and focus.
+  file or entry fallback and owns Write-mode and normalized editor-range
+  activation through bound capabilities.
 - The workspace Preview binds its canonical Yjs document, snapshot source,
   project-file owner, and hidden-asset owner once. It derives live source and
   bibliography, resolved anchors, publication composition, active-file preview,
@@ -214,7 +215,9 @@ collaborative, and unambiguous about what preview and export mean.
   source-completion list, and file-action menu with their bounded views. It then
   supplies the canonical active file and snapshot through one presentation
   callback for coordinator-owned Yjs/editor binding; it does not return active
-  presentation state for the coordinator to reconstruct.
+  presentation state for the coordinator to reconstruct. The same retained
+  snapshot is the single accepted browser project read source; the coordinator
+  does not store a duplicate snapshot.
   Through a narrow coordinator-supplied live-content resolver and readiness
   predicate bound together once, it also
   materializes that same visible collection with snapshot or collaborative

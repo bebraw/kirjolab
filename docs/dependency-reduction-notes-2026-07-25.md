@@ -11778,6 +11778,29 @@ and PDF.js artifacts remain unchanged at 135,411 B / 23,373 B, 204,779 B /
 Full native CI passes all 1,764 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Single Browser Project Snapshot
+
+`ProjectFileDialog` now exposes the accepted project snapshot it already retains
+for file projection. Offline persistence, settings, Library refresh, Preview,
+Context, routing, and mutation consumers read that source instead of a duplicate
+`WorkspaceApp` field. Project mutation acceptance now presents the snapshot to
+the owner before dependent cross-feature refresh and rendering.
+
+This checkpoint reduces `src/client/app.ts` from 554 to 549 lines (-5) and grows
+the project-file owner from 502 to 506 lines (+4), a one-line net maintenance
+reduction that also removes split snapshot authority. Focused coverage passes
+snapshot exposure and project-file behavior; affected integration coverage and
+strict types also pass. Direct and unique production package counts remain 18
+and 150; Lit was already pinned.
+
+The browser application artifact increases from 860,630 B raw / 231,636 B gzip
+to 860,790 B / 231,627 B (+160 B raw / -9 B gzip). Styles and lazy Markdown and
+PDF.js artifacts remain unchanged at 135,411 B / 23,373 B, 204,779 B / 62,386 B,
+and 481,994 B / 146,135 B.
+
+Full native CI passes all 1,764 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: One-Shot Browser Entry Intents
 
 `ProjectStartingPointBrowser` now consumes the `create=1` editor intent, removes

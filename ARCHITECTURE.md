@@ -326,8 +326,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   workspace snapshot through that mutation binding or navigate to the created
   workflow file. Keep workflow-template selection, collaborative caret capture
   and continuation construction, Yjs insertion and document authority,
-  canonical snapshot authority, cross-feature rendering, and the global toast
-  outlet in the workspace coordinator.
+  canonical snapshot loading and response validation, cross-feature rendering,
+  and the global toast outlet in the workspace coordinator. The project-file
+  owner is the single browser projection and read source for the accepted
+  snapshot; the coordinator must not retain a duplicate copy.
 - Let the editor-status Lit owner bind the active Yjs text to the source editor,
   retain per-file undo history, synchronize external text changes, and render
   local plus collaborator presence from coordinator-supplied ranges. Switching
@@ -1258,8 +1260,8 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   source plus research-diary, research-question, and reviewer-response sibling
   projections from one canonical file set. Let it retain that composition's
   source map and translate guide selections into file-qualified editor ranges.
-  Keep general URL synchronization and source-range focus effects in the
-  workspace coordinator; let the project-file dialog own workflow-file creation,
+  Keep general URL synchronization in the workspace coordinator; let the
+  project-file dialog own source-range focus effects, workflow-file creation,
   existing-file focus, and created-file Guide navigation.
 - Keep project-file quick open bounded to transient client-side path filtering
   over the authorized workspace snapshot. It may reveal the Files rail and

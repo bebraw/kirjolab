@@ -477,9 +477,11 @@ The adopted components own bounded presentation:
   visible file collection, and active/entry state into the project tree, Insert
   menu, source completion, and file-action menu. Its workflow binding also owns
   project-range activation across file or entry fallback, Write-mode entry, and
-  normalized editor selection. The coordinator retains
-  workflow-template selection, canonical snapshot and active
-  Y.Text/editor authority, Yjs editing, cross-feature rendering, and the notification outlet.
+  normalized editor selection. The coordinator retains workflow-template
+  selection, canonical snapshot loading and validation, active Y.Text/editor
+  authority, Yjs editing, cross-feature rendering, and the notification outlet.
+  The project-file owner retains and exposes the single accepted browser
+  snapshot instead of the coordinator storing a duplicate.
   The dialog owns active-file identity, entry fallback, and hidden-file
   selection eligibility.
 - Reused project-file action components own the rail and editor-menu action

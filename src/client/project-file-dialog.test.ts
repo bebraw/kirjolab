@@ -227,6 +227,7 @@ describe("project file dialog", () => {
     expect(sourceCompletion.setProject).toHaveBeenCalledWith(snapshot, snapshot.entryFileId, true);
     expect(projectFileMenuActions.setEntryFileActive).toHaveBeenCalledWith(true);
     expect(panel.activeFileId).toBe(snapshot.entryFileId);
+    expect(panel.project).toBe(snapshot);
   });
 
   it("projects visible snapshot or live collaborative file content", () => {

@@ -176,6 +176,10 @@ export class ProjectFileDialog extends LitElement {
     return this.snapshot?.files.find(({ id }) => id === this.selectedFileId) ?? null;
   }
 
+  get project(): WorkspaceSnapshot | null {
+    return this.snapshot;
+  }
+
   projectFiles(live = this.liveContentReady(), snapshot: WorkspaceSnapshot | null = this.snapshot): ProjectFile[] {
     if (!snapshot) return [];
     const files = snapshot.files.filter((file) => !this.hiddenFileIds.has(file.id));
