@@ -939,7 +939,8 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Keep the browser collaboration XState actor, ordered update queue, Yjs server
   shadow, acknowledged server vector, and offline-delta reconstruction behind
   one typed session authority. Put WebSocket creation, reconnect and selection
-  timers, online/offline browser subscriptions, strict control routing,
+  timers, online/offline browser subscriptions, protocol-aware endpoint
+  derivation through its injected browser environment, strict control routing,
   binary-update application, queue flushing, reset cleanup, and reload
   sequencing behind a typed socket authority around that session. Let the same
   authority own the document-wide local-update subscription, offline-save

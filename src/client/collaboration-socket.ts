@@ -43,6 +43,7 @@ export interface CollaborationSocketEnvironment {
   readonly online: () => boolean;
   readonly reload: () => void;
   readonly setTimer: (callback: () => void, delay: number) => number;
+  readonly socketUrl: (apiBase: string) => string;
 }
 
 export interface CollaborationWebSocket {
@@ -60,6 +61,7 @@ const browserEnvironment: CollaborationSocketEnvironment = {
   online: () => navigator.onLine,
   reload: () => window.location.reload(),
   setTimer: (callback, delay) => window.setTimeout(callback, delay),
+  socketUrl: (apiBase) => `${location.protocol === "https:" ? "wss:" : "ws:"}//${location.host}${apiBase}/socket`,
 };
 const socketOpen = 1;
 const socketClosing = 2;
@@ -78,14 +80,14 @@ export class CollaborationSocket {
 
   constructor(
     session: CollaborationSession,
-    socketUrl: string,
+    apiBase: string,
     offline: CollaborationOfflineOwner,
     refresh: CollaborationRefreshOwner,
     owners: CollaborationSocketOwners,
     environment: CollaborationSocketEnvironment = browserEnvironment,
   ) {
     this.#session = session;
-    this.#socketUrl = socketUrl;
+    this.#socketUrl = environment.socketUrl(apiBase);
     this.#offline = offline;
     this.#refresh = refresh;
     this.#owners = owners;

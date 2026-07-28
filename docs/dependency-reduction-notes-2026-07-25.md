@@ -13977,6 +13977,24 @@ remain unchanged.
 Full native CI passes all 1,775 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Reduction: Socket Endpoint Ownership
+
+`CollaborationSocket` now derives the workspace WebSocket endpoint through its
+existing injected browser environment. `WorkspaceApp` declaratively constructs
+that authority from the API scope and no longer needs a constructor solely to
+translate the current page protocol and host or retain the longer socket field
+name.
+
+This checkpoint reduces `src/client/app.ts` from 77 to 73 lines (-4) while the
+socket authority grows from 290 to 292 lines (+2), removing two production lines
+overall. The focused and affected socket suites pass all six cases alongside
+strict types. The browser application changes from 857,104 B raw / 231,406 B
+gzip to 857,102 B raw / 231,411 B gzip (-2 B raw / +5 B gzip); direct and unique
+production package counts remain 18 and 150, and the other static artifacts
+remain unchanged.
+Full native CI passes all 1,775 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,

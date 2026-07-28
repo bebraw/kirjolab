@@ -435,8 +435,8 @@ collaboration.
   acknowledged server vector, and offline-delta reconstruction. It is also the
   workspace coordinator's sole owner of the canonical Yjs document; consumers
   that require document access read it through the session. One typed
-  socket authority around the session owns WebSocket creation, reconnect and
-  selection timers, online/offline browser subscriptions, strict control
+  socket authority around the session owns protocol-aware endpoint derivation,
+  WebSocket creation, reconnect and selection timers, online/offline browser subscriptions, strict control
   routing, binary-update application, queue flushing, reset cleanup, reload
   sequencing, and the document-wide local-update subscription. It binds
   the canonical session document and online/offline browser subscriptions

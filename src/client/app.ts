@@ -14,7 +14,6 @@ class WorkspaceApp {
   readonly #elements = collectAppElements();
   readonly #refresh = new CoalescedRefresh(async () => this.#elements.projectFileDialog.refreshProject());
   readonly #session = new CollaborationSession(new Y.Doc());
-  readonly #collaborationSocket: CollaborationSocket;
   readonly #offline = new OfflineWorkspaceSession({
     browser: { logout: document.querySelector<HTMLAnchorElement>("#log-out") },
     collaboration: this.#session,
@@ -22,10 +21,7 @@ class WorkspaceApp {
     store: createOfflineWorkspaceStore(typeof indexedDB === "undefined" ? undefined : indexedDB, identityEmail, workspaceId),
     workspaceId,
   });
-  constructor() {
-    const socketUrl = `${location.protocol === "https:" ? "wss:" : "ws:"}//${location.host}${apiBase}/socket`;
-    this.#collaborationSocket = new CollaborationSocket(this.#session, socketUrl, this.#offline, this.#refresh, this.#elements);
-  }
+  readonly #socket = new CollaborationSocket(this.#session, apiBase, this.#offline, this.#refresh, this.#elements);
 
   async start(): Promise<void> {
     this.#bindUi();
@@ -35,7 +31,7 @@ class WorkspaceApp {
     await this.#elements.projectFileDialog.openWorkspace();
     await this.#elements.workspaceSurfaceSwitcher.restoreRoute();
     void this.#elements.gitHubSyncMenu.refreshWorkspace(true);
-    this.#collaborationSocket.connect();
+    this.#socket.connect();
     await this.#elements.newWorkspaceStartingPoints.openFromBrowserRequest();
   }
 
@@ -51,7 +47,7 @@ class WorkspaceApp {
       panel.bindProject(this.#elements.projectFileDialog, this.#elements.toast);
     }
     this.#elements.workspaceSharingPanel.configure(apiBase, this.#elements);
-    this.#elements.editorStatus.bindAuthoring(this.#session.document, this.#elements.source, this.#elements, this.#collaborationSocket);
+    this.#elements.editorStatus.bindAuthoring(this.#session.document, this.#elements.source, this.#elements, this.#socket);
     this.#elements.sourceCompletion.bindWorkspace(apiBase, this.#elements);
     this.#elements.projectFileDialog.configureApi(apiBase, this.#elements, this.#elements.workspaceLayout);
     this.#elements.projectFileDialog.bindLiveContent(this.#session);

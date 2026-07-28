@@ -49,7 +49,6 @@ function createHarness(online = true): {
   readonly refresh: CollaborationRefreshOwner;
   readonly runTimer: (delay: number) => void;
   readonly session: CollaborationSession;
-  readonly socketUrl: string;
   readonly sockets: TestSocket[];
 } {
   const document = new Y.Doc();
@@ -75,6 +74,7 @@ function createHarness(online = true): {
       timers.set(id, { callback, delay });
       return id;
     },
+    socketUrl: () => "wss://example.test/api/workspaces/project/socket",
   };
   const offline = {
     clear: async () => {
@@ -123,13 +123,12 @@ function createHarness(online = true): {
       timer[1].callback();
     },
     session,
-    socketUrl: "wss://example.test/api/workspaces/project/socket",
     sockets,
   };
 }
 
 function createConnection(harness: ReturnType<typeof createHarness>, environment = harness.environment): CollaborationSocket {
-  return new CollaborationSocket(harness.session, harness.socketUrl, harness.offline, harness.refresh, harness.owners, environment);
+  return new CollaborationSocket(harness.session, "/api/workspaces/project", harness.offline, harness.refresh, harness.owners, environment);
 }
 
 describe("collaboration socket", () => {
