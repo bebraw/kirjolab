@@ -14332,6 +14332,26 @@ workspace contracts now assign readiness to the atomic layout lifecycle.
 Full native CI passes all 1,775 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Atomic Manuscript Workflow Binding
+
+The manuscript-map Lit owner now installs its own project presentation and the
+research diary, research-question, and reviewer-response panels' shared
+project-file and toast capabilities through one production application entry.
+The same composed owner that projects those workflow summaries therefore owns
+their setup completeness.
+
+This checkpoint trades nineteen net production lines for the atomic manuscript-
+workflow boundary and reduces `src/client/app.ts` from 65 to 61 lines. The
+affected guardrail passes 18 related cases across four suites alongside strict
+types. The browser application changes from 847,118 B raw / 230,981 B gzip to
+847,161 B raw / 230,982 B gzip (+43 B raw / +1 B gzip); direct and unique
+production package counts remain 18 and 150, and the other static artifacts
+remain unchanged. Architecture, ADR, and scholarly-workspace contracts now
+assign workflow binding completeness to the composed manuscript-map owner.
+
+Full native CI passes all 1,775 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,

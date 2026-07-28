@@ -40,11 +40,7 @@ class WorkspaceApp {
     owners.workspaceCatalogPanel.bindWorkspace(workspaceId, owners);
     owners.workspaceSettingsPanel.bindWorkspace(workspaceId, apiBase, appMode === "workspace", this.#refresh, owners);
     owners.newWorkspaceStartingPoints.bindApplication(apiBase, owners);
-    owners.researchDiaryPanel.bindProject(owners.projectFileDialog);
-    owners.manuscriptMapPanel.bindProjectPresentation(owners);
-    for (const panel of [owners.researchQuestionPanel, owners.reviewerResponsePanel]) {
-      panel.bindProject(owners.projectFileDialog, owners.toast);
-    }
+    owners.manuscriptMapPanel.bindApplication(owners);
     owners.workspaceSharingPanel.configure(apiBase, owners);
     owners.editorStatus.bindAuthoring(this.#session.document, owners.source, owners, this.#socket);
     owners.sourceCompletion.bindWorkspace(apiBase, owners);

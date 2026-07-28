@@ -1013,8 +1013,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   highlighting into an inert, text-identical presentation layer so styling
   cannot change canonical Markdown, selection offsets, or collaboration.
 - Let the bounded writing-workflow panel derive and download the reviewer-
-  response letter from its supplied canonical matrix. Bind both workflow panels
-  directly to the project-file and notice capabilities. Each panel owns its
+  response letter from its supplied canonical matrix. Let the manuscript-map
+  Lit owner atomically bind the diary and both workflow panels to their shared
+  project-file and notice capabilities alongside its own project presentation.
+  Each panel owns its
   canonical path and template choice, delegates creation and created-file
   navigation to the project-file owner, and routes source ranges through that
   same owner. The diary summary likewise owns its dated template choice. Keep

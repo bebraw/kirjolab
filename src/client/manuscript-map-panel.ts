@@ -8,7 +8,14 @@ import { reviewerResponsePath } from "../domain/reviewer-response";
 import type { WorkspaceSnapshot } from "../domain/workspace";
 import { researchDiaryPath } from "../domain/writing-workflows";
 import { sourceSpanAt } from "./composition-source-map";
-import { researchQuestionWorkflowData, reviewerResponseWorkflowData, type WritingWorkflowData } from "./writing-workflow-panel";
+import type { ResearchDiarySummary } from "./research-diary-summary";
+import {
+  researchQuestionWorkflowData,
+  reviewerResponseWorkflowData,
+  type WritingWorkflowPanel,
+  type WritingWorkflowData,
+  type WritingWorkflowDocument,
+} from "./writing-workflow-panel";
 
 interface ManuscriptMapProjectRequest {
   readonly fallbackSource: string;
@@ -23,6 +30,14 @@ interface ManuscriptMapProjectPresentation {
   readonly researchQuestionPanel: { setData(data: WritingWorkflowData): void };
   readonly reviewerResponsePanel: { setData(data: WritingWorkflowData): void };
 }
+
+type ManuscriptMapApplicationPresentation = ManuscriptMapProjectPresentation & {
+  readonly projectFileDialog: ManuscriptMapProjectPresentation["projectFileDialog"] & WritingWorkflowDocument;
+  readonly researchDiaryPanel: ResearchDiarySummary;
+  readonly researchQuestionPanel: WritingWorkflowPanel;
+  readonly reviewerResponsePanel: WritingWorkflowPanel;
+  readonly toast: { show(message: string): void };
+};
 
 export class ManuscriptMapPanel extends LightDomElement {
   static override properties = {
@@ -44,6 +59,14 @@ export class ManuscriptMapPanel extends LightDomElement {
 
   setSource(source: string): void {
     this.source = source;
+  }
+
+  bindApplication(presentation: ManuscriptMapApplicationPresentation): void {
+    this.bindProjectPresentation(presentation);
+    presentation.researchDiaryPanel.bindProject(presentation.projectFileDialog);
+    for (const panel of [presentation.researchQuestionPanel, presentation.reviewerResponsePanel]) {
+      panel.bindProject(presentation.projectFileDialog, presentation.toast);
+    }
   }
 
   bindProjectPresentation(presentation: ManuscriptMapProjectPresentation): void {
