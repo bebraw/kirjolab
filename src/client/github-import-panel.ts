@@ -112,6 +112,17 @@ export class GitHubImportPanel extends LitElement {
     void this.refreshConnection();
   }
 
+  openFromBrowserResult(
+    url = new URL(location.href),
+    replace = (path: string): void => history.replaceState(history.state, "", path),
+  ): boolean {
+    const result = url.searchParams.get("github");
+    if (result !== "connected" && result !== "installed") return false;
+    this.open();
+    replace(url.pathname);
+    return true;
+  }
+
   close(): void {
     this.dialog.close();
   }

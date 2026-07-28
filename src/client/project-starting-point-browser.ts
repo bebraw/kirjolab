@@ -104,6 +104,16 @@ export class ProjectStartingPointBrowser extends LitElement {
     }
   }
 
+  async openFromBrowserRequest(
+    url = new URL(location.href),
+    replace = (path: string): void => history.replaceState(history.state, "", path),
+  ): Promise<boolean> {
+    if (url.searchParams.get("create") !== "1") return false;
+    replace(url.pathname);
+    await this.openFromBoundTrigger();
+    return true;
+  }
+
   close(): void {
     this.closeModal();
   }

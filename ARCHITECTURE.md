@@ -152,8 +152,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   typed workspace boundary instead of exposing local action events.
 - Let the project catalog and starting-point Lit owners bind their server-
   rendered entry triggers. The starting-point owner also owns loading-state
-  entry, post-load focus, and local load-failure presentation around the
-  catalog owner's canonical refresh. Bind the catalog owner's read-only
+  entry, post-load focus, local load-failure presentation, and the one-shot
+  browser create intent with canonical query cleanup around the catalog owner's
+  canonical refresh. Bind the catalog owner's read-only
   workspace projection once so trigger, settings, save-template completion, and
   internal template mutations refresh against the same derived input. Let the
   project catalog owner fetch and validate its authorized summaries, retain the
@@ -242,8 +243,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   lifecycle plus stale-request protection, import preview and creation requests,
   account disconnection, Valibot response validation, and local progress and
   failure presentation. Opening the panel starts that connection refresh as one
-  component lifecycle. Let the import panel close its own dialog and navigate
-  to the validated successful response's canonical workspace href. Let the sync
+  component lifecycle. It also consumes successful OAuth/install query results,
+  opens itself, and removes the one-shot query. Let the import panel close its
+  own dialog and navigate to the validated successful response's canonical
+  workspace href. Let the sync
   menu likewise own its bounded connection
   and status refresh interval, validation, stale-request guard, and primary
   presentation, then emit one state event for the settings mirror. Let the

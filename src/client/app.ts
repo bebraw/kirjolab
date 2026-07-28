@@ -173,10 +173,7 @@ class WorkspaceApp {
     await this.#elements.workspaceSurfaceSwitcher.restoreRoute();
     void this.#elements.gitHubSyncMenu.refreshWorkspace(true);
     this.#collaborationSocket.connect();
-    if (new URL(location.href).searchParams.get("create") === "1") {
-      history.replaceState(history.state, "", location.pathname);
-      await this.#elements.newWorkspaceStartingPoints.openFromBoundTrigger();
-    }
+    await this.#elements.newWorkspaceStartingPoints.openFromBrowserRequest();
   }
 
   #bindUi(): void {
@@ -229,11 +226,7 @@ class WorkspaceApp {
       openSettings: (checkGitHub) => this.#elements.workspaceSettingsPanel.openSettings(checkGitHub),
       refreshProject: () => this.#resourceRefresh.request(),
     });
-    const githubResult = new URL(location.href).searchParams.get("github");
-    if (githubResult === "connected" || githubResult === "installed") {
-      this.#elements.gitHubImportPanel.open();
-      history.replaceState(history.state, "", location.pathname);
-    }
+    this.#elements.gitHubImportPanel.openFromBrowserResult();
     this.#elements.saveTemplateDialog.configure(apiBase);
     this.#elements.saveTemplateDialog.bindCompletion((message) => {
       void this.#elements.newWorkspaceStartingPoints.refresh().then(() => this.#elements.toast.show(message));

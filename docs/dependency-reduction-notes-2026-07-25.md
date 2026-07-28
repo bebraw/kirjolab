@@ -11728,6 +11728,30 @@ and PDF.js artifacts remain unchanged at 135,411 B / 23,373 B, 204,779 B /
 Full native CI passes all 1,759 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: One-Shot Browser Entry Intents
+
+`ProjectStartingPointBrowser` now consumes the `create=1` editor intent, removes
+the one-shot query, and enters its existing bound loading workflow.
+`GitHubImportPanel` likewise consumes successful OAuth and installation results,
+opens its owned dialog, and removes the callback query. `WorkspaceApp` no longer
+parses or branches on either workflow-specific URL contract.
+
+This checkpoint reduces `src/client/app.ts` from 578 to 571 lines (-7), grows
+the starting-point owner from 572 to 582 lines (+10), and grows the GitHub import
+owner from 545 to 556 lines (+11). The 14-line combined increase makes both
+one-shot intents independently testable beside the workflows they activate.
+Focused coverage passes ignored and accepted query values, canonical cleanup,
+owner activation, and strict types. Direct and unique production package counts
+remain 18 and 150; Lit and Valibot were already pinned.
+
+The browser application artifact increases from 859,676 B raw / 231,348 B gzip
+to 859,830 B / 231,458 B (+154 B raw / +110 B gzip). Styles and lazy Markdown
+and PDF.js artifacts remain unchanged at 135,411 B / 23,373 B, 204,779 B /
+62,386 B, and 481,994 B / 146,135 B.
+
+Full native CI passes all 1,761 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Library History Mutation
 
 `ReferenceLibraryWorkspace` now owns standalone Library root and addressed-

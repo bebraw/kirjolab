@@ -29,7 +29,9 @@ incoming and outgoing mutation.
   construction, account-disconnection confirmation and request, shared Valibot
   response validation, operation progress, connection refresh on every open,
   local dismissal, and navigation to the
-  validated successful response's canonical workspace href.
+  validated successful response's canonical workspace href. Successful OAuth
+  and installation query results are one-shot owner inputs: the panel opens and
+  removes the query before further navigation.
 - One deployment-wide GitHub App is authorized per Kirjolab owner through the
   GitHub App user OAuth flow. One-time callback state is owner-scoped, user and
   refresh tokens are encrypted at rest, and installation ids are never trusted
@@ -149,8 +151,9 @@ incoming and outgoing mutation.
   lifecycle, discovery, import preview and creation requests, disconnect
   confirmation and request, payload construction, Valibot response validation,
   opaque preview identity, operation progress, and navigation to the validated
-  successful response's canonical workspace href. The Worker retains initial
-  fallback markup.
+  successful response's canonical workspace href. It also owns successful
+  OAuth/install query-result activation and canonical one-shot query cleanup.
+  The Worker retains initial fallback markup.
 - The workspace sync menu is a light-DOM Lit component that owns repository
   status presentation, relationship tone, Pull and Push availability, and
   typed Check, Pull, Push, and Settings intents. Its workspace binding owns the

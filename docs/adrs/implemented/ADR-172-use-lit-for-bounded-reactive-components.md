@@ -55,7 +55,8 @@ The adopted components own bounded presentation:
   selection and preview state, bounded preview rendering, local dismissal and
   import handoff, canonical successful-result navigation, and typed import
   events. It binds its server-rendered entry trigger and owns loading-state
-  entry, post-load focus, and load-failure presentation around a typed catalog-
+  entry, post-load focus, load-failure presentation, and one-shot browser create
+  intent parsing and query cleanup around a typed catalog-
   refresh callback. Every successful refresh reports its derived visible-
   template view through the same template-change outcome used by optimistic
   deletion and Undo, keeping replacement consumers synchronized.
@@ -423,7 +424,9 @@ The adopted components own bounded presentation:
   owns its read-only connection and repository-picker discovery lifecycle plus
   import preview, creation, and account-disconnection requests because their
   payloads, validation, progress, and results are local to that component. The
-  import panel closes its own dialog and owns successful-result navigation. The
+  import panel consumes successful OAuth/install query results, opens itself,
+  removes the one-shot query, closes its own dialog, and owns successful-result
+  navigation. The
   sync menu owns its read-only connection and status request lifecycle because
   its interval, validation, stale-request protection, and primary result
   presentation are local to that component. The sync review owns its Pull,

@@ -259,4 +259,18 @@ describe("GitHub import panel", () => {
     expect(panel.focusCount).toBe(1);
     expect(refreshConnection).toHaveBeenCalledOnce();
   });
+
+  it("owns one-shot GitHub callback results", () => {
+    const panel = new TestGitHubImportPanel();
+    const open = vi.spyOn(panel, "open").mockImplementation(() => undefined);
+    const replace = vi.fn();
+
+    expect(panel.openFromBrowserResult(new URL("https://example.test/?github=ignored"), replace)).toBe(false);
+    expect(panel.openFromBrowserResult(new URL("https://example.test/?github=connected"), replace)).toBe(true);
+    expect(panel.openFromBrowserResult(new URL("https://example.test/?github=installed"), replace)).toBe(true);
+
+    expect(open).toHaveBeenCalledTimes(2);
+    expect(replace).toHaveBeenNthCalledWith(1, "/");
+    expect(replace).toHaveBeenNthCalledWith(2, "/");
+  });
 });

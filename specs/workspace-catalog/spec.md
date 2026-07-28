@@ -46,6 +46,9 @@ making the storage term `workspace` the primary browser hierarchy.
   selector's authorized inputs. Settings and template workflows consume its
   read-only catalog. The application coordinator retains Projects-browser and
   canonical-route navigation authority.
+- The starting-point browser owns the one-shot `create=1` editor intent. It
+  removes the query, opens through its bound server-rendered trigger, loads the
+  canonical template and project inputs, and focuses the first available choice.
 - Unknown browser routes render the shared responsive visual shell, identify
   the missing path, and provide a direct return to the dashboard.
 

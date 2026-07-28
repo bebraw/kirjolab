@@ -353,6 +353,18 @@ describe("project starting point browser", () => {
     expect(browser.modalCount).toBe(1);
   });
 
+  it("owns one-shot browser create requests", async () => {
+    const browser = new TestProjectStartingPointBrowser();
+    const open = vi.spyOn(browser, "openFromBoundTrigger").mockResolvedValue();
+    const replace = vi.fn();
+
+    await expect(browser.openFromBrowserRequest(new URL("https://example.test/editor?other=1"), replace)).resolves.toBe(false);
+    await expect(browser.openFromBrowserRequest(new URL("https://example.test/editor?create=1"), replace)).resolves.toBe(true);
+
+    expect(replace).toHaveBeenCalledWith("/editor");
+    expect(open).toHaveBeenCalledOnce();
+  });
+
   it("binds lifecycle behavior to its native parent dialog", () => {
     const browser = new TestProjectStartingPointBrowser();
     const dialog = new FakeDialog();
