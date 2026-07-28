@@ -17,9 +17,9 @@ explain the response, and identify the manuscript change.
   letter without changing the matrix.
 - A reused writing-workflow component adapts the portable Markdown into guide
   items and owns their count, empty state, action labels, response-letter
-  derivation and browser download, routing typed open, notice, and source-
-  selection actions through one binding. The application coordinator retains file creation, toast policy,
-  and source navigation.
+  derivation and browser download, canonical path and template choice. It binds
+  project-file and notice capabilities directly for creation, opening, source
+  navigation, and export acknowledgement.
 
 ### Anti-Patterns
 

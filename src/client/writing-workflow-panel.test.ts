@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   researchQuestionWorkflowData,
   reviewerResponseWorkflowData,
@@ -93,12 +93,9 @@ describe("writing workflow presentation", () => {
 
   it("owns download and binds open, notice, and bounded selection actions", () => {
     const panel = new TestWritingWorkflowPanel();
-    const actions: unknown[] = [];
-    panel.bind({
-      notice: (message) => actions.push({ action: "notice", message }),
-      open: (kind) => actions.push({ action: "open", kind }),
-      select: (fileId, from, to) => actions.push({ action: "select", fileId, from, to }),
-    });
+    const document = { focusRange: vi.fn(), openWorkflowFile: vi.fn().mockResolvedValue(undefined) };
+    const notice = { show: vi.fn() };
+    panel.bindProject(document, notice);
 
     panel.selectForTest(item);
     panel.setData({ fileId: "responses", items: [item], kind: "reviewer-responses", letter: "letter" });
@@ -107,11 +104,10 @@ describe("writing workflow presentation", () => {
     panel.selectEventForTest("0");
     panel.selectEventForTest("99");
 
-    expect(actions).toEqual([
-      { action: "open", kind: "reviewer-responses" },
-      { action: "notice", message: "Response letter exported." },
-      { action: "select", fileId: "responses", from: 10, to: 30 },
-    ]);
+    expect(document.openWorkflowFile).toHaveBeenCalledWith("reviewer-response.md", expect.any(Function));
+    expect(document.openWorkflowFile.mock.calls[0]?.[1]()).toContain("# Reviewer response matrix");
+    expect(notice.show).toHaveBeenCalledWith("Response letter exported.");
+    expect(document.focusRange).toHaveBeenCalledWith("responses", 10, 30);
     expect(panel.downloads).toEqual([{ content: "letter", name: "response-to-reviewers.md" }]);
     expect(panel.rootForTest()).toBe(panel);
   });

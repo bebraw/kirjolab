@@ -12362,6 +12362,30 @@ unchanged at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip,
 Full native CI passes all 1,773 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Writing-Workflow Documents
+
+The research-question and reviewer-response Lit panels now own their canonical
+paths and template choices and bind project-file and notice capabilities
+directly. The research-diary summary likewise owns its canonical dated template.
+Opening and exact source selection route through the project-file owner without
+kind, path, template, or selection adapters in `WorkspaceApp`.
+
+This checkpoint reduces `src/client/app.ts` from 436 to 418 lines (-18). The
+writing-workflow owner grows from 187 to 202 lines (+15) and the diary owner from
+63 to 64 lines (+1), reducing combined runtime source by two lines while
+removing the coordinator's entire workflow mapping. Direct component coverage
+passes all five workflow cases; affected coverage passes all 23 related runtime
+cases alongside strict types.
+
+The browser application artifact changes from 862,204 B raw / 232,226 B gzip
+to 862,160 B raw / 232,230 B gzip (-44 B raw / +4 B gzip). Styles, lazy
+Markdown, lazy PDF.js, and direct and unique production package counts remain
+unchanged at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip,
+481,994 B raw / 146,135 B gzip, 18, and 150.
+
+Full native CI passes all 1,773 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: One-Shot Browser Entry Intents
 
 `ProjectStartingPointBrowser` now consumes the `create=1` editor intent, removes

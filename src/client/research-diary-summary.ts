@@ -1,11 +1,12 @@
 import { html, LitElement, type TemplateResult } from "lit";
-import { summarizeResearchDiary } from "../domain/writing-workflows";
+import { researchDiaryPath, researchDiaryTemplate, summarizeResearchDiary } from "../domain/writing-workflows";
+import type { WritingWorkflowDocument } from "./writing-workflow-panel";
 
 export class ResearchDiarySummary extends LitElement {
   static override properties = { content: { state: true } };
 
   declare private content: string | null;
-  private openDiary: (() => void) | null = null;
+  private document: Pick<WritingWorkflowDocument, "openWorkflowFile"> | null = null;
 
   constructor() {
     super();
@@ -16,12 +17,12 @@ export class ResearchDiarySummary extends LitElement {
     this.content = content;
   }
 
-  bindOpen(openDiary: () => void): void {
-    this.openDiary = openDiary;
+  bindProject(document: Pick<WritingWorkflowDocument, "openWorkflowFile">): void {
+    this.document = document;
   }
 
   protected emitOpen(): void {
-    this.openDiary?.();
+    void this.document?.openWorkflowFile(researchDiaryPath, () => researchDiaryTemplate(new Date().toISOString().slice(0, 10)));
   }
 
   override connectedCallback(): void {

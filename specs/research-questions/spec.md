@@ -15,9 +15,9 @@ connected to the manuscript and evidence-backed claims through completion.
 - The Writing guide derives question status and traceability counts and can
   navigate to the exact ledger entry.
 - A reused writing-workflow component adapts the portable Markdown into guide
-  items and owns their count, empty state, action label, and typed open and
-  source-selection binding. The application coordinator retains file creation
-  and source navigation.
+  items and owns their count, empty state, action label, canonical path and
+  template choice. It binds the project-file owner directly for creation,
+  opening, and exact source navigation.
 
 ### Anti-Patterns
 

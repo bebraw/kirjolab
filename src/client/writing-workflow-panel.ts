@@ -1,7 +1,12 @@
 import { html, LitElement, type TemplateResult } from "lit";
 import type { ProjectFile } from "../domain/project-files";
-import { parseResearchQuestions } from "../domain/research-questions";
-import { parseReviewerResponses, reviewerResponseLetter } from "../domain/reviewer-response";
+import { parseResearchQuestions, researchQuestionsPath, researchQuestionsTemplate } from "../domain/research-questions";
+import {
+  parseReviewerResponses,
+  reviewerResponseLetter,
+  reviewerResponsePath,
+  reviewerResponseTemplate,
+} from "../domain/reviewer-response";
 
 export type WritingWorkflowKind = "research-questions" | "reviewer-responses";
 
@@ -20,10 +25,14 @@ export interface WritingWorkflowData {
   readonly kind: WritingWorkflowKind;
 }
 
-export interface WritingWorkflowBinding {
-  readonly notice: (message: string) => void;
-  readonly open: (kind: WritingWorkflowKind) => void;
-  readonly select: (fileId: string, from: number, to: number) => void;
+export interface WritingWorkflowDocument {
+  focusRange(fileId: string | null, from: number, to: number): void;
+  openWorkflowFile(path: string, content: () => string): Promise<void>;
+}
+
+interface WritingWorkflowBinding {
+  readonly document: WritingWorkflowDocument;
+  readonly notice: { show(message: string): void };
 }
 
 export function researchQuestionWorkflowData(file: ProjectFile | undefined): WritingWorkflowData {
@@ -75,8 +84,8 @@ export class WritingWorkflowPanel extends LitElement {
     this.data = data;
   }
 
-  bind(binding: WritingWorkflowBinding): void {
-    this.binding = binding;
+  bindProject(document: WritingWorkflowDocument, notice: WritingWorkflowBinding["notice"]): void {
+    this.binding = { document, notice };
   }
 
   override connectedCallback(): void {
@@ -123,13 +132,19 @@ export class WritingWorkflowPanel extends LitElement {
   }
 
   protected open(): void {
-    this.binding?.open(this.data.kind);
+    const binding = this.binding;
+    if (!binding) return;
+    const reviewerResponses = this.data.kind === "reviewer-responses";
+    void binding.document.openWorkflowFile(
+      reviewerResponses ? reviewerResponsePath : researchQuestionsPath,
+      reviewerResponses ? reviewerResponseTemplate : researchQuestionsTemplate,
+    );
   }
 
   protected download(): void {
     if (!this.data.letter) return;
     this.downloadFile("response-to-reviewers.md", this.data.letter);
-    this.binding?.notice("Response letter exported.");
+    this.binding?.notice.show("Response letter exported.");
   }
 
   protected downloadFile(name: string, content: string): void {
@@ -143,7 +158,7 @@ export class WritingWorkflowPanel extends LitElement {
 
   protected select(item: WritingWorkflowItem): void {
     if (!this.data.fileId) return;
-    this.binding?.select(this.data.fileId, item.from, item.to);
+    this.binding?.document.focusRange(this.data.fileId, item.from, item.to);
   }
 
   private renderItems(): TemplateResult | readonly TemplateResult[] {

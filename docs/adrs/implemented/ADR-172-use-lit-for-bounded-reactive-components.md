@@ -87,8 +87,9 @@ The adopted components own bounded presentation:
   navigation policy.
 - Reused writing-workflow panels own research-question and reviewer-response
   Markdown-to-item adaptation, counts, empty states, action labels, reviewer-
-  response letter derivation and browser download. They route typed open,
-  notice, and source-selection actions through one shared binding.
+  response letter derivation and browser download. They bind project-file and
+  notice capabilities directly, own canonical path and template choice, and
+  route opening and source selection through the project-file owner.
 - The assistant result panel owns validated-table previews, clarity input,
   transient revision choices and their captured passage, source-revision,
   evidence, provider-continuation, or table-target context, table generation and
@@ -678,8 +679,8 @@ The adopted components own bounded presentation:
   handling, selected state, focus entry, canonical-href resolution, and
   navigation for authorized catalog selections.
 - The research diary summary owns missing and existing diary presentation,
-  derived entry, question, and action counts, action copy, and a typed open
-  binding.
+  derived entry, question, and action counts, action copy, canonical dated
+  template choice, and a direct project-file capability binding.
 - The assistant workflow status owns operation-specific attribution and status
   copy, live status presentation, selected evidence keys, reconciliation
   against canonical annotations and claims, selection count and limit copy,
@@ -769,10 +770,11 @@ reason to wrap static markup mechanically.
 - The writing-workflow panels replace five internal element references and two
   parallel imperative list renderers. The reviewer-response panel also replaces
   the coordinator's response-letter derivation and download helper. Their shared
-  typed binding removes the public action union, dispatcher, and event. Workflow-
-  template choice, source navigation, and toast policy remain in the application
-  coordinator. The shared project-file owner performs their content-bearing file
-  creation and created-path verification.
+  typed binding removes the public action union, dispatcher, and event. The
+  panels now own workflow-template choice and route source navigation directly
+  through the shared project-file owner, which performs content-bearing file
+  creation and created-path verification. Global toast presentation remains in
+  the toast owner.
 - The assistant result panel replaces six imperative result renderers and their
   local event bindings. It also removes the coordinator's parallel transient-
   result discriminator and context cache by emitting the context retained with

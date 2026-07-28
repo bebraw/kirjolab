@@ -2,17 +2,13 @@ import * as Y from "yjs";
 import "./action-menu-controller";
 import { parseAppBootstrap } from "./app-contracts";
 import { collectAppElements } from "./app-elements";
-import { reviewerResponsePath, reviewerResponseTemplate } from "../domain/reviewer-response";
 import { projectFileCollaborationTextName } from "../domain/project-files";
-import { researchQuestionsPath, researchQuestionsTemplate } from "../domain/research-questions";
-import { researchDiaryPath, researchDiaryTemplate } from "../domain/writing-workflows";
 import "./application-version-control";
 import "./source-citation-control";
 import "./workspace-surface-switcher";
 import "./project-starting-point-browser";
 import { WorkspaceLayoutManager } from "./workspace-layout-manager";
 import "./workspace-layout-control";
-import { type WritingWorkflowBinding } from "./writing-workflow-panel";
 import "./research-diary-summary";
 import { loadWorkspaceSnapshot } from "./workspace-snapshot-client";
 import { CoalescedRefresh } from "./collaboration";
@@ -183,27 +179,13 @@ class WorkspaceApp {
     this.#elements.saveTemplateDialog.bindTemplates(this.#elements.newWorkspaceStartingPoints, (message) =>
       this.#elements.toast.show(message),
     );
-    this.#elements.researchDiaryPanel.bindOpen(
-      () =>
-        void this.#elements.projectFileDialog.openWorkflowFile(researchDiaryPath, () =>
-          researchDiaryTemplate(new Date().toISOString().slice(0, 10)),
-        ),
-    );
+    this.#elements.researchDiaryPanel.bindProject(this.#elements.projectFileDialog);
     this.#elements.manuscriptMapPanel.bindNavigation(({ fileId, from, to }) =>
       this.#elements.projectFileDialog.focusRange(fileId, from, to),
     );
     this.#elements.manuscriptMapPanel.bindProjectPresentation(this.#elements);
-    const writingWorkflow: WritingWorkflowBinding = {
-      notice: (message) => this.#elements.toast.show(message),
-      open: (kind) =>
-        void this.#elements.projectFileDialog.openWorkflowFile(
-          kind === "research-questions" ? researchQuestionsPath : reviewerResponsePath,
-          kind === "research-questions" ? researchQuestionsTemplate : reviewerResponseTemplate,
-        ),
-      select: (fileId, from, to) => this.#elements.projectFileDialog.focusRange(fileId, from, to),
-    };
     for (const panel of [this.#elements.researchQuestionPanel, this.#elements.reviewerResponsePanel]) {
-      panel.bind(writingWorkflow);
+      panel.bindProject(this.#elements.projectFileDialog, this.#elements.toast);
     }
     this.#elements.workspaceSharingPanel.configure(apiBase, {
       presentNotice: (message) => this.#elements.toast.show(message),

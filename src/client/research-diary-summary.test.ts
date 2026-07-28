@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { ResearchDiarySummary } from "./research-diary-summary";
 
 class TestResearchDiarySummary extends ResearchDiarySummary {
@@ -30,9 +30,10 @@ describe("research diary summary", () => {
 
   it("binds the open action", () => {
     const summary = new TestResearchDiarySummary();
-    const actions: string[] = [];
-    summary.bindOpen(() => actions.push("open"));
+    const openWorkflowFile = vi.fn().mockResolvedValue(undefined);
+    summary.bindProject({ openWorkflowFile });
     summary.emitOpenForTest();
-    expect(actions).toEqual(["open"]);
+    expect(openWorkflowFile).toHaveBeenCalledWith("research-diary.md", expect.any(Function));
+    expect(openWorkflowFile.mock.calls[0]?.[1]()).toContain("# Research diary");
   });
 });

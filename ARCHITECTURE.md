@@ -896,11 +896,12 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   highlighting into an inert, text-identical presentation layer so styling
   cannot change canonical Markdown, selection offsets, or collaboration.
 - Let the bounded writing-workflow panel derive and download the reviewer-
-  response letter from its supplied canonical matrix. Route open, source-range,
-  and resulting-notice actions through one typed binding shared by both workflow
-  panels. Let the project-file dialog own workflow-file creation and created-file
-  navigation. Keep source-range navigation and toast policy in the application
-  coordinator.
+  response letter from its supplied canonical matrix. Bind both workflow panels
+  directly to the project-file and notice capabilities. Each panel owns its
+  canonical path and template choice, delegates creation and created-file
+  navigation to the project-file owner, and routes source ranges through that
+  same owner. The diary summary likewise owns its dated template choice. Keep
+  editor focus and global toast presentation in their existing authorities.
 - Keep native-textarea infrastructure in a bounded browser adapter that owns
   Yjs synchronization and history, highlight and presence mirroring, completion
   geometry, relative-selection capture and validated resolution, atomic text-

@@ -15,11 +15,10 @@ survive outside Kirjolab and remain available to collaborators.
 - Diary summaries are derived from dated level-two headings and incomplete
   checklist items under Open questions and Next actions.
 - One bounded light-DOM summary owns missing and existing diary presentation,
-  derived counts, singular and plural copy, and a typed open binding. The
-  shared project-file owner performs content-bearing file creation, validates
-  the returned workspace, and returns the created stable file. The workspace
-  coordinator retains diary-template choice, navigation, selection, and editor
-  focus.
+  derived counts, singular and plural copy, the canonical path, and dated
+  template choice. It binds the shared project-file capability directly for
+  content-bearing file creation, validation, selection, and created-file
+  navigation. The project-file owner retains editor focus policy.
 
 ### Anti-Patterns
 
