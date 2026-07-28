@@ -404,14 +404,15 @@ The adopted components own bounded presentation:
   coordinator retains editor focus, asynchronous cross-file include
   continuation, and the global toast outlet.
 - The source completion list owns citation and include option presentation,
-  bound-editor change subscription plus citation and include context detection,
+  one atomic workspace binding for the editor, citation-scope control, project
+  acceptance owners, and API route, bound-editor change subscription plus citation and include context detection,
   candidate ranking and display adaptation, empty-state hiding, popup
   positioning, hover and keyboard selection, active-descendant state,
   selected-option scrolling, local Escape and blur dismissal, private-Library
   loading and response validation for that scope, and project acceptance.
   Relative includes are applied immediately. Private-Library citation
   acceptance binds the project-file, editor-status, insertion, and toast owners
-  directly instead of adapting their operations in the application coordinator.
+  through the same lifecycle instead of adapting their operations in the application coordinator.
   acceptance preserves the collaborative range, requests project linking,
   delegates canonical snapshot application, resolves the range again, applies
   the citation through the editor insertion owner, and presents completion.

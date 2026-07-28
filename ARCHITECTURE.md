@@ -1012,8 +1012,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   and Preview synchronization through directly bound project-file and Preview
   owners. Keep active file, context, and layout authority, Preview DOM
   navigation, caret placement, and focus policy in the application coordinator.
-- Keep source-completion interaction in its bounded light-DOM component: bind
-  editor change, keyboard, and blur behavior there; invoke one coordinator
+- Keep source-completion interaction in its bounded light-DOM component: use
+  one atomic workspace binding for the editor, citation-scope control, project
+  acceptance owners, and API route; bind editor change, keyboard, and blur behavior there; invoke one coordinator
   callback for authoring-selection, presence, and model-availability
   consequences; persist citation suggestion scope there; detect citation and
   include contexts from the bound editor there; rank
@@ -1028,7 +1029,7 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   owner, requests project linking, delegates canonical snapshot application,
   resolves the range again, applies the citation through the insertion owner,
   and presents completion. Bind the project-file, editor-status, insertion, and
-  toast owners directly so the application coordinator retains only active-file
+  toast owners through that same workspace lifecycle so the application coordinator retains only active-file
   identity plus canonical snapshot and Yjs authority without parallel
   acceptance callbacks or cached completion state.
 - Implement optional editor keymaps as bounded textarea command adapters that

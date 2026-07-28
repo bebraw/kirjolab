@@ -69,17 +69,24 @@ describe("source completion", () => {
 
   it("owns project include and Library citation acceptance", async () => {
     const completion = new TestSourceCompletion();
-    const source = { setAttribute: vi.fn(), removeAttribute: vi.fn() } as unknown as HTMLTextAreaElement;
+    const source = Object.assign(new EventTarget(), {
+      setAttribute: vi.fn(),
+      removeAttribute: vi.fn(),
+    }) as unknown as HTMLTextAreaElement;
+    const scope = Object.assign(new EventTarget(), { value: "project" }) as unknown as HTMLSelectElement;
     const acceptMutation = vi.fn().mockResolvedValue(undefined);
     const preserveRange = vi.fn(() => () => ({ start: 12, end: 15 }));
     const presentNotice = vi.fn();
     const replaceRange = vi.fn();
     const fetchMock = vi.fn().mockResolvedValue(Response.json({}));
     vi.stubGlobal("fetch", fetchMock);
-    completion.bindProjectAcceptance("/api/workspaces/workspace", {
+    vi.stubGlobal("localStorage", { getItem: vi.fn().mockReturnValue(null), setItem: vi.fn() });
+    completion.bindWorkspace("/api/workspaces/workspace", {
+      citationCompletionScope: scope,
       editorInsertMenu: { replaceRange },
       editorStatus: { preserveRange },
       projectFileDialog: { acceptProjectMutation: acceptMutation },
+      source,
       toast: { show: presentNotice },
     });
 
@@ -250,9 +257,15 @@ describe("source completion", () => {
     }) as unknown as HTMLTextAreaElement;
     const scope = Object.assign(new EventTarget(), { value: "project" }) as unknown as HTMLSelectElement;
     const intents: SourceCompletionIntent[] = [];
+    completion.bindWorkspace("/api/workspaces/workspace", {
+      citationCompletionScope: scope,
+      editorInsertMenu: { replaceRange: vi.fn() },
+      editorStatus: { preserveRange: vi.fn() },
+      projectFileDialog: { acceptProjectMutation: vi.fn() },
+      source,
+      toast: { show: vi.fn() },
+    });
     completion.bindAcceptance((intent) => intents.push(intent));
-
-    completion.bindEditor(source, scope);
     vi.stubGlobal("document", { activeElement: source });
     completion.setProject(
       {

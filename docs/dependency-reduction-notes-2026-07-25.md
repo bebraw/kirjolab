@@ -13675,6 +13675,20 @@ focused presenter cases. The browser application changes from 857,343 B raw /
 231,367 B gzip to 857,275 B raw / 231,351 B gzip (-68 B raw / -16 B gzip);
 dependency counts and the other static artifacts remain unchanged.
 
+## Continued Lit Ownership: Atomic Source Completion Binding
+
+`SourceCompletion` now installs its editor interaction, citation-scope control,
+project-acceptance route, and mutation owners through one workspace lifecycle.
+The application no longer exposes editor and acceptance setup as two partial
+initialization stages.
+
+This checkpoint reduces `src/client/app.ts` from 123 to 122 lines (-1) while the
+source-completion owner remains at 341 lines, for a one-line net runtime
+reduction. The affected guardrail passes nine related cases and all seven
+focused source-completion cases. The browser application changes from 857,275 B
+raw / 231,351 B gzip to 857,198 B raw / 231,343 B gzip (-77 B raw / -8 B
+gzip); dependency counts and the other static artifacts remain unchanged.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,

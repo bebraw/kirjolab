@@ -39,11 +39,13 @@ export interface SourceCompletionInputs {
 }
 
 export interface SourceCompletionOwners {
+  readonly citationCompletionScope: HTMLSelectElement;
   readonly editorInsertMenu: { replaceRange(start: number, end: number, replacement: string): void };
   readonly editorStatus: {
     preserveRange(start: number, end: number): (() => { readonly start: number; readonly end: number } | null) | null;
   };
   readonly projectFileDialog: { acceptProjectMutation(result: Response): Promise<void> };
+  readonly source: HTMLTextAreaElement;
   readonly toast: { show(message: string): void };
 }
 
@@ -77,7 +79,8 @@ export class SourceCompletion extends LitElement {
     return this.scopeSelect?.value === "library" ? "library" : "project";
   }
 
-  bindEditor(source: HTMLTextAreaElement, scopeSelect: HTMLSelectElement): void {
+  bindWorkspace(apiBase: string, owners: SourceCompletionOwners): void {
+    const { citationCompletionScope: scopeSelect, source } = owners;
     this.unbindEditor();
     this.source = source;
     this.scopeSelect = scopeSelect;
@@ -86,14 +89,11 @@ export class SourceCompletion extends LitElement {
     source.addEventListener("blur", this.handleEditorBlur);
     for (const eventName of editorRefreshEvents) source.addEventListener(eventName, this.handleEditorChange);
     scopeSelect.addEventListener("change", this.handleScopeChange);
+    this.acceptIntent = (intent) => void this.acceptProjectIntent(apiBase, owners, intent);
   }
 
   bindAcceptance(acceptIntent: (intent: SourceCompletionIntent) => void): void {
     this.acceptIntent = acceptIntent;
-  }
-
-  bindProjectAcceptance(apiBase: string, owners: SourceCompletionOwners): void {
-    this.bindAcceptance((intent) => void this.acceptProjectIntent(apiBase, owners, intent));
   }
 
   show(options: readonly SourceCompletionOption[], source: HTMLTextAreaElement): void {

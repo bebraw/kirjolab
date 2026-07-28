@@ -457,8 +457,9 @@ collaboration.
   separate private-library `Add and cite` action. Completion replaces only the
   active comma-separated key in one collaborative text transaction; accepting
   a private-library result explicitly links it to the project first. The
-  completion owner binds project-file, editor-status, insertion, and toast
-  owners directly for snapshot acceptance, stable-range resolution, replacement,
+  completion owner uses one workspace binding for the editor, citation-scope
+  control, API route, and project-file, editor-status, insertion, and toast
+  owners for snapshot acceptance, stable-range resolution, replacement,
   and completion notice.
 - **Include completion:** With the caret in a line-level `::include[...]`
   directive, the source editor suggests other project Markdown files by their
