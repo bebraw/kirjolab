@@ -55,6 +55,9 @@ authoritative metadata provider without silently overwriting reviewed fields.
 ### Regression Guardrails
 
 - Crossref request identification, response bounds, and mapping remain centralized in the existing adapter.
+- Crossref, DataCite, OpenAlex, and Semantic Scholar share pure provider-text
+  bounding; Crossref and DataCite also share markup and basic entity cleanup.
+  Provider-specific metadata semantics remain in their adapters.
 - Provider strings are rendered through text properties rather than markup.
 - Existing PDF review and manual metadata editing remain available.
 - Project snapshots do not update until their existing explicit synchronization boundary runs.

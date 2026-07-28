@@ -5,6 +5,7 @@ import type { ReferenceDiscoveryIdentifier } from "../domain/reference-discovery
 import type { CitationExpansionCandidate } from "../domain/citation-expansion-types";
 import { isRecord } from "../domain/unknown-value";
 import { readBoundedResponseJson } from "./bounded-response";
+import { boundProviderText as bound, stripProviderMarkup as stripMarkup } from "./provider-text";
 
 type Fetcher = (input: string | URL | Request, init?: RequestInit) => Promise<Response>;
 
@@ -191,16 +192,6 @@ function firstString(value: unknown): string {
   return Array.isArray(value) && typeof value[0] === "string" ? stripMarkup(value[0]) : "";
 }
 
-function stripMarkup(value: string): string {
-  return value
-    .replaceAll(/<[^>]+>/gu, " ")
-    .replaceAll(/&lt;/gu, "<")
-    .replaceAll(/&gt;/gu, ">")
-    .replaceAll(/&amp;/gu, "&")
-    .replaceAll(/\s+/gu, " ")
-    .trim();
-}
-
 function mapEntryType(value: unknown): string {
   if (value === "journal-article") return "article";
   if (value === "proceedings-article") return "inproceedings";
@@ -209,10 +200,6 @@ function mapEntryType(value: unknown): string {
   if (value === "dissertation") return "phdthesis";
   if (value === "report") return "techreport";
   return "misc";
-}
-
-function bound(value: string, maximumLength: number): string {
-  return value.slice(0, maximumLength);
 }
 
 function crossrefHeaders(contact: string): Record<string, string> {

@@ -68,7 +68,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Read bounded external response bodies through stateless, request-local
   helpers that enforce both declared and observed byte limits. Keep byte
   ceilings, errors, response-shape validation, and domain mapping explicit at
-  each provider boundary; never retain response I/O in module state.
+  each provider boundary; never retain response I/O in module state. Share pure
+  scholarly-provider text bounding and markup/entity cleanup while keeping
+  provider-specific type, date, and error mapping local.
 - Model external scholarly works as typed sets of stable identifiers. Prefer DOI when present, but do not make DOI a prerequisite for discovery or review.
 - Do not place executable browser code inline in Worker-rendered HTML. Client behavior should live in typed TypeScript modules before it is served to browsers.
 - Keep the authenticated browser entry as a module-private composition root,

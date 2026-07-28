@@ -3,6 +3,7 @@ import { isValidDoi, normalizePublicationDoi } from "../domain/publication-intak
 import { isRecord } from "../domain/unknown-value";
 import type { PublicationEnrichment } from "../domain/workspace";
 import { readBoundedResponseJson } from "./bounded-response";
+import { boundProviderText as bound, stripProviderMarkup as stripMarkup } from "./provider-text";
 
 type Fetcher = (input: string | URL | Request, init?: RequestInit) => Promise<Response>;
 
@@ -98,18 +99,4 @@ function mapEntryType(value: unknown): string {
   if (value.resourceTypeGeneral === "Report") return "techreport";
   if (value.resourceTypeGeneral === "JournalArticle") return "article";
   return "misc";
-}
-
-function stripMarkup(value: string): string {
-  return value
-    .replaceAll(/<[^>]+>/gu, " ")
-    .replaceAll(/&lt;/gu, "<")
-    .replaceAll(/&gt;/gu, ">")
-    .replaceAll(/&amp;/gu, "&")
-    .replaceAll(/\s+/gu, " ")
-    .trim();
-}
-
-function bound(value: string, maximumLength: number): string {
-  return value.slice(0, maximumLength);
 }

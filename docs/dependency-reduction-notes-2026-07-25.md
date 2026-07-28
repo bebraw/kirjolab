@@ -14985,6 +14985,25 @@ raw / -73 B gzip); direct and unique production package counts remain 18 and
 Full native CI passes all 1,781 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Integration Reduction: Provider Text
+
+Crossref, DataCite, OpenAlex, and Semantic Scholar now share one pure provider-
+text bound helper; Crossref and DataCite also share identical markup and basic
+entity cleanup. Provider-specific date, type, identifier, transport, and error
+mapping remain local to each adapter.
+
+This checkpoint removes 19 net production lines. The affected guardrail passes
+161 related runtime cases across six suites plus all 121 Workers-runtime cases
+alongside formatting, lint, and strict TypeScript targets, and the readability
+audit drops from 42 to 41 clone groups and from eight to seven clone families.
+The browser application and other static artifacts remain byte-identical at
+845,532 B raw / 231,089 B gzip, 135,411 B raw / 23,373 B gzip, 204,779 B raw /
+62,386 B gzip, and 481,994 B raw / 146,135 B gzip; direct and unique production
+package counts remain 18 and 150.
+
+Full native CI passes all 1,781 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,

@@ -4,6 +4,7 @@ import { isRecord } from "../domain/unknown-value";
 import type { PublicationEnrichment } from "../domain/workspace";
 import type { ReferenceDiscoveryIdentifier } from "../domain/reference-discovery";
 import { readBoundedResponseJson } from "./bounded-response";
+import { boundProviderText as bound } from "./provider-text";
 
 type Fetcher = (input: string | URL | Request, init?: RequestInit) => Promise<Response>;
 
@@ -154,8 +155,4 @@ async function readOpenAlexJson(response: Response): Promise<unknown> {
     () => new Error("OpenAlex metadata response is too large"),
     () => new Error("OpenAlex returned invalid metadata"),
   );
-}
-
-function bound(value: string, maximumLength: number): string {
-  return value.slice(0, maximumLength);
 }
