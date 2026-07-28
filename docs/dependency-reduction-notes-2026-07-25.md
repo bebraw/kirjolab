@@ -13938,6 +13938,26 @@ browser application changes from 857,144 B raw / 231,395 B gzip to 857,136 B
 raw / 231,395 B gzip (-8 B raw / unchanged gzip); dependency counts and the
 other static artifacts remain unchanged.
 
+## Continued Lit Ownership: Atomic Settings and GitHub
+
+`WorkspaceSettingsPanel` now establishes the reciprocal GitHub sync lifecycle
+through its existing typed workspace binding: the server-rendered settings
+trigger, workspace identity, GitHub menu, ambient refresh policy, and coalesced
+project refresh enter service together. `WorkspaceApp` no longer binds the two
+halves independently, and its refresh owner has the shorter local name that its
+cross-feature role requires.
+
+This checkpoint reduces `src/client/app.ts` from 79 to 78 lines (-1) while the
+settings panel grows from 441 to 452 lines (+11), adding ten production lines in
+exchange for an atomic mutual lifecycle. The focused settings and GitHub
+menu suites pass all 13 cases; the affected guardrail passes 15 related runtime
+cases and all seven affected test-file cases alongside strict types. The browser
+application changes from 857,136 B raw / 231,395 B gzip to 857,154 B raw /
+231,417 B gzip (+18 B raw / +22 B gzip); direct and unique production package
+counts remain 18 and 150, and the other static artifacts remain unchanged.
+Full native CI passes all 1,775 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,

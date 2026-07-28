@@ -8,6 +8,7 @@ import {
 } from "../domain/workspace";
 import { GitHubSyncReview } from "./github-sync-review";
 import { expectOk, jsonFetch } from "./http";
+import type { GitHubSyncMenu } from "./github-sync-menu";
 
 export interface WorkspaceSettingsValue {
   readonly entryFileId: string;
@@ -31,7 +32,7 @@ export interface WorkspaceSettingsSources {
 }
 
 export interface WorkspaceSettingsOwners {
-  readonly gitHubSyncMenu: { refreshWorkspace(force?: boolean): Promise<void> };
+  readonly gitHubSyncMenu: Pick<GitHubSyncMenu, "bindWorkspace" | "refreshWorkspace">;
   readonly projectFileDialog: {
     readonly hiddenFiles: ReadonlySet<string>;
     readonly project: Pick<WorkspaceSnapshot, "entryFileId" | "files" | "publicationProfile"> | null;
@@ -41,7 +42,10 @@ export interface WorkspaceSettingsOwners {
     readonly catalog: readonly WorkspaceSummary[];
     refresh(): Promise<void> | void;
   };
+  readonly workspaceSettings: EventTarget;
 }
+
+type ProjectRefresh = { request(): Promise<void> };
 
 export class WorkspaceSettingsPanel extends LitElement {
   static override properties = {
@@ -142,12 +146,19 @@ export class WorkspaceSettingsPanel extends LitElement {
     if (this.hasUpdated) this.gitHubReview.configure(apiBase);
   }
 
-  bindWorkspace(trigger: EventTarget, workspaceId: string, owners: WorkspaceSettingsOwners): void {
+  bindWorkspace(
+    workspaceId: string,
+    apiBase: string,
+    ambientGitHubRefresh: boolean,
+    projectRefresh: ProjectRefresh,
+    owners: WorkspaceSettingsOwners,
+  ): void {
     this.triggerBinding?.abort();
     this.owners = owners;
-    this.trigger = trigger;
+    this.trigger = owners.workspaceSettings;
     this.workspaceId = workspaceId;
     this.bindTrigger();
+    owners.gitHubSyncMenu.bindWorkspace(apiBase, ambientGitHubRefresh, projectRefresh, { workspaceSettingsPanel: this });
   }
 
   private bindTrigger(): void {

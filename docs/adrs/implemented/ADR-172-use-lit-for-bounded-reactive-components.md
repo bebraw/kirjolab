@@ -56,9 +56,11 @@ The adopted components own bounded presentation:
   lifecycle, interval, validation and stale-request guard, typed Check, Pull,
   Push, and Settings intents, online and active-review refresh policy, settings
   mirroring and preview routing, and completed-mutation refresh coordination.
-  It binds the canonical settings owner and coalesced project-refresh service
-  directly, invoking them for settings and preview entry and post-Pull project
-  refresh without an application callback projection.
+  The settings owner's atomic workspace binding establishes the menu's
+  reciprocal settings owner, coalesced project-refresh service, and ambient
+  refresh policy. The menu invokes those owners for settings and preview entry
+  and post-Pull project refresh without a second application bind or callback
+  projection.
 - The workspace sync review owns Pull and Publish requests and diff rendering,
   conflict choices, commit-message input, disconnect confirmation, response
   validation, readiness, progress, and one typed completed-mutation event.

@@ -184,9 +184,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   choices, publication defaults, and template eligibility derived from
   canonical workspace inputs. Bind its entry trigger, workspace identity, and
   catalog, project-file, template-save, and GitHub owners through one typed
-  workspace boundary. The component reads their live projections and invokes
-  their refresh or open operations directly instead of accepting parallel
-  callbacks.
+  workspace boundary. That boundary establishes the settings panel and GitHub
+  sync menu's mutual lifecycle, including the coalesced project-refresh service
+  and ambient refresh policy, rather than requiring a second application bind.
+  The component reads owner projections and invokes their refresh or open
+  operations directly instead of accepting parallel callbacks.
 - Let the project catalog and starting-point Lit owners bind their server-
   rendered entry triggers. The starting-point owner also owns loading-state
   entry, post-load focus, local load-failure presentation, and the one-shot

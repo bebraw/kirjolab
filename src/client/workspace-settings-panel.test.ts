@@ -170,12 +170,19 @@ describe("workspace settings panel", () => {
     vi.stubGlobal("location", { assign, href: "https://example.test/editor/study?mode=source" });
     vi.stubGlobal("prompt", vi.fn().mockReturnValueOnce("Study copy").mockReturnValueOnce("DELETE"));
     panel.configureGitHub("/api/workspaces/study");
-    panel.bindWorkspace(new EventTarget(), "study", {
-      gitHubSyncMenu: { refreshWorkspace: vi.fn() },
-      projectFileDialog: { hiddenFiles: new Set(), project: null },
-      saveTemplateDialog: { open: saveTemplate },
-      workspaceCatalogPanel: { catalog: [], refresh: refreshCatalog },
-    });
+    panel.bindWorkspace(
+      "study",
+      "/api/workspaces/study",
+      false,
+      { request: vi.fn() },
+      {
+        gitHubSyncMenu: { bindWorkspace: vi.fn(), refreshWorkspace: vi.fn() },
+        projectFileDialog: { hiddenFiles: new Set(), project: null },
+        saveTemplateDialog: { open: saveTemplate },
+        workspaceCatalogPanel: { catalog: [], refresh: refreshCatalog },
+        workspaceSettings: new EventTarget(),
+      },
+    );
     panel.setViewForTest(view);
 
     await panel.saveForTest();
@@ -277,12 +284,17 @@ describe("workspace settings panel", () => {
       workspaceId: "study",
     };
     const saveTemplate = vi.fn();
-    panel.bindWorkspace(trigger, sources.workspaceId, {
-      gitHubSyncMenu: { refreshWorkspace: refreshGitHub },
+    const bindGitHub = vi.fn();
+    const projectRefresh = { request: vi.fn() };
+    panel.bindWorkspace(sources.workspaceId, "/api/workspaces/study", true, projectRefresh, {
+      gitHubSyncMenu: { bindWorkspace: bindGitHub, refreshWorkspace: refreshGitHub },
       projectFileDialog: { hiddenFiles: sources.hiddenFileIds, project: sources.snapshot },
       saveTemplateDialog: { open: saveTemplate },
       workspaceCatalogPanel: { catalog: sources.catalog, refresh: vi.fn() },
+      workspaceSettings: trigger,
     });
+
+    expect(bindGitHub).toHaveBeenCalledWith("/api/workspaces/study", true, projectRefresh, { workspaceSettingsPanel: panel });
 
     trigger.dispatchEvent(new Event("click"));
     await vi.waitFor(() => expect(panel.open).toBe(true));

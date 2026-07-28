@@ -57,9 +57,10 @@ collaboration.
   modal lifecycle, and its sibling entry trigger. It binds the catalog,
   project-file, template-save, and GitHub owners directly, reads their live
   projections, and invokes their refresh or open operations without a parallel
-  application callback bag. GitHub sync likewise binds this canonical settings
-  owner and the coalesced project-refresh service directly for settings and
-  preview entry and post-Pull project refresh.
+  application callback bag. This atomic workspace binding also establishes the
+  GitHub sync menu's reciprocal settings owner, coalesced project-refresh
+  service, and ambient refresh policy for settings and preview entry and
+  post-Pull project refresh.
 - **Project creation:** The starting-point browser owns title and starting-point
   selection, catalog and preview loading, project creation, personal-template
   deletion and Undo, modal lifecycle, and its entry trigger. It binds the

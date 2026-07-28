@@ -12,7 +12,7 @@ const apiBase = `/api/workspaces/${workspaceId}`;
 
 class WorkspaceApp {
   readonly #elements = collectAppElements();
-  readonly #resourceRefresh = new CoalescedRefresh(async () => this.#elements.projectFileDialog.refreshProject());
+  readonly #refresh = new CoalescedRefresh(async () => this.#elements.projectFileDialog.refreshProject());
   readonly #session = new CollaborationSession(new Y.Doc());
   readonly #collaborationSocket: CollaborationSocket;
   readonly #offline = new OfflineWorkspaceSession({
@@ -24,7 +24,7 @@ class WorkspaceApp {
   });
   constructor() {
     const socketUrl = `${location.protocol === "https:" ? "wss:" : "ws:"}//${location.host}${apiBase}/socket`;
-    this.#collaborationSocket = new CollaborationSocket(this.#session, socketUrl, this.#offline, this.#resourceRefresh, this.#elements);
+    this.#collaborationSocket = new CollaborationSocket(this.#session, socketUrl, this.#offline, this.#refresh, this.#elements);
   }
 
   async start(): Promise<void> {
@@ -42,9 +42,8 @@ class WorkspaceApp {
   #bindUi(): void {
     this.#elements.assistantGenerationPresenter.bindAuthoring(this.#session, this.#elements);
     this.#elements.workspaceCatalogPanel.bindWorkspace(workspaceId, this.#elements);
-    this.#elements.workspaceSettingsPanel.bindWorkspace(this.#elements.workspaceSettings, workspaceId, this.#elements);
+    this.#elements.workspaceSettingsPanel.bindWorkspace(workspaceId, apiBase, appMode === "workspace", this.#refresh, this.#elements);
     this.#elements.newWorkspaceStartingPoints.bindWorkspace(this.#elements);
-    this.#elements.gitHubSyncMenu.bindWorkspace(apiBase, appMode === "workspace", this.#resourceRefresh, this.#elements);
     this.#elements.saveTemplateDialog.bindWorkspace(apiBase, this.#elements.newWorkspaceStartingPoints, this.#elements.toast);
     this.#elements.researchDiaryPanel.bindProject(this.#elements.projectFileDialog);
     this.#elements.manuscriptMapPanel.bindProjectPresentation(this.#elements);
@@ -63,9 +62,9 @@ class WorkspaceApp {
     this.#elements.contextResourcePresenter.bindProjectKnowledge(apiBase, this.#elements);
     this.#elements.workspaceLayout.bindWorkspace(workspaceId, this.#elements);
     this.#elements.contextResourcePresenter.bindContext(appMode === "workspace" ? apiBase : null, this.#elements);
-    this.#elements.contextResourcePresenter.bindRoutes(this.#session.document, this.#session, this.#resourceRefresh, this.#elements);
+    this.#elements.contextResourcePresenter.bindRoutes(this.#session.document, this.#session, this.#refresh, this.#elements);
     this.#elements.workspaceSurfaceSwitcher.bindWorkspaceRoute(appMode === "workspace", this.#elements);
-    this.#elements.assistantGenerationPresenter.bindWorkflow(this.#resourceRefresh, this.#elements);
+    this.#elements.assistantGenerationPresenter.bindWorkflow(this.#refresh, this.#elements);
     this.#elements.assistantGenerationPresenter.bindWorkspace(apiBase);
   }
 }
