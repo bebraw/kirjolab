@@ -323,7 +323,6 @@ class WorkspaceApp {
         candidateDecision: this.#elements.assistantGenerationPresenter.candidateDecision(),
         library: this.#elements.referenceLibraryWorkspace.snapshot,
         projectApiBase: appMode === "workspace" ? apiBase : null,
-        referencePdfs: this.#elements.contextResourcePresenter.referencePdfs,
         snapshot: this.#elements.projectFileDialog.project,
         sourceRevision: this.#elements.projectHistoryTrigger.value,
         standaloneLibrary: appMode === "library",

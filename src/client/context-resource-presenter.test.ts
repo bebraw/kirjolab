@@ -226,6 +226,7 @@ describe("context resource presenter", () => {
     const tab = resourceTab("pdf", "project/pdf");
     const setTabs = vi.spyOn(elements["context-tab-strip"], "setTabs").mockImplementation(() => undefined);
     const present = vi.spyOn(presenter, "present").mockReturnValue({ publicationPresented: false });
+    vi.spyOn(presenter, "referencePdfs", "get").mockReturnValue([referencePdf]);
     presenter.openResourceContext({ kind: "pdf", id: tab.id });
 
     const presentation = presenter.presentContext({

@@ -82,7 +82,7 @@ export interface ResearchContextPresentation extends ContextResourcePresentation
   readonly activeTab: ResearchResourceTab | undefined;
 }
 
-export interface ResearchContextSources extends Omit<ContextResourceSources, "activeTab"> {
+export interface ResearchContextSources extends Omit<ContextResourceSources, "activeTab" | "referencePdfs"> {
   readonly standaloneLibrary: boolean;
 }
 
@@ -695,7 +695,8 @@ export class ContextResourcePresenter extends LitElement {
   }
 
   presentContext(sources: ResearchContextSources): ResearchContextPresentation {
-    const { standaloneLibrary, ...resourceSources } = sources;
+    const { standaloneLibrary, ...contextSources } = sources;
+    const resourceSources: ContextResourceSources = { ...contextSources, activeTab: undefined, referencePdfs: this.referencePdfs };
     const context = this.contextState;
     this.element("context-tab-strip", ContextTabStrip)?.setTabs({
       activeKey: context.activeKey,
@@ -703,7 +704,7 @@ export class ContextResourcePresenter extends LitElement {
       libraryArtifacts: sources.library?.artifacts ?? [],
       pdfs: sources.snapshot?.pdfs ?? [],
       publications: sources.snapshot?.publications ?? [],
-      referencePdfs: sources.referencePdfs,
+      referencePdfs: this.referencePdfs,
       standaloneLibrary,
       tabs: context.tabs,
     });
