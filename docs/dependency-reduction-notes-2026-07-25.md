@@ -13120,6 +13120,25 @@ Markdown, lazy PDF.js, and direct and unique production package counts remain
 unchanged at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip,
 481,994 B raw / 146,135 B gzip, 18, and 150.
 
+## Continued Lit Ownership: Workspace Route Owners
+
+`WorkspaceSurfaceSwitcher` now consumes the canonical project-file, Context,
+authoring-mode, layout, rail, and source owners directly from the application
+element registry. Route enablement remains separate configuration, while the
+application no longer translates six owners through a second set of aliases.
+
+This checkpoint reduces `src/client/app.ts` from 213 to 205 lines (-8) and
+grows the workspace surface switcher from 188 to 194 lines (+6), removing two
+runtime lines overall. Focused coverage passes all four surface-switcher cases;
+affected coverage passes six related runtime cases and the affected test file
+alongside strict types.
+
+The browser application artifact changes from 858,452 B raw / 231,736 B gzip
+to 858,542 B raw / 231,710 B gzip (+90 B raw / -26 B gzip). Styles, lazy
+Markdown, lazy PDF.js, and direct and unique production package counts remain
+unchanged at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip,
+481,994 B raw / 146,135 B gzip, 18, and 150.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,

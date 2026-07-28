@@ -185,15 +185,7 @@ class WorkspaceApp {
     this.#elements.contextResourcePresenter.bindPdfViewer(this.#pdfViewer, apiBase);
     this.#elements.libraryPdfInspector.bindProjectMutations(this.#elements.referenceLibraryWorkspace);
     this.#elements.contextResourcePresenter.bindClaimList(apiBase);
-    this.#elements.workspaceSurfaceSwitcher.bindWorkspaceRoute({
-      context: this.#elements.contextResourcePresenter,
-      enabled: appMode === "workspace",
-      layout: this.#elements.workspaceLayout,
-      mode: this.#elements.authoringModeTabs,
-      project: this.#elements.projectFileDialog,
-      rail: this.#elements.workspaceRailTabs,
-      source: this.#elements.source,
-    });
+    this.#elements.workspaceSurfaceSwitcher.bindWorkspaceRoute(appMode === "workspace", this.#elements);
     this.#layout.bind();
     this.#elements.contextResourcePresenter.bindPublicationContext(apiBase);
     this.#elements.assistantGenerationPresenter.bindResources(this.#elements.contextResourcePresenter.assistantResources());

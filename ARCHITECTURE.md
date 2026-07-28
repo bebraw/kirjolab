@@ -97,8 +97,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   effects. Every Write outcome activates Authoring without a second navigation
   event, focuses the supplied authoring target, and replaces the canonical URL;
   Map outcomes only replace the URL. Supply the project, Context, and authoring
-  owners directly so route state and effects are not duplicated as coordinator
-  callback adapters.
+  owners plus layout, rail, and source directly under their canonical
+  application-registry names, with route enablement as the only separate
+  configuration, so route state and effects are not duplicated as coordinator
+  callback or alias adapters.
 - Let that route binding also consume project-rail navigation outcomes and
   replace the canonical URL. Keep rail presentation, collapse, and geometry in
   their existing owners.

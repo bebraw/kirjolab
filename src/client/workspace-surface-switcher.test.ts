@@ -71,8 +71,8 @@ describe("workspace surface switcher", () => {
       href: "https://example.test/editor/demo?keep=yes&file=notes&rail=guide&mode=map&surface=context&layout=context&context=pdf%3Apaper&page=3&annotation=mark",
     });
     vi.stubGlobal("history", { pushState, replaceState, state: { retained: true } });
-    switcher.bindWorkspaceRoute({
-      context: {
+    switcher.bindWorkspaceRoute(true, {
+      contextResourcePresenter: {
         activeContextTab: {
           focusedAnnotationId: "mark",
           id: "paper",
@@ -85,8 +85,7 @@ describe("workspace surface switcher", () => {
         ensurePdfResource,
         restoreContext,
       },
-      enabled: true,
-      layout: {
+      workspaceLayout: {
         get value() {
           return layout;
         },
@@ -96,7 +95,7 @@ describe("workspace surface switcher", () => {
         navigate: layoutNavigate,
         restore: layoutRestore,
       },
-      mode: {
+      authoringModeTabs: {
         get mode() {
           return authoringMode;
         },
@@ -105,7 +104,7 @@ describe("workspace surface switcher", () => {
         },
         navigate: modeNavigate,
       },
-      rail: {
+      workspaceRailTabs: {
         get mode() {
           return railMode;
         },
@@ -114,7 +113,7 @@ describe("workspace surface switcher", () => {
         },
         navigate: railNavigate,
       },
-      project: { activeFileId: "notes", project: { entryFileId: "main" }, selectFile },
+      projectFileDialog: { activeFileId: "notes", project: { entryFileId: "main" }, selectFile },
       source: { focus: focusAuthoring },
     });
 
@@ -170,18 +169,17 @@ describe("workspace surface switcher", () => {
     vi.stubGlobal("history", { pushState: vi.fn(), replaceState, state: null });
 
     switcher.syncRoute("replace");
-    switcher.bindWorkspaceRoute({
-      context: {
+    switcher.bindWorkspaceRoute(false, {
+      contextResourcePresenter: {
         activeContextTab: undefined,
         activeKey: "preview",
         ensurePdfResource: vi.fn(),
         restoreContext: vi.fn(),
       },
-      enabled: false,
-      layout: { value: "split", bindChange: vi.fn(), navigate: vi.fn(), restore: vi.fn() },
-      mode: { mode: "write", bindNavigation: vi.fn(), navigate: vi.fn() },
-      project: { activeFileId: null, project: null, selectFile: vi.fn() },
-      rail: { mode: "files", bindNavigation: vi.fn(), navigate: vi.fn() },
+      workspaceLayout: { value: "split", bindChange: vi.fn(), navigate: vi.fn(), restore: vi.fn() },
+      authoringModeTabs: { mode: "write", bindNavigation: vi.fn(), navigate: vi.fn() },
+      projectFileDialog: { activeFileId: null, project: null, selectFile: vi.fn() },
+      workspaceRailTabs: { mode: "files", bindNavigation: vi.fn(), navigate: vi.fn() },
       source: { focus: vi.fn() },
     });
     await switcher.restoreRoute();
@@ -194,18 +192,17 @@ describe("workspace surface switcher", () => {
     const browser = new EventTarget();
     vi.stubGlobal("window", browser);
     const restoreRoute = vi.spyOn(switcher, "restoreRoute").mockResolvedValue();
-    switcher.bindWorkspaceRoute({
-      context: {
+    switcher.bindWorkspaceRoute(true, {
+      contextResourcePresenter: {
         activeContextTab: undefined,
         activeKey: "preview",
         ensurePdfResource: vi.fn(),
         restoreContext: vi.fn(),
       },
-      enabled: true,
-      layout: { value: "split", bindChange: vi.fn(), navigate: vi.fn(), restore: vi.fn() },
-      mode: { mode: "write", bindNavigation: vi.fn(), navigate: vi.fn() },
-      project: { activeFileId: null, project: null, selectFile: vi.fn() },
-      rail: { mode: "files", bindNavigation: vi.fn(), navigate: vi.fn() },
+      workspaceLayout: { value: "split", bindChange: vi.fn(), navigate: vi.fn(), restore: vi.fn() },
+      authoringModeTabs: { mode: "write", bindNavigation: vi.fn(), navigate: vi.fn() },
+      projectFileDialog: { activeFileId: null, project: null, selectFile: vi.fn() },
+      workspaceRailTabs: { mode: "files", bindNavigation: vi.fn(), navigate: vi.fn() },
       source: { focus: vi.fn() },
     });
 

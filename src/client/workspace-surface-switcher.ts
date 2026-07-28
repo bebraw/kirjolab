@@ -10,31 +10,30 @@ import {
   type WorkspaceSurface,
 } from "./workspace-ui-route";
 
-export interface WorkspaceRouteBinding {
-  readonly context: {
+export interface WorkspaceRouteOwners {
+  readonly contextResourcePresenter: {
     readonly activeContextTab: ResearchContextState["tabs"][number] | undefined;
     readonly activeKey: ResearchContextKey;
     readonly ensurePdfResource: () => Promise<void>;
     readonly restoreContext: (key: ResearchContextKey, page?: number, annotationId?: string) => Promise<void>;
   };
-  readonly enabled: boolean;
-  readonly layout: {
+  readonly workspaceLayout: {
     readonly value: WorkspaceLayout;
     readonly bindChange: (changeLayout: (layout: WorkspaceLayout) => void | Promise<void>) => void;
     readonly navigate: (layout: string, persist?: boolean) => Promise<WorkspaceLayout>;
     readonly restore: () => Promise<WorkspaceLayout>;
   };
-  readonly mode: {
+  readonly authoringModeTabs: {
     readonly mode: AuthoringMode;
     readonly bindNavigation: (navigate: (mode: AuthoringMode) => void) => void;
     readonly navigate: (mode: AuthoringMode) => void;
   };
-  readonly rail: {
+  readonly workspaceRailTabs: {
     readonly mode: WorkspaceRail;
     readonly bindNavigation: (navigate: (rail: WorkspaceRail) => void) => void;
     readonly navigate: (rail: WorkspaceRail) => void;
   };
-  readonly project: {
+  readonly projectFileDialog: {
     readonly activeFileId: string | null;
     readonly project: { readonly entryFileId: string } | null;
     readonly selectFile: (fileId: string) => boolean;
@@ -47,7 +46,8 @@ export class WorkspaceSurfaceSwitcher extends LitElement {
 
   declare private surface: WorkspaceSurface;
   private navigation: ((surface: WorkspaceSurface) => void) | null = null;
-  private routeBinding: WorkspaceRouteBinding | null = null;
+  private routeBinding: WorkspaceRouteOwners | null = null;
+  private routeEnabled = false;
   private routeReady = false;
 
   constructor() {
@@ -65,35 +65,37 @@ export class WorkspaceSurfaceSwitcher extends LitElement {
     this.navigation = navigate;
   }
 
-  bindWorkspaceRoute(binding: WorkspaceRouteBinding): void {
+  bindWorkspaceRoute(enabled: boolean, binding: WorkspaceRouteOwners): void {
+    this.routeEnabled = enabled;
     this.routeBinding = binding;
     this.bindNavigation(() => this.syncRoute("replace"));
-    binding.mode.bindNavigation((mode) => {
+    binding.authoringModeTabs.bindNavigation((mode) => {
       if (mode === "write") {
         this.navigate("authoring", false);
         binding.source.focus();
       }
       this.syncRoute("replace");
     });
-    binding.layout.bindChange(async (layout) => {
-      if (layout === "pdf") await binding.context.ensurePdfResource();
+    binding.workspaceLayout.bindChange(async (layout) => {
+      if (layout === "pdf") await binding.contextResourcePresenter.ensurePdfResource();
       this.syncRoute("replace");
     });
-    binding.rail.bindNavigation(() => this.syncRoute("replace"));
+    binding.workspaceRailTabs.bindNavigation(() => this.syncRoute("replace"));
     this.bindHistory();
   }
 
   async restoreRoute(url = new URL(location.href)): Promise<void> {
     const binding = this.routeBinding;
-    if (!binding?.enabled) return;
+    if (!binding || !this.routeEnabled) return;
     this.routeReady = false;
-    await binding.layout.restore();
+    await binding.workspaceLayout.restore();
     const route = readWorkspaceUiRoute(url);
-    if (url.searchParams.has("rail")) binding.rail.navigate(route.rail);
-    if (url.searchParams.has("mode")) binding.mode.navigate(route.mode);
-    if (route.fileId) binding.project.selectFile(route.fileId);
-    if (url.searchParams.has("context")) await binding.context.restoreContext(route.contextKey, route.page, route.annotationId);
-    if (route.layout) await binding.layout.navigate(route.layout, false);
+    if (url.searchParams.has("rail")) binding.workspaceRailTabs.navigate(route.rail);
+    if (url.searchParams.has("mode")) binding.authoringModeTabs.navigate(route.mode);
+    if (route.fileId) binding.projectFileDialog.selectFile(route.fileId);
+    if (url.searchParams.has("context"))
+      await binding.contextResourcePresenter.restoreContext(route.contextKey, route.page, route.annotationId);
+    if (route.layout) await binding.workspaceLayout.navigate(route.layout, false);
     if (url.searchParams.has("surface")) this.navigate(route.surface);
     this.routeReady = true;
     this.syncRoute("replace");
@@ -101,15 +103,19 @@ export class WorkspaceSurfaceSwitcher extends LitElement {
 
   syncRoute(mode: "push" | "replace"): void {
     const binding = this.routeBinding;
-    if (!binding?.enabled || !this.routeReady) return;
+    if (!binding || !this.routeEnabled || !this.routeReady) return;
     const current = new URL(location.href);
     const next = workspaceUiRouteUrl(current, {
-      ...workspaceUiRouteSelection(binding.project.activeFileId, binding.project.project?.entryFileId, binding.context.activeContextTab),
-      rail: binding.rail.mode,
-      mode: binding.mode.mode,
+      ...workspaceUiRouteSelection(
+        binding.projectFileDialog.activeFileId,
+        binding.projectFileDialog.project?.entryFileId,
+        binding.contextResourcePresenter.activeContextTab,
+      ),
+      rail: binding.workspaceRailTabs.mode,
+      mode: binding.authoringModeTabs.mode,
       surface: this.surface,
-      layout: binding.layout.value,
-      contextKey: binding.context.activeKey,
+      layout: binding.workspaceLayout.value,
+      contextKey: binding.contextResourcePresenter.activeKey,
     });
     const currentRelative = `${current.pathname}${current.search}${current.hash}`;
     if (next === currentRelative) return;
@@ -167,7 +173,7 @@ export class WorkspaceSurfaceSwitcher extends LitElement {
 
   private bindHistory(): void {
     this.unbindHistory();
-    if (this.routeBinding?.enabled && typeof window !== "undefined") window.addEventListener("popstate", this.handlePopState);
+    if (this.routeEnabled && this.routeBinding && typeof window !== "undefined") window.addEventListener("popstate", this.handlePopState);
   }
 
   private unbindHistory(): void {

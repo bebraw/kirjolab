@@ -223,9 +223,10 @@ collaboration.
   readiness, ordered file, rail, Write/Map, context, layout, and surface
   restoration, canonical URL comparison, and push-versus-replace history
   writes. It restores the persisted layout before applying any explicit URL
-  override. The coordinator supplies canonical state and bounded restoration
-  effects through the live project, Context, and authoring owners rather than
-  duplicating owner state and methods as callback adapters. Write/Map mode
+  override. The coordinator supplies the canonical project-file, Context,
+  authoring-mode, layout, rail, and source owners directly from the application
+  registry, with route enablement as separate configuration, rather than
+  duplicating owner state and methods as callback or alias adapters. Write/Map mode
   selection follows the same boundary, while the surface switcher's route
   binding applies Authoring, focuses the supplied authoring target, and replaces
   the route once for every Write outcome.

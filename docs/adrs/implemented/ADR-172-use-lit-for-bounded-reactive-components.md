@@ -1363,9 +1363,10 @@ reason to wrap static markup mechanically.
   push-versus-replace browser-history writes, and the browser-history
   restoration subscription with lifecycle teardown. It applies persisted
   layout before an explicit route layout during restoration. The application
-  coordinator supplies the live project, Context, and authoring owners alongside
-  the layout, mode, and rail controls instead of projecting their state and
-  effects through callback adapters. The same binding consumes authoring-mode
+  coordinator supplies the canonical project-file, Context, authoring-mode,
+  layout, rail, and source owners directly from the application registry, with
+  route enablement as separate configuration, instead of projecting their state
+  and effects through callback or alias adapters. The same binding consumes authoring-mode
   outcomes, applies Authoring and supplied editor focus for Write, and replaces
   the canonical route for either mode.
 - The workspace layout control replaces the raw select reference and
