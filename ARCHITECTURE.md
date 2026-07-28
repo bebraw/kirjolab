@@ -408,9 +408,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   snapshot through one presentation callback for Yjs/editor binding instead of
   returning presentation state to the coordinator. It also materializes that same visible collection
   with snapshot or live collaborative content for Preview, manuscript-map, and
-  collaborator-selection consumers from the bound Yjs document and
-  collaboration session. The project-file owner derives each canonical text
-  key and live-content readiness; consumers request the derived collection
+  collaborator-selection consumers from the bound collaboration session. The
+  session is the canonical owner of both the Yjs document and readiness state;
+  the project-file owner derives each canonical text key and live-content readiness; consumers request the derived collection
   without repeating those rules. Let the owner
   accept either a response or snapshot from generic project mutations, validate
   it through the canonical workspace contract, install its projection, and

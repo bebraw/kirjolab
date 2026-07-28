@@ -13878,6 +13878,20 @@ from 857,236 B raw / 231,403 B gzip to 857,183 B raw / 231,413 B gzip (-53 B
 raw / +10 B gzip); dependency counts and the other static artifacts remain
 unchanged.
 
+## Continued Lit Ownership: Session-Owned Live Content
+
+`ProjectFileDialog` now consumes `CollaborationSession` as the single source of
+its Yjs document and collaborative-content readiness. The dialog no longer
+stores a parallel `{ document, session }` pair, and `WorkspaceApp` no longer
+passes the session-owned document separately during live-content binding.
+
+This checkpoint keeps `src/client/app.ts` at 87 lines and reduces the
+project-file dialog from 654 to 650 lines, removing four production lines. The
+affected guardrail passes 27 related cases and all 25 focused dialog cases pass
+alongside strict types. The browser application changes from 857,183 B raw /
+231,413 B gzip to 857,128 B raw / 231,396 B gzip (-55 B raw / -17 B gzip);
+dependency counts and the other static artifacts remain unchanged.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,

@@ -1,5 +1,4 @@
 import { html, LitElement, type TemplateResult } from "lit";
-import type * as Y from "yjs";
 import { projectFileCollaborationTextName, relativeProjectPath, type ProjectAsset, type ProjectFile } from "../domain/project-files";
 import { isWorkspaceSnapshot, type WorkspaceSnapshot } from "../domain/workspace";
 import { DeferredDeletionController, type DeferredDeletionNoticeOptions } from "./deferred-deletion";
@@ -141,10 +140,7 @@ export class ProjectFileDialog extends LitElement {
   private selectedFileId: string | null = null;
   private snapshot: WorkspaceSnapshot | null = null;
   private presentation: ProjectFilePresentationBinding | null = null;
-  private liveContent: {
-    document: Y.Doc;
-    session: Pick<CollaborationSession, "offlineAvailable" | "synced">;
-  } | null = null;
+  private liveContent: Pick<CollaborationSession, "document" | "offlineAvailable" | "synced"> | null = null;
   private pendingInclude: ((path: string) => boolean) | null = null;
   private refreshBinding: ProjectRefreshBinding | null = null;
   private layout: { setRailCollapsed(collapsed: boolean): void } | null = null;
@@ -179,8 +175,8 @@ export class ProjectFileDialog extends LitElement {
     this.connectOwners();
   }
 
-  bindLiveContent(document: Y.Doc, session: Pick<CollaborationSession, "offlineAvailable" | "synced">): void {
-    this.liveContent = { document, session };
+  bindLiveContent(session: Pick<CollaborationSession, "document" | "offlineAvailable" | "synced">): void {
+    this.liveContent = session;
   }
 
   bindProjectRefresh(
@@ -231,7 +227,7 @@ export class ProjectFileDialog extends LitElement {
   }
 
   projectFiles(
-    live = Boolean(this.liveContent?.session.synced || this.liveContent?.session.offlineAvailable),
+    live = Boolean(this.liveContent?.synced || this.liveContent?.offlineAvailable),
     snapshot: WorkspaceSnapshot | null = this.snapshot,
   ): ProjectFile[] {
     if (!snapshot) return [];
@@ -324,7 +320,7 @@ export class ProjectFileDialog extends LitElement {
     const liveContent = this.liveContent;
     if (!binding || !liveContent) return;
     const initial = this.snapshot === null;
-    const snapshot = await loadWorkspaceSnapshot(this.apiBase, liveContent.document, liveContent.session.synced);
+    const snapshot = await loadWorkspaceSnapshot(this.apiBase, liveContent.document, liveContent.synced);
     if (initial) {
       binding.owners.projectHistoryTrigger.setRevision(snapshot.revision);
       binding.owners.source.value = snapshot.source;

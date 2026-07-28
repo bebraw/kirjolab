@@ -338,7 +338,7 @@ describe("project file dialog", () => {
     const document = new Y.Doc();
     document.getText("source").insert(0, "Live entry");
     document.getText(`file:${supporting.id}`).insert(0, "Live chapter");
-    panel.bindLiveContent(document, { synced: true, offlineAvailable: false });
+    panel.bindLiveContent({ document, synced: true, offlineAvailable: false });
     panel.presentProject(project, "/assets", true);
 
     expect(panel.projectFiles(false)).toEqual(project.files);
@@ -350,10 +350,10 @@ describe("project file dialog", () => {
 
   it("derives live file projection readiness from its content binding", () => {
     const panel = new TestProjectFileDialog();
-    const session = { synced: false, offlineAvailable: false };
     const document = new Y.Doc();
+    const session = { document, synced: false, offlineAvailable: false };
     document.getText("source").insert(0, "Live entry");
-    panel.bindLiveContent(document, session);
+    panel.bindLiveContent(session);
     panel.presentProject(snapshot, "/assets", true);
 
     expect(panel.projectFiles()[0]?.content).toBe(snapshot.files[0]?.content);
@@ -444,7 +444,7 @@ describe("project file dialog", () => {
     const binding = projectRefreshBinding();
     vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(Response.json(snapshot)).mockResolvedValueOnce(Response.json(refreshed));
     panel.configureApi("/api/workspaces/workspace", callbacks);
-    panel.bindLiveContent(new Y.Doc(), { offlineAvailable: false, synced: false });
+    panel.bindLiveContent({ document: new Y.Doc(), offlineAvailable: false, synced: false });
     bindProjectRefresh(panel, binding);
 
     await panel.refreshProject();
@@ -490,7 +490,7 @@ describe("project file dialog", () => {
     const callbacks = mutationCallbacks();
     const binding = projectRefreshBinding();
     panel.configureApi("/api/workspaces/workspace", callbacks);
-    panel.bindLiveContent(new Y.Doc(), { offlineAvailable: false, synced: false });
+    panel.bindLiveContent({ document: new Y.Doc(), offlineAvailable: false, synced: false });
     bindProjectRefresh(panel, binding);
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(Response.json(snapshot));
 
@@ -514,7 +514,7 @@ describe("project file dialog", () => {
     const panel = new TestProjectFileDialog();
     const binding = projectRefreshBinding();
     vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 403 }));
-    panel.bindLiveContent(new Y.Doc(), { offlineAvailable: false, synced: false });
+    panel.bindLiveContent({ document: new Y.Doc(), offlineAvailable: false, synced: false });
     bindProjectRefresh(panel, binding);
 
     await expect(panel.openWorkspace()).rejects.toBeInstanceOf(WorkspaceAccessError);

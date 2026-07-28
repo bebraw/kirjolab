@@ -63,7 +63,7 @@ class WorkspaceApp {
     this.#elements.editorStatus.bindAuthoring(this.#document, this.#elements.source, this.#elements, this.#collaborationSocket);
     this.#elements.sourceCompletion.bindWorkspace(apiBase, this.#elements);
     this.#elements.projectFileDialog.configureApi(apiBase, this.#elements, this.#elements.workspaceLayout);
-    this.#elements.projectFileDialog.bindLiveContent(this.#document, this.#collaboration);
+    this.#elements.projectFileDialog.bindLiveContent(this.#collaboration);
     this.#elements.projectFileDialog.bindProjectRefresh(appMode === "workspace", this.#elements, this.#collaboration, this.#offline);
     this.#elements.workspacePreview.bindProject(apiBase, this.#document, this.#elements);
     this.#elements.projectHistoryDialog.configure(apiBase, this.#elements);

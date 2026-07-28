@@ -1090,6 +1090,9 @@ reason to wrap static markup mechanically.
   Its live-content binding now retains the coordinator-supplied readiness
   predicate beside the resolver, removing repeated collaboration-state inputs
   from Preview, manuscript-map, and collaborator projections.
+  That binding consumes the collaboration session as the canonical owner of
+  both the Yjs document and live-content readiness rather than duplicating
+  document and session references inside the dialog.
   Snapshot presentation now ends by supplying the canonical active file and
   snapshot through one typed callback, removing the coordinator's
   return-and-reproject wrapper while leaving active Y.Text/editor binding there.

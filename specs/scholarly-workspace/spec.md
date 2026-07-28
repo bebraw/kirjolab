@@ -410,10 +410,10 @@ collaboration.
   transport from that API; file activation
   refreshes assistant availability, resets and renders Preview, replaces the
   canonical route, and applies the active file to editor status directly. The
-  dialog binds the Yjs
-  document and collaboration session once, then derives canonical project-file
-  text keys, live-content readiness, and validated snapshot transport from its
-  API base and those owners. It also owns upload and include entry
+  dialog binds the collaboration session once as the canonical owner of its
+  Yjs document and readiness state, then derives canonical project-file text
+  keys, live-content readiness, and validated snapshot transport from its API
+  base and those owners. It also owns upload and include entry
   points, image insertion, range focus and reveal, saved notices, and quick-open
   sequencing; the workspace-layout owner retains rail-collapse state.
 - **Collaboration:** `DocumentRoom` is a SQLite-backed Durable Object for each
