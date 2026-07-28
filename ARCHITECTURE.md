@@ -955,13 +955,17 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   explicit. Keep record loading, snapshot validation, server-vector decoding,
   Yjs restoration, anchor reprojection, and corrupt-record eviction in the
   offline persistence authority. Let one typed offline session bind the store,
-  document, canonical snapshot and server-vector sources, availability guard,
-  and save outcomes once; own Yjs encoding, debounced scheduling and flush,
+  canonical collaboration and project-file owners, editor status, toast, and
+  optional browser lifecycle once. Derive the document, offline origin,
+  snapshot, server vector, availability, and synchronization state directly
+  from those owners rather than accepting callback projections. Let the session
+  own Yjs encoding, debounced scheduling and flush,
   restoration delegation, project-copy clearing, and combined IndexedDB/shell-
   cache cleanup. Let that session also own page-exit persistence and hosted-
-  logout interception, cleanup, navigation, failure presentation through its
-  bound toast owner, and explicit
-  listener teardown. Keep collaboration queue recovery and restored-state UI
+  logout interception, cleanup, navigation, save/failure presentation through
+  its bound editor-status and toast owners, and explicit listener teardown. The
+  browser lifecycle is installed atomically with session construction rather
+  than through a partial bind stage. Keep collaboration queue recovery and restored-state UI
   projection in their existing owners.
 - Cache only authenticated canonical editor navigation and the allowlisted
   authoring shell for offline fallback. Never service-worker-cache dashboard,

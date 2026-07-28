@@ -10,7 +10,7 @@ import {
 } from "./collaboration-workflow-machine";
 import { offlineDocumentDelta } from "./offline-workspace";
 
-type CollaborationOrigins = Readonly<Record<"offline" | "remote", unknown>>;
+export type CollaborationOrigins = Readonly<Record<"offline" | "remote", unknown>>;
 
 export class CollaborationSession {
   readonly #pendingUpdates = new PendingUpdateQueue();

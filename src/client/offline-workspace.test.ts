@@ -169,16 +169,27 @@ describe("offline workspace persistence", () => {
     const document = new Y.Doc();
     document.getText("source").insert(0, "Offline draft");
     let available = false;
-    const saved = vi.fn();
-    const failed = vi.fn();
+    const shell = { dataset: {} as Record<string, string | undefined> };
+    vi.stubGlobal("document", { body: shell });
+    const setSave = vi.fn();
+    const show = vi.fn();
     const session = new OfflineWorkspaceSession({
-      document,
-      failed,
-      offlineAvailable: () => available,
-      origin: "offline",
-      saved,
-      serverStateVector: () => Y.encodeStateVector(document),
-      snapshot: () => workspaceSnapshotFixture,
+      collaboration: {
+        document,
+        get offlineAvailable() {
+          return available;
+        },
+        get serverStateVector() {
+          return Y.encodeStateVector(document);
+        },
+        origins: { offline: "offline", remote: "remote" },
+        synced: false,
+      },
+      owners: {
+        editorStatus: { setSave },
+        projectFileDialog: { project: workspaceSnapshotFixture },
+        toast: { show },
+      },
       store,
       workspaceId: workspaceSnapshotFixture.id,
     });
@@ -187,8 +198,9 @@ describe("offline workspace persistence", () => {
     expect(repository.records.size).toBe(0);
     available = true;
     session.schedule(0);
-    await vi.waitFor(() => expect(saved).toHaveBeenCalledOnce());
-    expect(failed).not.toHaveBeenCalled();
+    await vi.waitFor(() => expect(shell.dataset.offlineSavedAt).toBeDefined());
+    expect(show).not.toHaveBeenCalled();
+    expect(setSave).toHaveBeenCalledWith("Saved offline");
     expect(repository.records.size).toBe(1);
     await expect(session.restore()).resolves.toMatchObject({ snapshot: { id: workspaceSnapshotFixture.id } });
 
@@ -196,35 +208,39 @@ describe("offline workspace persistence", () => {
     expect(repository.records.size).toBe(0);
     session.schedule(50);
     await expect(session.clearBrowserData(undefined, undefined)).resolves.toBeUndefined();
-    expect(saved).toHaveBeenCalledOnce();
+    expect(shell.dataset.offlineSavedAt).toBe("1");
     expect(repository.records.size).toBe(0);
   });
 
   it("owns page-exit persistence and logout browser-data cleanup", async () => {
     const document = new Y.Doc();
-    const session = new OfflineWorkspaceSession({
-      document,
-      failed: vi.fn(),
-      offlineAvailable: () => true,
-      origin: "offline",
-      saved: vi.fn(),
-      serverStateVector: () => Y.encodeStateVector(document),
-      snapshot: () => workspaceSnapshotFixture,
-      store: null,
-      workspaceId: workspaceSnapshotFixture.id,
-    });
     const events = new EventTarget();
     const logout = Object.assign(new EventTarget(), { href: "https://example.test/log-out" });
     const navigate = vi.fn();
     const notices = { show: vi.fn() };
+    vi.stubGlobal("document", { body: { dataset: {} } });
+    const session = new OfflineWorkspaceSession({
+      browser: {
+        environment: { cacheStorage: undefined, databaseFactory: undefined, events, navigate },
+        logout,
+      },
+      collaboration: {
+        document,
+        offlineAvailable: true,
+        origins: { offline: "offline", remote: "remote" },
+        serverStateVector: Y.encodeStateVector(document),
+        synced: true,
+      },
+      owners: {
+        editorStatus: { setSave: vi.fn() },
+        projectFileDialog: { project: workspaceSnapshotFixture },
+        toast: notices,
+      },
+      store: null,
+      workspaceId: workspaceSnapshotFixture.id,
+    });
     const schedule = vi.spyOn(session, "schedule");
     const clearBrowserData = vi.spyOn(session, "clearBrowserData").mockResolvedValue();
-    session.bindBrowserLifecycle(logout, notices, {
-      cacheStorage: undefined,
-      databaseFactory: undefined,
-      events,
-      navigate,
-    });
 
     events.dispatchEvent(new Event("pagehide"));
     const click = new Event("click", { cancelable: true });

@@ -509,9 +509,11 @@ collaboration.
   corrupt record before returning restoration state. One inferred Valibot
   schema validates the persisted envelope, exact schema version, ArrayBuffer
   fields, and 16 MiB bounds; identity and workspace matching remain explicit
-  store policy. One typed offline session binds the store, document, canonical
-  snapshot and server-vector sources, availability guard, and save outcomes. It
-  owns Yjs encoding, guarded debounced scheduling and flush, restoration
+  store policy. One typed offline session binds the store, canonical
+  collaboration and project-file owners, editor status, toast, and optional
+  browser lifecycle. It derives document, offline origin, snapshot, server
+  vector, availability, and synchronization state from those owners instead of
+  accepting callback projections. It owns Yjs encoding, guarded debounced scheduling and flush, restoration
   delegation, project-copy clearing, and coordinated IndexedDB and shell-cache
   cleanup. The project-file owner consumes the typed restoration result and
   sequences collaboration recovery plus restored revision, catalog, project,
@@ -911,7 +913,8 @@ collaboration.
 - [x] Hosted logout clears Kirjolab's offline workspace database and shell
       caches before leaving the application; the offline session owns that
       browser lifecycle together with page-exit persistence, failure notices
-      through the bound toast owner, and teardown.
+      through the bound toast owner, save-status projection, and teardown. The
+      lifecycle is installed atomically during session construction.
 - [x] Yjs owns live editor text after synchronization while coalesced resource
       refreshes update only non-editor workspace state.
 - [x] Markdown changes update a semantic preview and diagnostics immediately.

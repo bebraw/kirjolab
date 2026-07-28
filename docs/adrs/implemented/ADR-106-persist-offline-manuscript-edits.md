@@ -46,12 +46,16 @@ Yjs state without advancing the revision.
 Keep record loading, snapshot and workspace validation, server-vector decoding,
 Yjs update application, anchor reprojection, and corrupt-record eviction behind
 the offline persistence module's typed restoration result. Bind the store,
-document, canonical snapshot and server-vector sources, availability guard, and
-save outcomes once through one typed offline session. That session owns Yjs
-encoding, guarded debounced scheduling and flush, restoration delegation,
+canonical collaboration and project-file owners, editor status, toast, and the
+optional browser lifecycle once through one typed offline session. Derive the
+document, offline origin, canonical snapshot, server vector, availability, and
+synchronization state directly from those owners rather than adapting them into
+callbacks. That session owns Yjs encoding, guarded debounced scheduling and flush, restoration delegation,
 project-copy clearing, coordinated IndexedDB and shell-cache cleanup, page-exit
 persistence, and hosted-logout interception, cleanup, navigation, failure
-routing, and listener teardown. The collaboration session consumes only the
+routing, save-status projection, and listener teardown. Session construction
+installs the browser lifecycle atomically instead of exposing a partial bind
+stage. The collaboration session consumes only the
 validated server vector; the application coordinator retains collaboration
 recovery and restored-state UI projection.
 

@@ -21,20 +21,9 @@ class WorkspaceApp {
   readonly #collaboration = new CollaborationSession(this.#document, { remote: remoteOrigin, offline: offlineOrigin });
   readonly #collaborationSocket: CollaborationSocket;
   readonly #offline = new OfflineWorkspaceSession({
-    document: this.#document,
-    failed: (error) => {
-      if (!this.#collaboration.synced) this.#elements.editorStatus.setSave("Offline save failed");
-      this.#elements.toast.show(error instanceof Error ? error.message : "Could not save the manuscript offline");
-    },
-    offlineAvailable: () => this.#collaboration.offlineAvailable,
-    origin: offlineOrigin,
-    saved: (version) => {
-      document.body.dataset.offlineCached = "true";
-      document.body.dataset.offlineSavedAt = String(version);
-      if (!this.#collaboration.synced) this.#elements.editorStatus.setSave("Saved offline");
-    },
-    serverStateVector: () => this.#collaboration.serverStateVector,
-    snapshot: () => this.#elements.projectFileDialog.project,
+    browser: { logout: document.querySelector<HTMLAnchorElement>("#log-out") },
+    collaboration: this.#collaboration,
+    owners: this.#elements,
     store: createOfflineWorkspaceStore(typeof indexedDB === "undefined" ? undefined : indexedDB, identityEmail, workspaceId),
     workspaceId,
   });
@@ -66,7 +55,6 @@ class WorkspaceApp {
 
   #bindUi(): void {
     this.#elements.assistantGenerationPresenter.bindAuthoring(this.#collaboration, this.#elements);
-    this.#offline.bindBrowserLifecycle(document.querySelector<HTMLAnchorElement>("#log-out"), this.#elements.toast);
     this.#elements.workspaceCatalogPanel.bindWorkspace(workspaceId, this.#elements);
     this.#elements.workspaceSettingsPanel.bindWorkspace(this.#elements.workspaceSettings, workspaceId, this.#elements);
     this.#elements.newWorkspaceStartingPoints.bindWorkspace(this.#elements);

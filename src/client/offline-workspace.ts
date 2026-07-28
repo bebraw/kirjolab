@@ -4,6 +4,7 @@ import { resolveWorkspaceSnapshotAnchors } from "../domain/workspace-anchor-proj
 import { isWorkspaceSnapshot, type WorkspaceSnapshot } from "../domain/workspace";
 import type { AppToast } from "./app-toast";
 import { DebouncedAsyncQueue } from "./collaboration";
+import type { CollaborationSession } from "./collaboration-session";
 import { clearOfflineShellCaches } from "./offline-service-worker";
 
 const databaseName = "kirjolab-offline-v1";
@@ -81,13 +82,16 @@ export class OfflineWorkspaceStore {
 }
 
 export interface OfflineWorkspaceSessionOptions {
-  readonly document: Y.Doc;
-  readonly failed: (error: unknown) => void;
-  readonly offlineAvailable: () => boolean;
-  readonly origin: unknown;
-  readonly saved: (version: number) => void;
-  readonly serverStateVector: () => Uint8Array;
-  readonly snapshot: () => WorkspaceSnapshot | null;
+  readonly browser?: {
+    readonly environment?: OfflineWorkspaceBrowserEnvironment;
+    readonly logout: (EventTarget & { readonly href: string }) | null;
+  };
+  readonly collaboration: Pick<CollaborationSession, "document" | "offlineAvailable" | "origins" | "serverStateVector" | "synced">;
+  readonly owners: {
+    readonly editorStatus: { setSave(status: string): void };
+    readonly projectFileDialog: { readonly project: WorkspaceSnapshot | null };
+    readonly toast: Pick<AppToast, "show">;
+  };
   readonly store: OfflineWorkspaceStore | null;
   readonly workspaceId: string;
 }
@@ -105,51 +109,58 @@ interface OfflineWorkspaceBrowserBinding extends OfflineWorkspaceBrowserEnvironm
 }
 
 export class OfflineWorkspaceSession {
-  readonly #options: OfflineWorkspaceSessionOptions;
   readonly #saves: DebouncedAsyncQueue;
   #browserBinding: OfflineWorkspaceBrowserBinding | null = null;
 
-  constructor(options: OfflineWorkspaceSessionOptions) {
-    this.#options = options;
-    this.#saves = new DebouncedAsyncQueue(() => this.persist(), options.saved, options.failed);
+  constructor(private readonly options: OfflineWorkspaceSessionOptions) {
+    const { collaboration, owners } = options;
+    this.#saves = new DebouncedAsyncQueue(
+      () => this.persist(),
+      (version) => {
+        Object.assign(document.body.dataset, { offlineCached: "true", offlineSavedAt: String(version) });
+        if (!collaboration.synced) owners.editorStatus.setSave("Saved offline");
+      },
+      (error) => {
+        if (!collaboration.synced) owners.editorStatus.setSave("Offline save failed");
+        owners.toast.show(error instanceof Error ? error.message : "Could not save the manuscript offline");
+      },
+    );
+    const browser = options.browser;
+    if (browser) {
+      const environment = browser.environment ?? browserOfflineWorkspaceEnvironment();
+      this.#browserBinding = { ...environment, logout: browser.logout, notices: owners.toast };
+      environment.events.addEventListener("pagehide", this.#handlePageHide);
+      browser.logout?.addEventListener("click", this.#handleLogout);
+    }
   }
 
   restore(): Promise<RestoredOfflineWorkspace | null> {
-    const { document, origin, store, workspaceId } = this.#options;
-    return store ? restoreOfflineWorkspaceState(store, document, origin, workspaceId) : Promise.resolve(null);
+    const { collaboration, store, workspaceId } = this.options;
+    return store
+      ? restoreOfflineWorkspaceState(store, collaboration.document, collaboration.origins.offline, workspaceId)
+      : Promise.resolve(null);
   }
 
   schedule(delay = 120): void {
-    const { offlineAvailable, snapshot, store } = this.#options;
-    if (!store || !snapshot() || !offlineAvailable()) return;
+    const { collaboration, owners, store } = this.options;
+    if (!store || !owners.projectFileDialog.project || !collaboration.offlineAvailable) return;
     this.#saves.schedule(delay);
   }
 
   async persist(): Promise<void> {
-    const { document, offlineAvailable, serverStateVector, snapshot, store } = this.#options;
-    const current = snapshot();
-    if (!store || !current || !offlineAvailable()) return;
-    await store.save(current, Y.encodeStateAsUpdate(document), serverStateVector());
+    const { collaboration, owners, store } = this.options;
+    const snapshot = owners.projectFileDialog.project;
+    if (!store || !snapshot || !collaboration.offlineAvailable) return;
+    await store.save(snapshot, Y.encodeStateAsUpdate(collaboration.document), collaboration.serverStateVector);
   }
 
   async clear(): Promise<void> {
-    await this.#options.store?.clear();
+    await this.options.store?.clear();
   }
 
   async clearBrowserData(factory: IDBFactory | undefined, storage: CacheStorage | undefined): Promise<void> {
     await this.#saves.flush();
     await Promise.all([clearAllOfflineWorkspaces(factory), clearOfflineShellCaches(storage)]);
-  }
-
-  bindBrowserLifecycle(
-    logout: (EventTarget & { readonly href: string }) | null,
-    notices: Pick<AppToast, "show">,
-    environment: OfflineWorkspaceBrowserEnvironment = browserOfflineWorkspaceEnvironment(),
-  ): void {
-    this.unbindBrowserLifecycle();
-    this.#browserBinding = { ...environment, logout, notices };
-    environment.events.addEventListener("pagehide", this.#handlePageHide);
-    logout?.addEventListener("click", this.#handleLogout);
   }
 
   unbindBrowserLifecycle(): void {

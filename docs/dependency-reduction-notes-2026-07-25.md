@@ -13768,6 +13768,23 @@ at 857,320 B raw / 231,473 B gzip, 135,411 B raw / 23,373 B gzip, 204,779 B raw
 / 62,386 B gzip, and 481,994 B raw / 146,135 B gzip. Dependency counts remain
 18 direct and 150 unique production package/version nodes.
 
+## Continued Ownership: Atomic Offline Session
+
+`OfflineWorkspaceSession` now consumes the canonical collaboration,
+project-file, editor-status, toast, store, and optional browser owners directly.
+It derives the document, offline origin, snapshot, server vector, availability,
+and synchronization state instead of receiving five callback projections, and
+construction installs page-exit and hosted-logout behavior without a separate
+browser bind stage.
+
+This checkpoint reduces `src/client/app.ts` from 107 to 95 lines (-12), grows
+the offline session module from 336 to 347 lines (+11), and leaves the
+collaboration session at 165 lines, for a one-line net production-source
+reduction. The affected guardrail passes 22 related cases and all 11 focused
+offline-session cases. The browser application changes from 857,320 B raw /
+231,473 B gzip to 857,248 B raw / 231,454 B gzip (-72 B raw / -19 B gzip);
+dependency counts and the other static artifacts remain unchanged.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,
