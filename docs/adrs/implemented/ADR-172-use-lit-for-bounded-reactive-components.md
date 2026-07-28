@@ -114,9 +114,10 @@ The adopted components own bounded presentation:
   and narrow canonical refresh and notice effects once through one workflow
   coordinator instead of separate candidate, result, and control callback bags.
   Bind the Context owner directly for assistant activation and decision
-  re-presentation. Bind canonical file identity,
-  manuscript text, target range, source revision, and collaboration stability
-  once as authoring sources; derive scoped and insertion passages, generation
+  re-presentation. Bind the live project, editor, history, and collaboration
+  owners once as authoring sources instead of projecting file identity,
+  manuscript text, target range, source revision, and stability through getter
+  adapters; derive scoped and insertion passages, generation
   input, availability, target presentation, captured-table validation, and
   snapshot availability inside the presenter. The context-resource presenter
   delegates candidate review presentation with only candidate identity,

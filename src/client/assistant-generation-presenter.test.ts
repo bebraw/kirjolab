@@ -8,7 +8,12 @@ import {
   type AssistantWorkflowCoordinator,
 } from "./assistant-generation-presenter";
 import { assistantOperationDefinition } from "./assistant-operations";
-import { AssistantResultPanel, assistantReferenceRefreshEvent, assistantResultActionEvent } from "./assistant-result-panel";
+import {
+  AssistantResultPanel,
+  assistantReferenceRefreshEvent,
+  assistantResultActionEvent,
+  type AssistantAuthoringPassage,
+} from "./assistant-result-panel";
 import { AssistantTaskPanel, assistantTaskChangeEvent, assistantTaskGenerateEvent } from "./assistant-task-panel";
 import { AssistantWorkflowStatus, assistantWorkflowActionEvent } from "./assistant-workflow-status";
 import { CandidateListPanel, candidateListOpenEvent } from "./candidate-list-panel";
@@ -136,14 +141,28 @@ function setup() {
   return { coordinator, elements, presenter, resources };
 }
 
-function authoringSources(overrides: Partial<AssistantAuthoringSources> = {}): AssistantAuthoringSources {
-  return {
-    fileId: () => passage.fileId,
-    manuscript: () => input("revise-selection").manuscript,
-    sourceRevision: () => 7,
-    stableDocument: () => true,
-    target: () => ({ end: passage.end, start: passage.start }),
+interface TestAuthoringValues {
+  readonly fileId: string | null;
+  readonly manuscript: string;
+  readonly sourceRevision: number;
+  readonly stableDocument: boolean;
+  readonly target: Pick<AssistantAuthoringPassage, "start" | "end"> | null;
+}
+
+function authoringSources(overrides: Partial<TestAuthoringValues> = {}): AssistantAuthoringSources {
+  const values: TestAuthoringValues = {
+    fileId: passage.fileId,
+    manuscript: input("revise-selection").manuscript,
+    sourceRevision: 7,
+    stableDocument: true,
+    target: { end: passage.end, start: passage.start },
     ...overrides,
+  };
+  return {
+    collaboration: { stable: values.stableDocument },
+    editor: { authoringTarget: values.target, manuscript: values.manuscript },
+    history: { value: values.sourceRevision },
+    project: { activeFileId: values.fileId },
   };
 }
 
@@ -441,9 +460,9 @@ describe("assistant generation presenter", () => {
     const presentTarget = vi.spyOn(presenter, "presentTarget");
     presenter.bindAuthoring(
       authoringSources({
-        manuscript: () => input("revise-selection").manuscript,
-        sourceRevision: () => 11,
-        stableDocument: () => false,
+        manuscript: input("revise-selection").manuscript,
+        sourceRevision: 11,
+        stableDocument: false,
       }),
     );
     presenter.bindResources(resourceRoutes({ project: () => null }));
@@ -504,7 +523,7 @@ describe("assistant generation presenter", () => {
     const applyTable = vi.fn();
     const refreshLibrary = vi.fn().mockResolvedValueOnce(undefined).mockRejectedValueOnce(new Error("offline"));
     const completeReferenceSave = vi.spyOn(result, "completeReferenceSave").mockImplementation(() => undefined);
-    presenter.bindAuthoring(authoringSources({ manuscript: () => `x${passage.excerpt}` }));
+    presenter.bindAuthoring(authoringSources({ manuscript: `x${passage.excerpt}` }));
     presenter.bindResources(resourceRoutes({ refreshLibrary }));
     presenter.bindWorkflow(resultCallbacks({ applyTable }));
     presenter.bindResults();
@@ -524,7 +543,7 @@ describe("assistant generation presenter", () => {
     expect(refreshLibrary).toHaveBeenCalledTimes(2);
     expect(elements["assistant-workflow-status"].status).toBe("The reference was saved, but the refreshed Library could not be loaded.");
 
-    presenter.bindAuthoring(authoringSources({ manuscript: () => `x${passage.excerpt}`, stableDocument: () => false }));
+    presenter.bindAuthoring(authoringSources({ manuscript: `x${passage.excerpt}`, stableDocument: false }));
     result.dispatchEvent(new CustomEvent(assistantResultActionEvent, { detail: action }));
     expect(elements["assistant-workflow-status"].status).toBe("The manuscript changed. Generate the table again for the current target.");
   });

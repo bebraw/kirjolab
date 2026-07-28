@@ -86,11 +86,13 @@ export interface AssistantAvailabilityInput {
 }
 
 export interface AssistantAuthoringSources {
-  readonly fileId: () => string | null;
-  readonly manuscript: () => string;
-  readonly sourceRevision: () => number;
-  readonly stableDocument: () => boolean;
-  readonly target: () => Pick<AssistantAuthoringPassage, "start" | "end"> | null;
+  readonly collaboration: { readonly stable: boolean };
+  readonly editor: {
+    readonly authoringTarget: Pick<AssistantAuthoringPassage, "start" | "end"> | null;
+    readonly manuscript: string;
+  };
+  readonly history: { readonly value: number };
+  readonly project: { readonly activeFileId: string | null };
 }
 
 export interface AssistantWorkflowCoordinator {
@@ -153,10 +155,10 @@ export class AssistantGenerationPresenter extends LitElement {
 
   private authoringPassage(kind: "insertion" | "scope"): AssistantAuthoringPassage | null {
     const authoring = this.authoringSources;
-    const fileId = authoring.fileId();
-    const target = authoring.target();
+    const fileId = authoring.project.activeFileId;
+    const target = authoring.editor.authoringTarget;
     if (!fileId || !target) return null;
-    const source = authoring.manuscript();
+    const source = authoring.editor.manuscript;
     const { start, end, text } =
       kind === "scope"
         ? resolveAssistantTarget(source, target.start, target.end, this.targetScope())
@@ -280,10 +282,10 @@ export class AssistantGenerationPresenter extends LitElement {
       insertionTarget: this.authoringPassage("insertion"),
       passage: this.authoringPassage("scope"),
       snapshotAvailable: this.resourceRoutes.project() !== null,
-      sourceRevision: authoring.sourceRevision(),
-      stableDocument: authoring.stableDocument(),
+      sourceRevision: authoring.history.value,
+      stableDocument: authoring.collaboration.stable,
     });
-    return input ? { ...input, manuscript: authoring.manuscript() } : null;
+    return input ? { ...input, manuscript: authoring.editor.manuscript } : null;
   }
 
   bindResults(): void {
@@ -348,11 +350,11 @@ export class AssistantGenerationPresenter extends LitElement {
     callbacks: AssistantWorkflowCoordinator,
   ): void {
     const authoring = this.authoringSources;
-    const source = authoring.manuscript();
+    const source = authoring.editor.manuscript;
     if (
       !this.workflow.getSnapshot().matches("reviewing") ||
-      !authoring.stableDocument() ||
-      authoring.sourceRevision() !== context.sourceRevision ||
+      !authoring.collaboration.stable ||
+      authoring.history.value !== context.sourceRevision ||
       source.slice(context.target.start, context.target.end) !== context.target.excerpt
     ) {
       if (status) status.status = "The manuscript changed. Generate the table again for the current target.";
@@ -471,7 +473,7 @@ export class AssistantGenerationPresenter extends LitElement {
     this.presentAvailability({
       hasInsertionTarget: this.authoringPassage("insertion") !== null,
       hasPassage: this.authoringPassage("scope") !== null,
-      stableDocument: authoring.stableDocument(),
+      stableDocument: authoring.collaboration.stable,
     });
   }
 
@@ -536,8 +538,8 @@ export class AssistantGenerationPresenter extends LitElement {
       candidateId,
       decision: this.candidateDecision(),
       snapshot,
-      sourceRevision: this.authoringSources.sourceRevision(),
-      stableDocument: this.authoringSources.stableDocument(),
+      sourceRevision: this.authoringSources.history.value,
+      stableDocument: this.authoringSources.collaboration.stable,
     });
     if (panel) panel.scrollPosition = scrollPosition;
   }

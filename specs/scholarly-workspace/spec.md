@@ -265,9 +265,10 @@ collaboration.
   them across task, result, and candidate workflows. It also binds the remaining
   application-owned generation inputs and consequences once through one
   workflow coordinator instead of separate candidate, result, and control
-  callback bags. It binds manuscript text, scoped and insertion passage
-  resolution, source revision, and collaboration stability once as authoring
-  sources, then derives generation input, availability, target presentation,
+  callback bags. It binds the live project, editor, history, and collaboration
+  owners once as authoring sources instead of duplicating their values through
+  getter adapters, then derives scoped and insertion passages, generation
+  input, availability, target presentation,
   and snapshot readiness internally. The bounded workflow-status owner reconciles its
   selected keys directly against coordinator-supplied canonical annotations and
   claims, retains those collections for model-evidence projection, and exposes

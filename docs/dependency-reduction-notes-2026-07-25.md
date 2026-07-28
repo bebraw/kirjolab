@@ -12634,6 +12634,29 @@ unchanged at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip,
 Full native CI passes all 1,774 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Direct Assistant Authoring Owners
+
+`AssistantGenerationPresenter` now reads canonical file identity, manuscript
+text and target, source revision, and collaboration stability from the live
+project, editor, history, and collaboration owners. `WorkspaceApp` no longer
+projects those four owners through five anonymous getter callbacks.
+
+This checkpoint reduces `src/client/app.ts` from 380 to 379 lines (-1) and grows
+the assistant presenter from 665 to 667 lines (+2). The one-line combined
+runtime increase makes the authoring contract owner-based and keeps every value
+live without coordinator adapters. Focused coverage passes all 19 assistant
+cases; affected coverage passes 21 related runtime cases and the affected test
+file alongside strict types.
+
+The browser application artifact changes from 861,341 B raw / 232,159 B gzip to
+861,277 B raw / 232,163 B gzip (-64 B raw / +4 B gzip). Styles, lazy Markdown,
+lazy PDF.js, and direct and unique production package counts remain unchanged
+at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip, 481,994 B raw /
+146,135 B gzip, 18, and 150.
+
+Full native CI passes all 1,774 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: One-Shot Browser Entry Intents
 
 `ProjectStartingPointBrowser` now consumes the `create=1` editor intent, removes

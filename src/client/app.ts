@@ -132,11 +132,10 @@ class WorkspaceApp {
 
   #bindUi(): void {
     this.#elements.assistantGenerationPresenter.bindAuthoring({
-      fileId: () => this.#elements.projectFileDialog.activeFileId,
-      manuscript: () => this.#elements.editorStatus.manuscript,
-      sourceRevision: () => this.#elements.projectHistoryTrigger.value,
-      stableDocument: () => this.#collaboration.stable,
-      target: () => this.#elements.editorStatus.authoringTarget,
+      collaboration: this.#collaboration,
+      editor: this.#elements.editorStatus,
+      history: this.#elements.projectHistoryTrigger,
+      project: this.#elements.projectFileDialog,
     });
     this.#elements.contextResourcePresenter.bindCandidatePresentation(this.#elements.assistantGenerationPresenter);
     this.#elements.applicationVersion.bindNotice((message) => this.#elements.toast.show(message));
