@@ -2,6 +2,7 @@ import { html, LitElement, type TemplateResult } from "lit";
 import { citationContextAtPosition, createCitationInsertion, type CitationContext, type CitationInsertion } from "./citations";
 
 export interface SourceCitationInsertionBinding {
+  readonly activateAuthoring: () => void;
   readonly applyInsertion: (insertion: CitationInsertion) => void;
   readonly presentNotice: (message: string) => void;
 }
@@ -39,6 +40,7 @@ export class SourceCitationControl extends LitElement {
       return;
     }
     this.#insertion?.applyInsertion(insertion);
+    this.#insertion?.activateAuthoring();
     this.#insertion?.presentNotice(`Inserted :cite[${citationKey}]${locator ? ` at ${locator}` : ""} into canonical Markdown.`);
   }
 

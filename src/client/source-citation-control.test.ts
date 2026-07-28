@@ -47,6 +47,7 @@ describe("source citation control", () => {
     const control = new TestSourceCitationControl();
     const actions: unknown[] = [];
     control.bindInsertion({
+      activateAuthoring: () => actions.push({ action: "activate" }),
       applyInsertion: (insertion) => actions.push({ action: "insert", insertion }),
       presentNotice: (message) => actions.push({ action: "notice", message }),
     });
@@ -56,6 +57,7 @@ describe("source citation control", () => {
 
     expect(actions).toEqual([
       { action: "insert", insertion: { caret: 41, index: 5, text: ' :cite[merton1942]{locator="p. 270"}' } },
+      { action: "activate" },
       { action: "notice", message: "Inserted :cite[merton1942] at p. 270 into canonical Markdown." },
     ]);
   });
@@ -64,6 +66,7 @@ describe("source citation control", () => {
     const control = new TestSourceCitationControl();
     const notices: string[] = [];
     control.bindInsertion({
+      activateAuthoring: () => undefined,
       applyInsertion: () => undefined,
       presentNotice: (message) => notices.push(message),
     });

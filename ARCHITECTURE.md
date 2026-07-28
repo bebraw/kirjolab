@@ -396,9 +396,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   coordinator.
 - Let the source citation control own citation-at-caret interpretation,
   citation insertion syntax projection, local insertion errors, and completion
-  copy from a resolved authoring caret. Keep Yjs mutation, authoring-mode
-  navigation, publication resolution, and cross-resource navigation in their
-  existing application authorities.
+  copy from a resolved authoring caret. After a successful bound insertion, let
+  it activate Write before presenting completion. Keep Yjs mutation,
+  publication resolution, and cross-resource navigation in their existing
+  application authorities.
 - Let the project-image upload control own file-input state, sequential upload
   transport, response validation, duplicate-submit gating, and retryable local
   status. Emit only the final validated workspace snapshot and completion

@@ -12226,6 +12226,27 @@ and 481,994 B / 146,135 B.
 Full native CI passes all 1,773 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Citation Success Effects
+
+`SourceCitationControl` now activates Write after a successful bound Yjs
+insertion and before presenting completion. Missing-caret and invalid-key paths
+remain local failures without authoring activation. `WorkspaceApp` no longer
+wraps the insertion callback to add that outcome.
+
+This checkpoint reduces `src/client/app.ts` from 455 to 453 lines (-2) and grows
+the source-citation owner from 85 to 87 lines (+2), keeping total production
+lines flat. Focused coverage passes insertion-before-activation-before-notice
+ordering, failure guards, affected integrations, and strict types. Direct and
+unique production package counts remain 18 and 150; Lit was already pinned.
+
+The browser application artifact changes from 862,073 B raw / 232,225 B gzip to
+862,122 B / 232,231 B (+49 B raw / +6 B gzip). Styles and lazy Markdown and
+PDF.js artifacts remain unchanged at 135,411 B / 23,373 B, 204,779 B / 62,386 B,
+and 481,994 B / 146,135 B.
+
+Full native CI passes all 1,773 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: One-Shot Browser Entry Intents
 
 `ProjectStartingPointBrowser` now consumes the `create=1` editor intent, removes

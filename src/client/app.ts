@@ -414,10 +414,8 @@ class WorkspaceApp {
     });
     this.#elements.sourceCitationControl.bindNavigation((citation) => this.#elements.contextResourcePresenter.openCitation(citation));
     this.#elements.sourceCitationControl.bindInsertion({
-      applyInsertion: (insertion) => {
-        this.#elements.editorStatus.insertAuthoringText(insertion.index, insertion.text, insertion.caret);
-        this.#elements.authoringModeTabs.navigate("write");
-      },
+      activateAuthoring: () => this.#elements.authoringModeTabs.navigate("write"),
+      applyInsertion: (insertion) => this.#elements.editorStatus.insertAuthoringText(insertion.index, insertion.text, insertion.caret),
       presentNotice: (message) => this.#elements.toast.show(message),
     });
     this.#elements.contextResourcePresenter.bindPublicationContext(apiBase);
