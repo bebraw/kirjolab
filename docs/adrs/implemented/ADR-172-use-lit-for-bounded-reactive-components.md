@@ -477,7 +477,9 @@ The adopted components own bounded presentation:
   visible file collection, and active/entry state into the project tree, Insert
   menu, source completion, and file-action menu. Its workflow binding also owns
   project-range activation across file or entry fallback, Write-mode entry, and
-  normalized editor selection. The coordinator retains workflow-template
+  normalized editor selection. File activation retains the latest projection
+  inputs, reprojects the canonical snapshot with an explicit editor-reset
+  signal, and then emits one argument-free cross-feature effect. The coordinator retains workflow-template
   selection, canonical snapshot loading and validation, active Y.Text/editor
   authority, Yjs editing, cross-feature rendering, and the notification outlet.
   The project-file owner retains and exposes the single accepted browser

@@ -3,7 +3,7 @@ import "./action-menu-controller";
 import { parseAppBootstrap } from "./app-contracts";
 import { collectAppElements } from "./app-elements";
 import { reviewerResponsePath, reviewerResponseTemplate } from "../domain/reviewer-response";
-import { projectFileCollaborationTextName, type ProjectFile } from "../domain/project-files";
+import { projectFileCollaborationTextName } from "../domain/project-files";
 import { researchQuestionsPath, researchQuestionsTemplate } from "../domain/research-questions";
 import { researchDiaryPath, researchDiaryTemplate } from "../domain/writing-workflows";
 import "./application-version-control";
@@ -285,14 +285,17 @@ class WorkspaceApp {
     this.#elements.editorStatus.bindCompanion(this.#elements.bibliography, this.#bibliography);
     this.#elements.projectImageUpload.configure(apiBase);
     this.#elements.projectFileDialog.configureApi(apiBase, {
-      activateFile: (file, snapshot) => this.#activateProjectFile(file, snapshot),
       commit: (snapshot) => {
         this.#elements.projectFileDialog.presentProject(snapshot, `${apiBase}/assets`, appMode === "workspace");
         void this.#elements.workspacePreview.renderBoundProject();
       },
-      presentFile: (file, snapshot) => {
-        this.#elements.editorStatus.setProjectFile(file, snapshot.entryFileId);
+      fileActivated: () => {
+        this.#elements.assistantGenerationPresenter.refreshAvailability();
+        this.#elements.workspacePreview.resetScroll();
+        void this.#elements.workspacePreview.renderBoundProject();
+        this.#elements.workspaceSurfaceSwitcher.syncRoute("replace");
       },
+      presentFile: (file, snapshot, reset) => this.#elements.editorStatus.setProjectFile(file, snapshot.entryFileId, reset),
       presentNotice: (message, options) => this.#elements.toast.show(message, options),
       previewChanged: () => void this.#elements.workspacePreview.renderBoundProject(),
     });
@@ -490,15 +493,6 @@ class WorkspaceApp {
     this.#elements.contextResourcePresenter.presentBoundWorkspace();
     this.#offline.schedule();
     await this.#elements.contextResourcePresenter.refreshBoundReferencePdfs();
-  }
-
-  #activateProjectFile(file: ProjectFile, snapshot: WorkspaceSnapshot): void {
-    this.#elements.editorStatus.setProjectFile(file, snapshot.entryFileId, true);
-    this.#elements.projectFileDialog.presentProject(snapshot, `${apiBase}/assets`, appMode === "workspace");
-    this.#elements.assistantGenerationPresenter.refreshAvailability();
-    this.#elements.workspacePreview.resetScroll();
-    void this.#elements.workspacePreview.renderBoundProject();
-    this.#elements.workspaceSurfaceSwitcher.syncRoute("replace");
   }
 
   async #acceptWorkspaceMutation(result: Response | WorkspaceSnapshot): Promise<void> {

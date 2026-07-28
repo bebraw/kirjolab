@@ -20,9 +20,9 @@ export interface ProjectImageInsertion {
 }
 
 export interface ProjectFileMutationCallbacks {
-  readonly activateFile: (file: ProjectFile, snapshot: WorkspaceSnapshot) => void;
   readonly commit: (snapshot: WorkspaceSnapshot) => void;
-  readonly presentFile: (file: ProjectFile, snapshot: WorkspaceSnapshot) => void;
+  readonly fileActivated: () => void;
+  readonly presentFile: (file: ProjectFile, snapshot: WorkspaceSnapshot, reset: boolean) => void;
   readonly presentNotice: (message: string, options?: DeferredDeletionNoticeOptions) => void;
   readonly previewChanged: () => void;
 }
@@ -111,8 +111,8 @@ export class ProjectFileDialog extends LitElement {
   declare private status: string;
   private apiBase = "";
   private mutationCallbacks: ProjectFileMutationCallbacks = {
-    activateFile: () => undefined,
     commit: () => undefined,
+    fileActivated: () => undefined,
     presentFile: () => undefined,
     presentNotice: () => undefined,
     previewChanged: () => undefined,
@@ -121,6 +121,7 @@ export class ProjectFileDialog extends LitElement {
     this.mutationCallbacks.presentNotice(message, options);
   });
   private targetId: string | null = null;
+  private assetBase = "";
   private readonly hiddenFileIds = new Set<string>();
   private selectedFileId: string | null = null;
   private snapshot: WorkspaceSnapshot | null = null;
@@ -130,6 +131,7 @@ export class ProjectFileDialog extends LitElement {
   private pendingInclude: ((path: string) => boolean) | null = null;
   private routing: ProjectFileWorkflowRouting | null = null;
   private routingAbort: AbortController | null = null;
+  private workspaceMode = false;
 
   constructor() {
     super();
@@ -193,7 +195,8 @@ export class ProjectFileDialog extends LitElement {
     if (!snapshot) return false;
     const file = this.activateFile(snapshot, fileId);
     if (!file) return false;
-    this.mutationCallbacks.activateFile(file, snapshot);
+    this.presentProject(snapshot, this.assetBase, this.workspaceMode, true);
+    this.mutationCallbacks.fileActivated();
     return true;
   }
 
@@ -211,8 +214,10 @@ export class ProjectFileDialog extends LitElement {
     return file;
   }
 
-  presentProject(snapshot: WorkspaceSnapshot, assetBase: string, workspace: boolean): void {
+  presentProject(snapshot: WorkspaceSnapshot, assetBase: string, workspace: boolean, resetFile = false): void {
     this.snapshot = snapshot;
+    this.assetBase = assetBase;
+    this.workspaceMode = workspace;
     const activeFile = this.ensureActiveFile(snapshot);
     const activeFileId = this.selectedFileId;
     const presentation = this.presentation;
@@ -231,7 +236,7 @@ export class ProjectFileDialog extends LitElement {
       presentation.sourceCompletion.setProject(snapshot, activeFileId, workspace);
       presentation.projectFileMenuActions.setEntryFileActive(activeFileId === snapshot.entryFileId);
     }
-    if (activeFile) this.mutationCallbacks.presentFile(activeFile, snapshot);
+    if (activeFile) this.mutationCallbacks.presentFile(activeFile, snapshot, resetFile);
   }
 
   get hiddenFiles(): ReadonlySet<string> {

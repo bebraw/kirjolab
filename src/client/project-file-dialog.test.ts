@@ -74,8 +74,8 @@ afterEach(() => {
 
 function mutationCallbacks(): ProjectFileMutationCallbacks {
   return {
-    activateFile: vi.fn(),
     commit: vi.fn(),
+    fileActivated: vi.fn(),
     presentFile: vi.fn(),
     presentNotice: vi.fn(),
     previewChanged: vi.fn(),
@@ -168,7 +168,8 @@ describe("project file dialog", () => {
     expect(showFor).toHaveBeenNthCalledWith(1, "create-folder", snapshot.files[0], undefined);
     expect(showFor).toHaveBeenNthCalledWith(2, "create-and-include", snapshot.files[0], undefined);
     expect(showFor).toHaveBeenNthCalledWith(3, "rename-folder", supporting, undefined);
-    expect(mutations.activateFile).toHaveBeenCalledWith(supporting, project);
+    expect(mutations.presentFile).toHaveBeenCalledWith(supporting, project, true);
+    expect(mutations.fileActivated).toHaveBeenCalledOnce();
     expect(callbacks.focusEditor).toHaveBeenCalledOnce();
     expect(callbacks.quickOpen).toHaveBeenCalledOnce();
     expect(tree.focusFilter).toHaveBeenCalledOnce();
@@ -270,14 +271,15 @@ describe("project file dialog", () => {
     panel.configureApi("/api/workspaces/workspace", callbacks);
 
     panel.presentProject(project, "/assets", true);
-    expect(callbacks.presentFile).toHaveBeenLastCalledWith(snapshot.files[0], project);
+    expect(callbacks.presentFile).toHaveBeenLastCalledWith(snapshot.files[0], project, false);
     expect(panel.selectFile(supporting.id)).toBe(true);
     expect(panel.activeFileId).toBe(supporting.id);
-    expect(callbacks.activateFile).toHaveBeenCalledWith(supporting, project);
+    expect(callbacks.presentFile).toHaveBeenLastCalledWith(supporting, project, true);
+    expect(callbacks.fileActivated).toHaveBeenCalledOnce();
     expect(panel.selectFile(supporting.id)).toBe(false);
     expect(panel.selectFile("missing-file")).toBe(false);
     panel.presentProject(snapshot, "/assets", true);
-    expect(callbacks.presentFile).toHaveBeenLastCalledWith(snapshot.files[0], snapshot);
+    expect(callbacks.presentFile).toHaveBeenLastCalledWith(snapshot.files[0], snapshot, false);
     expect(panel.activeFileId).toBe(snapshot.entryFileId);
   });
 
@@ -380,7 +382,7 @@ describe("project file dialog", () => {
 
     panel.deleteFile(file, snapshot.entryFileId);
     expect(panel.hiddenFiles.has(file.id)).toBe(true);
-    expect(callbacks.activateFile).toHaveBeenLastCalledWith(snapshot.files[0], project);
+    expect(callbacks.presentFile).toHaveBeenLastCalledWith(snapshot.files[0], project, true);
     expect(callbacks.presentNotice).toHaveBeenCalledWith(`Deleted ${file.path}.`, expect.objectContaining({ actionLabel: "Undo" }));
     await vi.advanceTimersByTimeAsync(6_000);
 
@@ -409,7 +411,7 @@ describe("project file dialog", () => {
     await vi.advanceTimersByTimeAsync(6_000);
 
     expect(panel.hiddenFiles.has(file.id)).toBe(false);
-    expect(callbacks.activateFile).toHaveBeenLastCalledWith(file, project);
+    expect(callbacks.presentFile).toHaveBeenLastCalledWith(file, project, true);
     expect(callbacks.presentNotice).toHaveBeenLastCalledWith(`Restored ${file.path}.`, undefined);
     expect(fetchMock).not.toHaveBeenCalled();
   });
@@ -455,7 +457,7 @@ describe("project file dialog", () => {
     panel.presentProject(project, "/assets", true);
 
     await expect(panel.openWorkflowFile(existing.path, content)).resolves.toBeUndefined();
-    expect(callbacks.activateFile).toHaveBeenCalledWith(existing, project);
+    expect(callbacks.presentFile).toHaveBeenLastCalledWith(existing, project, true);
     expect(focusEditor).toHaveBeenCalledOnce();
     expect(content).not.toHaveBeenCalled();
     expect(assign).not.toHaveBeenCalled();
@@ -489,7 +491,7 @@ describe("project file dialog", () => {
     await vi.advanceTimersByTimeAsync(6_000);
 
     expect(panel.hiddenFiles.has(file.id)).toBe(false);
-    expect(callbacks.activateFile).toHaveBeenLastCalledWith(file, project);
+    expect(callbacks.presentFile).toHaveBeenLastCalledWith(file, project, true);
     expect(callbacks.commit).not.toHaveBeenCalled();
     expect(callbacks.presentNotice).toHaveBeenLastCalledWith(`Could not delete ${file.path}.`, undefined);
   });

@@ -215,7 +215,10 @@ collaborative, and unambiguous about what preview and export mean.
   capabilities. It resolves the active file and
   requested folder for dialogs, rejects entry-file deletion, derives relative image
   insertion from that active file, and supplies the project tree, Insert menu,
-  source-completion list, and file-action menu with their bounded views. It then
+  source-completion list, and file-action menu with their bounded views. It
+  retains those projection inputs for later file activation, reprojects the
+  selected file with an explicit editor-reset flag, and emits only an
+  argument-free cross-feature activation effect. It then
   supplies the canonical active file and snapshot through one presentation
   callback for coordinator-owned Yjs/editor binding; it does not return active
   presentation state for the coordinator to reconstruct. The same retained

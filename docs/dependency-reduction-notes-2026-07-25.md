@@ -11845,6 +11845,29 @@ and 481,994 B / 146,135 B.
 Full native CI passes all 1,765 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: File Activation Projection
+
+`ProjectFileDialog` now completes active-file selection by reprojecting its
+retained canonical snapshot and presentation inputs with an explicit editor
+reset, then emits one argument-free cross-feature activation effect.
+`WorkspaceApp` no longer receives file and snapshot values only to call back
+into the same owner, and the prior duplicate editor binding is removed.
+
+This checkpoint reduces `src/client/app.ts` from 536 to 530 lines (-6) and grows
+the project-file owner from 506 to 511 lines (+5), a one-line net maintenance
+reduction. Focused coverage passes selection eligibility, reset-aware file
+presentation, deferred deletion and Undo, workflow-file focus, affected
+integrations, and strict types. Direct and unique production package counts
+remain 18 and 150; Lit was already pinned.
+
+The browser application artifact changes from 861,178 B raw / 231,688 B gzip to
+861,143 B / 231,718 B (-35 B raw / +30 B gzip). Styles and lazy Markdown and
+PDF.js artifacts remain unchanged at 135,411 B / 23,373 B, 204,779 B / 62,386 B,
+and 481,994 B / 146,135 B.
+
+Full native CI passes all 1,765 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: One-Shot Browser Entry Intents
 
 `ProjectStartingPointBrowser` now consumes the `create=1` editor intent, removes
