@@ -192,9 +192,10 @@ describe("project starting point browser", () => {
     vi.stubGlobal("fetch", fetchMock);
     vi.stubGlobal("location", { assign });
     browser.bind({
-      openImport: (action) => actions.push(action),
-      presentNotice: vi.fn(),
-      templatesChanged: vi.fn(),
+      gitHubImportPanel: { open: () => actions.push("import-github") },
+      latexImportPanel: { open: () => actions.push("import-latex") },
+      saveTemplateDialog: { syncTemplates: vi.fn() },
+      toast: { show: vi.fn() },
     });
     browser.setData([builtIn], []);
     browser.changeTitleForTest("Focused inquiry");
@@ -227,9 +228,10 @@ describe("project starting point browser", () => {
     vi.stubGlobal("fetch", fetchMock);
     vi.stubGlobal("location", { assign });
     browser.bind({
-      openImport: vi.fn(),
-      presentNotice: (message, options) => notices.push({ message, options }),
-      templatesChanged: vi.fn(),
+      gitHubImportPanel: { open: vi.fn() },
+      latexImportPanel: { open: vi.fn() },
+      saveTemplateDialog: { syncTemplates: vi.fn() },
+      toast: { show: (message, options) => notices.push({ message, options }) },
     });
     browser.setData([builtIn, personal], [workspace]);
     await browser.chooseProjectForTest(workspace);
@@ -254,9 +256,10 @@ describe("project starting point browser", () => {
     const browser = new TestProjectStartingPointBrowser();
     const templatesChanged = vi.fn();
     browser.bind({
-      openImport: vi.fn(),
-      presentNotice: vi.fn(),
-      templatesChanged,
+      gitHubImportPanel: { open: vi.fn() },
+      latexImportPanel: { open: vi.fn() },
+      saveTemplateDialog: { syncTemplates: templatesChanged },
+      toast: { show: vi.fn() },
     });
     browser.bindWorkspaces({ catalog: [workspace] });
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json([builtIn, personal])));
@@ -277,9 +280,10 @@ describe("project starting point browser", () => {
       .mockResolvedValueOnce(Response.json([builtIn]));
     vi.stubGlobal("fetch", fetchMock);
     browser.bind({
-      openImport: vi.fn(),
-      presentNotice: (message) => notices.push(message),
-      templatesChanged,
+      gitHubImportPanel: { open: vi.fn() },
+      latexImportPanel: { open: vi.fn() },
+      saveTemplateDialog: { syncTemplates: templatesChanged },
+      toast: { show: (message) => notices.push(message) },
     });
     browser.setData([builtIn, encoded], [workspace]);
 

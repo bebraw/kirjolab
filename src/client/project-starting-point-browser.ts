@@ -7,10 +7,11 @@ import { errorMessage, expectOk, jsonFetch } from "./http";
 
 export type StartingPointAction = "import-github" | "import-latex";
 
-interface StartingPointBinding {
-  readonly openImport: (action: StartingPointAction) => void;
-  readonly presentNotice: (message: string, options?: DeferredDeletionNoticeOptions) => void;
-  readonly templatesChanged: () => void;
+interface StartingPointOwners {
+  readonly gitHubImportPanel: { open(): void };
+  readonly latexImportPanel: { open(): void };
+  readonly saveTemplateDialog: { syncTemplates(): void };
+  readonly toast: { show(message: string, options?: DeferredDeletionNoticeOptions): void };
 }
 
 export class ProjectStartingPointBrowser extends LitElement {
@@ -40,14 +41,10 @@ export class ProjectStartingPointBrowser extends LitElement {
   private trigger: HTMLElement | null = null;
   private loadStartingPoints: () => Promise<void> = async () => undefined;
   private workspaceSource: { readonly catalog: readonly WorkspaceSummary[] } | null = null;
-  private binding: StartingPointBinding = {
-    openImport: () => undefined,
-    presentNotice: () => undefined,
-    templatesChanged: () => undefined,
-  };
+  private owners: StartingPointOwners | null = null;
   private readonly deletions = new DeferredDeletionController((message, options) => {
     const settled = this.isConnected ? this.updateComplete : Promise.resolve();
-    void settled.then(() => this.binding.presentNotice(message, options));
+    void settled.then(() => this.owners?.toast.show(message, options));
   });
 
   constructor() {
@@ -137,11 +134,11 @@ export class ProjectStartingPointBrowser extends LitElement {
     const value: unknown = await response.json();
     if (!isProjectTemplateSummaries(value)) throw new Error("Project templates returned invalid data");
     this.setData(value, workspaces);
-    this.binding.templatesChanged();
+    this.owners?.saveTemplateDialog.syncTemplates();
   }
 
-  bind(binding: StartingPointBinding): void {
-    this.binding = binding;
+  bind(owners: StartingPointOwners): void {
+    this.owners = owners;
   }
 
   async deleteTemplate(id: string): Promise<void> {
@@ -164,7 +161,7 @@ export class ProjectStartingPointBrowser extends LitElement {
     else hiddenIds.delete(id);
     this.hiddenTemplateIds = hiddenIds;
     this.normalizeSelection();
-    this.binding.templatesChanged();
+    this.owners?.saveTemplateDialog.syncTemplates();
   }
 
   focusFirst(): void {
@@ -296,7 +293,8 @@ export class ProjectStartingPointBrowser extends LitElement {
 
   protected openImport(detail: StartingPointAction): void {
     this.close();
-    this.binding.openImport(detail);
+    if (detail === "import-latex") this.owners?.latexImportPanel.open();
+    else this.owners?.gitHubImportPanel.open();
   }
 
   private readonly openFromTrigger = (): void => void this.openFromBoundTrigger();

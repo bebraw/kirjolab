@@ -53,8 +53,9 @@ The adopted components own bounded presentation:
   catalog refresh, the fetched catalog, optimistic hidden-template state, the
   delayed commit and Undo lifecycle, the derived visible-template view, local
   selection and preview state, bounded preview rendering, local dismissal and
-  import handoff, canonical successful-result navigation, and typed import
-  events. It binds its server-rendered entry trigger and owns loading-state
+  import handoff, and canonical successful-result navigation. It binds the
+  GitHub-import, LaTeX-import, template-save, and toast owners directly. It also
+  binds its server-rendered entry trigger and owns loading-state
   entry, post-load focus, load-failure presentation, and one-shot browser create
   intent parsing and query cleanup around a typed catalog-
   refresh callback. Every successful refresh reports its derived visible-
@@ -1043,9 +1044,9 @@ reason to wrap static markup mechanically.
   owner binds the canonical read-only workspace catalog once and derives it for
   trigger, settings, save-template refreshes, and internal mutation refreshes
   instead of requiring each caller to re-supply the same collection. The
-  application coordinator retains import workflows, replacement-option
-  consumption, and the toast outlet through typed bindings; the public action
-  event is removed.
+  owner invokes the bound import workflows, replacement-option synchronization,
+  and toast outlet directly; the public action event and application callback
+  bag are removed.
 - The Library discovery search replaces six internal element references and
   imperative form-value, submit-state, progress, count, empty, and error
   handling plus the provider request and response validation. The application

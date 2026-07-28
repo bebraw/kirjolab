@@ -57,6 +57,11 @@ collaboration.
   project-file, template-save, and GitHub owners directly, reads their live
   projections, and invokes their refresh or open operations without a parallel
   application callback bag.
+- **Project creation:** The starting-point browser owns title and starting-point
+  selection, catalog and preview loading, project creation, personal-template
+  deletion and Undo, modal lifecycle, and its entry trigger. It binds the
+  GitHub-import, LaTeX-import, template-save, and toast owners directly for
+  handoff, replacement synchronization, and deferred-deletion notices.
 - **Project sharing:** One bounded light-DOM panel owns collaborator and
   capability-link presentation, invitation input, clipboard interaction, and
   native modal lifecycle. The workspace coordinator retains membership and

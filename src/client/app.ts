@@ -150,14 +150,7 @@ class WorkspaceApp {
     this.#elements.newWorkspaceStartingPoints.bindWorkspaces(this.#elements.workspaceCatalogPanel);
     this.#elements.workspaceSettingsPanel.bindWorkspace(this.#elements.workspaceSettings, workspaceId, this.#elements);
     this.#elements.newWorkspaceStartingPoints.bindTrigger(this.#elements.newWorkspace);
-    this.#elements.newWorkspaceStartingPoints.bind({
-      openImport: (action) => {
-        if (action === "import-latex") this.#elements.latexImportPanel.open();
-        else this.#elements.gitHubImportPanel.open();
-      },
-      presentNotice: (message, options) => this.#elements.toast.show(message, options),
-      templatesChanged: () => this.#elements.saveTemplateDialog.syncTemplates(),
-    });
+    this.#elements.newWorkspaceStartingPoints.bind(this.#elements);
     this.#elements.gitHubSyncMenu.bindWorkspace(apiBase, {
       ambientRefresh: appMode === "workspace",
       settings: this.#elements.workspaceSettingsPanel,

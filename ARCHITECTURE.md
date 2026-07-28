@@ -187,7 +187,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   template source once. The dialog owns pre-open and post-save refreshes,
   replacement-option synchronization, and successful-save notification timing;
   the starting-point browser retains canonical catalog and hidden-template
-  authority, while the application coordinator only connects the owners.
+  authority. Bind the starting-point browser directly to the GitHub-import,
+  LaTeX-import, template-save, and toast owners so import handoff, replacement
+  synchronization, and deferred-deletion notices do not require parallel
+  application callbacks.
 - Let the workspace rail-tabs Lit owner apply each internal or workflow-driven
   rail selection to its active tab and controlled panel before reporting the
   selected mode through one typed navigation callback. Keep URL synchronization,

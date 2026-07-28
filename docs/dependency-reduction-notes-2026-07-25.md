@@ -12774,6 +12774,29 @@ at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip, 481,994 B raw /
 Full native CI passes all 1,774 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Starting-Point Workflow Owners
+
+`ProjectStartingPointBrowser` now binds the GitHub-import, LaTeX-import,
+template-save, and toast owners directly. Import selection opens its target
+workflow, catalog changes synchronize replacement choices, and deferred
+template-deletion notices reach the toast owner without an application callback
+bag.
+
+This checkpoint reduces `src/client/app.ts` from 350 to 343 lines (-7) and the
+starting-point browser from 582 to 580 lines (-2), removing nine runtime lines
+overall. Focused coverage passes all 10 starting-point cases; affected coverage
+passes 12 related runtime cases and the affected test file alongside strict
+types.
+
+The browser application artifact changes from 860,780 B raw / 232,130 B gzip to
+860,611 B raw / 232,078 B gzip (-169 B raw / -52 B gzip). Styles, lazy Markdown,
+lazy PDF.js, and direct and unique production package counts remain unchanged
+at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip, 481,994 B raw /
+146,135 B gzip, 18, and 150.
+
+Full native CI passes all 1,774 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: One-Shot Browser Entry Intents
 
 `ProjectStartingPointBrowser` now consumes the `create=1` editor intent, removes
