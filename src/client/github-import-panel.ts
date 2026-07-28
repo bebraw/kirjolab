@@ -68,6 +68,7 @@ export class GitHubImportPanel extends LitElement {
   declare private connected: boolean;
   declare private connectionMessage: string;
   private pickerRequest = 0;
+  private browserResultInitialized = false;
 
   constructor() {
     super();
@@ -320,6 +321,10 @@ export class GitHubImportPanel extends LitElement {
   override connectedCallback(): void {
     if (!this.hasUpdated) this.replaceChildren();
     super.connectedCallback();
+    if (!this.browserResultInitialized) {
+      this.browserResultInitialized = true;
+      void this.updateComplete.then(() => this.openFromBrowserResult());
+    }
   }
 
   protected override createRenderRoot(): HTMLElement {

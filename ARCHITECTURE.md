@@ -290,10 +290,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   lifecycle plus stale-request protection, import preview and creation requests,
   account disconnection, Valibot response validation, and local progress and
   failure presentation. Opening the panel starts that connection refresh as one
-  component lifecycle. It also consumes successful OAuth/install query results,
-  opens itself, and removes the one-shot query. Let the import panel close its
-  own dialog and navigate to the validated successful response's canonical
-  workspace href. Let the sync
+  component lifecycle. On its first connected lifecycle it also consumes
+  successful OAuth/install query results, opens itself after its light-DOM
+  template is ready, and removes the one-shot query without application startup
+  wiring. Let the import panel close its own dialog and navigate to the validated
+  successful response's canonical workspace href. Let the sync
   menu likewise own its bounded connection
   and status refresh interval, validation, stale-request guard, and primary
   presentation, then emit one state event for the settings mirror. Let the

@@ -65,6 +65,10 @@ collaboration.
   GitHub-import, LaTeX-import, template-save, and toast owners directly for
   handoff, replacement synchronization, deferred-deletion notices, and
   successful template-save notices.
+  The GitHub-import owner consumes a successful OAuth or installation browser
+  result once from its connected lifecycle, waits for its light-DOM template,
+  opens itself, and removes the one-shot query without application startup
+  wiring.
 - **Project sharing:** One bounded light-DOM panel owns collaborator and
   capability-link presentation, invitation input, clipboard interaction, and
   native modal lifecycle plus membership and capability-link requests and

@@ -13257,6 +13257,25 @@ Markdown, lazy PDF.js, and direct and unique production package counts remain
 unchanged at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip,
 481,994 B raw / 146,135 B gzip, 18, and 150.
 
+## Continued Lit Ownership: GitHub Import Browser Entry
+
+`GitHubImportPanel` now consumes a successful OAuth or installation browser
+result once from its connected lifecycle, waits for its light-DOM template,
+opens itself, and removes the one-shot query. Application startup no longer
+invokes the panel's browser-entry lifecycle.
+
+This checkpoint reduces `src/client/app.ts` from 154 to 153 lines (-1) and
+grows the GitHub import panel from 556 to 561 lines (+5), adding four runtime
+lines overall for the reconnect-safe one-shot lifecycle guard. Focused coverage
+passes all nine import-panel cases; affected coverage passes eleven related
+runtime cases alongside strict types.
+
+The browser application artifact changes from 859,007 B raw / 231,604 B gzip
+to 859,110 B raw / 231,629 B gzip (+103 B raw / +25 B gzip). Styles, lazy
+Markdown, lazy PDF.js, and direct and unique production package counts remain
+unchanged at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip,
+481,994 B raw / 146,135 B gzip, 18, and 150.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,

@@ -485,9 +485,10 @@ The adopted components own bounded presentation:
   owns its read-only connection and repository-picker discovery lifecycle plus
   import preview, creation, and account-disconnection requests because their
   payloads, validation, progress, and results are local to that component. The
-  import panel consumes successful OAuth/install query results, opens itself,
-  removes the one-shot query, closes its own dialog, and owns successful-result
-  navigation. The
+  import panel consumes successful OAuth/install query results once from its
+  connected lifecycle, opens itself after its template is ready, removes the
+  one-shot query without application startup wiring, closes its own dialog, and
+  owns successful-result navigation. The
   sync menu owns its read-only connection and status request lifecycle because
   its interval, validation, stale-request protection, and primary result
   presentation are local to that component. The sync review owns its Pull,
