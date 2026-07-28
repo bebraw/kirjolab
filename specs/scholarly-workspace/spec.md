@@ -561,7 +561,9 @@ collaboration.
   vector, availability, and synchronization state from those owners instead of
   accepting callback projections. It owns Yjs encoding, guarded debounced scheduling and flush, restoration
   delegation, project-copy clearing, and coordinated IndexedDB and shell-cache
-  cleanup. The project-file owner consumes the typed restoration result and
+  cleanup. Its browser factory derives the identity/project-scoped IndexedDB
+  store and hosted-logout binding from canonical inputs instead of leaving that
+  policy in the application root. The project-file owner consumes the typed restoration result and
   sequences collaboration recovery plus restored revision, catalog, project,
   Context, connection, and Preview projection through its bound lifecycle
   capabilities. Those lifecycle capabilities use the canonical application

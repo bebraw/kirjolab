@@ -5,7 +5,7 @@ import { collectAppElements } from "./app-elements";
 import { CoalescedRefresh } from "./collaboration";
 import { CollaborationSession } from "./collaboration-session";
 import { CollaborationSocket } from "./collaboration-socket";
-import { createOfflineWorkspaceStore, OfflineWorkspaceSession } from "./offline-workspace";
+import { createBrowserOfflineWorkspaceSession } from "./offline-workspace";
 
 const { workspaceId, identityEmail, appMode } = parseAppBootstrap(document.body.dataset);
 const apiBase = `/api/workspaces/${workspaceId}`;
@@ -13,13 +13,7 @@ const workspaceMode = appMode === "workspace";
 const elements = collectAppElements();
 const refresh = new CoalescedRefresh(async () => elements.projectFileDialog.refreshProject());
 const session = new CollaborationSession(new Y.Doc());
-const offline = new OfflineWorkspaceSession({
-  browser: { logout: document.querySelector<HTMLAnchorElement>("#log-out") },
-  collaboration: session,
-  owners: elements,
-  store: createOfflineWorkspaceStore(typeof indexedDB === "undefined" ? undefined : indexedDB, identityEmail, workspaceId),
-  workspaceId,
-});
+const offline = createBrowserOfflineWorkspaceSession(identityEmail, workspaceId, session, elements);
 const socket = new CollaborationSocket(session, apiBase, offline, refresh, elements);
 
 async function start(): Promise<void> {

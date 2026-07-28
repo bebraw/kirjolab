@@ -1009,7 +1009,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   logout interception, cleanup, navigation, save/failure presentation through
   its bound editor-status and toast owners, and explicit listener teardown. The
   browser lifecycle is installed atomically with session construction rather
-  than through a partial bind stage. Keep collaboration queue recovery and restored-state UI
+  than through a partial bind stage. Let the offline module's browser factory
+  derive the IndexedDB-backed identity/workspace store and hosted-logout target
+  so the composition root does not repeat browser persistence policy. Keep collaboration queue recovery and restored-state UI
   projection in their existing owners.
 - Cache only authenticated canonical editor navigation and the allowlisted
   authoring shell for offline fallback. Never service-worker-cache dashboard,

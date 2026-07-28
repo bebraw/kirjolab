@@ -14603,6 +14603,27 @@ define one module-private ordered startup function.
 Full native CI passes all 1,778 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Service Ownership: Browser Offline Session
+
+The offline-workspace authority now constructs its browser session from the
+canonical identity, workspace, collaboration, and element owners. It derives
+IndexedDB availability, the scoped store, hosted-logout target, and browser
+lifecycle internally instead of leaving those persistence details in the
+application composition root.
+
+This checkpoint trades nine net production lines and one focused factory test
+for browser persistence ownership and reduces `src/client/app.ts` from 36 to 30
+lines. The affected guardrail passes 23 related cases across three suites
+alongside strict types and directly reruns the modified 12-case offline suite.
+The browser application changes from 847,050 B raw / 231,052 B gzip to 847,089
+B raw / 231,052 B gzip (+39 B raw / unchanged gzip); direct and unique
+production package counts remain 18 and 150, and the other static artifacts
+remain unchanged. Architecture, ADR, and scholarly-workspace contracts now keep
+browser offline-session derivation inside the offline authority.
+
+Full native CI passes all 1,779 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,

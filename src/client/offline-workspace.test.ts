@@ -5,6 +5,7 @@ import {
   OfflineWorkspaceStore,
   OfflineWorkspaceSession,
   clearAllOfflineWorkspaces,
+  createBrowserOfflineWorkspaceSession,
   createOfflineWorkspaceStore,
   offlineDocumentDelta,
   restoreOfflineWorkspaceState,
@@ -385,6 +386,32 @@ describe("offline workspace persistence", () => {
   it("degrades cleanly when IndexedDB is unavailable", async () => {
     expect(createOfflineWorkspaceStore(undefined, "writer", "paper")).toBeNull();
     await expect(clearAllOfflineWorkspaces(undefined)).resolves.toBeUndefined();
+  });
+
+  it("derives browser persistence and logout ownership", () => {
+    const logout = Object.assign(new EventTarget(), { href: "/logout" });
+    const querySelector = vi.fn(() => logout);
+    vi.stubGlobal("document", { body: { dataset: {} }, querySelector });
+    vi.stubGlobal("window", new EventTarget());
+    vi.stubGlobal("location", { assign: vi.fn() });
+    vi.stubGlobal("indexedDB", undefined);
+    const documentModel = new Y.Doc();
+
+    const session = createBrowserOfflineWorkspaceSession(
+      "writer@example.test",
+      "paper",
+      {
+        document: documentModel,
+        offlineAvailable: false,
+        origins: { offline: "offline", remote: "remote" },
+        serverStateVector: Y.encodeStateVector(documentModel),
+        synced: false,
+      },
+      { editorStatus: { setSave: vi.fn() }, projectFileDialog: { project: null }, toast: { show: vi.fn() } },
+    );
+
+    expect(querySelector).toHaveBeenCalledWith("#log-out");
+    session.unbindBrowserLifecycle();
   });
 
   it("persists through IndexedDB and closes every opened database", async () => {

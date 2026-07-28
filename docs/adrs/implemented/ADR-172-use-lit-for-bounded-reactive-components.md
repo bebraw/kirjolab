@@ -412,6 +412,9 @@ The adopted components own bounded presentation:
   project-refresh binding consumes the canonical element-registry owners
   directly, retains collaboration and offline persistence as explicit non-DOM
   services, and derives its asset base from the configured workspace API. The
+  offline service's browser factory derives its IndexedDB store and hosted-
+  logout binding from identity, workspace, collaboration, and owner inputs so
+  those browser policies do not remain in the composition root. The
   coordinator retains snapshot application, cross-feature rendering, Yjs
   insertion, caret and focus authority, and the toast outlet; the project-tree
   panel owns image deletion.

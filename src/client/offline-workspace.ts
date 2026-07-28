@@ -185,6 +185,21 @@ export class OfflineWorkspaceSession {
   };
 }
 
+export function createBrowserOfflineWorkspaceSession(
+  identity: string,
+  workspaceId: string,
+  collaboration: OfflineWorkspaceSessionOptions["collaboration"],
+  owners: OfflineWorkspaceSessionOptions["owners"],
+): OfflineWorkspaceSession {
+  return new OfflineWorkspaceSession({
+    browser: { logout: document.querySelector<HTMLAnchorElement>("#log-out") },
+    collaboration,
+    owners,
+    store: createOfflineWorkspaceStore(typeof indexedDB === "undefined" ? undefined : indexedDB, identity, workspaceId),
+    workspaceId,
+  });
+}
+
 function browserOfflineWorkspaceEnvironment(): OfflineWorkspaceBrowserEnvironment {
   return {
     cacheStorage: typeof caches === "undefined" ? undefined : caches,
