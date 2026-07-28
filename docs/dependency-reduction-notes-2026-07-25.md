@@ -13720,6 +13720,22 @@ from 857,108 B raw / 231,329 B gzip to 857,288 B raw / 231,422 B gzip (+180 B
 raw / +93 B gzip); dependency counts and the other static artifacts remain
 unchanged.
 
+## Continued Lit Ownership: Atomic Connection Status
+
+`CollaborationSocket` now installs the connection-status workflow binding from
+the collaboration session and canonical UI owners it already receives. The
+application no longer exposes status projection as a partial collaboration
+initialization stage, and the shared owner contract removes a duplicate
+assistant capability declaration.
+
+This checkpoint reduces `src/client/app.ts` from 118 to 117 lines (-1) while
+the collaboration socket remains at 295 lines, for a one-line net runtime
+reduction. The affected guardrail passes all six socket cases and all eight
+focused socket and connection-status cases pass. The browser application
+changes from 857,288 B raw / 231,422 B gzip to 857,270 B raw / 231,422 B gzip
+(-18 B raw / unchanged gzip); dependency counts and the other static artifacts
+remain unchanged.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,

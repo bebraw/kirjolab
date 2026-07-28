@@ -1006,6 +1006,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   authoring controls once, derive label/tone and source/companion editability,
   request assistant-availability refresh after each workflow transition, and
   combine restored offline presentation with pending-versus-saved wording.
+  Establish that binding atomically when the collaboration socket receives the
+  same session and canonical owners; do not expose a separate application setup
+  phase for status projection.
   Keep socket transport, collaboration-state transitions, Library-mode status,
   and other save transitions in their existing authorities.
 - Let the preview-synchronization Lit owner bind the native source viewport and

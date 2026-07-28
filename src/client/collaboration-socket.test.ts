@@ -83,12 +83,16 @@ function createHarness(online = true): {
   };
   const owners: CollaborationSocketOwners = {
     assistantGenerationPresenter: { refreshAvailability: () => events.push("document-update") },
+    bibliography: { disabled: false } as HTMLTextAreaElement,
     collaboratorSelections: {
       clear: () => events.push("disconnected"),
       receive: ({ collaboratorId }) => events.push(`selection:${collaboratorId}`),
       removeSelection: (id) => events.push(`selection-clear:${id}`),
     },
-    connectionStatus: { presentWorkflow: () => events.push(`connection:${session.status.label}`) },
+    connectionStatus: {
+      bindWorkflow: vi.fn(),
+      presentWorkflow: () => events.push(`connection:${session.status.label}`),
+    },
     editorStatus: {
       preserveSelections: () => {
         events.push("before-update");
@@ -101,7 +105,7 @@ function createHarness(online = true): {
       value: 3,
       observeRevision: (revision) => events.push(`revision:${revision}`),
     },
-    source: { selectionEnd: 4, selectionStart: 2 },
+    source: { disabled: false, selectionEnd: 4, selectionStart: 2 } as HTMLTextAreaElement,
     toast: { show: (message) => events.push(`toast:${message}`) },
   };
   return {

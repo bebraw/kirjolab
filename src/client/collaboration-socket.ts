@@ -6,6 +6,7 @@ import {
 } from "../domain/collaboration";
 import type * as Y from "yjs";
 import type { CollaborationSession } from "./collaboration-session";
+import type { ConnectionStatus, ConnectionWorkflowOwners } from "./connection-status";
 
 export interface CollaborationSelectionState {
   readonly fileId: string;
@@ -14,18 +15,16 @@ export interface CollaborationSelectionState {
   readonly revision: number;
 }
 
-export interface CollaborationSocketOwners {
-  readonly assistantGenerationPresenter: { refreshAvailability(): void };
+export interface CollaborationSocketOwners extends ConnectionWorkflowOwners {
   readonly collaboratorSelections: {
     clear(): void;
     receive(selection: Extract<ServerCollaborationMessage, { readonly type: "selection" }>): void;
     removeSelection(collaboratorId: string): void;
   };
-  readonly connectionStatus: { presentWorkflow(): void };
+  readonly connectionStatus: Pick<ConnectionStatus, "bindWorkflow" | "presentWorkflow">;
   readonly editorStatus: { preserveSelections(): () => void; setSave(status: string): void };
   readonly projectFileDialog: { readonly activeFileId: string | null };
   readonly projectHistoryTrigger: { readonly value: number; observeRevision(revision: number): void };
-  readonly source: Pick<HTMLTextAreaElement, "selectionEnd" | "selectionStart">;
   readonly toast: { show(message: string): void };
 }
 
@@ -92,6 +91,7 @@ export class CollaborationSocket {
     this.#refresh = refresh;
     this.#owners = owners;
     this.#environment = environment;
+    owners.connectionStatus.bindWorkflow(session, owners);
     environment.browserEvents?.addEventListener("online", this.#handleOnline);
     environment.browserEvents?.addEventListener("offline", this.#handleOffline);
   }

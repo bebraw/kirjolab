@@ -75,7 +75,6 @@ class WorkspaceApp {
 
   #bindUi(): void {
     this.#elements.assistantGenerationPresenter.bindAuthoring(this.#collaboration, this.#elements);
-    this.#elements.connectionStatus.bindWorkflow(this.#collaboration, this.#elements);
     this.#offline.bindBrowserLifecycle(document.querySelector<HTMLAnchorElement>("#log-out"), this.#elements.toast);
     this.#elements.workspaceCatalogPanel.bindWorkspace(workspaceId, this.#elements);
     this.#elements.workspaceSettingsPanel.bindWorkspace(this.#elements.workspaceSettings, workspaceId, this.#elements);

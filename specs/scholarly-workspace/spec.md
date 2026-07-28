@@ -265,7 +265,9 @@ collaboration.
   A bounded connection-status owner binds the collaboration workflow and
   authoring controls once. It derives connection label/tone plus source and
   companion editability and requests assistant-availability refresh after each
-  transition; collaboration retains state-machine and transport authority.
+  transition. Collaboration-socket construction installs that binding from its
+  canonical session and owners; collaboration retains state-machine and
+  transport authority.
   User-facing copy calls the editable unit a project; workspace remains an
   implementation term for APIs, types, and coordination boundaries.
 - **Personal preferences:** A compact panel beside the Kirjolab heading owns

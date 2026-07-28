@@ -1346,14 +1346,17 @@ reason to wrap static markup mechanically.
   online/offline browser events during construction and consumes canonical
   offline, refresh, editor, revision, presence, connection, project-file,
   assistant, and toast owners directly for local and remote update effects
-  instead of maintaining a parallel application callback protocol.
+  instead of maintaining a parallel application callback protocol. Socket
+  construction also installs the connection-status workflow binding from that
+  same session and owner set, removing a partial application lifecycle stage.
 - The connection status component replaces separate label and tone element
   references, binds the collaboration workflow and authoring controls once, and
   owns synchronized label/tone, source and companion editability, and assistant-
   availability refresh. On offline restore it combines that projection with
   pending-versus-saved wording through its bound editor-status owner. The
-  collaboration session retains state interpretation; the application
-  coordinator retains Library-mode status and other save transitions.
+  collaboration session retains state interpretation. The collaboration socket
+  installs this binding atomically from its canonical session and owners; the
+  application coordinator retains Library-mode status and other save transitions.
 - The Vim mode control replaces separate toggle and mode-status element
   references and owns browser-local enablement, mode presentation, modal key
   handling, pointer-selection transitions, and editor-listener teardown. The
