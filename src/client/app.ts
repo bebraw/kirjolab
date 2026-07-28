@@ -2,7 +2,6 @@ import * as Y from "yjs";
 import "./action-menu-controller";
 import { parseAppBootstrap } from "./app-contracts";
 import { collectAppElements } from "./app-elements";
-import { CoalescedRefresh } from "./collaboration";
 import { CollaborationSession } from "./collaboration-session";
 import { CollaborationSocket } from "./collaboration-socket";
 import { createBrowserOfflineWorkspaceSession } from "./offline-workspace";
@@ -11,7 +10,7 @@ const { workspaceId, identityEmail, appMode } = parseAppBootstrap(document.body.
 const apiBase = `/api/workspaces/${workspaceId}`;
 const workspaceMode = appMode === "workspace";
 const elements = collectAppElements();
-const refresh = new CoalescedRefresh(async () => elements.projectFileDialog.refreshProject());
+const refresh = elements.projectFileDialog.refreshCoordinator;
 const session = new CollaborationSession(new Y.Doc());
 const offline = createBrowserOfflineWorkspaceSession(identityEmail, workspaceId, session, elements);
 const socket = new CollaborationSocket(session, apiBase, offline, refresh, elements);

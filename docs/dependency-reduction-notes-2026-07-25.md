@@ -14624,6 +14624,26 @@ browser offline-session derivation inside the offline authority.
 Full native CI passes all 1,779 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Service Ownership: Project Refresh Coordination
+
+The project-file Lit owner now constructs and exposes the shared coalesced
+refresh coordinator around its canonical refresh operation. The composition
+root supplies that service to consumers without retaining a parallel callback
+that only forwarded back to the project-file owner.
+
+This checkpoint trades one net production line for clearer service ownership
+and reduces `src/client/app.ts` from 30 to 29 lines. The affected guardrail
+passes 28 related cases across two suites alongside formatting, lint, and all
+strict TypeScript targets. The browser application changes from 847,089 B raw /
+231,052 B gzip to 847,132 B raw / 231,196 B gzip (+43 B raw / +144 B gzip);
+direct and unique production package counts remain 18 and 150, and the other
+static artifacts remain unchanged. Architecture, ADR, and scholarly-workspace
+contracts now assign coalesced project-refresh construction to the project-file
+authority.
+
+Full native CI passes all 1,779 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,

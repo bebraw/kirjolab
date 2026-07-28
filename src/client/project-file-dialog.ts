@@ -1,6 +1,7 @@
 import { html, type TemplateResult } from "lit";
 import { projectFileCollaborationTextName, relativeProjectPath, type ProjectAsset, type ProjectFile } from "../domain/project-files";
 import { isWorkspaceSnapshot, type WorkspaceSnapshot } from "../domain/workspace";
+import { CoalescedRefresh } from "./collaboration";
 import { DeferredDeletionController, type DeferredDeletionNoticeOptions } from "./deferred-deletion";
 import type { CollaborationSession } from "./collaboration-session";
 import { errorMessage, expectOk, jsonFetch } from "./http";
@@ -153,6 +154,7 @@ export class ProjectFileDialog extends LightDomElement {
   declare private mode: ProjectFileDialogMode;
   declare private saving: boolean;
   declare private status: string;
+  readonly refreshCoordinator = new CoalescedRefresh(async () => this.refreshProject());
   private apiBase = "";
   private readonly deletions = new DeferredDeletionController((message, options) => {
     this.presentNotice(message, options);

@@ -410,8 +410,9 @@ The adopted components own bounded presentation:
   from its bound collaboration session and session-owned Yjs document, deriving canonical
   text keys, readiness, and validated snapshot loading internally. The
   project-refresh binding consumes the canonical element-registry owners
-  directly, retains collaboration and offline persistence as explicit non-DOM
-  services, and derives its asset base from the configured workspace API. The
+  directly, owns and exposes the shared coalesced refresh coordinator, retains
+  collaboration and offline persistence as explicit non-DOM services, and
+  derives its asset base from the configured workspace API. The
   offline service's browser factory derives its IndexedDB store and hosted-
   logout binding from identity, workspace, collaboration, and owner inputs so
   those browser policies do not remain in the composition root. The

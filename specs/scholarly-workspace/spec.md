@@ -440,8 +440,9 @@ collaboration.
   collaboration session, offline lifecycle, assistant, editor, Preview, route,
   notice, action, image-upload, source, authoring-mode, rail-tab owners, and
   narrow rail-collapse capability. It configures the owned image-upload
-  transport from that API and installs the reciprocal Preview project and
-  History workspace bindings from those same canonical capabilities; file activation
+  transport from that API, owns and exposes the shared coalesced project-refresh
+  coordinator, and installs the reciprocal Preview project and History workspace
+  bindings from those same canonical capabilities; file activation
   refreshes assistant availability, resets and renders Preview, replaces the
   canonical route, and applies the active file to editor status directly. The
   collaboration session remains the canonical owner of its Yjs document and

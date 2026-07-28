@@ -381,6 +381,8 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   anchors by file identity.
 - Let the project-file dialog derive resource availability, initial path, and
   stable mutation target from its operation and canonical file/folder inputs.
+  Let it own and expose the shared coalesced project-refresh coordinator because
+  every accepted refresh applies through that same project-file authority.
   Bind its project API, canonical presentation owners, and narrow layout
   capability atomically rather than staging those production inputs
   independently. Let that binding configure the owned project-image upload
