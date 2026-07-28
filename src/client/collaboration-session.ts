@@ -106,6 +106,12 @@ export class CollaborationSession {
     this.syncQueue();
   }
 
+  enqueueLocal(update: Uint8Array, origin: unknown, ignoredOrigin: unknown): boolean {
+    if (origin === this.#remoteOrigin || origin === ignoredOrigin) return false;
+    this.enqueue(update);
+    return true;
+  }
+
   restoreOffline(serverStateVector: Uint8Array): boolean {
     this.#serverStateVector = serverStateVector.slice();
     const pending = offlineDocumentDelta(this.#document, this.#serverStateVector);

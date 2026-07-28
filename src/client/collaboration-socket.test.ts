@@ -80,7 +80,7 @@ function createHarness(online = true): {
     },
     connectionChanged: () => events.push(`connection:${session.status.label}`),
     disconnected: () => events.push("disconnected"),
-    remoteUpdateApplied: () => events.push("remote-update"),
+    documentUpdated: () => events.push("document-update"),
     resourcesChanged: () => events.push("resources"),
     revisionCompleted: (revision) => events.push(`complete:${revision}:${session.pendingCount}`),
     revisionObserved: (revision) => events.push(`revision:${revision}`),
@@ -156,7 +156,7 @@ describe("collaboration socket", () => {
     expect(harness.events).toContain("selection:writer-2");
     expect(harness.events).toContain("selection-clear:writer-2");
     expect(harness.events).toContain("resources");
-    expect(harness.events.slice(-3)).toEqual(["before-update", "restore-selection", "remote-update"]);
+    expect(harness.events.slice(-3)).toEqual(["before-update", "restore-selection", "document-update"]);
   });
 
   it("closes invalid frames and reconnects only while online", () => {
@@ -221,5 +221,28 @@ describe("collaboration socket", () => {
     browserEvents.dispatchEvent(new Event("offline"));
     expect(connect).toHaveBeenCalledOnce();
     expect(goOffline).toHaveBeenCalledOnce();
+  });
+
+  it("owns local document update persistence, queueing, status, and teardown", () => {
+    const harness = createHarness();
+    const connection = new CollaborationSocket(harness.session, harness.callbacks, harness.environment);
+    const offline = { schedule: vi.fn() };
+    const save = vi.fn();
+    const offlineOrigin = Symbol("offline");
+    connection.bindDocument(harness.document, { offline, offlineOrigin, save });
+
+    harness.document.transact(() => harness.document.getText("source").insert(0, "remote"), remoteOrigin);
+    harness.document.transact(() => harness.document.getText("source").insert(6, "offline"), offlineOrigin);
+    harness.document.getText("source").insert(13, "local");
+
+    expect(offline.schedule).toHaveBeenCalledTimes(3);
+    expect(harness.session.pendingCount).toBe(1);
+    expect(save).toHaveBeenCalledWith("Saving offline…");
+    expect(harness.events).toContain("document-update");
+
+    connection.unbindDocument();
+    harness.document.getText("source").insert(18, "ignored");
+    expect(offline.schedule).toHaveBeenCalledTimes(3);
+    expect(harness.session.pendingCount).toBe(1);
   });
 });

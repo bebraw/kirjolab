@@ -11945,6 +11945,32 @@ and 481,994 B / 146,135 B.
 Full native CI passes all 1,768 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Collaboration Ownership: Document Update Lifecycle
+
+`CollaborationSocket` now owns the document-wide Yjs update subscription,
+offline-save scheduling, pending save wording, assistant invalidation, immediate
+flush, and explicit teardown. `CollaborationSession` decides whether an update
+origin is locally authored before enqueueing it. Local and remote changes share
+one document-updated callback instead of duplicating assistant effects.
+
+This checkpoint reduces `src/client/app.ts` from 504 to 501 lines (-3), grows
+the collaboration session from 158 to 164 lines (+6), and grows the socket owner
+from 248 to 275 lines (+27). The 30-line combined increase makes subscription
+lifetime and origin policy independently testable beside the queue and
+transport they control. Focused coverage passes remote, offline, local, and
+unbound updates, persistence scheduling, enqueue eligibility, save wording,
+assistant invalidation, teardown, affected integrations, and strict types.
+Direct and unique production package counts remain 18 and 150; Yjs was already
+pinned.
+
+The browser application artifact increases from 861,791 B raw / 231,953 B gzip
+to 862,019 B / 232,029 B (+228 B raw / +76 B gzip). Styles and lazy Markdown and
+PDF.js artifacts remain unchanged at 135,411 B / 23,373 B, 204,779 B / 62,386 B,
+and 481,994 B / 146,135 B.
+
+Full native CI passes all 1,770 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: One-Shot Browser Entry Intents
 
 `ProjectStartingPointBrowser` now consumes the `create=1` editor intent, removes

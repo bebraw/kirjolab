@@ -67,7 +67,7 @@ class WorkspaceApp {
       clearOffline: () => this.#offline.clear(),
       connectionChanged: () => this.#elements.connectionStatus.presentWorkflow(),
       disconnected: () => this.#elements.collaboratorSelections.clear(),
-      remoteUpdateApplied: () => this.#elements.assistantGenerationPresenter.refreshAvailability(),
+      documentUpdated: () => this.#elements.assistantGenerationPresenter.refreshAvailability(),
       resourcesChanged: () => {
         void this.#resourceRefresh.request().catch((error: unknown) => {
           this.#elements.toast.show(error instanceof Error ? error.message : "Could not refresh project resources");
@@ -363,13 +363,10 @@ class WorkspaceApp {
     });
     this.#elements.projectHistoryTrigger.bindRevision(this.#elements, () => this.#offline.schedule());
     this.#elements.contextResourcePresenter.bindManuscriptComments(apiBase);
-    this.#document.on("update", (update: Uint8Array, origin: unknown) => {
-      this.#offline.schedule();
-      if (origin === remoteOrigin || origin === offlineOrigin) return;
-      this.#collaboration.enqueue(update);
-      this.#elements.editorStatus.setSave(this.#collaboration.synced ? "Saving…" : "Saving offline…");
-      this.#elements.assistantGenerationPresenter.refreshAvailability();
-      this.#collaborationSocket.flush();
+    this.#collaborationSocket.bindDocument(this.#document, {
+      offline: this.#offline,
+      offlineOrigin,
+      save: (status) => this.#elements.editorStatus.setSave(status),
     });
     this.#elements.contextResourcePresenter.bindProjectEvidence(apiBase);
     this.#elements.contextResourcePresenter.bindProjectMap(apiBase, {

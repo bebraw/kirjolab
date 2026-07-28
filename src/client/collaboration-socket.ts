@@ -4,6 +4,7 @@ import {
   parseServerCollaborationMessage,
   type ServerCollaborationMessage,
 } from "../domain/collaboration";
+import type * as Y from "yjs";
 import type { CollaborationSession } from "./collaboration-session";
 
 export interface CollaborationSelectionState {
@@ -18,7 +19,7 @@ export interface CollaborationSocketCallbacks {
   readonly clearOffline: () => Promise<void>;
   readonly connectionChanged: () => void;
   readonly disconnected: () => void;
-  readonly remoteUpdateApplied: () => void;
+  readonly documentUpdated: () => void;
   readonly resourcesChanged: () => void;
   readonly revisionCompleted: (revision: number) => void;
   readonly revisionObserved: (revision: number) => void;
@@ -35,6 +36,12 @@ export interface CollaborationSocketEnvironment {
   readonly online: () => boolean;
   readonly reload: () => void;
   readonly setTimer: (callback: () => void, delay: number) => number;
+}
+
+export interface CollaborationDocumentBinding {
+  readonly offline: { schedule(): void };
+  readonly offlineOrigin: unknown;
+  readonly save: (status: string) => void;
 }
 
 export interface CollaborationWebSocket {
@@ -63,6 +70,7 @@ export class CollaborationSocket {
   #socket: CollaborationWebSocket | null = null;
   #reconnectTimer: number | undefined;
   #selectionTimer: number | undefined;
+  #releaseDocument: () => void = () => undefined;
 
   constructor(
     session: CollaborationSession,
@@ -101,6 +109,24 @@ export class CollaborationSocket {
     this.unbindBrowserLifecycle();
     events.addEventListener("online", this.#handleOnline);
     events.addEventListener("offline", this.#handleOffline);
+  }
+
+  bindDocument(documentModel: Y.Doc, binding: CollaborationDocumentBinding): void {
+    this.#releaseDocument();
+    const update = (value: Uint8Array, origin: unknown): void => {
+      binding.offline.schedule();
+      if (!this.#session.enqueueLocal(value, origin, binding.offlineOrigin)) return;
+      binding.save(this.#session.synced ? "Saving…" : "Saving offline…");
+      this.#callbacks.documentUpdated();
+      this.flush();
+    };
+    documentModel.on("update", update);
+    this.#releaseDocument = () => documentModel.off("update", update);
+  }
+
+  unbindDocument(): void {
+    this.#releaseDocument();
+    this.#releaseDocument = () => undefined;
   }
 
   unbindBrowserLifecycle(): void {
@@ -161,7 +187,7 @@ export class CollaborationSocket {
       return;
     }
     restore();
-    this.#callbacks.remoteUpdateApplied();
+    this.#callbacks.documentUpdated();
   }
 
   #control(socket: CollaborationWebSocket, value: ServerCollaborationMessage): boolean {

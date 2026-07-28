@@ -1215,8 +1215,11 @@ reason to wrap static markup mechanically.
   before a remote update, captures and then restores Yjs-relative selections
   for its active source and those companions. The
   application coordinator retains mutation decisions, cross-file path
-  projection, assistant refresh consequences, collaboration and offline-save
-  policy, and the save-status values those workflows select.
+  projection, and supplies assistant refresh and save-status effects. The typed
+  collaboration socket owns the document-wide update subscription, offline-save
+  scheduling, session-owned local-origin filtering and enqueueing, immediate
+  flush, and teardown; local and remote updates share one document-updated
+  callback.
 - The connection status component replaces separate label and tone element
   references, binds the collaboration workflow and authoring controls once, and
   owns synchronized label/tone, source and companion editability, and assistant-

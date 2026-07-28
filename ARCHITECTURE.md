@@ -815,9 +815,13 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   one typed session authority. Put WebSocket creation, reconnect and selection
   timers, online/offline browser subscriptions, strict control routing,
   binary-update application, queue flushing, reset cleanup, and reload
-  sequencing behind a typed socket authority around that session. Keep editor-
-  selection preservation, canonical revision effects, resource refresh, and UI
-  projection in the application coordinator through explicit callbacks.
+  sequencing behind a typed socket authority around that session. Let the same
+  authority own the document-wide local-update subscription, offline-save
+  scheduling, session-owned local-origin filtering and enqueueing, save-status
+  selection, assistant invalidation, immediate flush, and explicit teardown.
+  Keep editor-selection preservation, canonical revision effects, resource
+  refresh, and UI projection in the application coordinator through explicit
+  callbacks.
 - Keep a validated, identity-and-workspace-scoped browser copy of the latest
   authorized snapshot, full Yjs document state, and acknowledged server state
   vector so existing Markdown files remain editable offline. Reconstruct only

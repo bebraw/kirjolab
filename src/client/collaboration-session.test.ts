@@ -59,6 +59,17 @@ describe("collaboration session", () => {
     expect(session.serverStateVector.byteLength).toBeGreaterThan(0);
   });
 
+  it("queues only locally authored document updates", () => {
+    const session = new CollaborationSession(new Y.Doc(), remoteOrigin);
+    const update = new Uint8Array([1, 2, 3]);
+    const offlineOrigin = Symbol("offline");
+
+    expect(session.enqueueLocal(update, remoteOrigin, offlineOrigin)).toBe(false);
+    expect(session.enqueueLocal(update, offlineOrigin, offlineOrigin)).toBe(false);
+    expect(session.enqueueLocal(update, "local", offlineOrigin)).toBe(true);
+    expect(session.pendingCount).toBe(1);
+  });
+
   it("owns remote Yjs application and remote-revision stability", () => {
     const document = new Y.Doc();
     const session = connectedSession(document);
