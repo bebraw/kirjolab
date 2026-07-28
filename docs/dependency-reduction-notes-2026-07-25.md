@@ -14801,6 +14801,23 @@ counts remain 18 and 150, and the other static artifacts remain unchanged.
 Full native CI passes all 1,781 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Contract Reduction: GitHub Publish Type
+
+The GitHub publish-result Valibot schema now remains the sole runtime contract
+and inferred guard authority. Its unused exported TypeScript alias had no
+consumer and duplicated the schema's inferred shape in the public module API.
+
+This checkpoint removes one source line. The codebase diagnostic no longer
+reports the dead type export, and the affected guardrail passes formatting,
+lint, all strict TypeScript targets, and the complete app-contract suite. The
+browser application and other static artifacts remain byte-identical at
+847,152 B raw / 231,160 B gzip, 135,411 B raw / 23,373 B gzip, 204,779 B raw /
+62,386 B gzip, and 481,994 B raw / 146,135 B gzip; direct and unique production
+package counts remain 18 and 150.
+
+Full native CI passes all 1,781 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,

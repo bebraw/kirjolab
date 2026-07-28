@@ -110,7 +110,6 @@ const gitHubPublishResultSchema = v.object({ commitSha: v.string() });
 
 export type GitHubPullPreview = v.InferInput<typeof gitHubPullPreviewSchema>;
 export type GitHubPublishPreview = v.InferInput<typeof gitHubPublishPreviewSchema>;
-export type GitHubPublishResult = v.InferInput<typeof gitHubPublishResultSchema>;
 
 const latexArchiveSchema = v.object({
   files: v.array(
