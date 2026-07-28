@@ -57,6 +57,49 @@ function historyHarness() {
   return { history: { pushState, replaceState, state: null }, pushState, replaceState };
 }
 
+function bindOwnerHarness(
+  workspace: ReferenceLibraryWorkspace,
+  overrides: Partial<{
+    activateLibrary: () => void;
+    applyProjectMutation: (snapshot: typeof workspaceSnapshotFixture) => Promise<void>;
+    compareSnapshots: (priorId: string, currentId: string) => void;
+    openPdf: (artifact: LibraryPdfArtifact, page?: number, updateHistory?: boolean) => void;
+    presentNotice: (message: string) => void;
+    refreshLibrary: () => Promise<void>;
+    refreshProject: () => Promise<void>;
+  }> = {},
+) {
+  const callbacks = {
+    activateLibrary: vi.fn(),
+    applyProjectMutation: vi.fn().mockResolvedValue(undefined),
+    compareSnapshots: vi.fn(),
+    openPdf: vi.fn(),
+    presentNotice: vi.fn(),
+    refreshLibrary: vi.fn().mockResolvedValue(undefined),
+    refreshProject: vi.fn().mockResolvedValue(undefined),
+    ...overrides,
+  };
+  workspace.bindProject(null, {
+    contextResourcePresenter: {
+      activeKey: "preview",
+      navigateContext: callbacks.activateLibrary,
+      openLibraryPdf: async (...args) => callbacks.openPdf(...args),
+      presentBoundContext: vi.fn(),
+      refreshLibraryContext: vi.fn().mockResolvedValue(undefined),
+    },
+    projectFileDialog: {
+      project: workspaceSnapshotFixture,
+      acceptProjectMutation: callbacks.applyProjectMutation,
+      refreshProject: callbacks.refreshProject,
+    },
+    toast: { show: callbacks.presentNotice },
+    webSnapshotComparison: { compare: async (...args) => callbacks.compareSnapshots(...args) },
+    workspaceSurfaceSwitcher: { syncRoute: vi.fn() },
+  });
+  vi.spyOn(workspace, "refreshBoundProject").mockImplementation(callbacks.refreshLibrary);
+  return callbacks;
+}
+
 const library: ReferenceLibrarySnapshot = {
   artifacts: [],
   collections: {},
@@ -144,14 +187,8 @@ describe("reference Library workspace", () => {
     const { owners, workspace } = setup();
     const applyProjectMutation = vi.fn().mockResolvedValue(undefined);
     const setData = vi.spyOn(owners["library-reference-list"], "setData");
-    workspace.configure("workspace", {
-      applyProjectMutation,
-      compareSnapshots: vi.fn(),
-      openPdf: vi.fn(),
-      presentNotice: vi.fn(),
-      refreshLibrary: vi.fn(),
-      refreshProject: vi.fn(),
-    });
+    workspace.configure("workspace");
+    bindOwnerHarness(workspace, { applyProjectMutation });
 
     workspace.presentProject(workspaceSnapshotFixture, "/api/workspaces/workspace");
     expect(setData).not.toHaveBeenCalled();
@@ -177,11 +214,22 @@ describe("reference Library workspace", () => {
     const refreshLibraryContext = vi.fn().mockResolvedValue(undefined);
     const presentBoundContext = vi.fn();
     const syncRoute = vi.fn();
-    workspace.bindProject({
-      context: { presentBoundContext, refreshLibraryContext },
-      project: { project: workspaceSnapshotFixture },
-      projectApiBase: "/api/workspaces/workspace",
-      routes: { syncRoute },
+    workspace.bindProject("/api/workspaces/workspace", {
+      contextResourcePresenter: {
+        activeKey: "library",
+        navigateContext: vi.fn(),
+        openLibraryPdf: vi.fn().mockResolvedValue(undefined),
+        presentBoundContext,
+        refreshLibraryContext,
+      },
+      projectFileDialog: {
+        project: workspaceSnapshotFixture,
+        acceptProjectMutation: vi.fn().mockResolvedValue(undefined),
+        refreshProject: vi.fn().mockResolvedValue(undefined),
+      },
+      toast: { show: vi.fn() },
+      webSnapshotComparison: { compare: vi.fn().mockResolvedValue(undefined) },
+      workspaceSurfaceSwitcher: { syncRoute },
     });
 
     await workspace.refreshBoundProject();
@@ -201,14 +249,8 @@ describe("reference Library workspace", () => {
     const activateLibrary = vi.fn();
     const browser = historyHarness();
     const refreshLibrary = vi.fn().mockResolvedValue(undefined);
-    workspace.configure("workspace", {
-      activateLibrary,
-      compareSnapshots: vi.fn(),
-      openPdf: vi.fn(),
-      presentNotice: vi.fn(),
-      refreshLibrary,
-      refreshProject: vi.fn(),
-    });
+    workspace.configure("workspace");
+    bindOwnerHarness(workspace, { activateLibrary, refreshLibrary });
     workspace.bindBrowserRoute(true, browser.history);
 
     await workspace.open(false);
@@ -242,14 +284,8 @@ describe("reference Library workspace", () => {
     const browser = historyHarness();
     const openPdf = vi.fn();
     const presentNotice = vi.fn();
-    workspace.configure("workspace", {
-      activateLibrary,
-      compareSnapshots: vi.fn(),
-      openPdf,
-      presentNotice,
-      refreshLibrary: vi.fn(),
-      refreshProject: vi.fn(),
-    });
+    workspace.configure("workspace");
+    bindOwnerHarness(workspace, { activateLibrary, openPdf, presentNotice });
     workspace.bindBrowserRoute(true, browser.history);
     workspace.setData({
       library: { ...library, artifacts: [artifact] },
@@ -306,13 +342,8 @@ describe("reference Library workspace", () => {
     const { workspace } = setup();
     const presentNotice = vi.fn();
     const refreshLibrary = vi.fn(async () => undefined);
-    workspace.configure("workspace", {
-      compareSnapshots: vi.fn(),
-      openPdf: vi.fn(),
-      presentNotice,
-      refreshLibrary,
-      refreshProject: vi.fn(),
-    });
+    workspace.configure("workspace");
+    bindOwnerHarness(workspace, { presentNotice, refreshLibrary });
     workspace.setData({ library: { ...library, references: [] }, projectApiBase: null, projectReferences: [], researchShares: [] });
     vi.spyOn(workspace, "showArchivedReferences").mockReturnValue(true);
     vi.spyOn(workspace, "openReference").mockResolvedValueOnce(true).mockResolvedValueOnce(false);
@@ -329,14 +360,8 @@ describe("reference Library workspace", () => {
     const activateLibrary = vi.fn();
     const browser = historyHarness();
     const refreshLibrary = vi.fn().mockResolvedValue(undefined);
-    workspace.configure("workspace", {
-      activateLibrary,
-      compareSnapshots: vi.fn(),
-      openPdf: vi.fn(),
-      presentNotice: vi.fn(),
-      refreshLibrary,
-      refreshProject: vi.fn(),
-    });
+    workspace.configure("workspace");
+    bindOwnerHarness(workspace, { activateLibrary, refreshLibrary });
     workspace.bindBrowserRoute(true, browser.history);
     vi.spyOn(workspace, "focusAvailableReference").mockResolvedValue(true);
 
@@ -388,17 +413,10 @@ describe("reference Library workspace", () => {
 
   it("routes child Library outcomes through its refresh boundary", async () => {
     const { owners, workspace } = setup();
-    const callbacks = {
-      applyProjectMutation: vi.fn().mockResolvedValue(undefined),
-      compareSnapshots: vi.fn(),
-      openPdf: vi.fn(),
-      presentNotice: vi.fn(),
-      refreshLibrary: vi.fn().mockResolvedValue(undefined),
-      refreshProject: vi.fn().mockResolvedValue(undefined),
-    };
+    const callbacks = bindOwnerHarness(workspace);
     const completeIdentification = vi.spyOn(owners["unidentified-pdf-list"], "complete");
     const captureUrl = vi.spyOn(owners["web-source-capture"], "captureUrl").mockResolvedValue();
-    workspace.configure("project-1", callbacks);
+    workspace.configure("project-1");
 
     workspace.dispatchEvent(
       new CustomEvent(projectReferenceChangedEvent, { detail: { message: "Reference linked", snapshot: workspaceSnapshotFixture } }),
@@ -451,18 +469,12 @@ describe("reference Library workspace", () => {
 
   it("routes full-surface Library discovery and intake outcomes", async () => {
     const { owners, workspace } = setup();
-    const callbacks = {
-      compareSnapshots: vi.fn(),
-      openPdf: vi.fn(),
-      presentNotice: vi.fn(),
-      refreshLibrary: vi.fn().mockResolvedValue(undefined),
-      refreshProject: vi.fn().mockResolvedValue(undefined),
-    };
+    const callbacks = bindOwnerHarness(workspace);
     const setResults = vi.spyOn(owners["library-discovery-results"], "setResults");
     const openNetwork = vi.spyOn(owners["citation-network-workspace"], "open").mockResolvedValue();
     vi.spyOn(workspace, "showArchivedReferences").mockReturnValue(true);
     vi.spyOn(workspace, "revealReference").mockResolvedValue(false);
-    workspace.configure("project-1", callbacks);
+    workspace.configure("project-1");
     const existing = { archived: true, referenceId: "reference-1", referenceKey: "source2026" };
 
     workspace.dispatchEvent(new CustomEvent(libraryDiscoveryResultsEvent, { detail: [] }));
@@ -498,12 +510,10 @@ describe("reference Library workspace", () => {
     const { workspace } = setup();
     const complete = vi.fn();
     const presentNotice = vi.fn();
-    workspace.configure("project-1", {
-      compareSnapshots: vi.fn(),
-      openPdf: vi.fn(),
+    workspace.configure("project-1");
+    bindOwnerHarness(workspace, {
       presentNotice,
       refreshLibrary: vi.fn().mockRejectedValue(new Error("offline")),
-      refreshProject: vi.fn().mockResolvedValue(undefined),
     });
 
     await workspace.completeRefresh("Saved", "Refresh failed", { complete });

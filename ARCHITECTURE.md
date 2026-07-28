@@ -148,9 +148,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   notice lifecycle; delegate canonical project snapshot acceptance to the
   project-file owner. It also resolves duplicate-PDF upload reveals through
   archive visibility, canonical refresh, owned filter/list focus, and missing-
-  source feedback. Keep cross-feature PDF and context navigation, project
-  snapshot application, refresh timing, and notification presentation in their
-  authorities behind narrow typed callbacks.
+  source feedback. Bind the context, project-file, web-comparison, route, and
+  toast owners once so cross-feature PDF navigation, snapshot application,
+  refresh timing, comparison, and notifications remain in their authorities
+  without parallel callback adapters.
 - Keep resource-card lookup, scrolling, and focus inside the Lit component that
   renders those cards. Let the Library reference-list owner route a PDF
   refinement intent to the metadata editor in the same reference row. The
@@ -753,8 +754,8 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   need for canonical refresh. Let the composed reference Library workspace
   encompass discovery, import, PDF upload/status, web capture, tools, filters,
   results, citation network, and unidentified-PDF controls; route their outcomes
-  through one callback boundary while the application coordinator retains
-  canonical Library refresh and toast policy.
+  directly through its bound feature owners while retaining canonical Library
+  refresh and toast policy in those authorities.
 - Model each web source as one stable owner-library identity with append-only,
   timestamped captures. Retrieve only bounded public HTTP(S) content through
   manually validated redirects, store raw/readable representations privately
@@ -1044,9 +1045,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   write their canonical Library root, addressed-reference, artifact, and page
   locations through one pure route adapter. Let the composed Library workspace
   own root, addressed-reference, private-PDF, and active-page history mutation,
-  route lookup, and the browser-history restoration subscription while the
-  application coordinator supplies authorization effects, cross-feature
-  navigation, and notices through typed callbacks.
+  route lookup, and the browser-history restoration subscription while bound
+  context, project-file, route, comparison, and toast owners supply
+  authorization effects, cross-feature navigation, and notices.
   Coalesce selected PDF text into normalized visual-line rectangles, and export
   each saved highlight as one interoperable multi-quad PDF annotation without
   mutating source bytes.
@@ -1304,11 +1305,12 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   Let the presenter also own bound linked-reference PDF catalog loading,
   validation, storage, authorization projection, and optional downstream
   resource presentation. Let the composed Library workspace bind the canonical
-  project-file owner, context presenter, and route owner once, then read the
-  live project snapshot directly and own Library refresh, linked-PDF refresh,
+  project-file owner, context presenter, route owner, web-comparison owner, and
+  toast owner once, then read the live project snapshot directly and own
+  Library refresh, linked-PDF refresh,
   authorization reconciliation, project and context
-  presentation, settlement, and replace-route sequencing. Keep canonical
-  snapshot acceptance and mutation consequences in the application coordinator.
+  presentation, settlement, replace-route sequencing, snapshot acceptance,
+  comparison dispatch, and mutation consequences without application adapters.
 - Project bounded, reconstructible editor UI selections into query parameters
   only after validating stable ids against authorized snapshots.
   Keep default-file elision and active PDF-page and annotation projection beside

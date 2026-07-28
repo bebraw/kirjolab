@@ -12797,6 +12797,29 @@ at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip, 481,994 B raw /
 Full native CI passes all 1,774 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Reference-Library Owners
+
+`ReferenceLibraryWorkspace` now binds the context, project-file,
+web-comparison, route, and toast owners directly. PDF navigation, project
+snapshot acceptance and refresh, comparison dispatch, canonical route effects,
+and notices no longer pass through a second configure-time callback bag. The
+old callback contract and its inert default implementation are removed.
+
+This checkpoint reduces `src/client/app.ts` from 343 to 326 lines (-17) and
+grows the Library workspace from 483 to 485 lines (+2), removing fifteen
+runtime lines overall. Focused coverage passes all 15 Library workspace cases;
+affected coverage passes 17 related runtime cases and the affected test file
+alongside strict types.
+
+The browser application artifact changes from 860,611 B raw / 232,078 B gzip to
+860,057 B raw / 232,027 B gzip (-554 B raw / -51 B gzip). Styles, lazy Markdown,
+lazy PDF.js, and direct and unique production package counts remain unchanged
+at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip, 481,994 B raw /
+146,135 B gzip, 18, and 150.
+
+Full native CI passes all 1,774 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: One-Shot Browser Entry Intents
 
 `ProjectStartingPointBrowser` now consumes the `create=1` editor intent, removes

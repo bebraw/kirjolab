@@ -519,9 +519,9 @@ collaboration.
   intent. It derives current project-linked reference ids from canonical
   project-reference inputs. A composed Library workspace synchronizes the
   filter, result list, citation network, and unidentified-PDF queue and owns
-  filter-driven rerendering and focused-reference reveal. The coordinator
-  retains Library loading, cross-feature navigation, mutations, refresh, and
-  notifications.
+  filter-driven rerendering and focused-reference reveal. It binds the context,
+  project-file, web-comparison, route, and toast owners directly for Library
+  loading, cross-feature navigation, mutations, refresh, and notifications.
 - **Private PDF reading:** Owner-library PDF artifacts may reuse the context
   PDF renderer through distinct private `library-pdf:` tabs. Their bytes and tab
   authorization remain owner-private. Selection creates only an ephemeral
@@ -535,7 +535,7 @@ collaboration.
   bound project refresh sequence, reads the live snapshot directly from its
   project-file owner, and sequences linked-PDF loading, authorization
   reconciliation, project and context presentation, settlement, and canonical
-  route replacement. The coordinator retains cross-feature navigation and
+  route replacement. Bound feature owners retain cross-feature navigation and
   notices.
   One pure active-load projection resolves project evidence, private Library,
   or shared-reference input and its authorized URL from the active typed tab

@@ -40,6 +40,7 @@ import type { ExistingPdfUpload } from "./pdf-upload-queue";
 import { projectReferenceChangedEvent, type ProjectReferenceChanged } from "./project-reference-mutation";
 import { projectResearchChangedEvent, type ProjectResearchChanged } from "./project-research-mutation";
 import { ReferenceLibraryFilterPanel, referenceLibraryFilterChangeEvent } from "./reference-library-filters";
+import { RESEARCH_LIBRARY_KEY } from "./research-context";
 import { unidentifiedPdfRefreshEvent, UnidentifiedPdfList, type UnidentifiedPdfRefresh } from "./unidentified-pdf-list";
 import { webSourceCapturedEvent, WebSourceCapture } from "./web-source-panels";
 
@@ -55,24 +56,22 @@ interface LibraryRefreshOptions {
   readonly refresh?: () => Promise<void>;
 }
 
-export interface ReferenceLibraryWorkspaceCallbacks {
-  readonly activateLibrary?: () => void;
-  readonly applyProjectMutation?: (snapshot: ProjectReferenceChanged["snapshot"]) => Promise<void>;
-  readonly compareSnapshots: (priorId: string, currentId: string) => void;
-  readonly openPdf: (artifact: LibraryPdfArtifact, page?: number, updateHistory?: boolean) => void;
-  readonly presentNotice: (message: string) => void;
-  readonly refreshLibrary?: () => Promise<void>;
-  readonly refreshProject: () => Promise<void>;
-}
-
-export interface ReferenceLibraryProjectBinding {
-  readonly context: {
+export interface ReferenceLibraryWorkspaceOwners {
+  readonly contextResourcePresenter: {
+    readonly activeKey: string;
+    navigateContext(key: typeof RESEARCH_LIBRARY_KEY): void;
+    openLibraryPdf(artifact: LibraryPdfArtifact, page?: number, updateHistory?: boolean): Promise<void>;
     presentBoundContext(): void;
     refreshLibraryContext(snapshot: WorkspaceSnapshot | null, library: ReferenceLibrarySnapshot): Promise<void>;
   };
-  readonly project: { readonly project: WorkspaceSnapshot | null };
-  readonly projectApiBase: string | null;
-  readonly routes: { syncRoute(mode: "replace"): void };
+  readonly projectFileDialog: {
+    readonly project: WorkspaceSnapshot | null;
+    acceptProjectMutation(snapshot: ProjectReferenceChanged["snapshot"]): Promise<void>;
+    refreshProject(): Promise<void>;
+  };
+  readonly toast: { show(message: string): void };
+  readonly webSnapshotComparison: { compare(priorId: string, currentId: string): Promise<void> };
+  readonly workspaceSurfaceSwitcher: { syncRoute(mode: "replace"): void };
 }
 
 export interface ReferenceLibraryHistory {
@@ -86,19 +85,12 @@ export interface StandaloneLibraryShell {
   readonly surfaces: HTMLElement;
 }
 
-const emptyCallbacks: ReferenceLibraryWorkspaceCallbacks = {
-  compareSnapshots: () => undefined,
-  openPdf: () => undefined,
-  presentNotice: () => undefined,
-  refreshProject: () => Promise.resolve(),
-};
-
 export class ReferenceLibraryWorkspace extends LitElement {
   private data: ReferenceLibraryWorkspaceData | null = null;
-  private callbacks = emptyCallbacks;
   private librarySnapshot: ReferenceLibrarySnapshot | null = null;
   private browserHistory: ReferenceLibraryHistory | null = null;
-  private projectBinding: ReferenceLibraryProjectBinding | null = null;
+  private owners: ReferenceLibraryWorkspaceOwners | null = null;
+  private projectApiBase: string | null = null;
 
   get snapshot(): ReferenceLibrarySnapshot | null {
     return this.librarySnapshot;
@@ -120,7 +112,7 @@ export class ReferenceLibraryWorkspace extends LitElement {
     );
     this.addEventListener(libraryReferenceSummaryActionEvent, (event) => {
       const { artifact } = (event as CustomEvent<LibraryReferenceSummaryAction>).detail;
-      this.callbacks.openPdf(artifact);
+      this.openPdf(artifact);
     });
     this.addEventListener(libraryReferencePersonalRefreshEvent, (event) => {
       void this.completeRefresh(
@@ -129,7 +121,7 @@ export class ReferenceLibraryWorkspace extends LitElement {
       );
     });
     this.addEventListener(libraryReferenceMetadataNoticeEvent, (event) => {
-      this.callbacks.presentNotice((event as CustomEvent<string>).detail);
+      this.presentNotice((event as CustomEvent<string>).detail);
     });
     this.addEventListener(libraryReferenceMetadataRefreshEvent, (event) => {
       void this.completeRefresh(
@@ -138,14 +130,14 @@ export class ReferenceLibraryWorkspace extends LitElement {
         {
           refresh: async () => {
             await this.refreshBoundProject();
-            await this.callbacks.refreshProject();
+            await this.owners?.projectFileDialog.refreshProject();
           },
         },
       );
     });
     this.addEventListener(libraryReferencePdfActionEvent, (event) => {
       const detail = (event as CustomEvent<LibraryReferencePdfAction>).detail;
-      if (detail.action === "open") this.callbacks.openPdf(detail.artifact);
+      if (detail.action === "open") this.openPdf(detail.artifact);
     });
     this.addEventListener(libraryReferencePdfRefreshEvent, () => void this.refreshBoundProject());
     this.addEventListener(libraryReferenceResearchActionEvent, (event) => {
@@ -214,9 +206,9 @@ export class ReferenceLibraryWorkspace extends LitElement {
   }
 
   async applyProjectMutation(snapshot: WorkspaceSnapshot, message?: string): Promise<void> {
-    await this.callbacks.applyProjectMutation?.(snapshot);
+    await this.owners?.projectFileDialog.acceptProjectMutation(snapshot);
     this.presentProject(snapshot, this.data?.projectApiBase ?? null);
-    if (message) this.callbacks.presentNotice(message);
+    if (message) this.presentNotice(message);
   }
 
   async refresh(fetcher: typeof fetch = fetch): Promise<ReferenceLibrarySnapshot> {
@@ -231,17 +223,17 @@ export class ReferenceLibraryWorkspace extends LitElement {
 
   async restoreRoute(route: LibraryUiRoute): Promise<void> {
     if (route.kind === "library") {
-      this.callbacks.activateLibrary?.();
+      this.activateLibrary();
       if (route.referenceId && !(await this.openReference(route.referenceId))) this.replaceBrowserRoute();
       return;
     }
     const artifact = this.snapshot?.artifacts.find(({ id }) => id === route.artifactId);
     if (artifact) {
-      this.callbacks.openPdf(artifact, route.page, false);
+      this.openPdf(artifact, route.page, false);
       return;
     }
     this.replaceBrowserRoute();
-    this.callbacks.presentNotice("That PDF is no longer in the library.");
+    this.presentNotice("That PDF is no longer in the library.");
   }
 
   restoreBrowserRoute(url = new URL(location.href)): Promise<void> {
@@ -268,23 +260,21 @@ export class ReferenceLibraryWorkspace extends LitElement {
     return true;
   }
 
-  bindProject(binding: ReferenceLibraryProjectBinding): void {
-    this.projectBinding = binding;
+  bindProject(projectApiBase: string | null, owners: ReferenceLibraryWorkspaceOwners): void {
+    this.projectApiBase = projectApiBase;
+    this.owners = owners;
   }
 
   async refreshBoundProject(): Promise<void> {
-    const binding = this.projectBinding;
-    if (!binding) {
-      await this.callbacks.refreshLibrary?.();
-      return;
-    }
+    const owners = this.owners;
+    if (!owners) return;
     const library = await this.refresh();
-    const project = binding.project.project;
-    await binding.context.refreshLibraryContext(project, library);
-    this.presentProject(project, binding.projectApiBase);
+    const project = owners.projectFileDialog.project;
+    await owners.contextResourcePresenter.refreshLibraryContext(project, library);
+    this.presentProject(project, this.projectApiBase);
     await this.settled();
-    binding.context.presentBoundContext();
-    binding.routes.syncRoute("replace");
+    owners.contextResourcePresenter.presentBoundContext();
+    owners.workspaceSurfaceSwitcher.syncRoute("replace");
   }
 
   pushPdfRoute(artifactId: string, page: number): void {
@@ -301,13 +291,12 @@ export class ReferenceLibraryWorkspace extends LitElement {
   }
 
   async open(updateHistory = true): Promise<void> {
-    this.callbacks.activateLibrary?.();
+    this.activateLibrary();
     if (updateHistory) this.pushBrowserRoute("/library", { view: "library" });
     await this.refreshBoundProject();
   }
 
-  configure(workspaceId: string, callbacks?: ReferenceLibraryWorkspaceCallbacks): void {
-    if (callbacks) this.callbacks = callbacks;
+  configure(workspaceId: string): void {
     this.element("citation-network-workspace", CitationNetworkWorkspace)?.configure(workspaceId);
     const upload = this.element("library-pdf-upload-control", LibraryPdfUploadControl);
     const status = this.element("library-pdf-upload-status", LibraryPdfUploadStatus);
@@ -337,9 +326,9 @@ export class ReferenceLibraryWorkspace extends LitElement {
   async completeRefresh(message: string, fallback: string, options: LibraryRefreshOptions = {}): Promise<void> {
     try {
       await (options.refresh?.() ?? this.refreshBoundProject());
-      this.callbacks.presentNotice(message);
+      this.presentNotice(message);
     } catch {
-      this.callbacks.presentNotice(fallback);
+      this.presentNotice(fallback);
     } finally {
       options.complete?.();
     }
@@ -358,12 +347,12 @@ export class ReferenceLibraryWorkspace extends LitElement {
       await this.refreshBoundProject();
     }
     if (await this.openReference(referenceId)) return true;
-    this.callbacks.presentNotice("That reference is no longer available in the Library.");
+    this.presentNotice("That reference is no longer available in the Library.");
     return false;
   }
 
   async openAvailableReference(referenceId: string): Promise<void> {
-    this.callbacks.activateLibrary?.();
+    this.activateLibrary();
     await this.refreshBoundProject();
     if (await this.focusAvailableReference(referenceId)) {
       this.pushBrowserRoute(`/library?reference=${encodeURIComponent(referenceId)}`, { view: "library-reference", referenceId });
@@ -377,7 +366,7 @@ export class ReferenceLibraryWorkspace extends LitElement {
   async revealExistingPdf(existing: ExistingPdfUpload): Promise<void> {
     if (existing.archived && this.showArchivedReferences()) await this.refreshBoundProject();
     if (!(await this.revealReference(existing.referenceId, existing.referenceKey))) {
-      this.callbacks.presentNotice(`Library source ${existing.referenceKey} is not available.`);
+      this.presentNotice(`Library source ${existing.referenceKey} is not available.`);
     }
   }
 
@@ -429,18 +418,31 @@ export class ReferenceLibraryWorkspace extends LitElement {
     return element instanceof constructor ? element : null;
   }
 
+  private activateLibrary(): void {
+    const context = this.owners?.contextResourcePresenter;
+    if (context && context.activeKey !== RESEARCH_LIBRARY_KEY) context.navigateContext(RESEARCH_LIBRARY_KEY);
+  }
+
+  private openPdf(artifact: LibraryPdfArtifact, page?: number, updateHistory?: boolean): void {
+    void this.owners?.contextResourcePresenter.openLibraryPdf(artifact, page, updateHistory);
+  }
+
+  private presentNotice(message: string): void {
+    this.owners?.toast.show(message);
+  }
+
   private routeCitationOutcome(outcome: CitationNetworkOutcome): void {
-    if (outcome.action === "notice") this.callbacks.presentNotice(outcome.message);
+    if (outcome.action === "notice") this.presentNotice(outcome.message);
     else void this.completeRefresh(outcome.message, "The citation candidate was saved, but the refreshed Library could not be loaded.");
   }
 
   private routeResearchAction(action: LibraryReferenceResearchAction): void {
     if (action.action === "capture") this.captureUrl(action.canonicalUrl);
-    else this.callbacks.compareSnapshots(action.priorId, action.currentId);
+    else void this.owners?.webSnapshotComparison.compare(action.priorId, action.currentId);
   }
 
   private routeUploadOutcome(outcome: LibraryPdfUploadOutcome): void {
-    if (outcome.action === "notice") this.callbacks.presentNotice(outcome.message);
+    if (outcome.action === "notice") this.presentNotice(outcome.message);
     else
       void this.completeRefresh(outcome.message, "PDF intake completed, but the refreshed Library could not be loaded.", {
         complete: () => this.element("library-pdf-upload-control", LibraryPdfUploadControl)?.complete(outcome.requestId),

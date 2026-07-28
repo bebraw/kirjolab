@@ -18,7 +18,6 @@ import "./manuscript-map-panel";
 import { createOfflineWorkspaceStore, OfflineWorkspaceSession } from "./offline-workspace";
 import { PdfEvidenceViewer } from "./pdf-viewer";
 import { bindThemePreference } from "./theme";
-import { RESEARCH_LIBRARY_KEY } from "./research-context";
 import "./workspace-rail-tabs";
 import "./authoring-mode-tabs";
 
@@ -171,24 +170,8 @@ class WorkspaceApp {
       presentNotice: (message) => this.#elements.toast.show(message),
       trigger: this.#elements.shareWorkspace,
     });
-    this.#elements.referenceLibraryWorkspace.configure(workspaceId, {
-      activateLibrary: () => {
-        if (this.#elements.contextResourcePresenter.activeKey !== RESEARCH_LIBRARY_KEY)
-          this.#elements.contextResourcePresenter.navigateContext(RESEARCH_LIBRARY_KEY);
-      },
-      applyProjectMutation: (snapshot) => this.#elements.projectFileDialog.acceptProjectMutation(snapshot),
-      compareSnapshots: (priorId, currentId) => void this.#elements.webSnapshotComparison.compare(priorId, currentId),
-      openPdf: (artifact, page, updateHistory) =>
-        void this.#elements.contextResourcePresenter.openLibraryPdf(artifact, page, updateHistory),
-      presentNotice: (message) => this.#elements.toast.show(message),
-      refreshProject: () => this.#elements.projectFileDialog.refreshProject(),
-    });
-    this.#elements.referenceLibraryWorkspace.bindProject({
-      context: this.#elements.contextResourcePresenter,
-      project: this.#elements.projectFileDialog,
-      projectApiBase: appMode === "workspace" ? apiBase : null,
-      routes: this.#elements.workspaceSurfaceSwitcher,
-    });
+    this.#elements.referenceLibraryWorkspace.configure(workspaceId);
+    this.#elements.referenceLibraryWorkspace.bindProject(appMode === "workspace" ? apiBase : null, this.#elements);
     this.#elements.editorStatus.bindAuthoring(this.#document, this.#elements.source, {
       authoring: this.#elements.authoringModeTabs,
       assistant: this.#elements.assistantGenerationPresenter,
