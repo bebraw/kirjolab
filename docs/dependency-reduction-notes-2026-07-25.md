@@ -14414,6 +14414,26 @@ the settings application entry.
 Full native CI passes all 1,776 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Project-Owned Manuscript Workflow Binding
+
+The project-file Lit owner now installs the manuscript-map owner's atomic
+project presentation and diary, research-question, and reviewer-response
+workflow bindings through the existing application entry. The map remains the
+workflow presentation owner while its reciprocal project lifecycle no longer
+requires a composition-root call.
+
+This checkpoint trades three net production lines for the reciprocal project
+workflow boundary and reduces `src/client/app.ts` from 56 to 55 lines. The
+affected guardrail passes 43 related cases across five suites alongside strict
+types. The browser application remains 847,259 B raw and changes from 230,998 B
+gzip to 231,004 B gzip (+6 B gzip); direct and unique production package counts
+remain 18 and 150, and the other static artifacts remain unchanged.
+Architecture, ADR, and scholarly-workspace contracts now install the
+manuscript-map lifecycle from the project-file application entry.
+
+Full native CI passes all 1,776 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,

@@ -198,8 +198,9 @@ collaboration.
   route binding consumes that outcome and replaces the canonical URL. The
   composed manuscript-map Lit owner derives guide, diary, research-question,
   and reviewer-response presentation and atomically binds those three workflow
-  siblings to the canonical project-file and toast owners. The workspace-layout
-  Lit owner retains collapse and resize behavior.
+  siblings to the canonical project-file and toast owners. The project-file
+  application entry installs that reciprocal manuscript-map lifecycle. The
+  workspace-layout Lit owner retains collapse and resize behavior.
   The bounded project-tree panel owns the workspace-only Cmd/Ctrl+P shortcut
   and emits a typed quick-open intent; the project-file owner reveals the Files
   rail through its bound rail-tab owner and narrow layout capability before

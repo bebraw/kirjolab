@@ -31,7 +31,7 @@ interface ManuscriptMapProjectPresentation {
   readonly reviewerResponsePanel: { setData(data: WritingWorkflowData): void };
 }
 
-type ManuscriptMapApplicationPresentation = ManuscriptMapProjectPresentation & {
+export type ManuscriptMapApplicationPresentation = ManuscriptMapProjectPresentation & {
   readonly projectFileDialog: ManuscriptMapProjectPresentation["projectFileDialog"] & WritingWorkflowDocument;
   readonly researchDiaryPanel: ResearchDiarySummary;
   readonly researchQuestionPanel: WritingWorkflowPanel;

@@ -455,7 +455,9 @@ The adopted components own bounded presentation:
   range selection through the project-file capability in its existing
   presentation binding. One application entry also binds the diary and both
   workflow siblings to that canonical project-file owner and the toast owner,
-  so production cannot omit a workflow capability.
+  so production cannot omit a workflow capability. The project-file
+  application entry installs that reciprocal manuscript-map lifecycle beside
+  its Preview and History companions.
 - The Library discovery results panel owns provider, metadata, verification,
   metadata-to-CSL projection, import transport, duplicate-submit gating, local
   save progress and retryable failures, refresh-pending state, and a typed

@@ -5,6 +5,7 @@ import { DeferredDeletionController, type DeferredDeletionNoticeOptions } from "
 import type { CollaborationSession } from "./collaboration-session";
 import { errorMessage, expectOk, jsonFetch } from "./http";
 import { LightDomElement } from "./light-dom-controller";
+import type { ManuscriptMapApplicationPresentation, ManuscriptMapPanel } from "./manuscript-map-panel";
 import { projectFileActionEvent, type ProjectFileAction } from "./project-file-actions";
 import { projectImagesUploadedEvent, type ProjectImagesUploaded } from "./project-image-upload-control";
 import type { ProjectHistoryTrigger, ProjectRevisionOwners } from "./project-history-trigger";
@@ -89,7 +90,9 @@ export interface ProjectFilePresentationBinding {
 type ProjectFileApplicationOwners = ProjectFilePresentationBinding &
   ProjectRefreshOwners &
   ProjectRevisionOwners &
+  ManuscriptMapApplicationPresentation &
   WorkspacePreviewProjectOwners & {
+    readonly manuscriptMapPanel: Pick<ManuscriptMapPanel, "bindApplication">;
     readonly projectHistoryTrigger: Pick<ProjectHistoryTrigger, "bindWorkspace" | "setRevision">;
     readonly workspaceLayout: { setRailCollapsed(collapsed: boolean): void };
     readonly workspacePreview: Pick<WorkspacePreview, "bindProject" | "renderBoundProject" | "resetScroll">;
@@ -179,6 +182,7 @@ export class ProjectFileDialog extends LightDomElement {
     this.bindProjectRefresh(workspace, owners, session, offline);
     owners.workspacePreview.bindProject(apiBase, session.document, owners);
     owners.projectHistoryTrigger.bindWorkspace(apiBase, owners, offline);
+    owners.manuscriptMapPanel.bindApplication(owners);
   }
 
   configureApi(

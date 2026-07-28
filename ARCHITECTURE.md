@@ -1022,6 +1022,8 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   response letter from its supplied canonical matrix. Let the manuscript-map
   Lit owner atomically bind the diary and both workflow panels to their shared
   project-file and notice capabilities alongside its own project presentation.
+  Install that reciprocal manuscript-map lifecycle through the project-file
+  owner's existing application binding.
   Each panel owns its
   canonical path and template choice, delegates creation and created-file
   navigation to the project-file owner, and routes source ranges through that

@@ -39,7 +39,6 @@ class WorkspaceApp {
     owners.assistantGenerationPresenter.bindApplication(apiBase, this.#session, this.#refresh, owners);
     owners.workspaceSettingsPanel.bindApplication(workspaceId, apiBase, appMode === "workspace", this.#refresh, owners);
     owners.newWorkspaceStartingPoints.bindApplication(apiBase, owners);
-    owners.manuscriptMapPanel.bindApplication(owners);
     owners.editorStatus.bindApplication(apiBase, this.#session.document, owners, this.#socket);
     owners.projectFileDialog.bindApplication(apiBase, appMode === "workspace", owners, this.#session, this.#offline);
     owners.contextResourcePresenter.bindApplication(apiBase, appMode === "workspace", this.#session, this.#refresh, owners);
