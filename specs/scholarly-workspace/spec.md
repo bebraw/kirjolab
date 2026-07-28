@@ -372,7 +372,8 @@ collaboration.
   the rail and editor-menu commands plus entry-file delete availability and
   emit one typed action contract. The dialog's presentation binding supplies
   the assistant, editor, Preview, route, notice, action, image-upload, source,
-  authoring-mode, and rail-tab owners atomically with its project API; file activation
+  authoring-mode, and rail-tab owners atomically with its project API and
+  configures the owned image-upload transport from that API; file activation
   refreshes assistant availability, resets and renders Preview, replaces the
   canonical route, and applies the active file to editor status directly. The
   dialog binds the Yjs

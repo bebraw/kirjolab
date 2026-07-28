@@ -88,7 +88,7 @@ function mutationCallbacks() {
     previewChanged,
     projectFileMenuActions: Object.assign(new EventTarget(), { setEntryFileActive: vi.fn() }),
     projectFileRailActions: new EventTarget(),
-    projectImageUpload: Object.assign(new EventTarget(), { choose: vi.fn() }),
+    projectImageUpload: Object.assign(new EventTarget(), { choose: vi.fn(), configure: vi.fn() }),
     projectTreePanel: Object.assign(new EventTarget(), { configure: vi.fn(), focusFilter: vi.fn(), setTree: vi.fn() }),
     source: { focus: vi.fn(), scrollIntoView: vi.fn() },
     sourceCompletion: { setProject: vi.fn() },
@@ -103,7 +103,7 @@ interface TestWorkflowRouting {
   readonly activateAuthoring: () => void;
   readonly actionControls: readonly EventTarget[];
   readonly focusEditor: () => void;
-  readonly imageUpload: EventTarget & { choose(): void };
+  readonly imageUpload: EventTarget & { choose(): void; configure(apiBase: string): void };
   readonly insertImage: (insertion: { readonly message: string; readonly syntax: string }) => void;
   readonly prepareInclude: () => ((directive: string) => boolean) | null;
   readonly quickOpen: () => void;
@@ -209,8 +209,9 @@ describe("project file dialog", () => {
     const panel = new TestProjectFileDialog();
     const mutations = mutationCallbacks();
     panel.configureApi("/api/workspaces/demo", mutations);
+    expect(mutations.projectImageUpload.configure).toHaveBeenCalledWith("/api/workspaces/demo");
     const actions = new EventTarget();
-    const imageUpload = Object.assign(new EventTarget(), { choose: vi.fn() });
+    const imageUpload = Object.assign(new EventTarget(), { choose: vi.fn(), configure: vi.fn() });
     const tree = Object.assign(new EventTarget(), { focusFilter: vi.fn() });
     const callbacks = {
       activateAuthoring: vi.fn(),
@@ -389,7 +390,7 @@ describe("project file dialog", () => {
       activateAuthoring,
       actionControls: [],
       focusEditor: vi.fn(),
-      imageUpload: Object.assign(new EventTarget(), { choose: vi.fn() }),
+      imageUpload: Object.assign(new EventTarget(), { choose: vi.fn(), configure: vi.fn() }),
       insertImage: vi.fn(),
       prepareInclude: vi.fn(() => null),
       quickOpen: vi.fn(),
@@ -531,7 +532,7 @@ describe("project file dialog", () => {
       activateAuthoring: vi.fn(),
       actionControls: [actions],
       focusEditor: vi.fn(),
-      imageUpload: Object.assign(new EventTarget(), { choose: vi.fn() }),
+      imageUpload: Object.assign(new EventTarget(), { choose: vi.fn(), configure: vi.fn() }),
       insertImage: vi.fn(),
       prepareInclude: vi.fn(() => include),
       quickOpen: vi.fn(),
@@ -651,7 +652,7 @@ describe("project file dialog", () => {
       activateAuthoring: vi.fn(),
       actionControls: [],
       focusEditor,
-      imageUpload: Object.assign(new EventTarget(), { choose: vi.fn() }),
+      imageUpload: Object.assign(new EventTarget(), { choose: vi.fn(), configure: vi.fn() }),
       insertImage: vi.fn(),
       prepareInclude: vi.fn(() => null),
       quickOpen: vi.fn(),

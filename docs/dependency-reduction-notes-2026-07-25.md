@@ -13350,6 +13350,24 @@ Markdown, lazy PDF.js, and direct and unique production package counts remain
 unchanged at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip,
 481,994 B raw / 146,135 B gzip, 18, and 150.
 
+## Continued Lit Ownership: Project-Image Upload Configuration
+
+`ProjectFileDialog` now configures its owned image-upload transport from the
+same atomic project API and presentation binding used for upload actions and
+outcomes. The application no longer stages that child transport separately.
+
+This checkpoint reduces `src/client/app.ts` from 148 to 147 lines (-1) and the
+project-file dialog from 658 to 655 lines (-3), removing four runtime lines
+overall. Focused coverage passes all 25 project-file cases; affected coverage
+passes 27 related runtime cases and the affected test file alongside strict
+types.
+
+The browser application artifact changes from 858,750 B raw / 231,586 B gzip
+to 858,743 B raw / 231,585 B gzip (-7 B raw / -1 B gzip). Styles, lazy
+Markdown, lazy PDF.js, and direct and unique production package counts remain
+unchanged at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip,
+481,994 B raw / 146,135 B gzip, 18, and 150.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,

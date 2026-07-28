@@ -347,7 +347,8 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Let the project-file dialog derive resource availability, initial path, and
   stable mutation target from its operation and canonical file/folder inputs.
   Bind its project API and canonical presentation owners atomically rather than
-  staging those two production inputs independently.
+  staging those production inputs independently. Let that binding configure the
+  owned project-image upload transport from the same API authority.
   It owns file/folder create and rename transport, file deletion transport,
   content-bearing workflow-file lookup, existing-file selection and focus,
   lazy creation and created-file Guide navigation, shared response validation, created-path verification,

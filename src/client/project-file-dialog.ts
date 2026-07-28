@@ -51,10 +51,6 @@ interface ProjectRefreshBinding {
   readonly owners: ProjectRefreshOwners;
 }
 
-interface ProjectImageUploadSource extends EventTarget {
-  readonly choose: () => void;
-}
-
 export interface ProjectFilePresentationBinding {
   readonly assistantGenerationPresenter: { readonly refreshAvailability: () => void };
   readonly authoringModeTabs: { navigate(mode: "write"): void };
@@ -70,7 +66,7 @@ export interface ProjectFilePresentationBinding {
   readonly toast: { readonly show: (message: string, options?: DeferredDeletionNoticeOptions) => void };
   readonly projectFileMenuActions: EventTarget & { setEntryFileActive(active: boolean): void };
   readonly projectFileRailActions: EventTarget;
-  readonly projectImageUpload: ProjectImageUploadSource;
+  readonly projectImageUpload: EventTarget & { choose(): void; configure(apiBase: string): void };
   readonly projectTreePanel: EventTarget & {
     configure(apiBase: string, callbacks: ProjectTreeCallbacks): void;
     focusFilter(): void;
@@ -168,6 +164,7 @@ export class ProjectFileDialog extends LitElement {
     this.assetBase = `${apiBase}/assets`;
     if (presentation) {
       this.presentation = presentation;
+      presentation.projectImageUpload.configure(apiBase);
       this.connectOwners();
     }
     this.configureProjectTree();
