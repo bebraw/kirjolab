@@ -100,13 +100,7 @@ class WorkspaceApp {
     this.#bindUi();
     this.#elements.workspaceSurfaces.dataset.ready = "true";
     void this.#elements.applicationVersion.prepareOfflineShell(appMode === "workspace", this.#offline, this.#elements.toast);
-    if (
-      await this.#elements.referenceLibraryWorkspace.startStandalone(appMode === "library", {
-        connection: this.#elements.connectionStatus,
-        surfaces: this.#elements.workspaceSurfaces,
-      })
-    )
-      return;
+    if (await this.#elements.referenceLibraryWorkspace.startStandalone(appMode === "library", this.#elements)) return;
     await this.#elements.projectFileDialog.openWorkspace();
     await this.#elements.workspaceSurfaceSwitcher.restoreRoute();
     void this.#elements.gitHubSyncMenu.refreshWorkspace(true);

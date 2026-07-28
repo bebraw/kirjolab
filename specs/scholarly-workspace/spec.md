@@ -536,7 +536,9 @@ collaboration.
   filter, result list, citation network, and unidentified-PDF queue and owns
   filter-driven rerendering and focused-reference reveal. It binds the context,
   project-file, web-comparison, route, and toast owners directly for Library
-  loading, cross-feature navigation, mutations, refresh, and notifications.
+  loading, cross-feature navigation, mutations, refresh, and notifications. On
+  the standalone path it also binds the connection-status and workspace-surface
+  owners directly for private connection and Context-only shell startup.
 - **Private PDF reading:** Owner-library PDF artifacts may reuse the context
   PDF renderer through distinct private `library-pdf:` tabs. Their bytes and tab
   authorization remain owner-private. Selection creates only an ephemeral

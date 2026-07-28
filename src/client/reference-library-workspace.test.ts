@@ -269,8 +269,9 @@ describe("reference Library workspace", () => {
     const open = vi.spyOn(workspace, "open").mockResolvedValue(undefined);
     const restoreBrowserRoute = vi.spyOn(workspace, "restoreBrowserRoute").mockResolvedValue(undefined);
 
-    await expect(workspace.startStandalone(false, { connection, surfaces }, browser.history)).resolves.toBe(false);
-    await expect(workspace.startStandalone(true, { connection, surfaces }, browser.history)).resolves.toBe(true);
+    const owners = { connectionStatus: connection, workspaceSurfaces: surfaces };
+    await expect(workspace.startStandalone(false, owners, browser.history)).resolves.toBe(false);
+    await expect(workspace.startStandalone(true, owners, browser.history)).resolves.toBe(true);
 
     expect(surfaces.dataset).toMatchObject({ activeSurface: "context", layout: "context" });
     expect(connection.setConnection).toHaveBeenCalledWith("Private library", true);

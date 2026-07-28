@@ -593,8 +593,9 @@ The adopted components own bounded presentation:
   Metadata completion refreshes the bound Library itself before requesting the
   remaining canonical project refresh, removing an application round trip.
   Standalone startup binds browser history, projects the Context-only shell and
-  private connection state through typed capabilities, opens the Library, and
-  restores the current route.
+  private connection state through the direct workspace-surface and connection-
+  status owners, opens the Library, and restores the current route without an
+  application-built shell adapter.
   It parses the current standalone route and owns root and addressed-reference
   root, addressed-reference, private-PDF, and active-page history mutation plus
   browser-history restoration subscription and lifecycle teardown. The

@@ -142,8 +142,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   Library entry likewise sequences context activation, optional standalone
   route entry, and canonical refresh through the same typed boundary. On the
   standalone application path, the owner also binds browser history, projects
-  the Context-only shell and private connection state through supplied
-  capabilities, opens the Library, and restores the current route.
+  the Context-only shell and private connection state through the directly
+  supplied workspace-surface and connection-status owners, opens the Library,
+  and restores the current route without a shell adapter.
   Library-originated project mutations pass through one owned apply-project-
   notice lifecycle; delegate canonical project snapshot acceptance to the
   project-file owner. It also resolves duplicate-PDF upload reveals through

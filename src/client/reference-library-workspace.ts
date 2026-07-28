@@ -80,9 +80,9 @@ export interface ReferenceLibraryHistory {
   replaceState(data: unknown, unused: string, url: string): void;
 }
 
-export interface StandaloneLibraryShell {
-  readonly connection: { setConnection(status: string, connected: boolean): void };
-  readonly surfaces: HTMLElement;
+export interface StandaloneLibraryOwners {
+  readonly connectionStatus: { setConnection(status: string, connected: boolean): void };
+  readonly workspaceSurfaces: HTMLElement;
 }
 
 export class ReferenceLibraryWorkspace extends LitElement {
@@ -247,14 +247,14 @@ export class ReferenceLibraryWorkspace extends LitElement {
 
   async startStandalone(
     enabled: boolean,
-    shell: StandaloneLibraryShell,
+    owners: StandaloneLibraryOwners,
     browserHistory: ReferenceLibraryHistory = history,
   ): Promise<boolean> {
     this.bindBrowserRoute(enabled, browserHistory);
     if (!enabled) return false;
-    shell.surfaces.dataset.activeSurface = "context";
-    shell.surfaces.dataset.layout = "context";
-    shell.connection.setConnection("Private library", true);
+    owners.workspaceSurfaces.dataset.activeSurface = "context";
+    owners.workspaceSurfaces.dataset.layout = "context";
+    owners.connectionStatus.setConnection("Private library", true);
     await this.open(false);
     await this.restoreBrowserRoute();
     return true;
