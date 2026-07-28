@@ -175,7 +175,7 @@ export class AssistantGenerationPresenter extends LitElement {
     return this.workflowBinding;
   }
 
-  bindCandidate(apiBase: string): void {
+  bindWorkspace(apiBase: string): void {
     const candidates = this.element("candidate-list-panel", CandidateListPanel);
     const review = this.element("candidate-review-panel", CandidateReviewPanel);
     candidates?.configure(apiBase);
@@ -201,6 +201,8 @@ export class AssistantGenerationPresenter extends LitElement {
         this.element("claim-list-panel", ClaimListPanel)?.revealClaim(evidence.id, true);
       }
     });
+    this.bindResults();
+    this.bindControls();
   }
 
   private async completeDecision(detail: CandidateDecisionOutcome): Promise<void> {
@@ -291,7 +293,7 @@ export class AssistantGenerationPresenter extends LitElement {
     return input ? { ...input, manuscript: authoring.editorStatus.manuscript } : null;
   }
 
-  bindResults(): void {
+  private bindResults(): void {
     const result = this.element("assistant-interactive-result", AssistantResultPanel);
     const status = this.element("assistant-workflow-status", AssistantWorkflowStatus);
     result?.addEventListener(assistantResultActionEvent, (event) => {
@@ -397,7 +399,7 @@ export class AssistantGenerationPresenter extends LitElement {
     }
   }
 
-  bindControls(): void {
+  private bindControls(): void {
     const settings = this.element("model-provider-settings", ModelProviderSettings);
     const status = this.element("assistant-workflow-status", AssistantWorkflowStatus);
     const task = this.element("assistant-task-panel", AssistantTaskPanel);

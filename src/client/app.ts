@@ -124,9 +124,7 @@ class WorkspaceApp {
     this.#elements.contextResourcePresenter.bindPublicationContext(apiBase);
     this.#elements.assistantGenerationPresenter.bindResources(this.#elements.contextResourcePresenter.assistantResources());
     this.#elements.assistantGenerationPresenter.bindWorkflow(this.#resourceRefresh, this.#elements);
-    this.#elements.assistantGenerationPresenter.bindCandidate(apiBase);
-    this.#elements.assistantGenerationPresenter.bindResults();
-    this.#elements.assistantGenerationPresenter.bindControls();
+    this.#elements.assistantGenerationPresenter.bindWorkspace(apiBase);
   }
 }
 

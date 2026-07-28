@@ -129,7 +129,10 @@ The adopted components own bounded presentation:
   completion. Candidate persistence remains in its list owner and provider construction derives from validated model-settings state. It binds once to canonical candidate, project-PDF, project snapshot,
   Library-refresh, assistant-tab, and no-evidence notice routes supplied by the
   context-resource presenter instead of repeating them across its task, result,
-  and candidate workflow bindings. Bind the remaining Insert-menu, Context,
+  and candidate workflow bindings. Bind candidate panels, the interactive
+  result, model and task controls, and evidence selection through one atomic
+  workspace-presentation entry rather than exposing independently callable
+  partial stages. Bind the remaining Insert-menu, Context,
   Research-rail, toast, and canonical refresh owners directly instead of a
   workflow callback bag. Bind the Context owner directly for assistant activation and decision
   re-presentation. Bind the canonical project-file, editor-status, and history

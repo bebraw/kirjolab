@@ -310,7 +310,10 @@ collaboration.
   evidence notice route. The assistant-generation presenter binds once to that
   presenter for canonical candidate, project-PDF, project snapshot, Library-
   refresh, assistant-tab, and no-evidence notice routes instead of repeating
-  them across task, result, and candidate workflows. It also binds the remaining
+  them across task, result, and candidate workflows. Candidate panels, the
+  interactive result, model and task controls, and evidence selection bind
+  atomically through one workspace-presentation entry; callers cannot assemble
+  only part of the assistant surface. It also binds the remaining
   Insert-menu, Context, Research-rail, toast, and canonical refresh owners
   directly instead of a workflow callback bag. It binds the canonical project-
   file, editor-status, and history owners once as authoring sources, with

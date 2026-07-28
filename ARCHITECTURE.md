@@ -638,6 +638,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   candidate, project-PDF, project snapshot, Library-refresh, assistant-tab, and
   no-evidence notice routes supplied by the context-resource presenter instead
   of repeating them across task, result, and candidate workflows. Bind all
+  candidate panels, the interactive result, model and task controls, and
+  evidence selection through one atomic workspace-presentation entry so the
+  assistant surface cannot be partially wired. Bind all
   remaining application-owned generation inputs directly from the Insert-menu,
   Context, Research-rail, toast, and canonical refresh owners instead of a
   workflow callback bag. Bind the Context owner directly;

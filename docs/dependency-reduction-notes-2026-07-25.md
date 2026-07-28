@@ -13478,6 +13478,20 @@ Markdown, lazy PDF.js, and direct and unique production package counts remain
 unchanged at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip,
 481,994 B raw / 146,135 B gzip, 18, and 150.
 
+## Continued Lit Ownership: Assistant Presentation Binding
+
+`AssistantGenerationPresenter` now binds candidate panels, the interactive
+result, model and task controls, and evidence selection through one project-
+scoped presentation entry. The application no longer stages three independently
+callable assistant presentation lifecycles, removing two partial-binding states.
+
+This checkpoint reduces `src/client/app.ts` from 139 to 137 lines (-2) and grows
+the assistant presenter from 662 to 664 lines (+2), with no net runtime line
+change. The affected guardrail passes 21 related cases and all 19 focused
+presenter cases. The browser application changes from 858,392 B raw / 231,521 B
+gzip to 858,328 B raw / 231,525 B gzip (-64 B raw / +4 B gzip); dependency
+counts and the other static artifacts remain unchanged.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,
