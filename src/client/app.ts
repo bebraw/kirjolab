@@ -2,7 +2,6 @@ import * as Y from "yjs";
 import "./action-menu-controller";
 import { parseAppBootstrap } from "./app-contracts";
 import { collectAppElements } from "./app-elements";
-import { projectFileCollaborationTextName } from "../domain/project-files";
 import "./application-version-control";
 import "./source-citation-control";
 import "./workspace-surface-switcher";
@@ -180,10 +179,7 @@ class WorkspaceApp {
     this.#elements.projectFileDialog.configureApi(apiBase);
     this.#elements.projectFileDialog.bindPresentation(this.#elements);
     this.#elements.projectFileDialog.bindLayout(this.#layout);
-    this.#elements.projectFileDialog.bindLiveContent(
-      (file, entryFileId) => this.#document.getText(projectFileCollaborationTextName(file, entryFileId)).toString(),
-      () => this.#collaboration.synced || this.#collaboration.offlineAvailable,
-    );
+    this.#elements.projectFileDialog.bindLiveContent(this.#document, this.#collaboration);
     this.#elements.projectFileDialog.bindProjectRefresh({
       assetBase: `${apiBase}/assets`,
       bibliography: this.#elements.bibliography,

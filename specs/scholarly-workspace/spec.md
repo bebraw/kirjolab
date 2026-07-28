@@ -351,8 +351,10 @@ collaboration.
   authoring-mode, and rail-tab owners; file activation
   refreshes assistant availability, resets and renders Preview, replaces the
   canonical route, and applies the active file to editor status directly. The
-  workspace coordinator connects those owners and retains Yjs text resolution
-  and canonical snapshot transport. The dialog owns upload and include entry
+  workspace coordinator connects those owners and retains canonical snapshot
+  transport. The dialog binds the Yjs document and collaboration session once,
+  then derives canonical project-file text keys and live-content readiness for
+  shared projections. It also owns upload and include entry
   points, image insertion, range focus and reveal, saved notices, and quick-open
   sequencing; the layout manager retains rail-collapse state.
 - **Collaboration:** `DocumentRoom` is a SQLite-backed Durable Object for each

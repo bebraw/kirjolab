@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import * as Y from "yjs";
 import {
   ProjectFileDialog,
   projectImageInsertion,
@@ -325,14 +326,14 @@ describe("project file dialog", () => {
     const panel = new TestProjectFileDialog();
     const supporting = { ...snapshot.files[0]!, id: "file-2", path: "chapter.md" };
     const project = { ...snapshot, files: [...snapshot.files, supporting] };
-    panel.bindLiveContent((file, entryFileId) => `${entryFileId}:${file.id}`);
+    const document = new Y.Doc();
+    document.getText("source").insert(0, "Live entry");
+    document.getText(`file:${supporting.id}`).insert(0, "Live chapter");
+    panel.bindLiveContent(document, { synced: true, offlineAvailable: false });
     panel.presentProject(project, "/assets", true);
 
     expect(panel.projectFiles(false)).toEqual(project.files);
-    expect(panel.projectFiles(true).map(({ content }) => content)).toEqual([
-      `${snapshot.entryFileId}:${snapshot.files[0]!.id}`,
-      `${snapshot.entryFileId}:${supporting.id}`,
-    ]);
+    expect(panel.projectFiles(true).map(({ content }) => content)).toEqual(["Live entry", "Live chapter"]);
 
     panel.deleteFile(supporting, snapshot.entryFileId);
     expect(panel.projectFiles(true).map(({ id }) => id)).toEqual([snapshot.files[0]!.id]);
@@ -340,16 +341,15 @@ describe("project file dialog", () => {
 
   it("derives live file projection readiness from its content binding", () => {
     const panel = new TestProjectFileDialog();
-    let ready = false;
-    panel.bindLiveContent(
-      (file) => `live:${file.content}`,
-      () => ready,
-    );
+    const session = { synced: false, offlineAvailable: false };
+    const document = new Y.Doc();
+    document.getText("source").insert(0, "Live entry");
+    panel.bindLiveContent(document, session);
     panel.presentProject(snapshot, "/assets", true);
 
     expect(panel.projectFiles()[0]?.content).toBe(snapshot.files[0]?.content);
-    ready = true;
-    expect(panel.projectFiles()[0]?.content).toBe(`live:${snapshot.files[0]?.content}`);
+    session.offlineAvailable = true;
+    expect(panel.projectFiles()[0]?.content).toBe("Live entry");
   });
 
   it("owns active-file fallback and selection eligibility", () => {

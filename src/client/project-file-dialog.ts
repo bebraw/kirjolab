@@ -1,7 +1,9 @@
 import { html, LitElement, type TemplateResult } from "lit";
-import { relativeProjectPath, type ProjectAsset, type ProjectFile } from "../domain/project-files";
+import type * as Y from "yjs";
+import { projectFileCollaborationTextName, relativeProjectPath, type ProjectAsset, type ProjectFile } from "../domain/project-files";
 import { isWorkspaceSnapshot, type WorkspaceSnapshot } from "../domain/workspace";
 import { DeferredDeletionController, type DeferredDeletionNoticeOptions } from "./deferred-deletion";
+import type { CollaborationSession } from "./collaboration-session";
 import { errorMessage, expectOk, jsonFetch } from "./http";
 import { projectFileActionEvent, type ProjectFileAction } from "./project-file-actions";
 import { projectImagesUploadedEvent, type ProjectImagesUploaded } from "./project-image-upload-control";
@@ -51,8 +53,6 @@ export interface ProjectRefreshBinding {
 interface ProjectImageUploadSource extends EventTarget {
   readonly choose: () => void;
 }
-
-type ProjectFileContentResolver = (file: ProjectFile, entryFileId: string) => string;
 
 export interface ProjectFilePresentationBinding {
   readonly assistantGenerationPresenter: { readonly refreshAvailability: () => void };
@@ -144,8 +144,10 @@ export class ProjectFileDialog extends LitElement {
   private selectedFileId: string | null = null;
   private snapshot: WorkspaceSnapshot | null = null;
   private presentation: ProjectFilePresentationBinding | null = null;
-  private liveContent: ProjectFileContentResolver | null = null;
-  private liveContentReady: () => boolean = () => false;
+  private liveContent: {
+    document: Pick<Y.Doc, "getText">;
+    session: Pick<CollaborationSession, "offlineAvailable" | "synced">;
+  } | null = null;
   private pendingInclude: ((path: string) => boolean) | null = null;
   private refreshBinding: ProjectRefreshBinding | null = null;
   private layout: { setRailCollapsed(collapsed: boolean): void } | null = null;
@@ -179,9 +181,8 @@ export class ProjectFileDialog extends LitElement {
     this.connectOwners();
   }
 
-  bindLiveContent(resolver: ProjectFileContentResolver, ready: () => boolean = () => true): void {
-    this.liveContent = resolver;
-    this.liveContentReady = ready;
+  bindLiveContent(document: Pick<Y.Doc, "getText">, session: Pick<CollaborationSession, "offlineAvailable" | "synced">): void {
+    this.liveContent = { document, session };
   }
 
   bindProjectRefresh(binding: ProjectRefreshBinding): void {
@@ -225,12 +226,18 @@ export class ProjectFileDialog extends LitElement {
     return this.snapshot;
   }
 
-  projectFiles(live = this.liveContentReady(), snapshot: WorkspaceSnapshot | null = this.snapshot): ProjectFile[] {
+  projectFiles(
+    live = Boolean(this.liveContent?.session.synced || this.liveContent?.session.offlineAvailable),
+    snapshot: WorkspaceSnapshot | null = this.snapshot,
+  ): ProjectFile[] {
     if (!snapshot) return [];
     const files = snapshot.files.filter((file) => !this.hiddenFileIds.has(file.id));
     const liveContent = this.liveContent;
     if (!live || !liveContent) return files;
-    return files.map((file) => ({ ...file, content: liveContent(file, snapshot.entryFileId) }));
+    return files.map((file) => ({
+      ...file,
+      content: liveContent.document.getText(projectFileCollaborationTextName(file, snapshot.entryFileId)).toString(),
+    }));
   }
 
   selectFile(fileId: string): boolean {

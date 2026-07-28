@@ -12917,13 +12917,32 @@ saved notices, and quick-open sequencing no longer pass through a ten-member
 application callback bag; only rail collapse remains a narrow layout binding.
 
 This checkpoint reduces `src/client/app.ts` from 280 to 265 lines (-15) and the
-project-file dialog from 647 to 643 lines (-4), removing nineteen runtime lines
+project-file dialog from 647 to 642 lines (-5), removing twenty runtime lines
 overall. Focused coverage passes all 25 project-file cases; affected coverage
 passes 27 related runtime cases and the affected test file alongside strict
 types.
 
 The browser application artifact changes from 859,045 B raw / 231,884 B gzip
 to 858,741 B raw / 231,785 B gzip (-304 B raw / -99 B gzip). Styles, lazy
+Markdown, lazy PDF.js, and direct and unique production package counts remain
+unchanged at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip,
+481,994 B raw / 146,135 B gzip, 18, and 150.
+
+## Continued Lit Ownership: Project-File Live Content
+
+`ProjectFileDialog` now binds the Yjs document and collaboration session
+directly, derives canonical entry and supporting-file text keys, and decides
+when live collaborative content is available. The application no longer
+supplies a file-content resolver and separate readiness predicate.
+
+This checkpoint reduces `src/client/app.ts` from 265 to 261 lines (-4) and grows
+the project-file dialog from 642 to 649 lines (+7), a three-line runtime trade
+for moving the complete projection rule behind its owning component. Focused
+coverage passes all 25 project-file cases; affected coverage passes 27 related
+runtime cases and the affected test file alongside strict types.
+
+The browser application artifact changes from 858,741 B raw / 231,785 B gzip
+to 858,724 B raw / 231,784 B gzip (-17 B raw / -1 B gzip). Styles, lazy
 Markdown, lazy PDF.js, and direct and unique production package counts remain
 unchanged at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip,
 481,994 B raw / 146,135 B gzip, 18, and 150.
