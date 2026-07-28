@@ -165,12 +165,9 @@ function setup() {
     })),
     document: vi.fn(() => new Y.Doc()),
     insertCitation: vi.fn(),
-    library: vi.fn<() => ReferenceLibrarySnapshot | null>(() => library),
     openCandidate: vi.fn(),
     openPublication: vi.fn(),
     presentNotice: vi.fn(),
-    project: vi.fn<() => WorkspaceSnapshot | null>(() => workspaceSnapshotFixture),
-    referencePdfs: vi.fn(() => [referencePdf]),
     refreshLibrary: vi.fn().mockResolvedValue(undefined),
     refreshResources: vi.fn().mockResolvedValue(undefined),
     selectPassage: vi.fn(),
@@ -339,10 +336,7 @@ describe("context resource presenter", () => {
       authoring: () => ({ passage: null, sourceRevision: 0, stable: false }),
       document: () => new Y.Doc(),
       insertCitation: vi.fn(),
-      library: () => null,
       presentNotice,
-      project: () => null,
-      referencePdfs: () => [],
       refreshLibrary: vi.fn(),
       refreshResources: vi.fn(),
       selectPassage: vi.fn(),
@@ -1063,6 +1057,7 @@ describe("context resource presenter", () => {
       version: "updated",
     };
     const resources = presenter.assistantResources();
+    presenter.present(sources(undefined));
 
     resources.focusAssistant();
     resources.openCandidate(candidate);
@@ -1178,17 +1173,25 @@ describe("context resource presenter", () => {
       researchShares: [note, longNote],
     };
     let currentLibrary: ReferenceLibrarySnapshot | null = null;
+    presenter.bindContext({
+      activateSurface: vi.fn(),
+      citationAvailable: () => false,
+      openLibrary: vi.fn(),
+      standaloneLibraryRoutes: standaloneLibraryRoutes(),
+      refreshAssistant: vi.fn(),
+      restorePaneWidth: vi.fn(),
+      sources: () => ({ ...sources(undefined), library: currentLibrary, snapshot: project, standaloneLibrary: false }),
+      syncRoute: vi.fn(),
+    });
+    vi.spyOn(presenter, "referencePdfs", "get").mockReturnValue([referencePdf]);
     const coordinator = {
       authoring: vi.fn(() => ({ passage: null, sourceRevision: 0, stable: false })),
       document: vi.fn(() => new Y.Doc()),
       insertCitation: vi.fn(),
-      library: vi.fn(() => currentLibrary),
       openCandidate: vi.fn(),
       openPublication: vi.fn(),
       presentNotice: vi.fn(),
       refreshResources: vi.fn().mockResolvedValue(undefined),
-      project: vi.fn(() => project),
-      referencePdfs: vi.fn(() => [referencePdf]),
       refreshLibrary: vi.fn(async () => {
         currentLibrary = library;
       }),
@@ -1484,6 +1487,7 @@ describe("context resource presenter", () => {
     vi.spyOn(elements["library-pdf-inspector"], "draftState", "get").mockReturnValue({ highlight: false, markup: false, note: false });
     presenter.bindPdfViewer(viewer, "/api/workspaces/workspace");
     presenter.bindLibraryPdf(coordinator);
+    presenter.present(sources(undefined));
 
     elements["library-pdf-annotation-toolbar"].dispatchEvent(
       new CustomEvent("library-pdf-toolbar-action", { detail: { action: "choose-tool", tool: "text" } }),
@@ -1540,8 +1544,7 @@ describe("context resource presenter", () => {
       openPdf: vi.fn().mockResolvedValue(undefined),
       projectApiBase: "/api/workspaces/workspace",
     } satisfies LibraryPdfMutationCoordinator;
-    routes.library.mockImplementation(librarySource);
-    routes.project.mockImplementation(project);
+    presenter.present({ ...sources(undefined), library: librarySource(), snapshot: project() });
     presenter.bindLibraryPdf(coordinator);
 
     await presenter.citeLibraryHighlight(highlight);
@@ -1552,6 +1555,7 @@ describe("context resource presenter", () => {
     const linked = { ...existingProjectReference, citationAlias: "doe2026a" };
     const snapshot = { ...workspaceSnapshotFixture, projectReferences: [linked] };
     project.mockReturnValue({ ...workspaceSnapshotFixture, projectReferences: [{ ...existingProjectReference, referenceId: "other" }] });
+    presenter.present({ ...sources(undefined), library: librarySource(), snapshot: project() });
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json(snapshot)));
     routes.insertCitation.mockClear();
 
@@ -1577,7 +1581,7 @@ describe("context resource presenter", () => {
       openPdf: vi.fn().mockResolvedValue(undefined),
       projectApiBase: "/api/workspaces/workspace",
     } satisfies LibraryPdfMutationCoordinator;
-    routes.library.mockImplementation(librarySource);
+    presenter.present({ ...sources(undefined), library: librarySource() });
     presenter.bindLibraryPdf(coordinator);
 
     await presenter.citeLibraryHighlight(highlight);
@@ -1585,6 +1589,7 @@ describe("context resource presenter", () => {
 
     coordinator.canInsertCitation.mockReturnValue(true);
     librarySource.mockReturnValue(library);
+    presenter.present({ ...sources(undefined), library: librarySource() });
     await presenter.citeLibraryHighlight(highlight);
     expect(routes.presentNotice).toHaveBeenLastCalledWith("The highlighted source is no longer available in the library.");
     expect(routes.insertCitation).not.toHaveBeenCalled();

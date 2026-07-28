@@ -981,7 +981,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   resource presenter's one canonical route boundary; keep Yjs selection
   resolution, revision and collaboration authority, canonical refresh, and
   cross-feature navigation in the coordinator, and route the derived count to
-  the rail.
+  the rail. Do not duplicate project, Library, or linked-reference PDF getters
+  on that route boundary: the presenter consumes those catalogs from its
+  canonical context source and owned linked-PDF state.
 - Store imported PDF bytes in R2 and keep annotations as separate scholarly resources.
 - Combine PDF page/geometry identity with exact quote, prefix, and suffix selectors; never require mutation of the imported PDF.
 - Normalize PDF selection rectangles to top-left page coordinates in zero-to-one space so highlights do not depend on viewport pixels.

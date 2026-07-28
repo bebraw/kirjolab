@@ -116,10 +116,7 @@ export interface ContextRouteCoordinator {
   readonly authoring: () => ManuscriptCommentAuthoring;
   readonly document: () => Y.Doc;
   readonly insertCitation: (citationAlias: string, locator?: string) => void;
-  readonly library: () => ReferenceLibrarySnapshot | null;
   readonly presentNotice: (message: string) => void;
-  readonly project: () => WorkspaceSnapshot | null;
-  readonly referencePdfs: () => readonly ProjectReferencePdf[];
   readonly refreshResources: () => Promise<void>;
   readonly refreshLibrary: () => Promise<void>;
   readonly selectPassage: (fileId: string, start: number, end: number) => void;
@@ -319,6 +316,14 @@ export class ContextResourcePresenter extends LitElement {
     this.routeCoordinator = coordinator;
   }
 
+  private boundProject(): WorkspaceSnapshot | null {
+    return this.contextPresentation ? this.contextPresentation.sources().snapshot : this.currentSnapshot;
+  }
+
+  private boundLibrary(): ReferenceLibrarySnapshot | null {
+    return this.contextPresentation ? this.contextPresentation.sources().library : this.currentLibrary;
+  }
+
   openPassage(anchor: ManuscriptAnchorSelector): void {
     const coordinator = this.routeCoordinator;
     if (!coordinator) return;
@@ -350,7 +355,7 @@ export class ContextResourcePresenter extends LitElement {
       focusAssistant: () => this.element("context-tab-strip", ContextTabStrip)?.focusTab(RESEARCH_ASSISTANT_KEY),
       openCandidate: (candidate) => this.navigateResource({ kind: "candidate", id: candidate.id }),
       openPaper: (pdf, evidence) => void this.openProjectPdf(pdf, evidence.page, evidence.id),
-      project: () => this.routeCoordinator?.project() ?? null,
+      project: () => this.boundProject(),
       refreshLibrary: async () => await this.routeCoordinator?.refreshLibrary(),
       reportNoEvidence: () => this.routeCoordinator?.presentNotice("No project evidence is available yet."),
     };
@@ -359,7 +364,7 @@ export class ContextResourcePresenter extends LitElement {
   async restoreTarget(target: ResearchResourceTarget, page?: number, annotationId?: string): Promise<void> {
     const coordinator = this.routeCoordinator;
     if (!coordinator) return;
-    const project = coordinator.project();
+    const project = this.boundProject();
     if (target.kind === "publication") {
       const publication = project?.publications.find(({ id }) => id === target.id);
       if (publication) this.navigateResource(target);
@@ -375,10 +380,10 @@ export class ContextResourcePresenter extends LitElement {
       if (candidate) this.navigateResource(target);
       return;
     }
-    if (!coordinator.library()) await coordinator.refreshLibrary();
-    const artifact = coordinator.library()?.artifacts.find(({ id }) => id === target.id);
+    if (!this.boundLibrary()) await coordinator.refreshLibrary();
+    const artifact = this.boundLibrary()?.artifacts.find(({ id }) => id === target.id);
     if (artifact) return await this.openLibraryPdf(artifact, page, false);
-    const referencePdf = coordinator.referencePdfs().find(({ id }) => id === target.id);
+    const referencePdf = this.referencePdfs.find(({ id }) => id === target.id);
     if (referencePdf) await this.openReferencePdf(referencePdf, page, false);
   }
 
@@ -442,7 +447,7 @@ export class ContextResourcePresenter extends LitElement {
 
   openProjectAnnotation(annotationId: string, edit = false): void {
     const coordinator = this.routeCoordinator;
-    const project = coordinator?.project();
+    const project = this.boundProject();
     const annotation = project?.annotations.find(({ id }) => id === annotationId);
     const pdf = annotation ? project?.pdfs.find(({ id }) => id === annotation.pdfId) : undefined;
     if (!coordinator || !annotation || !pdf) return;
@@ -460,15 +465,15 @@ export class ContextResourcePresenter extends LitElement {
 
   openProjectNote(id: string): void {
     const coordinator = this.routeCoordinator;
-    const share = coordinator
-      ?.project()
-      ?.researchShares.find((item) => item.resourceId === id && item.revokedAt === null && item.content.kind === "note");
+    const share = this.boundProject()?.researchShares.find(
+      (item) => item.resourceId === id && item.revokedAt === null && item.content.kind === "note",
+    );
     if (coordinator && share?.content.kind === "note") coordinator.presentNotice(noticeExcerpt(share.content.body));
   }
 
   insertActiveCitation(includePdfPage = false): void {
     const coordinator = this.routeCoordinator;
-    const project = coordinator?.project();
+    const project = this.boundProject();
     const tab = this.currentActiveTab;
     if (!coordinator || !project || !tab) return;
     if (tab.kind === "publication") {
@@ -495,7 +500,7 @@ export class ContextResourcePresenter extends LitElement {
       return;
     }
     const citationKey = citation.keys[0] ?? "";
-    const project = coordinator?.project();
+    const project = this.boundProject();
     const publication = project?.publications.find((item) => item.citationKey.toLocaleLowerCase() === citationKey.toLocaleLowerCase());
     if (!project || !publication) {
       coordinator?.presentNotice(`No publication resource is available for ${citationKey || "this citation"}.`);
@@ -539,7 +544,7 @@ export class ContextResourcePresenter extends LitElement {
     this.element("project-annotation-form", ProjectAnnotationForm)?.bindIntake({
       openPublication: (publication) => this.navigateResource({ kind: "publication", id: publication.id }),
       presentNotice: (message) => this.routeCoordinator?.presentNotice(message),
-      publications: () => this.routeCoordinator?.project()?.publications ?? [],
+      publications: () => this.boundProject()?.publications ?? [],
       refresh: () => this.routeCoordinator?.refreshResources() ?? Promise.resolve(),
     });
   }
@@ -760,7 +765,7 @@ export class ContextResourcePresenter extends LitElement {
   }
 
   selectLibraryHighlight(highlightId: string): void {
-    const highlight = this.routeCoordinator?.library()?.highlights.find((item) => item.id === highlightId);
+    const highlight = this.boundLibrary()?.highlights.find((item) => item.id === highlightId);
     if (!highlight) return;
     this.clearBoundLibraryPdfMarkupSelection();
     this.applyViewerPresentation(this.editLibraryHighlight(highlight));
@@ -922,12 +927,12 @@ export class ContextResourcePresenter extends LitElement {
       routes.presentNotice("Place the manuscript caret before citing a highlight.");
       return;
     }
-    const reference = routes.library()?.references.find((item) => item.id === highlight.referenceId);
+    const reference = this.boundLibrary()?.references.find((item) => item.id === highlight.referenceId);
     if (!reference) {
       routes.presentNotice("The highlighted source is no longer available in the library.");
       return;
     }
-    const project = routes.project();
+    const project = this.boundProject();
     let projectReference = project?.projectReferences.find((item) => item.referenceId === reference.id);
     if (!projectReference) {
       const reservedAliases = project?.projectReferences.map((item) => item.citationAlias) ?? [];
@@ -988,7 +993,7 @@ export class ContextResourcePresenter extends LitElement {
 
   private async openBoundLibraryHighlight(highlight: LibraryHighlight): Promise<void> {
     const coordinator = this.libraryPdfMutations;
-    const artifact = this.routeCoordinator?.library()?.artifacts.find(({ id }) => id === highlight.artifactId);
+    const artifact = this.boundLibrary()?.artifacts.find(({ id }) => id === highlight.artifactId);
     if (!coordinator || !artifact) return;
     await coordinator.openPdf(artifact, highlight.page);
     this.element("library-pdf-inspector", LibraryPdfInspector)?.setStatus(`Showing saved private highlight on page ${highlight.page}.`);
@@ -1070,7 +1075,7 @@ export class ContextResourcePresenter extends LitElement {
 
   private selectBoundLibraryPdfMarkup(markupId: string): void {
     const viewer = this.pdfViewer;
-    const markup = this.routeCoordinator?.library()?.pdfMarkups?.find((item) => item.id === markupId);
+    const markup = this.boundLibrary()?.pdfMarkups?.find((item) => item.id === markupId);
     if (markup && viewer) this.applyViewerPresentation(this.selectLibraryPdfMarkup(markup, viewer.currentPage));
   }
 
@@ -1083,9 +1088,7 @@ export class ContextResourcePresenter extends LitElement {
 
   private editSelectedLibraryPdfNote(): void {
     const selectedId = this.element("paper-markups", LibraryPdfMarkupLayer)?.selectedMarkupId;
-    const note = this.routeCoordinator
-      ?.library()
-      ?.pdfMarkups?.find((item): item is LibraryPdfNote => item.kind === "note" && item.id === selectedId);
+    const note = this.boundLibrary()?.pdfMarkups?.find((item): item is LibraryPdfNote => item.kind === "note" && item.id === selectedId);
     if (note) this.applyViewerPresentation(this.editLibraryPdfNote(note));
   }
 

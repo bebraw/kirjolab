@@ -12475,6 +12475,28 @@ at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip, 481,994 B raw /
 Full native CI passes all 1,773 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Canonical Context Route Sources
+
+`ContextResourcePresenter` now consumes project and Library snapshots from its
+existing context source and linked-reference PDFs from its owned validated
+catalog. The route coordinator no longer repeats those three canonical getters,
+and `WorkspaceApp` no longer projects them a second time.
+
+This checkpoint reduces `src/client/app.ts` from 400 to 397 lines (-3) and grows
+the context presenter from 1,252 to 1,255 lines (+3), leaving combined runtime
+source unchanged while narrowing one central route contract. Direct presenter
+coverage passes all 39 cases; affected coverage passes 54 related runtime cases
+and the affected test file alongside strict types.
+
+The browser application artifact changes from 861,848 B raw / 232,232 B gzip to
+861,889 B raw / 232,235 B gzip (+41 B raw / +3 B gzip). Styles, lazy Markdown,
+lazy PDF.js, and direct and unique production package counts remain unchanged
+at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip, 481,994 B raw /
+146,135 B gzip, 18, and 150.
+
+Full native CI passes all 1,773 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: One-Shot Browser Entry Intents
 
 `ProjectStartingPointBrowser` now consumes the `create=1` editor intent, removes

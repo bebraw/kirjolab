@@ -231,7 +231,10 @@ The adopted components own bounded presentation:
   canonical apply-project lifecycle instead of adapting either route in the
   application coordinator. Bind
   canonical project refresh, authoring state, passage navigation, and notice
-  presentation once through the resource-route coordinator. The presenter
+  presentation once through the resource-route coordinator. Project, Library,
+  and linked-reference PDF catalogs are not repeated on that coordinator; the
+  presenter consumes the first two from its canonical context source and the
+  latter from its owned loading state. The presenter
   validates synchronization and a current passage before delegating claim or
   annotation link transport to the composed owner. For incoming links it
   resolves the stored Yjs anchor, rejects stale targets, distinguishes exact

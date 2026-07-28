@@ -255,9 +255,11 @@ changing their canonical data, selector, authorization, or rendering contracts.
   and Yjs insertion to the coordinator. After successful insertion, the source
   citation control activates Write before presenting completion. It also resolves citation keys case-insensitively
   and selects the sole linked project PDF for a supported page locator, falling
-  back to publication context. Its route binding is the sole canonical project
-  and Library snapshot, citation-insertion, Library-refresh, and notice
-  authority. A separate private-PDF mutation binding retains only snapshot
+  back to publication context. Its route binding is the sole canonical refresh,
+  citation-insertion, and notice authority. Project and Library snapshots come
+  from its existing context source; linked-reference PDFs come from its owned
+  validated catalog, so none are duplicated on the route binding. A separate
+  private-PDF mutation binding retains only snapshot
   acceptance, caret readiness, markup completion, artifact opening, and API
   scope. It delegates citation projection, Yjs insertion, tab reconciliation,
   cross-resource navigation, and history mutation through typed callbacks. It applies the viewer's
