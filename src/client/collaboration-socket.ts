@@ -14,19 +14,28 @@ export interface CollaborationSelectionState {
   readonly revision: number;
 }
 
-export interface CollaborationSocketCallbacks {
-  readonly beforeRemoteUpdate: () => () => void;
-  readonly clearOffline: () => Promise<void>;
-  readonly connectionChanged: () => void;
-  readonly disconnected: () => void;
-  readonly documentUpdated: () => void;
-  readonly resourcesChanged: () => void;
-  readonly revisionCompleted: (revision: number) => void;
-  readonly revisionObserved: (revision: number) => void;
-  readonly selection: () => CollaborationSelectionState | null;
-  readonly selectionCleared: (collaboratorId: string) => void;
-  readonly selectionReceived: (selection: Extract<ServerCollaborationMessage, { readonly type: "selection" }>) => void;
-  readonly socketUrl: string;
+export interface CollaborationSocketOwners {
+  readonly assistantGenerationPresenter: { refreshAvailability(): void };
+  readonly collaboratorSelections: {
+    clear(): void;
+    receive(selection: Extract<ServerCollaborationMessage, { readonly type: "selection" }>): void;
+    removeSelection(collaboratorId: string): void;
+  };
+  readonly connectionStatus: { presentWorkflow(): void };
+  readonly editorStatus: { preserveSelections(): () => void; setSave(status: string): void };
+  readonly projectFileDialog: { readonly activeFileId: string | null };
+  readonly projectHistoryTrigger: { readonly value: number; observeRevision(revision: number): void };
+  readonly source: Pick<HTMLTextAreaElement, "selectionEnd" | "selectionStart">;
+  readonly toast: { show(message: string): void };
+}
+
+export interface CollaborationOfflineOwner {
+  clear(): Promise<void>;
+  schedule(): void;
+}
+
+export interface CollaborationRefreshOwner {
+  request(): Promise<void>;
 }
 
 export interface CollaborationSocketEnvironment {
@@ -36,12 +45,6 @@ export interface CollaborationSocketEnvironment {
   readonly online: () => boolean;
   readonly reload: () => void;
   readonly setTimer: (callback: () => void, delay: number) => number;
-}
-
-export interface CollaborationDocumentBinding {
-  readonly offline: { schedule(): void };
-  readonly offlineOrigin: unknown;
-  readonly save: (status: string) => void;
 }
 
 export interface CollaborationWebSocket {
@@ -65,7 +68,10 @@ const socketClosing = 2;
 
 export class CollaborationSocket {
   readonly #session: CollaborationSession;
-  readonly #callbacks: CollaborationSocketCallbacks;
+  readonly #socketUrl: string;
+  readonly #offline: CollaborationOfflineOwner;
+  readonly #refresh: CollaborationRefreshOwner;
+  readonly #owners: CollaborationSocketOwners;
   readonly #environment: CollaborationSocketEnvironment;
   #socket: CollaborationWebSocket | null = null;
   #reconnectTimer: number | undefined;
@@ -74,11 +80,17 @@ export class CollaborationSocket {
 
   constructor(
     session: CollaborationSession,
-    callbacks: CollaborationSocketCallbacks,
+    socketUrl: string,
+    offline: CollaborationOfflineOwner,
+    refresh: CollaborationRefreshOwner,
+    owners: CollaborationSocketOwners,
     environment: CollaborationSocketEnvironment = browserEnvironment,
   ) {
     this.#session = session;
-    this.#callbacks = callbacks;
+    this.#socketUrl = socketUrl;
+    this.#offline = offline;
+    this.#refresh = refresh;
+    this.#owners = owners;
     this.#environment = environment;
   }
 
@@ -86,15 +98,15 @@ export class CollaborationSocket {
     if (this.#socket && this.#socket.readyState < socketClosing) return;
     if (!this.#environment.online()) {
       this.#session.connect(false);
-      this.#callbacks.connectionChanged();
+      this.#owners.connectionStatus.presentWorkflow();
       return;
     }
     this.#environment.clearTimer(this.#reconnectTimer);
     this.#reconnectTimer = undefined;
     this.#session.connect(true);
-    this.#callbacks.connectionChanged();
+    this.#owners.connectionStatus.presentWorkflow();
     this.#session.beginSocket();
-    const socket = this.#environment.createSocket(this.#callbacks.socketUrl);
+    const socket = this.#environment.createSocket(this.#socketUrl);
     socket.binaryType = "arraybuffer";
     this.#socket = socket;
     socket.addEventListener("open", () => this.#open(socket));
@@ -111,13 +123,13 @@ export class CollaborationSocket {
     events.addEventListener("offline", this.#handleOffline);
   }
 
-  bindDocument(documentModel: Y.Doc, binding: CollaborationDocumentBinding): void {
+  bindDocument(documentModel: Y.Doc, offlineOrigin: unknown): void {
     this.#releaseDocument();
     const update = (value: Uint8Array, origin: unknown): void => {
-      binding.offline.schedule();
-      if (!this.#session.enqueueLocal(value, origin, binding.offlineOrigin)) return;
-      binding.save(this.#session.synced ? "Saving…" : "Saving offline…");
-      this.#callbacks.documentUpdated();
+      this.#offline.schedule();
+      if (!this.#session.enqueueLocal(value, origin, offlineOrigin)) return;
+      this.#owners.editorStatus.setSave(this.#session.synced ? "Saving…" : "Saving offline…");
+      this.#owners.assistantGenerationPresenter.refreshAvailability();
       this.flush();
     };
     documentModel.on("update", update);
@@ -138,7 +150,7 @@ export class CollaborationSocket {
 
   goOffline(): void {
     this.#session.goOffline();
-    this.#callbacks.connectionChanged();
+    this.#owners.connectionStatus.presentWorkflow();
   }
 
   flush(): void {
@@ -152,7 +164,7 @@ export class CollaborationSocket {
     this.#selectionTimer = this.#environment.setTimer(() => {
       this.#selectionTimer = undefined;
       const socket = this.#socket;
-      const selection = this.#callbacks.selection();
+      const selection = this.#selection();
       if (!this.#session.synced || !socket || socket.readyState !== socketOpen || !selection) return;
       socket.send(encodeClientSelectionMessage({ type: "selection", protocol: collaborationProtocolVersion, ...selection }));
     }, 80);
@@ -161,7 +173,7 @@ export class CollaborationSocket {
   #open(socket: CollaborationWebSocket): void {
     if (this.#socket !== socket) return;
     this.#session.socketOpened();
-    this.#callbacks.connectionChanged();
+    this.#owners.connectionStatus.presentWorkflow();
   }
 
   #message(socket: CollaborationWebSocket, message: string | ArrayBuffer): void {
@@ -175,11 +187,11 @@ export class CollaborationSocket {
       socket.close(1002, "Invalid collaboration control");
       return;
     }
-    if (this.#control(socket, value)) this.#callbacks.connectionChanged();
+    if (this.#control(socket, value)) this.#owners.connectionStatus.presentWorkflow();
   }
 
   #update(socket: CollaborationWebSocket, message: ArrayBuffer): void {
-    const restore = this.#callbacks.beforeRemoteUpdate();
+    const restore = this.#owners.editorStatus.preserveSelections();
     try {
       this.#session.applyRemoteUpdate(message);
     } catch {
@@ -187,7 +199,7 @@ export class CollaborationSocket {
       return;
     }
     restore();
-    this.#callbacks.documentUpdated();
+    this.#owners.assistantGenerationPresenter.refreshAvailability();
   }
 
   #control(socket: CollaborationWebSocket, value: ServerCollaborationMessage): boolean {
@@ -200,7 +212,7 @@ export class CollaborationSocket {
         break;
       case "revision":
         this.#session.observeRevision();
-        this.#callbacks.revisionObserved(value.revision);
+        this.#owners.projectHistoryTrigger.observeRevision(value.revision);
         break;
       case "reset":
         this.#reset(socket);
@@ -209,13 +221,15 @@ export class CollaborationSocket {
         this.#session.setPresence(value.collaborators);
         break;
       case "selection":
-        this.#callbacks.selectionReceived(value);
+        this.#owners.collaboratorSelections.receive(value);
         break;
       case "selection-clear":
-        this.#callbacks.selectionCleared(value.collaboratorId);
+        this.#owners.collaboratorSelections.removeSelection(value.collaboratorId);
         break;
       case "resources":
-        this.#callbacks.resourcesChanged();
+        void this.#refresh.request().catch((error: unknown) => {
+          this.#owners.toast.show(error instanceof Error ? error.message : "Could not refresh project resources");
+        });
         break;
     }
     return true;
@@ -238,13 +252,14 @@ export class CollaborationSocket {
   }
 
   #completeRevision(revision: number): void {
-    this.#callbacks.revisionCompleted(revision);
+    this.#owners.projectHistoryTrigger.observeRevision(revision);
+    this.#owners.editorStatus.setSave(this.#session.pendingCount === 0 ? "Saved" : "Saving…");
     this.flush();
   }
 
   #reset(socket: CollaborationWebSocket): void {
     this.#session.reset();
-    void this.#callbacks.clearOffline().finally(() => {
+    void this.#offline.clear().finally(() => {
       if (socket.readyState >= socketClosing) {
         this.#environment.reload();
         return;
@@ -259,8 +274,8 @@ export class CollaborationSocket {
     this.#socket = null;
     const online = this.#environment.online();
     this.#session.socketClosed(online);
-    this.#callbacks.disconnected();
-    this.#callbacks.connectionChanged();
+    this.#owners.collaboratorSelections.clear();
+    this.#owners.connectionStatus.presentWorkflow();
     if (!online) return;
     this.#reconnectTimer ??= this.#environment.setTimer(() => {
       this.#reconnectTimer = undefined;
@@ -271,4 +286,16 @@ export class CollaborationSocket {
 
   readonly #handleOnline = (): void => this.connect();
   readonly #handleOffline = (): void => this.goOffline();
+
+  #selection(): CollaborationSelectionState | null {
+    const fileId = this.#owners.projectFileDialog.activeFileId;
+    return fileId
+      ? {
+          fileId,
+          start: this.#owners.source.selectionStart,
+          end: this.#owners.source.selectionEnd,
+          revision: this.#owners.projectHistoryTrigger.value,
+        }
+      : null;
+  }
 }

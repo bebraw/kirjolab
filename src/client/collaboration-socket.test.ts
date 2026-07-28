@@ -4,8 +4,10 @@ import { collaborationProtocolVersion, encodeServerCollaborationMessage, parseCl
 import { CollaborationSession } from "./collaboration-session";
 import {
   CollaborationSocket,
-  type CollaborationSocketCallbacks,
   type CollaborationSocketEnvironment,
+  type CollaborationOfflineOwner,
+  type CollaborationRefreshOwner,
+  type CollaborationSocketOwners,
   type CollaborationWebSocket,
 } from "./collaboration-socket";
 
@@ -38,12 +40,15 @@ class TestSocket extends EventTarget implements CollaborationWebSocket {
 }
 
 function createHarness(online = true): {
-  readonly callbacks: CollaborationSocketCallbacks;
   readonly document: Y.Doc;
   readonly environment: CollaborationSocketEnvironment;
   readonly events: string[];
+  readonly offline: CollaborationOfflineOwner;
+  readonly owners: CollaborationSocketOwners;
+  readonly refresh: CollaborationRefreshOwner;
   readonly runTimer: (delay: number) => void;
   readonly session: CollaborationSession;
+  readonly socketUrl: string;
   readonly sockets: TestSocket[];
 } {
   const document = new Y.Doc();
@@ -70,30 +75,42 @@ function createHarness(online = true): {
       return id;
     },
   };
-  const callbacks: CollaborationSocketCallbacks = {
-    beforeRemoteUpdate: () => {
-      events.push("before-update");
-      return () => events.push("restore-selection");
-    },
-    clearOffline: async () => {
+  const offline = {
+    clear: async () => {
       events.push("clear-offline");
     },
-    connectionChanged: () => events.push(`connection:${session.status.label}`),
-    disconnected: () => events.push("disconnected"),
-    documentUpdated: () => events.push("document-update"),
-    resourcesChanged: () => events.push("resources"),
-    revisionCompleted: (revision) => events.push(`complete:${revision}:${session.pendingCount}`),
-    revisionObserved: (revision) => events.push(`revision:${revision}`),
-    selection: () => ({ fileId: "main", start: 2, end: 4, revision: 3 }),
-    selectionCleared: (id) => events.push(`selection-clear:${id}`),
-    selectionReceived: ({ collaboratorId }) => events.push(`selection:${collaboratorId}`),
-    socketUrl: "wss://example.test/api/workspaces/project/socket",
+    schedule: vi.fn(),
+  };
+  const owners: CollaborationSocketOwners = {
+    assistantGenerationPresenter: { refreshAvailability: () => events.push("document-update") },
+    collaboratorSelections: {
+      clear: () => events.push("disconnected"),
+      receive: ({ collaboratorId }) => events.push(`selection:${collaboratorId}`),
+      removeSelection: (id) => events.push(`selection-clear:${id}`),
+    },
+    connectionStatus: { presentWorkflow: () => events.push(`connection:${session.status.label}`) },
+    editorStatus: {
+      preserveSelections: () => {
+        events.push("before-update");
+        return () => events.push("restore-selection");
+      },
+      setSave: (status) => events.push(`save:${status}`),
+    },
+    projectFileDialog: { activeFileId: "main" },
+    projectHistoryTrigger: {
+      value: 3,
+      observeRevision: (revision) => events.push(`revision:${revision}`),
+    },
+    source: { selectionEnd: 4, selectionStart: 2 },
+    toast: { show: (message) => events.push(`toast:${message}`) },
   };
   return {
-    callbacks,
     document,
     environment,
     events,
+    offline,
+    owners,
+    refresh: { request: async () => void events.push("resources") },
     runTimer: (delay) => {
       const timer = [...timers.entries()].find(([, value]) => value.delay === delay);
       if (!timer) throw new Error(`Timer ${delay} is unavailable`);
@@ -101,14 +118,19 @@ function createHarness(online = true): {
       timer[1].callback();
     },
     session,
+    socketUrl: "wss://example.test/api/workspaces/project/socket",
     sockets,
   };
+}
+
+function createConnection(harness: ReturnType<typeof createHarness>, environment = harness.environment): CollaborationSocket {
+  return new CollaborationSocket(harness.session, harness.socketUrl, harness.offline, harness.refresh, harness.owners, environment);
 }
 
 describe("collaboration socket", () => {
   it("owns socket lifecycle, protocol routing, queue flush, and selection debounce", () => {
     const harness = createHarness();
-    const connection = new CollaborationSocket(harness.session, harness.callbacks, harness.environment);
+    const connection = createConnection(harness);
     connection.connect();
     const socket = harness.sockets[0];
     expect(socket?.binaryType).toBe("arraybuffer");
@@ -150,8 +172,7 @@ describe("collaboration socket", () => {
       end: 4,
       revision: 3,
     });
-    expect(harness.events).toContain("complete:1:0");
-    expect(harness.events).toContain("complete:2:0");
+    expect(harness.events).toContain("save:Saved");
     expect(harness.events).toContain("revision:3");
     expect(harness.events).toContain("selection:writer-2");
     expect(harness.events).toContain("selection-clear:writer-2");
@@ -161,7 +182,7 @@ describe("collaboration socket", () => {
 
   it("closes invalid frames and reconnects only while online", () => {
     const harness = createHarness();
-    const connection = new CollaborationSocket(harness.session, harness.callbacks, harness.environment);
+    const connection = createConnection(harness);
     connection.connect();
     const first = harness.sockets[0];
     first?.open();
@@ -179,15 +200,15 @@ describe("collaboration socket", () => {
 
   it("stays offline without a socket and reloads after reset cleanup", async () => {
     const offline = createHarness(false);
-    const offlineConnection = new CollaborationSocket(offline.session, offline.callbacks, offline.environment);
+    const offlineConnection = createConnection(offline);
     offlineConnection.connect();
     offlineConnection.goOffline();
     expect(offline.sockets).toHaveLength(0);
     expect(offline.events.at(-1)).toContain("Offline");
 
     const harness = createHarness();
-    const clearOffline = vi.spyOn(harness.callbacks, "clearOffline");
-    const connection = new CollaborationSocket(harness.session, harness.callbacks, harness.environment);
+    const clearOffline = vi.spyOn(harness.offline, "clear");
+    const connection = createConnection(harness);
     connection.connect();
     const socket = harness.sockets[0];
     socket?.open();
@@ -203,7 +224,7 @@ describe("collaboration socket", () => {
   it("owns online and offline browser lifecycle triggers", () => {
     const harness = createHarness();
     const browserEvents = new EventTarget();
-    const connection = new CollaborationSocket(harness.session, harness.callbacks, {
+    const connection = createConnection(harness, {
       ...harness.environment,
       browserEvents,
     });
@@ -223,26 +244,37 @@ describe("collaboration socket", () => {
     expect(goOffline).toHaveBeenCalledOnce();
   });
 
+  it("reports project-resource refresh failures through the bound toast owner", async () => {
+    const harness = createHarness();
+    vi.spyOn(harness.refresh, "request").mockRejectedValue(new Error("Refresh failed"));
+    const connection = createConnection(harness);
+    connection.connect();
+    const socket = harness.sockets[0];
+    socket?.open();
+    socket?.message(encodeServerCollaborationMessage({ type: "resources" }));
+    await Promise.resolve();
+
+    expect(harness.events).toContain("toast:Refresh failed");
+  });
+
   it("owns local document update persistence, queueing, status, and teardown", () => {
     const harness = createHarness();
-    const connection = new CollaborationSocket(harness.session, harness.callbacks, harness.environment);
-    const offline = { schedule: vi.fn() };
-    const save = vi.fn();
+    const connection = createConnection(harness);
     const offlineOrigin = Symbol("offline");
-    connection.bindDocument(harness.document, { offline, offlineOrigin, save });
+    connection.bindDocument(harness.document, offlineOrigin);
 
     harness.document.transact(() => harness.document.getText("source").insert(0, "remote"), remoteOrigin);
     harness.document.transact(() => harness.document.getText("source").insert(6, "offline"), offlineOrigin);
     harness.document.getText("source").insert(13, "local");
 
-    expect(offline.schedule).toHaveBeenCalledTimes(3);
+    expect(harness.offline.schedule).toHaveBeenCalledTimes(3);
     expect(harness.session.pendingCount).toBe(1);
-    expect(save).toHaveBeenCalledWith("Saving offline…");
+    expect(harness.events).toContain("save:Saving offline…");
     expect(harness.events).toContain("document-update");
 
     connection.unbindDocument();
     harness.document.getText("source").insert(18, "ignored");
-    expect(offline.schedule).toHaveBeenCalledTimes(3);
+    expect(harness.offline.schedule).toHaveBeenCalledTimes(3);
     expect(harness.session.pendingCount).toBe(1);
   });
 });

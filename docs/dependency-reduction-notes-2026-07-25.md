@@ -13216,6 +13216,26 @@ Markdown, lazy PDF.js, and direct and unique production package counts remain
 unchanged at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip,
 481,994 B raw / 146,135 B gzip, 18, and 150.
 
+## Continued Ownership: Collaboration Socket Owners
+
+`CollaborationSocket` now binds the canonical offline, refresh, editor,
+revision, presence, connection, project-file, assistant, and toast owners
+directly. Socket lifecycle, document updates, selection projection, revision
+effects, resource refresh, and reset cleanup no longer depend on a twelve-member
+application callback protocol or a second document callback bag.
+
+This checkpoint reduces `src/client/app.ts` from 183 to 156 lines (-27) and
+grows the collaboration socket from 274 to 301 lines (+27), keeping production
+runtime source neutral while replacing anonymous projections with one explicit
+owner contract. Focused and affected coverage pass all six collaboration-socket
+cases, including resource-refresh failure reporting, alongside strict types.
+
+The browser application artifact changes from 858,571 B raw / 231,630 B gzip
+to 858,172 B raw / 231,470 B gzip (-399 B raw / -160 B gzip). Styles, lazy
+Markdown, lazy PDF.js, and direct and unique production package counts remain
+unchanged at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip,
+481,994 B raw / 146,135 B gzip, 18, and 150.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,

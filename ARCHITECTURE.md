@@ -904,9 +904,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   authority own the document-wide local-update subscription, offline-save
   scheduling, session-owned local-origin filtering and enqueueing, save-status
   selection, assistant invalidation, immediate flush, and explicit teardown.
-  Keep editor-selection preservation, canonical revision effects, resource
-  refresh, and UI projection in the application coordinator through explicit
-  callbacks.
+  Bind the canonical offline, refresh, editor, revision, presence, connection,
+  project-file, assistant, and toast owners directly for editor-selection
+  preservation, canonical revision effects, resource refresh, and UI projection
+  instead of projecting an application callback protocol.
 - Keep a validated, identity-and-workspace-scoped browser copy of the latest
   authorized snapshot, full Yjs document state, and acknowledged server state
   vector so existing Markdown files remain editable offline. Reconstruct only

@@ -55,37 +55,14 @@ class WorkspaceApp {
   readonly #layout: WorkspaceLayoutManager;
 
   constructor() {
-    this.#collaborationSocket = new CollaborationSocket(this.#collaboration, {
-      beforeRemoteUpdate: () => this.#elements.editorStatus.preserveSelections(),
-      clearOffline: () => this.#offline.clear(),
-      connectionChanged: () => this.#elements.connectionStatus.presentWorkflow(),
-      disconnected: () => this.#elements.collaboratorSelections.clear(),
-      documentUpdated: () => this.#elements.assistantGenerationPresenter.refreshAvailability(),
-      resourcesChanged: () => {
-        void this.#resourceRefresh.request().catch((error: unknown) => {
-          this.#elements.toast.show(error instanceof Error ? error.message : "Could not refresh project resources");
-        });
-      },
-      revisionCompleted: (revision) => {
-        this.#elements.projectHistoryTrigger.observeRevision(revision);
-        this.#elements.editorStatus.setSave(this.#collaboration.pendingCount === 0 ? "Saved" : "Saving…");
-      },
-      revisionObserved: (revision) => this.#elements.projectHistoryTrigger.observeRevision(revision),
-      selection: () => {
-        const fileId = this.#elements.projectFileDialog.activeFileId;
-        return fileId
-          ? {
-              fileId,
-              start: this.#elements.source.selectionStart,
-              end: this.#elements.source.selectionEnd,
-              revision: this.#elements.projectHistoryTrigger.value,
-            }
-          : null;
-      },
-      selectionCleared: (collaboratorId) => this.#elements.collaboratorSelections.removeSelection(collaboratorId),
-      selectionReceived: (selection) => this.#elements.collaboratorSelections.receive(selection),
-      socketUrl: `${location.protocol === "https:" ? "wss:" : "ws:"}//${location.host}${apiBase}/socket`,
-    });
+    const socketUrl = `${location.protocol === "https:" ? "wss:" : "ws:"}//${location.host}${apiBase}/socket`;
+    this.#collaborationSocket = new CollaborationSocket(
+      this.#collaboration,
+      socketUrl,
+      this.#offline,
+      this.#resourceRefresh,
+      this.#elements,
+    );
     this.#pdfViewer = PdfEvidenceViewer.forDocument(document, this.#elements.contextResourcePresenter);
     this.#layout = WorkspaceLayoutManager.forWorkspace(workspaceId, this.#elements, this.#pdfViewer);
     this.#elements.previewSyncControls.bindSource(this.#elements);
@@ -147,11 +124,7 @@ class WorkspaceApp {
     this.#elements.projectHistoryDialog.configure(apiBase, this.#elements);
     this.#elements.projectHistoryTrigger.bindRevision(this.#elements, () => this.#offline.schedule());
     this.#elements.contextResourcePresenter.bindManuscriptComments(apiBase);
-    this.#collaborationSocket.bindDocument(this.#document, {
-      offline: this.#offline,
-      offlineOrigin,
-      save: (status) => this.#elements.editorStatus.setSave(status),
-    });
+    this.#collaborationSocket.bindDocument(this.#document, offlineOrigin);
     this.#elements.contextResourcePresenter.bindProjectEvidence(apiBase);
     this.#elements.contextResourcePresenter.bindProjectMap(apiBase, this.#elements);
     this.#elements.contextResourcePresenter.bindPublicationList(apiBase, this.#elements.referenceLibraryWorkspace);
