@@ -12820,6 +12820,29 @@ at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip, 481,994 B raw /
 Full native CI passes all 1,774 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Source-Completion Owners
+
+`SourceCompletion` now binds the project-file, editor-status, Insert-menu, and
+toast owners directly for private-Library citation acceptance and relative
+include insertion. Project mutation acceptance, stable-range preservation,
+replacement, and success notice no longer require application callback
+adapters.
+
+This checkpoint reduces `src/client/app.ts` from 326 to 321 lines (-5) and the
+source-completion owner from 343 to 341 lines (-2), removing seven runtime lines
+overall. Focused coverage passes all 7 completion cases; affected coverage
+passes 9 related runtime cases and the affected test file alongside strict
+types.
+
+The browser application artifact changes from 860,057 B raw / 232,027 B gzip to
+859,896 B raw / 232,010 B gzip (-161 B raw / -17 B gzip). Styles, lazy Markdown,
+lazy PDF.js, and direct and unique production package counts remain unchanged
+at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip, 481,994 B raw /
+146,135 B gzip, 18, and 150.
+
+Full native CI passes all 1,774 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: One-Shot Browser Entry Intents
 
 `ProjectStartingPointBrowser` now consumes the `create=1` editor intent, removes

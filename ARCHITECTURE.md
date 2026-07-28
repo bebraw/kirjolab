@@ -976,9 +976,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   private-Library citation it preserves the selected range through the editor
   owner, requests project linking, delegates canonical snapshot application,
   resolves the range again, applies the citation through the insertion owner,
-  and presents completion. The application coordinator retains active-file
-  identity, canonical snapshot and Yjs authority, and the supplied mutation,
-  range, insertion, and notice capabilities without caching completion state.
+  and presents completion. Bind the project-file, editor-status, insertion, and
+  toast owners directly so the application coordinator retains only active-file
+  identity plus canonical snapshot and Yjs authority without parallel
+  acceptance callbacks or cached completion state.
 - Implement optional editor keymaps as bounded textarea command adapters that
   emit ordinary input changes. Keep keymap preference browser-local, preserve
   IME and modified browser shortcuts, and never create a second document model.

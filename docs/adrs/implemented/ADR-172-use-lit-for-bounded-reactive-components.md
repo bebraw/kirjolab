@@ -363,6 +363,8 @@ The adopted components own bounded presentation:
   selected-option scrolling, local Escape and blur dismissal, private-Library
   loading and response validation for that scope, and project acceptance.
   Relative includes are applied immediately. Private-Library citation
+  acceptance binds the project-file, editor-status, insertion, and toast owners
+  directly instead of adapting their operations in the application coordinator.
   acceptance preserves the collaborative range, requests project linking,
   delegates canonical snapshot application, resolves the range again, applies
   the citation through the editor insertion owner, and presents completion.
@@ -1411,8 +1413,10 @@ reason to wrap static markup mechanically.
   detection and presentation methods plus both candidate projections. The
   component also replaces the coordinator's private-Library request, validation,
   and duplicate-load guard. The application coordinator supplies canonical
-  project files and references and retains private-Library linking and canonical
-  Yjs authority. The completion owner dismisses locally on acceptance and sends
+  project files and references; the completion owner binds project-file,
+  editor-status, insertion, and toast owners directly for private-Library
+  linking while canonical Yjs authority remains in editor status. The completion
+  owner dismisses locally on acceptance and sends
   its selected explicit range through the editor insertion owner's existing
   typed mutation capability for replacement, focus, and caret application.
 - The source citation control owns caret-context parsing and action

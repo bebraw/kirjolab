@@ -392,7 +392,10 @@ collaboration.
   preference defaults suggestions to project references and may also expose a
   separate private-library `Add and cite` action. Completion replaces only the
   active comma-separated key in one collaborative text transaction; accepting
-  a private-library result explicitly links it to the project first.
+  a private-library result explicitly links it to the project first. The
+  completion owner binds project-file, editor-status, insertion, and toast
+  owners directly for snapshot acceptance, stable-range resolution, replacement,
+  and completion notice.
 - **Include completion:** With the caret in a line-level `::include[...]`
   directive, the source editor suggests other project Markdown files by their
   path. Each inserted reference is computed relative to the active file and

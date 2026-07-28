@@ -77,10 +77,10 @@ describe("source completion", () => {
     const fetchMock = vi.fn().mockResolvedValue(Response.json({}));
     vi.stubGlobal("fetch", fetchMock);
     completion.bindProjectAcceptance("/api/workspaces/workspace", {
-      acceptMutation,
-      preserveRange,
-      presentNotice,
-      replaceRange,
+      editorInsertMenu: { replaceRange },
+      editorStatus: { preserveRange },
+      projectFileDialog: { acceptProjectMutation: acceptMutation },
+      toast: { show: presentNotice },
     });
 
     completion.show([option("chapter", "Chapter")], source);

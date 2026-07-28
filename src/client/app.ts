@@ -228,12 +228,7 @@ class WorkspaceApp {
       authoring: this.#elements.editorStatus,
       notices: this.#elements.toast,
     });
-    this.#elements.sourceCompletion.bindProjectAcceptance(apiBase, {
-      acceptMutation: (response) => this.#elements.projectFileDialog.acceptProjectMutation(response),
-      preserveRange: (start, end) => this.#elements.editorStatus.preserveRange(start, end),
-      presentNotice: (message) => this.#elements.toast.show(message),
-      replaceRange: (start, end, replacement) => this.#elements.editorInsertMenu.replaceRange(start, end, replacement),
-    });
+    this.#elements.sourceCompletion.bindProjectAcceptance(apiBase, this.#elements);
     this.#elements.projectHistoryDialog.configure(apiBase, {
       presentNotice: (message) => this.#elements.toast.show(message),
       trigger: this.#elements.projectHistoryTrigger,

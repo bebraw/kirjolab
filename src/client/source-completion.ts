@@ -38,11 +38,13 @@ export interface SourceCompletionInputs {
   readonly workspace: boolean;
 }
 
-export interface SourceCompletionProjectAcceptance {
-  readonly acceptMutation: (result: Response) => Promise<void>;
-  readonly preserveRange: (start: number, end: number) => (() => { readonly start: number; readonly end: number } | null) | null;
-  readonly presentNotice: (message: string) => void;
-  readonly replaceRange: (start: number, end: number, replacement: string) => void;
+export interface SourceCompletionOwners {
+  readonly editorInsertMenu: { replaceRange(start: number, end: number, replacement: string): void };
+  readonly editorStatus: {
+    preserveRange(start: number, end: number): (() => { readonly start: number; readonly end: number } | null) | null;
+  };
+  readonly projectFileDialog: { acceptProjectMutation(result: Response): Promise<void> };
+  readonly toast: { show(message: string): void };
 }
 
 type SourceCompletionProject = Pick<SourceCompletionInputs, "files" | "projectReferences">;
@@ -90,8 +92,8 @@ export class SourceCompletion extends LitElement {
     this.acceptIntent = acceptIntent;
   }
 
-  bindProjectAcceptance(apiBase: string, acceptance: SourceCompletionProjectAcceptance): void {
-    this.bindAcceptance((intent) => void this.acceptProjectIntent(apiBase, acceptance, intent));
+  bindProjectAcceptance(apiBase: string, owners: SourceCompletionOwners): void {
+    this.bindAcceptance((intent) => void this.acceptProjectIntent(apiBase, owners, intent));
   }
 
   show(options: readonly SourceCompletionOption[], source: HTMLTextAreaElement): void {
@@ -276,31 +278,27 @@ export class SourceCompletion extends LitElement {
     }
   }
 
-  private async acceptProjectIntent(
-    apiBase: string,
-    acceptance: SourceCompletionProjectAcceptance,
-    intent: SourceCompletionIntent,
-  ): Promise<void> {
+  private async acceptProjectIntent(apiBase: string, owners: SourceCompletionOwners, intent: SourceCompletionIntent): Promise<void> {
     if (intent.kind === "include") {
-      acceptance.replaceRange(intent.context.start, intent.context.end, intent.candidate.reference);
+      owners.editorInsertMenu.replaceRange(intent.context.start, intent.context.end, intent.candidate.reference);
       return;
     }
     const { candidate, context } = intent;
     let { start, end } = context;
     if (candidate.scope === "library") {
-      const resolveRange = acceptance.preserveRange(start, end);
+      const resolveRange = owners.editorStatus.preserveRange(start, end);
       if (!resolveRange) return;
       const response = await jsonFetch(`${apiBase}/references`, {
         referenceId: candidate.referenceId,
         citationAlias: candidate.key,
       });
-      await acceptance.acceptMutation(response);
+      await owners.projectFileDialog.acceptProjectMutation(response);
       const range = resolveRange();
       if (!range) return;
       ({ start, end } = range);
     }
-    acceptance.replaceRange(start, end, candidate.key);
-    if (candidate.scope === "library") acceptance.presentNotice(`Added and cited ${candidate.key}.`);
+    owners.editorInsertMenu.replaceRange(start, end, candidate.key);
+    if (candidate.scope === "library") owners.toast.show(`Added and cited ${candidate.key}.`);
   }
 
   private readonly handleEditorKey = (event: KeyboardEvent): void => {
