@@ -12590,6 +12590,29 @@ at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip, 481,994 B raw /
 Full native CI passes all 1,774 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Direct Workspace Route Owners
+
+`WorkspaceSurfaceSwitcher` now consumes the live project-file, Context, and
+authoring owners through its existing workspace-route binding. Canonical file
+and Context state, PDF activation, route restoration, file selection, and editor
+focus no longer need eight application-level getter or method adapters.
+
+This checkpoint reduces `src/client/app.ts` from 385 to 380 lines (-5) and grows
+the surface/route owner from 184 to 188 lines (+4), reducing combined runtime
+source by one line while replacing duplicated callback projections with stable
+owner boundaries. Focused coverage passes all four route-owner cases; affected
+coverage passes six related runtime cases and the affected test file alongside
+strict types.
+
+The browser application artifact changes from 861,681 B raw / 232,218 B gzip to
+861,348 B raw / 232,159 B gzip (-333 B raw / -59 B gzip). Styles, lazy Markdown,
+lazy PDF.js, and direct and unique production package counts remain unchanged at
+135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip, 481,994 B raw /
+146,135 B gzip, 18, and 150.
+
+Full native CI passes all 1,774 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: One-Shot Browser Entry Intents
 
 `ProjectStartingPointBrowser` now consumes the `create=1` editor intent, removes

@@ -11,13 +11,13 @@ import {
 } from "./workspace-ui-route";
 
 export interface WorkspaceRouteBinding {
-  readonly activeFileId: () => string | null;
-  readonly activeTab: () => ResearchContextState["tabs"][number] | undefined;
-  readonly contextKey: () => ResearchContextKey;
+  readonly context: {
+    readonly activeContextTab: ResearchContextState["tabs"][number] | undefined;
+    readonly activeKey: ResearchContextKey;
+    readonly ensurePdfResource: () => Promise<void>;
+    readonly restoreContext: (key: ResearchContextKey, page?: number, annotationId?: string) => Promise<void>;
+  };
   readonly enabled: boolean;
-  readonly ensurePdfResource: () => Promise<void>;
-  readonly entryFileId: () => string | undefined;
-  readonly focusAuthoring: () => void;
   readonly layout: {
     readonly value: WorkspaceLayout;
     readonly bindChange: (changeLayout: (layout: WorkspaceLayout) => void | Promise<void>) => void;
@@ -34,8 +34,12 @@ export interface WorkspaceRouteBinding {
     readonly bindNavigation: (navigate: (rail: WorkspaceRail) => void) => void;
     readonly navigate: (rail: WorkspaceRail) => void;
   };
-  readonly restoreContext: (key: ResearchContextKey, page?: number, annotationId?: string) => Promise<void>;
-  readonly selectFile: (fileId: string) => void;
+  readonly project: {
+    readonly activeFileId: string | null;
+    readonly project: { readonly entryFileId: string } | null;
+    readonly selectFile: (fileId: string) => boolean;
+  };
+  readonly source: Pick<HTMLElement, "focus">;
 }
 
 export class WorkspaceSurfaceSwitcher extends LitElement {
@@ -67,12 +71,12 @@ export class WorkspaceSurfaceSwitcher extends LitElement {
     binding.mode.bindNavigation((mode) => {
       if (mode === "write") {
         this.navigate("authoring", false);
-        binding.focusAuthoring();
+        binding.source.focus();
       }
       this.syncRoute("replace");
     });
     binding.layout.bindChange(async (layout) => {
-      if (layout === "pdf") await binding.ensurePdfResource();
+      if (layout === "pdf") await binding.context.ensurePdfResource();
       this.syncRoute("replace");
     });
     binding.rail.bindNavigation(() => this.syncRoute("replace"));
@@ -87,8 +91,8 @@ export class WorkspaceSurfaceSwitcher extends LitElement {
     const route = readWorkspaceUiRoute(url);
     if (url.searchParams.has("rail")) binding.rail.navigate(route.rail);
     if (url.searchParams.has("mode")) binding.mode.navigate(route.mode);
-    if (route.fileId) binding.selectFile(route.fileId);
-    if (url.searchParams.has("context")) await binding.restoreContext(route.contextKey, route.page, route.annotationId);
+    if (route.fileId) binding.project.selectFile(route.fileId);
+    if (url.searchParams.has("context")) await binding.context.restoreContext(route.contextKey, route.page, route.annotationId);
     if (route.layout) await binding.layout.navigate(route.layout, false);
     if (url.searchParams.has("surface")) this.navigate(route.surface);
     this.routeReady = true;
@@ -100,12 +104,12 @@ export class WorkspaceSurfaceSwitcher extends LitElement {
     if (!binding?.enabled || !this.routeReady) return;
     const current = new URL(location.href);
     const next = workspaceUiRouteUrl(current, {
-      ...workspaceUiRouteSelection(binding.activeFileId(), binding.entryFileId(), binding.activeTab()),
+      ...workspaceUiRouteSelection(binding.project.activeFileId, binding.project.project?.entryFileId, binding.context.activeContextTab),
       rail: binding.rail.mode,
       mode: binding.mode.mode,
       surface: this.surface,
       layout: binding.layout.value,
-      contextKey: binding.contextKey(),
+      contextKey: binding.context.activeKey,
     });
     const currentRelative = `${current.pathname}${current.search}${current.hash}`;
     if (next === currentRelative) return;

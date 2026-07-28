@@ -90,14 +90,15 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   change outcome. Let internal, restored, and route-driven selection apply the
   workspace's visibility-driving layout and dispatch resize notification before
   that outcome. Let the workspace surface switcher's route binding consume the
-  outcome, activate an available PDF through a narrow presenter callback when
-  needed, and replace the canonical URL. During workspace route restoration,
+  live Context owner, activate an available PDF through that owner when needed,
+  and replace the canonical URL. During workspace route restoration,
   apply the persisted layout first and let an explicit URL layout override it.
 - Let the workspace surface switcher's route binding own Write/Map route
   effects. Every Write outcome activates Authoring without a second navigation
   event, focuses the supplied authoring target, and replaces the canonical URL;
-  Map outcomes only replace the URL. Keep editor focus behind a narrow callback
-  instead of giving the route owner direct editor access.
+  Map outcomes only replace the URL. Supply the project, Context, and authoring
+  owners directly so route state and effects are not duplicated as coordinator
+  callback adapters.
 - Let that route binding also consume project-rail navigation outcomes and
   replace the canonical URL. Keep rail presentation, collapse, and geometry in
   their existing owners.

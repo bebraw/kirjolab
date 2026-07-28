@@ -1329,17 +1329,19 @@ reason to wrap static markup mechanically.
   push-versus-replace browser-history writes, and the browser-history
   restoration subscription with lifecycle teardown. It applies persisted
   layout before an explicit route layout during restoration. The application
-  coordinator supplies canonical state and bounded restoration effects. The
-  same binding consumes authoring-mode outcomes, applies Authoring and supplied
-  editor focus for Write, and replaces the canonical route for either mode.
+  coordinator supplies the live project, Context, and authoring owners alongside
+  the layout, mode, and rail controls instead of projecting their state and
+  effects through callback adapters. The same binding consumes authoring-mode
+  outcomes, applies Authoring and supplied editor focus for Write, and replaces
+  the canonical route for either mode.
 - The workspace layout control replaces the raw select reference and
   coordinator-owned normalization and local-storage access. It owns the
   four-option template, selected value, workspace-scoped resilient persistence,
   workspace layout projection, and resize notification for internal, restored,
   and route-driven navigation before routing the typed outcome through a
   binding. The surface-navigation owner's workspace-route binding consumes the
-  layout outcome, activates an available PDF through a narrow presenter
-  callback for PDF-only mode, and replaces the canonical URL. Its public change
+  layout outcome, activates an available PDF through the supplied Context owner
+  for PDF-only mode, and replaces the canonical URL. Its public change
   event is removed.
 - The workspace rail tabs derive their four controlled panel targets from the
   existing `aria-controls` contract and own active-panel visibility alongside

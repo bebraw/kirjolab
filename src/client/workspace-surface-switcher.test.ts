@@ -72,13 +72,20 @@ describe("workspace surface switcher", () => {
     });
     vi.stubGlobal("history", { pushState, replaceState, state: { retained: true } });
     switcher.bindWorkspaceRoute({
-      activeFileId: () => "notes",
-      activeTab: () => ({ focusedAnnotationId: "mark", id: "paper", key: "pdf:paper", kind: "pdf", page: 3, scrollTop: 0 }),
-      contextKey: () => "pdf:paper",
+      context: {
+        activeContextTab: {
+          focusedAnnotationId: "mark",
+          id: "paper",
+          key: "pdf:paper",
+          kind: "pdf",
+          page: 3,
+          scrollTop: 0,
+        },
+        activeKey: "pdf:paper",
+        ensurePdfResource,
+        restoreContext,
+      },
       enabled: true,
-      ensurePdfResource,
-      entryFileId: () => "main",
-      focusAuthoring,
       layout: {
         get value() {
           return layout;
@@ -107,8 +114,8 @@ describe("workspace surface switcher", () => {
         },
         navigate: railNavigate,
       },
-      restoreContext,
-      selectFile,
+      project: { activeFileId: "notes", project: { entryFileId: "main" }, selectFile },
+      source: { focus: focusAuthoring },
     });
 
     await switcher.restoreRoute();
@@ -164,18 +171,18 @@ describe("workspace surface switcher", () => {
 
     switcher.syncRoute("replace");
     switcher.bindWorkspaceRoute({
-      activeFileId: () => null,
-      activeTab: () => undefined,
-      contextKey: () => "preview",
+      context: {
+        activeContextTab: undefined,
+        activeKey: "preview",
+        ensurePdfResource: vi.fn(),
+        restoreContext: vi.fn(),
+      },
       enabled: false,
-      ensurePdfResource: vi.fn(),
-      entryFileId: () => undefined,
-      focusAuthoring: vi.fn(),
       layout: { value: "split", bindChange: vi.fn(), navigate: vi.fn(), restore: vi.fn() },
       mode: { mode: "write", bindNavigation: vi.fn(), navigate: vi.fn() },
+      project: { activeFileId: null, project: null, selectFile: vi.fn() },
       rail: { mode: "files", bindNavigation: vi.fn(), navigate: vi.fn() },
-      restoreContext: vi.fn(),
-      selectFile: vi.fn(),
+      source: { focus: vi.fn() },
     });
     await switcher.restoreRoute();
 
@@ -188,18 +195,18 @@ describe("workspace surface switcher", () => {
     vi.stubGlobal("window", browser);
     const restoreRoute = vi.spyOn(switcher, "restoreRoute").mockResolvedValue();
     switcher.bindWorkspaceRoute({
-      activeFileId: () => null,
-      activeTab: () => undefined,
-      contextKey: () => "preview",
+      context: {
+        activeContextTab: undefined,
+        activeKey: "preview",
+        ensurePdfResource: vi.fn(),
+        restoreContext: vi.fn(),
+      },
       enabled: true,
-      ensurePdfResource: vi.fn(),
-      entryFileId: () => undefined,
-      focusAuthoring: vi.fn(),
       layout: { value: "split", bindChange: vi.fn(), navigate: vi.fn(), restore: vi.fn() },
       mode: { mode: "write", bindNavigation: vi.fn(), navigate: vi.fn() },
+      project: { activeFileId: null, project: null, selectFile: vi.fn() },
       rail: { mode: "files", bindNavigation: vi.fn(), navigate: vi.fn() },
-      restoreContext: vi.fn(),
-      selectFile: vi.fn(),
+      source: { focus: vi.fn() },
     });
 
     browser.dispatchEvent(new Event("popstate"));

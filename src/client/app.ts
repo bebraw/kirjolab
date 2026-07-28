@@ -347,18 +347,13 @@ class WorkspaceApp {
     this.#elements.libraryPdfInspector.bindProjectMutations(this.#elements.referenceLibraryWorkspace);
     this.#elements.contextResourcePresenter.bindClaimList(apiBase);
     this.#elements.workspaceSurfaceSwitcher.bindWorkspaceRoute({
-      activeFileId: () => this.#elements.projectFileDialog.activeFileId,
-      activeTab: () => this.#elements.contextResourcePresenter.activeContextTab,
-      contextKey: () => this.#elements.contextResourcePresenter.activeKey,
+      context: this.#elements.contextResourcePresenter,
       enabled: appMode === "workspace",
-      ensurePdfResource: () => this.#elements.contextResourcePresenter.ensurePdfResource(),
-      entryFileId: () => this.#elements.projectFileDialog.project?.entryFileId,
-      focusAuthoring: () => this.#elements.source.focus(),
       layout: this.#elements.workspaceLayout,
       mode: this.#elements.authoringModeTabs,
+      project: this.#elements.projectFileDialog,
       rail: this.#elements.workspaceRailTabs,
-      restoreContext: (key, page, annotationId) => this.#elements.contextResourcePresenter.restoreContext(key, page, annotationId),
-      selectFile: (fileId) => this.#elements.projectFileDialog.selectFile(fileId),
+      source: this.#elements.source,
     });
     this.#layout.bind();
     this.#elements.contextResourcePresenter.bindPublicationContext(apiBase);
