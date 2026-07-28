@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as Y from "yjs";
+import { workspaceSnapshotFixture } from "../test-support/workspace-fixture";
 import { EditorStatus } from "./editor-status";
 
 class FakeElement extends EventTarget {
@@ -148,6 +149,26 @@ describe("editor status", () => {
     status.setAuthoringContext("second.md", "second", second);
 
     expect(resolveRange?.()).toBeNull();
+  });
+
+  it("owns project-file text resolution and active-text insertion", () => {
+    const documentModel = new Y.Doc();
+    documentModel.getText("source").insert(0, "draft");
+    const source = textareaElement(new FakeTextarea());
+    const status = new TestEditorStatus();
+    status.bindAuthoring(documentModel, source, {
+      highlight: htmlElement(),
+      presence: () => [],
+      sourceChanged: () => undefined,
+      targetChanged: () => undefined,
+    });
+
+    status.setProjectFile(workspaceSnapshotFixture.files[0]!, workspaceSnapshotFixture.entryFileId, true);
+    status.applyAuthoringInsertion({ end: 5, selectionEnd: 6, selectionStart: 6, start: 5, text: "!" });
+    status.insertAuthoringText(6, " ready");
+
+    expect(status.manuscript).toBe("draft! ready");
+    expect(source.value).toBe("draft! ready");
   });
 
   it("preserves a live insertion point across collaborative edits", () => {

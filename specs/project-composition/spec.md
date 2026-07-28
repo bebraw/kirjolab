@@ -164,8 +164,11 @@ collaborative, and unambiguous about what preview and export mean.
   snapshot application to the workspace coordinator, rejects restoration if
   the active authoring text changed, then applies and acknowledges the citation.
 - The editor-status owner binds the active collaborative text to the source
-  editor, preserves an independent undo history for every opened text, and
-  combines the resolved local target with collaborator ranges for highlighting.
+  editor, resolves it from the selected project-file and entry-file identity,
+  exposes its manuscript projection, preserves an independent undo history for
+  every opened text, and combines the resolved local target with collaborator
+  ranges for highlighting. The workspace coordinator does not retain a
+  duplicate active Y.Text.
   Activating another file detaches the prior text observer and editor listeners,
   synchronizes the new text into the source control, applies bounded text
   insertions or replacements, focuses the active source, and selects the

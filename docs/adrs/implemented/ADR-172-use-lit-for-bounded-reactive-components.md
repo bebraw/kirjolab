@@ -1194,8 +1194,11 @@ reason to wrap static markup mechanically.
   owns the active Yjs-text/editor binding and teardown, per-file undo managers,
   external text synchronization, assistant-staleness observation, and local plus
   collaborator presence highlighting from supplied ranges. It applies bounded
-  authoring text insertions and replacements, focuses the active source, and
-  selects their resulting range so derived edits remain in that undo history.
+  authoring text insertions and replacements, resolves the active Y.Text from a
+  project-file and entry-file identity, exposes its manuscript projection,
+  focuses the active source, and selects the resulting range so derived edits
+  remain in that undo history. The coordinator no longer retains a duplicate
+  active-text field.
   It also preserves an insertion point as a Yjs-relative position across an
   asynchronous authoring workflow and invalidates it when the active text
   changes. It binds companion Yjs textareas such as the bibliography and,

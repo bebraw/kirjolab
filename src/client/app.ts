@@ -62,7 +62,6 @@ class WorkspaceApp {
     workspaceId,
   });
   #hasBootstrapSnapshot = false;
-  #activeFileText = this.#source;
   readonly #layout: WorkspaceLayoutManager;
 
   constructor() {
@@ -165,7 +164,7 @@ class WorkspaceApp {
   #bindUi(): void {
     this.#elements.assistantGenerationPresenter.bindAuthoring({
       fileId: () => this.#elements.projectFileDialog.activeFileId,
-      manuscript: () => this.#activeFileText.toString(),
+      manuscript: () => this.#elements.editorStatus.manuscript,
       sourceRevision: () => this.#elements.projectHistoryTrigger.value,
       stableDocument: () => this.#collaboration.stable,
       target: () => this.#elements.editorStatus.authoringTarget,
@@ -271,7 +270,7 @@ class WorkspaceApp {
       presence: (fileId) => (fileId ? this.#elements.collaboratorSelections.rangesFor(fileId) : []),
       sourceChanged: () => this.#elements.assistantGenerationPresenter.sourceChanged(),
       targetChanged: () => {
-        this.#elements.sourceCitationControl.setCaret(this.#activeFileText.toString(), this.#elements.editorStatus.caret);
+        this.#elements.sourceCitationControl.setCaret(this.#elements.editorStatus.manuscript, this.#elements.editorStatus.caret);
         this.#elements.assistantGenerationPresenter.refreshTarget();
         this.#elements.contextResourcePresenter.setCitationAvailable(this.#elements.editorStatus.caret !== null);
       },
@@ -292,8 +291,7 @@ class WorkspaceApp {
         void this.#elements.workspacePreview.renderBoundProject();
       },
       presentFile: (file, snapshot) => {
-        this.#activeFileText = this.#document.getText(projectFileCollaborationTextName(file, snapshot.entryFileId));
-        this.#elements.editorStatus.setAuthoringContext(file.path, file.id, this.#activeFileText);
+        this.#elements.editorStatus.setProjectFile(file, snapshot.entryFileId);
       },
       presentNotice: (message, options) => this.#elements.toast.show(message, options),
       previewChanged: () => void this.#elements.workspacePreview.renderBoundProject(),
@@ -320,7 +318,7 @@ class WorkspaceApp {
     );
     this.#elements.workspacePreview.bindProject(apiBase, this.#document, () => this.#elements.projectFileDialog.project, this.#elements);
     this.#elements.editorInsertMenu.bind({
-      applyInsertion: (insertion) => this.#elements.editorStatus.applyInsertion(this.#activeFileText, insertion),
+      applyInsertion: (insertion) => this.#elements.editorStatus.applyAuthoringInsertion(insertion),
       authoringTarget: () => ({
         caret: this.#elements.editorStatus.caret ?? this.#elements.source.selectionEnd,
         passage: this.#elements.editorStatus.selectedPassage(),
@@ -447,7 +445,7 @@ class WorkspaceApp {
     this.#elements.sourceCitationControl.bindNavigation((citation) => this.#elements.contextResourcePresenter.openCitation(citation));
     this.#elements.sourceCitationControl.bindInsertion({
       applyInsertion: (insertion) => {
-        this.#elements.editorStatus.insertText(this.#activeFileText, insertion.index, insertion.text, insertion.caret);
+        this.#elements.editorStatus.insertAuthoringText(insertion.index, insertion.text, insertion.caret);
         this.#elements.authoringModeTabs.navigate("write");
       },
       presentNotice: (message) => this.#elements.toast.show(message),
@@ -468,7 +466,7 @@ class WorkspaceApp {
       refreshResources: () => this.#resourceRefresh.request(),
       tableState: () => ({
         revision: this.#elements.projectHistoryTrigger.value,
-        source: this.#activeFileText.toString(),
+        source: this.#elements.editorStatus.manuscript,
         stableDocument: this.#collaboration.stable,
       }),
     });
@@ -495,8 +493,7 @@ class WorkspaceApp {
   }
 
   #activateProjectFile(file: ProjectFile, snapshot: WorkspaceSnapshot): void {
-    this.#activeFileText = this.#document.getText(projectFileCollaborationTextName(file, snapshot.entryFileId));
-    this.#elements.editorStatus.setAuthoringContext(file.path, file.id, this.#activeFileText, true);
+    this.#elements.editorStatus.setProjectFile(file, snapshot.entryFileId, true);
     this.#elements.projectFileDialog.presentProject(snapshot, `${apiBase}/assets`, appMode === "workspace");
     this.#elements.assistantGenerationPresenter.refreshAvailability();
     this.#elements.workspacePreview.resetScroll();

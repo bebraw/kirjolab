@@ -331,12 +331,16 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   owner is the single browser projection and read source for the accepted
   snapshot; the coordinator must not retain a duplicate copy.
 - Let the editor-status Lit owner bind the active Yjs text to the source editor,
+  derive that text from the selected project-file identity and entry-file
+  contract,
   retain per-file undo history, synchronize external text changes, and render
   local plus collaborator presence from coordinator-supplied ranges. Switching
   active files must release the prior text observer and editor listeners before
-  binding the next text. Let the owner apply bounded text insertions and
-  replacements, focus the active source, and select their resulting range so
-  those edits share its undo history. It may preserve an insertion point as a
+  binding the next text. Let the owner expose the active manuscript projection,
+  apply bounded active-text insertions and replacements, focus the active
+  source, and select their resulting range so those edits share its undo
+  history. The coordinator must not retain a duplicate active Y.Text. The owner
+  may preserve an insertion point as a
   Yjs-relative position across an asynchronous authoring workflow and must
   reject it after the active text changes. Before remote updates, let the same
   owner bind companion Yjs textareas such as the bibliography, then capture and

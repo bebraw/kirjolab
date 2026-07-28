@@ -1,5 +1,6 @@
 import { html, LitElement, type TemplateResult } from "lit";
 import * as Y from "yjs";
+import { projectFileCollaborationTextName, type ProjectFile } from "../domain/project-files";
 import type { EditorPresenceRange } from "./editor-presence";
 import {
   bindYText,
@@ -102,6 +103,16 @@ export class EditorStatus extends LitElement {
     else this.refreshAuthoringTarget();
   }
 
+  setProjectFile(file: ProjectFile, entryFileId: string, reset = false): void {
+    const documentModel = this.documentModel;
+    if (documentModel)
+      this.setAuthoringContext(file.path, file.id, documentModel.getText(projectFileCollaborationTextName(file, entryFileId)), reset);
+  }
+
+  get manuscript(): string {
+    return this.text?.toString() ?? "";
+  }
+
   rememberSelection(): void {
     this.selection = this.source && this.text ? captureRelativeSelection(this.source, this.text) : null;
     this.refreshAuthoringTarget();
@@ -121,8 +132,16 @@ export class EditorStatus extends LitElement {
     this.selectRange(insertion.selectionStart, insertion.selectionEnd);
   }
 
+  applyAuthoringInsertion(insertion: EditorTextInsertion): void {
+    if (this.text) this.applyInsertion(this.text, insertion);
+  }
+
   insertText(text: Y.Text, index: number, value: string, caret = index + value.length): void {
     this.applyInsertion(text, { end: index, selectionEnd: caret, selectionStart: caret, start: index, text: value });
+  }
+
+  insertAuthoringText(index: number, value: string, caret = index + value.length): void {
+    if (this.text) this.insertText(this.text, index, value, caret);
   }
 
   preserveInsertionPoint(): ((value: string) => boolean) | null {

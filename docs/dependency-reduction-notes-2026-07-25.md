@@ -11821,6 +11821,30 @@ and 481,994 B / 146,135 B.
 Full native CI passes all 1,764 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Active Authoring Text
+
+`EditorStatus` now resolves the active Y.Text from project-file and entry-file
+identity, exposes the active manuscript projection, and owns active-text
+insertion entry points. `WorkspaceApp` no longer stores a duplicate active-text
+field or threads that value through assistant, citation, Insert-menu, and table
+workflows.
+
+This checkpoint reduces `src/client/app.ts` from 539 to 536 lines (-3) and grows
+the editor-status owner from 273 to 292 lines (+19). The 16-line combined
+increase centralizes mutable authoring authority and makes the coordinator
+stateless for active text. Focused coverage passes project-file resolution,
+active insertion, manuscript projection, affected integrations, and strict
+types. Direct and unique production package counts remain 18 and 150; Lit and
+Yjs were already pinned.
+
+The browser application artifact increases from 860,941 B raw / 231,618 B gzip
+to 861,178 B / 231,688 B (+237 B raw / +70 B gzip). Styles and lazy Markdown and
+PDF.js artifacts remain unchanged at 135,411 B / 23,373 B, 204,779 B / 62,386 B,
+and 481,994 B / 146,135 B.
+
+Full native CI passes all 1,765 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: One-Shot Browser Entry Intents
 
 `ProjectStartingPointBrowser` now consumes the `create=1` editor intent, removes
