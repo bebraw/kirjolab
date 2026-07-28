@@ -78,6 +78,7 @@ export class WorkspaceLayoutControl extends LightDomElement {
   bindApplication(workspaceId: string, enabled: boolean, owners: WorkspaceLayoutApplicationOwners): void {
     this.bindWorkspace(workspaceId, owners);
     owners.workspaceSurfaceSwitcher.bindWorkspaceRoute(enabled, owners);
+    owners.workspaceSurfaces.dataset.ready = "true";
   }
 
   bindWorkspace(workspaceId: string, owners: WorkspaceLayoutOwners): void {

@@ -104,7 +104,8 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   pointer interactions, ARIA values, browser-local width persistence, and PDF
   relayout. One atomic application lifecycle binds the workspace root,
   canonical Context owner, and surface switcher's complete route lifecycle;
-  consume the viewer owned by that Context. Let internal, restored, and route-driven selection apply the
+  it publishes workspace readiness only after those bindings complete. Consume
+  the viewer owned by that Context. Let internal, restored, and route-driven selection apply the
   workspace's visibility-driving layout and dispatch resize notification before
   that outcome. Let the workspace surface switcher's route binding consume the
   live Context owner, activate an available PDF through that owner when needed,

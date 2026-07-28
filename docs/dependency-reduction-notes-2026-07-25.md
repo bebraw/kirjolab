@@ -14314,6 +14314,24 @@ the combined application lifecycle.
 Full native CI passes all 1,775 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Layout-Owned Workspace Readiness
+
+The workspace-layout Lit owner now publishes the workspace root's ready state
+only after Context, layout controls, and surface-route subscriptions are bound.
+The application coordinator no longer mutates presentation readiness, and the
+ordering prevents a visible workspace from observing partially bound routes.
+
+This checkpoint is production-line neutral while reducing `src/client/app.ts`
+from 66 to 65 lines. The affected guardrail passes 10 related cases across
+three suites alongside strict types. The browser application changes from
+847,124 B raw / 230,982 B gzip to 847,118 B raw / 230,981 B gzip (-6 B raw /
+-1 B gzip); direct and unique production package counts remain 18 and 150, and
+the other static artifacts remain unchanged. Architecture, ADR, and scholarly-
+workspace contracts now assign readiness to the atomic layout lifecycle.
+
+Full native CI passes all 1,775 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,

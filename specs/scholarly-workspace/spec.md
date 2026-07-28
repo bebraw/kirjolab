@@ -213,8 +213,9 @@ collaboration.
   context-specific pane keys and consumes that owner's PDF viewer for relayout
   while one atomic application entry also installs the surface switcher's
   complete workspace-route lifecycle rather than requiring a second
-  application call. That binding establishes the complete selection, collapse,
-  and resize listener lifecycle; no separate
+  application call. That binding publishes workspace readiness only after it
+  establishes the complete selection, collapse, resize, and route listener
+  lifecycle; no separate
   non-element layout manager exists. Widths remain context-specific transient
   UI state rather than collaborative data or workspace URL state.
   On desktop the rail width is adjustable by pointer or keyboard within bounded
