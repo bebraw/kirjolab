@@ -50,6 +50,7 @@ export interface ProjectFilePresentationBinding {
 }
 
 export interface ProjectFileWorkflowRouting {
+  readonly activateAuthoring: () => void;
   readonly actionControls: readonly EventTarget[];
   readonly focusEditor: () => void;
   readonly imageUpload: ProjectImageUploadSource;
@@ -57,6 +58,7 @@ export interface ProjectFileWorkflowRouting {
   readonly prepareInclude: () => ((directive: string) => boolean) | null;
   readonly quickOpen: () => void;
   readonly saved: (result: ProjectFileSaved) => void;
+  readonly selectRange: (from: number, to: number) => void;
   readonly tree: ProjectFileTreeSource;
 }
 
@@ -189,6 +191,13 @@ export class ProjectFileDialog extends LitElement {
     if (!file) return false;
     this.mutationCallbacks.activateFile(file, snapshot);
     return true;
+  }
+
+  focusRange(fileId: string | null, from: number, to: number): void {
+    const targetFileId = fileId || this.snapshot?.entryFileId;
+    if (targetFileId) this.selectFile(targetFileId);
+    this.routing?.activateAuthoring();
+    this.routing?.selectRange(from, Math.max(from, to));
   }
 
   private activateFile(snapshot: WorkspaceSnapshot, fileId: string): ProjectFile | null {

@@ -475,7 +475,9 @@ The adopted components own bounded presentation:
   deletion grace period, Undo and failed-commit restoration, and exposes the
   hidden-file projection. Its presentation binding fans one canonical snapshot,
   visible file collection, and active/entry state into the project tree, Insert
-  menu, source completion, and file-action menu. The coordinator retains
+  menu, source completion, and file-action menu. Its workflow binding also owns
+  project-range activation across file or entry fallback, Write-mode entry, and
+  normalized editor selection. The coordinator retains
   workflow-template selection, canonical snapshot and active
   Y.Text/editor authority, Yjs editing, cross-feature rendering, and the notification outlet.
   The dialog owns active-file identity, entry fallback, and hidden-file

@@ -124,7 +124,7 @@ class WorkspaceApp {
       resizePdf: () => void this.#pdfViewer.resize(),
     });
     this.#elements.previewSyncControls.bindSource(this.#elements.source, this.#elements.sourceHighlight, {
-      focusSource: ({ fileId, offset }) => this.#focusProjectRange(fileId, offset, offset),
+      focusSource: ({ fileId, offset }) => this.#elements.projectFileDialog.focusRange(fileId, offset, offset),
       previewOffset: () => this.#elements.workspacePreview.centeredSourceOffset(),
       sourceToPreview: (explicit) => this.#elements.workspacePreview.syncFromSource(explicit),
     });
@@ -235,7 +235,9 @@ class WorkspaceApp {
           researchDiaryTemplate(new Date().toISOString().slice(0, 10)),
         ),
     );
-    this.#elements.manuscriptMapPanel.bindNavigation(({ fileId, from, to }) => this.#focusProjectRange(fileId, from, to));
+    this.#elements.manuscriptMapPanel.bindNavigation(({ fileId, from, to }) =>
+      this.#elements.projectFileDialog.focusRange(fileId, from, to),
+    );
     this.#elements.manuscriptMapPanel.bindProjectPresentation(this.#elements);
     const writingWorkflow: WritingWorkflowBinding = {
       notice: (message) => this.#elements.toast.show(message),
@@ -244,7 +246,7 @@ class WorkspaceApp {
           kind === "research-questions" ? researchQuestionsPath : reviewerResponsePath,
           kind === "research-questions" ? researchQuestionsTemplate : reviewerResponseTemplate,
         ),
-      select: (fileId, from, to) => this.#focusProjectRange(fileId, from, to),
+      select: (fileId, from, to) => this.#elements.projectFileDialog.focusRange(fileId, from, to),
     };
     for (const panel of [this.#elements.researchQuestionPanel, this.#elements.reviewerResponsePanel]) {
       panel.bind(writingWorkflow);
@@ -309,6 +311,7 @@ class WorkspaceApp {
       previewChanged: () => void this.#elements.workspacePreview.renderBoundProject(),
     });
     this.#elements.projectFileDialog.bindWorkflow({
+      activateAuthoring: () => this.#elements.authoringModeTabs.navigate("write"),
       actionControls: [this.#elements.projectFileRailActions, this.#elements.projectFileMenuActions],
       focusEditor: () => this.#elements.source.focus(),
       imageUpload: this.#elements.projectImageUpload,
@@ -319,6 +322,7 @@ class WorkspaceApp {
         this.#elements.workspaceRailTabs.navigate("files");
       },
       saved: ({ message }) => this.#elements.toast.show(message),
+      selectRange: (from, to) => this.#elements.editorStatus.selectRange(from, to),
       tree: this.#elements.projectTreePanel,
     });
     this.#elements.projectFileDialog.bindPresentation(this.#elements);
@@ -425,7 +429,7 @@ class WorkspaceApp {
       refreshResources: () => this.#resourceRefresh.request(),
       refreshLibrary: () => this.#elements.referenceLibraryWorkspace.refreshBoundProject(),
       selectPassage: (fileId, start, end) => {
-        this.#focusProjectRange(fileId, start, end);
+        this.#elements.projectFileDialog.focusRange(fileId, start, end);
         this.#elements.source.scrollIntoView({ behavior: "smooth", block: "center" });
       },
     });
@@ -449,7 +453,7 @@ class WorkspaceApp {
     this.#layout.bind();
     this.#elements.workspacePreview.bindNavigation({
       openCitation: (citation) => this.#elements.contextResourcePresenter.openCitation(citation),
-      selectDiagnostic: ({ fileId, from, to }) => this.#focusProjectRange(fileId || this.#snapshot?.entryFileId || "", from, to),
+      selectDiagnostic: ({ fileId, from, to }) => this.#elements.projectFileDialog.focusRange(fileId, from, to),
       showSource: (offset) => this.#elements.previewSyncControls.showSource(offset),
     });
     this.#elements.sourceCitationControl.bindNavigation((citation) => this.#elements.contextResourcePresenter.openCitation(citation));
@@ -511,12 +515,6 @@ class WorkspaceApp {
     this.#elements.workspacePreview.resetScroll();
     void this.#elements.workspacePreview.renderBoundProject();
     this.#elements.workspaceSurfaceSwitcher.syncRoute("replace");
-  }
-
-  #focusProjectRange(fileId: string, from: number, to: number): void {
-    if (fileId) this.#elements.projectFileDialog.selectFile(fileId);
-    this.#elements.authoringModeTabs.navigate("write");
-    this.#elements.editorStatus.selectRange(from, Math.max(from, to));
   }
 
   async #acceptWorkspaceMutation(result: Response | WorkspaceSnapshot): Promise<void> {

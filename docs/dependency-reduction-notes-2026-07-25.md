@@ -11754,6 +11754,30 @@ and PDF.js artifacts remain unchanged at 135,411 B / 23,373 B, 204,779 B /
 Full native CI passes all 1,763 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Project Range Activation
+
+`ProjectFileDialog` now owns project-range activation across canonical file
+selection, entry-file fallback, Write-mode entry, and normalized editor bounds.
+Preview synchronization, manuscript maps, writing workflows, context links, and
+Preview diagnostics all use the same owner operation. `WorkspaceApp` no longer
+reconstructs this workflow or reads the snapshot to choose the diagnostic
+fallback file.
+
+This checkpoint reduces `src/client/app.ts` from 556 to 554 lines (-2) and grows
+the project-file owner from 493 to 502 lines (+9). The seven-line combined
+increase replaces a coordinator helper with one tested file-authority contract.
+Focused coverage passes omitted-file fallback, range normalization, owner
+activation, affected integrations, and strict types. Direct and unique
+production package counts remain 18 and 150; Lit was already pinned.
+
+The browser application artifact increases from 860,382 B raw / 231,606 B gzip
+to 860,630 B / 231,636 B (+248 B raw / +30 B gzip). Styles and lazy Markdown
+and PDF.js artifacts remain unchanged at 135,411 B / 23,373 B, 204,779 B /
+62,386 B, and 481,994 B / 146,135 B.
+
+Full native CI passes all 1,764 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: One-Shot Browser Entry Intents
 
 `ProjectStartingPointBrowser` now consumes the `create=1` editor intent, removes

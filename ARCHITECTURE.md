@@ -311,8 +311,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   owns active-file identity, entry fallback, hidden-file selection eligibility,
   canonical selection validation and activation routing, active file/folder
   resolution for dialogs, active-file deletion eligibility, and relative image
-  insertion projection. Tree, workflow, save, deletion, Undo, route, and
-  cross-feature selections all use that single activation path. It projects the visible file
+  insertion projection. It also owns authoring-range activation: resolve an
+  omitted file to the entry file, select it, enter Write mode, and normalize the
+  requested range through bound authoring capabilities. Tree, workflow, save,
+  deletion, Undo, route, and cross-feature selections all use that single activation path. It projects the visible file
   collection and active/entry state into the project tree, Insert menu, source
   completion, and file menu, then supplies the canonical active file and
   snapshot through one presentation callback for Yjs/editor binding instead of

@@ -205,7 +205,10 @@ collaborative, and unambiguous about what preview and export mean.
   hidden-file projection once, owns active-file identity, entry fallback, and
   hidden-file selection eligibility. One canonical selection method validates
   and routes tree, workflow, save, deletion, Undo, route, and cross-feature
-  choices through a typed activation callback. It resolves the active file and
+  choices through a typed activation callback. For project-range navigation it
+  resolves an omitted file to the entry file, selects it, enters Write mode,
+  and normalizes the requested editor bounds through bound authoring
+  capabilities. It resolves the active file and
   requested folder for dialogs, rejects entry-file deletion, derives relative image
   insertion from that active file, and supplies the project tree, Insert menu,
   source-completion list, and file-action menu with their bounded views. It then

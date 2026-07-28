@@ -124,11 +124,13 @@ describe("project file dialog", () => {
     const imageUpload = Object.assign(new EventTarget(), { choose: vi.fn() });
     const tree = Object.assign(new EventTarget(), { focusFilter: vi.fn() });
     const callbacks = {
+      activateAuthoring: vi.fn(),
       focusEditor: vi.fn(),
       insertImage: vi.fn(),
       prepareInclude: vi.fn(() => vi.fn(() => true)),
       quickOpen: vi.fn(),
       saved: vi.fn(),
+      selectRange: vi.fn(),
     };
     panel.bindWorkflow({ actionControls: [actions], imageUpload, tree, ...callbacks });
     const supporting = { ...snapshot.files[0]!, id: "file-2", path: "chapter.md" };
@@ -278,6 +280,33 @@ describe("project file dialog", () => {
     expect(panel.activeFileId).toBe(snapshot.entryFileId);
   });
 
+  it("owns project-range activation with entry-file fallback and normalized bounds", () => {
+    const panel = new TestProjectFileDialog();
+    const callbacks = mutationCallbacks();
+    const activateAuthoring = vi.fn();
+    const selectRange = vi.fn();
+    panel.configureApi("/api/workspaces/workspace", callbacks);
+    panel.bindWorkflow({
+      activateAuthoring,
+      actionControls: [],
+      focusEditor: vi.fn(),
+      imageUpload: Object.assign(new EventTarget(), { choose: vi.fn() }),
+      insertImage: vi.fn(),
+      prepareInclude: vi.fn(() => null),
+      quickOpen: vi.fn(),
+      saved: vi.fn(),
+      selectRange,
+      tree: Object.assign(new EventTarget(), { focusFilter: vi.fn() }),
+    });
+    panel.presentProject(snapshot, "/assets", true);
+
+    panel.focusRange(null, 12, 4);
+
+    expect(panel.activeFileId).toBe(snapshot.entryFileId);
+    expect(activateAuthoring).toHaveBeenCalledOnce();
+    expect(selectRange).toHaveBeenCalledWith(12, 12);
+  });
+
   it("commits the validated workspace and emits the saved file identity", async () => {
     const panel = new TestProjectFileDialog();
     const callbacks = mutationCallbacks();
@@ -289,6 +318,7 @@ describe("project file dialog", () => {
     const include = vi.fn(() => true);
     panel.configureApi("/api/workspaces/workspace", callbacks);
     panel.bindWorkflow({
+      activateAuthoring: vi.fn(),
       actionControls: [actions],
       focusEditor: vi.fn(),
       imageUpload: Object.assign(new EventTarget(), { choose: vi.fn() }),
@@ -296,6 +326,7 @@ describe("project file dialog", () => {
       prepareInclude: vi.fn(() => include),
       quickOpen: vi.fn(),
       saved,
+      selectRange: vi.fn(),
       tree: Object.assign(new EventTarget(), { focusFilter: vi.fn() }),
     });
     panel.presentProject(snapshot, "/assets", true);
@@ -409,6 +440,7 @@ describe("project file dialog", () => {
     vi.stubGlobal("location", { assign, href: "https://example.test/editor/workspace?context=preview#paper" });
     panel.configureApi("/api/workspaces/workspace", callbacks);
     panel.bindWorkflow({
+      activateAuthoring: vi.fn(),
       actionControls: [],
       focusEditor,
       imageUpload: Object.assign(new EventTarget(), { choose: vi.fn() }),
@@ -416,6 +448,7 @@ describe("project file dialog", () => {
       prepareInclude: vi.fn(() => null),
       quickOpen: vi.fn(),
       saved: vi.fn(),
+      selectRange: vi.fn(),
       tree: Object.assign(new EventTarget(), { focusFilter: vi.fn() }),
     });
     panel.presentProject(project, "/assets", true);
