@@ -39,11 +39,11 @@ interface PdfViewerElements {
   status: HTMLElement;
 }
 
-interface PdfViewerHooks {
-  readonly onSelection: (capture: PdfSelectionCapture) => void;
-  readonly onHighlight: (annotationId: string, fragmentId: string) => void;
-  readonly onPageChange: (page: number) => void;
-  readonly onPrivateHighlight: (highlightId: string) => void;
+interface PdfViewerPresentation {
+  activateProjectHighlight(annotationId: string, fragmentId: string): void;
+  capturePdfSelection(capture: PdfSelectionCapture): void;
+  presentPdfPage(page: number): void;
+  selectLibraryHighlight(highlightId: string): void;
 }
 
 interface OpenPdfOptions {
@@ -86,7 +86,7 @@ export class PdfEvidenceViewer {
   #zoomAnchor: PdfZoomAnchor | null = null;
   #renderedViewport: { convertToViewportPoint(x: number, y: number): number[] } | null = null;
 
-  static forDocument(root: Document, hooks: PdfViewerHooks): PdfEvidenceViewer {
+  static forDocument(root: Document, presentation: PdfViewerPresentation): PdfEvidenceViewer {
     return new PdfEvidenceViewer(
       {
         reader: requiredViewerElement(root, "paper-reader", HTMLElement),
@@ -109,10 +109,10 @@ export class PdfEvidenceViewer {
         ],
         status: requiredViewerElement(root, "paper-status", HTMLElement),
       },
-      hooks.onSelection,
-      hooks.onHighlight,
-      hooks.onPageChange,
-      hooks.onPrivateHighlight,
+      (capture) => presentation.capturePdfSelection(capture),
+      (annotationId, fragmentId) => presentation.activateProjectHighlight(annotationId, fragmentId),
+      (page) => presentation.presentPdfPage(page),
+      (highlightId) => presentation.selectLibraryHighlight(highlightId),
     );
   }
 

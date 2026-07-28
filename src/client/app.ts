@@ -87,12 +87,7 @@ class WorkspaceApp {
       selectionReceived: (selection) => this.#elements.collaboratorSelections.receive(selection),
       socketUrl: `${location.protocol === "https:" ? "wss:" : "ws:"}//${location.host}${apiBase}/socket`,
     });
-    this.#pdfViewer = PdfEvidenceViewer.forDocument(document, {
-      onSelection: (capture) => this.#elements.contextResourcePresenter.capturePdfSelection(capture),
-      onHighlight: (annotationId, fragmentId) => this.#elements.contextResourcePresenter.activateProjectHighlight(annotationId, fragmentId),
-      onPageChange: (page) => this.#elements.contextResourcePresenter.presentPdfPage(page),
-      onPrivateHighlight: (highlightId) => this.#elements.contextResourcePresenter.selectLibraryHighlight(highlightId),
-    });
+    this.#pdfViewer = PdfEvidenceViewer.forDocument(document, this.#elements.contextResourcePresenter);
     this.#layout = WorkspaceLayoutManager.forWorkspace(this.#elements.workspaceSurfaces, {
       paneStorageKey: () =>
         `kirjolab:authoring-pane:${workspaceId}:${this.#elements.contextResourcePresenter.activeTab?.kind ?? "preview"}`,

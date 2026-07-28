@@ -1437,8 +1437,9 @@ reason to wrap static markup mechanically.
   notice. Context retains publication resolution and grouped-citation policy.
 - The existing PDF viewer owns its complete status presentation, including
   active-load failures and text-selection pointer routing reported by the
-  application coordinator, without exposing its internal elements to
-  `WorkspaceApp`.
+  bound context-resource presenter, without exposing its internal elements or
+  four presentation adapters to `WorkspaceApp`. Its lower-level constructor
+  remains callback-based for isolated viewer tests.
 - The Preview DOM adapter owns direct article and viewport mechanics that do
   not need reactive templating: content assignment, source-span lookup,
   centering, transient emphasis, image lookup, and anchor scrolling. This

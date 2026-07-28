@@ -88,7 +88,9 @@ collaboration.
   layout, Library, project-file, and surface-route owners and derives canonical
   context sources and presentation effects from them. The coordinator connects
   those owners and supplies immutable mode and API configuration without a
-  parallel source factory or effect callbacks.
+  parallel source factory or effect callbacks. The PDF viewer factory binds
+  this presenter directly for selection capture, project-highlight activation,
+  page presentation, and private-highlight selection.
   One progressive light-DOM tab strip owns fixed-tab presentation, dynamic-tab
   and overflow-overview composition from one input, keyboard focus, controlled-
   panel and Preview-control visibility, resource labels, private-versus-read-

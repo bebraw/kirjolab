@@ -1295,7 +1295,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   workflow, applies its tool and draft-clearing effects through the bounded
   viewer, owns intake refresh plus completed-workflow refresh, optional passage-
   link, and notice sequencing, and routes citation, highlight removal, and
-  highlight reveal to the Lit owners it already composes. Let it configure the manuscript-comment,
+  highlight reveal to the Lit owners it already composes. The document-level
+  PDF viewer factory binds this presenter directly for selection capture,
+  highlight activation, page presentation, and private-highlight selection;
+  the application must not repeat those four pass-through callbacks. Let it configure the manuscript-comment,
   project-evidence, claim-list, and publication list/context panels; own
   annotation-form cleanup and selection, edit and PDF routes, fragment-removal
   refresh sequencing, child-specific mutation failure copy, and notice

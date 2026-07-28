@@ -12967,6 +12967,25 @@ Markdown, lazy PDF.js, and direct and unique production package counts remain
 unchanged at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip,
 481,994 B raw / 146,135 B gzip, 18, and 150.
 
+## Continued Composition: PDF Presentation Owner
+
+The document-level `PdfEvidenceViewer` factory now binds the context-resource
+presenter through a narrow structural capability for selection capture,
+project-highlight activation, page presentation, and private-highlight
+selection. Its lower-level constructor remains callback-based for isolated
+viewer testing; only the four application pass-through adapters disappear.
+
+This checkpoint reduces `src/client/app.ts` from 259 to 254 lines (-5) while
+keeping the PDF viewer at 791 lines, removing five runtime lines overall. The
+affected gate passes strict types and the complete 1,774-test unit/coverage
+baseline because this low-level viewer has no directly mapped unit test file.
+
+The browser application artifact changes from 858,703 B raw / 231,780 B gzip
+to 858,490 B raw / 231,751 B gzip (-213 B raw / -29 B gzip). Styles, lazy
+Markdown, lazy PDF.js, and direct and unique production package counts remain
+unchanged at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip,
+481,994 B raw / 146,135 B gzip, 18, and 150.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,
