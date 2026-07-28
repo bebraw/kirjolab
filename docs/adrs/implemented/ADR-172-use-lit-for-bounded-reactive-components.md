@@ -209,12 +209,14 @@ The adopted components own bounded presentation:
   streams and owns local completion presentation, private-highlight citation
   readiness feedback, saved-highlight artifact lookup and post-navigation
   inspector status, collision-safe project-reference preparation, and
-  validated link transport. Its route binding is the sole canonical project and
-  Library snapshot, citation-insertion, Library-refresh, and notice authority;
+  validated link transport. Its route binding consumes the canonical Yjs
+  document, collaboration and refresh capabilities, plus project-file,
+  editor-status, history-trigger, citation-control, Library, and toast owners
+  directly instead of receiving a parallel callback coordinator;
   its separate private-PDF mutation binding retains only snapshot acceptance,
   caret readiness, markup completion, artifact opening, and API scope. It
-  delegates Yjs citation insertion and cross-resource navigation through the
-  route callbacks and applies viewer-only draft clearing, text-
+  delegates Yjs citation insertion and passage navigation to their bound owners
+  and applies viewer-only draft clearing, text-
   selection, and private-markup selection effects directly through its narrow
   viewer binding and synchronizes the bounded
   evidence, annotation, publication, claim, comment, and candidate owners from
@@ -238,8 +240,9 @@ The adopted components own bounded presentation:
   bind private-PDF project mutation outcomes directly to the same workspace's
   canonical apply-project lifecycle instead of adapting either route in the
   application coordinator. Bind
-  canonical project refresh, authoring state, passage navigation, and notice
-  presentation once through the resource-route coordinator. Project, Library,
+  canonical project refresh, authoring state, passage navigation, citation
+  insertion, and notice presentation once through the resource-route owner
+  binding. Project, Library,
   and linked-reference PDF catalogs are not repeated on that coordinator; the
   presenter consumes the first two from its canonical context source and the
   latter from its owned loading state without feeding it back through the

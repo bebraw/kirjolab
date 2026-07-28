@@ -262,19 +262,7 @@ class WorkspaceApp {
       routes: this.#elements.workspaceSurfaceSwitcher,
       standaloneLibrary: appMode === "library",
     });
-    this.#elements.contextResourcePresenter.bindRoutes({
-      authoring: () => ({
-        passage: this.#elements.editorStatus.selectedPassage(),
-        sourceRevision: this.#elements.projectHistoryTrigger.value,
-        stable: this.#collaboration.stable,
-      }),
-      document: () => this.#document,
-      insertCitation: (citationAlias, locator) => this.#elements.sourceCitationControl.insertCitation(citationAlias, locator),
-      presentNotice: (message) => this.#elements.toast.show(message),
-      refreshResources: () => this.#resourceRefresh.request(),
-      refreshLibrary: () => this.#elements.referenceLibraryWorkspace.refreshBoundProject(),
-      selectPassage: (fileId, start, end) => this.#elements.projectFileDialog.revealRange(fileId, start, end),
-    });
+    this.#elements.contextResourcePresenter.bindRoutes(this.#document, this.#collaboration, this.#resourceRefresh, this.#elements);
     this.#elements.contextResourcePresenter.bindPdfViewer(this.#pdfViewer, apiBase);
     this.#elements.libraryPdfInspector.bindProjectMutations(this.#elements.referenceLibraryWorkspace);
     this.#elements.contextResourcePresenter.bindClaimList(apiBase);

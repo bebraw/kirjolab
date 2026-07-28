@@ -1255,16 +1255,18 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   effects. Let it derive active-publication citation readiness and resolve
   explicit active-publication or sole-linked project-PDF citation intents to a
   citation key and optional page locator. Route the resulting typed open and
-  citation-insertion intents through the application
-  coordinator. The presenter sequences bound context-source projection, pane
+  citation-insertion intents through the directly bound citation-control and
+  navigation owners. The presenter sequences bound context-source projection, pane
   restoration, surface activation, tab focus, route synchronization, and PDF
   load timing; the workspace surface and standalone Library route owners supply
   browser-history effects through one structural binding, and the coordinator
   supplies the underlying cross-surface and layout effects. Let the presenter
   own private-highlight citation readiness feedback,
   collision-safe project-reference preparation, and validated link transport.
-  Use its route binding as the sole canonical project and Library snapshot,
-  citation-insertion, Library-refresh, and notice authority. Keep the separate
+  Use its route binding to consume the canonical Yjs document, collaboration
+  and refresh capabilities, plus project-file, editor-status, history-trigger,
+  citation-control, Library, and toast owners directly instead of projecting
+  them through application callback adapters. Keep the separate
   private-PDF mutation binding limited to snapshot acceptance, caret readiness,
   markup completion, artifact opening, and API scope. Let the presenter apply
   local text-selection, selected-highlight, and draft-selection cleanup effects
@@ -1292,16 +1294,16 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   annotation-form cleanup and selection, edit and PDF routes, fragment-removal
   refresh sequencing, child-specific mutation failure copy, and notice
   dispatch; and route comment, claim, evidence, publication, citation, and paper
-  intents across those owners. Bind canonical project refresh execution,
-  authoring state, passage navigation, and notice presentation once through its
-  resource-route boundary. Let the presenter validate synchronization and a
+  intents across those owners. Derive canonical authoring state and delegate
+  project refresh execution, passage navigation, citation insertion, Library
+  refresh, and notice presentation through the directly bound owners. Let the presenter validate synchronization and a
   current passage before delegating claim or annotation link transport to its
   composed owner. For incoming links, let it resolve the stored Yjs anchor,
   reject stale targets, distinguish exact from changed text, and select the
-  corresponding notice. Keep canonical Yjs document and selection effects,
-  revision and collaboration authority, mutation consequences, canonical
-  refresh transport, Library management, and the shared notification outlet in
-  the application coordinator.
+  corresponding notice. Keep selection effects, revision and collaboration
+  authority, mutation consequences, and cross-resource navigation in the
+  application coordinator; their existing owners retain canonical refresh,
+  Library, citation, passage-selection, and shared-notification effects.
   Keep tab state, canonical snapshot acceptance,
   Yjs citation syntax insertion, cross-resource navigation, routing, project-selection
   persistence, remaining viewer gestures, and the shared notification outlet

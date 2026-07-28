@@ -165,6 +165,48 @@ function contextBinding(options: TestContextBinding): ContextPresentationBinding
   };
 }
 
+function routeSpies() {
+  return {
+    authoring: vi.fn<() => ManuscriptCommentAuthoring>(() => ({
+      passage: { end: 8, excerpt: "Evidence", fileId: "main.md", start: 0 },
+      sourceRevision: 3,
+      stable: true,
+    })),
+    document: vi.fn(() => new Y.Doc()),
+    insertCitation: vi.fn(),
+    openCandidate: vi.fn(),
+    openPublication: vi.fn(),
+    presentNotice: vi.fn(),
+    refreshLibrary: vi.fn().mockResolvedValue(undefined),
+    refreshResources: vi.fn().mockResolvedValue(undefined),
+    selectPassage: vi.fn(),
+  };
+}
+
+function bindTestRoutes(presenter: ContextResourcePresenter, routes: ReturnType<typeof routeSpies>, document = routes.document()): void {
+  presenter.bindRoutes(
+    document,
+    {
+      get stable() {
+        return routes.authoring().stable;
+      },
+    },
+    { request: routes.refreshResources },
+    {
+      editorStatus: { selectedPassage: () => routes.authoring().passage },
+      projectFileDialog: { revealRange: routes.selectPassage },
+      projectHistoryTrigger: {
+        get value() {
+          return routes.authoring().sourceRevision;
+        },
+      },
+      referenceLibraryWorkspace: { refreshBoundProject: routes.refreshLibrary },
+      sourceCitationControl: { insertCitation: routes.insertCitation },
+      toast: { show: routes.presentNotice },
+    },
+  );
+}
+
 function setup() {
   const presenter = new ContextResourcePresenter();
   const elements = {
@@ -201,22 +243,8 @@ function setup() {
     openProjectPdf: vi.spyOn(presenter, "openProjectPdf").mockResolvedValue(undefined),
     openReferencePdf: vi.spyOn(presenter, "openReferencePdf").mockResolvedValue(undefined),
   };
-  const routes = {
-    authoring: vi.fn<() => ManuscriptCommentAuthoring>(() => ({
-      passage: { end: 8, excerpt: "Evidence", fileId: "main.md", start: 0 },
-      sourceRevision: 3,
-      stable: true,
-    })),
-    document: vi.fn(() => new Y.Doc()),
-    insertCitation: vi.fn(),
-    openCandidate: vi.fn(),
-    openPublication: vi.fn(),
-    presentNotice: vi.fn(),
-    refreshLibrary: vi.fn().mockResolvedValue(undefined),
-    refreshResources: vi.fn().mockResolvedValue(undefined),
-    selectPassage: vi.fn(),
-  };
-  presenter.bindRoutes(routes);
+  const routes = routeSpies();
+  bindTestRoutes(presenter, routes);
   return { elements, pdfRoutes, presenter, routes };
 }
 
@@ -236,7 +264,7 @@ describe("context resource presenter", () => {
     const source = document.getText("source");
     source.insert(0, "Evidence matters");
     const anchor = toManuscriptAnchorSelector(createManuscriptAnchor(document, 0, 8, 1));
-    routes.document.mockReturnValue(document);
+    bindTestRoutes(presenter, routes, document);
 
     presenter.openPassage(anchor);
     expect(routes.selectPassage).toHaveBeenCalledWith("main", 0, 8);
@@ -362,9 +390,8 @@ describe("context resource presenter", () => {
   });
 
   it("restores routed context with general, resource, and failure fallbacks", async () => {
-    const { elements, presenter } = setup();
+    const { elements, presenter, routes } = setup();
     const openLibrary = vi.fn().mockResolvedValue(undefined);
-    const presentNotice = vi.fn();
     vi.spyOn(elements["context-tab-strip"], "focusTab").mockImplementation(() => undefined);
     vi.spyOn(presenter, "presentContext").mockReturnValue({ activeTab: undefined, publicationPresented: false });
     const restoreTarget = vi.spyOn(presenter, "restoreTarget").mockResolvedValue(undefined);
@@ -380,16 +407,6 @@ describe("context resource presenter", () => {
         syncRoute: vi.fn(),
       }),
     );
-    presenter.bindRoutes({
-      authoring: () => ({ passage: null, sourceRevision: 0, stable: false }),
-      document: () => new Y.Doc(),
-      insertCitation: vi.fn(),
-      presentNotice,
-      refreshLibrary: vi.fn(),
-      refreshResources: vi.fn(),
-      selectPassage: vi.fn(),
-    });
-
     await presenter.restoreContext("assistant");
     await presenter.restoreContext("library");
     await presenter.restoreContext("pdf:pdf-1", 4, "annotation-1");
@@ -400,7 +417,7 @@ describe("context resource presenter", () => {
     expect(restoreTarget).toHaveBeenNthCalledWith(1, { kind: "pdf", id: "pdf-1" }, 4, "annotation-1");
     expect(restoreTarget).toHaveBeenNthCalledWith(2, { kind: "pdf", id: "missing" }, undefined, undefined);
     expect(presenter.activeKey).toBe("preview");
-    expect(presentNotice).toHaveBeenCalledWith("PDF is unavailable");
+    expect(routes.presentNotice).toHaveBeenCalledWith("PDF is unavailable");
   });
 
   it("selects an authorized PDF for PDF-only layout", async () => {
@@ -1253,7 +1270,7 @@ describe("context resource presenter", () => {
       }),
       selectPassage: vi.fn(),
     };
-    presenter.bindRoutes(coordinator);
+    bindTestRoutes(presenter, coordinator);
 
     await presenter.restoreTarget({ kind: "publication", id: publication.id });
     await presenter.restoreTarget({ kind: "pdf", id: pdf.id }, 4, "annotation-1");

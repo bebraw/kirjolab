@@ -200,9 +200,10 @@ changing their canonical data, selector, authorization, or rendering contracts.
   the coordinator; configures comment, evidence, claim, and publication owners
   and owns their project-mutation refresh sequencing, success/fallback notice
   selection, failure propagation, and validated claim or evidence passage-link
-  delegation while routing authoring state, refresh execution, passage
-  navigation, and notice presentation through one canonical application
-  boundary;
+  delegation while deriving authoring state and routing refresh execution,
+  passage navigation, citation insertion, and notice presentation through
+  directly bound canonical document, collaboration, refresh, project-file,
+  editor-status, history-trigger, citation-control, Library, and toast owners;
   composes the canonical tab-strip projection, selects and
   retains the active resource owner for layout, citation, PDF, and assistant
   consumers; retains the resolved active private-Library artifact for page
@@ -245,8 +246,9 @@ changing their canonical data, selector, authorization, or rendering contracts.
   application coordinator. The presenter configures the claim list and
   publication list/context panels and routes claim annotations, publication
   context, citation insertion, and paper opening among its composed Lit owners.
-  Mutation consequences, passage effects, and Library management remain in the
-  application coordinator.
+  Mutation consequences and cross-resource navigation remain in the
+  application coordinator; passage effects and Library refresh delegate to
+  their directly bound owners.
   Typed publication-paper choices dispatch through the same
   project, private-Library, and shared-reference PDF routes. The presenter also
   derives active-publication citation readiness and maps explicit active
@@ -255,8 +257,9 @@ changing their canonical data, selector, authorization, or rendering contracts.
   and Yjs insertion to editor status. After successful insertion, editor status
   activates Write before presenting completion. It also resolves citation keys case-insensitively
   and selects the sole linked project PDF for a supported page locator, falling
-  back to publication context. Its route binding is the sole canonical refresh,
-  citation-insertion, and notice authority. Project and Library snapshots come
+  back to publication context. Its route binding consumes canonical refresh,
+  citation-insertion, passage-selection, authoring, collaboration, and notice
+  owners directly instead of duplicating them as callback adapters. Project and Library snapshots come
   from its existing context source; linked-reference PDFs come from its owned
   validated catalog, so none are duplicated on the route binding and the owned
   catalog is not fed back through the context source. A separate private-PDF

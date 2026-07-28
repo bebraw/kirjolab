@@ -12908,6 +12908,27 @@ at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip, 481,994 B raw /
 Full native CI passes all 1,774 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Context Route Owners
+
+`ContextResourcePresenter` now binds the canonical Yjs document,
+collaboration and refresh capabilities, plus the existing project-file,
+editor-status, history-trigger, citation-control, Library, and toast owners
+directly. Authoring state, passage selection, citation insertion, refresh, and
+notices no longer pass through a seven-function application callback bag.
+
+This checkpoint reduces `src/client/app.ts` from 312 to 300 lines (-12) and
+grows the context presenter from 1,269 to 1,289 lines (+20), an eight-line
+combined runtime increase that replaces a broad adapter contract with direct
+typed ownership and shared semantic helpers. Focused coverage passes all 39
+context-presenter cases; affected coverage passes 54 related runtime cases and
+the affected test file alongside strict types.
+
+The browser application artifact changes from 859,642 B raw / 231,970 B gzip
+to 859,446 B raw / 232,032 B gzip (-196 B raw / +62 B gzip). Styles, lazy
+Markdown, lazy PDF.js, and direct and unique production package counts remain
+unchanged at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip,
+481,994 B raw / 146,135 B gzip, 18, and 150.
+
 ## Continued Lit Ownership: One-Shot Browser Entry Intents
 
 `ProjectStartingPointBrowser` now consumes the `create=1` editor intent, removes
