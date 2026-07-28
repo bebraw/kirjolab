@@ -1,8 +1,10 @@
-import { html, LitElement, type TemplateResult } from "lit";
+import { html, type TemplateResult } from "lit";
+
+import { LightDomElement } from "./light-dom-controller";
 import { researchDiaryPath, researchDiaryTemplate, summarizeResearchDiary } from "../domain/writing-workflows";
 import type { WritingWorkflowDocument } from "./writing-workflow-panel";
 
-export class ResearchDiarySummary extends LitElement {
+export class ResearchDiarySummary extends LightDomElement {
   static override properties = { content: { state: true } };
 
   declare private content: string | null;
@@ -23,15 +25,6 @@ export class ResearchDiarySummary extends LitElement {
 
   protected emitOpen(): void {
     void this.document?.openWorkflowFile(researchDiaryPath, () => researchDiaryTemplate(new Date().toISOString().slice(0, 10)));
-  }
-
-  override connectedCallback(): void {
-    if (!this.hasUpdated) this.replaceChildren();
-    super.connectedCallback();
-  }
-
-  protected override createRenderRoot(): HTMLElement {
-    return this;
   }
 
   protected override render(): TemplateResult {

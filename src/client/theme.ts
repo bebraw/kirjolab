@@ -1,4 +1,6 @@
-import { html, LitElement, type TemplateResult } from "lit";
+import { html, type TemplateResult } from "lit";
+
+import { LightDomElement } from "./light-dom-controller";
 
 export type ThemePreference = "system" | "light" | "dark";
 
@@ -18,7 +20,7 @@ export function parseThemePreference(value: string | null): ThemePreference {
   return value === "light" || value === "dark" ? value : "system";
 }
 
-export class ThemePreferenceControl extends LitElement {
+export class ThemePreferenceControl extends LightDomElement {
   static override properties = { preference: { state: true } };
 
   declare private preference: ThemePreference;
@@ -56,15 +58,10 @@ export class ThemePreferenceControl extends LitElement {
   }
 
   override connectedCallback(): void {
-    if (!this.hasUpdated) this.replaceChildren();
     super.connectedCallback();
     if (!this.root && typeof document !== "undefined" && typeof localStorage !== "undefined") {
       this.configure(document.documentElement, localStorage);
     }
-  }
-
-  protected override createRenderRoot(): HTMLElement {
-    return this;
   }
 
   protected override render(): TemplateResult {

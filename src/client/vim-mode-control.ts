@@ -1,10 +1,12 @@
-import { html, LitElement, type TemplateResult } from "lit";
+import { html, type TemplateResult } from "lit";
+
+import { LightDomElement } from "./light-dom-controller";
 import { createVimSession, handleVimKey, visualVimSession, type VimSession } from "./vim-keybindings";
 
 const storageKey = "kirjolab:vim-keybindings";
 type VimCommand = ReturnType<typeof handleVimKey>;
 
-export class VimModeControl extends LitElement {
+export class VimModeControl extends LightDomElement {
   static override properties = { enabled: { state: true } };
 
   declare private enabled: boolean;
@@ -39,18 +41,9 @@ export class VimModeControl extends LitElement {
     this.renderMode();
   }
 
-  override connectedCallback(): void {
-    if (!this.hasUpdated) this.replaceChildren();
-    super.connectedCallback();
-  }
-
   override disconnectedCallback(): void {
     this.unbindEditor();
     super.disconnectedCallback();
-  }
-
-  protected override createRenderRoot(): HTMLElement {
-    return this;
   }
 
   protected override render(): TemplateResult {

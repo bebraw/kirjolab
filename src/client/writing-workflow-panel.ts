@@ -1,4 +1,6 @@
-import { html, LitElement, type TemplateResult } from "lit";
+import { html, type TemplateResult } from "lit";
+
+import { LightDomElement } from "./light-dom-controller";
 import type { ProjectFile } from "../domain/project-files";
 import { parseResearchQuestions, researchQuestionsPath, researchQuestionsTemplate } from "../domain/research-questions";
 import {
@@ -67,7 +69,7 @@ export function reviewerResponseWorkflowData(file: ProjectFile | undefined): Wri
   };
 }
 
-export class WritingWorkflowPanel extends LitElement {
+export class WritingWorkflowPanel extends LightDomElement {
   static override properties = {
     data: { state: true },
   };
@@ -86,15 +88,6 @@ export class WritingWorkflowPanel extends LitElement {
 
   bindProject(document: WritingWorkflowDocument, notice: WritingWorkflowBinding["notice"]): void {
     this.binding = { document, notice };
-  }
-
-  override connectedCallback(): void {
-    if (!this.hasUpdated) this.replaceChildren();
-    super.connectedCallback();
-  }
-
-  protected override createRenderRoot(): HTMLElement {
-    return this;
   }
 
   protected override render(): TemplateResult {

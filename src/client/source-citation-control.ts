@@ -1,4 +1,6 @@
-import { html, LitElement, type TemplateResult } from "lit";
+import { html, type TemplateResult } from "lit";
+
+import { LightDomElement } from "./light-dom-controller";
 import { citationContextAtPosition, createCitationInsertion, type CitationContext, type CitationInsertion } from "./citations";
 
 export interface SourceCitationNavigation {
@@ -9,7 +11,7 @@ export interface SourceCitationEditor {
   completeCitationInsertion(insertion: CitationInsertion | null, message: string): void;
 }
 
-export class SourceCitationControl extends LitElement {
+export class SourceCitationControl extends LightDomElement {
   #context: CitationContext | null = null;
   #editor: SourceCitationEditor | null = null;
   #navigation: SourceCitationNavigation | null = null;
@@ -47,15 +49,6 @@ export class SourceCitationControl extends LitElement {
   protected openCitation(): void {
     if (!this.#context) return;
     this.#navigation?.openCitation(this.#context);
-  }
-
-  override connectedCallback(): void {
-    if (!this.hasUpdated) this.replaceChildren();
-    super.connectedCallback();
-  }
-
-  protected override createRenderRoot(): HTMLElement {
-    return this;
   }
 
   protected override render(): TemplateResult {

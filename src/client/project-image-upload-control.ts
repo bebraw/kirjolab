@@ -1,4 +1,6 @@
-import { html, LitElement, type TemplateResult } from "lit";
+import { html, type TemplateResult } from "lit";
+
+import { LightDomElement } from "./light-dom-controller";
 import { isWorkspaceSnapshot, type WorkspaceSnapshot } from "../domain/workspace";
 import { errorMessage, expectOk } from "./http";
 
@@ -9,7 +11,7 @@ export interface ProjectImagesUploaded {
   readonly snapshot: WorkspaceSnapshot;
 }
 
-export class ProjectImageUploadControl extends LitElement {
+export class ProjectImageUploadControl extends LightDomElement {
   static override properties = {
     busy: { state: true },
     status: { state: true },
@@ -31,15 +33,6 @@ export class ProjectImageUploadControl extends LitElement {
 
   choose(): void {
     this.input.click();
-  }
-
-  override connectedCallback(): void {
-    if (!this.hasUpdated) this.replaceChildren();
-    super.connectedCallback();
-  }
-
-  protected override createRenderRoot(): HTMLElement {
-    return this;
   }
 
   protected override render(): TemplateResult {

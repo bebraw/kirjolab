@@ -14146,6 +14146,23 @@ static artifacts remain unchanged.
 Full native CI passes all 1,775 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Reduction: Standalone Workspace Controls
+
+Project-image upload, publication lists, research-diary summaries, source
+citations, appearance and Vim preferences, workspace switching, and writing
+workflow panels now reuse `LightDomElement`. Theme initialization and Vim
+editor teardown remain local lifecycle responsibilities.
+
+This checkpoint removes 52 production lines while keeping `src/client/app.ts`
+at 73 lines. The affected guardrail passes 104 related cases across 14 suites
+alongside strict types. The browser application changes from 849,513 B raw /
+231,280 B gzip to 848,623 B raw / 231,139 B gzip (-890 B raw / -141 B gzip);
+direct and unique production package counts remain 18 and 150, and the other
+static artifacts remain unchanged.
+
+Full native CI passes all 1,775 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,

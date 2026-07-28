@@ -1,4 +1,6 @@
-import { html, LitElement, nothing, type TemplateResult } from "lit";
+import { html, nothing, type TemplateResult } from "lit";
+
+import { LightDomElement } from "./light-dom-controller";
 import { bibTeXDisplayText } from "../domain/bibliography";
 import type { PublicationResource, WorkspaceSnapshot } from "../domain/workspace";
 import { errorMessage, expectOk } from "./http";
@@ -9,7 +11,7 @@ export interface PublicationListBinding {
   readonly open: (publication: PublicationResource) => void;
 }
 
-export class PublicationListPanel extends LitElement {
+export class PublicationListPanel extends LightDomElement {
   static override properties = {
     data: { state: true },
     enrichingPublicationId: { state: true },
@@ -39,15 +41,6 @@ export class PublicationListPanel extends LitElement {
 
   setWorkspace({ projectReferences, publications }: Pick<WorkspaceSnapshot, "projectReferences" | "publications">): void {
     this.data = { projectReferences, publications };
-  }
-
-  override connectedCallback(): void {
-    if (!this.hasUpdated) this.replaceChildren();
-    super.connectedCallback();
-  }
-
-  protected override createRenderRoot(): HTMLElement {
-    return this;
   }
 
   protected override render(): TemplateResult {
