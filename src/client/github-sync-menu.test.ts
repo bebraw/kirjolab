@@ -64,7 +64,7 @@ describe("GitHub sync menu", () => {
     const refreshProject = vi.fn(async () => undefined);
     vi.stubGlobal("navigator", { onLine: true });
     vi.spyOn(globalThis, "fetch").mockResolvedValue(Response.json(null));
-    menu.bindWorkspace("/api/workspaces/project", { settings, refreshProject });
+    menu.bindWorkspace("/api/workspaces/project", false, { request: refreshProject }, { workspaceSettingsPanel: settings });
 
     menu.dispatchEvent(new CustomEvent<GitHubSyncStateDetail>(gitHubSyncStateEvent, { detail: { connected: true, message: "Synced" } }));
     menu.dispatchEvent(new CustomEvent(gitHubSyncPullEvent));
@@ -89,10 +89,7 @@ describe("GitHub sync menu", () => {
     const settings = new TestWorkspaceSettings();
     vi.stubGlobal("navigator", { onLine: true });
     const refresh = vi.spyOn(menu, "refresh").mockResolvedValue();
-    menu.bindWorkspace("/api/workspaces/project", {
-      settings,
-      refreshProject: async () => undefined,
-    });
+    menu.bindWorkspace("/api/workspaces/project", false, { request: async () => undefined }, { workspaceSettingsPanel: settings });
 
     settings.activePreview = true;
     await menu.refreshWorkspace();
@@ -114,11 +111,7 @@ describe("GitHub sync menu", () => {
     vi.stubGlobal("window", browserWindow);
     vi.stubGlobal("document", browserDocument);
     const refreshWorkspace = vi.spyOn(menu, "refreshWorkspace").mockResolvedValue(undefined);
-    menu.bindWorkspace("/api/workspaces/project", {
-      ambientRefresh: true,
-      settings,
-      refreshProject: async () => undefined,
-    });
+    menu.bindWorkspace("/api/workspaces/project", true, { request: async () => undefined }, { workspaceSettingsPanel: settings });
 
     browserWindow.dispatchEvent(new Event("focus"));
     browserWindow.dispatchEvent(new Event("online"));

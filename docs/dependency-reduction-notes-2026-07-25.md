@@ -13178,6 +13178,26 @@ Markdown, lazy PDF.js, and direct and unique production package counts remain
 unchanged at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip,
 481,994 B raw / 146,135 B gzip, 18, and 150.
 
+## Continued Lit Ownership: GitHub Sync Owners
+
+`GitHubSyncMenu` now binds the canonical workspace-settings owner and coalesced
+project-refresh service directly. Settings and preview entry, active-review
+refresh guards, and post-Pull project refresh no longer pass through a parallel
+application callback bag; ambient workspace refresh remains explicit mode
+configuration.
+
+This checkpoint reduces `src/client/app.ts` from 191 to 187 lines (-4) and
+grows the GitHub sync menu from 260 to 261 lines (+1), removing three runtime
+lines overall. Focused coverage passes all six sync-menu cases; affected
+coverage passes eight related runtime cases and the affected test file alongside
+strict types.
+
+The browser application artifact changes from 858,701 B raw / 231,665 B gzip
+to 858,565 B raw / 231,646 B gzip (-136 B raw / -19 B gzip). Styles, lazy
+Markdown, lazy PDF.js, and direct and unique production package counts remain
+unchanged at 135,411 B raw / 23,373 B gzip, 204,779 B raw / 62,386 B gzip,
+481,994 B raw / 146,135 B gzip, 18, and 150.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,

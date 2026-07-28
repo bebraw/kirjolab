@@ -122,11 +122,7 @@ class WorkspaceApp {
     this.#elements.workspaceSettingsPanel.bindWorkspace(this.#elements.workspaceSettings, workspaceId, this.#elements);
     this.#elements.newWorkspaceStartingPoints.bindTrigger(this.#elements.newWorkspace);
     this.#elements.newWorkspaceStartingPoints.bind(this.#elements);
-    this.#elements.gitHubSyncMenu.bindWorkspace(apiBase, {
-      ambientRefresh: appMode === "workspace",
-      settings: this.#elements.workspaceSettingsPanel,
-      refreshProject: () => this.#resourceRefresh.request(),
-    });
+    this.#elements.gitHubSyncMenu.bindWorkspace(apiBase, appMode === "workspace", this.#resourceRefresh, this.#elements);
     this.#elements.gitHubImportPanel.openFromBrowserResult();
     this.#elements.saveTemplateDialog.configure(apiBase);
     this.#elements.saveTemplateDialog.bindTemplates(this.#elements.newWorkspaceStartingPoints, this.#elements.toast);

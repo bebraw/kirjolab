@@ -207,10 +207,13 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Let the GitHub sync-menu Lit component bind the workspace-settings review,
   own online and active-review refresh policy, route Check/Pull/Push/Settings
   actions, and refresh both canonical project data after Pull and menu status
-  after every completed mutation. Let it subscribe to online, focus, and visible-
-  document browser transitions when ambient workspace refresh is enabled and
-  remove those subscriptions on disconnect. Keep canonical project fetching and
-  collaboration reconnect in their existing authorities.
+  after every completed mutation. Bind the canonical workspace-settings owner
+  and coalesced project-refresh service directly instead of projecting a
+  callback bag through the application. Let the menu subscribe to online,
+  focus, and visible-document browser transitions when ambient workspace
+  refresh is enabled and remove those subscriptions on disconnect. Keep
+  canonical project fetching and collaboration reconnect in their existing
+  authorities.
 - Route same-origin JSON writes and non-success response handling through the
   shared client HTTP adapter. Validate the bounded `{ error: string }` response
   contract with Valibot there instead of repeating parsing and fallback policy
