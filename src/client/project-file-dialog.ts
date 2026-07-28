@@ -25,6 +25,7 @@ export interface ProjectFileMutationCallbacks {
   readonly presentFile: (file: ProjectFile, snapshot: WorkspaceSnapshot, reset: boolean) => void;
   readonly presentNotice: (message: string, options?: DeferredDeletionNoticeOptions) => void;
   readonly previewChanged: () => void;
+  readonly projectAccepted: () => Promise<void>;
 }
 
 interface ProjectImageUploadSource extends EventTarget {
@@ -116,6 +117,7 @@ export class ProjectFileDialog extends LitElement {
     presentFile: () => undefined,
     presentNotice: () => undefined,
     previewChanged: () => undefined,
+    projectAccepted: () => Promise.resolve(),
   };
   private readonly deletions = new DeferredDeletionController((message, options) => {
     this.mutationCallbacks.presentNotice(message, options);
@@ -241,6 +243,14 @@ export class ProjectFileDialog extends LitElement {
 
   get hiddenFiles(): ReadonlySet<string> {
     return this.hiddenFileIds;
+  }
+
+  async acceptProjectMutation(result: Response | WorkspaceSnapshot): Promise<void> {
+    if (result instanceof Response) await expectOk(result);
+    const value: unknown = result instanceof Response ? await result.json() : result;
+    if (!isWorkspaceSnapshot(value)) throw new Error("Project mutation returned an invalid snapshot");
+    this.presentProject(value, this.assetBase, this.workspaceMode);
+    await this.mutationCallbacks.projectAccepted();
   }
 
   private ensureActiveFile(snapshot: WorkspaceSnapshot): ProjectFile | null {

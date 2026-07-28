@@ -479,9 +479,11 @@ The adopted components own bounded presentation:
   project-range activation across file or entry fallback, Write-mode entry, and
   normalized editor selection. File activation retains the latest projection
   inputs, reprojects the canonical snapshot with an explicit editor-reset
-  signal, and then emits one argument-free cross-feature effect. The coordinator retains workflow-template
-  selection, canonical snapshot loading and validation, active Y.Text/editor
-  authority, Yjs editing, cross-feature rendering, and the notification outlet.
+  signal, and then emits one argument-free cross-feature effect. The owner also
+  accepts response-or-snapshot project mutation results, validates and installs
+  the canonical workspace, and awaits one argument-free post-accept effect. The
+  coordinator retains workflow-template selection, initial snapshot loading,
+  active Y.Text/editor authority, Yjs editing, cross-feature rendering, and the notification outlet.
   The project-file owner retains and exposes the single accepted browser
   snapshot instead of the coordinator storing a duplicate.
   The dialog owns active-file identity, entry fallback, and hidden-file
@@ -544,8 +546,8 @@ The adopted components own bounded presentation:
   route owner once, then owns Library refresh, linked-PDF refresh,
   authorization reconciliation, project and context presentation, settlement,
   and replace-route sequencing. The application coordinator supplies PDF
-  navigation, web-capture/comparison, canonical project snapshot application,
-  and notice presentation through typed boundaries.
+  navigation, web-capture/comparison, delegation to the project-file snapshot
+  owner, and notice presentation through typed boundaries.
 - The model provider settings panel owns connection, endpoint, model, and
   reasoning-effort values, browser-local persistence, Valibot-backed saved-value
   restoration with bounded per-field fallbacks, dynamic model choices,

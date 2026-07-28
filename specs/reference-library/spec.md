@@ -405,9 +405,9 @@ memory and makes citation aliases compete with stable source identity.
   mutations use one Library-workspace apply-project-notice lifecycle. A bound
   project refresh loads the Library and linked PDFs, reconciles context
   authorization, presents project and context consumers after settlement, and
-  replaces the canonical route. The coordinator retains canonical project
-  snapshot application, viewer effects, context transitions, and notification
-  presentation.
+  replaces the canonical route. Library mutations delegate canonical project
+  snapshot acceptance to the project-file owner; the coordinator retains viewer
+  effects, context transitions, and notification presentation.
 - A project publication context resolves every authorized paper representation
   for the stable reference identity. The owner sees attached private-library
   PDFs without converting them into project resources; active artifact shares

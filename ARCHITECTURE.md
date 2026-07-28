@@ -126,8 +126,8 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   Library entry likewise sequences context activation, optional standalone
   route entry, and canonical refresh through the same typed boundary.
   Library-originated project mutations pass through one owned apply-project-
-  notice lifecycle; keep canonical project snapshot application behind the
-  coordinator callback. It also resolves duplicate-PDF upload reveals through
+  notice lifecycle; delegate canonical project snapshot acceptance to the
+  project-file owner. It also resolves duplicate-PDF upload reveals through
   archive visibility, canonical refresh, owned filter/list focus, and missing-
   source feedback. Keep cross-feature PDF and context navigation, project
   snapshot application, refresh timing, and notification presentation in their
@@ -326,14 +326,15 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   with snapshot or live collaborative content for Preview, manuscript-map, and
   collaborator-selection consumers through a coordinator-supplied content
   resolver and readiness predicate bound together once. Consumers request the
-  derived collection without repeating collaboration state. Apply the validated
-  workspace snapshot through that mutation binding or navigate to the created
-  workflow file. Keep workflow-template selection, collaborative caret capture
-  and continuation construction, Yjs insertion and document authority,
-  canonical snapshot loading and response validation, cross-feature rendering,
-  and the global toast outlet in the workspace coordinator. The project-file
-  owner is the single browser projection and read source for the accepted
-  snapshot; the coordinator must not retain a duplicate copy.
+  derived collection without repeating collaboration state. Let the owner
+  accept either a response or snapshot from generic project mutations, validate
+  it through the canonical workspace contract, install its projection, and
+  await one argument-free post-accept effect. Keep workflow-template selection,
+  collaborative caret capture and continuation construction, Yjs insertion and
+  document authority, initial snapshot loading, cross-feature rendering, and
+  the global toast outlet in the workspace coordinator. The project-file owner
+  is the single browser projection and read source for the accepted snapshot;
+  the coordinator must not retain a duplicate copy.
 - Let the editor-status Lit owner bind the active Yjs text to the source editor,
   derive that text from the selected project-file identity and entry-file
   contract,

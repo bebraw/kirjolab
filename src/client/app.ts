@@ -9,14 +9,12 @@ import { researchDiaryPath, researchDiaryTemplate } from "../domain/writing-work
 import "./application-version-control";
 import "./source-citation-control";
 import "./workspace-surface-switcher";
-import { expectOk } from "./http";
 import "./project-starting-point-browser";
 import { WorkspaceLayoutManager } from "./workspace-layout-manager";
 import "./workspace-layout-control";
 import { type WritingWorkflowBinding } from "./writing-workflow-panel";
 import "./research-diary-summary";
-import { type WorkspaceSnapshot } from "../domain/workspace";
-import { loadWorkspaceSnapshot, parseWorkspaceSnapshot, WorkspaceAccessError } from "./workspace-snapshot-client";
+import { loadWorkspaceSnapshot, WorkspaceAccessError } from "./workspace-snapshot-client";
 import { CoalescedRefresh } from "./collaboration";
 import { CollaborationSession } from "./collaboration-session";
 import { CollaborationSocket } from "./collaboration-socket";
@@ -248,7 +246,7 @@ class WorkspaceApp {
         if (this.#elements.contextResourcePresenter.activeKey !== RESEARCH_LIBRARY_KEY)
           this.#elements.contextResourcePresenter.navigateContext(RESEARCH_LIBRARY_KEY);
       },
-      applyProjectMutation: (snapshot) => this.#acceptWorkspaceMutation(snapshot),
+      applyProjectMutation: (snapshot) => this.#elements.projectFileDialog.acceptProjectMutation(snapshot),
       compareSnapshots: (priorId, currentId) => void this.#elements.webSnapshotComparison.compare(priorId, currentId),
       openPdf: (artifact, page, updateHistory) =>
         void this.#elements.contextResourcePresenter.openLibraryPdf(artifact, page, updateHistory),
@@ -298,6 +296,11 @@ class WorkspaceApp {
       presentFile: (file, snapshot, reset) => this.#elements.editorStatus.setProjectFile(file, snapshot.entryFileId, reset),
       presentNotice: (message, options) => this.#elements.toast.show(message, options),
       previewChanged: () => void this.#elements.workspacePreview.renderBoundProject(),
+      projectAccepted: async () => {
+        await this.#elements.contextResourcePresenter.refreshBoundReferencePdfs(false);
+        this.#elements.contextResourcePresenter.presentBoundWorkspace();
+        void this.#elements.workspacePreview.renderBoundProject();
+      },
     });
     this.#elements.projectFileDialog.bindWorkflow({
       activateAuthoring: () => this.#elements.authoringModeTabs.navigate("write"),
@@ -329,7 +332,7 @@ class WorkspaceApp {
       presentNotice: (message) => this.#elements.toast.show(message),
     });
     this.#elements.sourceCompletion.bindProjectAcceptance(apiBase, {
-      acceptMutation: (response) => this.#acceptWorkspaceMutation(response),
+      acceptMutation: (response) => this.#elements.projectFileDialog.acceptProjectMutation(response),
       preserveRange: (start, end) => this.#elements.editorStatus.preserveRange(start, end),
       presentNotice: (message) => this.#elements.toast.show(message),
       replaceRange: (start, end, replacement) => this.#elements.editorInsertMenu.replaceRange(start, end, replacement),
@@ -493,16 +496,6 @@ class WorkspaceApp {
     this.#elements.contextResourcePresenter.presentBoundWorkspace();
     this.#offline.schedule();
     await this.#elements.contextResourcePresenter.refreshBoundReferencePdfs();
-  }
-
-  async #acceptWorkspaceMutation(result: Response | WorkspaceSnapshot): Promise<void> {
-    if (result instanceof Response) await expectOk(result);
-    const value: unknown = result instanceof Response ? await result.json() : result;
-    const snapshot = parseWorkspaceSnapshot(value, "Project mutation returned an invalid snapshot");
-    this.#elements.projectFileDialog.presentProject(snapshot, `${apiBase}/assets`, appMode === "workspace");
-    await this.#elements.contextResourcePresenter.refreshBoundReferencePdfs(false);
-    this.#elements.contextResourcePresenter.presentBoundWorkspace();
-    void this.#elements.workspacePreview.renderBoundProject();
   }
 
   async #restoreOfflineWorkspace(): Promise<boolean> {

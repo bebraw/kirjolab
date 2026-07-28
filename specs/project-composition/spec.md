@@ -233,6 +233,10 @@ collaborative, and unambiguous about what preview and export mean.
   Image-upload completion and project-tree deletion outcomes use its same typed
   snapshot, preview-change, and notice callbacks instead of binding coordinator
   effects independently.
+  Generic project mutation results likewise pass to this owner as a response or
+  snapshot. It validates the canonical workspace contract, installs the
+  accepted projection, and awaits one argument-free post-accept effect for
+  Context and Preview reconciliation.
   It also owns encoded file deletion transport and shares the same response
   validation across create, rename, and delete operations, plus the supporting-
   file hidden projection, delayed deletion, Undo, and failed-commit restoration.

@@ -79,6 +79,7 @@ function mutationCallbacks(): ProjectFileMutationCallbacks {
     presentFile: vi.fn(),
     presentNotice: vi.fn(),
     previewChanged: vi.fn(),
+    projectAccepted: vi.fn().mockResolvedValue(undefined),
   };
 }
 
@@ -308,6 +309,23 @@ describe("project file dialog", () => {
     expect(panel.activeFileId).toBe(snapshot.entryFileId);
     expect(activateAuthoring).toHaveBeenCalledOnce();
     expect(selectRange).toHaveBeenCalledWith(12, 12);
+  });
+
+  it("accepts validated project mutations through the canonical projection", async () => {
+    const panel = new TestProjectFileDialog();
+    const callbacks = mutationCallbacks();
+    const updated = { ...snapshot, title: "Updated" };
+    panel.configureApi("/api/workspaces/workspace", callbacks);
+    panel.presentProject(snapshot, "/assets", true);
+
+    await panel.acceptProjectMutation(Response.json(updated));
+
+    expect(panel.project).toEqual(updated);
+    expect(callbacks.presentFile).toHaveBeenLastCalledWith(updated.files[0], updated, false);
+    expect(callbacks.projectAccepted).toHaveBeenCalledOnce();
+    await expect(panel.acceptProjectMutation(Response.json({ id: "incomplete" }))).rejects.toThrow(
+      "Project mutation returned an invalid snapshot",
+    );
   });
 
   it("commits the validated workspace and emits the saved file identity", async () => {

@@ -11868,6 +11868,31 @@ and 481,994 B / 146,135 B.
 Full native CI passes all 1,765 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Project Mutation Acceptance
+
+`ProjectFileDialog` now accepts generic project mutation responses or snapshots,
+validates the canonical workspace contract, installs the accepted projection,
+and awaits one argument-free post-accept effect for Context and Preview
+reconciliation. Library and source-completion mutations delegate directly to
+that owner. `WorkspaceApp` no longer parses these responses or retains its
+project-mutation method and validation imports.
+
+This checkpoint reduces `src/client/app.ts` from 530 to 523 lines (-7) and grows
+the project-file owner from 511 to 521 lines (+10). The three-line combined
+increase centralizes canonical response acceptance beside the sole browser
+snapshot projection. Focused coverage passes response validation, projection,
+post-accept effects, Library and completion delegation, affected integrations,
+and strict types. Direct and unique production package counts remain 18 and
+150; Lit was already pinned.
+
+The browser application artifact increases from 861,143 B raw / 231,718 B gzip
+to 861,356 B / 231,759 B (+213 B raw / +41 B gzip). Styles and lazy Markdown and
+PDF.js artifacts remain unchanged at 135,411 B / 23,373 B, 204,779 B / 62,386 B,
+and 481,994 B / 146,135 B.
+
+Full native CI passes all 1,766 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: One-Shot Browser Entry Intents
 
 `ProjectStartingPointBrowser` now consumes the `create=1` editor intent, removes
