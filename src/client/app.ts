@@ -65,18 +65,6 @@ class WorkspaceApp {
   #activeFileText = this.#source;
   readonly #layout: WorkspaceLayoutManager;
 
-  get #librarySnapshot() {
-    return this.#elements.referenceLibraryWorkspace.snapshot;
-  }
-
-  get #activeFileId(): string | null {
-    return this.#elements.projectFileDialog.activeFileId;
-  }
-
-  get #revision(): number {
-    return this.#elements.projectHistoryTrigger.value;
-  }
-
   constructor() {
     this.#collaborationSocket = new CollaborationSocket(this.#collaboration, {
       beforeRemoteUpdate: () => this.#elements.editorStatus.preserveSelections(),
@@ -94,15 +82,17 @@ class WorkspaceApp {
         this.#elements.editorStatus.setSave(this.#collaboration.pendingCount === 0 ? "Saved" : "Saving…");
       },
       revisionObserved: (revision) => this.#elements.projectHistoryTrigger.observeRevision(revision),
-      selection: () =>
-        this.#activeFileId
+      selection: () => {
+        const fileId = this.#elements.projectFileDialog.activeFileId;
+        return fileId
           ? {
-              fileId: this.#activeFileId,
+              fileId,
               start: this.#elements.source.selectionStart,
               end: this.#elements.source.selectionEnd,
-              revision: this.#revision,
+              revision: this.#elements.projectHistoryTrigger.value,
             }
-          : null,
+          : null;
+      },
       selectionCleared: (collaboratorId) => this.#elements.collaboratorSelections.removeSelection(collaboratorId),
       selectionReceived: (selection) => this.#elements.collaboratorSelections.receive(selection),
       socketUrl: `${location.protocol === "https:" ? "wss:" : "ws:"}//${location.host}${apiBase}/socket`,
@@ -174,9 +164,9 @@ class WorkspaceApp {
 
   #bindUi(): void {
     this.#elements.assistantGenerationPresenter.bindAuthoring({
-      fileId: () => this.#activeFileId,
+      fileId: () => this.#elements.projectFileDialog.activeFileId,
       manuscript: () => this.#activeFileText.toString(),
-      sourceRevision: () => this.#revision,
+      sourceRevision: () => this.#elements.projectHistoryTrigger.value,
       stableDocument: () => this.#collaboration.stable,
       target: () => this.#elements.editorStatus.authoringTarget,
     });
@@ -402,11 +392,11 @@ class WorkspaceApp {
       restorePaneWidth: () => this.#layout.restorePaneWidth(),
       sources: () => ({
         candidateDecision: this.#elements.assistantGenerationPresenter.candidateDecision(),
-        library: this.#librarySnapshot,
+        library: this.#elements.referenceLibraryWorkspace.snapshot,
         projectApiBase: appMode === "workspace" ? apiBase : null,
         referencePdfs: this.#elements.contextResourcePresenter.referencePdfs,
         snapshot: this.#elements.projectFileDialog.project,
-        sourceRevision: this.#revision,
+        sourceRevision: this.#elements.projectHistoryTrigger.value,
         standaloneLibrary: appMode === "library",
         stableDocument: this.#collaboration.stable,
       }),
@@ -415,12 +405,12 @@ class WorkspaceApp {
     this.#elements.contextResourcePresenter.bindRoutes({
       authoring: () => ({
         passage: this.#elements.editorStatus.selectedPassage(),
-        sourceRevision: this.#revision,
+        sourceRevision: this.#elements.projectHistoryTrigger.value,
         stable: this.#collaboration.stable,
       }),
       document: () => this.#document,
       insertCitation: (citationAlias, locator) => this.#elements.sourceCitationControl.insertCitation(citationAlias, locator),
-      library: () => this.#librarySnapshot,
+      library: () => this.#elements.referenceLibraryWorkspace.snapshot,
       presentNotice: (message) => this.#elements.toast.show(message),
       project: () => this.#elements.projectFileDialog.project,
       referencePdfs: () => this.#elements.contextResourcePresenter.referencePdfs,
@@ -437,7 +427,7 @@ class WorkspaceApp {
     );
     this.#elements.contextResourcePresenter.bindClaimList(apiBase);
     this.#elements.workspaceSurfaceSwitcher.bindWorkspaceRoute({
-      activeFileId: () => this.#activeFileId,
+      activeFileId: () => this.#elements.projectFileDialog.activeFileId,
       activeTab: () => this.#elements.contextResourcePresenter.activeContextTab,
       contextKey: () => this.#elements.contextResourcePresenter.activeKey,
       enabled: appMode === "workspace",
@@ -477,7 +467,7 @@ class WorkspaceApp {
       presentNotice: (message) => this.#elements.toast.show(message),
       refreshResources: () => this.#resourceRefresh.request(),
       tableState: () => ({
-        revision: this.#revision,
+        revision: this.#elements.projectHistoryTrigger.value,
         source: this.#activeFileText.toString(),
         stableDocument: this.#collaboration.stable,
       }),

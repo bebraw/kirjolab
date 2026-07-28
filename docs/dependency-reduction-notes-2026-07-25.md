@@ -11801,6 +11801,26 @@ and 481,994 B / 146,135 B.
 Full native CI passes all 1,764 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Coordinator Simplification: Direct Owner Reads
+
+`WorkspaceApp` now reads active-file identity, project revision, and Library
+snapshot directly from their Lit owners. Three private alias getters and their
+indirection are removed; collaboration selection captures the active file once
+before constructing its payload.
+
+This checkpoint reduces `src/client/app.ts` from 549 to 539 lines (-10) with no
+growth elsewhere. Affected coverage passes all 1,764 unit tests after the
+sandbox-blocked loopback test was rerun with local-loopback permission. Direct
+and unique production package counts remain 18 and 150; Lit was already pinned.
+
+The browser application artifact increases from 860,790 B raw / 231,627 B gzip
+to 860,941 B / 231,618 B (+151 B raw / -9 B gzip). Styles and lazy Markdown and
+PDF.js artifacts remain unchanged at 135,411 B / 23,373 B, 204,779 B / 62,386 B,
+and 481,994 B / 146,135 B.
+
+Full native CI passes all 1,764 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: One-Shot Browser Entry Intents
 
 `ProjectStartingPointBrowser` now consumes the `create=1` editor intent, removes
