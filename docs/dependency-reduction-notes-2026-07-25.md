@@ -11893,6 +11893,32 @@ and 481,994 B / 146,135 B.
 Full native CI passes all 1,766 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Canonical Project Refresh
+
+`ProjectFileDialog` now binds snapshot transport, source, bibliography,
+revision, Preview, Context, and offline capabilities once and owns the ordered
+canonical refresh projection. It derives bootstrap state from the absence of
+its retained snapshot, so an offline-restored snapshot naturally makes the next
+network result a normal refresh. `WorkspaceApp` no longer stores a bootstrap
+flag or implements the refresh workflow.
+
+This checkpoint reduces `src/client/app.ts` from 523 to 515 lines (-8) and grows
+the project-file owner from 521 to 560 lines (+39). The 31-line combined
+increase makes bootstrap derivable and moves seven cross-feature sequencing
+steps behind one tested owner operation. Focused coverage passes initial and
+subsequent refresh projection, snapshot installation, Context presentation,
+offline scheduling, linked-PDF refresh, affected integrations, and strict
+types. Direct and unique production package counts remain 18 and 150; Lit was
+already pinned.
+
+The browser application artifact increases from 861,356 B raw / 231,759 B gzip
+to 861,694 B / 231,912 B (+338 B raw / +153 B gzip). Styles and lazy Markdown
+and PDF.js artifacts remain unchanged at 135,411 B / 23,373 B, 204,779 B /
+62,386 B, and 481,994 B / 146,135 B.
+
+Full native CI passes all 1,767 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: One-Shot Browser Entry Intents
 
 `ProjectStartingPointBrowser` now consumes the `create=1` editor intent, removes

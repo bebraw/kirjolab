@@ -328,6 +328,45 @@ describe("project file dialog", () => {
     );
   });
 
+  it("owns initial and subsequent project refresh projection", async () => {
+    const panel = new TestProjectFileDialog();
+    const callbacks = mutationCallbacks();
+    const refreshed = { ...snapshot, revision: 2 };
+    const bibliography = { value: "" };
+    const context = { presentBoundWorkspace: vi.fn(), refreshBoundReferencePdfs: vi.fn().mockResolvedValue(undefined) };
+    const history = { setRevision: vi.fn() };
+    const load = vi.fn().mockResolvedValueOnce(snapshot).mockResolvedValueOnce(refreshed);
+    const offline = { schedule: vi.fn() };
+    const preview = { renderBoundProject: vi.fn() };
+    const source = { value: "" };
+    panel.configureApi("/api/workspaces/workspace", callbacks);
+    panel.bindProjectRefresh({
+      assetBase: "/assets",
+      bibliography,
+      context,
+      history,
+      load,
+      offline,
+      preview,
+      source,
+      workspace: true,
+    });
+
+    await panel.refreshProject();
+    await panel.refreshProject();
+
+    expect(history.setRevision).toHaveBeenCalledWith(snapshot.revision);
+    expect(source.value).toBe(snapshot.source);
+    expect(bibliography.value).toBe(snapshot.bibliography);
+    expect(preview.renderBoundProject).toHaveBeenNthCalledWith(1, snapshot.bibliography);
+    expect(preview.renderBoundProject).toHaveBeenNthCalledWith(2);
+    expect(callbacks.presentFile).toHaveBeenLastCalledWith(refreshed.files[0], refreshed, false);
+    expect(context.presentBoundWorkspace).toHaveBeenCalledTimes(2);
+    expect(context.refreshBoundReferencePdfs).toHaveBeenCalledTimes(2);
+    expect(offline.schedule).toHaveBeenCalledTimes(2);
+    expect(panel.project).toBe(refreshed);
+  });
+
   it("commits the validated workspace and emits the saved file identity", async () => {
     const panel = new TestProjectFileDialog();
     const callbacks = mutationCallbacks();

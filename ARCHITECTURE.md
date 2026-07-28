@@ -331,10 +331,16 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   it through the canonical workspace contract, install its projection, and
   await one argument-free post-accept effect. Keep workflow-template selection,
   collaborative caret capture and continuation construction, Yjs insertion and
-  document authority, initial snapshot loading, cross-feature rendering, and
-  the global toast outlet in the workspace coordinator. The project-file owner
-  is the single browser projection and read source for the accepted snapshot;
-  the coordinator must not retain a duplicate copy.
+  document authority, snapshot transport, and the global toast outlet in the
+  workspace coordinator. Bind that transport plus source, bibliography,
+  revision, Preview, Context, and offline capabilities once to the project-file
+  owner. It derives initial load from absence of its canonical snapshot, owns
+  bootstrap-versus-refresh presentation, installs the snapshot, presents
+  Context, schedules offline persistence, and refreshes linked PDFs in order.
+  An offline-restored projection therefore makes the next network load a normal
+  refresh without a separate bootstrap flag. The project-file owner is the
+  single browser projection and read source for the accepted snapshot; the
+  coordinator must not retain a duplicate copy.
 - Let the editor-status Lit owner bind the active Yjs text to the source editor,
   derive that text from the selected project-file identity and entry-file
   contract,

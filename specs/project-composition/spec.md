@@ -237,6 +237,13 @@ collaborative, and unambiguous about what preview and export mean.
   snapshot. It validates the canonical workspace contract, installs the
   accepted projection, and awaits one argument-free post-accept effect for
   Context and Preview reconciliation.
+  Canonical refresh binds snapshot transport, source, bibliography, revision,
+  Preview, Context, and offline capabilities once. The owner derives bootstrap
+  state from the absence of its retained snapshot, presents initial source and
+  bibliography or refreshes Preview as appropriate, installs the snapshot,
+  presents Context, schedules offline persistence, and refreshes linked PDFs in
+  order. Restoring an offline snapshot makes the next network result a normal
+  refresh without separate coordinator state.
   It also owns encoded file deletion transport and shares the same response
   validation across create, rename, and delete operations, plus the supporting-
   file hidden projection, delayed deletion, Undo, and failed-commit restoration.

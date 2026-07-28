@@ -482,8 +482,12 @@ The adopted components own bounded presentation:
   signal, and then emits one argument-free cross-feature effect. The owner also
   accepts response-or-snapshot project mutation results, validates and installs
   the canonical workspace, and awaits one argument-free post-accept effect. The
-  coordinator retains workflow-template selection, initial snapshot loading,
-  active Y.Text/editor authority, Yjs editing, cross-feature rendering, and the notification outlet.
+  owner also binds snapshot transport, source, bibliography, revision, Preview,
+  Context, and offline capabilities once; it derives initial load from absent
+  snapshot state and owns bootstrap-versus-refresh presentation, snapshot
+  installation, Context presentation, offline scheduling, and linked-PDF
+  refresh order. The coordinator retains workflow-template selection, active
+  Y.Text/editor authority, Yjs editing, transport construction, and the notification outlet.
   The project-file owner retains and exposes the single accepted browser
   snapshot instead of the coordinator storing a duplicate.
   The dialog owns active-file identity, entry fallback, and hidden-file

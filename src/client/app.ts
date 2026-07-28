@@ -38,7 +38,7 @@ class WorkspaceApp {
   readonly #document = new Y.Doc();
   readonly #source = this.#document.getText("source");
   readonly #bibliography = this.#document.getText("bibliography");
-  readonly #resourceRefresh = new CoalescedRefresh(async () => this.#refreshSnapshot());
+  readonly #resourceRefresh = new CoalescedRefresh(async () => this.#elements.projectFileDialog.refreshProject());
   readonly #collaboration = new CollaborationSession(this.#document, remoteOrigin);
   readonly #collaborationSocket: CollaborationSocket;
   readonly #offline = new OfflineWorkspaceSession({
@@ -59,7 +59,6 @@ class WorkspaceApp {
     store: createOfflineWorkspaceStore(typeof indexedDB === "undefined" ? undefined : indexedDB, identityEmail, workspaceId),
     workspaceId,
   });
-  #hasBootstrapSnapshot = false;
   readonly #layout: WorkspaceLayoutManager;
 
   constructor() {
@@ -253,7 +252,7 @@ class WorkspaceApp {
       presentNotice: (message) => this.#elements.toast.show(message),
       refreshMetadata: async () => {
         await this.#elements.referenceLibraryWorkspace.refreshBoundProject();
-        await this.#refreshSnapshot();
+        await this.#elements.projectFileDialog.refreshProject();
       },
     });
     this.#elements.referenceLibraryWorkspace.bindProject({
@@ -322,6 +321,17 @@ class WorkspaceApp {
       (file, entryFileId) => this.#document.getText(projectFileCollaborationTextName(file, entryFileId)).toString(),
       () => this.#collaboration.synced || this.#collaboration.offlineAvailable,
     );
+    this.#elements.projectFileDialog.bindProjectRefresh({
+      assetBase: `${apiBase}/assets`,
+      bibliography: this.#elements.bibliography,
+      context: this.#elements.contextResourcePresenter,
+      history: this.#elements.projectHistoryTrigger,
+      load: () => loadWorkspaceSnapshot(apiBase, this.#document, this.#collaboration.synced),
+      offline: this.#offline,
+      preview: this.#elements.workspacePreview,
+      source: this.#elements.source,
+      workspace: appMode === "workspace",
+    });
     this.#elements.workspacePreview.bindProject(apiBase, this.#document, () => this.#elements.projectFileDialog.project, this.#elements);
     this.#elements.editorInsertMenu.bind({
       applyInsertion: (insertion) => this.#elements.editorStatus.applyAuthoringInsertion(insertion),
@@ -481,28 +491,10 @@ class WorkspaceApp {
     this.#elements.assistantGenerationPresenter.bindControls();
   }
 
-  async #refreshSnapshot(): Promise<void> {
-    const snapshot = await loadWorkspaceSnapshot(apiBase, this.#document, this.#collaboration.synced);
-    if (!this.#hasBootstrapSnapshot) {
-      this.#hasBootstrapSnapshot = true;
-      this.#elements.projectHistoryTrigger.setRevision(snapshot.revision);
-      this.#elements.source.value = snapshot.source;
-      this.#elements.bibliography.value = snapshot.bibliography;
-      void this.#elements.workspacePreview.renderBoundProject(snapshot.bibliography);
-    } else {
-      void this.#elements.workspacePreview.renderBoundProject();
-    }
-    this.#elements.projectFileDialog.presentProject(snapshot, `${apiBase}/assets`, appMode === "workspace");
-    this.#elements.contextResourcePresenter.presentBoundWorkspace();
-    this.#offline.schedule();
-    await this.#elements.contextResourcePresenter.refreshBoundReferencePdfs();
-  }
-
   async #restoreOfflineWorkspace(): Promise<boolean> {
     const restored = await this.#offline.restore();
     if (!restored) return false;
     const pending = this.#collaboration.restoreOffline(restored.serverStateVector);
-    this.#hasBootstrapSnapshot = true;
     this.#collaboration.setOfflineAvailable(true);
     this.#elements.projectHistoryTrigger.setRevision(restored.snapshot.revision);
     this.#elements.workspaceCatalogPanel.presentOfflineWorkspace(restored.snapshot, restored.savedAt);

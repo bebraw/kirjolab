@@ -28,6 +28,21 @@ export interface ProjectFileMutationCallbacks {
   readonly projectAccepted: () => Promise<void>;
 }
 
+export interface ProjectRefreshBinding {
+  readonly assetBase: string;
+  readonly bibliography: { value: string };
+  readonly context: {
+    presentBoundWorkspace(): void;
+    refreshBoundReferencePdfs(): Promise<void>;
+  };
+  readonly history: { setRevision(revision: number): void };
+  readonly load: () => Promise<WorkspaceSnapshot>;
+  readonly offline: { schedule(): void };
+  readonly preview: { renderBoundProject(bibliography?: string): unknown };
+  readonly source: { value: string };
+  readonly workspace: boolean;
+}
+
 interface ProjectImageUploadSource extends EventTarget {
   readonly choose: () => void;
 }
@@ -131,6 +146,7 @@ export class ProjectFileDialog extends LitElement {
   private liveContent: ProjectFileContentResolver | null = null;
   private liveContentReady: () => boolean = () => false;
   private pendingInclude: ((path: string) => boolean) | null = null;
+  private refreshBinding: ProjectRefreshBinding | null = null;
   private routing: ProjectFileWorkflowRouting | null = null;
   private routingAbort: AbortController | null = null;
   private workspaceMode = false;
@@ -162,6 +178,10 @@ export class ProjectFileDialog extends LitElement {
   bindLiveContent(resolver: ProjectFileContentResolver, ready: () => boolean = () => true): void {
     this.liveContent = resolver;
     this.liveContentReady = ready;
+  }
+
+  bindProjectRefresh(binding: ProjectRefreshBinding): void {
+    this.refreshBinding = binding;
   }
 
   private configureProjectTree(): void {
@@ -251,6 +271,25 @@ export class ProjectFileDialog extends LitElement {
     if (!isWorkspaceSnapshot(value)) throw new Error("Project mutation returned an invalid snapshot");
     this.presentProject(value, this.assetBase, this.workspaceMode);
     await this.mutationCallbacks.projectAccepted();
+  }
+
+  async refreshProject(): Promise<void> {
+    const binding = this.refreshBinding;
+    if (!binding) return;
+    const initial = this.snapshot === null;
+    const snapshot = await binding.load();
+    if (initial) {
+      binding.history.setRevision(snapshot.revision);
+      binding.source.value = snapshot.source;
+      binding.bibliography.value = snapshot.bibliography;
+      void binding.preview.renderBoundProject(snapshot.bibliography);
+    } else {
+      void binding.preview.renderBoundProject();
+    }
+    this.presentProject(snapshot, binding.assetBase, binding.workspace);
+    binding.context.presentBoundWorkspace();
+    binding.offline.schedule();
+    await binding.context.refreshBoundReferencePdfs();
   }
 
   private ensureActiveFile(snapshot: WorkspaceSnapshot): ProjectFile | null {
