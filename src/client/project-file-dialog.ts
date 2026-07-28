@@ -84,6 +84,9 @@ export interface ProjectFilePresentationBinding {
   readonly workspaceSurfaceSwitcher: { readonly syncRoute: (mode: "replace") => void };
 }
 
+type ProjectFileApplicationOwners = ProjectFilePresentationBinding &
+  ProjectRefreshOwners & { readonly workspaceLayout: { setRailCollapsed(collapsed: boolean): void } };
+
 export function projectImageInsertion(activeFile: ProjectFile, asset: ProjectAsset): ProjectImageInsertion {
   const path = relativeProjectPath(activeFile.path, asset.path);
   const alt = (asset.path.split("/").at(-1) ?? "image")
@@ -154,6 +157,18 @@ export class ProjectFileDialog extends LightDomElement {
     this.mode = "create";
     this.saving = false;
     this.status = "";
+  }
+
+  bindApplication(
+    apiBase: string,
+    workspace: boolean,
+    owners: ProjectFileApplicationOwners,
+    session: CollaborationSession,
+    offline: ProjectRefreshBinding["offline"],
+  ): void {
+    this.configureApi(apiBase, owners, owners.workspaceLayout);
+    this.bindLiveContent(session);
+    this.bindProjectRefresh(workspace, owners, session, offline);
   }
 
   configureApi(

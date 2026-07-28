@@ -425,9 +425,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   it through the canonical workspace contract, install its projection, and
   await one argument-free post-accept effect. Keep workflow-template selection,
   collaborative caret capture and continuation construction, Yjs insertion and
-  the global toast outlet in the workspace coordinator. Bind source,
-  bibliography, revision, Preview, Context, and offline capabilities once to
-  the project-file owner. From its API base and bound collaboration session, it
+  the global toast outlet in the workspace coordinator. Use one atomic
+  application binding for the API base, workspace mode, presentation owners,
+  collaboration session, and offline lifecycle; source, bibliography,
+  revision, Preview, and Context capabilities arrive through those owners.
+  From its API base and bound collaboration session, it
   reads the session-owned Yjs document and readiness and owns validated snapshot transport without an
   application loader callback. It derives initial load from absence of its canonical snapshot, owns
   bootstrap-versus-refresh presentation, installs the snapshot, presents

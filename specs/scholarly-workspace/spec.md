@@ -417,14 +417,15 @@ collaboration.
   path together. Two instances of one bounded light-DOM action component own
   the rail and editor-menu commands plus entry-file delete availability and
   emit one typed action contract. The dialog's presentation binding supplies
-  the assistant, editor, Preview, route, notice, action, image-upload, source,
-  authoring-mode, rail-tab owners, and narrow rail-collapse capability
-  atomically with its project API and configures the owned image-upload
+  one application binding atomically supplies its project API, workspace mode,
+  collaboration session, offline lifecycle, assistant, editor, Preview, route,
+  notice, action, image-upload, source, authoring-mode, rail-tab owners, and
+  narrow rail-collapse capability. It configures the owned image-upload
   transport from that API; file activation
   refreshes assistant availability, resets and renders Preview, replaces the
   canonical route, and applies the active file to editor status directly. The
-  dialog binds the collaboration session once as the canonical owner of its
-  Yjs document and readiness state, then derives canonical project-file text
+  collaboration session remains the canonical owner of its Yjs document and
+  readiness state; the dialog derives canonical project-file text
   keys, live-content readiness, and validated snapshot transport from its API
   base and those owners. It also owns upload and include entry
   points, image insertion, range focus and reveal, saved notices, and quick-open

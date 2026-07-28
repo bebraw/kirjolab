@@ -586,8 +586,10 @@ The adopted components own bounded presentation:
   and renders Preview, and replaces the canonical route directly. The owner also
   accepts response-or-snapshot project mutation results, validates and installs
   the canonical workspace, and awaits one argument-free post-accept effect. The
-  owner also binds snapshot transport, source, bibliography, revision, Preview,
-  Context, offline, catalog, collaboration, and connection capabilities once;
+  owner also uses one atomic application entry for its API base, workspace
+  mode, presentation owners, collaboration session, and offline lifecycle,
+  thereby binding snapshot transport, source, bibliography, revision, Preview,
+  Context, catalog, and connection capabilities once;
   it derives initial load from absent snapshot state and owns bootstrap-versus-
   refresh presentation, snapshot installation, Context presentation, offline
   scheduling, and linked-PDF refresh order. Through the same binding it owns

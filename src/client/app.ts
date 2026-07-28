@@ -50,9 +50,7 @@ class WorkspaceApp {
     owners.workspaceSharingPanel.configure(apiBase, owners);
     owners.editorStatus.bindAuthoring(this.#session.document, owners.source, owners, this.#socket);
     owners.sourceCompletion.bindWorkspace(apiBase, owners);
-    owners.projectFileDialog.configureApi(apiBase, owners, owners.workspaceLayout);
-    owners.projectFileDialog.bindLiveContent(this.#session);
-    owners.projectFileDialog.bindProjectRefresh(appMode === "workspace", owners, this.#session, this.#offline);
+    owners.projectFileDialog.bindApplication(apiBase, appMode === "workspace", owners, this.#session, this.#offline);
     owners.workspacePreview.bindProject(apiBase, this.#session.document, owners);
     owners.projectHistoryTrigger.bindWorkspace(apiBase, owners, this.#offline);
     owners.workspaceLayout.bindWorkspace(workspaceId, owners);

@@ -14256,6 +14256,26 @@ the atomic application binding.
 Full native CI passes all 1,775 unit/coverage tests, 121 Workers-runtime tests,
 and 74 browser tests.
 
+## Continued Lit Ownership: Atomic Project-File Application Binding
+
+The project-file Lit owner now installs its API and workspace mode,
+presentation owners, collaboration session, and offline lifecycle through one
+production application entry. Its narrower configuration methods remain
+available for focused file, collaboration, and restoration tests, while
+`WorkspaceApp` can no longer omit one production stage.
+
+This checkpoint trades thirteen net production lines for the atomic project-
+file boundary and reduces `src/client/app.ts` from 70 to 68 lines. The affected
+guardrail passes 27 related cases across two suites alongside strict types. The
+browser application changes from 847,027 B raw / 230,927 B gzip to 847,050 B
+raw / 230,940 B gzip (+23 B raw / +13 B gzip); direct and unique production
+package counts remain 18 and 150, and the other static artifacts remain
+unchanged. Architecture, ADR, and scholarly-workspace contracts now require
+the atomic application binding.
+
+Full native CI passes all 1,775 unit/coverage tests, 121 Workers-runtime tests,
+and 74 browser tests.
+
 ## Continued Lit Ownership: Preview Synchronization Owners
 
 `PreviewSyncControls` now binds the native source, highlight layer,
