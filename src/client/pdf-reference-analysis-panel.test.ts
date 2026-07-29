@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type {
   ArtifactAnalysis,
+  BibliographicRecord,
   PdfReferenceAnalysisResult,
   PdfReferenceReviewCandidate,
   PdfReferenceReviewDecision,
@@ -83,6 +84,8 @@ class TestPdfReferenceAnalysisPanel extends PdfReferenceAnalysisPanel {
     fingerprint: string;
   }[] = [];
   analysis: ArtifactAnalysis | Error = readyAnalysis;
+  batchFailure: Error | null = null;
+  batchWait: Promise<void> | null = null;
   queue: PdfReferenceReviewQueue | Error = reviewQueue;
 
   renderForTest() {
@@ -159,6 +162,8 @@ class TestPdfReferenceAnalysisPanel extends PdfReferenceAnalysisPanel {
     candidates: readonly ReviewPdfReferenceCandidateBatchItem[],
   ): Promise<void> {
     this.batchSubmissions.push({ artifactId, candidates, fingerprint });
+    if (this.batchWait) await this.batchWait;
+    if (this.batchFailure) throw this.batchFailure;
   }
 }
 
@@ -173,6 +178,27 @@ function templateText(value: unknown): string {
   if (!value || typeof value !== "object") return "";
   const template = value as { readonly strings?: readonly string[]; readonly values?: readonly unknown[] };
   return [...(template.strings ?? []), ...(Array.isArray(template.values) ? template.values.map(templateText) : [])].join(" ");
+}
+
+function reference(overrides: Partial<BibliographicRecord> = {}): BibliographicRecord {
+  return {
+    abstract: "",
+    archivedAt: null,
+    authors: ["Jane Doe"],
+    createdAt: "2026-07-29T10:00:00.000Z",
+    deletedAt: null,
+    doi: "10.5555/reference",
+    id: "reference-match",
+    provenance: {},
+    referenceKey: "doe2025",
+    title: "Useful reference",
+    type: "article",
+    updatedAt: "2026-07-29T10:00:00.000Z",
+    url: "",
+    venue: "Journal",
+    year: "2025",
+    ...overrides,
+  };
 }
 
 describe("PDF reference analysis panel", () => {
@@ -219,7 +245,12 @@ describe("PDF reference analysis panel", () => {
   });
 
   it("adds every pending extracted reference in one fingerprint-qualified batch", async () => {
-    const secondCandidate = { ...reviewCandidate, id: "entry:second" };
+    const secondCandidate = {
+      ...reviewCandidate,
+      id: "entry:second",
+      match: reference(),
+      matchKind: "doi" as const,
+    };
     const skippedCandidate = {
       ...reviewCandidate,
       id: "entry:skipped",
@@ -234,10 +265,13 @@ describe("PDF reference analysis panel", () => {
     };
     const panel = new TestPdfReferenceAnalysisPanel();
     const outcomes: PdfReferenceReviewOutcome[] = [];
+    const events: CustomEvent<PdfReferenceReviewOutcome>[] = [];
     panel.queue = { ...reviewQueue, candidates: [reviewCandidate, secondCandidate, skippedCandidate] };
-    panel.addEventListener(pdfReferenceReviewOutcomeEvent, (event) =>
-      outcomes.push((event as CustomEvent<PdfReferenceReviewOutcome>).detail),
-    );
+    panel.addEventListener(pdfReferenceReviewOutcomeEvent, (event) => {
+      const outcomeEvent = event as CustomEvent<PdfReferenceReviewOutcome>;
+      events.push(outcomeEvent);
+      outcomes.push(outcomeEvent.detail);
+    });
     panel.setArtifact("artifact/1");
     await settle();
 
@@ -247,11 +281,70 @@ describe("PDF reference analysis panel", () => {
     expect(panel.batchSubmissions).toEqual([
       {
         artifactId: "artifact/1",
-        candidates: [{ candidateId: reviewCandidate.id }, { candidateId: secondCandidate.id }],
+        candidates: [{ candidateId: reviewCandidate.id }, { candidateId: secondCandidate.id, referenceId: "reference-match" }],
         fingerprint: readyAnalysis.fingerprint,
       },
     ]);
     expect(outcomes).toEqual([{ action: "library-refresh", message: "2 parsed references added to the Library." }]);
+    expect(events[0]).toMatchObject({ bubbles: true, composed: true });
+  });
+
+  it("prevents duplicate bulk submissions while a request is active", async () => {
+    const panel = new TestPdfReferenceAnalysisPanel();
+    let releaseBatch = (): void => undefined;
+    panel.batchWait = new Promise<void>((resolve) => {
+      releaseBatch = resolve;
+    });
+    panel.setArtifact("artifact/1");
+    await settle();
+
+    const firstSubmission = panel.addAllForTest();
+    const duplicateSubmission = panel.addAllForTest();
+    await settle();
+
+    expect(panel.batchSubmissions).toHaveLength(1);
+    expect(templateText(panel.renderForTest())).toContain("Adding all…");
+    releaseBatch();
+    await Promise.all([firstSubmission, duplicateSubmission]);
+    expect(templateText(panel.renderForTest())).toContain("Add all 1 to Library");
+  });
+
+  it("keeps failed bulk additions retryable", async () => {
+    const panel = new TestPdfReferenceAnalysisPanel();
+    panel.batchFailure = new Error("Library unavailable");
+    panel.setArtifact("artifact/1");
+    await settle();
+
+    await panel.addAllForTest();
+    expect(templateText(panel.renderForTest())).toContain("Library unavailable");
+
+    panel.batchFailure = null;
+    await panel.addAllForTest();
+    expect(panel.batchSubmissions).toHaveLength(2);
+  });
+
+  it("hides bulk controls without pending review candidates", async () => {
+    const panel = new TestPdfReferenceAnalysisPanel();
+    expect(templateText(panel.renderForTest())).not.toContain("Add all");
+    panel.queue = {
+      ...reviewQueue,
+      candidates: [
+        {
+          ...reviewCandidate,
+          review: {
+            assertionId: "assertion-1",
+            candidateId: reviewCandidate.id,
+            decision: "accepted",
+            referenceId: "reference-match",
+            reviewedAt: "2026-07-29T00:00:00.000Z",
+            reviewedBy: "owner@example.test",
+          },
+        },
+      ],
+    };
+    panel.setArtifact("artifact/1");
+    await settle();
+    expect(templateText(panel.renderForTest())).not.toContain("Add all");
   });
 
   it("treats analysis transitions and unidentified PDFs as review prerequisites", async () => {
