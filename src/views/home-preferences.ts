@@ -19,6 +19,19 @@ export function renderPreferencesMenu(): string {
                 <div><h3 id="writing-preference-heading">Writing</h3><p>Use modal Vim keybindings in the source editor.</p></div>
                 <vim-mode-control class="contents" id="vim-mode-control"><button class="preference-toggle" id="vim-toggle" type="button" aria-pressed="false" title="Enable Vim keybindings"><span>Vim mode</span><span class="editor-mode-status" id="vim-mode-status" role="status" aria-live="polite" hidden>NORMAL</span></button></vim-mode-control>
               </section>
+              <editor-indentation-control id="editor-indentation-control">
+                <section class="preferences-section" aria-labelledby="indentation-preference-heading">
+                  <div><h3 id="indentation-preference-heading">Indentation</h3><p>Choose what Tab inserts in the source editor.</p></div>
+                  <div class="preferences-indentation-controls">
+                    <label class="field-label">Insert
+                      <select class="field" id="editor-indentation-style"><option value="spaces">Spaces</option><option value="tabs">Tabs</option></select>
+                    </label>
+                    <label class="field-label">Tab size
+                      <input class="field" id="editor-tab-size" type="number" min="1" max="8" step="1" value="2">
+                    </label>
+                  </div>
+                </section>
+              </editor-indentation-control>
               <section class="preferences-section" aria-labelledby="citation-suggestions-heading">
                 <div><h3 id="citation-suggestions-heading">Citation suggestions</h3><p>Choose which references appear while completing citation keys.</p></div>
                 <label class="sr-only" for="citation-completion-scope">Citation suggestion scope</label>

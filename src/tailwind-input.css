@@ -903,6 +903,12 @@
     margin-top: 0.8rem;
   }
 
+  .preferences-indentation-controls {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 4.5rem;
+    gap: 0.5rem;
+  }
+
   .preferences-endpoint {
     grid-column: 1 / -1;
   }
@@ -927,7 +933,8 @@
     }
 
     .preferences-section,
-    .preferences-model-grid {
+    .preferences-model-grid,
+    .preferences-indentation-controls {
       grid-template-columns: minmax(0, 1fr);
     }
 

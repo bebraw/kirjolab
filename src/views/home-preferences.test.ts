@@ -13,6 +13,9 @@ describe("renderPreferencesMenu", () => {
     expect(html).toContain('id="theme-preference" aria-label="Appearance"');
     expect(html).toContain('<theme-preference-control class="contents" id="theme-preference-control">');
     expect(html).toContain('id="vim-toggle" type="button" aria-pressed="false"');
+    expect(html).toContain('<editor-indentation-control id="editor-indentation-control">');
+    expect(html).toContain('id="editor-indentation-style"');
+    expect(html).toContain('id="editor-tab-size" type="number" min="1" max="8" step="1" value="2"');
     expect(html).toContain('id="citation-completion-scope" aria-label="Citation suggestion scope"');
     expect(html).toContain('id="copy-application-version" type="button" aria-label="Copy application version"');
     expect(html).toContain(renderModelPreferences());

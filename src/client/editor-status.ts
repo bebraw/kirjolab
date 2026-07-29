@@ -5,6 +5,7 @@ import type { EditorPresenceRange } from "./editor-presence";
 import { LightDomElement } from "./light-dom-controller";
 import type { CitationContext, CitationInsertion } from "./citations";
 import type { EditorInsertMenu } from "./editor-insert-menu";
+import type { EditorIndentationControl } from "./editor-indentation-control";
 import type { SourceCompletion, SourceCompletionOwners } from "./source-completion";
 import type { VimModeControl } from "./vim-mode-control";
 import {
@@ -72,7 +73,10 @@ export interface EditorAuthoringOwners {
 }
 
 export type EditorApplicationOwners = EditorAuthoringOwners &
-  SourceCompletionOwners & { readonly sourceCompletion: Pick<SourceCompletion, "bindWorkspace"> };
+  SourceCompletionOwners & {
+    readonly editorIndentationControl: Pick<EditorIndentationControl, "bindEditor">;
+    readonly sourceCompletion: Pick<SourceCompletion, "bindWorkspace">;
+  };
 
 export class EditorStatus extends LightDomElement {
   static override properties = {
@@ -119,6 +123,7 @@ export class EditorStatus extends LightDomElement {
   ): void {
     this.bindAuthoring(documentModel, owners.source, owners, collaborationSocket);
     owners.sourceCompletion.bindWorkspace(apiBase, owners);
+    owners.editorIndentationControl.bindEditor(owners.source, owners.sourceEditorShell);
   }
 
   bindAuthoring(

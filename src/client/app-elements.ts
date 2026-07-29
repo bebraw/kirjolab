@@ -13,6 +13,7 @@ import { ConnectionStatus } from "./connection-status";
 import { ContextTabStrip } from "./context-tab-strip";
 import { ContextResourcePresenter } from "./context-resource-presenter";
 import { EditorInsertMenu } from "./editor-insert-menu";
+import { EditorIndentationControl } from "./editor-indentation-control";
 import { EditorStatus } from "./editor-status";
 import { GitHubImportPanel } from "./github-import-panel";
 import { GitHubSyncMenu } from "./github-sync-menu";
@@ -97,6 +98,7 @@ export function collectAppElements(requireElement = requiredAppElement) {
     authoringModeTabs: requireElement("authoring-mode-tabs", AuthoringModeTabs),
     projectMap: requireElement("project-map", ProjectMapWorkspace),
     vimModeControl: requireElement("vim-mode-control", VimModeControl),
+    editorIndentationControl: requireElement("editor-indentation-control", EditorIndentationControl),
     editorInsertMenu: requireElement("editor-insert-menu-component", EditorInsertMenu),
     bibliography: requireElement("bibliography-editor", HTMLTextAreaElement),
     workspaceSurfaces: requireElement("workspace-surfaces", HTMLElement),

@@ -192,6 +192,7 @@ No accepted ADRs are awaiting implementation.
 | [ADR-165](./implemented/ADR-165-separate-github-integration-phases.md)                    | Implemented          | Separate GitHub import, workspace synchronization, and shared transport/error contracts.                      |
 | [ADR-166](./implemented/ADR-166-separate-browser-binders-from-mutation-contracts.md)      | Implemented          | Keep pure browser-feature contracts in mutation scope while Playwright covers runtime binders.                |
 | [ADR-167](./implemented/ADR-167-turn-zoomed-pdf-pages-at-horizontal-edges.md)             | Implemented          | Turn zoomed PDF pages from their horizontal edges while preserving interior panning.                          |
+| [ADR-168](./implemented/ADR-168-configure-native-editor-indentation.md)                   | Implemented          | Configure browser-local spaces or tabs while preserving the native collaborative editor.                      |
 
 ## Creating A New ADR
 

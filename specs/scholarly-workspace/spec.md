@@ -319,8 +319,8 @@ collaboration.
   implementation term for APIs, types, and coordination boundaries.
 - **Personal preferences:** A compact panel beside the Kirjolab heading owns
   browser-local, cross-project choices that are normally configured once:
-  appearance, Vim editing, and the local model connection, endpoint, model,
-  and reasoning effort. The same panel exposes a copyable application version
+  appearance, Vim editing, editor indentation, and the local model connection,
+  endpoint, model, and reasoning effort. The same panel exposes a copyable application version
   derived from the built offline shell for error and cache reporting. Project
   layout, sharing, export, and publication controls remain in their
   task-specific surfaces. Writing assistant links back to the shared panel
@@ -341,6 +341,11 @@ collaboration.
   modal keyboard and pointer-selection behavior, and editor-listener teardown;
   the editor-status authoring lifecycle supplies the source textarea and its
   visual shell instead of requiring a separate application setup stage.
+  A bounded light-DOM indentation control owns the browser-local spaces-versus-
+  tabs and tab-size preferences, textarea tab rendering, Tab and Shift+Tab
+  edits, and listener teardown. It defaults to two spaces, yields Tab to a
+  visible source completion, and yields keyboard authority to Vim Normal and
+  Visual modes.
 - **Model provider settings:** A bounded light-DOM component owns browser-local
   provider preferences, Valibot-backed bounded restoration, persistence, model
   options, discovery requests, overlapping-request suppression, busy and result
@@ -397,8 +402,9 @@ collaboration.
   workflows; one atomic application bind installs the active source, companion
   bibliography, and source-completion workspace, and the component derives the
   initial Y.Text values from that document. That same bind installs the Vim
-  control against the source and shell and the Insert menu against editor
-  status and toast. The coordinator retains editor highlighting and assistant
+  control against the source and shell, source completion before indentation,
+  the indentation control against the source and shell, and the Insert menu
+  against editor status and toast. The coordinator retains editor highlighting and assistant
   refresh.
 - **Project evidence mutations:** The bounded Project evidence panel owns
   guarded PDF and annotation removal plus annotation-passage-link transport
@@ -1037,8 +1043,8 @@ collaboration.
 - [x] The More menu remains fully visible inside the clipped authoring column
       instead of extending beneath the project rail.
 - [x] Header Preferences opens and closes with pointer or keyboard, keeps
-      personal appearance, Vim, and model settings together, and persists them
-      locally across projects and refreshes.
+      personal appearance, Vim, indentation, and model settings together, and
+      persists them locally across projects and refreshes.
 - [x] Header Preferences exposes a copyable application version matching the
       active build-derived offline shell generation.
 - [x] An activated offline-shell update keeps a Refresh now notice available

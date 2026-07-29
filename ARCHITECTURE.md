@@ -498,7 +498,8 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   and surface-route lifecycle last, so its root-readiness publication observes
   every preceding project binding.
 - Let the editor-status Lit owner bind the active source, companion
-  bibliography, and source-completion workspace atomically as one application
+  bibliography, source-completion workspace, and browser-local indentation
+  controller atomically as one application
   authoring lifecycle. Install that reciprocal editor lifecycle through the
   Context application entry after its assistant companion and before Context
   presentation and routes, then bind the active Yjs
@@ -516,7 +517,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   Let the owner expose the active manuscript projection,
   apply bounded active-text insertions and replacements, focus the active
   source, and select their resulting range so those edits share its undo
-  history. Bind its source interaction listeners after the Yjs textarea adapter
+  history. Bind source completion before indentation so a visible suggestion
+  retains Tab acceptance; let Vim Normal and Visual modes retain their own
+  keyboard authority while Insert mode shares ordinary indentation. Bind the
+  remaining source interaction listeners after the Yjs textarea adapter
   so it captures the updated relative target, schedules collaboration presence,
   and refreshes assistant availability itself. Completion listeners remain
   responsible only for completion presentation. The coordinator must not retain a duplicate active Y.Text. The owner

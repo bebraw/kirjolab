@@ -20,12 +20,13 @@ describe("application element registry", () => {
       return Object.create(type.prototype) as T;
     });
 
-    expect(ids).toHaveLength(69);
+    expect(ids).toHaveLength(70);
     expect(new Set(ids)).toHaveLength(ids.length);
     expect(elements.contextResourcePresenter).toBeDefined();
     expect(elements.assistantGenerationPresenter).toBeDefined();
     expect(elements.referenceLibraryWorkspace).toBeDefined();
     expect(elements.source).toBeDefined();
+    expect(elements.editorIndentationControl).toBeDefined();
     expect(elements.toast).toBeDefined();
     expect(elements.themePreference).toBeDefined();
   });
