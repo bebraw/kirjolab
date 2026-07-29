@@ -93,7 +93,6 @@ export function reviewBibliographyBibTeX(authority: ReviewExportAuthority): stri
 
 function extractionCell(value: ReviewEvidenceSnapshot["records"][number]["extractionValues"][number]["value"]): string {
   if (value === null) return "";
-  if (Array.isArray(value)) return JSON.stringify(value);
   if (typeof value === "object") return JSON.stringify(value);
   return String(value);
 }

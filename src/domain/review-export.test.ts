@@ -533,7 +533,7 @@ describe("review reproducibility export", () => {
         title: "Conference Study",
         authors: ["Doe, Jane", "Roe, Alex"],
         venue: "Proceedings",
-        url: "",
+        url: "   ",
         abstract: "",
       },
     };
@@ -541,6 +541,11 @@ describe("review reproducibility export", () => {
       ...sourceRecord,
       id: "untyped-record-long",
       metadata: { ...sourceRecord.metadata, citationKey: "untyped", type: "", title: "Untyped Study" },
+    };
+    const unscreened = {
+      ...sourceRecord,
+      id: "unscreened-record-long",
+      metadata: { ...sourceRecord.metadata, citationKey: "unscreened", title: "Unscreened Study" },
     };
     const inactive = {
       ...sourceRecord,
@@ -591,7 +596,7 @@ describe("review reproducibility export", () => {
     };
     const changed: ReviewExportAuthority = {
       ...authority,
-      search: { ...authority.search, records: [conference, untyped, inactive] },
+      search: { ...authority.search, records: [conference, untyped, unscreened, inactive] },
       screening: { ...authority.screening, records: [titleExcluded, adjudicated] },
       model: {
         revision: 7,
@@ -617,13 +622,17 @@ describe("review reproducibility export", () => {
     };
 
     const bibliography = reviewBibliographyBibTeX(changed);
-    expect(bibliography).toContain("@inproceedings{conference_conferen");
+    expect(bibliography).toContain("@inproceedings{conference_conferen,\n");
+    expect(bibliography).not.toContain("conference_conference-record-long");
     expect(bibliography).toContain("author = {Doe, Jane and Roe, Alex}");
     expect(bibliography).toContain("booktitle = {Proceedings}");
     expect(bibliography).toContain("@article{untyped_untyped-");
     expect(bibliography).toContain("kirjolab_status = {awaiting-final-inclusion}");
+    expect(bibliography).toContain("@article{unscreened_unscreen,\n");
+    expect(bibliography).toContain("kirjolab_status = {unclassified}");
     expect(bibliography).not.toContain("Inactive Study");
     expect(bibliography).not.toContain("url = {}");
+    expect(bibliography).not.toContain("url = {   }");
     expect(reviewPrismaData(changed).exclusionReasons.titleAbstract).toEqual({
       "Adjudicated reason": 1,
       "Latest reason": 1,
