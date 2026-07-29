@@ -33,6 +33,7 @@ No accepted ADRs are awaiting implementation.
 
 | ADR                                                                                       | Status               | Summary                                                                                                       |
 | ----------------------------------------------------------------------------------------- | -------------------- | ------------------------------------------------------------------------------------------------------------- |
+| [ADR-183](./implemented/ADR-183-report-deployment-and-shell-diagnostics.md)               | Implemented          | Report Worker version metadata together with the browser-shell fingerprint in copyable diagnostics.           |
 | [ADR-182](./implemented/ADR-182-retain-native-editor-after-codemirror-spike.md)           | Implemented          | Retain the native editor after a measured CodeMirror parity spike leaves cost and input-accessibility gaps.   |
 | [ADR-181](./implemented/ADR-181-incubate-pdf-analysis-core.md)                            | Implemented          | Incubate normalized PDF highlight and reference mechanics behind one source-local core.                       |
 | [ADR-180](./implemented/ADR-180-delegate-artifact-analysis-persistence.md)                | Implemented          | Delegate artifact-analysis persistence behind the stable Library Durable Object RPC facade.                   |

@@ -1353,9 +1353,9 @@ test("follows and remembers the selected appearance", async ({ page }) => {
   await expect(page.locator("#preferences-menu")).not.toHaveAttribute("open", "");
   await expect(page.locator("#preferences-menu > summary")).toBeFocused();
   await page.locator("#preferences-menu > summary").click();
-  await expect(page.locator("#application-version")).toHaveText(/^[a-f0-9]{16}$/u);
+  await expect(page.locator("#application-version")).toHaveText(/^(?:deploy .+|local) · shell [a-f0-9]{16}$/u);
   await page.locator("#copy-application-version").click();
-  await expect(page.locator("#toast")).toContainText("Copied application version");
+  await expect(page.locator("#toast")).toContainText("Copied diagnostics.");
 
   await expect(appearance).toHaveValue("system");
   await appearance.selectOption("dark");
@@ -1377,7 +1377,7 @@ test("keeps an activated application update available until refresh", async ({ p
 
   await page.locator("#preferences-menu > summary").click();
   await page.locator("#copy-application-version").click();
-  await expect(page.locator("#toast")).toContainText("Copied application version");
+  await expect(page.locator("#toast")).toContainText("Copied diagnostics.");
   await expect(page.locator("#toast")).toContainText("A new version of Kirjolab is available.", { timeout: 5_000 });
   await expect(page.getByRole("button", { name: "Refresh now" })).toBeVisible();
 });
@@ -5820,6 +5820,7 @@ test("keeps protocol criteria stable through final review inclusion", async ({ p
 test("serves stable health and browser assets", async ({ request }) => {
   const response = await request.get("/api/health");
   expect(response.ok()).toBe(true);
+  expect(response.headers()["cache-control"]).toBe("no-store");
   await expect(response.json()).resolves.toEqual({
     ok: true,
     name: "kirjolab",
@@ -5841,6 +5842,7 @@ test("serves stable health and browser assets", async ({ request }) => {
       "/api/session",
       "/api/health",
     ],
+    deployment: null,
   });
 
   const [styles, client, serviceWorker] = await Promise.all([

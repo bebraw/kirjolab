@@ -8,7 +8,7 @@ import {
 } from "./offline-service-worker";
 
 describe("offline service worker lifecycle", () => {
-  it("exposes the shell fingerprint as the reportable application version", () => {
+  it("keeps the shell fingerprint aligned with its offline cache identity", () => {
     expect(offlineShellCacheName).toBe(`kirjolab-offline-shell-${applicationVersion}`);
   });
 

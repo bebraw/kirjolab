@@ -1067,12 +1067,15 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Cache only authenticated canonical editor navigation and the allowlisted
   authoring shell for offline fallback. Never service-worker-cache dashboard,
   review, or Library data, project/library APIs, WebSockets, exports, model
-  requests, or private PDF bytes. Let the application-version Lit owner expose
-  the build-derived shell identity and own service-worker registration, update
-  refresh sequencing, workspace-navigation caching, ready projection, and
-  fail-open behavior. Bind the offline-persistence and toast owners together
-  during shell preparation so the control owns the pinned update notice, persistence-before-refresh
-  sequence, reload action, and copy outcomes.
+  requests, or private PDF bytes. Let the application-version Lit owner combine
+  the build-derived shell identity with the Worker version metadata returned by
+  the no-store public health contract. Validate that response before presenting
+  it, identify absent local metadata explicitly, and fail open to shell-only
+  diagnostics. The same owner keeps service-worker registration, update refresh
+  sequencing, workspace-navigation caching, and ready projection. Bind the
+  offline-persistence and toast owners together during shell preparation so the
+  control owns the pinned update notice, persistence-before-refresh sequence,
+  reload action, and copy outcomes.
 - Publish immutable browser runtimes under content-fingerprinted URLs. Derive
   the service-worker cache namespace from the built shell so a shell change
   installs a new cache generation and activation removes older Kirjolab shell

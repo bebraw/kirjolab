@@ -320,8 +320,12 @@ collaboration.
 - **Personal preferences:** A compact panel beside the Kirjolab heading owns
   browser-local, cross-project choices that are normally configured once:
   appearance, Vim editing, editor indentation, and the local model connection,
-  endpoint, model, and reasoning effort. The same panel exposes a copyable application version
-  derived from the built offline shell for error and cache reporting. Project
+  endpoint, model, and reasoning effort. The same panel exposes copyable
+  diagnostics containing the active Worker version id, optional deployment tag,
+  upload timestamp, and built offline-shell fingerprint for error and cache
+  reporting. When Worker metadata is absent in local development or cannot be
+  loaded, the panel identifies the deployment as local and retains the shell
+  fingerprint. Project
   layout, sharing, export, and publication controls remain in their
   task-specific surfaces. Writing assistant links back to the shared panel
   rather than duplicating model controls.
@@ -329,9 +333,10 @@ collaboration.
   server-rendered selector and owns the System, Light, and Dark template,
   normalization, browser-local restoration and persistence, storage-failure
   tolerance, and document-root theme plus color-scheme projection.
-  A bounded light-DOM version control owns build-version presentation and both
-  Clipboard API and textarea fallback copying. It also derives its version from
-  the built offline shell and owns service-worker registration, update refresh
+  A bounded light-DOM version control validates the no-store public health
+  response, combines deployment and shell presentation, and owns both Clipboard
+  API and textarea fallback copying. It derives the shell identifier from the
+  built offline shell and owns service-worker registration, update refresh
   sequencing, workspace-navigation caching, ready projection, and fail-open
   behavior. It binds the offline-persistence and toast owners together during
   shell preparation, owns
@@ -1045,8 +1050,9 @@ collaboration.
 - [x] Header Preferences opens and closes with pointer or keyboard, keeps
       personal appearance, Vim, indentation, and model settings together, and
       persists them locally across projects and refreshes.
-- [x] Header Preferences exposes a copyable application version matching the
-      active build-derived offline shell generation.
+- [x] Header Preferences exposes copyable deployment id, tag, timestamp, and
+      active build-derived offline-shell generation, with an explicit local
+      fallback when deployment metadata is unavailable.
 - [x] An activated offline-shell update keeps a Refresh now notice available
       until the user accepts it, then persists open offline work before reload.
 - [x] Writing assistant opens the shared model preferences without duplicating

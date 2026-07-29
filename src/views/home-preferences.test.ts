@@ -17,7 +17,8 @@ describe("renderPreferencesMenu", () => {
     expect(html).toContain('id="editor-indentation-style"');
     expect(html).toContain('id="editor-tab-size" type="number" min="1" max="8" step="1" value="2"');
     expect(html).toContain('id="citation-completion-scope" aria-label="Citation suggestion scope"');
-    expect(html).toContain('id="copy-application-version" type="button" aria-label="Copy application version"');
+    expect(html).toContain("Copy deployment and browser-shell details when reporting an error.");
+    expect(html).toContain('id="copy-application-version" type="button" aria-label="Copy diagnostics"');
     expect(html).toContain(renderModelPreferences());
   });
 });

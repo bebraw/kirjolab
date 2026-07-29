@@ -297,7 +297,13 @@ async function handleStaticRequest(request: Request, url: URL, env: Env | undefi
     if (!env) return Response.json({ error: "Worker bindings unavailable" }, { status: 503 });
     return await loadBrowserRuntimeAsset(request, env);
   }
-  if (url.pathname === "/api/health") return createHealthResponse(exampleRoutes.map((route) => route.path));
+  if (url.pathname === "/api/health") {
+    const deployment = env?.AUTH_MODE === "access" ? env.CF_VERSION_METADATA : null;
+    return createHealthResponse(
+      exampleRoutes.map((route) => route.path),
+      deployment,
+    );
+  }
   if (url.pathname === "/phrasing-guidance/sources.json") {
     if (request.method !== "GET" && request.method !== "HEAD") return Response.json({ error: "Method not allowed" }, { status: 405 });
     return Response.json(phrasingGuidanceSources, {

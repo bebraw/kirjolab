@@ -138,10 +138,12 @@ describe("worker", () => {
 
     expect(response.status).toBe(200);
     expect(response.headers.get("content-type")).toContain("application/json");
+    expect(response.headers.get("cache-control")).toBe("no-store");
     await expect(response.json()).resolves.toEqual({
       ok: true,
       name: "kirjolab",
       routes: exampleRoutes.map((route) => route.path),
+      deployment: null,
     });
   });
 
