@@ -689,15 +689,14 @@ export function renderHomePage(
                     <div class="flex flex-wrap items-center justify-between gap-2">
                       <div>
                         <strong id="library-highlight-import-title">Highlights in this PDF</strong>
-                        <p class="mt-1 text-xs leading-5 text-app-text-soft" id="library-highlight-import-status" role="status" aria-live="polite">Detect native annotations and flattened yellow highlights for review.</p>
+                        <p class="mt-1 text-xs leading-5 text-app-text-soft" id="library-highlight-import-status" role="status" aria-live="polite">Highlights are analyzed automatically after PDF import.</p>
                       </div>
-                      <button class="button-secondary" id="detect-library-pdf-highlights" type="button">Detect highlights</button>
                     </div>
                     <form class="mt-3" id="library-highlight-import-form" hidden>
                       <div class="space-y-2" id="library-highlight-import-list"></div>
                       <div class="mt-3 flex flex-wrap gap-2">
                         <button class="button-primary" type="submit">Import selected</button>
-                        <button class="button-secondary" id="cancel-library-highlight-import" type="button">Cancel</button>
+                        <button class="button-secondary" id="cancel-library-highlight-import" type="button">Clear selection</button>
                       </div>
                     </form>
                   </pdf-highlight-import-panel>

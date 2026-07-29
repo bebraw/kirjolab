@@ -65,6 +65,14 @@ export async function buildBrowserShell(root = projectRoot) {
       __OFFLINE_SHELL_CACHE_NAME__: JSON.stringify(`kirjolab-offline-shell-${shellVersion}`),
     },
   });
+  await build({
+    entryPoints: [join(root, "src/browser/pdf-artifact-analyzer.ts")],
+    bundle: true,
+    format: "iife",
+    target: "es2022",
+    minify: true,
+    outfile: join(outputRoot, "pdf-artifact-analyzer.txt"),
+  });
 
   return { markdownAsset: markdownAsset.name, pdfAsset: pdfAsset.name, shellVersion };
 }

@@ -1239,11 +1239,19 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   draft-clearing, text-selection, and private-markup selection presentations
   directly through its bound viewer. Keep navigation, canonical snapshot
   application, refreshes, history, and toast policy in the coordinator.
-- Let the PDF highlight import panel own bounded client-side detection,
-  saved-highlight overlap filtering, reviewed candidate state, stable encoded
-  import transport, duplicate-submit gating, and retryable local failures. Keep
-  canonical Library refresh and completion toast policy in the application
-  coordinator.
+- Run expensive, retriable private-artifact inspection behind a versioned Queue
+  job contract containing owner, artifact, fingerprint, kind, and request time,
+  never artifact bytes. Persist fingerprint-qualified lifecycle and bounded
+  results in the owner Library Durable Object. Consumers must be idempotent,
+  close managed-browser sessions, and expose only candidate data for explicit
+  review. Supply the job's exact private R2 bytes to managed Chromium through
+  request interception rather than a public or bearer-token artifact route.
+  Reuse this boundary for future artifact analyses such as citation extraction.
+- Let the PDF highlight import panel own automatic-analysis status polling,
+  explicit failed-analysis retry, saved-highlight overlap filtering, reviewed
+  candidate state, stable encoded import transport, duplicate-submit gating,
+  and retryable local failures. Keep canonical Library refresh and completion
+  toast policy in the application coordinator.
 - Keep private-PDF tool, selection, note-composition, open-card, and pointer-
   gesture state inside the bounded light-DOM markup layer that presents it.
   Let the layer derive its saved drawings, notes, and stable drawing target for

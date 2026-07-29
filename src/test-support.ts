@@ -8,4 +8,9 @@ export function ensureGeneratedStylesheet(): void {
   writeFileSync(join(".generated", "review-app.txt"), "export {};", "utf8");
   writeFileSync(join(".generated", "service-worker.txt"), "self.addEventListener('fetch',()=>{});", "utf8");
   writeFileSync(join(".generated", "pdf-worker.txt"), "export {};", "utf8");
+  writeFileSync(
+    join(".generated", "pdf-artifact-analyzer.txt"),
+    "window.analyzePdfHighlights=async()=>({candidates:[],pagesScanned:0,pagesTotal:0,truncated:false});",
+    "utf8",
+  );
 }

@@ -114,6 +114,7 @@
     "wrangler": "4.111.0"
   },
   "dependencies": {
+    "@cloudflare/puppeteer": "1.2.0",
     "@octokit/auth-app": "8.2.0",
     "@smartupcorp/onedollar-unistroke-recognizer": "1.0.0",
     "fflate": "0.8.3",

@@ -246,6 +246,43 @@ export interface LibraryHighlightImportCandidate {
   readonly rects: readonly LibraryPdfRect[];
 }
 
+export type ArtifactAnalysisKind = "pdf-highlights";
+export type ArtifactAnalysisStatus = "queued" | "running" | "ready" | "failed";
+
+export interface PdfHighlightAnalysisCandidate extends LibraryHighlightImportCandidate {
+  readonly id: string;
+  readonly source: "annotation" | "flattened";
+  readonly confidence: number;
+}
+
+export interface PdfHighlightAnalysisResult {
+  readonly candidates: readonly PdfHighlightAnalysisCandidate[];
+  readonly pagesScanned: number;
+  readonly pagesTotal: number;
+  readonly truncated: boolean;
+}
+
+export interface ArtifactAnalysis {
+  readonly artifactId: string;
+  readonly fingerprint: string;
+  readonly kind: ArtifactAnalysisKind;
+  readonly status: ArtifactAnalysisStatus;
+  readonly result: PdfHighlightAnalysisResult | null;
+  readonly error: string;
+  readonly requestedAt: string;
+  readonly startedAt: string | null;
+  readonly completedAt: string | null;
+}
+
+export interface ArtifactAnalysisJob {
+  readonly version: 1;
+  readonly ownerKey: string;
+  readonly artifactId: string;
+  readonly fingerprint: string;
+  readonly kind: ArtifactAnalysisKind;
+  readonly requestedAt: string;
+}
+
 export interface LibraryPdfPoint {
   readonly x: number;
   readonly y: number;
@@ -666,6 +703,66 @@ export function isLibraryHighlightImportCandidate(value: unknown): value is Libr
     value.rects.length > 0 &&
     value.rects.length <= 512 &&
     value.rects.every(isLibraryPdfRect)
+  );
+}
+
+export function isPdfHighlightAnalysisResult(value: unknown): value is PdfHighlightAnalysisResult {
+  return (
+    isRecord(value) &&
+    Array.isArray(value.candidates) &&
+    value.candidates.length <= 128 &&
+    value.candidates.every(isPdfHighlightAnalysisCandidate) &&
+    typeof value.pagesScanned === "number" &&
+    Number.isInteger(value.pagesScanned) &&
+    value.pagesScanned >= 0 &&
+    value.pagesScanned <= 200 &&
+    typeof value.pagesTotal === "number" &&
+    Number.isInteger(value.pagesTotal) &&
+    value.pagesTotal >= value.pagesScanned &&
+    typeof value.truncated === "boolean"
+  );
+}
+
+function isPdfHighlightAnalysisCandidate(value: unknown): value is PdfHighlightAnalysisCandidate {
+  if (!isRecord(value) || !isLibraryHighlightImportCandidate(value)) return false;
+  return (
+    typeof value.id === "string" &&
+    value.id.length > 0 &&
+    value.id.length <= 200 &&
+    (value.source === "annotation" || value.source === "flattened") &&
+    typeof value.confidence === "number" &&
+    Number.isFinite(value.confidence) &&
+    value.confidence >= 0 &&
+    value.confidence <= 1
+  );
+}
+
+export function isArtifactAnalysis(value: unknown): value is ArtifactAnalysis {
+  return (
+    isRecord(value) &&
+    typeof value.artifactId === "string" &&
+    typeof value.fingerprint === "string" &&
+    value.kind === "pdf-highlights" &&
+    (value.status === "queued" || value.status === "running" || value.status === "ready" || value.status === "failed") &&
+    (value.result === null || isPdfHighlightAnalysisResult(value.result)) &&
+    typeof value.error === "string" &&
+    typeof value.requestedAt === "string" &&
+    (value.startedAt === null || typeof value.startedAt === "string") &&
+    (value.completedAt === null || typeof value.completedAt === "string")
+  );
+}
+
+export function isArtifactAnalysisJob(value: unknown): value is ArtifactAnalysisJob {
+  return (
+    isRecord(value) &&
+    value.version === 1 &&
+    typeof value.ownerKey === "string" &&
+    value.ownerKey.length > 0 &&
+    value.ownerKey.length <= 200 &&
+    typeof value.artifactId === "string" &&
+    typeof value.fingerprint === "string" &&
+    value.kind === "pdf-highlights" &&
+    typeof value.requestedAt === "string"
   );
 }
 

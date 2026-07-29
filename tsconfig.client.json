@@ -13,5 +13,5 @@
     "noImplicitOverride": true,
     "types": ["node"]
   },
-  "include": ["src/client/**/*.ts", "src/domain/**/*.ts", "src/**/*.e2e.ts"]
+  "include": ["src/browser/**/*.ts", "src/client/**/*.ts", "src/domain/**/*.ts", "src/**/*.e2e.ts"]
 }

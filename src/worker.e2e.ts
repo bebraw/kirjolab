@@ -489,6 +489,38 @@ async function expectActivatedApplicationUpdate(page: Page, path: string): Promi
 
 test("imports, annotates, and exports a private PDF without a project", async ({ page }) => {
   await page.setViewportSize({ width: 1024, height: 768 });
+  await page.route("**/api/library/pdfs/*/analyses/pdf-highlights", async (route) => {
+    const artifactId = decodeURIComponent(new URL(route.request().url()).pathname.split("/")[4] ?? "");
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        artifactId,
+        fingerprint: "e2e-highlight-analysis",
+        kind: "pdf-highlights",
+        status: "ready",
+        result: {
+          candidates: [
+            {
+              id: "annotation:1:0",
+              source: "annotation",
+              confidence: 1,
+              page: 1,
+              quote: "Knowledge grows through inspectable evidence.",
+              comment: "",
+              rects: [{ x: 0.1, y: 0.1, width: 0.5, height: 0.05 }],
+            },
+          ],
+          pagesScanned: 1,
+          pagesTotal: 1,
+          truncated: false,
+        },
+        error: "",
+        requestedAt: "2026-07-29T00:00:00.000Z",
+        startedAt: "2026-07-29T00:00:01.000Z",
+        completedAt: "2026-07-29T00:00:02.000Z",
+      }),
+    });
+  });
   await page.addInitScript(() => {
     Object.defineProperty(navigator, "standalone", { configurable: true, value: true });
     Object.defineProperty(navigator, "canShare", { configurable: true, value: () => true });
@@ -586,7 +618,6 @@ test("imports, annotates, and exports a private PDF without a project", async ({
   await expect(page.locator("#paper-text-layer")).toContainText("Knowledge grows through inspectable evidence.");
   await expect(page.locator("#export-library-annotated-pdf")).toBeDisabled();
   await page.getByRole("button", { name: "Annotations", exact: true }).click();
-  await page.locator("#detect-library-pdf-highlights").click();
   await expect(page.locator("#library-highlight-import-status")).toContainText("1 candidate found");
   await expect(page.locator("#library-highlight-import-list")).toContainText("Knowledge grows through inspectable evidence.");
   await page.getByLabel("Private note for detected highlight on page 1").fill("Imported from the PDF");

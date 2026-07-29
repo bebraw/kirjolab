@@ -48,6 +48,20 @@
     { "tag": "v9", "new_sqlite_classes": ["ReviewCatalog", "ReviewAccess"] },
   ],
   "triggers": { "crons": ["17 2 * * *"] },
+  "browser": { "binding": "ARTIFACT_ANALYSIS_BROWSER" },
+  "queues": {
+    "producers": [{ "binding": "ARTIFACT_ANALYSIS_QUEUE", "queue": "kirjolab-artifact-analysis" }],
+    "consumers": [
+      {
+        "queue": "kirjolab-artifact-analysis",
+        "max_batch_size": 1,
+        "max_batch_timeout": 5,
+        "max_retries": 3,
+        "max_concurrency": 4,
+      },
+    ],
+  },
+  "limits": { "cpu_ms": 300000 },
   "r2_buckets": [{ "binding": "PAPERS", "bucket_name": "kirjolab-papers" }],
   "observability": {
     "enabled": true,

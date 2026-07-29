@@ -1,27 +1,13 @@
 import type { PDFPageProxy, TextContent, TextItem } from "pdfjs-dist/types/src/display/api";
-import type { LibraryPdfRect } from "../domain/reference-library";
+import type { LibraryPdfRect, PdfHighlightAnalysisCandidate, PdfHighlightAnalysisResult } from "../domain/reference-library";
 import { loadPdfJsRuntime, type PdfJsRuntime } from "./pdfjs-runtime";
 
 const maximumPages = 200;
 const maximumCandidates = 128;
 const renderScale = 1.25;
 
-export interface PdfHighlightImportCandidate {
-  readonly id: string;
-  readonly source: "annotation" | "flattened";
-  readonly page: number;
-  readonly quote: string;
-  readonly comment: string;
-  readonly rects: readonly LibraryPdfRect[];
-  readonly confidence: number;
-}
-
-export interface PdfHighlightDetection {
-  readonly candidates: readonly PdfHighlightImportCandidate[];
-  readonly pagesScanned: number;
-  readonly pagesTotal: number;
-  readonly truncated: boolean;
-}
+export type PdfHighlightImportCandidate = PdfHighlightAnalysisCandidate;
+export type PdfHighlightDetection = PdfHighlightAnalysisResult;
 
 interface PixelRect {
   left: number;
@@ -54,6 +40,10 @@ interface AnnotationLike {
 export async function detectImportedPdfHighlights(url: string): Promise<PdfHighlightDetection> {
   const runtime = await loadPdfJsRuntime();
   runtime.GlobalWorkerOptions.workerSrc = "/pdf.worker.js";
+  return await detectPdfHighlights(runtime, url);
+}
+
+export async function detectPdfHighlights(runtime: PdfJsRuntime, url: string): Promise<PdfHighlightDetection> {
   const task = runtime.getDocument({ url });
   try {
     const pdf = await task.promise;

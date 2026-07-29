@@ -797,6 +797,34 @@ describe("reference library API", () => {
     expect(response.status).toBe(201);
     await expect(response.json()).resolves.toMatchObject({ created: true });
     expect(bucket.size).toBe(1);
+    expect(fixture.sendArtifactAnalysis).toHaveBeenCalledWith(
+      expect.objectContaining({
+        version: 1,
+        ownerKey: identity.ownerKey,
+        artifactId: "22222222-2222-4222-8222-222222222222",
+        kind: "pdf-highlights",
+        fingerprint: "r2-etag:guide",
+      }),
+      { contentType: "json" },
+    );
+  });
+
+  it("returns automatic PDF analysis status and explicitly requeues failures", async () => {
+    const fixture = apiFixture();
+    const route = "/api/library/pdfs/22222222-2222-4222-8222-222222222222/analyses/pdf-highlights";
+    const status = await handleReferenceLibraryApi(new Request(`https://example.test${route}`), fixture.env, identity);
+    expect(status.status).toBe(200);
+    await expect(status.json()).resolves.toMatchObject({ kind: "pdf-highlights", status: "queued" });
+
+    const retry = await handleReferenceLibraryApi(new Request(`https://example.test${route}`, { method: "POST" }), fixture.env, identity);
+    expect(retry.status).toBe(202);
+    expect(fixture.library.queueArtifactAnalysis).toHaveBeenCalledWith(
+      "22222222-2222-4222-8222-222222222222",
+      "pdf-highlights",
+      expect.any(String),
+      true,
+    );
+    expect(fixture.sendArtifactAnalysis).toHaveBeenCalledOnce();
   });
 
   it("rejects empty, unknown, and over-limit PDF metadata fields", async () => {
@@ -1399,6 +1427,17 @@ function apiFixture(bucket = new MemoryR2Bucket()) {
     createdAt: now,
   } as const;
   const metadataPreviewCache = new Map<string, MetadataRefinementPreview>();
+  const analysis = {
+    artifactId: artifact.id,
+    fingerprint: artifact.fingerprint,
+    kind: "pdf-highlights" as const,
+    status: "queued" as const,
+    result: null,
+    error: "",
+    requestedAt: now,
+    startedAt: null,
+    completedAt: null,
+  };
   const library = {
     getSnapshot: vi.fn(async () => snapshot),
     importBibTeX: vi.fn(async () => [{ reference, suggestedAlias: "guide", created: true }]),
@@ -1434,6 +1473,9 @@ function apiFixture(bucket = new MemoryR2Bucket()) {
       }),
     ),
     importHighlights: vi.fn(async () => []),
+    getArtifactAnalysis: vi.fn(async () => analysis),
+    queueArtifactAnalysis: vi.fn(async () => analysis),
+    failArtifactAnalysis: vi.fn(async () => true),
     updateHighlightComment: vi.fn(async (referenceId: string, id: string, comment: string) => ({
       id,
       referenceId,
@@ -1575,15 +1617,18 @@ function apiFixture(bucket = new MemoryR2Bucket()) {
   const getByName = vi.fn(() => library);
   const refineGeneratedProjectReferenceAlias = vi.fn(async () => true);
   const getDocumentRoomByName = vi.fn(() => ({ refineGeneratedProjectReferenceAlias }));
+  const sendArtifactAnalysis = vi.fn(async () => undefined);
   return {
     library,
     getByName,
     refineGeneratedProjectReferenceAlias,
     getDocumentRoomByName,
+    sendArtifactAnalysis,
     env: {
       REFERENCE_LIBRARIES: { getByName },
       DOCUMENT_ROOMS: { getByName: getDocumentRoomByName },
       PAPERS: bucket,
+      ARTIFACT_ANALYSIS_QUEUE: { send: sendArtifactAnalysis },
       CROSSREF_MAILTO: "",
     },
   };

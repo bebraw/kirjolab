@@ -4,11 +4,14 @@ import {
   compareWebSnapshotText,
   crossrefMetadataFields,
   extractWebDocument,
+  isArtifactAnalysis,
+  isArtifactAnalysisJob,
   isCrossrefMetadata,
   isLibraryHighlightImportCandidate,
   isLibraryPdfMarkup,
   isMetadataRefinementPreview,
   isPdfDraftResult,
+  isPdfHighlightAnalysisResult,
   isProjectReferencePdfs,
   isReferenceLibrarySnapshot,
   likelyReferenceIdentity,
@@ -47,6 +50,46 @@ const capturedWebSnapshot = {
 } as const;
 
 describe("shared reference library", () => {
+  it("validates bounded, versioned artifact analysis messages and results", () => {
+    const candidate = {
+      id: "annotation:1:0",
+      source: "annotation",
+      confidence: 1,
+      page: 1,
+      quote: "Inspectable evidence",
+      comment: "",
+      rects: [{ x: 0.1, y: 0.2, width: 0.3, height: 0.04 }],
+    } as const;
+    const result = { candidates: [candidate], pagesScanned: 1, pagesTotal: 2, truncated: false };
+    const analysis = {
+      artifactId: "artifact-1",
+      fingerprint: "etag:artifact-1",
+      kind: "pdf-highlights",
+      status: "ready",
+      result,
+      error: "",
+      requestedAt: "2026-07-29T00:00:00.000Z",
+      startedAt: "2026-07-29T00:00:01.000Z",
+      completedAt: "2026-07-29T00:00:02.000Z",
+    } as const;
+    const job = {
+      version: 1,
+      ownerKey: "owner",
+      artifactId: analysis.artifactId,
+      fingerprint: analysis.fingerprint,
+      kind: analysis.kind,
+      requestedAt: analysis.requestedAt,
+    } as const;
+
+    expect(isPdfHighlightAnalysisResult(result)).toBe(true);
+    expect(isPdfHighlightAnalysisResult({ ...result, pagesScanned: 201 })).toBe(false);
+    expect(isPdfHighlightAnalysisResult({ ...result, candidates: [{ ...candidate, confidence: 2 }] })).toBe(false);
+    expect(isArtifactAnalysis(analysis)).toBe(true);
+    expect(isArtifactAnalysis({ ...analysis, status: "unknown" })).toBe(false);
+    expect(isArtifactAnalysisJob(job)).toBe(true);
+    expect(isArtifactAnalysisJob({ ...job, version: 2 })).toBe(false);
+  });
+
   it("accepts only safe project reference PDF descriptors", () => {
     const pdf = { id: "pdf-1", referenceId: "ref-1", name: "paper.pdf", size: 42, fingerprint: "r2-etag:test" };
     expect(isProjectReferencePdfs([pdf])).toBe(true);

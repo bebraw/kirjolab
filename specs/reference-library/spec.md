@@ -229,17 +229,24 @@ memory and makes citation aliases compete with stable source identity.
   creating a second resource. Geometry, quotation text, and distinct comments
   are combined within their existing bounds. Non-overlapping selections remain
   separate highlights.
-- The private reader can explicitly inspect an imported PDF for existing
-  highlights. Standard PDF highlight annotations retain their bounded geometry
-  and optional comment; flattened yellow page graphics are detected from a
-  bounded client-side render and matched back to the PDF text layer. Candidates
+- A successful PDF intake automatically queues private artifact analysis.
+  Standard PDF highlight annotations retain their bounded geometry and optional
+  comment; flattened yellow page graphics are detected from a bounded managed-
+  browser render and matched back to the PDF text layer. Candidates
   without recoverable text are ignored. The researcher reviews selection and
   may edit each private note before one explicit, atomic import. Detection never
   uploads page pixels, silently saves a candidate, shares research, or mutates a
   project. A scan reads at most 200 pages and returns at most 128 candidates.
-  A bounded light-DOM component owns detection, empty, mixed-source, error,
+  Queue messages contain identifiers and fingerprints rather than PDF bytes.
+  The owner Library Durable Object stores fingerprint-qualified queued, running,
+  ready, and failed analysis state so delivery and retries are idempotent. The
+  managed browser can read only the exact R2 object supplied through request
+  interception for that job. A generic versioned artifact-analysis envelope
+  allows later analysis kinds, including citation extraction, to reuse the same
+  queue and lifecycle without weakening owner isolation. A bounded light-DOM
+  component polls status and owns empty, mixed-source, error,
   saved-highlight overlap filtering, review-selection, private-note, stable
-  import transport, busy, retryable failure, and completion presentation. It
+  import transport, busy, explicit analysis retry, and completion presentation. It
   accepts explicit artifact, reference, and saved-highlight context, ignores
   stale asynchronous results after that identity changes, and emits only a
   typed completed-import outcome. The application coordinator retains

@@ -19,7 +19,10 @@ import {
   mergeLibraryHighlightQuote,
   mergeLibraryPdfRects,
   missingRequiredBibliographicFields,
+  isPdfHighlightAnalysisResult,
   referenceFromBibTeX,
+  type ArtifactAnalysis,
+  type ArtifactAnalysisKind,
   type BibliographicRecord,
   type CrossrefMetadata,
   type CrossrefMetadataField,
@@ -34,6 +37,7 @@ import {
   type MetadataFieldProvenance,
   type MetadataRefinementPreview,
   type PdfDraftResult,
+  type PdfHighlightAnalysisResult,
   type ReadingState,
   type ReviewedPdfMetadata,
   type ReviewedProviderMetadataSelection,
@@ -87,6 +91,18 @@ interface ArtifactRow extends Record<string, SqlStorageValue> {
   fingerprint: string;
   rights: string;
   created_at: string;
+}
+
+interface ArtifactAnalysisRow extends Record<string, SqlStorageValue> {
+  artifact_id: string;
+  fingerprint: string;
+  kind: string;
+  status: string;
+  result_json: string;
+  error: string;
+  requested_at: string;
+  started_at: string | null;
+  completed_at: string | null;
 }
 
 interface WebSourceRow extends Record<string, SqlStorageValue> {
@@ -512,6 +528,27 @@ const migrations = [
       return undefined;
     },
   },
+  {
+    version: 11,
+    name: "queue-artifact-analysis",
+    apply(sql): undefined {
+      sql.exec(`
+        CREATE TABLE artifact_analyses (
+          artifact_id TEXT NOT NULL REFERENCES artifacts(id) ON DELETE CASCADE,
+          fingerprint TEXT NOT NULL,
+          kind TEXT NOT NULL CHECK (kind IN ('pdf-highlights')),
+          status TEXT NOT NULL CHECK (status IN ('queued', 'running', 'ready', 'failed')),
+          result_json TEXT NOT NULL DEFAULT '',
+          error TEXT NOT NULL DEFAULT '',
+          requested_at TEXT NOT NULL,
+          started_at TEXT,
+          completed_at TEXT,
+          PRIMARY KEY (artifact_id, kind)
+        );
+      `);
+      return undefined;
+    },
+  },
 ] as const satisfies readonly SQLiteMigration[];
 
 export class ReferenceLibrary extends DurableObject<Env> {
@@ -927,6 +964,92 @@ export class ReferenceLibrary extends DurableObject<Env> {
       );
     });
     return { reference, artifact: identified, created: true };
+  }
+
+  getArtifactAnalysis(artifactId: string, kind: ArtifactAnalysisKind): ArtifactAnalysis | null {
+    const row = this.#artifactAnalysisRow(artifactId, kind);
+    return row ? artifactAnalysisFromRow(row) : null;
+  }
+
+  queueArtifactAnalysis(artifactId: string, kind: ArtifactAnalysisKind, requestedAt: string, force = false): ArtifactAnalysis {
+    const artifact = this.#artifact(artifactId);
+    const existing = this.#artifactAnalysisRow(artifactId, kind);
+    if (
+      !force &&
+      existing?.fingerprint === artifact.fingerprint &&
+      (existing.status === "queued" || existing.status === "running" || existing.status === "ready")
+    ) {
+      return artifactAnalysisFromRow(existing);
+    }
+    this.ctx.storage.sql.exec(
+      `INSERT INTO artifact_analyses
+         (artifact_id, fingerprint, kind, status, result_json, error, requested_at, started_at, completed_at)
+       VALUES (?, ?, ?, 'queued', '', '', ?, NULL, NULL)
+       ON CONFLICT (artifact_id, kind) DO UPDATE SET
+         fingerprint = excluded.fingerprint,
+         status = 'queued',
+         result_json = '',
+         error = '',
+         requested_at = excluded.requested_at,
+         started_at = NULL,
+         completed_at = NULL`,
+      artifactId,
+      artifact.fingerprint,
+      kind,
+      requestedAt,
+    );
+    return artifactAnalysisFromRow(this.#artifactAnalysisRow(artifactId, kind)!);
+  }
+
+  startArtifactAnalysis(artifactId: string, kind: ArtifactAnalysisKind, fingerprint: string, requestedAt: string): boolean {
+    const row = this.#artifactAnalysisRow(artifactId, kind);
+    if (!row || row.fingerprint !== fingerprint || row.requested_at !== requestedAt || row.status === "running" || row.status === "ready") {
+      return false;
+    }
+    this.ctx.storage.sql.exec(
+      "UPDATE artifact_analyses SET status = 'running', error = '', started_at = ?, completed_at = NULL WHERE artifact_id = ? AND kind = ?",
+      new Date().toISOString(),
+      artifactId,
+      kind,
+    );
+    return true;
+  }
+
+  completeArtifactAnalysis(
+    artifactId: string,
+    kind: ArtifactAnalysisKind,
+    fingerprint: string,
+    requestedAt: string,
+    result: PdfHighlightAnalysisResult,
+  ): boolean {
+    if (!isPdfHighlightAnalysisResult(result)) throw new Error("Artifact analysis result is invalid");
+    const row = this.#artifactAnalysisRow(artifactId, kind);
+    if (!row || row.fingerprint !== fingerprint || row.requested_at !== requestedAt) return false;
+    this.ctx.storage.sql.exec(
+      `UPDATE artifact_analyses
+       SET status = 'ready', result_json = ?, error = '', completed_at = ?
+       WHERE artifact_id = ? AND kind = ?`,
+      JSON.stringify(result),
+      new Date().toISOString(),
+      artifactId,
+      kind,
+    );
+    return true;
+  }
+
+  failArtifactAnalysis(artifactId: string, kind: ArtifactAnalysisKind, fingerprint: string, requestedAt: string, error: string): boolean {
+    const row = this.#artifactAnalysisRow(artifactId, kind);
+    if (!row || row.fingerprint !== fingerprint || row.requested_at !== requestedAt) return false;
+    this.ctx.storage.sql.exec(
+      `UPDATE artifact_analyses
+       SET status = 'failed', result_json = '', error = ?, completed_at = ?
+       WHERE artifact_id = ? AND kind = ?`,
+      error.trim().slice(0, 1_000) || "Artifact analysis failed",
+      new Date().toISOString(),
+      artifactId,
+      kind,
+    );
+    return true;
   }
 
   identifyPdf(artifactId: string, referenceId: string): LibraryPdfArtifact {
@@ -1772,6 +1895,14 @@ export class ReferenceLibrary extends DurableObject<Env> {
     return artifactFromRow(row);
   }
 
+  #artifactAnalysisRow(artifactId: string, kind: ArtifactAnalysisKind): ArtifactAnalysisRow | null {
+    return (
+      this.ctx.storage.sql
+        .exec<ArtifactAnalysisRow>("SELECT * FROM artifact_analyses WHERE artifact_id = ? AND kind = ?", artifactId, kind)
+        .toArray()[0] ?? null
+    );
+  }
+
   #tags(referenceIds: ReadonlySet<string>): Record<string, string[]> {
     const tags: Record<string, string[]> = {};
     for (const row of this.ctx.storage.sql
@@ -1878,6 +2009,35 @@ function artifactFromRow(row: ArtifactRow): LibraryPdfArtifact {
     fingerprint: row.fingerprint,
     rights: row.rights === "shareable" || row.rights === "unknown" ? row.rights : "private",
     createdAt: row.created_at,
+  };
+}
+
+function artifactAnalysisFromRow(row: ArtifactAnalysisRow): ArtifactAnalysis {
+  if (row.kind !== "pdf-highlights") throw new Error("Stored artifact analysis kind is invalid");
+  if (row.status !== "queued" && row.status !== "running" && row.status !== "ready" && row.status !== "failed") {
+    throw new Error("Stored artifact analysis status is invalid");
+  }
+  let result: PdfHighlightAnalysisResult | null = null;
+  if (row.result_json) {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(row.result_json);
+    } catch {
+      throw new Error("Stored artifact analysis result is invalid");
+    }
+    if (!isPdfHighlightAnalysisResult(parsed)) throw new Error("Stored artifact analysis result is invalid");
+    result = parsed;
+  }
+  return {
+    artifactId: row.artifact_id,
+    fingerprint: row.fingerprint,
+    kind: row.kind,
+    status: row.status,
+    result,
+    error: row.error,
+    requestedAt: row.requested_at,
+    startedAt: row.started_at,
+    completedAt: row.completed_at,
   };
 }
 

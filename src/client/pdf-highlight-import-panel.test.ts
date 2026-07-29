@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
-import type { LibraryHighlight, LibraryHighlightImportCandidate } from "../domain/reference-library";
-import type { PdfHighlightDetection } from "./pdf-highlight-import";
+import type {
+  ArtifactAnalysis,
+  LibraryHighlight,
+  LibraryHighlightImportCandidate,
+  PdfHighlightAnalysisResult,
+} from "../domain/reference-library";
 import {
   PdfHighlightImportPanel,
   pdfHighlightImportOutcomeEvent,
@@ -8,7 +12,7 @@ import {
   type PdfHighlightImportOutcome,
 } from "./pdf-highlight-import-panel";
 
-const result: PdfHighlightDetection = {
+const result: PdfHighlightAnalysisResult = {
   candidates: [
     {
       comment: "Native note",
@@ -34,11 +38,23 @@ const result: PdfHighlightDetection = {
   truncated: true,
 };
 
+const readyAnalysis: ArtifactAnalysis = {
+  artifactId: "artifact/1",
+  fingerprint: "r2-etag:artifact-1",
+  kind: "pdf-highlights",
+  status: "ready",
+  result,
+  error: "",
+  requestedAt: "2026-07-29T00:00:00.000Z",
+  startedAt: "2026-07-29T00:00:01.000Z",
+  completedAt: "2026-07-29T00:00:02.000Z",
+};
+
 class TestPdfHighlightImportPanel extends PdfHighlightImportPanel {
-  readonly scans: string[] = [];
+  readonly loads: { artifactId: string; retry: boolean }[] = [];
   readonly saves: { context: PdfHighlightImportContext; candidates: readonly LibraryHighlightImportCandidate[] }[] = [];
-  scanResult: PdfHighlightDetection | Error = result;
-  scanPromise: Promise<PdfHighlightDetection> | null = null;
+  analysis: ArtifactAnalysis | Error = readyAnalysis;
+  loadPromise: Promise<ArtifactAnalysis> | null = null;
   saveError: Error | null = null;
 
   renderForTest() {
@@ -49,19 +65,19 @@ class TestPdfHighlightImportPanel extends PdfHighlightImportPanel {
     return this.createRenderRoot();
   }
 
-  detectForTest(): Promise<void> {
-    return this.detect();
-  }
-
   importForTest(): Promise<void> {
     return this.importSelected(new Event("submit") as SubmitEvent);
+  }
+
+  retryForTest(): void {
+    this.retry();
   }
 
   cancelForTest(): void {
     this.cancel();
   }
 
-  showResultForTest(value: PdfHighlightDetection): void {
+  showResultForTest(value: PdfHighlightAnalysisResult): void {
     this.showResult(value);
   }
 
@@ -77,15 +93,19 @@ class TestPdfHighlightImportPanel extends PdfHighlightImportPanel {
     this.changeComment(eventForReview(id, { checked: true, value }));
   }
 
+  defaultLoadForTest(artifactId: string, retry = false): Promise<ArtifactAnalysis> {
+    return super.load(artifactId, retry);
+  }
+
   defaultSaveForTest(value: PdfHighlightImportContext, candidates: readonly LibraryHighlightImportCandidate[]): Promise<void> {
     return super.save(value, candidates);
   }
 
-  protected override async scan(url: string): Promise<PdfHighlightDetection> {
-    this.scans.push(url);
-    if (this.scanPromise) return this.scanPromise;
-    if (this.scanResult instanceof Error) throw this.scanResult;
-    return this.scanResult;
+  protected override async load(artifactId: string, retry = false): Promise<ArtifactAnalysis> {
+    this.loads.push({ artifactId, retry });
+    if (this.loadPromise) return await this.loadPromise;
+    if (this.analysis instanceof Error) throw this.analysis;
+    return this.analysis;
   }
 
   protected override async save(context: PdfHighlightImportContext, candidates: readonly LibraryHighlightImportCandidate[]): Promise<void> {
@@ -97,12 +117,14 @@ class TestPdfHighlightImportPanel extends PdfHighlightImportPanel {
 function eventForReview(id: string, input: { checked: boolean; value: string }): Event {
   const event = new Event("test");
   Object.defineProperty(event, "currentTarget", {
-    value: {
-      ...input,
-      closest: () => ({ dataset: { highlightImportId: id } }),
-    },
+    value: { ...input, closest: () => ({ dataset: { highlightImportId: id } }) },
   });
   return event;
+}
+
+async function settle(): Promise<void> {
+  await Promise.resolve();
+  await Promise.resolve();
 }
 
 const savedHighlight: LibraryHighlight = {
@@ -124,35 +146,32 @@ const context: PdfHighlightImportContext = {
 };
 
 describe("PDF highlight import panel", () => {
-  it("renders default, scanning, empty, mixed, error, and completion states", async () => {
+  it("loads automatic analysis and renders empty, mixed, error, and completion states", async () => {
     const panel = new TestPdfHighlightImportPanel();
     expect(panel.renderForTest()).toBeDefined();
     expect(panel.rootForTest()).toBe(panel);
     panel.setContext(context);
-    await panel.detectForTest();
+    await settle();
+    expect(panel.loads).toEqual([{ artifactId: "artifact/1", retry: false }]);
     expect(panel.renderForTest()).toBeDefined();
     panel.showResultForTest({ candidates: [], pagesScanned: 1, pagesTotal: 1, truncated: false });
-    expect(panel.renderForTest()).toBeDefined();
     panel.showResultForTest(result);
-    expect(panel.renderForTest()).toBeDefined();
     panel.showErrorForTest("Could not inspect this PDF.");
     panel.reset("2 highlights imported privately.");
     expect(panel.renderForTest()).toBeDefined();
   });
 
-  it("owns detection, duplicate filtering, review, import transport, and its typed outcome", async () => {
+  it("filters saved geometry, reviews candidates, and emits a typed import outcome", async () => {
     const panel = new TestPdfHighlightImportPanel();
     const outcomes: PdfHighlightImportOutcome[] = [];
     panel.addEventListener(pdfHighlightImportOutcomeEvent, (event) =>
       outcomes.push((event as CustomEvent<PdfHighlightImportOutcome>).detail),
     );
     panel.setContext(context);
-
-    await panel.detectForTest();
+    await settle();
     panel.commentForTest("flat:2", "  Reviewed note  ");
     await panel.importForTest();
 
-    expect(panel.scans).toEqual(["/api/library/pdfs/artifact%2F1"]);
     expect(panel.saves).toEqual([
       {
         context,
@@ -169,14 +188,10 @@ describe("PDF highlight import panel", () => {
     expect(outcomes).toEqual([{ count: 1 }]);
   });
 
-  it("keeps empty selection and provider failures retryable without emitting completion", async () => {
+  it("keeps empty selection and import failures retryable", async () => {
     const panel = new TestPdfHighlightImportPanel();
-    const outcomes: PdfHighlightImportOutcome[] = [];
-    panel.addEventListener(pdfHighlightImportOutcomeEvent, (event) =>
-      outcomes.push((event as CustomEvent<PdfHighlightImportOutcome>).detail),
-    );
     panel.setContext({ ...context, highlights: [] });
-    await panel.detectForTest();
+    await settle();
     panel.selectForTest("native:1", false);
     panel.selectForTest("flat:2", false);
     await panel.importForTest();
@@ -187,50 +202,50 @@ describe("PDF highlight import panel", () => {
     await panel.importForTest();
     panel.saveError = null;
     await panel.importForTest();
-
     expect(panel.saves).toHaveLength(2);
-    expect(outcomes).toEqual([{ count: 1 }]);
   });
 
-  it("ignores an in-flight scan after artifact identity changes and keeps cancel local", async () => {
+  it("ignores stale analysis and retries failed server work explicitly", async () => {
     const panel = new TestPdfHighlightImportPanel();
-    let finishScan: (value: PdfHighlightDetection) => void = () => undefined;
-    panel.scanPromise = new Promise((resolve) => {
-      finishScan = resolve;
+    let finishLoad: (value: ArtifactAnalysis) => void = () => undefined;
+    panel.loadPromise = new Promise((resolve) => {
+      finishLoad = resolve;
     });
     panel.setContext({ ...context, highlights: [] });
-    const detection = panel.detectForTest();
-    void panel.detectForTest();
     panel.setContext({ artifactId: "artifact-2", highlights: [], referenceId: "reference-2" });
-    finishScan(result);
-    await detection;
+    finishLoad(readyAnalysis);
+    await settle();
     await panel.importForTest();
-    panel.cancelForTest();
-
-    expect(panel.scans).toHaveLength(1);
     expect(panel.saves).toEqual([]);
+
+    panel.loadPromise = null;
+    panel.analysis = { ...readyAnalysis, artifactId: "artifact-2", status: "failed", result: null, error: "Browser unavailable" };
+    panel.reset();
+    panel.setContext(null);
+    panel.setContext({ artifactId: "artifact-2", highlights: [], referenceId: "reference-2" });
+    await settle();
+    panel.retryForTest();
+    await settle();
+    expect(panel.loads.at(-1)).toEqual({ artifactId: "artifact-2", retry: true });
+    panel.cancelForTest();
   });
 
-  it("owns encoded import requests in the default transport", async () => {
-    const requests: { body: string | null; url: string }[] = [];
+  it("owns encoded status, retry, and import requests in the default transport", async () => {
+    const requests: { body: string | null; method: string | undefined; url: string }[] = [];
     const originalFetch = globalThis.fetch;
     globalThis.fetch = async (input, init) => {
-      requests.push({ body: typeof init?.body === "string" ? init.body : null, url: String(input) });
-      return new Response(null, { status: 204 });
+      requests.push({ body: typeof init?.body === "string" ? init.body : null, method: init?.method, url: String(input) });
+      return String(input).includes("analyses") ? Response.json(readyAnalysis) : new Response(null, { status: 204 });
     };
     try {
       const panel = new TestPdfHighlightImportPanel();
-      panel.setContext({ ...context, highlights: [] });
-      await panel.detectForTest();
+      await panel.defaultLoadForTest("artifact/1");
+      await panel.defaultLoadForTest("artifact/1", true);
       await panel.defaultSaveForTest(context, [{ comment: "", page: 1, quote: "Evidence", rects: result.candidates[0]!.rects }]);
-      expect(requests).toEqual([
-        {
-          body: JSON.stringify({
-            artifactId: "artifact/1",
-            candidates: [{ comment: "", page: 1, quote: "Evidence", rects: result.candidates[0]!.rects }],
-          }),
-          url: "/api/library/references/reference%2F1/highlight-imports",
-        },
+      expect(requests.map(({ method, url }) => ({ method, url }))).toEqual([
+        { method: "GET", url: "/api/library/pdfs/artifact%2F1/analyses/pdf-highlights" },
+        { method: "POST", url: "/api/library/pdfs/artifact%2F1/analyses/pdf-highlights" },
+        { method: "POST", url: "/api/library/references/reference%2F1/highlight-imports" },
       ]);
     } finally {
       globalThis.fetch = originalFetch;

@@ -187,6 +187,75 @@ describe("ReferenceLibrary in the Workers runtime", () => {
     });
   });
 
+  it("keeps artifact analysis idempotent across duplicate and stale queue deliveries", async () => {
+    const library = env.REFERENCE_LIBRARIES.getByName(`artifact-analysis-${crypto.randomUUID()}`);
+    const artifactId = crypto.randomUUID();
+    const draft = await library.createPdfDraft(
+      {
+        id: artifactId,
+        referenceId: null,
+        name: "analysis.pdf",
+        contentType: "application/pdf",
+        size: 100,
+        objectKey: `libraries/owner/${artifactId}.pdf`,
+        fingerprint: `etag:${artifactId}`,
+        rights: "private",
+        createdAt: "2026-07-29T10:00:00.000Z",
+      },
+      "owner@example.test",
+    );
+    const firstRequest = "2026-07-29T10:00:01.000Z";
+    const queued = await library.queueArtifactAnalysis(draft.artifact.id, "pdf-highlights", firstRequest);
+    expect(queued).toMatchObject({ status: "queued", requestedAt: firstRequest, result: null });
+    expect(await library.startArtifactAnalysis(draft.artifact.id, "pdf-highlights", draft.artifact.fingerprint, firstRequest)).toBe(true);
+    expect(await library.startArtifactAnalysis(draft.artifact.id, "pdf-highlights", draft.artifact.fingerprint, firstRequest)).toBe(false);
+    expect((await library.queueArtifactAnalysis(draft.artifact.id, "pdf-highlights", "ignored")).status).toBe("running");
+
+    const result = {
+      candidates: [
+        {
+          id: "annotation:1:0",
+          source: "annotation" as const,
+          confidence: 1,
+          page: 1,
+          quote: "Inspectable evidence",
+          comment: "",
+          rects: [{ x: 0.1, y: 0.2, width: 0.3, height: 0.04 }],
+        },
+      ],
+      pagesScanned: 1,
+      pagesTotal: 1,
+      truncated: false,
+    };
+    expect(await library.completeArtifactAnalysis(draft.artifact.id, "pdf-highlights", draft.artifact.fingerprint, "stale", result)).toBe(
+      false,
+    );
+    expect(
+      await library.completeArtifactAnalysis(draft.artifact.id, "pdf-highlights", draft.artifact.fingerprint, firstRequest, result),
+    ).toBe(true);
+    expect(await library.getArtifactAnalysis(draft.artifact.id, "pdf-highlights")).toMatchObject({ status: "ready", result });
+    expect(await library.startArtifactAnalysis(draft.artifact.id, "pdf-highlights", draft.artifact.fingerprint, firstRequest)).toBe(false);
+
+    const retryRequest = "2026-07-29T10:01:00.000Z";
+    expect((await library.queueArtifactAnalysis(draft.artifact.id, "pdf-highlights", retryRequest, true)).status).toBe("queued");
+    expect(
+      await library.failArtifactAnalysis(draft.artifact.id, "pdf-highlights", draft.artifact.fingerprint, firstRequest, "stale failure"),
+    ).toBe(false);
+    expect(
+      await library.failArtifactAnalysis(
+        draft.artifact.id,
+        "pdf-highlights",
+        draft.artifact.fingerprint,
+        retryRequest,
+        "Browser unavailable",
+      ),
+    ).toBe(true);
+    expect(await library.getArtifactAnalysis(draft.artifact.id, "pdf-highlights")).toMatchObject({
+      status: "failed",
+      error: "Browser unavailable",
+    });
+  });
+
   it("imports reviewed PDF highlights atomically into the private library", async () => {
     const library = env.REFERENCE_LIBRARIES.getByName(`highlight-import-${crypto.randomUUID()}`);
     const artifactId = crypto.randomUUID();

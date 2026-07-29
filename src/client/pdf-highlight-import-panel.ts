@@ -1,8 +1,15 @@
 import { html, type TemplateResult } from "lit";
 import { LightDomElement } from "./light-dom-controller";
-import { libraryPdfRectsOverlap, type LibraryHighlight, type LibraryHighlightImportCandidate } from "../domain/reference-library";
+import {
+  isArtifactAnalysis,
+  libraryPdfRectsOverlap,
+  type ArtifactAnalysis,
+  type LibraryHighlight,
+  type LibraryHighlightImportCandidate,
+  type PdfHighlightAnalysisCandidate,
+  type PdfHighlightAnalysisResult,
+} from "../domain/reference-library";
 import { expectOk, jsonFetch } from "./http";
-import { detectImportedPdfHighlights, type PdfHighlightDetection, type PdfHighlightImportCandidate } from "./pdf-highlight-import";
 
 export const pdfHighlightImportOutcomeEvent = "pdf-highlight-import-outcome";
 
@@ -17,7 +24,7 @@ export interface PdfHighlightImportContext {
 }
 
 interface CandidateReview {
-  readonly candidate: PdfHighlightImportCandidate;
+  readonly candidate: PdfHighlightAnalysisCandidate;
   readonly comment: string;
   readonly selected: boolean;
 }
@@ -25,33 +32,38 @@ interface CandidateReview {
 export class PdfHighlightImportPanel extends LightDomElement {
   static override properties = {
     importing: { state: true },
+    loading: { state: true },
     reviews: { state: true },
-    scanning: { state: true },
     status: { state: true },
   };
 
   declare private importing: boolean;
+  declare private loading: boolean;
   declare private reviews: readonly CandidateReview[];
-  declare private scanning: boolean;
   declare private status: string;
   #context: PdfHighlightImportContext | null = null;
+  #analysis: ArtifactAnalysis | null = null;
+  #pollTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor() {
     super();
     this.importing = false;
+    this.loading = false;
     this.reviews = [];
-    this.scanning = false;
     this.status = defaultStatus;
   }
 
   setContext(context: PdfHighlightImportContext | null): void {
     const identityChanged = context?.artifactId !== this.#context?.artifactId || context?.referenceId !== this.#context?.referenceId;
     this.#context = context;
-    if (identityChanged) this.reset();
+    if (identityChanged) {
+      this.reset();
+      if (context) void this.refreshAnalysis(context);
+    }
   }
 
-  protected showResult(result: PdfHighlightDetection): void {
-    this.scanning = false;
+  protected showResult(result: PdfHighlightAnalysisResult): void {
+    this.loading = false;
     this.reviews = result.candidates.map((candidate) => ({ candidate, comment: candidate.comment, selected: true }));
     if (result.candidates.length === 0) {
       this.status = `No new highlights found across ${result.pagesScanned} scanned page${result.pagesScanned === 1 ? "" : "s"}.`;
@@ -70,14 +82,16 @@ export class PdfHighlightImportPanel extends LightDomElement {
   }
 
   protected showError(message: string): void {
-    this.scanning = false;
+    this.loading = false;
     this.status = message;
   }
 
   reset(message = defaultStatus): void {
     this.importing = false;
     this.reviews = [];
-    this.scanning = false;
+    this.loading = false;
+    this.#analysis = null;
+    this.clearPoll();
     this.status = message;
   }
 
@@ -90,15 +104,17 @@ export class PdfHighlightImportPanel extends LightDomElement {
             ${this.status}
           </p>
         </div>
-        <button
-          class="button-secondary"
-          id="detect-library-pdf-highlights"
-          type="button"
-          ?disabled=${this.scanning || this.importing}
-          @click=${this.detect}
-        >
-          ${this.scanning ? "Detecting…" : "Detect highlights"}
-        </button>
+        ${this.#analysis?.status === "failed"
+          ? html`<button
+              class="button-secondary"
+              id="retry-library-pdf-highlights"
+              type="button"
+              ?disabled=${this.loading}
+              @click=${this.retry}
+            >
+              ${this.loading ? "Retrying…" : "Retry analysis"}
+            </button>`
+          : ""}
       </div>
       <form class="mt-3" id="library-highlight-import-form" ?hidden=${this.reviews.length === 0} @submit=${this.importSelected}>
         <div class="space-y-2" id="library-highlight-import-list">
@@ -145,43 +161,17 @@ export class PdfHighlightImportPanel extends LightDomElement {
             ?disabled=${this.importing}
             @click=${this.cancel}
           >
-            Cancel
+            Clear selection
           </button>
         </div>
       </form>
     `;
   }
 
-  protected async detect(): Promise<void> {
-    const context = this.#context;
-    if (!context || this.scanning || this.importing) return;
-    this.scanning = true;
-    this.reviews = [];
-    this.status = "Scanning PDF annotations and page highlights…";
-    try {
-      const result = await this.scan(`/api/library/pdfs/${encodeURIComponent(context.artifactId)}`);
-      const current = this.currentContext(context);
-      if (!current) return;
-      this.showResult({
-        ...result,
-        candidates: result.candidates.filter(
-          (candidate) =>
-            !current.highlights.some(
-              (highlight) => highlight.page === candidate.page && libraryPdfRectsOverlap(highlight.rects, candidate.rects),
-            ),
-        ),
-      });
-    } catch (error) {
-      if (this.currentContext(context)) {
-        this.showError(error instanceof Error ? `Could not inspect this PDF: ${error.message}` : "Could not inspect this PDF.");
-      }
-    }
-  }
-
   protected async importSelected(event: SubmitEvent): Promise<void> {
     event.preventDefault();
     const context = this.#context;
-    if (!context || this.scanning || this.importing) return;
+    if (!context || this.loading || this.importing) return;
     const candidates = this.reviews
       .filter(({ selected }) => selected)
       .map(({ candidate, comment }) => ({
@@ -217,7 +207,9 @@ export class PdfHighlightImportPanel extends LightDomElement {
   }
 
   protected cancel(): void {
-    if (!this.importing) this.reset();
+    if (this.importing) return;
+    this.reviews = this.reviews.map((review) => ({ ...review, selected: false }));
+    this.status = "Candidate selection cleared. Nothing was imported.";
   }
 
   protected changeSelection(event: Event): void {
@@ -239,8 +231,15 @@ export class PdfHighlightImportPanel extends LightDomElement {
     return current?.artifactId === expected.artifactId && current.referenceId === expected.referenceId ? current : null;
   }
 
-  protected scan(url: string): Promise<PdfHighlightDetection> {
-    return detectImportedPdfHighlights(url);
+  protected async load(artifactId: string, retry = false): Promise<ArtifactAnalysis> {
+    const response = await fetch(`/api/library/pdfs/${encodeURIComponent(artifactId)}/analyses/pdf-highlights`, {
+      method: retry ? "POST" : "GET",
+      credentials: "same-origin",
+    });
+    await expectOk(response);
+    const value: unknown = await response.json();
+    if (!isArtifactAnalysis(value)) throw new Error("The server returned an invalid analysis status");
+    return value;
   }
 
   protected async save(context: PdfHighlightImportContext, candidates: readonly LibraryHighlightImportCandidate[]): Promise<void> {
@@ -251,9 +250,66 @@ export class PdfHighlightImportPanel extends LightDomElement {
       }),
     );
   }
+
+  protected async refreshAnalysis(context: PdfHighlightImportContext, retry = false): Promise<void> {
+    if (this.loading || !this.currentContext(context)) return;
+    this.loading = true;
+    if (retry) this.status = "Queueing highlight analysis…";
+    try {
+      const analysis = await this.load(context.artifactId, retry);
+      if (!this.currentContext(context)) return;
+      if (analysis.artifactId !== context.artifactId) return;
+      this.#analysis = analysis;
+      if (analysis.status === "queued" || analysis.status === "running") {
+        this.loading = false;
+        this.status = analysis.status === "queued" ? "Highlight analysis is queued…" : "Analyzing PDF highlights…";
+        this.schedulePoll(context);
+      } else if (analysis.status === "failed") {
+        this.showError(analysis.error ? `Could not analyze this PDF: ${analysis.error}` : "Could not analyze this PDF.");
+      } else if (analysis.result) {
+        this.showResult({
+          ...analysis.result,
+          candidates: analysis.result.candidates.filter(
+            (candidate) =>
+              !context.highlights.some(
+                (highlight) => highlight.page === candidate.page && libraryPdfRectsOverlap(highlight.rects, candidate.rects),
+              ),
+          ),
+        });
+      }
+    } catch (error) {
+      if (this.currentContext(context)) {
+        this.showError(
+          error instanceof Error ? `Could not load highlight analysis: ${error.message}` : "Could not load highlight analysis.",
+        );
+      }
+    } finally {
+      if (this.currentContext(context)) this.loading = false;
+    }
+  }
+
+  protected retry(): void {
+    const context = this.#context;
+    if (context) void this.refreshAnalysis(context, true);
+  }
+
+  private schedulePoll(context: PdfHighlightImportContext): void {
+    this.clearPoll();
+    this.#pollTimer = setTimeout(() => void this.refreshAnalysis(context), 2_000);
+  }
+
+  private clearPoll(): void {
+    if (this.#pollTimer) clearTimeout(this.#pollTimer);
+    this.#pollTimer = null;
+  }
+
+  override disconnectedCallback(): void {
+    this.clearPoll();
+    super.disconnectedCallback();
+  }
 }
 
-const defaultStatus = "Detect native annotations and flattened yellow highlights for review.";
+const defaultStatus = "Highlights are analyzed automatically after PDF import.";
 const highlightNoun = (count: number): string => (count === 1 ? "highlight" : "highlights");
 
 if (typeof customElements !== "undefined" && !customElements.get("pdf-highlight-import-panel")) {

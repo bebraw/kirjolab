@@ -4,9 +4,13 @@ import {
   crossrefMetadataFields,
   extractWebDocument,
   isReferenceLibrarySnapshot,
+  isArtifactAnalysis,
   isLibraryHighlightImportCandidate,
   maximumMetadataRefinementCandidates,
   normalizeWebSourceUrl,
+  type ArtifactAnalysis,
+  type ArtifactAnalysisJob,
+  type ArtifactAnalysisKind,
   type BibliographicRecord,
   type CrossrefMetadata,
   type CrossrefMetadataField,
@@ -130,6 +134,15 @@ interface ReferenceLibraryApi {
     artifactId: string,
     candidates: readonly LibraryHighlightImportCandidate[],
   ): Promise<LibraryHighlight[]>;
+  getArtifactAnalysis(artifactId: string, kind: ArtifactAnalysisKind): Promise<ArtifactAnalysis | null>;
+  queueArtifactAnalysis(artifactId: string, kind: ArtifactAnalysisKind, requestedAt: string, force?: boolean): Promise<ArtifactAnalysis>;
+  failArtifactAnalysis(
+    artifactId: string,
+    kind: ArtifactAnalysisKind,
+    fingerprint: string,
+    requestedAt: string,
+    error: string,
+  ): Promise<boolean>;
   createPdfNote(referenceId: string, artifactId: string, page: number, x: number, y: number, body: string): Promise<LibraryPdfNote>;
   createPdfDrawing(
     referenceId: string,
@@ -180,6 +193,9 @@ interface ReferenceLibraryApiEnv {
     };
   };
   readonly PAPERS: Pick<R2Bucket, "put" | "get" | "delete">;
+  readonly ARTIFACT_ANALYSIS_QUEUE?: {
+    send(message: ArtifactAnalysisJob, options?: QueueSendOptions): Promise<unknown>;
+  };
   readonly CROSSREF_MAILTO: string;
   readonly OPENALEX_API_KEY?: string;
   readonly SEMANTIC_SCHOLAR_API_KEY?: string;
@@ -531,11 +547,27 @@ async function handleLibraryPdfRoutes(context: ReferenceLibraryRouteContext): Pr
   if (suffix === "/pdfs" && request.method === "POST") {
     return await uploadLibraryPdf(request, identity.ownerKey, identity.email, env, library);
   }
+  const analysisResponse = await handleLibraryPdfAnalysisRoute(context);
+  if (analysisResponse) return analysisResponse;
   const downloadResponse = await handleLibraryPdfDownloadRoute(context);
   if (downloadResponse) return downloadResponse;
   const identificationResponse = await handleLibraryPdfIdentificationRoute(context);
   if (identificationResponse) return identificationResponse;
   return await handleLibraryPdfRightsRoute(context);
+}
+
+async function handleLibraryPdfAnalysisRoute(context: ReferenceLibraryRouteContext): Promise<Response | null> {
+  const { request, suffix, identity, env, library } = context;
+  const match = /^\/pdfs\/([0-9a-f-]{36})\/analyses\/(pdf-highlights)$/iu.exec(suffix);
+  if (!match?.[1] || match[2] !== "pdf-highlights" || (request.method !== "GET" && request.method !== "POST")) return null;
+  if (request.method === "POST") {
+    if (!env.ARTIFACT_ANALYSIS_QUEUE) return jsonError("Artifact analysis queue is unavailable", 503);
+    const analysis = await enqueueArtifactAnalysis(identity.ownerKey, match[1], "pdf-highlights", env, library, true);
+    return Response.json(analysis, { status: 202, ...noStore() });
+  }
+  const analysis = await library.getArtifactAnalysis(match[1], "pdf-highlights");
+  if (!analysis || !isArtifactAnalysis(analysis)) return jsonError("PDF highlight analysis not found", 404);
+  return Response.json(analysis, noStore());
 }
 
 async function handleLibraryPdfDownloadRoute(context: ReferenceLibraryRouteContext): Promise<Response | null> {
@@ -1490,7 +1522,50 @@ async function uploadLibraryPdf(
     throw error;
   }
   if (!draft.created) await env.PAPERS.delete(objectKey);
+  await enqueueArtifactAnalysis(ownerKey, draft.artifact.id, "pdf-highlights", env, library);
   return Response.json(draft, { status: draft.created ? 201 : 200, ...noStore() });
+}
+
+async function enqueueArtifactAnalysis(
+  ownerKey: string,
+  artifactId: string,
+  kind: ArtifactAnalysisKind,
+  env: ReferenceLibraryApiEnv,
+  library: ReferenceLibraryApi,
+  force = false,
+): Promise<ArtifactAnalysis> {
+  const requestedAt = new Date().toISOString();
+  if (!env.ARTIFACT_ANALYSIS_QUEUE) {
+    return {
+      artifactId,
+      fingerprint: "",
+      kind,
+      status: "failed",
+      result: null,
+      error: "Artifact analysis queue is unavailable",
+      requestedAt,
+      startedAt: null,
+      completedAt: requestedAt,
+    };
+  }
+  const analysis = await library.queueArtifactAnalysis(artifactId, kind, requestedAt, force);
+  if (analysis.status !== "queued") return analysis;
+  const job: ArtifactAnalysisJob = {
+    version: 1,
+    ownerKey,
+    artifactId,
+    fingerprint: analysis.fingerprint,
+    kind,
+    requestedAt: analysis.requestedAt,
+  };
+  try {
+    await env.ARTIFACT_ANALYSIS_QUEUE.send(job, { contentType: "json" });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Artifact analysis could not be queued";
+    await library.failArtifactAnalysis(artifactId, kind, analysis.fingerprint, analysis.requestedAt, message);
+    return { ...analysis, status: "failed", error: message.slice(0, 1_000), completedAt: new Date().toISOString() };
+  }
+  return analysis;
 }
 
 async function downloadLibraryPdf(

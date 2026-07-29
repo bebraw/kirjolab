@@ -1,4 +1,5 @@
 import { createHealthResponse } from "./api/health";
+import { consumeArtifactAnalysisBatch } from "./artifact-analysis";
 import { handleBackupApi } from "./api/backups";
 import { handleEditShareRequest } from "./api/edit-share";
 import { renderExportPdf } from "./api/export-artifacts";
@@ -94,6 +95,9 @@ export default {
   },
   async scheduled(_controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
     ctx.waitUntil(runScheduledBackups(env));
+  },
+  async queue(batch: MessageBatch<unknown>, env: Env): Promise<void> {
+    await consumeArtifactAnalysisBatch(batch, env);
   },
 } satisfies ExportedHandler<Env>;
 
