@@ -1,6 +1,6 @@
 import { html, type TemplateResult } from "lit";
 import type { Diagnostic } from "../domain/markdown";
-import type { ProjectFilePreview } from "../domain/project-files";
+import type { ProjectFile, ProjectFilePreview } from "../domain/project-files";
 import { sourceSpanAt } from "./composition-source-map";
 import { LightDomElement } from "./light-dom-controller";
 
@@ -18,8 +18,14 @@ interface PreviewStatusData {
 }
 
 interface PreviewDiagnosticItem extends PreviewDiagnosticSelection {
+  readonly line: number;
   readonly message: string;
   readonly selectable: boolean;
+}
+
+interface PreviewDiagnosticSources {
+  readonly files: readonly Pick<ProjectFile, "content" | "id">[];
+  readonly renderedSource: string;
 }
 
 export class PreviewContextStatus extends LightDomElement {
@@ -65,19 +71,24 @@ export class PreviewDiagnosticsPanel extends LightDomElement {
   }
 
   showUnavailable(message: string): void {
-    this.items = [{ fileId: "", from: 0, message, selectable: false, to: 0 }];
+    this.items = [{ fileId: "", from: 0, line: 1, message, selectable: false, to: 0 }];
   }
 
-  setDiagnostics(diagnostics: readonly Diagnostic[], filePreview: ProjectFilePreview | null): void {
+  setDiagnostics(
+    diagnostics: readonly Diagnostic[],
+    filePreview: ProjectFilePreview | null,
+    sources: PreviewDiagnosticSources = { files: [], renderedSource: filePreview?.content ?? "" },
+  ): void {
     this.items = [
       ...(filePreview?.diagnostics.map(({ message, fileId, from, to }) => ({
         fileId,
         from,
+        line: sourceLine(sources, fileId, from),
         message,
         selectable: true,
         to,
       })) ?? []),
-      ...diagnostics.map((diagnostic) => rendererDiagnosticItem(diagnostic, filePreview)),
+      ...diagnostics.map((diagnostic) => rendererDiagnosticItem(diagnostic, filePreview, sources)),
     ];
   }
 
@@ -91,10 +102,10 @@ export class PreviewDiagnosticsPanel extends LightDomElement {
               data-diagnostic-index=${index}
               @click=${this.select}
             >
-              ${item.message}
+              <span class="mr-2 font-semibold text-app-text-soft">Line ${item.line}</span><span>${item.message}</span>
             </button>
           `
-        : html`<p class="resource-card mb-2 font-sans text-xs">${item.message}</p>`,
+        : html`<p class="resource-card mb-2 font-sans text-xs"><span>${item.message}</span></p>`,
     )}`;
   }
 
@@ -113,23 +124,37 @@ export class PreviewDiagnosticsPanel extends LightDomElement {
   }
 }
 
-function rendererDiagnosticItem(diagnostic: Diagnostic, filePreview: ProjectFilePreview | null): PreviewDiagnosticItem {
+function rendererDiagnosticItem(
+  diagnostic: Diagnostic,
+  filePreview: ProjectFilePreview | null,
+  sources: PreviewDiagnosticSources,
+): PreviewDiagnosticItem {
   const span = filePreview ? sourceSpanAt(filePreview.sourceMap, diagnostic.from) : undefined;
-  return span
-    ? {
-        fileId: span.fileId,
-        from: span.sourceStart,
-        message: diagnostic.message,
-        selectable: true,
-        to: Math.min(span.sourceEnd, span.sourceStart + diagnostic.to - diagnostic.from),
-      }
-    : {
-        fileId: filePreview?.fileId ?? "",
-        from: diagnostic.from,
-        message: diagnostic.message,
-        selectable: true,
-        to: diagnostic.to,
-      };
+  if (!span) {
+    const fileId = filePreview?.fileId ?? "";
+    return {
+      fileId,
+      from: diagnostic.from,
+      line: sourceLine(sources, fileId, diagnostic.from),
+      message: diagnostic.message,
+      selectable: true,
+      to: diagnostic.to,
+    };
+  }
+  const from = Math.min(span.sourceEnd, span.sourceStart + Math.max(0, diagnostic.from - span.outputStart));
+  return {
+    fileId: span.fileId,
+    from,
+    line: sourceLine(sources, span.fileId, from),
+    message: diagnostic.message,
+    selectable: true,
+    to: Math.min(span.sourceEnd, from + diagnostic.to - diagnostic.from),
+  };
+}
+
+function sourceLine(sources: PreviewDiagnosticSources, fileId: string, offset: number): number {
+  const source = sources.files.find(({ id }) => id === fileId)?.content ?? sources.renderedSource;
+  return source.slice(0, Math.max(0, Math.min(offset, source.length))).split(/\r?\n/u).length;
 }
 
 if (typeof customElements !== "undefined") {

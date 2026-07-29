@@ -178,7 +178,10 @@ export class WorkspacePreview extends LightDomElement {
         sourceMap: request.filePreview?.sourceMap ?? [],
       });
     }
-    this.diagnostics.setDiagnostics(rendered.diagnostics, request.filePreview);
+    this.diagnostics.setDiagnostics(rendered.diagnostics, request.filePreview, {
+      files: request.snapshot?.files ?? [],
+      renderedSource: request.renderedSource,
+    });
     return { available: true, diagnostics: rendered.diagnostics };
   }
 

@@ -28,8 +28,9 @@ second Markdown dialect.
   cannot load.
 - A bounded light-DOM workspace Preview component owns that runtime lifecycle,
   stale-render guard, sanitized HTML or escaped-source presentation, renderer
-  diagnostics, isolated-file heading-number projection, and authorized local
-  project-image resolution. Project composition, canonical Yjs source,
+  diagnostics with one-based mapped source lines, isolated-file heading-number
+  projection, and authorized local project-image resolution. Project
+  composition, canonical Yjs source,
   cross-panel projections, citation navigation, and routing remain outside the
   component.
 - Markdown preview no longer requires WebAssembly, a helper Web Worker, shared

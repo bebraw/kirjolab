@@ -55,6 +55,11 @@ class TestPreviewDiagnosticsPanel extends PreviewDiagnosticsPanel {
   selectForTest(index: string): void {
     this.select(eventWithTarget({ dataset: { diagnosticIndex: index } }));
   }
+
+  valuesForTest(): readonly (readonly unknown[])[] {
+    const items = this.renderForTest().values[0];
+    return Array.isArray(items) ? items.map((item) => (item as { readonly values: readonly unknown[] }).values) : [];
+  }
 }
 
 function eventWithTarget(target: object): Event {
@@ -89,8 +94,19 @@ describe("preview presentation", () => {
         { from: 30, message: "Fallback issue", severity: "warning", to: 34 },
       ],
       filePreview,
+      {
+        files: [
+          { id: "file:main", content: "A\nMissing include" },
+          { id: "file:nested", content: "A\nMapped issue" },
+        ],
+        renderedSource: filePreview.content,
+      },
     );
-    expect(panel.renderForTest()).toBeDefined();
+    expect(panel.valuesForTest().map((values) => values.slice(-2))).toEqual([
+      [2, "Missing include"],
+      [2, "Mapped issue"],
+      [2, "Fallback issue"],
+    ]);
     panel.setDiagnostics([{ from: 1, message: "Entry issue", severity: "error", to: 3 }], null);
     expect(panel.renderForTest()).toBeDefined();
     expect(panel.rootForTest()).toBe(panel);
@@ -113,7 +129,7 @@ describe("preview presentation", () => {
 
     expect(selections).toEqual([
       { fileId: "file:main", from: 2, to: 5 },
-      { fileId: "file:nested", from: 0, to: 4 },
+      { fileId: "file:nested", from: 2, to: 6 },
     ]);
   });
 });

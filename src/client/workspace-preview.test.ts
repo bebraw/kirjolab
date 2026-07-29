@@ -107,7 +107,10 @@ describe("workspace preview", () => {
       source: request.renderedSource,
       sourceMap: [],
     });
-    expect(preview.setDiagnostics).toHaveBeenCalledWith([diagnostic], null);
+    expect(preview.setDiagnostics).toHaveBeenCalledWith([diagnostic], null, {
+      files: request.snapshot?.files,
+      renderedSource: request.renderedSource,
+    });
     expect(preview.renderForTest()).toBeDefined();
   });
 
