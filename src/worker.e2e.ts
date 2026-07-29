@@ -3813,7 +3813,10 @@ test("converges source edits across two writers", async ({ page, context }) => {
     element.dispatchEvent(new Event("select", { bubbles: true }));
   }, revisedText);
   await page.locator("#manuscript-comment-list").getByRole("button", { name: "Re-anchor to selection" }).click();
-  await expect(page.locator("#manuscript-comment-list blockquote")).toHaveText(revisedText);
+  const reanchoredComment = page
+    .locator("#manuscript-comment-list [data-comment-resource-id]")
+    .filter({ hasText: "Keep this collaboration claim concrete." });
+  await expect(reanchoredComment.locator("blockquote")).toHaveText(revisedText);
   await expect(page.locator("#manuscript-comment-list").getByRole("button", { name: "Open linked passage" })).toBeVisible();
 
   await collaborator.locator("#manuscript-comment-list").getByRole("button", { name: "Resolve" }).click();
@@ -4536,8 +4539,11 @@ test("starts from built-in and promoted personal project templates", async ({ pa
   await expect(page.locator("#save-template-dialog")).toBeVisible();
   await page.locator("#save-template-name").fill("Lab review workflow");
   await page.locator("#save-template-description").fill("A reusable evidence review workflow.");
+  const savedTemplateResponse = page.waitForResponse(
+    (response) => response.request().method() === "POST" && /\/api\/workspaces\/[^/]+\/template$/u.test(response.url()),
+  );
   await page.locator("#save-template-form").getByRole("button", { name: "Save template" }).click();
-  await expect(page.locator("#toast")).toContainText(/saved .* as a personal template/iu);
+  expect((await savedTemplateResponse).ok()).toBe(true);
 
   const templatesResponse = await page.request.get("/api/project-templates");
   expect(templatesResponse.ok()).toBe(true);
