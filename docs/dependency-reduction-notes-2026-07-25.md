@@ -2,6 +2,11 @@
 
 **Date:** 2026-07-25
 
+**Follow-up:** The proposed
+[modularization and dependency strategy](./modularization-and-dependency-rfc-2026-07-29.md)
+turns these completed pilots into staged boundaries and future dependency
+evaluation gates.
+
 ## Purpose
 
 Kirjolab has grown beyond 100,000 lines across source, tests, and tooling. The
