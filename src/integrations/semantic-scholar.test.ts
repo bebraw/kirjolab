@@ -1,5 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
-import { fetchSemanticScholarWork, searchSemanticScholarWorks } from "./semantic-scholar";
+import {
+  fetchSemanticScholarCitations,
+  fetchSemanticScholarWork,
+  searchSemanticScholarWorks,
+  SemanticScholarUnavailableError,
+} from "./semantic-scholar";
 
 function semanticScholarPaper(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
@@ -16,6 +21,57 @@ function semanticScholarPaper(overrides: Record<string, unknown> = {}): Record<s
 }
 
 describe("Semantic Scholar metadata integration", () => {
+  it("retrieves bounded DOI-backed forward citations", async () => {
+    let observedUrl = "";
+    const fetcher = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+      observedUrl = String(input);
+      expect(init?.headers).toEqual({ accept: "application/json", "user-agent": "Kirjolab/0.1", "x-api-key": "secret" });
+      return Response.json({
+        next: 128,
+        data: [
+          { citingPaper: semanticScholarPaper({ paperId: "citing-1", externalIds: { DOI: "10.1000/CITING" } }) },
+          { citingPaper: semanticScholarPaper({ paperId: "duplicate", externalIds: { DOI: "10.1000/citing" } }) },
+          { citingPaper: semanticScholarPaper({ paperId: "seed", externalIds: { DOI: "10.1000/seed" } }) },
+          { citingPaper: semanticScholarPaper({ paperId: "missing", externalIds: {} }) },
+        ],
+      });
+    });
+
+    await expect(fetchSemanticScholarCitations("10.1000/seed", " secret ", fetcher)).resolves.toMatchObject({
+      provider: "semantic-scholar",
+      direction: "citations",
+      responseId: expect.stringMatching(/^sha256:[a-f0-9]{64}$/u),
+      candidates: [
+        {
+          doi: "10.1000/citing",
+          title: "Inspectable evidence",
+          authors: "Jane Doe; Research Collective",
+          year: "2026",
+          unstructured: "",
+        },
+      ],
+      truncated: true,
+    });
+    const url = new URL(observedUrl);
+    expect(url.origin + url.pathname).toBe("https://api.semanticscholar.org/graph/v1/paper/DOI:10.1000%2Fseed/citations");
+    expect(url.searchParams.get("limit")).toBe("128");
+    expect(url.searchParams.get("fields")).toBe("title,authors,year,externalIds");
+  });
+
+  it("retries transient forward-citation failures once", async () => {
+    vi.useFakeTimers();
+    try {
+      const fetcher = vi.fn(async () => new Response(null, { status: 429 }));
+      const request = fetchSemanticScholarCitations("10.1000/seed", "", fetcher);
+      const rejection = expect(request).rejects.toBeInstanceOf(SemanticScholarUnavailableError);
+      await vi.runAllTimersAsync();
+      await rejection;
+      expect(fetcher).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("maps a DOI paper and uses the optional API key", async () => {
     let observedUrl = "";
     let observedHeaders: HeadersInit | undefined;

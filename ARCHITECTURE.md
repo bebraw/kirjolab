@@ -935,9 +935,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   overwriting assertions; keep manuscript `cites` links separate.
 - Derive the bounded citation network from relational assertions, pair every
   graph with an accessible provenance list, and expand a DOI-backed source only
-  through an explicit bounded provider request. Accept an external expansion
-  candidate only after a fingerprint-verified provider refetch, then create or
-  reuse its library identity and extracted citation assertion atomically. A
+  through an explicit bounded provider request. Use Crossref work references
+  for backward rounds and DOI-backed Semantic Scholar citations for forward
+  rounds. Accept an external expansion candidate only after a direction-aware,
+  fingerprint-verified provider refetch, then create or reuse its library
+  identity and correctly directed extracted citation assertion atomically. A
   project id narrows the private projection but never grants library access.
 - Keep graph domain contracts renderer-neutral and graph actions available as
   ordinary DOM controls or lists. Retain the bounded SVG views until at least

@@ -59,8 +59,9 @@ library.
 
 **Neutral:**
 
-- This change implements backward snowballing only. Forward citation discovery
-  remains provider-dependent follow-up work.
+- This decision originally implemented backward snowballing only. ADR-190 adds
+  forward citation discovery while retaining the same explicit, fingerprint-
+  verified acceptance boundary.
 
 ## Alternatives Considered
 

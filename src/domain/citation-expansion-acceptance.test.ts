@@ -13,12 +13,15 @@ function expectInvalidAcceptance(...values: unknown[]) {
 
 describe("citation candidate acceptance contracts", () => {
   it("accepts only DOI and response fingerprint inputs", () => {
-    expect(isAcceptCitationCandidateInput({ doi: "10.1000/candidate", responseId })).toBe(true);
-    expect(isAcceptCitationCandidateInput({ doi: "invalid", responseId })).toBe(false);
+    expect(isAcceptCitationCandidateInput({ doi: "10.1000/candidate", responseId, direction: "references" })).toBe(true);
+    expect(isAcceptCitationCandidateInput({ doi: "10.1000/candidate", responseId, direction: "citations" })).toBe(true);
+    expect(isAcceptCitationCandidateInput({ doi: "invalid", responseId, direction: "references" })).toBe(false);
     expect(isAcceptCitationCandidateInput(null)).toBe(false);
     expect(isAcceptCitationCandidateInput([])).toBe(false);
-    expect(isAcceptCitationCandidateInput({ doi: "10.1000/candidate", responseId: `${responseId}0` })).toBe(false);
-    expect(isAcceptCitationCandidateInput({ doi: "10.1000/candidate", responseId, metadata: {} })).toBe(true);
+    expect(isAcceptCitationCandidateInput({ doi: "10.1000/candidate", responseId: `${responseId}0`, direction: "references" })).toBe(false);
+    expect(isAcceptCitationCandidateInput({ doi: "10.1000/candidate", responseId, direction: "other" })).toBe(false);
+    expect(isAcceptCitationCandidateInput({ doi: "10.1000/candidate", responseId })).toBe(false);
+    expect(isAcceptCitationCandidateInput({ doi: "10.1000/candidate", responseId, direction: "references", metadata: {} })).toBe(true);
   });
 
   it("requires an acceptance assertion to target the saved reference", () => {
@@ -30,6 +33,9 @@ describe("citation candidate acceptance contracts", () => {
         assertion: { ...assertion, confidence: 0 },
       }),
     ).toBe(true);
+    expect(isCitationCandidateAcceptance({ reference, created: true, assertion: { ...assertion, citingReferenceId: reference.id } })).toBe(
+      true,
+    );
     expectInvalidAcceptance(
       null,
       [],

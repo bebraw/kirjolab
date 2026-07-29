@@ -3413,25 +3413,40 @@ test("records and reviews source citation assertions in an accessible shared net
   const candidateId = "77777777-7777-4777-8777-777777777777";
   const observedAt = "2026-07-16T10:00:00.000Z";
   await page.route(`**/api/library/references/${alphaId}/citation-expansions`, async (route) => {
+    const direction = (route.request().postDataJSON() as { direction?: string } | null)?.direction;
     await route.fulfill({
       contentType: "application/json",
       body: JSON.stringify({
-        provider: "crossref",
-        direction: "references",
+        provider: direction === "citations" ? "semantic-scholar" : "crossref",
+        direction: direction === "citations" ? "citations" : "references",
         seedReferenceId: alphaId,
         retrievedAt: observedAt,
         responseId,
-        sourceLocator: "https://api.crossref.org/works/10.1000%2Fnetwork-alpha",
+        sourceLocator:
+          direction === "citations"
+            ? "https://api.semanticscholar.org/graph/v1/paper/DOI:10.1000%2Fnetwork-alpha/citations"
+            : "https://api.crossref.org/works/10.1000%2Fnetwork-alpha",
         assertions: [],
-        unmatched: [
-          {
-            doi: "10.1000/snowball-candidate",
-            title: "Snowball Candidate Study",
-            authors: "Candidate, Casey",
-            year: "2023",
-            unstructured: "",
-          },
-        ],
+        unmatched:
+          direction === "citations"
+            ? [
+                {
+                  doi: "10.1000/forward-candidate",
+                  title: "Forward Citation Study",
+                  authors: "Future, Fiona",
+                  year: "2026",
+                  unstructured: "",
+                },
+              ]
+            : [
+                {
+                  doi: "10.1000/snowball-candidate",
+                  title: "Snowball Candidate Study",
+                  authors: "Candidate, Casey",
+                  year: "2023",
+                  unstructured: "",
+                },
+              ],
         truncated: false,
         requestedBy: "owner@example.test",
       }),
@@ -3488,6 +3503,10 @@ test("records and reviews source citation assertions in an accessible shared net
   await expect(page.locator("#toast")).toContainText("Reference saved with its discovery trail.");
   await expect(list).toContainText("This seed may be saturated for backward snowballing.");
   await expect(list).not.toContainText("Snowball Candidate Study");
+
+  await alphaNetworkCard.getByRole("button", { name: "Find citing works" }).click();
+  await expect(list).toContainText("Forward snowball · Semantic Scholar");
+  await expect(list).toContainText("Forward Citation Study");
 });
 
 test("keeps resource-keyed research context beside authoring", async ({ page }) => {

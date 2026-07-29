@@ -1509,6 +1509,7 @@ describe("reference library API", () => {
       jsonRequest(`/api/library/references/${reference.id}/citation-candidates`, {
         doi: "10.1000/unmatched",
         responseId: (expansionBody as { responseId: string }).responseId,
+        direction: "references",
       }),
       fixture.env,
       identity,
@@ -1543,6 +1544,7 @@ describe("reference library API", () => {
       jsonRequest(`/api/library/references/${reference.id}/citation-candidates`, {
         doi: "10.1000/unmatched",
         responseId: `sha256:${"f".repeat(64)}`,
+        direction: "references",
       }),
       fixture.env,
       identity,
@@ -1569,6 +1571,64 @@ describe("reference library API", () => {
         )
       ).status,
     ).toBe(400);
+  });
+
+  it("discovers and accepts forward citations through Semantic Scholar", async () => {
+    const fixture = apiFixture();
+    const source = { ...reference, doi: "10.1000/source" };
+    const known = { ...reference, id: crypto.randomUUID(), title: "Known citing work", doi: "10.1000/known-citing" };
+    fixture.library.getReferences.mockResolvedValueOnce([source]);
+    fixture.library.findReferencesByDois.mockResolvedValueOnce([known]);
+    const fetchExternal = vi.fn(async (input: string | URL | Request) => {
+      const url = new URL(String(input));
+      if (url.pathname.endsWith("/citations")) {
+        return Response.json({
+          data: [
+            { citingPaper: semanticScholarPaper({ title: "Known citing work", externalIds: { DOI: known.doi } }) },
+            { citingPaper: semanticScholarPaper({ title: "New citing work", externalIds: { DOI: "10.1000/new-citing" } }) },
+          ],
+        });
+      }
+      return Response.json(semanticScholarPaper({ title: "New citing work", externalIds: { DOI: "10.1000/new-citing" } }));
+    });
+
+    const expanded = await handleReferenceLibraryApi(
+      jsonRequest(`/api/library/references/${reference.id}/citation-expansions`, { direction: "citations" }),
+      fixture.env,
+      identity,
+      fetchExternal,
+    );
+    expect(expanded.status).toBe(201);
+    const body = (await expanded.json()) as { responseId: string };
+    expect(body).toMatchObject({
+      provider: "semantic-scholar",
+      direction: "citations",
+      assertions: [expect.objectContaining({ citingReferenceId: known.id, citedReferenceId: source.id })],
+      unmatched: [expect.objectContaining({ doi: "10.1000/new-citing", title: "New citing work" })],
+    });
+    expect(fixture.library.createCitationAssertions).toHaveBeenCalledWith(
+      [expect.objectContaining({ citingReferenceId: known.id, citedReferenceId: source.id })],
+      "Semantic Scholar",
+    );
+
+    fixture.library.getReferences.mockResolvedValueOnce([source]);
+    const accepted = await handleReferenceLibraryApi(
+      jsonRequest(`/api/library/references/${reference.id}/citation-candidates`, {
+        doi: "10.1000/new-citing",
+        responseId: body.responseId,
+        direction: "citations",
+      }),
+      fixture.env,
+      identity,
+      fetchExternal,
+    );
+    expect(accepted.status).toBe(201);
+    expect(fixture.library.acceptCitationCandidate).toHaveBeenCalledWith(
+      source.id,
+      expect.objectContaining({ doi: "10.1000/new-citing", title: "New citing work" }),
+      expect.objectContaining({ provider: "semantic-scholar", direction: "citations", responseId: body.responseId }),
+      identity.email,
+    );
   });
 });
 
@@ -1900,7 +1960,7 @@ function openAlexResponse(doi?: string, title?: string): Response {
   return Response.json(openAlexWork({ ...(doi ? { doi: `https://doi.org/${doi}` } : {}), ...(title ? { title } : {}) }));
 }
 
-function semanticScholarPaper(): Record<string, unknown> {
+function semanticScholarPaper(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
     paperId: "semantic-paper",
     externalIds: { DOI: "10.5555/semantic" },
@@ -1910,6 +1970,7 @@ function semanticScholarPaper(): Record<string, unknown> {
     year: 2026,
     venue: "Open Research",
     publicationTypes: ["JournalArticle"],
+    ...overrides,
   };
 }
 

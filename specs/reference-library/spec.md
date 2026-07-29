@@ -202,6 +202,13 @@ memory and makes citation aliases compete with stable source identity.
   prompts, provenance-bearing mutations, and local failures while composing the
   shell and panel. The workspace coordinator retains canonical Library refresh
   and notification policy through typed outcomes.
+- A DOI-backed trail offers separate backward and forward discovery rounds.
+  Backward expansion retrieves at most 128 DOI references from Crossref;
+  forward expansion retrieves at most 128 DOI-backed citing works from Semantic
+  Scholar. Known forward candidates create assertions from the citing work to
+  the seed. Unknown candidates remain transient until an explicit save
+  revalidates the direction, response fingerprint, provider membership, and
+  full metadata before one atomic reference-and-assertion mutation.
 - The library is a permanent, non-closable tab beside Preview in the project's
   research-context pane. Activating it refreshes the authorized owner snapshot
   without opening a modal or mutating project state.
@@ -542,8 +549,9 @@ memory and makes citation aliases compete with stable source identity.
 - Web-source capture, snapshot inspection, inert content download, and neutral
   snapshot comparison routes remain within the same owner-private API.
 - Citation assertion, review, bounded network, and explicit Crossref reference
-  expansion routes remain within the same owner-private API. A project id only
-  filters the projection; it does not grant library access.
+  or Semantic Scholar forward-citation expansion routes remain within the same
+  owner-private API. A project id only filters the projection; it does not grant
+  library access.
 - Reconciliation report and merge routes remain owner-private and
   non-cacheable. Merge commands contain only stable identities and the two
   reviewed `updatedAt` values; the server never trusts candidate metadata from

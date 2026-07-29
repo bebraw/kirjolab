@@ -27,6 +27,7 @@ describe("citation expansion contracts", () => {
       [],
       { ...expansion, provider: "openalex" },
       { ...expansion, direction: "citations" },
+      { ...expansion, provider: "semantic-scholar", direction: "references" },
       { ...expansion, seedReferenceId: " invalid" },
       { ...expansion, seedReferenceId: "a".repeat(502) },
       { ...expansion, retrievedAt: "not-a-timestamp" },
@@ -45,6 +46,10 @@ describe("citation expansion contracts", () => {
       { ...expansion, requestedBy: "" },
       { ...expansion, requestedBy: "x".repeat(501) },
     );
+  });
+
+  it("accepts the Semantic Scholar forward-citation variant", () => {
+    expect(isCitationExpansionResult({ ...expansion, provider: "semantic-scholar", direction: "citations" })).toBe(true);
   });
 
   it("validates every unmatched candidate field and exact bound", () => {

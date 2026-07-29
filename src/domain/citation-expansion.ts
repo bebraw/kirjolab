@@ -13,8 +13,8 @@ const citationExpansionCandidateSchema = v.object({
   unstructured: boundedString(4_000),
 });
 const citationExpansionResultSchema = v.object({
-  provider: v.literal("crossref"),
-  direction: v.literal("references"),
+  provider: v.picklist(["crossref", "semantic-scholar"]),
+  direction: v.picklist(["references", "citations"]),
   seedReferenceId: v.custom<string>(isIdentifier),
   retrievedAt: v.custom<string>(isTimestamp),
   responseId: v.custom<string>(isResponseId),
@@ -26,5 +26,9 @@ const citationExpansionResultSchema = v.object({
 });
 
 export function isCitationExpansionResult(value: unknown): value is CitationExpansionResult {
-  return v.is(citationExpansionResultSchema, value);
+  return (
+    v.is(citationExpansionResultSchema, value) &&
+    ((value.provider === "crossref" && value.direction === "references") ||
+      (value.provider === "semantic-scholar" && value.direction === "citations"))
+  );
 }

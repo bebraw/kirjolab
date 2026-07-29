@@ -4,7 +4,13 @@ import type { AcceptCitationCandidateInput, CitationCandidateAcceptance } from "
 import { isValidDoi } from "./publication-intake";
 
 export function isAcceptCitationCandidateInput(value: unknown): value is AcceptCitationCandidateInput {
-  return isRecord(value) && typeof value.doi === "string" && isValidDoi(value.doi) && isResponseId(value.responseId);
+  return (
+    isRecord(value) &&
+    typeof value.doi === "string" &&
+    isValidDoi(value.doi) &&
+    isResponseId(value.responseId) &&
+    (value.direction === "references" || value.direction === "citations")
+  );
 }
 
 export function isCitationCandidateAcceptance(value: unknown): value is CitationCandidateAcceptance {
@@ -13,6 +19,6 @@ export function isCitationCandidateAcceptance(value: unknown): value is Citation
     isBibliographicRecordContract(value.reference) &&
     typeof value.created === "boolean" &&
     isCitationAssertionContract(value.assertion) &&
-    value.assertion.citedReferenceId === value.reference.id
+    (value.assertion.citedReferenceId === value.reference.id || value.assertion.citingReferenceId === value.reference.id)
   );
 }

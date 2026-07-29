@@ -1,13 +1,13 @@
 import { html, nothing, svg, type TemplateResult } from "lit";
 import { LightDomElement } from "./light-dom-controller";
 import type { CitationAssertionView, CitationNetwork } from "../domain/citation-assertions";
-import type { CitationExpansionCandidate, CitationExpansionResult } from "../domain/citation-expansion-types";
+import type { CitationExpansionCandidate, CitationExpansionDirection, CitationExpansionResult } from "../domain/citation-expansion-types";
 import { libraryPdfRoute } from "./library-ui-route";
 
 export const citationNetworkActionEvent = "citation-network-action";
 
 export type CitationNetworkAction =
-  | { readonly action: "expand"; readonly referenceId: string }
+  | { readonly action: "expand"; readonly referenceId: string; readonly direction: CitationExpansionDirection }
   | { readonly action: "focus"; readonly referenceId: string }
   | {
       readonly action: "record";
@@ -155,8 +155,12 @@ export class CitationNetworkPanel extends LightDomElement {
   protected act(event: Event): void {
     const button = event.currentTarget as HTMLButtonElement;
     const action = button.dataset.citationAction;
-    if (action === "expand" && button.dataset.referenceId) {
-      this.emit({ action, referenceId: button.dataset.referenceId });
+    if (
+      action === "expand" &&
+      button.dataset.referenceId &&
+      (button.dataset.direction === "references" || button.dataset.direction === "citations")
+    ) {
+      this.emit({ action, referenceId: button.dataset.referenceId, direction: button.dataset.direction });
       return;
     }
     if (action === "focus" && button.dataset.referenceId) {
@@ -207,9 +211,20 @@ export class CitationNetworkPanel extends LightDomElement {
                       class="button-secondary mt-3"
                       data-citation-action="expand"
                       data-reference-id=${node.referenceId}
+                      data-direction="references"
                       @click=${this.act}
                     >
                       Expand references
+                    </button>
+                    <button
+                      type="button"
+                      class="button-secondary mt-3"
+                      data-citation-action="expand"
+                      data-reference-id=${node.referenceId}
+                      data-direction="citations"
+                      @click=${this.act}
+                    >
+                      Find citing works
                     </button>
                   `
                 : nothing}
@@ -249,9 +264,20 @@ export class CitationNetworkPanel extends LightDomElement {
               class="button-secondary"
               data-citation-action="expand"
               data-reference-id=${focusedNode.referenceId}
+              data-direction="references"
               @click=${this.act}
             >
               Expand references
+            </button>
+            <button
+              type="button"
+              class="button-secondary"
+              data-citation-action="expand"
+              data-reference-id=${focusedNode.referenceId}
+              data-direction="citations"
+              @click=${this.act}
+            >
+              Find citing works
             </button>
           `
         : nothing}
@@ -305,14 +331,18 @@ export class CitationNetworkPanel extends LightDomElement {
     const seedTitle = this.data.referenceTitles[expansion.seedReferenceId] ?? "selected source";
     return html`
       <section class="resource-card border-app-accent">
-        ${this.label("Backward snowball · Crossref")}
-        <h4 class="mt-1 text-base font-semibold">References from ${seedTitle}</h4>
+        ${this.label(expansion.direction === "references" ? "Backward snowball · Crossref" : "Forward snowball · Semantic Scholar")}
+        <h4 class="mt-1 text-base font-semibold">
+          ${expansion.direction === "references" ? `References from ${seedTitle}` : `Works citing ${seedTitle}`}
+        </h4>
         <p class="mt-2 text-xs leading-5 text-app-text-soft">
           ${expansion.unmatched.length
             ? `${expansion.unmatched.length} new DOI candidate${expansion.unmatched.length === 1 ? "" : "s"} to review${
                 expansion.truncated ? " · provider list truncated" : ""
               }.`
-            : "No unseen DOI candidates in this round. This seed may be saturated for backward snowballing."}
+            : `No unseen DOI candidates in this round. This seed may be saturated for ${
+                expansion.direction === "references" ? "backward" : "forward"
+              } snowballing.`}
         </p>
         ${expansion.unmatched.map((candidate) => this.candidate(candidate))}
       </section>

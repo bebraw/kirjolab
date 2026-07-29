@@ -168,7 +168,7 @@ export class CitationNetworkWorkspace extends LightDomElement {
 
   protected async handleAction(action: CitationNetworkAction): Promise<void> {
     if (action.action === "focus") this.focusReference(action.referenceId);
-    else if (action.action === "expand") await this.expand(action.referenceId);
+    else if (action.action === "expand") await this.expand(action.referenceId, action.direction);
     else if (action.action === "record") await this.recordAssertion(action);
     else if (action.action === "review") await this.reviewAssertion(action.assertionId, action.decision);
     else await this.acceptCandidate(action.expansion, action.candidate);
@@ -224,9 +224,9 @@ export class CitationNetworkWorkspace extends LightDomElement {
     }
   }
 
-  private async expand(referenceId: string): Promise<void> {
+  private async expand(referenceId: string, direction: "references" | "citations"): Promise<void> {
     try {
-      const response = await jsonFetch(`/api/library/references/${encodeURIComponent(referenceId)}/citation-expansions`, {});
+      const response = await jsonFetch(`/api/library/references/${encodeURIComponent(referenceId)}/citation-expansions`, { direction });
       await expectOk(response);
       const value: unknown = await response.json();
       if (!isCitationExpansionResult(value)) throw new Error("Citation expansion returned an invalid representation");
@@ -237,7 +237,7 @@ export class CitationNetworkWorkspace extends LightDomElement {
         message:
           value.unmatched.length > 0
             ? `Review ${value.unmatched.length} new reference${value.unmatched.length === 1 ? "" : "s"} from this seed.`
-            : "Known Crossref relationships added to the shared citation network.",
+            : `Known ${value.provider === "crossref" ? "Crossref" : "Semantic Scholar"} relationships added to the shared citation network.`,
       });
     } catch (error) {
       this.emitOutcome({ action: "notice", message: errorMessage(error, "Could not expand the citation reference.") });
@@ -250,6 +250,7 @@ export class CitationNetworkWorkspace extends LightDomElement {
       const response = await jsonFetch(`/api/library/references/${encodeURIComponent(expansion.seedReferenceId)}/citation-candidates`, {
         doi: candidate.doi,
         responseId: expansion.responseId,
+        direction: expansion.direction,
       });
       await expectOk(response);
       const value: unknown = await response.json();

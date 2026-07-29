@@ -3,6 +3,7 @@ import { isValidDoi, normalizePublicationDoi } from "../domain/publication-intak
 import { isRecord } from "../domain/unknown-value";
 import type { PublicationEnrichment } from "../domain/workspace";
 import type { ReferenceDiscoveryIdentifier } from "../domain/reference-discovery";
+import type { CitationExpansionCandidate } from "../domain/citation-expansion-types";
 import { readBoundedResponseJson } from "./bounded-response";
 import { boundProviderText as bound } from "./provider-text";
 
@@ -10,7 +11,16 @@ type Fetcher = (input: string | URL | Request, init?: RequestInit) => Promise<Re
 
 const maximumSemanticScholarBytes = 1_000_000;
 const maximumMetadataMatches = 5;
+const maximumCitationCandidates = 128;
 const selectedFields = "title,abstract,authors,year,venue,url,externalIds,publicationTypes";
+const semanticScholarRetryDelayMilliseconds = 250;
+
+export class SemanticScholarUnavailableError extends Error {
+  constructor() {
+    super("Semantic Scholar is temporarily unavailable; try again shortly");
+    this.name = "SemanticScholarUnavailableError";
+  }
+}
 
 export interface SemanticScholarMetadataMatch {
   readonly metadata: PublicationEnrichment;
@@ -18,12 +28,76 @@ export interface SemanticScholarMetadataMatch {
   readonly identifiers: readonly ReferenceDiscoveryIdentifier[];
 }
 
-export async function fetchSemanticScholarWork(doiValue: string, apiKey: string, fetcher: Fetcher = fetch): Promise<PublicationEnrichment> {
+export interface SemanticScholarCitationExpansion {
+  readonly provider: "semantic-scholar";
+  readonly direction: "citations";
+  readonly retrievedAt: string;
+  readonly responseId: string;
+  readonly sourceLocator: string;
+  readonly candidates: readonly CitationExpansionCandidate[];
+  readonly truncated: boolean;
+}
+
+export async function fetchSemanticScholarCitations(
+  doiValue: string,
+  apiKey: string,
+  fetcher: Fetcher = fetch,
+): Promise<SemanticScholarCitationExpansion> {
+  if (!isValidDoi(doiValue)) throw new Error("Publication DOI is invalid");
+  const doi = normalizePublicationDoi(doiValue);
+  const url = new URL(`https://api.semanticscholar.org/graph/v1/paper/DOI:${encodeURIComponent(doi)}/citations`);
+  url.searchParams.set("limit", String(maximumCitationCandidates));
+  url.searchParams.set("fields", "title,authors,year,externalIds");
+  const response = await fetchSemanticScholar(url, apiKey, fetcher, true);
+  if (!response.ok) {
+    throw new Error(response.status === 404 ? "Semantic Scholar has no record for this DOI" : "Semantic Scholar citations request failed");
+  }
+  const body = await readSemanticScholarJson(response);
+  if (!isRecord(body) || !Array.isArray(body.data)) throw new Error("Semantic Scholar returned invalid citation metadata");
+  const seen = new Set<string>();
+  const candidates = body.data.slice(0, maximumCitationCandidates).flatMap((entry): CitationExpansionCandidate[] => {
+    if (!isRecord(entry) || !isRecord(entry.citingPaper)) return [];
+    const candidateDoi = semanticScholarDoi(entry.citingPaper.externalIds);
+    if (!candidateDoi || candidateDoi === doi || seen.has(candidateDoi)) return [];
+    seen.add(candidateDoi);
+    return [
+      {
+        doi: candidateDoi,
+        title: bound(typeof entry.citingPaper.title === "string" ? entry.citingPaper.title.trim() : "", 2_000),
+        authors: Array.isArray(entry.citingPaper.authors)
+          ? bound(entry.citingPaper.authors.slice(0, 100).map(formatAuthor).filter(Boolean).join("; "), 2_000)
+          : "",
+        year:
+          typeof entry.citingPaper.year === "number" && Number.isSafeInteger(entry.citingPaper.year) ? String(entry.citingPaper.year) : "",
+        unstructured: "",
+      },
+    ];
+  });
+  const retrievedAt = new Date().toISOString();
+  const canonical = JSON.stringify({ doi, candidates });
+  const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(canonical)));
+  return {
+    provider: "semantic-scholar",
+    direction: "citations",
+    retrievedAt,
+    responseId: `sha256:${Array.from(digest, (byte) => byte.toString(16).padStart(2, "0")).join("")}`,
+    sourceLocator: url.toString(),
+    candidates,
+    truncated: typeof body.next === "number" || body.data.length > maximumCitationCandidates,
+  };
+}
+
+export async function fetchSemanticScholarWork(
+  doiValue: string,
+  apiKey: string,
+  fetcher: Fetcher = fetch,
+  retryUnavailable = false,
+): Promise<PublicationEnrichment> {
   if (!isValidDoi(doiValue)) throw new Error("Publication DOI is invalid");
   const doi = normalizePublicationDoi(doiValue);
   const url = new URL(`https://api.semanticscholar.org/graph/v1/paper/DOI:${encodeURIComponent(doi)}`);
   url.searchParams.set("fields", selectedFields);
-  const response = await fetcher(url, { headers: semanticScholarHeaders(apiKey) });
+  const response = await fetchSemanticScholar(url, apiKey, fetcher, retryUnavailable);
   if (!response.ok) {
     throw new Error(response.status === 404 ? "Semantic Scholar has no record for this DOI" : "Semantic Scholar metadata request failed");
   }
@@ -130,6 +204,30 @@ function semanticScholarHeaders(apiKey: string): Record<string, string> {
   const key = apiKey.trim();
   if (key) headers["x-api-key"] = key;
   return headers;
+}
+
+async function fetchSemanticScholar(url: URL, apiKey: string, fetcher: Fetcher, retryUnavailable: boolean): Promise<Response> {
+  if (!retryUnavailable) return await fetcher(url, { headers: semanticScholarHeaders(apiKey) });
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    let response: Response;
+    try {
+      response = await fetcher(url, { headers: semanticScholarHeaders(apiKey) });
+    } catch {
+      if (attempt === 1) throw new SemanticScholarUnavailableError();
+      await wait(semanticScholarRetryDelayMilliseconds);
+      continue;
+    }
+    if (response.ok || response.status === 404) return response;
+    if (response.status !== 429 && response.status < 500) return response;
+    if (attempt === 1) throw new SemanticScholarUnavailableError();
+    await response.body?.cancel();
+    await wait(semanticScholarRetryDelayMilliseconds);
+  }
+  throw new SemanticScholarUnavailableError();
+}
+
+async function wait(milliseconds: number): Promise<void> {
+  await new Promise<void>((resolve) => setTimeout(resolve, milliseconds));
 }
 
 async function readSemanticScholarJson(response: Response): Promise<unknown> {

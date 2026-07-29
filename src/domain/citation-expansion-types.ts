@@ -9,9 +9,12 @@ export interface CitationExpansionCandidate {
   readonly unstructured: string;
 }
 
+export type CitationExpansionProvider = "crossref" | "semantic-scholar";
+export type CitationExpansionDirection = "references" | "citations";
+
 export interface CitationExpansionResult {
-  readonly provider: "crossref";
-  readonly direction: "references";
+  readonly provider: CitationExpansionProvider;
+  readonly direction: CitationExpansionDirection;
   readonly seedReferenceId: string;
   readonly retrievedAt: string;
   readonly responseId: string;
@@ -25,9 +28,12 @@ export interface CitationExpansionResult {
 export interface AcceptCitationCandidateInput {
   readonly doi: string;
   readonly responseId: string;
+  readonly direction: CitationExpansionDirection;
 }
 
 export interface CitationCandidateSource {
+  readonly provider: CitationExpansionProvider;
+  readonly direction: CitationExpansionDirection;
   readonly observedAt: string;
   readonly responseId: string;
   readonly sourceLocator: string;

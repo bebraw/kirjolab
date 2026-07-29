@@ -915,6 +915,8 @@ describe("ReferenceLibrary in the Workers runtime", () => {
       abstract: "A discovered work.",
     };
     const source = {
+      provider: "crossref" as const,
+      direction: "references" as const,
       observedAt: "2026-07-16T10:00:00.000Z",
       responseId: `sha256:${"a".repeat(64)}`,
       sourceLocator: "https://api.crossref.org/works/10.1000%2Fseed",
@@ -954,7 +956,24 @@ describe("ReferenceLibrary in the Workers runtime", () => {
         "invalid",
       );
     });
-    expect((await library.getSnapshot()).references).toHaveLength(2);
+    const forwardMetadata = { ...metadata, title: "Later citing paper", doi: "10.1000/later-citing" };
+    const forward = await library.acceptCitationCandidate(
+      seed.id,
+      forwardMetadata,
+      {
+        provider: "semantic-scholar",
+        direction: "citations",
+        observedAt: source.observedAt,
+        responseId: `sha256:${"b".repeat(64)}`,
+        sourceLocator: "https://api.semanticscholar.org/graph/v1/paper/DOI:10.1000%2Fseed/citations",
+      },
+      "owner@example.test",
+    );
+    expect(forward).toMatchObject({
+      reference: { provenance: { title: { method: "semantic-scholar" } } },
+      assertion: { citingReferenceId: forward.reference.id, citedReferenceId: seed.id, assertedBy: "Semantic Scholar" },
+    });
+    expect((await library.getSnapshot()).references).toHaveLength(3);
   });
 
   it("persists bounded private page notes and freehand drawings", async () => {

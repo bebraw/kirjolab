@@ -845,17 +845,21 @@ export class ReferenceLibrary extends DurableObject<Env> {
   }
 
   acceptCitationCandidate(
-    citingReferenceId: string,
+    seedReferenceId: string,
     metadata: CrossrefMetadata,
     source: CitationCandidateSource,
     actor: string,
   ): CitationCandidateAcceptance {
-    const citingReference = this.#reference(citingReferenceId);
+    const seedReference = this.#reference(seedReferenceId);
     const doi = normalizeDoi(metadata.doi);
     if (
       !isCrossrefMetadata(metadata) ||
       !doi ||
-      doi === normalizeDoi(citingReference.doi) ||
+      doi === normalizeDoi(seedReference.doi) ||
+      !(
+        (source.provider === "crossref" && source.direction === "references") ||
+        (source.provider === "semantic-scholar" && source.direction === "citations")
+      ) ||
       !Number.isFinite(Date.parse(source.observedAt)) ||
       !/^sha256:[a-f0-9]{64}$/u.test(source.responseId) ||
       !source.sourceLocator ||
@@ -868,11 +872,13 @@ export class ReferenceLibrary extends DurableObject<Env> {
         .exec<ReferenceRow>("SELECT * FROM library_references WHERE LOWER(doi) = ? AND deleted_at IS NULL LIMIT 1", doi)
         .toArray()[0];
       const created = existing === undefined;
-      const reference = existing ? referenceFromRow(existing) : this.#createCitationCandidateReference(metadata, source.observedAt, actor);
+      const reference = existing
+        ? referenceFromRow(existing)
+        : this.#createCitationCandidateReference(metadata, source.provider, source.observedAt, actor);
       const assertion = this.#createCitationAssertion(
         {
-          citingReferenceId,
-          citedReferenceId: reference.id,
+          citingReferenceId: source.direction === "references" ? seedReferenceId : reference.id,
+          citedReferenceId: source.direction === "references" ? reference.id : seedReferenceId,
           polarity: "cites",
           evidenceState: "extracted",
           method: "provider",
@@ -882,7 +888,7 @@ export class ReferenceLibrary extends DurableObject<Env> {
           sourceLocator: source.sourceLocator,
           confidence: null,
         },
-        "Crossref",
+        source.provider === "crossref" ? "Crossref" : "Semantic Scholar",
       );
       return { reference, created, assertion };
     });
@@ -1992,8 +1998,13 @@ export class ReferenceLibrary extends DurableObject<Env> {
     return assertion;
   }
 
-  #createCitationCandidateReference(metadata: CrossrefMetadata, capturedAt: string, actor: string): BibliographicRecord {
-    const provenance: MetadataFieldProvenance = { method: "crossref", capturedAt, actor };
+  #createCitationCandidateReference(
+    metadata: CrossrefMetadata,
+    provider: "crossref" | "semantic-scholar",
+    capturedAt: string,
+    actor: string,
+  ): BibliographicRecord {
+    const provenance: MetadataFieldProvenance = { method: provider, capturedAt, actor };
     const now = new Date().toISOString();
     const draft: BibliographicRecord = {
       id: crypto.randomUUID(),

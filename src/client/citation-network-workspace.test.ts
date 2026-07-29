@@ -121,7 +121,7 @@ describe("citation network workspace", () => {
 
     await workspace.actionForTest({ action: "record", citedReferenceId: "source:2", citingReferenceId: "source:1", polarity: "cites" });
     await workspace.actionForTest({ action: "review", assertionId: "assertion:1", decision: "confirmed" });
-    await workspace.actionForTest({ action: "expand", referenceId: "source:1" });
+    await workspace.actionForTest({ action: "expand", referenceId: "source:1", direction: "references" });
     await workspace.actionForTest({ action: "focus", referenceId: "source:2" });
 
     expect(outcomes).toEqual([
@@ -155,7 +155,25 @@ describe("citation network workspace", () => {
     expect(panel.setCandidateSaving).toHaveBeenCalledWith(citationExpansionReference.doi, true);
     expect(outcomes).toEqual([{ action: "library-refresh", message: "Reference saved with its discovery trail." }]);
     expect(fetchMock).toHaveBeenCalledWith("/api/library/references/source%3A1/citation-candidates", {
-      body: JSON.stringify({ doi: citationExpansionReference.doi, responseId: citationExpansionResponseId }),
+      body: JSON.stringify({ doi: citationExpansionReference.doi, responseId: citationExpansionResponseId, direction: "references" }),
+      credentials: "same-origin",
+      headers: { "content-type": "application/json" },
+      method: "POST",
+    });
+  });
+
+  it("requests a validated forward-citation round", async () => {
+    const { workspace } = configuredWorkspace();
+    const forwardExpansion = { ...expansion, provider: "semantic-scholar" as const, direction: "citations" as const };
+    const fetchMock = vi.fn((input: string | URL | Request) =>
+      String(input).includes("/citation-network") ? Promise.resolve(json(network)) : Promise.resolve(json(forwardExpansion)),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await workspace.actionForTest({ action: "expand", referenceId: "source:1", direction: "citations" });
+
+    expect(fetchMock).toHaveBeenCalledWith("/api/library/references/source%3A1/citation-expansions", {
+      body: JSON.stringify({ direction: "citations" }),
       credentials: "same-origin",
       headers: { "content-type": "application/json" },
       method: "POST",
@@ -177,7 +195,7 @@ describe("citation network workspace", () => {
 
     await workspace.refresh();
     await workspace.actionForTest({ action: "record", citedReferenceId: "source:1", citingReferenceId: "source:1", polarity: "cites" });
-    await workspace.actionForTest({ action: "expand", referenceId: "source:1" });
+    await workspace.actionForTest({ action: "expand", referenceId: "source:1", direction: "references" });
     await workspace.actionForTest({ action: "save-candidate", candidate: expansion.unmatched[0]!, expansion });
 
     expect(outcomes).toEqual([

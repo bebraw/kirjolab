@@ -53,7 +53,11 @@ import {
   type CreateCitationAssertionInput,
   type ReviewCitationAssertionInput,
 } from "../domain/citation-assertions";
-import { type CitationCandidateAcceptance, type CitationCandidateSource } from "../domain/citation-expansion-types";
+import {
+  type CitationCandidateAcceptance,
+  type CitationCandidateSource,
+  type CitationExpansionDirection,
+} from "../domain/citation-expansion-types";
 import { isAcceptCitationCandidateInput } from "../domain/citation-expansion-acceptance";
 import type { ReferenceDeletionImpact, ReferenceImportItem, WebCaptureItem } from "../durable-objects/reference-library";
 import { normalizeDoi, parseBibTeX } from "../domain/bibliography";
@@ -67,7 +71,12 @@ import {
 } from "../integrations/crossref";
 import { fetchDataCiteWork } from "../integrations/datacite";
 import { fetchOpenAlexWork, searchOpenAlexWorks } from "../integrations/openalex";
-import { fetchSemanticScholarWork, searchSemanticScholarWorks } from "../integrations/semantic-scholar";
+import {
+  fetchSemanticScholarCitations,
+  fetchSemanticScholarWork,
+  searchSemanticScholarWorks,
+  SemanticScholarUnavailableError,
+} from "../integrations/semantic-scholar";
 import type { AuthIdentity } from "../security/auth";
 import { strFromU8, strToU8, unzipSync, zipSync, type Zippable } from "fflate";
 import * as v from "valibot";
@@ -370,7 +379,7 @@ export async function handleReferenceLibraryApi(
   } catch (error) {
     const message = error instanceof Error ? error.message : "Reference library operation failed";
     const status =
-      error instanceof CrossrefUnavailableError
+      error instanceof CrossrefUnavailableError || error instanceof SemanticScholarUnavailableError
         ? 503
         : /changed|already|before deleting|before identifying/iu.test(message)
           ? 409
@@ -932,7 +941,9 @@ async function handleLibraryReferenceLookupRoutes(context: LibraryReferenceRoute
 async function handleLibraryReferenceCitationRoutes(context: LibraryReferenceRouteContext): Promise<Response | null> {
   const { request, action, referenceId, identity, env, library, fetchExternal } = context;
   if (action === "citation-expansions" && request.method === "POST") {
-    return await expandCitationReferences(referenceId, identity, env, library, fetchExternal);
+    const body: unknown = await request.json();
+    if (!isCitationExpansionInput(body)) return jsonError("Invalid citation expansion", 400);
+    return await expandCitationReferences(referenceId, body.direction ?? "references", identity, env, library, fetchExternal);
   }
   if (action === "citation-candidates" && request.method === "POST") {
     return await acceptCitationCandidate(request, referenceId, identity, env, library, fetchExternal);
@@ -1279,6 +1290,7 @@ async function duplicateDoiValueResponse(
 
 async function expandCitationReferences(
   referenceId: string,
+  direction: CitationExpansionDirection,
   identity: AuthIdentity,
   env: ReferenceLibraryApiEnv,
   library: ReferenceLibraryApi,
@@ -1287,7 +1299,7 @@ async function expandCitationReferences(
   const source = (await library.getReferences([referenceId]))[0];
   if (!source) return jsonError("Reference not found", 404);
   if (!source.doi) return jsonError("Add a DOI before expanding external citation references", 409);
-  const expansion = await fetchCrossrefReferences(source.doi, env.CROSSREF_MAILTO, fetchExternal);
+  const expansion = await fetchCitationExpansion(source.doi, direction, env, fetchExternal);
   const matches = await library.findReferencesByDois(expansion.candidates.map((candidate) => candidate.doi));
   const byDoi = new Map(matches.map((reference) => [reference.doi.toLocaleLowerCase(), reference]));
   const inputs = new Map<string, CreateCitationAssertionInput>();
@@ -1295,8 +1307,8 @@ async function expandCitationReferences(
     const target = byDoi.get(candidate.doi.toLocaleLowerCase());
     if (!target || target.id === source.id || inputs.has(target.id)) continue;
     inputs.set(target.id, {
-      citingReferenceId: source.id,
-      citedReferenceId: target.id,
+      citingReferenceId: direction === "references" ? source.id : target.id,
+      citedReferenceId: direction === "references" ? target.id : source.id,
       polarity: "cites",
       evidenceState: "extracted",
       method: "provider",
@@ -1307,8 +1319,12 @@ async function expandCitationReferences(
       confidence: null,
     });
   }
-  const assertions = inputs.size > 0 ? await library.createCitationAssertions([...inputs.values()], "Crossref") : [];
-  const matchedDois = new Set(assertions.map((assertion) => matches.find((reference) => reference.id === assertion.citedReferenceId)?.doi));
+  const providerName = expansion.provider === "crossref" ? "Crossref" : "Semantic Scholar";
+  const assertions = inputs.size > 0 ? await library.createCitationAssertions([...inputs.values()], providerName) : [];
+  const matchedIds = new Set(
+    assertions.map((assertion) => (direction === "references" ? assertion.citedReferenceId : assertion.citingReferenceId)),
+  );
+  const matchedDois = new Set(matches.filter(({ id }) => matchedIds.has(id)).map(({ doi }) => doi));
   return Response.json(
     {
       provider: expansion.provider,
@@ -1339,17 +1355,22 @@ async function acceptCitationCandidate(
   const source = (await library.getReferences([referenceId]))[0];
   if (!source) return jsonError("Reference not found", 404);
   if (!source.doi) return jsonError("Add a DOI before accepting external citation references", 409);
-  const expansion = await fetchCrossrefReferences(source.doi, env.CROSSREF_MAILTO, fetchExternal);
+  const expansion = await fetchCitationExpansion(source.doi, body.direction, env, fetchExternal);
   const doi = normalizeDoi(body.doi);
   if (expansion.responseId !== body.responseId || !expansion.candidates.some((candidate) => candidate.doi === doi)) {
     return jsonError("Citation expansion changed; expand the source again before saving", 409);
   }
-  const fetched = await fetchCrossrefWork(doi, env.CROSSREF_MAILTO, fetchExternal);
+  const fetched =
+    body.direction === "references"
+      ? await fetchCrossrefWork(doi, env.CROSSREF_MAILTO, fetchExternal)
+      : await fetchSemanticScholarWork(doi, env.SEMANTIC_SCHOLAR_API_KEY ?? "", fetchExternal, true);
   const metadata: CrossrefMetadata = { ...fetched, type: fetched.type ?? "misc" };
   const accepted = await library.acceptCitationCandidate(
     source.id,
     metadata,
     {
+      provider: expansion.provider,
+      direction: expansion.direction,
       observedAt: expansion.retrievedAt,
       responseId: expansion.responseId,
       sourceLocator: expansion.sourceLocator,
@@ -1357,6 +1378,25 @@ async function acceptCitationCandidate(
     identity.email,
   );
   return Response.json(accepted, { status: accepted.created ? 201 : 200, ...noStore() });
+}
+
+function isCitationExpansionInput(value: unknown): value is { readonly direction?: CitationExpansionDirection } {
+  return (
+    isRecord(value) &&
+    Object.keys(value).every((key) => key === "direction") &&
+    (value.direction === undefined || value.direction === "references" || value.direction === "citations")
+  );
+}
+
+function fetchCitationExpansion(
+  doi: string,
+  direction: CitationExpansionDirection,
+  env: ReferenceLibraryApiEnv,
+  fetchExternal: ExternalFetch,
+) {
+  return direction === "references"
+    ? fetchCrossrefReferences(doi, env.CROSSREF_MAILTO, fetchExternal)
+    : fetchSemanticScholarCitations(doi, env.SEMANTIC_SCHOLAR_API_KEY ?? "", fetchExternal);
 }
 
 async function captureWebSource(

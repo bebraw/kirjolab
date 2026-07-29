@@ -170,7 +170,8 @@ describe("citation network panel", () => {
     panel.addEventListener(citationNetworkActionEvent, (event) => actions.push((event as CustomEvent<CitationNetworkAction>).detail));
     panel.setData({ expansion, filterProject: false, focusedReferenceId: null, network, pdfArtifactIds: [], referenceTitles: {} });
 
-    panel.actForTest("expand", { referenceId: "a" });
+    panel.actForTest("expand", { referenceId: "a", direction: "references" });
+    panel.actForTest("expand", { referenceId: "a", direction: "citations" });
     panel.actForTest("focus", { referenceId: "b" });
     panel.actForTest("review", { assertionId: "assertion:1", decision: "confirmed" });
     panel.actForTest("review", { assertionId: "assertion:1", decision: "unknown" });
@@ -180,7 +181,8 @@ describe("citation network panel", () => {
     panel.actForTest("unknown");
 
     expect(actions).toEqual([
-      { action: "expand", referenceId: "a" },
+      { action: "expand", referenceId: "a", direction: "references" },
+      { action: "expand", referenceId: "a", direction: "citations" },
       { action: "focus", referenceId: "b" },
       { action: "review", assertionId: "assertion:1", decision: "confirmed" },
       { action: "save-candidate", candidate: expansion.unmatched[0], expansion },
