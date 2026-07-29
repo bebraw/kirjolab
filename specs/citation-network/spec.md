@@ -35,6 +35,9 @@ provider result, extraction, or model suggestion as equally trustworthy.
   title. Accepting one refetches the exact expansion, verifies its response
   fingerprint and DOI membership, retrieves complete metadata, then atomically
   creates or reuses the reference and records its extracted assertion.
+- A transient Crossref rate-limit or availability response is retried once
+  within a short bound. Persistent provider unavailability returns `503` so a
+  valid expansion request is never misreported as a client `400`.
 - The visual SVG is paired with an ordinary accessible list containing every
   visible assertion and its provenance and review controls. Relational SQLite
   remains sufficient; the layout is derived browser state.
@@ -159,6 +162,8 @@ provider result, extraction, or model suggestion as equally trustworthy.
 - A project filter must not turn a private library endpoint into a collaborator
   endpoint.
 - Expansion must remain one level, researcher-triggered, and bounded.
+- Crossref rate limits must retain retry affordance and must not be classified
+  as malformed client input.
 - A delayed unfiltered network must not replace a newer project-filtered
   projection, and candidate failure must restore retry availability.
 - Component tests must retain load and filter URLs, manual assertion and review

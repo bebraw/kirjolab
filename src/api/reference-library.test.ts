@@ -1503,6 +1503,16 @@ describe("reference library API", () => {
     expect(fetchExternal).toHaveBeenCalledTimes(3);
 
     fixture.library.getReferences.mockResolvedValueOnce([source]);
+    const unavailable = await handleReferenceLibraryApi(
+      jsonRequest(`/api/library/references/${reference.id}/citation-expansions`, {}),
+      fixture.env,
+      identity,
+      vi.fn(async () => new Response(null, { status: 429, headers: { "retry-after": "0" } })),
+    );
+    expect(unavailable.status).toBe(503);
+    await expect(unavailable.json()).resolves.toEqual({ error: "Crossref is temporarily unavailable; try again shortly" });
+
+    fixture.library.getReferences.mockResolvedValueOnce([source]);
     const stale = await handleReferenceLibraryApi(
       jsonRequest(`/api/library/references/${reference.id}/citation-candidates`, {
         doi: "10.1000/unmatched",

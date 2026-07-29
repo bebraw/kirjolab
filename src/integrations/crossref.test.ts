@@ -363,12 +363,30 @@ describe("Crossref metadata integration", () => {
     await expect(fetchCrossrefReferences("10.1000/missing", "", async () => new Response(null, { status: 404 }))).rejects.toThrow(
       "no record",
     );
-    await expect(fetchCrossrefReferences("10.1000/error", "", async () => new Response(null, { status: 500 }))).rejects.toThrow(
-      "request failed",
-    );
+    await expect(
+      fetchCrossrefReferences("10.1000/error", "", async () => new Response(null, { status: 500, headers: { "retry-after": "0" } })),
+    ).rejects.toThrow("temporarily unavailable");
     await expect(fetchCrossrefReferences("10.1000/invalid", "", async () => Response.json({ message: null }))).rejects.toThrow(
       "invalid metadata",
     );
+  });
+
+  it("retries a rate-limited reference expansion", async () => {
+    const fetcher = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(null, { status: 429, headers: { "retry-after": "0" } }))
+      .mockResolvedValueOnce(
+        Response.json({
+          message: {
+            reference: [{ DOI: "10.1016/0191-765X(83)90002-2", "article-title": "Bloom reference" }],
+          },
+        }),
+      );
+
+    await expect(fetchCrossrefReferences("10.3102/0013189X013006004", "", fetcher)).resolves.toMatchObject({
+      candidates: [{ doi: "10.1016/0191-765x(83)90002-2", title: "Bloom reference" }],
+    });
+    expect(fetcher).toHaveBeenCalledTimes(2);
   });
 });
 

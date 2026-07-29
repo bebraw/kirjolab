@@ -12,6 +12,14 @@ type Fetcher = (input: string | URL | Request, init?: RequestInit) => Promise<Re
 const maximumCrossrefBytes = 1_000_000;
 const maximumCitationCandidates = 128;
 const maximumMetadataMatches = 5;
+const crossrefRetryDelayMilliseconds = 250;
+
+export class CrossrefUnavailableError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "CrossrefUnavailableError";
+  }
+}
 
 export interface CrossrefMetadataMatch {
   readonly metadata: PublicationEnrichment;
@@ -35,12 +43,7 @@ export async function fetchCrossrefWork(doiValue: string, mailto: string, fetche
   const url = new URL(`https://api.crossref.org/works/${encodeURIComponent(doi)}`);
   const contact = mailto.trim().toLowerCase();
   if (contact) url.searchParams.set("mailto", contact);
-  const response = await fetcher(url, {
-    headers: {
-      accept: "application/vnd.crossref-api-message+json",
-      "user-agent": contact ? `Kirjolab/0.1 (mailto:${contact})` : "Kirjolab/0.1",
-    },
-  });
+  const response = await fetchCrossref(url, contact, fetcher);
   if (!response.ok) throw new Error(response.status === 404 ? "Crossref has no record for this DOI" : "Crossref metadata request failed");
   const body = await readCrossrefJson(response);
   if (!isRecord(body) || !isRecord(body.message)) throw new Error("Crossref returned invalid metadata");
@@ -59,7 +62,7 @@ export async function searchCrossrefWorks(
   url.searchParams.set("rows", String(maximumMetadataMatches));
   const contact = mailto.trim().toLowerCase();
   if (contact) url.searchParams.set("mailto", contact);
-  const response = await fetcher(url, { headers: crossrefHeaders(contact) });
+  const response = await fetchCrossref(url, contact, fetcher);
   if (!response.ok) throw new Error("Crossref metadata search failed");
   const body = await readCrossrefJson(response);
   if (!isRecord(body) || !isRecord(body.message) || !Array.isArray(body.message.items)) {
@@ -126,12 +129,7 @@ export async function fetchCrossrefReferences(
   const url = new URL(`https://api.crossref.org/works/${encodeURIComponent(doi)}`);
   const contact = mailto.trim().toLowerCase();
   if (contact) url.searchParams.set("mailto", contact);
-  const response = await fetcher(url, {
-    headers: {
-      accept: "application/vnd.crossref-api-message+json",
-      "user-agent": contact ? `Kirjolab/0.1 (mailto:${contact})` : "Kirjolab/0.1",
-    },
-  });
+  const response = await fetchCrossref(url, contact, fetcher, true);
   if (!response.ok) throw new Error(response.status === 404 ? "Crossref has no record for this DOI" : "Crossref metadata request failed");
   const body = await readCrossrefJson(response);
   if (!isRecord(body) || !isRecord(body.message)) throw new Error("Crossref returned invalid metadata");
@@ -207,4 +205,38 @@ function crossrefHeaders(contact: string): Record<string, string> {
     accept: "application/vnd.crossref-api-message+json",
     "user-agent": contact ? `Kirjolab/0.1 (mailto:${contact})` : "Kirjolab/0.1",
   };
+}
+
+async function fetchCrossref(url: URL, contact: string, fetcher: Fetcher, retryUnavailable = false): Promise<Response> {
+  if (!retryUnavailable) return await fetcher(url, { headers: crossrefHeaders(contact) });
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    let response: Response;
+    try {
+      response = await fetcher(url, { headers: crossrefHeaders(contact) });
+    } catch {
+      if (attempt === 1) throw new CrossrefUnavailableError("Crossref is temporarily unavailable; try again shortly");
+      await wait(crossrefRetryDelayMilliseconds);
+      continue;
+    }
+    if (response.ok || response.status === 404) return response;
+    if (!isRetryableCrossrefStatus(response.status) || attempt === 1) {
+      throw new CrossrefUnavailableError("Crossref is temporarily unavailable; try again shortly");
+    }
+    await response.body?.cancel();
+    await wait(crossrefRetryDelay(response));
+  }
+  throw new CrossrefUnavailableError("Crossref is temporarily unavailable; try again shortly");
+}
+
+function isRetryableCrossrefStatus(status: number): boolean {
+  return status === 429 || status >= 500;
+}
+
+function crossrefRetryDelay(response: Response): number {
+  const retryAfter = Number(response.headers.get("retry-after"));
+  return Number.isFinite(retryAfter) && retryAfter >= 0 ? Math.min(retryAfter * 1_000, 2_000) : crossrefRetryDelayMilliseconds;
+}
+
+async function wait(milliseconds: number): Promise<void> {
+  await new Promise<void>((resolve) => setTimeout(resolve, milliseconds));
 }

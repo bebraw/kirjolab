@@ -54,7 +54,13 @@ import { isAcceptCitationCandidateInput } from "../domain/citation-expansion-acc
 import type { ReferenceDeletionImpact, ReferenceImportItem, WebCaptureItem } from "../durable-objects/reference-library";
 import { normalizeDoi, parseBibTeX } from "../domain/bibliography";
 import { isValidDoi } from "../domain/publication-intake";
-import { fetchCrossrefReferences, fetchCrossrefWork, fingerprintPublicationMetadata, searchCrossrefWorks } from "../integrations/crossref";
+import {
+  CrossrefUnavailableError,
+  fetchCrossrefReferences,
+  fetchCrossrefWork,
+  fingerprintPublicationMetadata,
+  searchCrossrefWorks,
+} from "../integrations/crossref";
 import { fetchDataCiteWork } from "../integrations/datacite";
 import { fetchOpenAlexWork, searchOpenAlexWorks } from "../integrations/openalex";
 import { fetchSemanticScholarWork, searchSemanticScholarWorks } from "../integrations/semantic-scholar";
@@ -357,7 +363,14 @@ export async function handleReferenceLibraryApi(
     return topLevelResponse ?? (await handleLibraryReferenceRoutes(context));
   } catch (error) {
     const message = error instanceof Error ? error.message : "Reference library operation failed";
-    const status = /changed|already|before deleting|before identifying/iu.test(message) ? 409 : /not found/iu.test(message) ? 404 : 400;
+    const status =
+      error instanceof CrossrefUnavailableError
+        ? 503
+        : /changed|already|before deleting|before identifying/iu.test(message)
+          ? 409
+          : /not found/iu.test(message)
+            ? 404
+            : 400;
     return jsonError(message, status);
   }
 }
