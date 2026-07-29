@@ -86,7 +86,7 @@ describe("renderHomePage", () => {
     expect(html).toContain('<citation-network-workspace class="mt-6 border-t border-app-line pt-5"');
     expect(html).toContain('<reference-reconciliation-panel class="mt-6 border-t border-app-line pt-5"');
     expect(html).toContain('id="citation-assertion-form"');
-    expect(html).toContain('id="citation-network-graph" viewBox="0 0 800 360" role="img" aria-label="Citation network graph"');
+    expect(html).toContain("<citation-network-graph></citation-network-graph>");
     expect(html).toContain('id="citation-network-list" aria-live="polite"');
     expect(html).toContain("Follow references from trusted seeds, review each candidate, and retain how every source was found.");
     expect(html).toContain('id="publication-list"');

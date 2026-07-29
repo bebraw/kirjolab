@@ -942,9 +942,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   identity and correctly directed extracted citation assertion atomically. A
   project id narrows the private projection but never grants library access.
 - Keep graph domain contracts renderer-neutral and graph actions available as
-  ordinary DOM controls or lists. Retain the bounded SVG views until at least
-  two documented scale or interaction triggers require a dedicated renderer;
-  derived layout and viewport state must never become canonical graph state.
+  ordinary DOM controls or lists. The citation network may use its lazy-loaded
+  Cytoscape runtime for derived layout, viewport interaction, hit testing, and
+  visual selection, but those concerns and node positions never become
+  canonical graph state. Keep the project map's resource actions in native DOM
+  and its measured connectors in dependency-free SVG.
 - Let the citation-network Lit workspace own loading, project filtering,
   request generations, response guards, manual assertion and review mutations,
   expansion and candidate acceptance, local progress, and retryable failures.

@@ -7,6 +7,7 @@ const artifacts = [
   ["Browser application", ".generated/app.txt"],
   ["Lazy Markdown runtime", "markdown-module"],
   ["Lazy PDF.js runtime", "pdfjs-module"],
+  ["Lazy Cytoscape runtime", "cytoscape-module"],
   ["Styles", ".generated/styles.css"],
 ];
 

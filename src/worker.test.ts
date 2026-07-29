@@ -292,6 +292,13 @@ describe("worker", () => {
     await expect(response.json()).resolves.toEqual({ error: "Worker bindings unavailable" });
   });
 
+  it("requires runtime assets for the lazy Cytoscape module", async () => {
+    const response = await handleRequest(new Request("http://example.com/cytoscape-module-abcdef0123456789.js"));
+
+    expect(response.status).toBe(503);
+    await expect(response.json()).resolves.toEqual({ error: "Worker bindings unavailable" });
+  });
+
   it("does not treat unversioned browser modules as immutable runtime assets", async () => {
     const response = await handleRequest(new Request("http://example.com/markdown-module-1.js"));
 

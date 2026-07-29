@@ -293,7 +293,7 @@ async function handleStaticRequest(request: Request, url: URL, env: Env | undefi
   if (url.pathname === "/favicon.svg" || url.pathname === "/favicon.ico") return faviconResponse();
   const scriptLoader = staticScriptLoaders.get(url.pathname);
   if (scriptLoader) return scriptResponse(await scriptLoader());
-  if (/^\/(?:markdown-module|pdfjs-module)-[a-f0-9]{16}\.js$/u.test(url.pathname)) {
+  if (/^\/(?:cytoscape-module|markdown-module|pdfjs-module)-[a-f0-9]{16}\.js$/u.test(url.pathname)) {
     if (!env) return Response.json({ error: "Worker bindings unavailable" }, { status: 503 });
     return await loadBrowserRuntimeAsset(request, env);
   }

@@ -453,7 +453,7 @@ export function renderHomePage(
                   <label class="field-label">Cited source<select class="field" id="citation-assertion-cited" required></select></label>
                   <div class="flex items-end"><button class="button-primary w-full justify-center" type="submit">Record assertion</button></div>
                 </form>
-                <div class="mt-4 overflow-hidden border border-app-line bg-app-paper"><svg class="block min-h-72 w-full" id="citation-network-graph" viewBox="0 0 800 360" role="img" aria-label="Citation network graph"></svg></div>
+                <div class="mt-4 overflow-hidden border border-app-line bg-app-paper"><citation-network-graph></citation-network-graph></div>
                 <div class="mt-4 space-y-3" id="citation-network-list" aria-live="polite"><div class="empty-state">Loading citation assertions…</div></div>
               </citation-network-panel>
             </citation-network-workspace>

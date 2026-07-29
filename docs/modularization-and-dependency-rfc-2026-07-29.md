@@ -348,6 +348,11 @@ defers Cytoscape.js until a second trigger is committed. The domain projections
 remain renderer-neutral so that later adoption does not require a data-model
 migration.
 
+Follow-up on 2026-07-29: addressable trail navigation committed pan and zoom as
+a second interaction trigger. [ADR-191](./adrs/implemented/ADR-191-adopt-cytoscape-for-citation-graphs.md)
+therefore adopts a lazy Cytoscape runtime for the citation network while
+leaving the project map and both graphs' accessible DOM actions unchanged.
+
 ### 6. Keep review logic as an internal bounded context
 
 Review protocols, screening, extraction, appraisal, synthesis, PRISMA export,

@@ -1,8 +1,9 @@
-import { html, nothing, svg, type TemplateResult } from "lit";
+import { html, nothing, type TemplateResult } from "lit";
 import { LightDomElement } from "./light-dom-controller";
 import type { CitationAssertionView, CitationNetwork } from "../domain/citation-assertions";
 import type { CitationExpansionCandidate, CitationExpansionDirection, CitationExpansionResult } from "../domain/citation-expansion-types";
 import { libraryPdfRoute } from "./library-ui-route";
+import "./citation-network-graph";
 
 export const citationNetworkActionEvent = "citation-network-action";
 
@@ -121,11 +122,11 @@ export class CitationNetworkPanel extends LightDomElement {
         </label>
         <div class="flex items-end"><button class="button-primary w-full justify-center" type="submit">Record assertion</button></div>
       </form>
-      <div class="mt-4 overflow-hidden border border-app-line bg-app-paper">
-        <svg class="block min-h-72 w-full" id="citation-network-graph" viewBox="0 0 800 360" role="img" aria-label="Citation network graph">
-          ${network ? this.graph(network) : nothing}
-        </svg>
-      </div>
+      <citation-network-graph
+        class="mt-4 block overflow-hidden border border-app-line bg-app-paper"
+        .network=${network}
+        .focusedReferenceId=${this.data.focusedReferenceId}
+      ></citation-network-graph>
       <div class="mt-4 space-y-3" id="citation-network-list" aria-live="polite">
         ${network ? this.networkList(network) : html`<div class="empty-state">Loading citation assertions…</div>`}
       </div>
@@ -421,59 +422,6 @@ export class CitationNetworkPanel extends LightDomElement {
     `;
   }
 
-  private graph(network: CitationNetwork): ReturnType<typeof svg> {
-    if (network.nodes.length === 0) {
-      return svg`<text x="400" y="180" text-anchor="middle" fill="currentColor">No citation assertions to draw</text>`;
-    }
-    const positions = new Map(
-      network.nodes.map((node, index) => {
-        const angle = (index / network.nodes.length) * Math.PI * 2 - Math.PI / 2;
-        return [node.id, { x: 400 + Math.cos(angle) * 270, y: 180 + Math.sin(angle) * 125 }] as const;
-      }),
-    );
-    return svg`
-      <defs>
-        <marker id="citation-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-          <path d="M 0 0 L 10 5 L 0 10 z" fill="context-stroke"></path>
-        </marker>
-      </defs>
-      ${network.edges.map((edge) => {
-        const from = positions.get(edge.from);
-        const to = positions.get(edge.to);
-        return from && to
-          ? svg`<line
-              x1=${from.x}
-              y1=${from.y}
-              x2=${to.x}
-              y2=${to.y}
-              stroke=${citationStateColor(edge.state)}
-              stroke-width=${edge.state === "confirmed" ? 3 : 2}
-              marker-end="url(#citation-arrow)"
-              stroke-dasharray=${edge.state === "inferred" ? "6 5" : nothing}
-            ></line>`
-          : nothing;
-      })}
-      ${network.nodes.map((node) => {
-        const position = positions.get(node.id)!;
-        return svg`
-          <g>
-            <circle
-              cx=${position.x}
-              cy=${position.y}
-              r=${node.inProject ? 19 : 15}
-              fill=${node.inProject ? "var(--color-app-accent)" : "var(--color-app-paper)"}
-              stroke="var(--color-app-ink)"
-            ></circle>
-            <text x=${position.x} y=${position.y + 34} text-anchor="middle" font-size="11" fill="currentColor">
-              ${node.label.length > 28 ? `${node.label.slice(0, 27)}…` : node.label}
-            </text>
-            <title>${node.label}</title>
-          </g>
-        `;
-      })}
-    `;
-  }
-
   private label(value: string): TemplateResult {
     return html`<p class="eyebrow">${value}</p>`;
   }
@@ -496,13 +444,6 @@ export function citationEvidencePage(sourceLocator: string): number | null {
   if (!match) return null;
   const page = Number.parseInt(match[1] ?? match[2] ?? "", 10);
   return Number.isFinite(page) && page > 0 ? page : null;
-}
-
-function citationStateColor(state: CitationNetwork["edges"][number]["state"]): string {
-  if (state === "confirmed") return "var(--color-app-graph-confirmed)";
-  if (state === "extracted") return "var(--color-app-graph-extracted)";
-  if (state === "conflicting") return "var(--color-app-graph-conflicting)";
-  return "var(--color-app-graph-inferred)";
 }
 
 function formatTimestamp(value: string): string {

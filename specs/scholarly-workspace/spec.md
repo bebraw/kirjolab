@@ -95,10 +95,11 @@ collaboration.
   authorization outcomes. It binds its sibling entry trigger and toast owner
   directly, while the toast owner retains global notice policy.
 - **Browser runtime loading:** The generated application module is minified and
-  excludes the Markdown pipeline and PDF.js. Content-fingerprinted immutable
-  Markdown and PDF.js runtime URLs are compiled into each application build.
-  Markdown loads concurrently with workspace data; PDF.js loads on first use.
-  Consumers share each cached module thereafter.
+  excludes the Markdown pipeline, PDF.js, and Cytoscape. Content-fingerprinted
+  immutable Markdown, PDF.js, and Cytoscape runtime URLs are compiled into each
+  application build. Markdown loads concurrently with workspace data; PDF.js
+  and Cytoscape load on first use. Consumers share each cached module
+  thereafter.
 - **Appearance:** The shell uses one semantic `app-*` token palette with light
   and dark values. Appearance follows the operating-system color scheme by
   default; a browser-local System, Light, or Dark preference may override it

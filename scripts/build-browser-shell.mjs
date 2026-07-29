@@ -34,7 +34,13 @@ export async function buildBrowserShell(root = projectRoot) {
     outputAssets,
     stem: "pdfjs-module",
   });
+  const cytoscapeAsset = await buildFingerprintedRuntime({
+    entryPoint: join(root, "node_modules/cytoscape/dist/cytoscape.esm.mjs"),
+    outputAssets,
+    stem: "cytoscape-module",
+  });
   const runtimeDefines = {
+    __CYTOSCAPE_RUNTIME_URL__: JSON.stringify(`/${cytoscapeAsset.name}`),
     __MARKDOWN_RUNTIME_URL__: JSON.stringify(`/${markdownAsset.name}`),
     __PDFJS_RUNTIME_URL__: JSON.stringify(`/${pdfAsset.name}`),
   };
@@ -42,7 +48,7 @@ export async function buildBrowserShell(root = projectRoot) {
 
   await buildClient(root, appOutput, runtimeDefines, "pending");
   const [provisionalApp, stylesheet] = await Promise.all([readFile(appOutput), readFile(join(outputRoot, "styles.css"))]);
-  const shellVersion = contentFingerprint(provisionalApp, stylesheet, markdownAsset.contents, pdfAsset.contents);
+  const shellVersion = contentFingerprint(provisionalApp, stylesheet, markdownAsset.contents, pdfAsset.contents, cytoscapeAsset.contents);
 
   await buildClient(root, appOutput, runtimeDefines, shellVersion);
   await build({
@@ -74,7 +80,7 @@ export async function buildBrowserShell(root = projectRoot) {
     outfile: join(outputRoot, "pdf-artifact-analyzer.txt"),
   });
 
-  return { markdownAsset: markdownAsset.name, pdfAsset: pdfAsset.name, shellVersion };
+  return { cytoscapeAsset: cytoscapeAsset.name, markdownAsset: markdownAsset.name, pdfAsset: pdfAsset.name, shellVersion };
 }
 
 async function buildClient(root, outfile, runtimeDefines, shellVersion) {
@@ -114,12 +120,16 @@ async function removeSupersededRuntimeAssets(outputAssets) {
     throw error;
   });
   await Promise.all(
-    names.filter((name) => /^(?:markdown-module|pdfjs-module)-.+\.js$/u.test(name)).map(async (name) => await rm(join(outputAssets, name))),
+    names
+      .filter((name) => /^(?:cytoscape-module|markdown-module|pdfjs-module)-.+\.js$/u.test(name))
+      .map(async (name) => await rm(join(outputAssets, name))),
   );
 }
 
 const entry = process.argv[1];
 if (entry && import.meta.url === pathToFileURL(entry).href) {
   const result = await buildBrowserShell();
-  console.log(`[browser-shell] ${result.markdownAsset}, ${result.pdfAsset}, offline cache ${result.shellVersion}`);
+  console.log(
+    `[browser-shell] ${result.markdownAsset}, ${result.pdfAsset}, ${result.cytoscapeAsset}, offline cache ${result.shellVersion}`,
+  );
 }

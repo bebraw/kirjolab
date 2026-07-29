@@ -38,9 +38,10 @@ provider result, extraction, or model suggestion as equally trustworthy.
 - A transient Crossref rate-limit or availability response is retried once
   within a short bound. Persistent provider unavailability returns `503` so a
   valid expansion request is never misreported as a client `400`.
-- The visual SVG is paired with an ordinary accessible list containing every
-  visible assertion and its provenance and review controls. Relational SQLite
-  remains sufficient; the layout is derived browser state.
+- The interactive Cytoscape canvas is paired with an ordinary accessible list
+  containing every visible assertion and its provenance and review controls.
+  Relational SQLite remains sufficient; layout, viewport, and selection are
+  derived browser state and node positions are not persisted.
 - A Library source action opens an addressable `/library?trail={referenceId}`
   view. Its graph and accessible list contain only the focused source and its
   immediate incoming and outgoing relationships; opening the view never
@@ -52,12 +53,14 @@ by` relationships. Selecting a neighboring source refocuses the same trail
   PDF-extracted provenance names a current Library artifact, its first in-text
   mention page (or bibliography page fallback) links directly to the existing
   addressable PDF reader.
-- The bounded circular SVG remains intentionally dependency-free under ADR-185.
-  Its scale limit is one renderer-adoption trigger, but a second committed
-  viewport, layout, clustering, or shared-selection requirement is needed before
-  introducing a graph runtime.
-- One bounded reactive view owns graph geometry, accessible node and edge
-  cards, assertion provenance, review controls, expansion candidates, and
+- The graph runtime loads from a content-fingerprinted offline-shell asset only
+  when a non-empty citation graph renders. It supplies a CoSE layout, pan,
+  scroll or pinch zoom, fit and reset controls, and node selection that follows
+  the same addressable reference trail as the accessible list. A runtime-load
+  failure leaves every relationship and action available in that list.
+- One bounded reactive graph element owns renderer lifecycle, derived geometry,
+  and viewport controls. Its parent view owns accessible node and edge cards,
+  assertion provenance, review controls, expansion candidates, and
   local save progress. Its enclosing Lit workspace owns network loading,
   current-project filtering, request generations, response validation, prompts,
   assertion and review mutations, expansion, candidate acceptance, canonical
@@ -131,7 +134,7 @@ by` relationships. Selecting a neighboring source refocuses the same trail
 - Do not call a provider result confirmed merely because retrieval succeeded.
 - Do not infer a citation from title, embedding, or author similarity.
 - Do not let a rejected or newer assertion erase earlier provenance.
-- Do not make the SVG the only way to inspect the network.
+- Do not make the canvas the only way to inspect the network.
 - Do not move citation review, expansion, or provenance actions into a
   canvas-only interaction model.
 - Do not expand the network implicitly when opening it or traversing an edge.
@@ -158,6 +161,8 @@ by` relationships. Selecting a neighboring source refocuses the same trail
 - [x] Conservative in-text mentions remain attached to their reviewed parsed
       reference and assertion provenance.
 - [x] A graph and accessible provenance list expose the same projection.
+- [x] The graph supports pan, zoom, fit, reset, and trail navigation without
+      persisting renderer state.
 - [x] A Library source opens an addressable, one-hop reference trail.
 - [x] A trail supports directional refocus and exact PDF evidence navigation.
 - [x] Pure, API, integration, Workers-runtime, view, and browser tests cover

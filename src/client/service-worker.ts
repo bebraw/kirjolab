@@ -5,9 +5,10 @@ import { offlineShellCacheName, offlineShellCachePrefix } from "./offline-servic
 declare const self: ServiceWorkerGlobalScope;
 
 declare const __MARKDOWN_RUNTIME_URL__: string;
+declare const __CYTOSCAPE_RUNTIME_URL__: string;
 
 const cacheName = offlineShellCacheName;
-const shellPaths = new Set(["/app.js", "/styles.css", "/favicon.svg", __MARKDOWN_RUNTIME_URL__]);
+const shellPaths = new Set(["/app.js", "/styles.css", "/favicon.svg", __MARKDOWN_RUNTIME_URL__, __CYTOSCAPE_RUNTIME_URL__]);
 
 self.addEventListener("install", (event) => {
   event.waitUntil(

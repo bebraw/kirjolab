@@ -3398,8 +3398,9 @@ test("records and reviews source citation assertions in an accessible shared net
   await expect(list).toContainText("Network Alpha Study → Network Beta Study");
   await expect(list).toContainText("cites · confirmed · manual");
   await expect(list).toContainText("Kirjolab researcher assertion");
-  await expect(page.locator("#citation-network-graph line")).toHaveCount(1);
-  await expect(page.locator("#citation-network-graph circle")).toHaveCount(2);
+  await expect(page.locator("#citation-network-graph canvas").first()).toBeVisible();
+  await page.getByRole("button", { name: "Zoom in" }).click();
+  await page.getByRole("button", { name: "Fit graph" }).click();
 
   page.once("dialog", (dialog) => dialog.accept("Checked the source reference list"));
   await list.getByRole("button", { name: "Confirm" }).click();
@@ -6036,12 +6037,15 @@ test("serves stable health and browser assets", async ({ request }) => {
 
   const pdfRuntimePath = clientBody.match(/\/pdfjs-module-[a-f0-9]{16}\.js/u)?.[0];
   const markdownRuntimePath = clientBody.match(/\/markdown-module-[a-f0-9]{16}\.js/u)?.[0];
+  const cytoscapeRuntimePath = clientBody.match(/\/cytoscape-module-[a-f0-9]{16}\.js/u)?.[0];
   const offlineCacheName = serviceWorkerBody.match(/kirjolab-offline-shell-[a-f0-9]{16}/u)?.[0];
   expect(pdfRuntimePath).toBeTruthy();
   expect(markdownRuntimePath).toBeTruthy();
+  expect(cytoscapeRuntimePath).toBeTruthy();
   expect(offlineCacheName).toBeTruthy();
   expect(clientBody).toContain(offlineCacheName);
   expect(serviceWorkerBody).toContain(markdownRuntimePath);
+  expect(serviceWorkerBody).toContain(cytoscapeRuntimePath);
 
   const pdfRuntime = await request.get(pdfRuntimePath!);
   expect(pdfRuntime.ok()).toBe(true);
@@ -6052,6 +6056,11 @@ test("serves stable health and browser assets", async ({ request }) => {
   expect(markdownRuntime.ok()).toBe(true);
   expect(markdownRuntime.headers()["content-type"]).toContain("javascript");
   expect(markdownRuntime.headers()["cache-control"]).toBe("public, max-age=31536000, immutable");
+
+  const cytoscapeRuntime = await request.get(cytoscapeRuntimePath!);
+  expect(cytoscapeRuntime.ok()).toBe(true);
+  expect(cytoscapeRuntime.headers()["content-type"]).toContain("javascript");
+  expect(cytoscapeRuntime.headers()["cache-control"]).toBe("public, max-age=31536000, immutable");
 });
 
 function isRecord(value: unknown): value is Record<string, unknown> {

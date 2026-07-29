@@ -47,9 +47,9 @@ connection without reconstructing identity from a citation key or filename.
   changes size; compact panes retain the grouped actions even when connectors
   are hidden.
 - The map retains native DOM resource actions and dependency-free decorative
-  SVG connectors under ADR-185. A graph renderer may replace visual layout only
-  after a second committed interaction or scale trigger exists; it must not
-  replace the accessible resource and connection actions.
+  SVG connectors. ADR-191's Cytoscape adoption is limited to the citation
+  network and must not replace the map's accessible resource and connection
+  actions.
 - The Research rail remains a compact inventory of project evidence, claims,
   and references. It does not duplicate search, project graph, or library
   citation-network controls.

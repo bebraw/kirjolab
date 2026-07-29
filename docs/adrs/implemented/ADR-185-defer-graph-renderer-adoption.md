@@ -1,6 +1,6 @@
 # ADR-185: Defer Graph Renderer Adoption
 
-**Status:** Implemented
+**Status:** Superseded by [ADR-191](./ADR-191-adopt-cytoscape-for-citation-graphs.md)
 
 **Date:** 2026-07-29
 
