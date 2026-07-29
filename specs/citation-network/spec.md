@@ -38,6 +38,10 @@ provider result, extraction, or model suggestion as equally trustworthy.
 - The visual SVG is paired with an ordinary accessible list containing every
   visible assertion and its provenance and review controls. Relational SQLite
   remains sufficient; the layout is derived browser state.
+- The bounded circular SVG remains intentionally dependency-free under ADR-185.
+  Its scale limit is one renderer-adoption trigger, but a second committed
+  viewport, layout, clustering, or shared-selection requirement is needed before
+  introducing a graph runtime.
 - One bounded reactive view owns graph geometry, accessible node and edge
   cards, assertion provenance, review controls, expansion candidates, and
   local save progress. Its enclosing Lit workspace owns network loading,
@@ -89,6 +93,8 @@ provider result, extraction, or model suggestion as equally trustworthy.
 - Do not infer a citation from title, embedding, or author similarity.
 - Do not let a rejected or newer assertion erase earlier provenance.
 - Do not make the SVG the only way to inspect the network.
+- Do not move citation review, expansion, or provenance actions into a
+  canvas-only interaction model.
 - Do not expand the network implicitly when opening it or traversing an edge.
 - Do not create a reference from an unmatched candidate until the researcher
   explicitly accepts it.

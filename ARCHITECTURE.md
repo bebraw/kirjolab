@@ -922,6 +922,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   candidate only after a fingerprint-verified provider refetch, then create or
   reuse its library identity and extracted citation assertion atomically. A
   project id narrows the private projection but never grants library access.
+- Keep graph domain contracts renderer-neutral and graph actions available as
+  ordinary DOM controls or lists. Retain the bounded SVG views until at least
+  two documented scale or interaction triggers require a dedicated renderer;
+  derived layout and viewport state must never become canonical graph state.
 - Let the citation-network Lit workspace own loading, project filtering,
   request generations, response guards, manual assertion and review mutations,
   expansion and candidate acceptance, local progress, and retryable failures.

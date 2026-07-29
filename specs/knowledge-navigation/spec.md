@@ -46,6 +46,10 @@ connection without reconstructing identity from a citation key or filename.
   connectors are redrawn from measured card geometry when the authoring pane
   changes size; compact panes retain the grouped actions even when connectors
   are hidden.
+- The map retains native DOM resource actions and dependency-free decorative
+  SVG connectors under ADR-185. A graph renderer may replace visual layout only
+  after a second committed interaction or scale trigger exists; it must not
+  replace the accessible resource and connection actions.
 - The Research rail remains a compact inventory of project evidence, claims,
   and references. It does not duplicate search, project graph, or library
   citation-network controls.
@@ -58,6 +62,8 @@ connection without reconstructing identity from a citation key or filename.
 - Do not bypass workspace authorization for search or graph reads.
 - Do not persist a search index without a version and rebuild contract.
 - Do not make a visual graph the only way to inspect or follow connections.
+- Do not make a renderer or persisted node position part of canonical workspace
+  state.
 - Do not let missing related resources make the whole projection invalid.
 
 ## Contract

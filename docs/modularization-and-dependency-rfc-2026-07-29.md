@@ -334,6 +334,20 @@ viewport, hit testing, and interaction only. Sigma.js may be reconsidered if
 measured graphs reach thousands of simultaneously visible nodes and WebGL
 throughput becomes more important than rich DOM interaction.
 
+#### Outcome
+
+Audited on 2026-07-29. Citation-network projections can cross the volume trigger
+because they admit up to 512 assertions, but no second trigger is a committed
+requirement. Both current views have deterministic presentation, no pan/zoom or
+dragging, no alternate layouts or clustering, and no shared graph-runtime
+selection model. Project-map actions remain keyboard-operable DOM controls and
+citation-network actions remain available through the complete provenance list.
+
+[ADR-185](./adrs/implemented/ADR-185-defer-graph-renderer-adoption.md) therefore
+defers Cytoscape.js until a second trigger is committed. The domain projections
+remain renderer-neutral so that later adoption does not require a data-model
+migration.
+
 ### 6. Keep review logic as an internal bounded context
 
 Review protocols, screening, extraction, appraisal, synthesis, PRISMA export,
