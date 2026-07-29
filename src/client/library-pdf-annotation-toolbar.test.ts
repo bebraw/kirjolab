@@ -34,6 +34,10 @@ class TestLibraryPdfAnnotationToolbar extends LibraryPdfAnnotationToolbar {
   async exportForTest(): Promise<void> {
     await this.exportAnnotated();
   }
+
+  async downloadOriginalForTest(): Promise<void> {
+    await this.downloadOriginal();
+  }
 }
 
 const drawing: LibraryPdfDrawing = {
@@ -134,6 +138,30 @@ describe("library PDF annotation toolbar", () => {
     );
     expect(click).toHaveBeenCalledOnce();
     expect(actions).toEqual([{ action: "export-status", message: "Preparing annotated PDF…" }]);
+  });
+
+  it("downloads the original PDF without requiring annotations", async () => {
+    const toolbar = new TestLibraryPdfAnnotationToolbar();
+    const actions: LibraryPdfToolbarAction[] = [];
+    const click = vi.fn();
+    const link = { click, download: "", href: "" };
+    vi.stubGlobal("window", { matchMedia: () => ({ matches: false }) });
+    vi.stubGlobal("navigator", {});
+    vi.stubGlobal("document", { createElement: () => link });
+    toolbar.setAnnotationAvailability(0);
+    toolbar.setExportArtifact({ id: "artifact/1", name: "original paper.pdf" });
+    toolbar.addEventListener(libraryPdfToolbarActionEvent, (event) => actions.push((event as CustomEvent<LibraryPdfToolbarAction>).detail));
+
+    await toolbar.downloadOriginalForTest();
+
+    expect(link).toEqual(
+      expect.objectContaining({
+        download: "original paper.pdf",
+        href: "/api/library/pdfs/artifact%2F1",
+      }),
+    );
+    expect(click).toHaveBeenCalledOnce();
+    expect(actions).toEqual([{ action: "export-status", message: "Downloading original PDF…" }]);
   });
 
   it("shares an annotated PDF from an installed app", async () => {

@@ -652,6 +652,12 @@ test("imports, annotates, and exports a private PDF without a project", async ({
   await expect(page.locator("#library-highlight-composer")).toBeHidden();
   await expect(page.locator("#paper-text-layer")).toContainText("Knowledge grows through inspectable evidence.");
   await expect(page.locator("#export-library-annotated-pdf")).toBeDisabled();
+  await expect(page.locator("#download-library-original-pdf")).toBeEnabled();
+  await page.getByRole("button", { name: "Download original PDF" }).click();
+  await expect(page.locator("#toast")).toHaveText("Choose Save to Files to keep the original PDF.");
+  await expect
+    .poll(async () => JSON.parse((await page.evaluate(() => sessionStorage.getItem("shared-pdf"))) ?? "null"))
+    .toMatchObject({ name: "student_submission.pdf", type: "application/pdf" });
   await page.getByRole("button", { name: "Annotations", exact: true }).click();
   await expect(page.locator("#library-highlight-import-status")).toContainText("1 candidate found");
   await expect(page.locator("#library-highlight-import-list")).toContainText("Knowledge grows through inspectable evidence.");

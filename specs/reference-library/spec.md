@@ -332,10 +332,11 @@ memory and makes citation aliases compete with stable source identity.
   newest stable undo target and owns its deletion, pending suppression,
   retryable local failure state, and typed completion outcome. It also emits
   typed tool and inspector intents. Given a stable artifact identity and
-  filename, it owns annotated-PDF download and installed-app file sharing,
-  including cancellation and download fallback, and emits typed status
-  outcomes. The application coordinator retains canonical refresh, inspector
-  policy, and toast presentation.
+  filename, it owns original-PDF download independently of annotation state as
+  well as annotated-PDF download and installed-app file sharing, including
+  cancellation and download fallback, and emits typed status outcomes. The
+  application coordinator retains canonical refresh, inspector policy, and
+  toast presentation.
 - A bounded light-DOM inspector component composes the annotation forms,
   imported-highlight review, saved annotation list, and project-use block. It
   owns shell visibility, active-artifact identity, status presentation,
@@ -395,10 +396,12 @@ memory and makes citation aliases compete with stable source identity.
 - The active PDF page exposes standard PDF link annotations. Internal
   destinations stay in the reader and restore the destination page and
   position; external URLs open in a protected new tab.
-- Once the PDF has a saved text highlight, page note, or drawing, **Export
-  annotated** saves a derived PDF without changing the stored source. Installed
-  iPad web apps share a real PDF file through the native sheet so **Save to
-  Files** is available; ordinary browser sessions retain download behavior.
+- **Download original PDF** saves the immutable owner-private artifact whether
+  or not it has annotations. Once the PDF has a saved text highlight, page note,
+  or drawing, **Export annotated** saves a derived PDF without changing the
+  stored source. Installed iPad web apps share a real PDF file through the
+  native sheet so **Save to Files** is available; ordinary browser sessions
+  retain download behavior.
   Freehand strokes are flattened at their normalized page coordinates. Page
   notes become interactive sticky-note annotations with popup contents; text
   highlights with geometry become one standard multi-quad PDF highlight

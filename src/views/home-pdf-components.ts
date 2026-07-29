@@ -35,6 +35,9 @@ export function renderLibraryPdfRail(): string {
                   </div>
                 </div>
                 <span class="library-pdf-rail-divider" aria-hidden="true"></span>
+                <button class="library-pdf-rail-button button-icon" id="download-library-original-pdf" type="button" disabled title="Download the original PDF" data-touch-target="true">
+                  ${renderIcon("guide")}<span class="sr-only">Download original PDF</span>
+                </button>
                 <button class="library-pdf-rail-button button-icon" id="export-library-annotated-pdf" type="button" disabled title="Download a copy with private notes and ink" data-touch-target="true">
                   ${renderIcon("download")}<span class="sr-only">Export annotated</span>
                 </button>

@@ -30,6 +30,7 @@ describe("renderLibraryPdfRail", () => {
       ["library-note-tool", "note"],
       ["library-draw-tool", "draw"],
       ["undo-library-drawing", "undo"],
+      ["download-library-original-pdf", "guide"],
       ["export-library-annotated-pdf", "download"],
       ["open-library-pdf-inspector", "annotations"],
     ] as const;

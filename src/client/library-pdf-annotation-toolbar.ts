@@ -128,6 +128,17 @@ export class LibraryPdfAnnotationToolbar extends LightDomElement {
         <span class="library-pdf-rail-divider" aria-hidden="true"></span>
         <button
           class="library-pdf-rail-button button-icon"
+          id="download-library-original-pdf"
+          type="button"
+          ?disabled=${!this.exportTarget || this.exporting}
+          title="Download the original PDF"
+          data-touch-target="true"
+          @click=${this.downloadOriginal}
+        >
+          ${icon("guide")}<span class="sr-only">${this.exporting ? "Preparing PDF download" : "Download original PDF"}</span>
+        </button>
+        <button
+          class="library-pdf-rail-button button-icon"
           id="export-library-annotated-pdf"
           type="button"
           ?disabled=${this.annotationCount === 0 || !this.exportTarget || this.exporting}
@@ -192,9 +203,27 @@ export class LibraryPdfAnnotationToolbar extends LightDomElement {
   protected async exportAnnotated(): Promise<void> {
     const target = this.exportTarget;
     if (!target || this.exporting || this.annotationCount === 0) return;
+    await this.exportPdf(
+      `/api/library/pdfs/${encodeURIComponent(target.id)}/annotated`,
+      target.name.replace(/\.pdf$/iu, "") + "-annotated.pdf",
+      "Preparing annotated PDF…",
+      "Choose Save to Files to keep the annotated PDF.",
+    );
+  }
+
+  protected async downloadOriginal(): Promise<void> {
+    const target = this.exportTarget;
+    if (!target || this.exporting) return;
+    await this.exportPdf(
+      `/api/library/pdfs/${encodeURIComponent(target.id)}`,
+      target.name,
+      "Downloading original PDF…",
+      "Choose Save to Files to keep the original PDF.",
+    );
+  }
+
+  private async exportPdf(url: string, filename: string, downloadStatus: string, shareStatus: string): Promise<void> {
     this.exporting = true;
-    const url = `/api/library/pdfs/${encodeURIComponent(target.id)}/annotated`;
-    const filename = target.name.replace(/\.pdf$/iu, "") + "-annotated.pdf";
     try {
       if (installedWebApp() && typeof navigator.share === "function") {
         try {
@@ -202,7 +231,7 @@ export class LibraryPdfAnnotationToolbar extends LightDomElement {
           await expectOk(response);
           const file = new File([await response.blob()], filename, { type: "application/pdf" });
           if (!navigator.canShare || navigator.canShare({ files: [file] })) {
-            this.emitAction({ action: "export-status", message: "Choose Save to Files to keep the annotated PDF." });
+            this.emitAction({ action: "export-status", message: shareStatus });
             await navigator.share({ files: [file], title: filename });
             return;
           }
@@ -215,7 +244,7 @@ export class LibraryPdfAnnotationToolbar extends LightDomElement {
       link.href = url;
       link.download = filename;
       link.click();
-      this.emitAction({ action: "export-status", message: "Preparing annotated PDF…" });
+      this.emitAction({ action: "export-status", message: downloadStatus });
     } finally {
       this.exporting = false;
     }
