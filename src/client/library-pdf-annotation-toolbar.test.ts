@@ -57,6 +57,7 @@ const drawing: LibraryPdfDrawing = {
 };
 
 afterEach(() => {
+  vi.useRealTimers();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
@@ -117,13 +118,20 @@ describe("library PDF annotation toolbar", () => {
   });
 
   it("downloads an annotated PDF through a stable encoded artifact target", async () => {
+    vi.useFakeTimers();
     const toolbar = new TestLibraryPdfAnnotationToolbar();
     const actions: LibraryPdfToolbarAction[] = [];
     const click = vi.fn();
-    const link = { click, download: "", href: "" };
+    const remove = vi.fn();
+    const link = { click, download: "", href: "", remove };
+    const append = vi.fn();
+    const createObjectURL = vi.fn().mockReturnValue("blob:annotated-pdf");
+    const revokeObjectURL = vi.fn();
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("pdf", { status: 200 }));
     vi.stubGlobal("window", { matchMedia: () => ({ matches: false }) });
     vi.stubGlobal("navigator", {});
-    vi.stubGlobal("document", { createElement: () => link });
+    vi.stubGlobal("URL", { createObjectURL, revokeObjectURL });
+    vi.stubGlobal("document", { body: { append }, createElement: () => link });
     toolbar.setAnnotationAvailability(2);
     toolbar.setExportArtifact({ id: "artifact/1", name: "paper.pdf" });
     toolbar.addEventListener(libraryPdfToolbarActionEvent, (event) => actions.push((event as CustomEvent<LibraryPdfToolbarAction>).detail));
@@ -133,21 +141,35 @@ describe("library PDF annotation toolbar", () => {
     expect(link).toEqual(
       expect.objectContaining({
         download: "paper-annotated.pdf",
-        href: "/api/library/pdfs/artifact%2F1/annotated",
+        href: "blob:annotated-pdf",
       }),
     );
+    expect(fetchMock).toHaveBeenCalledWith("/api/library/pdfs/artifact%2F1/annotated", { credentials: "same-origin" });
+    expect(createObjectURL).toHaveBeenCalledWith(expect.any(Blob));
+    expect(append).toHaveBeenCalledWith(link);
     expect(click).toHaveBeenCalledOnce();
+    expect(remove).toHaveBeenCalledOnce();
+    expect(revokeObjectURL).not.toHaveBeenCalled();
+    vi.runAllTimers();
+    expect(revokeObjectURL).toHaveBeenCalledWith("blob:annotated-pdf");
     expect(actions).toEqual([{ action: "export-status", message: "Preparing annotated PDF…" }]);
   });
 
   it("downloads the original PDF without requiring annotations", async () => {
+    vi.useFakeTimers();
     const toolbar = new TestLibraryPdfAnnotationToolbar();
     const actions: LibraryPdfToolbarAction[] = [];
     const click = vi.fn();
-    const link = { click, download: "", href: "" };
+    const remove = vi.fn();
+    const link = { click, download: "", href: "", remove };
+    const append = vi.fn();
+    const createObjectURL = vi.fn().mockReturnValue("blob:original-pdf");
+    const revokeObjectURL = vi.fn();
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("pdf", { status: 200 }));
     vi.stubGlobal("window", { matchMedia: () => ({ matches: false }) });
     vi.stubGlobal("navigator", {});
-    vi.stubGlobal("document", { createElement: () => link });
+    vi.stubGlobal("URL", { createObjectURL, revokeObjectURL });
+    vi.stubGlobal("document", { body: { append }, createElement: () => link });
     toolbar.setAnnotationAvailability(0);
     toolbar.setExportArtifact({ id: "artifact/1", name: "original paper.pdf" });
     toolbar.addEventListener(libraryPdfToolbarActionEvent, (event) => actions.push((event as CustomEvent<LibraryPdfToolbarAction>).detail));
@@ -157,10 +179,17 @@ describe("library PDF annotation toolbar", () => {
     expect(link).toEqual(
       expect.objectContaining({
         download: "original paper.pdf",
-        href: "/api/library/pdfs/artifact%2F1",
+        href: "blob:original-pdf",
       }),
     );
+    expect(fetchMock).toHaveBeenCalledWith("/api/library/pdfs/artifact%2F1", { credentials: "same-origin" });
+    expect(createObjectURL).toHaveBeenCalledWith(expect.any(Blob));
+    expect(append).toHaveBeenCalledWith(link);
     expect(click).toHaveBeenCalledOnce();
+    expect(remove).toHaveBeenCalledOnce();
+    expect(revokeObjectURL).not.toHaveBeenCalled();
+    vi.runAllTimers();
+    expect(revokeObjectURL).toHaveBeenCalledWith("blob:original-pdf");
     expect(actions).toEqual([{ action: "export-status", message: "Downloading original PDF…" }]);
   });
 
@@ -193,14 +222,17 @@ describe("library PDF annotation toolbar", () => {
   });
 
   it("falls back to download when installed-app sharing fails", async () => {
+    vi.useFakeTimers();
     const toolbar = new TestLibraryPdfAnnotationToolbar();
     const actions: LibraryPdfToolbarAction[] = [];
     const click = vi.fn();
-    const link = { click, download: "", href: "" };
-    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("Unavailable", { status: 503 }));
+    const link = { click, download: "", href: "", remove: vi.fn() };
+    const share = vi.fn().mockRejectedValue(new Error("Share failed"));
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("pdf", { status: 200 }));
     vi.stubGlobal("window", { matchMedia: () => ({ matches: true }) });
-    vi.stubGlobal("navigator", { share: vi.fn() });
-    vi.stubGlobal("document", { createElement: () => link });
+    vi.stubGlobal("navigator", { share });
+    vi.stubGlobal("URL", { createObjectURL: () => "blob:fallback-pdf", revokeObjectURL: vi.fn() });
+    vi.stubGlobal("document", { body: { append: vi.fn() }, createElement: () => link });
     toolbar.setAnnotationAvailability(1);
     toolbar.setExportArtifact({ id: "artifact:1", name: "paper.pdf" });
     toolbar.addEventListener(libraryPdfToolbarActionEvent, (event) => actions.push((event as CustomEvent<LibraryPdfToolbarAction>).detail));
@@ -208,10 +240,29 @@ describe("library PDF annotation toolbar", () => {
     await toolbar.exportForTest();
 
     expect(click).toHaveBeenCalledOnce();
+    expect(share).toHaveBeenCalledOnce();
     expect(actions).toEqual([
+      { action: "export-status", message: "Choose Save to Files to keep the annotated PDF." },
       { action: "export-status", message: "Could not open the file saver. Downloading instead." },
       { action: "export-status", message: "Preparing annotated PDF…" },
     ]);
+  });
+
+  it("reports an unavailable private PDF instead of starting a broken download", async () => {
+    const toolbar = new TestLibraryPdfAnnotationToolbar();
+    const actions: LibraryPdfToolbarAction[] = [];
+    const createElement = vi.fn();
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("Unavailable", { status: 503 }));
+    vi.stubGlobal("window", { matchMedia: () => ({ matches: false }) });
+    vi.stubGlobal("navigator", {});
+    vi.stubGlobal("document", { createElement });
+    toolbar.setExportArtifact({ id: "artifact:1", name: "paper.pdf" });
+    toolbar.addEventListener(libraryPdfToolbarActionEvent, (event) => actions.push((event as CustomEvent<LibraryPdfToolbarAction>).detail));
+
+    await toolbar.downloadOriginalForTest();
+
+    expect(createElement).not.toHaveBeenCalled();
+    expect(actions).toEqual([{ action: "export-status", message: "Request failed (503)" }]);
   });
 
   it("deletes the latest drawing through stable encoded identities", async () => {

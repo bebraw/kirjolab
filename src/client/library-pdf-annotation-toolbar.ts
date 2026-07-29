@@ -225,11 +225,12 @@ export class LibraryPdfAnnotationToolbar extends LightDomElement {
   private async exportPdf(url: string, filename: string, downloadStatus: string, shareStatus: string): Promise<void> {
     this.exporting = true;
     try {
+      const response = await fetch(url, { credentials: "same-origin" });
+      await expectOk(response);
+      const pdf = await response.blob();
       if (installedWebApp() && typeof navigator.share === "function") {
         try {
-          const response = await fetch(url, { credentials: "same-origin" });
-          await expectOk(response);
-          const file = new File([await response.blob()], filename, { type: "application/pdf" });
+          const file = new File([pdf], filename, { type: "application/pdf" });
           if (!navigator.canShare || navigator.canShare({ files: [file] })) {
             this.emitAction({ action: "export-status", message: shareStatus });
             await navigator.share({ files: [file], title: filename });
@@ -240,11 +241,20 @@ export class LibraryPdfAnnotationToolbar extends LightDomElement {
           this.emitAction({ action: "export-status", message: "Could not open the file saver. Downloading instead." });
         }
       }
+      const href = URL.createObjectURL(pdf);
       const link = document.createElement("a");
-      link.href = url;
+      link.href = href;
       link.download = filename;
-      link.click();
+      document.body.append(link);
+      try {
+        link.click();
+      } finally {
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(href), 1_000);
+      }
       this.emitAction({ action: "export-status", message: downloadStatus });
+    } catch (error) {
+      this.emitAction({ action: "export-status", message: errorMessage(error, "Could not download the PDF.") });
     } finally {
       this.exporting = false;
     }

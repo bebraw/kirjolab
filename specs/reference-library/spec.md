@@ -401,7 +401,9 @@ memory and makes citation aliases compete with stable source identity.
   or drawing, **Export annotated** saves a derived PDF without changing the
   stored source. Installed iPad web apps share a real PDF file through the
   native sheet so **Save to Files** is available; ordinary browser sessions
-  retain download behavior.
+  fetch the private PDF with the active same-origin session and save it through
+  a temporary local object URL, so the browser download manager never has to
+  re-request an authenticated artifact URL.
   Freehand strokes are flattened at their normalized page coordinates. Page
   notes become interactive sticky-note annotations with popup contents; text
   highlights with geometry become one standard multi-quad PDF highlight
