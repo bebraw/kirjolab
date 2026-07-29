@@ -42,6 +42,8 @@ second Markdown dialect.
 
 - Standard headings, paragraphs, emphasis, strong text, links, images, lists,
   block quotes, thematic breaks, and fenced code.
+- Nested lists retain their semantic indentation without inheriting the
+  top-level list gap between a parent item and its child list.
 - Preview headings preserve a descending visual size hierarchy from manuscript
   title through lower-level sections.
 - GFM tables, strikethrough, task lists, autolinks, and footnotes.

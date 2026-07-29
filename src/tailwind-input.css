@@ -4404,6 +4404,11 @@
     list-style: decimal;
   }
 
+  .prose-preview li > ul,
+  .prose-preview li > ol {
+    margin-top: 0;
+  }
+
   .prose-preview table {
     width: 100%;
     border-collapse: collapse;
