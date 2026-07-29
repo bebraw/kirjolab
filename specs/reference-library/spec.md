@@ -260,8 +260,13 @@ memory and makes citation aliases compete with stable source identity.
   retry. Reference candidates do not silently create library records, citation
   assertions, or project state. A generic versioned artifact-analysis envelope
   allows later analysis kinds to reuse the same queue and lifecycle without
-  weakening owner isolation. Each kind retains independent persisted state and
-  validation. A bounded light-DOM component polls highlight status and owns
+  weakening owner isolation. Pure annotation normalization, flattened-region
+  detection, text matching, bibliography parsing, candidate deduplication, and
+  confidence scoring consume normalized page, span, and bitmap inputs through
+  the source-local PDF-analysis core. PDF.js loading, browser rendering, queue
+  state, storage, authorization, polling, and UI remain adapter concerns. Each
+  kind retains independent persisted state and validation. A bounded light-DOM
+  component polls highlight status and owns
   empty, mixed-source, error,
   saved-highlight overlap filtering, review-selection, private-note, stable
   import transport, busy, explicit analysis retry, and completion presentation. It
