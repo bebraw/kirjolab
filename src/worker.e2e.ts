@@ -2502,7 +2502,7 @@ test("shares linked reference PDFs with members but not public links", async ({ 
   await expect(pdfCard.locator(".library-reference-details")).not.toHaveAttribute("open", "");
   await pdfCard.getByRole("button", { name: "PDF", exact: true }).click();
   await expect(page.getByRole("tab", { name: "climate_adaptation.pdf" })).toHaveAttribute("aria-selected", "true");
-  await expect(page.locator("#pdf-context-controls")).toBeVisible();
+  await expect(page.locator("#pdf-context-controls")).toBeHidden();
   await expect(page.locator("#paper-status")).toHaveText("Private library PDF · select text to highlight");
   await expect(page.locator("#annotation-composer")).toBeHidden();
   await expect(page.locator("#library-highlight-composer")).toBeHidden();
@@ -2522,10 +2522,12 @@ test("shares linked reference PDFs with members but not public links", async ({ 
   await expect(page.locator("#library-draw-color")).toHaveValue("#d33f49");
   await expect(page.locator("#export-library-annotated-pdf")).toBeDisabled();
   await expect(page.locator("#paper-page-indicator")).toHaveText("1 / 2");
+  await expect(page.locator("#paper-reader")).toHaveCSS("touch-action", "pan-y");
   expect(failedPdfWorkerRequests).toEqual([]);
   const fittedCanvasWidth = Number(await page.locator("#paper-canvas").getAttribute("width"));
   await page.locator("#paper-reader").dispatchEvent("wheel", { ctrlKey: true, deltaY: -80, deltaMode: 0 });
   await expect.poll(async () => Number(await page.locator("#paper-canvas").getAttribute("width"))).toBeGreaterThan(fittedCanvasWidth);
+  await expect(page.locator("#paper-reader")).toHaveCSS("touch-action", "pan-x pan-y");
   await page.locator("#paper-reader").evaluate((reader) => {
     reader.scrollLeft = (reader.scrollWidth - reader.clientWidth) / 2;
   });
@@ -2552,7 +2554,7 @@ test("shares linked reference PDFs with members but not public links", async ({ 
   await turnPdfPageWithTrackpad(page, -1, 1);
   await swipePdfPage(page, 9, 220, 130);
   await expect(page.locator("#paper-page-indicator")).toHaveText("2 / 2");
-  await page.locator("#previous-paper-page").click();
+  await page.locator("#previous-library-paper-page").click();
   await expect(page.locator("#paper-page-indicator")).toHaveText("1 / 2");
   await page.locator("#paper-text-layer").evaluate((layer) => {
     const span = layer.querySelector("span");
@@ -2739,7 +2741,7 @@ test("shares linked reference PDFs with members but not public links", async ({ 
   await expect.poll(async () => (await annotatedDownload).suggestedFilename()).toBe("climate_adaptation-annotated.pdf");
   await expect(page.locator("#paper-highlights [data-draft='true']")).toHaveCount(0);
   expect(await readWorkspaceSnapshot(page, api)).toEqual(beforePrivateReading);
-  await page.locator("#next-paper-page").click();
+  await page.locator("#next-library-paper-page").click();
   await expect(page.locator("#paper-page-indicator")).toHaveText("2 / 2");
   expect(await readWorkspaceSnapshot(page, api)).toEqual(beforePrivateReading);
   await page.getByRole("tab", { name: "Library" }).click();

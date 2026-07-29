@@ -32,12 +32,13 @@ changing their canonical data, selector, authorization, or rendering contracts.
   position when another context becomes active.
 - In standalone Library mode, the permanent Library tab, open private-resource
   tabs, and resource actions share the global header. Private PDF help and page
-  controls are omitted there because annotation feedback is contextual and the
-  persistent left rail is the sole page-navigation control. Project sharing is
-  absent because no project is active. The context panel begins directly below
-  that single row. Workspace mode retains its pane-local context strip and an
-  explicitly labelled Share project action because those tabs remain inside an
-  active project.
+  controls are omitted from context action strips in both standalone and
+  workspace modes because annotation feedback is contextual and the persistent
+  left rail is the sole page-navigation control. Project PDFs without that rail
+  retain the context-strip page controls. Project sharing is absent in standalone
+  mode because no project is active. The context panel begins directly below that
+  single row. Workspace mode retains its pane-local context strip and an explicitly
+  labelled Share project action because those tabs remain inside an active project.
 - On phone-sized viewports, workspace navigation uses two compact header rows
   so project and account actions remain distinct and reachable. Standalone
   Library keeps identity controls in the first row and gives its horizontally
@@ -96,6 +97,9 @@ changing their canonical data, selector, authorization, or rendering contracts.
 - Touch swipes across the fitted page or its surround and unzoomed,
   horizontally dominant Mac trackpad gestures change one page at a time.
   Interactive PDF links and saved annotations retain their own gestures.
+  At fitted zoom, the reader reserves horizontal touchscreen motion for page
+  turns while leaving vertical document scrolling native; zoomed pages restore
+  two-axis native panning.
   Two-finger pinch gestures scale only the PDF around their midpoint, and
   trackpad zoom follows the pointer. The fitted page uses the reader's actual
   content width without exposing a redundant horizontal scrollbar; zoomed

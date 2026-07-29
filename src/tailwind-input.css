@@ -4879,6 +4879,10 @@
     touch-action: pan-x pan-y;
   }
 
+  .pdf-reader:not([data-zoomed="true"]) {
+    touch-action: pan-y;
+  }
+
   .pdf-page {
     position: relative;
     margin-inline: auto;

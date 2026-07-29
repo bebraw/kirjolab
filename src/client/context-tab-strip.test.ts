@@ -292,7 +292,7 @@ describe("context tab strip", () => {
       hidden: false,
       labelledBy: "context-tab-publication-item",
     });
-    const pdf = {
+    const libraryPdfTab = {
       id: "paper",
       key: "library-pdf:paper" as const,
       kind: "library-pdf" as const,
@@ -300,11 +300,22 @@ describe("context tab strip", () => {
       page: 1,
       focusedAnnotationId: null,
     };
-    strip.setTabs(sources(pdf.key, [pdf]));
+    strip.setTabs(sources(libraryPdfTab.key, [libraryPdfTab]));
     expect(strip.panels.get("context-pdf-panel")).toMatchObject({
       dataset: { libraryPdf: "true", readonlyPdf: "false" },
       hidden: false,
     });
+    expect(strip.panels.get("pdf-context-controls")?.hidden).toBe(true);
+
+    const projectPdf = {
+      id: pdf.id,
+      key: `pdf:${pdf.id}` as const,
+      kind: "pdf" as const,
+      scrollTop: 0,
+      page: 1,
+      focusedAnnotationId: null,
+    };
+    strip.setTabs(sources(projectPdf.key, [projectPdf], { pdfs: [pdf] }));
     expect(strip.panels.get("pdf-context-controls")?.hidden).toBe(false);
 
     const privatePdf = {

@@ -183,13 +183,14 @@ export class ContextTabStrip extends LightDomElement {
 
   private syncPanelVisibility(active: ResearchContextTab | undefined, preview: boolean): void {
     const pdf = active?.kind === "pdf" || active?.kind === "library-pdf";
+    const projectPdf = active?.kind === "pdf";
     const states: readonly [id: string, selected: boolean][] = [
       ["context-preview-panel", preview],
       ["context-library-panel", this.data.activeKey === "library"],
       ["context-assistant-panel", this.data.activeKey === "assistant"],
       ["context-publication-panel", active?.kind === "publication"],
       ["context-pdf-panel", pdf],
-      ["pdf-context-controls", pdf],
+      ["pdf-context-controls", projectPdf],
       ["context-candidate-panel", active?.kind === "candidate"],
     ];
     for (const [id, selected] of states) {

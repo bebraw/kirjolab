@@ -172,6 +172,7 @@ export class PdfEvidenceViewer {
     this.#zoomAnchor = null;
     this.#renderedViewport = null;
     this.#wheelPagingState = initialPdfWheelPagingState();
+    this.#elements.reader.dataset.zoomed = "false";
     this.#elements.status.textContent = "Loading PDF…";
     let runtime: PdfJsRuntime;
     try {
@@ -600,6 +601,7 @@ export class PdfEvidenceViewer {
   #previewZoom(zoom: number, clientX: number, clientY: number): void {
     this.#setZoomAnchor(clientX, clientY);
     this.#zoom = zoom;
+    this.#elements.reader.dataset.zoomed = String(zoom > 1.01);
     this.#elements.page.style.transform = `scale(${zoom / this.#renderedZoom})`;
   }
 
