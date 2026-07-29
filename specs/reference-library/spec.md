@@ -239,6 +239,9 @@ memory and makes citation aliases compete with stable source identity.
   uploads page pixels, silently saves a candidate, shares research, or mutates a
   project. A scan reads at most 200 pages and returns at most 128 candidates.
   Queue messages contain identifiers and fingerprints rather than PDF bytes.
+  Generated analyzer and PDF-worker text assets load through bundled Worker
+  modules; Node-only filesystem URLs are evaluated lazily so deployed analysis
+  never depends on `import.meta.url` as a filesystem base.
   The owner Library Durable Object stores fingerprint-qualified queued, running,
   ready, and failed analysis state so delivery and retries are idempotent. The
   managed browser can read only the exact R2 object supplied through request

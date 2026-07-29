@@ -142,22 +142,21 @@ async function respondToArtifactRequest(request: HTTPRequest, pdf: Uint8Array, w
 
 async function loadPdfArtifactAnalyzerScript(): Promise<string> {
   return await loadGeneratedTextAsset(
-    new URL("../.generated/pdf-artifact-analyzer.txt", import.meta.url).href,
-    async () => await import("../.generated/pdf-artifact-analyzer.txt"),
+    async () => (await import("../.generated/pdf-artifact-analyzer.txt")).default,
+    async () => await loadGeneratedTextFromDisk(new URL("../.generated/pdf-artifact-analyzer.txt", import.meta.url).href),
   );
 }
 
 async function loadPdfWorkerScript(): Promise<string> {
   return await loadGeneratedTextAsset(
-    new URL("../.generated/pdf-worker.txt", import.meta.url).href,
-    async () => await import("../.generated/pdf-worker.txt"),
+    async () => (await import("../.generated/pdf-worker.txt")).default,
+    async () => await loadGeneratedTextFromDisk(new URL("../.generated/pdf-worker.txt", import.meta.url).href),
   );
 }
 
-async function loadGeneratedTextAsset(nodeUrl: string, loadBundled: () => Promise<{ readonly default: string }>): Promise<string> {
-  // Stryker disable next-line ConditionalExpression: WebSocketPair is a Worker runtime primitive absent from Node unit tests.
-  if (typeof WebSocketPair !== "undefined") return (await loadBundled()).default;
-  return await loadGeneratedTextFromDisk(nodeUrl);
+export async function loadGeneratedTextAsset(loadBundled: () => Promise<string>, loadFromDisk: () => Promise<string>): Promise<string> {
+  if (typeof WebSocketPair !== "undefined") return await loadBundled();
+  return await loadFromDisk();
 }
 
 async function loadGeneratedTextFromDisk(nodeUrl: string): Promise<string> {

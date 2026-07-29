@@ -1,12 +1,21 @@
 import { env } from "cloudflare:workers";
 import { createExecutionContext, createMessageBatch, getQueueResult } from "cloudflare:test";
-import { describe, expect, it } from "vitest";
-import { consumeArtifactAnalysisBatch } from "./artifact-analysis";
+import { describe, expect, it, vi } from "vitest";
+import { consumeArtifactAnalysisBatch, loadGeneratedTextAsset } from "./artifact-analysis";
 import type { ArtifactAnalysisJob } from "./domain/reference-library";
 
 const queueName = "kirjolab-artifact-analysis";
 
 describe("artifact analysis queue", () => {
+  it("does not evaluate Node filesystem URLs when loading bundled Worker assets", async () => {
+    const loadFromDisk = vi.fn(async () => {
+      throw new Error("Node fallback was evaluated");
+    });
+
+    await expect(loadGeneratedTextAsset(async () => "bundled asset", loadFromDisk)).resolves.toBe("bundled asset");
+    expect(loadFromDisk).not.toHaveBeenCalled();
+  });
+
   it("acknowledges invalid and stale messages without launching analysis", async () => {
     const stale: ArtifactAnalysisJob = {
       version: 1,
