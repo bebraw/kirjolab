@@ -31,11 +31,13 @@ describe("PDF viewer lifecycle machine", () => {
     const value = actor();
     const documentRequest = load(value, 3);
     expect(pdfViewerDocumentRequestActive(value.getSnapshot(), documentRequest)).toBe(true);
-    value.send({ type: "RENDER", page: 3 });
+    const previousRenderRequest = value.getSnapshot().context.renderRequest;
+    value.send({ type: "RENDER", page: 4 });
     const renderRequest = value.getSnapshot().context.renderRequest;
+    expect(value.getSnapshot().context).toMatchObject({ renderRequest: previousRenderRequest + 1, page: 4, error: null });
     expect(pdfViewerRenderRequestActive(value.getSnapshot(), renderRequest)).toBe(true);
     value.send({ type: "RENDERED", renderRequest });
-    expect(value.getSnapshot()).toMatchObject({ value: "ready", context: { page: 3, pages: 12 } });
+    expect(value.getSnapshot()).toMatchObject({ value: "ready", context: { page: 4, pages: 12 } });
   });
 
   it("invalidates late document work when another PDF opens", () => {
@@ -74,7 +76,7 @@ describe("PDF viewer lifecycle machine", () => {
     value.send({ type: "RENDER_FAILED", renderRequest: value.getSnapshot().context.renderRequest, message: "Canvas unavailable" });
     expect(value.getSnapshot()).toMatchObject({ value: "failed", context: { error: "Canvas unavailable" } });
     value.send({ type: "RENDER", page: 2 });
-    expect(value.getSnapshot().value).toBe("rendering");
+    expect(value.getSnapshot()).toMatchObject({ value: "rendering", context: { page: 2, error: null } });
   });
 
   it("ignores mismatched document and render completions", () => {
@@ -113,6 +115,7 @@ describe("PDF viewer lifecycle machine", () => {
     const documentRequest = load(value, 4);
     const renderRequest = value.getSnapshot().context.renderRequest;
     value.send({ type: "CLOSE" });
+    expect(pdfViewerDocumentRequestActive(value.getSnapshot(), documentRequest + 1)).toBe(false);
     expect(value.getSnapshot()).toMatchObject({
       value: "closed",
       context: {
