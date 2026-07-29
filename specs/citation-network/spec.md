@@ -61,6 +61,11 @@ provider result, extraction, or model suggestion as equally trustworthy.
   atomically creates or reuses a reference, records an `extracted`
   `source-extraction` assertion sourced from the PDF artifact, and stores the
   review. Rejection stores only the candidate disposition.
+- The same bounded analysis conservatively links bracketed numeric and exact
+  first-author/year body mentions to parsed bibliography candidates. Mentions
+  remain extracted evidence, render with their body pages in the existing
+  review queue, and enrich the accepted assertion's PDF locator; they never
+  bypass candidate review or create a second assertion.
 
 ### API Contracts
 
@@ -136,6 +141,8 @@ provider result, extraction, or model suggestion as equally trustworthy.
       acceptance atomically saves the work and its extracted relationship.
 - [x] Parsed PDF references render as a durable accept/reject queue whose
       accepted entries extend the existing citation network.
+- [x] Conservative in-text mentions remain attached to their reviewed parsed
+      reference and assertion provenance.
 - [x] A graph and accessible provenance list expose the same projection.
 - [x] A Library source opens an addressable, one-hop reference trail.
 - [x] Pure, API, integration, Workers-runtime, view, and browser tests cover
@@ -216,3 +223,11 @@ provider result, extraction, or model suggestion as equally trustworthy.
 - When: the owner rejects it
 - Then: the durable review queue records the rejection without creating a
   reference, a positive assertion, or a negative citation assertion
+
+**Scenario: Parsed reference has in-text evidence**
+
+- Given: a bracketed number or exact first-author/year mention maps to one
+  parsed bibliography candidate before the reference section
+- When: the owner reviews and accepts that candidate
+- Then: its body pages appear in review and in the extracted assertion locator
+  without automatically confirming the relationship

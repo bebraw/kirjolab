@@ -22,6 +22,16 @@ const result: PdfReferenceAnalysisResult = {
       year: "2025",
     },
   ],
+  mentions: [
+    {
+      candidateId: "doi:10.5555/reference",
+      confidence: 0.95,
+      id: "pdf-mention:3:known",
+      page: 3,
+      raw: "[1]",
+      style: "numeric",
+    },
+  ],
   pagesScanned: 8,
   pagesTotal: 8,
   referencesStartPage: 8,
@@ -146,7 +156,7 @@ describe("PDF reference analysis panel", () => {
     await settle();
     expect(panel.loads).toEqual([{ artifactId: "artifact/1", retry: false }]);
     expect(panel.reviewLoads).toEqual(["artifact/1"]);
-    expect(panel.renderForTest()).toBeDefined();
+    expect(templateText(panel.renderForTest())).toContain("Cited in text on page");
 
     panel.analysis = { ...readyAnalysis, artifactId: "artifact/2", result: { ...result, candidates: [] } };
     panel.queue = { ...reviewQueue, artifactId: "artifact/2", candidates: [] };

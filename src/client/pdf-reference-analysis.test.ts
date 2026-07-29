@@ -62,6 +62,28 @@ describe("PDF reference analysis", () => {
     expect(result.candidates[1]?.url).toBe("https://example.org/second");
   });
 
+  it("links conservative numeric and author-year mentions to bibliography entries", () => {
+    const result = analyzePdfReferencePages(
+      [
+        {
+          page: 1,
+          lines: ["Prior work [1, 2] supports this method.", "A related result follows Doe, 2024."],
+        },
+        {
+          page: 2,
+          lines: ["References", "[1] Doe, Jane. 2024. Inspectable evidence.", "[2] Roe, Alex. 2023. Reproducible pipelines."],
+        },
+      ],
+      2,
+    );
+
+    expect(result.mentions).toEqual([
+      expect.objectContaining({ candidateId: result.candidates[0]?.id, page: 1, raw: "[1, 2]", style: "numeric" }),
+      expect.objectContaining({ candidateId: result.candidates[1]?.id, page: 1, raw: "[1, 2]", style: "numeric" }),
+      expect.objectContaining({ candidateId: result.candidates[0]?.id, page: 1, raw: "Doe, 2024", style: "author-year" }),
+    ]);
+  });
+
   it("returns a bounded empty result when no bibliography heading is present", () => {
     expect(analyzePdfReferencePages([{ page: 1, lines: ["Introduction", "No reference section here."] }], 3)).toEqual({
       candidates: [],

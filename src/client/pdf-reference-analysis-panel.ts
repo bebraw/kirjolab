@@ -108,6 +108,7 @@ export class PdfReferenceAnalysisPanel extends LightDomElement {
   }
 
   private renderCandidate(candidate: PdfReferenceAnalysisCandidate, reviewed: PdfReferenceReviewCandidate | null): TemplateResult {
+    const mentions = this.result?.mentions?.filter(({ candidateId }) => candidateId === candidate.id) ?? [];
     return html`
       <article class="resource-card" data-pdf-reference-id=${candidate.id}>
         <p class="eyebrow">Reference · page ${candidate.page}</p>
@@ -117,6 +118,18 @@ export class PdfReferenceAnalysisPanel extends LightDomElement {
           ? html`
               <p class="mt-2 text-xs leading-5 text-app-text-soft">
                 ${[candidate.authors.join("; "), candidate.year, candidate.doi].filter(Boolean).join(" · ")}
+              </p>
+            `
+          : nothing}
+        ${mentions.length
+          ? html`
+              <p class="mt-2 text-xs leading-5 text-app-text-soft">
+                Cited in text on page${new Set(mentions.map(({ page }) => page)).size === 1 ? "" : "s"}
+                ${[...new Set(mentions.map(({ page }) => page))].sort((left, right) => left - right).join(", ")} ·
+                ${mentions
+                  .map(({ raw }) => raw)
+                  .slice(0, 3)
+                  .join(" · ")}
               </p>
             `
           : nothing}

@@ -1,5 +1,9 @@
 import { normalizeDoi } from "../../domain/bibliography";
-import type { PdfReferenceAnalysisCandidate, PdfReferenceAnalysisResult } from "../../domain/reference-library/artifact-analysis";
+import type {
+  PdfReferenceAnalysisCandidate,
+  PdfReferenceAnalysisResult,
+  PdfReferenceMention,
+} from "../../domain/reference-library/artifact-analysis";
 import type { PdfAnalysisPage } from "./contracts";
 
 const maximumCandidates = 128;
@@ -10,6 +14,7 @@ const numberedEntry = /^(?:\[\d{1,4}\]|\d{1,4}[.)])\s+/u;
 const publicationYear = /\b(?:18|19|20)\d{2}[a-z]?\b/iu;
 const doiPattern = /10\.\d{4,9}\/[._;()/:a-z0-9-]+/iu;
 const urlPattern = /https?:\/\/[^\s<>]+/iu;
+const numericMention = /\[([\d\s,;–—-]{1,40})\]/gu;
 
 interface ReferenceEntry {
   readonly page: number;
@@ -41,17 +46,18 @@ export function analyzePdfReferencePages(
       const line = normalizeLine(source);
       if (!line) continue;
       if (started && followingSectionHeading.test(line)) {
-        return referenceResult(referenceLines, pages.length, pagesTotal, start.page.page, pagesTotal > pages.length);
+        return referenceResult(referenceLines, normalizedPages, pages.length, pagesTotal, start.page.page, pagesTotal > pages.length);
       }
       started = true;
       referenceLines.push({ line, page: page.page });
     }
   }
-  return referenceResult(referenceLines, pages.length, pagesTotal, start.page.page, pagesTotal > pages.length);
+  return referenceResult(referenceLines, normalizedPages, pages.length, pagesTotal, start.page.page, pagesTotal > pages.length);
 }
 
 function referenceResult(
   lines: readonly { line: string; page: number }[],
+  pages: readonly { page: number; lines: readonly string[] }[],
   pagesScanned: number,
   pagesTotal: number,
   referencesStartPage: number,
@@ -61,13 +67,98 @@ function referenceResult(
   const candidates = deduplicateReferences(
     entries.map(referenceCandidate).filter((value): value is PdfReferenceAnalysisCandidate => value !== null),
   );
+  const boundedCandidates = candidates.slice(0, maximumCandidates);
   return {
-    candidates: candidates.slice(0, maximumCandidates),
+    candidates: boundedCandidates,
+    mentions: extractReferenceMentions(pages, referencesStartPage, lines, boundedCandidates),
     pagesScanned,
     pagesTotal,
     referencesStartPage,
     truncated: pagesTruncated || candidates.length > maximumCandidates,
   };
+}
+
+function extractReferenceMentions(
+  pages: readonly { readonly page: number; readonly lines: readonly string[] }[],
+  referencesStartPage: number,
+  entries: readonly { readonly line: string; readonly page: number }[],
+  candidates: readonly PdfReferenceAnalysisCandidate[],
+): PdfReferenceMention[] {
+  const candidateEntries = splitReferenceEntries(entries);
+  const byNumber = new Map<number, PdfReferenceAnalysisCandidate>();
+  for (const [index, entry] of candidateEntries.entries()) {
+    const number = referenceNumber(entry.raw);
+    const candidate = candidates.find((item) => item.id === referenceCandidate(entry)?.id);
+    if (number !== null && candidate) byNumber.set(number, candidate);
+    else if (candidate && entry.numbered) byNumber.set(index + 1, candidate);
+  }
+  const mentions: PdfReferenceMention[] = [];
+  const seen = new Set<string>();
+  for (const page of pages) {
+    if (page.page >= referencesStartPage) continue;
+    for (const source of page.lines) {
+      const line = normalizeLine(source);
+      if (!line) continue;
+      for (const match of line.matchAll(numericMention)) {
+        for (const number of citationNumbers(match[1] ?? "")) {
+          const candidate = byNumber.get(number);
+          if (candidate) addMention(mentions, seen, candidate.id, page.page, match[0], "numeric", 0.95);
+        }
+      }
+      for (const candidate of candidates) {
+        const surname = candidate.authors[0] ? authorSurname(candidate.authors[0]) : "";
+        if (!surname || !candidate.year) continue;
+        const pattern = new RegExp(`\\b${escapeRegExp(surname)}(?:\\s+et\\s+al\\.)?[,\\s]+${escapeRegExp(candidate.year)}\\b`, "iu");
+        const match = pattern.exec(line);
+        if (match) addMention(mentions, seen, candidate.id, page.page, match[0], "author-year", 0.8);
+      }
+      if (mentions.length >= 256) return mentions;
+    }
+  }
+  return mentions;
+}
+
+function addMention(
+  mentions: PdfReferenceMention[],
+  seen: Set<string>,
+  candidateId: string,
+  page: number,
+  raw: string,
+  style: PdfReferenceMention["style"],
+  confidence: number,
+): void {
+  const key = `${candidateId}:${page}:${raw}`;
+  if (seen.has(key) || mentions.length >= 256) return;
+  seen.add(key);
+  mentions.push({ id: `pdf-mention:${page}:${stableTextKey(key)}`, candidateId, page, raw: raw.slice(0, 2_000), style, confidence });
+}
+
+function referenceNumber(raw: string): number | null {
+  const match = /^(?:\[(\d{1,4})\]|(\d{1,4})[.)])\s+/u.exec(raw);
+  const number = Number.parseInt(match?.[1] ?? match?.[2] ?? "", 10);
+  return Number.isInteger(number) && number > 0 ? number : null;
+}
+
+function citationNumbers(value: string): number[] {
+  const numbers = new Set<number>();
+  for (const part of value.split(/[,;]/u)) {
+    const range = /^\s*(\d{1,4})\s*[–—-]\s*(\d{1,4})\s*$/u.exec(part);
+    if (range) {
+      const start = Number.parseInt(range[1] ?? "", 10);
+      const end = Number.parseInt(range[2] ?? "", 10);
+      if (end >= start && end - start <= 20) for (let number = start; number <= end; number += 1) numbers.add(number);
+      continue;
+    }
+    const number = Number.parseInt(part.trim(), 10);
+    if (Number.isInteger(number) && number > 0) numbers.add(number);
+  }
+  return [...numbers];
+}
+
+function authorSurname(author: string): string {
+  const normalized = author.replaceAll(/[{}]/gu, "").trim();
+  if (normalized.includes(",")) return normalized.split(",")[0]?.trim() ?? "";
+  return normalized.split(/\s+/u).at(-1) ?? "";
 }
 
 function splitReferenceEntries(lines: readonly { line: string; page: number }[]): ReferenceEntry[] {

@@ -7,24 +7,24 @@ const corpus = [
   {
     name: "numbered DOI bibliography",
     pages: [
+      ["Prior work [1] established the method."],
       [
-        "Methods",
         "References",
         "1. Doe, Jane. 2024. Inspectable Evidence. Journal of Tests. doi:10.5555/evidence.1",
         "2. Roe, Alex. 2023. Reproducible Pipelines. https://example.test/pipeline",
       ],
     ],
-    expected: { candidates: 2, dois: ["10.5555/evidence.1"], startPage: 1 },
+    expected: { candidates: 2, dois: ["10.5555/evidence.1"], mentions: 1, startPage: 2 },
   },
   {
     name: "author-year bibliography",
     pages: [["Results"], ["Bibliography", "Doe, Jane. (2022). Evaluation Without Guesswork. Evaluation Journal."]],
-    expected: { candidates: 1, dois: [], startPage: 2 },
+    expected: { candidates: 1, dois: [], mentions: 0, startPage: 2 },
   },
   {
     name: "document without bibliography",
     pages: [["Introduction", "No reference section appears in this paper."]],
-    expected: { candidates: 0, dois: [], startPage: null },
+    expected: { candidates: 0, dois: [], mentions: 0, startPage: null },
   },
 ] as const;
 
@@ -46,6 +46,7 @@ describe("PDF reference extraction corpus", () => {
       expect({
         candidates: result.candidates.length,
         dois: result.candidates.map(({ doi }) => doi).filter(Boolean),
+        mentions: result.mentions?.length ?? 0,
         startPage: result.referencesStartPage,
       }).toEqual(sample.expected);
     });

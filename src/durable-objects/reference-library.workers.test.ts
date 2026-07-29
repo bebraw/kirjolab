@@ -412,6 +412,16 @@ describe("ReferenceLibrary in the Workers runtime", () => {
           confidence: 0.3,
         },
       ],
+      mentions: [
+        {
+          id: "pdf-mention:3:known",
+          candidateId: "doi:10.1000/known",
+          page: 3,
+          raw: "[1]",
+          style: "numeric" as const,
+          confidence: 0.95,
+        },
+      ],
       pagesScanned: 9,
       pagesTotal: 9,
       referencesStartPage: 8,
@@ -441,6 +451,7 @@ describe("ReferenceLibrary in the Workers runtime", () => {
         method: "source-extraction",
         sourceKind: "pdf-artifact",
         sourceId: artifactId,
+        sourceLocator: "PDF mention page 3 · bibliography page 8 · reference doi:10.1000/known",
       },
       review: { decision: "accepted", reviewedBy: "owner@example.test" },
     });

@@ -29,8 +29,18 @@ export interface PdfReferenceAnalysisCandidate {
   readonly confidence: number;
 }
 
+export interface PdfReferenceMention {
+  readonly id: string;
+  readonly candidateId: string;
+  readonly page: number;
+  readonly raw: string;
+  readonly style: "numeric" | "author-year";
+  readonly confidence: number;
+}
+
 export interface PdfReferenceAnalysisResult {
   readonly candidates: readonly PdfReferenceAnalysisCandidate[];
+  readonly mentions?: readonly PdfReferenceMention[];
   readonly pagesScanned: number;
   readonly pagesTotal: number;
   readonly referencesStartPage: number | null;
@@ -88,6 +98,8 @@ export function isPdfReferenceAnalysisResult(value: unknown): value is PdfRefere
     Array.isArray(value.candidates) &&
     value.candidates.length <= 128 &&
     value.candidates.every(isPdfReferenceAnalysisCandidate) &&
+    (value.mentions === undefined ||
+      (Array.isArray(value.mentions) && value.mentions.length <= 256 && value.mentions.every(isPdfReferenceMention))) &&
     hasValidPdfAnalysisPages(value) &&
     (value.referencesStartPage === null ||
       (typeof value.referencesStartPage === "number" &&
@@ -95,6 +107,18 @@ export function isPdfReferenceAnalysisResult(value: unknown): value is PdfRefere
         value.referencesStartPage > 0 &&
         value.referencesStartPage <= value.pagesTotal)) &&
     typeof value.truncated === "boolean"
+  );
+}
+
+function isPdfReferenceMention(value: unknown): value is PdfReferenceMention {
+  return (
+    isRecord(value) &&
+    isBoundedString(value.id, 1, 500) &&
+    isBoundedString(value.candidateId, 1, 500) &&
+    isBoundedInteger(value.page, 1, 200) &&
+    isBoundedString(value.raw, 1, 2_000) &&
+    (value.style === "numeric" || value.style === "author-year") &&
+    isConfidence(value.confidence)
   );
 }
 

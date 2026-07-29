@@ -832,7 +832,8 @@ export class ReferenceLibrary extends DurableObject<Env> {
     ) {
       throw new Error("PDF reference analysis changed; review the current results again");
     }
-    const candidate = analysis.result.candidates.find((item) => item.id === candidateId);
+    const referenceAnalysis = analysis.result;
+    const candidate = referenceAnalysis.candidates.find((item) => item.id === candidateId);
     if (!candidate) throw new Error("PDF reference candidate not found");
     return this.ctx.storage.transactionSync(() => {
       const existing = this.ctx.storage.sql
@@ -888,7 +889,7 @@ export class ReferenceLibrary extends DurableObject<Env> {
           observedAt: analysis.completedAt ?? analysis.requestedAt,
           sourceKind: "pdf-artifact",
           sourceId: artifactId,
-          sourceLocator: `PDF page ${candidate.page} · reference ${candidate.id}`.slice(0, 2_000),
+          sourceLocator: pdfReferenceSourceLocator(referenceAnalysis, candidate.id, candidate.page),
           confidence: candidate.confidence,
         },
         "PDF reference analysis",
@@ -2368,6 +2369,18 @@ function shareFromRow(row: ShareRow): ResearchShareSnapshot {
     createdAt: row.created_at,
     revokedAt: row.revoked_at,
   };
+}
+
+function pdfReferenceSourceLocator(
+  result: { readonly mentions?: readonly { readonly candidateId: string; readonly page: number }[] },
+  candidateId: string,
+  bibliographyPage: number,
+): string {
+  const pages = [...new Set((result.mentions ?? []).filter((mention) => mention.candidateId === candidateId).map(({ page }) => page))].sort(
+    (left, right) => left - right,
+  );
+  const evidence = pages.length > 0 ? `PDF mention page${pages.length === 1 ? "" : "s"} ${pages.join(", ")} · ` : "";
+  return `${evidence}bibliography page ${bibliographyPage} · reference ${candidateId}`.slice(0, 2_000);
 }
 
 function citationAssertionFromRow(row: CitationAssertionRow): CitationAssertion {
