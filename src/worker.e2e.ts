@@ -4170,6 +4170,8 @@ test("reports a deleted passage anchor as stale instead of guessing", async ({ p
     },
   });
   expect(linkResponse.status()).toBe(201);
+  await openResearchCollection(page, "Project evidence");
+  await expect(page.locator("#annotation-list").getByRole("button", { name: "Open linked passage" })).toBeVisible();
 
   const staleSource = `${source.slice(0, start)}${source.slice(start + excerpt.length)}`;
   await collaborator.locator("#source-editor").evaluate(
