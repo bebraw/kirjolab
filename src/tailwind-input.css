@@ -954,6 +954,7 @@
   body[data-app-mode="library"] #connection-status,
   body[data-app-mode="library"] .surface-switcher,
   body[data-app-mode="library"] #context-preview-tab,
+  body[data-app-mode="library"] #context-library-tab,
   body[data-app-mode="library"] #context-assistant-tab,
   body[data-app-mode="library"] #filter-project-citations,
   body[data-app-mode="library"] .library-project-details {

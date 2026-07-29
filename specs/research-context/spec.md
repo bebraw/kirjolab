@@ -30,10 +30,12 @@ changing their canonical data, selector, authorization, or rendering contracts.
 - Preview is the initial permanent tab, followed by Library and Writing
   assistant. None can be closed or replaced, and each retains its own scroll
   position when another context becomes active.
-- In standalone Library mode, the permanent Library tab, open private-resource
-  tabs, and resource actions share the global header. Private PDF help and page
-  controls are omitted from context action strips in both standalone and
-  workspace modes because annotation feedback is contextual and the persistent
+- In standalone Library mode, the permanent Library tab remains the active
+  logical destination, but its visual label is omitted because primary
+  navigation already identifies Library. Open private-resource tabs and resource
+  actions share the global header. Private PDF help and page controls are omitted
+  from context action strips in both standalone and workspace modes because
+  annotation feedback is contextual and the persistent
   left rail is the sole page-navigation control. Project PDFs without that rail
   retain the context-strip page controls. Project sharing is absent in standalone
   mode because no project is active. The context panel begins directly below that
@@ -689,9 +691,9 @@ changing their canonical data, selector, authorization, or rendering contracts.
 
 - Given: an owner opens a private PDF from the standalone Library
 - When: its resource tab and private-reader controls become active
-- Then: Library, the PDF tab, and resource actions share the global header,
-  project sharing is absent, page navigation appears only in the left rail, and
-  the document begins immediately below the header
+- Then: the PDF tab and resource actions share the global header without a
+  duplicate Library label, project sharing is absent, page navigation appears
+  only in the left rail, and the document begins immediately below the header
 
 **Scenario: Closing a standalone PDF returns to Library**
 
