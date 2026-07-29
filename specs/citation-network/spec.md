@@ -130,7 +130,7 @@ provider result, extraction, or model suggestion as equally trustworthy.
 - [x] Expansion is explicit, bounded, DOI-matched, and reports unmatched work.
 - [x] Unmatched works render as a reviewable discovery round and explicit
       acceptance atomically saves the work and its extracted relationship.
-- [ ] Parsed PDF references render as a durable accept/reject queue whose
+- [x] Parsed PDF references render as a durable accept/reject queue whose
       accepted entries extend the existing citation network.
 - [x] A graph and accessible provenance list expose the same projection.
 - [x] Pure, API, integration, Workers-runtime, view, and browser tests cover

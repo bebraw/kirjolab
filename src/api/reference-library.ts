@@ -146,7 +146,7 @@ interface ReferenceLibraryApi {
     requestedAt: string,
     error: string,
   ): Promise<boolean>;
-  getPdfReferenceReviewQueue(artifactId: string): Promise<PdfReferenceReviewQueue>;
+  getPdfReferenceReviewQueue(artifactId: string): Promise<PdfReferenceReviewQueue | null>;
   reviewPdfReferenceCandidate(
     artifactId: string,
     fingerprint: string,
@@ -574,7 +574,10 @@ async function handleLibraryPdfReferenceReviewRoute(context: ReferenceLibraryRou
   const { request, suffix, identity, library } = context;
   const match = /^\/pdfs\/([0-9a-f-]{36})\/reference-review$/iu.exec(suffix);
   if (!match?.[1] || (request.method !== "GET" && request.method !== "POST")) return null;
-  if (request.method === "GET") return Response.json(await library.getPdfReferenceReviewQueue(match[1]), noStore());
+  if (request.method === "GET") {
+    const queue = await library.getPdfReferenceReviewQueue(match[1]);
+    return queue ? Response.json(queue, noStore()) : jsonError("PDF reference analysis is not ready", 409);
+  }
   const body: unknown = await request.json();
   if (!isReviewPdfReferenceCandidateInput(body)) return jsonError("Invalid PDF reference review", 400);
   const result = await library.reviewPdfReferenceCandidate(

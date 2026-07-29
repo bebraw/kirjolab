@@ -1,6 +1,6 @@
 # ADR-187: Review PDF References Server-Side
 
-**Status:** Accepted
+**Status:** Implemented
 
 **Date:** 2026-07-29
 

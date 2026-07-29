@@ -18,7 +18,11 @@ import type { LibraryPdfProjectUse } from "./library-pdf-project-use";
 import "./library-pdf-project-use";
 import type { PdfHighlightImportPanel } from "./pdf-highlight-import-panel";
 import "./pdf-highlight-import-panel";
-import type { PdfReferenceAnalysisPanel } from "./pdf-reference-analysis-panel";
+import {
+  pdfReferenceReviewOutcomeEvent,
+  type PdfReferenceAnalysisPanel,
+  type PdfReferenceReviewOutcome,
+} from "./pdf-reference-analysis-panel";
 import "./pdf-reference-analysis-panel";
 import { projectReferenceChangedEvent, type ProjectReferenceChanged } from "./project-reference-mutation";
 import { projectResearchChangedEvent, type ProjectResearchChanged } from "./project-research-mutation";
@@ -47,6 +51,7 @@ export interface LibraryPdfInspectorDraftState {
 
 export interface LibraryProjectMutations {
   applyProjectMutation(snapshot: ProjectReferenceChanged["snapshot"], message?: string): Promise<void>;
+  completePdfReferenceReview?(message: string): Promise<void>;
 }
 
 export class LibraryPdfInspector extends EagerLightDomElement {
@@ -76,6 +81,10 @@ export class LibraryPdfInspector extends EagerLightDomElement {
     this.addEventListener(projectResearchChangedEvent, (event) => {
       const { message, snapshot } = (event as CustomEvent<ProjectResearchChanged>).detail;
       void this.projectMutations?.applyProjectMutation(snapshot, message);
+    });
+    this.addEventListener(pdfReferenceReviewOutcomeEvent, (event) => {
+      const outcome = (event as CustomEvent<PdfReferenceReviewOutcome>).detail;
+      if (outcome.action === "library-refresh") void this.projectMutations?.completePdfReferenceReview?.(outcome.message);
     });
   }
 

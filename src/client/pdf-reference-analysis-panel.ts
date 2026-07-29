@@ -2,23 +2,43 @@ import { html, nothing, type TemplateResult } from "lit";
 import {
   isArtifactAnalysis,
   isPdfReferenceAnalysisResult,
+  isPdfReferenceReviewQueue,
   type ArtifactAnalysis,
+  type PdfReferenceAnalysisCandidate,
   type PdfReferenceAnalysisResult,
+  type PdfReferenceReviewCandidate,
+  type PdfReferenceReviewDecision,
+  type PdfReferenceReviewQueue,
 } from "../domain/reference-library";
-import { loadJson } from "./http";
+import { errorMessage, expectOk, jsonFetch, loadJson } from "./http";
 import { LightDomElement } from "./light-dom-controller";
 
 const defaultStatus = "References are analyzed automatically after PDF import.";
 
+export const pdfReferenceReviewOutcomeEvent = "pdf-reference-review-outcome";
+
+export interface PdfReferenceReviewOutcome {
+  readonly action: "library-refresh";
+  readonly message: string;
+}
+
 export class PdfReferenceAnalysisPanel extends LightDomElement {
   static override properties = {
     loading: { state: true },
+    reviewLoading: { state: true },
+    reviewQueue: { state: true },
+    reviewStatus: { state: true },
     result: { state: true },
+    savingCandidateId: { state: true },
     status: { state: true },
   };
 
   declare private loading: boolean;
+  declare private reviewLoading: boolean;
+  declare private reviewQueue: PdfReferenceReviewQueue | null;
+  declare private reviewStatus: string;
   declare private result: PdfReferenceAnalysisResult | null;
+  declare private savingCandidateId: string;
   declare private status: string;
   #analysis: ArtifactAnalysis | null = null;
   #artifactId = "";
@@ -27,7 +47,11 @@ export class PdfReferenceAnalysisPanel extends LightDomElement {
   constructor() {
     super();
     this.loading = false;
+    this.reviewLoading = false;
+    this.reviewQueue = null;
+    this.reviewStatus = "";
     this.result = null;
+    this.savingCandidateId = "";
     this.status = defaultStatus;
   }
 
@@ -45,7 +69,11 @@ export class PdfReferenceAnalysisPanel extends LightDomElement {
     this.#analysis = null;
     this.#artifactId = "";
     this.loading = false;
+    this.reviewLoading = false;
+    this.reviewQueue = null;
+    this.reviewStatus = "";
     this.result = null;
+    this.savingCandidateId = "";
     this.status = defaultStatus;
   }
 
@@ -64,53 +92,118 @@ export class PdfReferenceAnalysisPanel extends LightDomElement {
             `
           : nothing}
       </div>
+      ${this.reviewStatus
+        ? html`<p class="mt-2 text-xs leading-5 text-app-text-soft" role="status" aria-live="polite">${this.reviewStatus}</p>`
+        : nothing}
       ${this.result?.candidates.length
         ? html`
             <div class="mt-3 space-y-2" id="pdf-reference-analysis-list">
-              ${this.result.candidates.map(
-                (candidate) => html`
-                  <article class="resource-card" data-pdf-reference-id=${candidate.id}>
-                    <p class="eyebrow">Reference · page ${candidate.page}</p>
-                    <strong class="mt-1 block font-sans">${candidate.title || candidate.raw}</strong>
-                    ${candidate.title ? html`<p class="mt-1 text-xs leading-5 text-app-text-soft">${candidate.raw}</p>` : nothing}
-                    ${candidate.authors.length || candidate.year || candidate.doi
-                      ? html`
-                          <p class="mt-2 text-xs leading-5 text-app-text-soft">
-                            ${[candidate.authors.join("; "), candidate.year, candidate.doi].filter(Boolean).join(" · ")}
-                          </p>
-                        `
-                      : nothing}
-                    ${candidate.doi || candidate.url
-                      ? html`
-                          <div class="mt-2 flex flex-wrap gap-2">
-                            ${candidate.doi
-                              ? html`
-                                  <a
-                                    class="button-secondary"
-                                    href=${`https://doi.org/${candidate.doi}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                  >
-                                    Open DOI
-                                  </a>
-                                `
-                              : nothing}
-                            ${candidate.url && !candidate.url.toLocaleLowerCase().includes("doi.org/")
-                              ? html`
-                                  <a class="button-secondary" href=${candidate.url} target="_blank" rel="noopener noreferrer">
-                                    Open source
-                                  </a>
-                                `
-                              : nothing}
-                          </div>
-                        `
-                      : nothing}
-                  </article>
-                `,
-              )}
+              ${this.reviewQueue
+                ? this.reviewQueue.candidates.map((candidate) => this.renderCandidate(candidate, candidate))
+                : this.result.candidates.map((candidate) => this.renderCandidate(candidate, null))}
             </div>
           `
         : nothing}
+    `;
+  }
+
+  private renderCandidate(candidate: PdfReferenceAnalysisCandidate, reviewed: PdfReferenceReviewCandidate | null): TemplateResult {
+    return html`
+      <article class="resource-card" data-pdf-reference-id=${candidate.id}>
+        <p class="eyebrow">Reference · page ${candidate.page}</p>
+        <strong class="mt-1 block font-sans">${candidate.title || candidate.raw}</strong>
+        ${candidate.title ? html`<p class="mt-1 text-xs leading-5 text-app-text-soft">${candidate.raw}</p>` : nothing}
+        ${candidate.authors.length || candidate.year || candidate.doi
+          ? html`
+              <p class="mt-2 text-xs leading-5 text-app-text-soft">
+                ${[candidate.authors.join("; "), candidate.year, candidate.doi].filter(Boolean).join(" · ")}
+              </p>
+            `
+          : nothing}
+        ${reviewed?.match
+          ? html`
+              <p class="mt-2 rounded-sm border border-app-line bg-app-surface px-3 py-2 text-xs leading-5">
+                <span class="font-semibold">${reviewed.matchKind === "doi" ? "Exact DOI match" : "Suggested Library match"}</span>
+                · ${reviewed.match.title}
+              </p>
+            `
+          : nothing}
+        ${this.renderReviewActions(reviewed)}
+        ${candidate.doi || candidate.url
+          ? html`
+              <div class="mt-2 flex flex-wrap gap-2">
+                ${candidate.doi
+                  ? html`
+                      <a class="button-secondary" href=${`https://doi.org/${candidate.doi}`} target="_blank" rel="noopener noreferrer">
+                        Open DOI
+                      </a>
+                    `
+                  : nothing}
+                ${candidate.url && !candidate.url.toLocaleLowerCase().includes("doi.org/")
+                  ? html` <a class="button-secondary" href=${candidate.url} target="_blank" rel="noopener noreferrer">Open source</a> `
+                  : nothing}
+              </div>
+            `
+          : nothing}
+      </article>
+    `;
+  }
+
+  private renderReviewActions(candidate: PdfReferenceReviewCandidate | null): TemplateResult | typeof nothing {
+    if (!candidate || this.reviewLoading) return nothing;
+    if (candidate.review?.decision === "accepted") {
+      return html`<p class="mt-2 text-xs font-semibold text-app-text">Added to Library</p>`;
+    }
+    const saving = this.savingCandidateId === candidate.id;
+    return html`
+      ${candidate.review?.decision === "rejected" ? html`<p class="mt-2 text-xs font-semibold text-app-text-soft">Skipped</p>` : nothing}
+      <div class="mt-2 flex flex-wrap gap-2" role="group" aria-label="Review parsed reference">
+        ${candidate.match
+          ? html`
+              <button
+                class="button-primary"
+                type="button"
+                ?disabled=${saving}
+                @click=${() => void this.reviewCandidate(candidate, "accepted", candidate.match?.id)}
+              >
+                ${saving ? "Saving…" : candidate.matchKind === "doi" ? "Accept Library match" : "Use suggested match"}
+              </button>
+              ${candidate.matchKind === "bibliographic"
+                ? html`
+                    <button
+                      class="button-secondary"
+                      type="button"
+                      ?disabled=${saving}
+                      @click=${() => void this.reviewCandidate(candidate, "accepted")}
+                    >
+                      Add separately
+                    </button>
+                  `
+                : nothing}
+            `
+          : html`
+              <button
+                class="button-primary"
+                type="button"
+                ?disabled=${saving}
+                @click=${() => void this.reviewCandidate(candidate, "accepted")}
+              >
+                ${saving ? "Saving…" : "Add to Library"}
+              </button>
+            `}
+        ${candidate.review?.decision !== "rejected"
+          ? html`
+              <button
+                class="button-secondary"
+                type="button"
+                ?disabled=${saving}
+                @click=${() => void this.reviewCandidate(candidate, "rejected")}
+              >
+                Skip
+              </button>
+            `
+          : nothing}
+      </div>
     `;
   }
 
@@ -120,6 +213,24 @@ export class PdfReferenceAnalysisPanel extends LightDomElement {
       throw new Error("The server returned an invalid reference analysis status");
     }
     return value;
+  }
+
+  protected async loadReviewQueue(artifactId: string): Promise<PdfReferenceReviewQueue> {
+    const value = await loadJson(`/api/library/pdfs/${encodeURIComponent(artifactId)}/reference-review`);
+    if (!isPdfReferenceReviewQueue(value)) throw new Error("The server returned an invalid reference review queue");
+    return value;
+  }
+
+  protected async submitReview(
+    artifactId: string,
+    input: {
+      readonly fingerprint: string;
+      readonly candidateId: string;
+      readonly decision: PdfReferenceReviewDecision;
+      readonly referenceId?: string;
+    },
+  ): Promise<void> {
+    await expectOk(await jsonFetch(`/api/library/pdfs/${encodeURIComponent(artifactId)}/reference-review`, input));
   }
 
   protected async refresh(artifactId: string, retry = false): Promise<void> {
@@ -143,12 +254,16 @@ export class PdfReferenceAnalysisPanel extends LightDomElement {
   private applyAnalysis(artifactId: string, analysis: ArtifactAnalysis): void {
     this.#analysis = analysis;
     if (analysis.status === "queued" || analysis.status === "running") {
+      this.reviewQueue = null;
+      this.reviewStatus = "";
       this.status = analysis.status === "queued" ? "Reference analysis is queued…" : "Reading the PDF bibliography…";
       this.loading = false;
       this.schedulePoll(artifactId);
       return;
     }
     if (analysis.status === "failed") {
+      this.reviewQueue = null;
+      this.reviewStatus = "";
       this.result = null;
       this.status = analysis.error ? `Could not analyze references: ${analysis.error}` : "Could not analyze references.";
       return;
@@ -156,6 +271,72 @@ export class PdfReferenceAnalysisPanel extends LightDomElement {
     if (!analysis.result || !isPdfReferenceAnalysisResult(analysis.result)) return;
     this.result = analysis.result;
     this.status = referenceStatus(analysis.result);
+    void this.refreshReviewQueue(artifactId);
+  }
+
+  private async refreshReviewQueue(artifactId: string): Promise<void> {
+    if (artifactId !== this.#artifactId) return;
+    this.reviewLoading = true;
+    this.reviewStatus = "Loading review status…";
+    try {
+      const queue = await this.loadReviewQueue(artifactId);
+      if (artifactId !== this.#artifactId || queue.artifactId !== artifactId) return;
+      this.reviewQueue = queue;
+      this.reviewStatus = reviewQueueStatus(queue);
+    } catch (error) {
+      if (artifactId === this.#artifactId) {
+        this.reviewQueue = null;
+        const message = errorMessage(error, "Could not load reference review status.");
+        if (message === "PDF reference analysis is not ready") {
+          this.reviewStatus = "Reference review will appear when analysis finishes.";
+          this.schedulePoll(artifactId);
+        } else if (message === "Identify the PDF before reviewing its references") {
+          this.reviewStatus = "Identify this PDF before adding its parsed references to the Library.";
+        } else {
+          this.reviewStatus = message;
+        }
+      }
+    } finally {
+      if (artifactId === this.#artifactId) this.reviewLoading = false;
+    }
+  }
+
+  protected async reviewCandidate(
+    candidate: PdfReferenceReviewCandidate,
+    decision: PdfReferenceReviewDecision,
+    referenceId?: string,
+  ): Promise<void> {
+    const artifactId = this.#artifactId;
+    const fingerprint = this.reviewQueue?.fingerprint;
+    if (!artifactId || !fingerprint || this.savingCandidateId) return;
+    this.savingCandidateId = candidate.id;
+    this.reviewStatus = decision === "accepted" ? "Saving reference…" : "Skipping reference…";
+    try {
+      await this.submitReview(artifactId, {
+        fingerprint,
+        candidateId: candidate.id,
+        decision,
+        ...(referenceId ? { referenceId } : {}),
+      });
+      await this.refreshReviewQueue(artifactId);
+      if (artifactId !== this.#artifactId) return;
+      if (decision === "accepted") {
+        this.dispatchEvent(
+          new CustomEvent<PdfReferenceReviewOutcome>(pdfReferenceReviewOutcomeEvent, {
+            bubbles: true,
+            composed: true,
+            detail: {
+              action: "library-refresh",
+              message: referenceId ? "Parsed reference linked to the Library." : "Parsed reference added to the Library.",
+            },
+          }),
+        );
+      }
+    } catch (error) {
+      if (artifactId === this.#artifactId) this.reviewStatus = errorMessage(error, "Could not save the reference review.");
+    } finally {
+      if (artifactId === this.#artifactId) this.savingCandidateId = "";
+    }
   }
 
   protected retry(): void {
@@ -184,6 +365,15 @@ function referenceStatus(result: PdfReferenceAnalysisResult): string {
   return `${result.candidates.length} reference${result.candidates.length === 1 ? "" : "s"} found · bibliography starts on page ${
     result.referencesStartPage
   }${result.truncated ? " · scan limit reached" : ""}`;
+}
+
+function reviewQueueStatus(queue: PdfReferenceReviewQueue): string {
+  const accepted = queue.candidates.filter(({ review }) => review?.decision === "accepted").length;
+  const rejected = queue.candidates.filter(({ review }) => review?.decision === "rejected").length;
+  const pending = queue.candidates.length - accepted - rejected;
+  return [pending ? `${pending} awaiting review` : "", accepted ? `${accepted} added` : "", rejected ? `${rejected} skipped` : ""]
+    .filter(Boolean)
+    .join(" · ");
 }
 
 if (typeof customElements !== "undefined" && !customElements.get("pdf-reference-analysis-panel")) {

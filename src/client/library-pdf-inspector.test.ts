@@ -13,7 +13,7 @@ import type { LibraryPdfAnnotationList } from "./library-pdf-annotation-list";
 import { LibraryPdfInspector, libraryPdfInspectorCloseEvent } from "./library-pdf-inspector";
 import type { LibraryPdfProjectUse } from "./library-pdf-project-use";
 import type { PdfHighlightImportPanel } from "./pdf-highlight-import-panel";
-import type { PdfReferenceAnalysisPanel } from "./pdf-reference-analysis-panel";
+import { pdfReferenceReviewOutcomeEvent, type PdfReferenceAnalysisPanel } from "./pdf-reference-analysis-panel";
 import { projectReferenceChangedEvent } from "./project-reference-mutation";
 import { projectResearchChangedEvent } from "./project-research-mutation";
 
@@ -187,7 +187,10 @@ describe("library PDF inspector", () => {
 
   it("routes child project mutations through its binding", () => {
     const inspector = new TestLibraryPdfInspector();
-    const projectMutations = { applyProjectMutation: vi.fn().mockResolvedValue(undefined) };
+    const projectMutations = {
+      applyProjectMutation: vi.fn().mockResolvedValue(undefined),
+      completePdfReferenceReview: vi.fn().mockResolvedValue(undefined),
+    };
     inspector.bindProjectMutations(projectMutations);
 
     inspector.dispatchEvent(
@@ -196,11 +199,17 @@ describe("library PDF inspector", () => {
     inspector.dispatchEvent(
       new CustomEvent(projectResearchChangedEvent, { detail: { message: "Research shared", snapshot: workspaceSnapshotFixture } }),
     );
+    inspector.dispatchEvent(
+      new CustomEvent(pdfReferenceReviewOutcomeEvent, {
+        detail: { action: "library-refresh", message: "Parsed reference added" },
+      }),
+    );
 
     expect(projectMutations.applyProjectMutation.mock.calls).toEqual([
       [workspaceSnapshotFixture, "Reference linked"],
       [workspaceSnapshotFixture, "Research shared"],
     ]);
+    expect(projectMutations.completePdfReferenceReview).toHaveBeenCalledWith("Parsed reference added");
   });
 
   it("projects one active artifact into its owned child components", () => {

@@ -773,13 +773,13 @@ export class ReferenceLibrary extends DurableObject<Env> {
     });
   }
 
-  getPdfReferenceReviewQueue(artifactId: string): PdfReferenceReviewQueue {
+  getPdfReferenceReviewQueue(artifactId: string): PdfReferenceReviewQueue | null {
     const artifact = this.#artifact(artifactId);
     if (!artifact.referenceId) throw new Error("Identify the PDF before reviewing its references");
     const citingReferenceId = artifact.referenceId;
     const analysis = this.#artifactAnalyses.get(artifactId, "pdf-references");
     if (analysis?.status !== "ready" || !analysis.result || !("referencesStartPage" in analysis.result)) {
-      throw new Error("PDF reference analysis is not ready");
+      return null;
     }
     const references = this.ctx.storage.sql
       .exec<ReferenceRow>("SELECT * FROM library_references WHERE deleted_at IS NULL ORDER BY title COLLATE NOCASE, id")

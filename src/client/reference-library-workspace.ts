@@ -333,6 +333,16 @@ export class ReferenceLibraryWorkspace extends LightDomHost {
     }
   }
 
+  async completePdfReferenceReview(message: string): Promise<void> {
+    await this.completeRefresh(message, "The reference review was saved, but the refreshed Library could not be loaded.", {
+      refresh: async () => {
+        await this.refreshBoundProject();
+        const network = this.element("citation-network-workspace", CitationNetworkWorkspace);
+        if (network && !network.hidden) await network.refresh();
+      },
+    });
+  }
+
   async settled(): Promise<void> {
     await this.element("library-reference-list", LibraryReferenceList)?.settled();
   }

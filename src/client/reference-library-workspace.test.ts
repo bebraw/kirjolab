@@ -427,6 +427,18 @@ describe("reference Library workspace", () => {
     expect(complete).toHaveBeenCalledWith(3);
   });
 
+  it("refreshes an open citation network after accepting a parsed PDF reference", async () => {
+    const { owners, workspace } = setup();
+    const refreshLibrary = vi.spyOn(workspace, "refreshBoundProject").mockResolvedValue();
+    const refreshNetwork = vi.spyOn(owners["citation-network-workspace"], "refresh").mockResolvedValue();
+    owners["citation-network-workspace"].hidden = false;
+
+    await workspace.completePdfReferenceReview("Parsed reference added");
+
+    expect(refreshLibrary).toHaveBeenCalledOnce();
+    expect(refreshNetwork).toHaveBeenCalledOnce();
+  });
+
   it("routes child Library outcomes through its refresh boundary", async () => {
     const { owners, workspace } = setup();
     const callbacks = bindOwnerHarness(workspace, {}, "project-1");

@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
-import type { ArtifactAnalysis, PdfReferenceAnalysisResult } from "../domain/reference-library";
-import { PdfReferenceAnalysisPanel } from "./pdf-reference-analysis-panel";
+import type {
+  ArtifactAnalysis,
+  PdfReferenceAnalysisResult,
+  PdfReferenceReviewCandidate,
+  PdfReferenceReviewDecision,
+  PdfReferenceReviewQueue,
+} from "../domain/reference-library";
+import { PdfReferenceAnalysisPanel, pdfReferenceReviewOutcomeEvent, type PdfReferenceReviewOutcome } from "./pdf-reference-analysis-panel";
 
 const result: PdfReferenceAnalysisResult = {
   candidates: [
@@ -34,9 +40,34 @@ const readyAnalysis: ArtifactAnalysis = {
   status: "ready",
 };
 
+const reviewCandidate: PdfReferenceReviewCandidate = {
+  ...result.candidates[0]!,
+  match: null,
+  matchKind: null,
+  review: null,
+};
+
+const reviewQueue: PdfReferenceReviewQueue = {
+  artifactId: "artifact/1",
+  candidates: [reviewCandidate],
+  citingReferenceId: "reference-source",
+  fingerprint: readyAnalysis.fingerprint,
+};
+
 class TestPdfReferenceAnalysisPanel extends PdfReferenceAnalysisPanel {
   readonly loads: { artifactId: string; retry: boolean }[] = [];
+  readonly reviewLoads: string[] = [];
+  readonly submissions: {
+    artifactId: string;
+    input: {
+      readonly fingerprint: string;
+      readonly candidateId: string;
+      readonly decision: PdfReferenceReviewDecision;
+      readonly referenceId?: string;
+    };
+  }[] = [];
   analysis: ArtifactAnalysis | Error = readyAnalysis;
+  queue: PdfReferenceReviewQueue | Error = reviewQueue;
 
   renderForTest() {
     return this.render();
@@ -50,10 +81,48 @@ class TestPdfReferenceAnalysisPanel extends PdfReferenceAnalysisPanel {
     return super.load(artifactId, retry);
   }
 
+  defaultLoadReviewQueueForTest(artifactId: string): Promise<PdfReferenceReviewQueue> {
+    return super.loadReviewQueue(artifactId);
+  }
+
+  defaultSubmitReviewForTest(
+    artifactId: string,
+    input: {
+      readonly fingerprint: string;
+      readonly candidateId: string;
+      readonly decision: PdfReferenceReviewDecision;
+      readonly referenceId?: string;
+    },
+  ): Promise<void> {
+    return super.submitReview(artifactId, input);
+  }
+
+  reviewForTest(candidate: PdfReferenceReviewCandidate, decision: PdfReferenceReviewDecision, referenceId?: string): Promise<void> {
+    return this.reviewCandidate(candidate, decision, referenceId);
+  }
+
   protected override async load(artifactId: string, retry = false): Promise<ArtifactAnalysis> {
     this.loads.push({ artifactId, retry });
     if (this.analysis instanceof Error) throw this.analysis;
     return this.analysis;
+  }
+
+  protected override async loadReviewQueue(artifactId: string): Promise<PdfReferenceReviewQueue> {
+    this.reviewLoads.push(artifactId);
+    if (this.queue instanceof Error) throw this.queue;
+    return this.queue;
+  }
+
+  protected override async submitReview(
+    artifactId: string,
+    input: {
+      readonly fingerprint: string;
+      readonly candidateId: string;
+      readonly decision: PdfReferenceReviewDecision;
+      readonly referenceId?: string;
+    },
+  ): Promise<void> {
+    this.submissions.push({ artifactId, input });
   }
 }
 
@@ -76,14 +145,58 @@ describe("PDF reference analysis panel", () => {
     panel.setArtifact("artifact/1");
     await settle();
     expect(panel.loads).toEqual([{ artifactId: "artifact/1", retry: false }]);
+    expect(panel.reviewLoads).toEqual(["artifact/1"]);
     expect(panel.renderForTest()).toBeDefined();
 
     panel.analysis = { ...readyAnalysis, artifactId: "artifact/2", result: { ...result, candidates: [] } };
+    panel.queue = { ...reviewQueue, artifactId: "artifact/2", candidates: [] };
     panel.setArtifact("artifact/2");
     await settle();
     expect(panel.loads.at(-1)).toEqual({ artifactId: "artifact/2", retry: false });
     panel.reset();
     expect(panel.renderForTest()).toBeDefined();
+  });
+
+  it("persists a fingerprint-qualified review and announces accepted references", async () => {
+    const panel = new TestPdfReferenceAnalysisPanel();
+    const outcomes: PdfReferenceReviewOutcome[] = [];
+    panel.addEventListener(pdfReferenceReviewOutcomeEvent, (event) =>
+      outcomes.push((event as CustomEvent<PdfReferenceReviewOutcome>).detail),
+    );
+    panel.setArtifact("artifact/1");
+    await settle();
+
+    await panel.reviewForTest(reviewCandidate, "accepted");
+
+    expect(panel.submissions).toEqual([
+      {
+        artifactId: "artifact/1",
+        input: {
+          candidateId: reviewCandidate.id,
+          decision: "accepted",
+          fingerprint: readyAnalysis.fingerprint,
+        },
+      },
+    ]);
+    expect(panel.reviewLoads).toEqual(["artifact/1", "artifact/1"]);
+    expect(outcomes).toEqual([{ action: "library-refresh", message: "Parsed reference added to the Library." }]);
+  });
+
+  it("treats analysis transitions and unidentified PDFs as review prerequisites", async () => {
+    const panel = new TestPdfReferenceAnalysisPanel();
+    panel.queue = new Error("PDF reference analysis is not ready");
+    panel.setArtifact("artifact/1");
+    await settle();
+    expect((panel as unknown as { reviewStatus: string }).reviewStatus).toBe("Reference review will appear when analysis finishes.");
+    panel.reset();
+
+    panel.queue = new Error("Identify the PDF before reviewing its references");
+    panel.setArtifact("artifact/1");
+    await settle();
+    expect((panel as unknown as { reviewStatus: string }).reviewStatus).toBe(
+      "Identify this PDF before adding its parsed references to the Library.",
+    );
+    panel.reset();
   });
 
   it("keeps failures retryable", async () => {
@@ -129,6 +242,40 @@ describe("PDF reference analysis panel", () => {
       expect(calls).toEqual([
         { method: "GET", url: "/api/library/pdfs/artifact%2F1/analyses/pdf-references" },
         { method: "POST", url: "/api/library/pdfs/artifact%2F1/analyses/pdf-references" },
+      ]);
+    } finally {
+      globalThis.fetch = previousFetch;
+    }
+  });
+
+  it("validates the review queue and posts review decisions", async () => {
+    const panel = new TestPdfReferenceAnalysisPanel();
+    const previousFetch = globalThis.fetch;
+    const calls: { body: string | null; method: string; url: string }[] = [];
+    globalThis.fetch = async (input, init) => {
+      calls.push({ body: typeof init?.body === "string" ? init.body : null, method: init?.method ?? "GET", url: String(input) });
+      return init?.method === "POST" ? Response.json({}) : Response.json(reviewQueue);
+    };
+    try {
+      await expect(panel.defaultLoadReviewQueueForTest("artifact/1")).resolves.toEqual(reviewQueue);
+      await expect(
+        panel.defaultSubmitReviewForTest("artifact/1", {
+          candidateId: reviewCandidate.id,
+          decision: "accepted",
+          fingerprint: readyAnalysis.fingerprint,
+        }),
+      ).resolves.toBeUndefined();
+      expect(calls).toEqual([
+        { body: null, method: "GET", url: "/api/library/pdfs/artifact%2F1/reference-review" },
+        {
+          body: JSON.stringify({
+            candidateId: reviewCandidate.id,
+            decision: "accepted",
+            fingerprint: readyAnalysis.fingerprint,
+          }),
+          method: "POST",
+          url: "/api/library/pdfs/artifact%2F1/reference-review",
+        },
       ]);
     } finally {
       globalThis.fetch = previousFetch;

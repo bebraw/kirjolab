@@ -8,6 +8,7 @@ import type {
   BibliographicRecord,
   LibraryHighlight,
   MetadataRefinementPreview,
+  PdfReferenceReviewQueue,
   ReferenceLibrarySnapshot,
   WebSnapshot,
 } from "../domain/reference-library";
@@ -903,6 +904,11 @@ describe("reference library API", () => {
     );
     expect(invalid.status).toBe(400);
     expect(fixture.library.reviewPdfReferenceCandidate).toHaveBeenCalledOnce();
+
+    fixture.library.getPdfReferenceReviewQueue.mockResolvedValueOnce(null);
+    const transitioning = await handleReferenceLibraryApi(new Request(`https://example.test${route}`), fixture.env, identity);
+    expect(transitioning.status).toBe(409);
+    await expect(transitioning.json()).resolves.toEqual({ error: "PDF reference analysis is not ready" });
   });
 
   it("rejects empty, unknown, and over-limit PDF metadata fields", async () => {
@@ -1557,12 +1563,14 @@ function apiFixture(bucket = new MemoryR2Bucket()) {
     getArtifactAnalysis,
     queueArtifactAnalysis: vi.fn(async (_artifactId: string, kind: "pdf-highlights" | "pdf-references") => ({ ...analysis, kind })),
     failArtifactAnalysis: vi.fn(async () => true),
-    getPdfReferenceReviewQueue: vi.fn(async () => ({
-      artifactId: artifact.id,
-      fingerprint: artifact.fingerprint,
-      citingReferenceId: reference.id,
-      candidates: [],
-    })),
+    getPdfReferenceReviewQueue: vi.fn(
+      async (): Promise<PdfReferenceReviewQueue | null> => ({
+        artifactId: artifact.id,
+        fingerprint: artifact.fingerprint,
+        citingReferenceId: reference.id,
+        candidates: [],
+      }),
+    ),
     reviewPdfReferenceCandidate: vi.fn(
       async (
         _artifactId: string,

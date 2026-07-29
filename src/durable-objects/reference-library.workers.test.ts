@@ -422,6 +422,7 @@ describe("ReferenceLibrary in the Workers runtime", () => {
     await library.completeArtifactAnalysis(artifactId, "pdf-references", draft.artifact.fingerprint, requestedAt, result);
 
     const queue = await library.getPdfReferenceReviewQueue(artifactId);
+    if (!queue) throw new Error("Expected a ready PDF reference review queue");
     expect(queue.candidates[0]).toMatchObject({ match: { id: existing!.reference.id }, matchKind: "doi", review: null });
     const acceptedExisting = await library.reviewPdfReferenceCandidate(
       artifactId,
@@ -490,7 +491,7 @@ describe("ReferenceLibrary in the Workers runtime", () => {
         ),
       ).toThrow("analysis changed");
     });
-    expect((await library.getPdfReferenceReviewQueue(artifactId)).candidates.map((candidate) => candidate.review?.decision)).toEqual([
+    expect((await library.getPdfReferenceReviewQueue(artifactId))?.candidates.map((candidate) => candidate.review?.decision)).toEqual([
       "accepted",
       "accepted",
       "rejected",
