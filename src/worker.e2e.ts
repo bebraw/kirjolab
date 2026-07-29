@@ -1536,6 +1536,18 @@ test("filters and quickly opens project files", async ({ page }) => {
   await expect(filter).toBeFocused();
 });
 
+test("prevents accidental iPad UI zoom without disabling deliberate pinch zoom", async ({ browser }) => {
+  const context = await browser.newContext({ hasTouch: true, viewport: { width: 1024, height: 1366 } });
+  const page = await context.newPage();
+  await page.goto("/editor?create=1");
+
+  await expect(page.locator("html")).toHaveCSS("touch-action", "manipulation");
+  await expect(page.locator('meta[name="viewport"]')).toHaveAttribute("content", "width=device-width, initial-scale=1");
+  await expect(page.locator("#new-workspace-title")).toHaveCSS("font-size", "16px");
+
+  await context.close();
+});
+
 test("keeps workspace and Library navigation usable on a phone", async ({ page }) => {
   const workspaceId = await createWorkspace(page, "Phone layout");
   await page.setViewportSize({ width: 390, height: 844 });

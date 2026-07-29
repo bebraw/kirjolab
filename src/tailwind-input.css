@@ -5961,3 +5961,9 @@
     min-height: 0;
   }
 }
+
+@media (pointer: coarse) {
+  :where(input, textarea, select) {
+    font-size: max(1rem, 1em);
+  }
+}

@@ -54,6 +54,7 @@
   html {
     background: var(--color-app-canvas);
     color-scheme: light dark;
+    touch-action: manipulation;
   }
 
   html[data-theme="light"] {
