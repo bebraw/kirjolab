@@ -1,6 +1,6 @@
 # ADR-175: Delegate Scientific Markdown to Scholarmark
 
-**Status:** Accepted
+**Status:** Implemented
 
 **Date:** 2026-07-29
 
@@ -17,11 +17,11 @@ projection, native figures, and their implementation tests. Scholarmark was
 subsequently published from that renderer and now owns the same language as a
 reusable package.
 
-Scholarmark 0.6.0 exposes a tree-shakeable browser entry, a bounded
+Scholarmark 0.8.0 exposes a tree-shakeable browser entry, a bounded
 dependency-free BibTeX parser, synchronous rendering, public integration
 helpers, and an optional Citation.js adapter. Its browser graph contains no Node
 built-ins, Citation.js, fetch dependency, or implicit network behavior. Bundled
-in Kirjolab's production build, it measures 204,779 bytes raw and 62,386 bytes
+in Kirjolab's production build, it measures 209,385 bytes raw and 63,870 bytes
 with gzip, compared with the previous 204,779-byte and 62,540-byte runtime.
 
 Scholarmark standardizes cross-references around labels attached to Markdown
@@ -75,8 +75,6 @@ lightweight bibliography path instead of Citation.js.
 
 - Scholarmark upgrades become deliberate language and security changes that
   require Kirjolab's parity suite.
-- Version 0.6.0 lacks a default export condition, so Playwright's CommonJS
-  transform cannot resolve the package until an upstream patch release.
 - Existing editable source must move from private aliases, anchors, and heading
   attributes to labels.
 
@@ -84,7 +82,7 @@ lightweight bibliography path instead of Citation.js.
 
 - Markdown and BibTeX remain canonical while syntax trees and HTML remain
   disposable.
-- The lazy runtime retains its raw size and is 154 bytes smaller with gzip.
+- The lazy runtime grows by about 4.6 kB raw and 1.3 kB with gzip.
 - The content-fingerprinted same-origin runtime and stale-render protections do
   not change.
 - Contract-level tests remain local even when implementation-level tests move

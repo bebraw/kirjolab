@@ -5,7 +5,7 @@
 Kirjolab would like to consume the published `scholarmark` package instead of
 maintaining its own scientific Markdown renderer. This note records the gaps
 found in `scholarmark@0.3.0` and the adoption outcome reached with
-`scholarmark@0.6.0`.
+`scholarmark@0.8.0`.
 
 The package is already a close architectural match. It owns the same
 unified/remark pipeline, sanitization boundary, scholarly directives, portable
@@ -27,7 +27,7 @@ move upstream.
 
 ## Published Package Evaluated
 
-- Package: `scholarmark@0.6.0`
+- Package: `scholarmark@0.8.0`
 - License: MIT
 - Published files: 26
 - Unpacked size: approximately 119 kB
@@ -39,7 +39,7 @@ checkout.
 
 ## Resolved: Browser Bundling
 
-Kirjolab renders Markdown in a lazy-loaded browser module. Scholarmark 0.6.0
+Kirjolab renders Markdown in a lazy-loaded browser module. Scholarmark 0.8.0
 publishes `scholarmark/browser` as ordinary tree-shakeable ESM. It bundles with
 esbuild's browser platform without Node polyfills, Citation.js, fetch
 dependencies, or implicit network behavior.
@@ -47,7 +47,7 @@ dependencies, or implicit network behavior.
 ### Reproduction
 
 ```sh
-npm install scholarmark@0.6.0
+npm install scholarmark@0.8.0
 esbuild browser-consumer.ts \
   --bundle \
   --format=esm \
@@ -65,9 +65,9 @@ The supported browser entry:
 - exposes types through the package `exports` map; and
 - uses a bounded built-in BibTeX parser while keeping Citation.js optional.
 
-Bundled in Kirjolab's production browser shell, version 0.6.0 measures 204,779
-bytes raw and 62,386 bytes with gzip. The raw size matches the previous local
-runtime and gzip is 154 bytes smaller. Upstream browser-bundle smoke tests
+Bundled in Kirjolab's production browser shell, version 0.8.0 measures 209,385
+bytes raw and 63,870 bytes with gzip. That is 4,606 bytes raw and 1,330 bytes
+with gzip above the previous local runtime. Upstream browser-bundle smoke tests
 protect this contract.
 
 ## Kirjolab Syntax Migration
@@ -198,15 +198,15 @@ integration can detect substantial regressions before adoption.
 - [x] Package CI exercises browser bundling and representative rendering.
 - [x] Package CI reports browser bundle raw and gzip sizes.
 - [x] The package documents which entry is safe for browser use.
-- [ ] Package exports resolve in CommonJS-aware tools such as Playwright.
+- [x] Package exports resolve in CommonJS-aware tools such as Playwright.
 
-### Remaining 0.6.0 packaging gap
+### Resolved 0.8.0 packaging gap
 
 Playwright transforms Kirjolab's TypeScript E2E graph through CommonJS. The
-published export map provides only `types` and `import` conditions, so Node
-reports `ERR_PACKAGE_PATH_NOT_EXPORTED` for `require("scholarmark")`. Add a
-`default` condition to each public entry while retaining the existing ESM
-files:
+0.6.0 provided only `types` and `import` conditions, so Node reported
+`ERR_PACKAGE_PATH_NOT_EXPORTED` for `require("scholarmark")`. Version 0.8.0
+adds a `default` condition to each public entry while retaining the existing
+ESM files:
 
 ```json
 {
@@ -228,10 +228,8 @@ files:
 }
 ```
 
-This exact patch makes `require("scholarmark")` succeed on Kirjolab's pinned
-Node runtime and allows all 74 Playwright tests to pass. A package smoke test
-should exercise both `await import("scholarmark")` and
-`require("scholarmark")`.
+Both `require("scholarmark")` and `await import("scholarmark")` now succeed on
+Kirjolab's pinned Node runtime, and all 74 Playwright tests pass.
 
 ## Kirjolab Pilot Outcome
 
@@ -251,5 +249,5 @@ Kirjolab completed the bounded implementation in this sequence:
 The migration removes 1,658 net lines while preserving the browser-runtime
 size, sanitizer boundary, and local synchronous rendering contract. Kirjolab
 retains focused host-level contract tests; the package owns the duplicated
-implementation and its detailed unit coverage. Landing remains conditional on
-the export-map patch above so a clean install passes the full local gate.
+implementation and its detailed unit coverage. Version 0.8.0 passes the full
+local gate from a clean package installation.

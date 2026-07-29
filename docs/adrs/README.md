@@ -33,7 +33,7 @@ No accepted ADRs are awaiting implementation.
 
 | ADR                                                                                       | Status               | Summary                                                                                                       |
 | ----------------------------------------------------------------------------------------- | -------------------- | ------------------------------------------------------------------------------------------------------------- |
-| [ADR-175](./accepted/ADR-175-delegate-scientific-markdown-to-scholarmark.md)              | Accepted             | Delegate scientific Markdown and bounded BibTeX parsing to Scholarmark.                                       |
+| [ADR-175](./implemented/ADR-175-delegate-scientific-markdown-to-scholarmark.md)           | Implemented          | Delegate scientific Markdown and bounded BibTeX parsing to Scholarmark.                                       |
 | [ADR-174](./implemented/ADR-174-report-dependency-costs-reproducibly.md)                  | Implemented          | Report production package and browser artifact costs through one read-only diagnostic.                        |
 | [ADR-173](./implemented/ADR-173-share-bounded-external-response-reading.md)               | Implemented          | Share request-local bounded stream and JSON reading across external providers.                                |
 | [ADR-172](./implemented/ADR-172-use-lit-for-bounded-reactive-components.md)               | Implemented          | Use Lit for bounded reactive components while preserving existing application authorities.                    |

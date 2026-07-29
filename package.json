@@ -120,7 +120,7 @@
     "lit": "3.3.3",
     "pdf-lib": "1.17.1",
     "pdfjs-dist": "6.1.200",
-    "scholarmark": "0.6.0",
+    "scholarmark": "0.8.0",
     "valibot": "1.4.2",
     "xstate": "5.32.4",
     "yjs": "13.6.31"
