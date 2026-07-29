@@ -256,12 +256,13 @@ memory and makes citation aliases compete with stable source identity.
   heading. It returns at most 128 numbered or author-year entries with their
   bounded raw citation, source page, and best-effort title, authors, year, DOI,
   URL, and confidence. The reader presents those candidates in a separate
-  References disclosure with DOI/source links and explicit failed-analysis
-  retry. Reference candidates do not silently create library records, citation
-  assertions, or project state. A generic versioned artifact-analysis envelope
-  allows later analysis kinds to reuse the same queue and lifecycle without
-  weakening owner isolation. Pure annotation normalization, flattened-region
-  detection, text matching, bibliography parsing, candidate deduplication, and
+  References disclosure with DOI/source links and an explicit rerun control
+  after ready or failed analysis. Reference candidates do not silently create
+  library records, citation assertions, or project state. A generic versioned
+  artifact-analysis envelope allows later analysis kinds to reuse the same queue
+  and lifecycle without weakening owner isolation. Pure annotation
+  normalization, flattened-region detection, text matching, bibliography
+  parsing, candidate deduplication, and
   confidence scoring consume normalized page, span, and bitmap inputs through
   the source-local PDF-analysis core. PDF.js loading, browser rendering, queue
   state, storage, authorization, polling, and UI remain adapter concerns. Each

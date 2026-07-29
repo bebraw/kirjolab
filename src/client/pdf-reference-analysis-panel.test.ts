@@ -62,6 +62,14 @@ async function settle(): Promise<void> {
   await Promise.resolve();
 }
 
+function templateText(value: unknown): string {
+  if (typeof value === "string") return value;
+  if (Array.isArray(value)) return value.map(templateText).join(" ");
+  if (!value || typeof value !== "object") return "";
+  const template = value as { readonly strings?: readonly string[]; readonly values?: readonly unknown[] };
+  return [...(template.strings ?? []), ...(Array.isArray(template.values) ? template.values.map(templateText) : [])].join(" ");
+}
+
 describe("PDF reference analysis panel", () => {
   it("loads automatic reference results and resets between artifacts", async () => {
     const panel = new TestPdfReferenceAnalysisPanel();
@@ -84,6 +92,21 @@ describe("PDF reference analysis panel", () => {
     panel.setArtifact("artifact/1");
     await settle();
     panel.analysis = readyAnalysis;
+    panel.retryForTest();
+    await settle();
+    expect(panel.loads).toEqual([
+      { artifactId: "artifact/1", retry: false },
+      { artifactId: "artifact/1", retry: true },
+    ]);
+  });
+
+  it("lets a researcher rerun completed reference analysis", async () => {
+    const panel = new TestPdfReferenceAnalysisPanel();
+    panel.setArtifact("artifact/1");
+    await settle();
+    expect(templateText(panel.renderForTest())).toContain("Run analysis again");
+
+    panel.analysis = { ...readyAnalysis, status: "queued", result: null };
     panel.retryForTest();
     await settle();
     expect(panel.loads).toEqual([

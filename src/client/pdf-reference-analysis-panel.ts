@@ -56,10 +56,10 @@ export class PdfReferenceAnalysisPanel extends LightDomElement {
           <strong id="pdf-reference-analysis-title">References in this PDF</strong>
           <p class="mt-1 text-xs leading-5 text-app-text-soft" role="status" aria-live="polite">${this.status}</p>
         </div>
-        ${this.#analysis?.status === "failed"
+        ${this.#analysis?.status === "ready" || this.#analysis?.status === "failed"
           ? html`
               <button class="button-secondary" type="button" ?disabled=${this.loading} @click=${this.retry}>
-                ${this.loading ? "Retrying…" : "Retry analysis"}
+                ${this.loading ? "Queueing…" : this.#analysis.status === "ready" ? "Run analysis again" : "Retry analysis"}
               </button>
             `
           : nothing}
