@@ -1093,6 +1093,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   demonstrates core editing mechanics but does not justify its approximately
   258 KB gzip cost or leave iPad, IME, forced-colors, and screen-reader parity
   implicit.
+- Keep the bounded LaTeX converter authoritative for server-side archive import.
+  The development-only `unified-latex` spike may inform a future replacement,
+  but no parser may enter production unless its adapter retires equivalent
+  lexical mechanics and preserves inert execution primitives, archive-local
+  access, visible unsupported source, diagnostics, and output bounds.
 - Let the bounded writing-workflow panel derive and download the reviewer-
   response letter from its supplied canonical matrix. Let the manuscript-map
   Lit owner atomically bind the diary and both workflow panels to their shared

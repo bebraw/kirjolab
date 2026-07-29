@@ -299,6 +299,21 @@ diagnostics, and reviewed confirmation.
 - Worker bundle and request latency remain acceptable and are recorded.
 - The handwritten lexical parser is removed rather than retained as a fallback.
 
+#### Outcome
+
+Completed on 2026-07-29. The development-only spike parsed six representative
+sources in approximately 8 ms and kept execution-capable TeX primitives inert.
+A small Kirjolab macro registry made `\citet` and `\citep` arguments structural,
+while runtime-defined macros remained preserved but uninterpreted. The isolated
+parser measured 251,007 raw bytes and 59,176 gzip bytes before adding an
+AST-to-Scholarmark adapter.
+
+[ADR-184](./adrs/implemented/ADR-184-retain-bounded-latex-converter.md)
+therefore retains the bounded converter. The proposed adapter would still own
+most Kirjolab conversion and diagnostic policy and did not meet the gate that
+adoption delete the handwritten lexical layer. The experiment is reproducible
+with `npm run spike:unified-latex`.
+
 ### 5. Adopt a graph renderer only when triggered
 
 The current citation network and project map are small, bounded SVG views. A
@@ -416,8 +431,9 @@ after measurements.
   without application-specific patches?
 - Can a Scholarmark-aware CodeMirror language layer reuse public Scholarmark
   parsing contracts without coupling to package internals?
-- Does `unified-latex` reduce maintained parsing code after the Kirjolab adapter
-  and diagnostics are included?
+- A `unified-latex` spike did not yet reduce maintained parsing code after the
+  Kirjolab adapter and diagnostics were considered; ADR-184 records the trigger
+  for reevaluation.
 - Which future citation-extraction input makes `pdf-analysis-core` genuinely
   reusable rather than merely relocated?
 - What graph size and interaction model will actual reference-analysis data

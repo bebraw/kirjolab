@@ -34,6 +34,10 @@ not translate cleanly.
   archive fail closed and remain navigable in the preview.
 - The converter recognizes a documented scholarly LaTeX subset without running
   TeX, loading packages, expanding arbitrary macros, or accessing the network.
+- The production importer retains its bounded converter under ADR-184. The
+  exact-pinned development-only `unified-latex` spike records structural parsing,
+  custom macro-registry needs, inert dangerous primitives, and parser bundle
+  cost without entering the Worker runtime.
 - The Kirjolab adapter maps common sections, emphasis, lists, links, math,
   footnotes, citations, labels, cross-references, code listings, tables,
   figures, captions, and bibliography placement into supported scientific
@@ -95,6 +99,9 @@ not translate cleanly.
   conflicting normalized paths.
 - Do not claim general TikZ compatibility when only one native boxplot subset
   was translated or source was preserved.
+- Do not add a general LaTeX parser to production unless a corpus-backed adapter
+  retires the equivalent lexical mechanics and preserves every import trust
+  boundary and diagnostic contract.
 
 ## Contract
 
@@ -128,6 +135,8 @@ not translate cleanly.
   bibliography, or virtual-filesystem access can escape the selected archive.
 - Import performs no network retrieval or authored-code execution.
 - Projects without LaTeX import receive no optional conversion runtime.
+- Development parser evaluations remain outside production imports and prove
+  that execution-capable primitives are handled only as inert syntax.
 
 ### Verification
 
