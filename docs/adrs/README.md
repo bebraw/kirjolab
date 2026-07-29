@@ -33,6 +33,8 @@ No accepted ADRs are awaiting implementation.
 
 | ADR                                                                                       | Status               | Summary                                                                                                       |
 | ----------------------------------------------------------------------------------------- | -------------------- | ------------------------------------------------------------------------------------------------------------- |
+| [ADR-179](./implemented/ADR-179-decompose-reference-library-contracts.md)                 | Implemented          | Split reference-library contracts by capability behind a compatibility facade.                                |
+| [ADR-178](./implemented/ADR-178-queue-private-artifact-analysis.md)                       | Implemented          | Queue independent owner-private highlight and reference analysis for imported PDFs.                           |
 | [ADR-177](./implemented/ADR-177-prevent-accidental-ipad-ui-zoom.md)                       | Implemented          | Prevent accidental iPad UI zoom without disabling deliberate pinch zoom or browser accessibility controls.    |
 | [ADR-176](./implemented/ADR-176-rebase-aggregate-mutation-threshold.md)                   | Implemented          | Rebase the aggregate mutation floor after delegating the heavily tested Markdown implementation.              |
 | [ADR-175](./implemented/ADR-175-delegate-scientific-markdown-to-scholarmark.md)           | Implemented          | Delegate scientific Markdown and bounded BibTeX parsing to Scholarmark.                                       |

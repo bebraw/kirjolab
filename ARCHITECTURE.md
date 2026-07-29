@@ -59,6 +59,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   boundary only needs the shared plain-record rule: a non-null object that is
   not an array. Do not duplicate that semantic locally or introduce a schema
   solely to replace it.
+- Keep reference-library domain contracts capability-scoped below
+  `src/domain/reference-library/`. Treat `src/domain/reference-library.ts` as an
+  incremental compatibility facade, not the default import for new consumers.
+  Narrow capability modules must not import that facade or depend on API,
+  browser-component, Durable Object, or Cloudflare runtime authorities.
 - Validate the server-rendered workspace/Library browser bootstrap as one
   Valibot contract before constructing the application. The contract owns the
   bounded workspace id, non-empty bounded identity email, and explicit
