@@ -98,14 +98,18 @@ describe("library reference summary", () => {
     expect(summary.renderForTest()).toBeDefined();
   });
 
-  it("keeps PDF navigation as a typed intent", () => {
+  it("keeps PDF and citation-trail navigation as typed intents", () => {
     const summary = new TestLibraryReferenceSummary();
     const actions: LibraryReferenceSummaryAction[] = [];
     summary.addEventListener(libraryReferenceSummaryActionEvent, (event) => {
       actions.push((event as CustomEvent<LibraryReferenceSummaryAction>).detail);
     });
     summary.emitForTest({ action: "open-pdf", artifact });
-    expect(actions).toEqual([{ action: "open-pdf", artifact }]);
+    summary.emitForTest({ action: "open-citation-network", referenceId: reference.id });
+    expect(actions).toEqual([
+      { action: "open-pdf", artifact },
+      { action: "open-citation-network", referenceId: reference.id },
+    ]);
   });
 
   it("owns stable link and unlink requests and emits completed workspace outcomes", async () => {

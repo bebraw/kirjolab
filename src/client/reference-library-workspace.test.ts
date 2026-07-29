@@ -419,11 +419,11 @@ describe("reference Library workspace", () => {
     const complete = vi.spyOn(owners["unidentified-pdf-list"], "complete");
 
     bindOwnerHarness(workspace, {}, "project-1");
-    await workspace.openCitationNetwork();
+    await workspace.openCitationNetwork("reference-1");
     workspace.completePdfIdentification(3);
 
     expect(configure).toHaveBeenCalledWith("project-1");
-    expect(open).toHaveBeenCalledOnce();
+    expect(open).toHaveBeenCalledWith("reference-1");
     expect(complete).toHaveBeenCalledWith(3);
   });
 
@@ -457,6 +457,11 @@ describe("reference Library workspace", () => {
       new CustomEvent(citationNetworkOutcomeEvent, { detail: { action: "library-refresh", message: "Candidate saved" } }),
     );
     workspace.dispatchEvent(new CustomEvent(libraryReferenceSummaryActionEvent, { detail: { action: "open-pdf", artifact } }));
+    workspace.dispatchEvent(
+      new CustomEvent(libraryReferenceSummaryActionEvent, {
+        detail: { action: "open-citation-network", referenceId: "reference-1" },
+      }),
+    );
     workspace.dispatchEvent(new CustomEvent(libraryReferencePersonalRefreshEvent, { detail: "Personal fields saved" }));
     workspace.dispatchEvent(new CustomEvent(libraryReferenceMetadataNoticeEvent, { detail: "Metadata notice" }));
     workspace.dispatchEvent(new CustomEvent(libraryReferenceMetadataRefreshEvent, { detail: "Metadata saved" }));

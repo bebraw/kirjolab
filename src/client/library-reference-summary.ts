@@ -11,10 +11,9 @@ export interface LibraryReferenceSummaryData {
   readonly reference: BibliographicRecord;
 }
 
-export interface LibraryReferenceSummaryAction {
-  readonly action: "open-pdf";
-  readonly artifact: LibraryPdfArtifact;
-}
+export type LibraryReferenceSummaryAction =
+  | { readonly action: "open-pdf"; readonly artifact: LibraryPdfArtifact }
+  | { readonly action: "open-citation-network"; readonly referenceId: string };
 
 export const libraryReferenceSummaryActionEvent = "library-reference-summary-action";
 
@@ -56,6 +55,14 @@ export class LibraryReferenceSummary extends ProjectReferenceMutationElement {
         <p class="library-reference-meta" title=${details}>${details}</p>
       </div>
       <div class="library-reference-actions">
+        <button
+          class="button-secondary"
+          type="button"
+          title=${`Explore citations to and from ${displayTitle}`}
+          @click=${() => this.emitAction({ action: "open-citation-network", referenceId: reference.id })}
+        >
+          Trail
+        </button>
         ${primaryArtifact
           ? html`
               <button

@@ -83,7 +83,7 @@ describe("citation network workspace", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     workspace.hidden = true;
-    await workspace.open();
+    await workspace.open("source:1");
     workspace.updateForTest("references", "data");
     workspace.toggleForTest();
     await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
@@ -98,6 +98,7 @@ describe("citation network workspace", () => {
       { id: "source:2", title: "Source 2" },
     ]);
     expect(panel.setData).toHaveBeenCalled();
+    expect(panel.setData).toHaveBeenCalledWith(expect.objectContaining({ focusedReferenceId: "source:1" }));
     expect(scrollIntoView).toHaveBeenCalledWith({ block: "start" });
     expect(workspace.hidden).toBe(true);
     expect(workspace.renderForTest()).toBeDefined();

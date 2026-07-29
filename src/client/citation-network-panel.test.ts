@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type { CitationAssertionView, CitationNetwork } from "../domain/citation-assertions";
 import type { CitationExpansionResult } from "../domain/citation-expansion-types";
-import { CitationNetworkPanel, citationNetworkActionEvent, type CitationNetworkAction } from "./citation-network-panel";
+import {
+  CitationNetworkPanel,
+  citationNetworkActionEvent,
+  focusCitationNetwork,
+  type CitationNetworkAction,
+} from "./citation-network-panel";
 
 const timestamp = "2026-07-25T00:00:00.000Z";
 const assertion: CitationAssertionView = {
@@ -103,17 +108,30 @@ describe("citation network panel", () => {
   it("renders loading, empty, filtered, connected, reviewed, expansion, and saving states", () => {
     const panel = new TestCitationNetworkPanel();
     expect(panel.renderForTest()).toBeDefined();
-    panel.setData({ expansion: null, filterProject: false, network: { ...network, edges: [], nodes: [] }, referenceTitles: {} });
+    panel.setData({
+      expansion: null,
+      filterProject: false,
+      focusedReferenceId: null,
+      network: { ...network, edges: [], nodes: [] },
+      referenceTitles: {},
+    });
     expect(panel.renderForTest()).toBeDefined();
-    panel.setData({ expansion: null, filterProject: true, network: { ...network, edges: [], nodes: [] }, referenceTitles: {} });
+    panel.setData({
+      expansion: null,
+      filterProject: true,
+      focusedReferenceId: null,
+      network: { ...network, edges: [], nodes: [] },
+      referenceTitles: {},
+    });
     expect(panel.renderForTest()).toBeDefined();
-    panel.setData({ expansion, filterProject: false, network, referenceTitles: { a: "Seed A" } });
+    panel.setData({ expansion, filterProject: false, focusedReferenceId: "a", network, referenceTitles: { a: "Seed A" } });
     panel.setCandidateSaving("10.5555/c", true);
     expect(panel.renderForTest()).toBeDefined();
     panel.setCandidateSaving("10.5555/c", false);
     panel.setData({
       expansion: { ...expansion, truncated: true, unmatched: [] },
       filterProject: false,
+      focusedReferenceId: null,
       network: {
         ...network,
         edges: [
@@ -139,7 +157,7 @@ describe("citation network panel", () => {
     const panel = new TestCitationNetworkPanel();
     const actions: CitationNetworkAction[] = [];
     panel.addEventListener(citationNetworkActionEvent, (event) => actions.push((event as CustomEvent<CitationNetworkAction>).detail));
-    panel.setData({ expansion, filterProject: false, network, referenceTitles: {} });
+    panel.setData({ expansion, filterProject: false, focusedReferenceId: null, network, referenceTitles: {} });
 
     panel.actForTest("expand", { referenceId: "a" });
     panel.actForTest("review", { assertionId: "assertion:1", decision: "confirmed" });
@@ -154,6 +172,13 @@ describe("citation network panel", () => {
       { action: "review", assertionId: "assertion:1", decision: "confirmed" },
       { action: "save-candidate", candidate: expansion.unmatched[0], expansion },
     ]);
+  });
+
+  it("projects a focused source and its immediate relationships", () => {
+    const disconnected = { ...network.nodes[1]!, id: "reference:c", referenceId: "c" };
+    expect(focusCitationNetwork({ ...network, nodes: [...network.nodes, disconnected] }, "a")).toEqual(network);
+    expect(focusCitationNetwork(network, "missing")).toMatchObject({ edges: [], nodes: [] });
+    expect(focusCitationNetwork(network, null)).toBe(network);
   });
 
   it("owns reference choices and emits a typed manual assertion", () => {

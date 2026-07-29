@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { libraryPdfRoute, readLibraryUiRoute } from "./library-ui-route";
+import { libraryCitationNetworkRoute, libraryPdfRoute, readLibraryUiRoute } from "./library-ui-route";
 
 describe("Library UI routes", () => {
   it("reads the Library root and optional addressed reference", () => {
@@ -8,6 +8,14 @@ describe("Library UI routes", () => {
       kind: "library",
       referenceId: "reference:1",
     });
+  });
+
+  it("reads and writes an addressed reference trail", () => {
+    expect(readLibraryUiRoute(new URL("https://example.test/library?trail=reference%3A1"))).toEqual({
+      kind: "citation-network",
+      referenceId: "reference:1",
+    });
+    expect(libraryCitationNetworkRoute("reference:1")).toBe("/library?trail=reference%3A1");
   });
 
   it("reads an encoded PDF artifact and bounded page", () => {

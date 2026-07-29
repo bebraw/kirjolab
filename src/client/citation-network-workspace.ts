@@ -20,7 +20,7 @@ export type CitationNetworkOutcome =
   | { readonly action: "notice"; readonly message: string }
   | { readonly action: "library-refresh"; readonly message: string };
 
-type CitationNetworkPresentation = Omit<CitationNetworkData, "filterProject">;
+type CitationNetworkPresentation = Omit<CitationNetworkData, "filterProject" | "focusedReferenceId">;
 
 const emptyData: CitationNetworkPresentation = { expansion: null, network: null, referenceTitles: {} };
 
@@ -28,12 +28,14 @@ export class CitationNetworkWorkspace extends LightDomElement {
   static override properties = {
     data: { state: true },
     filterProject: { state: true },
+    focusedReferenceId: { state: true },
     references: { state: true },
     status: { state: true },
   };
 
   declare private data: CitationNetworkPresentation;
   declare filterProject: boolean;
+  declare private focusedReferenceId: string | null;
   declare private references: readonly CitationReferenceChoice[];
   declare private status: string;
   private requestId = 0;
@@ -43,6 +45,7 @@ export class CitationNetworkWorkspace extends LightDomElement {
     super();
     this.data = emptyData;
     this.filterProject = false;
+    this.focusedReferenceId = null;
     this.references = [];
     this.status = "";
   }
@@ -51,10 +54,11 @@ export class CitationNetworkWorkspace extends LightDomElement {
     this.workspaceId = workspaceId;
   }
 
-  async open(): Promise<void> {
+  async open(referenceId: string | null = null): Promise<void> {
+    this.focusedReferenceId = referenceId;
     this.hidden = false;
     await this.refresh();
-    this.scrollIntoView({ block: "start" });
+    if (typeof this.scrollIntoView === "function") this.scrollIntoView({ block: "start" });
   }
 
   async refresh(): Promise<void> {
@@ -106,8 +110,8 @@ export class CitationNetworkWorkspace extends LightDomElement {
 
   protected override updated(changed: PropertyValues): void {
     if (changed.has("references")) this.panel()?.setReferences(this.references);
-    if (changed.has("data") || changed.has("filterProject")) {
-      this.panel()?.setData({ ...this.data, filterProject: this.filterProject });
+    if (changed.has("data") || changed.has("filterProject") || changed.has("focusedReferenceId")) {
+      this.panel()?.setData({ ...this.data, filterProject: this.filterProject, focusedReferenceId: this.focusedReferenceId });
     }
   }
 
@@ -120,6 +124,13 @@ export class CitationNetworkWorkspace extends LightDomElement {
           <p class="mt-2 max-w-2xl text-xs leading-5 text-app-text-soft">
             Follow references from trusted seeds, review each candidate, and retain how every source was found.
           </p>
+          ${this.focusedReferenceId
+            ? html`
+                <p class="mt-2 text-xs text-app-text-soft">
+                  Focused on ${this.data.referenceTitles[this.focusedReferenceId] ?? "selected source"}
+                </p>
+              `
+            : ""}
         </div>
         <div class="flex gap-2">
           <button

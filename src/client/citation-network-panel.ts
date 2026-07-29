@@ -23,6 +23,7 @@ export type CitationNetworkAction =
 export interface CitationNetworkData {
   readonly expansion: CitationExpansionResult | null;
   readonly filterProject: boolean;
+  readonly focusedReferenceId: string | null;
   readonly network: CitationNetwork | null;
   readonly referenceTitles: Readonly<Record<string, string>>;
 }
@@ -53,7 +54,7 @@ export class CitationNetworkPanel extends LightDomElement {
     super();
     this.citedReferenceId = "";
     this.citingReferenceId = "";
-    this.data = { expansion: null, filterProject: false, network: null, referenceTitles: {} };
+    this.data = { expansion: null, filterProject: false, focusedReferenceId: null, network: null, referenceTitles: {} };
     this.polarity = "cites";
     this.references = [];
     this.savingDois = new Set();
@@ -77,8 +78,18 @@ export class CitationNetworkPanel extends LightDomElement {
   }
 
   protected override render(): TemplateResult {
-    const network = this.data.network;
+    const network = this.data.network ? focusCitationNetwork(this.data.network, this.data.focusedReferenceId) : null;
+    const focusedTitle = this.data.focusedReferenceId ? this.data.referenceTitles[this.data.focusedReferenceId] : null;
     return html`
+      ${focusedTitle
+        ? html`
+            <div class="mt-4 border-y border-app-line py-3">
+              <p class="eyebrow">Focused source</p>
+              <p class="mt-1 text-sm font-semibold">${focusedTitle}</p>
+              <p class="mt-1 text-xs leading-5 text-app-text-soft">Immediate incoming and outgoing citation relationships.</p>
+            </div>
+          `
+        : nothing}
       <form
         class="mt-4 grid gap-3 border-y border-app-line py-4 md:grid-cols-[1fr_auto_1fr_auto]"
         id="citation-assertion-form"
@@ -165,7 +176,9 @@ export class CitationNetworkPanel extends LightDomElement {
         <div class="empty-state">
           ${this.data.filterProject
             ? "No citation assertions touch references in this project yet."
-            : "No source-to-source citation assertions yet. Record one or expand a DOI-backed source."}
+            : this.data.focusedReferenceId
+              ? "No reviewed citation relationships connect this source yet. Expand its references or record an assertion."
+              : "No source-to-source citation assertions yet. Record one or expand a DOI-backed source."}
         </div>
       `;
     }
@@ -359,6 +372,14 @@ export class CitationNetworkPanel extends LightDomElement {
   private emit(detail: CitationNetworkAction): void {
     this.dispatchEvent(new CustomEvent(citationNetworkActionEvent, { bubbles: true, composed: true, detail }));
   }
+}
+
+export function focusCitationNetwork(network: CitationNetwork, referenceId: string | null): CitationNetwork {
+  if (!referenceId) return network;
+  const focusedNodeId = `reference:${referenceId}`;
+  const edges = network.edges.filter(({ from, to }) => from === focusedNodeId || to === focusedNodeId);
+  const nodeIds = new Set([focusedNodeId, ...edges.flatMap(({ from, to }) => [from, to])]);
+  return { ...network, edges, nodes: network.nodes.filter(({ id }) => nodeIds.has(id)) };
 }
 
 function citationStateColor(state: CitationNetwork["edges"][number]["state"]): string {

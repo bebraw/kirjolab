@@ -38,6 +38,10 @@ provider result, extraction, or model suggestion as equally trustworthy.
 - The visual SVG is paired with an ordinary accessible list containing every
   visible assertion and its provenance and review controls. Relational SQLite
   remains sufficient; the layout is derived browser state.
+- A Library source action opens an addressable `/library?trail={referenceId}`
+  view. Its graph and accessible list contain only the focused source and its
+  immediate incoming and outgoing relationships; opening the view never
+  expands providers implicitly.
 - The bounded circular SVG remains intentionally dependency-free under ADR-185.
   Its scale limit is one renderer-adoption trigger, but a second committed
   viewport, layout, clustering, or shared-selection requirement is needed before
@@ -133,6 +137,7 @@ provider result, extraction, or model suggestion as equally trustworthy.
 - [x] Parsed PDF references render as a durable accept/reject queue whose
       accepted entries extend the existing citation network.
 - [x] A graph and accessible provenance list expose the same projection.
+- [x] A Library source opens an addressable, one-hop reference trail.
 - [x] Pure, API, integration, Workers-runtime, view, and browser tests cover
       derivation, validation, persistence, review, filtering, and interaction.
 

@@ -27,7 +27,7 @@ import { libraryDiscoveryRefreshEvent, LibraryDiscoveryResults, type LibraryDisc
 import { libraryDiscoveryResultsEvent } from "./library-discovery-search";
 import { libraryPdfUploadOutcomeEvent, LibraryPdfUploadControl, type LibraryPdfUploadOutcome } from "./library-pdf-upload-control";
 import { libraryPdfUploadRevealEvent, LibraryPdfUploadStatus } from "./library-pdf-upload-status";
-import { libraryPdfRoute, readLibraryUiRoute, type LibraryUiRoute } from "./library-ui-route";
+import { libraryCitationNetworkRoute, libraryPdfRoute, readLibraryUiRoute, type LibraryUiRoute } from "./library-ui-route";
 import { LightDomHost } from "./light-dom-controller";
 import {
   libraryToolsActionEvent,
@@ -111,8 +111,9 @@ export class ReferenceLibraryWorkspace extends LightDomHost {
       this.routeCitationOutcome((event as CustomEvent<CitationNetworkOutcome>).detail),
     );
     this.addEventListener(libraryReferenceSummaryActionEvent, (event) => {
-      const { artifact } = (event as CustomEvent<LibraryReferenceSummaryAction>).detail;
-      this.openPdf(artifact);
+      const action = (event as CustomEvent<LibraryReferenceSummaryAction>).detail;
+      if (action.action === "open-pdf") this.openPdf(action.artifact);
+      else void this.openCitationNetwork(action.referenceId);
     });
     this.addEventListener(libraryReferencePersonalRefreshEvent, (event) => {
       void this.completeRefresh(
@@ -222,6 +223,11 @@ export class ReferenceLibraryWorkspace extends LightDomHost {
   }
 
   async restoreRoute(route: LibraryUiRoute): Promise<void> {
+    if (route.kind === "citation-network") {
+      this.activateLibrary();
+      await this.openCitationNetwork(route.referenceId, false);
+      return;
+    }
     if (route.kind === "library") {
       this.activateLibrary();
       if (route.referenceId && !(await this.openReference(route.referenceId))) this.replaceBrowserRoute();
@@ -302,8 +308,11 @@ export class ReferenceLibraryWorkspace extends LightDomHost {
     await this.refreshBoundProject();
   }
 
-  openCitationNetwork(): Promise<void> {
-    return this.element("citation-network-workspace", CitationNetworkWorkspace)?.open() ?? Promise.resolve();
+  async openCitationNetwork(referenceId: string | null = null, updateHistory = true): Promise<void> {
+    await (this.element("citation-network-workspace", CitationNetworkWorkspace)?.open(referenceId) ?? Promise.resolve());
+    if (updateHistory && referenceId) {
+      this.pushBrowserRoute(libraryCitationNetworkRoute(referenceId), { view: "citation-network", referenceId });
+    }
   }
 
   captureUrl(url: string): void {
