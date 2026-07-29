@@ -65,15 +65,15 @@ The supported browser entry:
 - exposes types through the package `exports` map; and
 - uses a bounded built-in BibTeX parser while keeping Citation.js optional.
 
-Bundled through Kirjolab's narrow consumer adapter, version 0.6.0 measures
-209,158 bytes raw and 63,838 bytes with gzip, effectively matching the previous
-204,779-byte and 62,540-byte local runtime. Upstream browser-bundle smoke tests
+Bundled in Kirjolab's production browser shell, version 0.6.0 measures 204,779
+bytes raw and 62,386 bytes with gzip. The raw size matches the previous local
+runtime and gzip is 154 bytes smaller. Upstream browser-bundle smoke tests
 protect this contract.
 
 ## Kirjolab Syntax Migration
 
-Kirjolab's current manuscripts use reference forms that `scholarmark@0.3.0`
-does not accept directly:
+Kirjolab's earlier manuscripts used reference forms that `scholarmark@0.3.0`
+did not accept directly:
 
 ```markdown
 ## Methods {#methods}
@@ -188,20 +188,54 @@ integration can detect substantial regressions before adoption.
 
 ## Suggested Upstream Acceptance Checks
 
-- [ ] A documented browser import bundles with esbuild without Node polyfills.
-- [ ] The browser bundle contains no Node built-in imports.
-- [ ] Browser rendering remains synchronous and performs no implicit fetches.
-- [ ] Comment, native-figure, scholarly-export, and renderer helpers needed by
+- [x] A documented browser import bundles with esbuild without Node polyfills.
+- [x] The browser bundle contains no Node built-in imports.
+- [x] Browser rendering remains synchronous and performs no implicit fetches.
+- [x] Comment, native-figure, scholarly-export, and renderer helpers needed by
       hosts are public and typed.
-- [ ] Sanitized HTML retains source positions, citation identity, and locators.
-- [ ] Raw HTML and unsafe protocols remain inert.
-- [ ] Package CI exercises browser bundling and representative rendering.
-- [ ] Package CI reports browser bundle raw and gzip sizes.
-- [ ] The package documents which entry is safe for browser use.
+- [x] Sanitized HTML retains source positions, citation identity, and locators.
+- [x] Raw HTML and unsafe protocols remain inert.
+- [x] Package CI exercises browser bundling and representative rendering.
+- [x] Package CI reports browser bundle raw and gzip sizes.
+- [x] The package documents which entry is safe for browser use.
+- [ ] Package exports resolve in CommonJS-aware tools such as Playwright.
 
-## Kirjolab Pilot After Upstream Release
+### Remaining 0.6.0 packaging gap
 
-Once a release satisfies the checks above, Kirjolab can run a bounded pilot:
+Playwright transforms Kirjolab's TypeScript E2E graph through CommonJS. The
+published export map provides only `types` and `import` conditions, so Node
+reports `ERR_PACKAGE_PATH_NOT_EXPORTED` for `require("scholarmark")`. Add a
+`default` condition to each public entry while retaining the existing ESM
+files:
+
+```json
+{
+  ".": {
+    "types": "./dist/index.d.ts",
+    "import": "./dist/index.js",
+    "default": "./dist/index.js"
+  },
+  "./browser": {
+    "types": "./dist/browser.d.ts",
+    "import": "./dist/browser.js",
+    "default": "./dist/browser.js"
+  },
+  "./citation-js": {
+    "types": "./dist/citation-js.d.ts",
+    "import": "./dist/citation-js.js",
+    "default": "./dist/citation-js.js"
+  }
+}
+```
+
+This exact patch makes `require("scholarmark")` succeed on Kirjolab's pinned
+Node runtime and allows all 74 Playwright tests to pass. A package smoke test
+should exercise both `await import("scholarmark")` and
+`require("scholarmark")`.
+
+## Kirjolab Pilot Outcome
+
+Kirjolab completed the bounded implementation in this sequence:
 
 1. Add the pinned Scholarmark release and retain the existing runtime adapter.
 2. Migrate legacy heading ids, aliases, anchors, and references to canonical
@@ -214,5 +248,8 @@ Once a release satisfies the checks above, Kirjolab can run a bounded pilot:
 7. Move shared helper consumers to public Scholarmark exports.
 8. Remove local implementations only after behavioral parity is established.
 
-This sequence lets the package prove that it reduces maintenance without
-coupling the rest of Kirjolab to an unverified renderer migration.
+The migration removes 1,658 net lines while preserving the browser-runtime
+size, sanitizer boundary, and local synchronous rendering contract. Kirjolab
+retains focused host-level contract tests; the package owns the duplicated
+implementation and its detailed unit coverage. Landing remains conditional on
+the export-map patch above so a clean install passes the full local gate.

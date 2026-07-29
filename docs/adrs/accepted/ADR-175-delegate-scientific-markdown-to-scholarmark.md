@@ -21,8 +21,8 @@ Scholarmark 0.6.0 exposes a tree-shakeable browser entry, a bounded
 dependency-free BibTeX parser, synchronous rendering, public integration
 helpers, and an optional Citation.js adapter. Its browser graph contains no Node
 built-ins, Citation.js, fetch dependency, or implicit network behavior. Bundled
-through Kirjolab's narrow adapter, it measures 209,158 bytes raw and 63,838
-bytes with gzip, compared with the current 204,779-byte and 62,540-byte runtime.
+in Kirjolab's production build, it measures 204,779 bytes raw and 62,386 bytes
+with gzip, compared with the previous 204,779-byte and 62,540-byte runtime.
 
 Scholarmark standardizes cross-references around labels attached to Markdown
 blocks. Kirjolab's earlier explicit heading ids, aliases, and standalone anchors
@@ -73,9 +73,10 @@ lightweight bibliography path instead of Citation.js.
 
 **Negative:**
 
-- The measured lazy runtime grows by about 4 kB raw and 1 kB gzip.
 - Scholarmark upgrades become deliberate language and security changes that
   require Kirjolab's parity suite.
+- Version 0.6.0 lacks a default export condition, so Playwright's CommonJS
+  transform cannot resolve the package until an upstream patch release.
 - Existing editable source must move from private aliases, anchors, and heading
   attributes to labels.
 
@@ -83,6 +84,7 @@ lightweight bibliography path instead of Citation.js.
 
 - Markdown and BibTeX remain canonical while syntax trees and HTML remain
   disposable.
+- The lazy runtime retains its raw size and is 154 bytes smaller with gzip.
 - The content-fingerprinted same-origin runtime and stale-render protections do
   not change.
 - Contract-level tests remain local even when implementation-level tests move

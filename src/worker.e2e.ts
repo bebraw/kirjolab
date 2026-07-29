@@ -1746,7 +1746,7 @@ test("highlights Markdown without replacing the native editor", async ({ page })
 
   await expect(highlight).toHaveText(source);
   await expect(highlight.locator(".markdown-token-heading")).toContainText("Findings");
-  await expect(highlight.locator(".markdown-token-directive")).toContainText(":cite[smith2024]");
+  await expect(highlight.locator(".markdown-token-directive", { hasText: ":cite[smith2024]" })).toBeVisible();
   await expect(highlight.locator(".markdown-token-link")).toContainText("[context](https://example.test)");
   const sourceLines = highlight.locator(".source-editor-line");
   await expect(sourceLines).toHaveCount(source.split("\n").length);
@@ -2289,7 +2289,7 @@ test("maps broken export composition back to authored source without losing reco
   await page.goto(`/editor/${workspaceId}`);
   await expect(page.getByText(/Live · 1 writer/)).toBeVisible();
   await page.locator("#source-editor").fill("# Broken\n::include[missing.md]\n");
-  await expect(page.locator("#diagnostic-summary")).toContainText("issues");
+  await expect(page.locator("#diagnostic-summary")).toContainText("1 issue");
   await expect.poll(async () => (await page.request.get(`${api}/export/document.md`)).status()).toBe(422);
 
   const failed = await page.request.get(`${api}/export/document.md`);

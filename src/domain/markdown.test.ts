@@ -60,9 +60,7 @@ See :ref[evidence]{text="the evidence section"}.
 
     const unclosed = renderWorkspaceMarkdown("Visible\n\n::: comment\nHidden", "");
     expect(unclosed.html).not.toContain("Hidden");
-    expect(unclosed.diagnostics).toEqual([
-      { severity: "error", message: "Comment block is not closed", from: 9, to: 20 },
-    ]);
+    expect(unclosed.diagnostics).toEqual([{ severity: "error", message: "Comment block is not closed", from: 9, to: 20 }]);
   });
 
   it("keeps authored HTML inert and strips unsafe protocols", () => {
