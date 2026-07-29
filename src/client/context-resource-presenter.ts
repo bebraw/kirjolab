@@ -896,11 +896,16 @@ export class ContextResourcePresenter extends LightDomController {
     this.contextPresentation?.owners.referenceLibraryWorkspace.replacePdfRoute(this.currentLibraryPdf?.id, page);
   }
 
-  setLibraryPdfInspector(open: boolean, showAnnotations = false): void {
+  setLibraryPdfInspector(open: boolean, panel: "annotations" | "references" = "annotations"): void {
     const inspector = this.element("library-pdf-inspector", LibraryPdfInspector);
-    if (showAnnotations) inspector?.setInspectorOpen(open, true);
-    else inspector?.setInspectorOpen(open);
-    this.element("library-pdf-annotation-toolbar", LibraryPdfAnnotationToolbar)?.setInspectorOpen(open);
+    const toolbar = this.element("library-pdf-annotation-toolbar", LibraryPdfAnnotationToolbar);
+    if (panel === "references") {
+      inspector?.setInspectorOpen(open, panel);
+      toolbar?.setInspectorOpen(open, panel);
+    } else {
+      inspector?.setInspectorOpen(open);
+      toolbar?.setInspectorOpen(open);
+    }
   }
 
   beginLibraryHighlight(artifactId: string, capture: PdfSelectionCapture): void {
@@ -950,12 +955,13 @@ export class ContextResourcePresenter extends LightDomController {
 
   closeLibraryPdfInspector(page: number): LibraryPdfInspectorClosePresentation {
     const inspector = this.element("library-pdf-inspector", LibraryPdfInspector);
+    const panel = inspector?.activePanel ?? "annotations";
     const drafts = inspector?.draftState;
     if (drafts?.highlight) inspector?.clearHighlight(page, "Selection cancelled. Nothing was saved.");
     if (drafts?.note) this.clearLibraryPdfNoteDraft();
     const privateHighlightSelection = drafts?.markup ? this.clearLibraryPdfMarkupSelection() : null;
     this.setLibraryPdfInspector(false);
-    this.element("library-pdf-annotation-toolbar", LibraryPdfAnnotationToolbar)?.focusInspectorButton();
+    this.element("library-pdf-annotation-toolbar", LibraryPdfAnnotationToolbar)?.focusInspectorButton(panel);
     return { clearDraftSelection: drafts?.highlight ?? false, privateHighlightSelection };
   }
 
@@ -1053,7 +1059,8 @@ export class ContextResourcePresenter extends LightDomController {
     if (action.action === "choose-tool") this.applyViewerPresentation(this.chooseLibraryPdfTool(action.tool));
     else if (action.action === "drawing-undone") this.completeLibraryMarkup("Private annotation deleted.");
     else if (action.action === "export-status") this.presentNotice(action.message);
-    else this.setLibraryPdfInspector(true, true);
+    else if (action.action === "open-references") this.setLibraryPdfInspector(true, "references");
+    else this.setLibraryPdfInspector(true, "annotations");
   }
 
   private handleLibraryPdfMarkupAction(action: LibraryPdfMarkupAction): void {

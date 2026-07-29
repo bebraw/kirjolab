@@ -22,7 +22,23 @@ export function createMetadataEvidencePdf(): Buffer {
   });
 }
 
-function createPdf(pageTexts: string[], information?: Readonly<Record<string, string>>, highlighted = false, linked = false): Buffer {
+export function createReferenceEvidencePdf(pageLines: readonly (readonly string[])[]): Buffer {
+  return createPdf(
+    pageLines.map((lines) => lines.join("\n")),
+    undefined,
+    false,
+    false,
+    true,
+  );
+}
+
+function createPdf(
+  pageTexts: string[],
+  information?: Readonly<Record<string, string>>,
+  highlighted = false,
+  linked = false,
+  multiline = false,
+): Buffer {
   const pageIds = pageTexts.map((_, index) => 3 + index);
   const fontId = 3 + pageTexts.length;
   const contentIds = pageTexts.map((_, index) => fontId + 1 + index);
@@ -37,7 +53,15 @@ function createPdf(pageTexts: string[], information?: Readonly<Record<string, st
     "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
     ...pageTexts.map((text) => {
       const highlight = highlighted ? "q 1 0.92 0 rg 68 694 350 24 re f Q\n" : "";
-      const content = `${highlight}BT /F1 18 Tf 72 700 Td (${text}) Tj ET`;
+      const textCommands = multiline
+        ? text
+            .split("\n")
+            .map((line, index) => `${index ? "T* " : ""}(${escapePdfString(line)}) Tj`)
+            .join(" ")
+        : `(${escapePdfString(text)}) Tj`;
+      const fontSize = multiline ? 10 : 18;
+      const leading = multiline ? 14 : 22;
+      const content = `${highlight}BT /F1 ${fontSize} Tf ${leading} TL 72 700 Td ${textCommands} ET`;
       return `<< /Length ${Buffer.byteLength(content)} >>\nstream\n${content}\nendstream`;
     }),
     ...(linked

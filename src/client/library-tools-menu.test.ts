@@ -19,6 +19,10 @@ class TestLibraryToolsMenu extends LibraryToolsMenu {
   toggleForTest(): void {
     this.toggleArchived();
   }
+
+  backfillForTest(): Promise<void> {
+    return this.backfillPdfReferences();
+  }
 }
 
 describe("library tools menu", () => {
@@ -83,8 +87,39 @@ describe("library tools menu", () => {
 
     expect(menu.renderForTest()).toBeDefined();
   });
+
+  it("queues existing PDF analysis and presents progress", async () => {
+    const menu = new TestLibraryToolsMenu();
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(json({ total: 3, missing: 0, queued: 0, running: 0, ready: 3, failed: 0, queuedNow: 2, truncated: false }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await menu.backfillForTest();
+
+    expect(fetchMock).toHaveBeenCalledWith("/api/library/analyses/pdf-references/backfill", {
+      credentials: "same-origin",
+      method: "POST",
+    });
+    expect(menu.renderForTest()).toBeDefined();
+  });
+
+  it("keeps malformed backfill progress retryable", async () => {
+    const menu = new TestLibraryToolsMenu();
+    const fetchMock = vi.fn().mockResolvedValue(json({ invalid: true }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await menu.backfillForTest();
+    await menu.backfillForTest();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(menu.renderForTest()).toBeDefined();
+  });
 });
 
 function zip(): File {
   return new File(["PK"], "library.zip", { type: "application/zip" });
+}
+
+function json(value: unknown): Response {
+  return new Response(JSON.stringify(value), { headers: { "content-type": "application/json" } });
 }

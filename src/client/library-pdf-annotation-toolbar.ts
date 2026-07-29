@@ -8,7 +8,7 @@ import type { PdfAnnotationTool } from "./library-pdf-markup-layer";
 
 export type LibraryPdfToolbarAction =
   | { readonly action: "choose-tool"; readonly tool: PdfAnnotationTool }
-  | { readonly action: "drawing-undone" | "open-inspector" }
+  | { readonly action: "drawing-undone" | "open-inspector" | "open-references" }
   | { readonly action: "export-status"; readonly message: string };
 
 export const libraryPdfToolbarActionEvent = "library-pdf-toolbar-action";
@@ -25,6 +25,7 @@ export class LibraryPdfAnnotationToolbar extends LightDomElement {
     exporting: { state: true },
     annotationCount: { state: true },
     inspectorOpen: { state: true },
+    inspectorPanel: { state: true },
   };
 
   declare private tool: PdfAnnotationTool;
@@ -35,6 +36,7 @@ export class LibraryPdfAnnotationToolbar extends LightDomElement {
   declare private exporting: boolean;
   declare private annotationCount: number;
   declare private inspectorOpen: boolean;
+  declare private inspectorPanel: "annotations" | "references";
   private undoTarget: Pick<UndoDrawing, "id" | "referenceId"> | null = null;
   private exportTarget: { readonly id: string; readonly name: string } | null = null;
 
@@ -48,6 +50,7 @@ export class LibraryPdfAnnotationToolbar extends LightDomElement {
     this.exporting = false;
     this.annotationCount = 0;
     this.inspectorOpen = false;
+    this.inspectorPanel = "annotations";
   }
 
   get drawingStyle(): { readonly color: string; readonly width: number } {
@@ -81,17 +84,19 @@ export class LibraryPdfAnnotationToolbar extends LightDomElement {
     this.requestUpdate();
   }
 
-  setInspectorOpen(open: boolean): void {
+  setInspectorOpen(open: boolean, panel: "annotations" | "references" = "annotations"): void {
     this.inspectorOpen = open;
+    this.inspectorPanel = panel;
   }
 
-  focusInspectorButton(): void {
-    void this.updateComplete.then(() => this.querySelector<HTMLButtonElement>("#open-library-pdf-inspector")?.focus());
+  focusInspectorButton(panel: "annotations" | "references"): void {
+    const id = panel === "references" ? "#open-library-pdf-references" : "#open-library-pdf-inspector";
+    void this.updateComplete.then(() => this.querySelector<HTMLButtonElement>(id)?.focus());
   }
 
   protected override render(): TemplateResult {
     return html`
-      <div class="library-pdf-annotation-tools" role="toolbar" aria-label="PDF annotation tools">
+      <div class="library-pdf-annotation-tools" role="toolbar" aria-label="PDF tools">
         ${this.toolButton("select", "Select, edit, move, or delete an existing annotation")}
         ${this.toolButton("text", "Select text and save a quotation")} ${this.toolButton("note", "Tap the page to attach a private note")}
         <div class="library-draw-rail-control">
@@ -153,7 +158,7 @@ export class LibraryPdfAnnotationToolbar extends LightDomElement {
           id="open-library-pdf-inspector"
           type="button"
           aria-label="Annotations"
-          aria-expanded=${String(this.inspectorOpen)}
+          aria-expanded=${String(this.inspectorOpen && this.inspectorPanel === "annotations")}
           aria-controls="library-highlight-composer"
           title="Open annotations"
           data-touch-target="true"
@@ -161,6 +166,19 @@ export class LibraryPdfAnnotationToolbar extends LightDomElement {
         >
           ${icon("annotations")}<span class="sr-only">Annotations</span
           ><span class="count-badge" id="library-highlight-count">${this.annotationCount}</span>
+        </button>
+        <button
+          class="library-pdf-rail-button button-icon"
+          id="open-library-pdf-references"
+          type="button"
+          aria-label="References"
+          aria-expanded=${String(this.inspectorOpen && this.inspectorPanel === "references")}
+          aria-controls="library-highlight-composer"
+          title="Open references"
+          data-touch-target="true"
+          @click=${() => this.emitAction({ action: "open-references" })}
+        >
+          ${icon("research")}<span class="sr-only">References</span>
         </button>
       </div>
     `;

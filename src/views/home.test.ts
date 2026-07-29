@@ -208,7 +208,7 @@ describe("renderHomePage", () => {
     expect(html).toContain('id="github-pull-review"');
     expect(html).toContain('id="github-sync-menu"');
     expect(html).toContain('id="github-sync-push"');
-    expect(html.match(/data-touch-target="true"/gu)).toHaveLength(9);
+    expect(html.match(/data-touch-target="true"/gu)).toHaveLength(10);
     expect(html).toContain('id="archive-workspace" type="button" data-destructive="true"');
     expect(html).toContain('id="context-resource-tabs" role="presentation"');
     expect(html).toContain('id="context-tab-overview" data-action-menu hidden');
@@ -245,8 +245,9 @@ describe("renderHomePage", () => {
     expect(html).toContain('id="library-highlight-composer"');
     expect(html).toContain('<pdf-highlight-import-panel class="library-highlight-import" id="pdf-highlight-import-panel"');
     expect(html).toContain('id="open-library-pdf-inspector"');
+    expect(html).toContain('id="open-library-pdf-references"');
     expect(html).toContain('id="close-library-pdf-inspector"');
-    expect(html).toContain('role="toolbar" aria-label="PDF annotation tools"');
+    expect(html).toContain('role="toolbar" aria-label="PDF tools"');
     expect(html).toContain('<library-pdf-annotation-forms id="library-pdf-annotation-forms">');
     expect(html).toContain('id="library-project-use"');
     expect(html).toContain('<unidentified-pdf-list id="unidentified-pdf-list-panel">');

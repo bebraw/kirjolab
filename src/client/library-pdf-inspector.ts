@@ -28,6 +28,7 @@ import { projectReferenceChangedEvent, type ProjectReferenceChanged } from "./pr
 import { projectResearchChangedEvent, type ProjectResearchChanged } from "./project-research-mutation";
 
 export const libraryPdfInspectorCloseEvent = "library-pdf-inspector-close";
+export type LibraryPdfInspectorPanel = "annotations" | "references";
 
 export interface LibraryPdfInspectorContext {
   readonly artifact: LibraryPdfArtifact;
@@ -58,12 +59,14 @@ export class LibraryPdfInspector extends EagerLightDomElement {
   static override properties = {
     artifactId: { state: true },
     inspectorOpen: { state: true },
+    inspectorPanel: { state: true },
     status: { state: true },
     visible: { state: true },
   };
 
   declare private artifactId: string;
   declare private inspectorOpen: boolean;
+  declare private inspectorPanel: LibraryPdfInspectorPanel;
   declare private status: string;
   declare private visible: boolean;
   private projectMutations: LibraryProjectMutations | null = null;
@@ -72,6 +75,7 @@ export class LibraryPdfInspector extends EagerLightDomElement {
     super();
     this.artifactId = "";
     this.inspectorOpen = false;
+    this.inspectorPanel = "annotations";
     this.status = "Select text to highlight.";
     this.visible = false;
     this.addEventListener(projectReferenceChangedEvent, (event) => {
@@ -108,9 +112,13 @@ export class LibraryPdfInspector extends EagerLightDomElement {
     this.status = status;
   }
 
-  setInspectorOpen(open: boolean, showAnnotations = false): void {
+  setInspectorOpen(open: boolean, panel: LibraryPdfInspectorPanel = "annotations"): void {
     this.inspectorOpen = open;
-    if (showAnnotations) this.querySelector<HTMLDetailsElement>("#library-annotation-details")?.setAttribute("open", "");
+    this.inspectorPanel = panel;
+  }
+
+  get activePanel(): LibraryPdfInspectorPanel {
+    return this.inspectorPanel;
   }
 
   setContext(context: LibraryPdfInspectorContext): LibraryPdfInspectorProjection {
@@ -222,6 +230,7 @@ export class LibraryPdfInspector extends EagerLightDomElement {
   }
 
   protected override render(): TemplateResult {
+    const showsReferences = this.inspectorPanel === "references";
     return html`
       <aside
         class="annotation-composer library-pdf-tools"
@@ -233,8 +242,12 @@ export class LibraryPdfInspector extends EagerLightDomElement {
       >
         <header class="library-pdf-inspector-header">
           <div>
-            <p class="eyebrow">PDF annotations</p>
-            <p class="library-pdf-status ui-status" id="library-highlight-status" role="status" aria-live="polite">${this.status}</p>
+            <p class="eyebrow">${showsReferences ? "PDF references" : "PDF annotations"}</p>
+            ${showsReferences
+              ? html`<p class="library-pdf-status ui-status">Review the bibliography detected in this PDF.</p>`
+              : html`<p class="library-pdf-status ui-status" id="library-highlight-status" role="status" aria-live="polite">
+                  ${this.status}
+                </p>`}
           </div>
           <button
             class="library-pdf-inspector-close"
@@ -247,9 +260,14 @@ export class LibraryPdfInspector extends EagerLightDomElement {
             ×
           </button>
         </header>
-        <library-pdf-annotation-forms id="library-pdf-annotation-forms"></library-pdf-annotation-forms>
-        <details class="library-annotation-details" id="library-annotation-details">
-          <summary><span>Annotations and references</span></summary>
+        <library-pdf-annotation-forms ?hidden=${showsReferences} id="library-pdf-annotation-forms"></library-pdf-annotation-forms>
+        <details
+          ?hidden=${showsReferences}
+          ?open=${this.inspectorOpen && !showsReferences}
+          class="library-annotation-details"
+          id="library-annotation-details"
+        >
+          <summary><span>Annotations</span></summary>
           <div class="library-annotation-details-body">
             <pdf-highlight-import-panel
               class="library-highlight-import"
@@ -257,20 +275,19 @@ export class LibraryPdfInspector extends EagerLightDomElement {
               aria-labelledby="library-highlight-import-title"
             ></pdf-highlight-import-panel>
             <library-pdf-annotation-list class="space-y-2" id="library-highlight-list"></library-pdf-annotation-list>
-            <details class="library-project-details" open>
-              <summary>References</summary>
-              <pdf-reference-analysis-panel
-                class="mt-2 block"
-                id="pdf-reference-analysis-panel"
-                aria-labelledby="pdf-reference-analysis-title"
-              ></pdf-reference-analysis-panel>
-            </details>
             <details class="library-project-details">
               <summary>Project sharing</summary>
               <library-pdf-project-use class="mt-2" id="library-project-use"></library-pdf-project-use>
             </details>
           </div>
         </details>
+        <div ?hidden=${!showsReferences} class="library-pdf-reference-panel">
+          <pdf-reference-analysis-panel
+            class="block"
+            id="pdf-reference-analysis-panel"
+            aria-labelledby="pdf-reference-analysis-title"
+          ></pdf-reference-analysis-panel>
+        </div>
       </aside>
     `;
   }

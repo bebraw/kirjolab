@@ -862,6 +862,44 @@ describe("reference library API", () => {
     expect(fixture.sendArtifactAnalysis).toHaveBeenCalledOnce();
   });
 
+  it("reports and queues bounded reference-analysis backfill progress", async () => {
+    const fixture = apiFixture();
+    const artifact = (await fixture.library.createPdfDraft()).artifact;
+    fixture.library.getSnapshot.mockResolvedValue({ ...snapshot, artifacts: [artifact] });
+    fixture.library.getArtifactAnalysis.mockResolvedValueOnce(null);
+    const route = "/api/library/analyses/pdf-references/backfill";
+
+    const queued = await handleReferenceLibraryApi(new Request(`https://example.test${route}`, { method: "POST" }), fixture.env, identity);
+
+    expect(queued.status).toBe(200);
+    await expect(queued.json()).resolves.toEqual({
+      failed: 0,
+      missing: 0,
+      queued: 1,
+      queuedNow: 1,
+      ready: 0,
+      running: 0,
+      total: 1,
+      truncated: false,
+    });
+    expect(fixture.library.queueArtifactAnalysis).toHaveBeenCalledWith(artifact.id, "pdf-references", expect.any(String), false);
+    expect(fixture.sendArtifactAnalysis).toHaveBeenCalledOnce();
+
+    fixture.library.getArtifactAnalysis.mockResolvedValueOnce({
+      artifactId: artifact.id,
+      fingerprint: artifact.fingerprint,
+      kind: "pdf-references",
+      status: "ready",
+      result: { candidates: [], pagesScanned: 1, pagesTotal: 1, referencesStartPage: null, truncated: false },
+      error: "",
+      requestedAt: now,
+      startedAt: now,
+      completedAt: now,
+    });
+    const progress = await handleReferenceLibraryApi(new Request(`https://example.test${route}`), fixture.env, identity);
+    await expect(progress.json()).resolves.toMatchObject({ ready: 1, total: 1, queuedNow: 0 });
+  });
+
   it("serves and records server-validated PDF reference reviews", async () => {
     const fixture = apiFixture();
     const route = "/api/library/pdfs/22222222-2222-4222-8222-222222222222/reference-review";

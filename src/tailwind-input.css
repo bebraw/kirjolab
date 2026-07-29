@@ -3250,6 +3250,10 @@
     margin-top: 0.2rem;
   }
 
+  .library-pdf-reference-panel {
+    padding: 0.75rem;
+  }
+
   .library-pdf-inspector-close {
     display: grid;
     width: 2rem;

@@ -10,6 +10,7 @@ import {
   maximumMetadataRefinementCandidates,
   normalizeWebSourceUrl,
   type ArtifactAnalysis,
+  type ArtifactAnalysisBackfillStatus,
   type ArtifactAnalysisJob,
   type ArtifactAnalysisKind,
   type BibliographicRecord,
@@ -76,6 +77,8 @@ const maximumPdfBytes = 25 * 1024 * 1024;
 const maximumWebRawBytes = 2 * 1024 * 1024;
 const maximumWebReadableBytes = 1024 * 1024;
 const maximumWebRedirects = 5;
+const maximumBackfillArtifacts = 500;
+const maximumBackfillQueueBatch = 25;
 
 type ExternalFetch = (input: string | URL | Request, init?: RequestInit) => Promise<Response>;
 
@@ -399,12 +402,58 @@ async function handleLibraryCollectionRoutes(context: ReferenceLibraryRouteConte
   if (suffix === "/" && request.method === "GET") {
     return Response.json(await library.getSnapshot(url.searchParams.get("archived") === "include"), noStore());
   }
+  if (suffix === "/analyses/pdf-references/backfill" && (request.method === "GET" || request.method === "POST")) {
+    return await handlePdfReferenceBackfill(context);
+  }
 
   const importResponse = await handleLibraryImportRoutes(context);
   if (importResponse) return importResponse;
   const discoveryResponse = await handleLibraryDiscoveryRoute(context);
   if (discoveryResponse) return discoveryResponse;
   return await handleLibraryExportRoutes(context);
+}
+
+async function handlePdfReferenceBackfill(context: ReferenceLibraryRouteContext): Promise<Response> {
+  const { request, identity, env, library } = context;
+  if (request.method === "POST" && !env.ARTIFACT_ANALYSIS_QUEUE) {
+    return jsonError("Artifact analysis queue is unavailable", 503);
+  }
+  const snapshot = await library.getSnapshot(true);
+  const artifacts = snapshot.artifacts.slice(0, maximumBackfillArtifacts);
+  const analyses = await Promise.all(artifacts.map(async ({ id }) => await library.getArtifactAnalysis(id, "pdf-references")));
+  let queuedNow = 0;
+  if (request.method === "POST") {
+    const candidates = artifacts
+      .filter((_artifact, index) => !analyses[index] || analyses[index]?.status === "failed")
+      .slice(0, maximumBackfillQueueBatch);
+    const queued = await Promise.all(
+      candidates.map(async ({ id }) => await enqueueArtifactAnalysis(identity.ownerKey, id, "pdf-references", env, library)),
+    );
+    queuedNow = queued.filter(({ status }) => status === "queued").length;
+    for (const [index, artifact] of artifacts.entries()) {
+      const updated = queued.find(({ artifactId }) => artifactId === artifact.id);
+      if (updated) analyses[index] = updated;
+    }
+  }
+  return Response.json(pdfReferenceBackfillStatus(analyses, snapshot.artifacts.length > maximumBackfillArtifacts, queuedNow), noStore());
+}
+
+function pdfReferenceBackfillStatus(
+  analyses: readonly (ArtifactAnalysis | null)[],
+  truncated: boolean,
+  queuedNow: number,
+): ArtifactAnalysisBackfillStatus {
+  const count = (status: ArtifactAnalysis["status"]): number => analyses.filter((analysis) => analysis?.status === status).length;
+  return {
+    total: analyses.length,
+    missing: analyses.filter((analysis) => analysis === null).length,
+    queued: count("queued"),
+    running: count("running"),
+    ready: count("ready"),
+    failed: count("failed"),
+    queuedNow,
+    truncated,
+  };
 }
 
 async function handleLibraryImportRoutes(context: ReferenceLibraryRouteContext): Promise<Response | null> {

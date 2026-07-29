@@ -105,6 +105,7 @@ describe("library PDF annotation toolbar", () => {
     toolbar.emitForTest({ action: "drawing-undone" });
     toolbar.emitForTest({ action: "export-status", message: "Preparing annotated PDF…" });
     toolbar.emitForTest({ action: "open-inspector" });
+    toolbar.emitForTest({ action: "open-references" });
 
     expect(actions).toEqual([
       { action: "choose-tool", tool: "select" },
@@ -114,6 +115,7 @@ describe("library PDF annotation toolbar", () => {
       { action: "drawing-undone" },
       { action: "export-status", message: "Preparing annotated PDF…" },
       { action: "open-inspector" },
+      { action: "open-references" },
     ]);
   });
 

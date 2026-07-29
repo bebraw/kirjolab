@@ -60,6 +60,17 @@ export interface ArtifactAnalysisJob {
   readonly requestedAt: string;
 }
 
+export interface ArtifactAnalysisBackfillStatus {
+  readonly total: number;
+  readonly missing: number;
+  readonly queued: number;
+  readonly running: number;
+  readonly ready: number;
+  readonly failed: number;
+  readonly queuedNow: number;
+  readonly truncated: boolean;
+}
+
 export function isPdfHighlightAnalysisResult(value: unknown): value is PdfHighlightAnalysisResult {
   return (
     isRecord(value) &&
@@ -116,6 +127,25 @@ export function isArtifactAnalysisJob(value: unknown): value is ArtifactAnalysis
     (value.kind === "pdf-highlights" || value.kind === "pdf-references") &&
     typeof value.requestedAt === "string"
   );
+}
+
+export function isArtifactAnalysisBackfillStatus(value: unknown): value is ArtifactAnalysisBackfillStatus {
+  return (
+    isRecord(value) &&
+    isCount(value.total) &&
+    isCount(value.missing) &&
+    isCount(value.queued) &&
+    isCount(value.running) &&
+    isCount(value.ready) &&
+    isCount(value.failed) &&
+    isCount(value.queuedNow) &&
+    typeof value.truncated === "boolean" &&
+    value.missing + value.queued + value.running + value.ready + value.failed === value.total
+  );
+}
+
+function isCount(value: unknown): value is number {
+  return typeof value === "number" && Number.isInteger(value) && value >= 0;
 }
 
 export function isPdfReferenceAnalysisCandidate(value: unknown): value is PdfReferenceAnalysisCandidate {

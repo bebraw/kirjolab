@@ -152,6 +152,14 @@ class TestLibraryPdfInspector extends LibraryPdfInspector {
   }
 }
 
+function templateMarkup(value: unknown): string {
+  if (typeof value === "string") return value;
+  if (Array.isArray(value)) return value.map(templateMarkup).join("");
+  if (!value || typeof value !== "object") return "";
+  const template = value as { readonly strings?: readonly string[]; readonly values?: readonly unknown[] };
+  return [...(template.strings ?? []), ...(Array.isArray(template.values) ? template.values.map(templateMarkup) : [])].join("");
+}
+
 describe("library PDF inspector", () => {
   it("registers every child component it owns", () => {
     expect(customElements.get("library-pdf-annotation-forms")).toBeDefined();
@@ -171,6 +179,16 @@ describe("library PDF inspector", () => {
     expect(inspector.showsArtifactForTest("pdf-1")).toBe(true);
     expect(inspector.showsArtifactForTest("pdf-2")).toBe(false);
     expect(inspector.renderForTest()).toBeDefined();
+  });
+
+  it("presents references independently from annotations and project sharing", () => {
+    const inspector = new TestLibraryPdfInspector();
+    inspector.setInspectorOpen(true, "references");
+    const markup = templateMarkup(inspector.renderForTest());
+
+    expect(inspector.activePanel).toBe("references");
+    expect(markup).toContain('class="library-pdf-reference-panel"');
+    expect(markup.match(/class="library-project-details"/gu)).toHaveLength(1);
   });
 
   it("emits a close intent", () => {

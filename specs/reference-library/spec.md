@@ -231,6 +231,11 @@ memory and makes citation aliases compete with stable source identity.
   separate highlights.
 - A successful PDF intake automatically queues independent private highlight
   and reference analyses.
+  Existing PDFs can be queued in bounded batches of 25 from Library tools. A
+  read-only progress summary reports missing, queued, running, ready, and failed
+  counts across at most 500 artifacts, and the client polls only while work is
+  active. Repeated requests reuse ready or in-flight fingerprint-qualified
+  analyses while retrying missing or failed work.
   Standard PDF highlight annotations retain their bounded geometry and optional
   comment; flattened yellow page graphics are detected from a bounded managed-
   browser render and matched back to the PDF text layer. Candidates
@@ -255,8 +260,9 @@ memory and makes citation aliases compete with stable source identity.
   a conventional References, Bibliography, Works Cited, or Literature Cited
   heading. It returns at most 128 numbered or author-year entries with their
   bounded raw citation, source page, and best-effort title, authors, year, DOI,
-  URL, and confidence. The reader presents those candidates in a separate
-  References disclosure with DOI/source links and an explicit rerun control
+  URL, and confidence. The reader presents those candidates in a dedicated
+  PDF references panel, opened independently from PDF annotations, with
+  DOI/source links and an explicit rerun control
   after ready or failed analysis. Reference candidates do not silently create
   library records, citation assertions, or project state. A generic versioned
   artifact-analysis envelope allows later analysis kinds to reuse the same queue
@@ -275,6 +281,10 @@ memory and makes citation aliases compete with stable source identity.
   stale asynchronous results after that identity changes, and emits only a
   typed completed-import outcome. The application coordinator retains
   canonical Library refresh and completion toast policy.
+- A table-driven evaluation corpus passes syntactically valid PDF bytes through
+  PDF.js text extraction before checking bibliography location, candidate count,
+  and DOI recovery. It covers numbered, author-year, and absent-bibliography
+  documents without storing third-party copyrighted fixtures.
 - The private reader stays focused on the page: its idle annotation surface is
   a compact Select, Text, Note, and Draw toolbar. One typed interaction
   owner keeps tool selection, note composition, saved-resource selection, note

@@ -606,7 +606,7 @@ test("imports, annotates, and exports a private PDF without a project", async ({
   await page.setViewportSize({ width: 1440, height: 900 });
   await expect(page.locator("header #pdf-context-controls")).toBeHidden();
   await page.setViewportSize({ width: 1024, height: 640 });
-  await expect(page.getByRole("toolbar", { name: "PDF annotation tools" })).toBeVisible();
+  await expect(page.getByRole("toolbar", { name: "PDF tools" })).toBeVisible();
   const compactRail = await page.locator(".library-pdf-page-rail").evaluate((rail) => {
     const railBounds = rail.getBoundingClientRect();
     const pageControlsBounds = rail.querySelector<HTMLElement>(".library-pdf-page-controls")?.getBoundingClientRect();
@@ -661,7 +661,11 @@ test("imports, annotates, and exports a private PDF without a project", async ({
   await page.getByRole("button", { name: "Annotations", exact: true }).click();
   await expect(page.locator("#library-highlight-import-status")).toContainText("1 candidate found");
   await expect(page.locator("#library-highlight-import-list")).toContainText("Knowledge grows through inspectable evidence.");
+  await page.getByRole("button", { name: "References", exact: true }).click();
+  await expect(page.getByRole("button", { name: "References", exact: true })).toHaveAttribute("aria-expanded", "true");
+  await expect(page.getByRole("button", { name: "Annotations", exact: true })).toHaveAttribute("aria-expanded", "false");
   await expect(page.locator("#pdf-reference-analysis-list")).toContainText("Inspectable references");
+  await page.getByRole("button", { name: "Annotations", exact: true }).click();
   await page.getByLabel("Private note for detected highlight on page 1").fill("Imported from the PDF");
   await page.getByRole("button", { name: "Import selected" }).click();
   await expect(page.locator("#toast")).toHaveText("1 PDF highlight imported to your library.");
@@ -2580,7 +2584,7 @@ test("shares linked reference PDFs with members but not public links", async ({ 
   await expect(page.locator("#annotation-composer")).toBeHidden();
   await expect(page.locator("#library-highlight-composer")).toBeHidden();
   await expect(page.locator("#library-highlight-composer")).not.toContainText("Highlight this PDF");
-  await expect(page.getByRole("toolbar", { name: "PDF annotation tools" })).toBeVisible();
+  await expect(page.getByRole("toolbar", { name: "PDF tools" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Select", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Text", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Note", exact: true })).toBeVisible();

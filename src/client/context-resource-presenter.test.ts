@@ -1632,6 +1632,7 @@ describe("context resource presenter", () => {
     const inspector = elements["library-pdf-inspector"];
     const bindProjectMutations = vi.spyOn(inspector, "bindProjectMutations");
     const setStatus = vi.spyOn(inspector, "setStatus");
+    const setInspectorOpen = vi.spyOn(inspector, "setInspectorOpen");
     vi.spyOn(inspector, "clearNote").mockImplementation(() => undefined);
     vi.spyOn(inspector, "clearMarkup").mockImplementation(() => undefined);
     vi.spyOn(inspector, "draftState", "get").mockReturnValue({ highlight: false, markup: false, note: false });
@@ -1644,6 +1645,9 @@ describe("context resource presenter", () => {
     elements["library-pdf-annotation-toolbar"].dispatchEvent(
       new CustomEvent("library-pdf-toolbar-action", { detail: { action: "choose-tool", tool: "text" } }),
     );
+    elements["library-pdf-annotation-toolbar"].dispatchEvent(
+      new CustomEvent("library-pdf-toolbar-action", { detail: { action: "open-references" } }),
+    );
     elements["paper-markups"].dispatchEvent(new CustomEvent("library-pdf-markup-action", { detail: { action: "drawing-saved" } }));
     elements["library-pdf-inspector"].dispatchEvent(
       new CustomEvent("library-pdf-annotation-list-action", { detail: { action: "open-highlight", highlight } }),
@@ -1654,6 +1658,7 @@ describe("context resource presenter", () => {
 
     expect(viewer.setTextSelectionEnabled).toHaveBeenCalledWith(true);
     expect(viewer.setPrivateHighlightSelection).toHaveBeenCalledWith(false, null);
+    expect(setInspectorOpen).toHaveBeenCalledWith(true, "references");
     expect(coordinator.completeMarkup).toHaveBeenCalledWith("Drawing saved privately.");
     await vi.waitFor(() => expect(openPdf).toHaveBeenCalledWith(libraryPdf, highlight.page));
     expect(setStatus).toHaveBeenCalledWith("Showing saved private highlight on page 2.");
