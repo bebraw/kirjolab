@@ -25,6 +25,17 @@ memory and makes citation aliases compete with stable source identity.
   generated project aliases and canonical citations follow the refinement;
   custom or colliding aliases remain unchanged. Imported and non-PDF keys
   become final when exposed to a project. UUIDs remain the relational identity.
+- Library tools report possible duplicates only for equal normalized DOI or an
+  exact normalized title, year, and first-author surname. Conflicting non-empty
+  DOIs are never candidates. Detection is read-only; the owner explicitly
+  chooses the canonical record for each merge.
+- `POST /api/library/reconciliation/merge` revalidates the match and optimistic
+  timestamps in the owner Library authority. One synchronous transaction moves
+  artifacts, notes, highlights, PDF markups, tags, collections, reading state,
+  PDF reference reviews, and citation assertions; fills only missing canonical
+  metadata with provenance; and soft-deletes the duplicate. A duplicate with a
+  project dependency, web-capture history, or research share is blocked until
+  the owner removes that external dependency.
 - Type-specific required fields follow common BibTeX entry types. DOI is not
   universally required. Every editable metadata field stores method, capture
   time, and actor provenance.
@@ -533,6 +544,10 @@ memory and makes citation aliases compete with stable source identity.
 - Citation assertion, review, bounded network, and explicit Crossref reference
   expansion routes remain within the same owner-private API. A project id only
   filters the projection; it does not grant library access.
+- Reconciliation report and merge routes remain owner-private and
+  non-cacheable. Merge commands contain only stable identities and the two
+  reviewed `updatedAt` values; the server never trusts candidate metadata from
+  the browser.
 - Metadata refinement preview and acceptance routes are owner-private and
   non-cacheable. A one-to-four-provider batch must describe one normalized DOI,
   assign every field once, and fail without mutation on invalid, stale, mixed,
@@ -592,7 +607,8 @@ memory and makes citation aliases compete with stable source identity.
 - Real-`workerd` tests cover stable upsert, private state, PDF identification,
   project dependency impact, archive, tombstone deletion, project aliases,
   derived bibliography, cited-only filtering, alias rewrites, and selective
-  provider-specific provenance.
+  provider-specific provenance. They also cover strong duplicate detection and
+  atomic reparenting of private research and citation assertions.
 - Key tests cover surname/year generation, sparse fallbacks, topical and numeric
   collision suffixes, linked PDF refinement, generated-alias rewrites, and
   preservation of custom aliases.

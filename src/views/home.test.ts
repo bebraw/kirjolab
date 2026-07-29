@@ -84,6 +84,7 @@ describe("renderHomePage", () => {
     expect(html).toContain('id="citation-network" aria-labelledby="citation-network-heading"');
     expect(html).toContain('id="filter-project-citations" type="button" aria-pressed="false"');
     expect(html).toContain('<citation-network-workspace class="mt-6 border-t border-app-line pt-5"');
+    expect(html).toContain('<reference-reconciliation-panel class="mt-6 border-t border-app-line pt-5"');
     expect(html).toContain('id="citation-assertion-form"');
     expect(html).toContain('id="citation-network-graph" viewBox="0 0 800 360" role="img" aria-label="Citation network graph"');
     expect(html).toContain('id="citation-network-list" aria-live="polite"');
@@ -374,6 +375,7 @@ describe("renderHomePage", () => {
     expect(html).toContain("Results are not saved automatically.");
     expect(html).toContain('title="Filter and sort references">Filter</summary>');
     expect(html).toContain('aria-label="Library tools" title="Library tools">•••</summary>');
+    expect(html).toContain('id="open-reference-reconciliation" type="button">Find duplicate references</button>');
     expect(html).not.toContain("Private research memory");
     expect(html).not.toContain("Filters and library tools");
     expect(html).not.toContain("Add the source now");

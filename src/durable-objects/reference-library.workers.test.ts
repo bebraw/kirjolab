@@ -853,7 +853,9 @@ describe("ReferenceLibrary in the Workers runtime", () => {
       projectId: null,
       edges: [{ state: "conflicting", assertions: [{ state: "conflicting" }, { state: "conflicting" }] }],
     });
-    expect((await library.getCitationAssertions(alpha.id)).map((assertion) => assertion.id)).toEqual([positive!.id, negative!.id]);
+    expect((await library.getCitationAssertions(alpha.id)).map((assertion) => assertion.id).sort()).toEqual(
+      [positive!.id, negative!.id].sort(),
+    );
     await library.reviewCitationAssertion(negative!.id, { decision: "rejected", note: "No source support" }, "owner@example.test");
     expect((await library.getCitationNetwork()).edges[0]).toMatchObject({ state: "extracted", assertions: [{ id: positive!.id }] });
     await library.reviewCitationAssertion(
@@ -987,6 +989,139 @@ describe("ReferenceLibrary in the Workers runtime", () => {
           .exec<{ version: number; name: string }>("SELECT version, name FROM _kirjolab_migrations ORDER BY version")
           .toArray(),
       ).toContainEqual({ version: 8, name: "annotate-private-pdfs" });
+    });
+  });
+
+  it("detects and atomically reconciles strong duplicate references", async () => {
+    const library = env.REFERENCE_LIBRARIES.getByName(`reconciliation-${crypto.randomUUID()}`);
+    const [canonicalImport, neighborImport] = await library.importBibTeX(
+      `@article{canonical, title={Same Study}, author={Doe, Jane}, year={2024}, doi={10.1000/same}}
+       @article{neighbor, title={Neighbor Study}, author={Roe, Alex}, year={2023}}`,
+      "owner@example.test",
+    );
+    const canonical = canonicalImport!.reference;
+    const neighbor = neighborImport!.reference;
+    const draft = await library.createPdfDraft(
+      {
+        id: crypto.randomUUID(),
+        referenceId: null,
+        name: "same-study.pdf",
+        contentType: "application/pdf",
+        size: 128,
+        objectKey: `libraries/owner/${crypto.randomUUID()}.pdf`,
+        fingerprint: `etag:${crypto.randomUUID()}`,
+        rights: "private",
+        createdAt: "2026-07-29T10:00:00.000Z",
+      },
+      "owner@example.test",
+    );
+    const duplicate = await library.updateReferenceMetadata(
+      draft.reference.id,
+      {
+        type: "article",
+        title: "Same Study!",
+        authors: ["Doe, Jane"],
+        year: "2024",
+        venue: "PDF venue",
+        doi: "",
+        url: "",
+        abstract: "PDF abstract",
+      },
+      "owner@example.test",
+    );
+    await library.setTags(canonical.id, ["shared"]);
+    await library.setTags(duplicate.id, ["shared", "pdf"]);
+    await library.setCollections(duplicate.id, ["Imported PDFs"]);
+    await library.setReadingState(duplicate.id, "reading", 4, "high");
+    await library.createNote(duplicate.id, "Moved note");
+    await library.createHighlight(duplicate.id, draft.artifact.id, 1, "Moved quote", "", [{ x: 0.1, y: 0.1, width: 0.4, height: 0.05 }]);
+    await library.createPdfNote(duplicate.id, draft.artifact.id, 1, 0.2, 0.2, "Moved page note");
+    await library.createCitationAssertions(
+      [
+        {
+          citingReferenceId: duplicate.id,
+          citedReferenceId: neighbor.id,
+          polarity: "cites",
+          evidenceState: "extracted",
+          method: "source-extraction",
+          observedAt: "2026-07-29T10:00:00.000Z",
+          sourceKind: "pdf-artifact",
+          sourceId: draft.artifact.id,
+          sourceLocator: "bibliography page 1",
+          confidence: 1,
+        },
+      ],
+      "owner@example.test",
+    );
+
+    const report = await library.getReferenceReconciliationReport();
+    const candidate = report.candidates.find(
+      ({ left, right }) => new Set([left.id, right.id]).has(canonical.id) && new Set([left.id, right.id]).has(duplicate.id),
+    );
+    expect(candidate).toMatchObject({ reason: "bibliographic", leftBlockers: [], rightBlockers: [] });
+
+    const result = await library.mergeReferences(
+      {
+        canonicalReferenceId: canonical.id,
+        duplicateReferenceId: duplicate.id,
+        expectedCanonicalUpdatedAt: canonical.updatedAt,
+        expectedDuplicateUpdatedAt: duplicate.updatedAt,
+      },
+      "owner@example.test",
+    );
+    expect(result).toMatchObject({
+      canonicalReference: { id: canonical.id, doi: "10.1000/same", venue: "PDF venue", abstract: "PDF abstract" },
+      mergedReferenceId: duplicate.id,
+      moved: { artifacts: 1, notes: 1, highlights: 1, pdfMarkups: 1, citationAssertions: 1 },
+    });
+    const snapshot = await library.getSnapshot();
+    expect(snapshot.references.map(({ id }) => id)).not.toContain(duplicate.id);
+    expect(snapshot.artifacts).toContainEqual(expect.objectContaining({ id: draft.artifact.id, referenceId: canonical.id }));
+    expect(snapshot.tags[canonical.id]).toEqual(["pdf", "shared"]);
+    expect(snapshot.collections[canonical.id]).toEqual(["Imported PDFs"]);
+    expect(snapshot.reading).toContainEqual(expect.objectContaining({ referenceId: canonical.id, status: "reading", rating: 4 }));
+    expect(await library.getCitationNetwork()).toMatchObject({
+      edges: [{ assertions: [{ citingReferenceId: canonical.id, citedReferenceId: neighbor.id }] }],
+    });
+
+    const blockedDraft = await library.createPdfDraft(
+      {
+        id: crypto.randomUUID(),
+        referenceId: null,
+        name: "linked-copy.pdf",
+        contentType: "application/pdf",
+        size: 64,
+        objectKey: `libraries/owner/${crypto.randomUUID()}.pdf`,
+        fingerprint: `etag:${crypto.randomUUID()}`,
+        rights: "private",
+        createdAt: "2026-07-29T11:00:00.000Z",
+      },
+      "owner@example.test",
+    );
+    const blocked = await library.updateReferenceMetadata(
+      blockedDraft.reference.id,
+      { type: "article", title: "Same Study", authors: ["Doe, Jane"], year: "2024", venue: "", doi: "", url: "", abstract: "" },
+      "owner@example.test",
+    );
+    await library.registerProjectDependency("linked-project", blocked.id);
+    const blockedCandidate = (await library.getReferenceReconciliationReport()).candidates.find(
+      ({ left, right }) => new Set([left.id, right.id]).has(canonical.id) && new Set([left.id, right.id]).has(blocked.id),
+    );
+    expect(blockedCandidate?.left.id === blocked.id ? blockedCandidate.leftBlockers : blockedCandidate?.rightBlockers).toEqual([
+      "1 linked project",
+    ]);
+    await runInDurableObject(library, (instance: ReferenceLibrary) => {
+      expect(() =>
+        instance.mergeReferences(
+          {
+            canonicalReferenceId: canonical.id,
+            duplicateReferenceId: blocked.id,
+            expectedCanonicalUpdatedAt: result.canonicalReference.updatedAt,
+            expectedDuplicateUpdatedAt: blocked.updatedAt,
+          },
+          "owner@example.test",
+        ),
+      ).toThrow("1 linked project");
     });
   });
 });

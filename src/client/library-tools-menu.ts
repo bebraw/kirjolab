@@ -12,7 +12,7 @@ export interface LibraryToolsArchiveRefresh {
   readonly requestId: number;
 }
 
-export type LibraryToolsAction = "archive-visibility-change" | "open-citation-network";
+export type LibraryToolsAction = "archive-visibility-change" | "open-citation-network" | "open-reconciliation";
 
 export class LibraryToolsMenu extends EagerLightDomElement {
   static override properties = {
@@ -75,6 +75,7 @@ export class LibraryToolsMenu extends EagerLightDomElement {
           <a href="/api/library/export/csl.json">Export CSL JSON</a>
           <a href="/api/library/export/library.zip">Export library</a>
           <button id="open-citation-network" type="button" @click=${this.openCitationNetwork}>Reference trail</button>
+          <button id="open-reference-reconciliation" type="button" @click=${this.openReconciliation}>Find duplicate references</button>
           <button id="backfill-pdf-references" type="button" ?disabled=${this.analysisBusy} @click=${this.backfillPdfReferences}>
             ${this.analysisBusy ? "Queueing analysis…" : "Analyze existing PDFs"}
           </button>
@@ -123,6 +124,10 @@ export class LibraryToolsMenu extends EagerLightDomElement {
 
   protected openCitationNetwork(): void {
     this.emit("open-citation-network");
+  }
+
+  protected openReconciliation(): void {
+    this.emit("open-reconciliation");
   }
 
   protected backfillPdfReferences(): Promise<void> {

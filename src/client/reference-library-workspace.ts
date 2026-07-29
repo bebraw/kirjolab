@@ -40,6 +40,11 @@ import type { ExistingPdfUpload } from "./pdf-upload-queue";
 import { projectReferenceChangedEvent, type ProjectReferenceChanged } from "./project-reference-mutation";
 import { projectResearchChangedEvent, type ProjectResearchChanged } from "./project-research-mutation";
 import { ReferenceLibraryFilterPanel, referenceLibraryFilterChangeEvent } from "./reference-library-filters";
+import {
+  referenceReconciliationOutcomeEvent,
+  ReferenceReconciliationPanel,
+  type ReferenceReconciliationOutcome,
+} from "./reference-reconciliation-panel";
 import { RESEARCH_LIBRARY_KEY } from "./research-context";
 import { unidentifiedPdfRefreshEvent, UnidentifiedPdfList, type UnidentifiedPdfRefresh } from "./unidentified-pdf-list";
 import { webSourceCapturedEvent, WebSourceCapture } from "./web-source-panels";
@@ -181,6 +186,10 @@ export class ReferenceLibraryWorkspace extends LightDomHost {
     });
     this.addEventListener(libraryToolsActionEvent, (event) => {
       this.routeToolsAction((event as CustomEvent<LibraryToolsAction>).detail);
+    });
+    this.addEventListener(referenceReconciliationOutcomeEvent, (event) => {
+      const detail = (event as CustomEvent<ReferenceReconciliationOutcome>).detail;
+      void this.completeRefresh(detail.message, "The duplicate was merged, but the refreshed Library could not be loaded.");
     });
     this.addEventListener(libraryToolsArchiveRefreshEvent, (event) => {
       const detail = (event as CustomEvent<LibraryToolsArchiveRefresh>).detail;
@@ -471,6 +480,7 @@ export class ReferenceLibraryWorkspace extends LightDomHost {
 
   private routeToolsAction(action: LibraryToolsAction): void {
     if (action === "open-citation-network") void this.openCitationNetwork();
+    else if (action === "open-reconciliation") void this.element("reference-reconciliation-panel", ReferenceReconciliationPanel)?.open();
     else void this.refreshBoundProject();
   }
 

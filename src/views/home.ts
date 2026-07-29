@@ -432,12 +432,14 @@ export function renderHomePage(
                   <a href="/api/library/export/csl.json">Export CSL JSON</a>
                   <a href="/api/library/export/library.zip">Export library</a>
                   <button id="open-citation-network" type="button">Reference trail</button>
+                  <button id="open-reference-reconciliation" type="button">Find duplicate references</button>
                   <button id="show-archived-references" type="button" aria-pressed="false">Show archived</button>
                 </div>
               </details>
               </library-tools-menu>
             </div>
             <library-reference-list class="reference-library-list" id="reference-library-list"><div class="empty-state">Loading library…</div></library-reference-list>
+            <reference-reconciliation-panel class="mt-6 border-t border-app-line pt-5" id="reference-reconciliation" aria-labelledby="reference-reconciliation-heading" hidden></reference-reconciliation-panel>
             <web-snapshot-comparison class="mt-6 hidden border-t border-app-line pt-5" id="web-snapshot-comparison" aria-live="polite"></web-snapshot-comparison>
             <citation-network-workspace class="mt-6 border-t border-app-line pt-5" id="citation-network" aria-labelledby="citation-network-heading" hidden>
               <div class="flex flex-wrap items-start justify-between gap-3">

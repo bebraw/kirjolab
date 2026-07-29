@@ -3320,6 +3320,45 @@ test("round-trips CSL JSON and portable library metadata", async ({ page }) => {
   expect((await archive.body()).subarray(0, 2).toString()).toBe("PK");
 });
 
+test("reviews and reconciles a strong duplicate Library reference", async ({ page }) => {
+  const workspaceId = await createWorkspace(page, "Reference reconciliation");
+  await page.goto(`/editor/${workspaceId}`);
+  await page.getByRole("tab", { name: "Library" }).click();
+  await page.locator("#library-bibliography-upload").setInputFiles({
+    name: "duplicate-references.bib",
+    mimeType: "application/x-bibtex",
+    buffer: Buffer.from(`@article{canonical,
+      title = {Explicit Reconciliation Study},
+      author = {Doe, Jane},
+      year = {2024},
+      doi = {10.1000/reconciliation}
+    }
+    @article{duplicate,
+      title = {Explicit Reconciliation Study},
+      author = {Doe, Jane},
+      year = {2024},
+      journal = {Imported venue}
+    }`),
+  });
+  const references = page.locator("#reference-library-list .library-reference-row").filter({ hasText: "Explicit Reconciliation Study" });
+  await expect(references).toHaveCount(2);
+
+  await page.locator('summary[aria-label="Library tools"]').click();
+  await page.locator("#open-reference-reconciliation").click();
+  const panel = page.locator("#reference-reconciliation");
+  await expect(panel).toBeVisible();
+  await expect(panel).toContainText("Exact title · year · first author");
+  const canonicalChoice = panel.locator("section").filter({ hasText: "10.1000/reconciliation" });
+  page.once("dialog", (dialog) => dialog.accept());
+  await canonicalChoice.getByRole("button", { name: /^Keep /u }).click();
+
+  await expect(page.locator("#toast")).toContainText("Merged duplicate into");
+  await expect(references).toHaveCount(1);
+  await references.getByText("Details", { exact: true }).click();
+  await expect(references.getByRole("textbox", { name: "venue for Explicit Reconciliation Study" })).toHaveValue("Imported venue");
+  await expect(panel).toContainText("No strong duplicate candidates found.");
+});
+
 test("records and reviews source citation assertions in an accessible shared network", async ({ page }) => {
   const workspaceId = await createWorkspace(page, "Citation assertion network");
   await page.goto(`/editor/${workspaceId}`);

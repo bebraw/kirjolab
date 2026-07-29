@@ -33,6 +33,7 @@ No accepted ADRs are awaiting implementation.
 
 | ADR                                                                                       | Status               | Summary                                                                                                       |
 | ----------------------------------------------------------------------------------------- | -------------------- | ------------------------------------------------------------------------------------------------------------- |
+| [ADR-189](./implemented/ADR-189-reconcile-library-references-explicitly.md)               | Implemented          | Merge only reviewed strong duplicate references inside the owner Library authority.                           |
 | [ADR-188](./implemented/ADR-188-report-pdf-reference-quality.md)                          | Implemented          | Evaluate PDF reference extraction against a versioned private-data-free corpus.                               |
 | [ADR-187](./implemented/ADR-187-review-pdf-references-server-side.md)                     | Implemented          | Revalidate and review parsed PDF references inside the owner Library authority.                               |
 | [ADR-186](./implemented/ADR-186-promote-source-modules-through-evidence-gates.md)         | Implemented          | Require independent consumers and explicit ownership before workspace packaging or publication.               |

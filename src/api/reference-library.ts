@@ -29,6 +29,10 @@ import {
   type PdfReferenceCandidateReviewResult,
   type PdfReferenceReviewQueue,
   type ReadingState,
+  isReferenceMergeInput,
+  type ReferenceMergeInput,
+  type ReferenceMergeResult,
+  type ReferenceReconciliationReport,
   type ReferenceLibrarySnapshot,
   type ReviewedPdfMetadata,
   type ReviewedProviderMetadataSelection,
@@ -188,6 +192,8 @@ interface ReferenceLibraryApi {
   getWebSnapshot(snapshotId: string): Promise<WebSnapshot>;
   getWebSnapshots(referenceId: string): Promise<readonly WebSnapshot[]>;
   getReferences(referenceIds: readonly string[]): Promise<BibliographicRecord[]>;
+  getReferenceReconciliationReport(): Promise<ReferenceReconciliationReport>;
+  mergeReferences(input: ReferenceMergeInput, actor: string): Promise<ReferenceMergeResult>;
   findReferencesByDois(doiValues: readonly string[]): Promise<BibliographicRecord[]>;
   createCitationAssertions(inputs: readonly CreateCitationAssertionInput[], actor: string): Promise<CitationAssertion[]>;
   acceptCitationCandidate(
@@ -411,12 +417,20 @@ async function handleLibraryReferenceRoutes(context: ReferenceLibraryRouteContex
 }
 
 async function handleLibraryCollectionRoutes(context: ReferenceLibraryRouteContext): Promise<Response | null> {
-  const { request, url, suffix, library } = context;
+  const { request, url, suffix, identity, library } = context;
   if (suffix === "/" && request.method === "GET") {
     return Response.json(await library.getSnapshot(url.searchParams.get("archived") === "include"), noStore());
   }
   if (suffix === "/analyses/pdf-references/backfill" && (request.method === "GET" || request.method === "POST")) {
     return await handlePdfReferenceBackfill(context);
+  }
+  if (suffix === "/reconciliation" && request.method === "GET") {
+    return Response.json(await library.getReferenceReconciliationReport(), noStore());
+  }
+  if (suffix === "/reconciliation/merge" && request.method === "POST") {
+    const body: unknown = await request.json();
+    if (!isReferenceMergeInput(body)) return jsonError("Invalid reference merge", 400);
+    return Response.json(await library.mergeReferences(body, identity.email), noStore());
   }
 
   const importResponse = await handleLibraryImportRoutes(context);

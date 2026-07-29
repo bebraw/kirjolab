@@ -16,6 +16,7 @@ import { libraryPdfUploadRevealEvent, LibraryPdfUploadStatus } from "./library-p
 import { libraryToolsActionEvent, libraryToolsArchiveRefreshEvent, LibraryToolsMenu } from "./library-tools-menu";
 import { ReferenceLibraryFilterPanel, referenceLibraryFilterChangeEvent } from "./reference-library-filters";
 import { ReferenceLibraryWorkspace } from "./reference-library-workspace";
+import { referenceReconciliationOutcomeEvent, ReferenceReconciliationPanel } from "./reference-reconciliation-panel";
 import { projectReferenceChangedEvent } from "./project-reference-mutation";
 import { projectResearchChangedEvent } from "./project-research-mutation";
 import { unidentifiedPdfRefreshEvent, UnidentifiedPdfList } from "./unidentified-pdf-list";
@@ -42,6 +43,7 @@ function setup() {
     "library-reference-import-control": new LibraryReferenceImportControl(),
     "library-tools-menu": new LibraryToolsMenu(),
     "reference-library-filters": new ReferenceLibraryFilterPanel(),
+    "reference-reconciliation-panel": new ReferenceReconciliationPanel(),
     "unidentified-pdf-list": new UnidentifiedPdfList(),
     "web-source-capture": new WebSourceCapture(),
   };
@@ -472,6 +474,9 @@ describe("reference Library workspace", () => {
     workspace.dispatchEvent(
       new CustomEvent(citationNetworkOutcomeEvent, { detail: { action: "library-refresh", message: "Candidate saved" } }),
     );
+    workspace.dispatchEvent(
+      new CustomEvent(referenceReconciliationOutcomeEvent, { detail: { action: "library-refresh", message: "Duplicates merged" } }),
+    );
     workspace.dispatchEvent(new CustomEvent(libraryReferenceSummaryActionEvent, { detail: { action: "open-pdf", artifact } }));
     workspace.dispatchEvent(
       new CustomEvent(libraryReferenceSummaryActionEvent, {
@@ -504,7 +509,7 @@ describe("reference Library workspace", () => {
     });
     expect(callbacks.presentNotice).toHaveBeenCalledWith("Metadata notice");
     expect(callbacks.openPdf).toHaveBeenCalledTimes(2);
-    await vi.waitFor(() => expect(callbacks.refreshLibrary).toHaveBeenCalledTimes(5));
+    await vi.waitFor(() => expect(callbacks.refreshLibrary).toHaveBeenCalledTimes(6));
     expect(callbacks.refreshProject).toHaveBeenCalledOnce();
     expect(captureUrl).toHaveBeenCalledWith("https://example.test");
     expect(callbacks.compareSnapshots).toHaveBeenCalledWith("prior", "current");
@@ -520,6 +525,7 @@ describe("reference Library workspace", () => {
     const callbacks = bindOwnerHarness(workspace, {}, "project-1");
     const setResults = vi.spyOn(owners["library-discovery-results"], "setResults");
     const openNetwork = vi.spyOn(owners["citation-network-workspace"], "open").mockResolvedValue();
+    const openReconciliation = vi.spyOn(owners["reference-reconciliation-panel"], "open").mockResolvedValue();
     vi.spyOn(workspace, "showArchivedReferences").mockReturnValue(true);
     vi.spyOn(workspace, "revealReference").mockResolvedValue(false);
     const existing = { archived: true, referenceId: "reference-1", referenceKey: "source2026" };
@@ -538,6 +544,7 @@ describe("reference Library workspace", () => {
     workspace.dispatchEvent(new CustomEvent(libraryPdfUploadRevealEvent, { detail: existing }));
     workspace.dispatchEvent(new CustomEvent(webSourceCapturedEvent, { detail: "Website captured" }));
     workspace.dispatchEvent(new CustomEvent(libraryToolsActionEvent, { detail: "open-citation-network" }));
+    workspace.dispatchEvent(new CustomEvent(libraryToolsActionEvent, { detail: "open-reconciliation" }));
     workspace.dispatchEvent(new CustomEvent(libraryToolsActionEvent, { detail: "archive-visibility-change" }));
     workspace.dispatchEvent(new CustomEvent(libraryToolsArchiveRefreshEvent, { detail: { message: "Archive restored", requestId: 6 } }));
 
@@ -546,6 +553,7 @@ describe("reference Library workspace", () => {
     expect(callbacks.presentNotice).toHaveBeenCalledWith("Upload notice");
     await vi.waitFor(() => expect(callbacks.presentNotice).toHaveBeenCalledWith("Library source source2026 is not available."));
     expect(openNetwork).toHaveBeenCalledOnce();
+    expect(openReconciliation).toHaveBeenCalledOnce();
     expect(callbacks.presentNotice).toHaveBeenCalledWith("Reference saved");
     expect(callbacks.presentNotice).toHaveBeenCalledWith("References imported");
     expect(callbacks.presentNotice).toHaveBeenCalledWith("PDF uploaded");

@@ -16,6 +16,10 @@ class TestLibraryToolsMenu extends LibraryToolsMenu {
     this.openCitationNetwork();
   }
 
+  reconcileForTest(): void {
+    this.openReconciliation();
+  }
+
   toggleForTest(): void {
     this.toggleArchived();
   }
@@ -45,11 +49,12 @@ describe("library tools menu", () => {
     });
 
     menu.openForTest();
+    menu.reconcileForTest();
     menu.toggleForTest();
     menu.setShowArchived(true);
     menu.toggleForTest();
 
-    expect(actions).toEqual(["open-citation-network", "archive-visibility-change", "archive-visibility-change"]);
+    expect(actions).toEqual(["open-citation-network", "open-reconciliation", "archive-visibility-change", "archive-visibility-change"]);
   });
 
   it("owns archive restore transport and refresh acknowledgment", async () => {

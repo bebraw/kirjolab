@@ -837,6 +837,12 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Keep bibliographic provenance per field. Import and metadata services may
   suggest and deduplicate records, but source-type requirements must remain
   explicit and missing values must never be fabricated.
+- Reconcile Library records only after the owner chooses a canonical record
+  from a strong DOI or title-year-first-author match. Move owner-private
+  dependents atomically inside the Library Durable Object, preserve canonical
+  values and field provenance, and block deletion of a record that still owns
+  project links, web-capture history, or research shares. Never coordinate a
+  distributed project rewrite from the merge transaction.
 - Create a provisional `misc` library record when a PDF is uploaded, deriving
   only its title from the filename and attaching the private artifact in the
   same library transaction. Let researchers enrich metadata later.

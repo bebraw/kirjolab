@@ -9,6 +9,7 @@ export * from "./reference-library/artifacts";
 export * from "./reference-library/metadata";
 export * from "./reference-library/pdf-annotations";
 export * from "./reference-library/pdf-reference-review";
+export * from "./reference-library/reconciliation";
 export * from "./reference-library/research";
 export * from "./reference-library/snapshot";
 export * from "./reference-library/web-sources";

@@ -42,6 +42,10 @@ import {
   type ReviewedPdfMetadata,
   type ReviewedProviderMetadataSelection,
   type ReferenceLibrarySnapshot,
+  type ReferenceMergeInput,
+  type ReferenceMergeResult,
+  type ReferenceReconciliationCandidate,
+  type ReferenceReconciliationReport,
   type ReferenceKeyState,
   type ResearchShareKind,
   type ResearchShareSnapshot,
@@ -50,6 +54,7 @@ import {
   type WebSnapshot,
   type WebSource,
   suggestPdfReferenceMatch,
+  referenceReconciliationReason,
 } from "../domain/reference-library";
 import { ArtifactAnalysisService } from "./reference-library/artifact-analysis";
 import { runSQLiteMigrations, type SQLiteMigration } from "./migrations";
@@ -710,6 +715,116 @@ export class ReferenceLibrary extends DurableObject<Env> {
   getReferences(referenceIds: readonly string[]): BibliographicRecord[] {
     if (referenceIds.length > 512) throw new Error("Too many references requested");
     return referenceIds.map((id) => this.#reference(id, true));
+  }
+
+  getReferenceReconciliationReport(): ReferenceReconciliationReport {
+    const rows = this.ctx.storage.sql
+      .exec<ReferenceRow>(
+        "SELECT * FROM library_references WHERE archived_at IS NULL AND deleted_at IS NULL ORDER BY updated_at DESC, id LIMIT 513",
+      )
+      .toArray();
+    const truncatedReferences = rows.length > 512;
+    const references = rows.slice(0, 512).map(referenceFromRow);
+    const blockers = new Map<string, readonly string[]>();
+    const candidates: ReferenceReconciliationCandidate[] = [];
+    for (let leftIndex = 0; leftIndex < references.length; leftIndex += 1) {
+      const left = references[leftIndex]!;
+      for (const right of references.slice(leftIndex + 1)) {
+        const reason = referenceReconciliationReason(left, right);
+        if (!reason) continue;
+        const leftBlockers = blockers.get(left.id) ?? this.#referenceMergeBlockers(left.id);
+        const rightBlockers = blockers.get(right.id) ?? this.#referenceMergeBlockers(right.id);
+        blockers.set(left.id, leftBlockers);
+        blockers.set(right.id, rightBlockers);
+        candidates.push({ left, right, reason, leftBlockers, rightBlockers });
+        if (candidates.length >= 100) return { candidates, truncated: true };
+      }
+    }
+    return { candidates, truncated: truncatedReferences };
+  }
+
+  mergeReferences(input: ReferenceMergeInput, actor: string): ReferenceMergeResult {
+    const canonical = this.#reference(input.canonicalReferenceId);
+    const canonicalRow = this.ctx.storage.sql.exec<ReferenceRow>("SELECT * FROM library_references WHERE id = ?", canonical.id).one();
+    const duplicate = this.#reference(input.duplicateReferenceId);
+    if (canonical.archivedAt || duplicate.archivedAt || !referenceReconciliationReason(canonical, duplicate)) {
+      throw new Error("References are no longer a reconciliation candidate");
+    }
+    if (canonical.updatedAt !== input.expectedCanonicalUpdatedAt || duplicate.updatedAt !== input.expectedDuplicateUpdatedAt) {
+      throw new Error("References changed; review reconciliation again");
+    }
+    const blockers = this.#referenceMergeBlockers(duplicate.id);
+    if (blockers.length > 0) throw new Error(`Duplicate cannot be merged: ${blockers.join("; ")}`);
+    const assertionRows = this.ctx.storage.sql
+      .exec<CitationAssertionRow>(
+        "SELECT * FROM citation_assertions WHERE citing_reference_id = ? OR cited_reference_id = ? ORDER BY created_at, id",
+        duplicate.id,
+        duplicate.id,
+      )
+      .toArray();
+    if (
+      assertionRows.some(
+        (row) =>
+          (row.citing_reference_id === duplicate.id ? canonical.id : row.citing_reference_id) ===
+          (row.cited_reference_id === duplicate.id ? canonical.id : row.cited_reference_id),
+      )
+    ) {
+      throw new Error("Duplicate cannot be merged while it has a citation relationship with the canonical reference");
+    }
+    const now = new Date().toISOString();
+    const merged = mergeBibliographicRecords(canonical, duplicate, now, actor);
+    const identityKey = likelyReferenceIdentity(merged);
+    const identityOwner = this.ctx.storage.sql
+      .exec<{
+        id: string;
+      }>("SELECT id FROM library_references WHERE identity_key = ? AND id NOT IN (?, ?) LIMIT 1", identityKey, canonical.id, duplicate.id)
+      .toArray()[0];
+    if (identityOwner) throw new Error("Merged reference identity already belongs to another Library record");
+    const moved = {
+      artifacts: this.#count("artifacts", duplicate.id),
+      notes: this.#count("notes", duplicate.id),
+      highlights: this.#count("highlights", duplicate.id),
+      pdfMarkups: this.#count("pdf_markups", duplicate.id),
+      citationAssertions: assertionRows.length,
+    };
+    this.ctx.storage.transactionSync(() => {
+      for (const row of assertionRows) this.#reparentCitationAssertion(row, canonical.id, duplicate.id);
+      this.ctx.storage.sql.exec("UPDATE pdf_reference_reviews SET reference_id = ? WHERE reference_id = ?", canonical.id, duplicate.id);
+      for (const table of ["artifacts", "notes", "highlights", "pdf_markups"] as const) {
+        this.ctx.storage.sql.exec(`UPDATE ${table} SET reference_id = ? WHERE reference_id = ?`, canonical.id, duplicate.id);
+      }
+      this.ctx.storage.sql.exec(
+        "INSERT OR IGNORE INTO reference_tags (reference_id, tag) SELECT ?, tag FROM reference_tags WHERE reference_id = ?",
+        canonical.id,
+        duplicate.id,
+      );
+      this.ctx.storage.sql.exec("DELETE FROM reference_tags WHERE reference_id = ?", duplicate.id);
+      this.ctx.storage.sql.exec(
+        "INSERT OR IGNORE INTO reference_collections (reference_id, collection_name) SELECT ?, collection_name FROM reference_collections WHERE reference_id = ?",
+        canonical.id,
+        duplicate.id,
+      );
+      this.ctx.storage.sql.exec("DELETE FROM reference_collections WHERE reference_id = ?", duplicate.id);
+      this.ctx.storage.sql.exec(
+        `INSERT OR IGNORE INTO reading_state (reference_id, status, rating, priority, updated_at)
+         SELECT ?, status, rating, priority, updated_at FROM reading_state WHERE reference_id = ?`,
+        canonical.id,
+        duplicate.id,
+      );
+      this.ctx.storage.sql.exec("DELETE FROM reading_state WHERE reference_id = ?", duplicate.id);
+      this.ctx.storage.sql.exec("UPDATE library_references SET identity_key = ? WHERE id = ?", `merged:${duplicate.id}`, duplicate.id);
+      this.#writeReference(merged, identityKey, false, referenceKeyStateFromRow(canonicalRow));
+      this.ctx.storage.sql.exec(
+        `UPDATE library_references SET authors_json = '[]', venue = '', doi = '', url = '', abstract = '', provenance_json = '{}',
+         archived_at = NULL, deleted_at = ?, updated_at = ? WHERE id = ?`,
+        now,
+        now,
+        duplicate.id,
+      );
+    });
+    this.#invalidateMetadataRefinementPreviews(canonical.id);
+    this.#invalidateMetadataRefinementPreviews(duplicate.id);
+    return { canonicalReference: merged, mergedReferenceId: duplicate.id, moved };
   }
 
   findReferencesByDois(doiValues: readonly string[]): BibliographicRecord[] {
@@ -2124,6 +2239,52 @@ export class ReferenceLibrary extends DurableObject<Env> {
       .count;
   }
 
+  #referenceMergeBlockers(referenceId: string): string[] {
+    const blockers: string[] = [];
+    const projectCount = this.ctx.storage.sql
+      .exec<{ count: number }>("SELECT COUNT(*) AS count FROM project_dependencies WHERE reference_id = ?", referenceId)
+      .one().count;
+    const webSourceCount = this.ctx.storage.sql
+      .exec<{ count: number }>("SELECT COUNT(*) AS count FROM web_sources WHERE reference_id = ?", referenceId)
+      .one().count;
+    const shareCount = this.ctx.storage.sql
+      .exec<{ count: number }>("SELECT COUNT(*) AS count FROM research_shares WHERE reference_id = ?", referenceId)
+      .one().count;
+    if (projectCount) blockers.push(`${projectCount} linked project${projectCount === 1 ? "" : "s"}`);
+    if (webSourceCount) blockers.push("captured web history");
+    if (shareCount) blockers.push(`${shareCount} research share${shareCount === 1 ? "" : "s"}`);
+    return blockers;
+  }
+
+  #reparentCitationAssertion(row: CitationAssertionRow, canonicalId: string, duplicateId: string): void {
+    const citingReferenceId = row.citing_reference_id === duplicateId ? canonicalId : row.citing_reference_id;
+    const citedReferenceId = row.cited_reference_id === duplicateId ? canonicalId : row.cited_reference_id;
+    const existing = this.ctx.storage.sql
+      .exec<CitationAssertionRow>(
+        `SELECT * FROM citation_assertions WHERE id <> ? AND citing_reference_id = ? AND cited_reference_id = ? AND polarity = ?
+         AND extraction_method = ? AND source_kind = ? AND source_id = ? LIMIT 1`,
+        row.id,
+        citingReferenceId,
+        citedReferenceId,
+        row.polarity,
+        row.extraction_method,
+        row.source_kind,
+        row.source_id,
+      )
+      .toArray()[0];
+    if (existing) {
+      this.ctx.storage.sql.exec("UPDATE pdf_reference_reviews SET assertion_id = ? WHERE assertion_id = ?", existing.id, row.id);
+      this.ctx.storage.sql.exec("DELETE FROM citation_assertions WHERE id = ?", row.id);
+      return;
+    }
+    this.ctx.storage.sql.exec(
+      "UPDATE citation_assertions SET citing_reference_id = ?, cited_reference_id = ? WHERE id = ?",
+      citingReferenceId,
+      citedReferenceId,
+      row.id,
+    );
+  }
+
   #sharedContent(referenceId: string, kind: ResearchShareKind, resourceId: string): ResearchShareSnapshot["content"] {
     if (kind === "artifact") {
       const artifact = this.#artifact(resourceId);
@@ -2165,6 +2326,34 @@ export class ReferenceLibrary extends DurableObject<Env> {
     if (!row) throw new Error("Private highlight not found");
     return { kind, page: row.page, quote: row.quote, comment: row.comment };
   }
+}
+
+function mergeBibliographicRecords(
+  canonical: BibliographicRecord,
+  duplicate: BibliographicRecord,
+  capturedAt: string,
+  actor: string,
+): BibliographicRecord {
+  const copied = new Set<string>();
+  const value = <T>(field: string, primary: T, secondary: T, missing: (candidate: T) => boolean): T => {
+    if (!missing(primary)) return primary;
+    copied.add(field);
+    return secondary;
+  };
+  const type = value("type", canonical.type, duplicate.type, (candidate) => !candidate || candidate === "misc");
+  const title = value("title", canonical.title, duplicate.title, (candidate) => !candidate.trim());
+  const authors = value("authors", canonical.authors, duplicate.authors, (candidate) => candidate.length === 0);
+  const year = value("year", canonical.year, duplicate.year, (candidate) => !candidate.trim());
+  const venue = value("venue", canonical.venue, duplicate.venue, (candidate) => !candidate.trim());
+  const doi = value("doi", canonical.doi, duplicate.doi, (candidate) => !candidate.trim());
+  const url = value("url", canonical.url, duplicate.url, (candidate) => !candidate.trim());
+  const abstract = value("abstract", canonical.abstract, duplicate.abstract, (candidate) => !candidate.trim());
+  const provenance = { ...duplicate.provenance, ...canonical.provenance };
+  for (const field of copied) {
+    const key = field as keyof typeof provenance;
+    provenance[key] = duplicate.provenance[key] ?? { method: "migration", capturedAt, actor };
+  }
+  return { ...canonical, type, title, authors, year, venue, doi, url, abstract, provenance, updatedAt: capturedAt };
 }
 
 function referenceFromRow(row: ReferenceRow): BibliographicRecord {

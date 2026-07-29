@@ -104,6 +104,32 @@ describe("reference library API", () => {
     expect(fixture.library.getSnapshot).toHaveBeenCalledWith(true);
   });
 
+  it("reports and commits explicit reference reconciliation", async () => {
+    const fixture = apiFixture();
+    const report = await handleReferenceLibraryApi(new Request("https://example.test/api/library/reconciliation"), fixture.env, identity);
+    expect(report.status).toBe(200);
+    await expect(report.json()).resolves.toEqual({ candidates: [], truncated: false });
+
+    const input = {
+      canonicalReferenceId: reference.id,
+      duplicateReferenceId: "22222222-2222-4222-8222-222222222222",
+      expectedCanonicalUpdatedAt: now,
+      expectedDuplicateUpdatedAt: now,
+    };
+    const merged = await handleReferenceLibraryApi(jsonRequest("/api/library/reconciliation/merge", input), fixture.env, identity);
+    expect(merged.status).toBe(200);
+    expect(fixture.library.mergeReferences).toHaveBeenCalledWith(input, identity.email);
+    expect(
+      (
+        await handleReferenceLibraryApi(
+          jsonRequest("/api/library/reconciliation/merge", { ...input, duplicateReferenceId: reference.id }),
+          fixture.env,
+          identity,
+        )
+      ).status,
+    ).toBe(400);
+  });
+
   it("validates and imports bounded BibTeX with the authenticated actor", async () => {
     const fixture = apiFixture();
     const invalid = await handleReferenceLibraryApi(jsonRequest("/api/library/import", { bibtex: "" }), fixture.env, identity);
@@ -1751,6 +1777,12 @@ function apiFixture(bucket = new MemoryR2Bucket()) {
     getWebSnapshot: vi.fn(async (_snapshotId: string) => webSnapshot),
     getWebSnapshots: vi.fn(async () => [webSnapshot]),
     getReferences: vi.fn(async () => [reference]),
+    getReferenceReconciliationReport: vi.fn(async () => ({ candidates: [], truncated: false })),
+    mergeReferences: vi.fn(async (input: import("../domain/reference-library").ReferenceMergeInput) => ({
+      canonicalReference: { ...reference, id: input.canonicalReferenceId },
+      mergedReferenceId: input.duplicateReferenceId,
+      moved: { artifacts: 0, notes: 0, highlights: 0, pdfMarkups: 0, citationAssertions: 0 },
+    })),
     findReferencesByDois: vi.fn(async () => [] as BibliographicRecord[]),
     createCitationAssertions: vi.fn(async (inputs: readonly import("../domain/citation-assertions").CreateCitationAssertionInput[]) =>
       inputs.map((input) => ({ ...citationAssertion, ...input })),
