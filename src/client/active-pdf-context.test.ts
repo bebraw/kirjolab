@@ -56,6 +56,20 @@ const highlight: LibraryHighlight = {
   referenceId: "reference:1",
   updatedAt: createdAt,
 };
+const unrelatedAnnotation: AnnotationResource = {
+  ...annotation,
+  id: "annotation:unrelated",
+  pdfId: "workspace:unrelated",
+};
+const unrelatedHighlight: LibraryHighlight = {
+  ...highlight,
+  artifactId: "library:unrelated",
+  id: "highlight:unrelated",
+};
+const unrelatedReferencePdf: ProjectReferencePdf = {
+  ...referencePdf,
+  id: "reference:unrelated",
+};
 
 function tab(kind: "pdf" | "library-pdf", id: string): Extract<ResearchResourceTab, { kind: "pdf" | "library-pdf" }> {
   return { focusedAnnotationId: null, id, key: `${kind}:${id}`, kind, page: 1, scrollTop: 0 };
@@ -64,11 +78,11 @@ function tab(kind: "pdf" | "library-pdf", id: string): Extract<ResearchResourceT
 function context(activeTab: ResearchResourceTab | undefined) {
   return activePdfLoadContext({
     activeTab,
-    annotations: [annotation],
+    annotations: [unrelatedAnnotation, annotation],
     apiBase: "/api/workspaces/workspace:1",
     libraryArtifacts: [libraryPdf],
-    libraryHighlights: [highlight],
-    projectReferencePdfs: [referencePdf],
+    libraryHighlights: [unrelatedHighlight, highlight],
+    projectReferencePdfs: [unrelatedReferencePdf, referencePdf],
     workspacePdfs: [workspacePdf],
   });
 }
@@ -78,6 +92,35 @@ describe("active PDF context", () => {
     expect(context(undefined)).toBeNull();
     expect(context({ id: "publication:1", key: "publication:publication:1", kind: "publication", scrollTop: 0 })).toBeNull();
     expect(context(tab("pdf", "missing"))).toBeNull();
+    expect(context(tab("pdf", referencePdf.id))).toBeNull();
+  });
+
+  it("keeps workspace and library resource namespaces isolated", () => {
+    const collidingLibraryPdf = { ...libraryPdf, id: workspacePdf.id };
+    const collidingWorkspacePdf = { ...workspacePdf, id: libraryPdf.id };
+
+    expect(
+      activePdfLoadContext({
+        activeTab: tab("pdf", workspacePdf.id),
+        annotations: [],
+        apiBase: "/api/workspaces/workspace:1",
+        libraryArtifacts: [collidingLibraryPdf],
+        libraryHighlights: [],
+        projectReferencePdfs: [],
+        workspacePdfs: [workspacePdf],
+      }),
+    ).toMatchObject({ libraryPdf: undefined, workspacePdf });
+    expect(
+      activePdfLoadContext({
+        activeTab: tab("library-pdf", libraryPdf.id),
+        annotations: [],
+        apiBase: "/api/workspaces/workspace:1",
+        libraryArtifacts: [libraryPdf],
+        libraryHighlights: [],
+        projectReferencePdfs: [],
+        workspacePdfs: [collidingWorkspacePdf],
+      }),
+    ).toMatchObject({ libraryPdf, workspacePdf: undefined });
   });
 
   it("projects workspace evidence and an encoded URL", () => {
