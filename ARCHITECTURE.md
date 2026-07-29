@@ -362,12 +362,14 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   Emit completed synchronization mutations so the application coordinator can
   refresh canonical project and cross-component status state; retain page-level
   refresh pause policy, project refresh, and navigation in the coordinator.
-  Delegate GitHub App JWT signing and private-key handling to pinned
-  `@octokit/auth-app`, but keep installation-token exchange bounded and
-  request-scoped. Do not retain request-bound installation authentication
-  promises in Worker module state. Share only the stateless bounded stream and
-  JSON reader between GitHub App and user clients; keep their size ceilings and
-  public error semantics explicit at each client boundary.
+  Delegate GitHub App JWT signing to pinned `@octokit/auth-app`. Normalize
+  GitHub's PKCS#1 App keys to PKCS#8 with Worker-supported `node:crypto` before
+  signing because Octokit's Web Crypto path accepts only PKCS#8; keep
+  installation-token exchange bounded and request-scoped. Do not retain
+  request-bound installation authentication promises in Worker module state.
+  Share only the stateless bounded stream and JSON reader between GitHub App
+  and user clients; keep their size ceilings and public error semantics
+  explicit at each client boundary.
 - Import LaTeX archives only through a bounded, authenticated Worker workflow
   that separates non-mutating inspection from reviewed project creation. Keep
   Markdown canonical; never retain TeX as a second editable authority or

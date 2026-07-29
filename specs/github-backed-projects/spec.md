@@ -95,11 +95,14 @@ incoming and outgoing mutation.
 - The first slice requests GitHub App repository Metadata read and Contents
   read/write permissions. Pull-request write permission is deferred until an
   optional publish-for-review workflow is implemented.
-- GitHub App JWT signing and supported private-key parsing are delegated to
-  pinned `@octokit/auth-app`. Installation-token exchange, bounded response
-  reading, injected transport, stable error projection, and repository domain
-  checks remain request-scoped Kirjolab responsibilities; installation
-  authentication promises must not be shared through Worker module state.
+- GitHub App JWT signing is delegated to pinned `@octokit/auth-app`. The
+  transport accepts PKCS#8 keys directly and normalizes PKCS#1 keys to PKCS#8
+  with Worker-supported `node:crypto` before signing because Octokit's Web
+  Crypto path accepts only PKCS#8. Installation-token exchange, bounded
+  response reading, injected transport, stable error projection, and
+  repository domain checks remain request-scoped Kirjolab responsibilities;
+  installation authentication promises must not be shared through Worker
+  module state.
   Credential handling, installation-token exchange, and bounded authenticated
   requests live behind a transport module; repository snapshot and commit
   orchestration receive only its request-scoped installation requester.

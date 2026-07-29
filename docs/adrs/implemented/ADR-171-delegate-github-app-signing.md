@@ -23,7 +23,11 @@ abstraction.
 ## Decision
 
 Use pinned `@octokit/auth-app` only to create GitHub App JWTs and handle
-supported private-key formats.
+PKCS#8 private keys. Normalize PKCS#1 App keys to PKCS#8 with the
+Worker-supported `node:crypto` implementation before passing them to Octokit.
+Octokit's Node path performs this conversion, but its Web Crypto path rejects
+PKCS#1, so Node-only authentication tests are not sufficient evidence for the
+deployed Worker runtime.
 
 Keep the installation access-token exchange in Kirjolab's bounded,
 request-scoped transport. Do not use the package's installation authentication
@@ -50,10 +54,10 @@ and decision about whether HTTP errors are parsed as JSON.
 
 **Positive:**
 
-- Project-owned JWT construction, ASN.1/DER encoding, and PEM conversion are
-  removed from production code.
-- PKCS#1 and PKCS#8 key handling follows the maintained GitHub authentication
-  implementation.
+- Project-owned JWT construction and ASN.1/DER encoding are removed from
+  production code.
+- PKCS#1 and PKCS#8 App keys remain supported without depending on a
+  runtime-specific Octokit conditional export.
 - Kirjolab retains the transport and domain checks that make GitHub operations
   safe in a Worker.
 - App authentication/HTTP behavior and repository tree/commit behavior can
@@ -67,6 +71,8 @@ and decision about whether HTTP errors are parsed as JSON.
   into the production dependency graph.
 - GitHub authentication behavior now depends on the pinned package version and
   must be reviewed deliberately during upgrades.
+- The transport retains one narrow PKCS#1-to-PKCS#8 conversion through
+  Worker-supported `node:crypto`.
 - The integration cannot use the package's complete installation-token
   convenience path without first resolving its Worker request-isolation
   behavior.

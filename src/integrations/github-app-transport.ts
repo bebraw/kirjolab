@@ -1,4 +1,5 @@
 import { createAppAuth } from "@octokit/auth-app";
+import { createPrivateKey } from "node:crypto";
 import * as v from "valibot";
 import { parseResponseJson, readBoundedResponseText } from "./bounded-response";
 
@@ -49,7 +50,7 @@ export class GitHubAppTransport {
     this.#fetch = fetchExternal;
     this.#auth = createAppAuth({
       appId: this.#config.appId,
-      privateKey: this.#config.privateKey,
+      privateKey: normalizePrivateKey(this.#config.privateKey),
     });
   }
 
@@ -108,6 +109,16 @@ function validateConfig(config: GitHubAppConfig): GitHubAppConfig {
   const apiBase = config.apiBase?.replace(/\/+$/u, "");
   if (apiBase && !/^https?:\/\//u.test(apiBase)) throw new GitHubClientError("configuration", "GitHub API base URL is invalid");
   return { appId: config.appId.trim(), privateKey: config.privateKey, ...(apiBase ? { apiBase } : {}) };
+}
+
+function normalizePrivateKey(privateKey: string): string {
+  const normalized = privateKey.replaceAll("\\n", "\n");
+  if (!normalized.includes("-----BEGIN RSA PRIVATE KEY-----")) return privateKey;
+  try {
+    return createPrivateKey(normalized).export({ type: "pkcs8", format: "pem" }).toString();
+  } catch {
+    return privateKey;
+  }
 }
 
 function githubResponseError(status: number, body: string): GitHubClientError {
