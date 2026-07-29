@@ -17,26 +17,34 @@ export type { ResearchShareSnapshot } from "./reference-library";
 export const demoWorkspaceId = "demo";
 export const localOwnerId = "local";
 
-export const legacyDefaultSource = `## Evidence becomes prose {#sec-evidence}
+export const legacyDefaultSource = `## Evidence becomes prose
+
+::label[sec-evidence]
 
 Kirjolab keeps the path from an annotation to a claim and into cited prose visible :cite[merton1942]{locator="p. 270"}.
 
 ::include[sections/transclusion.md]
 
-## Return to the source {#sec-source}
+## Return to the source
+
+::label[sec-source]
 
 The preview resolves a link back to :ref[sec-evidence]. Select this paragraph, attach a PDF annotation, and ask a local model to propose a grounded revision.
 `;
 
 export const defaultSource = `${legacyDefaultSource}
-## References {#references}
+## References
+
+::label[references]
 
 ::bibliography[]
 `;
 
 export const defaultTransclusionPath = "sections/transclusion.md";
 
-export const defaultTransclusionSource = `## Included from another file {#sec-transclusion}
+export const defaultTransclusionSource = `## Included from another file
+
+::label[sec-transclusion]
 
 This section lives in \`${defaultTransclusionPath}\`. Edit that file from the Files rail and the composed preview will update here.
 `;
@@ -124,42 +132,38 @@ Options go in braces after the citation. An explicit \`mode\` overrides the defa
 Place the cited-reference list exactly where it should appear with:
 
 ~~~markdown
-## References {#references}
+## References
+
+::label[references]
 
 ::bibliography[]
 ~~~
 
 The bibliography marker takes no options and should appear only once in the composed paper.
 
-### Sections, anchors, and cross-references
+### Labels and cross-references
 
-Headings receive generated link targets. Add an explicit identifier when you want a stable target:
-
-~~~markdown
-## Methods {#sec-methods}
-
-See :ref[sec-methods].
-See :ref[the methods section]{target="sec-methods"}.
-~~~
-
-The bracket value is the target by default. To show custom link text, put the text in brackets and the target in \`{target="..."}\`.
-
-Use an anchor for a named target that is not a heading:
+Place a label immediately after a heading or other block when you want a stable target:
 
 ~~~markdown
-::anchor[Primary result]{target="result:primary" slug="primary-result"}
-
-See :ref[result:primary].
-~~~
-
-The optional \`slug\` controls the public HTML target. \`::alias\` maps a legacy target to an existing heading slug:
-
-~~~markdown
-::alias[Methods]{target="sec:legacy-methods" slug="methods"}
-
 ## Methods
 
-See :ref[sec:legacy-methods].
+::label[sec-methods]
+
+See :ref[sec-methods].
+See :ref[sec-methods]{text="the methods section"}.
+~~~
+
+The bracket value is the target. Add a \`text\` option to show custom link text.
+
+Labels can also identify a paragraph, table caption, or figure:
+
+~~~markdown
+The primary result remained stable across sensitivity analyses.
+
+::label[result:primary]
+
+See :ref[result:primary].
 ~~~
 
 ### Files and includes

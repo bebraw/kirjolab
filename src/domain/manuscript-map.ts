@@ -1,4 +1,4 @@
-import { projectMarkdownComments } from "./markdown-comments";
+import { isPublicationReferenceDeclaration, projectMarkdownComments } from "scholarmark";
 
 export interface ManuscriptSection {
   readonly level: number;
@@ -31,7 +31,7 @@ export interface ManuscriptParagraph {
   readonly citations: number;
 }
 
-const headingPattern = /^(#{1,6})[ \t]+(.+?)(?:[ \t]+\{#[^}]+\})?[ \t]*$/u;
+const headingPattern = /^(#{1,6})[ \t]+(.+?)[ \t]*$/u;
 const citationPattern = /(?<!:):cite\[[^\]]+\](?:\{[^}]*\})?/giu;
 const placeholderPattern = /\b(?:TODO|TBD|FIXME)\b|\?\?\?/giu;
 const wordPattern = /[\p{L}\p{N}]+(?:[’'-][\p{L}\p{N}]+)*/gu;
@@ -110,7 +110,9 @@ function maskNonProse(source: string): string {
   for (const [index, line] of lines.entries()) {
     const trimmed = line.text.trim();
     const fence = /^(?:```|~~~)/u.test(trimmed);
-    if (fenced || fence || (frontmatter && index > 0)) maskRange(characters, line.from, line.to);
+    if (fenced || fence || (frontmatter && index > 0) || isPublicationReferenceDeclaration(line.text)) {
+      maskRange(characters, line.from, line.to);
+    }
     if (fence) fenced = !fenced;
     if (frontmatter && index > 0 && trimmed === "---") frontmatter = false;
   }

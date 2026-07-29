@@ -60,7 +60,9 @@ describe("project templates", () => {
         files: [
           {
             path: "main.md",
-            content: `## Abstract {#abstract}
+            content: `## Abstract
+
+::label[abstract]
 
 Summarize the question, approach, result, and significance.
 
@@ -72,35 +74,45 @@ Summarize the question, approach, result, and significance.
 
 ::include[sections/discussion.md]
 
-## References {#references}
+## References
+
+::label[references]
 
 ::bibliography[]
 `,
           },
           {
             path: "sections/introduction.md",
-            content: `## Introduction {#introduction}
+            content: `## Introduction
+
+::label[introduction]
 
 Establish the problem, prior work, and research question.
 `,
           },
           {
             path: "sections/methods.md",
-            content: `## Methods {#methods}
+            content: `## Methods
+
+::label[methods]
 
 Describe materials, data, procedures, and analysis.
 `,
           },
           {
             path: "sections/results.md",
-            content: `## Results {#results}
+            content: `## Results
+
+::label[results]
 
 Report the findings without interpreting them prematurely.
 `,
           },
           {
             path: "sections/discussion.md",
-            content: `## Discussion {#discussion}
+            content: `## Discussion
+
+::label[discussion]
 
 Interpret the findings, limitations, and implications.
 `,
@@ -123,7 +135,9 @@ Interpret the findings, limitations, and implications.
         files: [
           {
             path: "main.md",
-            content: `## Review question {#review-question}
+            content: `## Review question
+
+::label[review-question]
 
 State the scope and the question this review answers.
 
@@ -133,28 +147,36 @@ State the scope and the question this review answers.
 
 ::include[sections/gaps.md]
 
-## References {#references}
+## References
+
+::label[references]
 
 ::bibliography[]
 `,
           },
           {
             path: "sections/search-strategy.md",
-            content: `## Search strategy {#search-strategy}
+            content: `## Search strategy
+
+::label[search-strategy]
 
 Record databases, terms, dates, and inclusion or exclusion criteria.
 `,
           },
           {
             path: "sections/synthesis.md",
-            content: `## Thematic synthesis {#thematic-synthesis}
+            content: `## Thematic synthesis
+
+::label[thematic-synthesis]
 
 Organize findings by argument or theme rather than one source at a time.
 `,
           },
           {
             path: "sections/gaps.md",
-            content: `## Gaps and implications {#gaps}
+            content: `## Gaps and implications
+
+::label[gaps]
 
 Identify disagreements, missing evidence, and useful next questions.
 `,

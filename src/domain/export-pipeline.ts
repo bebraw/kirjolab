@@ -9,16 +9,16 @@ import {
 import { publicationWordStatistics, type PublicationWordStatistics } from "./publication-statistics";
 import { defaultProjectPublicationProfile, type ProjectPublicationProfile } from "./workspace";
 import { resolveSubmissionTemplate } from "./submission-templates";
-import { projectMarkdownComments } from "./markdown-comments";
 import {
   isPublicationBibliographyDirective,
   isPublicationReferenceDeclaration,
+  projectMarkdownComments,
   publicationCitationEntries,
   publicationCitationText,
   publicationReferenceLabel,
   publicationReferenceLabels,
   replacePublicationTextDirectives,
-} from "./scholarly-export";
+} from "scholarmark";
 import {
   projectPublicationStructure,
   replacePublicationFootnoteReferences,

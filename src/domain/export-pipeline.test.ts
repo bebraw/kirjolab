@@ -195,7 +195,8 @@ Published ending.
     const source = [
       "prefix # not-a-heading",
       "#  Spaced heading",
-      "# Top {#top}",
+      "# Top",
+      "::label[top]",
       "## Second",
       "### Third",
       "#### Fourth",
@@ -373,7 +374,7 @@ Published ending.
       ["one-character autolink body", "Before<https://x>After", 2],
       ["unterminated autolink", "Before<https://example.test/long After", 6],
       ["html", 'Before<section data-name="hidden words">Middle</section>After', 3],
-      ["heading id", "Before{#long-hidden-id}After", 2],
+      ["label", "Before\n::label[long-hidden-id]\nAfter", 2],
       ["word boundaries", "can't researcher’s state-of-the-art 123 naïve", 5],
     ] as const) {
       expect(countPublicationWords(source), label).toBe(expected);
@@ -381,7 +382,7 @@ Published ending.
   });
 
   it("maps heading statistics to exact authored ranges", () => {
-    const source = "Prelude\r\n#  *First heading* {#first}\r\nOne word\r\nnot # heading\r\n## `Second`\r\nTwo";
+    const source = "Prelude\r\n#  *First heading*\r\n::label[first]\r\nOne word\r\nnot # heading\r\n## `Second`\r\nTwo";
     const files = [file("main", "main.md", source)];
     const statistics = publicationWordStatistics(composeProject(files, "main"), files);
     const firstOffset = source.indexOf("#  *First");
@@ -392,7 +393,7 @@ Published ending.
         fileId: "main",
         path: "main.md",
         from: firstOffset,
-        to: firstOffset + "#  *First heading* {#first}".length,
+        to: firstOffset + "#  *First heading*".length,
         line: 2,
         includeChain: ["main"],
         depth: 1,
@@ -404,7 +405,7 @@ Published ending.
         path: "main.md",
         from: secondOffset,
         to: secondOffset + "## `Second`".length,
-        line: 5,
+        line: 6,
         includeChain: ["main"],
         depth: 2,
         heading: "Second",
@@ -555,10 +556,11 @@ Published ending.
           "main",
           "main.md",
           [
-            '::alias[Legacy result]{target="sec:legacy" slug="result"}',
-            "# Result {#result}",
-            "::anchor[Table one]{target=table:one}",
-            'See :ref[sec:legacy] and :ref[custom table]{target="table:one"} before :cite[source]{mode=textual prefix="See " locator="p. 4" suffix="."}',
+            "# Result",
+            "::label[result]",
+            "Table one",
+            "::label[table:one]",
+            'See :ref[result] and :ref[table:one]{text="custom table"} before :cite[source]{mode=textual prefix="See " locator="p. 4" suffix="."}',
             "",
             "- One finding",
             "",
@@ -576,7 +578,7 @@ Published ending.
     expect(bundle.mainTex).toContain("See Result and custom table before See \\citet{source}, p. 4.");
     expect(bundle.mainTex.indexOf("\\bibliography{bibliography}")).toBeLessThan(bundle.mainTex.indexOf("\\subsection{Closing}"));
     expect(bundle.mainTex.match(/% scholarly reference declaration/gu)).toHaveLength(2);
-    for (const leaked of ["::alias", "::anchor", "::bibliography", ":ref[", "{mode=", "locator=", "prefix=", "suffix="]) {
+    for (const leaked of ["::label", "::bibliography", ":ref[", "{mode=", "locator=", "prefix=", "suffix="]) {
       expect(bundle.mainTex, leaked).not.toContain(leaked);
     }
 
@@ -597,7 +599,7 @@ Published ending.
     expect(text).toContain("See Result and custom table before See Source (2026), p. 4.");
     expect(text).toContain("Source, Sam (2026). Source title.");
     expect(text.indexOf("Source, Sam (2026). Source title.")).toBeLessThan(text.indexOf("Closing"));
-    for (const leaked of ["::alias", "::anchor", "::bibliography", ":ref[", "{mode=", "locator=", "prefix=", "suffix="]) {
+    for (const leaked of ["::label", "::bibliography", ":ref[", "{mode=", "locator=", "prefix=", "suffix="]) {
       expect(text, leaked).not.toContain(leaked);
     }
 
@@ -638,7 +640,7 @@ Published ending.
     const bundle = buildExportBundle({
       title: "Conformance study",
       files: [
-        file("main", "main.md", "# Findings {#findings}\nSee :ref[findings].\n::include[results.md]"),
+        file("main", "main.md", "# Findings\n::label[findings]\nSee :ref[findings].\n::include[results.md]"),
         file("results", "results.md", source),
       ],
       entryFileId: "main",
@@ -695,13 +697,13 @@ Published ending.
   it("keeps scholarly-looking text literal inside fenced code", () => {
     const bundle = buildExportBundle({
       title: "Literal directives",
-      files: [file("main", "main.md", '```text\n:ref[literal]{target="section"}\n::anchor[Literal]{target=literal}\n```')],
+      files: [file("main", "main.md", "```text\n:ref[section]\n::label[literal]\n```")],
       entryFileId: "main",
       bibliography: "",
     });
 
-    expect(bundle.mainTex).toContain(':ref[literal]\\{target="section"\\}');
-    expect(bundle.mainTex).toContain("::anchor[Literal]\\{target=literal\\}");
+    expect(bundle.mainTex).toContain(":ref[section]");
+    expect(bundle.mainTex).toContain("::label[literal]");
   });
 });
 

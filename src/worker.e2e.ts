@@ -1732,7 +1732,8 @@ test("highlights Markdown without replacing the native editor", async ({ page })
   await page.goto(`/editor/${workspaceId}`);
   await expect(page.getByText(/Live · 1 writer/)).toBeVisible();
   const source = [
-    "## Findings {#findings}",
+    "## Findings",
+    "::label[findings]",
     "",
     "Use :cite[smith2024], **careful emphasis**, and [context](https://example.test).",
     '<img src=x onerror="document.body.dataset.injected=true">',
@@ -2061,7 +2062,7 @@ test("opens a live WYSIWYM scholarly workspace", async ({ page }) => {
   await page
     .locator("#source-editor")
     .fill(
-      "## Evidence becomes prose {#sec-evidence}\n\nA live collaborative note cites prior work :cite[merton1942].[^live]\n\n| State | Result |\n| --- | --- |\n| Shared | **Visible** |\n\n[^live]: Rendered by Kirjolab.\n",
+      "## Evidence becomes prose\n::label[sec-evidence]\n\nA live collaborative note cites prior work :cite[merton1942].[^live]\n\n| State | Result |\n| --- | --- |\n| Shared | **Visible** |\n\n[^live]: Rendered by Kirjolab.\n",
     );
   await expect(page.locator("#preview")).toContainText("Merton, 1942");
   await expect(page.locator("#diagnostic-summary")).toHaveText("No syntax errors");
@@ -3273,7 +3274,7 @@ test("keeps resource-keyed research context beside authoring", async ({ page }) 
     { length: 36 },
     (_, index) => `Paragraph ${index + 1} keeps enough manuscript context visible while a source is inspected.`,
   ).join("\n\n");
-  const source = `## Context pane {#context-pane}\n\nThe manuscript cites prior work :cite[merton1942].\n\n${body}`;
+  const source = `## Context pane\n::label[context-pane]\n\nThe manuscript cites prior work :cite[merton1942].\n\n${body}`;
   await editor.fill(source);
   await expect(page.locator("#preview .semantic-citation[data-citation='merton1942']")).toBeVisible();
 
@@ -3661,7 +3662,7 @@ test("converges source edits across two writers", async ({ page, context }) => {
   await expect(page.getByText(/Live · 2 writers/)).toBeVisible();
   await expect(collaborator.getByText(/Live · 2 writers/)).toBeVisible();
 
-  const sharedSource = "## Shared evidence {#shared-evidence}\n\nThe first writer contributes a claim.\n";
+  const sharedSource = "## Shared evidence\n::label[shared-evidence]\n\nThe first writer contributes a claim.\n";
   await page.locator("#source-editor").fill(sharedSource);
   await expect(collaborator.locator("#source-editor")).toHaveValue(sharedSource);
   await expect(collaborator.locator("#source-editor-highlight")).toHaveText(sharedSource);
@@ -3803,7 +3804,7 @@ test("invalidates shared resources without replacing the collaborative manuscrip
   await expect(page.getByText(/Live · 2 writers/)).toBeVisible();
   await expect(collaborator.getByText(/Live · 2 writers/)).toBeVisible();
 
-  const sharedSource = "## Shared resource boundary {#shared-resource}\n\nThe manuscript remains under Yjs ownership.\n";
+  const sharedSource = "## Shared resource boundary\n::label[shared-resource]\n\nThe manuscript remains under Yjs ownership.\n";
   await page.locator("#source-editor").fill(sharedSource);
   await expect(collaborator.locator("#source-editor")).toHaveValue(sharedSource);
   await expect.poll(async () => (await readWorkspaceSnapshot(page, api)).source).toBe(sharedSource);
@@ -3868,7 +3869,8 @@ test("keeps annotation and claim passage anchors attached across remote insertio
   const annotationExcerpt = "The annotation passage stays addressable.";
   const claimExcerpt = "The claim passage stays addressable.";
   const source = [
-    "## Durable anchors {#durable-anchors}",
+    "## Durable anchors",
+    "::label[durable-anchors]",
     "",
     "Context before annotation.",
     annotationExcerpt,
@@ -3961,7 +3963,7 @@ test("keeps annotation and claim passage anchors attached across remote insertio
   await expectEditorSelection(editor, resolvedClaimStart, claimExcerpt);
 
   const candidatePrefix = "A reviewed candidate adds context.\n";
-  const candidateTarget = "## Durable anchors {#durable-anchors}";
+  const candidateTarget = "## Durable anchors\n::label[durable-anchors]";
   if (typeof annotation.updatedAt !== "string") throw new Error("Expected an annotation version");
   const candidateResponse = await page.request.post(`${api}/candidates`, {
     headers: { origin },
@@ -4320,7 +4322,7 @@ test("creates, shares, and navigates isolated workspaces", async ({ page, browse
   await expect(page.locator("#workspace-catalog-list")).toContainText("No projects match this title.");
   await page.locator("#workspace-catalog-dialog").getByRole("button", { name: "Close" }).click();
 
-  const isolatedSource = "## Independent evidence {#independent}\n\nThis belongs to one workspace.\n";
+  const isolatedSource = "## Independent evidence\n::label[independent]\n\nThis belongs to one workspace.\n";
   await page.locator("#source-editor").fill(isolatedSource);
   await expect(page.locator("#preview")).toContainText("This belongs to one workspace.");
 
@@ -5109,7 +5111,7 @@ test("rejects a delayed model candidate after a concurrent manuscript edit", asy
   await expect(firstEvidence).toBeFocused();
   await expect(firstEvidence.locator("xpath=ancestor::details[1]")).toHaveAttribute("open", "");
   const editor = page.locator("#source-editor");
-  const baseSource = "## Model boundary {#model-boundary}\n\nThis paragraph is grounded in visible evidence.\n";
+  const baseSource = "## Model boundary\n::label[model-boundary]\n\nThis paragraph is grounded in visible evidence.\n";
   await editor.fill(baseSource);
   await expect.poll(async () => (await readWorkspaceSnapshot(page, api)).source).toBe(baseSource);
   const baseSnapshot = await readWorkspaceSnapshot(page, api);
@@ -5293,7 +5295,7 @@ test("moves evidence from PDF annotation through reviewed model prose", async ({
   await expect(page.getByText(/Live · \d+ writer/)).toBeVisible({ timeout: 10_000 });
   await openResearchRail(page);
   const initialSource =
-    "## Evidence becomes prose {#sec-evidence}\n\nKirjolab keeps the path from an annotation to a claim and into cited prose visible :cite[merton1942].\n\n## Return to the source {#sec-source}\n\nThe preview resolves a link back to :ref[sec-evidence].\n";
+    "## Evidence becomes prose\n::label[sec-evidence]\n\nKirjolab keeps the path from an annotation to a claim and into cited prose visible :cite[merton1942].\n\n## Return to the source\n::label[sec-source]\n\nThe preview resolves a link back to :ref[sec-evidence].\n";
   await page.locator("#source-editor").fill(initialSource);
   await expect(page.locator("#revision-badge")).not.toHaveText("r0");
 
@@ -5574,7 +5576,7 @@ test("moves evidence from PDF annotation through reviewed model prose", async ({
 
   const currentSnapshot = workspaceSnapshot(await (await page.request.get(api)).json(), "Expected a workspace snapshot");
   const staleEvidence = firstWorkspaceAnnotation(currentSnapshot);
-  const staleExcerpt = "## Evidence becomes prose {#sec-evidence}";
+  const staleExcerpt = "## Evidence becomes prose\n::label[sec-evidence]";
   const staleStart = currentSnapshot.source.indexOf(staleExcerpt);
   const staleCandidateResponse = await page.request.post(`${api}/candidates`, {
     headers: { origin: "http://127.0.0.1:8788" },

@@ -349,7 +349,7 @@ function convertLatexFile(
   source = stripComments(source);
   source = replaceEnvironment(source, "tabularx", (body) => tableMarkdown(body, 2));
   source = replaceEnvironment(source, "tabular", (body) => tableMarkdown(body, 1));
-  source = replaceEnvironment(source, "abstract", (body) => `\n\n## Abstract {#abstract}\n\n${body.trim()}\n\n`);
+  source = replaceEnvironment(source, "abstract", (body) => `\n\n## Abstract\n\n::label[abstract]\n\n${body.trim()}\n\n`);
   for (const environment of ["itemize", "enumerate"] as const) {
     source = replaceEnvironment(source, environment, (body) => listMarkdown(body, environment === "enumerate"));
   }
@@ -374,7 +374,7 @@ function convertLatexFile(
   source = replaceSimpleCommand(source, ["citep"], (value) => `:citep[${citationKeys(value)}]`);
   source = replaceSimpleCommand(source, ["cite"], (value) => `:cite[${citationKeys(value)}]`);
   source = replaceSimpleCommand(source, ["autoref", "cref", "Cref", "ref"], (value) => `:ref[${value.trim()}]`);
-  source = replaceSimpleCommand(source, ["label"], (value) => `\n\n::anchor[${value.trim()}]\n\n`);
+  source = replaceSimpleCommand(source, ["label"], (value) => `\n\n::label[${value.trim()}]\n\n`);
   source = replaceSimpleCommand(source, ["url"], (value) => `<${value.trim()}>`);
   source = source.replace(/\\href\s*\{([^}]*)\}\s*\{([^}]*)\}/gu, "[$2]($1)");
   source = replaceSimpleCommand(source, ["footnote"], (value, index) => {
@@ -476,13 +476,13 @@ function translatePreparedBoxplot(source: string, caption?: string, id?: string)
   if (xLabel === null || yLabel === null) return null;
   const title = axisText(axis, "title");
   if (title === null) return null;
-  const attributes = [...(id ? [`#${id}`] : []), 'kind="boxplot"', "version=1"];
+  const attributes = ['kind="boxplot"', "version=1"];
   if (xLabel) attributes.push(`x-label="${xLabel}"`);
   if (yLabel) attributes.push(`y-label="${yLabel}"`);
   const boxes = marks.map(
     (mark) => `::box[${mark.label}]{min=${mark.min} q1=${mark.q1} median=${mark.median} q3=${mark.q3} max=${mark.max}}`,
   );
-  return `:::figure{${attributes.join(" ")}}\n${boxes.join("\n")}\n::caption[${caption || title || "Imported PGFPlots boxplot."}]\n:::`;
+  return `:::figure{${attributes.join(" ")}}\n${boxes.join("\n")}\n::caption[${caption || title || "Imported PGFPlots boxplot."}]\n:::${id ? `\n::label[${id}]` : ""}`;
 }
 
 function axisText(axis: string, name: string): string | undefined | null {
@@ -664,7 +664,7 @@ function replaceSectionCommands(source: string): string {
   return source.replace(
     /\\(section|subsection|subsubsection|paragraph)(\*)?\s*\{([^}]*)\}\s*(?:\\label\s*\{([^}]*)\})?/gu,
     (_whole, command: string, _star: string | undefined, title: string, label: string | undefined) =>
-      `\n\n${"#".repeat(levels[command] ?? 2)} ${title.trim()}${label ? ` {#${label.trim()}}` : ""}\n\n`,
+      `\n\n${"#".repeat(levels[command] ?? 2)} ${title.trim()}${label ? `\n\n::label[${label.trim()}]` : ""}\n\n`,
   );
 }
 

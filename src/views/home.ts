@@ -279,7 +279,7 @@ export function renderHomePage(
                 <div class="editor-command-menu ui-menu-panel">
                   <button type="button" data-insert-syntax="citation"><strong>Citation</strong><code>:cite[key]</code></button>
                   <button type="button" data-insert-syntax="reference"><strong>Cross-reference</strong><code>:ref[target]</code></button>
-                  <button type="button" data-insert-syntax="anchor"><strong>Anchor</strong><code>{#label}</code></button>
+                  <button type="button" data-insert-syntax="label"><strong>Label</strong><code>::label[label]</code></button>
                   <button type="button" data-insert-syntax="footnote"><strong>Footnote</strong><code>[^note]</code></button>
                   <button type="button" data-insert-syntax="link"><strong>Link</strong><code>[text](url)</code></button>
                   <button type="button" data-insert-syntax="bibliography"><strong>Bibliography</strong><code>::bibliography[]</code></button>

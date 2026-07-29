@@ -581,7 +581,7 @@ describe("DocumentRoom in the Workers runtime", () => {
 
     await evictDurableObject(stub);
     const migrated = await stub.getSnapshot(workspaceId);
-    expect(migrated.source).toContain("## References {#references}\n\n::bibliography[]");
+    expect(migrated.source).toContain("## References\n\n::label[references]\n\n::bibliography[]");
     expect(migrated.files.find((file) => file.path === "main.md")?.content).toBe(migrated.source);
     expect(await migrationVersion(stub, 19)).toEqual({ version: 19, name: "add-starter-bibliography-marker" });
   });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { projectMarkdownComments } from "./markdown-comments";
+import { projectMarkdownComments } from "scholarmark";
 
 function fencedCommentProjection(opening: string, closing: string) {
   const source = `${opening}\n::: comment\n${closing}\n::: comment\nhidden\n:::\n`;

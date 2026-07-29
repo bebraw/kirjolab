@@ -1,4 +1,4 @@
-import { projectMarkdownComments } from "./markdown-comments";
+import { projectMarkdownComments } from "scholarmark";
 
 export const projectEntryPath = "main.md";
 

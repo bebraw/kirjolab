@@ -23,7 +23,8 @@ describe("manuscript map", () => {
   });
 
   it("derives exact section ranges, heading labels, words, and citations", () => {
-    const source = `# Title {#title}
+    const source = `# Title
+::label[title]
 
 Opening words with Jean-Luc's result :cite[one]{locator="p. 2"}.
 
@@ -37,7 +38,7 @@ Final words.`;
     const appendixOffset = source.indexOf("###### Appendix");
 
     expect(buildManuscriptMap(source)).toEqual({
-      words: 24,
+      words: 23,
       citations: 2,
       sections: [
         { level: 1, title: "Title", from: 0, to: methodOffset, words: 10, citations: 1 },

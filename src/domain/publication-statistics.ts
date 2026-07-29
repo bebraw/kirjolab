@@ -1,3 +1,4 @@
+import { isPublicationReferenceDeclaration } from "scholarmark";
 import type { CompositionSourceSpan, ProjectComposition, ProjectFile } from "./project-files";
 
 export interface PublicationSourceLocation {
@@ -29,7 +30,7 @@ export interface PublicationWordStatistics {
 }
 
 const citationDirective = /:(?:cite|citet|citep)\[(?<keys>[^\]\r\n]+)\]/gu;
-const headingLine = /^(?<marks>#{1,6})[ \t]+(?<title>.+?)[ \t]*(?:\{#[^}\r\n]+\})?[ \t]*$/u;
+const headingLine = /^(?<marks>#{1,6})[ \t]+(?<title>.+?)[ \t]*$/u;
 const wordPattern = /[\p{L}\p{N}]+(?:['’-][\p{L}\p{N}]+)*/gu;
 
 export function publicationWordStatistics(
@@ -55,6 +56,9 @@ export function publicationWordStatistics(
 
 export function countPublicationWords(markdown: string): number {
   const prose = markdown
+    .split(/\r?\n/u)
+    .map((line) => (isPublicationReferenceDeclaration(line) ? "" : line))
+    .join("\n")
     .replace(/^---[ \t]*\r?\n[\s\S]*?\r?\n---[ \t]*(?:\r?\n|$)/u, "")
     .replace(/```[^\r\n]*\r?\n[\s\S]*?```/gu, " ")
     .replace(/`[^`\r\n]*`/gu, " ")
@@ -65,8 +69,7 @@ export function countPublicationWords(markdown: string): number {
     .replace(/!\[(?<alt>[^\]]*)\]\([^\s)]+(?:\s+"[^"]*")?\)/gu, " $<alt> ")
     .replace(/\[(?<label>[^\]]+)\]\([^\s)]+(?:\s+"[^"]*")?\)/gu, " $<label> ")
     .replace(/<https?:\/\/[^>]+>/giu, " ")
-    .replace(/<[^>]+>/gu, " ")
-    .replace(/\{#[^}\r\n]+\}/gu, " ");
+    .replace(/<[^>]+>/gu, " ");
   return [...prose.matchAll(wordPattern)].length;
 }
 

@@ -6,7 +6,8 @@ describe("Markdown editor highlighting", () => {
     const source = `---
 title: Evidence
 ---
-## Findings {#findings}
+## Findings
+::label[findings]
 
 > Read **carefully** and use :cite[smith2024], :citet[jones2025], and :citep[roe2026] with [context](https://example.test).
 - Include \`measurement details\`[^method]
@@ -22,7 +23,8 @@ title: Evidence
         { text: "---", kind: "frontmatter" },
         { text: "title", kind: "metadata-key" },
         { text: "##", kind: "heading-marker" },
-        { text: " Findings {#findings}", kind: "heading" },
+        { text: " Findings", kind: "heading" },
+        { text: "::label[findings]", kind: "directive" },
         { text: "> ", kind: "quote-marker" },
         { text: "**carefully**", kind: "markup" },
         { text: ":cite[smith2024]", kind: "directive" },
@@ -83,8 +85,8 @@ title: Evidence
       "  ####\tDeep heading",
       "  >>>\tNested quote with _stress_",
       "  12)\tOrdered item with __weight__ and *care*",
-      "  ::alias",
-      "Use :ref[section], ![figure](figure.png), {#section:one}, and [^note].",
+      "  ::label[section:one]",
+      "Use :ref[section], ![figure](figure.png), and [^note].",
     ].join("\n");
     const tokens = highlightMarkdown(source).filter(({ kind }) => kind !== null);
     expect(tokens).toEqual(
@@ -96,14 +98,13 @@ title: Evidence
         { text: "12)\t", kind: "list-marker" },
         { text: "__weight__", kind: "markup" },
         { text: "*care*", kind: "markup" },
-        { text: "::alias", kind: "directive" },
+        { text: "::label[section:one]", kind: "directive" },
         { text: ":ref[section]", kind: "directive" },
         { text: "![figure](figure.png)", kind: "link" },
-        { text: "{#section:one}", kind: "markup" },
         { text: "[^note]", kind: "directive" },
       ]),
     );
-    expect(tokens.filter(({ text }) => text === "::alias")).toHaveLength(1);
+    expect(tokens.filter(({ text }) => text === "::label[section:one]")).toHaveLength(1);
   });
 
   it("does not classify markers that occur in the middle of prose", () => {

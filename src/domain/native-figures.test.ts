@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Directives } from "mdast-util-directive";
-import { parseNativeFigure, renderNativeFigure, type NativeBoxplotFigure } from "./native-figures";
+import { parseNativeFigure, renderNativeFigure, type NativeBoxplotFigure } from "scholarmark";
 
 describe("renderNativeFigure", () => {
   it("pads an equal domain and emits finite repeatable geometry", () => {
@@ -25,7 +25,6 @@ describe("renderNativeFigure", () => {
       figure: {
         schemaVersion: 1,
         kind: "boxplot",
-        id: "result:latency",
         xLabel: "Time (ms)",
         yLabel: "Variant",
         caption: "Latency distribution",
@@ -35,14 +34,14 @@ describe("renderNativeFigure", () => {
     });
   });
 
-  it("reports container, source, figure attribute, kind, version, id, and label errors exactly", () => {
+  it("reports container, source, figure attribute, kind, version, and label errors exactly", () => {
     const cases: Array<readonly [Directives, string]> = [
       [boxDirective(), "Native figure must use a :::figure container"],
       [{ ...figureDirective(), name: "chart" }, "Native figure must use a :::figure container"],
       [figureDirective({ extra: "value" }), "Unsupported figure attribute: extra"],
       [figureDirective({ kind: "line" }), "Native figure kind must be boxplot"],
       [figureDirective({ version: "2" }), "Native figure version must be 1"],
-      [figureDirective({ id: "Bad id" }), "Native figure id is invalid"],
+      [figureDirective({ id: "old-id" }), "Unsupported figure attribute: id"],
       [figureDirective({ "x-label": "x".repeat(121) }), "Native figure x-axis label exceeds 120 characters"],
       [figureDirective({ "y-label": "y".repeat(121) }), "Native figure y-axis label exceeds 120 characters"],
       [
@@ -113,11 +112,7 @@ describe("renderNativeFigure", () => {
       ),
     );
     const directive = {
-      ...figureDirective({
-        id: `a${"b".repeat(63)}`,
-        "x-label": "x".repeat(120),
-        "y-label": "y".repeat(120),
-      }),
+      ...figureDirective({ "x-label": "x".repeat(120), "y-label": "y".repeat(120) }),
       children: [...marks, captionDirective("c".repeat(500))],
       position: {
         start: { line: 1, column: 1, offset: 10 },
@@ -128,7 +123,6 @@ describe("renderNativeFigure", () => {
     const parsed = parseNativeFigure(directive);
     expect(parsed.issues).toEqual([]);
     expect(parsed.figure).toMatchObject({
-      id: `a${"b".repeat(63)}`,
       xLabel: "x".repeat(120),
       yLabel: "y".repeat(120),
       caption: "c".repeat(500),
@@ -142,7 +136,6 @@ describe("renderNativeFigure", () => {
     const figure: NativeBoxplotFigure = {
       schemaVersion: 1,
       kind: "boxplot",
-      id: "latency",
       xLabel: "Time",
       yLabel: "Variant",
       caption: "Measured | latency",
@@ -152,7 +145,7 @@ describe("renderNativeFigure", () => {
       ],
     };
     const rendered = renderNativeFigure(figure, 42);
-    expect(rendered.properties).toEqual({ id: "latency", className: ["native-figure", "native-figure-boxplot"] });
+    expect(rendered.properties).toEqual({ className: ["native-figure", "native-figure-boxplot"] });
     const serialized = JSON.stringify(rendered);
     expect(serialized).toContain('"viewBox":"0 0 720 168"');
     expect(serialized).toContain('"id":"native-figure-title-42"');
@@ -213,7 +206,6 @@ function figureDirective(attributes: Readonly<Record<string, string | null>> = {
     type: "containerDirective",
     name: "figure",
     attributes: {
-      id: "result:latency",
       kind: "boxplot",
       version: "1",
       "x-label": "Time (ms)",

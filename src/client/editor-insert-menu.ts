@@ -4,7 +4,7 @@ import type { AppToast } from "./app-toast";
 import { LightDomElement } from "./light-dom-controller";
 import type { EditorAuthoringPassage, EditorStatus, EditorTextInsertion } from "./editor-status";
 
-export type EditorSyntaxKind = "anchor" | "bibliography" | "citation" | "footnote" | "link" | "reference";
+export type EditorSyntaxKind = "bibliography" | "citation" | "footnote" | "label" | "link" | "reference";
 
 export interface EditorSyntaxTemplate {
   readonly text: string;
@@ -21,7 +21,7 @@ interface EditorInsertData {
 const syntaxOptions: readonly { readonly kind: EditorSyntaxKind; readonly label: string; readonly template: EditorSyntaxTemplate }[] = [
   { kind: "citation", label: "Citation", template: { text: ":cite[key]", select: "key" } },
   { kind: "reference", label: "Cross-reference", template: { text: ":ref[target]", select: "target" } },
-  { kind: "anchor", label: "Anchor", template: { text: "{#label}", select: "label" } },
+  { kind: "label", label: "Label", template: { text: "::label[label]", select: "label" } },
   { kind: "footnote", label: "Footnote", template: { text: "[^note]", select: "note" } },
   { kind: "link", label: "Link", template: { text: "[text](url)", select: "text" } },
   { kind: "bibliography", label: "Bibliography", template: { text: "::bibliography[]" } },

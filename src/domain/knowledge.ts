@@ -1,4 +1,5 @@
 import * as v from "valibot";
+import { isPublicationReferenceDeclaration, renderSync } from "scholarmark";
 import type { WorkspaceMember, WorkspaceSnapshot } from "./workspace";
 
 export type KnowledgeResourceKind =
@@ -359,22 +360,16 @@ export function isWorkspaceKnowledgeGraph(value: unknown): value is WorkspaceKno
 }
 
 function extractSections(source: string): SectionResource[] {
-  const matches = [...source.matchAll(/^(#{2,3})\s+(.+?)(?:\s+\{#([a-zA-Z0-9:_-]+)\})?\s*$/gmu)];
-  const foundSlugs: Record<string, number> = {};
-  return matches.map((match, index) => {
-    const title = match[2] ?? "Untitled section";
-    const id = match[3] ?? getUniqueSlug(title, foundSlugs);
-    const bodyStart = match.index + match[0].length;
-    const bodyEnd = matches[index + 1]?.index ?? source.length;
-    return { id: sectionId(id), title, excerpt: excerpt(source.slice(bodyStart, bodyEnd)) };
+  const headings = renderSync(source, "").headings;
+  return headings.map((heading, index) => {
+    const bodyEnd = headings[index + 1]?.from ?? source.length;
+    const body = source
+      .slice(heading.to, bodyEnd)
+      .split(/\r?\n/u)
+      .filter((line) => !isPublicationReferenceDeclaration(line))
+      .join("\n");
+    return { id: sectionId(heading.id), title: heading.title, excerpt: excerpt(body) };
   });
-}
-
-function getUniqueSlug(value: string, foundSlugs: Record<string, number>): string {
-  const base = slugify(value);
-  const count = foundSlugs[base] ?? 0;
-  foundSlugs[base] = count + 1;
-  return count === 0 ? base : `${base}-${count + 1}`;
 }
 
 function extractCitationKeys(source: string): string[] {
@@ -400,15 +395,6 @@ function tokenize(value: string): string[] {
 function excerpt(value: string, maximum = 240): string {
   const normalized = value.replaceAll(/\s+/gu, " ").trim();
   return normalized.length <= maximum ? normalized : `${normalized.slice(0, maximum - 1).trimEnd()}…`;
-}
-
-function slugify(value: string): string {
-  return value
-    .toLowerCase()
-    .replaceAll("`", "")
-    .trim()
-    .replaceAll(/[^a-z0-9]+/gu, "-")
-    .replaceAll(/^-|-$/gu, "");
 }
 
 function formatBytes(value: number): string {

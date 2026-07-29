@@ -10,13 +10,13 @@ import {
   publicationReferenceLabels,
   replacePublicationTextDirectives,
   type PublicationTextDirective,
-} from "./scholarly-export";
+} from "scholarmark";
 
 describe("scholarly publication projection", () => {
   it("parses complete supported text directives without retaining their attributes", () => {
     const seen: PublicationTextDirective[] = [];
     const projected = replacePublicationTextDirectives(
-      'See :cite[doe2026, roe2025]{mode=textual locator="p. 4" prefix="Compare " suffix="."} and :ref[custom label]{target="sec:result"}.',
+      'See :cite[doe2026, roe2025]{mode=textual locator="p. 4" prefix="Compare " suffix="."} and :ref[sec:result]{text="custom label"}.',
       (directive) => {
         seen.push(directive);
         return directive.kind === "cite" ? "CITATION" : "REFERENCE";
@@ -32,10 +32,10 @@ describe("scholarly publication projection", () => {
       prefix: "Compare ",
       suffix: ".",
     });
-    expect(seen[1]).toMatchObject({ kind: "ref", content: "custom label" });
-    expect(Object.fromEntries(seen[1]!.attributes)).toEqual({ target: "sec:result" });
-    expect(replacePublicationTextDirectives(":unknown[value] and ::anchor[value]", () => "changed")).toBe(
-      ":unknown[value] and ::anchor[value]",
+    expect(seen[1]).toMatchObject({ kind: "ref", content: "sec:result" });
+    expect(Object.fromEntries(seen[1]!.attributes)).toEqual({ text: "custom label" });
+    expect(replacePublicationTextDirectives(":unknown[value] and ::label[value]", () => "changed")).toBe(
+      ":unknown[value] and ::label[value]",
     );
   });
 
@@ -50,34 +50,33 @@ describe("scholarly publication projection", () => {
     expect(seen.map((directive) => directive.kind)).toEqual(["cite", "cite", "cite"]);
   });
 
-  it("resolves heading, alias, anchor, custom, and fallback reference labels", () => {
-    const markdown = `::alias[Legacy]{target="sec:legacy" slug="results"}
+  it("resolves heading, non-heading, custom, and fallback reference labels", () => {
+    const markdown = `## *Results*
+::label[sec-results]
 
-## *Results* {#sec-results}
-
-::anchor[Table one]{target=table:one slug=table-one}`;
+| Value |
+| ---: |
+| 42 |
+::label[table:one]`;
     const labels = publicationReferenceLabels(markdown);
     expect(Object.fromEntries(labels)).toEqual({
       "sec-results": "Results",
-      "sec:legacy": "Results",
-      "table:one": "Table one",
-      results: "Results",
+      "table:one": "table:one",
     });
     const directive = (content: string, attributes: ReadonlyMap<string, string>): PublicationTextDirective => ({
       kind: "ref",
       content,
       attributes,
     });
-    expect(publicationReferenceLabel(directive("sec:legacy", new Map()), labels)).toBe("Results");
-    expect(publicationReferenceLabel(directive("custom *label*", new Map([["target", "table:one"]])), labels)).toBe("custom label");
-    expect(publicationReferenceLabel(directive("", new Map([["target", "table:one"]])), labels)).toBe("Table one");
+    expect(publicationReferenceLabel(directive("sec-results", new Map()), labels)).toBe("Results");
+    expect(publicationReferenceLabel(directive("table:one", new Map([["text", "custom *label*"]])), labels)).toBe("custom label");
+    expect(publicationReferenceLabel(directive("table:one", new Map()), labels)).toBe("table:one");
     expect(publicationReferenceLabel(directive("unknown", new Map()), labels)).toBe("unknown");
   });
 
   it("recognizes only complete supported reference declaration lines", () => {
-    expect(isPublicationReferenceDeclaration('::alias[Legacy]{target="sec:legacy" slug=legacy}')).toBe(true);
-    expect(isPublicationReferenceDeclaration("  ::anchor[Table]{target=table:one}  ")).toBe(true);
-    for (const line of ["prefix ::anchor[Table]{target=table:one}", "::include[file.md]", "::unknown[value]{target=x}", "::anchor[x]"]) {
+    expect(isPublicationReferenceDeclaration("  ::label[table:one]  ")).toBe(true);
+    for (const line of ["prefix ::label[table:one]", "::include[file.md]", "::unknown[value]{target=x}", "::label[x]{text=extra}"]) {
       expect(isPublicationReferenceDeclaration(line), line).toBe(false);
     }
   });
@@ -92,7 +91,7 @@ describe("scholarly publication projection", () => {
     expect(publicationBibliographyText(entry, "apa")).toBe("Doe, Jane (2026). Methods.");
     expect(publicationBibliographyText(entry, "chicago-author-date")).toBe("Doe, Jane. 2026. Methods.");
     expect(publicationBibliographyText(entry, "ieee")).toBe("[1] Doe, Jane, “Methods,” 2026.");
-    expect(publicationBibliographyText({ ...entry, author: "", title: "", year: "" }, "apa")).toBe("doe2026 (n.d.). doe2026.");
+    expect(publicationBibliographyText({ ...entry, authors: [], title: "", year: "" }, "apa")).toBe("doe2026 (n.d.). doe2026.");
   });
 
   it("renders citation metadata through each bounded publication profile", () => {
@@ -148,7 +147,7 @@ describe("scholarly publication projection", () => {
     expect(publicationCitationText(parsed(":citet[group]"), bibliography, "ieee")).toBe("Conilh et al. [3]");
     expect(publicationCitationText(parsed(":cite[pair]"), bibliography, "apa")).toBe("(Doe and Roe, 2025)");
     expect(publicationBibliographyText(bibliography.get("group")!, "apa")).toContain(
-      "Louise Conilh and Lenka Sadílková and Warren Viricel and Charles Dumontet",
+      "Conilh, Louise and Sadílková, Lenka and Viricel, Warren and Dumontet, Charles",
     );
   });
 
@@ -175,20 +174,18 @@ describe("scholarly publication projection", () => {
   });
 
   it("normalizes irregular author lists and punctuation-heavy reference slugs", () => {
-    expect(publicationCitationAuthorLabel({ id: "spaced", author: "Jane Doe   and   Richard Roe" })).toBe("Doe and Roe");
-    expect(publicationCitationAuthorLabel({ id: "open", author: "{Open collective" })).toBe("collective");
-    expect(publicationCitationAuthorLabel({ id: "close", author: "Close collective}" })).toBe("collective}");
-    expect(publicationCitationAuthorLabel({ id: "empty", author: "   " })).toBe("empty");
+    expect(publicationCitationAuthorLabel({ id: "spaced", authors: [{ family: "Doe" }, { family: "Roe" }] })).toBe("Doe and Roe");
+    expect(publicationCitationAuthorLabel({ id: "organization", authors: [{ literal: "Open collective" }] })).toBe("Open collective");
+    expect(publicationCitationAuthorLabel({ id: "empty", authors: [] })).toBe("empty");
 
     expect(
       Object.fromEntries(
-        publicationReferenceLabels(`## --A   B--\n## \`Code\` & *Evidence* {#explicit}\n::anchor[  **Label**  ]{target=anchor}`),
+        publicationReferenceLabels(`## --A   B--\n::label[a-b]\n## \`Code\` & *Evidence*\n::label[explicit]\nParagraph\n::label[anchor]`),
       ),
     ).toEqual({
       "a-b": "--A   B--",
       explicit: "Code & Evidence",
-      "code-evidence": "Code & Evidence",
-      anchor: "Label",
+      anchor: "anchor",
     });
   });
 });

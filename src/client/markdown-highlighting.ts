@@ -1,4 +1,4 @@
-import { projectMarkdownComments } from "../domain/markdown-comments";
+import { projectMarkdownComments } from "scholarmark/browser";
 
 export type MarkdownHighlightKind =
   | "code"

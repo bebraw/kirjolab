@@ -11,7 +11,7 @@ import {
   publicationReferenceLabel,
   publicationReferenceLabels,
   replacePublicationTextDirectives,
-} from "../domain/scholarly-export";
+} from "scholarmark";
 import {
   projectPublicationStructure,
   publicationFootnoteReferences,

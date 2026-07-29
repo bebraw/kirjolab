@@ -52,7 +52,7 @@ Text with \textbf{weight}, \emph{emphasis}, and \footnote{A \texttt{nested} note
     expect(result.seed.files[0]?.content).toContain("::include[meta.md]");
     expect(result.seed.files[0]?.content).toContain("::include[sections/introduction.md]");
     expect(result.seed.files[0]?.content).toContain("::bibliography[]");
-    expect(result.seed.files[2]?.content).toContain("## Introduction {#sec:introduction}");
+    expect(result.seed.files[2]?.content).toContain("## Introduction\n\n::label[sec:introduction]");
     expect(result.seed.files[2]?.content).toContain(":citet[one]");
     expect(result.seed.files[2]?.content).toContain(":citep[two, three]");
     expect(result.seed.files[2]?.content).toContain(":ref[sec:method]");
@@ -125,7 +125,7 @@ The example at \autoref{fig:summary} based on \cite{mozilladetails2025} illustra
       "```html\n<details>\n  <summary>What is HTML First?</summary>\n  A paradigm that favors the usage of HTML before other\n  technologies.\n</details>\n```",
     );
     expect(markdown).toContain("`details` and `summary` elements work in tandem");
-    expect(markdown).toContain("::anchor[fig:summary]");
+    expect(markdown).toContain("::label[fig:summary]");
     expect(markdown).not.toContain("Description");
     expect(markdown).not.toContain("minted");
   });
@@ -173,7 +173,8 @@ yticklabels={SSR -- FCP, Islands -- FCP}
     const result = convertLatexInspection(inspection, { rootPath: "main.tex" });
     const markdown = result.seed.files[0]?.content ?? "";
 
-    expect(markdown).toContain(':::figure{#graph:fcp-summary kind="boxplot" version=1 x-label="Time (ms)" y-label="Variant"}');
+    expect(markdown).toContain(':::figure{kind="boxplot" version=1 x-label="Time (ms)" y-label="Variant"}');
+    expect(markdown).toContain("::label[graph:fcp-summary]");
     expect(markdown).toContain("::box[SSR – FCP]{min=1613 q1=1627 median=1628 q3=1632 max=1641}");
     expect(markdown).toContain("::caption[FCP and SRT behavior across five runs.]");
     expect(markdown.match(/FCP and SRT behavior across five runs\./gu)).toHaveLength(1);
@@ -182,7 +183,8 @@ yticklabels={SSR -- FCP, Islands -- FCP}
     expect(result.report.diagnostics).not.toEqual(expect.arrayContaining([expect.objectContaining({ code: "tikz-preserved" })]));
     const rendered = renderWorkspaceMarkdown(markdown, "");
     expect(rendered.diagnostics).toEqual([]);
-    expect(rendered.html).toContain('<figure id="graph:fcp-summary" class="native-figure native-figure-boxplot"');
+    expect(rendered.html).toContain('<figure class="native-figure native-figure-boxplot"');
+    expect(rendered.html).toContain('class="semantic-label" id="graph:fcp-summary"');
   });
 
   it("does not preserve TikZ disabled by a LaTeX comment environment", () => {
@@ -295,17 +297,17 @@ x + y
 Escapes: \% \& \# \_ \$ and \textbackslash{} plus~space.`);
     const markdown = result.seed.files[0]!.content;
 
-    expect(markdown).toContain("## First {#sec:first}");
+    expect(markdown).toContain("## First\n\n::label[sec:first]");
     expect(markdown).toContain("### Second");
     expect(markdown).toContain("#### Third");
     expect(markdown).toContain("##### Fourth");
-    expect(markdown).toContain("## Abstract {#abstract}\n\nSummary text.");
+    expect(markdown).toContain("## Abstract\n\n::label[abstract]\n\nSummary text.");
     expect(markdown).toContain("- Alpha\n- Beta");
     expect(markdown).toContain("1. Alpha\n2. Beta");
     expect(markdown).toContain("**bold** **also bold** *italics* *emphasis* *slanted* `code`");
     expect(markdown).toContain(":citet[a, b] :citep[c, d] :cite[e]");
     expect(markdown).toContain(":ref[first] :ref[second] :ref[third] :ref[fourth]");
-    expect(markdown).toContain("::anchor[standalone]");
+    expect(markdown).toContain("::label[standalone]");
     expect(markdown).toContain("<https://example.com/a> [ Link ](https://example.com/b)");
     expect(markdown).toContain("$$\nx + y\n$$");
     expect(markdown).toContain("Description");
@@ -702,7 +704,8 @@ Pipe | value & 2 & spaced   words
     expect(multiple.seed.files[0]?.content.match(/:::figure/gu)).toHaveLength(2);
     expect(multiple.report.diagnostics.filter(({ code }) => code === "tikz-translated")).toHaveLength(2);
     expect(multiple.seed.files[0]?.content).toContain("Two");
-    expect(single.seed.files[0]?.content).toContain(':::figure{#fig:safe kind="boxplot" version=1}');
+    expect(single.seed.files[0]?.content).toContain(':::figure{kind="boxplot" version=1}');
+    expect(single.seed.files[0]?.content).toContain("::label[fig:safe]");
     expect(single.seed.files[0]?.content).toContain("::caption[Caption – safe]");
     expect(single.report.diagnostics).toContainEqual(expect.objectContaining({ code: "tikz-translated" }));
   });
