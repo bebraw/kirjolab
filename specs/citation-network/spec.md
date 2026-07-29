@@ -76,6 +76,10 @@ by` relationships. Selecting a neighboring source refocuses the same trail
   remain extracted evidence, render with their body pages in the existing
   review queue, and enrich the accepted assertion's PDF locator; they never
   bypass candidate review or create a second assertion.
+- `npm run diagnostics:pdf-references` evaluates the deterministic parser
+  against a versioned, non-user corpus and reports heading, reference, and
+  in-text mention precision, recall, F1, and concrete failure examples. The
+  report is advisory and may also emit JSON for trend capture.
 
 ### API Contracts
 

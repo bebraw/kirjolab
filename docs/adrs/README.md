@@ -33,6 +33,8 @@ No accepted ADRs are awaiting implementation.
 
 | ADR                                                                                       | Status               | Summary                                                                                                       |
 | ----------------------------------------------------------------------------------------- | -------------------- | ------------------------------------------------------------------------------------------------------------- |
+| [ADR-188](./implemented/ADR-188-report-pdf-reference-quality.md)                          | Implemented          | Evaluate PDF reference extraction against a versioned private-data-free corpus.                               |
+| [ADR-187](./implemented/ADR-187-review-pdf-references-server-side.md)                     | Implemented          | Revalidate and review parsed PDF references inside the owner Library authority.                               |
 | [ADR-186](./implemented/ADR-186-promote-source-modules-through-evidence-gates.md)         | Implemented          | Require independent consumers and explicit ownership before workspace packaging or publication.               |
 | [ADR-185](./implemented/ADR-185-defer-graph-renderer-adoption.md)                         | Implemented          | Defer a graph renderer until a second interaction or scale trigger becomes a committed requirement.           |
 | [ADR-184](./implemented/ADR-184-retain-bounded-latex-converter.md)                        | Implemented          | Retain the bounded LaTeX converter after a measured parser spike does not retire enough product policy.       |

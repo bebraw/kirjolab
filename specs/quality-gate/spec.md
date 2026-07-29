@@ -19,6 +19,7 @@ The template needs a verification baseline that stays strict enough for end-to-e
 - **Changed-code readability diagnostics:** `npm run diagnostics:readability`
 - **Whole-repo health diagnostics:** `npm run diagnostics:health`
 - **Dependency-cost diagnostics:** `npm run diagnostics:dependencies`
+- **PDF reference quality:** `npm run diagnostics:pdf-references`
 - **Full mutation gate:** `npm run mutation`
 - **Affected mutation gate:** `npm run mutation:affected -- --mutate <files>`
 - **Incremental mutation gate:** `npm run mutation:incremental`

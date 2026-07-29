@@ -100,6 +100,8 @@ If optional container parity warns with `No such remote 'origin'`, add `GITHUB_R
 - Run the fast local gate with `npm run quality:gate:fast`.
 - Run the baseline quality gate with `npm run quality:gate`.
 - Run advisory codebase readability diagnostics with `npm run diagnostics:codebase`.
+- Run the versioned PDF-reference extraction corpus with
+  `npm run diagnostics:pdf-references` (`-- --json` for machine-readable output).
 - Run the shipped runtime dependency audit with `npm run security:audit`.
 - Start the local Worker and configured model companion with `npm run dev`.
   The command explicitly selects loopback-only local authentication; it does
