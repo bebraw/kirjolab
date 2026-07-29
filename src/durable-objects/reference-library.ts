@@ -9,7 +9,13 @@ import {
   type ReviewCitationAssertionInput,
 } from "../domain/citation-assertions";
 import type { CitationCandidateAcceptance, CitationCandidateSource } from "../domain/citation-expansion-types";
-import type { ArtifactAnalysis, ArtifactAnalysisKind, ArtifactAnalysisResult } from "../domain/reference-library/artifact-analysis";
+import type {
+  ArtifactAnalysis,
+  ArtifactAnalysisKind,
+  ArtifactAnalysisResult,
+  PdfReferenceAnalysisCandidate,
+  PdfReferenceAnalysisResult,
+} from "../domain/reference-library/artifact-analysis";
 import {
   likelyReferenceIdentity,
   libraryPdfRectsOverlap,
@@ -231,6 +237,24 @@ interface PdfReferenceReviewRow extends Record<string, SqlStorageValue> {
   assertion_id: string | null;
   reviewed_by: string;
   reviewed_at: string;
+}
+
+interface PdfReferenceReviewRequest {
+  readonly actor: string;
+  readonly artifactId: string;
+  readonly candidateId: string;
+  readonly decision: "accepted" | "rejected";
+  readonly fingerprint: string;
+  readonly referenceId: string | undefined;
+}
+
+interface PdfReferenceReviewContext {
+  readonly analysis: ArtifactAnalysis;
+  readonly artifact: LibraryPdfArtifact;
+  readonly candidate: PdfReferenceAnalysisCandidate;
+  readonly citingReferenceId: string;
+  readonly existing: PdfReferenceReviewRow | undefined;
+  readonly referenceAnalysis: PdfReferenceAnalysisResult;
 }
 
 export interface ReferenceImportItem {
@@ -943,7 +967,7 @@ export class ReferenceLibrary extends DurableObject<Env> {
     actor: string,
   ): PdfReferenceCandidateReviewResult {
     return this.ctx.storage.transactionSync(() =>
-      this.#reviewPdfReferenceCandidate(artifactId, fingerprint, candidateId, decision, referenceId, actor, true),
+      this.#reviewPdfReferenceCandidate({ actor, artifactId, candidateId, decision, fingerprint, referenceId }, true),
     );
   }
 
@@ -959,20 +983,45 @@ export class ReferenceLibrary extends DurableObject<Env> {
     }
     return this.ctx.storage.transactionSync(() =>
       candidates.map(({ candidateId, referenceId }) =>
-        this.#reviewPdfReferenceCandidate(artifactId, fingerprint, candidateId, "accepted", referenceId, actor, false),
+        this.#reviewPdfReferenceCandidate({ actor, artifactId, candidateId, decision: "accepted", fingerprint, referenceId }, false),
       ),
     );
   }
 
-  #reviewPdfReferenceCandidate(
-    artifactId: string,
-    fingerprint: string,
-    candidateId: string,
-    decision: "accepted" | "rejected",
-    referenceId: string | undefined,
-    actor: string,
-    acceptPreviouslyRejected: boolean,
-  ): PdfReferenceCandidateReviewResult {
+  #reviewPdfReferenceCandidate(request: PdfReferenceReviewRequest, acceptPreviouslyRejected: boolean): PdfReferenceCandidateReviewResult {
+    const { actor, artifactId, candidateId, decision, fingerprint, referenceId } = request;
+    const context = this.#pdfReferenceReviewContext(request);
+    const { analysis, artifact, candidate, citingReferenceId, existing, referenceAnalysis } = context;
+    if (existing?.decision === "accepted") return this.#acceptedPdfReferenceReview(existing);
+    if (existing?.decision === "rejected" && decision === "accepted" && !acceptPreviouslyRejected) {
+      throw new Error("PDF reference candidate was already skipped");
+    }
+    if (decision === "rejected") {
+      const review = this.#writePdfReferenceReview(artifactId, fingerprint, candidateId, decision, null, null, actor);
+      return { review, reference: null, assertion: null };
+    }
+    const reference = this.#resolvePdfReferenceCandidate(context, referenceId, actor);
+    const assertion = this.#createCitationAssertion(
+      {
+        citingReferenceId,
+        citedReferenceId: reference.id,
+        polarity: "cites",
+        evidenceState: "extracted",
+        method: "source-extraction",
+        observedAt: analysis.completedAt ?? analysis.requestedAt,
+        sourceKind: "pdf-artifact",
+        sourceId: artifact.id,
+        sourceLocator: pdfReferenceSourceLocator(referenceAnalysis, candidate.id, candidate.page),
+        confidence: candidate.confidence,
+      },
+      "PDF reference analysis",
+    );
+    const review = this.#writePdfReferenceReview(artifactId, fingerprint, candidateId, decision, reference.id, assertion.id, actor);
+    return { review, reference, assertion };
+  }
+
+  #pdfReferenceReviewContext(request: PdfReferenceReviewRequest): PdfReferenceReviewContext {
+    const { artifactId, candidateId, fingerprint } = request;
     const artifact = this.#artifact(artifactId);
     if (!artifact.referenceId) throw new Error("Identify the PDF before reviewing its references");
     const citingReferenceId = artifact.referenceId;
@@ -996,61 +1045,59 @@ export class ReferenceLibrary extends DurableObject<Env> {
         fingerprint,
       )
       .toArray()[0];
-    if (existing?.decision === "accepted") {
-      const review = pdfReferenceReviewFromRow(existing);
-      return {
-        review,
-        reference: this.#reference(review.referenceId!),
-        assertion: citationAssertionFromRow(this.#citationAssertion(review.assertionId!)),
-      };
-    }
-    if (existing?.decision === "rejected" && decision === "accepted" && !acceptPreviouslyRejected) {
-      throw new Error("PDF reference candidate was already skipped");
-    }
-    if (decision === "rejected") {
-      const review = this.#writePdfReferenceReview(artifactId, fingerprint, candidateId, decision, null, null, actor);
-      return { review, reference: null, assertion: null };
-    }
+    return { analysis, artifact, candidate, citingReferenceId, existing, referenceAnalysis };
+  }
+
+  #acceptedPdfReferenceReview(existing: PdfReferenceReviewRow): PdfReferenceCandidateReviewResult {
+    const review = pdfReferenceReviewFromRow(existing);
+    return {
+      review,
+      reference: this.#reference(review.referenceId!),
+      assertion: citationAssertionFromRow(this.#citationAssertion(review.assertionId!)),
+    };
+  }
+
+  #resolvePdfReferenceCandidate(context: PdfReferenceReviewContext, referenceId: string | undefined, actor: string): BibliographicRecord {
+    const { analysis, artifact, candidate, citingReferenceId } = context;
     const exactDoi = normalizeDoi(candidate.doi);
-    const doiRow = exactDoi
-      ? this.ctx.storage.sql
-          .exec<ReferenceRow>("SELECT * FROM library_references WHERE LOWER(doi) = ? AND deleted_at IS NULL LIMIT 1", exactDoi)
-          .toArray()[0]
-      : undefined;
-    if (doiRow && referenceId && doiRow.id !== referenceId) throw new Error("The candidate DOI matches a different library reference");
-    const selectedReference = !doiRow && referenceId ? this.#reference(referenceId) : null;
-    if (selectedReference) {
-      const suggestion = suggestPdfReferenceMatch(candidate, [selectedReference]);
-      if (suggestion?.kind !== "bibliographic" || suggestion.reference.id !== selectedReference.id) {
-        throw new Error("The selected library reference does not match the analyzed bibliography entry");
-      }
-    }
+    const doiRow = this.#pdfReferenceDoiRow(exactDoi);
+    const selectedReference = this.#selectedPdfReference(candidate, doiRow, referenceId);
     const reference = doiRow
       ? referenceFromRow(doiRow)
       : selectedReference
         ? selectedReference
-        : this.#createPdfReferenceCandidate(artifactId, candidate, analysis.completedAt ?? new Date().toISOString(), actor);
+        : this.#createPdfReferenceCandidate(artifact.id, candidate, analysis.completedAt ?? new Date().toISOString(), actor);
+    this.#validateResolvedPdfReference(reference, citingReferenceId, exactDoi);
+    return reference;
+  }
+
+  #pdfReferenceDoiRow(doi: string): ReferenceRow | undefined {
+    if (!doi) return undefined;
+    return this.ctx.storage.sql
+      .exec<ReferenceRow>("SELECT * FROM library_references WHERE LOWER(doi) = ? AND deleted_at IS NULL LIMIT 1", doi)
+      .toArray()[0];
+  }
+
+  #selectedPdfReference(
+    candidate: PdfReferenceAnalysisCandidate,
+    doiRow: ReferenceRow | undefined,
+    referenceId: string | undefined,
+  ): BibliographicRecord | null {
+    if (doiRow && referenceId && doiRow.id !== referenceId) throw new Error("The candidate DOI matches a different library reference");
+    if (doiRow || !referenceId) return null;
+    const reference = this.#reference(referenceId);
+    const suggestion = suggestPdfReferenceMatch(candidate, [reference]);
+    if (suggestion?.kind !== "bibliographic" || suggestion.reference.id !== reference.id) {
+      throw new Error("The selected library reference does not match the analyzed bibliography entry");
+    }
+    return reference;
+  }
+
+  #validateResolvedPdfReference(reference: BibliographicRecord, citingReferenceId: string, exactDoi: string): void {
     if (reference.id === citingReferenceId) throw new Error("A PDF reference cannot cite itself");
     if (exactDoi && reference.doi && normalizeDoi(reference.doi) !== exactDoi) {
       throw new Error("The selected library reference has a different DOI");
     }
-    const assertion = this.#createCitationAssertion(
-      {
-        citingReferenceId,
-        citedReferenceId: reference.id,
-        polarity: "cites",
-        evidenceState: "extracted",
-        method: "source-extraction",
-        observedAt: analysis.completedAt ?? analysis.requestedAt,
-        sourceKind: "pdf-artifact",
-        sourceId: artifactId,
-        sourceLocator: pdfReferenceSourceLocator(referenceAnalysis, candidate.id, candidate.page),
-        confidence: candidate.confidence,
-      },
-      "PDF reference analysis",
-    );
-    const review = this.#writePdfReferenceReview(artifactId, fingerprint, candidateId, decision, reference.id, assertion.id, actor);
-    return { review, reference, assertion };
   }
 
   getCitationAssertions(referenceId?: string): CitationAssertion[] {
