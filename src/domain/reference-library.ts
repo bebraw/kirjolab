@@ -734,13 +734,7 @@ export function isPdfHighlightAnalysisResult(value: unknown): value is PdfHighli
     Array.isArray(value.candidates) &&
     value.candidates.length <= 128 &&
     value.candidates.every(isPdfHighlightAnalysisCandidate) &&
-    typeof value.pagesScanned === "number" &&
-    Number.isInteger(value.pagesScanned) &&
-    value.pagesScanned >= 0 &&
-    value.pagesScanned <= 200 &&
-    typeof value.pagesTotal === "number" &&
-    Number.isInteger(value.pagesTotal) &&
-    value.pagesTotal >= value.pagesScanned &&
+    hasValidPdfAnalysisPages(value) &&
     typeof value.truncated === "boolean"
   );
 }
@@ -751,13 +745,7 @@ export function isPdfReferenceAnalysisResult(value: unknown): value is PdfRefere
     Array.isArray(value.candidates) &&
     value.candidates.length <= 128 &&
     value.candidates.every(isPdfReferenceAnalysisCandidate) &&
-    typeof value.pagesScanned === "number" &&
-    Number.isInteger(value.pagesScanned) &&
-    value.pagesScanned >= 0 &&
-    value.pagesScanned <= 200 &&
-    typeof value.pagesTotal === "number" &&
-    Number.isInteger(value.pagesTotal) &&
-    value.pagesTotal >= value.pagesScanned &&
+    hasValidPdfAnalysisPages(value) &&
     (value.referencesStartPage === null ||
       (typeof value.referencesStartPage === "number" &&
         Number.isInteger(value.referencesStartPage) &&
@@ -770,32 +758,38 @@ export function isPdfReferenceAnalysisResult(value: unknown): value is PdfRefere
 function isPdfReferenceAnalysisCandidate(value: unknown): value is PdfReferenceAnalysisCandidate {
   return (
     isRecord(value) &&
-    typeof value.id === "string" &&
-    value.id.length > 0 &&
-    value.id.length <= 500 &&
-    typeof value.page === "number" &&
-    Number.isInteger(value.page) &&
-    value.page > 0 &&
-    value.page <= 200 &&
-    typeof value.raw === "string" &&
-    value.raw.length > 0 &&
-    value.raw.length <= 8_000 &&
-    typeof value.title === "string" &&
-    value.title.length <= 2_000 &&
-    Array.isArray(value.authors) &&
-    value.authors.length <= 50 &&
-    value.authors.every((author) => typeof author === "string" && author.length > 0 && author.length <= 500) &&
-    typeof value.year === "string" &&
-    value.year.length <= 20 &&
-    typeof value.doi === "string" &&
-    value.doi.length <= 500 &&
-    typeof value.url === "string" &&
-    value.url.length <= 2_000 &&
-    typeof value.confidence === "number" &&
-    Number.isFinite(value.confidence) &&
-    value.confidence >= 0 &&
-    value.confidence <= 1
+    isBoundedString(value.id, 1, 500) &&
+    isBoundedInteger(value.page, 1, 200) &&
+    isBoundedString(value.raw, 1, 8_000) &&
+    isBoundedString(value.title, 0, 2_000) &&
+    isBoundedAuthors(value.authors) &&
+    isBoundedString(value.year, 0, 20) &&
+    isBoundedString(value.doi, 0, 500) &&
+    isBoundedString(value.url, 0, 2_000) &&
+    isConfidence(value.confidence)
   );
+}
+
+function hasValidPdfAnalysisPages(
+  value: Record<string, unknown>,
+): value is Record<string, unknown> & { pagesScanned: number; pagesTotal: number } {
+  return isBoundedInteger(value.pagesScanned, 0, 200) && isBoundedInteger(value.pagesTotal, value.pagesScanned, Number.MAX_SAFE_INTEGER);
+}
+
+function isBoundedString(value: unknown, minimum: number, maximum: number): value is string {
+  return typeof value === "string" && value.length >= minimum && value.length <= maximum;
+}
+
+function isBoundedInteger(value: unknown, minimum: unknown, maximum: number): value is number {
+  return typeof value === "number" && Number.isInteger(value) && typeof minimum === "number" && value >= minimum && value <= maximum;
+}
+
+function isBoundedAuthors(value: unknown): value is string[] {
+  return Array.isArray(value) && value.length <= 50 && value.every((author) => isBoundedString(author, 1, 500));
+}
+
+function isConfidence(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 1;
 }
 
 function isPdfHighlightAnalysisCandidate(value: unknown): value is PdfHighlightAnalysisCandidate {

@@ -37,15 +37,13 @@ export class EditorIndentationControl extends LightDomElement {
     this.preferences = defaultEditorIndentation;
   }
 
-  get value(): EditorIndentationPreferences {
-    return this.preferences;
-  }
-
   override connectedCallback(): void {
     if (!this.hasUpdated) this.preferences = restoreEditorIndentation();
     super.connectedCallback();
   }
 
+  // Called through the editor's light-DOM owner registry.
+  // fallow-ignore-next-line unused-class-member
   bindEditor(textarea: HTMLTextAreaElement, shell: HTMLElement): void {
     this.unbindEditor();
     this.textarea = textarea;

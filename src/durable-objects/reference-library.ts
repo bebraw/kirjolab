@@ -994,11 +994,15 @@ export class ReferenceLibrary extends DurableObject<Env> {
     return { reference, artifact: identified, created: true };
   }
 
+  // Invoked across the Durable Object RPC boundary.
+  // fallow-ignore-next-line unused-class-member
   getArtifactAnalysis(artifactId: string, kind: ArtifactAnalysisKind): ArtifactAnalysis | null {
     const row = this.#artifactAnalysisRow(artifactId, kind);
     return row ? artifactAnalysisFromRow(row) : null;
   }
 
+  // Invoked across the Durable Object RPC boundary.
+  // fallow-ignore-next-line unused-class-member
   queueArtifactAnalysis(artifactId: string, kind: ArtifactAnalysisKind, requestedAt: string, force = false): ArtifactAnalysis {
     const artifact = this.#artifact(artifactId);
     const existing = this.#artifactAnalysisRow(artifactId, kind);
@@ -1029,6 +1033,8 @@ export class ReferenceLibrary extends DurableObject<Env> {
     return artifactAnalysisFromRow(this.#artifactAnalysisRow(artifactId, kind)!);
   }
 
+  // Invoked across the Durable Object RPC boundary.
+  // fallow-ignore-next-line unused-class-member
   startArtifactAnalysis(artifactId: string, kind: ArtifactAnalysisKind, fingerprint: string, requestedAt: string): boolean {
     const row = this.#artifactAnalysisRow(artifactId, kind);
     if (!row || row.fingerprint !== fingerprint || row.requested_at !== requestedAt || row.status === "running" || row.status === "ready") {
@@ -1043,6 +1049,8 @@ export class ReferenceLibrary extends DurableObject<Env> {
     return true;
   }
 
+  // Invoked across the Durable Object RPC boundary.
+  // fallow-ignore-next-line unused-class-member
   completeArtifactAnalysis(
     artifactId: string,
     kind: ArtifactAnalysisKind,
@@ -1070,6 +1078,8 @@ export class ReferenceLibrary extends DurableObject<Env> {
     return true;
   }
 
+  // Invoked across the Durable Object RPC boundary.
+  // fallow-ignore-next-line unused-class-member
   failArtifactAnalysis(artifactId: string, kind: ArtifactAnalysisKind, fingerprint: string, requestedAt: string, error: string): boolean {
     const row = this.#artifactAnalysisRow(artifactId, kind);
     if (!row || row.fingerprint !== fingerprint || row.requested_at !== requestedAt) return false;
@@ -2046,37 +2056,42 @@ function artifactFromRow(row: ArtifactRow): LibraryPdfArtifact {
 }
 
 function artifactAnalysisFromRow(row: ArtifactAnalysisRow): ArtifactAnalysis {
-  if (row.kind !== "pdf-highlights" && row.kind !== "pdf-references") throw new Error("Stored artifact analysis kind is invalid");
-  if (row.status !== "queued" && row.status !== "running" && row.status !== "ready" && row.status !== "failed") {
-    throw new Error("Stored artifact analysis status is invalid");
-  }
-  let result: ArtifactAnalysisResult | null = null;
-  if (row.result_json) {
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(row.result_json);
-    } catch {
-      throw new Error("Stored artifact analysis result is invalid");
-    }
-    if (row.kind === "pdf-highlights") {
-      if (!isPdfHighlightAnalysisResult(parsed)) throw new Error("Stored artifact analysis result is invalid");
-      result = parsed;
-    } else {
-      if (!isPdfReferenceAnalysisResult(parsed)) throw new Error("Stored artifact analysis result is invalid");
-      result = parsed;
-    }
-  }
+  const kind = artifactAnalysisKind(row.kind);
+  const status = artifactAnalysisStatus(row.status);
   return {
     artifactId: row.artifact_id,
     fingerprint: row.fingerprint,
-    kind: row.kind,
-    status: row.status,
-    result,
+    kind,
+    status,
+    result: artifactAnalysisResult(row.result_json, kind),
     error: row.error,
     requestedAt: row.requested_at,
     startedAt: row.started_at,
     completedAt: row.completed_at,
   };
+}
+
+function artifactAnalysisKind(value: string): ArtifactAnalysisKind {
+  if (value === "pdf-highlights" || value === "pdf-references") return value;
+  throw new Error("Stored artifact analysis kind is invalid");
+}
+
+function artifactAnalysisStatus(value: string): ArtifactAnalysis["status"] {
+  if (value === "queued" || value === "running" || value === "ready" || value === "failed") return value;
+  throw new Error("Stored artifact analysis status is invalid");
+}
+
+function artifactAnalysisResult(resultJson: string, kind: ArtifactAnalysisKind): ArtifactAnalysisResult | null {
+  if (!resultJson) return null;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(resultJson);
+  } catch {
+    throw new Error("Stored artifact analysis result is invalid");
+  }
+  if (kind === "pdf-highlights" && isPdfHighlightAnalysisResult(parsed)) return parsed;
+  if (kind === "pdf-references" && isPdfReferenceAnalysisResult(parsed)) return parsed;
+  throw new Error("Stored artifact analysis result is invalid");
 }
 
 function webSourceFromRow(row: WebSourceRow): WebSource {

@@ -95,7 +95,6 @@ describe("editor indentation", () => {
     const shell = new FakeElement();
     const control = new TestEditorIndentationControl();
     control.bindEditor(textarea as never, shell as never);
-    expect(control.value).toEqual({ style: "tabs", tabSize: 4 });
     expect(textarea.style.tabSize).toBe("4");
     control.setPreferencesForTest("spaces", 2);
     expect(values.get("kirjolab:editor-indentation")).toBe(JSON.stringify({ style: "spaces", tabSize: 2 }));

@@ -1,11 +1,18 @@
 {
   "$schema": "./node_modules/fallow/schema.json",
-  "entry": ["src/**/*.e2e.ts", "src/client/app.ts", "src/client/review-app.ts", "src/client/service-worker.ts"],
+  "entry": [
+    "src/**/*.e2e.ts",
+    "src/browser/pdf-artifact-analyzer.ts",
+    "src/client/app.ts",
+    "src/client/review-app.ts",
+    "src/client/service-worker.ts"
+  ],
   "ignoreDependencies": ["@stryker-mutator/api", "mdast-util-directive", "typescript-7"],
   "duplicates": {
     "ignore": ["**/*.test.ts", "**/*.test.mts", "**/*.test.mjs", "**/*.e2e.ts"]
   },
   "health": {
     "ignore": ["**/*.test.ts", "**/*.test.mts", "**/*.test.mjs", "**/*.e2e.ts"]
-  }
+  },
+  "usedClassMembers": [{ "extends": "LightDomElement", "members": ["properties"] }]
 }

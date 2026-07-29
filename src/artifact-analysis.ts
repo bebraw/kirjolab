@@ -52,7 +52,7 @@ export async function consumeArtifactAnalysisBatch(batch: MessageBatch<unknown>,
   }
 }
 
-export async function processArtifactAnalysisJob(job: ArtifactAnalysisJob, env: Env): Promise<void> {
+async function processArtifactAnalysisJob(job: ArtifactAnalysisJob, env: Env): Promise<void> {
   const library = env.REFERENCE_LIBRARIES.getByName(job.ownerKey);
   const shouldRun = await library.startArtifactAnalysis(job.artifactId, job.kind, job.fingerprint, job.requestedAt);
   if (!shouldRun) return;
@@ -141,23 +141,29 @@ async function respondToArtifactRequest(request: HTTPRequest, pdf: Uint8Array, w
 }
 
 async function loadPdfArtifactAnalyzerScript(): Promise<string> {
-  if (typeof WebSocketPair === "undefined") {
-    const { readFile } = await import("node:fs/promises");
-    const { fileURLToPath } = await import("node:url");
-    return await readFile(fileURLToPath(new URL("../.generated/pdf-artifact-analyzer.txt", import.meta.url).href), "utf8");
-  }
-  const script = await import("../.generated/pdf-artifact-analyzer.txt");
-  return script.default;
+  return await loadGeneratedTextAsset(
+    new URL("../.generated/pdf-artifact-analyzer.txt", import.meta.url).href,
+    async () => await import("../.generated/pdf-artifact-analyzer.txt"),
+  );
 }
 
 async function loadPdfWorkerScript(): Promise<string> {
-  if (typeof WebSocketPair === "undefined") {
-    const { readFile } = await import("node:fs/promises");
-    const { fileURLToPath } = await import("node:url");
-    return await readFile(fileURLToPath(new URL("../.generated/pdf-worker.txt", import.meta.url).href), "utf8");
-  }
-  const script = await import("../.generated/pdf-worker.txt");
-  return script.default;
+  return await loadGeneratedTextAsset(
+    new URL("../.generated/pdf-worker.txt", import.meta.url).href,
+    async () => await import("../.generated/pdf-worker.txt"),
+  );
+}
+
+async function loadGeneratedTextAsset(nodeUrl: string, loadBundled: () => Promise<{ readonly default: string }>): Promise<string> {
+  // Stryker disable next-line ConditionalExpression: WebSocketPair is a Worker runtime primitive absent from Node unit tests.
+  if (typeof WebSocketPair !== "undefined") return (await loadBundled()).default;
+  return await loadGeneratedTextFromDisk(nodeUrl);
+}
+
+async function loadGeneratedTextFromDisk(nodeUrl: string): Promise<string> {
+  const { readFile } = await import("node:fs/promises");
+  const { fileURLToPath } = await import("node:url");
+  return await readFile(fileURLToPath(nodeUrl), "utf8");
 }
 
 function errorMessage(error: unknown): string {

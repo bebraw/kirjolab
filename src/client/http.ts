@@ -19,6 +19,12 @@ export async function expectOk(response: Response): Promise<void> {
   throw new Error(v.is(errorResponseSchema, value) ? value.error : `Request failed (${response.status})`);
 }
 
+export async function loadJson(url: string, method: "GET" | "POST" = "GET"): Promise<unknown> {
+  const response = await fetch(url, { credentials: "same-origin", method });
+  await expectOk(response);
+  return await response.json();
+}
+
 export function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
 }

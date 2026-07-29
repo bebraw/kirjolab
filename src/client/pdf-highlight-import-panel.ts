@@ -10,7 +10,7 @@ import {
   type PdfHighlightAnalysisCandidate,
   type PdfHighlightAnalysisResult,
 } from "../domain/reference-library";
-import { expectOk, jsonFetch } from "./http";
+import { expectOk, jsonFetch, loadJson } from "./http";
 
 export const pdfHighlightImportOutcomeEvent = "pdf-highlight-import-outcome";
 
@@ -233,12 +233,7 @@ export class PdfHighlightImportPanel extends LightDomElement {
   }
 
   protected async load(artifactId: string, retry = false): Promise<ArtifactAnalysis> {
-    const response = await fetch(`/api/library/pdfs/${encodeURIComponent(artifactId)}/analyses/pdf-highlights`, {
-      method: retry ? "POST" : "GET",
-      credentials: "same-origin",
-    });
-    await expectOk(response);
-    const value: unknown = await response.json();
+    const value = await loadJson(`/api/library/pdfs/${encodeURIComponent(artifactId)}/analyses/pdf-highlights`, retry ? "POST" : "GET");
     if (!isArtifactAnalysis(value) || value.kind !== "pdf-highlights") {
       throw new Error("The server returned an invalid analysis status");
     }
@@ -262,24 +257,7 @@ export class PdfHighlightImportPanel extends LightDomElement {
       const analysis = await this.load(context.artifactId, retry);
       if (!this.currentContext(context)) return;
       if (analysis.artifactId !== context.artifactId) return;
-      this.#analysis = analysis;
-      if (analysis.status === "queued" || analysis.status === "running") {
-        this.loading = false;
-        this.status = analysis.status === "queued" ? "Highlight analysis is queued…" : "Analyzing PDF highlights…";
-        this.schedulePoll(context);
-      } else if (analysis.status === "failed") {
-        this.showError(analysis.error ? `Could not analyze this PDF: ${analysis.error}` : "Could not analyze this PDF.");
-      } else if (analysis.result && isPdfHighlightAnalysisResult(analysis.result)) {
-        this.showResult({
-          ...analysis.result,
-          candidates: analysis.result.candidates.filter(
-            (candidate) =>
-              !context.highlights.some(
-                (highlight) => highlight.page === candidate.page && libraryPdfRectsOverlap(highlight.rects, candidate.rects),
-              ),
-          ),
-        });
-      }
+      this.applyAnalysis(context, analysis);
     } catch (error) {
       if (this.currentContext(context)) {
         this.showError(
@@ -289,6 +267,30 @@ export class PdfHighlightImportPanel extends LightDomElement {
     } finally {
       if (this.currentContext(context)) this.loading = false;
     }
+  }
+
+  private applyAnalysis(context: PdfHighlightImportContext, analysis: ArtifactAnalysis): void {
+    this.#analysis = analysis;
+    if (analysis.status === "queued" || analysis.status === "running") {
+      this.loading = false;
+      this.status = analysis.status === "queued" ? "Highlight analysis is queued…" : "Analyzing PDF highlights…";
+      this.schedulePoll(context);
+      return;
+    }
+    if (analysis.status === "failed") {
+      this.showError(analysis.error ? `Could not analyze this PDF: ${analysis.error}` : "Could not analyze this PDF.");
+      return;
+    }
+    if (!analysis.result || !isPdfHighlightAnalysisResult(analysis.result)) return;
+    this.showResult({
+      ...analysis.result,
+      candidates: analysis.result.candidates.filter(
+        (candidate) =>
+          !context.highlights.some(
+            (highlight) => highlight.page === candidate.page && libraryPdfRectsOverlap(highlight.rects, candidate.rects),
+          ),
+      ),
+    });
   }
 
   protected retry(): void {

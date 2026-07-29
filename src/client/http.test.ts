@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { errorMessage, expectOk, jsonFetch } from "./http";
+import { errorMessage, expectOk, jsonFetch, loadJson } from "./http";
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -26,6 +26,14 @@ describe("client HTTP helpers", () => {
   it("falls back to the response status for malformed errors", async () => {
     await expect(expectOk(Response.json({ error: 42 }, { status: 500 }))).rejects.toThrow("Request failed (500)");
     await expect(expectOk(new Response("not json", { status: 502 }))).rejects.toThrow("Request failed (502)");
+  });
+
+  it("loads JSON with same-origin credentials", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(Response.json({ ready: true }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(loadJson("/api/status", "POST")).resolves.toEqual({ ready: true });
+    expect(fetchMock).toHaveBeenCalledWith("/api/status", { credentials: "same-origin", method: "POST" });
   });
 
   it("normalizes unknown caught values", () => {

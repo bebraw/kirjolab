@@ -5,7 +5,7 @@ import {
   type ArtifactAnalysis,
   type PdfReferenceAnalysisResult,
 } from "../domain/reference-library";
-import { expectOk } from "./http";
+import { loadJson } from "./http";
 import { LightDomElement } from "./light-dom-controller";
 
 const defaultStatus = "References are analyzed automatically after PDF import.";
@@ -31,6 +31,8 @@ export class PdfReferenceAnalysisPanel extends LightDomElement {
     this.status = defaultStatus;
   }
 
+  // Called through the PDF inspector's light-DOM owner registry.
+  // fallow-ignore-next-line unused-class-member
   setArtifact(artifactId: string): void {
     if (artifactId === this.#artifactId) return;
     this.reset();
@@ -113,12 +115,7 @@ export class PdfReferenceAnalysisPanel extends LightDomElement {
   }
 
   protected async load(artifactId: string, retry = false): Promise<ArtifactAnalysis> {
-    const response = await fetch(`/api/library/pdfs/${encodeURIComponent(artifactId)}/analyses/pdf-references`, {
-      method: retry ? "POST" : "GET",
-      credentials: "same-origin",
-    });
-    await expectOk(response);
-    const value: unknown = await response.json();
+    const value = await loadJson(`/api/library/pdfs/${encodeURIComponent(artifactId)}/analyses/pdf-references`, retry ? "POST" : "GET");
     if (!isArtifactAnalysis(value) || value.kind !== "pdf-references") {
       throw new Error("The server returned an invalid reference analysis status");
     }
@@ -132,18 +129,7 @@ export class PdfReferenceAnalysisPanel extends LightDomElement {
     try {
       const analysis = await this.load(artifactId, retry);
       if (artifactId !== this.#artifactId || analysis.artifactId !== artifactId) return;
-      this.#analysis = analysis;
-      if (analysis.status === "queued" || analysis.status === "running") {
-        this.status = analysis.status === "queued" ? "Reference analysis is queued…" : "Reading the PDF bibliography…";
-        this.loading = false;
-        this.schedulePoll(artifactId);
-      } else if (analysis.status === "failed") {
-        this.result = null;
-        this.status = analysis.error ? `Could not analyze references: ${analysis.error}` : "Could not analyze references.";
-      } else if (analysis.result && isPdfReferenceAnalysisResult(analysis.result)) {
-        this.result = analysis.result;
-        this.status = referenceStatus(analysis.result);
-      }
+      this.applyAnalysis(artifactId, analysis);
     } catch (error) {
       if (artifactId === this.#artifactId) {
         this.result = null;
@@ -152,6 +138,24 @@ export class PdfReferenceAnalysisPanel extends LightDomElement {
     } finally {
       if (artifactId === this.#artifactId) this.loading = false;
     }
+  }
+
+  private applyAnalysis(artifactId: string, analysis: ArtifactAnalysis): void {
+    this.#analysis = analysis;
+    if (analysis.status === "queued" || analysis.status === "running") {
+      this.status = analysis.status === "queued" ? "Reference analysis is queued…" : "Reading the PDF bibliography…";
+      this.loading = false;
+      this.schedulePoll(artifactId);
+      return;
+    }
+    if (analysis.status === "failed") {
+      this.result = null;
+      this.status = analysis.error ? `Could not analyze references: ${analysis.error}` : "Could not analyze references.";
+      return;
+    }
+    if (!analysis.result || !isPdfReferenceAnalysisResult(analysis.result)) return;
+    this.result = analysis.result;
+    this.status = referenceStatus(analysis.result);
   }
 
   protected retry(): void {
