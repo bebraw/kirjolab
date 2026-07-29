@@ -93,7 +93,6 @@ const researchArticleSeed: ProjectTemplateSeed = {
     {
       path: projectEntryPath,
       content: `## Abstract
-
 ::label[abstract]
 
 Summarize the question, approach, result, and significance.
@@ -107,7 +106,6 @@ Summarize the question, approach, result, and significance.
 ::include[sections/discussion.md]
 
 ## References
-
 ::label[references]
 
 ::bibliography[]
@@ -116,7 +114,6 @@ Summarize the question, approach, result, and significance.
     {
       path: "sections/introduction.md",
       content: `## Introduction
-
 ::label[introduction]
 
 Establish the problem, prior work, and research question.
@@ -125,7 +122,6 @@ Establish the problem, prior work, and research question.
     {
       path: "sections/methods.md",
       content: `## Methods
-
 ::label[methods]
 
 Describe materials, data, procedures, and analysis.
@@ -134,7 +130,6 @@ Describe materials, data, procedures, and analysis.
     {
       path: "sections/results.md",
       content: `## Results
-
 ::label[results]
 
 Report the findings without interpreting them prematurely.
@@ -143,7 +138,6 @@ Report the findings without interpreting them prematurely.
     {
       path: "sections/discussion.md",
       content: `## Discussion
-
 ::label[discussion]
 
 Interpret the findings, limitations, and implications.
@@ -161,7 +155,6 @@ const literatureReviewSeed: ProjectTemplateSeed = {
     {
       path: projectEntryPath,
       content: `## Review question
-
 ::label[review-question]
 
 State the scope and the question this review answers.
@@ -173,7 +166,6 @@ State the scope and the question this review answers.
 ::include[sections/gaps.md]
 
 ## References
-
 ::label[references]
 
 ::bibliography[]
@@ -182,7 +174,6 @@ State the scope and the question this review answers.
     {
       path: "sections/search-strategy.md",
       content: `## Search strategy
-
 ::label[search-strategy]
 
 Record databases, terms, dates, and inclusion or exclusion criteria.
@@ -191,7 +182,6 @@ Record databases, terms, dates, and inclusion or exclusion criteria.
     {
       path: "sections/synthesis.md",
       content: `## Thematic synthesis
-
 ::label[thematic-synthesis]
 
 Organize findings by argument or theme rather than one source at a time.
@@ -200,7 +190,6 @@ Organize findings by argument or theme rather than one source at a time.
     {
       path: "sections/gaps.md",
       content: `## Gaps and implications
-
 ::label[gaps]
 
 Identify disagreements, missing evidence, and useful next questions.

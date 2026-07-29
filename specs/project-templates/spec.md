@@ -15,6 +15,8 @@ without copying private research or creating a live dependency on the source.
   personal templates and ship from an application-owned registry.
 - The initial built-ins are Guided starter, Blank project, Research article,
   and Literature review. Built-in ids and content are stable application data.
+- Authored built-in template labels sit directly below their target headings,
+  without an empty line separating the heading from `::label[id]`.
 - Blank-project preview and the empty editor explain that chapter sections
   begin with level-two (`##`) headings while keeping `main.md` genuinely empty.
 - An owner-keyed `ProjectTemplateCatalog` Durable Object stores at most 50
