@@ -5,6 +5,7 @@ import { isCitationNetwork, type CitationNetwork } from "../domain/citation-asse
 import { isCitationCandidateAcceptance } from "../domain/citation-expansion-acceptance";
 import { isCitationExpansionResult } from "../domain/citation-expansion";
 import type { CitationExpansionCandidate, CitationExpansionResult } from "../domain/citation-expansion-types";
+import type { LibraryPdfArtifact } from "../domain/reference-library";
 import { errorMessage, expectOk, jsonFetch } from "./http";
 import {
   citationNetworkActionEvent,
@@ -18,11 +19,12 @@ export const citationNetworkOutcomeEvent = "citation-network-outcome";
 
 export type CitationNetworkOutcome =
   | { readonly action: "notice"; readonly message: string }
-  | { readonly action: "library-refresh"; readonly message: string };
+  | { readonly action: "library-refresh"; readonly message: string }
+  | { readonly action: "route"; readonly referenceId: string };
 
 type CitationNetworkPresentation = Omit<CitationNetworkData, "filterProject" | "focusedReferenceId">;
 
-const emptyData: CitationNetworkPresentation = { expansion: null, network: null, referenceTitles: {} };
+const emptyData: CitationNetworkPresentation = { expansion: null, network: null, pdfArtifactIds: [], referenceTitles: {} };
 
 export class CitationNetworkWorkspace extends LightDomElement {
   static override properties = {
@@ -94,6 +96,10 @@ export class CitationNetworkWorkspace extends LightDomElement {
     this.references = references.map(({ id, title }) => ({ id, title: bibTeXDisplayText(title) }));
   }
 
+  setArtifacts(artifacts: readonly LibraryPdfArtifact[]): void {
+    this.data = { ...this.data, pdfArtifactIds: artifacts.map(({ id }) => id) };
+  }
+
   setCandidateSaving(doi: string, saving: boolean): void {
     this.panel()?.setCandidateSaving(doi, saving);
   }
@@ -161,10 +167,18 @@ export class CitationNetworkWorkspace extends LightDomElement {
   }
 
   protected async handleAction(action: CitationNetworkAction): Promise<void> {
-    if (action.action === "expand") await this.expand(action.referenceId);
+    if (action.action === "focus") this.focusReference(action.referenceId);
+    else if (action.action === "expand") await this.expand(action.referenceId);
     else if (action.action === "record") await this.recordAssertion(action);
     else if (action.action === "review") await this.reviewAssertion(action.assertionId, action.decision);
     else await this.acceptCandidate(action.expansion, action.candidate);
+  }
+
+  private focusReference(referenceId: string): void {
+    this.focusedReferenceId = referenceId;
+    this.data = { ...this.data, expansion: null };
+    this.emitOutcome({ action: "route", referenceId });
+    if (typeof this.scrollIntoView === "function") this.scrollIntoView({ block: "start" });
   }
 
   protected readonly handleActionEvent = (event: Event): void => {

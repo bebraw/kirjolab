@@ -45,6 +45,13 @@ provider result, extraction, or model suggestion as equally trustworthy.
   view. Its graph and accessible list contain only the focused source and its
   immediate incoming and outgoing relationships; opening the view never
   expands providers implicitly.
+- A focused trail separates outgoing `References cited` from incoming `Cited
+by` relationships. Selecting a neighboring source refocuses the same trail
+  and pushes its stable reference UUID into browser history.
+- Every relationship card retains assertion provenance beside the edge. When
+  PDF-extracted provenance names a current Library artifact, its first in-text
+  mention page (or bibliography page fallback) links directly to the existing
+  addressable PDF reader.
 - The bounded circular SVG remains intentionally dependency-free under ADR-185.
   Its scale limit is one renderer-adoption trigger, but a second committed
   viewport, layout, clustering, or shared-selection requirement is needed before
@@ -148,6 +155,7 @@ provider result, extraction, or model suggestion as equally trustworthy.
       reference and assertion provenance.
 - [x] A graph and accessible provenance list expose the same projection.
 - [x] A Library source opens an addressable, one-hop reference trail.
+- [x] A trail supports directional refocus and exact PDF evidence navigation.
 - [x] Pure, API, integration, Workers-runtime, view, and browser tests cover
       derivation, validation, persistence, review, filtering, and interaction.
 
@@ -192,6 +200,14 @@ provider result, extraction, or model suggestion as equally trustworthy.
 - When: the owner selects the current-project filter
 - Then: only edges touching a linked project reference and isolated linked
   references remain visible
+
+**Scenario: Researcher follows a reference trail**
+
+- Given: a parsed PDF reference has been accepted with page-bearing provenance
+- When: the owner opens its citing source, selects the parsed neighbor, and
+  follows the evidence locator
+- Then: browser history reflects each focused source and the Library PDF reader
+  opens on the first captured evidence page
 
 **Scenario: Crossref names an unknown reference**
 

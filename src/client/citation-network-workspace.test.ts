@@ -105,7 +105,7 @@ describe("citation network workspace", () => {
   });
 
   it("owns manual assertion, review, and expansion requests", async () => {
-    const { workspace } = configuredWorkspace();
+    const { scrollIntoView, workspace } = configuredWorkspace();
     const fetchMock = vi.fn((input: string | URL | Request) => {
       const url = String(input);
       if (url.endsWith("/citation-expansions")) return Promise.resolve(json(expansion));
@@ -122,12 +122,15 @@ describe("citation network workspace", () => {
     await workspace.actionForTest({ action: "record", citedReferenceId: "source:2", citingReferenceId: "source:1", polarity: "cites" });
     await workspace.actionForTest({ action: "review", assertionId: "assertion:1", decision: "confirmed" });
     await workspace.actionForTest({ action: "expand", referenceId: "source:1" });
+    await workspace.actionForTest({ action: "focus", referenceId: "source:2" });
 
     expect(outcomes).toEqual([
       { action: "notice", message: "Citation assertion recorded with researcher provenance." },
       { action: "notice", message: "Citation assertion confirmed." },
       { action: "notice", message: "Review 1 new reference from this seed." },
+      { action: "route", referenceId: "source:2" },
     ]);
+    expect(scrollIntoView).toHaveBeenCalledWith({ block: "start" });
     expect(fetchMock).toHaveBeenCalledWith(
       "/api/library/citation-assertions/assertion%3A1/review",
       expect.objectContaining({ body: JSON.stringify({ decision: "confirmed", note: "Reviewed" }) }),

@@ -2,11 +2,13 @@ import { html, nothing, svg, type TemplateResult } from "lit";
 import { LightDomElement } from "./light-dom-controller";
 import type { CitationAssertionView, CitationNetwork } from "../domain/citation-assertions";
 import type { CitationExpansionCandidate, CitationExpansionResult } from "../domain/citation-expansion-types";
+import { libraryPdfRoute } from "./library-ui-route";
 
 export const citationNetworkActionEvent = "citation-network-action";
 
 export type CitationNetworkAction =
   | { readonly action: "expand"; readonly referenceId: string }
+  | { readonly action: "focus"; readonly referenceId: string }
   | {
       readonly action: "record";
       readonly citedReferenceId: string;
@@ -25,6 +27,7 @@ export interface CitationNetworkData {
   readonly filterProject: boolean;
   readonly focusedReferenceId: string | null;
   readonly network: CitationNetwork | null;
+  readonly pdfArtifactIds: readonly string[];
   readonly referenceTitles: Readonly<Record<string, string>>;
 }
 
@@ -54,7 +57,7 @@ export class CitationNetworkPanel extends LightDomElement {
     super();
     this.citedReferenceId = "";
     this.citingReferenceId = "";
-    this.data = { expansion: null, filterProject: false, focusedReferenceId: null, network: null, referenceTitles: {} };
+    this.data = { expansion: null, filterProject: false, focusedReferenceId: null, network: null, pdfArtifactIds: [], referenceTitles: {} };
     this.polarity = "cites";
     this.references = [];
     this.savingDois = new Set();
@@ -156,6 +159,10 @@ export class CitationNetworkPanel extends LightDomElement {
       this.emit({ action, referenceId: button.dataset.referenceId });
       return;
     }
+    if (action === "focus" && button.dataset.referenceId) {
+      this.emit({ action, referenceId: button.dataset.referenceId });
+      return;
+    }
     if (
       action === "review" &&
       button.dataset.assertionId &&
@@ -182,6 +189,7 @@ export class CitationNetworkPanel extends LightDomElement {
         </div>
       `;
     }
+    if (this.data.focusedReferenceId) return this.focusedNetworkList(network, this.data.focusedReferenceId);
     const labels = new Map(network.nodes.map((node) => [node.id, node.label]));
     return html`
       ${this.expansion()}
@@ -223,6 +231,71 @@ export class CitationNetworkPanel extends LightDomElement {
             )}
           `
         : nothing}
+    `;
+  }
+
+  private focusedNetworkList(network: CitationNetwork, referenceId: string): TemplateResult {
+    const focusedNodeId = `reference:${referenceId}`;
+    const focusedNode = network.nodes.find(({ id }) => id === focusedNodeId);
+    const labels = new Map(network.nodes.map((node) => [node.id, node.label]));
+    const outgoing = network.edges.filter(({ from }) => from === focusedNodeId);
+    const incoming = network.edges.filter(({ to }) => to === focusedNodeId);
+    return html`
+      ${this.expansion()}
+      ${focusedNode?.doi
+        ? html`
+            <button
+              type="button"
+              class="button-secondary"
+              data-citation-action="expand"
+              data-reference-id=${focusedNode.referenceId}
+              @click=${this.act}
+            >
+              Expand references
+            </button>
+          `
+        : nothing}
+      ${this.relationshipSection("References cited", outgoing, labels, "to")}
+      ${this.relationshipSection("Cited by", incoming, labels, "from")}
+    `;
+  }
+
+  private relationshipSection(
+    title: string,
+    edges: CitationNetwork["edges"],
+    labels: ReadonlyMap<string, string>,
+    neighborEndpoint: "from" | "to",
+  ): TemplateResult {
+    return html`
+      <section class="mt-4" aria-label=${title}>
+        <div class="flex items-center gap-2">
+          <h4 class="eyebrow">${title}</h4>
+          <span class="count-badge">${edges.length}</span>
+        </div>
+        <div class="mt-2 grid gap-3">
+          ${edges.length
+            ? edges.map((edge) => {
+                const neighborNodeId = edge[neighborEndpoint];
+                const neighborReferenceId = neighborNodeId.slice("reference:".length);
+                return html`
+                  <article class="resource-card">
+                    ${this.label(edge.state)}
+                    <button
+                      type="button"
+                      class="mt-1 block w-full text-left text-base font-semibold text-app-accent-strong underline decoration-app-border underline-offset-4"
+                      data-citation-action="focus"
+                      data-reference-id=${neighborReferenceId}
+                      @click=${this.act}
+                    >
+                      ${labels.get(neighborNodeId) ?? neighborReferenceId}
+                    </button>
+                    ${edge.assertions.map((assertion) => this.assertion(assertion))}
+                  </article>
+                `;
+              })
+            : html`<p class="empty-state">No ${title.toLocaleLowerCase()} relationships recorded.</p>`}
+        </div>
+      </section>
     `;
   }
 
@@ -272,6 +345,11 @@ export class CitationNetworkPanel extends LightDomElement {
   }
 
   private assertion(assertion: CitationAssertionView): TemplateResult {
+    const evidencePage = citationEvidencePage(assertion.sourceLocator);
+    const evidenceHref =
+      assertion.sourceKind === "pdf-artifact" && evidencePage && this.data.pdfArtifactIds.includes(assertion.sourceId)
+        ? libraryPdfRoute(assertion.sourceId, evidencePage)
+        : null;
     return html`
       <div class="mt-3 border-t border-app-line pt-3">
         <p class="font-sans text-xs leading-5">${assertion.polarity} · ${assertion.state} · ${assertion.method}</p>
@@ -288,6 +366,7 @@ export class CitationNetworkPanel extends LightDomElement {
             .filter(Boolean)
             .join(" · ")}
         </p>
+        ${evidenceHref ? html`<a class="button-secondary mt-2" href=${evidenceHref}>Open evidence · page ${evidencePage}</a>` : nothing}
         ${assertion.review
           ? nothing
           : html`
@@ -380,6 +459,13 @@ export function focusCitationNetwork(network: CitationNetwork, referenceId: stri
   const edges = network.edges.filter(({ from, to }) => from === focusedNodeId || to === focusedNodeId);
   const nodeIds = new Set([focusedNodeId, ...edges.flatMap(({ from, to }) => [from, to])]);
   return { ...network, edges, nodes: network.nodes.filter(({ id }) => nodeIds.has(id)) };
+}
+
+export function citationEvidencePage(sourceLocator: string): number | null {
+  const match = /PDF mention pages? (\d+)|bibliography page (\d+)/iu.exec(sourceLocator);
+  if (!match) return null;
+  const page = Number.parseInt(match[1] ?? match[2] ?? "", 10);
+  return Number.isFinite(page) && page > 0 ? page : null;
 }
 
 function citationStateColor(state: CitationNetwork["edges"][number]["state"]): string {

@@ -151,6 +151,7 @@ describe("reference Library workspace", () => {
   it("composes canonical Library presentation and filter changes", () => {
     const { owners, workspace } = setup();
     const setReferences = vi.spyOn(owners["citation-network-workspace"], "setReferences");
+    const setArtifacts = vi.spyOn(owners["citation-network-workspace"], "setArtifacts");
     const filterLibrary = vi.spyOn(owners["reference-library-filters"], "filterLibrary").mockReturnValue(library.references);
     const setData = vi.spyOn(owners["library-reference-list"], "setData");
     const setLibrary = vi.spyOn(owners["unidentified-pdf-list"], "setLibrary");
@@ -160,6 +161,7 @@ describe("reference Library workspace", () => {
 
     expect(workspace.snapshot).toBe(library);
     expect(setReferences).toHaveBeenCalledWith(library.references);
+    expect(setArtifacts).toHaveBeenCalledWith(library.artifacts);
     expect(filterLibrary).toHaveBeenCalledWith(library, []);
     expect(setData).toHaveBeenCalledWith({ ...data, references: library.references });
     expect(setLibrary).toHaveBeenCalledWith(library);
@@ -425,6 +427,20 @@ describe("reference Library workspace", () => {
     expect(configure).toHaveBeenCalledWith("project-1");
     expect(open).toHaveBeenCalledWith("reference-1");
     expect(complete).toHaveBeenCalledWith(3);
+  });
+
+  it("keeps reference-trail refocus in browser history", () => {
+    const { workspace } = setup();
+    const { history, pushState } = historyHarness();
+    workspace.bindBrowserRoute(true, history);
+
+    workspace.dispatchEvent(new CustomEvent(citationNetworkOutcomeEvent, { detail: { action: "route", referenceId: "reference:next" } }));
+
+    expect(pushState).toHaveBeenCalledWith(
+      { view: "citation-network", referenceId: "reference:next" },
+      "",
+      "/library?trail=reference%3Anext",
+    );
   });
 
   it("refreshes an open citation network after accepting a parsed PDF reference", async () => {

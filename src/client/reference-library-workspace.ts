@@ -409,6 +409,7 @@ export class ReferenceLibraryWorkspace extends LightDomHost {
     const unidentified = this.element("unidentified-pdf-list", UnidentifiedPdfList);
     if (!data || !network || !filters || !list || !unidentified) return;
     network.setReferences(data.library.references);
+    network.setArtifacts(data.library.artifacts);
     list.setData({ ...data, references: filters.filterLibrary(data.library, data.projectReferences) });
     unidentified.setLibrary(data.library);
   }
@@ -447,7 +448,12 @@ export class ReferenceLibraryWorkspace extends LightDomHost {
 
   private routeCitationOutcome(outcome: CitationNetworkOutcome): void {
     if (outcome.action === "notice") this.presentNotice(outcome.message);
-    else void this.completeRefresh(outcome.message, "The citation candidate was saved, but the refreshed Library could not be loaded.");
+    else if (outcome.action === "route") {
+      this.pushBrowserRoute(libraryCitationNetworkRoute(outcome.referenceId), {
+        view: "citation-network",
+        referenceId: outcome.referenceId,
+      });
+    } else void this.completeRefresh(outcome.message, "The citation candidate was saved, but the refreshed Library could not be loaded.");
   }
 
   private routeResearchAction(action: LibraryReferenceResearchAction): void {

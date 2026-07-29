@@ -3,6 +3,7 @@ import type { CitationAssertionView, CitationNetwork } from "../domain/citation-
 import type { CitationExpansionResult } from "../domain/citation-expansion-types";
 import {
   CitationNetworkPanel,
+  citationEvidencePage,
   citationNetworkActionEvent,
   focusCitationNetwork,
   type CitationNetworkAction,
@@ -113,6 +114,7 @@ describe("citation network panel", () => {
       filterProject: false,
       focusedReferenceId: null,
       network: { ...network, edges: [], nodes: [] },
+      pdfArtifactIds: [],
       referenceTitles: {},
     });
     expect(panel.renderForTest()).toBeDefined();
@@ -121,10 +123,18 @@ describe("citation network panel", () => {
       filterProject: true,
       focusedReferenceId: null,
       network: { ...network, edges: [], nodes: [] },
+      pdfArtifactIds: [],
       referenceTitles: {},
     });
     expect(panel.renderForTest()).toBeDefined();
-    panel.setData({ expansion, filterProject: false, focusedReferenceId: "a", network, referenceTitles: { a: "Seed A" } });
+    panel.setData({
+      expansion,
+      filterProject: false,
+      focusedReferenceId: "a",
+      network,
+      pdfArtifactIds: ["artifact:1"],
+      referenceTitles: { a: "Seed A" },
+    });
     panel.setCandidateSaving("10.5555/c", true);
     expect(panel.renderForTest()).toBeDefined();
     panel.setCandidateSaving("10.5555/c", false);
@@ -147,6 +157,7 @@ describe("citation network panel", () => {
           },
         ],
       },
+      pdfArtifactIds: [],
       referenceTitles: {},
     });
     expect(panel.renderForTest()).toBeDefined();
@@ -157,9 +168,10 @@ describe("citation network panel", () => {
     const panel = new TestCitationNetworkPanel();
     const actions: CitationNetworkAction[] = [];
     panel.addEventListener(citationNetworkActionEvent, (event) => actions.push((event as CustomEvent<CitationNetworkAction>).detail));
-    panel.setData({ expansion, filterProject: false, focusedReferenceId: null, network, referenceTitles: {} });
+    panel.setData({ expansion, filterProject: false, focusedReferenceId: null, network, pdfArtifactIds: [], referenceTitles: {} });
 
     panel.actForTest("expand", { referenceId: "a" });
+    panel.actForTest("focus", { referenceId: "b" });
     panel.actForTest("review", { assertionId: "assertion:1", decision: "confirmed" });
     panel.actForTest("review", { assertionId: "assertion:1", decision: "unknown" });
     panel.actForTest("save-candidate", { candidateDoi: "10.5555/c" });
@@ -169,6 +181,7 @@ describe("citation network panel", () => {
 
     expect(actions).toEqual([
       { action: "expand", referenceId: "a" },
+      { action: "focus", referenceId: "b" },
       { action: "review", assertionId: "assertion:1", decision: "confirmed" },
       { action: "save-candidate", candidate: expansion.unmatched[0], expansion },
     ]);
@@ -179,6 +192,12 @@ describe("citation network panel", () => {
     expect(focusCitationNetwork({ ...network, nodes: [...network.nodes, disconnected] }, "a")).toEqual(network);
     expect(focusCitationNetwork(network, "missing")).toMatchObject({ edges: [], nodes: [] });
     expect(focusCitationNetwork(network, null)).toBe(network);
+  });
+
+  it("maps PDF assertion locators to their first evidence page", () => {
+    expect(citationEvidencePage("PDF mention pages 3, 5 · bibliography page 8 · reference candidate")).toBe(3);
+    expect(citationEvidencePage("bibliography page 8 · reference candidate")).toBe(8);
+    expect(citationEvidencePage("Crossref response")).toBeNull();
   });
 
   it("owns reference choices and emits a typed manual assertion", () => {

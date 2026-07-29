@@ -489,6 +489,8 @@ async function expectActivatedApplicationUpdate(page: Page, path: string): Promi
 
 test("imports, annotates, and exports a private PDF without a project", async ({ page }) => {
   await page.setViewportSize({ width: 1024, height: 768 });
+  let referenceAnalysisArtifactId = "";
+  let referenceReviewAccepted = false;
   await page.route("**/api/library/pdfs/*/analyses/pdf-highlights", async (route) => {
     const artifactId = decodeURIComponent(new URL(route.request().url()).pathname.split("/")[4] ?? "");
     await route.fulfill({
@@ -523,6 +525,7 @@ test("imports, annotates, and exports a private PDF without a project", async ({
   });
   await page.route("**/api/library/pdfs/*/analyses/pdf-references", async (route) => {
     const artifactId = decodeURIComponent(new URL(route.request().url()).pathname.split("/")[4] ?? "");
+    referenceAnalysisArtifactId = artifactId;
     await route.fulfill({
       contentType: "application/json",
       body: JSON.stringify({
@@ -553,6 +556,99 @@ test("imports, annotates, and exports a private PDF without a project", async ({
         requestedAt: "2026-07-29T00:00:00.000Z",
         startedAt: "2026-07-29T00:00:01.000Z",
         completedAt: "2026-07-29T00:00:02.000Z",
+      }),
+    });
+  });
+  await page.route("**/api/library/pdfs/*/reference-review", async (route) => {
+    const artifactId = decodeURIComponent(new URL(route.request().url()).pathname.split("/")[4] ?? "");
+    if (route.request().method() === "POST") referenceReviewAccepted = true;
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        artifactId,
+        fingerprint: "e2e-reference-analysis",
+        citingReferenceId: "e2e-pdf-source",
+        candidates: [
+          {
+            id: "doi:10.5555/reference",
+            page: 1,
+            raw: "Doe, Jane. 2025. Inspectable references. https://doi.org/10.5555/reference",
+            title: "Inspectable references",
+            authors: ["Doe, Jane"],
+            year: "2025",
+            doi: "10.5555/reference",
+            url: "https://doi.org/10.5555/reference",
+            confidence: 1,
+            match: null,
+            matchKind: null,
+            review: referenceReviewAccepted
+              ? {
+                  candidateId: "doi:10.5555/reference",
+                  decision: "accepted",
+                  referenceId: "e2e-parsed-reference",
+                  assertionId: "e2e-pdf-assertion",
+                  reviewedBy: "owner@example.test",
+                  reviewedAt: "2026-07-29T00:00:03.000Z",
+                }
+              : null,
+          },
+        ],
+      }),
+    });
+  });
+  await page.route("**/api/library/citation-network", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        projectId: null,
+        truncated: false,
+        nodes: [
+          {
+            id: "reference:e2e-pdf-source",
+            referenceId: "e2e-pdf-source",
+            label: "Student submission",
+            authors: [],
+            year: "2026",
+            doi: "",
+            inProject: false,
+          },
+          {
+            id: "reference:e2e-parsed-reference",
+            referenceId: "e2e-parsed-reference",
+            label: "Inspectable references",
+            authors: ["Doe, Jane"],
+            year: "2025",
+            doi: "10.5555/reference",
+            inProject: false,
+          },
+        ],
+        edges: [
+          {
+            id: "citation:e2e-pdf-source:e2e-parsed-reference",
+            from: "reference:e2e-pdf-source",
+            to: "reference:e2e-parsed-reference",
+            state: "extracted",
+            assertions: [
+              {
+                id: "e2e-pdf-assertion",
+                citingReferenceId: "e2e-pdf-source",
+                citedReferenceId: "e2e-parsed-reference",
+                polarity: "cites",
+                evidenceState: "extracted",
+                method: "source-extraction",
+                assertedBy: "owner@example.test",
+                observedAt: "2026-07-29T00:00:03.000Z",
+                sourceKind: "pdf-artifact",
+                sourceId: referenceAnalysisArtifactId,
+                sourceLocator: "PDF mention page 1 · bibliography page 1 · reference doi:10.5555/reference",
+                confidence: 1,
+                review: null,
+                createdAt: "2026-07-29T00:00:03.000Z",
+                state: "extracted",
+              },
+            ],
+          },
+        ],
       }),
     });
   });
@@ -665,6 +761,9 @@ test("imports, annotates, and exports a private PDF without a project", async ({
   await expect(page.getByRole("button", { name: "References", exact: true })).toHaveAttribute("aria-expanded", "true");
   await expect(page.getByRole("button", { name: "Annotations", exact: true })).toHaveAttribute("aria-expanded", "false");
   await expect(page.locator("#pdf-reference-analysis-list")).toContainText("Inspectable references");
+  await page.getByRole("button", { name: "Add to Library" }).click();
+  await expect(page.locator("#toast")).toHaveText("Parsed reference added to the Library.");
+  await expect(page.locator("#pdf-reference-analysis-list")).toContainText("Added to Library");
   await page.getByRole("button", { name: "Annotations", exact: true }).click();
   await page.getByLabel("Private note for detected highlight on page 1").fill("Imported from the PDF");
   await page.getByRole("button", { name: "Import selected" }).click();
@@ -761,6 +860,14 @@ test("imports, annotates, and exports a private PDF without a project", async ({
   await expect(page.locator("header #context-library-tab")).toHaveAttribute("aria-selected", "true");
   await expect(page.locator("#context-library-panel")).toBeVisible();
   await expect(page.locator("#context-assistant-panel")).toBeHidden();
+  await page.goto("/library?trail=e2e-pdf-source");
+  await expect(page.getByRole("region", { name: "References cited" })).toContainText("Inspectable references");
+  await page.getByRole("button", { name: "Inspectable references" }).click();
+  await expect(page).toHaveURL(/\/library\?trail=e2e-parsed-reference$/u);
+  await expect(page.getByRole("region", { name: "Cited by" })).toContainText("Student submission");
+  await page.getByRole("link", { name: "Open evidence · page 1" }).click();
+  await expect(page).toHaveURL(new RegExp(`/library/pdfs/${encodeURIComponent(referenceAnalysisArtifactId)}$`, "u"));
+  await expect(page.locator("#paper-page-indicator")).toContainText("1 /");
   expect(workspaceRequests).toEqual([]);
 });
 
