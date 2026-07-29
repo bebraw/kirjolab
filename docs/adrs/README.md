@@ -33,6 +33,7 @@ No accepted ADRs are awaiting implementation.
 
 | ADR                                                                                       | Status               | Summary                                                                                                       |
 | ----------------------------------------------------------------------------------------- | -------------------- | ------------------------------------------------------------------------------------------------------------- |
+| [ADR-180](./implemented/ADR-180-delegate-artifact-analysis-persistence.md)                | Implemented          | Delegate artifact-analysis persistence behind the stable Library Durable Object RPC facade.                   |
 | [ADR-179](./implemented/ADR-179-decompose-reference-library-contracts.md)                 | Implemented          | Split reference-library contracts by capability behind a compatibility facade.                                |
 | [ADR-178](./implemented/ADR-178-queue-private-artifact-analysis.md)                       | Implemented          | Queue independent owner-private highlight and reference analysis for imported PDFs.                           |
 | [ADR-177](./implemented/ADR-177-prevent-accidental-ipad-ui-zoom.md)                       | Implemented          | Prevent accidental iPad UI zoom without disabling deliberate pinch zoom or browser accessibility controls.    |

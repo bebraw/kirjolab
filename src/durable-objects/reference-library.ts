@@ -9,6 +9,7 @@ import {
   type ReviewCitationAssertionInput,
 } from "../domain/citation-assertions";
 import type { CitationCandidateAcceptance, CitationCandidateSource } from "../domain/citation-expansion-types";
+import type { ArtifactAnalysis, ArtifactAnalysisKind, ArtifactAnalysisResult } from "../domain/reference-library/artifact-analysis";
 import {
   likelyReferenceIdentity,
   libraryPdfRectsOverlap,
@@ -19,12 +20,7 @@ import {
   mergeLibraryHighlightQuote,
   mergeLibraryPdfRects,
   missingRequiredBibliographicFields,
-  isPdfHighlightAnalysisResult,
-  isPdfReferenceAnalysisResult,
   referenceFromBibTeX,
-  type ArtifactAnalysis,
-  type ArtifactAnalysisKind,
-  type ArtifactAnalysisResult,
   type BibliographicRecord,
   type CrossrefMetadata,
   type CrossrefMetadataField,
@@ -51,6 +47,7 @@ import {
   type WebSnapshot,
   type WebSource,
 } from "../domain/reference-library";
+import { ArtifactAnalysisService } from "./reference-library/artifact-analysis";
 import { runSQLiteMigrations, type SQLiteMigration } from "./migrations";
 import { currentRecoveryBookmark } from "./recovery";
 
@@ -92,18 +89,6 @@ interface ArtifactRow extends Record<string, SqlStorageValue> {
   fingerprint: string;
   rights: string;
   created_at: string;
-}
-
-interface ArtifactAnalysisRow extends Record<string, SqlStorageValue> {
-  artifact_id: string;
-  fingerprint: string;
-  kind: string;
-  status: string;
-  result_json: string;
-  error: string;
-  requested_at: string;
-  started_at: string | null;
-  completed_at: string | null;
 }
 
 interface WebSourceRow extends Record<string, SqlStorageValue> {
@@ -580,10 +565,12 @@ const migrations = [
 ] as const satisfies readonly SQLiteMigration[];
 
 export class ReferenceLibrary extends DurableObject<Env> {
+  readonly #artifactAnalyses: ArtifactAnalysisService;
   readonly #metadataPreviewCache = new Map<string, MetadataPreviewCacheEntry>();
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
+    this.#artifactAnalyses = new ArtifactAnalysisService(ctx.storage.sql);
     ctx.blockConcurrencyWhile(async () => {
       this.ctx.storage.sql.exec("PRAGMA foreign_keys = ON");
       runSQLiteMigrations(this.ctx.storage, migrations);
@@ -997,56 +984,19 @@ export class ReferenceLibrary extends DurableObject<Env> {
   // Invoked across the Durable Object RPC boundary.
   // fallow-ignore-next-line unused-class-member
   getArtifactAnalysis(artifactId: string, kind: ArtifactAnalysisKind): ArtifactAnalysis | null {
-    const row = this.#artifactAnalysisRow(artifactId, kind);
-    return row ? artifactAnalysisFromRow(row) : null;
+    return this.#artifactAnalyses.get(artifactId, kind);
   }
 
   // Invoked across the Durable Object RPC boundary.
   // fallow-ignore-next-line unused-class-member
   queueArtifactAnalysis(artifactId: string, kind: ArtifactAnalysisKind, requestedAt: string, force = false): ArtifactAnalysis {
-    const artifact = this.#artifact(artifactId);
-    const existing = this.#artifactAnalysisRow(artifactId, kind);
-    if (
-      !force &&
-      existing?.fingerprint === artifact.fingerprint &&
-      (existing.status === "queued" || existing.status === "running" || existing.status === "ready")
-    ) {
-      return artifactAnalysisFromRow(existing);
-    }
-    this.ctx.storage.sql.exec(
-      `INSERT INTO artifact_analyses
-         (artifact_id, fingerprint, kind, status, result_json, error, requested_at, started_at, completed_at)
-       VALUES (?, ?, ?, 'queued', '', '', ?, NULL, NULL)
-       ON CONFLICT (artifact_id, kind) DO UPDATE SET
-         fingerprint = excluded.fingerprint,
-         status = 'queued',
-         result_json = '',
-         error = '',
-         requested_at = excluded.requested_at,
-         started_at = NULL,
-         completed_at = NULL`,
-      artifactId,
-      artifact.fingerprint,
-      kind,
-      requestedAt,
-    );
-    return artifactAnalysisFromRow(this.#artifactAnalysisRow(artifactId, kind)!);
+    return this.#artifactAnalyses.queue(artifactId, kind, requestedAt, force);
   }
 
   // Invoked across the Durable Object RPC boundary.
   // fallow-ignore-next-line unused-class-member
   startArtifactAnalysis(artifactId: string, kind: ArtifactAnalysisKind, fingerprint: string, requestedAt: string): boolean {
-    const row = this.#artifactAnalysisRow(artifactId, kind);
-    if (!row || row.fingerprint !== fingerprint || row.requested_at !== requestedAt || row.status === "running" || row.status === "ready") {
-      return false;
-    }
-    this.ctx.storage.sql.exec(
-      "UPDATE artifact_analyses SET status = 'running', error = '', started_at = ?, completed_at = NULL WHERE artifact_id = ? AND kind = ?",
-      new Date().toISOString(),
-      artifactId,
-      kind,
-    );
-    return true;
+    return this.#artifactAnalyses.start(artifactId, kind, fingerprint, requestedAt);
   }
 
   // Invoked across the Durable Object RPC boundary.
@@ -1058,41 +1008,13 @@ export class ReferenceLibrary extends DurableObject<Env> {
     requestedAt: string,
     result: ArtifactAnalysisResult,
   ): boolean {
-    if (
-      (kind === "pdf-highlights" && !isPdfHighlightAnalysisResult(result)) ||
-      (kind === "pdf-references" && !isPdfReferenceAnalysisResult(result))
-    ) {
-      throw new Error("Artifact analysis result is invalid");
-    }
-    const row = this.#artifactAnalysisRow(artifactId, kind);
-    if (!row || row.fingerprint !== fingerprint || row.requested_at !== requestedAt) return false;
-    this.ctx.storage.sql.exec(
-      `UPDATE artifact_analyses
-       SET status = 'ready', result_json = ?, error = '', completed_at = ?
-       WHERE artifact_id = ? AND kind = ?`,
-      JSON.stringify(result),
-      new Date().toISOString(),
-      artifactId,
-      kind,
-    );
-    return true;
+    return this.#artifactAnalyses.complete(artifactId, kind, fingerprint, requestedAt, result);
   }
 
   // Invoked across the Durable Object RPC boundary.
   // fallow-ignore-next-line unused-class-member
   failArtifactAnalysis(artifactId: string, kind: ArtifactAnalysisKind, fingerprint: string, requestedAt: string, error: string): boolean {
-    const row = this.#artifactAnalysisRow(artifactId, kind);
-    if (!row || row.fingerprint !== fingerprint || row.requested_at !== requestedAt) return false;
-    this.ctx.storage.sql.exec(
-      `UPDATE artifact_analyses
-       SET status = 'failed', result_json = '', error = ?, completed_at = ?
-       WHERE artifact_id = ? AND kind = ?`,
-      error.trim().slice(0, 1_000) || "Artifact analysis failed",
-      new Date().toISOString(),
-      artifactId,
-      kind,
-    );
-    return true;
+    return this.#artifactAnalyses.fail(artifactId, kind, fingerprint, requestedAt, error);
   }
 
   identifyPdf(artifactId: string, referenceId: string): LibraryPdfArtifact {
@@ -1938,14 +1860,6 @@ export class ReferenceLibrary extends DurableObject<Env> {
     return artifactFromRow(row);
   }
 
-  #artifactAnalysisRow(artifactId: string, kind: ArtifactAnalysisKind): ArtifactAnalysisRow | null {
-    return (
-      this.ctx.storage.sql
-        .exec<ArtifactAnalysisRow>("SELECT * FROM artifact_analyses WHERE artifact_id = ? AND kind = ?", artifactId, kind)
-        .toArray()[0] ?? null
-    );
-  }
-
   #tags(referenceIds: ReadonlySet<string>): Record<string, string[]> {
     const tags: Record<string, string[]> = {};
     for (const row of this.ctx.storage.sql
@@ -2053,45 +1967,6 @@ function artifactFromRow(row: ArtifactRow): LibraryPdfArtifact {
     rights: row.rights === "shareable" || row.rights === "unknown" ? row.rights : "private",
     createdAt: row.created_at,
   };
-}
-
-function artifactAnalysisFromRow(row: ArtifactAnalysisRow): ArtifactAnalysis {
-  const kind = artifactAnalysisKind(row.kind);
-  const status = artifactAnalysisStatus(row.status);
-  return {
-    artifactId: row.artifact_id,
-    fingerprint: row.fingerprint,
-    kind,
-    status,
-    result: artifactAnalysisResult(row.result_json, kind),
-    error: row.error,
-    requestedAt: row.requested_at,
-    startedAt: row.started_at,
-    completedAt: row.completed_at,
-  };
-}
-
-function artifactAnalysisKind(value: string): ArtifactAnalysisKind {
-  if (value === "pdf-highlights" || value === "pdf-references") return value;
-  throw new Error("Stored artifact analysis kind is invalid");
-}
-
-function artifactAnalysisStatus(value: string): ArtifactAnalysis["status"] {
-  if (value === "queued" || value === "running" || value === "ready" || value === "failed") return value;
-  throw new Error("Stored artifact analysis status is invalid");
-}
-
-function artifactAnalysisResult(resultJson: string, kind: ArtifactAnalysisKind): ArtifactAnalysisResult | null {
-  if (!resultJson) return null;
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(resultJson);
-  } catch {
-    throw new Error("Stored artifact analysis result is invalid");
-  }
-  if (kind === "pdf-highlights" && isPdfHighlightAnalysisResult(parsed)) return parsed;
-  if (kind === "pdf-references" && isPdfReferenceAnalysisResult(parsed)) return parsed;
-  throw new Error("Stored artifact analysis result is invalid");
 }
 
 function webSourceFromRow(row: WebSourceRow): WebSource {

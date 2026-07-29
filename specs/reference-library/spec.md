@@ -243,7 +243,10 @@ memory and makes citation aliases compete with stable source identity.
   modules; Node-only filesystem URLs are evaluated lazily so deployed analysis
   never depends on `import.meta.url` as a filesystem base.
   The owner Library Durable Object stores fingerprint-qualified queued, running,
-  ready, and failed analysis state so delivery and retries are idempotent. The
+  ready, and failed analysis state so delivery and retries are idempotent. Its
+  stable RPC facade delegates that bounded SQL lifecycle and persisted-result
+  validation to an adjacent capability service without moving migrations,
+  authorization, or multi-resource transactions out of the Durable Object. The
   managed browser can read only the exact R2 object supplied through request
   interception for that job. The reference kind scans the bounded PDF text for
   a conventional References, Bibliography, Works Cited, or Literature Cited

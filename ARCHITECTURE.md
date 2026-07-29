@@ -64,6 +64,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   incremental compatibility facade, not the default import for new consumers.
   Narrow capability modules must not import that facade or depend on API,
   browser-component, Durable Object, or Cloudflare runtime authorities.
+- Keep Durable Object classes as stable RPC, authorization, migration, and
+  transaction facades while moving cohesive persistence lifecycles into
+  adjacent capability services. A delegated service may own SQL and mapping for
+  its bounded lifecycle, but it must not hide or relocate a multi-resource
+  transaction.
 - Validate the server-rendered workspace/Library browser bootstrap as one
   Valibot contract before constructing the application. The contract owns the
   bounded workspace id, non-empty bounded identity email, and explicit
