@@ -244,7 +244,10 @@ before rebuilding it; the pre-push selector uses this after mutation or test
 configuration changes because Stryker's force option can retain files removed
 from the configured surface.
 The clean GitHub `npm run mutation` job also tests static mutants, so it remains
-the authoritative mutation score. The Vitest runner uses Stryker's per-test coverage
+the authoritative mutation score. The aggregate break threshold is 68, rebased
+to the whole-number score observed after the well-tested local Markdown
+renderer moved behind the Scholarmark package boundary; the 80 and 90 warning
+bands remain visible. The Vitest runner uses Stryker's per-test coverage
 analysis and related-test narrowing, so each runtime mutant runs against the
 tests Stryker can associate with the mutated file instead of blindly rerunning
 the whole suite. Stryker worker concurrency is set to `50%` so mutation testing

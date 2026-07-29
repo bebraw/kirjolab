@@ -121,6 +121,12 @@ The template needs a verification baseline that stays strict enough for end-to-e
   repetition.
 - `npm run mutation` must fail when the mutation score is below the configured break threshold.
 - `npm run mutation:incremental` must fail when the resulting mutation score is below the configured break threshold.
+- The mutation break threshold must remain at the whole-number baseline of 68
+  established after delegating the scientific Markdown implementation, while
+  the 80 and 90 warning bands continue to expose mutation debt.
+- A denominator-changing source delegation may recalibrate the aggregate break
+  threshold only when the mutation surface remains unchanged and the measured
+  score change is documented in an implemented ADR.
 - `npm run mutation:incremental` must ignore static mutants to keep the repeated local gate proportionate, while `npm run mutation` must continue to test them in the clean GitHub mutation job.
 - `npm run mutation:affected` and `npm run mutation:incremental` must retain
   Stryker's mutation-time TypeScript checker so compile-invalid mutants are not

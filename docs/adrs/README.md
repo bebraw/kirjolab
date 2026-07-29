@@ -33,6 +33,7 @@ No accepted ADRs are awaiting implementation.
 
 | ADR                                                                                       | Status               | Summary                                                                                                       |
 | ----------------------------------------------------------------------------------------- | -------------------- | ------------------------------------------------------------------------------------------------------------- |
+| [ADR-176](./implemented/ADR-176-rebase-aggregate-mutation-threshold.md)                   | Implemented          | Rebase the aggregate mutation floor after delegating the heavily tested Markdown implementation.              |
 | [ADR-175](./implemented/ADR-175-delegate-scientific-markdown-to-scholarmark.md)           | Implemented          | Delegate scientific Markdown and bounded BibTeX parsing to Scholarmark.                                       |
 | [ADR-174](./implemented/ADR-174-report-dependency-costs-reproducibly.md)                  | Implemented          | Report production package and browser artifact costs through one read-only diagnostic.                        |
 | [ADR-173](./implemented/ADR-173-share-bounded-external-response-reading.md)               | Implemented          | Share request-local bounded stream and JSON reading across external providers.                                |
