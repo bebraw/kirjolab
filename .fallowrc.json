@@ -5,7 +5,8 @@
     "src/browser/pdf-artifact-analyzer.ts",
     "src/client/app.ts",
     "src/client/review-app.ts",
-    "src/client/service-worker.ts"
+    "src/client/service-worker.ts",
+    "scripts/pdf-reference-quality-entry.ts"
   ],
   "ignoreDependencies": ["@stryker-mutator/api", "mdast-util-directive", "typescript-7"],
   "duplicates": {
