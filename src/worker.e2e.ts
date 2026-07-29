@@ -521,6 +521,41 @@ test("imports, annotates, and exports a private PDF without a project", async ({
       }),
     });
   });
+  await page.route("**/api/library/pdfs/*/analyses/pdf-references", async (route) => {
+    const artifactId = decodeURIComponent(new URL(route.request().url()).pathname.split("/")[4] ?? "");
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        artifactId,
+        fingerprint: "e2e-reference-analysis",
+        kind: "pdf-references",
+        status: "ready",
+        result: {
+          candidates: [
+            {
+              id: "doi:10.5555/reference",
+              page: 1,
+              raw: "Doe, Jane. 2025. Inspectable references. https://doi.org/10.5555/reference",
+              title: "Inspectable references",
+              authors: ["Doe, Jane"],
+              year: "2025",
+              doi: "10.5555/reference",
+              url: "https://doi.org/10.5555/reference",
+              confidence: 1,
+            },
+          ],
+          pagesScanned: 1,
+          pagesTotal: 1,
+          referencesStartPage: 1,
+          truncated: false,
+        },
+        error: "",
+        requestedAt: "2026-07-29T00:00:00.000Z",
+        startedAt: "2026-07-29T00:00:01.000Z",
+        completedAt: "2026-07-29T00:00:02.000Z",
+      }),
+    });
+  });
   await page.addInitScript(() => {
     Object.defineProperty(navigator, "standalone", { configurable: true, value: true });
     Object.defineProperty(navigator, "canShare", { configurable: true, value: () => true });
@@ -620,6 +655,7 @@ test("imports, annotates, and exports a private PDF without a project", async ({
   await page.getByRole("button", { name: "Annotations", exact: true }).click();
   await expect(page.locator("#library-highlight-import-status")).toContainText("1 candidate found");
   await expect(page.locator("#library-highlight-import-list")).toContainText("Knowledge grows through inspectable evidence.");
+  await expect(page.locator("#pdf-reference-analysis-list")).toContainText("Inspectable references");
   await page.getByLabel("Private note for detected highlight on page 1").fill("Imported from the PDF");
   await page.getByRole("button", { name: "Import selected" }).click();
   await expect(page.locator("#toast")).toHaveText("1 PDF highlight imported to your library.");

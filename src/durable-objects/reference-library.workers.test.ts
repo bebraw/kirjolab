@@ -254,6 +254,44 @@ describe("ReferenceLibrary in the Workers runtime", () => {
       status: "failed",
       error: "Browser unavailable",
     });
+
+    const referenceRequest = "2026-07-29T10:02:00.000Z";
+    const referenceResult = {
+      candidates: [
+        {
+          id: "doi:10.5555/reference",
+          page: 8,
+          raw: "Doe, Jane. 2025. Useful reference. doi:10.5555/reference",
+          title: "Useful reference",
+          authors: ["Doe, Jane"],
+          year: "2025",
+          doi: "10.5555/reference",
+          url: "",
+          confidence: 1,
+        },
+      ],
+      pagesScanned: 8,
+      pagesTotal: 8,
+      referencesStartPage: 8,
+      truncated: false,
+    };
+    expect((await library.queueArtifactAnalysis(draft.artifact.id, "pdf-references", referenceRequest)).status).toBe("queued");
+    expect(await library.startArtifactAnalysis(draft.artifact.id, "pdf-references", draft.artifact.fingerprint, referenceRequest)).toBe(
+      true,
+    );
+    expect(
+      await library.completeArtifactAnalysis(
+        draft.artifact.id,
+        "pdf-references",
+        draft.artifact.fingerprint,
+        referenceRequest,
+        referenceResult,
+      ),
+    ).toBe(true);
+    expect(await library.getArtifactAnalysis(draft.artifact.id, "pdf-references")).toMatchObject({
+      status: "ready",
+      result: referenceResult,
+    });
   });
 
   it("imports reviewed PDF highlights atomically into the private library", async () => {

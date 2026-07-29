@@ -2,6 +2,7 @@ import { html, type TemplateResult } from "lit";
 import { LightDomElement } from "./light-dom-controller";
 import {
   isArtifactAnalysis,
+  isPdfHighlightAnalysisResult,
   libraryPdfRectsOverlap,
   type ArtifactAnalysis,
   type LibraryHighlight,
@@ -238,7 +239,9 @@ export class PdfHighlightImportPanel extends LightDomElement {
     });
     await expectOk(response);
     const value: unknown = await response.json();
-    if (!isArtifactAnalysis(value)) throw new Error("The server returned an invalid analysis status");
+    if (!isArtifactAnalysis(value) || value.kind !== "pdf-highlights") {
+      throw new Error("The server returned an invalid analysis status");
+    }
     return value;
   }
 
@@ -266,7 +269,7 @@ export class PdfHighlightImportPanel extends LightDomElement {
         this.schedulePoll(context);
       } else if (analysis.status === "failed") {
         this.showError(analysis.error ? `Could not analyze this PDF: ${analysis.error}` : "Could not analyze this PDF.");
-      } else if (analysis.result) {
+      } else if (analysis.result && isPdfHighlightAnalysisResult(analysis.result)) {
         this.showResult({
           ...analysis.result,
           candidates: analysis.result.candidates.filter(

@@ -229,7 +229,8 @@ memory and makes citation aliases compete with stable source identity.
   creating a second resource. Geometry, quotation text, and distinct comments
   are combined within their existing bounds. Non-overlapping selections remain
   separate highlights.
-- A successful PDF intake automatically queues private artifact analysis.
+- A successful PDF intake automatically queues independent private highlight
+  and reference analyses.
   Standard PDF highlight annotations retain their bounded geometry and optional
   comment; flattened yellow page graphics are detected from a bounded managed-
   browser render and matched back to the PDF text layer. Candidates
@@ -241,10 +242,18 @@ memory and makes citation aliases compete with stable source identity.
   The owner Library Durable Object stores fingerprint-qualified queued, running,
   ready, and failed analysis state so delivery and retries are idempotent. The
   managed browser can read only the exact R2 object supplied through request
-  interception for that job. A generic versioned artifact-analysis envelope
-  allows later analysis kinds, including citation extraction, to reuse the same
-  queue and lifecycle without weakening owner isolation. A bounded light-DOM
-  component polls status and owns empty, mixed-source, error,
+  interception for that job. The reference kind scans the bounded PDF text for
+  a conventional References, Bibliography, Works Cited, or Literature Cited
+  heading. It returns at most 128 numbered or author-year entries with their
+  bounded raw citation, source page, and best-effort title, authors, year, DOI,
+  URL, and confidence. The reader presents those candidates in a separate
+  References disclosure with DOI/source links and explicit failed-analysis
+  retry. Reference candidates do not silently create library records, citation
+  assertions, or project state. A generic versioned artifact-analysis envelope
+  allows later analysis kinds to reuse the same queue and lifecycle without
+  weakening owner isolation. Each kind retains independent persisted state and
+  validation. A bounded light-DOM component polls highlight status and owns
+  empty, mixed-source, error,
   saved-highlight overlap filtering, review-selection, private-note, stable
   import transport, busy, explicit analysis retry, and completion presentation. It
   accepts explicit artifact, reference, and saved-highlight context, ignores

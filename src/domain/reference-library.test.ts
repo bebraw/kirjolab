@@ -12,6 +12,7 @@ import {
   isMetadataRefinementPreview,
   isPdfDraftResult,
   isPdfHighlightAnalysisResult,
+  isPdfReferenceAnalysisResult,
   isProjectReferencePdfs,
   isReferenceLibrarySnapshot,
   likelyReferenceIdentity,
@@ -88,6 +89,32 @@ describe("shared reference library", () => {
     expect(isArtifactAnalysis({ ...analysis, status: "unknown" })).toBe(false);
     expect(isArtifactAnalysisJob(job)).toBe(true);
     expect(isArtifactAnalysisJob({ ...job, version: 2 })).toBe(false);
+
+    const referenceResult = {
+      candidates: [
+        {
+          id: "doi:10.5555/reference",
+          page: 2,
+          raw: "Doe, Jane. 2025. Useful reference. doi:10.5555/reference",
+          title: "Useful reference",
+          authors: ["Doe, Jane"],
+          year: "2025",
+          doi: "10.5555/reference",
+          url: "",
+          confidence: 1,
+        },
+      ],
+      pagesScanned: 2,
+      pagesTotal: 2,
+      referencesStartPage: 2,
+      truncated: false,
+    } as const;
+    const referenceAnalysis = { ...analysis, kind: "pdf-references", result: referenceResult } as const;
+    expect(isPdfReferenceAnalysisResult(referenceResult)).toBe(true);
+    expect(isPdfReferenceAnalysisResult({ ...referenceResult, referencesStartPage: 3 })).toBe(false);
+    expect(isArtifactAnalysis(referenceAnalysis)).toBe(true);
+    expect(isArtifactAnalysis({ ...referenceAnalysis, result })).toBe(false);
+    expect(isArtifactAnalysisJob({ ...job, kind: "pdf-references" })).toBe(true);
   });
 
   it("accepts only safe project reference PDF descriptors", () => {

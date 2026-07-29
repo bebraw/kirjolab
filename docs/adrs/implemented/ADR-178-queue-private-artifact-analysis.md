@@ -33,13 +33,18 @@ browser's synthetic PDF and PDF-worker requests, and blocks all other requests.
 No public analysis route, signed artifact URL, or reusable bearer credential is
 introduced. Close every browser session in `finally`.
 
-Keep `pdf-highlights` as the first analysis kind behind a generic envelope.
-Future kinds such as citation extraction may reuse the queue and lifecycle, but
-must define their own bounded result validation and review workflow.
+Keep `pdf-highlights` as the first analysis kind behind a generic envelope and
+add `pdf-references` as the second. Reference analysis locates a conventional
+bibliography heading, groups numbered or author-year entries, and preserves the
+bounded raw citation beside best-effort title, author, year, DOI, URL, and source
+page fields. Each kind has independent lifecycle state and bounded result
+validation. Future kinds may reuse the queue, but must retain that separation.
 
-The reader polls server-owned status automatically. It shows candidates for
-review, supports an explicit retry after failure, and retains explicit atomic
-import as the only operation that creates private highlights.
+The reader polls server-owned status automatically. It shows highlight
+candidates for review and reference candidates for inspection, supports an
+explicit retry after either failure, and retains explicit atomic import as the
+only operation that creates private highlights. Reference candidates do not
+silently create library records or citation-graph assertions.
 
 ## Consequences
 
@@ -50,8 +55,10 @@ import as the only operation that creates private highlights.
 - Queue retries and Durable Object guards make analysis resilient and
   idempotent.
 - Private PDFs are not exposed through a new HTTP capability.
-- Citation extraction can reuse the job lifecycle without coupling its result
-  schema to highlights.
+- PDF bibliography extraction reuses the job lifecycle without coupling its
+  result schema or UI state to highlights.
+- Persisted source-page and identifier fields provide a bounded input for later
+  reviewed citation-graph edges.
 
 **Negative:**
 
@@ -61,6 +68,9 @@ import as the only operation that creates private highlights.
   limit, while fulfilling the intercepted browser request.
 - Local unit tests validate orchestration boundaries; full managed-browser
   behavior still requires a Browser Run integration environment.
+- Heuristic bibliography parsing favors conventional headings and numbered or
+  author-year entries; unusual layouts remain visible only after future parser
+  improvements rather than being guessed into library records.
 
 ## Alternatives Considered
 

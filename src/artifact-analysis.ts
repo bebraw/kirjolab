@@ -2,8 +2,12 @@ import puppeteer, { type Browser, type HTTPRequest, type Page } from "@cloudflar
 import {
   isArtifactAnalysisJob,
   isPdfHighlightAnalysisResult,
+  isPdfReferenceAnalysisResult,
+  type ArtifactAnalysisKind,
   type ArtifactAnalysisJob,
+  type ArtifactAnalysisResult,
   type PdfHighlightAnalysisResult,
+  type PdfReferenceAnalysisResult,
 } from "./domain/reference-library";
 
 const analysisPdfUrl = "https://artifact-analysis.invalid/input.pdf";
@@ -63,17 +67,23 @@ export async function processArtifactAnalysisJob(job: ArtifactAnalysisJob, env: 
     loadPdfArtifactAnalyzerScript(),
     loadPdfWorkerScript(),
   ]);
-  const result = await analyzePdfHighlights(env.ARTIFACT_ANALYSIS_BROWSER, pdf, analyzerScript, workerScript);
-  if (!isPdfHighlightAnalysisResult(result)) throw new Error("Browser returned an invalid PDF highlight analysis");
+  const result = await analyzePdfArtifact(env.ARTIFACT_ANALYSIS_BROWSER, pdf, analyzerScript, workerScript, job.kind);
+  if (job.kind === "pdf-highlights" && !isPdfHighlightAnalysisResult(result)) {
+    throw new Error("Browser returned an invalid PDF highlight analysis");
+  }
+  if (job.kind === "pdf-references" && !isPdfReferenceAnalysisResult(result)) {
+    throw new Error("Browser returned an invalid PDF reference analysis");
+  }
   await library.completeArtifactAnalysis(job.artifactId, job.kind, job.fingerprint, job.requestedAt, result);
 }
 
-async function analyzePdfHighlights(
+async function analyzePdfArtifact(
   binding: Env["ARTIFACT_ANALYSIS_BROWSER"],
   pdf: Uint8Array,
   analyzerScript: string,
   workerScript: string,
-): Promise<PdfHighlightAnalysisResult> {
+  kind: ArtifactAnalysisKind,
+): Promise<ArtifactAnalysisResult> {
   let browser: Browser | null = null;
   try {
     browser = await puppeteer.launch(binding as Parameters<typeof puppeteer.launch>[0]);
@@ -83,13 +93,14 @@ async function analyzePdfHighlights(
     await page.addScriptTag({ content: analyzerScript });
     return await withTimeout(
       page.evaluate(
-        async (url) =>
-          await (
-            globalThis as typeof globalThis & {
-              analyzePdfHighlights(input: string): Promise<PdfHighlightAnalysisResult>;
-            }
-          ).analyzePdfHighlights(url),
-        analysisPdfUrl,
+        async ({ url, kind }) => {
+          const analyzer = globalThis as typeof globalThis & {
+            analyzePdfHighlights(input: string): Promise<PdfHighlightAnalysisResult>;
+            analyzePdfReferences(input: string): Promise<PdfReferenceAnalysisResult>;
+          };
+          return kind === "pdf-highlights" ? await analyzer.analyzePdfHighlights(url) : await analyzer.analyzePdfReferences(url);
+        },
+        { kind, url: analysisPdfUrl },
       ),
       2 * 60 * 1_000,
     );

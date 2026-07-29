@@ -10,7 +10,7 @@ export function ensureGeneratedStylesheet(): void {
   writeFileSync(join(".generated", "pdf-worker.txt"), "export {};", "utf8");
   writeFileSync(
     join(".generated", "pdf-artifact-analyzer.txt"),
-    "window.analyzePdfHighlights=async()=>({candidates:[],pagesScanned:0,pagesTotal:0,truncated:false});",
+    "window.analyzePdfHighlights=async()=>({candidates:[],pagesScanned:0,pagesTotal:0,truncated:false});window.analyzePdfReferences=async()=>({candidates:[],pagesScanned:0,pagesTotal:0,referencesStartPage:null,truncated:false});",
     "utf8",
   );
 }

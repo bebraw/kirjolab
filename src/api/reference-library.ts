@@ -558,15 +558,29 @@ async function handleLibraryPdfRoutes(context: ReferenceLibraryRouteContext): Pr
 
 async function handleLibraryPdfAnalysisRoute(context: ReferenceLibraryRouteContext): Promise<Response | null> {
   const { request, suffix, identity, env, library } = context;
-  const match = /^\/pdfs\/([0-9a-f-]{36})\/analyses\/(pdf-highlights)$/iu.exec(suffix);
-  if (!match?.[1] || match[2] !== "pdf-highlights" || (request.method !== "GET" && request.method !== "POST")) return null;
+  const match = /^\/pdfs\/([0-9a-f-]{36})\/analyses\/(pdf-highlights|pdf-references)$/iu.exec(suffix);
+  if (
+    !match?.[1] ||
+    (match[2] !== "pdf-highlights" && match[2] !== "pdf-references") ||
+    (request.method !== "GET" && request.method !== "POST")
+  ) {
+    return null;
+  }
+  const kind: ArtifactAnalysisKind = match[2];
   if (request.method === "POST") {
     if (!env.ARTIFACT_ANALYSIS_QUEUE) return jsonError("Artifact analysis queue is unavailable", 503);
-    const analysis = await enqueueArtifactAnalysis(identity.ownerKey, match[1], "pdf-highlights", env, library, true);
+    const analysis = await enqueueArtifactAnalysis(identity.ownerKey, match[1], kind, env, library, true);
     return Response.json(analysis, { status: 202, ...noStore() });
   }
-  const analysis = await library.getArtifactAnalysis(match[1], "pdf-highlights");
-  if (!analysis || !isArtifactAnalysis(analysis)) return jsonError("PDF highlight analysis not found", 404);
+  const analysis = await library.getArtifactAnalysis(match[1], kind);
+  if (!analysis) {
+    if (!env.ARTIFACT_ANALYSIS_QUEUE) return jsonError("Artifact analysis queue is unavailable", 503);
+    return Response.json(await enqueueArtifactAnalysis(identity.ownerKey, match[1], kind, env, library), {
+      status: 202,
+      ...noStore(),
+    });
+  }
+  if (!isArtifactAnalysis(analysis)) return jsonError("PDF analysis state is invalid", 500);
   return Response.json(analysis, noStore());
 }
 
@@ -1522,7 +1536,10 @@ async function uploadLibraryPdf(
     throw error;
   }
   if (!draft.created) await env.PAPERS.delete(objectKey);
-  await enqueueArtifactAnalysis(ownerKey, draft.artifact.id, "pdf-highlights", env, library);
+  await Promise.all([
+    enqueueArtifactAnalysis(ownerKey, draft.artifact.id, "pdf-highlights", env, library),
+    enqueueArtifactAnalysis(ownerKey, draft.artifact.id, "pdf-references", env, library),
+  ]);
   return Response.json(draft, { status: draft.created ? 201 : 200, ...noStore() });
 }
 

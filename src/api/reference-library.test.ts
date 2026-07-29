@@ -3,6 +3,8 @@ import { unzipSync } from "fflate";
 import { PDFDocument } from "pdf-lib";
 import type { CitationAssertion, CitationNetwork } from "../domain/citation-assertions";
 import type {
+  ArtifactAnalysis,
+  ArtifactAnalysisKind,
   BibliographicRecord,
   LibraryHighlight,
   MetadataRefinementPreview,
@@ -797,12 +799,23 @@ describe("reference library API", () => {
     expect(response.status).toBe(201);
     await expect(response.json()).resolves.toMatchObject({ created: true });
     expect(bucket.size).toBe(1);
+    expect(fixture.sendArtifactAnalysis).toHaveBeenCalledTimes(2);
     expect(fixture.sendArtifactAnalysis).toHaveBeenCalledWith(
       expect.objectContaining({
         version: 1,
         ownerKey: identity.ownerKey,
         artifactId: "22222222-2222-4222-8222-222222222222",
         kind: "pdf-highlights",
+        fingerprint: "r2-etag:guide",
+      }),
+      { contentType: "json" },
+    );
+    expect(fixture.sendArtifactAnalysis).toHaveBeenCalledWith(
+      expect.objectContaining({
+        version: 1,
+        ownerKey: identity.ownerKey,
+        artifactId: "22222222-2222-4222-8222-222222222222",
+        kind: "pdf-references",
         fingerprint: "r2-etag:guide",
       }),
       { contentType: "json" },
@@ -823,6 +836,27 @@ describe("reference library API", () => {
       "pdf-highlights",
       expect.any(String),
       true,
+    );
+    expect(fixture.sendArtifactAnalysis).toHaveBeenCalledOnce();
+
+    const referencesRoute = "/api/library/pdfs/22222222-2222-4222-8222-222222222222/analyses/pdf-references";
+    const references = await handleReferenceLibraryApi(new Request(`https://example.test${referencesRoute}`), fixture.env, identity);
+    expect(references.status).toBe(200);
+    await expect(references.json()).resolves.toMatchObject({ kind: "pdf-references", status: "queued" });
+  });
+
+  it("queues missing analysis state when an existing PDF is opened", async () => {
+    const fixture = apiFixture();
+    fixture.library.getArtifactAnalysis.mockResolvedValueOnce(null);
+    const route = "/api/library/pdfs/22222222-2222-4222-8222-222222222222/analyses/pdf-references";
+    const response = await handleReferenceLibraryApi(new Request(`https://example.test${route}`), fixture.env, identity);
+
+    expect(response.status).toBe(202);
+    expect(fixture.library.queueArtifactAnalysis).toHaveBeenCalledWith(
+      "22222222-2222-4222-8222-222222222222",
+      "pdf-references",
+      expect.any(String),
+      false,
     );
     expect(fixture.sendArtifactAnalysis).toHaveBeenCalledOnce();
   });
@@ -1438,6 +1472,9 @@ function apiFixture(bucket = new MemoryR2Bucket()) {
     startedAt: null,
     completedAt: null,
   };
+  const getArtifactAnalysis = vi.fn(
+    async (_artifactId: string, kind: ArtifactAnalysisKind): Promise<ArtifactAnalysis | null> => ({ ...analysis, kind }),
+  );
   const library = {
     getSnapshot: vi.fn(async () => snapshot),
     importBibTeX: vi.fn(async () => [{ reference, suggestedAlias: "guide", created: true }]),
@@ -1473,8 +1510,8 @@ function apiFixture(bucket = new MemoryR2Bucket()) {
       }),
     ),
     importHighlights: vi.fn(async () => []),
-    getArtifactAnalysis: vi.fn(async () => analysis),
-    queueArtifactAnalysis: vi.fn(async () => analysis),
+    getArtifactAnalysis,
+    queueArtifactAnalysis: vi.fn(async (_artifactId: string, kind: "pdf-highlights" | "pdf-references") => ({ ...analysis, kind })),
     failArtifactAnalysis: vi.fn(async () => true),
     updateHighlightComment: vi.fn(async (referenceId: string, id: string, comment: string) => ({
       id,

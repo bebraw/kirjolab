@@ -13,6 +13,7 @@ import type { LibraryPdfAnnotationList } from "./library-pdf-annotation-list";
 import { LibraryPdfInspector, libraryPdfInspectorCloseEvent } from "./library-pdf-inspector";
 import type { LibraryPdfProjectUse } from "./library-pdf-project-use";
 import type { PdfHighlightImportPanel } from "./pdf-highlight-import-panel";
+import type { PdfReferenceAnalysisPanel } from "./pdf-reference-analysis-panel";
 import { projectReferenceChangedEvent } from "./project-reference-mutation";
 import { projectResearchChangedEvent } from "./project-research-mutation";
 
@@ -111,6 +112,7 @@ class TestLibraryPdfInspector extends LibraryPdfInspector {
   };
   readonly list = { setData: vi.fn() };
   readonly importPanel = { reset: vi.fn(), setContext: vi.fn() };
+  readonly referencePanel = { reset: vi.fn(), setArtifact: vi.fn() };
   readonly project = { setContext: vi.fn() };
 
   renderForTest() {
@@ -141,6 +143,10 @@ class TestLibraryPdfInspector extends LibraryPdfInspector {
     return this.importPanel as unknown as PdfHighlightImportPanel;
   }
 
+  protected override get referenceAnalysis(): PdfReferenceAnalysisPanel {
+    return this.referencePanel as unknown as PdfReferenceAnalysisPanel;
+  }
+
   protected override get projectUse(): LibraryPdfProjectUse {
     return this.project as unknown as LibraryPdfProjectUse;
   }
@@ -152,6 +158,7 @@ describe("library PDF inspector", () => {
     expect(customElements.get("library-pdf-annotation-list")).toBeDefined();
     expect(customElements.get("library-pdf-project-use")).toBeDefined();
     expect(customElements.get("pdf-highlight-import-panel")).toBeDefined();
+    expect(customElements.get("pdf-reference-analysis-panel")).toBeDefined();
   });
 
   it("owns artifact, visibility, status, and inspector presentation", () => {

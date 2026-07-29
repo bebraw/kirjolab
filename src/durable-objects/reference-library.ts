@@ -20,9 +20,11 @@ import {
   mergeLibraryPdfRects,
   missingRequiredBibliographicFields,
   isPdfHighlightAnalysisResult,
+  isPdfReferenceAnalysisResult,
   referenceFromBibTeX,
   type ArtifactAnalysis,
   type ArtifactAnalysisKind,
+  type ArtifactAnalysisResult,
   type BibliographicRecord,
   type CrossrefMetadata,
   type CrossrefMetadataField,
@@ -37,7 +39,6 @@ import {
   type MetadataFieldProvenance,
   type MetadataRefinementPreview,
   type PdfDraftResult,
-  type PdfHighlightAnalysisResult,
   type ReadingState,
   type ReviewedPdfMetadata,
   type ReviewedProviderMetadataSelection,
@@ -549,6 +550,33 @@ const migrations = [
       return undefined;
     },
   },
+  {
+    version: 12,
+    name: "analyze-pdf-references",
+    apply(sql): undefined {
+      sql.exec(`
+        ALTER TABLE artifact_analyses RENAME TO artifact_analyses_v11;
+        CREATE TABLE artifact_analyses (
+          artifact_id TEXT NOT NULL REFERENCES artifacts(id) ON DELETE CASCADE,
+          fingerprint TEXT NOT NULL,
+          kind TEXT NOT NULL CHECK (kind IN ('pdf-highlights', 'pdf-references')),
+          status TEXT NOT NULL CHECK (status IN ('queued', 'running', 'ready', 'failed')),
+          result_json TEXT NOT NULL DEFAULT '',
+          error TEXT NOT NULL DEFAULT '',
+          requested_at TEXT NOT NULL,
+          started_at TEXT,
+          completed_at TEXT,
+          PRIMARY KEY (artifact_id, kind)
+        );
+        INSERT INTO artifact_analyses
+          (artifact_id, fingerprint, kind, status, result_json, error, requested_at, started_at, completed_at)
+        SELECT artifact_id, fingerprint, kind, status, result_json, error, requested_at, started_at, completed_at
+        FROM artifact_analyses_v11;
+        DROP TABLE artifact_analyses_v11;
+      `);
+      return undefined;
+    },
+  },
 ] as const satisfies readonly SQLiteMigration[];
 
 export class ReferenceLibrary extends DurableObject<Env> {
@@ -1020,9 +1048,14 @@ export class ReferenceLibrary extends DurableObject<Env> {
     kind: ArtifactAnalysisKind,
     fingerprint: string,
     requestedAt: string,
-    result: PdfHighlightAnalysisResult,
+    result: ArtifactAnalysisResult,
   ): boolean {
-    if (!isPdfHighlightAnalysisResult(result)) throw new Error("Artifact analysis result is invalid");
+    if (
+      (kind === "pdf-highlights" && !isPdfHighlightAnalysisResult(result)) ||
+      (kind === "pdf-references" && !isPdfReferenceAnalysisResult(result))
+    ) {
+      throw new Error("Artifact analysis result is invalid");
+    }
     const row = this.#artifactAnalysisRow(artifactId, kind);
     if (!row || row.fingerprint !== fingerprint || row.requested_at !== requestedAt) return false;
     this.ctx.storage.sql.exec(
@@ -2013,11 +2046,11 @@ function artifactFromRow(row: ArtifactRow): LibraryPdfArtifact {
 }
 
 function artifactAnalysisFromRow(row: ArtifactAnalysisRow): ArtifactAnalysis {
-  if (row.kind !== "pdf-highlights") throw new Error("Stored artifact analysis kind is invalid");
+  if (row.kind !== "pdf-highlights" && row.kind !== "pdf-references") throw new Error("Stored artifact analysis kind is invalid");
   if (row.status !== "queued" && row.status !== "running" && row.status !== "ready" && row.status !== "failed") {
     throw new Error("Stored artifact analysis status is invalid");
   }
-  let result: PdfHighlightAnalysisResult | null = null;
+  let result: ArtifactAnalysisResult | null = null;
   if (row.result_json) {
     let parsed: unknown;
     try {
@@ -2025,8 +2058,13 @@ function artifactAnalysisFromRow(row: ArtifactAnalysisRow): ArtifactAnalysis {
     } catch {
       throw new Error("Stored artifact analysis result is invalid");
     }
-    if (!isPdfHighlightAnalysisResult(parsed)) throw new Error("Stored artifact analysis result is invalid");
-    result = parsed;
+    if (row.kind === "pdf-highlights") {
+      if (!isPdfHighlightAnalysisResult(parsed)) throw new Error("Stored artifact analysis result is invalid");
+      result = parsed;
+    } else {
+      if (!isPdfReferenceAnalysisResult(parsed)) throw new Error("Stored artifact analysis result is invalid");
+      result = parsed;
+    }
   }
   return {
     artifactId: row.artifact_id,

@@ -1246,12 +1246,19 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   close managed-browser sessions, and expose only candidate data for explicit
   review. Supply the job's exact private R2 bytes to managed Chromium through
   request interception rather than a public or bearer-token artifact route.
-  Reuse this boundary for future artifact analyses such as citation extraction.
+  Keep each analysis kind's persisted state and result validation independent.
+  PDF reference analysis must preserve a bounded raw citation and source page
+  beside best-effort structured fields; it must not create bibliographic records
+  or graph assertions without a later explicit review workflow.
 - Let the PDF highlight import panel own automatic-analysis status polling,
   explicit failed-analysis retry, saved-highlight overlap filtering, reviewed
   candidate state, stable encoded import transport, duplicate-submit gating,
   and retryable local failures. Keep canonical Library refresh and completion
   toast policy in the application coordinator.
+- Let the PDF reference analysis panel own its independent status polling,
+  explicit failed-analysis retry, empty-state explanation, and bounded candidate
+  presentation. Project DOI and source links from server-validated fields, and
+  keep graph construction and candidate acceptance outside the reader panel.
 - Keep private-PDF tool, selection, note-composition, open-card, and pointer-
   gesture state inside the bounded light-DOM markup layer that presents it.
   Let the layer derive its saved drawings, notes, and stable drawing target for

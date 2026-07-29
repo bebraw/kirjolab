@@ -18,6 +18,8 @@ import type { LibraryPdfProjectUse } from "./library-pdf-project-use";
 import "./library-pdf-project-use";
 import type { PdfHighlightImportPanel } from "./pdf-highlight-import-panel";
 import "./pdf-highlight-import-panel";
+import type { PdfReferenceAnalysisPanel } from "./pdf-reference-analysis-panel";
+import "./pdf-reference-analysis-panel";
 import { projectReferenceChangedEvent, type ProjectReferenceChanged } from "./project-reference-mutation";
 import { projectResearchChangedEvent, type ProjectResearchChanged } from "./project-research-mutation";
 
@@ -108,6 +110,7 @@ export class LibraryPdfInspector extends EagerLightDomElement {
     if (artifactChanged) this.resetArtifact(artifact.id);
     this.projectUse.setContext({ artifact, projectApiBase, projectReferences, references: library.references });
     const highlights = library.highlights.filter((highlight) => highlight.artifactId === artifact.id);
+    this.referenceAnalysis.setArtifact(artifact.id);
     this.highlightImport.setContext(
       artifact.referenceId ? { artifactId: artifact.id, highlights, referenceId: artifact.referenceId } : null,
     );
@@ -200,6 +203,7 @@ export class LibraryPdfInspector extends EagerLightDomElement {
 
   private resetArtifact(artifactId: string): void {
     this.highlightImport.reset();
+    this.referenceAnalysis.reset();
     this.setArtifact(artifactId);
     this.annotationForms.clearHighlight(1);
     this.annotationForms.clearNote();
@@ -236,7 +240,7 @@ export class LibraryPdfInspector extends EagerLightDomElement {
         </header>
         <library-pdf-annotation-forms id="library-pdf-annotation-forms"></library-pdf-annotation-forms>
         <details class="library-annotation-details" id="library-annotation-details">
-          <summary><span>Annotations</span></summary>
+          <summary><span>Annotations and references</span></summary>
           <div class="library-annotation-details-body">
             <pdf-highlight-import-panel
               class="library-highlight-import"
@@ -244,6 +248,14 @@ export class LibraryPdfInspector extends EagerLightDomElement {
               aria-labelledby="library-highlight-import-title"
             ></pdf-highlight-import-panel>
             <library-pdf-annotation-list class="space-y-2" id="library-highlight-list"></library-pdf-annotation-list>
+            <details class="library-project-details" open>
+              <summary>References</summary>
+              <pdf-reference-analysis-panel
+                class="mt-2 block"
+                id="pdf-reference-analysis-panel"
+                aria-labelledby="pdf-reference-analysis-title"
+              ></pdf-reference-analysis-panel>
+            </details>
             <details class="library-project-details">
               <summary>Project sharing</summary>
               <library-pdf-project-use class="mt-2" id="library-project-use"></library-pdf-project-use>
@@ -269,6 +281,12 @@ export class LibraryPdfInspector extends EagerLightDomElement {
   protected get highlightImport(): PdfHighlightImportPanel {
     const panel = this.querySelector<PdfHighlightImportPanel>("#pdf-highlight-import-panel");
     if (!panel) throw new Error("PDF highlight import panel is unavailable");
+    return panel;
+  }
+
+  protected get referenceAnalysis(): PdfReferenceAnalysisPanel {
+    const panel = this.querySelector<PdfReferenceAnalysisPanel>("#pdf-reference-analysis-panel");
+    if (!panel) throw new Error("PDF reference analysis panel is unavailable");
     return panel;
   }
 
