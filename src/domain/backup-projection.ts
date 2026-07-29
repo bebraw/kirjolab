@@ -58,7 +58,7 @@ export function referencedBinaryKeys(state: BackupBinaryReferences): string[] {
 }
 
 export function isOwnedBinaryKey(ownerKey: string, workspaceIds: readonly string[], value: string): boolean {
-  if (!value || value.startsWith("/") || value.includes("\\") || value.split("/").some((segment) => segment === "..")) return false;
+  if (value.split("/").some((segment) => segment === "..")) return false;
   if (value.startsWith(`libraries/${ownerKey}/`)) return true;
   return workspaceIds.some((workspaceId) => value.startsWith(`${workspaceId}/`) || value.startsWith(`${ownerKey}:${workspaceId}/`));
 }
