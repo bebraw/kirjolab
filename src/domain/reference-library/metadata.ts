@@ -7,7 +7,15 @@ import type { WebCitationSnapshot, WebSnapshot } from "./web-sources";
 export type ReferenceMetadataField = "type" | "title" | "authors" | "year" | "venue" | "doi" | "url" | "abstract";
 export type CrossrefMetadataField = ReferenceMetadataField;
 export type ScholarlyMetadataProvider = "openalex" | "crossref" | "datacite" | "semantic-scholar";
-export type MetadataProvenanceMethod = "bibtex" | ScholarlyMetadataProvider | "filename" | "manual" | "pdf-metadata" | "web" | "migration";
+export type MetadataProvenanceMethod =
+  | "bibtex"
+  | ScholarlyMetadataProvider
+  | "filename"
+  | "manual"
+  | "pdf-metadata"
+  | "pdf-reference"
+  | "web"
+  | "migration";
 
 export const crossrefMetadataFields = ["type", "title", "authors", "year", "venue", "doi", "url", "abstract"] as const;
 export const maximumMetadataRefinementCandidates = 12;

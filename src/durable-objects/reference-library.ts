@@ -35,6 +35,9 @@ import {
   type MetadataFieldProvenance,
   type MetadataRefinementPreview,
   type PdfDraftResult,
+  type PdfReferenceCandidateReview,
+  type PdfReferenceCandidateReviewResult,
+  type PdfReferenceReviewQueue,
   type ReadingState,
   type ReviewedPdfMetadata,
   type ReviewedProviderMetadataSelection,
@@ -46,6 +49,7 @@ import {
   type WebCaptureRegistration,
   type WebSnapshot,
   type WebSource,
+  suggestPdfReferenceMatch,
 } from "../domain/reference-library";
 import { ArtifactAnalysisService } from "./reference-library/artifact-analysis";
 import { runSQLiteMigrations, type SQLiteMigration } from "./migrations";
@@ -210,6 +214,17 @@ interface CitationAssertionRow extends Record<string, SqlStorageValue> {
   reviewed_at: string | null;
   review_note: string | null;
   created_at: string;
+}
+
+interface PdfReferenceReviewRow extends Record<string, SqlStorageValue> {
+  artifact_id: string;
+  fingerprint: string;
+  candidate_id: string;
+  decision: string;
+  reference_id: string | null;
+  assertion_id: string | null;
+  reviewed_by: string;
+  reviewed_at: string;
 }
 
 export interface ReferenceImportItem {
@@ -562,6 +577,30 @@ const migrations = [
       return undefined;
     },
   },
+  {
+    version: 13,
+    name: "review-pdf-reference-candidates",
+    apply(sql): undefined {
+      sql.exec(`
+        CREATE TABLE pdf_reference_reviews (
+          artifact_id TEXT NOT NULL REFERENCES artifacts(id) ON DELETE CASCADE,
+          fingerprint TEXT NOT NULL,
+          candidate_id TEXT NOT NULL,
+          decision TEXT NOT NULL CHECK (decision IN ('accepted', 'rejected')),
+          reference_id TEXT REFERENCES library_references(id),
+          assertion_id TEXT REFERENCES citation_assertions(id),
+          reviewed_by TEXT NOT NULL,
+          reviewed_at TEXT NOT NULL,
+          PRIMARY KEY (artifact_id, candidate_id),
+          CHECK (
+            (decision = 'accepted' AND reference_id IS NOT NULL AND assertion_id IS NOT NULL) OR
+            (decision = 'rejected' AND reference_id IS NULL AND assertion_id IS NULL)
+          )
+        );
+      `);
+      return undefined;
+    },
+  },
 ] as const satisfies readonly SQLiteMigration[];
 
 export class ReferenceLibrary extends DurableObject<Env> {
@@ -731,6 +770,131 @@ export class ReferenceLibrary extends DurableObject<Env> {
         "Crossref",
       );
       return { reference, created, assertion };
+    });
+  }
+
+  getPdfReferenceReviewQueue(artifactId: string): PdfReferenceReviewQueue {
+    const artifact = this.#artifact(artifactId);
+    if (!artifact.referenceId) throw new Error("Identify the PDF before reviewing its references");
+    const citingReferenceId = artifact.referenceId;
+    const analysis = this.#artifactAnalyses.get(artifactId, "pdf-references");
+    if (analysis?.status !== "ready" || !analysis.result || !("referencesStartPage" in analysis.result)) {
+      throw new Error("PDF reference analysis is not ready");
+    }
+    const references = this.ctx.storage.sql
+      .exec<ReferenceRow>("SELECT * FROM library_references WHERE deleted_at IS NULL ORDER BY title COLLATE NOCASE, id")
+      .toArray()
+      .map(referenceFromRow)
+      .filter((reference) => reference.id !== citingReferenceId);
+    const reviews = new Map(
+      this.ctx.storage.sql
+        .exec<PdfReferenceReviewRow>(
+          "SELECT * FROM pdf_reference_reviews WHERE artifact_id = ? AND fingerprint = ?",
+          artifactId,
+          analysis.fingerprint,
+        )
+        .toArray()
+        .map((row) => [row.candidate_id, pdfReferenceReviewFromRow(row)]),
+    );
+    return {
+      artifactId,
+      fingerprint: analysis.fingerprint,
+      citingReferenceId,
+      candidates: analysis.result.candidates.map((candidate) => {
+        const suggestion = suggestPdfReferenceMatch(candidate, references);
+        return {
+          ...candidate,
+          match: suggestion?.reference ?? null,
+          matchKind: suggestion?.kind ?? null,
+          review: reviews.get(candidate.id) ?? null,
+        };
+      }),
+    };
+  }
+
+  reviewPdfReferenceCandidate(
+    artifactId: string,
+    fingerprint: string,
+    candidateId: string,
+    decision: "accepted" | "rejected",
+    referenceId: string | undefined,
+    actor: string,
+  ): PdfReferenceCandidateReviewResult {
+    const artifact = this.#artifact(artifactId);
+    if (!artifact.referenceId) throw new Error("Identify the PDF before reviewing its references");
+    const citingReferenceId = artifact.referenceId;
+    const analysis = this.#artifactAnalyses.get(artifactId, "pdf-references");
+    if (
+      analysis?.status !== "ready" ||
+      analysis.fingerprint !== fingerprint ||
+      !analysis.result ||
+      !("referencesStartPage" in analysis.result)
+    ) {
+      throw new Error("PDF reference analysis changed; review the current results again");
+    }
+    const candidate = analysis.result.candidates.find((item) => item.id === candidateId);
+    if (!candidate) throw new Error("PDF reference candidate not found");
+    return this.ctx.storage.transactionSync(() => {
+      const existing = this.ctx.storage.sql
+        .exec<PdfReferenceReviewRow>(
+          "SELECT * FROM pdf_reference_reviews WHERE artifact_id = ? AND candidate_id = ? AND fingerprint = ?",
+          artifactId,
+          candidateId,
+          fingerprint,
+        )
+        .toArray()[0];
+      if (existing?.decision === "accepted") {
+        const review = pdfReferenceReviewFromRow(existing);
+        return {
+          review,
+          reference: this.#reference(review.referenceId!),
+          assertion: citationAssertionFromRow(this.#citationAssertion(review.assertionId!)),
+        };
+      }
+      if (decision === "rejected") {
+        const review = this.#writePdfReferenceReview(artifactId, fingerprint, candidateId, decision, null, null, actor);
+        return { review, reference: null, assertion: null };
+      }
+      const exactDoi = normalizeDoi(candidate.doi);
+      const doiRow = exactDoi
+        ? this.ctx.storage.sql
+            .exec<ReferenceRow>("SELECT * FROM library_references WHERE LOWER(doi) = ? AND deleted_at IS NULL LIMIT 1", exactDoi)
+            .toArray()[0]
+        : undefined;
+      if (doiRow && referenceId && doiRow.id !== referenceId) throw new Error("The candidate DOI matches a different library reference");
+      const selectedReference = !doiRow && referenceId ? this.#reference(referenceId) : null;
+      if (selectedReference) {
+        const suggestion = suggestPdfReferenceMatch(candidate, [selectedReference]);
+        if (suggestion?.kind !== "bibliographic" || suggestion.reference.id !== selectedReference.id) {
+          throw new Error("The selected library reference does not match the analyzed bibliography entry");
+        }
+      }
+      const reference = doiRow
+        ? referenceFromRow(doiRow)
+        : selectedReference
+          ? selectedReference
+          : this.#createPdfReferenceCandidate(artifactId, candidate, analysis.completedAt ?? new Date().toISOString(), actor);
+      if (reference.id === citingReferenceId) throw new Error("A PDF reference cannot cite itself");
+      if (exactDoi && reference.doi && normalizeDoi(reference.doi) !== exactDoi) {
+        throw new Error("The selected library reference has a different DOI");
+      }
+      const assertion = this.#createCitationAssertion(
+        {
+          citingReferenceId,
+          citedReferenceId: reference.id,
+          polarity: "cites",
+          evidenceState: "extracted",
+          method: "source-extraction",
+          observedAt: analysis.completedAt ?? analysis.requestedAt,
+          sourceKind: "pdf-artifact",
+          sourceId: artifactId,
+          sourceLocator: `PDF page ${candidate.page} · reference ${candidate.id}`.slice(0, 2_000),
+          confidence: candidate.confidence,
+        },
+        "PDF reference analysis",
+      );
+      const review = this.#writePdfReferenceReview(artifactId, fingerprint, candidateId, decision, reference.id, assertion.id, actor);
+      return { review, reference, assertion };
     });
   }
 
@@ -1746,6 +1910,78 @@ export class ReferenceLibrary extends DurableObject<Env> {
     return reference;
   }
 
+  #createPdfReferenceCandidate(
+    artifactId: string,
+    candidate: import("../domain/reference-library").PdfReferenceAnalysisCandidate,
+    capturedAt: string,
+    actor: string,
+  ): BibliographicRecord {
+    const provenance: MetadataFieldProvenance = { method: "pdf-reference", capturedAt, actor };
+    const now = new Date().toISOString();
+    const title = (candidate.title || candidate.raw).trim().slice(0, 2_000);
+    const draft: BibliographicRecord = {
+      id: crypto.randomUUID(),
+      referenceKey: "",
+      type: "misc",
+      title,
+      authors: [...candidate.authors],
+      year: candidate.year,
+      venue: "",
+      doi: normalizeDoi(candidate.doi),
+      url: candidate.url,
+      abstract: "",
+      provenance: {
+        type: provenance,
+        title: provenance,
+        ...(candidate.authors.length > 0 ? { authors: provenance } : {}),
+        ...(candidate.year ? { year: provenance } : {}),
+        ...(candidate.doi ? { doi: provenance } : {}),
+        ...(candidate.url ? { url: provenance } : {}),
+      },
+      archivedAt: null,
+      deletedAt: null,
+      createdAt: now,
+      updatedAt: now,
+    };
+    const reference = { ...draft, referenceKey: this.#allocateReferenceKey(draft) };
+    const identity = reference.doi ? likelyReferenceIdentity(reference) : `pdf-reference:${artifactId}:${candidate.id}`;
+    this.#writeReference(reference, identity, true);
+    return reference;
+  }
+
+  #writePdfReferenceReview(
+    artifactId: string,
+    fingerprint: string,
+    candidateId: string,
+    decision: "accepted" | "rejected",
+    referenceId: string | null,
+    assertionId: string | null,
+    actor: string,
+  ): PdfReferenceCandidateReview {
+    const reviewedAt = new Date().toISOString();
+    this.ctx.storage.sql.exec(
+      `INSERT INTO pdf_reference_reviews
+         (artifact_id, fingerprint, candidate_id, decision, reference_id, assertion_id, reviewed_by, reviewed_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT (artifact_id, candidate_id) DO UPDATE SET
+         fingerprint = excluded.fingerprint,
+         decision = excluded.decision,
+         reference_id = excluded.reference_id,
+         assertion_id = excluded.assertion_id,
+         reviewed_by = excluded.reviewed_by,
+         reviewed_at = excluded.reviewed_at`,
+      artifactId,
+      fingerprint,
+      candidateId,
+      decision,
+      referenceId,
+      assertionId,
+      actor,
+      reviewedAt,
+    );
+    return { candidateId, decision, referenceId, assertionId, reviewedBy: actor, reviewedAt };
+  }
+
   #citationAssertion(assertionId: string): CitationAssertionRow {
     const row = this.ctx.storage.sql.exec<CitationAssertionRow>("SELECT * FROM citation_assertions WHERE id = ?", assertionId).toArray()[0];
     if (!row) throw new Error("Citation assertion not found");
@@ -2178,6 +2414,24 @@ function citationAssertionFromRow(row: CitationAssertionRow): CitationAssertion 
   };
 }
 
+function pdfReferenceReviewFromRow(row: PdfReferenceReviewRow): PdfReferenceCandidateReview {
+  if (
+    (row.decision !== "accepted" && row.decision !== "rejected") ||
+    (row.decision === "accepted" && (!row.reference_id || !row.assertion_id)) ||
+    (row.decision === "rejected" && (row.reference_id !== null || row.assertion_id !== null))
+  ) {
+    throw new Error("Stored PDF reference review is invalid");
+  }
+  return {
+    candidateId: row.candidate_id,
+    decision: row.decision,
+    referenceId: row.reference_id,
+    assertionId: row.assertion_id,
+    reviewedBy: row.reviewed_by,
+    reviewedAt: row.reviewed_at,
+  };
+}
+
 function isCitationMethod(value: string): value is CitationAssertion["method"] {
   return (
     value === "authoritative-metadata" || value === "source-extraction" || value === "provider" || value === "model" || value === "manual"
@@ -2267,6 +2521,7 @@ function parseProvenance(value: string): BibliographicRecord["provenance"] {
           item.method === "filename" ||
           item.method === "manual" ||
           item.method === "pdf-metadata" ||
+          item.method === "pdf-reference" ||
           item.method === "web" ||
           item.method === "migration") &&
         typeof item.capturedAt === "string" &&

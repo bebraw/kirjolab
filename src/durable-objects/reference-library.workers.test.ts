@@ -354,6 +354,150 @@ describe("ReferenceLibrary in the Workers runtime", () => {
     expect((await library.getSnapshot()).highlights).toHaveLength(2);
   });
 
+  it("reviews persisted PDF references into citation assertions without trusting client metadata", async () => {
+    const library = env.REFERENCE_LIBRARIES.getByName(`pdf-reference-review-${crypto.randomUUID()}`);
+    const artifactId = crypto.randomUUID();
+    const draft = await library.createPdfDraft(
+      {
+        id: artifactId,
+        referenceId: null,
+        name: "seed-paper.pdf",
+        contentType: "application/pdf",
+        size: 100,
+        objectKey: `libraries/owner/${artifactId}.pdf`,
+        fingerprint: `etag:${artifactId}`,
+        rights: "private",
+        createdAt: "2026-07-29T10:00:00.000Z",
+      },
+      "owner@example.test",
+    );
+    const [existing] = await library.importBibTeX(
+      "@article{known, title={Known paper}, author={Doe, Jane}, year={2025}, doi={10.1000/known}}",
+      "owner@example.test",
+    );
+    const requestedAt = "2026-07-29T10:01:00.000Z";
+    const result = {
+      candidates: [
+        {
+          id: "doi:10.1000/known",
+          page: 8,
+          raw: "Doe, Jane. 2025. Known paper. doi:10.1000/known",
+          title: "Known paper",
+          authors: ["Doe, Jane"],
+          year: "2025",
+          doi: "10.1000/known",
+          url: "https://doi.org/10.1000/known",
+          confidence: 1,
+        },
+        {
+          id: "entry:new-paper",
+          page: 8,
+          raw: "Roe, Richard. 2024. New paper.",
+          title: "New paper",
+          authors: ["Roe, Richard"],
+          year: "2024",
+          doi: "",
+          url: "",
+          confidence: 0.8,
+        },
+        {
+          id: "entry:rejected",
+          page: 9,
+          raw: "Unusable entry",
+          title: "",
+          authors: [],
+          year: "",
+          doi: "",
+          url: "",
+          confidence: 0.3,
+        },
+      ],
+      pagesScanned: 9,
+      pagesTotal: 9,
+      referencesStartPage: 8,
+      truncated: false,
+    };
+    await library.queueArtifactAnalysis(artifactId, "pdf-references", requestedAt);
+    await library.startArtifactAnalysis(artifactId, "pdf-references", draft.artifact.fingerprint, requestedAt);
+    await library.completeArtifactAnalysis(artifactId, "pdf-references", draft.artifact.fingerprint, requestedAt, result);
+
+    const queue = await library.getPdfReferenceReviewQueue(artifactId);
+    expect(queue.candidates[0]).toMatchObject({ match: { id: existing!.reference.id }, matchKind: "doi", review: null });
+    const acceptedExisting = await library.reviewPdfReferenceCandidate(
+      artifactId,
+      draft.artifact.fingerprint,
+      result.candidates[0]!.id,
+      "accepted",
+      undefined,
+      "owner@example.test",
+    );
+    expect(acceptedExisting).toMatchObject({
+      reference: { id: existing!.reference.id },
+      assertion: {
+        citingReferenceId: draft.reference.id,
+        citedReferenceId: existing!.reference.id,
+        evidenceState: "extracted",
+        method: "source-extraction",
+        sourceKind: "pdf-artifact",
+        sourceId: artifactId,
+      },
+      review: { decision: "accepted", reviewedBy: "owner@example.test" },
+    });
+
+    await runInDurableObject(library, (instance: ReferenceLibrary) => {
+      expect(() =>
+        instance.reviewPdfReferenceCandidate(
+          artifactId,
+          draft.artifact.fingerprint,
+          result.candidates[1]!.id,
+          "accepted",
+          existing!.reference.id,
+          "owner@example.test",
+        ),
+      ).toThrow("does not match");
+    });
+
+    const acceptedNew = await library.reviewPdfReferenceCandidate(
+      artifactId,
+      draft.artifact.fingerprint,
+      result.candidates[1]!.id,
+      "accepted",
+      undefined,
+      "owner@example.test",
+    );
+    expect(acceptedNew.reference).toMatchObject({
+      title: "New paper",
+      provenance: { title: { method: "pdf-reference", actor: "owner@example.test" } },
+    });
+    const rejected = await library.reviewPdfReferenceCandidate(
+      artifactId,
+      draft.artifact.fingerprint,
+      result.candidates[2]!.id,
+      "rejected",
+      undefined,
+      "owner@example.test",
+    );
+    expect(rejected).toMatchObject({ review: { decision: "rejected" }, reference: null, assertion: null });
+    await runInDurableObject(library, (instance: ReferenceLibrary) => {
+      expect(() =>
+        instance.reviewPdfReferenceCandidate(
+          artifactId,
+          "etag:stale",
+          result.candidates[1]!.id,
+          "accepted",
+          undefined,
+          "owner@example.test",
+        ),
+      ).toThrow("analysis changed");
+    });
+    expect((await library.getPdfReferenceReviewQueue(artifactId)).candidates.map((candidate) => candidate.review?.decision)).toEqual([
+      "accepted",
+      "accepted",
+      "rejected",
+    ]);
+    expect((await library.getCitationNetwork()).edges).toHaveLength(2);
+  });
+
   it("keeps PDF-origin keys refinable after project linking", async () => {
     const library = env.REFERENCE_LIBRARIES.getByName(`pdf-drafts-${crypto.randomUUID()}`);
     const artifact = (id: string): LibraryPdfArtifact => ({

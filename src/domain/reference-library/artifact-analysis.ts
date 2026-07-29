@@ -118,7 +118,7 @@ export function isArtifactAnalysisJob(value: unknown): value is ArtifactAnalysis
   );
 }
 
-function isPdfReferenceAnalysisCandidate(value: unknown): value is PdfReferenceAnalysisCandidate {
+export function isPdfReferenceAnalysisCandidate(value: unknown): value is PdfReferenceAnalysisCandidate {
   return (
     isRecord(value) &&
     isBoundedString(value.id, 1, 500) &&

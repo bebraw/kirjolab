@@ -6,6 +6,7 @@ import {
   isReferenceLibrarySnapshot,
   isArtifactAnalysis,
   isLibraryHighlightImportCandidate,
+  isReviewPdfReferenceCandidateInput,
   maximumMetadataRefinementCandidates,
   normalizeWebSourceUrl,
   type ArtifactAnalysis,
@@ -24,6 +25,8 @@ import {
   type LibraryPdfPoint,
   type MetadataRefinementPreview,
   type PdfDraftResult,
+  type PdfReferenceCandidateReviewResult,
+  type PdfReferenceReviewQueue,
   type ReadingState,
   type ReferenceLibrarySnapshot,
   type ReviewedPdfMetadata,
@@ -143,6 +146,15 @@ interface ReferenceLibraryApi {
     requestedAt: string,
     error: string,
   ): Promise<boolean>;
+  getPdfReferenceReviewQueue(artifactId: string): Promise<PdfReferenceReviewQueue>;
+  reviewPdfReferenceCandidate(
+    artifactId: string,
+    fingerprint: string,
+    candidateId: string,
+    decision: "accepted" | "rejected",
+    referenceId: string | undefined,
+    actor: string,
+  ): Promise<PdfReferenceCandidateReviewResult>;
   createPdfNote(referenceId: string, artifactId: string, page: number, x: number, y: number, body: string): Promise<LibraryPdfNote>;
   createPdfDrawing(
     referenceId: string,
@@ -547,6 +559,8 @@ async function handleLibraryPdfRoutes(context: ReferenceLibraryRouteContext): Pr
   if (suffix === "/pdfs" && request.method === "POST") {
     return await uploadLibraryPdf(request, identity.ownerKey, identity.email, env, library);
   }
+  const referenceReviewResponse = await handleLibraryPdfReferenceReviewRoute(context);
+  if (referenceReviewResponse) return referenceReviewResponse;
   const analysisResponse = await handleLibraryPdfAnalysisRoute(context);
   if (analysisResponse) return analysisResponse;
   const downloadResponse = await handleLibraryPdfDownloadRoute(context);
@@ -554,6 +568,24 @@ async function handleLibraryPdfRoutes(context: ReferenceLibraryRouteContext): Pr
   const identificationResponse = await handleLibraryPdfIdentificationRoute(context);
   if (identificationResponse) return identificationResponse;
   return await handleLibraryPdfRightsRoute(context);
+}
+
+async function handleLibraryPdfReferenceReviewRoute(context: ReferenceLibraryRouteContext): Promise<Response | null> {
+  const { request, suffix, identity, library } = context;
+  const match = /^\/pdfs\/([0-9a-f-]{36})\/reference-review$/iu.exec(suffix);
+  if (!match?.[1] || (request.method !== "GET" && request.method !== "POST")) return null;
+  if (request.method === "GET") return Response.json(await library.getPdfReferenceReviewQueue(match[1]), noStore());
+  const body: unknown = await request.json();
+  if (!isReviewPdfReferenceCandidateInput(body)) return jsonError("Invalid PDF reference review", 400);
+  const result = await library.reviewPdfReferenceCandidate(
+    match[1],
+    body.fingerprint,
+    body.candidateId,
+    body.decision,
+    body.referenceId,
+    identity.email,
+  );
+  return Response.json(result, { status: body.decision === "accepted" ? 201 : 200, ...noStore() });
 }
 
 async function handleLibraryPdfAnalysisRoute(context: ReferenceLibraryRouteContext): Promise<Response | null> {

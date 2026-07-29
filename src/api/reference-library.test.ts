@@ -861,6 +861,50 @@ describe("reference library API", () => {
     expect(fixture.sendArtifactAnalysis).toHaveBeenCalledOnce();
   });
 
+  it("serves and records server-validated PDF reference reviews", async () => {
+    const fixture = apiFixture();
+    const route = "/api/library/pdfs/22222222-2222-4222-8222-222222222222/reference-review";
+    const queue = await handleReferenceLibraryApi(new Request(`https://example.test${route}`), fixture.env, identity);
+    expect(queue.status).toBe(200);
+    await expect(queue.json()).resolves.toMatchObject({
+      artifactId: "22222222-2222-4222-8222-222222222222",
+      fingerprint: "r2-etag:guide",
+    });
+
+    const accepted = await handleReferenceLibraryApi(
+      jsonRequest(route, {
+        fingerprint: "r2-etag:guide",
+        candidateId: "doi:10.1000/target",
+        decision: "accepted",
+        referenceId: reference.id,
+      }),
+      fixture.env,
+      identity,
+    );
+    expect(accepted.status).toBe(201);
+    expect(fixture.library.reviewPdfReferenceCandidate).toHaveBeenCalledWith(
+      "22222222-2222-4222-8222-222222222222",
+      "r2-etag:guide",
+      "doi:10.1000/target",
+      "accepted",
+      reference.id,
+      identity.email,
+    );
+
+    const invalid = await handleReferenceLibraryApi(
+      jsonRequest(route, {
+        fingerprint: "r2-etag:guide",
+        candidateId: "doi:10.1000/target",
+        decision: "rejected",
+        referenceId: reference.id,
+      }),
+      fixture.env,
+      identity,
+    );
+    expect(invalid.status).toBe(400);
+    expect(fixture.library.reviewPdfReferenceCandidate).toHaveBeenCalledOnce();
+  });
+
   it("rejects empty, unknown, and over-limit PDF metadata fields", async () => {
     const fixture = apiFixture();
     const route = `/api/library/references/${reference.id}/pdf-metadata`;
@@ -1513,6 +1557,33 @@ function apiFixture(bucket = new MemoryR2Bucket()) {
     getArtifactAnalysis,
     queueArtifactAnalysis: vi.fn(async (_artifactId: string, kind: "pdf-highlights" | "pdf-references") => ({ ...analysis, kind })),
     failArtifactAnalysis: vi.fn(async () => true),
+    getPdfReferenceReviewQueue: vi.fn(async () => ({
+      artifactId: artifact.id,
+      fingerprint: artifact.fingerprint,
+      citingReferenceId: reference.id,
+      candidates: [],
+    })),
+    reviewPdfReferenceCandidate: vi.fn(
+      async (
+        _artifactId: string,
+        _fingerprint: string,
+        candidateId: string,
+        decision: "accepted" | "rejected",
+        _referenceId: string | undefined,
+        actor: string,
+      ) => ({
+        review: {
+          candidateId,
+          decision,
+          referenceId: decision === "accepted" ? reference.id : null,
+          assertionId: decision === "accepted" ? citationAssertion.id : null,
+          reviewedBy: actor,
+          reviewedAt: now,
+        },
+        reference: decision === "accepted" ? reference : null,
+        assertion: decision === "accepted" ? citationAssertion : null,
+      }),
+    ),
     updateHighlightComment: vi.fn(async (referenceId: string, id: string, comment: string) => ({
       id,
       referenceId,

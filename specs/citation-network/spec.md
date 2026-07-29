@@ -50,6 +50,13 @@ provider result, extraction, or model suggestion as equally trustworthy.
   bibliographic-title display projection, and local failures. The application
   coordinator retains canonical Library refresh and notice presentation through
   typed outcomes.
+- Ready PDF-reference analyses expose a fingerprint-qualified owner review
+  queue. The library authority reloads the stored candidate for every decision,
+  automatically reuses only an exact DOI match, and offers a unique exact
+  title/year/first-author match as a non-authoritative suggestion. Acceptance
+  atomically creates or reuses a reference, records an `extracted`
+  `source-extraction` assertion sourced from the PDF artifact, and stores the
+  review. Rejection stores only the candidate disposition.
 
 ### API Contracts
 
@@ -67,6 +74,11 @@ provider result, extraction, or model suggestion as equally trustworthy.
   from a named expansion response after refetch verification and returns the
   saved reference, whether it was created, and the provenance-bearing
   assertion.
+- `GET /api/library/pdfs/{artifactId}/reference-review` returns the current
+  analysis fingerprint, citing reference, conservative match suggestions, and
+  durable review dispositions. `POST` accepts or rejects one candidate by
+  fingerprint and candidate ID; an accepted body may name an existing owner
+  reference but cannot supply candidate metadata.
 - Assertion inputs, reviews, network projections, and expansion results use
   composable Valibot structure and bound schemas while DOI validity,
   cross-reference identity, and provider provenance remain explicit domain
@@ -83,6 +95,10 @@ provider result, extraction, or model suggestion as equally trustworthy.
   The Worker refetches the seed expansion, verifies its response fingerprint,
   and fetches the candidate's current metadata before entering one library
   transaction.
+- PDF-reference review trusts neither rendered candidate fields nor a stale
+  analysis. The Durable Object verifies artifact ownership, the current
+  fingerprint, analysis readiness, candidate membership, selected reference,
+  and DOI compatibility before its transaction.
 - Every API representation is non-cacheable and the client validates network
   data before rendering it.
 
@@ -98,6 +114,8 @@ provider result, extraction, or model suggestion as equally trustworthy.
 - Do not expand the network implicitly when opening it or traversing an edge.
 - Do not create a reference from an unmatched candidate until the researcher
   explicitly accepts it.
+- Do not encode a rejected bibliography candidate as `does-not-cite`; rejection
+  concerns the import decision, not the source document's scholarly claim.
 
 ## Contract
 
@@ -112,6 +130,8 @@ provider result, extraction, or model suggestion as equally trustworthy.
 - [x] Expansion is explicit, bounded, DOI-matched, and reports unmatched work.
 - [x] Unmatched works render as a reviewable discovery round and explicit
       acceptance atomically saves the work and its extracted relationship.
+- [ ] Parsed PDF references render as a durable accept/reject queue whose
+      accepted entries extend the existing citation network.
 - [x] A graph and accessible provenance list expose the same projection.
 - [x] Pure, API, integration, Workers-runtime, view, and browser tests cover
       derivation, validation, persistence, review, filtering, and interaction.
@@ -176,3 +196,18 @@ provider result, extraction, or model suggestion as equally trustworthy.
 - When: the owner tries to save a candidate from the stale round
 - Then: Kirjolab rejects the acceptance and asks for a fresh expansion without
   creating a reference or assertion
+
+**Scenario: Researcher reviews a parsed PDF reference**
+
+- Given: a ready PDF-reference analysis names an entry from a linked source PDF
+- When: the owner accepts that fingerprint-qualified candidate
+- Then: Kirjolab revalidates the persisted entry, reuses an exact DOI identity
+  or creates a PDF-provenance reference, and records one extracted PDF citation
+  assertion and accepted disposition atomically
+
+**Scenario: Researcher rejects a parsed entry**
+
+- Given: an analyzed bibliography entry is malformed or irrelevant
+- When: the owner rejects it
+- Then: the durable review queue records the rejection without creating a
+  reference, a positive assertion, or a negative citation assertion

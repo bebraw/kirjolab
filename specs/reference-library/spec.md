@@ -610,6 +610,11 @@ memory and makes citation aliases compete with stable source identity.
 - Browser coverage proves a project-linked bibliographic reference exposes its
   attached private-library PDF in publication context even when the project has
   no project-local PDF or artifact share.
+- PDF-reference review routes expose only the current fingerprint-qualified
+  analysis and persist owner-attributed accept/reject dispositions. Acceptance
+  reuses exact DOI identity or creates one reference with `pdf-reference`
+  field provenance and one PDF-backed extracted citation assertion in the same
+  owner-library transaction; rejection creates neither resource.
 - Shell and browser coverage prove `/library` starts from the owner-library API
   alone and retains PDF import, annotation, and annotated-export controls.
 

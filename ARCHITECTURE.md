@@ -87,6 +87,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   scholarly-provider text bounding and markup/entity cleanup while keeping
   provider-specific type, date, and error mapping local.
 - Model external scholarly works as typed sets of stable identifiers. Prefer DOI when present, but do not make DOI a prerequisite for discovery or review.
+- Treat parsed PDF bibliography entries as immutable, fingerprint-qualified
+  review inputs. Revalidate the candidate inside the owner-library authority;
+  only exact DOI identity may be reused automatically, while bibliographic
+  similarity remains a researcher-visible suggestion. Persist rejection as a
+  review decision, not as negative citation evidence.
 - Do not place executable browser code inline in Worker-rendered HTML. Client behavior should live in typed TypeScript modules before it is served to browsers.
 - Keep the authenticated browser entry as a module-private composition root,
   not a one-instance application class. Derive immutable bootstrap mode once,
