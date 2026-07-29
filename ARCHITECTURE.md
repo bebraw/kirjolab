@@ -624,7 +624,7 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   deltas, and disclose excluded syntax rather than implying a universal
   publisher policy.
 - Treat parsed syntax, previews, Yjs updates, indexes, and model candidates as supporting representations.
-- Parse standard and scientific-writing Markdown through a pinned unified/remark browser pipeline; keep its syntax tree and HTML derived.
+- Parse standard and scientific-writing Markdown through the pinned, browser-safe Scholarmark entry with its bounded BibTeX parser; do not install the optional Citation.js adapter, and keep syntax trees and HTML derived.
 - Keep live preview local and pure JavaScript; do not add request-per-edit Worker rendering without measured revision, network, and CPU evidence.
 - Escape authored raw HTML and sanitize the final preview tree after all syntax plugins; allow only the elements, properties, and URL protocols required by the scientific-writing vocabulary before inserting output into the DOM.
 - Return a restrictive Content Security Policy on application HTML as an independent browser-execution boundary; do not permit inline or evaluated scripts.

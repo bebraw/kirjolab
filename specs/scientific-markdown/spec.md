@@ -11,13 +11,14 @@ second Markdown dialect.
 
 ### Architecture
 
-- A pinned unified/remark pipeline parses standard Markdown with GFM,
-  footnotes, frontmatter, directives, and heading attributes enabled.
-- `src/domain/markdown.ts` supplies synchronous mdast and hast transforms for
-  citations, references, aliases, anchors, heading numbering, table alignment,
-  authored-HTML escaping, and final allowlist sanitization.
-- `src/domain/native-figures.ts` validates versioned bounded figure directives
-  and derives deterministic SVG geometry before final sanitization.
+- Pinned `scholarmark` parses standard Markdown with GFM, footnotes,
+  frontmatter, directives, labels, and bounded native figures through its
+  browser-safe synchronous entry.
+- Scholarmark owns citations, references, labels, heading numbering, table
+  captions and alignment, authored-HTML escaping, source-position metadata,
+  bounded BibTeX parsing, and final allowlist sanitization.
+- Kirjolab retains only a narrow runtime adapter plus project composition,
+  authorized image resolution, preview lifecycle, and cross-file source maps.
 - The pure-JavaScript renderer executes in the browser under a
   content-fingerprinted `/markdown-module-{sha256}.js` URL. The Worker serves
   that immutable asset but does not parse canonical documents or proxy
@@ -50,8 +51,9 @@ second Markdown dialect.
   block diagnoses and keeps the remaining source out of the preview.
 - Level-two and level-three headings receive generated section numbers.
 - Level-four headings render as unnumbered paragraph labels.
-- Explicit heading ids, `::alias`, and `::anchor` create reference targets.
-- `:ref` accepts bracket targets, custom `text`, and legacy `target` attributes.
+- `::label[id]` immediately following a heading, table caption, figure, or
+  paragraph creates its stable reference target.
+- `:ref` accepts a bracket target and optional custom `text`.
 - `:cite` accepts multiple ids, `parenthetical`, `textual`, and `full` modes,
   plus `locator`, `prefix`, and `suffix`. The familiar `:citet` and `:citep`
   aliases default to textual and parenthetical modes respectively; an explicit
@@ -66,7 +68,7 @@ second Markdown dialect.
   citation alias and carrying the group's inert locator, so grouped citations
   can open one publication at a time and page navigation can remain derived.
 - The authoring toolbar exposes labelled insertion templates for citations,
-  cross-references, anchors, footnotes, links, and `::include[path]`. Insertion
+  cross-references, labels, footnotes, links, and `::include[path]`. Insertion
   teaches and writes canonical Markdown syntax; it does not introduce an
   editor-only document model.
 - A bounded light-DOM Insert menu owns those template choices, relative
@@ -94,9 +96,9 @@ second Markdown dialect.
 - Authored raw HTML renders as text rather than executable markup.
 - Unsafe protocols such as `javascript:` and image `data:` URLs lose their
   target attributes.
-- Rendered elements retain only reviewed properties. Authored heading
-  attributes may provide ids and classes; event handlers, inline styles, and
-  other arbitrary attributes are removed.
+- Rendered elements retain only reviewed properties. Labels provide authored
+  ids; event handlers, inline styles, and other arbitrary attributes are
+  removed.
 - Semantic HTML escapes bibliography, directive, and heading values.
 - Native figures select no authored elements or attributes: their bounded text
   and finite values become escaped labels and fixed geometry only. The final
@@ -130,12 +132,14 @@ second Markdown dialect.
       mutating canonical Markdown or the bibliography.
 - [x] Rendered citation buttons retain sanitized locator data for local PDF-page
       navigation without exposing project-only evidence identities.
-- [x] Heading, alias, anchor, and custom reference targets resolve.
+- [x] Labels attached to headings and other blocks plus custom reference text
+      resolve.
 - [x] An explicit bibliography marker renders cited references in preview and
       publication outputs without printing directive syntax.
 - [x] Portable block comments remain visible in source and absent from preview
       and publication semantics.
-- [x] Invalid ids, modes, directives, duplicates, and alias targets diagnose.
+- [x] Invalid labels, modes, directives, duplicates, and reference targets
+      diagnose.
 - [x] Browser preview uses one versioned JavaScript runtime without WASM or a
       helper worker.
 - [x] Raw HTML and unsafe URL protocols cannot execute in the preview.
@@ -149,14 +153,16 @@ second Markdown dialect.
 
 ### Regression Guardrails
 
-- Keep every parser and transform dependency pinned; upgrades require the full
-  syntax and security parity suite.
+- Keep Scholarmark pinned; upgrades require the full syntax and security parity
+  suite.
+- Keep Citation.js outside the production dependency and browser bundle. The
+  bounded Scholarmark parser owns the supported BibTeX preview profile.
 - Browser startup must not require cross-origin isolation for Markdown preview.
 - Source editing and export must remain usable independently of preview HTML.
 - A parser exception must become a bounded diagnostic and escaped source
   fallback, never an application crash or source mutation.
-- Standard Markdown should be delegated to unified/remark rather than
-  reimplemented.
+- Standard and scientific Markdown should be delegated to Scholarmark rather
+  than reimplemented locally.
 - The Markdown runtime route must remain same-origin, immutable, versioned, and
   content-typed.
 - Citation activation may navigate local research context but must never cite,
@@ -171,11 +177,11 @@ second Markdown dialect.
 - Then: the JavaScript pipeline produces numbered semantic HTML and Kirjolab
   reports unresolved scholarly targets without changing Markdown
 
-**Scenario: Reference uses a legacy LaTeX label**
+**Scenario: Imported LaTeX label becomes canonical Markdown**
 
-- Given: an alias or anchor whose target contains a colon
-- When: the researcher uses `:ref[text]{target="legacy:label"}`
-- Then: the link resolves to the public slug while preserving the stable target
+- Given: a LaTeX block declares a label whose id contains a colon
+- When: Kirjolab converts the source to Markdown
+- Then: `::label[id]` follows the converted block and `:ref[id]` resolves it
 
 **Scenario: Researcher places the bibliography**
 

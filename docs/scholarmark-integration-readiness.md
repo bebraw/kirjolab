@@ -4,8 +4,8 @@
 
 Kirjolab would like to consume the published `scholarmark` package instead of
 maintaining its own scientific Markdown renderer. This note records the gaps
-found while evaluating `scholarmark@0.3.0` and defines a practical acceptance
-target for an integration pilot.
+found in `scholarmark@0.3.0` and the adoption outcome reached with
+`scholarmark@0.6.0`.
 
 The package is already a close architectural match. It owns the same
 unified/remark pipeline, sanitization boundary, scholarly directives, portable
@@ -14,7 +14,7 @@ maintains locally. Its tree rendering, table captions, publication-wide
 reference targets, and citation formatter hooks would also extend the current
 renderer in useful directions.
 
-If the gaps below are resolved, Kirjolab should be able to remove approximately
+The resolved package lets Kirjolab remove approximately
 1,282 lines of renderer implementation from these files:
 
 - `src/domain/markdown.ts`
@@ -27,68 +27,48 @@ move upstream.
 
 ## Published Package Evaluated
 
-- Package: `scholarmark@0.3.0`
+- Package: `scholarmark@0.6.0`
 - License: MIT
-- Published files: 22
-- Unpacked size: approximately 106 kB
+- Published files: 26
+- Unpacked size: approximately 119 kB
 - Runtime requirement: Node.js 20.19 or newer
-- Package exports: root export only
+- Package exports: root, browser, and optional Citation.js adapter
 
 The evaluation used the published npm tarball rather than an unpublished source
 checkout.
 
-## Blocking Gap 1: Browser Bundling
+## Resolved: Browser Bundling
 
-Kirjolab renders Markdown in a lazy-loaded browser module. The published
-Scholarmark root entry cannot currently be bundled with esbuild for a browser
-target.
+Kirjolab renders Markdown in a lazy-loaded browser module. Scholarmark 0.6.0
+publishes `scholarmark/browser` as ordinary tree-shakeable ESM. It bundles with
+esbuild's browser platform without Node polyfills, Citation.js, fetch
+dependencies, or implicit network behavior.
 
 ### Reproduction
 
 ```sh
-npm install scholarmark@0.3.0
-esbuild node_modules/scholarmark/dist/index.js \
+npm install scholarmark@0.6.0
+esbuild browser-consumer.ts \
   --bundle \
   --format=esm \
   --platform=browser \
   --outfile=scholarmark-browser.js
 ```
 
-esbuild reports unresolved Node built-ins reached through Citation.js and
-`node-fetch`, including:
-
-```text
-node:http
-node:https
-node:zlib
-node:stream
-node:buffer
-node:url
-```
-
-The root export also imports `@citation-js/plugin-bibtex` for its side effect.
-Because the renderer reaches bibliography parsing through
-`scholarly-export.js`, importing only rendering functionality does not isolate
-the browser bundle from that dependency graph. The package currently exposes no
-public subpath that would let a consumer select a browser-safe entry.
-
-### Desired Outcome
-
-Provide a supported browser entry point that:
+The supported browser entry:
 
 - bundles under esbuild with `platform: "browser"` and no Node polyfills;
 - contains no imports of Node built-ins;
 - retains synchronous rendering for Kirjolab's local preview path;
 - performs no implicit network requests;
 - preserves the sanitizer as the final boundary for authored content; and
-- exposes types through the package `exports` map.
+- exposes types through the package `exports` map; and
+- uses a bounded built-in BibTeX parser while keeping Citation.js optional.
 
-Possible designs include a browser-specific conditional export, a public
-renderer subpath, or injection of bibliography parsing and citation formatting.
-The package should choose the design that keeps one authoritative renderer
-without forcing browser consumers to install a Node compatibility layer.
-
-An upstream browser-bundle smoke test should protect this contract.
+Bundled through Kirjolab's narrow consumer adapter, version 0.6.0 measures
+209,158 bytes raw and 63,838 bytes with gzip, effectively matching the previous
+204,779-byte and 62,540-byte local runtime. Upstream browser-bundle smoke tests
+protect this contract.
 
 ## Kirjolab Syntax Migration
 
