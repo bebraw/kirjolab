@@ -106,6 +106,12 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   System/Light/Dark template, normalization, browser-local persistence, and
   root theme plus `color-scheme` projection without application startup wiring.
 - Keep the interface design system thin and source-local under `src/ui/`: foundations, visual primitives, shared state contracts, typed icons, and small markup helpers only. Domain components compose it without moving application behavior or state into a second UI architecture.
+- Incubate reusable capabilities as source-local modules first. Create a private
+  workspace package only for two independently built consumers with a justified
+  runtime, dependency, build, or release boundary; tests, fixtures, examples,
+  spikes, and compatibility facades are not consumers. Public publication also
+  requires an external adopter, versioned compatibility policy, package and
+  security documentation, a release owner, and a separate release ADR.
 - Use pinned Lit for bounded reactive browser components that own a cohesive
   local template, presentation state, presentation copy derived solely from
   component state and canonical inputs, and typed intent events. Keep network

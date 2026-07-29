@@ -33,6 +33,7 @@ No accepted ADRs are awaiting implementation.
 
 | ADR                                                                                       | Status               | Summary                                                                                                       |
 | ----------------------------------------------------------------------------------------- | -------------------- | ------------------------------------------------------------------------------------------------------------- |
+| [ADR-186](./implemented/ADR-186-promote-source-modules-through-evidence-gates.md)         | Implemented          | Require independent consumers and explicit ownership before workspace packaging or publication.               |
 | [ADR-185](./implemented/ADR-185-defer-graph-renderer-adoption.md)                         | Implemented          | Defer a graph renderer until a second interaction or scale trigger becomes a committed requirement.           |
 | [ADR-184](./implemented/ADR-184-retain-bounded-latex-converter.md)                        | Implemented          | Retain the bounded LaTeX converter after a measured parser spike does not retire enough product policy.       |
 | [ADR-183](./implemented/ADR-183-report-deployment-and-shell-diagnostics.md)               | Implemented          | Report Worker version metadata together with the browser-shell fingerprint in copyable diagnostics.           |

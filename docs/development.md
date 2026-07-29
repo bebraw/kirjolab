@@ -32,6 +32,36 @@ container parity.
 
 The repo pins CLI tooling in `devDependencies`, including Wrangler for Cloudflare-based experiments. Prefer invoking those tools through `npx` or repo scripts so the project version is used instead of a global install.
 
+### Package promotion gates
+
+Keep a reusable capability source-local until an architectural review shows
+that package boundaries solve a demonstrated build or dependency problem. Under
+[ADR-186](./adrs/implemented/ADR-186-promote-source-modules-through-evidence-gates.md),
+ordinary reuse within Kirjolab is not enough.
+
+Before adding a private npm workspace package, verify all of the following:
+
+- two independently built repository executables consume the capability;
+- neither tests, fixtures, examples, spikes, nor compatibility facades are being
+  counted as the second consumer;
+- the proposed entry point is cohesive, typed, documented, and independent of
+  unrelated Kirjolab authorities;
+- extraction removes duplicate mechanics or enforces a measured dependency or
+  runtime boundary;
+- exported-contract tests, every consumer, the root quality gate, and dependency
+  diagnostics cover the new build unit; and
+- an ADR names the owner, compatibility policy, and reversal path.
+
+Start an approved workspace package as private with explicit exports. Do not add
+registry or release configuration at this stage.
+
+Before public publication, additionally require a maintained external consumer
+or user-approved named adopter, semantic-versioning and deprecation policy,
+package documentation and compatible licensing, a supported runtime matrix, a
+security reporting path, an inspected `npm pack` tarball, reproducible test and
+build evidence, and a named release owner. Approve registry credentials,
+provenance, and release automation in a separate ADR before publishing.
+
 ### GitHub App sync
 
 GitHub-backed projects use one deployment-wide GitHub App with a separate,

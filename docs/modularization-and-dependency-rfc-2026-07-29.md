@@ -1,6 +1,6 @@
 # RFC: Modularization and Dependency Strategy
 
-**Status:** Proposed
+**Status:** Implemented
 
 **Date:** 2026-07-29
 
@@ -368,6 +368,15 @@ coordination, dependency boundaries, and release questions before there is a
 second build unit. Source-local modules can establish the same conceptual
 boundaries more cheaply.
 
+#### Outcome
+
+[ADR-186](./adrs/implemented/ADR-186-promote-source-modules-through-evidence-gates.md)
+defines separate gates for source-local modules, private workspace packages,
+and public packages. No current boundary passes every consumer, lifecycle,
+contract, and ownership gate, so the repository remains one private npm package.
+Tests, examples, spikes, and compatibility facades do not count as a second
+consumer.
+
 ### ORM for Durable Object SQLite
 
 Rejected as a decomposition mechanism. Most complexity comes from Kirjolab's
@@ -420,6 +429,11 @@ the repository to later work:
 6. Revisit graph rendering when the stated interaction triggers are met.
 7. Introduce workspace packages or publication only after a qualifying second
    consumer exists.
+
+The sequence completed on 2026-07-29 through ADR-179, ADR-180, ADR-181,
+ADR-182, ADR-184, ADR-185, and ADR-186. The resulting decisions deliberately
+retain source-local incubation where the evidence gates were not met; completion
+does not imply adoption of every dependency or package boundary evaluated.
 
 Structural changes should use `npm run quality:affected` while iterating and
 must pass `npm run ci:local` before they are considered ready. Dependency
