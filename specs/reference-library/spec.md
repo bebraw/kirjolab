@@ -599,6 +599,10 @@ memory and makes citation aliases compete with stable source identity.
   candidates commit atomically. Browser coverage detects a flattened yellow
   highlight, presents its quote for review, imports it privately, and leaves
   project state untouched.
+- PDF-reference extraction prefers PDF content-stream line endings so
+  multi-column bibliographies retain reading order, then falls back to bounded
+  positional row reconstruction when that representation yields no usable
+  bibliography.
 - Browser coverage proves bounded batch progress, partial success, and retry
   without resubmitting successful PDFs.
 - Browser coverage advances the reader's project-use states explicitly and

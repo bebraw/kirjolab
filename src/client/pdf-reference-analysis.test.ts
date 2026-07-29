@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { analyzePdfReferencePages } from "./pdf-reference-analysis";
+import { analyzePdfReferencePages, analyzePdfReferenceTextItemPages } from "./pdf-reference-analysis";
+
+function textItem(str: string, x: number, y: number, hasEOL: boolean): object {
+  return { str, transform: [1, 0, 0, 10, x, y], hasEOL };
+}
 
 describe("PDF reference analysis", () => {
   it("extracts, parses, and deduplicates numbered bibliography entries", () => {
@@ -66,5 +70,73 @@ describe("PDF reference analysis", () => {
       referencesStartPage: null,
       truncated: true,
     });
+  });
+
+  it("prefers PDF content order when line numbers and two columns share visual rows", () => {
+    const result = analyzePdfReferenceTextItemPages(
+      [
+        {
+          page: 10,
+          items: [
+            textItem("1050", 28, 640, true),
+            textItem("1051", 28, 630, true),
+            textItem("1108", 578, 640, true),
+            textItem("1109", 578, 630, true),
+            textItem("References", 54, 640, false),
+            textItem("", 54, 630, true),
+            textItem("[1]", 57, 620, false),
+            textItem("Alpha, Ada. 2020. First source.", 75, 620, true),
+            textItem("[2]", 57, 600, false),
+            textItem("Beta, Bea.", 75, 600, true),
+            textItem("2021. Second source.", 75, 590, true),
+            textItem("[3]", 318, 640, false),
+            textItem("Gamma, Gia. 2022. Third source.", 336, 640, true),
+            textItem("[4]", 318, 620, false),
+            textItem("Delta, Dia. 2023. Fourth source.", 336, 620, true),
+          ],
+        },
+        {
+          page: 11,
+          items: [
+            textItem("1161", 28, 700, true),
+            textItem("A running conference header", 54, 740, true),
+            textItem("[5]", 57, 690, false),
+            textItem("Epsilon, Eva. 2024. Fifth source.", 75, 690, true),
+          ],
+        },
+      ],
+      11,
+    );
+
+    expect(result.referencesStartPage).toBe(10);
+    expect(result.candidates.map(({ title }) => title)).toEqual([
+      "First source",
+      "Second source",
+      "Third source",
+      "Fourth source",
+      "Fifth source",
+    ]);
+    expect(result.candidates[3]?.raw).not.toContain("conference header");
+  });
+
+  it("falls back to positional rows when PDF content order has no line endings", () => {
+    const result = analyzePdfReferenceTextItemPages(
+      [
+        {
+          page: 4,
+          items: [
+            textItem("Beta, Bea. 2021. Second source.", 75, 60, false),
+            textItem("[2]", 57, 60, false),
+            textItem("References", 54, 100, false),
+            textItem("Alpha, Ada. 2020. First source.", 75, 80, false),
+            textItem("[1]", 57, 80, false),
+          ],
+        },
+      ],
+      4,
+    );
+
+    expect(result.referencesStartPage).toBe(4);
+    expect(result.candidates.map(({ title }) => title)).toEqual(["First source", "Second source"]);
   });
 });

@@ -5,6 +5,7 @@ import type { PdfAnalysisPage } from "./contracts";
 const maximumCandidates = 128;
 const referenceHeading = /^(?:\d+(?:\.\d+)*\.?\s+)?(?:references(?: and notes)?|bibliography|works cited|literature cited):?\s*$/iu;
 const followingSectionHeading = /^(?:appendix|appendices|acknowledg(?:e)?ments?|author contributions?|supplement(?:ary|al).*)\s*$/iu;
+const bracketedEntry = /^\[\d{1,4}\]\s+/u;
 const numberedEntry = /^(?:\[\d{1,4}\]|\d{1,4}[.)])\s+/u;
 const publicationYear = /\b(?:18|19|20)\d{2}[a-z]?\b/iu;
 const doiPattern = /10\.\d{4,9}\/[._;()/:a-z0-9-]+/iu;
@@ -71,15 +72,29 @@ function referenceResult(
 
 function splitReferenceEntries(lines: readonly { line: string; page: number }[]): ReferenceEntry[] {
   const entries: ReferenceEntry[] = [];
+  const entryStart = lines.some(({ line }) => bracketedEntry.test(line)) ? bracketedEntry : numberedEntry;
   let current: { lines: string[]; numbered: boolean; page: number } | null = null;
+  let previousPage = lines[0]?.page ?? 0;
+  let awaitingEntryStart = false;
   const flush = (): void => {
     if (!current) return;
     entries.push({ page: current.page, raw: current.lines.join(" ").replaceAll(/\s+/gu, " ").trim(), numbered: current.numbered });
     current = null;
   };
   for (const { line, page } of lines) {
-    const numbered = numberedEntry.test(line);
+    const numbered = entryStart.test(line);
     const unnumberedStart = !numbered && publicationYear.test(line) && likelyAuthorStart(line);
+    if (page !== previousPage) {
+      if (current && publicationYear.test(current.lines.join(" "))) {
+        flush();
+        awaitingEntryStart = true;
+      }
+      previousPage = page;
+    }
+    if (awaitingEntryStart) {
+      if (!numbered && !unnumberedStart) continue;
+      awaitingEntryStart = false;
+    }
     if (numbered || (unnumberedStart && current && publicationYear.test(current.lines.join(" ")))) flush();
     if (!current) current = { lines: [], numbered, page };
     current.lines.push(line);

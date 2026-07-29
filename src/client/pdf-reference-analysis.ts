@@ -1,9 +1,14 @@
 import type { TextItem } from "pdfjs-dist/types/src/display/api";
 import type { PdfReferenceAnalysisResult } from "../domain/reference-library/artifact-analysis";
-import { analyzePdfReferencePages as analyzePdfReferencePagesCore, type PdfAnalysisPage } from "../lib/pdf-analysis";
+import { analyzePdfReferencePages as analyzePdfReferencePagesCore } from "../lib/pdf-analysis";
 import type { PdfJsRuntime } from "./pdfjs-runtime";
 
 const maximumPages = 200;
+
+interface PdfReferenceTextItemPage {
+  readonly page: number;
+  readonly items: readonly unknown[];
+}
 
 /* v8 ignore start -- PDF.js document orchestration is covered by the Worker/browser integration. */
 export async function analyzePdfReferences(runtime: PdfJsRuntime, url: string): Promise<PdfReferenceAnalysisResult> {
@@ -11,25 +16,63 @@ export async function analyzePdfReferences(runtime: PdfJsRuntime, url: string): 
   try {
     const pdf = await task.promise;
     const pagesScanned = Math.min(pdf.numPages, maximumPages);
-    const pages: Pick<PdfAnalysisPage, "page" | "text">[] = [];
+    const pages: PdfReferenceTextItemPage[] = [];
     for (let pageNumber = 1; pageNumber <= pagesScanned; pageNumber += 1) {
       const page = await pdf.getPage(pageNumber);
       try {
         const content = await page.getTextContent();
-        pages.push({ page: pageNumber, text: pdfTextLines(content.items).join("\n") });
+        pages.push({ page: pageNumber, items: content.items });
       } finally {
         page.cleanup();
       }
     }
-    return analyzePdfReferencePagesCore(pages, pdf.numPages);
+    return analyzePdfReferenceTextItemPages(pages, pdf.numPages);
   } finally {
     await task.destroy();
   }
 }
 
-function pdfTextLines(items: readonly unknown[]): string[] {
+/* v8 ignore stop */
+
+export function analyzePdfReferenceTextItemPages(
+  pages: readonly PdfReferenceTextItemPage[],
+  pagesTotal: number,
+): PdfReferenceAnalysisResult {
+  const ordered = analyzePdfReferencePagesCore(
+    pages.map((page) => ({ page: page.page, text: pdfTextLinesInContentOrder(page.items).join("\n") })),
+    pagesTotal,
+  );
+  if (ordered.referencesStartPage !== null && ordered.candidates.length > 0) return ordered;
+
+  const positioned = analyzePdfReferencePagesCore(
+    pages.map((page) => ({ page: page.page, text: pdfTextLinesByPosition(page.items).join("\n") })),
+    pagesTotal,
+  );
+  if (positioned.referencesStartPage !== null && positioned.candidates.length > 0) return positioned;
+  return ordered.referencesStartPage !== null ? ordered : positioned;
+}
+
+function pdfTextLinesInContentOrder(items: readonly unknown[]): string[] {
+  const lines: string[] = [];
+  let pieces: string[] = [];
+  const flush = (): void => {
+    const line = pieces.join(" ").replaceAll(/\s+/gu, " ").trim();
+    if (line) lines.push(line);
+    pieces = [];
+  };
+  for (const value of items) {
+    if (!isPdfTextItem(value)) continue;
+    const text = value.str.trim();
+    if (text) pieces.push(text);
+    if (value.hasEOL) flush();
+  }
+  flush();
+  return lines;
+}
+
+function pdfTextLinesByPosition(items: readonly unknown[]): string[] {
   const positioned = items
-    .filter((value): value is TextItem => typeof value === "object" && value !== null && "str" in value && "transform" in value)
+    .filter(isPdfTextItem)
     .map((item) => ({
       height: Math.abs(item.transform[3] ?? 0),
       text: item.str.trim(),
@@ -56,7 +99,10 @@ function pdfTextLines(items: readonly unknown[]): string[] {
       .join(" "),
   );
 }
-/* v8 ignore stop */
+
+function isPdfTextItem(value: unknown): value is TextItem {
+  return typeof value === "object" && value !== null && "str" in value && "transform" in value;
+}
 
 export function analyzePdfReferencePages(
   pages: readonly { readonly page: number; readonly lines: readonly string[] }[],
