@@ -1086,6 +1086,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Keep the native textarea as the only manuscript input surface. Derive syntax
   highlighting into an inert, text-identical presentation layer so styling
   cannot change canonical Markdown, selection offsets, or collaboration.
+  Keep CodeMirror outside the production path: the reproducible parity spike
+  demonstrates core editing mechanics but does not justify its approximately
+  258 KB gzip cost or leave iPad, IME, forced-colors, and screen-reader parity
+  implicit.
 - Let the bounded writing-workflow panel derive and download the reviewer-
   response letter from its supplied canonical matrix. Let the manuscript-map
   Lit owner atomically bind the diary and both workflow panels to their shared

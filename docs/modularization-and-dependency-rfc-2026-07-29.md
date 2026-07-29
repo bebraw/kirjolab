@@ -255,6 +255,20 @@ Passing the spike permits a dedicated ADR; it does not require adoption. If
 mobile input, accessibility, Yjs semantics, or bundle cost regress materially,
 retain the textarea and use the spike to identify smaller replaceable pieces.
 
+#### Outcome
+
+Completed on 2026-07-29. The development-only spike passed automated checks
+for two-peer Yjs synchronization, relative positions, awareness, shared undo,
+citation-completion precedence, spaces and tab indentation, bounded
+Scholarmark presentation, Vim `dd`, accessibility attributes, offline loading,
+and 250,000-character startup. Its isolated bundle measured 772,100 raw bytes
+and 257,760 gzip bytes. Physical iPad input, real IME composition,
+forced-colors, and screen-reader editing remain unverified.
+
+[ADR-182](./adrs/implemented/ADR-182-retain-native-editor-after-codemirror-spike.md)
+therefore retains the native textarea and keeps CodeMirror outside production.
+The experiment is reproducible with `npm run spike:codemirror`.
+
 ### 4. Evaluate `unified-latex` for parsing
 
 Kirjolab's LaTeX import policy remains intentionally conservative: archives

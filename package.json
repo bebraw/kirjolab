@@ -80,6 +80,7 @@
     "quality:gate": "node ./scripts/run-quality-gate.mjs",
     "quality:gate:fast": "npm run format:check && npm run lint && npm run worker:types:check && npm run typecheck && npm run worker:client-guard && npm run test:tooling && npm run security:audit && npm run test:coverage && npm run test:workers",
     "security:audit": "npm audit --omit=dev --audit-level high",
+    "spike:codemirror": "node ./scripts/run-codemirror-parity-spike.mjs",
     "test": "vitest run --passWithNoTests",
     "test:affected": "node ./scripts/run-affected-tests.mjs",
     "test:coverage": "node ./scripts/run-coverage-gate.mjs",
@@ -93,8 +94,14 @@
   },
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "0.18.4",
+    "@codemirror/autocomplete": "6.20.3",
+    "@codemirror/commands": "6.10.4",
+    "@codemirror/lang-markdown": "6.5.1",
+    "@codemirror/state": "6.7.1",
+    "@codemirror/view": "6.43.7",
     "@playwright/test": "1.61.1",
     "@redwoodjs/agent-ci": "0.17.1",
+    "@replit/codemirror-vim": "6.4.0",
     "@stryker-mutator/core": "9.6.1",
     "@stryker-mutator/typescript-checker": "9.6.1",
     "@stryker-mutator/vitest-runner": "9.6.1",
@@ -111,7 +118,9 @@
     "typescript": "npm:@typescript/typescript6@6.0.2",
     "typescript-7": "npm:typescript@7.0.2",
     "vitest": "4.1.8",
-    "wrangler": "4.111.0"
+    "wrangler": "4.111.0",
+    "y-codemirror.next": "0.3.5",
+    "y-protocols": "1.0.7"
   },
   "dependencies": {
     "@cloudflare/puppeteer": "1.2.0",

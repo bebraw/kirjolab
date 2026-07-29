@@ -27,6 +27,10 @@ preserving the native collaborative textarea and exact source text.
 - **Edit history:** each project file owns a browser-local Yjs undo manager.
   Standard platform shortcuts and history input events undo only this client's
   edits in the active file; remote collaborator changes are never captured.
+- **Editor framework evaluation:** the reproducible CodeMirror parity spike is
+  development-only. The production editor remains the native textarea until a
+  new decision demonstrates physical iPad, IME, forced-colors, screen-reader,
+  offline, and bundle-cost parity.
 
 ### Highlighted Syntax
 
@@ -46,7 +50,8 @@ preserving the native collaborative textarea and exact source text.
   technology as duplicate editor content.
 - Do not treat lexical highlighting as syntax validation.
 - Do not replace the textarea with a second editor model without superseding
-  ADR-077 and explicitly migrating collaboration and selection behavior.
+  ADR-077, ADR-078, and ADR-182 and explicitly migrating collaboration,
+  selection, input, accessibility, and offline behavior.
 
 ## Contract
 

@@ -33,6 +33,7 @@ No accepted ADRs are awaiting implementation.
 
 | ADR                                                                                       | Status               | Summary                                                                                                       |
 | ----------------------------------------------------------------------------------------- | -------------------- | ------------------------------------------------------------------------------------------------------------- |
+| [ADR-182](./implemented/ADR-182-retain-native-editor-after-codemirror-spike.md)           | Implemented          | Retain the native editor after a measured CodeMirror parity spike leaves cost and input-accessibility gaps.   |
 | [ADR-181](./implemented/ADR-181-incubate-pdf-analysis-core.md)                            | Implemented          | Incubate normalized PDF highlight and reference mechanics behind one source-local core.                       |
 | [ADR-180](./implemented/ADR-180-delegate-artifact-analysis-persistence.md)                | Implemented          | Delegate artifact-analysis persistence behind the stable Library Durable Object RPC facade.                   |
 | [ADR-179](./implemented/ADR-179-decompose-reference-library-contracts.md)                 | Implemented          | Split reference-library contracts by capability behind a compatibility facade.                                |
