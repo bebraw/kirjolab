@@ -10,8 +10,9 @@ import {
   type PdfReferenceAnalysisResult,
 } from "./domain/reference-library";
 
-const analysisPdfUrl = "https://artifact-analysis.invalid/input.pdf";
-const analysisWorkerUrl = "https://artifact-analysis.invalid/pdf.worker.js";
+export const artifactAnalysisPageUrl = "https://artifact-analysis.invalid/";
+const analysisPdfUrl = new URL("/input.pdf", artifactAnalysisPageUrl).href;
+const analysisWorkerUrl = new URL("/pdf.worker.js", artifactAnalysisPageUrl).href;
 const maximumAttempts = 4;
 
 export async function consumeArtifactAnalysisBatch(batch: MessageBatch<unknown>, env: Env): Promise<void> {
@@ -89,7 +90,7 @@ async function analyzePdfArtifact(
     browser = await puppeteer.launch(binding as Parameters<typeof puppeteer.launch>[0]);
     const page = await browser.newPage();
     await installArtifactInterception(page, pdf, workerScript);
-    await page.setContent('<!doctype html><html><head><meta charset="utf-8"></head><body></body></html>');
+    await page.goto(artifactAnalysisPageUrl, { waitUntil: "domcontentloaded" });
     await page.addScriptTag({ content: analyzerScript });
     return await withTimeout(
       page.evaluate(
@@ -119,6 +120,15 @@ async function installArtifactInterception(page: Page, pdf: Uint8Array, workerSc
 }
 
 async function respondToArtifactRequest(request: HTTPRequest, pdf: Uint8Array, workerScript: string): Promise<void> {
+  if (request.url() === artifactAnalysisPageUrl) {
+    await request.respond({
+      status: 200,
+      contentType: "text/html; charset=utf-8",
+      headers: { "cache-control": "no-store" },
+      body: '<!doctype html><html><head><meta charset="utf-8"></head><body></body></html>',
+    });
+    return;
+  }
   if (request.url() === analysisPdfUrl) {
     await request.respond({
       status: 200,

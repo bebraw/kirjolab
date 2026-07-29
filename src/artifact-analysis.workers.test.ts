@@ -1,12 +1,20 @@
 import { env } from "cloudflare:workers";
 import { createExecutionContext, createMessageBatch, getQueueResult } from "cloudflare:test";
 import { describe, expect, it, vi } from "vitest";
-import { consumeArtifactAnalysisBatch, loadGeneratedTextAsset } from "./artifact-analysis";
+import { artifactAnalysisPageUrl, consumeArtifactAnalysisBatch, loadGeneratedTextAsset } from "./artifact-analysis";
 import type { ArtifactAnalysisJob } from "./domain/reference-library";
 
 const queueName = "kirjolab-artifact-analysis";
 
 describe("artifact analysis queue", () => {
+  it("gives the intercepted analyzer document a non-opaque origin", () => {
+    const page = new URL(artifactAnalysisPageUrl);
+    const worker = new URL("/pdf.worker.js", page);
+
+    expect(page.origin).toBe("https://artifact-analysis.invalid");
+    expect(worker.origin).toBe(page.origin);
+  });
+
   it("does not evaluate Node filesystem URLs when loading bundled Worker assets", async () => {
     const loadFromDisk = vi.fn(async () => {
       throw new Error("Node fallback was evaluated");

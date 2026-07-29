@@ -10,6 +10,6 @@ declare global {
   }
 }
 
-pdfJsRuntime.GlobalWorkerOptions.workerSrc = "https://artifact-analysis.invalid/pdf.worker.js";
+pdfJsRuntime.GlobalWorkerOptions.workerSrc = new URL("/pdf.worker.js", window.location.href).href;
 window.analyzePdfHighlights = async (url: string) => await detectPdfHighlights(pdfJsRuntime, url);
 window.analyzePdfReferences = async (url: string) => await analyzePdfReferences(pdfJsRuntime, url);

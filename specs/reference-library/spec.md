@@ -247,8 +247,11 @@ memory and makes citation aliases compete with stable source identity.
   stable RPC facade delegates that bounded SQL lifecycle and persisted-result
   validation to an adjacent capability service without moving migrations,
   authorization, or multi-resource transactions out of the Durable Object. The
-  managed browser can read only the exact R2 object supplied through request
-  interception for that job. The reference kind scans the bounded PDF text for
+  managed browser runs on a synthetic non-opaque origin so PDF.js can load its
+  same-origin module worker without a cross-origin wrapper or fake-worker
+  fallback. It can read only the synthetic analyzer document, generated PDF.js
+  worker, and exact R2 object supplied through request interception for that
+  job. The reference kind scans the bounded PDF text for
   a conventional References, Bibliography, Works Cited, or Literature Cited
   heading. It returns at most 128 numbered or author-year entries with their
   bounded raw citation, source page, and best-effort title, authors, year, DOI,
