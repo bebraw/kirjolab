@@ -44,14 +44,14 @@ export function editorPresenceSegments(source: string, ranges: readonly EditorPr
   for (let index = 0; index < orderedBoundaries.length - 1; index += 1) {
     const start = orderedBoundaries[index]!;
     const end = orderedBoundaries[index + 1]!;
-    while (start >= highlightEnd && highlightIndex < highlights.length - 1) {
+    while (start >= highlightEnd) {
       highlightIndex += 1;
       highlightEnd += highlights[highlightIndex]!.text.length;
     }
     const selection = boundedRanges.find((range) => range.start < end && range.end > start);
     segments.push({
       text: source.slice(start, end),
-      kind: highlights[highlightIndex]?.kind ?? null,
+      kind: highlights[highlightIndex]!.kind,
       selectionColor: selection?.color ?? null,
       caretColors: caretColorsAt(boundedRanges, start),
     });
