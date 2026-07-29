@@ -491,6 +491,7 @@ test("imports, annotates, and exports a private PDF without a project", async ({
   await page.setViewportSize({ width: 1024, height: 768 });
   let referenceAnalysisArtifactId = "";
   let referenceReviewAccepted = false;
+  let referenceReviewRequest: unknown = null;
   await page.route("**/api/library/pdfs/*/analyses/pdf-highlights", async (route) => {
     const artifactId = decodeURIComponent(new URL(route.request().url()).pathname.split("/")[4] ?? "");
     await route.fulfill({
@@ -561,7 +562,10 @@ test("imports, annotates, and exports a private PDF without a project", async ({
   });
   await page.route("**/api/library/pdfs/*/reference-review", async (route) => {
     const artifactId = decodeURIComponent(new URL(route.request().url()).pathname.split("/")[4] ?? "");
-    if (route.request().method() === "POST") referenceReviewAccepted = true;
+    if (route.request().method() === "POST") {
+      referenceReviewAccepted = true;
+      referenceReviewRequest = route.request().postDataJSON();
+    }
     await route.fulfill({
       contentType: "application/json",
       body: JSON.stringify({
@@ -761,8 +765,12 @@ test("imports, annotates, and exports a private PDF without a project", async ({
   await expect(page.getByRole("button", { name: "References", exact: true })).toHaveAttribute("aria-expanded", "true");
   await expect(page.getByRole("button", { name: "Annotations", exact: true })).toHaveAttribute("aria-expanded", "false");
   await expect(page.locator("#pdf-reference-analysis-list")).toContainText("Inspectable references");
-  await page.getByRole("button", { name: "Add to Library" }).click();
-  await expect(page.locator("#toast")).toHaveText("Parsed reference added to the Library.");
+  await page.getByRole("button", { name: "Add all 1 to Library" }).click();
+  await expect(page.locator("#toast")).toHaveText("1 parsed reference added to the Library.");
+  expect(referenceReviewRequest).toEqual({
+    fingerprint: "e2e-reference-analysis",
+    candidates: [{ candidateId: "doi:10.5555/reference" }],
+  });
   await expect(page.locator("#pdf-reference-analysis-list")).toContainText("Added to Library");
   await page.getByRole("button", { name: "Annotations", exact: true }).click();
   await page.getByLabel("Private note for detected highlight on page 1").fill("Imported from the PDF");

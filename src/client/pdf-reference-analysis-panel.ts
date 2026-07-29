@@ -9,6 +9,7 @@ import {
   type PdfReferenceReviewCandidate,
   type PdfReferenceReviewDecision,
   type PdfReferenceReviewQueue,
+  type ReviewPdfReferenceCandidateBatchItem,
 } from "../domain/reference-library";
 import { errorMessage, expectOk, jsonFetch, loadJson } from "./http";
 import { LightDomElement } from "./light-dom-controller";
@@ -29,6 +30,7 @@ export class PdfReferenceAnalysisPanel extends LightDomElement {
     reviewQueue: { state: true },
     reviewStatus: { state: true },
     result: { state: true },
+    savingAll: { state: true },
     savingCandidateId: { state: true },
     status: { state: true },
   };
@@ -38,6 +40,7 @@ export class PdfReferenceAnalysisPanel extends LightDomElement {
   declare private reviewQueue: PdfReferenceReviewQueue | null;
   declare private reviewStatus: string;
   declare private result: PdfReferenceAnalysisResult | null;
+  declare private savingAll: boolean;
   declare private savingCandidateId: string;
   declare private status: string;
   #analysis: ArtifactAnalysis | null = null;
@@ -51,6 +54,7 @@ export class PdfReferenceAnalysisPanel extends LightDomElement {
     this.reviewQueue = null;
     this.reviewStatus = "";
     this.result = null;
+    this.savingAll = false;
     this.savingCandidateId = "";
     this.status = defaultStatus;
   }
@@ -73,6 +77,7 @@ export class PdfReferenceAnalysisPanel extends LightDomElement {
     this.reviewQueue = null;
     this.reviewStatus = "";
     this.result = null;
+    this.savingAll = false;
     this.savingCandidateId = "";
     this.status = defaultStatus;
   }
@@ -97,6 +102,7 @@ export class PdfReferenceAnalysisPanel extends LightDomElement {
         : nothing}
       ${this.result?.candidates.length
         ? html`
+            ${this.renderAddAllControl()}
             <div class="mt-3 space-y-2" id="pdf-reference-analysis-list">
               ${this.reviewQueue
                 ? this.reviewQueue.candidates.map((candidate) => this.renderCandidate(candidate, candidate))
@@ -104,6 +110,26 @@ export class PdfReferenceAnalysisPanel extends LightDomElement {
             </div>
           `
         : nothing}
+    `;
+  }
+
+  private renderAddAllControl(): TemplateResult | typeof nothing {
+    const pending = this.reviewQueue?.candidates.filter(({ review }) => review === null) ?? [];
+    if (this.reviewLoading || pending.length === 0) return nothing;
+    return html`
+      <div class="mt-3 flex flex-wrap items-center justify-between gap-2 border-y border-app-line py-3">
+        <p class="text-xs leading-5 text-app-text-soft">
+          Add all ${pending.length} pending extracted reference${pending.length === 1 ? "" : "s"} using exact or suggested Library matches.
+        </p>
+        <button
+          class="button-primary"
+          type="button"
+          ?disabled=${this.savingAll || Boolean(this.savingCandidateId)}
+          @click=${() => void this.addAllPending()}
+        >
+          ${this.savingAll ? "Adding all…" : `Add all ${pending.length} to Library`}
+        </button>
+      </div>
     `;
   }
 
@@ -167,7 +193,7 @@ export class PdfReferenceAnalysisPanel extends LightDomElement {
     if (candidate.review?.decision === "accepted") {
       return html`<p class="mt-2 text-xs font-semibold text-app-text">Added to Library</p>`;
     }
-    const saving = this.savingCandidateId === candidate.id;
+    const saving = this.savingAll || this.savingCandidateId === candidate.id;
     return html`
       ${candidate.review?.decision === "rejected" ? html`<p class="mt-2 text-xs font-semibold text-app-text-soft">Skipped</p>` : nothing}
       <div class="mt-2 flex flex-wrap gap-2" role="group" aria-label="Review parsed reference">
@@ -244,6 +270,14 @@ export class PdfReferenceAnalysisPanel extends LightDomElement {
     },
   ): Promise<void> {
     await expectOk(await jsonFetch(`/api/library/pdfs/${encodeURIComponent(artifactId)}/reference-review`, input));
+  }
+
+  protected async submitReviewBatch(
+    artifactId: string,
+    fingerprint: string,
+    candidates: readonly ReviewPdfReferenceCandidateBatchItem[],
+  ): Promise<void> {
+    await expectOk(await jsonFetch(`/api/library/pdfs/${encodeURIComponent(artifactId)}/reference-review`, { fingerprint, candidates }));
   }
 
   protected async refresh(artifactId: string, retry = false): Promise<void> {
@@ -349,6 +383,37 @@ export class PdfReferenceAnalysisPanel extends LightDomElement {
       if (artifactId === this.#artifactId) this.reviewStatus = errorMessage(error, "Could not save the reference review.");
     } finally {
       if (artifactId === this.#artifactId) this.savingCandidateId = "";
+    }
+  }
+
+  protected async addAllPending(): Promise<void> {
+    const artifactId = this.#artifactId;
+    const queue = this.reviewQueue;
+    if (!artifactId || !queue || this.savingAll || this.savingCandidateId) return;
+    const candidates = queue.candidates
+      .filter(({ review }) => review === null)
+      .map(({ id, match }) => ({ candidateId: id, ...(match ? { referenceId: match.id } : {}) }));
+    if (candidates.length === 0) return;
+    this.savingAll = true;
+    this.reviewStatus = `Adding ${candidates.length} extracted reference${candidates.length === 1 ? "" : "s"}…`;
+    try {
+      await this.submitReviewBatch(artifactId, queue.fingerprint, candidates);
+      await this.refreshReviewQueue(artifactId);
+      if (artifactId !== this.#artifactId) return;
+      this.dispatchEvent(
+        new CustomEvent<PdfReferenceReviewOutcome>(pdfReferenceReviewOutcomeEvent, {
+          bubbles: true,
+          composed: true,
+          detail: {
+            action: "library-refresh",
+            message: `${candidates.length} parsed reference${candidates.length === 1 ? "" : "s"} added to the Library.`,
+          },
+        }),
+      );
+    } catch (error) {
+      if (artifactId === this.#artifactId) this.reviewStatus = errorMessage(error, "Could not add the extracted references.");
+    } finally {
+      if (artifactId === this.#artifactId) this.savingAll = false;
     }
   }
 

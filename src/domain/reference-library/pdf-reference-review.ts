@@ -37,6 +37,16 @@ export interface ReviewPdfReferenceCandidateInput {
   readonly referenceId?: string;
 }
 
+export interface ReviewPdfReferenceCandidateBatchItem {
+  readonly candidateId: string;
+  readonly referenceId?: string;
+}
+
+export interface ReviewPdfReferenceCandidatesInput {
+  readonly fingerprint: string;
+  readonly candidates: readonly ReviewPdfReferenceCandidateBatchItem[];
+}
+
 export interface PdfReferenceCandidateReviewResult {
   readonly review: PdfReferenceCandidateReview;
   readonly reference: BibliographicRecord | null;
@@ -57,8 +67,28 @@ const reviewInputSchema = v.variant("decision", [
   }),
 ]);
 
+const reviewBatchInputSchema = v.strictObject({
+  fingerprint: v.pipe(v.string(), v.minLength(1), v.maxLength(500)),
+  candidates: v.pipe(
+    v.array(
+      v.strictObject({
+        candidateId: v.pipe(v.string(), v.minLength(1), v.maxLength(500)),
+        referenceId: v.optional(v.pipe(v.string(), v.minLength(1), v.maxLength(500))),
+      }),
+    ),
+    v.minLength(1),
+    v.maxLength(128),
+  ),
+});
+
 export function isReviewPdfReferenceCandidateInput(value: unknown): value is ReviewPdfReferenceCandidateInput {
   return v.is(reviewInputSchema, value);
+}
+
+export function isReviewPdfReferenceCandidatesInput(value: unknown): value is ReviewPdfReferenceCandidatesInput {
+  return (
+    v.is(reviewBatchInputSchema, value) && new Set(value.candidates.map(({ candidateId }) => candidateId)).size === value.candidates.length
+  );
 }
 
 export function suggestPdfReferenceMatch(

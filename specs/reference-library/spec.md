@@ -281,7 +281,11 @@ memory and makes citation aliases compete with stable source identity.
   URL, and confidence. The reader presents those candidates in a dedicated
   PDF references panel, opened independently from PDF annotations, with
   DOI/source links and an explicit rerun control
-  after ready or failed analysis. Reference candidates do not silently create
+  after ready or failed analysis. One explicit bulk control accepts every
+  pending candidate in a bounded fingerprint-qualified request, reuses exact or
+  suggested Library matches, and commits all references and extracted citation
+  assertions atomically. Previously skipped candidates remain skipped.
+  Reference candidates do not silently create
   library records, citation assertions, or project state. A generic versioned
   artifact-analysis envelope allows later analysis kinds to reuse the same queue
   and lifecycle without weakening owner isolation. Pure annotation
@@ -649,7 +653,9 @@ memory and makes citation aliases compete with stable source identity.
   analysis and persist owner-attributed accept/reject dispositions. Acceptance
   reuses exact DOI identity or creates one reference with `pdf-reference`
   field provenance and one PDF-backed extracted citation assertion in the same
-  owner-library transaction; rejection creates neither resource.
+  owner-library transaction; rejection creates neither resource. A unique
+  batch of at most 128 pending candidates applies the same validation to every
+  item in one transaction so a failure leaves the whole batch unchanged.
 - Shell and browser coverage prove `/library` starts from the owner-library API
   alone and retains PDF import, annotation, and annotated-export controls.
 

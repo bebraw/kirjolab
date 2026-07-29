@@ -102,9 +102,10 @@ by` relationships. Selecting a neighboring source refocuses the same trail
   assertion.
 - `GET /api/library/pdfs/{artifactId}/reference-review` returns the current
   analysis fingerprint, citing reference, conservative match suggestions, and
-  durable review dispositions. `POST` accepts or rejects one candidate by
-  fingerprint and candidate ID; an accepted body may name an existing owner
-  reference but cannot supply candidate metadata.
+  durable review dispositions. `POST` accepts or rejects one candidate, or
+  atomically accepts a unique batch of at most 128 candidates, by fingerprint
+  and candidate ID; an accepted item may name an existing owner reference but
+  cannot supply candidate metadata.
 - Assertion inputs, reviews, network projections, and expansion results use
   composable Valibot structure and bound schemas while DOI validity,
   cross-reference identity, and provider provenance remain explicit domain
@@ -253,6 +254,15 @@ by` relationships. Selecting a neighboring source refocuses the same trail
 - When: the owner rejects it
 - Then: the durable review queue records the rejection without creating a
   reference, a positive assertion, or a negative citation assertion
+
+**Scenario: Researcher adds every pending parsed entry**
+
+- Given: a current PDF reference queue contains pending, accepted, and skipped
+  candidates
+- When: the owner chooses to add all pending references
+- Then: Kirjolab accepts only the pending candidates through one bounded,
+  fingerprint-qualified transaction, reuses their exact or suggested matches,
+  and either commits every resulting reference and assertion or none of them
 
 **Scenario: Parsed reference has in-text evidence**
 

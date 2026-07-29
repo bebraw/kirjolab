@@ -467,16 +467,25 @@ describe("ReferenceLibrary in the Workers runtime", () => {
           "owner@example.test",
         ),
       ).toThrow("does not match");
+      expect(() =>
+        instance.reviewPdfReferenceCandidates(
+          artifactId,
+          draft.artifact.fingerprint,
+          [{ candidateId: result.candidates[1]!.id }, { candidateId: "entry:missing" }],
+          "owner@example.test",
+        ),
+      ).toThrow("candidate not found");
     });
+    expect((await library.getPdfReferenceReviewQueue(artifactId))?.candidates[1]?.review).toBeNull();
 
-    const acceptedNew = await library.reviewPdfReferenceCandidate(
+    const batchAccepted = await library.reviewPdfReferenceCandidates(
       artifactId,
       draft.artifact.fingerprint,
-      result.candidates[1]!.id,
-      "accepted",
-      undefined,
+      [{ candidateId: result.candidates[0]!.id }, { candidateId: result.candidates[1]!.id }],
       "owner@example.test",
     );
+    expect(batchAccepted).toHaveLength(2);
+    const acceptedNew = batchAccepted[1]!;
     expect(acceptedNew.reference).toMatchObject({
       title: "New paper",
       provenance: { title: { method: "pdf-reference", actor: "owner@example.test" } },
@@ -491,6 +500,14 @@ describe("ReferenceLibrary in the Workers runtime", () => {
     );
     expect(rejected).toMatchObject({ review: { decision: "rejected" }, reference: null, assertion: null });
     await runInDurableObject(library, (instance: ReferenceLibrary) => {
+      expect(() =>
+        instance.reviewPdfReferenceCandidates(
+          artifactId,
+          draft.artifact.fingerprint,
+          [{ candidateId: result.candidates[2]!.id }],
+          "owner@example.test",
+        ),
+      ).toThrow("already skipped");
       expect(() =>
         instance.reviewPdfReferenceCandidate(
           artifactId,

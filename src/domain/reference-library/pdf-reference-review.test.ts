@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { PdfReferenceAnalysisCandidate } from "./artifact-analysis";
 import type { BibliographicRecord } from "./metadata";
-import { isReviewPdfReferenceCandidateInput, suggestPdfReferenceMatch } from "./pdf-reference-review";
+import { isReviewPdfReferenceCandidateInput, isReviewPdfReferenceCandidatesInput, suggestPdfReferenceMatch } from "./pdf-reference-review";
 
 const candidate: PdfReferenceAnalysisCandidate = {
   id: "doi:10.1000/target",
@@ -36,6 +36,22 @@ describe("PDF reference review", () => {
       }),
     ).toBe(false);
     expect(isReviewPdfReferenceCandidateInput({ fingerprint: "", candidateId: candidate.id, decision: "accepted" })).toBe(false);
+  });
+
+  it("validates a bounded unique batch of pending candidates", () => {
+    expect(
+      isReviewPdfReferenceCandidatesInput({
+        fingerprint: "etag:pdf",
+        candidates: [{ candidateId: candidate.id }, { candidateId: "entry:two", referenceId: "reference-id" }],
+      }),
+    ).toBe(true);
+    expect(isReviewPdfReferenceCandidatesInput({ fingerprint: "etag:pdf", candidates: [] })).toBe(false);
+    expect(
+      isReviewPdfReferenceCandidatesInput({
+        fingerprint: "etag:pdf",
+        candidates: [{ candidateId: candidate.id }, { candidateId: candidate.id }],
+      }),
+    ).toBe(false);
   });
 
   it("prefers exact DOI identity and only suggests unique bibliographic identity", () => {

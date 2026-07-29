@@ -956,6 +956,22 @@ describe("reference library API", () => {
       identity.email,
     );
 
+    const batch = await handleReferenceLibraryApi(
+      jsonRequest(route, {
+        fingerprint: "r2-etag:guide",
+        candidates: [{ candidateId: "doi:10.1000/target", referenceId: reference.id }, { candidateId: "entry:second" }],
+      }),
+      fixture.env,
+      identity,
+    );
+    expect(batch.status).toBe(201);
+    expect(fixture.library.reviewPdfReferenceCandidates).toHaveBeenCalledWith(
+      "22222222-2222-4222-8222-222222222222",
+      "r2-etag:guide",
+      [{ candidateId: "doi:10.1000/target", referenceId: reference.id }, { candidateId: "entry:second" }],
+      identity.email,
+    );
+
     const invalid = await handleReferenceLibraryApi(
       jsonRequest(route, {
         fingerprint: "r2-etag:guide",
@@ -1725,6 +1741,21 @@ function apiFixture(bucket = new MemoryR2Bucket()) {
         reference: decision === "accepted" ? reference : null,
         assertion: decision === "accepted" ? citationAssertion : null,
       }),
+    ),
+    reviewPdfReferenceCandidates: vi.fn(
+      async (_artifactId: string, _fingerprint: string, candidates: readonly { candidateId: string }[], actor: string) =>
+        candidates.map(({ candidateId }) => ({
+          review: {
+            candidateId,
+            decision: "accepted" as const,
+            referenceId: reference.id,
+            assertionId: citationAssertion.id,
+            reviewedBy: actor,
+            reviewedAt: now,
+          },
+          reference,
+          assertion: citationAssertion,
+        })),
     ),
     updateHighlightComment: vi.fn(async (referenceId: string, id: string, comment: string) => ({
       id,

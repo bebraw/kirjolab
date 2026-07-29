@@ -6,6 +6,7 @@ import {
   isReferenceLibrarySnapshot,
   isArtifactAnalysis,
   isLibraryHighlightImportCandidate,
+  isReviewPdfReferenceCandidatesInput,
   isReviewPdfReferenceCandidateInput,
   maximumMetadataRefinementCandidates,
   normalizeWebSourceUrl,
@@ -28,6 +29,7 @@ import {
   type PdfDraftResult,
   type PdfReferenceCandidateReviewResult,
   type PdfReferenceReviewQueue,
+  type ReviewPdfReferenceCandidateBatchItem,
   type ReadingState,
   isReferenceMergeInput,
   type ReferenceMergeInput,
@@ -177,6 +179,12 @@ interface ReferenceLibraryApi {
     referenceId: string | undefined,
     actor: string,
   ): Promise<PdfReferenceCandidateReviewResult>;
+  reviewPdfReferenceCandidates(
+    artifactId: string,
+    fingerprint: string,
+    candidates: readonly ReviewPdfReferenceCandidateBatchItem[],
+    actor: string,
+  ): Promise<readonly PdfReferenceCandidateReviewResult[]>;
   createPdfNote(referenceId: string, artifactId: string, page: number, x: number, y: number, body: string): Promise<LibraryPdfNote>;
   createPdfDrawing(
     referenceId: string,
@@ -664,16 +672,22 @@ async function handleLibraryPdfReferenceReviewRoute(context: ReferenceLibraryRou
     return queue ? Response.json(queue, noStore()) : jsonError("PDF reference analysis is not ready", 409);
   }
   const body: unknown = await request.json();
-  if (!isReviewPdfReferenceCandidateInput(body)) return jsonError("Invalid PDF reference review", 400);
-  const result = await library.reviewPdfReferenceCandidate(
-    match[1],
-    body.fingerprint,
-    body.candidateId,
-    body.decision,
-    body.referenceId,
-    identity.email,
-  );
-  return Response.json(result, { status: body.decision === "accepted" ? 201 : 200, ...noStore() });
+  if (isReviewPdfReferenceCandidatesInput(body)) {
+    const results = await library.reviewPdfReferenceCandidates(match[1], body.fingerprint, body.candidates, identity.email);
+    return Response.json({ results }, { status: 201, ...noStore() });
+  }
+  if (isReviewPdfReferenceCandidateInput(body)) {
+    const result = await library.reviewPdfReferenceCandidate(
+      match[1],
+      body.fingerprint,
+      body.candidateId,
+      body.decision,
+      body.referenceId,
+      identity.email,
+    );
+    return Response.json(result, { status: body.decision === "accepted" ? 201 : 200, ...noStore() });
+  }
+  return jsonError("Invalid PDF reference review", 400);
 }
 
 async function handleLibraryPdfAnalysisRoute(context: ReferenceLibraryRouteContext): Promise<Response | null> {
