@@ -317,8 +317,7 @@
   }
 
   .dashboard-activity-kind,
-  .dashboard-area-index,
-  .review-context-label {
+  .dashboard-area-index {
     color: var(--color-app-text-soft);
     font-family: var(--font-sans);
     font-size: 0.62rem;
@@ -726,19 +725,6 @@
     }
   }
 
-  .header-library-link {
-    color: var(--color-app-text-soft);
-    font-family: var(--font-sans);
-    font-size: 0.75rem;
-    font-weight: 800;
-    letter-spacing: 0.04em;
-  }
-
-  .header-library-link:hover,
-  .header-library-link[aria-current="page"] {
-    color: var(--color-app-accent-strong);
-  }
-
   .library-header-context {
     display: none;
   }
@@ -942,7 +928,6 @@
   body[data-app-mode="library"] #workspace-switcher,
   body[data-app-mode="library"] .project-view-control,
   body[data-app-mode="library"] .header-action-menu,
-  body[data-app-mode="library"] .header-library-link,
   body[data-app-mode="library"] #share-workspace,
   body[data-app-mode="library"] #open-export,
   body[data-app-mode="library"] #github-sync-menu,
@@ -1049,10 +1034,6 @@
     }
   }
 
-  .edit-link-label-short {
-    display: none;
-  }
-
   @media (max-width: 40rem) {
     body[data-app-mode="workspace"] .app-header-row {
       display: grid;
@@ -1146,17 +1127,8 @@
       overflow: auto;
     }
 
-    #shared-view-switcher,
     #edit-file-switcher {
       max-width: none;
-    }
-
-    .edit-link-label-short {
-      display: inline;
-    }
-
-    .edit-link-label-long {
-      display: none;
     }
   }
 
@@ -1182,12 +1154,6 @@
     body[data-app-mode="workspace"] #preferences-menu {
       grid-column: 2;
       grid-row: 1;
-    }
-
-    body[data-app-mode="workspace"] .header-library-link {
-      grid-column: 3;
-      grid-row: 1;
-      justify-self: end;
     }
 
     body[data-app-mode="workspace"] #workspace-switcher {
