@@ -1024,7 +1024,8 @@ collaboration.
 - [x] Tab, pin, page, focus, and reading-position state remains local while
       narrow layouts switch explicitly between Authoring and Context.
 - [x] Private PDF annotation controls remain on one row and expose a dedicated
-      Select tool for directly editing highlights, lines, and notes.
+      Select tool for highlighting or copying text and directly editing saved
+      highlights, lines, and notes.
 - [x] A new note anchor stays visible while its body is written, selected notes
       can be moved, and touch navigation cannot accidentally create ink.
 - [x] The split workspace activates only when all minimum-width tracks fit;

@@ -354,12 +354,12 @@ memory and makes citation aliases compete with stable source identity.
   and DOI recovery. It covers numbered, author-year, and absent-bibliography
   documents without storing third-party copyrighted fixtures.
 - The private reader stays focused on the page: its idle annotation surface is
-  a compact Select, Text, Note, and Draw toolbar. One typed interaction
+  a compact Select, Note, and Draw toolbar. One typed interaction
   owner keeps tool selection, note composition, saved-resource selection, note
   dragging, and drawing mutually exclusive. Changing tools or cancelling a
-  pointer interaction clears its transient draft. Select allows native PDF text
-  selection and copying without creating a highlight draft while retaining
-  saved-annotation selection. Text selection opens a contextual save row; Note
+  pointer interaction clears its transient draft. Select retains native PDF
+  text selection for copying, opens a contextual highlight save row after the
+  selection settles, and also selects saved annotations for editing. Note
   places a page-anchored private note; Draw
   captures Apple Pencil or mouse strokes with red as the default color and an
   adjustable 1–24 pixel width while touch remains available for pan and zoom.

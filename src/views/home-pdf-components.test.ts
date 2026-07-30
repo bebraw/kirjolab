@@ -29,7 +29,6 @@ describe("renderLibraryPdfRail", () => {
     expect(html).toContain('<library-pdf-annotation-toolbar id="library-pdf-annotation-toolbar">');
     const contracts = [
       ["library-select-tool", "select"],
-      ["library-text-tool", "text"],
       ["library-note-tool", "note"],
       ["library-draw-tool", "draw"],
       ["undo-library-drawing", "undo"],
@@ -40,7 +39,7 @@ describe("renderLibraryPdfRail", () => {
     for (const [controlId, icon] of contracts) {
       expectControlIcon(html, controlId, icon);
     }
-    expect(html).toContain('role="toolbar" aria-label="PDF tools"');
+    expect(html).toContain('role="toolbar" aria-label="PDF annotation tools"');
     expect(html).toContain('id="library-ink-options" role="group" aria-label="Drawing style" hidden');
     expect(html).toContain('id="open-library-pdf-inspector" type="button" aria-label="Annotations"');
     expect(html).toContain('id="library-highlight-count">0</span>');

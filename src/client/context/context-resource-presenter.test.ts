@@ -1484,24 +1484,25 @@ describe("context resource presenter", () => {
     const setInspectorOpen = vi.spyOn(inspector, "setInspectorOpen");
     const setToolbarOpen = vi.spyOn(toolbar, "setInspectorOpen");
 
-    expect(presenter.chooseLibraryPdfTool("text")).toEqual({
-      privateHighlightId: null,
-      privateHighlightSelection: false,
-      textSelectionMode: "highlight",
-    });
-
-    expect(chooseTool).toHaveBeenCalledWith("text");
-    expect(clearNote).toHaveBeenCalledOnce();
-    expect(clearMarkup).toHaveBeenCalledOnce();
-    expect(setStatus).toHaveBeenCalledWith("Select text to highlight.");
-    expect(setInspectorOpen).toHaveBeenCalledWith(false);
-    expect(setToolbarOpen).toHaveBeenCalledWith(false);
-
     expect(presenter.chooseLibraryPdfTool("select")).toEqual({
       privateHighlightId: null,
       privateHighlightSelection: true,
-      textSelectionMode: "copy",
+      textSelectionMode: "highlight",
     });
+
+    expect(chooseTool).toHaveBeenCalledWith("select");
+    expect(clearNote).toHaveBeenCalledOnce();
+    expect(clearMarkup).not.toHaveBeenCalled();
+    expect(setStatus).toHaveBeenCalledWith("Select text to highlight or copy. Tap an existing annotation to edit it.");
+    expect(setInspectorOpen).toHaveBeenCalledWith(false);
+    expect(setToolbarOpen).toHaveBeenCalledWith(false);
+
+    expect(presenter.chooseLibraryPdfTool("note")).toEqual({
+      privateHighlightId: null,
+      privateHighlightSelection: false,
+      textSelectionMode: "disabled",
+    });
+    expect(clearMarkup).toHaveBeenCalledOnce();
   });
 
   it("owns private-PDF draft clearing and exposes markup selection state", () => {
@@ -1652,7 +1653,7 @@ describe("context resource presenter", () => {
     expect(bindProjectMutations).toHaveBeenCalledWith(expect.objectContaining({ applyProjectMutation: coordinator.acceptProjectMutation }));
 
     elements["library-pdf-annotation-toolbar"].dispatchEvent(
-      new CustomEvent("library-pdf-toolbar-action", { detail: { action: "choose-tool", tool: "text" } }),
+      new CustomEvent("library-pdf-toolbar-action", { detail: { action: "choose-tool", tool: "select" } }),
     );
     elements["library-pdf-annotation-toolbar"].dispatchEvent(
       new CustomEvent("library-pdf-toolbar-action", { detail: { action: "open-references" } }),
@@ -1666,7 +1667,7 @@ describe("context resource presenter", () => {
     );
 
     expect(viewer.setTextSelectionMode).toHaveBeenCalledWith("highlight");
-    expect(viewer.setPrivateHighlightSelection).toHaveBeenCalledWith(false, null);
+    expect(viewer.setPrivateHighlightSelection).toHaveBeenCalledWith(true, null);
     expect(setInspectorOpen).toHaveBeenCalledWith(true, "references");
     expect(coordinator.completeMarkup).toHaveBeenCalledWith("Drawing saved privately.");
     await vi.waitFor(() => expect(openPdf).toHaveBeenCalledWith(libraryPdf, highlight.page));

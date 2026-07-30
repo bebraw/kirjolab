@@ -122,7 +122,7 @@ describe("library PDF markup layer", () => {
   it("owns tool, selection, note composition, and note-card state", () => {
     const layer = new TestMarkupLayer();
     Object.defineProperty(layer, "dataset", { value: {} });
-    expect(layer.tool).toBe("text");
+    expect(layer.tool).toBe("select");
     layer.placeNote(2, { x: 0.2, y: 0.3 });
     expect(layer.noteDraft).toBeNull();
     layer.chooseTool("note");

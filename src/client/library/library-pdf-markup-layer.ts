@@ -10,7 +10,7 @@ import { LightDomElement } from "../platform/light-dom-controller";
 import { manipulateRecognizedShape, recognizeDrawnShape, type RecognizedDrawnShape } from "../pdf/drawn-shape-recognition";
 import { errorMessage, expectOk, jsonFetch } from "../platform/http";
 
-export type PdfAnnotationTool = "select" | "text" | "note" | "draw";
+export type PdfAnnotationTool = "select" | "note" | "draw";
 
 export interface LibraryPdfNoteDraft {
   readonly editingId: string | null;
@@ -108,7 +108,7 @@ export class LibraryPdfMarkupLayer extends LightDomElement {
   declare private status: string;
   private drawing: ActiveDrawing | null = null;
   private failedDrawing: DrawingSave | null = null;
-  private interactionTool: PdfAnnotationTool = "text";
+  private interactionTool: PdfAnnotationTool = "select";
   private noteDraftValue: LibraryPdfNoteDraft | null = null;
   private noteDrag: ActiveNoteDrag | null = null;
   private noteMovePreview: { readonly id: string; readonly point: LibraryPdfPoint } | null = null;

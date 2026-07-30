@@ -42,7 +42,7 @@ export class LibraryPdfAnnotationToolbar extends LightDomElement {
 
   constructor() {
     super();
-    this.tool = "text";
+    this.tool = "select";
     this.drawingColor = "#d33f49";
     this.drawingWidth = 4;
     this.undoing = false;
@@ -59,7 +59,7 @@ export class LibraryPdfAnnotationToolbar extends LightDomElement {
 
   setTool(tool: PdfAnnotationTool): string {
     this.tool = tool;
-    return toolStatus[tool];
+    return toolStatus[this.tool];
   }
 
   setAnnotationAvailability(count: number): void {
@@ -96,9 +96,9 @@ export class LibraryPdfAnnotationToolbar extends LightDomElement {
 
   protected override render(): TemplateResult {
     return html`
-      <div class="library-pdf-annotation-tools" role="toolbar" aria-label="PDF tools">
-        ${this.toolButton("select", "Select and copy text, or edit an existing annotation")}
-        ${this.toolButton("text", "Select text and save a quotation")} ${this.toolButton("note", "Tap the page to attach a private note")}
+      <div class="library-pdf-annotation-tools" role="toolbar" aria-label="PDF annotation tools">
+        ${this.toolButton("select", "Select text to highlight or copy, or select an annotation to edit")}
+        ${this.toolButton("note", "Tap the page to attach a private note")}
         <div class="library-draw-rail-control">
           ${this.toolButton("draw", "Draw directly on the page with Apple Pencil or a mouse")}
           <div class="library-ink-options" id="library-ink-options" role="group" aria-label="Drawing style" ?hidden=${this.tool !== "draw"}>
@@ -293,7 +293,7 @@ export class LibraryPdfAnnotationToolbar extends LightDomElement {
         data-touch-target="true"
         @click=${() => this.chooseTool(tool)}
       >
-        ${icon(tool)}<span class="sr-only">${tool === "text" ? "Text" : `${tool[0]?.toUpperCase()}${tool.slice(1)}`}</span>
+        ${icon(tool)}<span class="sr-only">${`${tool[0]?.toUpperCase()}${tool.slice(1)}`}</span>
       </button>
     `;
   }
@@ -308,8 +308,7 @@ function inputValue(event: Event): string {
 }
 
 const toolStatus: Readonly<Record<PdfAnnotationTool, string>> = {
-  select: "Tap an existing highlight, line, or note to edit it. Drag a selected note to move it.",
-  text: "Select text to highlight.",
+  select: "Select text to highlight or copy. Tap an existing annotation to edit it.",
   note: "Tap the page to place a note.",
   draw: "Draw with Apple Pencil or a mouse. Touch gestures pan and zoom.",
 };

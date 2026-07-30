@@ -17,7 +17,7 @@ identity and downstream work.
 - Operations clamp to zero-to-one page coordinates with a visible minimum
   width and height.
 - Controls use touch-sized targets and remain keyboard accessible.
-- Private PDF page navigation and Select, Text, Note, and Draw modes share one
+- Private PDF page navigation and Select, Note, and Draw modes share one
   persistent icon rail on the left so the page retains the full remaining
   width. Page navigation and annotation tools stay grouped at the top so iPad
   browser chrome cannot cover drawing controls near the lower viewport edge.

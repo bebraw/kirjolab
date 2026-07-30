@@ -986,7 +986,7 @@ export class ContextResourcePresenter extends LightDomController {
     return {
       privateHighlightId: markups?.selectedHighlightId ?? null,
       privateHighlightSelection: tool === "select",
-      textSelectionMode: tool === "text" ? "highlight" : tool === "select" ? "copy" : "disabled",
+      textSelectionMode: tool === "select" ? "highlight" : "disabled",
     };
   }
 

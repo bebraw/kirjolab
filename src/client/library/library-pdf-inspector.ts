@@ -76,7 +76,7 @@ export class LibraryPdfInspector extends EagerLightDomElement {
     this.artifactId = "";
     this.inspectorOpen = false;
     this.inspectorPanel = "annotations";
-    this.status = "Select text to highlight.";
+    this.status = "Select text to highlight or copy. Tap an existing annotation to edit it.";
     this.visible = false;
     this.addEventListener(projectReferenceChangedEvent, (event) => {
       const { message, snapshot } = (event as CustomEvent<ProjectReferenceChanged>).detail;
@@ -225,7 +225,7 @@ export class LibraryPdfInspector extends EagerLightDomElement {
     this.annotationForms.clearHighlight(1);
     this.annotationForms.clearNote();
     this.annotationForms.clearMarkup();
-    this.setStatus("Select text to highlight.");
+    this.setStatus("Select text to highlight or copy. Tap an existing annotation to edit it.");
     this.setInspectorOpen(false);
   }
 

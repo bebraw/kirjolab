@@ -68,8 +68,7 @@ describe("library PDF annotation toolbar", () => {
     expect(toolbar.rootForTest()).toBe(toolbar);
     expect(toolbar.drawingStyle).toEqual({ color: "#d33f49", width: 4 });
 
-    expect(toolbar.setTool("select")).toBe("Tap an existing highlight, line, or note to edit it. Drag a selected note to move it.");
-    expect(toolbar.setTool("text")).toBe("Select text to highlight.");
+    expect(toolbar.setTool("select")).toBe("Select text to highlight or copy. Tap an existing annotation to edit it.");
     expect(toolbar.setTool("note")).toBe("Tap the page to place a note.");
     expect(toolbar.setTool("draw")).toBe("Draw with Apple Pencil or a mouse. Touch gestures pan and zoom.");
     toolbar.setAnnotationAvailability(5);
@@ -99,7 +98,6 @@ describe("library PDF annotation toolbar", () => {
     });
 
     toolbar.chooseForTest("select");
-    toolbar.chooseForTest("text");
     toolbar.chooseForTest("note");
     toolbar.chooseForTest("draw");
     toolbar.emitForTest({ action: "drawing-undone" });
@@ -109,7 +107,6 @@ describe("library PDF annotation toolbar", () => {
 
     expect(actions).toEqual([
       { action: "choose-tool", tool: "select" },
-      { action: "choose-tool", tool: "text" },
       { action: "choose-tool", tool: "note" },
       { action: "choose-tool", tool: "draw" },
       { action: "drawing-undone" },

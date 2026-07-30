@@ -28,12 +28,9 @@ export function renderLibraryPdfRail(): string {
                 <button class="library-pdf-rail-button button-icon" id="library-pdf-spread" type="button" aria-label="Use two-page view" title="Two-page view" aria-pressed="false" data-touch-target="true">${renderIcon("spread")}</button>
               </div>
               <library-pdf-annotation-toolbar id="library-pdf-annotation-toolbar">
-                <div class="library-pdf-annotation-tools" role="toolbar" aria-label="PDF tools">
-                <button class="library-pdf-rail-button button-icon" id="library-select-tool" type="button" aria-pressed="false" title="Select and copy text, or edit an existing annotation" data-touch-target="true">
+                <div class="library-pdf-annotation-tools" role="toolbar" aria-label="PDF annotation tools">
+                <button class="library-pdf-rail-button button-icon" id="library-select-tool" type="button" aria-pressed="true" title="Select text to highlight or copy, or select an annotation to edit" data-touch-target="true">
                   ${renderIcon("select")}<span class="sr-only">Select</span>
-                </button>
-                <button class="library-pdf-rail-button button-icon" id="library-text-tool" type="button" aria-pressed="true" title="Select text and save a quotation" data-touch-target="true">
-                  ${renderIcon("text")}<span class="sr-only">Text</span>
                 </button>
                 <button class="library-pdf-rail-button button-icon" id="library-note-tool" type="button" aria-pressed="false" title="Tap the page to attach a private note" data-touch-target="true">
                   ${renderIcon("note")}<span class="sr-only">Note</span>

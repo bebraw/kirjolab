@@ -581,7 +581,7 @@ export function renderHomePage(
                 <div class="pdf-links" id="paper-links" aria-label="PDF links"></div>
                 <div class="pdf-highlights" id="paper-highlights"></div>
                 <div class="textLayer" id="paper-text-layer"></div>
-                <library-pdf-markup-layer class="pdf-markups" id="paper-markups" data-tool="text" aria-label="Private PDF annotations"></library-pdf-markup-layer>
+                <library-pdf-markup-layer class="pdf-markups" id="paper-markups" data-tool="select" aria-label="Private PDF annotations"></library-pdf-markup-layer>
               </div>
               <div class="pdf-continuous-pages" id="paper-continuous-pages" aria-label="PDF pages" hidden></div>
             </div>
@@ -661,7 +661,7 @@ export function renderHomePage(
               <header class="library-pdf-inspector-header">
                 <div>
                   <p class="eyebrow">PDF annotations</p>
-                  <p class="library-pdf-status ui-status" id="library-highlight-status" role="status" aria-live="polite">Select text to highlight.</p>
+                  <p class="library-pdf-status ui-status" id="library-highlight-status" role="status" aria-live="polite">Select text to highlight or copy. Tap an existing annotation to edit it.</p>
                 </div>
                 <button class="library-pdf-inspector-close" id="close-library-pdf-inspector" type="button" aria-label="Close annotation inspector" title="Close annotation inspector">×</button>
               </header>
