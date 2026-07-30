@@ -139,94 +139,11 @@ export class CandidateReviewPanel extends LightDomElement {
     const candidate = this.data?.candidate;
     const draftsClaim = candidate?.operation === "draft-claim";
     return html`
-      <header class="context-resource-header">
-        <div class="min-w-0">
-          <p class="eyebrow" id="context-candidate-eyebrow">${draftsClaim ? "Grounded claim draft" : "Grounded revision"}</p>
-          <h2 class="context-resource-title" id="context-candidate-title">
-            ${candidate ? (draftsClaim ? "Draft evidence-backed claim" : "Revise selected passage") : "No revision selected"}
-          </h2>
-          <p class="context-resource-meta" id="context-candidate-meta">
-            ${candidate ? this.candidateMeta(candidate) : "Provider, model, and source revision appear here."}
-          </p>
-        </div>
-      </header>
+      ${this.renderHeader(candidate, draftsClaim)}
       <div class="context-candidate-scroll" id="context-candidate-scroll">
         <div class="context-candidate-review">
-          <p class="context-candidate-status" id="context-candidate-status" role="status" aria-live="polite">
-            ${
-              this.failure ??
-              (this.data ? candidateStatusText(this.data) : "Choose a revision candidate to inspect its scoped change and evidence.")
-            }
-          </p>
-          <div class="context-candidate-comparison" aria-label="Passage revision comparison">
-            <section class="context-candidate-passage context-candidate-original" aria-labelledby="context-candidate-before-label">
-              <h3 class="context-candidate-passage-label" id="context-candidate-before-label">
-                ${draftsClaim ? "Research instruction" : "Original passage"}
-              </h3>
-              <pre id="context-candidate-before" role="region" aria-labelledby="context-candidate-before-label" tabindex="0">
-${
-  candidate
-    ? candidate.operation === "draft-claim"
-      ? candidate.instruction
-      : candidate.target.anchor.exact
-    : "The selected manuscript passage appears here."
-}</pre>
-            </section>
-            <section class="context-candidate-passage context-candidate-proposal" aria-labelledby="context-candidate-after-label">
-              <h3 class="context-candidate-passage-label" id="context-candidate-after-label">
-                ${draftsClaim ? "Proposed claim and note" : "Proposed replacement"}
-              </h3>
-              <pre id="context-candidate-after" role="region" aria-labelledby="context-candidate-after-label" tabindex="0">
-${
-  candidate
-    ? candidate.operation === "draft-claim"
-      ? [candidate.proposedText, candidate.proposedNote].filter(Boolean).join("\n\n")
-      : candidate.proposedReplacement
-    : "The proposed replacement appears here."
-}</pre>
-            </section>
-          </div>
-          <section class="context-candidate-provenance" aria-labelledby="context-candidate-evidence-heading">
-            <div>
-              <p class="eyebrow">Grounding and provenance</p>
-              <h3 class="context-candidate-section-title" id="context-candidate-evidence-heading">
-                ${draftsClaim ? "Annotations used for this claim" : "Evidence used for this revision"}
-              </h3>
-            </div>
-            <div class="context-candidate-evidence" id="context-candidate-evidence">
-              ${
-                candidate
-                  ? candidate.evidence.map((evidence) => this.renderEvidence(evidence))
-                  : html`<div class="empty-state">Annotation and claim snapshots appear here with links back to their sources.</div>`
-              }
-            </div>
-          </section>
-          <div class="context-candidate-actions" aria-label="Revision decision">
-            <button
-              class="button-secondary justify-center"
-              id="context-candidate-reject"
-              type="button"
-              ?disabled=${!candidate || this.data?.decisionBusy || candidate.status !== "pending"}
-              @click=${this.reject}
-            >
-              ${this.data?.currentAction === "reject" ? "Rejecting…" : draftsClaim ? "Reject claim draft" : "Reject revision"}
-            </button>
-            <button
-              class="button-primary justify-center"
-              id="context-candidate-apply"
-              type="button"
-              ?disabled=${
-                !candidate ||
-                this.data?.decisionBusy ||
-                candidate.status !== "pending" ||
-                !this.data?.applicable ||
-                (!draftsClaim && !this.data?.stableDocument)
-              }
-              @click=${this.apply}
-            >
-              ${this.data?.currentAction === "apply" ? "Applying…" : draftsClaim ? "Create claim" : "Apply replacement"}
-            </button>
-          </div>
+          ${this.renderStatus()} ${this.renderComparison(candidate, draftsClaim)} ${this.renderEvidenceSection(candidate, draftsClaim)}
+          ${this.renderActions(candidate, draftsClaim)}
         </div>
       </div>
     `;
@@ -244,6 +161,101 @@ ${
     const id = (event.currentTarget as HTMLButtonElement).dataset.evidenceId;
     const evidence = this.data?.candidate.evidence.find((item) => item.id === id);
     if (evidence) this.dispatchEvent(new CustomEvent(candidateEvidenceEvent, { bubbles: true, composed: true, detail: evidence }));
+  }
+
+  private renderHeader(candidate: ModelCandidate | undefined, draftsClaim: boolean): TemplateResult {
+    return html`
+      <header class="context-resource-header">
+        <div class="min-w-0">
+          <p class="eyebrow" id="context-candidate-eyebrow">${draftsClaim ? "Grounded claim draft" : "Grounded revision"}</p>
+          <h2 class="context-resource-title" id="context-candidate-title">
+            ${candidate ? (draftsClaim ? "Draft evidence-backed claim" : "Revise selected passage") : "No revision selected"}
+          </h2>
+          <p class="context-resource-meta" id="context-candidate-meta">
+            ${candidate ? this.candidateMeta(candidate) : "Provider, model, and source revision appear here."}
+          </p>
+        </div>
+      </header>
+    `;
+  }
+
+  private renderStatus(): TemplateResult {
+    const status =
+      this.failure ??
+      (this.data ? candidateStatusText(this.data) : "Choose a revision candidate to inspect its scoped change and evidence.");
+    return html`<p class="context-candidate-status" id="context-candidate-status" role="status" aria-live="polite">${status}</p>`;
+  }
+
+  private renderComparison(candidate: ModelCandidate | undefined, draftsClaim: boolean): TemplateResult {
+    return html`
+      <div class="context-candidate-comparison" aria-label="Passage revision comparison">
+        ${candidatePassage(
+          "context-candidate-before",
+          draftsClaim ? "Research instruction" : "Original passage",
+          candidate ? (candidate.operation === "draft-claim" ? candidate.instruction : candidate.target.anchor.exact) : null,
+          "The selected manuscript passage appears here.",
+          "context-candidate-original",
+        )}
+        ${candidatePassage(
+          "context-candidate-after",
+          draftsClaim ? "Proposed claim and note" : "Proposed replacement",
+          candidate
+            ? candidate.operation === "draft-claim"
+              ? [candidate.proposedText, candidate.proposedNote].filter(Boolean).join("\n\n")
+              : candidate.proposedReplacement
+            : null,
+          "The proposed replacement appears here.",
+          "context-candidate-proposal",
+        )}
+      </div>
+    `;
+  }
+
+  private renderEvidenceSection(candidate: ModelCandidate | undefined, draftsClaim: boolean): TemplateResult {
+    return html`
+      <section class="context-candidate-provenance" aria-labelledby="context-candidate-evidence-heading">
+        <div>
+          <p class="eyebrow">Grounding and provenance</p>
+          <h3 class="context-candidate-section-title" id="context-candidate-evidence-heading">
+            ${draftsClaim ? "Annotations used for this claim" : "Evidence used for this revision"}
+          </h3>
+        </div>
+        <div class="context-candidate-evidence" id="context-candidate-evidence">
+          ${
+            candidate
+              ? candidate.evidence.map((evidence) => this.renderEvidence(evidence))
+              : html`<div class="empty-state">Annotation and claim snapshots appear here with links back to their sources.</div>`
+          }
+        </div>
+      </section>
+    `;
+  }
+
+  private renderActions(candidate: ModelCandidate | undefined, draftsClaim: boolean): TemplateResult {
+    const unavailable = !candidate || this.data?.decisionBusy || candidate.status !== "pending";
+    const applyUnavailable = unavailable || !this.data?.applicable || (!draftsClaim && !this.data?.stableDocument);
+    return html`
+      <div class="context-candidate-actions" aria-label="Revision decision">
+        <button
+          class="button-secondary justify-center"
+          id="context-candidate-reject"
+          type="button"
+          ?disabled=${unavailable}
+          @click=${this.reject}
+        >
+          ${this.data?.currentAction === "reject" ? "Rejecting…" : draftsClaim ? "Reject claim draft" : "Reject revision"}
+        </button>
+        <button
+          class="button-primary justify-center"
+          id="context-candidate-apply"
+          type="button"
+          ?disabled=${applyUnavailable}
+          @click=${this.apply}
+        >
+          ${this.data?.currentAction === "apply" ? "Applying…" : draftsClaim ? "Create claim" : "Apply replacement"}
+        </button>
+      </div>
+    `;
   }
 
   private startDecision(action: CandidateDecision): void {
@@ -290,6 +302,16 @@ ${
       </article>
     `;
   }
+}
+
+function candidatePassage(id: string, label: string, content: string | null, fallback: string, className: string): TemplateResult {
+  const labelId = `${id}-label`;
+  return html`
+    <section class="context-candidate-passage ${className}" aria-labelledby=${labelId}>
+      <h3 class="context-candidate-passage-label" id=${labelId}>${label}</h3>
+      <pre id=${id} role="region" aria-labelledby=${labelId} tabindex="0">${content ?? fallback}</pre>
+    </section>
+  `;
 }
 
 function candidateDecisionMessage(action: CandidateDecision, operation: ModelCandidate["operation"]): string {
