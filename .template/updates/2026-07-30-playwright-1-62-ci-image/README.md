@@ -1,13 +1,13 @@
 # Align the Playwright 1.62 CI Image
 
-Use this when updating `@playwright/test` to 1.62.0 in a project whose CI
+Use this when updating `@playwright/test` to 1.62.1 in a project whose CI
 browser job runs in the official Playwright container.
 
 ## Apply
 
-1. Pin `@playwright/test` to `1.62.0` and regenerate the package lock.
+1. Pin `@playwright/test` to `1.62.1` and regenerate the package lock.
 2. Change the browser job image to
-   `mcr.microsoft.com/playwright:v1.62.0-noble`.
+   `mcr.microsoft.com/playwright:v1.62.1-noble`.
 3. Keep the package and container versions exactly aligned; mismatched versions
    use different browser executable revisions.
 4. Install the matching local Chromium build before local browser verification.

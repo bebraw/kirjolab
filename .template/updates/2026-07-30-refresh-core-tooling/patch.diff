@@ -9,7 +9,7 @@ diff --git a/package.json b/package.json
 +  },
 @@
 -    "@cloudflare/vitest-pool-workers": "0.18.4",
-+    "@cloudflare/vitest-pool-workers": "0.19.0",
++    "@cloudflare/vitest-pool-workers": "0.19.1",
 -    "@tailwindcss/cli": "4.3.1",
 +    "@tailwindcss/cli": "4.3.3",
 -    "@vitest/coverage-v8": "4.1.8",
@@ -25,6 +25,6 @@ diff --git a/package.json b/package.json
 -    "vitest": "4.1.8",
 +    "vitest": "4.1.10",
 -    "wrangler": "4.111.0",
-+    "wrangler": "4.115.0",
++    "wrangler": "4.116.0",
 -    "xstate": "5.32.4",
 +    "xstate": "5.32.5",
