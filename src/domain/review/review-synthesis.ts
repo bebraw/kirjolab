@@ -369,6 +369,22 @@ function synthesisDiagnostics(
   findings?: ReviewFindingsSnapshot,
   reassessment?: ReviewReassessmentSnapshot,
 ): readonly ReviewSynthesisDiagnostic[] {
+  return [
+    ...revisionDiagnostics(protocol, search, screening, evidence, findings, reassessment),
+    ...processDiagnostics(protocol, search, evidence, reassessment),
+    ...screeningDiagnostics(screening),
+    ...evidenceDiagnostics(search, screening, evidence),
+  ];
+}
+
+function revisionDiagnostics(
+  protocol: ReviewStudySnapshot,
+  search: ReviewSearchSnapshot,
+  screening: ReviewScreeningSnapshot,
+  evidence: ReviewEvidenceSnapshot,
+  findings?: ReviewFindingsSnapshot,
+  reassessment?: ReviewReassessmentSnapshot,
+): readonly ReviewSynthesisDiagnostic[] {
   const diagnostics: ReviewSynthesisDiagnostic[] = [];
   const revisions = [
     protocol.revision,
@@ -381,6 +397,16 @@ function synthesisDiagnostics(
   if (new Set(revisions).size !== 1) {
     diagnostics.push(diagnostic("review-revision-mismatch", `Review inputs do not share one exact revision (${revisions.join(", ")}).`));
   }
+  return diagnostics;
+}
+
+function processDiagnostics(
+  protocol: ReviewStudySnapshot,
+  search: ReviewSearchSnapshot,
+  evidence: ReviewEvidenceSnapshot,
+  reassessment?: ReviewReassessmentSnapshot,
+): readonly ReviewSynthesisDiagnostic[] {
+  const diagnostics: ReviewSynthesisDiagnostic[] = [];
   if (protocol.protocol.status !== "frozen") {
     diagnostics.push(diagnostic("protocol-draft", "The review protocol must be frozen before derived output is published."));
   }
@@ -416,7 +442,11 @@ function synthesisDiagnostics(
       ),
     );
   }
+  return diagnostics;
+}
 
+function screeningDiagnostics(screening: ReviewScreeningSnapshot): readonly ReviewSynthesisDiagnostic[] {
+  const diagnostics: ReviewSynthesisDiagnostic[] = [];
   const conflicts = screening.records.filter(
     (record) => record.titleAbstract.outcome === "conflict" || record.fullText.outcome === "conflict",
   );
@@ -447,10 +477,30 @@ function synthesisDiagnostics(
       ),
     );
   }
+  return diagnostics;
+}
 
+function evidenceDiagnostics(
+  search: ReviewSearchSnapshot,
+  screening: ReviewScreeningSnapshot,
+  evidence: ReviewEvidenceSnapshot,
+): readonly ReviewSynthesisDiagnostic[] {
   const includedIds = new Set(
     screening.records.filter((record) => record.finalInclusion.outcome === "include").map((record) => record.record.id),
   );
+  const includedEvidence = evidence.records.filter((record) => includedIds.has(record.record.id));
+  return [
+    ...evidenceCompletenessDiagnostics(includedIds, includedEvidence, evidence),
+    ...evidenceProvenanceDiagnostics(search, includedIds, includedEvidence, evidence),
+  ];
+}
+
+function evidenceCompletenessDiagnostics(
+  includedIds: ReadonlySet<string>,
+  includedEvidence: ReviewEvidenceSnapshot["records"],
+  evidence: ReviewEvidenceSnapshot,
+): readonly ReviewSynthesisDiagnostic[] {
+  const diagnostics: ReviewSynthesisDiagnostic[] = [];
   const evidenceByRecord = new Map(evidence.records.map((record) => [record.record.id, record] as const));
   const missingEvidenceRecords = [...includedIds].filter((recordId) => !evidenceByRecord.has(recordId));
   if (missingEvidenceRecords.length > 0) {
@@ -462,7 +512,6 @@ function synthesisDiagnostics(
       ),
     );
   }
-  const includedEvidence = evidence.records.filter((record) => includedIds.has(record.record.id));
   const appraisalIncomplete = includedEvidence.filter((record) => !record.qualityComplete);
   if (appraisalIncomplete.length > 0) {
     diagnostics.push(
@@ -485,6 +534,16 @@ function synthesisDiagnostics(
       ),
     );
   }
+  return diagnostics;
+}
+
+function evidenceProvenanceDiagnostics(
+  search: ReviewSearchSnapshot,
+  includedIds: ReadonlySet<string>,
+  includedEvidence: ReviewEvidenceSnapshot["records"],
+  evidence: ReviewEvidenceSnapshot,
+): readonly ReviewSynthesisDiagnostic[] {
+  const diagnostics: ReviewSynthesisDiagnostic[] = [];
   const appraisalWithoutProvenance = includedEvidence.flatMap((record) =>
     latestValues(record.qualityValues, (value) => value.questionId)
       .filter((value) => value.evidence === null)
