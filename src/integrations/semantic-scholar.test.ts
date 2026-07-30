@@ -134,17 +134,22 @@ describe("Semantic Scholar metadata integration", () => {
   it("bounds forward citations and fingerprints their canonical content", async () => {
     const data = Array.from({ length: 129 }, (_, index) => ({
       citingPaper: semanticScholarPaper({
+        authors: Array.from({ length: 101 }, (__, authorIndex) => ({ name: `Author ${authorIndex}` })),
         externalIds: { DOI: `10.1000/citing-${index}` },
         paperId: `citing-${index}`,
       }),
     }));
     const first = await fetchSemanticScholarCitations("10.1000/seed", "", async () => Response.json({ data }));
+    const exactBoundary = await fetchSemanticScholarCitations("10.1000/seed", "", async () => Response.json({ data: data.slice(0, 128) }));
     const second = await fetchSemanticScholarCitations("10.1000/seed", "", async () =>
       Response.json({ data: [{ citingPaper: semanticScholarPaper({ externalIds: { DOI: "10.1000/different" } }) }] }),
     );
 
     expect(first.candidates).toHaveLength(128);
+    expect(first.candidates[0]?.authors.split("; ")).toHaveLength(100);
+    expect(first.candidates[0]?.authors).not.toContain("Author 100");
     expect(first.truncated).toBe(true);
+    expect(exactBoundary.truncated).toBe(false);
     expect(first.responseId).not.toBe(second.responseId);
   });
 
@@ -240,6 +245,61 @@ describe("Semantic Scholar metadata integration", () => {
     expect(url.searchParams.get("limit")).toBe("5");
     await expect(searchSemanticScholarWorks({ title: "", authors: [], year: "" }, "", fetcher)).resolves.toEqual([]);
     expect(fetcher).toHaveBeenCalledOnce();
+  });
+
+  it("bounds search queries, fields, and result counts", async () => {
+    let observedUrl = "";
+    const matches = await searchSemanticScholarWorks({ title: "x".repeat(4_100), authors: [], year: "" }, "", async (input) => {
+      observedUrl = String(input);
+      return Response.json({
+        data: Array.from({ length: 6 }, (_, index) =>
+          semanticScholarPaper({ externalIds: { DOI: `10.1000/result-${index}` }, paperId: `paper-${index}` }),
+        ),
+      });
+    });
+
+    const url = new URL(observedUrl);
+    expect(url.searchParams.get("query")).toHaveLength(4_000);
+    expect(url.searchParams.get("fields")).toBe("title,abstract,authors,year,venue,url,externalIds,publicationTypes");
+    expect(matches).toHaveLength(5);
+  });
+
+  it("trims and bounds paper fields and discovery identifiers", async () => {
+    const authors = Array.from({ length: 101 }, (_, index) => ({ name: ` Author ${index} ` }));
+    const metadata = await fetchSemanticScholarWork("10.1000/bounded", "", async () =>
+      Response.json(
+        semanticScholarPaper({
+          abstract: " Abstract ",
+          authors,
+          externalIds: {},
+          title: " Bounded paper ",
+          venue: " Venue ",
+        }),
+      ),
+    );
+    expect(metadata).toMatchObject({ abstract: "Abstract", title: "Bounded paper", venue: "Venue" });
+    expect(metadata.authors).toHaveLength(100);
+    expect(metadata.authors).not.toContain("Author 100");
+
+    const longArxiv = `2607.${"1".repeat(600)}`;
+    const longPaperId = "p".repeat(600);
+    const matches = await searchSemanticScholarWorks({ title: "Identifiers", authors: [], year: "" }, "", async () =>
+      Response.json({
+        data: [
+          semanticScholarPaper({
+            externalIds: { ArXiv: ` ${longArxiv} `, PubMed: " 123456 " },
+            paperId: ` ${longPaperId} `,
+          }),
+          semanticScholarPaper({ externalIds: { PubMed: "123x" }, paperId: "invalid-pmid" }),
+        ],
+      }),
+    );
+    expect(matches[0]?.identifiers).toEqual([
+      { scheme: "arxiv", value: longArxiv.slice(0, 500) },
+      { scheme: "pmid", value: "123456" },
+      { scheme: "semantic-scholar", value: longPaperId.slice(0, 500) },
+    ]);
+    expect(matches[1]?.identifiers).toEqual([{ scheme: "semantic-scholar", value: "invalid-pmid" }]);
   });
 
   it("maps every supported identifier and URL fallback exactly", async () => {
