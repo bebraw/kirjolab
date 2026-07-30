@@ -46,22 +46,7 @@ export interface LegacyReviewRegistration extends ReviewResource {
 
 export async function handleReviewsApi(request: Request, env: Env, identity: AuthIdentity): Promise<Response> {
   const url = new URL(request.url);
-  if (url.pathname === "/api/reviews") {
-    try {
-      if (request.method === "GET") {
-        return noStore(await listAvailableReviews(env, identity));
-      }
-      if (request.method === "POST") {
-        const input = await createReviewRequest(request);
-        const resource = await createReviewResource(env, identity, input.title, input.profile);
-        return noStore(publicReview(resource.record), 201);
-      }
-      return methodNotAllowed();
-    } catch (error) {
-      return reviewError(error);
-    }
-  }
-
+  if (url.pathname === "/api/reviews") return await handleReviewCollection(request, env, identity);
   const match = /^\/api\/reviews\/([a-f0-9-]{36})(\/.*)?$/iu.exec(url.pathname);
   if (!match?.[1] || !isReviewId(match[1])) return jsonError("Review not found", 404);
   const reviewId = match[1].toLowerCase();
@@ -71,58 +56,104 @@ export async function handleReviewsApi(request: Request, env: Env, identity: Aut
     if (!resource) return jsonError("Review not found", 404);
     const isDeletionRequest = suffix === "/settings" && request.method === "DELETE";
     if (resource.deletedAt !== null && !isDeletionRequest) return jsonError("Review not found", 404);
-
-    if (suffix === "/" && request.method === "GET") {
-      const [members, projectLinks] = await Promise.all([
-        resource.access.listMembers(identity.email),
-        reviewProjectLinkViews(env, identity, resource.access),
-      ]);
-      return noStore({ review: publicReview(resource.record), members, projectLinks });
-    }
-    if (suffix === "/settings" && request.method === "PATCH") {
-      if (resource.role !== "owner") return jsonError("Only the review owner can change review settings", 403);
-      return noStore(await updateReviewResource(request, env, identity, resource));
-    }
-    if (suffix === "/settings" && request.method === "DELETE") {
-      if (resource.role !== "owner") return jsonError("Only the review owner can permanently delete a review", 403);
-      return await deleteReviewResource(env, identity, resource);
-    }
-    if (suffix === "/members" && request.method === "GET") {
-      return noStore(await resource.access.listMembers(identity.email));
-    }
-    if (suffix === "/members" && request.method === "POST") {
-      return noStore(await inviteReviewMember(request, env, identity, resource), 201);
-    }
-    if (suffix === "/members" && request.method === "DELETE") {
-      await removeReviewMember(request, env, identity, resource);
-      return new Response(null, { status: 204 });
-    }
-    if (suffix === "/project-links" && request.method === "GET") {
-      return noStore(await reviewProjectLinkViews(env, identity, resource.access));
-    }
-    if (suffix === "/project-links" && request.method === "POST") {
-      return noStore(await createReviewProjectLink(request, env, identity, resource), 201);
-    }
-    const projectLinkMatch = /^\/project-links\/([a-f0-9-]{36})$/iu.exec(suffix);
-    if (projectLinkMatch?.[1] && request.method === "DELETE") {
-      await unlinkReviewProject(env, identity, resource, projectLinkMatch[1]);
-      return new Response(null, { status: 204 });
-    }
-
-    const projectContext = await reviewWorkflowProjectContext(request, env, identity, resource);
-    const workflowSuffix = suffix.startsWith("/review-study") ? suffix : `/review-study${suffix === "/" ? "" : suffix}`;
-    return await handleReviewStudyApi(
-      request,
-      resource.study,
-      identity,
-      workflowSuffix,
-      projectContext?.room,
-      projectContext?.workspaceId,
-      { reviewId, linkId: projectContext?.link.id ?? null, profile: resource.record.profile },
-    );
+    return await handleReviewResource(request, env, identity, reviewId, suffix, resource);
   } catch (error) {
     return reviewError(error);
   }
+}
+
+async function handleReviewCollection(request: Request, env: Env, identity: AuthIdentity): Promise<Response> {
+  try {
+    if (request.method === "GET") return noStore(await listAvailableReviews(env, identity));
+    if (request.method === "POST") {
+      const input = await createReviewRequest(request);
+      const resource = await createReviewResource(env, identity, input.title, input.profile);
+      return noStore(publicReview(resource.record), 201);
+    }
+    return methodNotAllowed();
+  } catch (error) {
+    return reviewError(error);
+  }
+}
+
+async function handleReviewResource(
+  request: Request,
+  env: Env,
+  identity: AuthIdentity,
+  reviewId: string,
+  suffix: string,
+  resource: ReviewResource,
+): Promise<Response> {
+  const administration = await handleReviewAdministration(request, env, identity, suffix, resource);
+  if (administration) return administration;
+  const projectContext = await reviewWorkflowProjectContext(request, env, identity, resource);
+  const workflowSuffix = suffix.startsWith("/review-study") ? suffix : `/review-study${suffix === "/" ? "" : suffix}`;
+  return await handleReviewStudyApi(request, resource.study, identity, workflowSuffix, projectContext?.room, projectContext?.workspaceId, {
+    reviewId,
+    linkId: projectContext?.link.id ?? null,
+    profile: resource.record.profile,
+  });
+}
+
+async function handleReviewAdministration(
+  request: Request,
+  env: Env,
+  identity: AuthIdentity,
+  suffix: string,
+  resource: ReviewResource,
+): Promise<Response | null> {
+  if (suffix === "/" && request.method === "GET") {
+    const [members, projectLinks] = await Promise.all([
+      resource.access.listMembers(identity.email),
+      reviewProjectLinkViews(env, identity, resource.access),
+    ]);
+    return noStore({ review: publicReview(resource.record), members, projectLinks });
+  }
+  if (suffix === "/settings") return await handleReviewSettings(request, env, identity, resource);
+  if (suffix === "/members") return await handleReviewMembers(request, env, identity, resource);
+  if (suffix === "/project-links") return await handleReviewProjectLinks(request, env, identity, resource);
+  const projectLinkId = /^\/project-links\/([a-f0-9-]{36})$/iu.exec(suffix)?.[1];
+  if (!projectLinkId || request.method !== "DELETE") return null;
+  await unlinkReviewProject(env, identity, resource, projectLinkId);
+  return new Response(null, { status: 204 });
+}
+
+async function handleReviewSettings(
+  request: Request,
+  env: Env,
+  identity: AuthIdentity,
+  resource: ReviewResource,
+): Promise<Response | null> {
+  if (request.method === "PATCH") {
+    if (resource.role !== "owner") return jsonError("Only the review owner can change review settings", 403);
+    return noStore(await updateReviewResource(request, env, identity, resource));
+  }
+  if (request.method === "DELETE") {
+    if (resource.role !== "owner") return jsonError("Only the review owner can permanently delete a review", 403);
+    return await deleteReviewResource(env, identity, resource);
+  }
+  return null;
+}
+
+async function handleReviewMembers(request: Request, env: Env, identity: AuthIdentity, resource: ReviewResource): Promise<Response | null> {
+  if (request.method === "GET") return noStore(await resource.access.listMembers(identity.email));
+  if (request.method === "POST") return noStore(await inviteReviewMember(request, env, identity, resource), 201);
+  if (request.method === "DELETE") {
+    await removeReviewMember(request, env, identity, resource);
+    return new Response(null, { status: 204 });
+  }
+  return null;
+}
+
+async function handleReviewProjectLinks(
+  request: Request,
+  env: Env,
+  identity: AuthIdentity,
+  resource: ReviewResource,
+): Promise<Response | null> {
+  if (request.method === "GET") return noStore(await reviewProjectLinkViews(env, identity, resource.access));
+  if (request.method === "POST") return noStore(await createReviewProjectLink(request, env, identity, resource), 201);
+  return null;
 }
 
 export async function createReviewResource(
