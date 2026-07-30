@@ -439,6 +439,7 @@ export function renderHomePage(
               </library-tools-menu>
             </div>
             <library-reference-list class="reference-library-list" id="reference-library-list"><div class="empty-state">Loading library…</div></library-reference-list>
+            <open-access-pdf-dialog id="open-access-pdf-dialog"></open-access-pdf-dialog>
             <reference-reconciliation-panel class="mt-6 border-t border-app-line pt-5" id="reference-reconciliation" aria-labelledby="reference-reconciliation-heading" hidden></reference-reconciliation-panel>
             <web-snapshot-comparison class="mt-6 hidden border-t border-app-line pt-5" id="web-snapshot-comparison" aria-live="polite"></web-snapshot-comparison>
             <citation-network-workspace class="mt-6 border-t border-app-line pt-5" id="citation-network" aria-labelledby="citation-network-heading" hidden>

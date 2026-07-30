@@ -13,7 +13,8 @@ export interface LibraryReferenceSummaryData {
 
 export type LibraryReferenceSummaryAction =
   | { readonly action: "open-pdf"; readonly artifact: LibraryPdfArtifact }
-  | { readonly action: "open-citation-network"; readonly referenceId: string };
+  | { readonly action: "open-citation-network"; readonly referenceId: string }
+  | { readonly action: "find-open-pdf"; readonly reference: BibliographicRecord };
 
 export const libraryReferenceSummaryActionEvent = "library-reference-summary-action";
 
@@ -74,7 +75,16 @@ export class LibraryReferenceSummary extends ProjectReferenceMutationElement {
                 PDF
               </button>
             `
-          : nothing}
+          : reference.doi
+            ? html`<button
+                class="button-secondary"
+                type="button"
+                title=${`Find an open-access PDF for ${displayTitle}`}
+                @click=${() => this.emitAction({ action: "find-open-pdf", reference })}
+              >
+                Find PDF
+              </button>`
+            : nothing}
         ${projectApiBase
           ? linkedCitationAlias
             ? html`

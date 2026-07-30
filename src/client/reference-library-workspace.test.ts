@@ -15,6 +15,7 @@ import { libraryPdfUploadOutcomeEvent, LibraryPdfUploadControl } from "./library
 import { libraryPdfUploadRevealEvent, LibraryPdfUploadStatus } from "./library-pdf-upload-status";
 import { libraryToolsActionEvent, libraryToolsArchiveRefreshEvent, LibraryToolsMenu } from "./library-tools-menu";
 import { ReferenceLibraryFilterPanel, referenceLibraryFilterChangeEvent } from "./reference-library-filters";
+import { OpenAccessPdfDialog } from "./open-access-pdf-dialog";
 import { ReferenceLibraryWorkspace } from "./reference-library-workspace";
 import { referenceReconciliationOutcomeEvent, ReferenceReconciliationPanel } from "./reference-reconciliation-panel";
 import { projectReferenceChangedEvent } from "./project-reference-mutation";
@@ -42,6 +43,7 @@ function setup() {
     "library-reference-list": new LibraryReferenceList(),
     "library-reference-import-control": new LibraryReferenceImportControl(),
     "library-tools-menu": new LibraryToolsMenu(),
+    "open-access-pdf-dialog": new OpenAccessPdfDialog(),
     "reference-library-filters": new ReferenceLibraryFilterPanel(),
     "reference-reconciliation-panel": new ReferenceReconciliationPanel(),
     "unidentified-pdf-list": new UnidentifiedPdfList(),

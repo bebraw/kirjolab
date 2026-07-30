@@ -52,7 +52,7 @@ const reference = {
   authors: ["Jane Doe"],
   year: "2026",
   venue: "Journal",
-  doi: "",
+  doi: "10.1000/useful",
   url: "",
   abstract: "",
   provenance: {},
@@ -106,9 +106,11 @@ describe("library reference summary", () => {
     });
     summary.emitForTest({ action: "open-pdf", artifact });
     summary.emitForTest({ action: "open-citation-network", referenceId: reference.id });
+    summary.emitForTest({ action: "find-open-pdf", reference });
     expect(actions).toEqual([
       { action: "open-pdf", artifact },
       { action: "open-citation-network", referenceId: reference.id },
+      { action: "find-open-pdf", reference },
     ]);
   });
 

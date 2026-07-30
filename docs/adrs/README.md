@@ -210,7 +210,7 @@ No accepted ADRs are awaiting implementation.
 | [ADR-192](./implemented/ADR-192-bulk-accept-snowball-candidates.md)                       | Implemented          | Accept a bounded reviewed citation-expansion batch in one owner-library transaction.                          |
 | [ADR-193](./implemented/ADR-193-persist-citation-research-queue.md)                       | Implemented          | Persist a bounded explore-next queue with citation seed and direction provenance.                             |
 | [ADR-194](./implemented/ADR-194-report-live-citation-provider-coverage.md)                | Implemented          | Report live advisory citation-provider coverage through production bounded adapters.                          |
-| [ADR-195](./proposed/ADR-195-resolve-open-access-pdfs.md)                                 | Proposed             | Resolve and explicitly import open-access PDFs without accepting arbitrary browser URLs.                      |
+| [ADR-195](./implemented/ADR-195-resolve-open-access-pdfs.md)                              | Implemented          | Resolve and explicitly import open-access PDFs without accepting arbitrary browser URLs.                      |
 
 ## Creating A New ADR
 

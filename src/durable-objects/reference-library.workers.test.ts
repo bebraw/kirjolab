@@ -5,6 +5,30 @@ import type { LibraryPdfArtifact, WebCaptureRegistration } from "../domain/refer
 import { ReferenceLibrary } from "./reference-library";
 
 describe("ReferenceLibrary in the Workers runtime", () => {
+  it("atomically attaches a fingerprinted PDF to an existing reference", async () => {
+    const library = env.REFERENCE_LIBRARIES.getByName(`oa-pdf-${crypto.randomUUID()}`);
+    const [imported] = await library.importBibTeX("@article{open2026, title={Open paper}, doi={10.1000/open}}", "owner@example.test");
+    const reference = imported!.reference;
+    const artifact: LibraryPdfArtifact = {
+      id: crypto.randomUUID(),
+      referenceId: reference.id,
+      name: "open2026.pdf",
+      contentType: "application/pdf",
+      size: 100,
+      objectKey: `libraries/owner/${crypto.randomUUID()}.pdf`,
+      fingerprint: "sha256:open-pdf",
+      rights: "unknown",
+      createdAt: "2026-07-30T09:00:00.000Z",
+    };
+
+    expect(await library.attachPdf(reference.id, artifact)).toMatchObject({ created: true, artifact });
+    expect(await library.attachPdf(reference.id, { ...artifact, id: crypto.randomUUID() })).toMatchObject({
+      created: false,
+      artifact,
+    });
+    expect((await library.getSnapshot()).artifacts).toContainEqual(artifact);
+  });
+
   it("bounds ephemeral metadata previews and invalidates them after a metadata change", async () => {
     const library = env.REFERENCE_LIBRARIES.getByName(`metadata-preview-cache-${crypto.randomUUID()}`);
     const [imported] = await library.importBibTeX("@manual{guide, title={Cached Guide}}", "owner@example.test");

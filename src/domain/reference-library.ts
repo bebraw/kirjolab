@@ -13,3 +13,4 @@ export * from "./reference-library/reconciliation";
 export * from "./reference-library/research";
 export * from "./reference-library/snapshot";
 export * from "./reference-library/web-sources";
+export * from "./open-access-pdf";

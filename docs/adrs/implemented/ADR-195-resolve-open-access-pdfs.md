@@ -1,6 +1,6 @@
 # ADR-195: Resolve Open-Access PDFs Explicitly
 
-**Status:** Proposed
+**Status:** Implemented
 
 **Date:** 2026-07-30
 
@@ -51,7 +51,8 @@ an arbitrary download URL. The server will:
   `%PDF-` file signature;
 - retain final URL, provider record identity, observed license, manuscript
   version, retrieval time, and content fingerprint as artifact provenance;
-- always store the imported artifact as owner-private initially; and
+- always store the imported artifact with owner-only access and sharing rights
+  unknown initially; and
 - register it through the existing atomic PDF draft path so highlight and
   reference analysis queue automatically.
 

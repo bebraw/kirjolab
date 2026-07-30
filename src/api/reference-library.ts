@@ -26,6 +26,8 @@ import {
   type LibraryPdfNote,
   type LibraryPdfPoint,
   type MetadataRefinementPreview,
+  isOpenAccessPdfImportInput,
+  type OpenAccessPdfProvenance,
   type PdfDraftResult,
   type PdfReferenceCandidateReviewResult,
   type PdfReferenceReviewQueue,
@@ -78,6 +80,7 @@ import {
   searchCrossrefWorks,
 } from "../integrations/crossref";
 import { fetchDataCiteWork } from "../integrations/datacite";
+import { discoverOpenAccessPdf, downloadOpenAccessPdf, refetchOpenAccessPdfCandidate } from "../integrations/open-access-pdf";
 import { fetchOpenAlexWork, searchOpenAlexWorks } from "../integrations/openalex";
 import {
   fetchSemanticScholarCitations,
@@ -114,6 +117,7 @@ interface ReferenceLibraryApi {
   importBibTeX(source: string, actor: string): Promise<ReferenceImportItem[]>;
   registerPdf(artifact: LibraryPdfArtifact): Promise<LibraryPdfArtifact>;
   createPdfDraft(artifact: LibraryPdfArtifact, actor: string): Promise<PdfDraftResult>;
+  attachPdf(referenceId: string, artifact: LibraryPdfArtifact): Promise<PdfDraftResult>;
   identifyPdf(artifactId: string, referenceId: string): Promise<LibraryPdfArtifact>;
   setArtifactRights(artifactId: string, rights: LibraryPdfArtifact["rights"]): Promise<LibraryPdfArtifact>;
   archiveReference(referenceId: string, archived: boolean): Promise<BibliographicRecord>;
@@ -667,6 +671,12 @@ async function handleLibraryCitationReviewRoute(context: ReferenceLibraryRouteCo
 
 async function handleLibraryPdfRoutes(context: ReferenceLibraryRouteContext): Promise<Response | null> {
   const { request, suffix, identity, env, library } = context;
+  const openPdfMatch = /^\/references\/([0-9a-f-]{36})\/open-pdf\/(discover|import)$/iu.exec(suffix);
+  if (openPdfMatch?.[1] && openPdfMatch[2] && request.method === "POST") {
+    return openPdfMatch[2] === "discover"
+      ? await discoverReferenceOpenPdf(openPdfMatch[1], context)
+      : await importReferenceOpenPdf(openPdfMatch[1], context);
+  }
   if (suffix === "/pdfs" && request.method === "POST") {
     return await uploadLibraryPdf(request, identity.ownerKey, identity.email, env, library);
   }
@@ -679,6 +689,85 @@ async function handleLibraryPdfRoutes(context: ReferenceLibraryRouteContext): Pr
   const identificationResponse = await handleLibraryPdfIdentificationRoute(context);
   if (identificationResponse) return identificationResponse;
   return await handleLibraryPdfRightsRoute(context);
+}
+
+async function discoverReferenceOpenPdf(referenceId: string, context: ReferenceLibraryRouteContext): Promise<Response> {
+  const reference = (await context.library.getReferences([referenceId]))[0];
+  if (!reference) return jsonError("Library reference not found", 404);
+  if (!reference.doi) return jsonError("A DOI is required to find an open PDF", 409);
+  const candidate = await discoverOpenAccessPdf(
+    reference.doi,
+    { openAlexApiKey: context.env.OPENALEX_API_KEY, contactEmail: context.env.CROSSREF_MAILTO },
+    context.fetchExternal,
+  );
+  return Response.json({ candidate }, noStore());
+}
+
+async function importReferenceOpenPdf(referenceId: string, context: ReferenceLibraryRouteContext): Promise<Response> {
+  const body: unknown = await context.request.json();
+  if (!isOpenAccessPdfImportInput(body)) return jsonError("Invalid open PDF import", 400);
+  const reference = (await context.library.getReferences([referenceId]))[0];
+  if (!reference) return jsonError("Library reference not found", 404);
+  if (!reference.doi) return jsonError("A DOI is required to import an open PDF", 409);
+  const candidate = await refetchOpenAccessPdfCandidate(
+    body.provider,
+    reference.doi,
+    { openAlexApiKey: context.env.OPENALEX_API_KEY, contactEmail: context.env.CROSSREF_MAILTO },
+    context.fetchExternal,
+  );
+  if (!candidate || candidate.fingerprint !== body.fingerprint) {
+    return jsonError("Open PDF metadata changed; review the current discovery before importing", 409);
+  }
+  const downloaded = await downloadOpenAccessPdf(candidate.pdfUrl, context.fetchExternal);
+  const id = crypto.randomUUID();
+  const retrievedAt = new Date().toISOString();
+  const objectKey = `libraries/${context.identity.ownerKey}/${id}.pdf`;
+  const provenance: OpenAccessPdfProvenance = {
+    provider: candidate.provider,
+    providerRecordId: candidate.providerRecordId,
+    finalUrl: downloaded.finalUrl,
+    license: candidate.license,
+    version: candidate.version,
+    retrievedAt,
+    contentFingerprint: downloaded.fingerprint,
+  };
+  await context.env.PAPERS.put(objectKey, downloaded.bytes, {
+    httpMetadata: { contentType: "application/pdf" },
+    customMetadata: {
+      acquisition: "open-access-provider",
+      provider: provenance.provider,
+      providerRecordId: provenance.providerRecordId,
+      finalUrl: provenance.finalUrl,
+      license: provenance.license,
+      manuscriptVersion: provenance.version,
+      retrievedAt: provenance.retrievedAt,
+      contentFingerprint: provenance.contentFingerprint,
+    },
+  });
+  const artifact: LibraryPdfArtifact = {
+    id,
+    referenceId,
+    name: safeFilename(`${reference.referenceKey || "paper"}.pdf`),
+    contentType: "application/pdf",
+    size: downloaded.bytes.byteLength,
+    objectKey,
+    fingerprint: downloaded.fingerprint,
+    rights: "unknown",
+    createdAt: retrievedAt,
+  };
+  let result: PdfDraftResult;
+  try {
+    result = await context.library.attachPdf(referenceId, artifact);
+  } catch (error) {
+    await context.env.PAPERS.delete(objectKey);
+    throw error;
+  }
+  if (!result.created) await context.env.PAPERS.delete(objectKey);
+  await Promise.all([
+    enqueueArtifactAnalysis(context.identity.ownerKey, result.artifact.id, "pdf-highlights", context.env, context.library),
+    enqueueArtifactAnalysis(context.identity.ownerKey, result.artifact.id, "pdf-references", context.env, context.library),
+  ]);
+  return Response.json({ ...result, provenance }, { status: result.created ? 201 : 200, ...noStore() });
 }
 
 async function handleLibraryPdfReferenceReviewRoute(context: ReferenceLibraryRouteContext): Promise<Response | null> {

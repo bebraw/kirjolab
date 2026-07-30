@@ -90,6 +90,79 @@ const citationNetwork: CitationNetwork = { projectId: null, nodes: [], edges: []
 afterEach(() => vi.unstubAllGlobals());
 
 describe("reference library API", () => {
+  it("discovers, fingerprint-verifies, stores, attaches, and queues an open PDF", async () => {
+    const bucket = new MemoryR2Bucket();
+    const fixture = apiFixture(bucket);
+    const doiReference = { ...reference, doi: "10.1000/open" };
+    fixture.library.getReferences.mockResolvedValue([doiReference]);
+    const provider = {
+      id: "https://openalex.org/W123",
+      best_oa_location: {
+        is_oa: true,
+        landing_page_url: "https://repository.example/paper",
+        pdf_url: "https://repository.example/paper.pdf",
+        license: "cc-by",
+        version: "acceptedVersion",
+      },
+    };
+    const fetchExternal = vi.fn(async (input: string | URL | Request) => {
+      const url = input instanceof Request ? input.url : input.toString();
+      return url.startsWith("https://api.openalex.org/")
+        ? Response.json(provider)
+        : new Response(new TextEncoder().encode("%PDF-test"), { headers: { "content-type": "application/pdf" } });
+    });
+    const env = { ...fixture.env, OPENALEX_API_KEY: "openalex-key" };
+
+    const discovery = await handleReferenceLibraryApi(
+      new Request(`https://example.test/api/library/references/${reference.id}/open-pdf/discover`, { method: "POST" }),
+      env,
+      identity,
+      fetchExternal,
+    );
+    expect(discovery.status).toBe(200);
+    const discovered = (await discovery.json()) as { candidate: { provider: "openalex"; fingerprint: string } };
+
+    const imported = await handleReferenceLibraryApi(
+      jsonRequest(`/api/library/references/${reference.id}/open-pdf/import`, discovered.candidate),
+      env,
+      identity,
+      fetchExternal,
+    );
+
+    expect(imported.status).toBe(201);
+    expect(fixture.library.attachPdf).toHaveBeenCalledWith(
+      reference.id,
+      expect.objectContaining({ referenceId: reference.id, rights: "unknown", fingerprint: expect.stringMatching(/^sha256:/u) }),
+    );
+    expect(bucket.size).toBe(1);
+    expect(fixture.library.queueArtifactAnalysis).toHaveBeenCalledTimes(2);
+    expect(fixture.sendArtifactAnalysis).toHaveBeenCalledTimes(2);
+    await expect(imported.json()).resolves.toMatchObject({
+      provenance: { provider: "openalex", license: "cc-by", version: "acceptedVersion" },
+    });
+  });
+
+  it("rejects an open-PDF import when provider metadata changed after review", async () => {
+    const fixture = apiFixture();
+    fixture.library.getReferences.mockResolvedValue([{ ...reference, doi: "10.1000/open" }]);
+    const response = await handleReferenceLibraryApi(
+      jsonRequest(`/api/library/references/${reference.id}/open-pdf/import`, {
+        provider: "openalex",
+        fingerprint: `sha256:${"a".repeat(64)}`,
+      }),
+      { ...fixture.env, OPENALEX_API_KEY: "key" },
+      identity,
+      async () =>
+        Response.json({
+          id: "https://openalex.org/W1",
+          best_oa_location: { is_oa: true, pdf_url: "https://repository.example/current.pdf" },
+        }),
+    );
+
+    expect(response.status).toBe(409);
+    expect(fixture.library.attachPdf).not.toHaveBeenCalled();
+  });
+
   it("returns only the selected owner library and supports archived navigation", async () => {
     const fixture = apiFixture();
     const response = await handleReferenceLibraryApi(
@@ -1761,6 +1834,7 @@ function apiFixture(bucket = new MemoryR2Bucket()) {
     importBibTeX: vi.fn(async () => [{ reference, suggestedAlias: "guide", created: true }]),
     registerPdf: vi.fn(async () => artifact),
     createPdfDraft: vi.fn(async () => ({ reference, artifact, created: true })),
+    attachPdf: vi.fn(async () => ({ reference, artifact, created: true })),
     identifyPdf: vi.fn(async () => artifact),
     setArtifactRights: vi.fn(async () => ({ ...artifact, rights: "shareable" as const })),
     archiveReference: vi.fn(async () => ({ ...reference, archivedAt: now })),

@@ -37,6 +37,7 @@ import {
   type LibraryToolsArchiveRefresh,
 } from "./library-tools-menu";
 import type { ExistingPdfUpload } from "./pdf-upload-queue";
+import { OpenAccessPdfDialog, openAccessPdfImportedEvent } from "./open-access-pdf-dialog";
 import { projectReferenceChangedEvent, type ProjectReferenceChanged } from "./project-reference-mutation";
 import { projectResearchChangedEvent, type ProjectResearchChanged } from "./project-research-mutation";
 import { ReferenceLibraryFilterPanel, referenceLibraryFilterChangeEvent } from "./reference-library-filters";
@@ -118,7 +119,8 @@ export class ReferenceLibraryWorkspace extends LightDomHost {
     this.addEventListener(libraryReferenceSummaryActionEvent, (event) => {
       const action = (event as CustomEvent<LibraryReferenceSummaryAction>).detail;
       if (action.action === "open-pdf") this.openPdf(action.artifact);
-      else void this.openCitationNetwork(action.referenceId);
+      else if (action.action === "open-citation-network") void this.openCitationNetwork(action.referenceId);
+      else void this.element("open-access-pdf-dialog", OpenAccessPdfDialog)?.open(action.reference);
     });
     this.addEventListener(libraryReferencePersonalRefreshEvent, (event) => {
       void this.completeRefresh(
@@ -182,6 +184,12 @@ export class ReferenceLibraryWorkspace extends LightDomHost {
       void this.completeRefresh(
         (event as CustomEvent<string>).detail,
         "The web source was captured, but the refreshed Library could not be loaded.",
+      );
+    });
+    this.addEventListener(openAccessPdfImportedEvent, (event) => {
+      void this.completeRefresh(
+        (event as CustomEvent<string>).detail,
+        "The PDF was imported, but the refreshed Library could not be loaded.",
       );
     });
     this.addEventListener(libraryToolsActionEvent, (event) => {

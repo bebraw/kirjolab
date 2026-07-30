@@ -66,6 +66,11 @@ memory and makes citation aliases compete with stable source identity.
   the private artifact atomically. Researchers may enrich metadata later;
   automatic services may suggest values but never fabricate or silently accept
   them.
+- A DOI-backed source without a PDF may explicitly discover a provider-declared
+  open-access copy, review its location, license, and manuscript version, and
+  import it through the fingerprint-verified server acquisition contract in
+  `specs/open-access-pdf-acquisition/spec.md`. The owner-only artifact attaches
+  atomically to the existing source and enters both PDF analysis queues.
 - The browser may coordinate an ordered batch of at most 20 PDFs through the
   same atomic upload endpoint. Per-file failure does not stop later uploads;
   only failed files remain in an ephemeral retry queue. Batch intake performs no

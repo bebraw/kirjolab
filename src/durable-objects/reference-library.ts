@@ -1422,6 +1422,35 @@ export class ReferenceLibrary extends DurableObject<Env> {
 
   // Invoked across the Durable Object RPC boundary.
   // fallow-ignore-next-line unused-class-member
+  attachPdf(referenceId: string, artifact: LibraryPdfArtifact): PdfDraftResult {
+    const reference = this.#reference(referenceId);
+    if (reference.deletedAt) throw new Error("Library reference not found");
+    if (artifact.referenceId !== referenceId) throw new Error("Imported PDF must identify the selected reference");
+    const existingRow = this.ctx.storage.sql
+      .exec<ArtifactRow>("SELECT * FROM artifacts WHERE fingerprint = ? LIMIT 1", artifact.fingerprint)
+      .toArray()[0];
+    if (existingRow) {
+      const existing = artifactFromRow(existingRow);
+      if (existing.referenceId !== referenceId) throw new Error("This PDF is already attached to another Library reference");
+      return { reference, artifact: existing, created: false };
+    }
+    this.ctx.storage.sql.exec(
+      `INSERT INTO artifacts (id, reference_id, name, content_type, size, object_key, fingerprint, rights, created_at)
+       VALUES (?, ?, ?, 'application/pdf', ?, ?, ?, ?, ?)`,
+      artifact.id,
+      referenceId,
+      artifact.name,
+      artifact.size,
+      artifact.objectKey,
+      artifact.fingerprint,
+      artifact.rights,
+      artifact.createdAt,
+    );
+    return { reference, artifact, created: true };
+  }
+
+  // Invoked across the Durable Object RPC boundary.
+  // fallow-ignore-next-line unused-class-member
   getArtifactAnalysis(artifactId: string, kind: ArtifactAnalysisKind): ArtifactAnalysis | null {
     return this.#artifactAnalyses.get(artifactId, kind);
   }

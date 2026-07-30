@@ -2804,6 +2804,55 @@
     font-size: 0.65rem;
   }
 
+  .open-access-pdf-dialog h2 {
+    margin-top: 0.25rem;
+    color: var(--color-app-ink);
+    font-size: 1.2rem;
+    font-weight: 650;
+  }
+
+  .open-access-pdf-dialog .ui-dialog-header > p:last-child,
+  .open-access-pdf-note {
+    margin-top: 0.35rem;
+    color: var(--color-app-text-soft);
+    font-family: var(--font-sans);
+    font-size: 0.72rem;
+    line-height: 1.55;
+  }
+
+  .open-access-pdf-body {
+    display: grid;
+    gap: 1rem;
+  }
+
+  .open-access-pdf-facts {
+    display: grid;
+    gap: 0.5rem;
+  }
+
+  .open-access-pdf-facts > div {
+    display: grid;
+    grid-template-columns: 6rem minmax(0, 1fr);
+    gap: 0.75rem;
+  }
+
+  .open-access-pdf-facts dt {
+    color: var(--color-app-text-soft);
+    font-family: var(--font-sans);
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .open-access-pdf-location {
+    display: grid;
+    gap: 0.35rem;
+    overflow-wrap: anywhere;
+    font-family: var(--font-sans);
+    font-size: 0.75rem;
+  }
+
   .library-reference-details {
     display: contents;
   }
