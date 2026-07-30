@@ -278,6 +278,12 @@ memory and makes citation aliases compete with stable source identity.
   annotation kind and exact page, reports the visible result count, preserves
   direct page actions, and exports a page-ordered Markdown summary without
   changing or sharing the underlying annotations.
+  Explicit reading controls provide fit-width, fit-page, and actual-size modes,
+  bounded zoom from 50% to 400% in single and flowing layouts, clockwise
+  rotation, and a two-page spread with the cover alone on the right. Spread and
+  continuous layouts retain bounded rendering, links, text selection, and page
+  tracking; choosing coordinate-sensitive note or drawing tools returns to
+  single-page mode.
 - Saving a text selection whose normalized rectangles overlap a saved
   highlight on the same artifact page extends that stable highlight instead of
   creating a second resource. Geometry, quotation text, and distinct comments

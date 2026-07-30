@@ -14,6 +14,19 @@ export function renderLibraryPdfRail(): string {
                   ${renderIcon("continuousPages")}<span class="sr-only" data-pdf-display-label>Continuous scroll</span>
                 </button>
               </div>
+              <div class="library-pdf-reading-tools" role="toolbar" aria-label="PDF reading tools">
+                <button class="library-pdf-rail-button button-icon" id="open-library-pdf-search" type="button" aria-label="Search this PDF" title="Search this PDF" data-touch-target="true">
+                  ${renderIcon("search")}<span class="sr-only">Search PDF</span>
+                </button>
+                <button class="library-pdf-rail-button button-icon" id="open-library-pdf-navigation" type="button" aria-label="Open PDF contents and thumbnails" title="Contents and thumbnails" data-touch-target="true">
+                  ${renderIcon("pages")}<span class="sr-only">PDF navigation</span>
+                </button>
+                <button class="library-pdf-rail-button button-icon" id="library-pdf-zoom-out" type="button" aria-label="Zoom out" title="Zoom out" data-touch-target="true">${renderIcon("zoomOut")}</button>
+                <button class="library-pdf-rail-button button-icon" id="library-pdf-fit-mode" type="button" aria-label="Change PDF fit mode" title="Fit width" data-touch-target="true">${renderIcon("fit")}<span class="sr-only" data-pdf-fit-label>Fit width</span></button>
+                <button class="library-pdf-rail-button button-icon" id="library-pdf-zoom-in" type="button" aria-label="Zoom in" title="Zoom in" data-touch-target="true">${renderIcon("zoomIn")}</button>
+                <button class="library-pdf-rail-button button-icon" id="library-pdf-rotate" type="button" aria-label="Rotate clockwise" title="Rotate clockwise" data-touch-target="true">${renderIcon("rotate")}</button>
+                <button class="library-pdf-rail-button button-icon" id="library-pdf-spread" type="button" aria-label="Use two-page view" title="Two-page view" aria-pressed="false" data-touch-target="true">${renderIcon("spread")}</button>
+              </div>
               <library-pdf-annotation-toolbar id="library-pdf-annotation-toolbar">
                 <div class="library-pdf-annotation-tools" role="toolbar" aria-label="PDF tools">
                 <button class="library-pdf-rail-button button-icon" id="library-select-tool" type="button" aria-pressed="false" title="Select and copy text, or edit an existing annotation" data-touch-target="true">
@@ -38,12 +51,6 @@ export function renderLibraryPdfRail(): string {
                   </div>
                 </div>
                 <span class="library-pdf-rail-divider" aria-hidden="true"></span>
-                <button class="library-pdf-rail-button button-icon" id="open-library-pdf-search" type="button" aria-label="Search this PDF" title="Search this PDF" data-touch-target="true">
-                  ${renderIcon("search")}<span class="sr-only">Search PDF</span>
-                </button>
-                <button class="library-pdf-rail-button button-icon" id="open-library-pdf-navigation" type="button" aria-label="Open PDF contents and thumbnails" title="Contents and thumbnails" data-touch-target="true">
-                  ${renderIcon("pages")}<span class="sr-only">PDF navigation</span>
-                </button>
                 <button class="library-pdf-rail-button button-icon" id="download-library-original-pdf" type="button" disabled title="Download the original PDF" data-touch-target="true">
                   ${renderIcon("guide")}<span class="sr-only">Download original PDF</span>
                 </button>

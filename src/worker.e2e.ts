@@ -710,19 +710,22 @@ test("imports, annotates, and exports a private PDF without a project", async ({
   const compactRail = await page.locator(".library-pdf-page-rail").evaluate((rail) => {
     const railBounds = rail.getBoundingClientRect();
     const pageControlsBounds = rail.querySelector<HTMLElement>(".library-pdf-page-controls")?.getBoundingClientRect();
+    const readingToolsBounds = rail.querySelector<HTMLElement>(".library-pdf-reading-tools")?.getBoundingClientRect();
     const annotationToolsBounds = rail.querySelector<HTMLElement>(".library-pdf-annotation-tools")?.getBoundingClientRect();
     const buttons = [...rail.querySelectorAll<HTMLElement>(".library-pdf-annotation-tools .library-pdf-rail-button")]
       .filter((button) => button.offsetParent !== null)
       .map((button) => button.getBoundingClientRect());
     return {
       columns: new Set(buttons.map((button) => Math.round(button.left))).size,
-      groupGap: (annotationToolsBounds?.top ?? 0) - (pageControlsBounds?.bottom ?? 0),
+      pageToReadingGap: (readingToolsBounds?.top ?? 0) - (pageControlsBounds?.bottom ?? 0),
+      readingToAnnotationGap: (annotationToolsBounds?.top ?? 0) - (readingToolsBounds?.bottom ?? 0),
       lastToolBottom: Math.max(...buttons.map((button) => button.bottom)),
       visibleRailBottom: Math.min(railBounds.bottom, window.innerHeight),
     };
   });
   expect(compactRail.columns).toBe(2);
-  expect(compactRail.groupGap).toBeLessThanOrEqual(16);
+  expect(compactRail.pageToReadingGap).toBeLessThanOrEqual(16);
+  expect(compactRail.readingToAnnotationGap).toBeLessThanOrEqual(16);
   expect(compactRail.lastToolBottom).toBeLessThanOrEqual(compactRail.visibleRailBottom);
   await page.locator("#library-draw-tool").click();
   await expect(page.locator("#library-ink-options")).toBeVisible();

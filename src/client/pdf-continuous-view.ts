@@ -39,6 +39,7 @@ export class PdfContinuousView {
   #currentPage = 1;
   #textLayerPointerEvents = "auto";
   #scrollFrame: number | undefined;
+  #rotation = 0;
 
   constructor(options: PdfContinuousViewOptions) {
     this.#container = options.container;
@@ -52,21 +53,28 @@ export class PdfContinuousView {
     return this.#currentPage;
   }
 
-  async open(documentModel: PdfContinuousDocument, runtime: PdfContinuousRuntime, initialPage: number, width: number): Promise<void> {
+  async open(
+    documentModel: PdfContinuousDocument,
+    runtime: PdfContinuousRuntime,
+    initialPage: number,
+    width: number,
+    rotation = 0,
+  ): Promise<void> {
     const generation = ++this.#generation;
     this.#observer?.disconnect();
     this.#observer = null;
     this.#document = documentModel;
     this.#runtime = runtime;
     this.#currentPage = initialPage;
+    this.#rotation = rotation;
     this.#views.clear();
     this.#rendering.clear();
     this.#container.replaceChildren();
 
     const initialPdfPage = await documentModel.getPage(initialPage);
     if (generation !== this.#generation) return;
-    const initialUnscaled = initialPdfPage.getViewport({ scale: 1 });
-    const initialViewport = initialPdfPage.getViewport({ scale: width / initialUnscaled.width });
+    const initialUnscaled = initialPdfPage.getViewport({ scale: 1, rotation });
+    const initialViewport = initialPdfPage.getViewport({ scale: width / initialUnscaled.width, rotation });
     for (let pageNumber = 1; pageNumber <= documentModel.numPages; pageNumber += 1) {
       const view = createPageView(pageNumber, initialViewport.width, initialViewport.height, this.#textLayerPointerEvents);
       this.#views.set(pageNumber, view);
@@ -93,7 +101,7 @@ export class PdfContinuousView {
     const documentModel = this.#document;
     const runtime = this.#runtime;
     if (!documentModel || !runtime) return;
-    await this.open(documentModel, runtime, this.#currentPage, width);
+    await this.open(documentModel, runtime, this.#currentPage, width, this.#rotation);
   }
 
   setTextSelectionEnabled(enabled: boolean): void {
@@ -157,8 +165,8 @@ export class PdfContinuousView {
     const task = (async () => {
       const page = await documentModel.getPage(pageNumber);
       if (generation !== this.#generation) return;
-      const unscaled = page.getViewport({ scale: 1 });
-      const viewport = page.getViewport({ scale: view.pageElement.clientWidth / unscaled.width });
+      const unscaled = page.getViewport({ scale: 1, rotation: this.#rotation });
+      const viewport = page.getViewport({ scale: view.pageElement.clientWidth / unscaled.width, rotation: this.#rotation });
       view.pageElement.style.width = `${viewport.width}px`;
       view.pageElement.style.height = `${viewport.height}px`;
       const annotationsPromise = page.getAnnotations({ intent: "display" });

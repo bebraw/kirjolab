@@ -40,6 +40,11 @@ interface PdfViewerElements {
   highlights: HTMLElement;
   continuousPages: HTMLElement;
   continuousModeButtons: readonly HTMLButtonElement[];
+  fitModeButtons: readonly HTMLButtonElement[];
+  rotateButtons: readonly HTMLButtonElement[];
+  spreadButtons: readonly HTMLButtonElement[];
+  zoomInButtons: readonly HTMLButtonElement[];
+  zoomOutButtons: readonly HTMLButtonElement[];
   pageIndicators: readonly HTMLElement[];
   previousPages: readonly HTMLButtonElement[];
   nextPages: readonly HTMLButtonElement[];
@@ -65,7 +70,8 @@ interface OpenPdfOptions {
 }
 
 export type PdfTextSelectionMode = "copy" | "disabled" | "highlight";
-export type PdfDisplayMode = "continuous" | "single";
+export type PdfDisplayMode = "continuous" | "single" | "spread";
+export type PdfFitMode = "actual" | "page" | "width";
 
 export class PdfEvidenceViewer {
   readonly #elements: PdfViewerElements;
@@ -105,6 +111,8 @@ export class PdfEvidenceViewer {
   #searchTextCache: readonly { readonly page: number; readonly text: string }[] | null = null;
   #documentKey = "";
   #artifactId = "";
+  #fitMode: PdfFitMode = "width";
+  #rotation = 0;
 
   static forDocument(root: Document, presentation: PdfViewerPresentation): PdfEvidenceViewer {
     return new PdfEvidenceViewer(
@@ -120,6 +128,11 @@ export class PdfEvidenceViewer {
           requiredViewerElement(root, "toggle-paper-continuous", HTMLButtonElement),
           requiredViewerElement(root, "toggle-library-paper-continuous", HTMLButtonElement),
         ],
+        fitModeButtons: pdfButtons(root, "pdf-fit-mode"),
+        rotateButtons: pdfButtons(root, "pdf-rotate"),
+        spreadButtons: pdfButtons(root, "pdf-spread"),
+        zoomInButtons: pdfButtons(root, "pdf-zoom-in"),
+        zoomOutButtons: pdfButtons(root, "pdf-zoom-out"),
         pageIndicators: [
           requiredViewerElement(root, "paper-page-indicator", HTMLElement),
           requiredViewerElement(root, "library-paper-page-indicator", HTMLElement),
@@ -168,6 +181,13 @@ export class PdfEvidenceViewer {
     for (const button of elements.continuousModeButtons) {
       button.addEventListener("click", () => void this.setDisplayMode(this.#displayMode === "continuous" ? "single" : "continuous"));
     }
+    for (const button of elements.fitModeButtons) button.addEventListener("click", () => void this.cycleFitMode());
+    for (const button of elements.rotateButtons) button.addEventListener("click", () => void this.rotateClockwise());
+    for (const button of elements.spreadButtons) {
+      button.addEventListener("click", () => void this.setDisplayMode(this.#displayMode === "spread" ? "single" : "spread"));
+    }
+    for (const button of elements.zoomInButtons) button.addEventListener("click", () => void this.adjustZoom(0.25));
+    for (const button of elements.zoomOutButtons) button.addEventListener("click", () => void this.adjustZoom(-0.25));
     elements.textLayer.addEventListener("pointerdown", (event) => this.#startTextSelection(event));
     elements.textLayer.addEventListener("pointerup", () => this.#finishTextSelection());
     elements.textLayer.addEventListener("pointercancel", () => this.#cancelTextSelection());
@@ -195,7 +215,7 @@ export class PdfEvidenceViewer {
 
   async setDisplayMode(mode: PdfDisplayMode): Promise<void> {
     const alreadyPresented =
-      mode === "continuous"
+      mode === "continuous" || mode === "spread"
         ? this.#elements.page.hidden && !this.#elements.continuousPages.hidden
         : !this.#elements.page.hidden && this.#elements.continuousPages.hidden;
     if (mode === this.#displayMode && alreadyPresented) return;
@@ -206,15 +226,13 @@ export class PdfEvidenceViewer {
     const runtime = this.#runtime;
     if (!documentModel || !runtime) return;
     this.clearDraftSelection();
-    this.#zoom = 1;
-    this.#renderedZoom = 1;
-    this.#elements.reader.dataset.zoomed = "false";
-    if (mode === "continuous") {
+    if (mode === "continuous" || mode === "spread") {
       this.#elements.page.hidden = true;
       this.#elements.continuousPages.hidden = false;
-      this.#elements.reader.dataset.displayMode = "continuous";
-      this.#elements.status.textContent = "Preparing continuous view…";
-      await this.#continuousView.open(documentModel, runtime, this.#pageNumber, this.#availablePageWidth());
+      this.#elements.reader.dataset.displayMode = mode;
+      this.#elements.continuousPages.dataset.layout = mode;
+      this.#elements.status.textContent = mode === "spread" ? "Preparing two-page view…" : "Preparing continuous view…";
+      await this.#continuousView.open(documentModel, runtime, this.#pageNumber, this.#flowPageWidth(mode), this.#rotation);
       this.#presentContinuousPage(this.#pageNumber);
       return;
     }
@@ -222,8 +240,39 @@ export class PdfEvidenceViewer {
     this.#elements.continuousPages.hidden = true;
     this.#elements.page.hidden = false;
     delete this.#elements.reader.dataset.displayMode;
+    delete this.#elements.continuousPages.dataset.layout;
     this.#elements.reader.scrollTop = 0;
     await this.#renderPage();
+  }
+
+  async adjustZoom(delta: number): Promise<void> {
+    this.#zoom = adjustPdfZoom(this.#zoom, delta);
+    this.#elements.reader.dataset.zoomed = String(Math.abs(this.#zoom - 1) > 0.01);
+    if (this.#displayMode === "single") await this.#renderPage();
+    else await this.#rerenderFlow();
+  }
+
+  async cycleFitMode(): Promise<void> {
+    this.#fitMode = nextPdfFitMode(this.#fitMode);
+    this.#zoom = 1;
+    this.#fittedWidth = null;
+    this.#syncReadingControls();
+    if (this.#displayMode !== "single") await this.setDisplayMode("single");
+    else await this.#renderPage();
+  }
+
+  async rotateClockwise(): Promise<void> {
+    this.#rotation = nextPdfRotation(this.#rotation);
+    this.#fittedWidth = null;
+    if (this.#displayMode === "single") await this.#renderPage();
+    else await this.#rerenderFlow();
+  }
+
+  async #rerenderFlow(): Promise<void> {
+    const documentModel = this.#document;
+    const runtime = this.#runtime;
+    if (!documentModel || !runtime || this.#displayMode === "single") return;
+    await this.#continuousView.open(documentModel, runtime, this.#pageNumber, this.#flowPageWidth(this.#displayMode), this.#rotation);
   }
 
   async open(options: OpenPdfOptions): Promise<boolean> {
@@ -242,6 +291,7 @@ export class PdfEvidenceViewer {
     this.#elements.page.hidden = false;
     delete this.#elements.reader.dataset.displayMode;
     this.#syncDisplayModeControls();
+    this.#syncReadingControls();
     this.#annotations = options.annotations;
     this.#privateHighlights = options.privateHighlights ?? [];
     this.#focusedAnnotationId = options.focusAnnotationId;
@@ -295,7 +345,7 @@ export class PdfEvidenceViewer {
       return false;
     }
     await this.#renderPage();
-    if (this.#displayMode === "continuous") await this.setDisplayMode("continuous");
+    if (this.#displayMode !== "single") await this.setDisplayMode(this.#displayMode);
     const snapshot = this.#lifecycle.getSnapshot();
     return documentRequest === snapshot.context.documentRequest && snapshot.matches("ready");
   }
@@ -405,7 +455,7 @@ export class PdfEvidenceViewer {
     this.#textSelectionMode = mode;
     this.#elements.textLayer.style.pointerEvents = mode === "disabled" ? "none" : "auto";
     this.#continuousView.setTextSelectionEnabled(mode !== "disabled");
-    if (mode === "disabled" && this.#displayMode === "continuous") void this.setDisplayMode("single");
+    if (mode === "disabled" && this.#displayMode !== "single") void this.setDisplayMode("single");
   }
 
   clearDraftSelection(): void {
@@ -432,7 +482,7 @@ export class PdfEvidenceViewer {
     window.clearTimeout(this.#wheelZoomRenderTimer);
     this.#wheelZoomRenderTimer = undefined;
     this.#fittedWidth = null;
-    if (this.#displayMode === "continuous") await this.#continuousView.resize(this.#availablePageWidth());
+    if (this.#displayMode !== "single") await this.#rerenderFlow();
     else await this.#renderPage();
   }
 
@@ -466,7 +516,7 @@ export class PdfEvidenceViewer {
   }
 
   #handleWheel(event: WheelEvent): void {
-    if (this.#displayMode === "continuous") {
+    if (this.#displayMode !== "single") {
       if (event.ctrlKey) event.preventDefault();
       return;
     }
@@ -525,11 +575,13 @@ export class PdfEvidenceViewer {
     }
     if (!pdfViewerRenderRequestActive(this.#lifecycle.getSnapshot(), renderRequest)) return;
 
-    const unscaled = page.getViewport({ scale: 1 });
+    const unscaled = page.getViewport({ scale: 1, rotation: this.#rotation });
     const availableWidth = this.#fittedWidth ?? this.#availablePageWidth();
     this.#fittedWidth = availableWidth;
+    const availableHeight = Math.max(320, this.#elements.reader.clientHeight - 40);
+    const fittedScale = pdfFittedScale(this.#fitMode, availableWidth, availableHeight, unscaled.width, unscaled.height);
     const renderedZoom = this.#zoom;
-    const viewport = page.getViewport({ scale: (availableWidth / unscaled.width) * renderedZoom });
+    const viewport = page.getViewport({ scale: fittedScale * renderedZoom, rotation: this.#rotation });
     const outputScale = window.devicePixelRatio || 1;
     const renderedCanvas = document.createElement("canvas");
     renderedCanvas.width = Math.floor(viewport.width * outputScale);
@@ -630,6 +682,20 @@ export class PdfEvidenceViewer {
       const label = button.querySelector("[data-pdf-display-label]");
       if (label) label.textContent = continuous ? "Single page" : "Continuous scroll";
     }
+    for (const button of this.#elements.spreadButtons) button.setAttribute("aria-pressed", String(this.#displayMode === "spread"));
+  }
+
+  #syncReadingControls(): void {
+    const label = this.#fitMode === "width" ? "Fit width" : this.#fitMode === "page" ? "Fit page" : "Actual size";
+    for (const button of this.#elements.fitModeButtons) {
+      button.title = label;
+      const text = button.querySelector("[data-pdf-fit-label]");
+      if (text) text.textContent = label;
+    }
+  }
+
+  #flowPageWidth(mode: PdfDisplayMode): number {
+    return pdfFlowPageWidth(this.#availablePageWidth(), this.#zoom, mode);
   }
 
   #bindPageJump(indicator: HTMLElement): void {
@@ -742,7 +808,7 @@ export class PdfEvidenceViewer {
   }
 
   #selectionSource(node: Node): { element: HTMLElement; page: number; text: string } | null {
-    if (this.#displayMode === "continuous") {
+    if (this.#displayMode !== "single") {
       const view = this.#continuousView.pageViewForNode(node);
       return view ? { element: view.pageElement, page: view.page, text: view.text } : null;
     }
@@ -808,7 +874,7 @@ export class PdfEvidenceViewer {
   }
 
   #startTouchGesture(event: TouchEvent): void {
-    if (this.#displayMode === "continuous") return;
+    if (this.#displayMode !== "single") return;
     if (this.#touchTargetsActiveDrawing(event)) {
       event.preventDefault();
       this.#touchPanStart = null;
@@ -978,7 +1044,7 @@ export class PdfEvidenceViewer {
         : null;
     if (!page) return;
     await this.#goToPage(page);
-    if (this.#displayMode === "continuous") return;
+    if (this.#displayMode !== "single") return;
     this.#scrollToPdfDestination(destination);
   }
 
@@ -986,7 +1052,7 @@ export class PdfEvidenceViewer {
     if (!this.#document) return;
     const next = clamp(page, 1, this.#document.numPages);
     if (next === this.#pageNumber) {
-      if (this.#displayMode === "continuous") this.#continuousView.scrollToPage(next);
+      if (this.#displayMode !== "single") this.#continuousView.scrollToPage(next);
       return;
     }
     this.#pageNumber = next;
@@ -995,7 +1061,7 @@ export class PdfEvidenceViewer {
     this.#zoomAnchor = null;
     window.clearTimeout(this.#wheelZoomRenderTimer);
     this.#wheelZoomRenderTimer = undefined;
-    if (this.#displayMode === "continuous") {
+    if (this.#displayMode !== "single") {
       this.#continuousView.scrollToPage(next);
       this.#presentContinuousPage(next);
     } else await this.#renderPage();
@@ -1122,6 +1188,39 @@ function clamp(value: number, minimum: number, maximum: number): number {
   return Math.min(maximum, Math.max(minimum, value));
 }
 
+export function nextPdfFitMode(mode: PdfFitMode): PdfFitMode {
+  return mode === "width" ? "page" : mode === "page" ? "actual" : "width";
+}
+
+export function adjustPdfZoom(zoom: number, delta: number): number {
+  return clamp(zoom + delta, 0.5, 4);
+}
+
+export function nextPdfRotation(rotation: number): number {
+  return (rotation + 90) % 360;
+}
+
+export function pdfFittedScale(
+  mode: PdfFitMode,
+  availableWidth: number,
+  availableHeight: number,
+  pageWidth: number,
+  pageHeight: number,
+): number {
+  if (mode === "actual") return 1;
+  if (mode === "page") return Math.min(availableWidth / pageWidth, availableHeight / pageHeight);
+  return availableWidth / pageWidth;
+}
+
+export function pdfFlowPageWidth(availableWidth: number, zoom: number, mode: PdfDisplayMode): number {
+  const width = availableWidth * zoom;
+  return mode === "spread" ? Math.max(240, (width - 24) / 2) : width;
+}
+
+function pdfButtons(root: Document, suffix: string): HTMLButtonElement[] {
+  return [requiredViewerElement(root, suffix, HTMLButtonElement), requiredViewerElement(root, `library-${suffix}`, HTMLButtonElement)];
+}
+
 function isPdfOutlineSource(
   value: unknown,
 ): value is { readonly title: string; readonly dest: unknown; readonly items?: readonly unknown[] } {
@@ -1163,7 +1262,8 @@ const pdfDisplayModeStorageKey = "kirjolab.pdf.display-mode";
 
 function readPdfDisplayMode(): PdfDisplayMode {
   try {
-    return window.localStorage.getItem(pdfDisplayModeStorageKey) === "continuous" ? "continuous" : "single";
+    const value = window.localStorage.getItem(pdfDisplayModeStorageKey);
+    return value === "continuous" || value === "spread" ? value : "single";
   } catch {
     return "single";
   }

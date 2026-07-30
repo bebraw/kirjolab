@@ -55,6 +55,11 @@ export function renderContextTabs(): string {
               <button id="open-paper-navigation" type="button" aria-label="Open PDF contents and thumbnails" title="Contents and thumbnails">
                 ${renderIcon("pages")}<span class="sr-only">PDF navigation</span>
               </button>
+              <button id="pdf-zoom-out" type="button" aria-label="Zoom PDF out" title="Zoom out">${renderIcon("zoomOut")}</button>
+              <button id="pdf-fit-mode" type="button" aria-label="Change PDF fit mode" title="Fit width">${renderIcon("fit")}<span class="sr-only" data-pdf-fit-label>Fit width</span></button>
+              <button id="pdf-zoom-in" type="button" aria-label="Zoom PDF in" title="Zoom in">${renderIcon("zoomIn")}</button>
+              <button id="pdf-rotate" type="button" aria-label="Rotate PDF clockwise" title="Rotate clockwise">${renderIcon("rotate")}</button>
+              <button id="pdf-spread" type="button" aria-pressed="false" aria-label="Use two-page PDF view" title="Two-page view">${renderIcon("spread")}</button>
             </div>
             <button class="preview-navigation-toggle" id="toggle-preview-navigation" type="button" aria-controls="app-header" aria-pressed="false" aria-label="Hide top navigation" title="Hide top navigation">
               ${renderIcon("chevronUp")}

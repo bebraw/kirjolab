@@ -1,6 +1,7 @@
 import {
   isPdfHighlightAnalysisResult,
   isPdfReferenceAnalysisResult,
+  isPdfTextAnalysisResult,
   type ArtifactAnalysis,
   type ArtifactAnalysisKind,
   type ArtifactAnalysisResult,
@@ -152,7 +153,7 @@ function artifactAnalysisFromRow(row: ArtifactAnalysisRow): ArtifactAnalysis {
 }
 
 function artifactAnalysisKind(value: string): ArtifactAnalysisKind {
-  if (value === "pdf-highlights" || value === "pdf-references") return value;
+  if (value === "pdf-highlights" || value === "pdf-references" || value === "pdf-text") return value;
   throw new Error("Stored artifact analysis kind is invalid");
 }
 
@@ -171,5 +172,6 @@ function artifactAnalysisResult(resultJson: string, kind: ArtifactAnalysisKind):
   }
   if (kind === "pdf-highlights" && isPdfHighlightAnalysisResult(parsed)) return parsed;
   if (kind === "pdf-references" && isPdfReferenceAnalysisResult(parsed)) return parsed;
+  if (kind === "pdf-text" && isPdfTextAnalysisResult(parsed)) return parsed;
   throw new Error("Stored artifact analysis result is invalid");
 }

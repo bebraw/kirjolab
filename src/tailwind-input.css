@@ -2424,6 +2424,16 @@
     min-width: 2.5rem;
   }
 
+  #pdf-context-controls > #paper-status {
+    display: none;
+  }
+
+  #pdf-context-controls > button {
+    width: 2rem;
+    min-width: 2rem;
+    padding-inline: 0;
+  }
+
   #toggle-paper-continuous {
     display: flex;
     align-items: center;
@@ -3268,6 +3278,24 @@
     border-color: var(--color-app-accent);
   }
 
+  .pdf-continuous-pages[data-layout="spread"] {
+    display: grid;
+    grid-template-columns: repeat(2, max-content);
+    align-items: start;
+    justify-content: center;
+    gap: 1.25rem 0.75rem;
+  }
+
+  .pdf-continuous-pages[data-layout="spread"] .pdf-continuous-page:first-child {
+    grid-column: 2;
+  }
+
+  #pdf-spread[aria-pressed="true"],
+  #library-pdf-spread[aria-pressed="true"] {
+    background: var(--color-app-accent-ghost);
+    color: var(--color-app-accent-strong);
+  }
+
   .pdf-search-header,
   .pdf-search-form {
     display: flex;
@@ -3369,6 +3397,7 @@
   }
 
   .library-pdf-page-controls,
+  .library-pdf-reading-tools,
   .library-pdf-annotation-tools {
     display: flex;
     flex-direction: column;
@@ -3384,6 +3413,7 @@
     font: inherit;
   }
 
+  .library-pdf-reading-tools,
   .library-pdf-annotation-tools {
     min-height: 0;
   }
@@ -5401,6 +5431,7 @@
     }
 
     .library-pdf-page-controls,
+    .library-pdf-reading-tools,
     .library-pdf-annotation-tools {
       display: grid;
       grid-template-columns: repeat(2, 2.75rem);

@@ -145,7 +145,7 @@ async function analyzePdfTextArtifact(
   };
 }
 
-function markdownToPlainText(value: string): string {
+export function markdownToPlainText(value: string): string {
   return value
     .replaceAll(/!\[[^\]]*\]\([^)]*\)/gu, " ")
     .replaceAll(/\[([^\]]+)\]\([^)]*\)/gu, "$1")
@@ -189,7 +189,7 @@ async function installArtifactInterception(page: Page, pdf: Uint8Array, workerSc
   });
 }
 
-async function respondToArtifactRequest(request: HTTPRequest, pdf: Uint8Array, workerScript: string): Promise<void> {
+export async function respondToArtifactRequest(request: HTTPRequest, pdf: Uint8Array, workerScript: string): Promise<void> {
   if (request.url() === artifactAnalysisPageUrl) {
     await request.respond({
       status: 200,

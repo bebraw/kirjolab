@@ -21,6 +21,11 @@ const ICONS = {
   note: '<path d="M5 4h14v12H9l-4 4Z"></path><path d="M9 8h6M9 12h4"></path>',
   pages:
     '<rect x="4" y="4" width="7" height="8" rx="1"></rect><rect x="13" y="4" width="7" height="8" rx="1"></rect><path d="M4 16h16M4 20h12"></path>',
+  fit: '<path d="M8 4H4v4M16 4h4v4M20 16v4h-4M8 20H4v-4"></path>',
+  rotate: '<path d="M18 8V4l-2 2a7 7 0 1 0 2.2 8"></path>',
+  spread: '<rect x="3" y="5" width="8" height="14" rx="1"></rect><rect x="13" y="5" width="8" height="14" rx="1"></rect>',
+  zoomIn: '<circle cx="10.5" cy="10.5" r="6.5"></circle><path d="M7.5 10.5h6M10.5 7.5v6m5 2 4 4"></path>',
+  zoomOut: '<circle cx="10.5" cy="10.5" r="6.5"></circle><path d="M7.5 10.5h6m2 5 4 4"></path>',
   research:
     '<path d="M5 5.5h5.25A2.75 2.75 0 0 1 13 8.25v10.25a3.25 3.25 0 0 0-3.25-3.25H5z"></path><path d="M19 5.5h-3.25A2.75 2.75 0 0 0 13 8.25v10.25a3.25 3.25 0 0 1 3.25-3.25H19z"></path>',
   search: '<circle cx="10.5" cy="10.5" r="6.5"></circle><path d="m15.5 15.5 4 4"></path>',
