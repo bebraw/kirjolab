@@ -6507,7 +6507,7 @@
   }
 }
 
-@media (min-width: 90rem) {
+@media (min-width: 72rem) {
   .workspace-grid.shared-editor-grid {
     grid-template-columns: 17rem minmax(26rem, 0.95fr) minmax(28rem, 1.05fr);
     grid-template-rows: minmax(0, calc(100dvh - 4rem - 1px));

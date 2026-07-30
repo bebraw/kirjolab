@@ -1438,9 +1438,9 @@ test("switches and remembers focused workspace views", async ({ page }) => {
   await expect(page.locator("#workspace-surfaces")).toHaveAttribute("data-layout", "editor");
   await expect(page.locator("#authoring-surface")).toBeVisible();
   await expect(page.locator("#context-surface")).toBeHidden();
-  await layout.selectOption("split");
   await page.locator("#show-research-rail").click();
   await page.locator("#show-map-mode").click();
+  await layout.selectOption("split");
   await page.getByRole("tab", { name: "Writing assistant" }).click();
   await layout.selectOption("context");
   await expect(page.locator("#authoring-surface")).toBeHidden();
@@ -1664,8 +1664,9 @@ test("resizes and remembers the desktop project rail", async ({ page }) => {
 
   await page.reload();
   await expect(page.getByRole("separator", { name: "Resize project rail" })).toHaveAttribute("aria-valuenow", "336");
+  await page.locator("#workspace-layout").selectOption("editor");
   await page.setViewportSize({ width: 1152, height: 900 });
-  await expect(resizer).toHaveAttribute("aria-valuenow", "272");
+  await expect(resizer).toHaveAttribute("aria-valuenow", "336");
   expect(
     await page.evaluate(() => ({
       clientWidth: document.documentElement.clientWidth,
@@ -1845,7 +1846,9 @@ test("keeps editor controls visible at a compact split width", async ({ page }) 
   await page.goto(`/editor/${workspaceId}`);
 
   await expect(page.locator("#project-file-switcher")).toHaveCount(0);
-  await expect(page.locator("#files-rail-panel")).toBeVisible();
+  await expect(page.locator("#files-rail-panel")).toBeHidden();
+  await expect(page.locator("#authoring-surface")).toBeVisible();
+  await expect(page.locator("#context-surface")).toBeVisible();
   const toolbarFit = await page.locator(".editor-toolbar").evaluate((toolbar) => {
     const toolbarBounds = toolbar.getBoundingClientRect();
     const visibleControls = [
