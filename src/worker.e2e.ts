@@ -2763,6 +2763,9 @@ test("shares linked reference PDFs with members but not public links", async ({ 
   expect(viewOptionsBounds).toEqual({ insideReader: true, usableSize: true });
   await page.getByRole("button", { name: "Contents & thumbnails" }).click();
   await expect(page.locator("#pdf-navigation-panel .pdf-navigation-panel")).toBeVisible();
+  const firstThumbnail = page.locator("#pdf-navigation-panel .pdf-thumbnail-grid img").first();
+  await expect(firstThumbnail).toBeVisible();
+  await expect.poll(() => firstThumbnail.evaluate((image) => (image as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
   await expect
     .poll(() => page.locator("#paper-reader").evaluate((element) => element.getBoundingClientRect().height))
     .toBe(tabletReaderHeight);

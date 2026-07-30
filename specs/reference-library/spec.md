@@ -265,9 +265,11 @@ memory and makes citation aliases compete with stable source identity.
   reference is used. This semantic trail does not claim exhaustive citation
   matching and remains distinct from literal document search.
   A collapsible document map resolves the PDF outline to direct page jumps,
-  renders bounded lazy page previews, and stores private per-document page
-  bookmarks in local browser storage. Outline absence does not prevent thumbnail
-  or bookmark navigation.
+  renders bounded lazy page previews as browser-generated JPEG data images, and
+  stores private per-document page bookmarks in local browser storage. The
+  application image policy permits those in-memory previews without widening
+  script or style sources. Outline absence does not prevent thumbnail or
+  bookmark navigation.
   A fingerprint-qualified `pdf-text` artifact analysis extracts native text for
   up to 200 pages and rasterizes at most 40 pages lacking meaningful native text
   for server-side OCR through the configured Workers AI binding. Persisted page

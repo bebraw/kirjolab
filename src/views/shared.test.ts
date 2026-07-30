@@ -10,8 +10,9 @@ describe("htmlResponse", () => {
     expect(response.headers.get("cache-control")).toBe("no-store");
     expect(response.headers.get("referrer-policy")).toBe("no-referrer");
     expect(response.headers.get("content-security-policy")).toBe(
-      "default-src 'self'; base-uri 'none'; connect-src 'self' wss://app.example http://127.0.0.1:* https://127.0.0.1:* http://localhost:* https://localhost:*; font-src 'self'; form-action 'self'; frame-ancestors 'none'; frame-src 'none'; img-src 'self' http: https:; manifest-src 'none'; media-src 'none'; object-src 'none'; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; worker-src 'self'",
+      "default-src 'self'; base-uri 'none'; connect-src 'self' wss://app.example http://127.0.0.1:* https://127.0.0.1:* http://localhost:* https://localhost:*; font-src 'self'; form-action 'self'; frame-ancestors 'none'; frame-src 'none'; img-src 'self' data: http: https:; manifest-src 'none'; media-src 'none'; object-src 'none'; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; worker-src 'self'",
     );
+    expect(response.headers.get("content-security-policy")).not.toContain("script-src 'self' data:");
     expect(response.headers.get("cross-origin-opener-policy")).toBe("same-origin");
     expect(response.headers.get("cross-origin-embedder-policy")).toBeNull();
   });

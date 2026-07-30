@@ -42,7 +42,11 @@ policy permits the self-hosted scripts, styles, workers, media, and browser
 connections required by the current editor and documented local-model
 integration, but does not permit inline or evaluated scripts. It also disables
 plugin objects, base-URL rewriting, and framing. The policy does not replace
-output sanitization.
+output sanitization. The image directive additionally permits `data:` so
+browser-generated bitmap previews such as PDF page thumbnails can render; this
+allowance does not extend to script, style, worker, frame, or connection
+directives, and authored Markdown image data URLs remain removed by the output
+sanitizer.
 
 Require every browser WebSocket upgrade to carry an `Origin` whose serialized
 origin exactly matches the request URL's origin. Apply this check in addition

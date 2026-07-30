@@ -38,7 +38,7 @@ function contentSecurityPolicy(requestUrl?: URL, allowSameOriginFrames = false):
     "form-action 'self'",
     "frame-ancestors 'none'",
     `frame-src ${allowSameOriginFrames ? "'self'" : "'none'"}`,
-    "img-src 'self' http: https:",
+    "img-src 'self' data: http: https:",
     "manifest-src 'none'",
     "media-src 'none'",
     "object-src 'none'",
