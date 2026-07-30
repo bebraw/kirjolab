@@ -4,6 +4,7 @@ import type { LibraryHighlight } from "../domain/reference-library";
 import { deriveTextQuoteContext, normalizeSelectionRects } from "./pdf-selection";
 import { readPdfTextContent } from "./pdf-text-content";
 import { PdfContinuousView } from "./pdf-continuous-view";
+import type { PdfSearchResult } from "./pdf-search-panel";
 import {
   advancePdfWheelPaging,
   initialPdfWheelPagingState,
@@ -97,6 +98,7 @@ export class PdfEvidenceViewer {
   #zoomAnchor: PdfZoomAnchor | null = null;
   #renderedViewport: { convertToViewportPoint(x: number, y: number): number[] } | null = null;
   #displayMode: PdfDisplayMode = readPdfDisplayMode();
+  #searchTextCache: readonly { readonly page: number; readonly text: string }[] | null = null;
 
   static forDocument(root: Document, presentation: PdfViewerPresentation): PdfEvidenceViewer {
     return new PdfEvidenceViewer(
@@ -226,6 +228,7 @@ export class PdfEvidenceViewer {
     await previousTask?.destroy();
     if (!pdfViewerDocumentRequestActive(this.#lifecycle.getSnapshot(), documentRequest)) return false;
     this.#document = null;
+    this.#searchTextCache = null;
     this.#continuousView.close();
     this.#elements.continuousPages.hidden = true;
     this.#elements.page.hidden = false;
@@ -287,6 +290,29 @@ export class PdfEvidenceViewer {
     if (this.#displayMode === "continuous") await this.setDisplayMode("continuous");
     const snapshot = this.#lifecycle.getSnapshot();
     return documentRequest === snapshot.context.documentRequest && snapshot.matches("ready");
+  }
+
+  async search(query: string): Promise<readonly PdfSearchResult[]> {
+    const documentModel = this.#document;
+    if (!documentModel) return [];
+    if (!this.#searchTextCache) {
+      const pages: { page: number; text: string }[] = [];
+      for (let pageNumber = 1; pageNumber <= documentModel.numPages; pageNumber += 1) {
+        const page = await documentModel.getPage(pageNumber);
+        try {
+          const content = await readPdfTextContent(page);
+          pages.push({ page: pageNumber, text: content.items.map((item) => ("str" in item ? item.str : "")).join(" ") });
+        } finally {
+          page.cleanup();
+        }
+      }
+      this.#searchTextCache = pages;
+    }
+    return searchPdfPageTexts(this.#searchTextCache, query);
+  }
+
+  async goToPage(page: number): Promise<void> {
+    await this.#goToPage(page);
   }
 
   updateAnnotations(annotations: AnnotationResource[]): void {
@@ -1024,6 +1050,37 @@ function sameSelectionCapture(left: PdfSelectionCapture, right: PdfSelectionCapt
 
 function clamp(value: number, minimum: number, maximum: number): number {
   return Math.min(maximum, Math.max(minimum, value));
+}
+
+export function searchPdfPageTexts(
+  pages: readonly { readonly page: number; readonly text: string }[],
+  sourceQuery: string,
+): PdfSearchResult[] {
+  const query = sourceQuery.trim().toLocaleLowerCase();
+  if (query.length < 2) return [];
+  const results: PdfSearchResult[] = [];
+  for (const page of pages) {
+    const text = page.text.replaceAll(/\s+/gu, " ").trim();
+    const lower = text.toLocaleLowerCase();
+    let cursor = 0;
+    let occurrences = 0;
+    let first = -1;
+    while ((cursor = lower.indexOf(query, cursor)) >= 0) {
+      if (first < 0) first = cursor;
+      occurrences += 1;
+      cursor += Math.max(1, query.length);
+    }
+    if (first < 0) continue;
+    const start = Math.max(0, first - 72);
+    const end = Math.min(text.length, first + query.length + 112);
+    results.push({
+      page: page.page,
+      excerpt: `${start > 0 ? "…" : ""}${text.slice(start, end)}${end < text.length ? "…" : ""}`,
+      occurrences,
+    });
+    if (results.length >= 200) break;
+  }
+  return results;
 }
 
 const pdfDisplayModeStorageKey = "kirjolab.pdf.display-mode";

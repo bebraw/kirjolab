@@ -17,6 +17,7 @@ import { LightDomElement } from "./light-dom-controller";
 const defaultStatus = "References are analyzed automatically after PDF import.";
 
 export const pdfReferenceReviewOutcomeEvent = "pdf-reference-review-outcome";
+export const pdfReferenceMentionOpenEvent = "pdf-reference-mention-open";
 
 export interface PdfReferenceReviewOutcome {
   readonly action: "library-refresh";
@@ -149,14 +150,22 @@ export class PdfReferenceAnalysisPanel extends LightDomElement {
           : nothing}
         ${mentions.length
           ? html`
-              <p class="mt-2 text-xs leading-5 text-app-text-soft">
-                Cited in text on page${new Set(mentions.map(({ page }) => page)).size === 1 ? "" : "s"}
-                ${[...new Set(mentions.map(({ page }) => page))].sort((left, right) => left - right).join(", ")} ·
-                ${mentions
-                  .map(({ raw }) => raw)
-                  .slice(0, 3)
-                  .join(" · ")}
-              </p>
+              <details class="pdf-reference-usage mt-2">
+                <summary>Used ${mentions.length} time${mentions.length === 1 ? "" : "s"} in this PDF</summary>
+                <ol>
+                  ${mentions.map(
+                    (mention) =>
+                      html`<li>
+                        <button type="button" @click=${() => this.openMention(mention.page)}>
+                          <span class="eyebrow"
+                            >Page ${mention.page} · ${mention.style === "numeric" ? "numeric citation" : "author–year citation"}</span
+                          >
+                          <span>${mention.context || mention.raw}</span>
+                        </button>
+                      </li>`,
+                  )}
+                </ol>
+              </details>
             `
           : nothing}
         ${reviewed?.match
@@ -186,6 +195,10 @@ export class PdfReferenceAnalysisPanel extends LightDomElement {
           : nothing}
       </article>
     `;
+  }
+
+  private openMention(page: number): void {
+    this.dispatchEvent(new CustomEvent(pdfReferenceMentionOpenEvent, { bubbles: true, detail: { page } }));
   }
 
   private renderReviewActions(candidate: PdfReferenceReviewCandidate | null): TemplateResult | typeof nothing {

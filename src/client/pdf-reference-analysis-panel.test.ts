@@ -208,7 +208,8 @@ describe("PDF reference analysis panel", () => {
     await settle();
     expect(panel.loads).toEqual([{ artifactId: "artifact/1", retry: false }]);
     expect(panel.reviewLoads).toEqual(["artifact/1"]);
-    expect(templateText(panel.renderForTest())).toContain("Cited in text on page");
+    expect(templateText(panel.renderForTest())).toContain("Used");
+    expect(templateText(panel.renderForTest())).toContain("numeric citation");
 
     panel.analysis = { ...readyAnalysis, artifactId: "artifact/2", result: { ...result, candidates: [] } };
     panel.queue = { ...reviewQueue, artifactId: "artifact/2", candidates: [] };

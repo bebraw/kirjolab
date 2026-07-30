@@ -102,7 +102,7 @@ function extractReferenceMentions(
       for (const match of line.matchAll(numericMention)) {
         for (const number of citationNumbers(match[1] ?? "")) {
           const candidate = byNumber.get(number);
-          if (candidate) addMention(mentions, seen, candidate.id, page.page, match[0], "numeric", 0.95);
+          if (candidate) addMention(mentions, seen, candidate.id, page.page, match[0], line, "numeric", 0.95);
         }
       }
       for (const candidate of candidates) {
@@ -110,7 +110,7 @@ function extractReferenceMentions(
         if (!surname || !candidate.year) continue;
         const pattern = new RegExp(`\\b${escapeRegExp(surname)}(?:\\s+et\\s+al\\.)?[,\\s]+${escapeRegExp(candidate.year)}\\b`, "iu");
         const match = pattern.exec(line);
-        if (match) addMention(mentions, seen, candidate.id, page.page, match[0], "author-year", 0.8);
+        if (match) addMention(mentions, seen, candidate.id, page.page, match[0], line, "author-year", 0.8);
       }
       if (mentions.length >= 256) return mentions;
     }
@@ -124,13 +124,22 @@ function addMention(
   candidateId: string,
   page: number,
   raw: string,
+  context: string,
   style: PdfReferenceMention["style"],
   confidence: number,
 ): void {
   const key = `${candidateId}:${page}:${raw}`;
   if (seen.has(key) || mentions.length >= 256) return;
   seen.add(key);
-  mentions.push({ id: `pdf-mention:${page}:${stableTextKey(key)}`, candidateId, page, raw: raw.slice(0, 2_000), style, confidence });
+  mentions.push({
+    id: `pdf-mention:${page}:${stableTextKey(key)}`,
+    candidateId,
+    page,
+    raw: raw.slice(0, 2_000),
+    context: context.slice(0, 2_000),
+    style,
+    confidence,
+  });
 }
 
 function referenceNumber(raw: string): number | null {

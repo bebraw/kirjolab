@@ -27,12 +27,15 @@ import { LightDomController } from "./light-dom-controller";
 import { LibraryPdfMarkupLayer, type LibraryPdfNoteDraft, type PdfAnnotationTool } from "./library-pdf-markup-layer";
 import { ManuscriptCommentList, type ManuscriptCommentAuthoring } from "./manuscript-comment-list";
 import { PdfEvidenceViewer, type PdfSelectionCapture, type PdfTextSelectionMode } from "./pdf-viewer";
+import { PdfSearchPanel } from "./pdf-search-panel";
+import "./pdf-search-panel";
 import { libraryPdfAnnotationActionEvent, type LibraryPdfAnnotationAction } from "./library-pdf-annotation-forms";
 import { libraryPdfAnnotationListActionEvent, type LibraryPdfAnnotationListAction } from "./library-pdf-annotation-list";
 import { libraryPdfInspectorCloseEvent } from "./library-pdf-inspector";
 import { libraryPdfMarkupActionEvent, type LibraryPdfMarkupAction } from "./library-pdf-markup-layer";
 import { libraryPdfToolbarActionEvent, type LibraryPdfToolbarAction } from "./library-pdf-annotation-toolbar";
 import { pdfHighlightImportOutcomeEvent, type PdfHighlightImportOutcome } from "./pdf-highlight-import-panel";
+import { pdfReferenceMentionOpenEvent } from "./pdf-reference-analysis-panel";
 import { ProjectAnnotationForm } from "./project-annotation-form";
 import { ProjectEvidencePanel } from "./project-evidence-panel";
 import { ProjectMapWorkspace } from "./project-map-workspace";
@@ -153,7 +156,13 @@ type ContextPdfViewer = Pick<
   PdfEvidenceViewer,
   "clearDraftSelection" | "resize" | "setPrivateHighlightSelection" | "setTextSelectionMode" | "setTool"
 > &
-  Pick<PdfEvidenceViewer, "currentPage" | "focusedAnnotationId" | "open" | "showError" | "updateAnnotations" | "updatePrivateHighlights">;
+  Pick<
+    PdfEvidenceViewer,
+    "currentPage" | "focusedAnnotationId" | "open" | "showError" | "updateAnnotations" | "updatePrivateHighlights"
+  > & {
+    goToPage?(page: number): Promise<void>;
+    search?(query: string): Promise<readonly import("./pdf-search-panel").PdfSearchResult[]>;
+  };
 
 export interface ProjectKnowledgeOwners {
   readonly editorStatus: { readonly caret: number | null };
@@ -590,6 +599,21 @@ export class ContextResourcePresenter extends LightDomController {
     this.pdfApiBase = apiBase;
     this.element("project-annotation-form", ProjectAnnotationForm)?.configure(apiBase);
     this.libraryPdfProject = { apiBase, owners };
+    const searchPanel = this.element("pdf-search-panel", PdfSearchPanel);
+    searchPanel?.bind({
+      search: async (query) => (viewer.search ? await viewer.search(query) : []),
+      openPage: async (page) => viewer.goToPage?.(page),
+    });
+    this.element("open-paper-search", HTMLElement)?.addEventListener("click", () => searchPanel?.show());
+    this.element("open-library-pdf-search", HTMLElement)?.addEventListener("click", () => searchPanel?.show());
+    if (typeof this.ownerDocument.addEventListener === "function") {
+      this.ownerDocument.addEventListener("keydown", (event) => {
+        if ((event.metaKey || event.ctrlKey) && event.key.toLocaleLowerCase() === "f" && this.currentActiveTab?.kind.endsWith("pdf")) {
+          event.preventDefault();
+          searchPanel?.show();
+        }
+      });
+    }
     const inspector = this.element("library-pdf-inspector", LibraryPdfInspector);
     inspector?.bindProjectMutations(owners.referenceLibraryWorkspace);
     inspector?.addEventListener(libraryPdfAnnotationActionEvent, (event) => {
@@ -601,6 +625,10 @@ export class ContextResourcePresenter extends LightDomController {
     inspector?.addEventListener(libraryPdfInspectorCloseEvent, () => this.closeBoundLibraryPdfInspector());
     inspector?.addEventListener(pdfHighlightImportOutcomeEvent, (event) => {
       void this.completePdfHighlightImport((event as CustomEvent<PdfHighlightImportOutcome>).detail.count);
+    });
+    inspector?.addEventListener(pdfReferenceMentionOpenEvent, (event) => {
+      const detail = (event as CustomEvent<{ readonly page: number }>).detail;
+      void viewer.goToPage?.(detail.page);
     });
     this.element("library-pdf-annotation-toolbar", LibraryPdfAnnotationToolbar)?.addEventListener(libraryPdfToolbarActionEvent, (event) =>
       this.handleLibraryPdfToolbarAction((event as CustomEvent<LibraryPdfToolbarAction>).detail),

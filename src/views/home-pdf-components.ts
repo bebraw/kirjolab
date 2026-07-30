@@ -38,6 +38,9 @@ export function renderLibraryPdfRail(): string {
                   </div>
                 </div>
                 <span class="library-pdf-rail-divider" aria-hidden="true"></span>
+                <button class="library-pdf-rail-button button-icon" id="open-library-pdf-search" type="button" aria-label="Search this PDF" title="Search this PDF" data-touch-target="true">
+                  ${renderIcon("search")}<span class="sr-only">Search PDF</span>
+                </button>
                 <button class="library-pdf-rail-button button-icon" id="download-library-original-pdf" type="button" disabled title="Download the original PDF" data-touch-target="true">
                   ${renderIcon("guide")}<span class="sr-only">Download original PDF</span>
                 </button>

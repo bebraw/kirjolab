@@ -257,6 +257,13 @@ memory and makes citation aliases compete with stable source identity.
   directly editable for a bounded Enter-to-jump page number. Choosing a page-annotation tool
   returns to single-page mode, where private note and drawing coordinates remain
   unambiguous.
+  The reader exposes Cmd/Ctrl+F text search across the complete native PDF text
+  layer, returning bounded page contexts and occurrence counts with direct page
+  jumps. Parsed bibliography entries separately expose conservative semantic
+  usage trails: numeric and author–year mentions retain their page and source
+  line so a researcher can inspect every detected place where that specific
+  reference is used. This semantic trail does not claim exhaustive citation
+  matching and remains distinct from literal document search.
 - Saving a text selection whose normalized rectangles overlap a saved
   highlight on the same artifact page extends that stable highlight instead of
   creating a second resource. Geometry, quotation text, and distinct comments

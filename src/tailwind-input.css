@@ -3184,6 +3184,63 @@
     overflow: hidden;
   }
 
+  .pdf-search-panel {
+    width: min(23rem, 40vw);
+    min-width: 18rem;
+    overflow: auto;
+    border-right: 1px solid var(--color-app-line);
+    background: var(--color-app-paper);
+    padding: 1rem;
+  }
+
+  .pdf-search-header,
+  .pdf-search-form {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+  }
+
+  .pdf-search-form {
+    margin-top: 1rem;
+  }
+  .pdf-search-form .field {
+    min-width: 0;
+  }
+  .pdf-search-status {
+    margin-top: 0.65rem;
+    color: var(--color-app-text-soft);
+    font-size: 0.75rem;
+    line-height: 1.4;
+  }
+  .pdf-search-results {
+    display: grid;
+    gap: 0.45rem;
+    margin-top: 1rem;
+  }
+  .pdf-search-results button,
+  .pdf-reference-usage button {
+    width: 100%;
+    border: 1px solid var(--color-app-line);
+    border-radius: 0.4rem;
+    padding: 0.65rem;
+    text-align: left;
+  }
+  .pdf-search-results button:hover,
+  .pdf-reference-usage button:hover {
+    border-color: var(--color-app-accent);
+    background: var(--color-app-surface);
+  }
+  .pdf-search-results button span,
+  .pdf-reference-usage button span {
+    display: block;
+  }
+  .pdf-reference-usage ol {
+    display: grid;
+    gap: 0.4rem;
+    margin-top: 0.5rem;
+  }
+
   .library-pdf-page-rail {
     display: none;
   }

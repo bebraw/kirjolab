@@ -572,6 +572,7 @@ export function renderHomePage(
         <section class="context-panel context-pdf-panel" id="context-pdf-panel" role="tabpanel" aria-label="PDF context" aria-keyshortcuts="ArrowLeft ArrowRight" tabindex="0" hidden>
           <div class="context-pdf-body">
             ${renderLibraryPdfRail()}
+            <pdf-search-panel id="pdf-search-panel"></pdf-search-panel>
             <div class="pdf-reader" id="paper-reader">
               <div class="pdf-page" id="paper-page">
                 <canvas class="block" id="paper-canvas"></canvas>

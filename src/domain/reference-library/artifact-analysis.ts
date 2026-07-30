@@ -34,6 +34,7 @@ export interface PdfReferenceMention {
   readonly candidateId: string;
   readonly page: number;
   readonly raw: string;
+  readonly context?: string;
   readonly style: "numeric" | "author-year";
   readonly confidence: number;
 }
@@ -117,6 +118,7 @@ function isPdfReferenceMention(value: unknown): value is PdfReferenceMention {
     isBoundedString(value.candidateId, 1, 500) &&
     isBoundedInteger(value.page, 1, 200) &&
     isBoundedString(value.raw, 1, 2_000) &&
+    (value.context === undefined || isBoundedString(value.context, 1, 2_000)) &&
     (value.style === "numeric" || value.style === "author-year") &&
     isConfidence(value.confidence)
   );

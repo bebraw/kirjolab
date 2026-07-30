@@ -49,6 +49,9 @@ export function renderContextTabs(): string {
               <button id="toggle-paper-continuous" type="button" aria-pressed="false" title="Use continuous scrolling">
                 ${renderIcon("continuousPages")}<span class="sr-only" data-pdf-display-label>Continuous scroll</span>
               </button>
+              <button id="open-paper-search" type="button" aria-label="Search this PDF" title="Search this PDF">
+                ${renderIcon("search")}<span class="sr-only">Search PDF</span>
+              </button>
             </div>
             <button class="preview-navigation-toggle" id="toggle-preview-navigation" type="button" aria-controls="app-header" aria-pressed="false" aria-label="Hide top navigation" title="Hide top navigation">
               ${renderIcon("chevronUp")}
