@@ -18,7 +18,17 @@ const analysisPdfUrl = new URL("/input.pdf", artifactAnalysisPageUrl).href;
 const analysisWorkerUrl = new URL("/pdf.worker.js", artifactAnalysisPageUrl).href;
 const maximumAttempts = 4;
 
-export async function consumeArtifactAnalysisBatch(batch: MessageBatch<unknown>, env: Env): Promise<void> {
+export type ArtifactAnalysisExecutionMode = "enabled" | "disabled";
+
+export async function consumeArtifactAnalysisBatch(
+  batch: MessageBatch<unknown>,
+  env: Env,
+  executionMode: ArtifactAnalysisExecutionMode = env.ARTIFACT_ANALYSIS_MODE,
+): Promise<void> {
+  if (executionMode === "disabled") {
+    for (const message of batch.messages) message.ack();
+    return;
+  }
   for (const message of batch.messages) {
     if (!isArtifactAnalysisJob(message.body)) {
       console.error(JSON.stringify({ event: "artifact_analysis_rejected", messageId: message.id }));

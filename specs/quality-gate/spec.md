@@ -13,6 +13,9 @@ The template needs a verification baseline that stays strict enough for end-to-e
 - **Workers test binding policy:** local Miniflare bindings with remote binding sessions disabled
 - **Affected guardrails:** `npm run quality:affected`
 - **Browser gate:** `npm run e2e`
+- **Browser artifact-analysis boundary:** E2E acknowledges queued analysis jobs
+  without launching Browser Rendering; production and normal local development
+  keep analysis enabled
 - **Browser discovery boundary:** canonical `src/**/*.e2e.ts` files outside
   generated mutation sandboxes
 - **Affected test gate:** `npm run test:affected`
@@ -87,6 +90,8 @@ The template needs a verification baseline that stays strict enough for end-to-e
 - [ ] Citation-provider diagnostics use production bounded adapters, report
       current coverage and completeness, and remain outside the hard gate.
 - [ ] The browser gate covers each canonical Playwright baseline file once.
+- [ ] The browser gate does not launch real artifact-analysis browser jobs for
+      analysis endpoints that the E2E suite replaces with deterministic mocks.
 - [ ] The full mutation gate covers runtime `src/**/*.ts` files with Stryker, Vitest, and TypeScript checking.
 - [ ] The affected mutation gate retains TypeScript checking and limits routine
       pre-push mutation to affected Node-testable source files.
@@ -195,6 +200,9 @@ The template needs a verification baseline that stays strict enough for end-to-e
   explicit mutation run cannot duplicate browser suites in a later gate.
 - Browser tests that mutate durable state must create isolated workspaces rather
   than assume the shared demo workspace still contains seed data.
+- The isolated Playwright server must override `ARTIFACT_ANALYSIS_MODE` to
+  `disabled`; the committed Wrangler default must remain `enabled` so normal
+  development and deployed queue consumers retain production behavior.
 - The local CI documentation must cover the no-`origin` case through `.env.agent-ci` and `GITHUB_REPO` instead of treating that warning as normal noise.
 - The local CI Docker daemon override must use Agent CI's `AGENT_CI_DOCKER_HOST` variable instead of the general Docker CLI `DOCKER_HOST` variable.
 - Local Playwright browser installation should go through a pinned repo script instead of ad hoc `npx playwright install ...` usage.

@@ -33,6 +33,7 @@ No accepted ADRs are awaiting implementation.
 
 | ADR                                                                                       | Status               | Summary                                                                                                         |
 | ----------------------------------------------------------------------------------------- | -------------------- | --------------------------------------------------------------------------------------------------------------- |
+| [ADR-210](./implemented/ADR-210-isolate-e2e-artifact-analysis.md)                         | Implemented          | Acknowledge artifact-analysis jobs only in disposable E2E state while keeping production execution enabled.     |
 | [ADR-209](./implemented/ADR-209-keep-workers-runtime-tests-local.md)                      | Implemented          | Disable remote binding sessions in Worker tests while marking production-only AI access explicitly remote.      |
 | [ADR-208](./implemented/ADR-208-validate-the-adr-registry.md)                             | Implemented          | Validate unique ADR identities, lifecycle metadata, index coverage, and local links in the fast gate.           |
 | [ADR-207](./implemented/ADR-207-configure-native-editor-indentation.md)                   | Implemented          | Configure browser-local spaces or tabs while preserving the native collaborative editor.                        |

@@ -24,6 +24,16 @@ describe("artifact analysis queue", () => {
     expect(loadFromDisk).not.toHaveBeenCalled();
   });
 
+  it("acknowledges E2E-isolated messages without launching analysis", async () => {
+    const batch = createMessageBatch(queueName, [{ id: "isolated", timestamp: new Date(), attempts: 1, body: { version: 1 } }]);
+
+    await consumeArtifactAnalysisBatch(batch, env, "disabled");
+
+    const result = await getQueueResult(batch, createExecutionContext());
+    expect(result.explicitAcks).toEqual(["isolated"]);
+    expect(result.retryBatch).toEqual({ retry: false });
+  });
+
   it("acknowledges invalid and stale messages without launching analysis", async () => {
     const stale: ArtifactAnalysisJob = {
       version: 1,

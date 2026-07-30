@@ -22,3 +22,13 @@ test("keeps Worker tests local while declaring production AI access remote", asy
   assert.match(testConfig, /remoteBindings:\s*false/u);
   assert.match(wranglerConfig, /"ai":\s*\{\s*"binding":\s*"AI",\s*"remote":\s*true\s*\}/u);
 });
+
+test("isolates E2E runs from artifact-analysis browser jobs", async () => {
+  const [server, wranglerConfig] = await Promise.all([
+    readFile(new URL("./run-e2e-server.mjs", import.meta.url), "utf8"),
+    readFile(new URL("../wrangler.jsonc", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(wranglerConfig, /"ARTIFACT_ANALYSIS_MODE":\s*"enabled"/u);
+  assert.match(server, /"ARTIFACT_ANALYSIS_MODE:disabled"/u);
+});
