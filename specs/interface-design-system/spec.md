@@ -14,6 +14,10 @@ introducing a frontend component framework.
   fills.
 - `src/ui/primitives.css` owns reusable buttons, icon buttons, fields, labels,
   badges, panels, dialogs, status messages, and small layout patterns.
+- `src/ui/app-shell.css` and `src/ui/workspace.css` own structure shared across
+  feature surfaces. Bounded feature styles live beside their client owners
+  under `src/client/` and remain assembled through the ordered
+  `src/tailwind-input.css` manifest.
 - Shared interactive state uses native and ARIA attributes where available.
   The supported additional contracts are `data-destructive`, `data-compact`,
   and `data-touch-target`.
@@ -41,8 +45,8 @@ introducing a frontend component framework.
   icon-label spacing needs no feature-local utility. Production views adopt
   these fragments incrementally where their markup is otherwise repeated.
 - PDF annotation tools, reference result cards, the manuscript editor, and
-  comparable feature-specific components remain outside `src/ui/` and compose
-  primitives.
+  comparable feature-specific components and styles remain outside `src/ui/`
+  and compose primitives.
 - `/__ui` renders representative foundations and primitive states only in
   local authentication mode. Production Access mode returns the normal 404.
 

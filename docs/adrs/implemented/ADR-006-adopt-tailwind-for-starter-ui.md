@@ -1,6 +1,6 @@
 # ADR-006: Adopt Tailwind for the Starter UI
 
-**Status:** Accepted
+**Status:** Partially superseded by [ADR-202](./ADR-202-colocate-bounded-feature-styles.md)
 
 **Date:** 2026-03-28
 
@@ -26,7 +26,7 @@ The template now uses:
 - `tailwindcss` and `@tailwindcss/cli` pinned in `devDependencies`
 - `npm run build:css` to generate `.generated/styles.css`
 - `src/tailwind-input.css` as the single, import-only Tailwind entry file
-- ordered foundation and feature stylesheet modules under `src/ui/`
+- ordered foundation and stylesheet modules assembled by `src/tailwind-input.css`
 - utilities for one-off leaf composition, with semantic CSS retained for shared, stateful, generated, and responsive rules
 - Wrangler build configuration to run the CSS build automatically
 - `/styles.css` served by the Worker from the generated stylesheet

@@ -120,12 +120,13 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   root theme plus `color-scheme` projection without application startup wiring.
 - Keep the interface design system thin and source-local under `src/ui/`:
   foundations, visual primitives, shared state contracts, typed icons, small
-  markup helpers, and feature-owned stylesheet modules only. Keep
-  `src/tailwind-input.css` as an ordered import manifest; domain components
-  use utilities for one-off leaf composition and retain semantic selectors for
-  shared, stateful, generated, or responsive rules. They compose the design
-  system without moving application behavior or state into a second UI
-  architecture.
+  markup helpers, the application shell, and cross-feature workspace styles
+  only. Keep bounded feature styles beside their owning modules under
+  `src/client/`, and keep `src/tailwind-input.css` as an ordered import manifest.
+  Domain components use utilities for one-off leaf composition and retain
+  semantic selectors for shared, stateful, generated, or responsive rules. They
+  compose the design system without moving application behavior or state into a
+  second UI architecture.
 - Incubate reusable capabilities as source-local modules first. Create a private
   workspace package only for two independently built consumers with a justified
   runtime, dependency, build, or release boundary; tests, fixtures, examples,
