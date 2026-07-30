@@ -9,7 +9,7 @@ export interface ProjectTemplateSave {
   readonly templateId?: string;
 }
 
-export interface ProjectTemplateSource {
+interface ProjectTemplateCatalog {
   readonly availableTemplates: readonly ProjectTemplateSummary[];
   refresh(): Promise<void>;
 }
@@ -31,7 +31,7 @@ export class ProjectTemplateSaveDialog extends LightDomElement {
   declare private status: string;
   declare private templates: readonly ProjectTemplateSummary[];
   private apiBase = "";
-  private templateSource: ProjectTemplateSource | null = null;
+  private templateSource: ProjectTemplateCatalog | null = null;
   private toast: { show(message: string): void } | null = null;
 
   constructor() {
@@ -44,7 +44,7 @@ export class ProjectTemplateSaveDialog extends LightDomElement {
     this.templates = [];
   }
 
-  bindWorkspace(apiBase: string, source: ProjectTemplateSource, toast: { show(message: string): void }): void {
+  bindWorkspace(apiBase: string, source: ProjectTemplateCatalog, toast: { show(message: string): void }): void {
     this.apiBase = apiBase;
     this.templateSource = source;
     this.toast = toast;

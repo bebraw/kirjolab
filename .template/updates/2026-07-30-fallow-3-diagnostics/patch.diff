@@ -2,7 +2,32 @@ diff --git a/.fallowrc.json b/.fallowrc.json
 --- a/.fallowrc.json
 +++ b/.fallowrc.json
 @@
++    "src/test-support/cloudflare-workers.ts",
++    "scripts/citation-provider-diagnostics-entry.ts",
++    "scripts/codemirror-parity-spike.ts",
+     "scripts/pdf-reference-quality-entry.ts"
+   ],
+@@
 +  "ignorePatterns": ["worker-configuration.d.ts"],
+@@
+-  "ignoreDependencies": ["@stryker-mutator/api", "mdast-util-directive", "typescript-7"],
++  "ignoreDependencies": [
++    "@codemirror/autocomplete",
++    "@codemirror/commands",
++    "@codemirror/lang-markdown",
++    "@codemirror/state",
++    "@codemirror/view",
++    "@replit/codemirror-vim",
++    "@stryker-mutator/api",
++    "@unified-latex/unified-latex-util-parse",
++    "chrome-launcher",
++    "lighthouse",
++    "mdast-util-directive",
++    "typescript-7",
++    "wrangler",
++    "y-codemirror.next",
++    "y-protocols"
++  ],
 @@
 -  "usedClassMembers": [{ "extends": "LightDomElement", "members": ["properties"] }]
 +  "usedClassMembers": [

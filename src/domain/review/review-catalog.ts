@@ -45,15 +45,15 @@ export interface ReviewMemberSeed {
   readonly addedAt?: string;
 }
 
-export type ProjectReviewLinkStatus = "active" | "unlinked";
+export type ReviewAccessProjectLinkStatus = "active" | "unlinked";
 
-export interface ProjectReviewLink {
+export interface ReviewAccessProjectLink {
   readonly id: string;
   readonly reviewId: string;
   readonly workspaceId: string;
   readonly createdBy: string;
   readonly createdAt: string;
-  readonly status: ProjectReviewLinkStatus;
+  readonly status: ReviewAccessProjectLinkStatus;
   readonly unlinkedAt: string | null;
   readonly unlinkedBy: string | null;
 }
@@ -80,7 +80,7 @@ export interface ReviewAccessBackupState {
   readonly legacySeededAt: string | null;
   readonly deletedAt: string | null;
   readonly members: readonly ReviewMember[];
-  readonly projectLinks: readonly ProjectReviewLink[];
+  readonly projectLinks: readonly ReviewAccessProjectLink[];
 }
 
 export interface ReviewAccessBackupSnapshot extends ReviewAccessBackupState {
@@ -95,7 +95,7 @@ export interface ReviewDeletionBoundary {
 
 export interface ReviewDeletionSnapshot extends ReviewDeletionBoundary {
   readonly members: readonly ReviewMember[];
-  readonly projectLinks: readonly ProjectReviewLink[];
+  readonly projectLinks: readonly ReviewAccessProjectLink[];
 }
 
 export interface CreateReviewCatalogInput {

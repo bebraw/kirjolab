@@ -1,7 +1,7 @@
 import {
   isReviewId,
   normalizeReviewEmail,
-  type ProjectReviewLink,
+  type ReviewAccessProjectLink as ProjectReviewLink,
   type ReviewCatalogRecord,
   type ReviewMember,
   type ReviewSummary,

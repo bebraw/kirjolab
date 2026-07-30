@@ -9,8 +9,11 @@ CLI and its upstream-attributed new-only verdict.
 2. Exclude checked-in generated declarations from all Fallow analysis.
 3. Declare framework-reflected class members, such as Cloudflare Durable Object
    RPC methods, through scoped `usedClassMembers` rules.
-4. Remove suppression comments that become stale after the framework rule.
-5. Run the audit against the branch upstream and address introduced findings;
+4. Register inputs reached only through bundler configuration or test aliases
+   as explicit entry points, and classify development-script dependencies that
+   static analysis would otherwise treat as production imports.
+5. Remove suppression comments that become stale after the framework rule.
+6. Run the audit against the branch upstream and address introduced findings;
    keep inherited findings advisory.
 
 ## Fallback

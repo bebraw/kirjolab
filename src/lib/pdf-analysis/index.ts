@@ -1,11 +1,4 @@
-export type {
-  PdfAnalysisBitmap,
-  PdfAnalysisPage,
-  PdfAnalysisPixelRect,
-  PdfAnalysisTextSpan,
-  PdfAnalysisViewport,
-  PdfNativeAnnotation,
-} from "./contracts";
+export type { PdfAnalysisBitmap, PdfAnalysisPixelRect, PdfAnalysisTextSpan, PdfAnalysisViewport, PdfNativeAnnotation } from "./contracts";
 export {
   deduplicatePdfHighlightCandidates,
   detectYellowRegions,

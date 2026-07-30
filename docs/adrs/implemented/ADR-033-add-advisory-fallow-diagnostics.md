@@ -42,12 +42,14 @@ cyclomatic complexity thresholds, but raises the CRAP threshold to reduce noise
 from untested template tooling scripts. Whole-repo health diagnostics still
 surface those risk scores as refactoring evidence.
 
-The project keeps a small `.fallowrc.json` to mark Playwright E2E tests and the
-esbuild browser application, review application, and service worker roots as
-entry points. It ignores the Stryker JSDoc type-only dependency that is resolved
-through installed Stryker packages, the directive AST type package supplied by
-`remark-directive`, and the aliased TypeScript 7 compiler invoked directly by
-the typecheck scripts.
+The project keeps a small `.fallowrc.json` to mark Playwright E2E tests, the
+esbuild browser application, review application, and service worker roots,
+esbuild-only diagnostic/spike inputs, and the unit-test Cloudflare runtime shim
+as entry points. It ignores dependencies that Fallow cannot distinguish from
+production imports because they are loaded by development-only scripts, plus
+the Stryker JSDoc type-only dependency, the directive AST type package supplied
+by `remark-directive`, and the aliased TypeScript 7 compiler invoked directly
+by the typecheck scripts.
 
 Complexity and duplication diagnostics exclude unit and end-to-end test files.
 Those files deliberately repeat boundary fixtures and exact expected structures

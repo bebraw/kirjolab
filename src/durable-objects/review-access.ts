@@ -6,7 +6,7 @@ import {
   isWorkspaceRouteId,
   normalizeReviewEmail,
   reviewResourceLimits,
-  type ProjectReviewLink,
+  type ReviewAccessProjectLink as ProjectReviewLink,
   type ReviewAccessBackupSnapshot,
   type ReviewAccessBackupState,
   type ReviewAccessStatus,

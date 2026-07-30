@@ -145,6 +145,9 @@ failures quickly during normal development.
   branch with its upstream and must keep inherited findings advisory.
 - Fallow must exclude generated Worker declarations from analysis and treat
   public members on `DurableObject` subclasses as runtime-invoked RPC surface.
+- Fallow must register esbuild-only diagnostic/spike inputs and the unit-test
+  Cloudflare runtime shim as entry points, and must not classify dependencies
+  used exclusively by development scripts as production dependencies.
 - Fallow complexity and duplication diagnostics must exclude unit and end-to-end
   test files; test readability remains protected by formatting, linting,
   typechecking, and execution without penalizing deliberate exact-fixture
