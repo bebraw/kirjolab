@@ -3,11 +3,45 @@ import {
   advancePdfWheelPaging,
   initialPdfWheelPagingState,
   pdfHorizontalPageEdges,
+  pdfKeyboardPageDirection,
   pdfTouchPageDirection,
   pdfTouchPanScroll,
   pdfZoomAnchor,
   pdfZoomScrollCorrection,
 } from "./pdf-gestures";
+
+describe("PDF keyboard paging", () => {
+  const input = {
+    key: "ArrowRight",
+    altKey: false,
+    ctrlKey: false,
+    metaKey: false,
+    shiftKey: false,
+    defaultPrevented: false,
+    isComposing: false,
+    targetOwnsArrowKeys: false,
+  };
+
+  it("maps unmodified horizontal arrows to page turns", () => {
+    expect(pdfKeyboardPageDirection({ ...input, key: "ArrowLeft" })).toBe(-1);
+    expect(pdfKeyboardPageDirection(input)).toBe(1);
+    expect(pdfKeyboardPageDirection({ ...input, key: "ArrowDown" })).toBeUndefined();
+  });
+
+  it("leaves modified, composing, claimed, and control-owned keys alone", () => {
+    for (const exclusion of [
+      { altKey: true },
+      { ctrlKey: true },
+      { metaKey: true },
+      { shiftKey: true },
+      { defaultPrevented: true },
+      { isComposing: true },
+      { targetOwnsArrowKeys: true },
+    ]) {
+      expect(pdfKeyboardPageDirection({ ...input, ...exclusion })).toBeUndefined();
+    }
+  });
+});
 
 describe("PDF touch panning", () => {
   it("moves the scroll position opposite the finger movement", () => {

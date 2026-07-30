@@ -255,7 +255,9 @@ describe("renderHomePage", () => {
     expect(html).toContain('id="context-candidate-panel" role="tabpanel"');
     expect(html).toContain('<candidate-review-panel id="candidate-review-panel">');
     expect(html).toContain('id="context-publication-panel" role="tabpanel" aria-label="Publication context" tabindex="0" hidden');
-    expect(html).toContain('id="context-pdf-panel" role="tabpanel" aria-label="PDF context" tabindex="0" hidden');
+    expect(html).toContain(
+      'id="context-pdf-panel" role="tabpanel" aria-label="PDF context" aria-keyshortcuts="ArrowLeft ArrowRight" tabindex="0" hidden',
+    );
     expect(html).toContain('id="paper-text-layer"');
     expect(html).toContain('id="save-and-link-annotation"');
     expect(html).not.toContain('id="paper-dialog"');

@@ -569,7 +569,7 @@ export function renderHomePage(
           </publication-context-panel>
         </section>
 
-        <section class="context-panel context-pdf-panel" id="context-pdf-panel" role="tabpanel" aria-label="PDF context" tabindex="0" hidden>
+        <section class="context-panel context-pdf-panel" id="context-pdf-panel" role="tabpanel" aria-label="PDF context" aria-keyshortcuts="ArrowLeft ArrowRight" tabindex="0" hidden>
           <div class="context-pdf-body">
             ${renderLibraryPdfRail()}
             <div class="pdf-reader" id="paper-reader">

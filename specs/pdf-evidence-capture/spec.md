@@ -82,7 +82,9 @@ with an authored passage.
 ### Definition of Done
 
 - [x] An imported valid PDF renders inside Kirjolab with selectable text.
-- [x] Page navigation renders one page at a time.
+- [x] Page navigation renders one page at a time. While the PDF is visible,
+      unmodified Left and Right Arrow keys move to the previous and next page;
+      editable and interactive controls retain their arrow-key behavior.
 - [x] A selection captures page, quote, prefix, suffix, and normalized geometry.
 - [x] Releasing a PDF selection immediately saves an external annotation stroke.
 - [x] Painting over a highlight extends one resource; undo and eraser remove

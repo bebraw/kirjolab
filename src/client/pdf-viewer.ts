@@ -7,6 +7,7 @@ import {
   advancePdfWheelPaging,
   initialPdfWheelPagingState,
   pdfHorizontalPageEdges,
+  pdfKeyboardPageDirection,
   pdfTouchPageDirection,
   pdfTouchPanScroll,
   pdfZoomAnchor,
@@ -139,6 +140,7 @@ export class PdfEvidenceViewer {
     elements.reader.addEventListener("touchend", (event) => void this.#finishTouchGesture(event), { passive: true });
     elements.reader.addEventListener("touchcancel", () => this.#cancelTouchGesture(), { passive: true });
     elements.reader.addEventListener("wheel", (event) => this.#handleWheel(event), { passive: false });
+    elements.reader.ownerDocument.addEventListener("keydown", (event) => this.#handleKeydown(event));
   }
 
   get currentPage(): number {
@@ -268,6 +270,23 @@ export class PdfEvidenceViewer {
     await this.#move(offset);
     if (this.#pageNumber === previousPage) return;
     this.#elements.reader.scrollLeft = offset > 0 ? 0 : Math.max(0, this.#elements.reader.scrollWidth - this.#elements.reader.clientWidth);
+  }
+
+  #handleKeydown(event: KeyboardEvent): void {
+    if (!this.#document || this.#elements.reader.getClientRects().length === 0) return;
+    const direction = pdfKeyboardPageDirection({
+      key: event.key,
+      altKey: event.altKey,
+      ctrlKey: event.ctrlKey,
+      metaKey: event.metaKey,
+      shiftKey: event.shiftKey,
+      defaultPrevented: event.defaultPrevented,
+      isComposing: event.isComposing,
+      targetOwnsArrowKeys: pdfKeyboardTargetOwnsArrowKeys(event.target),
+    });
+    if (!direction) return;
+    event.preventDefault();
+    void this.#move(direction);
   }
 
   #handleWheel(event: WheelEvent): void {
@@ -705,6 +724,15 @@ function requiredViewerElement<T extends Element>(root: Document, id: string, ty
   const element = root.getElementById(id);
   if (!(element instanceof type)) throw new Error(`Missing PDF viewer element #${id}`);
   return element;
+}
+
+function pdfKeyboardTargetOwnsArrowKeys(target: EventTarget | null): boolean {
+  if (!(target instanceof Element)) return false;
+  return Boolean(
+    target.closest(
+      'a, button, input, select, textarea, [contenteditable]:not([contenteditable="false"]), [role="combobox"], [role="grid"], [role="listbox"], [role="menu"], [role="slider"], [role="spinbutton"], [role="tab"], [role="textbox"], [role="tree"]',
+    ),
+  );
 }
 
 function positionPdfOverlay(element: HTMLElement, rect: PdfSelectionRect): void {

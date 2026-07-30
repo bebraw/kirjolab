@@ -2741,6 +2741,14 @@ test("shares linked reference PDFs with members but not public links", async ({ 
   await expect(page.locator("#paper-page-indicator")).toHaveText("1 / 2");
   await expect(page.locator("#paper-reader")).toHaveCSS("touch-action", "pan-y");
   expect(failedPdfWorkerRequests).toEqual([]);
+  await page.locator("#context-pdf-panel").focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(page.locator("#paper-page-indicator")).toHaveText("2 / 2");
+  await page.keyboard.press("ArrowLeft");
+  await expect(page.locator("#paper-page-indicator")).toHaveText("1 / 2");
+  await page.getByRole("button", { name: "Select", exact: true }).focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(page.locator("#paper-page-indicator")).toHaveText("1 / 2");
   const fittedCanvasWidth = Number(await page.locator("#paper-canvas").getAttribute("width"));
   await page.locator("#paper-reader").dispatchEvent("wheel", { ctrlKey: true, deltaY: -80, deltaMode: 0 });
   await expect.poll(async () => Number(await page.locator("#paper-canvas").getAttribute("width"))).toBeGreaterThan(fittedCanvasWidth);

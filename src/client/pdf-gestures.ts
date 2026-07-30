@@ -29,6 +29,17 @@ export interface PdfZoomAnchor {
   clientY: number;
 }
 
+export interface PdfKeyboardPagingInput {
+  key: string;
+  altKey: boolean;
+  ctrlKey: boolean;
+  metaKey: boolean;
+  shiftKey: boolean;
+  defaultPrevented: boolean;
+  isComposing: boolean;
+  targetOwnsArrowKeys: boolean;
+}
+
 const GESTURE_GAP_MS = 180;
 const PAGE_COOLDOWN_MS = 420;
 const PAGE_THRESHOLD_PX = 64;
@@ -39,6 +50,23 @@ const TOUCH_HORIZONTAL_DOMINANCE = 1.4;
 
 export function initialPdfWheelPagingState(): PdfWheelPagingState {
   return { distance: 0, lastAt: 0, lockedUntil: 0 };
+}
+
+export function pdfKeyboardPageDirection(input: PdfKeyboardPagingInput): -1 | 1 | undefined {
+  if (
+    input.defaultPrevented ||
+    input.isComposing ||
+    input.targetOwnsArrowKeys ||
+    input.altKey ||
+    input.ctrlKey ||
+    input.metaKey ||
+    input.shiftKey
+  ) {
+    return undefined;
+  }
+  if (input.key === "ArrowLeft") return -1;
+  if (input.key === "ArrowRight") return 1;
+  return undefined;
 }
 
 export function pdfTouchPanScroll(start: PdfTouchPanStart, point: { x: number; y: number }): { left: number; top: number } {
