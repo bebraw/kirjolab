@@ -49,6 +49,7 @@ copying unrelated starter structure.
   - `2026-07-30-validate-adr-registry`
   - `2026-07-30-local-workers-tests`
   - `2026-07-30-relax-npm-version-hint`
+  - `2026-07-30-clean-disposable-state`
 
 ### Anti-Patterns
 

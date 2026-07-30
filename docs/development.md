@@ -103,6 +103,10 @@ If optional container parity warns with `No such remote 'origin'`, add `GITHUB_R
 - Run the fast local gate with `npm run quality:gate:fast`.
 - Run the baseline quality gate with `npm run quality:gate`.
 - Run advisory codebase readability diagnostics with `npm run diagnostics:codebase`.
+- Remove reproducible mutation sandboxes, Wrangler bundles and logs, test
+  reports, and formatting cache data with `npm run maintenance:clean`. The
+  command preserves `.wrangler/state` and `.generated`, including manually
+  captured Build Week media.
 - Run the versioned PDF-reference extraction corpus with
   `npm run diagnostics:pdf-references` (`-- --json` for machine-readable output).
 - Probe current backward and forward citation-provider coverage with
@@ -352,6 +356,12 @@ Template update packs live under `.template/updates/`. Use them to port later te
 ## Write Boundaries
 
 Keep workflow write targets explicit and documented. Generated CSS and browser bundles belong in `.generated/`, including versioned Markdown and PDF runtime assets under `.generated/assets/`; ignored Build Week submission images and captions belong in `.generated/build-week-media/`; Lighthouse reports belong in `reports/lighthouse/`; coverage reports belong in `reports/coverage/`; mutation reports belong in `reports/mutation/`; Stryker temporary sandboxes belong in `.stryker-tmp/`; Prettier's disposable content cache belongs in ignored `.cache/prettier`; optional Fallow caches belong in ignored `.fallow/`; Agent CI local caches belong under Agent CI's managed cache directory; template update packs belong in `.template/updates/`; and local secrets belong in untracked files such as `.dev.vars` or `.env.agent-ci`.
+
+`npm run maintenance:clean` removes only the documented disposable targets:
+`.stryker-tmp/`, `.wrangler/tmp/`, `.wrangler/logs/`, generated coverage,
+mutation, and Lighthouse reports, `test-results/`, and `.cache/prettier/`. It
+rejects symbolic-link targets and deliberately preserves local application data
+under `.wrangler/state/` and all `.generated/` output.
 
 When adding a new tool or workflow that writes files, document the target path in the same change and prefer ignored local output unless the artifact is intentionally reviewed.
 

@@ -25,6 +25,7 @@ failures quickly during normal development.
 - **Changed-code readability diagnostics:** `npm run diagnostics:readability`
 - **Whole-repo health diagnostics:** `npm run diagnostics:health`
 - **Dependency-cost diagnostics:** `npm run diagnostics:dependencies`
+- **Disposable-state cleanup:** `npm run maintenance:clean`
 - **PDF reference quality:** `npm run diagnostics:pdf-references`
 - **Live citation-provider coverage:** `npm run diagnostics:citation-providers`
 - **Full mutation gate:** `npm run mutation`
@@ -77,6 +78,8 @@ failures quickly during normal development.
 - Do not treat advisory Fallow diagnostics as a replacement for formatting, type checking, runtime audit, unit coverage, browser tests, mutation testing, or Worker-specific guardrails.
 - Do not treat targeted iteration checks as a replacement for the readiness baseline unless the change is documentation-only and qualifies for the documented local CI exception.
 - Do not add undocumented workflow write targets for generated output, local state, caches, archives, or tool artifacts.
+- Do not delete `.wrangler/state`, `.generated`, or unknown ignored paths from
+  the routine maintenance cleanup.
 
 ## Contract
 
@@ -89,6 +92,8 @@ failures quickly during normal development.
 - [ ] The affected guardrail path scopes formatting, JavaScript syntax checks, Worker client-code checks, package audit, and unit tests to affected files when possible.
 - [ ] The affected test gate runs tests related to affected runtime files, runs affected unit test files directly, and falls back to full coverage for broad test environment changes or affected runtime files with no related tests.
 - [ ] The advisory codebase diagnostics report changed-code readability risk, whole-repo health, hotspots, duplication, and cleanup evidence without becoming part of the hard quality gate.
+- [ ] The maintenance cleanup removes only reproducible allowlisted targets and
+      preserves local application state and generated media.
 - [ ] Citation-provider diagnostics use production bounded adapters, report
       current coverage and completeness, and remain outside the hard gate.
 - [ ] The browser gate covers each canonical Playwright baseline file once.
@@ -231,6 +236,8 @@ failures quickly during normal development.
   SQLite WAL files are ephemeral application data, not mutation-test inputs.
 - New workflow write targets must be documented when they are introduced.
 - Manually created Fallow caches must stay ignored under `.fallow/`.
+- Local cleanup must reject a symbolic-link cleanup root and must not broaden
+  deletion from its reviewed target allowlist.
 
 ### Verification
 

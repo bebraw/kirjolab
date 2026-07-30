@@ -1,0 +1,10 @@
+{
+  "id": "2026-07-30-clean-disposable-state",
+  "title": "Clean disposable local state safely",
+  "status": "implemented",
+  "risk": "medium",
+  "supersedes": [],
+  "adrs": ["docs/adrs/implemented/ADR-211-clean-only-disposable-local-state.md"],
+  "touches": ["scripts/clean-local-state.mjs", "package.json", "docs/development.md", "specs/quality-gate/spec.md"],
+  "checks": ["node --test scripts/clean-local-state.test.mjs", "npm run maintenance:clean"]
+}

@@ -26,6 +26,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Add or update a template update pack in `.template/updates/` in the same change set whenever a reusable template maintenance change should be portable to downstream projects.
 - Keep the quality gate green before considering a change ready.
 - Keep workflow writes explicit. New generated output, local state, cache, archive, or tool-artifact paths should be documented in the same change that introduces them.
+- Keep routine local cleanup allowlisted and symlink-safe. Reproducible tool
+  sandboxes, transient Wrangler bundles and logs, reports, test results, and
+  formatting caches may be removed; preserve `.wrangler/state`, `.generated`,
+  and unknown ignored paths unless a separate explicit operation owns them.
 - Use pinned Valibot schemas selectively at external and persisted-data trust
   boundaries when one schema replaces duplicated structural types and runtime
   predicates. Keep authorization, cross-record invariants, canonicalization,

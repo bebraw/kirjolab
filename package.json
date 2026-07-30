@@ -44,7 +44,8 @@
       "2026-07-25-dependency-cost-diagnostic",
       "2026-07-30-validate-adr-registry",
       "2026-07-30-local-workers-tests",
-      "2026-07-30-relax-npm-version-hint"
+      "2026-07-30-relax-npm-version-hint",
+      "2026-07-30-clean-disposable-state"
     ]
   },
   "scripts": {
@@ -74,6 +75,7 @@
     "format:check": "prettier --check . --cache --cache-strategy content --cache-location .cache/prettier",
     "lighthouse": "node ./scripts/run-lighthouse.mjs",
     "media:build-week": "node ./scripts/capture-build-week-media.mjs",
+    "maintenance:clean": "node ./scripts/clean-local-state.mjs",
     "lint": "oxlint --max-warnings 0",
     "model:companion": "npm run build:model-companion && node --env-file-if-exists=.env ./.generated/model-companion.mjs",
     "mutation": "NODE_OPTIONS=--max-old-space-size=8192 stryker run",

@@ -1,0 +1,85 @@
+diff --git a/scripts/clean-local-state.mjs b/scripts/clean-local-state.mjs
+new file mode 100644
+--- /dev/null
++++ b/scripts/clean-local-state.mjs
+@@ -0,0 +1,72 @@
++import { lstat, readdir, rm } from "node:fs/promises";
++import { resolve, sep } from "node:path";
++import { pathToFileURL } from "node:url";
++
++export const localCleanupTargets = [
++  ".stryker-tmp",
++  ".wrangler/tmp",
++  ".wrangler/logs",
++  "reports/coverage",
++  "reports/mutation",
++  "reports/lighthouse",
++  "test-results",
++  ".cache/prettier",
++];
++
++export async function cleanLocalState(projectRoot) {
++  const root = resolve(projectRoot);
++  const removed = [];
++  for (const relativePath of localCleanupTargets) {
++    const target = resolve(root, relativePath);
++    if (!target.startsWith(`${root}${sep}`)) throw new Error(`Cleanup target escapes the project root: ${relativePath}`);
++    const metadata = await optionalLstat(target);
++    if (!metadata) continue;
++    if (metadata.isSymbolicLink()) throw new Error(`Refusing to clean symbolic-link target: ${relativePath}`);
++    const bytes = await diskUsage(target);
++    await rm(target, { recursive: true, force: true });
++    removed.push({ relativePath, bytes });
++  }
++  return removed;
++}
++
++async function optionalLstat(path) {
++  try {
++    return await lstat(path);
++  } catch (error) {
++    if (error && typeof error === "object" && "code" in error && error.code === "ENOENT") return null;
++    throw error;
++  }
++}
++
++async function diskUsage(path) {
++  const metadata = await lstat(path);
++  if (metadata.isSymbolicLink()) return 0;
++  if (!metadata.isDirectory()) return metadata.size;
++  const children = await readdir(path);
++  const sizes = await Promise.all(children.map(async (child) => await diskUsage(resolve(path, child))));
++  return sizes.reduce((total, size) => total + size, 0);
++}
++
++function formatBytes(bytes) {
++  const units = ["B", "KiB", "MiB", "GiB"];
++  let value = bytes;
++  let unit = units[0];
++  for (const candidate of units.slice(1)) {
++    if (value < 1024) break;
++    value /= 1024;
++    unit = candidate;
++  }
++  return `${value >= 10 || unit === "B" ? value.toFixed(0) : value.toFixed(1)} ${unit}`;
++}
++
++if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
++  const removed = await cleanLocalState(process.cwd());
++  if (removed.length === 0) {
++    console.log("Local disposable state is already clean.");
++  } else {
++    const bytes = removed.reduce((total, target) => total + target.bytes, 0);
++    console.log(`Removed ${removed.length} disposable targets (${formatBytes(bytes)}).`);
++    for (const target of removed) console.log(`- ${target.relativePath}`);
++    console.log("Preserved .wrangler/state and .generated project output.");
++  }
++}
+diff --git a/package.json b/package.json
+--- a/package.json
++++ b/package.json
+@@ -73,6 +73,7 @@
+     "lighthouse": "node ./scripts/run-lighthouse.mjs",
+     "media:build-week": "node ./scripts/capture-build-week-media.mjs",
++    "maintenance:clean": "node ./scripts/clean-local-state.mjs",
+     "model:companion": "npm run build:model-companion && node --env-file-if-exists=.env ./.generated/model-companion.mjs",
