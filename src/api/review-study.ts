@@ -26,7 +26,7 @@ import {
   stableReviewJson,
 } from "../domain/review/review-export";
 import type { AuthIdentity } from "../security/auth";
-import { canonicalReviewArtifactPath } from "../domain/workspace/workspace";
+import { canonicalReviewArtifactPath, type WorkspaceSnapshot } from "../domain/workspace/workspace";
 import * as v from "valibot";
 
 const maximumProtocolRequestBytes = 2 * 1024 * 1024;
@@ -82,12 +82,25 @@ export interface ReviewStudyApiContext {
   readonly profile: ReviewProfile;
 }
 
+type ReviewStudyStub = DurableObjectStub<import("../durable-objects/review-study").ReviewStudy>;
+type DocumentRoomStub = DurableObjectStub<import("../durable-objects/document-room").DocumentRoom>;
+
+interface ReviewStudyRoute {
+  readonly request: Request;
+  readonly study: ReviewStudyStub;
+  readonly identity: AuthIdentity;
+  readonly suffix: string;
+  readonly room: DocumentRoomStub | undefined;
+  readonly workspaceId: string | undefined;
+  readonly context: ReviewStudyApiContext;
+}
+
 export async function handleReviewStudyApi(
   request: Request,
-  study: DurableObjectStub<import("../durable-objects/review-study").ReviewStudy>,
+  study: ReviewStudyStub,
   identity: AuthIdentity,
   suffix: string,
-  room?: DurableObjectStub<import("../durable-objects/document-room").DocumentRoom>,
+  room?: DocumentRoomStub,
   workspaceId?: string,
   context: ReviewStudyApiContext = {
     reviewId: "legacy-project-review",
@@ -101,6 +114,19 @@ export async function handleReviewStudyApi(
   if (suffix === "/review-study" && request.method === "GET") {
     return noStore(initialized);
   }
+  const route = { request, study, identity, suffix, room, workspaceId, context };
+  const response =
+    (await handleProtocolRoute(route)) ??
+    (await handleSearchRoute(route)) ??
+    (await handleScreeningRoute(route)) ??
+    (await handleEvidenceRoute(route)) ??
+    (await handleSynthesisRoute(route)) ??
+    (await handleExportRoute(route));
+  if (response) return response;
+  return Response.json({ error: "Review-study route not found" }, { status: 404 });
+}
+
+async function handleProtocolRoute({ request, study, identity, suffix }: ReviewStudyRoute): Promise<Response | null> {
   if (suffix === "/review-study/protocol" && request.method === "PUT") {
     const body = await protocolRequest(request);
     return noStore(
@@ -118,11 +144,12 @@ export async function handleReviewStudyApi(
   }
   if (suffix === "/review-study/protocol/amend" && request.method === "POST") {
     const body = await protocolRequest(request, true);
+    if (!body.rationale) throw new Error("Protocol amendment rationale is required");
     return noStore(
       await study.amendProtocol({
         expectedRevision: body.expectedRevision,
         content: body.content,
-        rationale: body.rationale!,
+        rationale: body.rationale,
         actor: identity.email,
       }),
     );
@@ -130,11 +157,15 @@ export async function handleReviewStudyApi(
   if (suffix === "/review-study/reassessments" && request.method === "GET") {
     return noStore(await study.getReassessmentSnapshot());
   }
-  const reassessmentMatch = /^\/review-study\/reassessments\/([a-f0-9-]{36})\/complete$/iu.exec(suffix);
-  if (reassessmentMatch?.[1] && request.method === "POST") {
+  const reassessmentId = routeId(suffix, /^\/review-study\/reassessments\/([a-f0-9-]{36})\/complete$/iu);
+  if (reassessmentId && request.method === "POST") {
     const body = await reassessmentCompletionRequest(request);
-    return noStore(await study.completeReassessmentObligation(body.expectedRevision, reassessmentMatch[1], body.rationale, identity.email));
+    return noStore(await study.completeReassessmentObligation(body.expectedRevision, reassessmentId, body.rationale, identity.email));
   }
+  return null;
+}
+
+async function handleSearchRoute({ request, study, identity, suffix }: ReviewStudyRoute): Promise<Response | null> {
   if (suffix === "/review-study/search-import-previews" && request.method === "POST") {
     const body = await searchImportBody(request);
     return noStore(await previewReviewBibTeX(body.bibtex));
@@ -144,21 +175,21 @@ export async function handleReviewStudyApi(
     const body = await searchRunRequest(request);
     return noStore(await study.confirmSearchRun({ ...body, actor: identity.email }));
   }
-  const duplicateMatch = /^\/review-study\/duplicate-candidates\/([a-f0-9-]{36})\/resolve$/iu.exec(suffix);
-  if (duplicateMatch?.[1] && request.method === "POST") {
-    const body = await duplicateResolutionRequest(request);
-    return noStore(
-      await study.resolveDuplicate(body.expectedRevision, duplicateMatch[1], body.action, body.canonicalRecordId, identity.email),
-    );
-  }
+  const duplicateId = routeId(suffix, /^\/review-study\/duplicate-candidates\/([a-f0-9-]{36})\/resolve$/iu);
+  if (!duplicateId || request.method !== "POST") return null;
+  const body = await duplicateResolutionRequest(request);
+  return noStore(await study.resolveDuplicate(body.expectedRevision, duplicateId, body.action, body.canonicalRecordId, identity.email));
+}
+
+async function handleScreeningRoute({ request, study, identity, suffix }: ReviewStudyRoute): Promise<Response | null> {
   if (suffix === "/review-study/screening" && request.method === "GET") return noStore(await study.getScreeningSnapshot(identity.email));
-  const screeningMatch = /^\/review-study\/records\/([a-f0-9-]{36})\/screening-decisions$/iu.exec(suffix);
-  if (screeningMatch?.[1] && request.method === "POST") {
+  const screeningId = routeId(suffix, /^\/review-study\/records\/([a-f0-9-]{36})\/screening-decisions$/iu);
+  if (screeningId && request.method === "POST") {
     const body = await screeningDecisionRequest(request);
     return noStore(
       await study.submitScreeningDecision(
         body.expectedRevision,
-        screeningMatch[1],
+        screeningId,
         body.stage,
         body.decision,
         body.reason,
@@ -167,36 +198,43 @@ export async function handleReviewStudyApi(
       ),
     );
   }
-  const adjudicationMatch = /^\/review-study\/records\/([a-f0-9-]{36})\/screening-adjudications$/iu.exec(suffix);
-  if (adjudicationMatch?.[1] && request.method === "POST") {
+  const adjudicationId = routeId(suffix, /^\/review-study\/records\/([a-f0-9-]{36})\/screening-adjudications$/iu);
+  if (adjudicationId && request.method === "POST") {
     const body = await screeningAdjudicationRequest(request);
     return noStore(
-      await study.adjudicateScreening(body.expectedRevision, adjudicationMatch[1], body.stage, body.outcome, body.reason, identity.email),
+      await study.adjudicateScreening(body.expectedRevision, adjudicationId, body.stage, body.outcome, body.reason, identity.email),
     );
   }
-  const finalInclusionMatch = /^\/review-study\/records\/([a-f0-9-]{36})\/final-inclusion-decisions$/iu.exec(suffix);
-  if (finalInclusionMatch?.[1] && request.method === "POST") {
-    const body = await finalInclusionDecisionRequest(request);
-    return noStore(
-      await study.decideFinalInclusion(
-        body.expectedRevision,
-        finalInclusionMatch[1],
-        body.outcome,
-        body.criterionId,
-        body.reason,
-        identity.email,
-      ),
-    );
-  }
+  const inclusionId = routeId(suffix, /^\/review-study\/records\/([a-f0-9-]{36})\/final-inclusion-decisions$/iu);
+  if (!inclusionId || request.method !== "POST") return null;
+  const body = await finalInclusionDecisionRequest(request);
+  return noStore(
+    await study.decideFinalInclusion(body.expectedRevision, inclusionId, body.outcome, body.criterionId, body.reason, identity.email),
+  );
+}
+
+async function handleEvidenceRoute(route: ReviewStudyRoute): Promise<Response | null> {
+  const { request, study, identity, suffix } = route;
   if (suffix === "/review-study/evidence" && request.method === "GET") return noStore(await study.getEvidenceSnapshot(identity.email));
-  const qualityMatch = /^\/review-study\/records\/([a-f0-9-]{36})\/quality-values$/iu.exec(suffix);
-  if (qualityMatch?.[1] && request.method === "POST") {
+  return (await handleRecordedEvidenceRoute(route)) ?? (await handleModelRoute(route)) ?? (await handleFindingsRoute(route));
+}
+
+async function handleRecordedEvidenceRoute({
+  request,
+  study,
+  identity,
+  suffix,
+  room,
+  workspaceId,
+}: ReviewStudyRoute): Promise<Response | null> {
+  const qualityId = routeId(suffix, /^\/review-study\/records\/([a-f0-9-]{36})\/quality-values$/iu);
+  if (qualityId && request.method === "POST") {
     const body = await qualityValueRequest(request);
     await assertAuthorizedReviewSelector(body.evidence, room, workspaceId);
     return noStore(
       await study.submitQualityAssessment(
         body.expectedRevision,
-        qualityMatch[1],
+        qualityId,
         body.questionId,
         body.answerId,
         body.evidence,
@@ -205,137 +243,155 @@ export async function handleReviewStudyApi(
       ),
     );
   }
-  const extractionMatch = /^\/review-study\/records\/([a-f0-9-]{36})\/extraction-values$/iu.exec(suffix);
-  if (extractionMatch?.[1] && request.method === "POST") {
-    const body = await extractionValueRequest(request);
-    await assertAuthorizedReviewSelector(body.evidence, room, workspaceId);
-    if (isReviewSourceSelectorValue(body.value)) await assertAuthorizedReviewSelector(body.value, room, workspaceId);
-    return noStore(
-      await study.submitExtractionValue(
-        body.expectedRevision,
-        extractionMatch[1],
-        body.fieldId,
-        body.value,
-        body.missingReason,
-        body.evidence,
-        identity.email,
-      ),
-    );
-  }
+  const extractionId = routeId(suffix, /^\/review-study\/records\/([a-f0-9-]{36})\/extraction-values$/iu);
+  if (!extractionId || request.method !== "POST") return null;
+  const body = await extractionValueRequest(request);
+  await assertAuthorizedReviewSelector(body.evidence, room, workspaceId);
+  if (isReviewSourceSelectorValue(body.value)) await assertAuthorizedReviewSelector(body.value, room, workspaceId);
+  return noStore(
+    await study.submitExtractionValue(
+      body.expectedRevision,
+      extractionId,
+      body.fieldId,
+      body.value,
+      body.missingReason,
+      body.evidence,
+      identity.email,
+    ),
+  );
+}
+
+async function handleModelRoute({ request, study, identity, suffix, room, workspaceId }: ReviewStudyRoute): Promise<Response | null> {
   if (suffix === "/review-study/model-candidates" && request.method === "GET") {
     return noStore(await study.getModelSnapshot(identity.email));
   }
   if (suffix === "/review-study/model-candidates" && request.method === "POST") {
     const body = await modelCandidateRequest(request);
-    for (const selector of modelExtractionSelectors(body.operation, body.result)) {
-      await assertAuthorizedReviewSelector(selector, room, workspaceId);
-    }
+    await assertAuthorizedReviewSelectors(modelExtractionSelectors(body.operation, body.result), room, workspaceId);
     return noStore(await study.createModelCandidate({ ...body, actor: identity.email }));
   }
-  const modelCandidateMatch = /^\/review-study\/model-candidates\/([a-f0-9-]{36})\/(accept|reject)$/iu.exec(suffix);
-  if (modelCandidateMatch?.[1] && modelCandidateMatch[2] && request.method === "POST") {
-    const body = await expectedRevisionRequest(request);
-    if (modelCandidateMatch[2] === "accept") {
-      const candidate = (await study.getModelSnapshot(identity.email)).candidates.find((item) => item.id === modelCandidateMatch[1]);
-      if (candidate) {
-        for (const selector of modelExtractionSelectors(candidate.operation, candidate.result)) {
-          await assertAuthorizedReviewSelector(selector, room, workspaceId);
-        }
-      }
+  const match = /^\/review-study\/model-candidates\/([a-f0-9-]{36})\/(accept|reject)$/iu.exec(suffix);
+  const candidateId = match?.[1];
+  const action = match?.[2];
+  if (!candidateId || !action || request.method !== "POST") return null;
+  const body = await expectedRevisionRequest(request);
+  if (action === "accept") {
+    const candidate = (await study.getModelSnapshot(identity.email)).candidates.find((item) => item.id === candidateId);
+    if (candidate) {
+      await assertAuthorizedReviewSelectors(modelExtractionSelectors(candidate.operation, candidate.result), room, workspaceId);
     }
-    return noStore(
-      await study.resolveModelCandidate(
-        body.expectedRevision,
-        modelCandidateMatch[1],
-        modelCandidateMatch[2] === "accept" ? "accepted" : "rejected",
-        identity.email,
-      ),
-    );
   }
-  if (suffix === "/review-study/findings" && request.method === "GET") {
-    return noStore(await study.getFindingsSnapshot());
+  return noStore(
+    await study.resolveModelCandidate(body.expectedRevision, candidateId, action === "accept" ? "accepted" : "rejected", identity.email),
+  );
+}
+
+async function handleFindingsRoute({ request, study, identity, suffix, room, workspaceId }: ReviewStudyRoute): Promise<Response | null> {
+  if (suffix === "/review-study/findings" && request.method === "GET") return noStore(await study.getFindingsSnapshot());
+  if (suffix !== "/review-study/findings" || request.method !== "POST") return null;
+  const body = await reviewFindingRequest(request);
+  await assertAuthorizedReviewSelectors(
+    body.finding.evidence.map((link) => link.pointer),
+    room,
+    workspaceId,
+  );
+  return noStore(await study.createFinding(body.expectedRevision, body.finding, identity.email));
+}
+
+async function handleSynthesisRoute(route: ReviewStudyRoute): Promise<Response | null> {
+  const { request, study, identity, suffix } = route;
+  if (request.method === "GET") {
+    const synthesis = await synthesisDownload(suffix, study, identity);
+    if (synthesis) return synthesis;
   }
-  if (suffix === "/review-study/findings" && request.method === "POST") {
-    const body = await reviewFindingRequest(request);
-    for (const link of body.finding.evidence) await assertAuthorizedReviewSelector(link.pointer, room, workspaceId);
-    return noStore(await study.createFinding(body.expectedRevision, body.finding, identity.email));
-  }
-  if (suffix === "/review-study/synthesis" && request.method === "GET") return noStore(await study.getSynthesis(identity.email));
-  if (suffix === "/review-study/synthesis.csv" && request.method === "GET") {
+  if (suffix === "/review-study/synthesis/publish" && request.method === "POST") return await publishSynthesis(route);
+  return null;
+}
+
+async function synthesisDownload(suffix: string, study: ReviewStudyStub, identity: AuthIdentity): Promise<Response | null> {
+  if (suffix === "/review-study/synthesis") return noStore(await study.getSynthesis(identity.email));
+  if (suffix === "/review-study/synthesis.csv") {
     return download(reviewSynthesisCsv(await study.getSynthesis(identity.email)), "text/csv; charset=utf-8", "review-synthesis.csv");
   }
-  if (suffix === "/review-study/synthesis.md" && request.method === "GET") {
+  if (suffix === "/review-study/synthesis.md") {
     return download(
       reviewSynthesisMarkdown(await study.getSynthesis(identity.email)),
       "text/markdown; charset=utf-8",
       "review-synthesis.md",
     );
   }
-  if (suffix === "/review-study/synthesis/publish" && request.method === "POST") {
-    if (!room || !workspaceId || !context.linkId) throw new Error("Project room is unavailable for review publication");
-    const body = await synthesisPublishRequest(request, context);
-    const synthesis = await study.getSynthesisAtRevision(body.reviewRevision, identity.email);
-    const blockingDiagnostics = blockingReviewSynthesisDiagnostics(synthesis);
-    if (blockingDiagnostics.length > 0) {
-      return Response.json(
-        {
-          code: "review-synthesis-blocked",
-          error: "Review synthesis has blocking diagnostics and cannot be published",
-          reviewRevision: synthesis.revision,
-          diagnostics: blockingDiagnostics,
-        },
-        { status: 409, headers: { "cache-control": "no-store" } },
-      );
-    }
-    const definition = reviewSynthesisReportDefinition(synthesis);
-    if (body.analysisDefinitionId !== definition.id) throw new Error("Review analysis definition is unavailable");
-    const content = `<!-- kirjolab-review-artifact review-id=${context.reviewId} link-id=${context.linkId} publication-id=${body.publicationId} definition=${definition.id} definition-revision=${definition.revision} review-revision=${definition.reviewRevision} protocol-revision=${definition.protocolRevision} generator=kirjolab-review-synthesis generator-schema=kirjolab-review-analysis-v1 -->\n${reviewSynthesisMarkdown(synthesis)}`;
-    const generatedAt = new Date().toISOString();
-    const pin = {
-      path: body.path,
-      reviewId: context.reviewId,
-      linkId: context.linkId,
-      publicationId: body.publicationId,
-      reviewRevision: definition.reviewRevision,
-      protocolRevision: definition.protocolRevision,
-      analysisDefinitionId: definition.id,
-      analysisDefinitionRevision: definition.revision,
-      generator: "kirjolab-review-synthesis",
-      generatorSchema: "kirjolab-review-analysis-v1",
-      digest: await sha256Text(content),
-      publishedBy: identity.email,
-      generatedAt,
-    };
-    const result = await room.upsertReviewArtifact(workspaceId, body.path, content, body.expectedProjectRevision, pin);
-    if (!result.ok) {
-      const status = result.code === "invalid-path" || result.code === "content-too-large" || result.code === "invalid-pin" ? 400 : 409;
-      return Response.json({ code: result.code, error: result.error }, { status, headers: { "cache-control": "no-store" } });
-    }
-    return noStore({ path: body.path, directive: `::review-artifact[${body.path}]`, pin, project: result.value });
+  return null;
+}
+
+async function publishSynthesis({ request, study, identity, room, workspaceId, context }: ReviewStudyRoute): Promise<Response> {
+  if (!room || !workspaceId || !context.linkId) throw new Error("Project room is unavailable for review publication");
+  const body = await synthesisPublishRequest(request, context);
+  const synthesis = await study.getSynthesisAtRevision(body.reviewRevision, identity.email);
+  const blockingDiagnostics = blockingReviewSynthesisDiagnostics(synthesis);
+  if (blockingDiagnostics.length > 0) {
+    return Response.json(
+      {
+        code: "review-synthesis-blocked",
+        error: "Review synthesis has blocking diagnostics and cannot be published",
+        reviewRevision: synthesis.revision,
+        diagnostics: blockingDiagnostics,
+      },
+      { status: 409, headers: { "cache-control": "no-store" } },
+    );
   }
-  if (suffix.startsWith("/review-study/export/") && request.method === "GET") {
-    const authority = await study.getExportAuthority(identity.email);
-    if (suffix === "/review-study/export/review.json") {
-      return download(reviewAuthorityJson(authority), "application/json; charset=utf-8", "review.json");
-    }
-    if (suffix === "/review-study/export/extraction.csv") {
-      return download(reviewExtractionCsv(authority), "text/csv; charset=utf-8", "extraction.csv");
-    }
-    if (suffix === "/review-study/export/bibliography.bib") {
-      return download(reviewBibliographyBibTeX(authority), "application/x-bibtex; charset=utf-8", "bibliography.bib");
-    }
-    const prisma = reviewPrismaData(authority);
-    if (suffix === "/review-study/export/prisma.json") {
-      return download(stableReviewJson(prisma), "application/json; charset=utf-8", "prisma.json");
-    }
-    if (suffix === "/review-study/export/prisma.svg") {
-      return download(reviewPrismaSvg(prisma), "image/svg+xml; charset=utf-8", "prisma.svg");
-    }
-    if (suffix === "/review-study/export/review.zip") {
-      return binaryDownload(await buildReviewPackage(context.reviewId, authority), "application/zip", "review.zip");
-    }
+  const definition = reviewSynthesisReportDefinition(synthesis);
+  if (body.analysisDefinitionId !== definition.id) throw new Error("Review analysis definition is unavailable");
+  const content = `<!-- kirjolab-review-artifact review-id=${context.reviewId} link-id=${context.linkId} publication-id=${body.publicationId} definition=${definition.id} definition-revision=${definition.revision} review-revision=${definition.reviewRevision} protocol-revision=${definition.protocolRevision} generator=kirjolab-review-synthesis generator-schema=kirjolab-review-analysis-v1 -->\n${reviewSynthesisMarkdown(synthesis)}`;
+  const pin = {
+    path: body.path,
+    reviewId: context.reviewId,
+    linkId: context.linkId,
+    publicationId: body.publicationId,
+    reviewRevision: definition.reviewRevision,
+    protocolRevision: definition.protocolRevision,
+    analysisDefinitionId: definition.id,
+    analysisDefinitionRevision: definition.revision,
+    generator: "kirjolab-review-synthesis",
+    generatorSchema: "kirjolab-review-analysis-v1",
+    digest: await sha256Text(content),
+    publishedBy: identity.email,
+    generatedAt: new Date().toISOString(),
+  };
+  const result = await room.upsertReviewArtifact(workspaceId, body.path, content, body.expectedProjectRevision, pin);
+  if (!result.ok) {
+    const status = result.code === "invalid-path" || result.code === "content-too-large" || result.code === "invalid-pin" ? 400 : 409;
+    return Response.json({ code: result.code, error: result.error }, { status, headers: { "cache-control": "no-store" } });
   }
-  return Response.json({ error: "Review-study route not found" }, { status: 404 });
+  return noStore({ path: body.path, directive: `::review-artifact[${body.path}]`, pin, project: result.value });
+}
+
+async function handleExportRoute({ request, study, identity, suffix, context }: ReviewStudyRoute): Promise<Response | null> {
+  if (!suffix.startsWith("/review-study/export/") || request.method !== "GET") return null;
+  const authority = await study.getExportAuthority(identity.email);
+  if (suffix === "/review-study/export/review.json") {
+    return download(reviewAuthorityJson(authority), "application/json; charset=utf-8", "review.json");
+  }
+  if (suffix === "/review-study/export/extraction.csv") {
+    return download(reviewExtractionCsv(authority), "text/csv; charset=utf-8", "extraction.csv");
+  }
+  if (suffix === "/review-study/export/bibliography.bib") {
+    return download(reviewBibliographyBibTeX(authority), "application/x-bibtex; charset=utf-8", "bibliography.bib");
+  }
+  const prisma = reviewPrismaData(authority);
+  if (suffix === "/review-study/export/prisma.json") {
+    return download(stableReviewJson(prisma), "application/json; charset=utf-8", "prisma.json");
+  }
+  if (suffix === "/review-study/export/prisma.svg") {
+    return download(reviewPrismaSvg(prisma), "image/svg+xml; charset=utf-8", "prisma.svg");
+  }
+  if (suffix === "/review-study/export/review.zip") {
+    return binaryDownload(await buildReviewPackage(context.reviewId, authority), "application/zip", "review.zip");
+  }
+  return null;
+}
+
+function routeId(suffix: string, pattern: RegExp): string | null {
+  return pattern.exec(suffix)?.[1] ?? null;
 }
 
 async function synthesisPublishRequest(
@@ -551,59 +607,80 @@ async function validatedRequest<TOutput>(request: Request, schema: v.GenericSche
 
 async function assertAuthorizedReviewSelector(
   selector: ReviewEvidencePointer | ReviewSourceSelectorValue | null,
-  room: DurableObjectStub<import("../durable-objects/document-room").DocumentRoom> | undefined,
+  room: DocumentRoomStub | undefined,
   workspaceId: string | undefined,
 ): Promise<void> {
   if (selector === null) return;
   if ("kind" in selector && selector.kind === "legacy-unresolved") throw new Error("Review evidence selector is unresolved");
   if (!room || !workspaceId) throw new Error("Project evidence authority is unavailable");
   const snapshot = await room.getSnapshot(workspaceId);
-  if (selector.kind === "pdf-annotation") {
-    const annotation = snapshot.annotations.find(
-      (candidate) =>
-        candidate.pdfId === selector.resourceId &&
-        (candidate.id === selector.selectorId || candidate.fragments.some((fragment) => fragment.id === selector.selectorId)),
-    );
-    if (annotation) {
-      if ("quote" in selector) {
-        const selectedQuote =
-          annotation.id === selector.selectorId
-            ? annotation.quote
-            : annotation.fragments.find((fragment) => fragment.id === selector.selectorId)?.quote;
-        if (selectedQuote?.trim() !== selector.quote.trim() || selector.page !== annotation.page) {
-          throw new Error("Review PDF evidence does not match its shared annotation");
-        }
-      }
-      return;
-    }
-    const sharedHighlight = snapshot.researchShares.find(
-      (share) =>
-        share.revokedAt === null &&
-        share.id === selector.resourceId &&
-        share.resourceId === selector.selectorId &&
-        share.content.kind === "highlight",
-    );
-    if (sharedHighlight?.content.kind === "highlight") {
-      if (
-        "quote" in selector &&
-        (sharedHighlight.content.quote.trim() !== selector.quote.trim() || sharedHighlight.content.page !== selector.page)
-      ) {
-        throw new Error("Review PDF evidence does not match its shared highlight");
-      }
-      return;
-    }
-  }
-  if (selector.kind === "web-passage") {
-    const sharedSnapshot = snapshot.researchShares.find(
-      (share) =>
-        share.revokedAt === null &&
-        share.id === selector.resourceId &&
-        share.content.kind === "web-snapshot" &&
-        share.content.snapshotId === selector.selectorId,
-    );
-    if (sharedSnapshot) return;
-  }
+  if (isPdfReviewSelector(selector) && isAuthorizedPdfSelector(selector, snapshot)) return;
+  if (isWebReviewSelector(selector) && isAuthorizedWebSelector(selector, snapshot)) return;
   throw new Error("Review evidence selector is not shared with this project");
+}
+
+type PdfReviewSelector = (ReviewEvidencePointer | ReviewSourceSelectorValue) & { readonly kind: "pdf-annotation" };
+type WebReviewSelector = (ReviewEvidencePointer | ReviewSourceSelectorValue) & { readonly kind: "web-passage" };
+
+function isPdfReviewSelector(selector: ReviewEvidencePointer | ReviewSourceSelectorValue): selector is PdfReviewSelector {
+  return selector.kind === "pdf-annotation";
+}
+
+function isWebReviewSelector(selector: ReviewEvidencePointer | ReviewSourceSelectorValue): selector is WebReviewSelector {
+  return selector.kind === "web-passage";
+}
+
+function isAuthorizedPdfSelector(selector: PdfReviewSelector, snapshot: WorkspaceSnapshot): boolean {
+  const annotation = snapshot.annotations.find(
+    (candidate) =>
+      candidate.pdfId === selector.resourceId &&
+      (candidate.id === selector.selectorId || candidate.fragments.some((fragment) => fragment.id === selector.selectorId)),
+  );
+  if (annotation) {
+    if ("quote" in selector) {
+      const selectedQuote =
+        annotation.id === selector.selectorId
+          ? annotation.quote
+          : annotation.fragments.find((fragment) => fragment.id === selector.selectorId)?.quote;
+      assertPdfQuote(selectedQuote, annotation.page, selector, "annotation");
+    }
+    return true;
+  }
+  const sharedHighlight = snapshot.researchShares.find(
+    (share) =>
+      share.revokedAt === null &&
+      share.id === selector.resourceId &&
+      share.resourceId === selector.selectorId &&
+      share.content.kind === "highlight",
+  );
+  if (sharedHighlight?.content.kind !== "highlight") return false;
+  if ("quote" in selector) assertPdfQuote(sharedHighlight.content.quote, sharedHighlight.content.page, selector, "highlight");
+  return true;
+}
+
+function assertPdfQuote(selectedQuote: string | undefined, page: number, selector: PdfReviewSelector, source: string): void {
+  if (!("quote" in selector)) return;
+  if (selectedQuote?.trim() !== selector.quote.trim() || page !== selector.page) {
+    throw new Error(`Review PDF evidence does not match its shared ${source}`);
+  }
+}
+
+function isAuthorizedWebSelector(selector: WebReviewSelector, snapshot: WorkspaceSnapshot): boolean {
+  return snapshot.researchShares.some(
+    (share) =>
+      share.revokedAt === null &&
+      share.id === selector.resourceId &&
+      share.content.kind === "web-snapshot" &&
+      share.content.snapshotId === selector.selectorId,
+  );
+}
+
+async function assertAuthorizedReviewSelectors(
+  selectors: readonly (ReviewEvidencePointer | ReviewSourceSelectorValue)[],
+  room: DocumentRoomStub | undefined,
+  workspaceId: string | undefined,
+): Promise<void> {
+  for (const selector of selectors) await assertAuthorizedReviewSelector(selector, room, workspaceId);
 }
 
 function isReviewSourceSelectorValue(value: ExtractionValue): value is ReviewSourceSelectorValue {
