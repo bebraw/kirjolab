@@ -96,6 +96,20 @@ interface CentralDirectoryEntry {
   readonly expandedSize: number;
 }
 
+interface CentralDirectoryHeader {
+  readonly endOffset: number;
+  readonly offset: number;
+  readonly size: number;
+  readonly totalEntries: number;
+}
+
+interface ParsedCentralDirectoryEntry {
+  readonly entry: CentralDirectoryEntry;
+  readonly hostSystem: number;
+  readonly next: number;
+  readonly unixMode: number;
+}
+
 const supportedImages = new Set([".avif", ".gif", ".jpeg", ".jpg", ".png", ".svg", ".webp"]);
 const maximumExpansionRatio = 1_000;
 const expansionRatioMinimumBytes = 1024 * 1024;
@@ -199,6 +213,25 @@ export function analyzeLatexArchiveFiles(files: readonly LatexArchiveFile[]): La
 
 function readCentralDirectory(bytes: Uint8Array): readonly CentralDirectoryEntry[] {
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const directory = centralDirectoryHeader(view);
+  const decoder = new TextDecoder("utf-8", { fatal: true, ignoreBOM: false });
+  const paths = new Set<string>();
+  const entries: CentralDirectoryEntry[] = [];
+  let expandedBytes = 0;
+  let cursor = directory.offset;
+  for (let index = 0; index < directory.totalEntries; index += 1) {
+    const parsed = centralDirectoryEntry(view, bytes, cursor, directory.endOffset, decoder);
+    expandedBytes = acceptCentralDirectoryEntry(parsed, paths, expandedBytes);
+    entries.push(parsed.entry);
+    cursor = parsed.next;
+  }
+  if (cursor !== directory.offset + directory.size) {
+    throw new LatexArchiveFailure("archive-format", "ZIP central-directory size is invalid");
+  }
+  return entries;
+}
+
+function centralDirectoryHeader(view: DataView): CentralDirectoryHeader {
   const eocdOffset = findEndOfCentralDirectory(view);
   if (eocdOffset < 0 || eocdOffset + 22 > view.byteLength) throw new LatexArchiveFailure("archive-format", "Invalid ZIP archive");
   const diskNumber = view.getUint16(eocdOffset + 4, true);
@@ -217,61 +250,69 @@ function readCentralDirectory(bytes: Uint8Array): readonly CentralDirectoryEntry
     throw new LatexArchiveFailure("archive-too-many-entries", "LaTeX archive must contain 1–1,024 entries");
   }
   if (centralOffset + centralSize > eocdOffset) throw new LatexArchiveFailure("archive-format", "Invalid ZIP central directory");
-  const decoder = new TextDecoder("utf-8", { fatal: true, ignoreBOM: false });
-  const paths = new Set<string>();
-  const entries: CentralDirectoryEntry[] = [];
-  let expandedBytes = 0;
-  let cursor = centralOffset;
-  for (let index = 0; index < totalEntries; index += 1) {
-    if (cursor + 46 > eocdOffset || view.getUint32(cursor, true) !== 0x02014b50) {
-      throw new LatexArchiveFailure("archive-format", "Invalid ZIP central-directory entry");
-    }
-    const versionMadeBy = view.getUint16(cursor + 4, true);
-    const flags = view.getUint16(cursor + 8, true);
-    const compression = view.getUint16(cursor + 10, true);
-    const compressedSize = view.getUint32(cursor + 20, true);
-    const expandedSize = view.getUint32(cursor + 24, true);
-    const filenameLength = view.getUint16(cursor + 28, true);
-    const extraLength = view.getUint16(cursor + 30, true);
-    const commentLength = view.getUint16(cursor + 32, true);
-    const externalAttributes = view.getUint32(cursor + 38, true);
-    const next = cursor + 46 + filenameLength + extraLength + commentLength;
-    if (next > eocdOffset) throw new LatexArchiveFailure("archive-format", "Truncated ZIP central-directory entry");
-    if ((flags & 1) !== 0) throw new LatexArchiveFailure("archive-encrypted", "Encrypted ZIP entries are not supported");
-    if (compression !== 0 && compression !== 8) {
-      throw new LatexArchiveFailure("archive-unsupported-compression", "ZIP entries must use store or deflate compression");
-    }
-    let rawPath: string;
-    try {
-      rawPath = decoder.decode(bytes.subarray(cursor + 46, cursor + 46 + filenameLength));
-    } catch {
-      throw new LatexArchiveFailure("archive-path", "ZIP entry names must be UTF-8");
-    }
-    const directory = rawPath.endsWith("/");
-    const path = validateArchivePath(directory ? rawPath.slice(0, -1) : rawPath);
-    const comparisonPath = path.toLocaleLowerCase();
-    if (paths.has(comparisonPath)) throw new LatexArchiveFailure("archive-path", `Duplicate archive path: ${path}`);
-    paths.add(comparisonPath);
-    const hostSystem = versionMadeBy >>> 8;
-    const unixMode = externalAttributes >>> 16;
-    if (hostSystem === 3 && (unixMode & 0o170000) === 0o120000) {
-      throw new LatexArchiveFailure("archive-symlink", `Symbolic links are not supported: ${path}`);
-    }
-    expandedBytes += expandedSize;
-    if (expandedBytes > latexArchiveMaximumExpandedBytes) {
-      throw new LatexArchiveFailure("archive-expanded-size", "Expanded LaTeX archive exceeds 64 MiB");
-    }
-    if (
-      expandedSize >= expansionRatioMinimumBytes &&
-      (compressedSize === 0 || expandedSize / Math.max(1, compressedSize) > maximumExpansionRatio)
-    ) {
-      throw new LatexArchiveFailure("archive-expanded-size", `ZIP entry has an excessive expansion ratio: ${path}`);
-    }
-    entries.push({ path: directory ? `${path}/` : path, directory, compressedSize, expandedSize });
-    cursor = next;
+  return { endOffset: eocdOffset, offset: centralOffset, size: centralSize, totalEntries };
+}
+
+function centralDirectoryEntry(
+  view: DataView,
+  bytes: Uint8Array,
+  cursor: number,
+  endOffset: number,
+  decoder: TextDecoder,
+): ParsedCentralDirectoryEntry {
+  if (cursor + 46 > endOffset || view.getUint32(cursor, true) !== 0x02014b50) {
+    throw new LatexArchiveFailure("archive-format", "Invalid ZIP central-directory entry");
   }
-  if (cursor !== centralOffset + centralSize) throw new LatexArchiveFailure("archive-format", "ZIP central-directory size is invalid");
-  return entries;
+  const flags = view.getUint16(cursor + 8, true);
+  const compression = view.getUint16(cursor + 10, true);
+  const compressedSize = view.getUint32(cursor + 20, true);
+  const expandedSize = view.getUint32(cursor + 24, true);
+  const filenameLength = view.getUint16(cursor + 28, true);
+  const next = cursor + 46 + filenameLength + view.getUint16(cursor + 30, true) + view.getUint16(cursor + 32, true);
+  if (next > endOffset) throw new LatexArchiveFailure("archive-format", "Truncated ZIP central-directory entry");
+  if ((flags & 1) !== 0) throw new LatexArchiveFailure("archive-encrypted", "Encrypted ZIP entries are not supported");
+  if (compression !== 0 && compression !== 8) {
+    throw new LatexArchiveFailure("archive-unsupported-compression", "ZIP entries must use store or deflate compression");
+  }
+  const rawPath = decodeArchivePath(decoder, bytes.subarray(cursor + 46, cursor + 46 + filenameLength));
+  const directory = rawPath.endsWith("/");
+  const path = validateArchivePath(directory ? rawPath.slice(0, -1) : rawPath);
+  return {
+    entry: { path: directory ? `${path}/` : path, directory, compressedSize, expandedSize },
+    hostSystem: view.getUint16(cursor + 4, true) >>> 8,
+    next,
+    unixMode: view.getUint32(cursor + 38, true) >>> 16,
+  };
+}
+
+function decodeArchivePath(decoder: TextDecoder, bytes: Uint8Array): string {
+  try {
+    return decoder.decode(bytes);
+  } catch {
+    throw new LatexArchiveFailure("archive-path", "ZIP entry names must be UTF-8");
+  }
+}
+
+function acceptCentralDirectoryEntry(parsed: ParsedCentralDirectoryEntry, paths: Set<string>, expandedBytes: number): number {
+  const { compressedSize, expandedSize } = parsed.entry;
+  const path = parsed.entry.directory ? parsed.entry.path.slice(0, -1) : parsed.entry.path;
+  const comparisonPath = path.toLocaleLowerCase();
+  if (paths.has(comparisonPath)) throw new LatexArchiveFailure("archive-path", `Duplicate archive path: ${path}`);
+  paths.add(comparisonPath);
+  if (parsed.hostSystem === 3 && (parsed.unixMode & 0o170000) === 0o120000) {
+    throw new LatexArchiveFailure("archive-symlink", `Symbolic links are not supported: ${path}`);
+  }
+  const totalExpandedBytes = expandedBytes + expandedSize;
+  if (totalExpandedBytes > latexArchiveMaximumExpandedBytes) {
+    throw new LatexArchiveFailure("archive-expanded-size", "Expanded LaTeX archive exceeds 64 MiB");
+  }
+  if (
+    expandedSize >= expansionRatioMinimumBytes &&
+    (compressedSize === 0 || expandedSize / Math.max(1, compressedSize) > maximumExpansionRatio)
+  ) {
+    throw new LatexArchiveFailure("archive-expanded-size", `ZIP entry has an excessive expansion ratio: ${path}`);
+  }
+  return totalExpandedBytes;
 }
 
 function findEndOfCentralDirectory(view: DataView): number {
