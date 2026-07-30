@@ -574,6 +574,7 @@ export function renderHomePage(
             ${renderLibraryPdfRail()}
             <pdf-search-panel id="pdf-search-panel"></pdf-search-panel>
             <pdf-navigation-panel id="pdf-navigation-panel"></pdf-navigation-panel>
+            <span class="pdf-reader-status" id="paper-status" role="status" aria-live="polite" data-state="busy">Loading PDF…</span>
             <div class="pdf-reader" id="paper-reader">
               <div class="pdf-page" id="paper-page">
                 <canvas class="block" id="paper-canvas"></canvas>

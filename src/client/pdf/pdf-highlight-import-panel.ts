@@ -11,6 +11,7 @@ import {
   type PdfHighlightAnalysisResult,
 } from "../../domain/reference-library";
 import { expectOk, jsonFetch, loadJson } from "../platform/http";
+import { pdfFailureMessage } from "./pdf-status";
 
 export const pdfHighlightImportOutcomeEvent = "pdf-highlight-import-outcome";
 
@@ -213,9 +214,9 @@ export class PdfHighlightImportPanel extends LightDomElement {
           detail: { count },
         }),
       );
-    } catch (error) {
+    } catch {
       if (this.currentContext(context)) {
-        this.status = error instanceof Error ? `Could not import highlights: ${error.message}` : "Could not import highlights.";
+        this.status = "Could not import highlights. Retry in a moment.";
       }
     } finally {
       if (this.currentContext(context)) this.importing = false;
@@ -273,11 +274,9 @@ export class PdfHighlightImportPanel extends LightDomElement {
       if (!this.currentContext(context)) return;
       if (analysis.artifactId !== context.artifactId) return;
       this.applyAnalysis(context, analysis);
-    } catch (error) {
+    } catch {
       if (this.currentContext(context)) {
-        this.showError(
-          error instanceof Error ? `Could not load highlight analysis: ${error.message}` : "Could not load highlight analysis.",
-        );
+        this.showError(pdfFailureMessage("analysis-load"));
       }
     } finally {
       if (this.currentContext(context)) this.loading = false;
@@ -293,7 +292,7 @@ export class PdfHighlightImportPanel extends LightDomElement {
       return;
     }
     if (analysis.status === "failed") {
-      this.showError(analysis.error ? `Could not analyze this PDF: ${analysis.error}` : "Could not analyze this PDF.");
+      this.showError(pdfFailureMessage("analysis"));
       return;
     }
     if (!analysis.result || !isPdfHighlightAnalysisResult(analysis.result)) return;

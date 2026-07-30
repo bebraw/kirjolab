@@ -232,6 +232,10 @@ describe("PDF highlight import panel", () => {
     panel.setContext(null);
     panel.setContext({ artifactId: "artifact-2", highlights: [], referenceId: "reference-2" });
     await settle();
+    expect(templateMarkup(panel.renderForTest())).toContain(
+      "Could not analyze this PDF. Retry when the local analysis service is available.",
+    );
+    expect(templateMarkup(panel.renderForTest())).not.toContain("Browser unavailable");
     panel.retryForTest();
     await settle();
     expect(panel.loads.at(-1)).toEqual({ artifactId: "artifact-2", retry: true });

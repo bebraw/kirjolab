@@ -8,6 +8,7 @@ class FakeElement {
   readonly listeners = new Map<string, () => void>();
   readonly ownerDocument = document;
   hidden = false;
+  disabled = false;
   title = "";
   clientWidth = 900;
   clientHeight = 700;
@@ -100,6 +101,12 @@ describe("PDF reading controls", () => {
       status: new FakeElement(),
     };
     const viewer = new PdfEvidenceViewer(elements as never, vi.fn(), vi.fn());
+
+    viewer.showError(new Error("/private/tmp/browser-profile failed"));
+    expect(elements.status.dataset.state).toBe("error");
+    expect((elements.status as unknown as { textContent: string }).textContent).toBe("Could not display this PDF. Try reopening it.");
+    expect(reader.attributes.get("aria-busy")).toBe("false");
+    expect(zoomIn.disabled).toBe(true);
 
     await viewer.adjustZoom(0.25);
     expect(reader.dataset.zoomed).toBe("true");

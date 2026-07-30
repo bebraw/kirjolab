@@ -370,6 +370,9 @@ describe("PDF reference analysis panel", () => {
     panel.analysis = { ...readyAnalysis, status: "failed", result: null, error: "Browser unavailable" };
     panel.setArtifact("artifact/1");
     await settle();
+    expect((panel as unknown as { status: string }).status).toBe(
+      "Could not analyze this PDF. Retry when the local analysis service is available.",
+    );
     panel.analysis = readyAnalysis;
     panel.retryForTest();
     await settle();

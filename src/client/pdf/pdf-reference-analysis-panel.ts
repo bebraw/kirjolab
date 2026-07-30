@@ -13,6 +13,7 @@ import {
 } from "../../domain/reference-library";
 import { errorMessage, expectOk, jsonFetch, loadJson } from "../platform/http";
 import { LightDomElement } from "../platform/light-dom-controller";
+import { pdfFailureMessage } from "./pdf-status";
 
 const defaultStatus = "References are analyzed automatically after PDF import.";
 
@@ -301,10 +302,10 @@ export class PdfReferenceAnalysisPanel extends LightDomElement {
       const analysis = await this.load(artifactId, retry);
       if (artifactId !== this.#artifactId || analysis.artifactId !== artifactId) return;
       this.applyAnalysis(artifactId, analysis);
-    } catch (error) {
+    } catch {
       if (artifactId === this.#artifactId) {
         this.result = null;
-        this.status = error instanceof Error ? `Could not load reference analysis: ${error.message}` : "Could not load reference analysis.";
+        this.status = pdfFailureMessage("analysis-load");
       }
     } finally {
       if (artifactId === this.#artifactId) this.loading = false;
@@ -325,7 +326,7 @@ export class PdfReferenceAnalysisPanel extends LightDomElement {
       this.reviewQueue = null;
       this.reviewStatus = "";
       this.result = null;
-      this.status = analysis.error ? `Could not analyze references: ${analysis.error}` : "Could not analyze references.";
+      this.status = pdfFailureMessage("analysis");
       return;
     }
     if (!analysis.result || !isPdfReferenceAnalysisResult(analysis.result)) return;

@@ -101,6 +101,8 @@ with an authored passage.
       without a modal covering the editor.
 - [x] Tablet layouts preserve a useful PDF reading width and opening PDF search
       or navigation does not resize the page.
+- [x] PDF loading, rendering, document-map progress, and retryable failures are
+      visible inside the reader even when a toolbar is hidden.
 - [x] Reopening an annotation restores its page and visible highlight.
 - [x] An annotation can select its linked manuscript passage.
 - [x] Existing manual annotations without geometry remain readable.
@@ -125,6 +127,8 @@ with an authored passage.
   viewer construction instead of leaving a partially bound reader.
 - A superseded document or render request must never replace the active canvas,
   text layer, page indicators, or viewer status.
+- User-facing PDF and analysis failures must use stable recovery guidance and
+  must not expose service, process, or local filesystem details.
 - Selecting Context on a narrow viewport must not leave the project rail above
   the PDF, and PDF auxiliary panels must not participate in reader grid sizing.
 - Stored highlights must never mutate the imported R2 object.
@@ -166,3 +170,11 @@ with an authored passage.
 - When: the researcher switches to Context or opens document navigation
 - Then: the PDF keeps the full height and a useful reading width while the
   project rail or navigation panel yields through the responsive hierarchy
+
+**Scenario: PDF processing is delayed or unavailable**
+
+- Given: a PDF is loading, rendering, building its document map, or awaiting
+  local analysis
+- When: work remains active or a service fails
+- Then: the reader shows progress or stable retry guidance without exposing
+  runtime details, and reading controls stay unavailable until a document opens

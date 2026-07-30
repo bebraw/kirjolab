@@ -22,6 +22,7 @@ import {
 } from "./pdf-gestures";
 import { loadPdfJsRuntime, type PdfJsRuntime } from "./pdfjs-runtime";
 import { createPdfViewerActor, pdfViewerDocumentRequestActive, pdfViewerRenderRequestActive } from "./pdf-viewer-machine";
+import { pdfFailureMessage } from "./pdf-status";
 
 export interface PdfSelectionCapture {
   page: number;
@@ -72,6 +73,7 @@ interface OpenPdfOptions {
 export type PdfTextSelectionMode = "copy" | "disabled" | "highlight";
 export type PdfDisplayMode = "continuous" | "single" | "spread";
 export type PdfFitMode = "actual" | "page" | "width";
+type PdfViewerStatusState = "busy" | "error" | "ready";
 
 export class PdfEvidenceViewer {
   readonly #elements: PdfViewerElements;
@@ -231,7 +233,7 @@ export class PdfEvidenceViewer {
       this.#elements.continuousPages.hidden = false;
       this.#elements.reader.dataset.displayMode = mode;
       this.#elements.continuousPages.dataset.layout = mode;
-      this.#elements.status.textContent = mode === "spread" ? "Preparing two-page view…" : "Preparing continuous view…";
+      this.#setStatus(mode === "spread" ? "Preparing two-page view…" : "Preparing continuous view…", "busy");
       await this.#continuousView.open(documentModel, runtime, this.#pageNumber, this.#flowPageWidth(mode), this.#rotation);
       this.#presentContinuousPage(this.#pageNumber);
       return;
@@ -308,7 +310,7 @@ export class PdfEvidenceViewer {
     this.#renderedViewport = null;
     this.#wheelPagingState = initialPdfWheelPagingState();
     this.#elements.reader.dataset.zoomed = "false";
-    this.#elements.status.textContent = "Loading PDF…";
+    this.#setStatus("Loading PDF…", "busy");
     let runtime: PdfJsRuntime;
     try {
       runtime = await loadPdfJsRuntime();
@@ -447,8 +449,8 @@ export class PdfEvidenceViewer {
     this.#continuousView.refreshOverlays();
   }
 
-  showError(error: unknown): void {
-    this.#elements.status.textContent = error instanceof Error ? error.message : "Could not render this PDF";
+  showError(_error: unknown): void {
+    this.#setStatus(pdfFailureMessage("viewer"), "error");
   }
 
   setTextSelectionMode(mode: PdfTextSelectionMode): void {
@@ -564,7 +566,7 @@ export class PdfEvidenceViewer {
     this.#lifecycle.send({ type: "RENDER", page: this.#pageNumber });
     const renderRequest = this.#lifecycle.getSnapshot().context.renderRequest;
     if (!pdfViewerRenderRequestActive(this.#lifecycle.getSnapshot(), renderRequest)) return;
-    this.#elements.status.textContent = `Rendering page ${this.#pageNumber}…`;
+    this.#setStatus(`Rendering page ${this.#pageNumber}…`, "busy");
     let page: Awaited<ReturnType<PDFDocumentProxy["getPage"]>>;
     try {
       page = await documentModel.getPage(this.#pageNumber);
@@ -650,12 +652,14 @@ export class PdfEvidenceViewer {
     this.#renderHighlights();
     this.#restoreZoomAnchor();
     this.#presentPageNavigation(documentModel.numPages);
-    this.#elements.status.textContent =
+    this.#setStatus(
       this.#mode === "private-highlight"
         ? "Private library PDF · select text to highlight"
         : this.#mode === "read-only"
           ? "Shared project PDF · read only"
-          : "Select text to capture evidence";
+          : "Select text to capture evidence",
+      "ready",
+    );
     this.#lifecycle.send({ type: "RENDERED", renderRequest });
     this.#onPageChange(this.#pageNumber);
   }
@@ -665,12 +669,14 @@ export class PdfEvidenceViewer {
     if (!documentModel) return;
     this.#pageNumber = clamp(page, 1, documentModel.numPages);
     this.#presentPageNavigation(documentModel.numPages);
-    this.#elements.status.textContent =
+    this.#setStatus(
       this.#mode === "private-highlight"
         ? "Continuous view · select text to highlight"
         : this.#mode === "read-only"
           ? "Continuous view · shared project PDF"
-          : "Continuous view · select text to capture evidence";
+          : "Continuous view · select text to capture evidence",
+      "ready",
+    );
     this.#onPageChange(this.#pageNumber);
   }
 
@@ -746,6 +752,29 @@ export class PdfEvidenceViewer {
     for (const button of this.#elements.nextPages) button.disabled = this.#pageNumber === totalPages;
   }
 
+  #setStatus(message: string, state: PdfViewerStatusState): void {
+    this.#elements.status.textContent = message;
+    this.#elements.status.dataset.state = state;
+    const busy = state === "busy";
+    this.#elements.reader.setAttribute("aria-busy", String(busy));
+    const readingControls = [
+      ...this.#elements.continuousModeButtons,
+      ...this.#elements.fitModeButtons,
+      ...this.#elements.rotateButtons,
+      ...this.#elements.spreadButtons,
+      ...this.#elements.zoomInButtons,
+      ...this.#elements.zoomOutButtons,
+    ];
+    const documentModel = this.#document;
+    const unavailable = busy || !documentModel;
+    for (const button of readingControls) button.disabled = unavailable;
+    if (unavailable) {
+      for (const button of [...this.#elements.previousPages, ...this.#elements.nextPages]) button.disabled = true;
+    } else {
+      this.#presentPageNavigation(documentModel.numPages);
+    }
+  }
+
   #availablePageWidth(): number {
     const readerStyle = window.getComputedStyle(this.#elements.reader);
     const horizontalPadding = (Number.parseFloat(readerStyle.paddingLeft) || 0) + (Number.parseFloat(readerStyle.paddingRight) || 0);
@@ -756,7 +785,7 @@ export class PdfEvidenceViewer {
   #failRender(renderRequest: number, error: unknown): void {
     const message = error instanceof Error ? error.message : "Could not render the PDF page";
     this.#lifecycle.send({ type: "RENDER_FAILED", renderRequest, message });
-    if (this.#lifecycle.getSnapshot().matches("failed")) this.#elements.status.textContent = message;
+    if (this.#lifecycle.getSnapshot().matches("failed")) this.#setStatus(pdfFailureMessage("viewer"), "error");
   }
 
   #queueSelectionCapture(): void {
@@ -800,10 +829,12 @@ export class PdfEvidenceViewer {
     this.#renderHighlights();
     this.#continuousView.refreshOverlays();
     this.#onSelection(this.#draftSelection);
-    this.#elements.status.textContent =
+    this.#setStatus(
       this.#mode === "private-highlight"
         ? `Private selection captured from page ${source.page}`
-        : `${rects.length} ${rects.length === 1 ? "line" : "lines"} captured from page ${source.page}`;
+        : `${rects.length} ${rects.length === 1 ? "line" : "lines"} captured from page ${source.page}`,
+      "ready",
+    );
     if (this.#mode === "evidence") selection.removeAllRanges();
   }
 

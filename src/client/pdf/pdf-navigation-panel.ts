@@ -1,5 +1,6 @@
 import { html, nothing, type TemplateResult } from "lit";
 import { LightDomElement } from "../platform/light-dom-controller";
+import { pdfFailureMessage } from "./pdf-status";
 
 export interface PdfOutlineItem {
   readonly title: string;
@@ -17,20 +18,24 @@ export class PdfNavigationPanel extends LightDomElement {
   static override properties = {
     bookmarks: { state: true },
     currentPage: { state: true },
+    error: { state: true },
     loading: { state: true },
     open: { state: true },
     outline: { state: true },
     pages: { state: true },
     thumbnails: { state: true },
+    thumbnailsLoaded: { state: true },
   };
 
   declare private bookmarks: readonly number[];
   declare private currentPage: number;
+  declare private error: string;
   declare private loading: boolean;
   declare private open: boolean;
   declare private outline: readonly PdfOutlineItem[];
   declare private pages: number;
   declare private thumbnails: ReadonlyMap<number, string>;
+  declare private thumbnailsLoaded: number;
   private binding: PdfNavigationBinding | null = null;
   private documentKey = "";
 
@@ -38,11 +43,13 @@ export class PdfNavigationPanel extends LightDomElement {
     super();
     this.bookmarks = [];
     this.currentPage = 1;
+    this.error = "";
     this.loading = false;
     this.open = false;
     this.outline = [];
     this.pages = 0;
     this.thumbnails = new Map();
+    this.thumbnailsLoaded = 0;
   }
 
   bind(binding: PdfNavigationBinding): void {
@@ -53,8 +60,10 @@ export class PdfNavigationPanel extends LightDomElement {
     if (key !== this.documentKey) {
       this.documentKey = key;
       this.outline = [];
+      this.error = "";
       this.pages = 0;
       this.thumbnails = new Map();
+      this.thumbnailsLoaded = 0;
       this.bookmarks = readPdfBookmarks(key);
     }
     this.currentPage = currentPage;
@@ -75,7 +84,7 @@ export class PdfNavigationPanel extends LightDomElement {
 
   protected override render(): TemplateResult {
     return html`
-      <aside class="pdf-navigation-panel" ?hidden=${!this.open} aria-label="PDF navigation">
+      <aside class="pdf-navigation-panel" ?hidden=${!this.open} aria-label="PDF navigation" aria-busy=${String(this.loading)}>
         <header class="pdf-search-header">
           <div>
             <p class="eyebrow">Document map</p>
@@ -83,6 +92,16 @@ export class PdfNavigationPanel extends LightDomElement {
           </div>
           <button class="library-pdf-inspector-close" type="button" aria-label="Close PDF navigation" @click=${this.hide}>×</button>
         </header>
+        ${this.loading
+          ? html`<p class="pdf-navigation-status" role="status">
+              ${this.pages ? `Loading page previews… ${this.thumbnailsLoaded} of ${Math.min(this.pages, 40)}` : "Loading document map…"}
+            </p>`
+          : this.error
+            ? html`<div class="pdf-navigation-status" data-tone="error" role="alert">
+                <p>${this.error}</p>
+                <button class="button-secondary" type="button" @click=${() => void this.load()}>Retry</button>
+              </div>`
+            : nothing}
         <button class="button-secondary pdf-bookmark-current" type="button" @click=${this.toggleBookmark}>
           ${this.bookmarks.includes(this.currentPage) ? "Remove bookmark" : "Bookmark"} page ${this.currentPage}
         </button>
@@ -115,7 +134,6 @@ export class PdfNavigationPanel extends LightDomElement {
           </div>
           ${this.pages > 40 ? html`<p class="pdf-search-status">Showing the first 40 of ${this.pages} page thumbnails.</p>` : nothing}
         </section>
-        ${this.loading ? html`<p class="pdf-search-status" role="status">Loading document map…</p>` : nothing}
       </aside>
     `;
   }
@@ -138,6 +156,8 @@ export class PdfNavigationPanel extends LightDomElement {
     const binding = this.binding;
     if (!binding || this.loading) return;
     this.loading = true;
+    this.error = "";
+    this.thumbnailsLoaded = 0;
     try {
       const navigation = await binding.navigation();
       this.outline = navigation.outline;
@@ -145,7 +165,10 @@ export class PdfNavigationPanel extends LightDomElement {
       for (let page = 1; page <= Math.min(navigation.pages, 40); page += 1) {
         const source = await binding.thumbnail(page);
         this.thumbnails = new Map(this.thumbnails).set(page, source);
+        this.thumbnailsLoaded = page;
       }
+    } catch {
+      this.error = pdfFailureMessage("navigation");
     } finally {
       this.loading = false;
     }

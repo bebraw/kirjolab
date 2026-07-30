@@ -2724,6 +2724,7 @@ test("shares linked reference PDFs with members but not public links", async ({ 
   await expect(page.getByRole("tab", { name: "climate_adaptation.pdf" })).toHaveAttribute("aria-selected", "true");
   await expect(page.locator("#pdf-context-controls")).toBeHidden();
   await expect(page.locator("#paper-status")).toHaveText("Private library PDF · select text to highlight");
+  await expect(page.locator("#paper-status")).toHaveAttribute("data-state", "ready");
   await expect(page.locator("#annotation-composer")).toBeHidden();
   await expect(page.locator("#library-highlight-composer")).toBeHidden();
   await expect(page.locator("#library-highlight-composer")).not.toContainText("Highlight this PDF");

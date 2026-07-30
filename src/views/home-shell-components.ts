@@ -42,7 +42,6 @@ export function renderContextTabs(): string {
               <span id="diagnostic-summary">Validating…</span>
             </preview-context-status>
             <div class="context-mode-controls" id="pdf-context-controls" hidden>
-              <span class="context-status" id="paper-status">Loading PDF…</span>
               <button id="previous-paper-page" type="button" aria-label="Previous PDF page">←</button>
               ${renderPdfPageIndicator("paper-page-indicator")}
               <button id="next-paper-page" type="button" aria-label="Next PDF page">→</button>
