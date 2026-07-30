@@ -29,6 +29,7 @@ class FakeElement extends EventTarget {
   hidden = false;
   focused = false;
   removed = false;
+  replaceChildrenCalls = 0;
   parentElement: FakeElement | null = null;
   clientWidth = 240;
   clientHeight = 120;
@@ -47,6 +48,7 @@ class FakeElement extends EventTarget {
   }
 
   replaceChildren(...nodes: unknown[]): void {
+    this.replaceChildrenCalls += 1;
     this.children.length = 0;
     this.append(...nodes);
   }
@@ -163,7 +165,11 @@ describe("source editor adapter", () => {
     expect(text.toString()).toBe("# A\nB remote");
     textarea.dispatchEvent(new TestInputEvent("beforeinput", { inputType: "historyRedo", cancelable: true }));
     expect(textarea.focused).toBe(true);
+    const renderCount = highlight.replaceChildrenCalls;
     binding.renderHighlight();
+    expect(highlight.replaceChildrenCalls).toBe(renderCount);
+    binding.renderHighlight();
+    expect(highlight.replaceChildrenCalls).toBe(renderCount);
     binding.destroy();
     textarea.value = "detached";
     textarea.dispatchEvent(new Event("input"));

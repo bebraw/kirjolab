@@ -1905,7 +1905,12 @@ test("keeps the local editor target visible after focus moves to Context", async
     element.dispatchEvent(new MouseEvent("click", { bubbles: true }));
   });
   await expect(page.locator("#editor-target-status")).toContainText("main.md · line 1 · caret");
-  await expect(page.locator('#source-editor-highlight .source-editor-line[data-line-number="1"] .local-author-caret')).toHaveCount(1);
+  await expect(page.locator("#source-editor-highlight .local-author-caret")).toHaveCount(0);
+
+  const focusedHighlight = await page.locator("#source-editor-highlight").evaluate((element) => element.innerHTML);
+  await editor.press("ArrowRight");
+  await expect(page.locator("#source-editor-highlight")).toHaveText("# Target\n\nVisible selection remains anchored.");
+  expect(await page.locator("#source-editor-highlight").evaluate((element) => element.innerHTML)).toBe(focusedHighlight);
 
   await editor.evaluate((element: HTMLTextAreaElement) => {
     element.focus();
@@ -1914,6 +1919,7 @@ test("keeps the local editor target visible after focus moves to Context", async
   });
 
   await expect(page.locator("#editor-target-status")).toContainText("main.md · line 3 · 17 characters selected");
+  await expect(page.locator("#source-editor-highlight .local-author-selection")).toHaveCount(0);
   await page.getByRole("tab", { name: "Writing assistant" }).click();
   await expect(page.locator("#source-editor-highlight .local-author-selection")).toContainText("Visible selection");
 
@@ -1923,7 +1929,7 @@ test("keeps the local editor target visible after focus moves to Context", async
     element.dispatchEvent(new Event("select", { bubbles: true }));
   });
   const localCaret = page.locator("#source-editor-highlight .local-author-caret");
-  await expect(localCaret).toHaveCSS("visibility", "hidden");
+  await expect(localCaret).toHaveCount(0);
   await page.getByRole("tab", { name: "Writing assistant" }).click();
   await expect(page.locator("#editor-target-status")).toContainText("line 3 · caret");
   await expect(localCaret).toHaveCSS("visibility", "visible");

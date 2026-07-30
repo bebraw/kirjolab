@@ -21,7 +21,10 @@ preserving the native collaborative textarea and exact source text.
   close to its gutter while preserving space for four-digit line numbers. The
   textarea, mirror, and gutter share one integral line-height token and opt out
   of Safari text autosizing so fractional native control rounding cannot
-  accumulate into vertical drift.
+  accumulate into vertical drift. While the textarea is focused, its native
+  caret and selection remain the only local target presentation; the mirror
+  omits the local presence boundary and skips unchanged renders so caret motion
+  cannot split or repaint visible text runs.
 - **Semantics:** unified/remark preview parsing and validation remain authoritative;
   highlight classes are visual hints only.
 - **Edit history:** each project file owns a browser-local Yjs undo manager.
@@ -65,6 +68,8 @@ preserving the native collaborative textarea and exact source text.
       scroll with the manuscript.
 - [x] Text, caret, and mirror geometry stay aligned at the top, middle, and end
       of a long document under an iPad-sized WebKit viewport.
+- [x] Moving the focused native caret does not split or rebuild unchanged
+      highlighted text, while the remembered target reappears after focus moves.
 - [x] Forced-colors mode falls back to visible native textarea text.
 - [x] Unit and browser tests cover classification, safe mirrored rendering,
       scroll synchronization, editing, and collaborative updates.
@@ -80,7 +85,8 @@ preserving the native collaborative textarea and exact source text.
   editor surfaces must retain the shared integral line height and disabled text
   autosizing that prevent cumulative Safari drift. The textarea and mirror must
   share padding, with outer inline padding bounded by the shared `--ui-space-4`
-  and `--ui-space-5` tokens instead of growing with the viewport.
+  and `--ui-space-5` tokens instead of growing with the viewport. Focused local
+  caret movement must not add inline boxes or text boundaries to the mirror.
 - Unsupported or incomplete syntax remains readable as ordinary source.
 - Undo history is ephemeral, scoped per file, and never enters project or
   collaboration state.

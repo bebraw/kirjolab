@@ -18,7 +18,7 @@ import {
 } from "./source-editor-adapter";
 
 const defaultTarget = "main.md · line 1 · caret";
-const authoringTargetEvents = ["click", "focus", "input", "keyup", "select"] as const;
+const authoringTargetEvents = ["blur", "click", "focus", "input", "keyup", "select"] as const;
 
 export interface EditorAuthoringTarget {
   readonly start: number;
@@ -101,6 +101,7 @@ export class EditorStatus extends LightDomElement {
   private readonly undoManagers = new Map<Y.Text, Y.UndoManager>();
   private readonly updateAuthoringTarget = (): void => {
     if (document.activeElement === this.source) this.rememberSelection();
+    else this.renderEditorHighlight();
     this.collaborationSocket?.scheduleSelection();
     this.owners?.assistantGenerationPresenter.refreshAvailability();
   };
@@ -341,9 +342,10 @@ export class EditorStatus extends LightDomElement {
 
   private editorPresence(): readonly EditorPresenceRange[] {
     const target = this.authoringTarget;
-    const local: readonly EditorPresenceRange[] = target
-      ? [{ collaboratorId: "local-author", start: target.start, end: target.end, local: true }]
-      : [];
+    const local: readonly EditorPresenceRange[] =
+      target && document.activeElement !== this.source
+        ? [{ collaboratorId: "local-author", start: target.start, end: target.end, local: true }]
+        : [];
     return [...local, ...(this.owners?.collaboratorSelections.rangesFor(this.fileId) ?? [])];
   }
 }

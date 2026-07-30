@@ -36,8 +36,16 @@ export function bindYText(
   presence: () => readonly EditorPresenceRange[] = () => [],
   undoManager?: Y.UndoManager,
 ): YTextBinding {
+  let renderedPresence = "";
+  let renderedSource: string | undefined;
   const renderHighlight = (): void => {
-    if (highlight) renderEditorHighlight(highlight, textarea.value, presence());
+    if (!highlight) return;
+    const currentPresence = presence();
+    const presenceKey = JSON.stringify(currentPresence);
+    if (renderedSource === textarea.value && renderedPresence === presenceKey) return;
+    renderedSource = textarea.value;
+    renderedPresence = presenceKey;
+    renderEditorHighlight(highlight, textarea.value, currentPresence);
   };
   const syncHighlightScroll = (): void => {
     if (!highlight) return;
