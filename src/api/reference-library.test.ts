@@ -1646,6 +1646,50 @@ describe("reference library API", () => {
       identity.email,
     );
   });
+
+  it("accepts a fingerprinted citation candidate batch through one atomic library call", async () => {
+    const fixture = apiFixture();
+    const source = { ...reference, doi: "10.1000/source" };
+    fixture.library.getReferences.mockResolvedValue([source]);
+    const fetchExternal = vi.fn(async (input: string | URL | Request) => {
+      const url = String(input);
+      if (url.includes("10.1000%2Fsource")) {
+        return Response.json({
+          message: { reference: [{ DOI: "10.1000/one" }, { DOI: "10.1000/two" }] },
+        });
+      }
+      const doi = url.includes("10.1000%2Fone") ? "10.1000/one" : "10.1000/two";
+      return crossrefResponse(doi, doi.endsWith("one") ? "Candidate One" : "Candidate Two");
+    });
+    const expanded = await handleReferenceLibraryApi(
+      jsonRequest(`/api/library/references/${reference.id}/citation-expansions`, {}),
+      fixture.env,
+      identity,
+      fetchExternal,
+    );
+    const expansion = (await expanded.json()) as { responseId: string };
+
+    const accepted = await handleReferenceLibraryApi(
+      jsonRequest(`/api/library/references/${reference.id}/citation-candidates`, {
+        dois: ["10.1000/one", "10.1000/two"],
+        responseId: expansion.responseId,
+        direction: "references",
+      }),
+      fixture.env,
+      identity,
+      fetchExternal,
+    );
+
+    expect(accepted.status).toBe(201);
+    expect(fixture.library.acceptCitationCandidates).toHaveBeenCalledOnce();
+    expect(fixture.library.acceptCitationCandidates).toHaveBeenCalledWith(
+      source.id,
+      [expect.objectContaining({ doi: "10.1000/one" }), expect.objectContaining({ doi: "10.1000/two" })],
+      expect.objectContaining({ direction: "references", responseId: expansion.responseId }),
+      identity.email,
+    );
+    await expect(accepted.json()).resolves.toMatchObject({ accepted: [{ created: true }, { created: false }] });
+  });
 });
 
 function apiFixture(bucket = new MemoryR2Bucket()) {
@@ -1892,6 +1936,24 @@ function apiFixture(bucket = new MemoryR2Bucket()) {
           sourceId: source.responseId,
           sourceLocator: source.sourceLocator,
         },
+      }),
+    ),
+    acceptCitationCandidates: vi.fn(
+      async (
+        _sourceId: string,
+        metadata: readonly import("../domain/reference-library").CrossrefMetadata[],
+        source: import("../domain/citation-expansion-types").CitationCandidateSource,
+      ) => ({
+        accepted: metadata.map((candidate, index) => ({
+          reference: { ...reference, id: crypto.randomUUID(), ...candidate },
+          created: index === 0,
+          assertion: {
+            ...citationAssertion,
+            observedAt: source.observedAt,
+            sourceId: source.responseId,
+            sourceLocator: source.sourceLocator,
+          },
+        })),
       }),
     ),
     getCitationAssertions: vi.fn(async () => [citationAssertion]),

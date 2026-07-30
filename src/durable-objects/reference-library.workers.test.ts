@@ -990,7 +990,19 @@ describe("ReferenceLibrary in the Workers runtime", () => {
       reference: { provenance: { title: { method: "semantic-scholar" } } },
       assertion: { citingReferenceId: forward.reference.id, citedReferenceId: seed.id, assertedBy: "Semantic Scholar" },
     });
-    expect((await library.getSnapshot()).references).toHaveLength(3);
+    const batch = await library.acceptCitationCandidates(
+      seed.id,
+      [metadata, { ...metadata, title: "Another discovered paper", doi: "10.1000/another" }],
+      source,
+      "owner@example.test",
+    );
+    expect(batch).toMatchObject({
+      accepted: [
+        { created: false, reference: { id: accepted.reference.id }, assertion: { id: accepted.assertion.id } },
+        { created: true, reference: { doi: "10.1000/another" } },
+      ],
+    });
+    expect((await library.getSnapshot()).references).toHaveLength(4);
   });
 
   it("persists bounded private page notes and freehand drawings", async () => {

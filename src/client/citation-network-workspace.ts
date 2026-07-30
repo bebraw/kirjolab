@@ -2,7 +2,7 @@ import { html, type PropertyValues, type TemplateResult } from "lit";
 import { bibTeXDisplayText } from "../domain/bibliography";
 import { LightDomElement } from "./light-dom-controller";
 import { isCitationNetwork, type CitationNetwork } from "../domain/citation-assertions";
-import { isCitationCandidateAcceptance } from "../domain/citation-expansion-acceptance";
+import { isCitationCandidateAcceptance, isCitationCandidateBatchAcceptance } from "../domain/citation-expansion-acceptance";
 import { isCitationExpansionResult } from "../domain/citation-expansion";
 import type { CitationExpansionCandidate, CitationExpansionResult } from "../domain/citation-expansion-types";
 import type { LibraryPdfArtifact } from "../domain/reference-library";
@@ -104,6 +104,10 @@ export class CitationNetworkWorkspace extends LightDomElement {
     this.panel()?.setCandidateSaving(doi, saving);
   }
 
+  setExpansionSaving(saving: boolean): void {
+    this.panel()?.setExpansionSaving(saving);
+  }
+
   override connectedCallback(): void {
     super.connectedCallback();
     this.addEventListener(citationNetworkActionEvent, this.handleActionEvent);
@@ -171,7 +175,8 @@ export class CitationNetworkWorkspace extends LightDomElement {
     else if (action.action === "expand") await this.expand(action.referenceId, action.direction);
     else if (action.action === "record") await this.recordAssertion(action);
     else if (action.action === "review") await this.reviewAssertion(action.assertionId, action.decision);
-    else await this.acceptCandidate(action.expansion, action.candidate);
+    else if (action.action === "save-candidate") await this.acceptCandidate(action.expansion, action.candidate);
+    else await this.acceptCandidates(action.expansion);
   }
 
   private focusReference(referenceId: string): void {
@@ -268,6 +273,38 @@ export class CitationNetworkWorkspace extends LightDomElement {
     } catch (error) {
       this.setCandidateSaving(candidate.doi, false);
       this.emitOutcome({ action: "notice", message: errorMessage(error, "Could not save citation candidate") });
+    }
+  }
+
+  private async acceptCandidates(expansion: CitationExpansionResult): Promise<void> {
+    const candidates = expansion.unmatched.slice(0, 25);
+    if (candidates.length === 0) return;
+    this.setExpansionSaving(true);
+    try {
+      const response = await jsonFetch(`/api/library/references/${encodeURIComponent(expansion.seedReferenceId)}/citation-candidates`, {
+        dois: candidates.map(({ doi }) => doi),
+        responseId: expansion.responseId,
+        direction: expansion.direction,
+      });
+      await expectOk(response);
+      const value: unknown = await response.json();
+      if (!isCitationCandidateBatchAcceptance(value)) throw new Error("Citation candidate batch returned an invalid representation");
+      const acceptedDois = new Set(value.accepted.map(({ reference }) => reference.doi));
+      this.setExpansion({
+        ...expansion,
+        assertions: [...expansion.assertions, ...value.accepted.map(({ assertion }) => assertion)],
+        unmatched: expansion.unmatched.filter(({ doi }) => !acceptedDois.has(doi)),
+      });
+      this.setExpansionSaving(false);
+      await this.refresh();
+      const created = value.accepted.filter((item) => item.created).length;
+      this.emitOutcome({
+        action: "library-refresh",
+        message: `Saved ${created} new and reused ${value.accepted.length - created} existing reference${value.accepted.length === 1 ? "" : "s"} with their discovery trails.`,
+      });
+    } catch (error) {
+      this.setExpansionSaving(false);
+      this.emitOutcome({ action: "notice", message: errorMessage(error, "Could not save citation candidates") });
     }
   }
 

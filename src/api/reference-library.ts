@@ -57,10 +57,11 @@ import {
 } from "../domain/citation-assertions";
 import {
   type CitationCandidateAcceptance,
+  type CitationCandidateBatchAcceptance,
   type CitationCandidateSource,
   type CitationExpansionDirection,
 } from "../domain/citation-expansion-types";
-import { isAcceptCitationCandidateInput } from "../domain/citation-expansion-acceptance";
+import { isAcceptCitationCandidateInput, isAcceptCitationCandidatesInput } from "../domain/citation-expansion-acceptance";
 import type { ReferenceDeletionImpact, ReferenceImportItem, WebCaptureItem } from "../durable-objects/reference-library";
 import { normalizeDoi, parseBibTeX } from "../domain/bibliography";
 import { isValidDoi } from "../domain/publication-intake";
@@ -219,6 +220,12 @@ interface ReferenceLibraryApi {
     source: CitationCandidateSource,
     actor: string,
   ): Promise<CitationCandidateAcceptance>;
+  acceptCitationCandidates(
+    citingReferenceId: string,
+    metadata: readonly CrossrefMetadata[],
+    source: CitationCandidateSource,
+    actor: string,
+  ): Promise<CitationCandidateBatchAcceptance>;
   getCitationAssertions(referenceId?: string): Promise<CitationAssertion[]>;
   reviewCitationAssertion(assertionId: string, input: ReviewCitationAssertionInput, reviewer: string): Promise<CitationAssertion>;
   getCitationNetwork(projectId?: string): Promise<CitationNetwork>;
@@ -1365,32 +1372,36 @@ async function acceptCitationCandidate(
   fetchExternal: ExternalFetch,
 ): Promise<Response> {
   const body: unknown = await request.json();
-  if (!isAcceptCitationCandidateInput(body)) return jsonError("Invalid citation candidate", 400);
+  if (!isAcceptCitationCandidateInput(body) && !isAcceptCitationCandidatesInput(body)) return jsonError("Invalid citation candidate", 400);
   const source = (await library.getReferences([referenceId]))[0];
   if (!source) return jsonError("Reference not found", 404);
   if (!source.doi) return jsonError("Add a DOI before accepting external citation references", 409);
   const expansion = await fetchCitationExpansion(source.doi, body.direction, env, fetchExternal);
-  const doi = normalizeDoi(body.doi);
-  if (expansion.responseId !== body.responseId || !expansion.candidates.some((candidate) => candidate.doi === doi)) {
+  const dois = ("dois" in body ? body.dois : [body.doi]).map(normalizeDoi);
+  const candidateDois = new Set(expansion.candidates.map(({ doi }) => doi));
+  if (expansion.responseId !== body.responseId || dois.some((doi) => !candidateDois.has(doi))) {
     return jsonError("Citation expansion changed; expand the source again before saving", 409);
   }
-  const fetched =
-    body.direction === "references"
-      ? await fetchCrossrefWork(doi, env.CROSSREF_MAILTO, fetchExternal)
-      : await fetchSemanticScholarWork(doi, env.SEMANTIC_SCHOLAR_API_KEY ?? "", fetchExternal, true);
-  const metadata: CrossrefMetadata = { ...fetched, type: fetched.type ?? "misc" };
-  const accepted = await library.acceptCitationCandidate(
-    source.id,
-    metadata,
-    {
-      provider: expansion.provider,
-      direction: expansion.direction,
-      observedAt: expansion.retrievedAt,
-      responseId: expansion.responseId,
-      sourceLocator: expansion.sourceLocator,
-    },
-    identity.email,
-  );
+  const metadata: CrossrefMetadata[] = [];
+  for (const doi of dois) {
+    const fetched =
+      body.direction === "references"
+        ? await fetchCrossrefWork(doi, env.CROSSREF_MAILTO, fetchExternal)
+        : await fetchSemanticScholarWork(doi, env.SEMANTIC_SCHOLAR_API_KEY ?? "", fetchExternal, true);
+    metadata.push({ ...fetched, type: fetched.type ?? "misc" });
+  }
+  const candidateSource: CitationCandidateSource = {
+    provider: expansion.provider,
+    direction: expansion.direction,
+    observedAt: expansion.retrievedAt,
+    responseId: expansion.responseId,
+    sourceLocator: expansion.sourceLocator,
+  };
+  if ("dois" in body) {
+    const accepted = await library.acceptCitationCandidates(source.id, metadata, candidateSource, identity.email);
+    return Response.json(accepted, { status: accepted.accepted.some(({ created }) => created) ? 201 : 200, ...noStore() });
+  }
+  const accepted = await library.acceptCitationCandidate(source.id, metadata[0]!, candidateSource, identity.email);
   return Response.json(accepted, { status: accepted.created ? 201 : 200, ...noStore() });
 }
 

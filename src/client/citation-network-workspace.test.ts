@@ -56,7 +56,7 @@ class TestCitationNetworkWorkspace extends CitationNetworkWorkspace {
 
 function configuredWorkspace() {
   const workspace = new TestCitationNetworkWorkspace();
-  const panel = { setCandidateSaving: vi.fn(), setData: vi.fn(), setReferences: vi.fn() };
+  const panel = { setCandidateSaving: vi.fn(), setExpansionSaving: vi.fn(), setData: vi.fn(), setReferences: vi.fn() };
   const scrollIntoView = vi.fn();
   Object.defineProperty(workspace, "querySelector", { value: () => panel });
   Object.defineProperty(workspace, "scrollIntoView", { value: scrollIntoView });
@@ -160,6 +160,54 @@ describe("citation network workspace", () => {
       headers: { "content-type": "application/json" },
       method: "POST",
     });
+  });
+
+  it("accepts a bounded candidate batch and reports created and reused references", async () => {
+    const { panel, workspace } = configuredWorkspace();
+    const reused = { ...citationExpansionReference, id: "reference:reused", doi: "10.5555/reused" };
+    const batchExpansion = {
+      ...expansion,
+      unmatched: [...expansion.unmatched, { ...expansion.unmatched[0]!, doi: reused.doi, title: reused.title }],
+    };
+    const fetchMock = vi.fn((input: string | URL | Request) =>
+      String(input).includes("/citation-network")
+        ? Promise.resolve(json(network))
+        : Promise.resolve(
+            json({
+              accepted: [
+                { assertion: citationExpansionAssertion, created: true, reference: citationExpansionReference },
+                {
+                  assertion: { ...citationExpansionAssertion, id: "assertion:reused", citedReferenceId: reused.id },
+                  created: false,
+                  reference: reused,
+                },
+              ],
+            }),
+          ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const outcomes: CitationNetworkOutcome[] = [];
+    workspace.addEventListener(citationNetworkOutcomeEvent, (event) =>
+      outcomes.push((event as CustomEvent<CitationNetworkOutcome>).detail),
+    );
+
+    await workspace.actionForTest({ action: "save-all-candidates", expansion: batchExpansion });
+
+    expect(panel.setExpansionSaving).toHaveBeenNthCalledWith(1, true);
+    expect(panel.setExpansionSaving).toHaveBeenLastCalledWith(false);
+    expect(fetchMock).toHaveBeenCalledWith("/api/library/references/source%3A1/citation-candidates", {
+      body: JSON.stringify({
+        dois: [citationExpansionReference.doi, reused.doi],
+        responseId: citationExpansionResponseId,
+        direction: "references",
+      }),
+      credentials: "same-origin",
+      headers: { "content-type": "application/json" },
+      method: "POST",
+    });
+    expect(outcomes).toEqual([
+      { action: "library-refresh", message: "Saved 1 new and reused 1 existing references with their discovery trails." },
+    ]);
   });
 
   it("requests a validated forward-citation round", async () => {

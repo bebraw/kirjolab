@@ -5,7 +5,12 @@ import {
   citationExpansionResponseId as responseId,
   citationExpansionTimestamp as now,
 } from "../test-support/citation-expansion-fixtures";
-import { isAcceptCitationCandidateInput, isCitationCandidateAcceptance } from "./citation-expansion-acceptance";
+import {
+  isAcceptCitationCandidateInput,
+  isAcceptCitationCandidatesInput,
+  isCitationCandidateAcceptance,
+  isCitationCandidateBatchAcceptance,
+} from "./citation-expansion-acceptance";
 
 function expectInvalidAcceptance(...values: unknown[]) {
   for (const value of values) expect(isCitationCandidateAcceptance(value)).toBe(false);
@@ -22,6 +27,21 @@ describe("citation candidate acceptance contracts", () => {
     expect(isAcceptCitationCandidateInput({ doi: "10.1000/candidate", responseId, direction: "other" })).toBe(false);
     expect(isAcceptCitationCandidateInput({ doi: "10.1000/candidate", responseId })).toBe(false);
     expect(isAcceptCitationCandidateInput({ doi: "10.1000/candidate", responseId, direction: "references", metadata: {} })).toBe(true);
+  });
+
+  it("accepts a bounded unique DOI batch", () => {
+    expect(isAcceptCitationCandidatesInput({ dois: ["10.1000/one", "10.1000/two"], responseId, direction: "references" })).toBe(true);
+    expect(isAcceptCitationCandidatesInput({ dois: ["10.1000/one"], responseId, direction: "citations" })).toBe(true);
+    expect(isAcceptCitationCandidatesInput({ dois: [], responseId, direction: "references" })).toBe(false);
+    expect(
+      isAcceptCitationCandidatesInput({
+        dois: Array.from({ length: 26 }, (_, index) => `10.1000/${index}`),
+        responseId,
+        direction: "references",
+      }),
+    ).toBe(false);
+    expect(isAcceptCitationCandidatesInput({ dois: ["10.1000/one", "10.1000/ONE"], responseId, direction: "references" })).toBe(false);
+    expect(isAcceptCitationCandidatesInput({ dois: ["invalid"], responseId, direction: "references" })).toBe(false);
   });
 
   it("requires an acceptance assertion to target the saved reference", () => {
@@ -43,6 +63,8 @@ describe("citation candidate acceptance contracts", () => {
       { reference: { ...reference, id: crypto.randomUUID() }, created: true, assertion },
       { reference, created: true, assertion: { ...assertion, id: " invalid" } },
     );
+    expect(isCitationCandidateBatchAcceptance({ accepted: [{ reference, created: true, assertion }] })).toBe(true);
+    expect(isCitationCandidateBatchAcceptance({ accepted: [] })).toBe(false);
   });
 
   it("rejects malformed fields in an accepted bibliographic record", () => {

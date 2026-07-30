@@ -35,6 +35,10 @@ provider result, extraction, or model suggestion as equally trustworthy.
   title. Accepting one refetches the exact expansion, verifies its response
   fingerprint and DOI membership, retrieves complete metadata, then atomically
   creates or reuses the reference and records its extracted assertion.
+- A reviewed expansion round may accept a unique batch of at most 25 DOI
+  candidates. The Worker verifies the response once and resolves every
+  candidate's full provider metadata before one atomic owner-library write; any
+  failure leaves the complete batch unchanged and individually retryable.
 - A transient Crossref rate-limit or availability response is retried once
   within a short bound. Persistent provider unavailability returns `503` so a
   valid expansion request is never misreported as a client `400`.
@@ -101,9 +105,9 @@ by` relationships. Selecting a neighboring source refocuses the same trail
   outgoing Crossref references and returns matched assertions plus unmatched
   DOI candidates.
 - `POST /api/library/references/{id}/citation-candidates` accepts one candidate
-  from a named expansion response after refetch verification and returns the
-  saved reference, whether it was created, and the provenance-bearing
-  assertion.
+  or a unique batch of at most 25 candidates from a named expansion response
+  after refetch verification. It returns the saved reference, creation state,
+  and provenance-bearing assertion for every accepted DOI.
 - `GET /api/library/pdfs/{artifactId}/reference-review` returns the current
   analysis fingerprint, citing reference, conservative match suggestions, and
   durable review dispositions. `POST` accepts or rejects one candidate, or
@@ -161,6 +165,8 @@ by` relationships. Selecting a neighboring source refocuses the same trail
 - [x] Expansion is explicit, bounded, DOI-matched, and reports unmatched work.
 - [x] Unmatched works render as a reviewable discovery round and explicit
       acceptance atomically saves the work and its extracted relationship.
+- [x] A bounded bulk action saves a reviewed expansion round in one atomic
+      owner-library transaction without trusting browser metadata.
 - [x] Parsed PDF references render as a durable accept/reject queue whose
       accepted entries extend the existing citation network.
 - [x] Conservative in-text mentions remain attached to their reviewed parsed
@@ -240,6 +246,13 @@ by` relationships. Selecting a neighboring source refocuses the same trail
 - When: the owner explicitly saves that candidate
 - Then: Kirjolab refetches and verifies the round, creates or reuses the DOI
   identity, and records the extracted citation assertion in one transaction
+
+**Scenario: Researcher accepts an expansion batch**
+
+- Given: a fingerprinted expansion round contains several unmatched DOI works
+- When: the owner explicitly saves the bounded batch
+- Then: Kirjolab verifies every DOI and metadata response before atomically
+  creating or reusing all references and their directional assertions
 
 **Scenario: Expansion changed before acceptance**
 

@@ -21,7 +21,8 @@ export type CitationNetworkAction =
       readonly action: "save-candidate";
       readonly candidate: CitationExpansionCandidate;
       readonly expansion: CitationExpansionResult;
-    };
+    }
+  | { readonly action: "save-all-candidates"; readonly expansion: CitationExpansionResult };
 
 export interface CitationNetworkData {
   readonly expansion: CitationExpansionResult | null;
@@ -45,6 +46,7 @@ export class CitationNetworkPanel extends LightDomElement {
     polarity: { state: true },
     references: { state: true },
     savingDois: { state: true },
+    savingExpansion: { state: true },
   };
 
   declare private citedReferenceId: string;
@@ -53,6 +55,7 @@ export class CitationNetworkPanel extends LightDomElement {
   declare private polarity: "cites" | "does-not-cite";
   declare private references: readonly CitationReferenceChoice[];
   declare private savingDois: ReadonlySet<string>;
+  declare private savingExpansion: boolean;
 
   constructor() {
     super();
@@ -62,6 +65,7 @@ export class CitationNetworkPanel extends LightDomElement {
     this.polarity = "cites";
     this.references = [];
     this.savingDois = new Set();
+    this.savingExpansion = false;
   }
 
   setData(data: CitationNetworkData): void {
@@ -79,6 +83,10 @@ export class CitationNetworkPanel extends LightDomElement {
     if (saving) next.add(doi);
     else next.delete(doi);
     this.savingDois = next;
+  }
+
+  setExpansionSaving(saving: boolean): void {
+    this.savingExpansion = saving;
   }
 
   protected override render(): TemplateResult {
@@ -174,6 +182,10 @@ export class CitationNetworkPanel extends LightDomElement {
       (button.dataset.decision === "confirmed" || button.dataset.decision === "rejected")
     ) {
       this.emit({ action, assertionId: button.dataset.assertionId, decision: button.dataset.decision });
+      return;
+    }
+    if (action === "save-all-candidates" && this.data.expansion && !this.savingExpansion) {
+      this.emit({ action, expansion: this.data.expansion });
       return;
     }
     if (action !== "save-candidate" || !button.dataset.candidateDoi || !this.data.expansion) return;
@@ -345,6 +357,26 @@ export class CitationNetworkPanel extends LightDomElement {
                 expansion.direction === "references" ? "backward" : "forward"
               } snowballing.`}
         </p>
+        ${expansion.unmatched.length
+          ? html`
+              <button
+                class="button-primary mt-3"
+                type="button"
+                data-citation-action="save-all-candidates"
+                ?disabled=${this.savingExpansion}
+                @click=${this.act}
+              >
+                ${this.savingExpansion
+                  ? "Saving batch…"
+                  : `Save ${Math.min(expansion.unmatched.length, 25)} candidate${expansion.unmatched.length === 1 ? "" : "s"}`}
+              </button>
+              ${expansion.unmatched.length > 25
+                ? html`<p class="mt-2 text-xs text-app-text-soft">
+                    The bounded batch saves the first 25 candidates. Run it again for the remainder.
+                  </p>`
+                : nothing}
+            `
+          : nothing}
         ${expansion.unmatched.map((candidate) => this.candidate(candidate))}
       </section>
     `;

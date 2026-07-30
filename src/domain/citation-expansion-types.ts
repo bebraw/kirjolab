@@ -31,6 +31,12 @@ export interface AcceptCitationCandidateInput {
   readonly direction: CitationExpansionDirection;
 }
 
+export interface AcceptCitationCandidatesInput {
+  readonly dois: readonly string[];
+  readonly responseId: string;
+  readonly direction: CitationExpansionDirection;
+}
+
 export interface CitationCandidateSource {
   readonly provider: CitationExpansionProvider;
   readonly direction: CitationExpansionDirection;
@@ -43,4 +49,8 @@ export interface CitationCandidateAcceptance {
   readonly reference: BibliographicRecord;
   readonly created: boolean;
   readonly assertion: CitationAssertion;
+}
+
+export interface CitationCandidateBatchAcceptance {
+  readonly accepted: readonly CitationCandidateAcceptance[];
 }

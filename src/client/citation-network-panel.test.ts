@@ -176,6 +176,7 @@ describe("citation network panel", () => {
     panel.actForTest("review", { assertionId: "assertion:1", decision: "confirmed" });
     panel.actForTest("review", { assertionId: "assertion:1", decision: "unknown" });
     panel.actForTest("save-candidate", { candidateDoi: "10.5555/c" });
+    panel.actForTest("save-all-candidates");
     panel.setCandidateSaving("10.5555/c", true);
     panel.actForTest("save-candidate", { candidateDoi: "10.5555/c" });
     panel.actForTest("unknown");
@@ -186,6 +187,7 @@ describe("citation network panel", () => {
       { action: "focus", referenceId: "b" },
       { action: "review", assertionId: "assertion:1", decision: "confirmed" },
       { action: "save-candidate", candidate: expansion.unmatched[0], expansion },
+      { action: "save-all-candidates", expansion },
     ]);
   });
 

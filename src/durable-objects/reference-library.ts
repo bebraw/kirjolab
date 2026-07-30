@@ -8,7 +8,11 @@ import {
   type CreateCitationAssertionInput,
   type ReviewCitationAssertionInput,
 } from "../domain/citation-assertions";
-import type { CitationCandidateAcceptance, CitationCandidateSource } from "../domain/citation-expansion-types";
+import type {
+  CitationCandidateAcceptance,
+  CitationCandidateBatchAcceptance,
+  CitationCandidateSource,
+} from "../domain/citation-expansion-types";
 import type {
   ArtifactAnalysis,
   ArtifactAnalysisKind,
@@ -875,48 +879,22 @@ export class ReferenceLibrary extends DurableObject<Env> {
     source: CitationCandidateSource,
     actor: string,
   ): CitationCandidateAcceptance {
-    const seedReference = this.#reference(seedReferenceId);
-    const doi = normalizeDoi(metadata.doi);
-    if (
-      !isCrossrefMetadata(metadata) ||
-      !doi ||
-      doi === normalizeDoi(seedReference.doi) ||
-      !(
-        (source.provider === "crossref" && source.direction === "references") ||
-        (source.provider === "semantic-scholar" && source.direction === "citations")
-      ) ||
-      !Number.isFinite(Date.parse(source.observedAt)) ||
-      !/^sha256:[a-f0-9]{64}$/u.test(source.responseId) ||
-      !source.sourceLocator ||
-      source.sourceLocator.length > 2_000
-    ) {
-      throw new Error("Citation candidate is invalid");
-    }
-    return this.ctx.storage.transactionSync(() => {
-      const existing = this.ctx.storage.sql
-        .exec<ReferenceRow>("SELECT * FROM library_references WHERE LOWER(doi) = ? AND deleted_at IS NULL LIMIT 1", doi)
-        .toArray()[0];
-      const created = existing === undefined;
-      const reference = existing
-        ? referenceFromRow(existing)
-        : this.#createCitationCandidateReference(metadata, source.provider, source.observedAt, actor);
-      const assertion = this.#createCitationAssertion(
-        {
-          citingReferenceId: source.direction === "references" ? seedReferenceId : reference.id,
-          citedReferenceId: source.direction === "references" ? reference.id : seedReferenceId,
-          polarity: "cites",
-          evidenceState: "extracted",
-          method: "provider",
-          observedAt: source.observedAt,
-          sourceKind: "provider-response",
-          sourceId: source.responseId,
-          sourceLocator: source.sourceLocator,
-          confidence: null,
-        },
-        source.provider === "crossref" ? "Crossref" : "Semantic Scholar",
-      );
-      return { reference, created, assertion };
-    });
+    this.#validateCitationCandidateBatch(seedReferenceId, [metadata], source);
+    return this.ctx.storage.transactionSync(() => this.#acceptCitationCandidate(seedReferenceId, metadata, source, actor));
+  }
+
+  acceptCitationCandidates(
+    seedReferenceId: string,
+    metadata: readonly CrossrefMetadata[],
+    source: CitationCandidateSource,
+    actor: string,
+  ): CitationCandidateBatchAcceptance {
+    this.#validateCitationCandidateBatch(seedReferenceId, metadata, source);
+    return {
+      accepted: this.ctx.storage.transactionSync(() =>
+        metadata.map((candidate) => this.#acceptCitationCandidate(seedReferenceId, candidate, source, actor)),
+      ),
+    };
   }
 
   getPdfReferenceReviewQueue(artifactId: string): PdfReferenceReviewQueue | null {
@@ -2076,6 +2054,60 @@ export class ReferenceLibrary extends DurableObject<Env> {
       assertion.createdAt,
     );
     return assertion;
+  }
+
+  #validateCitationCandidateBatch(seedReferenceId: string, metadata: readonly CrossrefMetadata[], source: CitationCandidateSource): void {
+    const seedReference = this.#reference(seedReferenceId);
+    const normalizedDois = metadata.map(({ doi }) => normalizeDoi(doi));
+    if (
+      metadata.length === 0 ||
+      metadata.length > 25 ||
+      metadata.some((candidate) => !isCrossrefMetadata(candidate)) ||
+      normalizedDois.some((doi) => !doi || doi === normalizeDoi(seedReference.doi)) ||
+      new Set(normalizedDois).size !== normalizedDois.length ||
+      !(
+        (source.provider === "crossref" && source.direction === "references") ||
+        (source.provider === "semantic-scholar" && source.direction === "citations")
+      ) ||
+      !Number.isFinite(Date.parse(source.observedAt)) ||
+      !/^sha256:[a-f0-9]{64}$/u.test(source.responseId) ||
+      !source.sourceLocator ||
+      source.sourceLocator.length > 2_000
+    ) {
+      throw new Error("Citation candidate is invalid");
+    }
+  }
+
+  #acceptCitationCandidate(
+    seedReferenceId: string,
+    metadata: CrossrefMetadata,
+    source: CitationCandidateSource,
+    actor: string,
+  ): CitationCandidateAcceptance {
+    const doi = normalizeDoi(metadata.doi);
+    const existing = this.ctx.storage.sql
+      .exec<ReferenceRow>("SELECT * FROM library_references WHERE LOWER(doi) = ? AND deleted_at IS NULL LIMIT 1", doi)
+      .toArray()[0];
+    const created = existing === undefined;
+    const reference = existing
+      ? referenceFromRow(existing)
+      : this.#createCitationCandidateReference(metadata, source.provider, source.observedAt, actor);
+    const assertion = this.#createCitationAssertion(
+      {
+        citingReferenceId: source.direction === "references" ? seedReferenceId : reference.id,
+        citedReferenceId: source.direction === "references" ? reference.id : seedReferenceId,
+        polarity: "cites",
+        evidenceState: "extracted",
+        method: "provider",
+        observedAt: source.observedAt,
+        sourceKind: "provider-response",
+        sourceId: source.responseId,
+        sourceLocator: source.sourceLocator,
+        confidence: null,
+      },
+      source.provider === "crossref" ? "Crossref" : "Semantic Scholar",
+    );
+    return { reference, created, assertion };
   }
 
   #createCitationCandidateReference(
