@@ -1,6 +1,6 @@
 # ADR-177: Prevent Accidental iPad UI Zoom
 
-**Status:** Implemented
+**Status:** Superseded by ADR-196
 
 **Date:** 2026-07-29
 

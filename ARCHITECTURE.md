@@ -1256,10 +1256,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   workflow binding while leaving canonical authoring-state derivation, refresh
   execution, and notification presentation in the application coordinator.
 - Refine tablet highlight strokes through bounded normalized geometry and quotation updates; preserve annotation/stroke identity and imported PDF immutability.
-- Prevent accidental coarse-pointer viewport zoom through standard
-  `touch-action: manipulation` and touch-safe editable-control sizing. Do not
-  disable user scaling in viewport metadata; preserve deliberate pinch zoom,
-  browser accessibility controls, and explicit PDF gesture ownership.
+- Lock browser viewport zoom across application surfaces through fixed-scale
+  viewport metadata and root `touch-action: pan-x pan-y`; retain ordinary page
+  panning and explicit PDF gesture ownership. On coarse pointers, keep every
+  editable control at least `1rem` and keep layered editor text and highlight
+  typography identical so iPad caret geometry cannot diverge.
 - Retain the active manuscript caret or selection as Yjs-relative positions in
   the editor-status owner, render that local target after editor blur, and
   resolve it before any contextual insertion or replacement.

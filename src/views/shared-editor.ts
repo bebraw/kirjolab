@@ -88,7 +88,7 @@ export function renderSharedEditorPage(snapshot: WorkspaceSnapshot, options: Sha
 <html lang="en">
   <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
     <meta name="color-scheme" content="light dark">
     <title>${escapeHtml(snapshot.title)} · ${capabilityLabel} · Kirjolab</title>
     <link rel="icon" href="/favicon.svg" type="image/svg+xml">

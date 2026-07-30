@@ -16,7 +16,7 @@ export function renderReviewsPage(
 <html lang="en">
   <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
     <meta name="color-scheme" content="light dark">
     <title>Evidence reviews · Kirjolab</title>
     <link rel="icon" href="/favicon.svg" type="image/svg+xml">
@@ -73,7 +73,7 @@ export function renderReviewPage(
 <html lang="en">
   <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
     <meta name="color-scheme" content="light dark">
     <title>${escapeHtml(review.title)} · Evidence review · Kirjolab</title>
     <link rel="icon" href="/favicon.svg" type="image/svg+xml">

@@ -1728,14 +1728,33 @@ test("filters and quickly opens project files", async ({ page }) => {
   await expect(filter).toBeFocused();
 });
 
-test("prevents accidental iPad UI zoom without disabling deliberate pinch zoom", async ({ browser }) => {
+test("locks iPad viewport zoom and keeps editor layers aligned", async ({ browser }) => {
   const context = await browser.newContext({ hasTouch: true, viewport: { width: 1024, height: 1366 } });
   const page = await context.newPage();
   await page.goto("/editor?create=1");
 
-  await expect(page.locator("html")).toHaveCSS("touch-action", "manipulation");
-  await expect(page.locator('meta[name="viewport"]')).toHaveAttribute("content", "width=device-width, initial-scale=1");
+  await expect(page.locator("html")).toHaveCSS("touch-action", "pan-x pan-y");
+  await expect(page.locator('meta[name="viewport"]')).toHaveAttribute(
+    "content",
+    "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no",
+  );
   await expect(page.locator("#new-workspace-title")).toHaveCSS("font-size", "16px");
+  const editorTypography = await page.evaluate(() => {
+    const source = getComputedStyle(document.querySelector("#source-editor")!);
+    const highlight = getComputedStyle(document.querySelector("#source-editor-highlight")!);
+    return {
+      sourceFontSize: source.fontSize,
+      highlightFontSize: highlight.fontSize,
+      sourceLineHeight: source.lineHeight,
+      highlightLineHeight: highlight.lineHeight,
+    };
+  });
+  expect(editorTypography).toEqual({
+    sourceFontSize: "16px",
+    highlightFontSize: "16px",
+    sourceLineHeight: "27px",
+    highlightLineHeight: "27px",
+  });
 
   await context.close();
 });

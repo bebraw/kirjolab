@@ -6036,4 +6036,8 @@
   :where(input, textarea, select) {
     font-size: max(1rem, 1em);
   }
+
+  .source-editor-highlight {
+    font-size: 1rem;
+  }
 }

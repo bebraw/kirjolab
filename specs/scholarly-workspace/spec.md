@@ -177,11 +177,13 @@ collaboration.
   focus handoff. In workspace mode the toggle follows Preview availability;
   Library readers can restore navigation while it is hidden. The coordinator
   supplies only active-context availability.
-  On coarse-pointer devices, the application suppresses double-tap viewport
-  zoom with `touch-action: manipulation` and renders editable controls at no
-  less than `1rem` to avoid Safari focus zoom. The ordinary device-width
-  viewport remains scalable so deliberate pinch zoom and browser accessibility
-  controls stay available; PDF surfaces retain their explicit gesture policy.
+  The application locks browser viewport scaling with fixed-scale viewport
+  metadata and root `touch-action: pan-x pan-y`, while retaining ordinary page
+  panning and the PDF reader's explicit custom gesture policy. On coarse-pointer
+  devices, editable controls render at no less than `1rem` to avoid Safari focus
+  zoom. The layered manuscript textarea and highlight mirror use that same
+  coarse-pointer font size and integral line height so the native caret stays
+  aligned with the visible source glyphs.
 - **Editor toolbar:** Persistent editor actions keep their labels on one line.
   The toolbar never wraps: Write/Map, word count, Insert, current target, and
   save state retain one horizontal hierarchy. Lower-frequency History, revision,

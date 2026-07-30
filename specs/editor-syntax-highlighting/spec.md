@@ -25,6 +25,8 @@ preserving the native collaborative textarea and exact source text.
   caret and selection remain the only local target presentation; the mirror
   omits the local presence boundary and skips unchanged renders so caret motion
   cannot split or repaint visible text runs.
+  Coarse-pointer sizing applies equally to the textarea and mirror; neither
+  layer may inherit the 16px Safari focus-zoom guard independently.
 - **Semantics:** unified/remark preview parsing and validation remain authoritative;
   highlight classes are visual hints only.
 - **Edit history:** each project file owns a browser-local Yjs undo manager.
