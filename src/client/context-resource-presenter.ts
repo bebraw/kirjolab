@@ -839,6 +839,7 @@ export class ContextResourcePresenter extends LightDomController {
     }
     try {
       const opened = await viewer.open({
+        ...(context.libraryPdf ? { artifactId: context.libraryPdf.id } : {}),
         documentKey: context.tab.key,
         url: context.url,
         annotations: context.annotations,

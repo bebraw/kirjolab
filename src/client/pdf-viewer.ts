@@ -6,6 +6,7 @@ import { readPdfTextContent } from "./pdf-text-content";
 import { PdfContinuousView } from "./pdf-continuous-view";
 import type { PdfSearchResult } from "./pdf-search-panel";
 import type { PdfOutlineItem } from "./pdf-navigation-panel";
+import { isArtifactAnalysis, isPdfTextAnalysisResult } from "../domain/reference-library";
 import {
   advancePdfWheelPaging,
   initialPdfWheelPagingState,
@@ -53,6 +54,7 @@ interface PdfViewerPresentation {
 }
 
 interface OpenPdfOptions {
+  artifactId?: string;
   documentKey?: string;
   url: string;
   annotations: AnnotationResource[];
@@ -102,6 +104,7 @@ export class PdfEvidenceViewer {
   #displayMode: PdfDisplayMode = readPdfDisplayMode();
   #searchTextCache: readonly { readonly page: number; readonly text: string }[] | null = null;
   #documentKey = "";
+  #artifactId = "";
 
   static forDocument(root: Document, presentation: PdfViewerPresentation): PdfEvidenceViewer {
     return new PdfEvidenceViewer(
@@ -232,6 +235,7 @@ export class PdfEvidenceViewer {
     if (!pdfViewerDocumentRequestActive(this.#lifecycle.getSnapshot(), documentRequest)) return false;
     this.#document = null;
     this.#documentKey = options.documentKey ?? options.url;
+    this.#artifactId = options.artifactId ?? "";
     this.#searchTextCache = null;
     this.#continuousView.close();
     this.#elements.continuousPages.hidden = true;
@@ -312,7 +316,19 @@ export class PdfEvidenceViewer {
       }
       this.#searchTextCache = pages;
     }
-    return searchPdfPageTexts(this.#searchTextCache, query);
+    let pages = this.#searchTextCache;
+    if (this.#artifactId && pages.every(({ text }) => text.trim().length < 24)) {
+      const response = await fetch(`/api/library/pdfs/${encodeURIComponent(this.#artifactId)}/analyses/pdf-text`, {
+        credentials: "same-origin",
+      });
+      if (response.ok) {
+        const value: unknown = await response.json();
+        if (isArtifactAnalysis(value) && value.kind === "pdf-text" && value.status === "ready" && isPdfTextAnalysisResult(value.result)) {
+          pages = value.result.pages.map(({ page, text }) => ({ page, text }));
+        }
+      }
+    }
+    return searchPdfPageTexts(pages, query);
   }
 
   async goToPage(page: number): Promise<void> {

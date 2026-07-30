@@ -766,6 +766,7 @@ async function importReferenceOpenPdf(referenceId: string, context: ReferenceLib
   await Promise.all([
     enqueueArtifactAnalysis(context.identity.ownerKey, result.artifact.id, "pdf-highlights", context.env, context.library),
     enqueueArtifactAnalysis(context.identity.ownerKey, result.artifact.id, "pdf-references", context.env, context.library),
+    enqueueArtifactAnalysis(context.identity.ownerKey, result.artifact.id, "pdf-text", context.env, context.library),
   ]);
   return Response.json({ ...result, provenance }, { status: result.created ? 201 : 200, ...noStore() });
 }
@@ -799,10 +800,10 @@ async function handleLibraryPdfReferenceReviewRoute(context: ReferenceLibraryRou
 
 async function handleLibraryPdfAnalysisRoute(context: ReferenceLibraryRouteContext): Promise<Response | null> {
   const { request, suffix, identity, env, library } = context;
-  const match = /^\/pdfs\/([0-9a-f-]{36})\/analyses\/(pdf-highlights|pdf-references)$/iu.exec(suffix);
+  const match = /^\/pdfs\/([0-9a-f-]{36})\/analyses\/(pdf-highlights|pdf-references|pdf-text)$/iu.exec(suffix);
   if (
     !match?.[1] ||
-    (match[2] !== "pdf-highlights" && match[2] !== "pdf-references") ||
+    (match[2] !== "pdf-highlights" && match[2] !== "pdf-references" && match[2] !== "pdf-text") ||
     (request.method !== "GET" && request.method !== "POST")
   ) {
     return null;
@@ -1829,6 +1830,7 @@ async function uploadLibraryPdf(
   await Promise.all([
     enqueueArtifactAnalysis(ownerKey, draft.artifact.id, "pdf-highlights", env, library),
     enqueueArtifactAnalysis(ownerKey, draft.artifact.id, "pdf-references", env, library),
+    enqueueArtifactAnalysis(ownerKey, draft.artifact.id, "pdf-text", env, library),
   ]);
   return Response.json(draft, { status: draft.created ? 201 : 200, ...noStore() });
 }

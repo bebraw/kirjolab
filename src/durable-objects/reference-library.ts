@@ -660,6 +660,33 @@ const migrations = [
       return undefined;
     },
   },
+  {
+    version: 15,
+    name: "extract-searchable-pdf-text",
+    apply(sql): undefined {
+      sql.exec(`
+        ALTER TABLE artifact_analyses RENAME TO artifact_analyses_v14;
+        CREATE TABLE artifact_analyses (
+          artifact_id TEXT NOT NULL REFERENCES artifacts(id) ON DELETE CASCADE,
+          fingerprint TEXT NOT NULL,
+          kind TEXT NOT NULL CHECK (kind IN ('pdf-highlights', 'pdf-references', 'pdf-text')),
+          status TEXT NOT NULL CHECK (status IN ('queued', 'running', 'ready', 'failed')),
+          result_json TEXT NOT NULL DEFAULT '',
+          error TEXT NOT NULL DEFAULT '',
+          requested_at TEXT NOT NULL,
+          started_at TEXT,
+          completed_at TEXT,
+          PRIMARY KEY (artifact_id, kind)
+        );
+        INSERT INTO artifact_analyses
+          (artifact_id, fingerprint, kind, status, result_json, error, requested_at, started_at, completed_at)
+        SELECT artifact_id, fingerprint, kind, status, result_json, error, requested_at, started_at, completed_at
+        FROM artifact_analyses_v14;
+        DROP TABLE artifact_analyses_v14;
+      `);
+      return undefined;
+    },
+  },
 ] as const satisfies readonly SQLiteMigration[];
 
 export class ReferenceLibrary extends DurableObject<Env> {

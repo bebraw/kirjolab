@@ -135,8 +135,8 @@ describe("reference library API", () => {
       expect.objectContaining({ referenceId: reference.id, rights: "unknown", fingerprint: expect.stringMatching(/^sha256:/u) }),
     );
     expect(bucket.size).toBe(1);
-    expect(fixture.library.queueArtifactAnalysis).toHaveBeenCalledTimes(2);
-    expect(fixture.sendArtifactAnalysis).toHaveBeenCalledTimes(2);
+    expect(fixture.library.queueArtifactAnalysis).toHaveBeenCalledTimes(3);
+    expect(fixture.sendArtifactAnalysis).toHaveBeenCalledTimes(3);
     await expect(imported.json()).resolves.toMatchObject({
       provenance: { provider: "openalex", license: "cc-by", version: "acceptedVersion" },
     });
@@ -899,7 +899,7 @@ describe("reference library API", () => {
     expect(response.status).toBe(201);
     await expect(response.json()).resolves.toMatchObject({ created: true });
     expect(bucket.size).toBe(1);
-    expect(fixture.sendArtifactAnalysis).toHaveBeenCalledTimes(2);
+    expect(fixture.sendArtifactAnalysis).toHaveBeenCalledTimes(3);
     expect(fixture.sendArtifactAnalysis).toHaveBeenCalledWith(
       expect.objectContaining({
         version: 1,
@@ -943,6 +943,11 @@ describe("reference library API", () => {
     const references = await handleReferenceLibraryApi(new Request(`https://example.test${referencesRoute}`), fixture.env, identity);
     expect(references.status).toBe(200);
     await expect(references.json()).resolves.toMatchObject({ kind: "pdf-references", status: "queued" });
+
+    const textRoute = "/api/library/pdfs/22222222-2222-4222-8222-222222222222/analyses/pdf-text";
+    const text = await handleReferenceLibraryApi(new Request(`https://example.test${textRoute}`), fixture.env, identity);
+    expect(text.status).toBe(200);
+    await expect(text.json()).resolves.toMatchObject({ kind: "pdf-text", status: "queued" });
   });
 
   it("queues missing analysis state when an existing PDF is opened", async () => {
@@ -1866,7 +1871,7 @@ function apiFixture(bucket = new MemoryR2Bucket()) {
     ),
     importHighlights: vi.fn(async () => []),
     getArtifactAnalysis,
-    queueArtifactAnalysis: vi.fn(async (_artifactId: string, kind: "pdf-highlights" | "pdf-references") => ({ ...analysis, kind })),
+    queueArtifactAnalysis: vi.fn(async (_artifactId: string, kind: ArtifactAnalysisKind) => ({ ...analysis, kind })),
     failArtifactAnalysis: vi.fn(async () => true),
     getPdfReferenceReviewQueue: vi.fn(
       async (): Promise<PdfReferenceReviewQueue | null> => ({

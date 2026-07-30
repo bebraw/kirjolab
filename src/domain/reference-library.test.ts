@@ -115,6 +115,20 @@ describe("shared reference library", () => {
     expect(isArtifactAnalysis(referenceAnalysis)).toBe(true);
     expect(isArtifactAnalysis({ ...referenceAnalysis, result })).toBe(false);
     expect(isArtifactAnalysisJob({ ...job, kind: "pdf-references" })).toBe(true);
+    expect(isArtifactAnalysisJob({ ...job, kind: "pdf-text" })).toBe(true);
+    expect(
+      isArtifactAnalysis({
+        ...analysis,
+        kind: "pdf-text",
+        result: {
+          pages: [{ page: 1, text: "Searchable text", source: "ocr" }],
+          pagesScanned: 1,
+          pagesTotal: 1,
+          ocrPages: 1,
+          truncated: false,
+        },
+      }),
+    ).toBe(true);
   });
 
   it("accepts only safe project reference PDF descriptors", () => {

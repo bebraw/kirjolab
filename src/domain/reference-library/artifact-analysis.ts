@@ -1,7 +1,7 @@
 import { isRecord } from "../unknown-value";
 import { isLibraryHighlightImportCandidate, type LibraryHighlightImportCandidate } from "./pdf-annotations";
 
-export type ArtifactAnalysisKind = "pdf-highlights" | "pdf-references";
+export type ArtifactAnalysisKind = "pdf-highlights" | "pdf-references" | "pdf-text";
 export type ArtifactAnalysisStatus = "queued" | "running" | "ready" | "failed";
 
 export interface PdfHighlightAnalysisCandidate extends LibraryHighlightImportCandidate {
@@ -48,7 +48,33 @@ export interface PdfReferenceAnalysisResult {
   readonly truncated: boolean;
 }
 
-export type ArtifactAnalysisResult = PdfHighlightAnalysisResult | PdfReferenceAnalysisResult;
+export interface PdfTextPage {
+  readonly page: number;
+  readonly text: string;
+  readonly source: "native" | "ocr";
+}
+
+export interface PdfTextExtractionPage {
+  readonly page: number;
+  readonly text: string;
+  readonly image?: string;
+}
+
+export interface PdfTextExtraction {
+  readonly pages: readonly PdfTextExtractionPage[];
+  readonly pagesTotal: number;
+  readonly truncated: boolean;
+}
+
+export interface PdfTextAnalysisResult {
+  readonly pages: readonly PdfTextPage[];
+  readonly pagesScanned: number;
+  readonly pagesTotal: number;
+  readonly ocrPages: number;
+  readonly truncated: boolean;
+}
+
+export type ArtifactAnalysisResult = PdfHighlightAnalysisResult | PdfReferenceAnalysisResult | PdfTextAnalysisResult;
 
 export interface ArtifactAnalysis {
   readonly artifactId: string;
@@ -111,6 +137,27 @@ export function isPdfReferenceAnalysisResult(value: unknown): value is PdfRefere
   );
 }
 
+export function isPdfTextAnalysisResult(value: unknown): value is PdfTextAnalysisResult {
+  return (
+    isRecord(value) &&
+    Array.isArray(value.pages) &&
+    value.pages.length <= 200 &&
+    value.pages.every(isPdfTextPage) &&
+    hasValidPdfAnalysisPages(value) &&
+    isBoundedInteger(value.ocrPages, 0, value.pagesScanned) &&
+    typeof value.truncated === "boolean"
+  );
+}
+
+function isPdfTextPage(value: unknown): value is PdfTextPage {
+  return (
+    isRecord(value) &&
+    isBoundedInteger(value.page, 1, 200) &&
+    isBoundedString(value.text, 0, 100_000) &&
+    (value.source === "native" || value.source === "ocr")
+  );
+}
+
 function isPdfReferenceMention(value: unknown): value is PdfReferenceMention {
   return (
     isRecord(value) &&
@@ -129,11 +176,12 @@ export function isArtifactAnalysis(value: unknown): value is ArtifactAnalysis {
     isRecord(value) &&
     typeof value.artifactId === "string" &&
     typeof value.fingerprint === "string" &&
-    (value.kind === "pdf-highlights" || value.kind === "pdf-references") &&
+    (value.kind === "pdf-highlights" || value.kind === "pdf-references" || value.kind === "pdf-text") &&
     (value.status === "queued" || value.status === "running" || value.status === "ready" || value.status === "failed") &&
     (value.result === null ||
       (value.kind === "pdf-highlights" && isPdfHighlightAnalysisResult(value.result)) ||
-      (value.kind === "pdf-references" && isPdfReferenceAnalysisResult(value.result))) &&
+      (value.kind === "pdf-references" && isPdfReferenceAnalysisResult(value.result)) ||
+      (value.kind === "pdf-text" && isPdfTextAnalysisResult(value.result))) &&
     typeof value.error === "string" &&
     typeof value.requestedAt === "string" &&
     (value.startedAt === null || typeof value.startedAt === "string") &&
@@ -150,7 +198,7 @@ export function isArtifactAnalysisJob(value: unknown): value is ArtifactAnalysis
     value.ownerKey.length <= 200 &&
     typeof value.artifactId === "string" &&
     typeof value.fingerprint === "string" &&
-    (value.kind === "pdf-highlights" || value.kind === "pdf-references") &&
+    (value.kind === "pdf-highlights" || value.kind === "pdf-references" || value.kind === "pdf-text") &&
     typeof value.requestedAt === "string"
   );
 }

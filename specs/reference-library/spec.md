@@ -268,6 +268,12 @@ memory and makes citation aliases compete with stable source identity.
   renders bounded lazy page previews, and stores private per-document page
   bookmarks in local browser storage. Outline absence does not prevent thumbnail
   or bookmark navigation.
+  A fingerprint-qualified `pdf-text` artifact analysis extracts native text for
+  up to 200 pages and rasterizes at most 40 pages lacking meaningful native text
+  for server-side OCR through the configured Workers AI binding. Persisted page
+  text records whether it came from the native layer or OCR. Literal search
+  falls back to this private server artifact when a Library PDF has no usable
+  native text; partial bounded analyses declare truncation.
 - Saving a text selection whose normalized rectangles overlap a saved
   highlight on the same artifact page extends that stable highlight instead of
   creating a second resource. Geometry, quotation text, and distinct comments

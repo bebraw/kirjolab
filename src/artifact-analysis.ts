@@ -3,11 +3,14 @@ import {
   isArtifactAnalysisJob,
   isPdfHighlightAnalysisResult,
   isPdfReferenceAnalysisResult,
+  isPdfTextAnalysisResult,
   type ArtifactAnalysisKind,
   type ArtifactAnalysisJob,
   type ArtifactAnalysisResult,
   type PdfHighlightAnalysisResult,
   type PdfReferenceAnalysisResult,
+  type PdfTextAnalysisResult,
+  type PdfTextExtraction,
 } from "./domain/reference-library";
 
 export const artifactAnalysisPageUrl = "https://artifact-analysis.invalid/";
@@ -68,13 +71,17 @@ async function processArtifactAnalysisJob(job: ArtifactAnalysisJob, env: Env): P
     loadPdfArtifactAnalyzerScript(),
     loadPdfWorkerScript(),
   ]);
-  const result = await analyzePdfArtifact(env.ARTIFACT_ANALYSIS_BROWSER, pdf, analyzerScript, workerScript, job.kind);
+  const result =
+    job.kind === "pdf-text"
+      ? await analyzePdfTextArtifact(env, pdf, analyzerScript, workerScript)
+      : await analyzePdfArtifact(env.ARTIFACT_ANALYSIS_BROWSER, pdf, analyzerScript, workerScript, job.kind);
   if (job.kind === "pdf-highlights" && !isPdfHighlightAnalysisResult(result)) {
     throw new Error("Browser returned an invalid PDF highlight analysis");
   }
   if (job.kind === "pdf-references" && !isPdfReferenceAnalysisResult(result)) {
     throw new Error("Browser returned an invalid PDF reference analysis");
   }
+  if (job.kind === "pdf-text" && !isPdfTextAnalysisResult(result)) throw new Error("Browser returned invalid PDF text analysis");
   await library.completeArtifactAnalysis(job.artifactId, job.kind, job.fingerprint, job.requestedAt, result);
 }
 
@@ -83,7 +90,7 @@ async function analyzePdfArtifact(
   pdf: Uint8Array,
   analyzerScript: string,
   workerScript: string,
-  kind: ArtifactAnalysisKind,
+  kind: Exclude<ArtifactAnalysisKind, "pdf-text">,
 ): Promise<ArtifactAnalysisResult> {
   let browser: Browser | null = null;
   try {
@@ -103,6 +110,69 @@ async function analyzePdfArtifact(
         },
         { kind, url: analysisPdfUrl },
       ),
+      2 * 60 * 1_000,
+    );
+  } finally {
+    await browser?.close();
+  }
+}
+
+async function analyzePdfTextArtifact(
+  env: Env,
+  pdf: Uint8Array,
+  analyzerScript: string,
+  workerScript: string,
+): Promise<PdfTextAnalysisResult> {
+  const extraction = await extractPdfTextArtifact(env.ARTIFACT_ANALYSIS_BROWSER, pdf, analyzerScript, workerScript);
+  const pages: PdfTextAnalysisResult["pages"][number][] = [];
+  let ocrPages = 0;
+  for (const page of extraction.pages) {
+    if (!page.image) {
+      pages.push({ page: page.page, text: page.text, source: "native" });
+      continue;
+    }
+    const response = await env.AI.toMarkdown({ name: `page-${page.page}.jpg`, blob: await (await fetch(page.image)).blob() });
+    const text = response.format === "error" ? page.text : markdownToPlainText(response.data);
+    pages.push({ page: page.page, text, source: text ? "ocr" : "native" });
+    if (text) ocrPages += 1;
+  }
+  return {
+    pages,
+    pagesScanned: extraction.pages.length,
+    pagesTotal: extraction.pagesTotal,
+    ocrPages,
+    truncated: extraction.truncated,
+  };
+}
+
+function markdownToPlainText(value: string): string {
+  return value
+    .replaceAll(/!\[[^\]]*\]\([^)]*\)/gu, " ")
+    .replaceAll(/\[([^\]]+)\]\([^)]*\)/gu, "$1")
+    .replaceAll(/^[#>*+-]+\s*/gmu, "")
+    .replaceAll(/[`*_~]/gu, "")
+    .replaceAll(/\s+/gu, " ")
+    .trim();
+}
+
+async function extractPdfTextArtifact(
+  binding: Env["ARTIFACT_ANALYSIS_BROWSER"],
+  pdf: Uint8Array,
+  analyzerScript: string,
+  workerScript: string,
+): Promise<PdfTextExtraction> {
+  let browser: Browser | null = null;
+  try {
+    browser = await puppeteer.launch(binding as Parameters<typeof puppeteer.launch>[0]);
+    const page = await browser.newPage();
+    await installArtifactInterception(page, pdf, workerScript);
+    await page.goto(artifactAnalysisPageUrl, { waitUntil: "domcontentloaded" });
+    await page.addScriptTag({ content: analyzerScript });
+    return await withTimeout(
+      page.evaluate(async (url) => {
+        const analyzer = globalThis as typeof globalThis & { extractPdfText(input: string): Promise<PdfTextExtraction> };
+        return await analyzer.extractPdfText(url);
+      }, analysisPdfUrl),
       2 * 60 * 1_000,
     );
   } finally {
