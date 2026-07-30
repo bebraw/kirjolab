@@ -112,9 +112,10 @@ export function buildCitationNetwork(
   const edges = [...groups.values()].map((group): CitationNetworkEdge => {
     const first = group[0]!;
     const conflicting = new Set(group.map((assertion) => assertion.polarity)).size > 1;
-    const views = group.map(
-      (assertion): CitationAssertionView => ({ ...assertion, state: conflicting ? "conflicting" : reviewedState(assertion) }),
-    );
+    const views = group.map((assertion): CitationAssertionView => ({
+      ...assertion,
+      state: conflicting ? "conflicting" : reviewedState(assertion),
+    }));
     return {
       id: `citation:${first.citingReferenceId}:${first.citedReferenceId}`,
       from: `reference:${first.citingReferenceId}`,
@@ -129,17 +130,15 @@ export function buildCitationNetwork(
     .map((referenceId) => knownReferences.get(referenceId))
     .filter((reference) => reference !== undefined)
     .sort((left, right) => left.title.localeCompare(right.title) || left.id.localeCompare(right.id))
-    .map(
-      (reference): CitationNetworkNode => ({
-        id: `reference:${reference.id}`,
-        referenceId: reference.id,
-        label: reference.title,
-        authors: [...reference.authors],
-        year: reference.year,
-        doi: reference.doi,
-        inProject: projectReferenceIds.has(reference.id),
-      }),
-    );
+    .map((reference): CitationNetworkNode => ({
+      id: `reference:${reference.id}`,
+      referenceId: reference.id,
+      label: reference.title,
+      authors: [...reference.authors],
+      year: reference.year,
+      doi: reference.doi,
+      inProject: projectReferenceIds.has(reference.id),
+    }));
   return { projectId, nodes, edges, truncated };
 }
 

@@ -30,9 +30,7 @@ interface MetadataReview {
 }
 
 type RefinementPresentation =
-  | { readonly kind: "hidden" }
-  | { readonly kind: "status"; readonly label: string; readonly message: string }
-  | MetadataReview;
+  { readonly kind: "hidden" } | { readonly kind: "status"; readonly label: string; readonly message: string } | MetadataReview;
 
 const emptyValue: LibraryReferenceMetadataValue = {
   type: "",
@@ -142,11 +140,13 @@ export class LibraryReferenceMetadataEditor extends LightDomElement {
       ${this.renderRefinement()}
       <div class="mt-2 flex flex-wrap gap-2">
         <button class="button-primary" type="button" ?disabled=${this.busy} @click=${() => void this.save()}>Save details</button>
-        ${this.primaryArtifact
-          ? html`<button class="button-secondary" type="button" ?disabled=${this.busy} @click=${() => void this.refine()}>
-              Refine metadata
-            </button>`
-          : nothing}
+        ${
+          this.primaryArtifact
+            ? html`<button class="button-secondary" type="button" ?disabled=${this.busy} @click=${() => void this.refine()}>
+                Refine metadata
+              </button>`
+            : nothing
+        }
       </div>
     `;
   }
@@ -425,11 +425,13 @@ export class LibraryReferenceMetadataEditor extends LightDomElement {
         <section class="library-metadata-refinement-actions">
           <p class="resource-label">PDF suggestions</p>
           ${local.diagnostics.map((diagnostic) => html`<p class="status-text">${diagnostic}</p>`)}
-          ${hasPdfSuggestions
-            ? html`<button class="button-primary mt-3" type="button" ?disabled=${this.busy} @click=${() => void this.applyPdf()}>
-                Apply selected metadata
-              </button>`
-            : html`<p class="status-text">No new metadata suggestions are available.</p>`}
+          ${
+            hasPdfSuggestions
+              ? html`<button class="button-primary mt-3" type="button" ?disabled=${this.busy} @click=${() => void this.applyPdf()}>
+                  Apply selected metadata
+                </button>`
+              : html`<p class="status-text">No new metadata suggestions are available.</p>`
+          }
         </section>
         ${this.renderProviderSection()}
       </section>
@@ -457,34 +459,40 @@ export class LibraryReferenceMetadataEditor extends LightDomElement {
     return html`
       <section class="library-metadata-refinement-actions">
         <p class="resource-label">Scholarly metadata matches</p>
-        ${this.refinement.reusedPreview
-          ? html`<p class="status-text">Recent preview reused · sources will be verified again before acceptance.</p>`
-          : nothing}
-        ${groups.length > 1
-          ? html`
-              <select
-                class="field mt-2"
-                aria-label=${`Scholarly work for ${this.reference?.title ?? ""}`}
-                .value=${String(this.selectedWork)}
-                @change=${(event: Event) => this.selectWork(event)}
-              >
-                ${groups.map((item, index) => {
-                  const first = item.candidates[0]!;
-                  const year = first.metadata.year ? ` · ${first.metadata.year}` : "";
-                  const count = item.candidates.length;
-                  return html`<option value=${String(index)}>
-                    ${first.metadata.title}${year} · ${item.doi} · ${count} source${count === 1 ? "" : "s"}
-                  </option>`;
-                })}
-              </select>
-            `
-          : nothing}
+        ${
+          this.refinement.reusedPreview
+            ? html`<p class="status-text">Recent preview reused · sources will be verified again before acceptance.</p>`
+            : nothing
+        }
+        ${
+          groups.length > 1
+            ? html`
+                <select
+                  class="field mt-2"
+                  aria-label=${`Scholarly work for ${this.reference?.title ?? ""}`}
+                  .value=${String(this.selectedWork)}
+                  @change=${(event: Event) => this.selectWork(event)}
+                >
+                  ${groups.map((item, index) => {
+                    const first = item.candidates[0]!;
+                    const year = first.metadata.year ? ` · ${first.metadata.year}` : "";
+                    const count = item.candidates.length;
+                    return html`<option value=${String(index)}>
+                      ${first.metadata.title}${year} · ${item.doi} · ${count} source${count === 1 ? "" : "s"}
+                    </option>`;
+                  })}
+                </select>
+              `
+            : nothing
+        }
         <div><p class="status-text">${group.doi} · compare ${sourceNames.join(", ")}</p></div>
-        ${selectedCount === 0
-          ? html`<p class="status-text">These provider records match the current library metadata.</p>`
-          : html`<button class="button-primary mt-3" type="button" ?disabled=${this.busy} @click=${() => void this.applyProvider()}>
-              ${title}
-            </button>`}
+        ${
+          selectedCount === 0
+            ? html`<p class="status-text">These provider records match the current library metadata.</p>`
+            : html`<button class="button-primary mt-3" type="button" ?disabled=${this.busy} @click=${() => void this.applyProvider()}>
+                ${title}
+              </button>`
+        }
       </section>
     `;
   }

@@ -76,9 +76,11 @@ export class WorkspaceRailTabs extends LightDomElement {
             @click=${this.select}
           >
             ${unsafeHTML(renderIcon(icon, "rail-mode-icon"))}<span class="rail-mode-label">${mode === "guide" ? "Guide" : label}</span>
-            ${mode === "comments"
-              ? html`<span class="count-badge rail-mode-count" id="manuscript-comment-count">${this.commentCount}</span>`
-              : ""}
+            ${
+              mode === "comments"
+                ? html`<span class="count-badge rail-mode-count" id="manuscript-comment-count">${this.commentCount}</span>`
+                : ""
+            }
           </button>
         `,
       )}

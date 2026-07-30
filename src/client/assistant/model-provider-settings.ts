@@ -148,9 +148,11 @@ export class ModelProviderSettings extends LightDomElement {
           <label class="field-label"
             >Model
             <select class="field" id="llm-model" .value=${this.preferences.model} @change=${this.changeModel}>
-              ${options.length
-                ? options.map((model) => html`<option value=${model}>${this.models.length ? model : `${model} · saved`}</option>`)
-                : html`<option value="">Find loaded models</option>`}
+              ${
+                options.length
+                  ? options.map((model) => html`<option value=${model}>${this.models.length ? model : `${model} · saved`}</option>`)
+                  : html`<option value="">Find loaded models</option>`
+              }
             </select>
           </label>
           <label class="field-label"

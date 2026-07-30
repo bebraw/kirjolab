@@ -243,11 +243,13 @@ export class LibraryPdfInspector extends EagerLightDomElement {
         <header class="library-pdf-inspector-header">
           <div>
             <p class="eyebrow">${showsReferences ? "PDF references" : "PDF annotations"}</p>
-            ${showsReferences
-              ? html`<p class="library-pdf-status ui-status">Review the bibliography detected in this PDF.</p>`
-              : html`<p class="library-pdf-status ui-status" id="library-highlight-status" role="status" aria-live="polite">
-                  ${this.status}
-                </p>`}
+            ${
+              showsReferences
+                ? html`<p class="library-pdf-status ui-status">Review the bibliography detected in this PDF.</p>`
+                : html`<p class="library-pdf-status ui-status" id="library-highlight-status" role="status" aria-live="polite">
+                    ${this.status}
+                  </p>`
+            }
           </div>
           <button
             class="library-pdf-inspector-close"

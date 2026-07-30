@@ -38,12 +38,14 @@ export class WorkspaceSwitcher extends LightDomElement {
     const available = this.workspaces.filter((workspace) => !workspace.archivedAt || workspace.id === this.activeWorkspaceId);
     return html`<label class="sr-only" for="workspace-switcher">Current project</label>
       <select class="workspace-switcher" id="workspace-switcher" @change=${this.selectWorkspace}>
-        ${available.length === 0
-          ? html`<option value=${this.activeWorkspaceId}>Loading project…</option>`
-          : available.map(
-              (workspace) =>
-                html`<option value=${workspace.id} ?selected=${workspace.id === this.activeWorkspaceId}>${workspace.title}</option>`,
-            )}
+        ${
+          available.length === 0
+            ? html`<option value=${this.activeWorkspaceId}>Loading project…</option>`
+            : available.map(
+                (workspace) =>
+                  html`<option value=${workspace.id} ?selected=${workspace.id === this.activeWorkspaceId}>${workspace.title}</option>`,
+              )
+        }
       </select>`;
   }
 }

@@ -115,17 +115,19 @@ export class PdfHighlightImportPanel extends LightDomElement {
             <p class="text-xs leading-5 text-app-text-soft" id="library-highlight-import-status" role="status" aria-live="polite">
               ${this.status}
             </p>
-            ${this.#analysis?.status === "failed"
-              ? html`<button
-                  class="button-secondary"
-                  id="retry-library-pdf-highlights"
-                  type="button"
-                  ?disabled=${this.loading}
-                  @click=${this.retry}
-                >
-                  ${this.loading ? "Retrying…" : "Retry analysis"}
-                </button>`
-              : ""}
+            ${
+              this.#analysis?.status === "failed"
+                ? html`<button
+                    class="button-secondary"
+                    id="retry-library-pdf-highlights"
+                    type="button"
+                    ?disabled=${this.loading}
+                    @click=${this.retry}
+                  >
+                    ${this.loading ? "Retrying…" : "Retry analysis"}
+                  </button>`
+                : ""
+            }
           </div>
           <form class="mt-3" id="library-highlight-import-form" ?hidden=${this.reviews.length === 0} @submit=${this.importSelected}>
             <div class="space-y-2" id="library-highlight-import-list">

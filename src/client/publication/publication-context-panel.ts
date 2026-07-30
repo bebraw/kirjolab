@@ -118,36 +118,42 @@ export class PublicationContextPanel extends LightDomElement {
             ${publication ? bibTeXDisplayText(publication.title) : "No reference selected"}
           </h2>
           <p class="context-resource-meta" id="context-publication-meta">
-            ${publication
-              ? [
-                  bibTeXDisplayText(publication.authors.join("; ")),
-                  publication.year,
-                  bibTeXDisplayText(publication.venue),
-                  publication.doi ? `doi:${publication.doi}` : "",
-                ]
-                  .filter(Boolean)
-                  .join(" · ")
-              : "Choose a citation or reference to inspect its scholarly record."}
+            ${
+              publication
+                ? [
+                    bibTeXDisplayText(publication.authors.join("; ")),
+                    publication.year,
+                    bibTeXDisplayText(publication.venue),
+                    publication.doi ? `doi:${publication.doi}` : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")
+                : "Choose a citation or reference to inspect its scholarly record."
+            }
           </p>
         </div>
       </header>
       <div class="context-publication-body" id="context-publication-body">
         <div class="context-resource-copy" id="context-publication-details">
-          ${publication
-            ? html`
-                <p class="eyebrow">${publication.type} · ${publication.metadataSource}</p>
-                <p class="mt-3">${publication.abstract || "No abstract is stored for this publication yet."}</p>
-              `
-            : html`<div class="empty-state">Publication metadata and linked papers appear here.</div>`}
+          ${
+            publication
+              ? html`
+                  <p class="eyebrow">${publication.type} · ${publication.metadataSource}</p>
+                  <p class="mt-3">${publication.abstract || "No abstract is stored for this publication yet."}</p>
+                `
+              : html`<div class="empty-state">Publication metadata and linked papers appear here.</div>`
+          }
         </div>
         <div class="context-resource-actions">
           <button
             class="button-primary justify-center"
             id="insert-context-citation"
             type="button"
-            title=${this.citationAvailable
-              ? "Insert this reference at the remembered manuscript caret"
-              : "Place the manuscript caret before inserting a citation"}
+            title=${
+              this.citationAvailable
+                ? "Insert this reference at the remembered manuscript caret"
+                : "Place the manuscript caret before inserting a citation"
+            }
             ?disabled=${!this.citationAvailable}
             @click=${this.insertCitation}
           >
@@ -164,9 +170,11 @@ export class PublicationContextPanel extends LightDomElement {
           </button>
         </div>
         <div class="context-linked-resources" id="context-publication-pdfs">
-          ${papers.length === 0
-            ? html`<p class="empty-state">No paper connected to this reference yet.</p>`
-            : papers.map((paper) => this.renderPaper(paper))}
+          ${
+            papers.length === 0
+              ? html`<p class="empty-state">No paper connected to this reference yet.</p>`
+              : papers.map((paper) => this.renderPaper(paper))
+          }
         </div>
         <form class="context-link-form" id="publication-pdf-link-form" ?hidden=${availablePdfs.length === 0} @submit=${this.linkPdf}>
           <label class="field-label" for="publication-pdf-link">
@@ -258,17 +266,19 @@ export class PublicationContextPanel extends LightDomElement {
         </div>
         <div class="flex shrink-0 gap-2">
           <button class="button-secondary" type="button" data-paper-index=${index} @click=${this.openPaper}>Open</button>
-          ${paper.kind === "project"
-            ? html`<button
-                class="button-secondary"
-                type="button"
-                data-link-id=${paper.linkId}
-                ?disabled=${this.busy}
-                @click=${this.unlinkPaper}
-              >
-                Disconnect
-              </button>`
-            : ""}
+          ${
+            paper.kind === "project"
+              ? html`<button
+                  class="button-secondary"
+                  type="button"
+                  data-link-id=${paper.linkId}
+                  ?disabled=${this.busy}
+                  @click=${this.unlinkPaper}
+                >
+                  Disconnect
+                </button>`
+              : ""
+          }
         </div>
       </div>
     `;

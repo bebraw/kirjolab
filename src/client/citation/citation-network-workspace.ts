@@ -147,13 +147,15 @@ export class CitationNetworkWorkspace extends LightDomElement {
           <p class="mt-2 max-w-2xl text-xs leading-5 text-app-text-soft">
             Follow references from trusted seeds, review each candidate, and retain how every source was found.
           </p>
-          ${this.focusedReferenceId
-            ? html`
-                <p class="mt-2 text-xs text-app-text-soft">
-                  Focused on ${this.data.referenceTitles[this.focusedReferenceId] ?? "selected source"}
-                </p>
-              `
-            : ""}
+          ${
+            this.focusedReferenceId
+              ? html`
+                  <p class="mt-2 text-xs text-app-text-soft">
+                    Focused on ${this.data.referenceTitles[this.focusedReferenceId] ?? "selected source"}
+                  </p>
+                `
+              : ""
+          }
         </div>
         <div class="flex gap-2">
           <button

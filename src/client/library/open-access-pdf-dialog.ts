@@ -57,21 +57,25 @@ export class OpenAccessPdfDialog extends LightDomHost {
         <p>${this.reference?.title ?? "Library reference"}</p>
       </header>
       <div class="ui-dialog-body open-access-pdf-body">
-        ${this.pending
-          ? html`<p role="status">Checking trusted scholarly providers…</p>`
-          : this.error
-            ? html`<p class="ui-status" data-tone="error" role="alert">${this.error}</p>`
-            : candidate
-              ? this.renderCandidate(candidate)
-              : html`<p role="status">No provider supplied a directly downloadable open PDF for this DOI.</p>`}
+        ${
+          this.pending
+            ? html`<p role="status">Checking trusted scholarly providers…</p>`
+            : this.error
+              ? html`<p class="ui-status" data-tone="error" role="alert">${this.error}</p>`
+              : candidate
+                ? this.renderCandidate(candidate)
+                : html`<p role="status">No provider supplied a directly downloadable open PDF for this DOI.</p>`
+        }
       </div>
       <footer class="ui-dialog-actions">
         <button class="button-secondary" type="button" @click=${this.close}>Close</button>
-        ${candidate
-          ? html`<button class="button-primary" type="button" ?disabled=${this.pending} @click=${this.importCandidate}>
-              ${this.pending ? "Importing…" : "Import private PDF"}
-            </button>`
-          : nothing}
+        ${
+          candidate
+            ? html`<button class="button-primary" type="button" ?disabled=${this.pending} @click=${this.importCandidate}>
+                ${this.pending ? "Importing…" : "Import private PDF"}
+              </button>`
+            : nothing
+        }
       </footer>
     </dialog>`;
   }
@@ -93,9 +97,11 @@ export class OpenAccessPdfDialog extends LightDomHost {
       </dl>
       <p class="open-access-pdf-location">
         <a href=${candidate.pdfUrl} target="_blank" rel="noopener noreferrer">Review exact PDF location ↗</a>
-        ${candidate.landingUrl
-          ? html`<a href=${candidate.landingUrl} target="_blank" rel="noopener noreferrer">Provider landing page ↗</a>`
-          : nothing}
+        ${
+          candidate.landingUrl
+            ? html`<a href=${candidate.landingUrl} target="_blank" rel="noopener noreferrer">Provider landing page ↗</a>`
+            : nothing
+        }
       </p>
       <p class="open-access-pdf-note">Import stores an owner-only copy. Confirm sharing rights separately before sharing it.</p>`;
   }

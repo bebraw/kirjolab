@@ -77,26 +77,32 @@ export class PdfSearchPanel extends LightDomElement {
           </button>
         </form>
         <p class="pdf-search-status" role="status" aria-live="polite">
-          ${this.error ||
-          (this.loading
-            ? "Reading document text…"
-            : this.query.trim().length >= 2
-              ? `${matchCount} match${matchCount === 1 ? "" : "es"} on ${this.results.length} page${this.results.length === 1 ? "" : "s"}`
-              : "Search uses the PDF text layer. Scanned pages require OCR.")}
+          ${
+            this.error ||
+            (this.loading
+              ? "Reading document text…"
+              : this.query.trim().length >= 2
+                ? `${matchCount} match${matchCount === 1 ? "" : "es"} on ${this.results.length} page${this.results.length === 1 ? "" : "s"}`
+                : "Search uses the PDF text layer. Scanned pages require OCR.")
+          }
         </p>
-        ${this.results.length
-          ? html`<ol class="pdf-search-results">
-              ${this.results.map(
-                (result) =>
-                  html`<li>
-                    <button type="button" @click=${() => void this.openPage(result.page)}>
-                      <span class="eyebrow">Page ${result.page} · ${result.occurrences} match${result.occurrences === 1 ? "" : "es"}</span>
-                      <span>${result.excerpt}</span>
-                    </button>
-                  </li>`,
-              )}
-            </ol>`
-          : nothing}
+        ${
+          this.results.length
+            ? html`<ol class="pdf-search-results">
+                ${this.results.map(
+                  (result) =>
+                    html`<li>
+                      <button type="button" @click=${() => void this.openPage(result.page)}>
+                        <span class="eyebrow"
+                          >Page ${result.page} · ${result.occurrences} match${result.occurrences === 1 ? "" : "es"}</span
+                        >
+                        <span>${result.excerpt}</span>
+                      </button>
+                    </li>`,
+                )}
+              </ol>`
+            : nothing
+        }
       </aside>
     `;
   }

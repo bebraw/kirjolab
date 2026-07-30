@@ -439,28 +439,32 @@ export class ProjectEvidencePanel extends LightDomElement {
           <span class="min-w-0">
             <span class="eyebrow block">Page ${annotation.page}</span>
             <span class="mt-1 block text-sm leading-5 text-app-text">“${annotation.quote}”</span>
-            ${annotation.comment
-              ? html`<span class="mt-2 block font-sans text-xs text-app-text-soft">${annotation.comment}</span>`
-              : nothing}
+            ${
+              annotation.comment
+                ? html`<span class="mt-2 block font-sans text-xs text-app-text-soft">${annotation.comment}</span>`
+                : nothing
+            }
           </span>
         </label>
         <div class="mt-3 grid gap-2">
           ${this.annotationButton(annotation, "open", "Open evidence")} ${this.annotationButton(annotation, "edit", "Edit note")}
           ${this.annotationButton(annotation, "link", "Link selected manuscript text")}
           ${this.annotationButton(annotation, "delete", "Delete highlight")}
-          ${passage
-            ? html`<button
-                type="button"
-                class="button-secondary w-full justify-center"
-                data-annotation-id=${annotation.id}
-                data-anchor-status=${passage.resolution.status}
-                data-anchor-match=${anchorMatchState(passage.resolution)}
-                ?disabled=${passage.resolution.status !== "resolved"}
-                @click=${this.openPassage}
-              >
-                ${anchorActionLabel(passage.resolution)}
-              </button>`
-            : nothing}
+          ${
+            passage
+              ? html`<button
+                  type="button"
+                  class="button-secondary w-full justify-center"
+                  data-annotation-id=${annotation.id}
+                  data-anchor-status=${passage.resolution.status}
+                  data-anchor-match=${anchorMatchState(passage.resolution)}
+                  ?disabled=${passage.resolution.status !== "resolved"}
+                  @click=${this.openPassage}
+                >
+                  ${anchorActionLabel(passage.resolution)}
+                </button>`
+              : nothing
+          }
         </div>
         ${this.renderStrokeEditor(annotation)}
       </article>

@@ -362,14 +362,16 @@ export class GitHubImportPanel extends LightDomElement {
               .value=${this.installationId}
               @change=${this.updateInstallation}
             >
-              ${this.installations.length === 0
-                ? html`<option value="">${this.installationPlaceholder}</option>`
-                : this.installations.map(
-                    (installation) =>
-                      html`<option value=${String(installation.id)}>
-                        ${installation.accountLogin} · ${installation.accountType === "Organization" ? "organization" : "personal"}
-                      </option>`,
-                  )}
+              ${
+                this.installations.length === 0
+                  ? html`<option value="">${this.installationPlaceholder}</option>`
+                  : this.installations.map(
+                      (installation) =>
+                        html`<option value=${String(installation.id)}>
+                          ${installation.accountLogin} · ${installation.accountType === "Organization" ? "organization" : "personal"}
+                        </option>`,
+                    )
+              }
             </select></label
           >
           <label class="field-label"
@@ -381,12 +383,16 @@ export class GitHubImportPanel extends LightDomElement {
               .value=${this.repositoryId}
               @change=${this.updateRepository}
             >
-              ${this.repositories.length === 0
-                ? html`<option value="">${this.repositoryPlaceholder}</option>`
-                : this.repositories.map(
-                    (repository) =>
-                      html`<option value=${String(repository.id)}>${repository.fullName}${repository.private ? " · private" : ""}</option>`,
-                  )}
+              ${
+                this.repositories.length === 0
+                  ? html`<option value="">${this.repositoryPlaceholder}</option>`
+                  : this.repositories.map(
+                      (repository) =>
+                        html`<option value=${String(repository.id)}>
+                          ${repository.fullName}${repository.private ? " · private" : ""}
+                        </option>`,
+                    )
+              }
             </select></label
           >
           <label class="field-label"
@@ -398,11 +404,13 @@ export class GitHubImportPanel extends LightDomElement {
               .value=${this.branch}
               @change=${this.updateBranch}
             >
-              ${this.branches.length === 0
-                ? html`<option value="">${this.branchPlaceholder}</option>`
-                : this.branches.map(
-                    (branch) => html`<option value=${branch.name}>${branch.name}${branch.protected ? " · protected" : ""}</option>`,
-                  )}
+              ${
+                this.branches.length === 0
+                  ? html`<option value="">${this.branchPlaceholder}</option>`
+                  : this.branches.map(
+                      (branch) => html`<option value=${branch.name}>${branch.name}${branch.protected ? " · protected" : ""}</option>`,
+                    )
+              }
             </select></label
           >
           <label class="field-label"
@@ -414,17 +422,19 @@ export class GitHubImportPanel extends LightDomElement {
           /></label>
         </div>
         <div class="mt-5 border-t border-app-line pt-4" id="github-import-preview" aria-live="polite">
-          ${this.preview
-            ? html`
-                <p class="text-sm font-semibold text-app-text">
-                  ${this.preview.files.length} Markdown files · entry ${this.preview.entryPath}
-                </p>
-                <ul class="mt-3 space-y-1 font-sans text-xs text-app-text-soft">
-                  ${this.preview.files.slice(0, 12).map((file) => html`<li>${file.path} · ${formatBytes(file.bytes)}</li>`)}
-                  ${this.preview.files.length > 12 ? html`<li>…and ${this.preview.files.length - 12} more</li>` : null}
-                </ul>
-              `
-            : html`<p class="ui-status">Preview to inspect the selected files and resolved entry.</p>`}
+          ${
+            this.preview
+              ? html`
+                  <p class="text-sm font-semibold text-app-text">
+                    ${this.preview.files.length} Markdown files · entry ${this.preview.entryPath}
+                  </p>
+                  <ul class="mt-3 space-y-1 font-sans text-xs text-app-text-soft">
+                    ${this.preview.files.slice(0, 12).map((file) => html`<li>${file.path} · ${formatBytes(file.bytes)}</li>`)}
+                    ${this.preview.files.length > 12 ? html`<li>…and ${this.preview.files.length - 12} more</li>` : null}
+                  </ul>
+                `
+              : html`<p class="ui-status">Preview to inspect the selected files and resolved entry.</p>`
+          }
         </div>
         <p class="ui-status mt-3" id="github-import-status" role="status">${this.status}</p>
         <div class="mt-5 flex justify-end gap-2">

@@ -153,8 +153,10 @@ export class CandidateReviewPanel extends LightDomElement {
       <div class="context-candidate-scroll" id="context-candidate-scroll">
         <div class="context-candidate-review">
           <p class="context-candidate-status" id="context-candidate-status" role="status" aria-live="polite">
-            ${this.failure ??
-            (this.data ? candidateStatusText(this.data) : "Choose a revision candidate to inspect its scoped change and evidence.")}
+            ${
+              this.failure ??
+              (this.data ? candidateStatusText(this.data) : "Choose a revision candidate to inspect its scoped change and evidence.")
+            }
           </p>
           <div class="context-candidate-comparison" aria-label="Passage revision comparison">
             <section class="context-candidate-passage context-candidate-original" aria-labelledby="context-candidate-before-label">
@@ -162,24 +164,26 @@ export class CandidateReviewPanel extends LightDomElement {
                 ${draftsClaim ? "Research instruction" : "Original passage"}
               </h3>
               <pre id="context-candidate-before" role="region" aria-labelledby="context-candidate-before-label" tabindex="0">
-${candidate
-                  ? candidate.operation === "draft-claim"
-                    ? candidate.instruction
-                    : candidate.target.anchor.exact
-                  : "The selected manuscript passage appears here."}</pre
-              >
+${
+  candidate
+    ? candidate.operation === "draft-claim"
+      ? candidate.instruction
+      : candidate.target.anchor.exact
+    : "The selected manuscript passage appears here."
+}</pre>
             </section>
             <section class="context-candidate-passage context-candidate-proposal" aria-labelledby="context-candidate-after-label">
               <h3 class="context-candidate-passage-label" id="context-candidate-after-label">
                 ${draftsClaim ? "Proposed claim and note" : "Proposed replacement"}
               </h3>
               <pre id="context-candidate-after" role="region" aria-labelledby="context-candidate-after-label" tabindex="0">
-${candidate
-                  ? candidate.operation === "draft-claim"
-                    ? [candidate.proposedText, candidate.proposedNote].filter(Boolean).join("\n\n")
-                    : candidate.proposedReplacement
-                  : "The proposed replacement appears here."}</pre
-              >
+${
+  candidate
+    ? candidate.operation === "draft-claim"
+      ? [candidate.proposedText, candidate.proposedNote].filter(Boolean).join("\n\n")
+      : candidate.proposedReplacement
+    : "The proposed replacement appears here."
+}</pre>
             </section>
           </div>
           <section class="context-candidate-provenance" aria-labelledby="context-candidate-evidence-heading">
@@ -190,9 +194,11 @@ ${candidate
               </h3>
             </div>
             <div class="context-candidate-evidence" id="context-candidate-evidence">
-              ${candidate
-                ? candidate.evidence.map((evidence) => this.renderEvidence(evidence))
-                : html`<div class="empty-state">Annotation and claim snapshots appear here with links back to their sources.</div>`}
+              ${
+                candidate
+                  ? candidate.evidence.map((evidence) => this.renderEvidence(evidence))
+                  : html`<div class="empty-state">Annotation and claim snapshots appear here with links back to their sources.</div>`
+              }
             </div>
           </section>
           <div class="context-candidate-actions" aria-label="Revision decision">
@@ -209,11 +215,13 @@ ${candidate
               class="button-primary justify-center"
               id="context-candidate-apply"
               type="button"
-              ?disabled=${!candidate ||
-              this.data?.decisionBusy ||
-              candidate.status !== "pending" ||
-              !this.data?.applicable ||
-              (!draftsClaim && !this.data?.stableDocument)}
+              ?disabled=${
+                !candidate ||
+                this.data?.decisionBusy ||
+                candidate.status !== "pending" ||
+                !this.data?.applicable ||
+                (!draftsClaim && !this.data?.stableDocument)
+              }
               @click=${this.apply}
             >
               ${this.data?.currentAction === "apply" ? "Applying…" : draftsClaim ? "Create claim" : "Apply replacement"}
@@ -272,11 +280,13 @@ ${candidate
         <span class="eyebrow">${title}</span>
         <strong class="mt-2 block font-sans">${content}</strong>
         <p class="mt-2 font-sans text-xs leading-5 text-app-text-soft">${note}</p>
-        ${available
-          ? html`<button type="button" class="button-secondary mt-3" data-evidence-id=${evidence.id} @click=${this.openEvidence}>
-              ${annotation ? "Open evidence" : "Open claim"}
-            </button>`
-          : nothing}
+        ${
+          available
+            ? html`<button type="button" class="button-secondary mt-3" data-evidence-id=${evidence.id} @click=${this.openEvidence}>
+                ${annotation ? "Open evidence" : "Open claim"}
+              </button>`
+            : nothing
+        }
       </article>
     `;
   }

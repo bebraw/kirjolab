@@ -12,6 +12,11 @@
       "onFail": "error"
     }
   },
+  "overrides": {
+    "typed-rest-client": {
+      "qs": "6.15.3"
+    }
+  },
   "vibeTemplate": {
     "updates": [
       "2026-06-09-node-24-npm-baseline",
@@ -45,7 +50,8 @@
       "2026-07-30-validate-adr-registry",
       "2026-07-30-local-workers-tests",
       "2026-07-30-relax-npm-version-hint",
-      "2026-07-30-clean-disposable-state"
+      "2026-07-30-clean-disposable-state",
+      "2026-07-30-refresh-core-tooling"
     ]
   },
   "scripts": {
@@ -102,7 +108,7 @@
     "worker:types:check": "CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV=false wrangler types --check"
   },
   "devDependencies": {
-    "@cloudflare/vitest-pool-workers": "0.18.4",
+    "@cloudflare/vitest-pool-workers": "0.19.0",
     "@codemirror/autocomplete": "6.20.3",
     "@codemirror/commands": "6.10.4",
     "@codemirror/lang-markdown": "6.5.1",
@@ -114,21 +120,21 @@
     "@stryker-mutator/core": "9.6.1",
     "@stryker-mutator/typescript-checker": "9.6.1",
     "@stryker-mutator/vitest-runner": "9.6.1",
-    "@tailwindcss/cli": "4.3.1",
+    "@tailwindcss/cli": "4.3.3",
     "@types/node": "24.13.2",
     "@unified-latex/unified-latex-util-parse": "1.8.4",
-    "@vitest/coverage-v8": "4.1.8",
+    "@vitest/coverage-v8": "4.1.10",
     "chrome-launcher": "1.2.1",
     "esbuild": "0.28.1",
     "fallow": "2.97.0",
-    "lighthouse": "13.4.0",
-    "oxlint": "1.74.0",
-    "prettier": "3.8.4",
-    "tailwindcss": "4.3.1",
+    "lighthouse": "13.4.1",
+    "oxlint": "1.76.0",
+    "prettier": "3.9.6",
+    "tailwindcss": "4.3.3",
     "typescript": "npm:@typescript/typescript6@6.0.2",
     "typescript-7": "npm:typescript@7.0.2",
-    "vitest": "4.1.8",
-    "wrangler": "4.111.0",
+    "vitest": "4.1.10",
+    "wrangler": "4.115.0",
     "y-codemirror.next": "0.3.5",
     "y-protocols": "1.0.7"
   },
@@ -143,7 +149,7 @@
     "pdfjs-dist": "6.1.200",
     "scholarmark": "0.8.0",
     "valibot": "1.4.2",
-    "xstate": "5.32.4",
+    "xstate": "5.32.5",
     "yjs": "13.6.31"
   }
 }

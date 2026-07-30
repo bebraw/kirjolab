@@ -127,20 +127,21 @@ export class WebSnapshotComparisonPanel extends LightDomElement {
     return html`
       <p class="eyebrow">Neutral snapshot comparison</p>
       <h3 class="text-lg font-semibold tracking-[-0.025em]">
-        ${this.comparison.identical
-          ? "No readable-text changes"
-          : `${this.comparison.addedLines} added · ${this.comparison.removedLines} removed`}
+        ${
+          this.comparison.identical
+            ? "No readable-text changes"
+            : `${this.comparison.addedLines} added · ${this.comparison.removedLines} removed`
+        }
       </h3>
       ${this.comparison.hunks.map(
         (hunk) => html`
           <pre class="mt-3 overflow-auto rounded-sm border border-app-line bg-app-surface p-3 font-mono text-xs leading-5">
 ${[
-              `@@ before ${hunk.beforeLine} · after ${hunk.afterLine} @@`,
-              ...hunk.removed.map((line) => `- ${line}`),
-              ...hunk.added.map((line) => `+ ${line}`),
-              ...(hunk.truncated ? ["… excerpt truncated"] : []),
-            ].join("\n")}</pre
-          >
+  `@@ before ${hunk.beforeLine} · after ${hunk.afterLine} @@`,
+  ...hunk.removed.map((line) => `- ${line}`),
+  ...hunk.added.map((line) => `+ ${line}`),
+  ...(hunk.truncated ? ["… excerpt truncated"] : []),
+].join("\n")}</pre>
         `,
       )}
     `;

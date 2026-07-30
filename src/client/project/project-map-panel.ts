@@ -71,27 +71,31 @@ export class ProjectMapPanel extends LightDomElement {
     return html`
       ${this.renderEdges()}
       <div class="project-map-nodes" id="project-map-nodes" role="group" aria-label="Project resources">
-        ${this.graph.nodes.length === 0
-          ? nothing
-          : html`
-              <div class="project-map-context-nodes" role="group" aria-label="Project context">
-                ${grouped.context.map((node) => this.renderNode(node))}
-              </div>
-              <div class="project-map-lanes">
-                ${projectMapLaneDefinitions.map(
-                  (lane) => html`
-                    <section class="project-map-lane" data-lane=${lane.id} aria-labelledby=${`project-map-${lane.id}-heading`}>
-                      <h3 class="project-map-lane-heading" id=${`project-map-${lane.id}-heading`}>${lane.label}</h3>
-                      <div class="project-map-lane-nodes">
-                        ${grouped.lanes[lane.id].length === 0
-                          ? html`<div class="empty-state">No resources yet.</div>`
-                          : grouped.lanes[lane.id].map((node) => this.renderNode(node))}
-                      </div>
-                    </section>
-                  `,
-                )}
-              </div>
-            `}
+        ${
+          this.graph.nodes.length === 0
+            ? nothing
+            : html`
+                <div class="project-map-context-nodes" role="group" aria-label="Project context">
+                  ${grouped.context.map((node) => this.renderNode(node))}
+                </div>
+                <div class="project-map-lanes">
+                  ${projectMapLaneDefinitions.map(
+                    (lane) => html`
+                      <section class="project-map-lane" data-lane=${lane.id} aria-labelledby=${`project-map-${lane.id}-heading`}>
+                        <h3 class="project-map-lane-heading" id=${`project-map-${lane.id}-heading`}>${lane.label}</h3>
+                        <div class="project-map-lane-nodes">
+                          ${
+                            grouped.lanes[lane.id].length === 0
+                              ? html`<div class="empty-state">No resources yet.</div>`
+                              : grouped.lanes[lane.id].map((node) => this.renderNode(node))
+                          }
+                        </div>
+                      </section>
+                    `,
+                  )}
+                </div>
+              `
+        }
       </div>
     `;
   }
@@ -164,7 +168,8 @@ export class ProjectMapPanel extends LightDomElement {
           >
             <path d="M 0 0 L 5 2.5 L 0 5 z" fill="context-stroke"></path>
           </marker>
-        </defs>`} ${this.edges.map((edge) => {
+        </defs>`}
+      ${this.edges.map((edge) => {
         const emphasis = this.activeId ? (edge.from === this.activeId || edge.to === this.activeId ? "active" : "muted") : nothing;
         return svg`
           <path

@@ -57,12 +57,30 @@ describe("review appraisal and extraction evidence", () => {
 
   it("accepts an explicit rationale for a negative appraisal answer", () => {
     const answers = defaultReviewProtocol().qualityAssessment.answers;
-    expect(() => validateQualityAssessment(answers.find((answer) => answer.id === "yes")!, null, "")).toThrow("pointer");
-    expect(validateQualityAssessment(answers.find((answer) => answer.id === "no")!, null, "No limitations section was found.")).toEqual({
+    expect(() =>
+      validateQualityAssessment(
+        answers.find((answer) => answer.id === "yes")!,
+        null,
+        "",
+      ),
+    ).toThrow("pointer");
+    expect(
+      validateQualityAssessment(
+        answers.find((answer) => answer.id === "no")!,
+        null,
+        "No limitations section was found.",
+      ),
+    ).toEqual({
       evidence: null,
       rationale: "No limitations section was found.",
     });
-    expect(() => validateQualityAssessment(answers.find((answer) => answer.id === "no")!, null, "")).toThrow("rationale");
+    expect(() =>
+      validateQualityAssessment(
+        answers.find((answer) => answer.id === "no")!,
+        null,
+        "",
+      ),
+    ).toThrow("rationale");
   });
 
   it("validates typed values and explicit missingness", () => {

@@ -105,20 +105,22 @@ export class WorkspaceCatalogPanel extends LightDomElement {
             @input=${this.updateQuery}
         /></label>
         <div class="mt-4 grid gap-2" id="workspace-catalog-list" aria-live="polite">
-          ${workspaces.length > 0
-            ? workspaces.map(
-                (workspace) => html`
-                  <a
-                    class="project-catalog-row"
-                    href=${workspace.href}
-                    aria-current=${workspace.id === this.currentWorkspaceId ? "page" : null}
-                  >
-                    <strong>${workspace.title}</strong>
-                    <span>${workspaceCatalogMeta(workspace, this.currentWorkspaceId)}</span>
-                  </a>
-                `,
-              )
-            : html`<div class="empty-state">${this.query.trim() ? "No projects match this title." : "No projects available."}</div>`}
+          ${
+            workspaces.length > 0
+              ? workspaces.map(
+                  (workspace) => html`
+                    <a
+                      class="project-catalog-row"
+                      href=${workspace.href}
+                      aria-current=${workspace.id === this.currentWorkspaceId ? "page" : null}
+                    >
+                      <strong>${workspace.title}</strong>
+                      <span>${workspaceCatalogMeta(workspace, this.currentWorkspaceId)}</span>
+                    </a>
+                  `,
+                )
+              : html`<div class="empty-state">${this.query.trim() ? "No projects match this title." : "No projects available."}</div>`
+          }
         </div>
       </div>
     `;

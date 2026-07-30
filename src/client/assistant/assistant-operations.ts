@@ -1,11 +1,5 @@
 export type AssistantOperationId =
-  | "revise-selection"
-  | "draft-claim"
-  | "clarity-drill"
-  | "ideate"
-  | "phrase-passage"
-  | "find-references"
-  | "build-table";
+  "revise-selection" | "draft-claim" | "clarity-drill" | "ideate" | "phrase-passage" | "find-references" | "build-table";
 
 export type AssistantTargetScope = "caret" | "selection" | "sentence" | "paragraph" | "section";
 

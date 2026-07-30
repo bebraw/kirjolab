@@ -91,27 +91,35 @@ export class PdfReferenceAnalysisPanel extends LightDomElement {
           <strong id="pdf-reference-analysis-title">References in this PDF</strong>
           <p class="mt-1 text-xs leading-5 text-app-text-soft" role="status" aria-live="polite">${this.status}</p>
         </div>
-        ${this.#analysis?.status === "ready" || this.#analysis?.status === "failed"
-          ? html`
-              <button class="button-secondary" type="button" ?disabled=${this.loading} @click=${this.retry}>
-                ${this.loading ? "Queueing…" : this.#analysis.status === "ready" ? "Run analysis again" : "Retry analysis"}
-              </button>
-            `
-          : nothing}
+        ${
+          this.#analysis?.status === "ready" || this.#analysis?.status === "failed"
+            ? html`
+                <button class="button-secondary" type="button" ?disabled=${this.loading} @click=${this.retry}>
+                  ${this.loading ? "Queueing…" : this.#analysis.status === "ready" ? "Run analysis again" : "Retry analysis"}
+                </button>
+              `
+            : nothing
+        }
       </div>
-      ${this.reviewStatus
-        ? html`<p class="mt-2 text-xs leading-5 text-app-text-soft" role="status" aria-live="polite">${this.reviewStatus}</p>`
-        : nothing}
-      ${this.result?.candidates.length
-        ? html`
-            ${this.renderAddAllControl()}
-            <div class="mt-3 space-y-2" id="pdf-reference-analysis-list">
-              ${this.reviewQueue
-                ? this.reviewQueue.candidates.map((candidate) => this.renderCandidate(candidate, candidate))
-                : this.result.candidates.map((candidate) => this.renderCandidate(candidate, null))}
-            </div>
-          `
-        : nothing}
+      ${
+        this.reviewStatus
+          ? html`<p class="mt-2 text-xs leading-5 text-app-text-soft" role="status" aria-live="polite">${this.reviewStatus}</p>`
+          : nothing
+      }
+      ${
+        this.result?.candidates.length
+          ? html`
+              ${this.renderAddAllControl()}
+              <div class="mt-3 space-y-2" id="pdf-reference-analysis-list">
+                ${
+                  this.reviewQueue
+                    ? this.reviewQueue.candidates.map((candidate) => this.renderCandidate(candidate, candidate))
+                    : this.result.candidates.map((candidate) => this.renderCandidate(candidate, null))
+                }
+              </div>
+            `
+          : nothing
+      }
     `;
   }
 
@@ -142,58 +150,70 @@ export class PdfReferenceAnalysisPanel extends LightDomElement {
         <p class="eyebrow">Reference · page ${candidate.page}</p>
         <strong class="mt-1 block font-sans">${candidate.title || candidate.raw}</strong>
         ${candidate.title ? html`<p class="mt-1 text-xs leading-5 text-app-text-soft">${candidate.raw}</p>` : nothing}
-        ${candidate.authors.length || candidate.year || candidate.doi
-          ? html`
-              <p class="mt-2 text-xs leading-5 text-app-text-soft">
-                ${[candidate.authors.join("; "), candidate.year, candidate.doi].filter(Boolean).join(" · ")}
-              </p>
-            `
-          : nothing}
-        ${mentions.length
-          ? html`
-              <details class="pdf-reference-usage mt-2">
-                <summary>Used ${mentions.length} time${mentions.length === 1 ? "" : "s"} in this PDF</summary>
-                <ol>
-                  ${mentions.map(
-                    (mention) =>
-                      html`<li>
-                        <button type="button" @click=${() => this.openMention(mention.page)}>
-                          <span class="eyebrow"
-                            >Page ${mention.page} · ${mention.style === "numeric" ? "numeric citation" : "author–year citation"}</span
-                          >
-                          <span>${mention.context || mention.raw}</span>
-                        </button>
-                      </li>`,
-                  )}
-                </ol>
-              </details>
-            `
-          : nothing}
-        ${reviewed?.match
-          ? html`
-              <p class="mt-2 rounded-sm border border-app-line bg-app-surface px-3 py-2 text-xs leading-5">
-                <span class="font-semibold">${reviewed.matchKind === "doi" ? "Exact DOI match" : "Suggested Library match"}</span>
-                · ${reviewed.match.title}
-              </p>
-            `
-          : nothing}
+        ${
+          candidate.authors.length || candidate.year || candidate.doi
+            ? html`
+                <p class="mt-2 text-xs leading-5 text-app-text-soft">
+                  ${[candidate.authors.join("; "), candidate.year, candidate.doi].filter(Boolean).join(" · ")}
+                </p>
+              `
+            : nothing
+        }
+        ${
+          mentions.length
+            ? html`
+                <details class="pdf-reference-usage mt-2">
+                  <summary>Used ${mentions.length} time${mentions.length === 1 ? "" : "s"} in this PDF</summary>
+                  <ol>
+                    ${mentions.map(
+                      (mention) =>
+                        html`<li>
+                          <button type="button" @click=${() => this.openMention(mention.page)}>
+                            <span class="eyebrow"
+                              >Page ${mention.page} · ${mention.style === "numeric" ? "numeric citation" : "author–year citation"}</span
+                            >
+                            <span>${mention.context || mention.raw}</span>
+                          </button>
+                        </li>`,
+                    )}
+                  </ol>
+                </details>
+              `
+            : nothing
+        }
+        ${
+          reviewed?.match
+            ? html`
+                <p class="mt-2 rounded-sm border border-app-line bg-app-surface px-3 py-2 text-xs leading-5">
+                  <span class="font-semibold">${reviewed.matchKind === "doi" ? "Exact DOI match" : "Suggested Library match"}</span>
+                  · ${reviewed.match.title}
+                </p>
+              `
+            : nothing
+        }
         ${this.renderReviewActions(reviewed)}
-        ${candidate.doi || candidate.url
-          ? html`
-              <div class="mt-2 flex flex-wrap gap-2">
-                ${candidate.doi
-                  ? html`
-                      <a class="button-secondary" href=${`https://doi.org/${candidate.doi}`} target="_blank" rel="noopener noreferrer">
-                        Open DOI
-                      </a>
-                    `
-                  : nothing}
-                ${candidate.url && !candidate.url.toLocaleLowerCase().includes("doi.org/")
-                  ? html` <a class="button-secondary" href=${candidate.url} target="_blank" rel="noopener noreferrer">Open source</a> `
-                  : nothing}
-              </div>
-            `
-          : nothing}
+        ${
+          candidate.doi || candidate.url
+            ? html`
+                <div class="mt-2 flex flex-wrap gap-2">
+                  ${
+                    candidate.doi
+                      ? html`
+                          <a class="button-secondary" href=${`https://doi.org/${candidate.doi}`} target="_blank" rel="noopener noreferrer">
+                            Open DOI
+                          </a>
+                        `
+                      : nothing
+                  }
+                  ${
+                    candidate.url && !candidate.url.toLocaleLowerCase().includes("doi.org/")
+                      ? html` <a class="button-secondary" href=${candidate.url} target="_blank" rel="noopener noreferrer">Open source</a> `
+                      : nothing
+                  }
+                </div>
+              `
+            : nothing
+        }
       </article>
     `;
   }
@@ -211,51 +231,57 @@ export class PdfReferenceAnalysisPanel extends LightDomElement {
     return html`
       ${candidate.review?.decision === "rejected" ? html`<p class="mt-2 text-xs font-semibold text-app-text-soft">Skipped</p>` : nothing}
       <div class="mt-2 flex flex-wrap gap-2" role="group" aria-label="Review parsed reference">
-        ${candidate.match
-          ? html`
-              <button
-                class="button-primary"
-                type="button"
-                ?disabled=${saving}
-                @click=${() => void this.reviewCandidate(candidate, "accepted", candidate.match?.id)}
-              >
-                ${saving ? "Saving…" : candidate.matchKind === "doi" ? "Accept Library match" : "Use suggested match"}
-              </button>
-              ${candidate.matchKind === "bibliographic"
-                ? html`
-                    <button
-                      class="button-secondary"
-                      type="button"
-                      ?disabled=${saving}
-                      @click=${() => void this.reviewCandidate(candidate, "accepted")}
-                    >
-                      Add separately
-                    </button>
-                  `
-                : nothing}
-            `
-          : html`
-              <button
-                class="button-primary"
-                type="button"
-                ?disabled=${saving}
-                @click=${() => void this.reviewCandidate(candidate, "accepted")}
-              >
-                ${saving ? "Saving…" : "Add to Library"}
-              </button>
-            `}
-        ${candidate.review?.decision !== "rejected"
-          ? html`
-              <button
-                class="button-secondary"
-                type="button"
-                ?disabled=${saving}
-                @click=${() => void this.reviewCandidate(candidate, "rejected")}
-              >
-                Skip
-              </button>
-            `
-          : nothing}
+        ${
+          candidate.match
+            ? html`
+                <button
+                  class="button-primary"
+                  type="button"
+                  ?disabled=${saving}
+                  @click=${() => void this.reviewCandidate(candidate, "accepted", candidate.match?.id)}
+                >
+                  ${saving ? "Saving…" : candidate.matchKind === "doi" ? "Accept Library match" : "Use suggested match"}
+                </button>
+                ${
+                  candidate.matchKind === "bibliographic"
+                    ? html`
+                        <button
+                          class="button-secondary"
+                          type="button"
+                          ?disabled=${saving}
+                          @click=${() => void this.reviewCandidate(candidate, "accepted")}
+                        >
+                          Add separately
+                        </button>
+                      `
+                    : nothing
+                }
+              `
+            : html`
+                <button
+                  class="button-primary"
+                  type="button"
+                  ?disabled=${saving}
+                  @click=${() => void this.reviewCandidate(candidate, "accepted")}
+                >
+                  ${saving ? "Saving…" : "Add to Library"}
+                </button>
+              `
+        }
+        ${
+          candidate.review?.decision !== "rejected"
+            ? html`
+                <button
+                  class="button-secondary"
+                  type="button"
+                  ?disabled=${saving}
+                  @click=${() => void this.reviewCandidate(candidate, "rejected")}
+                >
+                  Skip
+                </button>
+              `
+            : nothing
+        }
       </div>
     `;
   }

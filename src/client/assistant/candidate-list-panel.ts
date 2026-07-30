@@ -106,9 +106,11 @@ export class CandidateListPanel extends LightDomElement {
 
   protected override render(): TemplateResult {
     return html`<div class="mt-4" id="candidate-list">
-      ${this.candidates.length === 0
-        ? html`<div class="empty-state">Drafts open in Context and do not change the manuscript until applied.</div>`
-        : this.candidates.map((candidate) => this.renderCandidate(candidate))}
+      ${
+        this.candidates.length === 0
+          ? html`<div class="empty-state">Drafts open in Context and do not change the manuscript until applied.</div>`
+          : this.candidates.map((candidate) => this.renderCandidate(candidate))
+      }
     </div>`;
   }
 

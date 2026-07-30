@@ -88,54 +88,60 @@ export class ManuscriptCommentList extends LightDomElement {
         <p class="text-xs leading-5 text-app-text-soft" id="manuscript-comment-status" role="status">${this.status}</p>
       </form>
       <div class="mt-4 grid gap-3" id="manuscript-comment-list">
-        ${this.comments.length === 0
-          ? html`<div class="empty-state">No manuscript comments yet.</div>`
-          : this.comments.map(
-              (comment) => html`
-                <article class="resource-card" data-comment-resource-id=${comment.id}>
-                  <span class="eyebrow">${comment.status} · ${comment.authorLabel}</span>
-                  <p class="mt-2 text-sm leading-6">${comment.body}</p>
-                  <blockquote class="mt-2 border-l-2 border-app-line pl-3 font-sans text-xs leading-5 text-app-text-soft">
-                    ${comment.anchor.exact}
-                  </blockquote>
-                  <div class="mt-3 flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      class="button-secondary"
-                      data-comment-id=${comment.id}
-                      data-comment-action="open"
-                      ?disabled=${comment.resolution.status !== "resolved"}
-                      @click=${this.act}
-                    >
-                      ${anchorActionLabel(comment.resolution)}
-                    </button>
-                    ${comment.status === "open" && comment.resolution.status === "stale"
-                      ? html`<button
-                          type="button"
-                          class="button-secondary"
-                          data-comment-id=${comment.id}
-                          data-comment-action="reanchor"
-                          @click=${this.act}
-                        >
-                          Re-anchor to selection
-                        </button>`
-                      : ""}
-                    ${comment.status === "open"
-                      ? html`<button
-                          type="button"
-                          class="button-secondary"
-                          data-comment-id=${comment.id}
-                          data-comment-action="resolve"
-                          ?disabled=${this.resolvingCommentId === comment.id}
-                          @click=${this.act}
-                        >
-                          ${this.resolvingCommentId === comment.id ? "Resolving…" : "Resolve"}
-                        </button>`
-                      : ""}
-                  </div>
-                </article>
-              `,
-            )}
+        ${
+          this.comments.length === 0
+            ? html`<div class="empty-state">No manuscript comments yet.</div>`
+            : this.comments.map(
+                (comment) => html`
+                  <article class="resource-card" data-comment-resource-id=${comment.id}>
+                    <span class="eyebrow">${comment.status} · ${comment.authorLabel}</span>
+                    <p class="mt-2 text-sm leading-6">${comment.body}</p>
+                    <blockquote class="mt-2 border-l-2 border-app-line pl-3 font-sans text-xs leading-5 text-app-text-soft">
+                      ${comment.anchor.exact}
+                    </blockquote>
+                    <div class="mt-3 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        class="button-secondary"
+                        data-comment-id=${comment.id}
+                        data-comment-action="open"
+                        ?disabled=${comment.resolution.status !== "resolved"}
+                        @click=${this.act}
+                      >
+                        ${anchorActionLabel(comment.resolution)}
+                      </button>
+                      ${
+                        comment.status === "open" && comment.resolution.status === "stale"
+                          ? html`<button
+                              type="button"
+                              class="button-secondary"
+                              data-comment-id=${comment.id}
+                              data-comment-action="reanchor"
+                              @click=${this.act}
+                            >
+                              Re-anchor to selection
+                            </button>`
+                          : ""
+                      }
+                      ${
+                        comment.status === "open"
+                          ? html`<button
+                              type="button"
+                              class="button-secondary"
+                              data-comment-id=${comment.id}
+                              data-comment-action="resolve"
+                              ?disabled=${this.resolvingCommentId === comment.id}
+                              @click=${this.act}
+                            >
+                              ${this.resolvingCommentId === comment.id ? "Resolving…" : "Resolve"}
+                            </button>`
+                          : ""
+                      }
+                    </div>
+                  </article>
+                `,
+              )
+        }
       </div>
     `;
   }

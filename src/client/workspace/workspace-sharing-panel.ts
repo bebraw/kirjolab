@@ -102,18 +102,20 @@ export class WorkspaceSharingPanel extends LightDomElement {
         <h2 class="mt-1 text-xl font-semibold tracking-[-0.035em]">Collaborators</h2>
         ${this.shareLinkSection("read-only", this.readOnlyShare)} ${this.shareLinkSection("edit", this.editShare)}
         <div class="mt-4 space-y-2" id="workspace-member-list">
-          ${this.membersError
-            ? html`<div class="empty-state">${this.membersError}</div>`
-            : this.members
-              ? this.members.map(
-                  (member) => html`
-                    <div class="resource-card flex items-center justify-between gap-3 font-sans text-xs">
-                      <span class="truncate">${member.email}</span>
-                      <span class="eyebrow block">${member.role}</span>
-                    </div>
-                  `,
-                )
-              : html`<div class="empty-state">Loading members…</div>`}
+          ${
+            this.membersError
+              ? html`<div class="empty-state">${this.membersError}</div>`
+              : this.members
+                ? this.members.map(
+                    (member) => html`
+                      <div class="resource-card flex items-center justify-between gap-3 font-sans text-xs">
+                        <span class="truncate">${member.email}</span>
+                        <span class="eyebrow block">${member.role}</span>
+                      </div>
+                    `,
+                  )
+                : html`<div class="empty-state">Loading members…</div>`
+          }
         </div>
         <form class="mt-5 border-t border-app-line pt-5" id="invite-member-form" @submit=${this.inviteMember}>
           <label class="field-label"

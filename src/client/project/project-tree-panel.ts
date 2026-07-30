@@ -120,9 +120,11 @@ export class ProjectTreePanel extends LightDomElement {
       </div>
       <p class="project-file-filter-status" id="project-file-filter-status" aria-live="polite">${status}</p>
       <div class="mt-2 grid gap-1" id="project-file-list">
-        ${items.length === 0
-          ? html`<div class="empty-state">No project files yet.</div>`
-          : items.map((item) => this.renderItem(item, !visible.includes(item)))}
+        ${
+          items.length === 0
+            ? html`<div class="empty-state">No project files yet.</div>`
+            : items.map((item) => this.renderItem(item, !visible.includes(item)))
+        }
       </div>
     `;
   }

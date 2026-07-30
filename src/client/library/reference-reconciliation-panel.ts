@@ -58,11 +58,13 @@ export class ReferenceReconciliationPanel extends LightDomElement {
       </div>
       ${this.status ? html`<p class="status-text mt-3" role="status">${this.status}</p>` : nothing}
       <div class="mt-4 grid gap-4" id="reference-reconciliation-list">
-        ${this.report?.candidates.length
-          ? this.report.candidates.map((candidate) => this.renderCandidate(candidate))
-          : this.loading
-            ? nothing
-            : html`<div class="empty-state">No strong duplicate candidates found.</div>`}
+        ${
+          this.report?.candidates.length
+            ? this.report.candidates.map((candidate) => this.renderCandidate(candidate))
+            : this.loading
+              ? nothing
+              : html`<div class="empty-state">No strong duplicate candidates found.</div>`
+        }
       </div>
     `;
   }
@@ -148,18 +150,22 @@ export class ReferenceReconciliationPanel extends LightDomElement {
         <p class="mt-1 text-xs leading-5 text-app-text-soft">
           ${[canonical.authors.join("; "), canonical.year, canonical.doi, canonical.referenceKey].filter(Boolean).join(" · ")}
         </p>
-        ${duplicateBlockers.length
-          ? html`<p class="mt-3 text-xs leading-5 text-app-text-soft">Cannot merge the other record: ${duplicateBlockers.join(" · ")}.</p>`
-          : html`
-              <button
-                class="button-primary mt-3"
-                type="button"
-                ?disabled=${Boolean(this.savingReferenceId)}
-                @click=${() => void this.merge(candidate, canonical, duplicate)}
-              >
-                ${saving ? "Merging…" : `Keep ${canonical.referenceKey}`}
-              </button>
-            `}
+        ${
+          duplicateBlockers.length
+            ? html`<p class="mt-3 text-xs leading-5 text-app-text-soft">
+                Cannot merge the other record: ${duplicateBlockers.join(" · ")}.
+              </p>`
+            : html`
+                <button
+                  class="button-primary mt-3"
+                  type="button"
+                  ?disabled=${Boolean(this.savingReferenceId)}
+                  @click=${() => void this.merge(candidate, canonical, duplicate)}
+                >
+                  ${saving ? "Merging…" : `Keep ${canonical.referenceKey}`}
+                </button>
+              `
+        }
       </section>
     `;
   }

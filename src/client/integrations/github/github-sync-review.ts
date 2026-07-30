@@ -225,11 +225,13 @@ export class GitHubSyncReview extends LightDomElement {
     return html`
       <p class="text-sm leading-6 text-app-text-soft">${pullSummary(this.pullPreview)}</p>
       ${pullChanges(this.pullPreview)}
-      ${this.pullPreview.plan.blocking.length > 0
-        ? html`<div class="mt-4 space-y-4">
-            ${this.pullPreview.plan.blocking.map((change, conflict) => this.conflict(change, conflict))}
-          </div>`
-        : nothing}
+      ${
+        this.pullPreview.plan.blocking.length > 0
+          ? html`<div class="mt-4 space-y-4">
+              ${this.pullPreview.plan.blocking.map((change, conflict) => this.conflict(change, conflict))}
+            </div>`
+          : nothing
+      }
     `;
   }
 
@@ -359,8 +361,7 @@ function conflictVersion(label: string, content: string): TemplateResult {
   return html`<section>
     <p class="font-sans text-xs font-semibold text-app-text-soft">${label}</p>
     <pre class="mt-1 max-h-40 overflow-auto whitespace-pre-wrap rounded-app bg-app-surface p-2 font-mono text-xs text-app-text">
-${preview}</pre
-    >
+${preview}</pre>
   </section>`;
 }
 

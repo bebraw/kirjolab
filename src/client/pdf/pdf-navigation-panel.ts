@@ -92,42 +92,50 @@ export class PdfNavigationPanel extends LightDomElement {
           </div>
           <button class="library-pdf-inspector-close" type="button" aria-label="Close PDF navigation" @click=${this.hide}>×</button>
         </header>
-        ${this.loading
-          ? html`<p class="pdf-navigation-status" role="status">
-              ${this.pages ? `Loading page previews… ${this.thumbnailsLoaded} of ${Math.min(this.pages, 40)}` : "Loading document map…"}
-            </p>`
-          : this.error
-            ? html`<div class="pdf-navigation-status" data-tone="error" role="alert">
-                <p>${this.error}</p>
-                <button class="button-secondary" type="button" @click=${() => void this.load()}>Retry</button>
-              </div>`
-            : nothing}
+        ${
+          this.loading
+            ? html`<p class="pdf-navigation-status" role="status">
+                ${this.pages ? `Loading page previews… ${this.thumbnailsLoaded} of ${Math.min(this.pages, 40)}` : "Loading document map…"}
+              </p>`
+            : this.error
+              ? html`<div class="pdf-navigation-status" data-tone="error" role="alert">
+                  <p>${this.error}</p>
+                  <button class="button-secondary" type="button" @click=${() => void this.load()}>Retry</button>
+                </div>`
+              : nothing
+        }
         <button class="button-secondary pdf-bookmark-current" type="button" @click=${this.toggleBookmark}>
           ${this.bookmarks.includes(this.currentPage) ? "Remove bookmark" : "Bookmark"} page ${this.currentPage}
         </button>
-        ${this.bookmarks.length
-          ? html`<section class="pdf-navigation-section">
-              <h3>Bookmarks</h3>
-              <div class="pdf-bookmark-list">
-                ${this.bookmarks.map((page) => html`<button type="button" @click=${() => void this.openPage(page)}>Page ${page}</button>`)}
-              </div>
-            </section>`
-          : nothing}
-        ${this.outline.length
-          ? html`<section class="pdf-navigation-section">
-              <h3>Contents</h3>
-              ${this.renderOutline(this.outline)}
-            </section>`
-          : nothing}
+        ${
+          this.bookmarks.length
+            ? html`<section class="pdf-navigation-section">
+                <h3>Bookmarks</h3>
+                <div class="pdf-bookmark-list">
+                  ${this.bookmarks.map((page) => html`<button type="button" @click=${() => void this.openPage(page)}>Page ${page}</button>`)}
+                </div>
+              </section>`
+            : nothing
+        }
+        ${
+          this.outline.length
+            ? html`<section class="pdf-navigation-section">
+                <h3>Contents</h3>
+                ${this.renderOutline(this.outline)}
+              </section>`
+            : nothing
+        }
         <section class="pdf-navigation-section">
           <h3>Pages</h3>
           <div class="pdf-thumbnail-grid">
             ${Array.from({ length: Math.min(this.pages, 40) }, (_, index) => index + 1).map(
               (page) =>
                 html`<button type="button" aria-label=${`Open page ${page}`} @click=${() => void this.openPage(page)}>
-                  ${this.thumbnails.get(page)
-                    ? html`<img src=${this.thumbnails.get(page)!} alt="" loading="lazy" />`
-                    : html`<span class="pdf-thumbnail-placeholder"></span>`}
+                  ${
+                    this.thumbnails.get(page)
+                      ? html`<img src=${this.thumbnails.get(page)!} alt="" loading="lazy" />`
+                      : html`<span class="pdf-thumbnail-placeholder"></span>`
+                  }
                   <span>${page}</span>
                 </button>`,
             )}

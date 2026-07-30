@@ -1831,9 +1831,10 @@ function apiFixture(bucket = new MemoryR2Bucket()) {
     startedAt: null,
     completedAt: null,
   };
-  const getArtifactAnalysis = vi.fn(
-    async (_artifactId: string, kind: ArtifactAnalysisKind): Promise<ArtifactAnalysis | null> => ({ ...analysis, kind }),
-  );
+  const getArtifactAnalysis = vi.fn(async (_artifactId: string, kind: ArtifactAnalysisKind): Promise<ArtifactAnalysis | null> => ({
+    ...analysis,
+    kind,
+  }));
   const library = {
     getSnapshot: vi.fn(async () => snapshot),
     importBibTeX: vi.fn(async () => [{ reference, suggestedAlias: "guide", created: true }]),
@@ -1873,14 +1874,12 @@ function apiFixture(bucket = new MemoryR2Bucket()) {
     getArtifactAnalysis,
     queueArtifactAnalysis: vi.fn(async (_artifactId: string, kind: ArtifactAnalysisKind) => ({ ...analysis, kind })),
     failArtifactAnalysis: vi.fn(async () => true),
-    getPdfReferenceReviewQueue: vi.fn(
-      async (): Promise<PdfReferenceReviewQueue | null> => ({
-        artifactId: artifact.id,
-        fingerprint: artifact.fingerprint,
-        citingReferenceId: reference.id,
-        candidates: [],
-      }),
-    ),
+    getPdfReferenceReviewQueue: vi.fn(async (): Promise<PdfReferenceReviewQueue | null> => ({
+      artifactId: artifact.id,
+      fingerprint: artifact.fingerprint,
+      citingReferenceId: reference.id,
+      candidates: [],
+    })),
     reviewPdfReferenceCandidate: vi.fn(
       async (
         _artifactId: string,

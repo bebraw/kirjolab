@@ -76,11 +76,13 @@ export class LibraryReferencePdfRows extends LightDomElement {
     return html`
       <div class="rounded-sm border border-app-line p-2">
         <p class="font-sans text-xs leading-5 text-app-text-soft">PDF · ${artifact.name}</p>
-        ${this.linked
-          ? html`<p class="mt-1 font-sans text-xs leading-5 text-app-text-soft">
-              Available to signed-in project members; excluded from public links.
-            </p>`
-          : nothing}
+        ${
+          this.linked
+            ? html`<p class="mt-1 font-sans text-xs leading-5 text-app-text-soft">
+                Available to signed-in project members; excluded from public links.
+              </p>`
+            : nothing
+        }
         <button class="button-secondary mt-2" type="button" @click=${() => this.emitAction({ action: "open", artifact })}>Open PDF</button>
         <select
           class="field mt-2"
@@ -92,9 +94,11 @@ export class LibraryReferencePdfRows extends LightDomElement {
           <option value="unknown">Rights: unknown</option>
           <option value="shareable">Rights: shareable</option>
         </select>
-        ${artifact.id === primaryId
-          ? nothing
-          : html`<button class="button-secondary mt-2" type="button" @click=${() => this.refine(artifact)}>Refine from this PDF</button>`}
+        ${
+          artifact.id === primaryId
+            ? nothing
+            : html`<button class="button-secondary mt-2" type="button" @click=${() => this.refine(artifact)}>Refine from this PDF</button>`
+        }
       </div>
     `;
   }

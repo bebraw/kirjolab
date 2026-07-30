@@ -135,9 +135,11 @@ export class LatexImportPanel extends LightDomElement {
           >
         </div>
         <div class="mt-5 border-t border-app-line pt-4" id="latex-import-preview" aria-live="polite">
-          ${conversion
-            ? this.renderConversion(conversion)
-            : html`<p class="ui-status">Preview to inspect the converted Markdown and diagnostics.</p>`}
+          ${
+            conversion
+              ? this.renderConversion(conversion)
+              : html`<p class="ui-status">Preview to inspect the converted Markdown and diagnostics.</p>`
+          }
         </div>
         <p class="ui-status mt-3" id="latex-import-status" role="status">${this.status}</p>
         <div class="mt-5 flex justify-end gap-2">
@@ -256,8 +258,7 @@ export class LatexImportPanel extends LightDomElement {
                 ${file.path} · ${formatBytes(new TextEncoder().encode(file.content).byteLength)}
               </summary>
               <pre class="mt-2 max-h-48 overflow-auto whitespace-pre-wrap font-mono text-xs leading-5 text-app-text-soft">
-${file.content.length > 1_200 ? `${file.content.slice(0, 1_200)}\n…` : file.content}</pre
-              >
+${file.content.length > 1_200 ? `${file.content.slice(0, 1_200)}\n…` : file.content}</pre>
             </details>
           `,
         )}

@@ -63,9 +63,11 @@ export class UnidentifiedPdfList extends LightDomElement {
           <span class="count-badge" id="unidentified-pdf-count">${this.artifacts.length}</span>
         </div>
         <div class="mt-3 grid gap-3" id="unidentified-pdf-list">
-          ${this.artifacts.length === 0
-            ? html`<div class="empty-state">No unidentified PDFs.</div>`
-            : this.artifacts.map((artifact) => this.renderArtifact(artifact))}
+          ${
+            this.artifacts.length === 0
+              ? html`<div class="empty-state">No unidentified PDFs.</div>`
+              : this.artifacts.map((artifact) => this.renderArtifact(artifact))
+          }
         </div>
         <p class="status-line" role="status" ?hidden=${!this.status}>${this.status}</p>
       </section>

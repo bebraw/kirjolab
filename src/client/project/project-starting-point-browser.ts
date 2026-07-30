@@ -411,16 +411,18 @@ export class ProjectStartingPointBrowser extends LightDomElement {
           <span class="template-choice-name">${template.name}</span>
           <span class="template-choice-description">${template.description}</span>
         </button>
-        ${template.source === "personal"
-          ? html`<button
-              class="template-choice-remove"
-              type="button"
-              title=${`Delete template ${template.name}`}
-              @click=${() => this.requestTemplateDelete(template)}
-            >
-              Remove
-            </button>`
-          : nothing}
+        ${
+          template.source === "personal"
+            ? html`<button
+                class="template-choice-remove"
+                type="button"
+                title=${`Delete template ${template.name}`}
+                @click=${() => this.requestTemplateDelete(template)}
+              >
+                Remove
+              </button>`
+            : nothing
+        }
       </div>
     `;
   }

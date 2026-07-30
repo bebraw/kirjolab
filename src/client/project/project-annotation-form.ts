@@ -306,9 +306,11 @@ export class ProjectAnnotationForm extends EagerLightDomElement {
           <label class="field-label sm:col-span-2"
             >Paper
             <select class="field" id="annotation-pdf" required disabled .value=${this.selectedPdfId}>
-              ${this.pdfs.length === 0
-                ? html`<option value="">Import a PDF first</option>`
-                : this.pdfs.map((pdf) => html`<option value=${pdf.id}>${pdf.name}</option>`)}
+              ${
+                this.pdfs.length === 0
+                  ? html`<option value="">Import a PDF first</option>`
+                  : this.pdfs.map((pdf) => html`<option value=${pdf.id}>${pdf.name}</option>`)
+              }
             </select>
           </label>
           <label class="field-label"

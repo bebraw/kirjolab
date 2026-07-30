@@ -5,10 +5,7 @@ export const RESEARCH_ASSISTANT_KEY = "assistant" as const;
 export type ResearchResourceKind = "publication" | "pdf" | "library-pdf" | "candidate";
 export type ResearchResourceKey = `${ResearchResourceKind}:${string}`;
 export type ResearchContextKey =
-  | typeof RESEARCH_PREVIEW_KEY
-  | typeof RESEARCH_LIBRARY_KEY
-  | typeof RESEARCH_ASSISTANT_KEY
-  | ResearchResourceKey;
+  typeof RESEARCH_PREVIEW_KEY | typeof RESEARCH_LIBRARY_KEY | typeof RESEARCH_ASSISTANT_KEY | ResearchResourceKey;
 
 export interface ResearchResourceTarget {
   readonly kind: ResearchResourceKind;

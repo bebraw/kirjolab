@@ -45,20 +45,22 @@ function statisticsGroup(title: string, items: readonly { readonly label: string
   return html`
     <section>
       <h3 class="font-sans text-sm font-semibold">${title}</h3>
-      ${items.length > 0
-        ? html`
-            <dl class="mt-2 divide-y divide-app-line border-y border-app-line">
-              ${items.map(
-                (item) => html`
-                  <div class="flex items-center justify-between gap-3 py-2 text-xs">
-                    <dt class="min-w-0 truncate">${item.label}</dt>
-                    <dd class="shrink-0 font-sans font-semibold">${item.words.toLocaleString()}</dd>
-                  </div>
-                `,
-              )}
-            </dl>
-          `
-        : html`<p class="py-3 text-xs text-app-text-soft">No ${title.toLocaleLowerCase()} in the composed document.</p>`}
+      ${
+        items.length > 0
+          ? html`
+              <dl class="mt-2 divide-y divide-app-line border-y border-app-line">
+                ${items.map(
+                  (item) => html`
+                    <div class="flex items-center justify-between gap-3 py-2 text-xs">
+                      <dt class="min-w-0 truncate">${item.label}</dt>
+                      <dd class="shrink-0 font-sans font-semibold">${item.words.toLocaleString()}</dd>
+                    </div>
+                  `,
+                )}
+              </dl>
+            `
+          : html`<p class="py-3 text-xs text-app-text-soft">No ${title.toLocaleLowerCase()} in the composed document.</p>`
+      }
     </section>
   `;
 }

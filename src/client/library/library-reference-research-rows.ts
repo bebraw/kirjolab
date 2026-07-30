@@ -46,32 +46,38 @@ export class LibraryReferenceResearchRows extends ProjectResearchMutationElement
     if (!data) return html``;
     const hasRows = data.notes.length + data.artifacts.length + data.highlights.length + data.webSnapshots.length > 0;
     return html`
-      ${hasRows
-        ? html`<div class="mt-3 space-y-2 border-t border-app-line pt-3">
-            ${data.notes.map((note) => this.renderPrivateRow(data, "note", note.id, `Note · ${note.body.slice(0, 100)}`))}
-            <library-reference-pdf-rows
-              class="contents"
-              .artifacts=${data.artifacts}
-              .linked=${data.referenceLinked}
-              .reference=${data.reference}
-            ></library-reference-pdf-rows>
-            ${data.highlights.map((highlight) =>
-              this.renderPrivateRow(data, "highlight", highlight.id, `Highlight p. ${highlight.page} · ${highlight.quote.slice(0, 100)}`),
-            )}
-            ${data.canonicalUrl
-              ? data.webSnapshots.map((snapshot, index) => this.renderWebSnapshot(data, snapshot, data.webSnapshots[index + 1]))
-              : nothing}
-          </div>`
-        : nothing}
-      ${data.canonicalUrl
-        ? html`<button
-            class="button-secondary mt-3"
-            type="button"
-            @click=${() => this.emitAction({ action: "capture", canonicalUrl: data.canonicalUrl! })}
-          >
-            Capture current version
-          </button>`
-        : nothing}
+      ${
+        hasRows
+          ? html`<div class="mt-3 space-y-2 border-t border-app-line pt-3">
+              ${data.notes.map((note) => this.renderPrivateRow(data, "note", note.id, `Note · ${note.body.slice(0, 100)}`))}
+              <library-reference-pdf-rows
+                class="contents"
+                .artifacts=${data.artifacts}
+                .linked=${data.referenceLinked}
+                .reference=${data.reference}
+              ></library-reference-pdf-rows>
+              ${data.highlights.map((highlight) =>
+                this.renderPrivateRow(data, "highlight", highlight.id, `Highlight p. ${highlight.page} · ${highlight.quote.slice(0, 100)}`),
+              )}
+              ${
+                data.canonicalUrl
+                  ? data.webSnapshots.map((snapshot, index) => this.renderWebSnapshot(data, snapshot, data.webSnapshots[index + 1]))
+                  : nothing
+              }
+            </div>`
+          : nothing
+      }
+      ${
+        data.canonicalUrl
+          ? html`<button
+              class="button-secondary mt-3"
+              type="button"
+              @click=${() => this.emitAction({ action: "capture", canonicalUrl: data.canonicalUrl! })}
+            >
+              Capture current version
+            </button>`
+          : nothing
+      }
     `;
   }
 
@@ -124,43 +130,55 @@ export class LibraryReferenceResearchRows extends ProjectResearchMutationElement
       snapshot.id,
       `Web capture · ${formatTimestamp(snapshot.accessedAt)} · ${status}`,
       html`
-        ${snapshot.diagnostics.length > 0
-          ? html`<p class="mt-2 font-sans text-xs leading-5 text-app-text-soft">${snapshot.diagnostics.join(" ")}</p>`
-          : nothing}
+        ${
+          snapshot.diagnostics.length > 0
+            ? html`<p class="mt-2 font-sans text-xs leading-5 text-app-text-soft">${snapshot.diagnostics.join(" ")}</p>`
+            : nothing
+        }
         <div class="mt-2 flex flex-wrap gap-2">
-          ${snapshot.readableObjectKey
-            ? html`<a class="button-secondary" href=${`/api/library/web-snapshots/${snapshot.id}/readable`}>Readable text</a>`
-            : nothing}
-          ${snapshot.rawObjectKey
-            ? html`<a class="button-secondary" href=${`/api/library/web-snapshots/${snapshot.id}/raw`}>Raw capture</a>`
-            : nothing}
-          ${prior
-            ? html`<button
-                class="button-secondary"
-                type="button"
-                @click=${() => this.emitAction({ action: "compare", priorId: prior.id, currentId: snapshot.id })}
-              >
-                Compare with prior
-              </button>`
-            : nothing}
-          ${data.referenceLinked
-            ? html`<button
-                class="button-secondary"
-                type="button"
-                ?disabled=${data.linkedSnapshotId === snapshot.id}
-                title=${data.linkedSnapshotId === snapshot.id
-                  ? "This version is pinned to the project"
-                  : "Pin this exact capture to future citations and milestones"}
-                @click=${() =>
-                  void this.changeProjectResearch(data.projectApiBase!, {
-                    action: "pin",
-                    referenceId: data.reference.id,
-                    snapshotId: snapshot.id,
-                  })}
-              >
-                Use for project
-              </button>`
-            : nothing}
+          ${
+            snapshot.readableObjectKey
+              ? html`<a class="button-secondary" href=${`/api/library/web-snapshots/${snapshot.id}/readable`}>Readable text</a>`
+              : nothing
+          }
+          ${
+            snapshot.rawObjectKey
+              ? html`<a class="button-secondary" href=${`/api/library/web-snapshots/${snapshot.id}/raw`}>Raw capture</a>`
+              : nothing
+          }
+          ${
+            prior
+              ? html`<button
+                  class="button-secondary"
+                  type="button"
+                  @click=${() => this.emitAction({ action: "compare", priorId: prior.id, currentId: snapshot.id })}
+                >
+                  Compare with prior
+                </button>`
+              : nothing
+          }
+          ${
+            data.referenceLinked
+              ? html`<button
+                  class="button-secondary"
+                  type="button"
+                  ?disabled=${data.linkedSnapshotId === snapshot.id}
+                  title=${
+                    data.linkedSnapshotId === snapshot.id
+                      ? "This version is pinned to the project"
+                      : "Pin this exact capture to future citations and milestones"
+                  }
+                  @click=${() =>
+                    void this.changeProjectResearch(data.projectApiBase!, {
+                      action: "pin",
+                      referenceId: data.reference.id,
+                      snapshotId: snapshot.id,
+                    })}
+                >
+                  Use for project
+                </button>`
+              : nothing
+          }
         </div>
       `,
     );

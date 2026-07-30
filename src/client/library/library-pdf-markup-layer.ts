@@ -77,12 +77,10 @@ export interface LibraryPdfNotePressResult {
 }
 
 export type LibraryPdfMarkupTarget =
-  | { readonly id: string | null; readonly kind: "note" }
-  | { readonly id: string; readonly kind: "drawing" };
+  { readonly id: string | null; readonly kind: "note" } | { readonly id: string; readonly kind: "drawing" };
 
 export type LibraryPdfPointerAction =
-  | { readonly id: string; readonly kind: "note" | "drawing" }
-  | { readonly kind: "start-drawing" | "start-note" | "touch-drawing" };
+  { readonly id: string; readonly kind: "note" | "drawing" } | { readonly kind: "start-drawing" | "start-note" | "touch-drawing" };
 
 interface MarkupTargetElement {
   closest(selector: string): Pick<Element, "getAttribute"> | null;
@@ -519,33 +517,39 @@ export class LibraryPdfMarkupLayer extends LightDomElement {
     const draft = this.noteDraft;
     const drawingDraft = this.drawing ? { ...data.drawingStyle, points: this.drawing.points } : this.failedDrawing;
     return html`
-      ${data.drawings.length > 0 || drawingDraft
-        ? html`<svg class="pdf-ink-layer" viewBox="0 0 1000 1000" preserveAspectRatio="none">
-            ${data.drawings.map((drawing) => this.renderDrawing(drawing, drawing.id === this.selectedMarkupId))}
-            ${drawingDraft ? this.renderDrawing({ id: "draft", ...drawingDraft }, false) : nothing}
-          </svg>`
-        : nothing}
-      ${draft?.page === data.page && !draft.editingId
-        ? html`<span
-            class="pdf-note-pin"
-            data-draft="true"
-            style=${`left: ${draft.x * 100}%; top: ${draft.y * 100}%`}
-            aria-label=${`New note location on page ${data.page}`}
-            title="New note location"
-          ></span>`
-        : nothing}
+      ${
+        data.drawings.length > 0 || drawingDraft
+          ? html`<svg class="pdf-ink-layer" viewBox="0 0 1000 1000" preserveAspectRatio="none">
+              ${data.drawings.map((drawing) => this.renderDrawing(drawing, drawing.id === this.selectedMarkupId))}
+              ${drawingDraft ? this.renderDrawing({ id: "draft", ...drawingDraft }, false) : nothing}
+            </svg>`
+          : nothing
+      }
+      ${
+        draft?.page === data.page && !draft.editingId
+          ? html`<span
+              class="pdf-note-pin"
+              data-draft="true"
+              style=${`left: ${draft.x * 100}%; top: ${draft.y * 100}%`}
+              aria-label=${`New note location on page ${data.page}`}
+              title="New note location"
+            ></span>`
+          : nothing
+      }
       ${data.notes.map((note) => this.renderNote(note))}
       <p class="status-line" role="status" ?hidden=${!this.status}>${this.status}</p>
-      ${this.failedDrawing
-        ? html`<div class="library-context-actions">
-            <button class="button-primary" type="button" ?disabled=${this.savingDrawing} @click=${this.retryDrawing}>
-              ${this.savingDrawing ? "Saving…" : "Retry drawing"}
-            </button>
-            <button class="button-secondary" type="button" ?disabled=${this.savingDrawing} @click=${this.discardFailedDrawing}>
-              Discard
-            </button>
-          </div>`
-        : nothing}
+      ${
+        this.failedDrawing
+          ? html`<div class="library-context-actions">
+              <button class="button-primary" type="button" ?disabled=${this.savingDrawing} @click=${this.retryDrawing}>
+                ${this.savingDrawing ? "Saving…" : "Retry drawing"}
+              </button>
+              <button class="button-secondary" type="button" ?disabled=${this.savingDrawing} @click=${this.discardFailedDrawing}>
+                Discard
+              </button>
+            </div>`
+          : nothing
+      }
     `;
   }
 
@@ -645,27 +649,29 @@ export class LibraryPdfMarkupLayer extends LightDomElement {
         aria-label=${`Open note on page ${note.page}`}
         title=${this.tool === "select" ? "Tap to select; drag to move" : "Choose Select to edit this note"}
       ></button>
-      ${this.openNoteId === note.id
-        ? html`<aside
-            class="pdf-note-card"
-            style=${`left: ${Math.min(point.x * 100, 70)}%; top: ${Math.min(point.y * 100, 82)}%`}
-            aria-label=${`Note on page ${note.page}`}
-          >
-            <p>${note.body}</p>
-            <button
-              class="pdf-note-card-close"
-              type="button"
-              aria-label=${`Close note on page ${note.page}`}
-              title="Close note"
-              @click=${(event: MouseEvent) => {
-                event.stopPropagation();
-                this.closeNoteCard(note.id);
-              }}
+      ${
+        this.openNoteId === note.id
+          ? html`<aside
+              class="pdf-note-card"
+              style=${`left: ${Math.min(point.x * 100, 70)}%; top: ${Math.min(point.y * 100, 82)}%`}
+              aria-label=${`Note on page ${note.page}`}
             >
-              ×
-            </button>
-          </aside>`
-        : nothing}
+              <p>${note.body}</p>
+              <button
+                class="pdf-note-card-close"
+                type="button"
+                aria-label=${`Close note on page ${note.page}`}
+                title="Close note"
+                @click=${(event: MouseEvent) => {
+                  event.stopPropagation();
+                  this.closeNoteCard(note.id);
+                }}
+              >
+                ×
+              </button>
+            </aside>`
+          : nothing
+      }
     `;
   }
 }

@@ -113,19 +113,23 @@ export class ProjectHistoryPanel extends LightDomElement {
             </button>
           </div>
         </form>
-        ${this.inspector
-          ? html`<section class="mt-5 border border-app-line bg-app-paper p-4" id="project-history-inspector" aria-live="polite">
-              ${this.renderInspector(this.inspector)}
-            </section>`
-          : html`<section
-              class="mt-5 hidden border border-app-line bg-app-paper p-4"
-              id="project-history-inspector"
-              aria-live="polite"
-            ></section>`}
+        ${
+          this.inspector
+            ? html`<section class="mt-5 border border-app-line bg-app-paper p-4" id="project-history-inspector" aria-live="polite">
+                ${this.renderInspector(this.inspector)}
+              </section>`
+            : html`<section
+                class="mt-5 hidden border border-app-line bg-app-paper p-4"
+                id="project-history-inspector"
+                aria-live="polite"
+              ></section>`
+        }
         <div class="mt-5 space-y-3" id="project-history-list">
-          ${this.status
-            ? html`<p class="ui-status">${this.status}</p>`
-            : this.revisions.map((revision, index) => this.revisionCard(revision, index === 0))}
+          ${
+            this.status
+              ? html`<p class="ui-status">${this.status}</p>`
+              : this.revisions.map((revision, index) => this.revisionCard(revision, index === 0))
+          }
         </div>
       </div>
     `;
@@ -183,17 +187,19 @@ export class ProjectHistoryPanel extends LightDomElement {
             ${head ? nothing : this.actionButton("Restore as new head", { kind: "restore", revision: revision.revision })}
           </div>
         </div>
-        ${revision.milestones.length > 0
-          ? html`<div class="mt-3 flex flex-wrap gap-2">
-              ${revision.milestones.map(
-                (milestone) => html`
-                  <span class="eyebrow block" title=${milestone.description || `Immutable milestone for v${revision.revision}`}
-                    >${milestone.name}</span
-                  >
-                `,
-              )}
-            </div>`
-          : nothing}
+        ${
+          revision.milestones.length > 0
+            ? html`<div class="mt-3 flex flex-wrap gap-2">
+                ${revision.milestones.map(
+                  (milestone) => html`
+                    <span class="eyebrow block" title=${milestone.description || `Immutable milestone for v${revision.revision}`}
+                      >${milestone.name}</span
+                    >
+                  `,
+                )}
+              </div>`
+            : nothing
+        }
       </article>
     `;
   }

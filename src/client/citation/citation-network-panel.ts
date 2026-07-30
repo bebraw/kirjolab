@@ -120,15 +120,17 @@ export class CitationNetworkPanel extends LightDomElement {
     const network = focusedNetwork ? filterCitationNetwork(focusedNetwork, this.visibleStates, this.data.focusedReferenceId) : null;
     const focusedTitle = this.data.focusedReferenceId ? this.data.referenceTitles[this.data.focusedReferenceId] : null;
     return html`
-      ${focusedTitle
-        ? html`
-            <div class="mt-4 border-y border-app-line py-3">
-              <p class="eyebrow">Focused source</p>
-              <p class="mt-1 text-sm font-semibold">${focusedTitle}</p>
-              <p class="mt-1 text-xs leading-5 text-app-text-soft">Immediate incoming and outgoing citation relationships.</p>
-            </div>
-          `
-        : nothing}
+      ${
+        focusedTitle
+          ? html`
+              <div class="mt-4 border-y border-app-line py-3">
+                <p class="eyebrow">Focused source</p>
+                <p class="mt-1 text-sm font-semibold">${focusedTitle}</p>
+                <p class="mt-1 text-xs leading-5 text-app-text-soft">Immediate incoming and outgoing citation relationships.</p>
+              </div>
+            `
+          : nothing
+      }
       <form
         class="mt-4 grid gap-3 border-y border-app-line py-4 md:grid-cols-[1fr_auto_1fr_auto]"
         id="citation-assertion-form"
@@ -253,11 +255,13 @@ export class CitationNetworkPanel extends LightDomElement {
       return html`
         ${this.expansion()}
         <div class="empty-state">
-          ${this.data.filterProject
-            ? "No citation assertions touch references in this project yet."
-            : this.data.focusedReferenceId
-              ? "No reviewed citation relationships connect this source yet. Expand its references or record an assertion."
-              : "No source-to-source citation assertions yet. Record one or expand a DOI-backed source."}
+          ${
+            this.data.filterProject
+              ? "No citation assertions touch references in this project yet."
+              : this.data.focusedReferenceId
+                ? "No reviewed citation relationships connect this source yet. Expand its references or record an assertion."
+                : "No source-to-source citation assertions yet. Record one or expand a DOI-backed source."
+          }
         </div>
       `;
     }
@@ -272,48 +276,52 @@ export class CitationNetworkPanel extends LightDomElement {
               ${this.label(node.inProject ? "Current project" : "Shared library")}
               <h4 class="mt-1 text-base font-semibold">${node.label}</h4>
               <p class="mt-2 text-xs text-app-text-soft">${[node.authors.join("; "), node.year, node.doi].filter(Boolean).join(" · ")}</p>
-              ${node.doi
-                ? html`
-                    <button
-                      type="button"
-                      class="button-secondary mt-3"
-                      data-citation-action="expand"
-                      data-reference-id=${node.referenceId}
-                      data-direction="references"
-                      @click=${this.act}
-                    >
-                      Expand references
-                    </button>
-                    <button
-                      type="button"
-                      class="button-secondary mt-3"
-                      data-citation-action="expand"
-                      data-reference-id=${node.referenceId}
-                      data-direction="citations"
-                      @click=${this.act}
-                    >
-                      Find citing works
-                    </button>
-                  `
-                : nothing}
+              ${
+                node.doi
+                  ? html`
+                      <button
+                        type="button"
+                        class="button-secondary mt-3"
+                        data-citation-action="expand"
+                        data-reference-id=${node.referenceId}
+                        data-direction="references"
+                        @click=${this.act}
+                      >
+                        Expand references
+                      </button>
+                      <button
+                        type="button"
+                        class="button-secondary mt-3"
+                        data-citation-action="expand"
+                        data-reference-id=${node.referenceId}
+                        data-direction="citations"
+                        @click=${this.act}
+                      >
+                        Find citing works
+                      </button>
+                    `
+                  : nothing
+              }
             </article>
           `,
         )}
       </section>
-      ${network.edges.length
-        ? html`
-            <h4 class="eyebrow mt-3">Assertions${network.truncated ? " · first 512" : ""}</h4>
-            ${network.edges.map(
-              (edge) => html`
-                <article class="resource-card">
-                  ${this.label(edge.state)}
-                  <h4 class="mt-1 text-base font-semibold">${labels.get(edge.from) ?? edge.from} → ${labels.get(edge.to) ?? edge.to}</h4>
-                  ${edge.assertions.map((assertion) => this.assertion(assertion))}
-                </article>
-              `,
-            )}
-          `
-        : nothing}
+      ${
+        network.edges.length
+          ? html`
+              <h4 class="eyebrow mt-3">Assertions${network.truncated ? " · first 512" : ""}</h4>
+              ${network.edges.map(
+                (edge) => html`
+                  <article class="resource-card">
+                    ${this.label(edge.state)}
+                    <h4 class="mt-1 text-base font-semibold">${labels.get(edge.from) ?? edge.from} → ${labels.get(edge.to) ?? edge.to}</h4>
+                    ${edge.assertions.map((assertion) => this.assertion(assertion))}
+                  </article>
+                `,
+              )}
+            `
+          : nothing
+      }
     `;
   }
 
@@ -359,30 +367,32 @@ export class CitationNetworkPanel extends LightDomElement {
     const incoming = network.edges.filter(({ to }) => to === focusedNodeId);
     return html`
       ${this.expansion()}
-      ${focusedNode?.doi
-        ? html`
-            <button
-              type="button"
-              class="button-secondary"
-              data-citation-action="expand"
-              data-reference-id=${focusedNode.referenceId}
-              data-direction="references"
-              @click=${this.act}
-            >
-              Expand references
-            </button>
-            <button
-              type="button"
-              class="button-secondary"
-              data-citation-action="expand"
-              data-reference-id=${focusedNode.referenceId}
-              data-direction="citations"
-              @click=${this.act}
-            >
-              Find citing works
-            </button>
-          `
-        : nothing}
+      ${
+        focusedNode?.doi
+          ? html`
+              <button
+                type="button"
+                class="button-secondary"
+                data-citation-action="expand"
+                data-reference-id=${focusedNode.referenceId}
+                data-direction="references"
+                @click=${this.act}
+              >
+                Expand references
+              </button>
+              <button
+                type="button"
+                class="button-secondary"
+                data-citation-action="expand"
+                data-reference-id=${focusedNode.referenceId}
+                data-direction="citations"
+                @click=${this.act}
+              >
+                Find citing works
+              </button>
+            `
+          : nothing
+      }
       ${this.relationshipSection("References cited", outgoing, labels, "to")}
       ${this.relationshipSection("Cited by", incoming, labels, "from")}
     `;
@@ -401,41 +411,43 @@ export class CitationNetworkPanel extends LightDomElement {
           <span class="count-badge">${edges.length}</span>
         </div>
         <div class="mt-2 grid gap-3">
-          ${edges.length
-            ? edges.map((edge) => {
-                const neighborNodeId = edge[neighborEndpoint];
-                const neighborReferenceId = neighborNodeId.slice("reference:".length);
-                const direction = neighborEndpoint === "to" ? "references" : "citations";
-                const queued = this.data.queue.some(({ referenceId }) => referenceId === neighborReferenceId);
-                return html`
-                  <article class="resource-card">
-                    ${this.label(edge.state)}
-                    <button
-                      type="button"
-                      class="mt-1 block w-full text-left text-base font-semibold text-app-accent-strong underline decoration-app-border underline-offset-4"
-                      data-citation-action="focus"
-                      data-reference-id=${neighborReferenceId}
-                      @click=${this.act}
-                    >
-                      ${labels.get(neighborNodeId) ?? neighborReferenceId}
-                    </button>
-                    ${edge.assertions.map((assertion) => this.assertion(assertion))}
-                    <button
-                      type="button"
-                      class="button-secondary mt-2"
-                      data-citation-action="queue"
-                      data-reference-id=${neighborReferenceId}
-                      data-seed-reference-id=${this.data.focusedReferenceId ?? ""}
-                      data-direction=${direction}
-                      ?disabled=${queued}
-                      @click=${this.act}
-                    >
-                      ${queued ? "Queued to explore" : "Queue to explore"}
-                    </button>
-                  </article>
-                `;
-              })
-            : html`<p class="empty-state">No ${title.toLocaleLowerCase()} relationships recorded.</p>`}
+          ${
+            edges.length
+              ? edges.map((edge) => {
+                  const neighborNodeId = edge[neighborEndpoint];
+                  const neighborReferenceId = neighborNodeId.slice("reference:".length);
+                  const direction = neighborEndpoint === "to" ? "references" : "citations";
+                  const queued = this.data.queue.some(({ referenceId }) => referenceId === neighborReferenceId);
+                  return html`
+                    <article class="resource-card">
+                      ${this.label(edge.state)}
+                      <button
+                        type="button"
+                        class="mt-1 block w-full text-left text-base font-semibold text-app-accent-strong underline decoration-app-border underline-offset-4"
+                        data-citation-action="focus"
+                        data-reference-id=${neighborReferenceId}
+                        @click=${this.act}
+                      >
+                        ${labels.get(neighborNodeId) ?? neighborReferenceId}
+                      </button>
+                      ${edge.assertions.map((assertion) => this.assertion(assertion))}
+                      <button
+                        type="button"
+                        class="button-secondary mt-2"
+                        data-citation-action="queue"
+                        data-reference-id=${neighborReferenceId}
+                        data-seed-reference-id=${this.data.focusedReferenceId ?? ""}
+                        data-direction=${direction}
+                        ?disabled=${queued}
+                        @click=${this.act}
+                      >
+                        ${queued ? "Queued to explore" : "Queue to explore"}
+                      </button>
+                    </article>
+                  `;
+                })
+              : html`<p class="empty-state">No ${title.toLocaleLowerCase()} relationships recorded.</p>`
+          }
         </div>
       </section>
     `;
@@ -494,34 +506,42 @@ export class CitationNetworkPanel extends LightDomElement {
           ${expansion.direction === "references" ? `References from ${seedTitle}` : `Works citing ${seedTitle}`}
         </h4>
         <p class="mt-2 text-xs leading-5 text-app-text-soft">
-          ${expansion.unmatched.length
-            ? `${expansion.unmatched.length} new DOI candidate${expansion.unmatched.length === 1 ? "" : "s"} to review${
-                expansion.truncated ? " · provider list truncated" : ""
-              }.`
-            : `No unseen DOI candidates in this round. This seed may be saturated for ${
-                expansion.direction === "references" ? "backward" : "forward"
-              } snowballing.`}
+          ${
+            expansion.unmatched.length
+              ? `${expansion.unmatched.length} new DOI candidate${expansion.unmatched.length === 1 ? "" : "s"} to review${
+                  expansion.truncated ? " · provider list truncated" : ""
+                }.`
+              : `No unseen DOI candidates in this round. This seed may be saturated for ${
+                  expansion.direction === "references" ? "backward" : "forward"
+                } snowballing.`
+          }
         </p>
-        ${expansion.unmatched.length
-          ? html`
-              <button
-                class="button-primary mt-3"
-                type="button"
-                data-citation-action="save-all-candidates"
-                ?disabled=${this.savingExpansion}
-                @click=${this.act}
-              >
-                ${this.savingExpansion
-                  ? "Saving batch…"
-                  : `Save ${Math.min(expansion.unmatched.length, 25)} candidate${expansion.unmatched.length === 1 ? "" : "s"}`}
-              </button>
-              ${expansion.unmatched.length > 25
-                ? html`<p class="mt-2 text-xs text-app-text-soft">
-                    The bounded batch saves the first 25 candidates. Run it again for the remainder.
-                  </p>`
-                : nothing}
-            `
-          : nothing}
+        ${
+          expansion.unmatched.length
+            ? html`
+                <button
+                  class="button-primary mt-3"
+                  type="button"
+                  data-citation-action="save-all-candidates"
+                  ?disabled=${this.savingExpansion}
+                  @click=${this.act}
+                >
+                  ${
+                    this.savingExpansion
+                      ? "Saving batch…"
+                      : `Save ${Math.min(expansion.unmatched.length, 25)} candidate${expansion.unmatched.length === 1 ? "" : "s"}`
+                  }
+                </button>
+                ${
+                  expansion.unmatched.length > 25
+                    ? html`<p class="mt-2 text-xs text-app-text-soft">
+                        The bounded batch saves the first 25 candidates. Run it again for the remainder.
+                      </p>`
+                    : nothing
+                }
+              `
+            : nothing
+        }
         ${expansion.unmatched.map((candidate) => this.candidate(candidate))}
       </section>
     `;
@@ -575,26 +595,28 @@ export class CitationNetworkPanel extends LightDomElement {
             .join(" · ")}
         </p>
         ${evidenceHref ? html`<a class="button-secondary mt-2" href=${evidenceHref}>Open evidence · page ${evidencePage}</a>` : nothing}
-        ${assertion.review
-          ? nothing
-          : html`
-              <div class="mt-2 flex gap-2">
-                ${(["confirmed", "rejected"] as const).map(
-                  (decision) => html`
-                    <button
-                      type="button"
-                      class="button-secondary"
-                      data-citation-action="review"
-                      data-assertion-id=${assertion.id}
-                      data-decision=${decision}
-                      @click=${this.act}
-                    >
-                      ${decision === "confirmed" ? "Confirm" : "Reject"}
-                    </button>
-                  `,
-                )}
-              </div>
-            `}
+        ${
+          assertion.review
+            ? nothing
+            : html`
+                <div class="mt-2 flex gap-2">
+                  ${(["confirmed", "rejected"] as const).map(
+                    (decision) => html`
+                      <button
+                        type="button"
+                        class="button-secondary"
+                        data-citation-action="review"
+                        data-assertion-id=${assertion.id}
+                        data-decision=${decision}
+                        @click=${this.act}
+                      >
+                        ${decision === "confirmed" ? "Confirm" : "Reject"}
+                      </button>
+                    `,
+                  )}
+                </div>
+              `
+        }
       </div>
     `;
   }

@@ -3,16 +3,7 @@ import { isPublicationReferenceDeclaration, renderSync } from "scholarmark";
 import type { WorkspaceMember, WorkspaceSnapshot } from "./workspace/workspace";
 
 export type KnowledgeResourceKind =
-  | "project"
-  | "document"
-  | "section"
-  | "publication"
-  | "pdf"
-  | "annotation"
-  | "claim"
-  | "note"
-  | "person"
-  | "model-candidate";
+  "project" | "document" | "section" | "publication" | "pdf" | "annotation" | "claim" | "note" | "person" | "model-candidate";
 export type ScholarlyRelation =
   | "contains"
   | "participates-in"

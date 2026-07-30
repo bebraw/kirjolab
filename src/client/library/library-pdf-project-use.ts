@@ -49,16 +49,20 @@ export class LibraryPdfProjectUse extends ProjectReferenceMutationElement {
         ${linked ? "Available to project members" : "Reference not in project"}
       </p>
       <p class="mt-1 font-sans text-xs leading-5 text-app-text-soft">
-        ${linked
-          ? "People signed in as project members can open this PDF. Public read-only and edit links never include reference PDFs; private annotations stay in your library."
-          : "Add the bibliographic record to this project's reference set. This does not insert a citation."}
+        ${
+          linked
+            ? "People signed in as project members can open this PDF. Public read-only and edit links never include reference PDFs; private annotations stay in your library."
+            : "Add the bibliographic record to this project's reference set. This does not insert a citation."
+        }
       </p>
       <code class="mt-2 block truncate text-xs">:cite[${alias}]</code>
-      ${linked
-        ? nothing
-        : html`<button class="button-primary mt-3" type="button" ?disabled=${!data.projectApiBase} @click=${this.linkReference}>
-            Add reference to project
-          </button>`}
+      ${
+        linked
+          ? nothing
+          : html`<button class="button-primary mt-3" type="button" ?disabled=${!data.projectApiBase} @click=${this.linkReference}>
+              Add reference to project
+            </button>`
+      }
     `;
   }
 

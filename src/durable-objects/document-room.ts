@@ -3936,36 +3936,30 @@ function isWebSocketDisconnect(error: unknown): boolean {
 function projectRevisionContent(revision: number, state: StoredProjectRevision): ProjectRevisionContent {
   const document = new Y.Doc();
   Y.applyUpdate(document, new Uint8Array(decodeBase64(state.workspace.yState)));
-  const files = revisionRows(state, "project_files").map(
-    (row): ProjectFile => ({
-      id: sqlString(row, "id"),
-      path: sqlString(row, "path"),
-      mediaType: "text/markdown",
-      content: sqlString(row, "content"),
-      createdAt: sqlString(row, "created_at"),
-      updatedAt: sqlString(row, "updated_at"),
-    }),
-  );
-  const folders = revisionRows(state, "project_folders").map(
-    (row): ProjectFolder => ({
-      id: sqlString(row, "id"),
-      path: sqlString(row, "path"),
-      createdAt: sqlString(row, "created_at"),
-      updatedAt: sqlString(row, "updated_at"),
-    }),
-  );
-  const assets = revisionRows(state, "project_assets").map(
-    (row): ProjectAsset => ({
-      id: sqlString(row, "id"),
-      path: sqlString(row, "path"),
-      mediaType: projectAssetMediaType(sqlString(row, "media_type")),
-      size: sqlNumber(row, "size"),
-      objectKey: sqlString(row, "object_key"),
-      fingerprint: sqlString(row, "fingerprint"),
-      createdAt: sqlString(row, "created_at"),
-      updatedAt: sqlString(row, "updated_at"),
-    }),
-  );
+  const files = revisionRows(state, "project_files").map((row): ProjectFile => ({
+    id: sqlString(row, "id"),
+    path: sqlString(row, "path"),
+    mediaType: "text/markdown",
+    content: sqlString(row, "content"),
+    createdAt: sqlString(row, "created_at"),
+    updatedAt: sqlString(row, "updated_at"),
+  }));
+  const folders = revisionRows(state, "project_folders").map((row): ProjectFolder => ({
+    id: sqlString(row, "id"),
+    path: sqlString(row, "path"),
+    createdAt: sqlString(row, "created_at"),
+    updatedAt: sqlString(row, "updated_at"),
+  }));
+  const assets = revisionRows(state, "project_assets").map((row): ProjectAsset => ({
+    id: sqlString(row, "id"),
+    path: sqlString(row, "path"),
+    mediaType: projectAssetMediaType(sqlString(row, "media_type")),
+    size: sqlNumber(row, "size"),
+    objectKey: sqlString(row, "object_key"),
+    fingerprint: sqlString(row, "fingerprint"),
+    createdAt: sqlString(row, "created_at"),
+    updatedAt: sqlString(row, "updated_at"),
+  }));
   const projectReferences = revisionRows(state, "project_references").map((row) =>
     projectReferenceFromRow({
       id: sqlString(row, "id"),
@@ -3988,17 +3982,15 @@ function projectRevisionContent(revision: number, state: StoredProjectRevision):
       revoked_at: sqlNullableString(row, "revoked_at"),
     }),
   );
-  const pdfs = revisionRows(state, "pdfs").map(
-    (row): PdfResource => ({
-      id: sqlString(row, "id"),
-      name: sqlString(row, "name"),
-      contentType: "application/pdf",
-      size: sqlNumber(row, "size"),
-      objectKey: sqlString(row, "object_key"),
-      fingerprint: sqlString(row, "fingerprint"),
-      createdAt: sqlString(row, "created_at"),
-    }),
-  );
+  const pdfs = revisionRows(state, "pdfs").map((row): PdfResource => ({
+    id: sqlString(row, "id"),
+    name: sqlString(row, "name"),
+    contentType: "application/pdf",
+    size: sqlNumber(row, "size"),
+    objectKey: sqlString(row, "object_key"),
+    fingerprint: sqlString(row, "fingerprint"),
+    createdAt: sqlString(row, "created_at"),
+  }));
   const publicationPdfLinks = [...revisionRows(state, "publication_pdf_links"), ...revisionRows(state, "project_reference_pdf_links")].map(
     (row): PublicationPdfLink => ({
       id: sqlString(row, "id"),
@@ -4007,29 +3999,26 @@ function projectRevisionContent(revision: number, state: StoredProjectRevision):
       createdAt: sqlString(row, "created_at"),
     }),
   );
-  const annotations = revisionRows(state, "annotations").map(
-    (row): AnnotationResource =>
-      annotationFromRow({
-        id: sqlString(row, "id"),
-        pdf_id: sqlString(row, "pdf_id"),
-        page: sqlNumber(row, "page"),
-        quote: sqlString(row, "quote"),
-        prefix: sqlString(row, "prefix"),
-        suffix: sqlString(row, "suffix"),
-        comment: sqlString(row, "comment"),
-        rects_json: sqlString(row, "rects_json"),
-        created_at: sqlString(row, "created_at"),
-      }),
-  );
-  const claims = revisionRows(state, "claims").map(
-    (row): ClaimResource => ({
+  const annotations = revisionRows(state, "annotations").map((row): AnnotationResource =>
+    annotationFromRow({
       id: sqlString(row, "id"),
-      text: sqlString(row, "text"),
-      note: sqlString(row, "note"),
-      createdAt: sqlString(row, "created_at"),
-      updatedAt: sqlString(row, "updated_at"),
+      pdf_id: sqlString(row, "pdf_id"),
+      page: sqlNumber(row, "page"),
+      quote: sqlString(row, "quote"),
+      prefix: sqlString(row, "prefix"),
+      suffix: sqlString(row, "suffix"),
+      comment: sqlString(row, "comment"),
+      rects_json: sqlString(row, "rects_json"),
+      created_at: sqlString(row, "created_at"),
     }),
   );
+  const claims = revisionRows(state, "claims").map((row): ClaimResource => ({
+    id: sqlString(row, "id"),
+    text: sqlString(row, "text"),
+    note: sqlString(row, "note"),
+    createdAt: sqlString(row, "created_at"),
+    updatedAt: sqlString(row, "updated_at"),
+  }));
   const comments = revisionRows(state, "manuscript_comments").map((row) =>
     manuscriptCommentFromRow(document, {
       id: sqlString(row, "id"),

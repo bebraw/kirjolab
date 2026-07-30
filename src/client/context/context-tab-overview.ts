@@ -74,19 +74,21 @@ export class ContextTabOverview extends LightDomElement {
           <strong>${title}</strong>
           <span>${tab.kind === "library-pdf" ? "Library PDF" : tab.kind.replace("-", " ")}</span>
         </button>
-        ${permanent
-          ? nothing
-          : html`<button
-              type="button"
-              class="context-tab-overview-close"
-              data-context-key=${tab.key}
-              data-context-action="close"
-              aria-label=${`Close ${title} from context list`}
-              title=${`Close ${title}`}
-              @click=${this.act}
-            >
-              ×
-            </button>`}
+        ${
+          permanent
+            ? nothing
+            : html`<button
+                type="button"
+                class="context-tab-overview-close"
+                data-context-key=${tab.key}
+                data-context-action="close"
+                aria-label=${`Close ${title} from context list`}
+                title=${`Close ${title}`}
+                @click=${this.act}
+              >
+                ×
+              </button>`
+        }
       </div>
     `;
   }

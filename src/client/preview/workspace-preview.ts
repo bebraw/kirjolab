@@ -34,8 +34,7 @@ import { RESEARCH_PREVIEW_KEY } from "../context/research-context";
 export const workspacePreviewActionEvent = "workspace-preview-action";
 
 export type WorkspacePreviewAction =
-  | { readonly action: "citation"; readonly citation: CitationContext }
-  | { readonly action: "source"; readonly offset: number };
+  { readonly action: "citation"; readonly citation: CitationContext } | { readonly action: "source"; readonly offset: number };
 
 export interface WorkspacePreviewRequest {
   readonly apiBase: string;
@@ -48,8 +47,7 @@ export interface WorkspacePreviewRequest {
 }
 
 export type WorkspacePreviewOutcome =
-  | { readonly available: false }
-  | { readonly available: true; readonly diagnostics: readonly Diagnostic[] };
+  { readonly available: false } | { readonly available: true; readonly diagnostics: readonly Diagnostic[] };
 
 export interface ProjectPreviewRequest {
   readonly activeFileId: string | null;

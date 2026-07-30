@@ -58,11 +58,13 @@ export class AppToast extends LightDomElement {
   protected override render(): TemplateResult {
     const notice = this.notice;
     if (!notice) return html``;
-    return html`<span>${notice.message}</span>${notice.actionLabel
-        ? html`<button class="toast-action" type="button" ?disabled=${!this.#actionAvailable} @click=${this.emitAction}>
-            ${notice.actionLabel}
-          </button>`
-        : nothing}`;
+    return html`<span>${notice.message}</span>${
+        notice.actionLabel
+          ? html`<button class="toast-action" type="button" ?disabled=${!this.#actionAvailable} @click=${this.emitAction}>
+              ${notice.actionLabel}
+            </button>`
+          : nothing
+      }`;
   }
 
   #dismiss(): void {

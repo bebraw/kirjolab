@@ -103,9 +103,11 @@ export class LibraryPdfAnnotationList extends ProjectResearchMutationElement {
       <p class="pdf-search-status" role="status">
         ${filtered.length} of ${this.data.highlights.length + this.data.markups.length} annotations
       </p>
-      ${filtered.length
-        ? filtered.map((item) => (item.kind === "highlight" ? this.renderHighlight(item.value) : this.renderMarkup(item.value)))
-        : html`<div class="empty-state">No annotations match these filters.</div>`}
+      ${
+        filtered.length
+          ? filtered.map((item) => (item.kind === "highlight" ? this.renderHighlight(item.value) : this.renderMarkup(item.value)))
+          : html`<div class="empty-state">No annotations match these filters.</div>`
+      }
     `;
   }
 
@@ -144,9 +146,11 @@ export class LibraryPdfAnnotationList extends ProjectResearchMutationElement {
     return html`<article class="resource-card">
       <span class="eyebrow block">Page ${highlight.page}</span>
       <span class="mt-1 block text-sm leading-5 text-app-text">${highlight.quote}</span>
-      ${highlight.comment
-        ? html`<span class="mt-2 block font-sans text-xs leading-5 text-app-text-soft">${highlight.comment}</span>`
-        : nothing}
+      ${
+        highlight.comment
+          ? html`<span class="mt-2 block font-sans text-xs leading-5 text-app-text-soft">${highlight.comment}</span>`
+          : nothing
+      }
       <div class="mt-3 flex flex-wrap gap-2">
         <button class="button-secondary" type="button" @click=${() => this.emitAction({ action: "open-highlight", highlight })}>
           Open page ${highlight.page}
@@ -154,35 +158,37 @@ export class LibraryPdfAnnotationList extends ProjectResearchMutationElement {
         <button class="button-secondary" type="button" @click=${() => this.emitAction({ action: "edit-highlight", highlight })}>
           Edit note
         </button>
-        ${this.data.projectApiBase
-          ? html`
-              <button
-                class="button-primary"
-                type="button"
-                title="Add this source to the project if needed, then cite this page at the remembered manuscript caret"
-                @click=${() => this.emitAction({ action: "cite-highlight", highlight })}
-              >
-                Cite in manuscript
-              </button>
-              <button
-                class="button-secondary"
-                type="button"
-                ?disabled=${!share && !linked}
-                title=${linked ? "" : "Add the bibliographic reference to this project first"}
-                @click=${() =>
-                  share
-                    ? void this.changeProjectResearch(this.data.projectApiBase!, { action: "revoke", shareId: share.id })
-                    : void this.changeProjectResearch(this.data.projectApiBase!, {
-                        action: "share",
-                        kind: "highlight",
-                        referenceId: highlight.referenceId,
-                        resourceId: highlight.id,
-                      })}
-              >
-                ${share ? "Revoke highlight share" : "Share highlight with project"}
-              </button>
-            `
-          : nothing}
+        ${
+          this.data.projectApiBase
+            ? html`
+                <button
+                  class="button-primary"
+                  type="button"
+                  title="Add this source to the project if needed, then cite this page at the remembered manuscript caret"
+                  @click=${() => this.emitAction({ action: "cite-highlight", highlight })}
+                >
+                  Cite in manuscript
+                </button>
+                <button
+                  class="button-secondary"
+                  type="button"
+                  ?disabled=${!share && !linked}
+                  title=${linked ? "" : "Add the bibliographic reference to this project first"}
+                  @click=${() =>
+                    share
+                      ? void this.changeProjectResearch(this.data.projectApiBase!, { action: "revoke", shareId: share.id })
+                      : void this.changeProjectResearch(this.data.projectApiBase!, {
+                          action: "share",
+                          kind: "highlight",
+                          referenceId: highlight.referenceId,
+                          resourceId: highlight.id,
+                        })}
+                >
+                  ${share ? "Revoke highlight share" : "Share highlight with project"}
+                </button>
+              `
+            : nothing
+        }
       </div>
     </article>`;
   }
@@ -201,11 +207,13 @@ export class LibraryPdfAnnotationList extends ProjectResearchMutationElement {
         >
           Open page ${markup.page}
         </button>
-        ${markup.kind === "note"
-          ? html`<button class="button-secondary" type="button" @click=${() => this.emitAction({ action: "edit-note", note: markup })}>
-              Edit note
-            </button>`
-          : nothing}
+        ${
+          markup.kind === "note"
+            ? html`<button class="button-secondary" type="button" @click=${() => this.emitAction({ action: "edit-note", note: markup })}>
+                Edit note
+              </button>`
+            : nothing
+        }
         <button
           class="button-secondary"
           type="button"
@@ -252,22 +260,18 @@ export function filterPdfAnnotations(
 ): PdfAnnotationIndexItem[] {
   const query = filter.query.trim().toLocaleLowerCase();
   return [
-    ...highlights.map(
-      (value): PdfAnnotationIndexItem => ({
-        kind: "highlight",
-        page: value.page,
-        text: `${value.quote} ${value.comment}`,
-        value,
-      }),
-    ),
-    ...markups.map(
-      (value): PdfAnnotationIndexItem => ({
-        kind: value.kind,
-        page: value.page,
-        text: value.kind === "note" ? value.body : `${value.color} drawing`,
-        value,
-      }),
-    ),
+    ...highlights.map((value): PdfAnnotationIndexItem => ({
+      kind: "highlight",
+      page: value.page,
+      text: `${value.quote} ${value.comment}`,
+      value,
+    })),
+    ...markups.map((value): PdfAnnotationIndexItem => ({
+      kind: value.kind,
+      page: value.page,
+      text: value.kind === "note" ? value.body : `${value.color} drawing`,
+      value,
+    })),
   ]
     .filter((item) => filter.kind === "all" || item.kind === filter.kind)
     .filter((item) => filter.page === null || item.page === filter.page)

@@ -77,9 +77,11 @@ export class EditorInsertMenu extends LightDomElement {
             </button>`,
         )}
         <div class="border-t border-app-line pt-1" id="include-project-file-list" aria-label="Include project file">
-          ${includable.length > 0
-            ? includable.map((file) => this.renderFile(file, activeFile!))
-            : html`<span class="block px-3 py-2 text-xs text-app-text-soft">Add another file to include it here.</span>`}
+          ${
+            includable.length > 0
+              ? includable.map((file) => this.renderFile(file, activeFile!))
+              : html`<span class="block px-3 py-2 text-xs text-app-text-soft">Add another file to include it here.</span>`
+          }
         </div>
       </div>
     </details>`;

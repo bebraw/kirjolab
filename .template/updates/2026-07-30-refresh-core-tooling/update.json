@@ -1,0 +1,10 @@
+{
+  "id": "2026-07-30-refresh-core-tooling",
+  "title": "Refresh compatible core tooling",
+  "status": "implemented",
+  "risk": "medium",
+  "supersedes": [],
+  "adrs": [],
+  "touches": ["package.json", "package-lock.json", "worker-configuration.d.ts", "src/**/*.ts"],
+  "checks": ["npm audit", "npm run quality:gate:fast"]
+}

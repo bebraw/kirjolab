@@ -10,14 +10,7 @@ export interface GitHubAppConfig {
 }
 
 type GitHubClientErrorCode =
-  | "configuration"
-  | "authentication"
-  | "forbidden"
-  | "not-found"
-  | "remote-changed"
-  | "branch-protected"
-  | "invalid-response"
-  | "bounds";
+  "configuration" | "authentication" | "forbidden" | "not-found" | "remote-changed" | "branch-protected" | "invalid-response" | "bounds";
 
 export class GitHubClientError extends Error {
   readonly code: GitHubClientErrorCode;

@@ -55,28 +55,32 @@ export class KnowledgeSearchPanel extends LightDomElement {
         <button class="button-secondary shrink-0" type="submit">Find</button>
       </form>
       <div class=${`space-y-2${this.visible ? "" : " hidden"}`} id="knowledge-search-results" aria-live="polite">
-        ${this.error
-          ? html`<p class="empty-state">${this.error}</p>`
-          : this.results.length === 0
-            ? this.visible
-              ? html`<p class="empty-state">No matching project resources.</p>`
-              : ""
-            : this.results.map(
-                (result) => html`
-                  <button
-                    type="button"
-                    class="resource-card block w-full text-left"
-                    data-resource-id=${result.resourceId}
-                    @click=${this.select}
-                  >
-                    <span class="eyebrow">${result.kind}</span>
-                    <strong class="mt-2 block font-sans">${result.title}</strong>
-                    ${result.excerpt
-                      ? html`<span class="mt-2 block font-sans text-xs leading-5 text-app-text-soft">${result.excerpt}</span>`
-                      : ""}
-                  </button>
-                `,
-              )}
+        ${
+          this.error
+            ? html`<p class="empty-state">${this.error}</p>`
+            : this.results.length === 0
+              ? this.visible
+                ? html`<p class="empty-state">No matching project resources.</p>`
+                : ""
+              : this.results.map(
+                  (result) => html`
+                    <button
+                      type="button"
+                      class="resource-card block w-full text-left"
+                      data-resource-id=${result.resourceId}
+                      @click=${this.select}
+                    >
+                      <span class="eyebrow">${result.kind}</span>
+                      <strong class="mt-2 block font-sans">${result.title}</strong>
+                      ${
+                        result.excerpt
+                          ? html`<span class="mt-2 block font-sans text-xs leading-5 text-app-text-soft">${result.excerpt}</span>`
+                          : ""
+                      }
+                    </button>
+                  `,
+                )
+        }
       </div>
     `;
   }

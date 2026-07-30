@@ -129,9 +129,11 @@ export class ClaimListPanel extends LightDomElement {
           </button>
         </div>
         <div class="rail-collection-body" id="claim-list">
-          ${this.data.claims.length === 0
-            ? html`<div class="empty-state">Evidence-backed claims appear here.</div>`
-            : this.data.claims.map((claim) => this.renderClaim(claim, annotations))}
+          ${
+            this.data.claims.length === 0
+              ? html`<div class="empty-state">Evidence-backed claims appear here.</div>`
+              : this.data.claims.map((claim) => this.renderClaim(claim, annotations))
+          }
         </div>
         <p class="status-line px-1" role="status" ?hidden=${!this.status}>${this.status}</p>
       </details>
@@ -232,23 +234,25 @@ export class ClaimListPanel extends LightDomElement {
           </span>
         </label>
         ${claim.note ? html`<p class="mt-2 font-sans text-xs leading-5 text-app-text-soft">${claim.note}</p>` : nothing}
-        ${evidence.length === 0
-          ? nothing
-          : html`<div class="mt-3 space-y-1">
-              ${evidence.map((link) => {
-                const annotation = annotations.get(link.annotationId);
-                return annotation
-                  ? html`<button
-                      type="button"
-                      class="block w-full text-left font-sans text-xs font-bold text-app-accent-strong underline decoration-app-border underline-offset-4"
-                      data-annotation-id=${annotation.id}
-                      @click=${this.openAnnotation}
-                    >
-                      ${link.relation} · ${annotation.comment || `page ${annotation.page}`}
-                    </button>`
-                  : nothing;
-              })}
-            </div>`}
+        ${
+          evidence.length === 0
+            ? nothing
+            : html`<div class="mt-3 space-y-1">
+                ${evidence.map((link) => {
+                  const annotation = annotations.get(link.annotationId);
+                  return annotation
+                    ? html`<button
+                        type="button"
+                        class="block w-full text-left font-sans text-xs font-bold text-app-accent-strong underline decoration-app-border underline-offset-4"
+                        data-annotation-id=${annotation.id}
+                        @click=${this.openAnnotation}
+                      >
+                        ${link.relation} · ${annotation.comment || `page ${annotation.page}`}
+                      </button>`
+                    : nothing;
+                })}
+              </div>`
+        }
         <div class="mt-3 grid grid-cols-2 gap-2">
           <button
             type="button"
@@ -278,19 +282,21 @@ export class ClaimListPanel extends LightDomElement {
           >
             Link selected prose
           </button>
-          ${passage
-            ? html`<button
-                type="button"
-                class="button-secondary col-span-2 justify-center"
-                data-claim-id=${claim.id}
-                data-anchor-status=${passage.resolution.status}
-                data-anchor-match=${anchorMatchState(passage.resolution)}
-                ?disabled=${passage.resolution.status !== "resolved"}
-                @click=${this.openPassage}
-              >
-                ${anchorActionLabel(passage.resolution)}
-              </button>`
-            : nothing}
+          ${
+            passage
+              ? html`<button
+                  type="button"
+                  class="button-secondary col-span-2 justify-center"
+                  data-claim-id=${claim.id}
+                  data-anchor-status=${passage.resolution.status}
+                  data-anchor-match=${anchorMatchState(passage.resolution)}
+                  ?disabled=${passage.resolution.status !== "resolved"}
+                  @click=${this.openPassage}
+                >
+                  ${anchorActionLabel(passage.resolution)}
+                </button>`
+              : nothing
+          }
         </div>
       </article>
     `;

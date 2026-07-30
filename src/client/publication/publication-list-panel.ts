@@ -47,9 +47,11 @@ export class PublicationListPanel extends LightDomElement {
     return html`<details class="rail-collection">
       <summary><span>References</span><span class="count-badge" id="publication-count">${this.data.publications.length}</span></summary>
       <div class="rail-collection-body" id="publication-list">
-        ${this.data.publications.length === 0
-          ? html`<div class="empty-state">Imported references appear here as stable publication resources.</div>`
-          : this.data.publications.map((publication) => this.renderPublication(publication))}
+        ${
+          this.data.publications.length === 0
+            ? html`<div class="empty-state">Imported references appear here as stable publication resources.</div>`
+            : this.data.publications.map((publication) => this.renderPublication(publication))
+        }
       </div>
       <p class="status-line px-1" role="status" ?hidden=${!this.status}>${this.status}</p>
     </details>`;
@@ -104,37 +106,43 @@ export class PublicationListPanel extends LightDomElement {
           >
             Open in context
           </button>
-          ${projectReference
-            ? html`
-                <span class="eyebrow">alias:${projectReference.citationAlias}</span>
-                <button
-                  type="button"
-                  class="button-secondary"
-                  data-publication-id=${publication.id}
-                  data-publication-action="manage"
-                  @click=${this.actOnPublication}
-                >
-                  Manage in library
-                </button>
-              `
-            : nothing}
-          ${publication.doi
-            ? html`
-                <span class="eyebrow">doi:${publication.doi}</span>
-                ${projectReference
-                  ? nothing
-                  : html`<button
-                      type="button"
-                      class="button-secondary"
-                      data-publication-id=${publication.id}
-                      data-publication-action="enrich"
-                      ?disabled=${Boolean(this.enrichingPublicationId)}
-                      @click=${this.actOnPublication}
-                    >
-                      ${this.enrichingPublicationId === publication.id ? "Enriching…" : "Enrich"}
-                    </button>`}
-              `
-            : nothing}
+          ${
+            projectReference
+              ? html`
+                  <span class="eyebrow">alias:${projectReference.citationAlias}</span>
+                  <button
+                    type="button"
+                    class="button-secondary"
+                    data-publication-id=${publication.id}
+                    data-publication-action="manage"
+                    @click=${this.actOnPublication}
+                  >
+                    Manage in library
+                  </button>
+                `
+              : nothing
+          }
+          ${
+            publication.doi
+              ? html`
+                  <span class="eyebrow">doi:${publication.doi}</span>
+                  ${
+                    projectReference
+                      ? nothing
+                      : html`<button
+                          type="button"
+                          class="button-secondary"
+                          data-publication-id=${publication.id}
+                          data-publication-action="enrich"
+                          ?disabled=${Boolean(this.enrichingPublicationId)}
+                          @click=${this.actOnPublication}
+                        >
+                          ${this.enrichingPublicationId === publication.id ? "Enriching…" : "Enrich"}
+                        </button>`
+                  }
+                `
+              : nothing
+          }
         </div>
       </article>
     `;

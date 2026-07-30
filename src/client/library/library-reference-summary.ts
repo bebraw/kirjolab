@@ -64,50 +64,54 @@ export class LibraryReferenceSummary extends ProjectReferenceMutationElement {
         >
           Trail
         </button>
-        ${primaryArtifact
-          ? html`
-              <button
-                class="button-secondary"
-                type="button"
-                title=${`Open ${primaryArtifact.name}`}
-                @click=${() => this.emitAction({ action: "open-pdf", artifact: primaryArtifact })}
-              >
-                PDF
-              </button>
-            `
-          : reference.doi
-            ? html`<button
-                class="button-secondary"
-                type="button"
-                title=${`Find an open-access PDF for ${displayTitle}`}
-                @click=${() => this.emitAction({ action: "find-open-pdf", reference })}
-              >
-                Find PDF
-              </button>`
-            : nothing}
-        ${projectApiBase
-          ? linkedCitationAlias
+        ${
+          primaryArtifact
             ? html`
                 <button
                   class="button-secondary"
                   type="button"
-                  title=${`Remove :cite[${linkedCitationAlias}] from this project`}
-                  @click=${this.unlinkReference}
+                  title=${`Open ${primaryArtifact.name}`}
+                  @click=${() => this.emitAction({ action: "open-pdf", artifact: primaryArtifact })}
                 >
-                  Linked
+                  PDF
                 </button>
               `
-            : html`
-                <button
-                  class="button-primary"
+            : reference.doi
+              ? html`<button
+                  class="button-secondary"
                   type="button"
-                  title=${`Add :cite[${reference.referenceKey}] to this project`}
-                  @click=${this.linkReference}
+                  title=${`Find an open-access PDF for ${displayTitle}`}
+                  @click=${() => this.emitAction({ action: "find-open-pdf", reference })}
                 >
-                  Add
-                </button>
-              `
-          : nothing}
+                  Find PDF
+                </button>`
+              : nothing
+        }
+        ${
+          projectApiBase
+            ? linkedCitationAlias
+              ? html`
+                  <button
+                    class="button-secondary"
+                    type="button"
+                    title=${`Remove :cite[${linkedCitationAlias}] from this project`}
+                    @click=${this.unlinkReference}
+                  >
+                    Linked
+                  </button>
+                `
+              : html`
+                  <button
+                    class="button-primary"
+                    type="button"
+                    title=${`Add :cite[${reference.referenceKey}] to this project`}
+                    @click=${this.linkReference}
+                  >
+                    Add
+                  </button>
+                `
+            : nothing
+        }
       </div>
     `;
   }

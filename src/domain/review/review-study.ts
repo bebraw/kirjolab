@@ -32,31 +32,11 @@ export type ReviewSourceClass =
   | "organization-site"
   | "grey-repository";
 export type ReviewGreySourceClass =
-  | "government"
-  | "industry"
-  | "professional-association"
-  | "research-institute"
-  | "community"
-  | "news-media"
-  | "other";
+  "government" | "industry" | "professional-association" | "research-institute" | "community" | "news-media" | "other";
 export type ReviewProtocolImpactStage =
-  | "search"
-  | "deduplication"
-  | "title-abstract"
-  | "full-text"
-  | "appraisal"
-  | "extraction"
-  | "synthesis"
-  | "reporting";
+  "search" | "deduplication" | "title-abstract" | "full-text" | "appraisal" | "extraction" | "synthesis" | "reporting";
 export type ExtractionFieldType =
-  | "text"
-  | "integer"
-  | "decimal"
-  | "boolean"
-  | "date"
-  | "single-choice"
-  | "multiple-choice"
-  | "source-selector";
+  "text" | "integer" | "decimal" | "boolean" | "date" | "single-choice" | "multiple-choice" | "source-selector";
 export type ExtractionFieldRequiredness = "required" | "optional" | "conditional";
 export type ExtractionFieldCardinality = "single" | "repeatable";
 

@@ -101,24 +101,26 @@ export class WritingWorkflowPanel extends LightDomElement {
         <summary><span>${title}</span><span class="count-badge" id=${countId}>${this.data.items.length}</span></summary>
         <div class="rail-collection-body">
           <div class="grid gap-2" id=${listId}>${this.renderItems()}</div>
-          ${reviewerResponses
-            ? html`<div class="mt-3 grid grid-cols-2 gap-2">
-                <button class="button-secondary justify-center" id=${openId} type="button" @click=${this.open}>
-                  ${this.data.fileId ? "Open matrix" : "Start matrix"}
-                </button>
-                <button
-                  class="button-secondary justify-center"
-                  id="download-reviewer-response"
-                  type="button"
-                  ?disabled=${!this.data.fileId}
-                  @click=${this.download}
-                >
-                  Export letter
-                </button>
-              </div>`
-            : html`<button class="button-secondary mt-3 w-full justify-center" id=${openId} type="button" @click=${this.open}>
-                ${this.data.fileId ? "Open question ledger" : "Start question ledger"}
-              </button>`}
+          ${
+            reviewerResponses
+              ? html`<div class="mt-3 grid grid-cols-2 gap-2">
+                  <button class="button-secondary justify-center" id=${openId} type="button" @click=${this.open}>
+                    ${this.data.fileId ? "Open matrix" : "Start matrix"}
+                  </button>
+                  <button
+                    class="button-secondary justify-center"
+                    id="download-reviewer-response"
+                    type="button"
+                    ?disabled=${!this.data.fileId}
+                    @click=${this.download}
+                  >
+                    Export letter
+                  </button>
+                </div>`
+              : html`<button class="button-secondary mt-3 w-full justify-center" id=${openId} type="button" @click=${this.open}>
+                  ${this.data.fileId ? "Open question ledger" : "Start question ledger"}
+                </button>`
+          }
         </div>
       </details>
     `;
@@ -157,9 +159,11 @@ export class WritingWorkflowPanel extends LightDomElement {
   private renderItems(): TemplateResult | readonly TemplateResult[] {
     if (!this.data.fileId) {
       return html`<div class="empty-state">
-        ${this.data.kind === "reviewer-responses"
-          ? "Track external review feedback separately from collaborator comments."
-          : "Record the study's questions, methods, and manuscript coverage."}
+        ${
+          this.data.kind === "reviewer-responses"
+            ? "Track external review feedback separately from collaborator comments."
+            : "Record the study's questions, methods, and manuscript coverage."
+        }
       </div>`;
     }
     if (this.data.items.length === 0) {

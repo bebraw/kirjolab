@@ -88,8 +88,7 @@ export interface RecoveredReviewStudy {
 }
 
 export type BackupManifestRestoreResult =
-  | { readonly ok: true }
-  | { readonly ok: false; readonly code: "review-payload-unavailable"; readonly error: string };
+  { readonly ok: true } | { readonly ok: false; readonly code: "review-payload-unavailable"; readonly error: string };
 
 export class BackupRecovery extends DurableObject<Env> {
   constructor(ctx: DurableObjectState, env: Env) {
@@ -292,7 +291,7 @@ const maximumManifestChunkCharacters = 256 * 1024;
 
 function manifestChunks(value: string): string[] {
   const chunks: string[] = [];
-  for (let start = 0; start < value.length; ) {
+  for (let start = 0; start < value.length;) {
     let end = Math.min(start + maximumManifestChunkCharacters, value.length);
     if (end < value.length && isHighSurrogate(value.charCodeAt(end - 1))) end -= 1;
     chunks.push(value.slice(start, end));

@@ -120,57 +120,59 @@ export class PublicationIntakePanel extends LightDomElement {
       </form>
       <p class="publication-intake-status" id="publication-intake-status" role="status" aria-live="polite">${this.status}</p>
       <div class="publication-intake-review" id="publication-intake-review" ?hidden=${linked || !preview}>
-        ${preview
-          ? html`
-              <p class="eyebrow">Review metadata</p>
-              <h3 class="publication-intake-title" id="publication-intake-title">${preview.metadata.title}</h3>
-              <p class="publication-intake-meta" id="publication-intake-meta">
-                ${[
-                  preview.metadata.type,
-                  preview.metadata.authors.join("; "),
-                  preview.metadata.year,
-                  preview.metadata.venue,
-                  `doi:${preview.doi}`,
-                ]
-                  .filter(Boolean)
-                  .join(" · ")}
-              </p>
-              <label class="field-label mt-3" for="publication-intake-key">
-                Citation key
-                <input
-                  class="field"
-                  id="publication-intake-key"
-                  type="text"
-                  maxlength="200"
-                  required
-                  autocomplete="off"
-                  .value=${this.citationKey}
-                  ?disabled=${this.view.busy}
-                  @input=${this.updateCitationKey}
-                />
-              </label>
-              <div class="publication-intake-actions">
-                <button
-                  class="button-primary justify-center"
-                  id="publication-intake-accept"
-                  type="button"
-                  ?disabled=${this.view.busy}
-                  @click=${this.accept}
-                >
-                  Add to library &amp; connect
-                </button>
-                <button
-                  class="button-secondary justify-center"
-                  id="publication-intake-cancel"
-                  type="button"
-                  ?disabled=${this.view.busy}
-                  @click=${this.cancel}
-                >
-                  Cancel
-                </button>
-              </div>
-            `
-          : nothing}
+        ${
+          preview
+            ? html`
+                <p class="eyebrow">Review metadata</p>
+                <h3 class="publication-intake-title" id="publication-intake-title">${preview.metadata.title}</h3>
+                <p class="publication-intake-meta" id="publication-intake-meta">
+                  ${[
+                    preview.metadata.type,
+                    preview.metadata.authors.join("; "),
+                    preview.metadata.year,
+                    preview.metadata.venue,
+                    `doi:${preview.doi}`,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </p>
+                <label class="field-label mt-3" for="publication-intake-key">
+                  Citation key
+                  <input
+                    class="field"
+                    id="publication-intake-key"
+                    type="text"
+                    maxlength="200"
+                    required
+                    autocomplete="off"
+                    .value=${this.citationKey}
+                    ?disabled=${this.view.busy}
+                    @input=${this.updateCitationKey}
+                  />
+                </label>
+                <div class="publication-intake-actions">
+                  <button
+                    class="button-primary justify-center"
+                    id="publication-intake-accept"
+                    type="button"
+                    ?disabled=${this.view.busy}
+                    @click=${this.accept}
+                  >
+                    Add to library &amp; connect
+                  </button>
+                  <button
+                    class="button-secondary justify-center"
+                    id="publication-intake-cancel"
+                    type="button"
+                    ?disabled=${this.view.busy}
+                    @click=${this.cancel}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              `
+            : nothing
+        }
       </div>
       <div class="publication-intake-linked" id="publication-intake-linked" ?hidden=${!linked}>
         <p class="eyebrow">Linked reference</p>
