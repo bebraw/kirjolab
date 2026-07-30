@@ -29,10 +29,19 @@ interface AnnotationListData {
 }
 
 export class LibraryPdfAnnotationList extends ProjectResearchMutationElement {
-  static override properties = { data: { state: true }, deletion: { state: true } };
+  static override properties = {
+    data: { state: true },
+    deletion: { state: true },
+    filterKind: { state: true },
+    filterPage: { state: true },
+    query: { state: true },
+  };
 
   declare private data: AnnotationListData;
   declare private deletion: { readonly id: string; readonly pending: boolean; readonly status: string } | null;
+  declare private filterKind: PdfAnnotationFilterKind;
+  declare private filterPage: string;
+  declare private query: string;
 
   constructor() {
     super();
@@ -45,6 +54,9 @@ export class LibraryPdfAnnotationList extends ProjectResearchMutationElement {
       researchShares: [],
     };
     this.deletion = null;
+    this.filterKind = "all";
+    this.filterPage = "";
+    this.query = "";
   }
 
   setData(data: AnnotationListData): void {
@@ -55,9 +67,69 @@ export class LibraryPdfAnnotationList extends ProjectResearchMutationElement {
     if (this.data.highlights.length === 0 && this.data.markups.length === 0) {
       return html`<div class="empty-state">No private annotations yet.</div>`;
     }
-    return html`${this.data.highlights.map((highlight) => this.renderHighlight(highlight))}${this.data.markups.map((markup) =>
-      this.renderMarkup(markup),
-    )}`;
+    const filtered = filterPdfAnnotations(this.data.highlights, this.data.markups, {
+      kind: this.filterKind,
+      page: Number.parseInt(this.filterPage, 10) || null,
+      query: this.query,
+    });
+    return html`
+      <div class="pdf-annotation-index-controls">
+        <input
+          class="field"
+          type="search"
+          aria-label="Search PDF annotations"
+          placeholder="Search quotations and notes"
+          .value=${this.query}
+          @input=${this.changeQuery}
+        />
+        <select class="field" aria-label="Filter PDF annotation type" .value=${this.filterKind} @change=${this.changeKind}>
+          <option value="all">All types</option>
+          <option value="highlight">Highlights</option>
+          <option value="note">Notes</option>
+          <option value="drawing">Drawings</option>
+        </select>
+        <input
+          class="field pdf-annotation-page-filter"
+          type="number"
+          min="1"
+          inputmode="numeric"
+          aria-label="Filter PDF annotations by page"
+          placeholder="Page"
+          .value=${this.filterPage}
+          @input=${this.changePage}
+        />
+        <button class="button-secondary" type="button" @click=${this.exportSummary}>Export summary</button>
+      </div>
+      <p class="pdf-search-status" role="status">
+        ${filtered.length} of ${this.data.highlights.length + this.data.markups.length} annotations
+      </p>
+      ${filtered.length
+        ? filtered.map((item) => (item.kind === "highlight" ? this.renderHighlight(item.value) : this.renderMarkup(item.value)))
+        : html`<div class="empty-state">No annotations match these filters.</div>`}
+    `;
+  }
+
+  protected changeQuery(event: Event): void {
+    this.query = (event.currentTarget as HTMLInputElement).value;
+  }
+
+  protected changeKind(event: Event): void {
+    this.filterKind = (event.currentTarget as HTMLSelectElement).value as PdfAnnotationFilterKind;
+  }
+
+  protected changePage(event: Event): void {
+    this.filterPage = (event.currentTarget as HTMLInputElement).value;
+  }
+
+  protected exportSummary(): void {
+    const artifact = this.data.artifact;
+    const markdown = annotationSummaryMarkdown(artifact?.name ?? "PDF", this.data.highlights, this.data.markups);
+    const href = URL.createObjectURL(new Blob([markdown], { type: "text/markdown;charset=utf-8" }));
+    const link = document.createElement("a");
+    link.href = href;
+    link.download = `${(artifact?.name ?? "pdf").replace(/\.pdf$/iu, "")}-annotations.md`;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(href), 1_000);
   }
 
   protected emitAction(action: LibraryPdfAnnotationListAction): void {
@@ -166,6 +238,60 @@ export class LibraryPdfAnnotationList extends ProjectResearchMutationElement {
       };
     }
   }
+}
+
+export type PdfAnnotationFilterKind = "all" | "drawing" | "highlight" | "note";
+type PdfAnnotationIndexItem =
+  | { readonly kind: "highlight"; readonly page: number; readonly text: string; readonly value: LibraryHighlight }
+  | { readonly kind: "drawing" | "note"; readonly page: number; readonly text: string; readonly value: LibraryPdfMarkup };
+
+export function filterPdfAnnotations(
+  highlights: readonly LibraryHighlight[],
+  markups: readonly LibraryPdfMarkup[],
+  filter: { readonly kind: PdfAnnotationFilterKind; readonly page: number | null; readonly query: string },
+): PdfAnnotationIndexItem[] {
+  const query = filter.query.trim().toLocaleLowerCase();
+  return [
+    ...highlights.map(
+      (value): PdfAnnotationIndexItem => ({
+        kind: "highlight",
+        page: value.page,
+        text: `${value.quote} ${value.comment}`,
+        value,
+      }),
+    ),
+    ...markups.map(
+      (value): PdfAnnotationIndexItem => ({
+        kind: value.kind,
+        page: value.page,
+        text: value.kind === "note" ? value.body : `${value.color} drawing`,
+        value,
+      }),
+    ),
+  ]
+    .filter((item) => filter.kind === "all" || item.kind === filter.kind)
+    .filter((item) => filter.page === null || item.page === filter.page)
+    .filter((item) => !query || item.text.toLocaleLowerCase().includes(query))
+    .sort((left, right) => left.page - right.page || left.kind.localeCompare(right.kind));
+}
+
+export function annotationSummaryMarkdown(
+  title: string,
+  highlights: readonly LibraryHighlight[],
+  markups: readonly LibraryPdfMarkup[],
+): string {
+  const lines = [`# Annotations — ${title}`, ""];
+  for (const item of filterPdfAnnotations(highlights, markups, { kind: "all", page: null, query: "" })) {
+    lines.push(`## Page ${item.page} · ${item.kind}`);
+    lines.push("");
+    if (item.kind === "highlight") {
+      lines.push(`> ${item.value.quote.replaceAll("\n", " ")}`);
+      if (item.value.comment) lines.push("", item.value.comment);
+    } else if (item.value.kind === "note") lines.push(item.value.body);
+    else lines.push(`Freehand drawing · ${item.value.color} · ${item.value.width}px`);
+    lines.push("");
+  }
+  return `${lines.join("\n").trimEnd()}\n`;
 }
 
 if (typeof customElements !== "undefined" && !customElements.get("library-pdf-annotation-list")) {

@@ -274,6 +274,10 @@ memory and makes citation aliases compete with stable source identity.
   text records whether it came from the native layer or OCR. Literal search
   falls back to this private server artifact when a Library PDF has no usable
   native text; partial bounded analyses declare truncation.
+  The private annotation index searches quotation and note text, filters by
+  annotation kind and exact page, reports the visible result count, preserves
+  direct page actions, and exports a page-ordered Markdown summary without
+  changing or sharing the underlying annotations.
 - Saving a text selection whose normalized rectangles overlap a saved
   highlight on the same artifact page extends that stable highlight instead of
   creating a second resource. Geometry, quotation text, and distinct comments

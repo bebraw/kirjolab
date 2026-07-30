@@ -3316,6 +3316,20 @@
     margin-top: 0.5rem;
   }
 
+  .pdf-annotation-index-controls {
+    display: grid;
+    grid-template-columns: minmax(10rem, 1fr) auto 5rem auto;
+    gap: 0.45rem;
+    margin-bottom: 0.4rem;
+  }
+
+  .pdf-annotation-index-controls + .pdf-search-status {
+    margin-bottom: 0.65rem;
+  }
+  .pdf-annotation-page-filter {
+    min-width: 0;
+  }
+
   .library-pdf-page-rail {
     display: none;
   }

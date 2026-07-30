@@ -8,6 +8,8 @@ import type {
 } from "../domain/reference-library";
 import {
   LibraryPdfAnnotationList,
+  annotationSummaryMarkdown,
+  filterPdfAnnotations,
   libraryPdfAnnotationListActionEvent,
   type LibraryPdfAnnotationListAction,
 } from "./library-pdf-annotation-list";
@@ -90,6 +92,17 @@ const share: ResearchShareSnapshot = {
 };
 
 describe("library PDF annotation list", () => {
+  it("searches, filters, and exports a page-ordered annotation index", () => {
+    expect(filterPdfAnnotations([highlight], [note, drawing], { kind: "note", page: 3, query: "page" })).toEqual([
+      expect.objectContaining({ kind: "note", page: 3 }),
+    ]);
+    expect(filterPdfAnnotations([highlight], [note, drawing], { kind: "all", page: null, query: "interpretation" })).toEqual([
+      expect.objectContaining({ kind: "highlight", page: 2 }),
+    ]);
+    expect(annotationSummaryMarkdown("paper.pdf", [highlight], [note, drawing])).toContain(
+      "# Annotations — paper.pdf\n\n## Page 2 · highlight\n\n> Evidence\n\nInterpretation",
+    );
+  });
   it("owns empty, private, linked, shared, note, and drawing presentation", () => {
     const list = new TestAnnotationList();
     expect(list.rootForTest()).toBe(list);
