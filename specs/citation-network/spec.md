@@ -62,6 +62,10 @@ by` relationships. Selecting a neighboring source refocuses the same trail
   scroll or pinch zoom, fit and reset controls, and node selection that follows
   the same addressable reference trail as the accessible list. A runtime-load
   failure leaves every relationship and action available in that list.
+- A shared evidence legend reports visible confirmed, extracted, inferred, and
+  conflicting relationship counts. Toggling a state filters the graph and
+  accessible list through the same browser projection while retaining the
+  focused source and current-project isolates.
 - Canvas colors are resolved through the browser's active color scheme before
   they enter Cytoscape. Node labels and their backing surfaces therefore retain
   the application ink/paper contrast in both light and dark themes rather than
@@ -176,6 +180,8 @@ by` relationships. Selecting a neighboring source refocuses the same trail
       persisting renderer state.
 - [x] Graph labels resolve theme tokens to contrasting concrete colors before
       canvas rendering.
+- [x] Evidence-state filters and their counts apply identically to the graph
+      and accessible relationship list.
 - [x] A Library source opens an addressable, one-hop reference trail.
 - [x] A trail supports directional refocus and exact PDF evidence navigation.
 - [x] Pure, API, integration, Workers-runtime, view, and browser tests cover
@@ -201,6 +207,8 @@ by` relationships. Selecting a neighboring source refocuses the same trail
   and delayed-response rejection.
 - Cytoscape styles must receive browser-resolved colors rather than raw
   color-scheme functions from custom properties.
+- Evidence filters must never hide a relationship in only one of the graph or
+  accessible list projections.
 
 ### Scenarios
 

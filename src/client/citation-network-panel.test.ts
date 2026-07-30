@@ -5,6 +5,7 @@ import {
   CitationNetworkPanel,
   citationEvidencePage,
   citationNetworkActionEvent,
+  filterCitationNetwork,
   focusCitationNetwork,
   type CitationNetworkAction,
 } from "./citation-network-panel";
@@ -96,6 +97,10 @@ class TestCitationNetworkPanel extends CitationNetworkPanel {
 
   recordForTest(): void {
     this.record(new Event("submit"));
+  }
+
+  toggleEvidenceForTest(state: string): void {
+    this.toggleEvidenceState(eventWithTarget({ dataset: { citationState: state } }));
   }
 }
 
@@ -196,6 +201,34 @@ describe("citation network panel", () => {
     expect(focusCitationNetwork({ ...network, nodes: [...network.nodes, disconnected] }, "a")).toEqual(network);
     expect(focusCitationNetwork(network, "missing")).toMatchObject({ edges: [], nodes: [] });
     expect(focusCitationNetwork(network, null)).toBe(network);
+  });
+
+  it("filters graph and list relationships through the same evidence projection", () => {
+    const inferredNeighbor = { ...network.nodes[1]!, id: "reference:c", referenceId: "c", label: "Source C" };
+    const mixed: CitationNetwork = {
+      ...network,
+      nodes: [...network.nodes, inferredNeighbor],
+      edges: [...network.edges, { ...network.edges[0]!, id: "edge:2", from: "reference:a", to: inferredNeighbor.id, state: "confirmed" }],
+    };
+    expect(filterCitationNetwork(mixed, new Set(["confirmed"]), "a")).toMatchObject({
+      edges: [{ id: "edge:2" }],
+      nodes: [{ id: "reference:a" }, { id: "reference:c" }],
+    });
+    expect(filterCitationNetwork(mixed, new Set(), "a")).toMatchObject({ edges: [], nodes: [{ id: "reference:a" }] });
+    expect(filterCitationNetwork(mixed, new Set(["confirmed", "extracted", "inferred", "conflicting"]), "a")).toBe(mixed);
+
+    const panel = new TestCitationNetworkPanel();
+    panel.setData({
+      expansion: null,
+      filterProject: false,
+      focusedReferenceId: "a",
+      network: mixed,
+      pdfArtifactIds: [],
+      referenceTitles: {},
+    });
+    panel.toggleEvidenceForTest("confirmed");
+    panel.toggleEvidenceForTest("unknown");
+    expect(panel.renderForTest()).toBeDefined();
   });
 
   it("maps PDF assertion locators to their first evidence page", () => {

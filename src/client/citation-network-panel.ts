@@ -1,6 +1,6 @@
 import { html, nothing, type TemplateResult } from "lit";
 import { LightDomElement } from "./light-dom-controller";
-import type { CitationAssertionView, CitationNetwork } from "../domain/citation-assertions";
+import type { CitationAssertionState, CitationAssertionView, CitationNetwork } from "../domain/citation-assertions";
 import type { CitationExpansionCandidate, CitationExpansionDirection, CitationExpansionResult } from "../domain/citation-expansion-types";
 import { libraryPdfRoute } from "./library-ui-route";
 import "./citation-network-graph";
@@ -38,6 +38,8 @@ export interface CitationReferenceChoice {
   readonly title: string;
 }
 
+const citationStates = ["confirmed", "extracted", "inferred", "conflicting"] as const;
+
 export class CitationNetworkPanel extends LightDomElement {
   static override properties = {
     data: { state: true },
@@ -47,6 +49,7 @@ export class CitationNetworkPanel extends LightDomElement {
     references: { state: true },
     savingDois: { state: true },
     savingExpansion: { state: true },
+    visibleStates: { state: true },
   };
 
   declare private citedReferenceId: string;
@@ -56,6 +59,7 @@ export class CitationNetworkPanel extends LightDomElement {
   declare private references: readonly CitationReferenceChoice[];
   declare private savingDois: ReadonlySet<string>;
   declare private savingExpansion: boolean;
+  declare private visibleStates: ReadonlySet<CitationAssertionState>;
 
   constructor() {
     super();
@@ -66,6 +70,7 @@ export class CitationNetworkPanel extends LightDomElement {
     this.references = [];
     this.savingDois = new Set();
     this.savingExpansion = false;
+    this.visibleStates = new Set(citationStates);
   }
 
   setData(data: CitationNetworkData): void {
@@ -90,7 +95,8 @@ export class CitationNetworkPanel extends LightDomElement {
   }
 
   protected override render(): TemplateResult {
-    const network = this.data.network ? focusCitationNetwork(this.data.network, this.data.focusedReferenceId) : null;
+    const focusedNetwork = this.data.network ? focusCitationNetwork(this.data.network, this.data.focusedReferenceId) : null;
+    const network = focusedNetwork ? filterCitationNetwork(focusedNetwork, this.visibleStates, this.data.focusedReferenceId) : null;
     const focusedTitle = this.data.focusedReferenceId ? this.data.referenceTitles[this.data.focusedReferenceId] : null;
     return html`
       ${focusedTitle
@@ -130,6 +136,7 @@ export class CitationNetworkPanel extends LightDomElement {
         </label>
         <div class="flex items-end"><button class="button-primary w-full justify-center" type="submit">Record assertion</button></div>
       </form>
+      ${focusedNetwork ? this.evidenceLegend(focusedNetwork) : nothing}
       <citation-network-graph
         class="mt-4 block overflow-hidden border border-app-line bg-app-paper"
         .network=${network}
@@ -159,6 +166,15 @@ export class CitationNetworkPanel extends LightDomElement {
 
   protected changePolarity(event: Event): void {
     this.polarity = (event.currentTarget as HTMLSelectElement).value === "does-not-cite" ? "does-not-cite" : "cites";
+  }
+
+  protected toggleEvidenceState(event: Event): void {
+    const state = (event.currentTarget as HTMLButtonElement).dataset.citationState as CitationAssertionState | undefined;
+    if (!state || !citationStates.includes(state)) return;
+    const next = new Set(this.visibleStates);
+    if (next.has(state)) next.delete(state);
+    else next.add(state);
+    this.visibleStates = next;
   }
 
   protected act(event: Event): void {
@@ -259,6 +275,40 @@ export class CitationNetworkPanel extends LightDomElement {
             )}
           `
         : nothing}
+    `;
+  }
+
+  private evidenceLegend(network: CitationNetwork): TemplateResult {
+    const counts = new Map(citationStates.map((state) => [state, network.edges.filter((edge) => edge.state === state).length]));
+    return html`
+      <section class="mt-4 border-y border-app-line py-3" aria-labelledby="citation-evidence-filter-heading">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h4 class="eyebrow" id="citation-evidence-filter-heading">Evidence shown</h4>
+            <p class="mt-1 text-xs text-app-text-soft">Filter the graph and relationship list together.</p>
+          </div>
+          <div class="flex flex-wrap gap-2" role="group" aria-label="Citation evidence filters">
+            ${citationStates.map(
+              (state) => html`
+                <button
+                  class="button-secondary gap-2"
+                  type="button"
+                  data-citation-state=${state}
+                  aria-pressed=${String(this.visibleStates.has(state))}
+                  @click=${this.toggleEvidenceState}
+                >
+                  <span
+                    class="inline-block size-2.5 border border-app-ink"
+                    style=${`background-color: var(--color-app-graph-${state})`}
+                    aria-hidden="true"
+                  ></span>
+                  ${state} · ${counts.get(state)}
+                </button>
+              `,
+            )}
+          </div>
+        </div>
+      </section>
     `;
   }
 
@@ -469,6 +519,19 @@ export function focusCitationNetwork(network: CitationNetwork, referenceId: stri
   const edges = network.edges.filter(({ from, to }) => from === focusedNodeId || to === focusedNodeId);
   const nodeIds = new Set([focusedNodeId, ...edges.flatMap(({ from, to }) => [from, to])]);
   return { ...network, edges, nodes: network.nodes.filter(({ id }) => nodeIds.has(id)) };
+}
+
+export function filterCitationNetwork(
+  network: CitationNetwork,
+  visibleStates: ReadonlySet<CitationAssertionState>,
+  focusedReferenceId: string | null,
+): CitationNetwork {
+  if (citationStates.every((state) => visibleStates.has(state))) return network;
+  const edges = network.edges.filter(({ state }) => visibleStates.has(state));
+  const visibleNodeIds = new Set(edges.flatMap(({ from, to }) => [from, to]));
+  if (focusedReferenceId) visibleNodeIds.add(`reference:${focusedReferenceId}`);
+  for (const node of network.nodes) if (node.inProject) visibleNodeIds.add(node.id);
+  return { ...network, edges, nodes: network.nodes.filter(({ id }) => visibleNodeIds.has(id)) };
 }
 
 export function citationEvidencePage(sourceLocator: string): number | null {
