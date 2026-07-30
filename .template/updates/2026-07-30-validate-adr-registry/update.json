@@ -1,0 +1,10 @@
+{
+  "id": "2026-07-30-validate-adr-registry",
+  "title": "Validate the ADR registry",
+  "status": "implemented",
+  "risk": "low",
+  "supersedes": [],
+  "adrs": ["docs/adrs/implemented/ADR-208-validate-the-adr-registry.md"],
+  "touches": ["package.json", "scripts/", "docs/adrs/", "specs/quality-gate/spec.md"],
+  "checks": ["npm run check:adrs", "npm run test:tooling", "npm run ci:local"]
+}

@@ -1,8 +1,8 @@
-# ADR-120: Use Portable Writing Workflow Files
+# ADR-204: Use Portable Writing Workflow Files
 
-## Status
+**Status:** Implemented
 
-Implemented
+**Date:** 2026-07-16
 
 ## Context
 

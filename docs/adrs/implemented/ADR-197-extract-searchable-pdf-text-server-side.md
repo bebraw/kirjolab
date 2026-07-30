@@ -1,8 +1,8 @@
-# ADR-197: Extract searchable PDF text server-side
+# ADR-197: Extract Searchable PDF Text Server-Side
 
-## Status
+**Status:** Implemented
 
-Implemented
+**Date:** 2026-07-30
 
 ## Context
 

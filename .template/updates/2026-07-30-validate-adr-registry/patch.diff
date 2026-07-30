@@ -1,0 +1,54 @@
+diff --git a/package.json b/package.json
+--- a/package.json
++++ b/package.json
+@@ -52,6 +52,7 @@
+     "build:css": "mkdir -p ./.generated && tailwindcss -i ./src/tailwind-input.css -o ./.generated/styles.css --minify",
+     "build:model-companion": "mkdir -p ./.generated && esbuild src/model-companion.ts --bundle --platform=node --format=esm --target=node24 --outfile=.generated/model-companion.mjs",
+     "build:pdf-worker": "node ./scripts/build-pdf-worker.mjs",
++    "check:adrs": "node ./scripts/check-adr-registry.mjs",
+     "ci:local": "npm run quality:gate",
+     "ci:local:container": "node ./scripts/run-local-ci.mjs",
+     "ci:local:container:retry": "agent-ci retry",
+@@ -80,7 +81,7 @@
+     "prepare": "node ./scripts/setup-git-hooks.mjs",
+     "quality:affected": "node ./scripts/run-affected-guardrails.mjs",
+     "quality:gate": "node ./scripts/run-quality-gate.mjs",
+-    "quality:gate:fast": "npm run format:check && npm run lint && npm run worker:types:check && npm run typecheck && npm run worker:client-guard && npm run test:tooling && npm run security:audit && npm run test:coverage && npm run test:workers",
++    "quality:gate:fast": "npm run format:check && npm run lint && npm run check:adrs && npm run worker:types:check && npm run typecheck && npm run worker:client-guard && npm run test:tooling && npm run security:audit && npm run test:coverage && npm run test:workers",
+     "security:audit": "npm audit --omit=dev --audit-level high",
+     "spike:codemirror": "node ./scripts/run-codemirror-parity-spike.mjs",
+     "spike:unified-latex": "node ./scripts/run-unified-latex-spike.mjs",
+diff --git a/scripts/check-adr-registry.mjs b/scripts/check-adr-registry.mjs
+new file mode 100644
+--- /dev/null
++++ b/scripts/check-adr-registry.mjs
+@@ -0,0 +1,29 @@
++import { readFile, readdir } from "node:fs/promises";
++
++const root = new URL("..", import.meta.url);
++const adrRoot = new URL("docs/adrs/", root);
++const index = await readFile(new URL("README.md", adrRoot), "utf8");
++const seen = new Map();
++const errors = [];
++for (const directory of ["proposed", "accepted", "implemented"]) {
++  for (const name of await readdir(new URL(`${directory}/`, adrRoot))) {
++    if (!name.endsWith(".md")) continue;
++    const content = await readFile(new URL(`${directory}/${name}`, adrRoot), "utf8");
++    const id = /^ADR-(\d{3})-[a-z0-9-]+\.md$/u.exec(name)?.[1];
++    if (!id) errors.push(`${directory}/${name}: invalid filename`);
++    else if (seen.has(id)) errors.push(`ADR-${id}: duplicate identifier`);
++    else seen.set(id, name);
++    if (id && !content.startsWith(`# ADR-${id}: `)) errors.push(`${directory}/${name}: mismatched heading`);
++    if (!/^\*\*Status:\*\* .+$/mu.test(content)) errors.push(`${directory}/${name}: missing status`);
++    if (id !== "000" && !/^\*\*Date:\*\* \d{4}-\d{2}-\d{2}$/mu.test(content)) errors.push(`${directory}/${name}: missing date`);
++    const target = `./${directory}/${name}`;
++    const entries = [...index.matchAll(/^\| \[ADR-\d{3}\]\((\.\/[^)]+)\)/gmu)].filter((match) => match[1] === target);
++    if (entries.length !== 1) errors.push(`${directory}/${name}: expected one index entry`);
++  }
++}
++if (errors.length) {
++  console.error(errors.join("\n"));
++  process.exitCode = 1;
++} else {
++  console.log("ADR registry is consistent.");
++}

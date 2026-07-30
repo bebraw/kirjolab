@@ -41,7 +41,8 @@
       "2026-07-17-fingerprint-pwa-shell",
       "2026-07-17-native-local-ci",
       "2026-07-22-pre-push-deep-quality",
-      "2026-07-25-dependency-cost-diagnostic"
+      "2026-07-25-dependency-cost-diagnostic",
+      "2026-07-30-validate-adr-registry"
     ]
   },
   "scripts": {
@@ -50,6 +51,7 @@
     "build:css": "mkdir -p ./.generated && tailwindcss -i ./src/tailwind-input.css -o ./.generated/styles.css --minify",
     "build:model-companion": "mkdir -p ./.generated && esbuild src/model-companion.ts --bundle --platform=node --format=esm --target=node24 --outfile=.generated/model-companion.mjs",
     "build:pdf-worker": "node ./scripts/build-pdf-worker.mjs",
+    "check:adrs": "node ./scripts/check-adr-registry.mjs",
     "ci:local": "npm run quality:gate",
     "ci:local:container": "node ./scripts/run-local-ci.mjs",
     "ci:local:container:retry": "agent-ci retry",
@@ -80,7 +82,7 @@
     "prepare": "node ./scripts/setup-git-hooks.mjs",
     "quality:affected": "node ./scripts/run-affected-guardrails.mjs",
     "quality:gate": "node ./scripts/run-quality-gate.mjs",
-    "quality:gate:fast": "npm run format:check && npm run lint && npm run worker:types:check && npm run typecheck && npm run worker:client-guard && npm run test:tooling && npm run security:audit && npm run test:coverage && npm run test:workers",
+    "quality:gate:fast": "npm run format:check && npm run lint && npm run check:adrs && npm run worker:types:check && npm run typecheck && npm run worker:client-guard && npm run test:tooling && npm run security:audit && npm run test:coverage && npm run test:workers",
     "security:audit": "npm audit --omit=dev --audit-level high",
     "spike:codemirror": "node ./scripts/run-codemirror-parity-spike.mjs",
     "spike:unified-latex": "node ./scripts/run-unified-latex-spike.mjs",

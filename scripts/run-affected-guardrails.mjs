@@ -14,6 +14,7 @@ console.log(`Affected guardrails checking ${affectedFiles.length} file(s).`);
 runPrettier(affectedFiles);
 runOxlint(affectedFiles);
 runJavaScriptSyntaxCheckWhenNeeded(affectedFiles);
+runAdrCheckWhenNeeded(affectedFiles);
 runTypecheckWhenNeeded(affectedFiles);
 runWorkerClientGuard(affectedFiles);
 runAuditWhenNeeded(affectedFiles);
@@ -60,6 +61,16 @@ function runJavaScriptSyntaxCheckWhenNeeded(files) {
   for (const file of syntaxCheckFiles) {
     run(repoRoot, "node", ["--check", file]);
   }
+}
+
+function runAdrCheckWhenNeeded(files) {
+  if (!files.some((file) => file.startsWith("docs/adrs/") || file === "scripts/check-adr-registry.mjs")) {
+    console.log("ADR registry check skipped: no affected ADR registry files.");
+    return;
+  }
+
+  console.log("Checking the ADR registry because ADR records or validation changed...");
+  run(repoRoot, "npm", ["run", "check:adrs"]);
 }
 
 function runWorkerClientGuard(files) {

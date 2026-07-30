@@ -46,6 +46,7 @@ copying unrelated starter structure.
   - `2026-07-15-quality-gate-progress`
   - `2026-07-17-fingerprint-pwa-shell`
   - `2026-07-17-native-local-ci`
+  - `2026-07-30-validate-adr-registry`
 
 ### Anti-Patterns
 

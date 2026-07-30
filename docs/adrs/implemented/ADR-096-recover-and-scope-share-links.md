@@ -7,7 +7,7 @@
 
 **Amended:** 2026-07-14 — add presence-only edit-link sockets
 
-**Partially supersedes:** [ADR-094](./ADR-094-use-revocable-read-only-share-links.md)
+**Partially supersedes:** [ADR-203](./ADR-203-use-revocable-read-only-share-links.md)
 
 ## Context
 

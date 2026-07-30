@@ -5,7 +5,7 @@
 **Date:** 2026-07-19
 
 **Partially supersedes:**
-[ADR-094](./ADR-094-use-revocable-read-only-share-links.md) and
+[ADR-203](./ADR-203-use-revocable-read-only-share-links.md) and
 [ADR-096](./ADR-096-recover-and-scope-share-links.md)
 
 ## Context
@@ -65,10 +65,10 @@ Continue serving bearer pages and their scoped resources with non-cacheable,
 no-referrer responses. Keep the deliberate Cloudflare Access bypass limited to
 `/share/*` and `/edit/*`; authenticated application routes remain protected.
 
-This decision supersedes only ADR-094's dedicated output-viewer presentation
+This decision supersedes only ADR-203's dedicated output-viewer presentation
 and ADR-096's separate edit-page presentation. Their bearer-token validation,
 revocation, response, API, origin, revision, data-exposure, and socket
-boundaries remain in force. In particular, ADR-094's rejection of loading the
+boundaries remain in force. In particular, ADR-203's rejection of loading the
 authenticated application in a disabled mode still applies.
 
 ## Trigger

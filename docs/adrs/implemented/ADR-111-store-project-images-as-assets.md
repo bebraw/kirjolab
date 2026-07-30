@@ -4,7 +4,7 @@
 
 **Date:** 2026-07-15
 
-**Supersedes in part:** [ADR-057](./ADR-057-compose-projects-from-markdown-files.md)
+**Supersedes in part:** [ADR-057](./ADR-057-compose-projects-from-main.md)
 
 ## Context
 

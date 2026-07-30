@@ -6,7 +6,7 @@
 
 ## Context
 
-ADR-094 originally used the browser workspace id as the public read-only share
+ADR-203 originally used the browser workspace id as the public read-only share
 locator. That works for globally unique UUID projects, but the compatible
 starter workspace uses the browser id `demo` in every owner's catalog. Hosted
 storage keeps those projects isolated under owner-scoped Durable Object names,

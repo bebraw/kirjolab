@@ -1,8 +1,8 @@
-# ADR-122: Separate Review Responses from Comments
+# ADR-206: Separate Review Responses From Comments
 
-## Status
+**Status:** Implemented
 
-Implemented
+**Date:** 2026-07-16
 
 ## Context
 

@@ -1,4 +1,4 @@
-# ADR-094: Use Revocable Read-Only Share Links
+# ADR-203: Use Revocable Read-Only Share Links
 
 **Status:** Partially superseded by
 [ADR-096](./ADR-096-recover-and-scope-share-links.md) and

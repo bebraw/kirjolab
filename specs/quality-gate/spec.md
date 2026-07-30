@@ -46,6 +46,7 @@ The template needs a verification baseline that stays strict enough for end-to-e
 - **Browser runtime image:** `mcr.microsoft.com/playwright:v1.61.1-noble`
 - **Coverage gate logic:** `scripts/run-coverage-gate.mjs`
 - **Worker client-code guard:** `scripts/assert-no-worker-client-scripts.mjs`
+- **ADR registry guard:** `scripts/check-adr-registry.mjs`
 - **Codebase diagnostics config:** `.fallowrc.json`
 - **Formatting ownership exclusions:** duplicated `.github/skills/` content and
   vendored `.codex/skills/**/references/`
@@ -76,6 +77,8 @@ The template needs a verification baseline that stays strict enough for end-to-e
 ### Definition of Done
 
 - [ ] The fast gate covers formatting, type checking, Worker client-code guardrails, runtime audit, unit coverage, and real Workers-runtime tests.
+- [ ] The ADR registry guard rejects duplicate identifiers, mismatched headings,
+      missing lifecycle metadata, absent index entries, and broken local ADR links.
 - [ ] The affected guardrail path scopes formatting, JavaScript syntax checks, Worker client-code checks, package audit, and unit tests to affected files when possible.
 - [ ] The affected test gate runs tests related to affected runtime files, runs affected unit test files directly, and falls back to full coverage for broad test environment changes or affected runtime files with no related tests.
 - [ ] The advisory codebase diagnostics report changed-code readability risk, whole-repo health, hotspots, duplication, and cleanup evidence without becoming part of the hard quality gate.
@@ -157,6 +160,8 @@ The template needs a verification baseline that stays strict enough for end-to-e
 - The coverage gate must only require unit tests when runtime `src/` code exists.
 - The coverage gate must work in both the normal workspace and local Agent CI's warmed `node_modules` layout.
 - The Worker client-code guard must fail on inline script blocks without a `src`, inline event-handler attributes, and `javascript:` URLs in Worker/view runtime files while allowing external scripts from the typed client build.
+- The ADR registry guard must run in the fast gate and affected guardrails when
+  ADR records, their index, or the validator change.
 - The affected guardrail path must pass only affected Worker/view runtime files to the Worker client-code guard.
 - The affected guardrail path must run JavaScript syntax checks only for affected JavaScript files.
 - The affected guardrail path must run package audit only when package metadata or lockfiles change.

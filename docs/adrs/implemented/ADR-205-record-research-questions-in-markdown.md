@@ -1,8 +1,8 @@
-# ADR-121: Record Research Questions in Markdown
+# ADR-205: Record Research Questions in Markdown
 
-## Status
+**Status:** Implemented
 
-Implemented
+**Date:** 2026-07-16
 
 ## Context
 
