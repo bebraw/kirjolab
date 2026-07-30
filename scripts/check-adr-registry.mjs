@@ -32,48 +32,68 @@ export function validateAdrRegistry(records, index) {
   const indexedTargets = [...index.matchAll(/^\| \[ADR-\d{3}\]\((\.\/[^)]+)\)/gmu)].map((match) => match[1]);
 
   for (const record of records) {
-    const filenameMatch = /^ADR-(\d{3})-[a-z0-9-]+\.md$/u.exec(record.name);
-    if (!filenameMatch) {
+    const id = adrId(record.name);
+    if (!id) {
       errors.push(`${record.directory}/${record.name}: filename must match ADR-NNN-kebab-title.md`);
       continue;
     }
-
-    const id = filenameMatch[1];
     const previous = ids.get(id);
     if (previous) errors.push(`ADR-${id}: duplicate identifiers in ${previous} and ${record.directory}/${record.name}`);
     else ids.set(id, `${record.directory}/${record.name}`);
-
-    const heading = /^# ADR-(\d{3}): .+$/mu.exec(record.content);
-    if (!heading || heading[1] !== id) errors.push(`${record.directory}/${record.name}: heading must use ADR-${id}`);
-
-    const status = /^\*\*Status:\*\* (.+)$/mu.exec(record.content)?.[1];
-    if (!status) errors.push(`${record.directory}/${record.name}: missing single-line ADR status`);
-    if (record.directory === "proposed" && status !== "Proposed") {
-      errors.push(`${record.directory}/${record.name}: proposed ADR must have Proposed status`);
-    }
-    if (record.directory === "accepted" && status !== "Accepted") {
-      errors.push(`${record.directory}/${record.name}: accepted ADR must have Accepted status`);
-    }
-    if (record.directory === "implemented" && status === "Proposed") {
-      errors.push(`${record.directory}/${record.name}: implemented ADR cannot have Proposed status`);
-    }
-
-    if (id !== "000" && !/^\*\*Date:\*\* \d{4}-\d{2}-\d{2}$/mu.test(record.content)) {
-      errors.push(`${record.directory}/${record.name}: missing YYYY-MM-DD decision date`);
-    }
-
-    const indexTarget = `./${record.directory}/${record.name}`;
-    const indexOccurrences = indexedTargets.filter((target) => target === indexTarget).length;
-    if (indexOccurrences !== 1) {
-      errors.push(`${record.directory}/${record.name}: ADR index must reference the record exactly once (found ${indexOccurrences})`);
-    }
-
-    for (const match of record.content.matchAll(/\]\(\.\/(ADR-\d{3}-[a-z0-9-]+\.md)(?:#[^)]+)?\)/gu)) {
-      if (!names.has(match[1])) errors.push(`${record.directory}/${record.name}: broken ADR link to ${match[1]}`);
-    }
+    errors.push(...recordErrors(record, id, names, indexedTargets));
   }
 
   return errors;
+}
+
+function adrId(name) {
+  return /^ADR-(\d{3})-[a-z0-9-]+\.md$/u.exec(name)?.[1];
+}
+
+function recordErrors(record, id, names, indexedTargets) {
+  return [
+    ...headingErrors(record, id),
+    ...statusErrors(record),
+    ...dateErrors(record, id),
+    ...indexErrors(record, indexedTargets),
+    ...linkErrors(record, names),
+  ];
+}
+
+function headingErrors(record, id) {
+  const heading = /^# ADR-(\d{3}): .+$/mu.exec(record.content);
+  return heading?.[1] === id ? [] : [`${record.directory}/${record.name}: heading must use ADR-${id}`];
+}
+
+function statusErrors(record) {
+  const status = /^\*\*Status:\*\* (.+)$/mu.exec(record.content)?.[1];
+  const path = `${record.directory}/${record.name}`;
+  if (!status) return [`${path}: missing single-line ADR status`];
+  if (record.directory === "proposed" && status !== "Proposed") return [`${path}: proposed ADR must have Proposed status`];
+  if (record.directory === "accepted" && status !== "Accepted") return [`${path}: accepted ADR must have Accepted status`];
+  if (record.directory === "implemented" && status === "Proposed") return [`${path}: implemented ADR cannot have Proposed status`];
+  return [];
+}
+
+function dateErrors(record, id) {
+  return id === "000" || /^\*\*Date:\*\* \d{4}-\d{2}-\d{2}$/mu.test(record.content)
+    ? []
+    : [`${record.directory}/${record.name}: missing YYYY-MM-DD decision date`];
+}
+
+function indexErrors(record, indexedTargets) {
+  const path = `${record.directory}/${record.name}`;
+  const target = `./${path}`;
+  const count = indexedTargets.filter((candidate) => candidate === target).length;
+  return count === 1 ? [] : [`${path}: ADR index must reference the record exactly once (found ${count})`];
+}
+
+function linkErrors(record, names) {
+  const path = `${record.directory}/${record.name}`;
+  return [...record.content.matchAll(/\]\(\.\/(ADR-\d{3}-[a-z0-9-]+\.md)(?:#[^)]+)?\)/gu)]
+    .map((match) => match[1])
+    .filter((name) => !names.has(name))
+    .map((name) => `${path}: broken ADR link to ${name}`);
 }
 
 const entry = process.argv[1];

@@ -1,0 +1,17 @@
+diff --git a/.fallowrc.json b/.fallowrc.json
+--- a/.fallowrc.json
++++ b/.fallowrc.json
+@@
++  "ignorePatterns": ["worker-configuration.d.ts"],
+@@
+-  "usedClassMembers": [{ "extends": "LightDomElement", "members": ["properties"] }]
++  "usedClassMembers": [
++    { "extends": "DurableObject", "members": ["*"] },
++    { "extends": "LightDomElement", "members": ["properties"] }
++  ]
+diff --git a/package.json b/package.json
+--- a/package.json
++++ b/package.json
+@@
+-    "fallow": "2.97.0",
++    "fallow": "3.10.0",

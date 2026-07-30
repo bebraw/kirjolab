@@ -26,15 +26,11 @@ interface ArtifactAnalysisRow extends Record<string, SqlStorageValue> {
 export class ArtifactAnalysisService {
   constructor(private readonly sql: SqlStorage) {}
 
-  // Fallow does not trace calls through the Durable Object's private service field.
-  // fallow-ignore-next-line unused-class-member
   get(artifactId: string, kind: ArtifactAnalysisKind): ArtifactAnalysis | null {
     const row = this.#row(artifactId, kind);
     return row ? artifactAnalysisFromRow(row) : null;
   }
 
-  // Fallow does not trace calls through the Durable Object's private service field.
-  // fallow-ignore-next-line unused-class-member
   queue(artifactId: string, kind: ArtifactAnalysisKind, requestedAt: string, force = false): ArtifactAnalysis {
     const artifact = this.sql.exec<ArtifactFingerprintRow>("SELECT fingerprint FROM artifacts WHERE id = ?", artifactId).toArray()[0];
     if (!artifact) throw new Error("PDF artifact not found");
@@ -66,8 +62,6 @@ export class ArtifactAnalysisService {
     return artifactAnalysisFromRow(this.#row(artifactId, kind)!);
   }
 
-  // Fallow does not trace calls through the Durable Object's private service field.
-  // fallow-ignore-next-line unused-class-member
   start(artifactId: string, kind: ArtifactAnalysisKind, fingerprint: string, requestedAt: string): boolean {
     const row = this.#row(artifactId, kind);
     if (!row || row.fingerprint !== fingerprint || row.requested_at !== requestedAt || row.status === "running" || row.status === "ready") {
@@ -82,8 +76,6 @@ export class ArtifactAnalysisService {
     return true;
   }
 
-  // Fallow does not trace calls through the Durable Object's private service field.
-  // fallow-ignore-next-line unused-class-member
   complete(
     artifactId: string,
     kind: ArtifactAnalysisKind,
@@ -111,8 +103,6 @@ export class ArtifactAnalysisService {
     return true;
   }
 
-  // Fallow does not trace calls through the Durable Object's private service field.
-  // fallow-ignore-next-line unused-class-member
   fail(artifactId: string, kind: ArtifactAnalysisKind, fingerprint: string, requestedAt: string, error: string): boolean {
     const row = this.#row(artifactId, kind);
     if (!row || row.fingerprint !== fingerprint || row.requested_at !== requestedAt) return false;

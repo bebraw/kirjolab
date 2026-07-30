@@ -453,7 +453,16 @@ function backfillPinnedReviewWorkflow(sql: SQLiteMigrationSql): void {
     UPDATE review_meta SET import_byte_count = COALESCE((SELECT SUM(byte_count) FROM review_import_batches), 0)
     WHERE singleton = 1;
   `);
-  const protocols = sql
+  const protocols = normalizeProtocols(sql);
+  pinScreeningDecisions(sql, protocols);
+  pinScreeningAdjudications(sql, protocols);
+  normalizeQualityValues(sql, protocols);
+  normalizeExtractionValues(sql, protocols);
+  normalizeModelCandidates(sql, protocols);
+}
+
+function normalizeProtocols(sql: SQLiteMigrationSql): MigrationProtocolState[] {
+  return sql
     .exec<MigrationProtocolRow>("SELECT revision, payload_json FROM protocol_revisions ORDER BY revision ASC")
     .toArray()
     .map((row) => {
@@ -461,7 +470,9 @@ function backfillPinnedReviewWorkflow(sql: SQLiteMigrationSql): void {
       sql.exec("UPDATE protocol_revisions SET payload_json = ? WHERE revision = ?", JSON.stringify(content), row.revision);
       return { revision: row.revision, content } satisfies MigrationProtocolState;
     });
+}
 
+function pinScreeningDecisions(sql: SQLiteMigrationSql, protocols: readonly MigrationProtocolState[]): void {
   const decisions = sql
     .exec<MigrationScreeningDecisionRow>(
       "SELECT id, stage, decision, criterion, revision FROM screening_decisions ORDER BY revision ASC, id ASC",
@@ -478,7 +489,9 @@ function backfillPinnedReviewWorkflow(sql: SQLiteMigrationSql): void {
       row.id,
     );
   }
+}
 
+function pinScreeningAdjudications(sql: SQLiteMigrationSql, protocols: readonly MigrationProtocolState[]): void {
   const adjudications = sql
     .exec<MigrationScreeningAdjudicationRow>(
       "SELECT id, record_id, stage, outcome, revision FROM screening_adjudications ORDER BY revision ASC, id ASC",
@@ -503,7 +516,9 @@ function backfillPinnedReviewWorkflow(sql: SQLiteMigrationSql): void {
       row.id,
     );
   }
+}
 
+function normalizeQualityValues(sql: SQLiteMigrationSql, protocols: readonly MigrationProtocolState[]): void {
   const qualityValues = sql
     .exec<MigrationEvidenceValueRow>(
       "SELECT id, question_id AS criterion_id, evidence_json, revision FROM quality_assessment_values ORDER BY revision ASC, id ASC",
@@ -522,7 +537,9 @@ function backfillPinnedReviewWorkflow(sql: SQLiteMigrationSql): void {
       row.id,
     );
   }
+}
 
+function normalizeExtractionValues(sql: SQLiteMigrationSql, protocols: readonly MigrationProtocolState[]): void {
   const extractionValues = sql
     .exec<MigrationEvidenceValueRow>(
       "SELECT id, field_id AS criterion_id, evidence_json, revision FROM extracted_data_values ORDER BY revision ASC, id ASC",
@@ -541,7 +558,9 @@ function backfillPinnedReviewWorkflow(sql: SQLiteMigrationSql): void {
       row.id,
     );
   }
+}
 
+function normalizeModelCandidates(sql: SQLiteMigrationSql, protocols: readonly MigrationProtocolState[]): void {
   const modelCandidates = sql
     .exec<MigrationModelCandidateRow>(
       "SELECT id, operation, stage, result_json, created_revision FROM review_model_candidates ORDER BY created_revision ASC, id ASC",

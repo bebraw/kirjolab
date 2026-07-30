@@ -52,7 +52,8 @@
       "2026-07-30-relax-npm-version-hint",
       "2026-07-30-clean-disposable-state",
       "2026-07-30-refresh-core-tooling",
-      "2026-07-30-playwright-1-62-ci-image"
+      "2026-07-30-playwright-1-62-ci-image",
+      "2026-07-30-fallow-3-diagnostics"
     ]
   },
   "scripts": {
@@ -127,7 +128,7 @@
     "@vitest/coverage-v8": "4.1.10",
     "chrome-launcher": "1.2.1",
     "esbuild": "0.28.1",
-    "fallow": "2.97.0",
+    "fallow": "3.10.0",
     "lighthouse": "13.4.1",
     "oxlint": "1.76.0",
     "prettier": "3.9.6",

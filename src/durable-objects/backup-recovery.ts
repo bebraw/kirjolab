@@ -99,7 +99,6 @@ export class BackupRecovery extends DurableObject<Env> {
   }
 
   // Durable Object RPC entrypoint invoked through its namespace stub.
-  // fallow-ignore-next-line unused-class-member
   async restoreManifest(manifestJson: string): Promise<BackupManifestRestoreResult> {
     if (new TextEncoder().encode(manifestJson).byteLength > maximumOwnerBackupBytes)
       throw new Error("Owner backup manifest exceeds 10 MiB");
@@ -154,7 +153,6 @@ export class BackupRecovery extends DurableObject<Env> {
   }
 
   // Durable Object RPC entrypoint invoked through its namespace stub.
-  // fallow-ignore-next-line unused-class-member
   getRestoredManifest(): string | null {
     const metadata = this.ctx.storage.sql
       .exec<{ chunk_count: number }>("SELECT chunk_count FROM recovered_manifests WHERE id = 1")
@@ -167,7 +165,6 @@ export class BackupRecovery extends DurableObject<Env> {
   }
 
   // Durable Object RPC entrypoint invoked through its namespace stub.
-  // fallow-ignore-next-line unused-class-member
   getRestoredReviewStudies(): RecoveredReviewStudy[] {
     return this.ctx.storage.sql
       .exec<RecoveredReviewRow>("SELECT * FROM recovered_review_studies ORDER BY workspace_id ASC")

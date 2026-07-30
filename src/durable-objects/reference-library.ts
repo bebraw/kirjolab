@@ -1052,7 +1052,6 @@ export class ReferenceLibrary extends DurableObject<Env> {
   }
 
   // Invoked across the Durable Object RPC boundary.
-  // fallow-ignore-next-line unused-class-member
   attachPdf(referenceId: string, artifact: LibraryPdfArtifact): PdfDraftResult {
     const reference = this.#reference(referenceId);
     if (reference.deletedAt) throw new Error("Library reference not found");
@@ -1081,25 +1080,21 @@ export class ReferenceLibrary extends DurableObject<Env> {
   }
 
   // Invoked across the Durable Object RPC boundary.
-  // fallow-ignore-next-line unused-class-member
   getArtifactAnalysis(artifactId: string, kind: ArtifactAnalysisKind): ArtifactAnalysis | null {
     return this.#artifactAnalyses.get(artifactId, kind);
   }
 
   // Invoked across the Durable Object RPC boundary.
-  // fallow-ignore-next-line unused-class-member
   queueArtifactAnalysis(artifactId: string, kind: ArtifactAnalysisKind, requestedAt: string, force = false): ArtifactAnalysis {
     return this.#artifactAnalyses.queue(artifactId, kind, requestedAt, force);
   }
 
   // Invoked across the Durable Object RPC boundary.
-  // fallow-ignore-next-line unused-class-member
   startArtifactAnalysis(artifactId: string, kind: ArtifactAnalysisKind, fingerprint: string, requestedAt: string): boolean {
     return this.#artifactAnalyses.start(artifactId, kind, fingerprint, requestedAt);
   }
 
   // Invoked across the Durable Object RPC boundary.
-  // fallow-ignore-next-line unused-class-member
   completeArtifactAnalysis(
     artifactId: string,
     kind: ArtifactAnalysisKind,
@@ -1111,7 +1106,6 @@ export class ReferenceLibrary extends DurableObject<Env> {
   }
 
   // Invoked across the Durable Object RPC boundary.
-  // fallow-ignore-next-line unused-class-member
   failArtifactAnalysis(artifactId: string, kind: ArtifactAnalysisKind, fingerprint: string, requestedAt: string, error: string): boolean {
     return this.#artifactAnalyses.fail(artifactId, kind, fingerprint, requestedAt, error);
   }

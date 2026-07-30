@@ -1,0 +1,10 @@
+{
+  "id": "2026-07-30-fallow-3-diagnostics",
+  "title": "Upgrade advisory diagnostics to Fallow 3",
+  "status": "implemented",
+  "risk": "medium",
+  "supersedes": ["2026-06-17-advisory-fallow-diagnostics"],
+  "adrs": ["docs/adrs/implemented/ADR-033-add-advisory-fallow-diagnostics.md"],
+  "touches": ["package.json", "package-lock.json", ".fallowrc.json", "docs/development.md", "specs/quality-gate/spec.md"],
+  "checks": ["npm run diagnostics:readability", "npm run diagnostics:health", "npm run quality:gate:fast"]
+}

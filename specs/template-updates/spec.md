@@ -52,6 +52,7 @@ copying unrelated starter structure.
   - `2026-07-30-clean-disposable-state`
   - `2026-07-30-refresh-core-tooling`
   - `2026-07-30-playwright-1-62-ci-image`
+  - `2026-07-30-fallow-3-diagnostics`
 
 ### Anti-Patterns
 

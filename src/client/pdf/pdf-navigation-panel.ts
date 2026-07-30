@@ -197,7 +197,7 @@ export function togglePdfBookmark(bookmarks: readonly number[], page: number): n
   return next.sort((left, right) => left - right);
 }
 
-export function readPdfBookmarks(key: string): number[] {
+function readPdfBookmarks(key: string): number[] {
   if (!key || typeof localStorage === "undefined") return [];
   try {
     const value: unknown = JSON.parse(localStorage.getItem(`pdf-bookmarks:${key}`) ?? "[]");

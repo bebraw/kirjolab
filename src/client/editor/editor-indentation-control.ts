@@ -43,7 +43,6 @@ export class EditorIndentationControl extends LightDomElement {
   }
 
   // Called through the editor's light-DOM owner registry.
-  // fallow-ignore-next-line unused-class-member
   bindEditor(textarea: HTMLTextAreaElement, shell: HTMLElement): void {
     this.unbindEditor();
     this.textarea = textarea;

@@ -141,6 +141,10 @@ failures quickly during normal development.
   surviving-mutant listings out of routine output while preserving tool exit
   status, health score, mutation progress, and final mutation score.
 - Fallow diagnostics must use `--no-cache` in repo scripts so normal diagnostic runs do not create a persistent `.fallow/` cache.
+- Fallow's new-only audit may create a temporary Git worktree to compare the
+  branch with its upstream and must keep inherited findings advisory.
+- Fallow must exclude generated Worker declarations from analysis and treat
+  public members on `DurableObject` subclasses as runtime-invoked RPC surface.
 - Fallow complexity and duplication diagnostics must exclude unit and end-to-end
   test files; test readability remains protected by formatting, linting,
   typechecking, and execution without penalizing deliberate exact-fixture

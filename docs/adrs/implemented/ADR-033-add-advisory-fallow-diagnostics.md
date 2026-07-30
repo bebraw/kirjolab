@@ -56,6 +56,11 @@ typechecking, and test execution remain their required quality signals. Fallow
 continues to analyze production code for complexity and duplication and the
 complete project for dependency and dead-code hygiene.
 
+Fallow 3 excludes generated Worker declarations from every analysis and treats
+public members on `DurableObject` subclasses as framework-invoked RPC surface.
+This keeps generated types and Cloudflare's runtime dispatch model from
+obscuring actionable new-only findings.
+
 Package commands enter project-owned build and compiler scripts before those
 scripts resolve tool files under `node_modules`. This keeps Fallow's entry-point
 discovery inside the project root and avoids hiding genuine diagnostics among

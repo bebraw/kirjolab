@@ -8,6 +8,7 @@
     "src/client/service-worker.ts",
     "scripts/pdf-reference-quality-entry.ts"
   ],
+  "ignorePatterns": ["worker-configuration.d.ts"],
   "ignoreDependencies": ["@stryker-mutator/api", "mdast-util-directive", "typescript-7"],
   "duplicates": {
     "ignore": ["**/*.test.ts", "**/*.test.mts", "**/*.test.mjs", "**/*.e2e.ts"]
@@ -15,5 +16,8 @@
   "health": {
     "ignore": ["**/*.test.ts", "**/*.test.mts", "**/*.test.mjs", "**/*.e2e.ts"]
   },
-  "usedClassMembers": [{ "extends": "LightDomElement", "members": ["properties"] }]
+  "usedClassMembers": [
+    { "extends": "DurableObject", "members": ["*"] },
+    { "extends": "LightDomElement", "members": ["properties"] }
+  ]
 }

@@ -239,8 +239,24 @@ export function screeningCard(
   const abstract = document.createElement("p");
   abstract.className = "review-screen-abstract";
   abstract.textContent = state.record.metadata.abstract || "No abstract was present in the imported record.";
-  card.append(header, abstract);
+  card.append(header, abstract, screeningControls(state, stage, protocolSnapshot, submit, adjudicate));
+  if (generateCandidate) card.append(actionButton("Ask local model", () => void generateCandidate(state)));
+  for (const candidate of candidates) card.append(modelCandidateCard(candidate, resolveCandidate));
+  const history = screeningHistory(stageState.decisions);
+  if (history) card.append(history);
+  const final = finalInclusionForm(state, stage, stageState.outcome, protocolSnapshot, decideFinalInclusion);
+  if (final) card.append(final);
+  return card;
+}
 
+function screeningControls(
+  state: ScreeningRecordState,
+  stage: ScreeningStage,
+  protocolSnapshot: ReviewStudySnapshot,
+  submit: (recordId: string, form: HTMLFormElement) => Promise<void>,
+  adjudicate: (recordId: string, outcome: "include" | "exclude") => Promise<void>,
+): HTMLElement {
+  const stageState = screeningStateFor(state, stage);
   if (stageState.outcome === "conflict") {
     const actions = document.createElement("div");
     actions.className = "review-duplicate-actions";
@@ -248,64 +264,55 @@ export function screeningCard(
       actionButton("Adjudicate include", () => void adjudicate(state.record.id, "include")),
       actionButton("Adjudicate exclude", () => void adjudicate(state.record.id, "exclude")),
     );
-    card.append(actions);
-  } else {
-    const form = document.createElement("form");
-    form.className = "review-screen-form";
-    form.append(
-      selectField("Decision", "decision", ["include", "exclude", "uncertain"]),
-      criterionSelectField(protocolSnapshot.protocol.eligibilityCriteria.filter((criterion) => criterion.applicableStages.includes(stage))),
-      inputField("Reason", "reason", "Required when excluding"),
-    );
-    const save = document.createElement("button");
-    save.className = "button-primary";
-    save.type = "submit";
-    save.textContent = stageState.decisions.length > 0 ? "Revise decision" : "Record decision";
-    form.append(save);
-    form.addEventListener("submit", (event) => {
-      event.preventDefault();
-      void submit(state.record.id, form);
-    });
-    card.append(form);
+    return actions;
   }
-  if (generateCandidate) card.append(actionButton("Ask local model", () => void generateCandidate(state)));
-  for (const candidate of candidates) card.append(modelCandidateCard(candidate, resolveCandidate));
-  if (stageState.decisions.length > 0) {
-    const history = document.createElement("p");
-    history.className = "review-decision-history";
-    history.textContent = stageState.decisions
-      .map((decision) => `${decision.reviewer}: ${decision.decision}${decision.reason ? ` — ${decision.reason}` : ""}`)
-      .join(" · ");
-    card.append(history);
-  }
-  if (stage === "full-text" && stageState.outcome === "include") {
-    const final = document.createElement("form");
-    final.className = "review-screen-form";
-    const heading = document.createElement("strong");
-    heading.textContent =
-      state.finalInclusion.outcome === "pending" ? "Final inclusion" : `Final inclusion: ${state.finalInclusion.outcome}`;
-    final.append(
-      heading,
-      selectField("Outcome", "outcome", ["include", "exclude"]),
-      criterionSelectField(
-        protocolSnapshot.protocol.eligibilityCriteria.filter(
-          (criterion) => criterion.kind === "exclude" && criterion.applicableStages.includes("full-text"),
-        ),
+  const form = document.createElement("form");
+  form.className = "review-screen-form";
+  form.append(
+    selectField("Decision", "decision", ["include", "exclude", "uncertain"]),
+    criterionSelectField(protocolSnapshot.protocol.eligibilityCriteria.filter((criterion) => criterion.applicableStages.includes(stage))),
+    inputField("Reason", "reason", "Required when excluding"),
+  );
+  appendSubmit(form, stageState.decisions.length > 0 ? "Revise decision" : "Record decision", () => submit(state.record.id, form));
+  return form;
+}
+
+function screeningHistory(decisions: ReturnType<typeof screeningStateFor>["decisions"]): HTMLElement | null {
+  if (decisions.length === 0) return null;
+  const history = document.createElement("p");
+  history.className = "review-decision-history";
+  history.textContent = decisions
+    .map((decision) => `${decision.reviewer}: ${decision.decision}${decision.reason ? ` — ${decision.reason}` : ""}`)
+    .join(" · ");
+  return history;
+}
+
+function finalInclusionForm(
+  state: ScreeningRecordState,
+  stage: ScreeningStage,
+  outcome: ReturnType<typeof screeningStateFor>["outcome"],
+  protocolSnapshot: ReviewStudySnapshot,
+  decide: (recordId: string, form: HTMLFormElement) => Promise<void>,
+): HTMLFormElement | null {
+  if (stage !== "full-text" || outcome !== "include") return null;
+  const form = document.createElement("form");
+  form.className = "review-screen-form";
+  const heading = document.createElement("strong");
+  heading.textContent = state.finalInclusion.outcome === "pending" ? "Final inclusion" : `Final inclusion: ${state.finalInclusion.outcome}`;
+  form.append(
+    heading,
+    selectField("Outcome", "outcome", ["include", "exclude"]),
+    criterionSelectField(
+      protocolSnapshot.protocol.eligibilityCriteria.filter(
+        (criterion) => criterion.kind === "exclude" && criterion.applicableStages.includes("full-text"),
       ),
-      inputField("Rationale", "reason", "Why this record enters or leaves the synthesis corpus"),
-    );
-    const save = document.createElement("button");
-    save.className = "button-primary";
-    save.type = "submit";
-    save.textContent = state.finalInclusion.decision ? "Supersede final decision" : "Record final inclusion";
-    final.append(save);
-    final.addEventListener("submit", (event) => {
-      event.preventDefault();
-      void decideFinalInclusion(state.record.id, final);
-    });
-    card.append(final);
-  }
-  return card;
+    ),
+    inputField("Rationale", "reason", "Why this record enters or leaves the synthesis corpus"),
+  );
+  appendSubmit(form, state.finalInclusion.decision ? "Supersede final decision" : "Record final inclusion", () =>
+    decide(state.record.id, form),
+  );
+  return form;
 }
 
 function criterionSelectField(criteria: ReviewStudySnapshot["protocol"]["eligibilityCriteria"]): HTMLLabelElement {
@@ -396,14 +403,7 @@ export function appraisalCard(
       option.textContent = answer ? `${answer.label} (${answer.weight})` : option.value;
     }
     form.append(...evidenceFields(), inputField("Absence rationale", "rationale", "Use instead of a quotation for a negative answer"));
-    const save = actionButton("Save answer", () => undefined);
-    save.className = "button-primary";
-    save.type = "submit";
-    form.append(save);
-    form.addEventListener("submit", (event) => {
-      event.preventDefault();
-      void submit(record.record.id, question.id, form);
-    });
+    appendSubmit(form, "Save answer", () => submit(record.record.id, question.id, form));
     card.append(form);
   }
   return card;
@@ -426,68 +426,103 @@ export function extractionCard(
   const card = evidenceCardHeader(record, record.extractionComplete ? "Complete" : "In progress");
   for (const field of snapshot.protocol.extractionFields) {
     const recorded = latestExtractionValue(record.extractionValues, field.id);
-    const form = document.createElement("form");
-    form.className = "review-evidence-form";
-    const heading = document.createElement("strong");
-    heading.textContent = field.label;
-    form.append(heading, extractionInput(field));
-    form.append(inputField("Missing reason", "missingReason", "Use only when the value is absent"), ...evidenceFields());
-    if (recorded) populateRecordedExtraction(form, recorded);
-    const save = actionButton(recorded ? "Supersede value" : "Save value", () => undefined);
-    save.className = "button-primary";
-    save.type = "submit";
-    form.append(save);
-    if (generateCandidate) {
-      form.append(actionButton("Ask local model", () => void generateCandidate(record, field, form)));
-    }
-    form.addEventListener("submit", (event) => {
-      event.preventDefault();
-      void submit(record.record.id, field.id, field.type, form);
-    });
-    if (recorded) {
-      const status = document.createElement("p");
-      status.className = "review-field-help";
-      status.textContent = `Recorded by ${recorded.reviewer} · ${recorded.createdAt}`;
-      form.append(status);
-    }
+    const form = extractionForm(record, field, recorded, submit, generateCandidate);
     card.append(form);
-    for (const candidate of candidates) {
-      if (candidate.operation === "extract-field" && (candidate.result as ExtractionModelResult).fieldId === field.id) {
-        card.append(modelCandidateCard(candidate, resolveCandidate));
-      }
-    }
+    card.append(
+      ...candidates
+        .filter((candidate) => candidate.operation === "extract-field" && (candidate.result as ExtractionModelResult).fieldId === field.id)
+        .map((candidate) => modelCandidateCard(candidate, resolveCandidate)),
+    );
   }
   return card;
 }
 
+function extractionForm(
+  record: EvidenceRecordState,
+  field: ReviewEvidenceSnapshot["protocol"]["extractionFields"][number],
+  recorded: ExtractedDataValue | null,
+  submit: (recordId: string, fieldId: string, fieldType: string, form: HTMLFormElement) => Promise<void>,
+  generateCandidate:
+    | ((
+        record: EvidenceRecordState,
+        field: ReviewEvidenceSnapshot["protocol"]["extractionFields"][number],
+        form: HTMLFormElement,
+      ) => Promise<void>)
+    | null,
+): HTMLFormElement {
+  const form = document.createElement("form");
+  form.className = "review-evidence-form";
+  const heading = document.createElement("strong");
+  heading.textContent = field.label;
+  form.append(
+    heading,
+    extractionInput(field),
+    inputField("Missing reason", "missingReason", "Use only when the value is absent"),
+    ...evidenceFields(),
+  );
+  if (recorded) populateRecordedExtraction(form, recorded);
+  appendSubmit(form, recorded ? "Supersede value" : "Save value", () => submit(record.record.id, field.id, field.type, form));
+  if (generateCandidate) form.append(actionButton("Ask local model", () => void generateCandidate(record, field, form)));
+  if (recorded) form.append(recordedExtractionStatus(recorded));
+  return form;
+}
+
+function appendSubmit(form: HTMLFormElement, label: string, submit: () => Promise<void>): void {
+  const button = actionButton(label, () => undefined);
+  button.className = "button-primary";
+  button.type = "submit";
+  form.append(button);
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    void submit();
+  });
+}
+
+function recordedExtractionStatus(recorded: ExtractedDataValue): HTMLElement {
+  const status = document.createElement("p");
+  status.className = "review-field-help";
+  status.textContent = `Recorded by ${recorded.reviewer} · ${recorded.createdAt}`;
+  return status;
+}
+
 function populateRecordedExtraction(form: HTMLFormElement, recorded: ExtractedDataValue): void {
-  if (Array.isArray(recorded.value)) {
+  populateExtractedValue(form, recorded.value);
+  setFormControlValue(form, "missingReason", recorded.missingReason ?? "");
+  populateRecordedEvidence(form, recorded.evidence);
+}
+
+function populateExtractedValue(form: HTMLFormElement, value: ExtractedDataValue["value"]): void {
+  if (Array.isArray(value)) {
     const select = form.elements.namedItem("value");
     if (select instanceof HTMLSelectElement) {
-      for (const option of select.options) option.selected = recorded.value.includes(option.value);
+      for (const option of select.options) option.selected = value.includes(option.value);
     }
-  } else if (isSourceSelector(recorded.value)) {
-    setFormControlValue(form, "valueKind", recorded.value.kind);
-    setFormControlValue(form, "valueResourceId", recorded.value.resourceId);
-    setFormControlValue(form, "valueSelectorId", recorded.value.selectorId);
+  } else if (isSourceSelector(value)) {
+    setFormControlValue(form, "valueKind", value.kind);
+    setFormControlValue(form, "valueResourceId", value.resourceId);
+    setFormControlValue(form, "valueSelectorId", value.selectorId);
   } else {
-    setFormControlValue(form, "value", recorded.value === null ? "" : String(recorded.value));
+    setFormControlValue(form, "value", value === null ? "" : String(value));
   }
-  setFormControlValue(form, "missingReason", recorded.missingReason ?? "");
-  setFormControlValue(form, "evidenceKind", recorded.evidence?.kind === "legacy-unresolved" ? "" : (recorded.evidence?.kind ?? ""));
-  setFormControlValue(
-    form,
-    "evidenceResourceId",
-    recorded.evidence?.resourceId === "legacy-unresolved" ? "" : (recorded.evidence?.resourceId ?? ""),
-  );
-  setFormControlValue(
-    form,
-    "evidenceSelectorId",
-    recorded.evidence?.selectorId === "legacy-unresolved" ? "" : (recorded.evidence?.selectorId ?? ""),
-  );
-  setFormControlValue(form, "quote", recorded.evidence?.quote ?? "");
-  setFormControlValue(form, "page", recorded.evidence?.page === null ? "" : String(recorded.evidence?.page ?? ""));
-  setFormControlValue(form, "location", recorded.evidence?.location ?? "");
+}
+
+function populateRecordedEvidence(form: HTMLFormElement, evidence: ExtractedDataValue["evidence"]): void {
+  for (const [name, value] of Object.entries(recordedEvidenceValues(evidence))) setFormControlValue(form, name, value);
+}
+
+function recordedEvidenceValues(evidence: ExtractedDataValue["evidence"]): Record<string, string> {
+  if (!evidence) {
+    return { evidenceKind: "", evidenceResourceId: "", evidenceSelectorId: "", quote: "", page: "", location: "" };
+  }
+  const unresolved = evidence.kind === "legacy-unresolved";
+  return {
+    evidenceKind: unresolved ? "" : evidence.kind,
+    evidenceResourceId: unresolved || evidence.resourceId === "legacy-unresolved" ? "" : evidence.resourceId,
+    evidenceSelectorId: unresolved || evidence.selectorId === "legacy-unresolved" ? "" : evidence.selectorId,
+    quote: evidence.quote,
+    page: evidence.page === null ? "" : String(evidence.page),
+    location: evidence.location,
+  };
 }
 
 function setFormControlValue(form: HTMLFormElement, name: string, value: string): void {

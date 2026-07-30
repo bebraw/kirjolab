@@ -62,7 +62,6 @@ export class PdfReferenceAnalysisPanel extends LightDomElement {
   }
 
   // Called through the PDF inspector's light-DOM owner registry.
-  // fallow-ignore-next-line unused-class-member
   setArtifact(artifactId: string): void {
     if (artifactId === this.#artifactId) return;
     this.reset();
