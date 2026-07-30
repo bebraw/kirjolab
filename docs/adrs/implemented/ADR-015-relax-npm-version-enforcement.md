@@ -1,6 +1,6 @@
 # ADR-015: Relax npm Version Enforcement
 
-**Status:** Accepted
+**Status:** Implemented
 
 **Date:** 2026-04-19
 

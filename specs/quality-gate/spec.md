@@ -4,7 +4,9 @@
 
 ### Context
 
-The template needs a verification baseline that stays strict enough for end-to-end confidence while still returning useful failures quickly during normal development.
+Kirjolab needs a verification baseline that stays strict enough for end-to-end
+confidence while retaining portable maintenance guardrails and returning useful
+failures quickly during normal development.
 
 ### Architecture
 

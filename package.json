@@ -1,7 +1,7 @@
 {
   "name": "kirjolab",
   "private": true,
-  "packageManager": "npm@11.17.0",
+  "packageManager": "npm@11",
   "engines": {
     "node": "24.15.0",
     "npm": ">=11 <12"
@@ -43,7 +43,8 @@
       "2026-07-22-pre-push-deep-quality",
       "2026-07-25-dependency-cost-diagnostic",
       "2026-07-30-validate-adr-registry",
-      "2026-07-30-local-workers-tests"
+      "2026-07-30-local-workers-tests",
+      "2026-07-30-relax-npm-version-hint"
     ]
   },
   "scripts": {

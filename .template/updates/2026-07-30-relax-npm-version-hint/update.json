@@ -1,0 +1,10 @@
+{
+  "id": "2026-07-30-relax-npm-version-hint",
+  "title": "Relax the npm version hint",
+  "status": "implemented",
+  "risk": "low",
+  "supersedes": [],
+  "adrs": ["docs/adrs/implemented/ADR-015-relax-npm-version-enforcement.md"],
+  "touches": ["package.json", "docs/development.md"],
+  "checks": ["npm install --package-lock-only --ignore-scripts", "npm run format:check"]
+}

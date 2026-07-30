@@ -1,4 +1,4 @@
-> **Project:** `vibe-template` is a lightweight starter for AI-assisted experiments and small software projects. Keep setup reusable, easy to clone, and easy to prune.
+> **Project:** `kirjolab` is a collaborative scientific-writing product derived from `vibe-template`. Keep product behavior explicit while preserving reusable maintenance conventions and portable template update packs for downstream projects.
 >
 > **Platform Baseline:** Local development and local CI in this repo target macOS. Treat other platforms as out of scope unless the user explicitly asks to broaden support.
 >

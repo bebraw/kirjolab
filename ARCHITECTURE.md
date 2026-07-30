@@ -1,12 +1,15 @@
 # Architecture
 
-This file stores cross-cutting rules that apply to the whole repo and to projects cloned from it.
+This file stores cross-cutting rules for Kirjolab. Reusable maintenance rules
+also apply to downstream projects through explicit template update packs; the
+product source itself is not a generic starter surface.
 
 Use this file for global constraints. Use feature specs under `specs/` for domain-specific behavior and contracts.
 
 ## Global Rules
 
-- Keep the template lightweight, reusable, easy to clone, and easy to prune.
+- Keep Kirjolab's platform setup lightweight and reviewable. Preserve reusable
+  maintenance conventions without weakening product-specific contracts.
 - Organize browser and domain source by product capability once a source root
   contains multiple cohesive feature clusters. Keep browser entrypoints at
   `src/client/`, colocate implementations with their tests in the owning

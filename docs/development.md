@@ -1,10 +1,13 @@
 # Development
 
-This document collects development-facing setup and workflow notes for the template.
+This document collects development-facing setup and workflow notes for
+Kirjolab. The repository retains reusable `vibe-template` maintenance
+conventions, but its runtime and feature contracts describe the Kirjolab
+product.
 
 ## Agent Context
 
-The template vendors the ASDLC knowledge base in `.asdlc/`.
+The repository vendors the ASDLC knowledge base in `.asdlc/`.
 
 - Start with `.asdlc/SKILL.md` for ASDLC concepts, patterns, and practices.
 - Use `AGENTS.md` as the Codex-native context anchor for this repo.
@@ -17,7 +20,7 @@ container parity.
 
 ### Prerequisites
 
-- Local development in this template targets macOS. The documented commands assume a macOS shell environment and are not maintained as a cross-platform baseline.
+- Local Kirjolab development targets macOS. The documented commands assume a macOS shell environment and are not maintained as a cross-platform baseline.
 - Run `nvm use` before `npm install` or any other development command so your shell uses the Node.js version mirrored in `.nvmrc`, which also keeps the bundled npm release inside the repo's supported npm 11 range.
 - Install dependencies with `npm install`.
 - `npm install` also configures the repo-managed Git hook path and enables the `pre-push` hook that runs affected-file guardrails.
@@ -153,7 +156,17 @@ Use targeted checks while iterating, then run the full readiness path before pro
 - Readability, complexity, duplication, or cleanup review: `npm run diagnostics:codebase`
 - Baseline readiness: `npm run ci:local`
 
-The template now ships with a minimal Worker stub in `src/worker.ts`. `npm run dev` supervises the Worker on `http://127.0.0.1:8787` and, when configured, the model companion on `http://127.0.0.1:8790`; stopping either process stops the other. Playwright uses `npm run e2e:server` on `http://127.0.0.1:8788` so browser tests can run without extra setup or a model process. The e2e launcher forces Chokidar polling mode to avoid file-watcher exhaustion in macOS-hosted local runs and gives Wrangler a fresh operating-system temporary persistence directory that it removes on shutdown. Browser-created workspaces therefore cannot accumulate in the interactive `npm run dev` catalog. API modules live under `src/api/`, view modules live under `src/views/`, and tests are colocated under `src/`.
+Kirjolab's Worker entry point is `src/worker.ts`. `npm run dev` supervises the
+Worker on `http://127.0.0.1:8787` and, when configured, the model companion on
+`http://127.0.0.1:8790`; stopping either process stops the other. Playwright
+uses `npm run e2e:server` on `http://127.0.0.1:8788` so browser tests can run
+without extra setup or a model process. The E2E launcher forces Chokidar polling
+mode, uses fresh temporary persistence, and acknowledges artifact-analysis jobs
+without launching Browser Rendering because those endpoints are mocked by the
+suite. It removes the persistence tree on shutdown. Browser-created workspaces
+therefore cannot accumulate in the interactive `npm run dev` catalog. API
+modules live under `src/api/`, view modules live under `src/views/`, and tests
+are colocated under `src/`.
 
 `npm run format:check` covers project-owned source, configuration, skill
 entrypoints, specs, ADRs, and documentation. It excludes duplicated
@@ -171,7 +184,10 @@ type checking instead of replacing either tool.
 
 The GitHub Actions CI workflow splits fast checks, browser checks, and mutation checks into separate jobs, reads the pinned Node version from `package.json`, relies on the npm release bundled with that Node setup as long as it satisfies the repo's npm 11 constraint, runs repository-shape validation as part of the fast job, runs the browser job in the version-pinned Playwright container image `mcr.microsoft.com/playwright:v1.61.1-noble`, pins every `uses:` action reference to a full commit SHA, and cancels superseded runs on the same ref. The full `quality-mutation` workflow job is reserved for GitHub Actions with a `github.server_url` guard; use `npm run mutation:incremental` or `npm run mutation` explicitly when local mutation feedback is needed. Dependency installation uses plain `npm ci`. Optional Agent CI 0.17.1 container parity explicitly prewarms through the fast job's stable `install` step, then gives concurrent jobs isolated writable dependency views. Its wrapper consumes Agent CI's versioned JSON events and reports each job and step with elapsed time, including a heartbeat every 15 seconds.
 
-The starter UI now follows the same Tailwind v4 baseline shape as `thesis-journey-tracker`: Tailwind input lives in `src/tailwind-input.css`, generated CSS is written to `.generated/styles.css`, and Wrangler runs `npm run build:css` automatically before local development.
+Kirjolab's UI retains the Tailwind v4 pipeline inherited from
+`thesis-journey-tracker`: Tailwind input lives in `src/tailwind-input.css`,
+generated CSS is written to `.generated/styles.css`, and Wrangler runs
+`npm run build:css` automatically before local development.
 
 The offline authoring service worker is compiled from
 `src/client/service-worker.ts` into `.generated/service-worker.txt`. The browser
@@ -341,7 +357,7 @@ When adding a new tool or workflow that writes files, document the target path i
 
 ## Security Baseline
 
-The template keeps secret handling lightweight and explicit:
+Kirjolab keeps secret handling lightweight and explicit:
 
 - Keep local secrets in untracked files such as `.dev.vars`.
 - Commit example files such as `.dev.vars.example` with placeholder values only.
