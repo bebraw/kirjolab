@@ -1366,10 +1366,12 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Render only the active PDF page through the PDF.js display layer; keep its worker version matched with the pinned display dependency.
 - Derive each active PDF load context through one pure projection over the
   active typed context tab and authorized project, Library, and shared-reference
-  snapshots. Let the resource-context presenter apply that projection through
+  snapshots. Let a bounded PDF context session apply that projection through
   its narrow viewer binding, including stale-load rejection, form selection,
-  resource scroll, and active-resource failure presentation. Keep routing and
-  viewer gestures in their existing browser authorities.
+  resource scroll, navigation-document setup, active-resource failure
+  presentation, viewer-state capture, and layout resize access. Keep canonical
+  context and routing in the resource-context presenter and viewer gestures in
+  the PDF viewer.
 - Project standard PDF link geometry from the pinned PDF.js display data into the active-page interaction layer; keep internal destinations inside the reader and isolate external navigation.
 - Expose scholarly entities through stable resource identities and typed relationships rather than citation keys or filenames alone.
 - Give workspace people opaque stored identities independent of email. Derive
@@ -1545,13 +1547,15 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   also
   project coordinator-resolved evidence links, claim links, comments, and
   project-map inputs across those composed owners after Preview rendering while
-  the coordinator retains render timing. Through the viewer installed by the
-  same atomic project-knowledge binding it derives the authorized active PDF load, synchronizes project
-  annotations and private highlights, rejects stale completions, retains the
+  the coordinator retains render timing. Through the PDF context session
+  installed by the same atomic project-knowledge binding, it supplies the
+  authorized active PDF inputs while the session synchronizes project
+  annotations and private highlights, rejects stale completions, retains
   rendered context and project-PDF identities, opens the viewer, restores
-  resource scroll, presents active-resource failures, and routes captured
-  selections to the private-highlight composer or project-annotation form from
-  those retained identities. The presenter binds the project-annotation form's
+  resource scroll, and presents active-resource failures. The presenter routes
+  captured selections to the private-highlight composer or project-annotation
+  form from the session's retained project-PDF identity. The presenter binds the
+  project-annotation form's
   intake and workflow atomically so the composed form cannot retain only half
   of its routes. It applies tool and draft-clearing effects through the bounded
   viewer, owns intake refresh plus completed-workflow refresh, optional passage-

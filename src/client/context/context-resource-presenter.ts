@@ -1,5 +1,4 @@
 import type * as Y from "yjs";
-import { activePdfLoadContext } from "./active-pdf-context";
 import { resolveManuscriptAnchor } from "../../domain/manuscript/manuscript-anchor";
 import type {
   LibraryHighlight,
@@ -71,6 +70,9 @@ import {
 } from "./research-context";
 import { WorkspaceRailTabs } from "../workspace/workspace-rail-tabs";
 import { researchTargetFromContextKey } from "../workspace/workspace-ui-route";
+import { PdfContextSession, type ContextPdfViewer, type ContextViewerState } from "./pdf-context-session";
+
+export type { ContextViewerState } from "./pdf-context-session";
 
 export interface ContextResourceSources {
   readonly activeTab: ResearchResourceTab | undefined;
@@ -152,27 +154,6 @@ interface ContextPresentationBinding {
   readonly projectApiBase: string | null;
 }
 
-export interface ContextViewerState {
-  readonly focusedAnnotationId: string | null;
-  readonly page: number;
-  readonly renderedContextKey: ResearchContextTab["key"] | undefined;
-}
-
-type ContextPdfViewer = Pick<
-  PdfEvidenceViewer,
-  "clearDraftSelection" | "resize" | "setPrivateHighlightSelection" | "setTextSelectionMode" | "setTool"
-> &
-  Pick<
-    PdfEvidenceViewer,
-    "currentPage" | "focusedAnnotationId" | "open" | "showError" | "updateAnnotations" | "updatePrivateHighlights"
-  > & {
-    goToPage?(page: number): Promise<void>;
-    readonly documentKey?: string;
-    navigation?(): Promise<{ readonly outline: readonly import("../pdf/pdf-navigation-panel").PdfOutlineItem[]; readonly pages: number }>;
-    search?(query: string): Promise<readonly import("../pdf/pdf-search-panel").PdfSearchResult[]>;
-    thumbnail?(page: number): Promise<string>;
-  };
-
 export interface ProjectKnowledgeOwners {
   readonly editorStatus: { readonly caret: number | null };
   readonly projectFileDialog: { revealAuthoring(): void };
@@ -205,10 +186,12 @@ export class ContextResourcePresenter extends LightDomController {
   private currentLibrary: ReferenceLibrarySnapshot | null = null;
   private currentSnapshot: WorkspaceSnapshot | null = null;
   private libraryPdfProject: { readonly apiBase: string; readonly owners: ProjectKnowledgeOwners } | null = null;
-  private pdfApiBase = "";
-  private pdfViewer: ContextPdfViewer | null = null;
-  private renderedPdfContextKey: ResearchContextTab["key"] | undefined;
-  private currentRenderedPdfId: string | undefined;
+  private readonly pdfSession = new PdfContextSession({
+    activeKey: () => this.currentActiveTab?.key,
+    navigationDocument: (key, page) => this.element("pdf-navigation-panel", PdfNavigationPanel)?.setDocument(key, page),
+    reader: () => this.element("paper-reader", HTMLElement),
+    selectWorkspacePdf: (pdfId) => this.element("project-annotation-form", ProjectAnnotationForm)?.selectPdf(pdfId),
+  });
   private routeBinding: ContextRouteBinding | null = null;
   private loadedReferencePdfs: readonly ProjectReferencePdf[] = [];
 
@@ -236,7 +219,11 @@ export class ContextResourcePresenter extends LightDomController {
   }
 
   get layoutPdfViewer(): Pick<ContextPdfViewer, "resize"> | null {
-    return this.pdfViewer;
+    return this.pdfSession.layoutViewer;
+  }
+
+  private get pdfViewer(): ContextPdfViewer | null {
+    return this.pdfSession.viewer;
   }
 
   get activeContextTab(): ResearchContextTab | undefined {
@@ -604,8 +591,7 @@ export class ContextResourcePresenter extends LightDomController {
     owners: ProjectKnowledgeOwners,
     viewer: ContextPdfViewer = PdfEvidenceViewer.forDocument(document, this),
   ): void {
-    this.pdfViewer = viewer;
-    this.pdfApiBase = apiBase;
+    this.pdfSession.bind(apiBase, viewer);
     this.element("project-annotation-form", ProjectAnnotationForm)?.configure(apiBase);
     this.libraryPdfProject = { apiBase, owners };
     const searchPanel = this.element("pdf-search-panel", PdfSearchPanel);
@@ -772,10 +758,11 @@ export class ContextResourcePresenter extends LightDomController {
     }
     if (activeTab?.kind !== "pdf") return;
     const form = this.element("project-annotation-form", ProjectAnnotationForm);
-    if (this.currentRenderedPdfId) form?.selectPdf(this.currentRenderedPdfId);
+    const renderedPdfId = this.pdfSession.currentWorkspacePdfId;
+    if (renderedPdfId) form?.selectPdf(renderedPdfId);
     form?.showCapture(capture);
-    if (form && this.currentRenderedPdfId && this.currentSnapshot) {
-      void form.persistCapture(this.currentSnapshot.annotations, this.currentRenderedPdfId, capture);
+    if (form && renderedPdfId && this.currentSnapshot) {
+      void form.persistCapture(this.currentSnapshot.annotations, renderedPdfId, capture);
     }
   }
 
@@ -811,55 +798,22 @@ export class ContextResourcePresenter extends LightDomController {
   }
 
   captureBoundContext(): void {
-    const viewer = this.pdfViewer;
-    if (!viewer) return;
-    this.contextState = this.captureContext(this.contextState, {
-      focusedAnnotationId: viewer.focusedAnnotationId,
-      page: viewer.currentPage,
-      renderedContextKey: this.renderedPdfContextKey,
-    });
+    const viewerState = this.pdfSession.viewerState();
+    if (viewerState) this.contextState = this.captureContext(this.contextState, viewerState);
   }
 
   async loadActivePdf(force: boolean): Promise<void> {
-    const viewer = this.pdfViewer;
-    if (!viewer) return;
-    const context = activePdfLoadContext({
-      activeTab: this.currentActiveTab,
-      annotations: this.currentSnapshot?.annotations ?? [],
-      apiBase: this.pdfApiBase,
-      libraryArtifacts: this.currentLibrary?.artifacts ?? [],
-      libraryHighlights: this.currentLibrary?.highlights ?? [],
-      projectReferencePdfs: this.loadedReferencePdfs,
-      workspacePdfs: this.currentSnapshot?.pdfs ?? [],
-    });
-    if (!context) return;
-    if (context.workspacePdf) this.element("project-annotation-form", ProjectAnnotationForm)?.selectPdf(context.workspacePdf.id);
-    viewer.updateAnnotations(context.annotations);
-    viewer.updatePrivateHighlights(context.privateHighlights);
-    const reader = this.element("paper-reader", HTMLElement);
-    if (!force && this.renderedPdfContextKey === context.tab.key) {
-      if (reader) reader.scrollTop = context.tab.scrollTop;
-      return;
-    }
-    try {
-      const opened = await viewer.open({
-        ...(context.libraryPdf ? { artifactId: context.libraryPdf.id } : {}),
-        documentKey: context.tab.key,
-        url: context.url,
-        annotations: context.annotations,
-        page: context.tab.page,
-        ...(context.tab.focusedAnnotationId ? { focusAnnotationId: context.tab.focusedAnnotationId } : {}),
-        mode: context.workspacePdf ? "evidence" : context.libraryPdf ? "private-highlight" : "read-only",
-        privateHighlights: context.privateHighlights,
-      });
-      if (!opened || this.currentActiveTab?.key !== context.tab.key) return;
-      this.renderedPdfContextKey = context.tab.key;
-      this.element("pdf-navigation-panel", PdfNavigationPanel)?.setDocument(context.tab.key, viewer.currentPage);
-      this.currentRenderedPdfId = context.workspacePdf?.id;
-      if (reader) reader.scrollTop = context.tab.scrollTop;
-    } catch (error) {
-      if (this.currentActiveTab?.key === context.tab.key) viewer.showError(error);
-    }
+    await this.pdfSession.load(
+      {
+        activeTab: this.currentActiveTab,
+        annotations: this.currentSnapshot?.annotations ?? [],
+        libraryArtifacts: this.currentLibrary?.artifacts ?? [],
+        libraryHighlights: this.currentLibrary?.highlights ?? [],
+        projectReferencePdfs: this.loadedReferencePdfs,
+        workspacePdfs: this.currentSnapshot?.pdfs ?? [],
+      },
+      force,
+    );
   }
 
   selectLibraryHighlight(highlightId: string): void {
@@ -869,7 +823,7 @@ export class ContextResourcePresenter extends LightDomController {
     this.applyViewerPresentation(this.editLibraryHighlight(highlight));
   }
 
-  presentWorkspace(snapshot: WorkspaceSnapshot, renderedPdfId = this.currentRenderedPdfId): AnnotationResource[] {
+  presentWorkspace(snapshot: WorkspaceSnapshot, renderedPdfId = this.pdfSession.currentWorkspacePdfId): AnnotationResource[] {
     const workflow = this.element("assistant-workflow-status", AssistantWorkflowStatus);
     workflow?.reconcileEvidence(snapshot.annotations, snapshot.claims);
     const selectedEvidence = workflow?.selectedEvidenceKeys ?? new Set<string>();
@@ -1229,9 +1183,10 @@ export class ContextResourcePresenter extends LightDomController {
     this.presentCandidate(sources);
     this.presentProjectPdf(sources);
     const privateHighlights = this.presentLibraryPdf(sources, activeLibraryArtifact);
-    if (privateHighlights && this.pdfViewer) {
-      this.pdfViewer.updatePrivateHighlights(privateHighlights);
-      this.presentLibraryPdfPage(sources.library, this.pdfViewer.currentPage);
+    const viewer = this.pdfViewer;
+    if (privateHighlights && viewer) {
+      viewer.updatePrivateHighlights(privateHighlights);
+      this.presentLibraryPdfPage(sources.library, viewer.currentPage);
     }
     return { publicationPresented: this.presentPublication(sources) };
   }

@@ -221,11 +221,13 @@ changing their canonical data, selector, authorization, or rendering contracts.
   browser-history mutation to those owners;
   derives the
   authorized active-PDF load from canonical project, Library, and linked-PDF
-  catalogs; applies it through a narrow viewer binding; rejects stale load
-  completions; retains rendered context and project-PDF identity; restores
-  resource scroll; presents active-resource failures; and routes captured
+  catalogs; supplies it to a bounded PDF context session that applies the narrow
+  viewer binding, rejects stale load completions, retains rendered context and
+  project-PDF identity, restores resource scroll, configures document
+  navigation, presents active-resource failures, and exposes viewer state and
+  layout resize access; routes remain with the presenter, which sends captured
   selections to the private-highlight composer or project-annotation form from
-  those retained identities;
+  the session's retained project-PDF identity;
   derives the authorized publication, project-PDF, private-or-linked PDF, and
   candidate identity sets from the canonical project and Library catalogs;
   and owns private-PDF inspector context, artifact-change markup reset, toolbar

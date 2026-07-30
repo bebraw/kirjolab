@@ -15,6 +15,11 @@ with an authored passage.
   rendering, page navigation, stored highlights, browser selection capture,
   and resolution of its bounded shell elements. The workspace coordinator
   supplies typed selection, highlight, and page-change hooks.
+- `src/client/context/pdf-context-session.ts` owns the bound viewer's active
+  document identity, authorized load application, stale-completion rejection,
+  scroll restoration, navigation-document setup, failure routing, captured
+  viewer state, and narrow layout-resize access. Canonical tabs and routes stay
+  in the resource-context presenter.
 - A viewer-local XState actor coordinates closed, runtime-loading,
   document-loading, page-rendering, ready, and failed phases. Its document and
   render request generations invalidate late work when another PDF, page, zoom,
