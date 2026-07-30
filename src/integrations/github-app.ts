@@ -48,6 +48,12 @@ export interface GitHubCommitChange {
 
 type FetchExternal = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 
+interface MarkdownBlob {
+  readonly path: string;
+  readonly sha: string;
+  readonly size: number;
+}
+
 const maximumMarkdownFiles = 512;
 const maximumMarkdownBytes = 2 * 1024 * 1024;
 const positiveIntegerSchema = v.pipe(v.number(), v.safeInteger(), v.minValue(1));
@@ -81,56 +87,38 @@ export class GitHubAppClient {
   async readMarkdownSnapshot(selection: GitHubRepositorySelection): Promise<GitHubRepositorySnapshot> {
     const normalized = validateSelection(selection);
     const request = await this.#transport.forInstallation(normalized.installationId, normalized.repositoryId);
-    const repository = await request(`/repos/${segment(normalized.owner)}/${segment(normalized.repository)}`);
-    if (!v.is(repositoryResponseSchema, repository)) throw invalidResponse("GitHub repository metadata is invalid");
-    if (normalized.repositoryId !== undefined && repository.id !== normalized.repositoryId) {
-      throw new GitHubClientError("forbidden", "GitHub repository is outside the authorized user selection", 403);
-    }
-    const ref = await request(
-      `/repos/${segment(normalized.owner)}/${segment(normalized.repository)}/git/ref/heads/${pathSegment(normalized.branch)}`,
-    );
-    const commitSha = gitObjectSha(ref, "GitHub branch response is invalid");
-    const commit = await request(`/repos/${segment(normalized.owner)}/${segment(normalized.repository)}/git/commits/${segment(commitSha)}`);
-    if (!v.is(commitResponseSchema, commit)) throw invalidResponse("GitHub commit response is invalid");
-    const treeSha = commit.tree.sha;
-    const tree = await request(
-      `/repos/${segment(normalized.owner)}/${segment(normalized.repository)}/git/trees/${segment(treeSha)}?recursive=1`,
-    );
-    if (!v.is(treeResponseSchema, tree) || tree.truncated === true) {
-      throw new GitHubClientError("bounds", "GitHub returned a truncated or invalid repository tree");
-    }
+    const repositoryId = await authorizedRepositoryId(request, normalized);
+    const { commitSha, commitMessage, tree } = await readSnapshotHead(request, normalized);
+    const { blobs, skipped } = markdownBlobs(tree, normalized.rootPath);
+    const files = await this.#loadMarkdownFiles(request, normalized, blobs, skipped);
+    skipped.sort((left, right) => compareText(left.path, right.path));
+    if (files.length === 0) throw new GitHubClientError("bounds", "The selected GitHub folder contains no supported Markdown files");
+    return {
+      repositoryId,
+      owner: normalized.owner,
+      repository: normalized.repository,
+      branch: normalized.branch,
+      rootPath: normalized.rootPath,
+      commitSha,
+      commitMessage,
+      files,
+      skipped,
+    };
+  }
 
-    const blobs: Array<{ path: string; sha: string; size: number }> = [];
-    const skipped: GitHubSkippedEntry[] = [];
-    for (const value of tree.tree) {
-      const entry = v.safeParse(treeEntrySchema, value);
-      if (!entry.success) continue;
-      const relative = relativeToRoot(entry.output.path, normalized.rootPath);
-      if (relative === null) continue;
-      if (!relative.toLocaleLowerCase().endsWith(".md")) {
-        if (relative) skipped.push({ path: relative, reason: "unsupported-type" });
-        continue;
-      }
-      if (entry.output.type !== "blob" || entry.output.mode !== "100644" || !entry.output.sha || entry.output.size === undefined) {
-        skipped.push({ path: relative, reason: "unsupported-mode" });
-        continue;
-      }
-      blobs.push({ path: relative, sha: entry.output.sha, size: entry.output.size });
-    }
-    blobs.sort((left, right) => compareText(left.path, right.path));
-    if (blobs.length === 0) throw new GitHubClientError("bounds", "The selected GitHub folder contains no supported Markdown files");
-    if (blobs.length > maximumMarkdownFiles || blobs.reduce((total, blob) => total + blob.size, 0) > maximumMarkdownBytes) {
-      throw new GitHubClientError("bounds", "The selected GitHub folder exceeds the Markdown import bounds");
-    }
-
+  async #loadMarkdownFiles(
+    request: GitHubInstallationRequest,
+    selection: GitHubRepositorySelection,
+    blobs: readonly MarkdownBlob[],
+    skipped: GitHubSkippedEntry[],
+  ): Promise<GitHubRemoteMarkdownFile[]> {
     const files: GitHubRemoteMarkdownFile[] = [];
     for (let offset = 0; offset < blobs.length; offset += 10) {
-      const batch = blobs.slice(offset, offset + 10);
       const loaded = await Promise.all(
-        batch.map(async (blob) => ({
+        blobs.slice(offset, offset + 10).map(async (blob) => ({
           path: blob.path,
           blobSha: blob.sha,
-          content: await this.#blobText(request, normalized.owner, normalized.repository, blob.sha, blob.size),
+          content: await this.#blobText(request, selection.owner, selection.repository, blob.sha, blob.size),
         })),
       );
       for (const file of loaded) {
@@ -138,19 +126,7 @@ export class GitHubAppClient {
         else files.push(file);
       }
     }
-    skipped.sort((left, right) => compareText(left.path, right.path));
-    if (files.length === 0) throw new GitHubClientError("bounds", "The selected GitHub folder contains no supported Markdown files");
-    return {
-      repositoryId: repository.id,
-      owner: normalized.owner,
-      repository: normalized.repository,
-      branch: normalized.branch,
-      rootPath: normalized.rootPath,
-      commitSha,
-      commitMessage: commit.message,
-      files,
-      skipped,
-    };
+    return files;
   }
 
   async createCommit(
@@ -259,6 +235,60 @@ export class GitHubAppClient {
       throw new GitHubClientError("bounds", "GitHub Markdown files must be valid UTF-8");
     }
   }
+}
+
+async function authorizedRepositoryId(request: GitHubInstallationRequest, selection: GitHubRepositorySelection): Promise<number> {
+  const repository = await request(`/repos/${segment(selection.owner)}/${segment(selection.repository)}`);
+  if (!v.is(repositoryResponseSchema, repository)) throw invalidResponse("GitHub repository metadata is invalid");
+  if (selection.repositoryId !== undefined && repository.id !== selection.repositoryId) {
+    throw new GitHubClientError("forbidden", "GitHub repository is outside the authorized user selection", 403);
+  }
+  return repository.id;
+}
+
+async function readSnapshotHead(
+  request: GitHubInstallationRequest,
+  selection: GitHubRepositorySelection,
+): Promise<{ commitSha: string; commitMessage: string; tree: readonly unknown[] }> {
+  const repositoryPath = `/repos/${segment(selection.owner)}/${segment(selection.repository)}`;
+  const ref = await request(`${repositoryPath}/git/ref/heads/${pathSegment(selection.branch)}`);
+  const commitSha = gitObjectSha(ref, "GitHub branch response is invalid");
+  const commit = await request(`${repositoryPath}/git/commits/${segment(commitSha)}`);
+  if (!v.is(commitResponseSchema, commit)) throw invalidResponse("GitHub commit response is invalid");
+  const tree = await request(`${repositoryPath}/git/trees/${segment(commit.tree.sha)}?recursive=1`);
+  if (!v.is(treeResponseSchema, tree) || tree.truncated === true) {
+    throw new GitHubClientError("bounds", "GitHub returned a truncated or invalid repository tree");
+  }
+  return { commitSha, commitMessage: commit.message, tree: tree.tree };
+}
+
+function markdownBlobs(tree: readonly unknown[], rootPath: string): { blobs: MarkdownBlob[]; skipped: GitHubSkippedEntry[] } {
+  const blobs: MarkdownBlob[] = [];
+  const skipped: GitHubSkippedEntry[] = [];
+  for (const value of tree) classifyTreeEntry(value, rootPath, blobs, skipped);
+  blobs.sort((left, right) => compareText(left.path, right.path));
+  if (blobs.length === 0) throw new GitHubClientError("bounds", "The selected GitHub folder contains no supported Markdown files");
+  const totalBytes = blobs.reduce((total, blob) => total + blob.size, 0);
+  if (blobs.length > maximumMarkdownFiles || totalBytes > maximumMarkdownBytes) {
+    throw new GitHubClientError("bounds", "The selected GitHub folder exceeds the Markdown import bounds");
+  }
+  return { blobs, skipped };
+}
+
+function classifyTreeEntry(value: unknown, rootPath: string, blobs: MarkdownBlob[], skipped: GitHubSkippedEntry[]): void {
+  const entry = v.safeParse(treeEntrySchema, value);
+  if (!entry.success) return;
+  const relative = relativeToRoot(entry.output.path, rootPath);
+  if (relative === null) return;
+  if (!relative.toLocaleLowerCase().endsWith(".md")) {
+    if (relative) skipped.push({ path: relative, reason: "unsupported-type" });
+    return;
+  }
+  if (entry.output.type !== "blob" || entry.output.mode !== "100644" || !entry.output.sha || entry.output.size === undefined) {
+    skipped.push({ path: relative, reason: "unsupported-mode" });
+    return;
+  }
+  blobs.push({ path: relative, sha: entry.output.sha, size: entry.output.size });
 }
 
 export function normalizeGitHubRoot(value: string): string | null {
