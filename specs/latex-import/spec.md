@@ -202,5 +202,7 @@ not translate cleanly.
   PGFPlots prepared-boxplot source pattern. Its chart inputs are commented out
   in the selected manuscript, so they remain correctly ignored; minimized active
   fixtures verify native translation and lossless fallback.
-- Browser-level end-to-end coverage and an isolated renderer remain follow-up
-  work before claiming a visual rendering compatibility tier.
+- Browser-level end-to-end coverage verifies bounded archive selection,
+  conversion preview, explicit confirmation, created project state, and unsafe
+  archive rejection. An isolated renderer remains follow-up work before claiming
+  a visual rendering compatibility tier.

@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page, type Request, type Route } from "@playwright/test";
+import { strToU8, zipSync } from "fflate";
 import { isKnowledgeSearchResults, isWorkspaceKnowledgeGraph, type WorkspaceKnowledgeGraph } from "./domain/knowledge";
 import { isWorkspaceSnapshot, isWorkspaceSummaries, type WorkspaceSnapshot } from "./domain/workspace/workspace";
 import {
@@ -4754,6 +4755,71 @@ test("creates, shares, and navigates isolated workspaces", async ({ page, browse
   await page.goto("/editor/demo");
   await expect(page.locator("#workspace-switcher")).toHaveValue("demo");
   await expect(page.locator("#source-editor")).not.toHaveValue(isolatedSource);
+});
+
+test("previews and imports a bounded LaTeX project", async ({ page }) => {
+  const archive = zipSync({
+    "main.tex": strToU8(
+      String.raw`\documentclass{article}\graphicspath{{./images/}}\begin{document}\input{section}\bibliography{refs}\end{document}`,
+    ),
+    "section.tex": strToU8(String.raw`\section{Result}\label{sec:result}Evidence \cite{source}.\includegraphics{result}`),
+    "refs.bib": strToU8("@article{source, title={Source}, author={Researcher, Ada}, year={2026}}"),
+    "images/result.png": new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]),
+  });
+
+  await page.goto("/editor/demo");
+  await page.locator(".header-action-menu summary").click();
+  await page.getByRole("button", { name: "New project" }).click();
+  await page.getByRole("button", { name: "Import LaTeX" }).click();
+  await page.locator("#latex-import-title").fill("Imported browser paper");
+  await page.locator("#latex-import-archive").setInputFiles({
+    name: "browser-paper.zip",
+    mimeType: "application/zip",
+    buffer: Buffer.from(archive),
+  });
+  await page.getByRole("button", { name: "Preview import" }).click();
+
+  await expect(page.locator("#latex-import-status")).toHaveText(
+    "Preview ready. Confirmation repeats conversion before creating the project.",
+  );
+  const preview = page.locator("#latex-import-preview");
+  await expect(preview).toContainText("2 Markdown files · 1 figure inputs detected · bibliography selected");
+  await expect(preview).toContainText("main.md");
+  await expect(preview).toContainText("section.md");
+  await expect(preview).toContainText("Evidence :cite[source]");
+  await expect(page.getByRole("button", { name: "Create project" })).toBeEnabled();
+  await page.getByRole("button", { name: "Create project" }).click();
+  await page.waitForURL(/\/editor\/[0-9a-f-]{36}$/u);
+
+  const workspaceId = workspaceIdFromPage(page, "Expected an imported LaTeX workspace id");
+  const snapshot = await readWorkspaceSnapshot(page, `/api/workspaces/${workspaceId}`);
+  expect(snapshot.title).toBe("Imported browser paper");
+  expect(snapshot.files.map((file) => file.path)).toEqual(["main.md", "section.md"]);
+  expect(snapshot.files[1]?.content).toContain(":cite[source]");
+  expect(snapshot.files[1]?.content).toContain("![Imported figure](figures/result.png)");
+  expect(snapshot.bibliography).toContain("@article{source");
+  expect(snapshot.assets).toEqual([expect.objectContaining({ path: "figures/result.png", mediaType: "image/png", size: 8 })]);
+  await expect(page.locator("#preview")).toContainText("Evidence");
+});
+
+test("rejects an unsafe LaTeX archive without enabling confirmation", async ({ page }) => {
+  const archive = zipSync({ "../main.tex": strToU8(String.raw`\documentclass{article}\begin{document}Unsafe\end{document}`) });
+
+  await page.goto("/editor/demo");
+  await page.locator(".header-action-menu summary").click();
+  await page.getByRole("button", { name: "New project" }).click();
+  await page.getByRole("button", { name: "Import LaTeX" }).click();
+  await page.locator("#latex-import-title").fill("Unsafe browser paper");
+  await page.locator("#latex-import-archive").setInputFiles({
+    name: "unsafe-paper.zip",
+    mimeType: "application/zip",
+    buffer: Buffer.from(archive),
+  });
+  await page.getByRole("button", { name: "Preview import" }).click();
+
+  await expect(page.locator("#latex-import-status")).toHaveText("Unsafe archive path: ../main.tex");
+  await expect(page.locator("#latex-import-preview")).toContainText("Preview to inspect the converted Markdown and diagnostics.");
+  await expect(page.getByRole("button", { name: "Create project" })).toBeDisabled();
 });
 
 test("starts from built-in and promoted personal project templates", async ({ page }) => {
