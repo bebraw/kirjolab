@@ -84,14 +84,7 @@ function extractReferenceMentions(
   entries: readonly { readonly line: string; readonly page: number }[],
   candidates: readonly PdfReferenceAnalysisCandidate[],
 ): PdfReferenceMention[] {
-  const candidateEntries = splitReferenceEntries(entries);
-  const byNumber = new Map<number, PdfReferenceAnalysisCandidate>();
-  for (const [index, entry] of candidateEntries.entries()) {
-    const number = referenceNumber(entry.raw);
-    const candidate = candidates.find((item) => item.id === referenceCandidate(entry)?.id);
-    if (number !== null && candidate) byNumber.set(number, candidate);
-    else if (candidate && entry.numbered) byNumber.set(index + 1, candidate);
-  }
+  const byNumber = referenceCandidatesByNumber(entries, candidates);
   const mentions: PdfReferenceMention[] = [];
   const seen = new Set<string>();
   for (const page of pages) {
@@ -99,23 +92,64 @@ function extractReferenceMentions(
     for (const source of page.lines) {
       const line = normalizeLine(source);
       if (!line) continue;
-      for (const match of line.matchAll(numericMention)) {
-        for (const number of citationNumbers(match[1] ?? "")) {
-          const candidate = byNumber.get(number);
-          if (candidate) addMention(mentions, seen, candidate.id, page.page, match[0], line, "numeric", 0.95);
-        }
-      }
-      for (const candidate of candidates) {
-        const surname = candidate.authors[0] ? authorSurname(candidate.authors[0]) : "";
-        if (!surname || !candidate.year) continue;
-        const pattern = new RegExp(`\\b${escapeRegExp(surname)}(?:\\s+et\\s+al\\.)?[,\\s]+${escapeRegExp(candidate.year)}\\b`, "iu");
-        const match = pattern.exec(line);
-        if (match) addMention(mentions, seen, candidate.id, page.page, match[0], line, "author-year", 0.8);
-      }
+      addNumericMentions(mentions, seen, line, page.page, byNumber);
+      addAuthorYearMentions(mentions, seen, line, page.page, candidates);
       if (mentions.length >= 256) return mentions;
     }
   }
   return mentions;
+}
+
+function referenceCandidatesByNumber(
+  entries: readonly { readonly line: string; readonly page: number }[],
+  candidates: readonly PdfReferenceAnalysisCandidate[],
+): Map<number, PdfReferenceAnalysisCandidate> {
+  const byId = new Map(candidates.map((candidate) => [candidate.id, candidate]));
+  const byNumber = new Map<number, PdfReferenceAnalysisCandidate>();
+  for (const [index, entry] of splitReferenceEntries(entries).entries()) {
+    const candidate = referenceCandidate(entry);
+    const matched = candidate ? byId.get(candidate.id) : undefined;
+    if (!matched) continue;
+    const number = referenceNumber(entry.raw);
+    if (number !== null) byNumber.set(number, matched);
+    else if (entry.numbered) byNumber.set(index + 1, matched);
+  }
+  return byNumber;
+}
+
+function addNumericMentions(
+  mentions: PdfReferenceMention[],
+  seen: Set<string>,
+  line: string,
+  page: number,
+  byNumber: ReadonlyMap<number, PdfReferenceAnalysisCandidate>,
+): void {
+  for (const match of line.matchAll(numericMention)) {
+    for (const number of citationNumbers(match[1] ?? "")) {
+      const candidate = byNumber.get(number);
+      if (candidate) addMention(mentions, seen, candidate.id, page, match[0], line, "numeric", 0.95);
+    }
+  }
+}
+
+function addAuthorYearMentions(
+  mentions: PdfReferenceMention[],
+  seen: Set<string>,
+  line: string,
+  page: number,
+  candidates: readonly PdfReferenceAnalysisCandidate[],
+): void {
+  for (const candidate of candidates) {
+    const pattern = authorYearPattern(candidate);
+    const match = pattern?.exec(line);
+    if (match) addMention(mentions, seen, candidate.id, page, match[0], line, "author-year", 0.8);
+  }
+}
+
+function authorYearPattern(candidate: PdfReferenceAnalysisCandidate): RegExp | null {
+  const surname = candidate.authors[0] ? authorSurname(candidate.authors[0]) : "";
+  if (!surname || !candidate.year) return null;
+  return new RegExp(`\\b${escapeRegExp(surname)}(?:\\s+et\\s+al\\.)?[,\\s]+${escapeRegExp(candidate.year)}\\b`, "iu");
 }
 
 function addMention(
