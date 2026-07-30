@@ -199,50 +199,76 @@ export function buildWorkspaceKnowledgeGraph(
 ): WorkspaceKnowledgeGraph {
   const projectResourceId = projectId(snapshot.id);
   const documentResourceId = documentId(snapshot.id);
-  const nodes: KnowledgeGraphNode[] = [
-    { id: projectResourceId, kind: "project", label: snapshot.title },
-    { id: documentResourceId, kind: "document", label: snapshot.title },
-  ];
-  const edges: KnowledgeGraphEdge[] = [
-    {
-      id: `contains:${snapshot.id}:${snapshot.id}`,
-      relation: "contains",
-      from: projectResourceId,
-      to: documentResourceId,
-      label: "main manuscript",
-    },
-  ];
+  const graph = baseKnowledgeGraph(snapshot, projectResourceId, documentResourceId);
+  addMembers(graph, snapshot.id, projectResourceId, members);
+  addScholarlyResources(graph, snapshot);
+  addEvidenceRelations(graph, snapshot, documentResourceId);
+  addResearchNotes(graph, snapshot);
+  addModelCandidates(graph, snapshot, documentResourceId);
+  addCitations(graph, snapshot, documentResourceId);
+  return graph;
+}
 
+function baseKnowledgeGraph(snapshot: WorkspaceSnapshot, projectResourceId: string, documentResourceId: string): WorkspaceKnowledgeGraph {
+  return {
+    nodes: [
+      { id: projectResourceId, kind: "project", label: snapshot.title },
+      { id: documentResourceId, kind: "document", label: snapshot.title },
+    ],
+    edges: [
+      {
+        id: `contains:${snapshot.id}:${snapshot.id}`,
+        relation: "contains",
+        from: projectResourceId,
+        to: documentResourceId,
+        label: "main manuscript",
+      },
+    ],
+  };
+}
+
+function addMembers(
+  graph: WorkspaceKnowledgeGraph,
+  workspaceId: string,
+  projectResourceId: string,
+  members: readonly WorkspaceMember[],
+): void {
   for (const member of members) {
     const resourceId = personId(member.id);
-    nodes.push({ id: resourceId, kind: "person", label: member.email });
-    edges.push({
-      id: `participates-in:${member.id}:${snapshot.id}`,
+    graph.nodes.push({ id: resourceId, kind: "person", label: member.email });
+    graph.edges.push({
+      id: `participates-in:${member.id}:${workspaceId}`,
       relation: "participates-in",
       from: resourceId,
       to: projectResourceId,
       label: member.role,
     });
   }
+}
 
-  for (const section of extractSections(snapshot.source)) nodes.push({ id: section.id, kind: "section", label: section.title });
-  for (const publication of snapshot.publications) {
-    nodes.push({ id: publicationId(publication.id), kind: "publication", label: publication.title });
-  }
-  for (const pdf of snapshot.pdfs) nodes.push({ id: pdfId(pdf.id), kind: "pdf", label: pdf.name });
-  for (const link of snapshot.publicationPdfLinks) {
-    edges.push({
+function addScholarlyResources(graph: WorkspaceKnowledgeGraph, snapshot: WorkspaceSnapshot): void {
+  graph.nodes.push(
+    ...extractSections(snapshot.source).map((section) => ({ id: section.id, kind: "section" as const, label: section.title })),
+    ...snapshot.publications.map((publication) => ({
+      id: publicationId(publication.id),
+      kind: "publication" as const,
+      label: publication.title,
+    })),
+    ...snapshot.pdfs.map((pdf) => ({ id: pdfId(pdf.id), kind: "pdf" as const, label: pdf.name })),
+  );
+  graph.edges.push(
+    ...snapshot.publicationPdfLinks.map((link) => ({
       id: `has-artifact:${link.id}`,
-      relation: "has-artifact",
+      relation: "has-artifact" as const,
       from: publicationId(link.publicationId),
       to: pdfId(link.pdfId),
       label: "has artifact",
-    });
-  }
+    })),
+  );
   for (const annotation of snapshot.annotations) {
     const resourceId = annotationId(annotation.id);
-    nodes.push({ id: resourceId, kind: "annotation", label: annotation.comment || excerpt(annotation.quote, 80) });
-    edges.push({
+    graph.nodes.push({ id: resourceId, kind: "annotation", label: annotation.comment || excerpt(annotation.quote, 80) });
+    graph.edges.push({
       id: `annotates:${annotation.id}:${annotation.pdfId}`,
       relation: "annotates",
       from: resourceId,
@@ -250,87 +276,94 @@ export function buildWorkspaceKnowledgeGraph(
       label: `page ${annotation.page}`,
     });
   }
-  for (const claim of snapshot.claims) nodes.push({ id: claimId(claim.id), kind: "claim", label: claim.text });
-  for (const link of snapshot.claimEvidenceLinks) {
-    edges.push({
+  graph.nodes.push(...snapshot.claims.map((claim) => ({ id: claimId(claim.id), kind: "claim" as const, label: claim.text })));
+}
+
+function addEvidenceRelations(graph: WorkspaceKnowledgeGraph, snapshot: WorkspaceSnapshot, documentResourceId: string): void {
+  graph.edges.push(
+    ...snapshot.claimEvidenceLinks.map((link) => ({
       id: `${link.relation}:${link.id}`,
       relation: link.relation,
       from: annotationId(link.annotationId),
       to: claimId(link.claimId),
       label: link.relation,
-    });
-  }
-  for (const link of snapshot.claimLinks) {
-    edges.push({
+    })),
+    ...snapshot.claimLinks.map((link) => ({
       id: `used-in:${link.id}`,
-      relation: "used-in",
+      relation: "used-in" as const,
       from: claimId(link.claimId),
       to: documentResourceId,
-      label: excerpt(link.resolution.status === "resolved" ? link.resolution.text : link.anchor.exact, 100),
-    });
-  }
-  for (const link of snapshot.links) {
-    edges.push({
+      label: anchorLabel(link),
+    })),
+    ...snapshot.links.map((link) => ({
       id: `used-in:${link.id}`,
-      relation: "used-in",
+      relation: "used-in" as const,
       from: annotationId(link.annotationId),
       to: documentResourceId,
-      label: excerpt(link.resolution.status === "resolved" ? link.resolution.text : link.anchor.exact, 100),
-    });
-  }
+      label: anchorLabel(link),
+    })),
+  );
+}
 
+function anchorLabel(link: WorkspaceSnapshot["links"][number] | WorkspaceSnapshot["claimLinks"][number]): string {
+  return excerpt(link.resolution.status === "resolved" ? link.resolution.text : link.anchor.exact, 100);
+}
+
+function addResearchNotes(graph: WorkspaceKnowledgeGraph, snapshot: WorkspaceSnapshot): void {
   const publicationIds = new Set(snapshot.publications.map((publication) => publication.id));
   for (const share of snapshot.researchShares) {
     if (share.revokedAt !== null || share.content.kind !== "note") continue;
     const resourceId = noteId(share.resourceId);
-    nodes.push({ id: resourceId, kind: "note", label: excerpt(share.content.body, 80) || "Shared research note" });
-    if (publicationIds.has(share.referenceId)) {
-      edges.push({
-        id: `derived-from:${share.id}`,
-        relation: "derived-from",
-        from: resourceId,
-        to: publicationId(share.referenceId),
-        label: "note about source",
-      });
-    }
+    graph.nodes.push({ id: resourceId, kind: "note", label: excerpt(share.content.body, 80) || "Shared research note" });
+    if (!publicationIds.has(share.referenceId)) continue;
+    graph.edges.push({
+      id: `derived-from:${share.id}`,
+      relation: "derived-from",
+      from: resourceId,
+      to: publicationId(share.referenceId),
+      label: "note about source",
+    });
   }
+}
 
+function addModelCandidates(graph: WorkspaceKnowledgeGraph, snapshot: WorkspaceSnapshot, documentResourceId: string): void {
   for (const candidate of snapshot.candidates) {
     const resourceId = modelCandidateId(candidate.id);
-    nodes.push({
-      id: resourceId,
-      kind: "model-candidate",
-      label:
-        excerpt(candidate.operation === "draft-claim" ? candidate.proposedText : candidate.proposedReplacement, 80) ||
-        (candidate.operation === "draft-claim" ? "Model claim candidate" : "Model revision candidate"),
-    });
-    for (const evidence of candidate.evidence) {
-      edges.push({
+    graph.nodes.push({ id: resourceId, kind: "model-candidate", label: candidateLabel(candidate) });
+    graph.edges.push(
+      ...candidate.evidence.map((evidence) => ({
         id: `derived-from:${candidate.id}:${evidence.kind}:${evidence.id}`,
-        relation: "derived-from",
+        relation: "derived-from" as const,
         from: resourceId,
         to: evidence.kind === "annotation" ? annotationId(evidence.id) : claimId(evidence.id),
         label: evidence.kind,
-      });
-    }
-    if (candidate.operation === "revise-selection") {
-      edges.push({
-        id: `used-in:${candidate.id}`,
-        relation: "used-in",
-        from: resourceId,
-        to: documentResourceId,
-        label: excerpt(candidate.target.anchor.exact, 100),
-      });
-    }
+      })),
+    );
+    if (candidate.operation !== "revise-selection") continue;
+    graph.edges.push({
+      id: `used-in:${candidate.id}`,
+      relation: "used-in",
+      from: resourceId,
+      to: documentResourceId,
+      label: excerpt(candidate.target.anchor.exact, 100),
+    });
   }
+}
 
+function candidateLabel(candidate: WorkspaceSnapshot["candidates"][number]): string {
+  const fallback = candidate.operation === "draft-claim" ? "Model claim candidate" : "Model revision candidate";
+  const text = candidate.operation === "draft-claim" ? candidate.proposedText : candidate.proposedReplacement;
+  return excerpt(text, 80) || fallback;
+}
+
+function addCitations(graph: WorkspaceKnowledgeGraph, snapshot: WorkspaceSnapshot, documentResourceId: string): void {
   const publicationsByKey = new Map(snapshot.publications.map((publication) => [publication.citationKey.toLowerCase(), publication]));
   const cited = new Set<string>();
   for (const citationKey of extractCitationKeys(snapshot.source)) {
     const publication = publicationsByKey.get(citationKey.toLowerCase());
     if (!publication || cited.has(publication.id)) continue;
     cited.add(publication.id);
-    edges.push({
+    graph.edges.push({
       id: `cites:${snapshot.id}:${publication.id}`,
       relation: "cites",
       from: documentResourceId,
@@ -338,8 +371,6 @@ export function buildWorkspaceKnowledgeGraph(
       label: publication.citationKey,
     });
   }
-
-  return { nodes, edges };
 }
 
 export function isKnowledgeSearchResults(value: unknown): value is KnowledgeSearchResult[] {
