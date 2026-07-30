@@ -1,5 +1,5 @@
 import { DurableObject } from "cloudflare:workers";
-import type { WorkspaceMember, WorkspaceRole } from "../domain/workspace";
+import type { WorkspaceMember, WorkspaceRole } from "../domain/workspace/workspace";
 import { runSQLiteMigrations, type SQLiteMigration } from "./migrations";
 import { currentRecoveryBookmark } from "./recovery";
 

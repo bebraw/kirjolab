@@ -15,7 +15,7 @@ import {
   type ReviewCatalogRecord,
   type ReviewSummary,
   type UpdateReviewCatalogInput,
-} from "../domain/review-catalog";
+} from "../domain/review/review-catalog";
 import { runSQLiteMigrations, type SQLiteMigration } from "./migrations";
 import { currentRecoveryBookmark } from "./recovery";
 

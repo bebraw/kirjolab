@@ -1,4 +1,4 @@
-import type { ProjectFile, WorkspaceSnapshot } from "../domain/workspace";
+import type { ProjectFile, WorkspaceSnapshot } from "../domain/workspace/workspace";
 import { escapeHtml } from "../html";
 
 export type SharedEditorMode = "read-only" | "edit";

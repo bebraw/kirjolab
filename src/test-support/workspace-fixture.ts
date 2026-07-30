@@ -1,4 +1,4 @@
-import type { WorkspaceSnapshot } from "../domain/workspace";
+import type { WorkspaceSnapshot } from "../domain/workspace/workspace";
 
 export const workspaceSnapshotFixture: WorkspaceSnapshot = {
   id: "workspace",

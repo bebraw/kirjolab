@@ -25,7 +25,7 @@ export async function buildBrowserShell(root = projectRoot) {
   await removeSupersededRuntimeAssets(outputAssets);
 
   const markdownAsset = await buildFingerprintedRuntime({
-    entryPoint: join(root, "src/domain/markdown.ts"),
+    entryPoint: join(root, "src/domain/manuscript/markdown.ts"),
     outputAssets,
     stem: "markdown-module",
   });

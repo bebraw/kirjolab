@@ -11,7 +11,7 @@ with an authored passage.
 
 ### Architecture
 
-- `src/client/pdf-viewer.ts` owns single-page PDF.js canvas and text-layer
+- `src/client/pdf/pdf-viewer.ts` owns single-page PDF.js canvas and text-layer
   rendering, page navigation, stored highlights, browser selection capture,
   and resolution of its bounded shell elements. The workspace coordinator
   supplies typed selection, highlight, and page-change hooks.
@@ -20,7 +20,7 @@ with an authored passage.
   render request generations invalidate late work when another PDF, page, zoom,
   or resize supersedes it. PDF.js documents/tasks, rendered DOM, gestures,
   annotations, and selection state remain outside the actor.
-- `src/client/pdf-selection.ts` normalizes selection geometry and derives quote
+- `src/client/pdf/pdf-selection.ts` normalizes selection geometry and derives quote
   context independently of the viewer runtime. Fragmented browser client
   rectangles are clipped and coalesced into continuous visual-line rectangles
   before the project bound is applied.

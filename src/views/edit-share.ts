@@ -1,4 +1,4 @@
-import type { ProjectFile, WorkspaceSnapshot } from "../domain/workspace";
+import type { ProjectFile, WorkspaceSnapshot } from "../domain/workspace/workspace";
 import { renderSharedEditorPage, resolveSharedEditorFile } from "./shared-editor";
 
 export function resolveEditShareFile(snapshot: WorkspaceSnapshot, requestedFileId: string | null): ProjectFile {

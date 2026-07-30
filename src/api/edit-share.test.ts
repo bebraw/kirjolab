@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { WorkspaceSnapshot } from "../domain/workspace";
+import type { WorkspaceSnapshot } from "../domain/workspace/workspace";
 import type { ProjectFileReplaceResult } from "../durable-objects/document-room";
 import type { ResolvedEditShare } from "../durable-objects/workspace-access";
 import { handleEditShareRequest, type EditShareEnv } from "./edit-share";

@@ -1,6 +1,6 @@
 import type { ReferenceLibrarySnapshot } from "../domain/reference-library";
-import type { ReviewSummary } from "../domain/review-catalog";
-import type { WorkspaceSummary } from "../domain/workspace";
+import type { ReviewSummary } from "../domain/review/review-catalog";
+import type { WorkspaceSummary } from "../domain/workspace/workspace";
 import { renderProductHeader } from "./app-navigation";
 import { escapeHtml } from "../html";
 

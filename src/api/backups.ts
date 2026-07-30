@@ -1,4 +1,4 @@
-import type { OwnerBackupDrillStatus, OwnerBackupStatus } from "../domain/backups";
+import type { OwnerBackupDrillStatus, OwnerBackupStatus } from "../domain/backup/backups";
 import type { AuthIdentity } from "../security/auth";
 
 interface BackupCoordinatorApi {

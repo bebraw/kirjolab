@@ -1,5 +1,5 @@
 import * as v from "valibot";
-import { normalizeDoi } from "../bibliography";
+import { normalizeDoi } from "./bibliography";
 import { isRecord } from "../unknown-value";
 import { isBibliographicRecord, type BibliographicRecord } from "./metadata";
 

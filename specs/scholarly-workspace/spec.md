@@ -454,7 +454,7 @@ collaboration.
   isolated per-test storage. It owns Durable Object migration, transaction,
   RPC, and eviction contracts; Node tests own shared pure-domain behavior.
 - **Document semantics:** A pinned unified/remark pipeline parses standard
-  Markdown and GFM while `src/domain/markdown.ts` adds headings, citations,
+  Markdown and GFM while `src/domain/manuscript/markdown.ts` adds headings, citations,
   references, aliases, anchors, validation, and allowlist preview security from
   the scientific-writing syntax.
 - **Project composition:** One stable root `main.md` composes user-named

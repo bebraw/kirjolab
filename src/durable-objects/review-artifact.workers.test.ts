@@ -2,7 +2,7 @@ import { env } from "cloudflare:workers";
 import { evictDurableObject, runInDurableObject } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
 import { DocumentRoom } from "./document-room";
-import type { ReviewArtifactPin } from "../domain/workspace";
+import type { ReviewArtifactPin } from "../domain/workspace/workspace";
 
 describe("review synthesis project artifact", () => {
   it("pins Markdown atomically in current state and project history", async () => {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { WorkspaceSnapshot } from "../domain/workspace";
+import type { WorkspaceSnapshot } from "../domain/workspace/workspace";
 import { renderReadOnlySharePage, resolveReadOnlyShareFile } from "./read-only-share";
 
 const snapshot: WorkspaceSnapshot = {

@@ -1,7 +1,7 @@
 import { env } from "cloudflare:workers";
 import { evictDurableObject, runInDurableObject } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
-import type { ReviewCatalogRecord } from "../domain/review-catalog";
+import type { ReviewCatalogRecord } from "../domain/review/review-catalog";
 import { ReviewAccess } from "./review-access";
 import { ReviewCatalog } from "./review-catalog";
 

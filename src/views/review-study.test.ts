@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ReviewProjectLinkView } from "../api/reviews";
-import type { ReviewSummary } from "../domain/review-catalog";
+import type { ReviewSummary } from "../domain/review/review-catalog";
 import { renderReviewStudySurface } from "./review-study";
 
 const review: ReviewSummary = {

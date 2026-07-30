@@ -1,6 +1,6 @@
 /// <reference lib="webworker" />
 
-import { offlineShellCacheName, offlineShellCachePrefix } from "./offline-service-worker";
+import { offlineShellCacheName, offlineShellCachePrefix } from "./platform/offline-service-worker";
 
 declare const self: ServiceWorkerGlobalScope;
 

@@ -17,10 +17,10 @@ renderer in useful directions.
 The resolved package lets Kirjolab remove approximately
 1,282 lines of renderer implementation from these files:
 
-- `src/domain/markdown.ts`
-- `src/domain/markdown-comments.ts`
-- `src/domain/native-figures.ts`
-- `src/domain/scholarly-export.ts`
+- `src/domain/manuscript/markdown.ts`
+- `src/domain/manuscript/markdown-comments.test.ts`
+- `src/domain/manuscript/native-figures.test.ts`
+- `src/domain/publication/scholarly-export.test.ts`
 
 Contract-level tests should remain in Kirjolab even when implementation tests
 move upstream.

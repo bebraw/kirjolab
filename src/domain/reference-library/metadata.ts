@@ -1,6 +1,6 @@
 import * as v from "valibot";
-import { normalizeDoi, projectBibTeXPublication, type BibTeXEntry } from "../bibliography";
-import { hasBibliographicRecordFields } from "../bibliographic-record-contract";
+import { normalizeDoi, projectBibTeXPublication, type BibTeXEntry } from "./bibliography";
+import { hasBibliographicRecordFields } from "./bibliographic-record-contract";
 import { isRecord } from "../unknown-value";
 import type { WebCitationSnapshot, WebSnapshot } from "./web-sources";
 

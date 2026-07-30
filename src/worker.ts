@@ -19,7 +19,7 @@ import {
   reviewProjectLinkViews,
 } from "./api/reviews";
 import { exampleRoutes } from "./app-routes";
-import { buildExportBundle } from "./domain/export-pipeline";
+import { buildExportBundle } from "./domain/publication/export-pipeline";
 import { DocumentRoom } from "./durable-objects/document-room";
 import { WorkspaceCatalog } from "./durable-objects/workspace-catalog";
 import { ProjectTemplateCatalog } from "./durable-objects/project-template-catalog";

@@ -1,6 +1,6 @@
 import type { ReviewProjectLinkView } from "../api/reviews";
-import type { ReviewMember, ReviewSummary } from "../domain/review-catalog";
-import type { WorkspaceSummary } from "../domain/workspace";
+import type { ReviewMember, ReviewSummary } from "../domain/review/review-catalog";
+import type { WorkspaceSummary } from "../domain/workspace/workspace";
 import { renderButton } from "../ui/markup";
 import { renderProductHeader } from "./app-navigation";
 import { renderReviewStudySurface } from "./review-study";

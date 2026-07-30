@@ -11,9 +11,9 @@ import {
   type LegacyOwnerBackupManifest,
   type ProjectAssociatedReviewOwnerBackupManifest,
   type ProjectAssociatedReviewOwnerBackupState,
-} from "../domain/backups";
-import { builtInProjectTemplate } from "../domain/project-templates";
-import { defaultReviewProtocol } from "../domain/review-study";
+} from "../domain/backup/backups";
+import { builtInProjectTemplate } from "../domain/project/project-templates";
+import { defaultReviewProtocol } from "../domain/review/review-study";
 import { BackupCoordinator } from "./backup-coordinator";
 import { BackupRecovery } from "./backup-recovery";
 

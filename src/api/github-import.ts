@@ -1,6 +1,6 @@
 import * as v from "valibot";
-import { defaultProjectPublicationProfile } from "../domain/workspace";
-import { resolveTemplateEntryPath, type ProjectTemplateSeed } from "../domain/project-templates";
+import { defaultProjectPublicationProfile } from "../domain/workspace/workspace";
+import { resolveTemplateEntryPath, type ProjectTemplateSeed } from "../domain/project/project-templates";
 import type { GitHubRepositorySelection, GitHubRepositorySnapshot } from "../integrations/github-app";
 import type { AuthIdentity } from "../security/auth";
 import { authorizeGitHubSelection } from "./github-connection";

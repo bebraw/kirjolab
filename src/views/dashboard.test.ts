@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { ReferenceLibrarySnapshot } from "../domain/reference-library";
-import type { ReviewSummary } from "../domain/review-catalog";
-import type { WorkspaceSummary } from "../domain/workspace";
+import type { ReviewSummary } from "../domain/review/review-catalog";
+import type { WorkspaceSummary } from "../domain/workspace/workspace";
 import { renderDashboardPage } from "./dashboard";
 
 const workspaces: readonly WorkspaceSummary[] = [

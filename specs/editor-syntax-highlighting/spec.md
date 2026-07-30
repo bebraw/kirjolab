@@ -12,7 +12,7 @@ preserving the native collaborative textarea and exact source text.
 
 - **Input authority:** `#source-editor` remains the only editable manuscript
   surface and continues to bind directly to the active Yjs text.
-- **Projection:** `src/client/markdown-highlighting.ts` classifies bounded
+- **Projection:** `src/client/editor/markdown-highlighting.ts` classifies bounded
   lexical ranges without changing, omitting, or normalizing source characters.
 - **Presentation:** `#source-editor-highlight` is an inert, `aria-hidden` mirror
   behind the transparent textarea glyphs. It uses safe text nodes, shows a

@@ -60,9 +60,9 @@ The largest non-test authorities include:
 | `src/durable-objects/document-room.ts`     | 5,636 | Collaboration, files, history, export, and persistence share one authority file.              |
 | `src/durable-objects/review-study.ts`      | 2,766 | Review commands and SQLite projection are difficult to change independently.                  |
 | `src/durable-objects/reference-library.ts` | 2,411 | Reference, PDF, research, analysis, and web-source persistence share one implementation unit. |
-| `src/client/review-study.ts`               | 2,012 | A broad product workspace remains one browser component.                                      |
+| `src/client/review/review-study.ts`        | 2,012 | A broad product workspace remains one browser component.                                      |
 | `src/domain/reference-library.ts`          | 1,090 | Eighty-two dependents consume a mixed contract surface.                                       |
-| `src/domain/latex-converter.ts`            |   765 | Kirjolab owns both LaTeX recognition and product conversion policy.                           |
+| `src/domain/manuscript/latex-converter.ts` |   765 | Kirjolab owns both LaTeX recognition and product conversion policy.                           |
 
 Repository size alone is not evidence for package extraction. A useful library
 boundary must isolate a coherent capability, have a small explicit API, avoid

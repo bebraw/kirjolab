@@ -8,7 +8,7 @@ import {
   type CreateClaimCandidateInput,
   type PublicationEnrichment,
   type WorkspaceSnapshot,
-} from "../domain/workspace";
+} from "../domain/workspace/workspace";
 import { DocumentRoom, sendWebSocketMessage, type DocumentRoomOperationResult } from "./document-room";
 
 interface WorkspaceStateRow extends Record<string, SqlStorageValue> {

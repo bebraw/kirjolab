@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { WorkspaceSnapshot } from "../domain/workspace";
+import type { WorkspaceSnapshot } from "../domain/workspace/workspace";
 import { renderEditSharePage, resolveEditShareFile } from "./edit-share";
 
 const file = (id: string, path: string, content: string) => ({

@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { unzipSync } from "fflate";
 import { PDFDocument } from "pdf-lib";
-import type { CitationAssertion, CitationNetwork } from "../domain/citation-assertions";
+import type { CitationAssertion, CitationNetwork } from "../domain/citation/citation-assertions";
 import type {
   ArtifactAnalysis,
   ArtifactAnalysisKind,
@@ -2035,14 +2035,15 @@ function apiFixture(bucket = new MemoryR2Bucket()) {
       moved: { artifacts: 0, notes: 0, highlights: 0, pdfMarkups: 0, citationAssertions: 0 },
     })),
     findReferencesByDois: vi.fn(async () => [] as BibliographicRecord[]),
-    createCitationAssertions: vi.fn(async (inputs: readonly import("../domain/citation-assertions").CreateCitationAssertionInput[]) =>
-      inputs.map((input) => ({ ...citationAssertion, ...input })),
+    createCitationAssertions: vi.fn(
+      async (inputs: readonly import("../domain/citation/citation-assertions").CreateCitationAssertionInput[]) =>
+        inputs.map((input) => ({ ...citationAssertion, ...input })),
     ),
     acceptCitationCandidate: vi.fn(
       async (
         _sourceId: string,
         metadata: import("../domain/reference-library").CrossrefMetadata,
-        source: import("../domain/citation-expansion-types").CitationCandidateSource,
+        source: import("../domain/citation/citation-expansion-types").CitationCandidateSource,
       ) => ({
         reference: { ...reference, id: citationAssertion.citedReferenceId, ...metadata },
         created: true,
@@ -2058,7 +2059,7 @@ function apiFixture(bucket = new MemoryR2Bucket()) {
       async (
         _sourceId: string,
         metadata: readonly import("../domain/reference-library").CrossrefMetadata[],
-        source: import("../domain/citation-expansion-types").CitationCandidateSource,
+        source: import("../domain/citation/citation-expansion-types").CitationCandidateSource,
       ) => ({
         accepted: metadata.map((candidate, index) => ({
           reference: { ...reference, id: crypto.randomUUID(), ...candidate },
@@ -2072,9 +2073,11 @@ function apiFixture(bucket = new MemoryR2Bucket()) {
         })),
       }),
     ),
-    getCitationResearchQueue: vi.fn(async (): Promise<import("../domain/citation-research-queue").CitationResearchQueueItem[]> => []),
+    getCitationResearchQueue: vi.fn(
+      async (): Promise<import("../domain/citation/citation-research-queue").CitationResearchQueueItem[]> => [],
+    ),
     queueCitationReference: vi.fn(
-      async (referenceId: string, input: import("../domain/citation-research-queue").QueueCitationReferenceInput) => ({
+      async (referenceId: string, input: import("../domain/citation/citation-research-queue").QueueCitationReferenceInput) => ({
         ...input,
         referenceId,
         addedAt: now,
@@ -2087,10 +2090,12 @@ function apiFixture(bucket = new MemoryR2Bucket()) {
       addedAt: now,
     })),
     getCitationAssertions: vi.fn(async () => [citationAssertion]),
-    reviewCitationAssertion: vi.fn(async (_id: string, input: import("../domain/citation-assertions").ReviewCitationAssertionInput) => ({
-      ...citationAssertion,
-      review: { decision: input.decision, note: input.note, reviewer: identity.email, reviewedAt: now },
-    })),
+    reviewCitationAssertion: vi.fn(
+      async (_id: string, input: import("../domain/citation/citation-assertions").ReviewCitationAssertionInput) => ({
+        ...citationAssertion,
+        review: { decision: input.decision, note: input.note, reviewer: identity.email, reviewedAt: now },
+      }),
+    ),
     getCitationNetwork: vi.fn(async () => citationNetwork),
   };
   const getByName = vi.fn(() => library);

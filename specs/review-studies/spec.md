@@ -51,7 +51,7 @@ published deliberately into several writing projects.
   private Library access; and a project-review link grants neither. Operations
   that resolve project evidence or publish into a project require an explicitly
   selected active link plus independent access to both resources.
-- `src/domain/review-study.ts` owns portable types, bounds, validation, query
+- `src/domain/review/review-study.ts` owns portable types, bounds, validation, query
   rendering, projections, report calculations, and interchange contracts. Its
   study and finding validators share only the pure trimmed bounded-text
   primitive; array labels, IDs, uniqueness, and feature invariants stay local.
@@ -60,7 +60,7 @@ published deliberately into several writing projects.
   their feature-specific validators retain all bounds and domain invariants.
 - `src/durable-objects/review-study.ts` owns versioned structured persistence,
   atomic mutation, reviewer decisions, and append-only provenance.
-- `src/domain/review-catalog.ts` owns independent review, membership, locator,
+- `src/domain/review/review-catalog.ts` owns independent review, membership, locator,
   project-link, backup, and bound contracts. `src/durable-objects/review-catalog.ts`
   and `src/durable-objects/review-access.ts` own their corresponding atomic
   SQLite authorities.

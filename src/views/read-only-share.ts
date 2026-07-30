@@ -1,4 +1,4 @@
-import type { WorkspaceSnapshot } from "../domain/workspace";
+import type { WorkspaceSnapshot } from "../domain/workspace/workspace";
 import { renderSharedEditorPage, resolveSharedEditorFile } from "./shared-editor";
 
 export function resolveReadOnlyShareFile(snapshot: WorkspaceSnapshot, requestedFileId: string | null, legacyView: string | null = null) {

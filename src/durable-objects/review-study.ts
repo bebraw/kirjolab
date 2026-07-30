@@ -12,7 +12,7 @@ import {
   type ReviewReassessmentObligation,
   type ReviewReassessmentSnapshot,
   type ReviewStudySnapshot,
-} from "../domain/review-study";
+} from "../domain/review/review-study";
 import {
   previewReviewBibTeX,
   reviewAggregateLimits,
@@ -27,7 +27,7 @@ import {
   type ReviewRecord,
   type ReviewSearchRun,
   type ReviewSearchSnapshot,
-} from "../domain/review-search";
+} from "../domain/review/review-search";
 import {
   fullTextScreeningAllowed,
   screeningStageState,
@@ -38,7 +38,7 @@ import {
   type ScreeningDecisionValue,
   type ScreeningRecordState,
   type ScreeningStage,
-} from "../domain/review-screening";
+} from "../domain/review/review-screening";
 import {
   parseEvidencePointer,
   parseExtractionValueShape,
@@ -51,16 +51,16 @@ import {
   type QualityAssessmentValue,
   type ReviewEvidencePointer,
   type ReviewEvidenceSnapshot,
-} from "../domain/review-evidence";
+} from "../domain/review/review-evidence";
 import {
   materializeReviewFinding,
   parseReviewFindingInput,
   reviewFindingLimits,
   type ReviewFindingInput,
   type ReviewFindingsSnapshot,
-} from "../domain/review-findings";
-import { buildReviewSynthesis, type ReviewSynthesis } from "../domain/review-synthesis";
-import type { ReviewExportAuthority } from "../domain/review-export";
+} from "../domain/review/review-findings";
+import { buildReviewSynthesis, type ReviewSynthesis } from "../domain/review/review-synthesis";
+import type { ReviewExportAuthority } from "../domain/review/review-export";
 import {
   materializeReviewBackupArtifact,
   parseReviewBackupReference,
@@ -74,7 +74,7 @@ import {
   type ReviewBackupTableName,
   type ReviewBackupVerification,
   type ReviewStudyBackupPayload,
-} from "../domain/review-backup";
+} from "../domain/review/review-backup";
 import {
   parseExtractionModelResult,
   parseScreeningModelResult,
@@ -82,7 +82,7 @@ import {
   type ReviewModelCandidate,
   type ReviewModelOperation,
   type ReviewModelSnapshot,
-} from "../domain/review-model";
+} from "../domain/review/review-model";
 import { runSQLiteMigrations, type SQLiteMigration, type SQLiteMigrationSql } from "./migrations";
 import { currentRecoveryBookmark } from "./recovery";
 
@@ -1607,7 +1607,7 @@ export class ReviewStudy extends DurableObject<Env> {
                 .one().count > 0
             );
           }
-          const result = candidate.result as import("../domain/review-model").ExtractionModelResult;
+          const result = candidate.result as import("../domain/review/review-model").ExtractionModelResult;
           return (
             this.ctx.storage.sql
               .exec<{
@@ -1711,7 +1711,7 @@ export class ReviewStudy extends DurableObject<Env> {
         candidateId,
       );
       if (disposition === "accepted" && candidate.operation === "screen-record") {
-        const result = candidate.result as import("../domain/review-model").ScreeningModelResult;
+        const result = candidate.result as import("../domain/review/review-model").ScreeningModelResult;
         const criterion = applicableScreeningCriterion(protocol, result.criterion, candidate.stage!, result.decision);
         this.ctx.storage.sql.exec(
           "INSERT INTO screening_decisions (id, record_id, stage, reviewer, decision, reason, criterion, created_at, revision, protocol_revision, criterion_id, criterion_text) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
@@ -1730,7 +1730,7 @@ export class ReviewStudy extends DurableObject<Env> {
         );
       }
       if (disposition === "accepted" && candidate.operation === "extract-field") {
-        const result = candidate.result as import("../domain/review-model").ExtractionModelResult;
+        const result = candidate.result as import("../domain/review/review-model").ExtractionModelResult;
         this.assertEvidenceRecord(candidate.recordId, actor);
         const field = protocol.extractionFields.find((candidate) => candidate.id === result.fieldId);
         if (!field) throw new Error("Extraction candidate field is unavailable");

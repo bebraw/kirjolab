@@ -1,4 +1,4 @@
-import { isPersonalProjectTemplateId, listBuiltInProjectTemplates } from "../domain/project-templates";
+import { isPersonalProjectTemplateId, listBuiltInProjectTemplates } from "../domain/project/project-templates";
 import type { AuthIdentity } from "../security/auth";
 
 export async function handleProjectTemplateApi(request: Request, env: Env, identity: AuthIdentity): Promise<Response> {

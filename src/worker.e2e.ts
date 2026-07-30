@@ -1,6 +1,6 @@
 import { expect, test, type Locator, type Page, type Request, type Route } from "@playwright/test";
 import { isKnowledgeSearchResults, isWorkspaceKnowledgeGraph, type WorkspaceKnowledgeGraph } from "./domain/knowledge";
-import { isWorkspaceSnapshot, isWorkspaceSummaries, type WorkspaceSnapshot } from "./domain/workspace";
+import { isWorkspaceSnapshot, isWorkspaceSummaries, type WorkspaceSnapshot } from "./domain/workspace/workspace";
 import {
   createEvidencePdf,
   createHighlightedEvidencePdf,

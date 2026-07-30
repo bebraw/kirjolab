@@ -26,20 +26,20 @@ import {
   type ProjectPublicationProfile,
   type WorkspaceRole,
   type WorkspaceSummary,
-} from "../domain/workspace";
-import { normalizeProjectPath } from "../domain/project-files";
-import { hasProjectImageSignature } from "../domain/project-image-signatures";
-import { parseBibTeX } from "../domain/bibliography";
+} from "../domain/workspace/workspace";
+import { normalizeProjectPath } from "../domain/project/project-files";
+import { hasProjectImageSignature } from "../domain/project/project-image-signatures";
+import { parseBibTeX } from "../domain/reference-library/bibliography";
 import {
   builtInProjectTemplate,
   isSaveProjectTemplateInput,
   projectTemplateSeed,
   projectTemplateSummaryFromWorkspace,
   type ProjectTemplateRecord,
-} from "../domain/project-templates";
+} from "../domain/project/project-templates";
 import { buildWorkspaceKnowledgeGraph, searchWorkspaceKnowledge } from "../domain/knowledge";
 import { archivalSourceBundle, latexArchive, renderExportPdf } from "./export-artifacts";
-import { assertExportable, buildExportBundle, ExportPipelineError } from "../domain/export-pipeline";
+import { assertExportable, buildExportBundle, ExportPipelineError } from "../domain/publication/export-pipeline";
 import { fetchCrossrefWork, fingerprintPublicationMetadata } from "../integrations/crossref";
 import { ownerKeyForEmail, type AuthIdentity } from "../security/auth";
 import { downloadR2Object } from "./r2-download";
@@ -1380,7 +1380,7 @@ async function accessSharedResearch(
   env: Env,
   room: DurableObjectStub<import("../durable-objects/document-room").DocumentRoom>,
   library: DurableObjectStub<import("../durable-objects/reference-library").ReferenceLibrary>,
-  role: import("../domain/workspace").WorkspaceRole,
+  role: import("../domain/workspace/workspace").WorkspaceRole,
 ): Promise<Response> {
   const match = /^\/research-shares\/([0-9a-f-]{36})(?:\/(content))?$/iu.exec(suffix);
   if (!match?.[1]) return jsonError("Research share route not found", 404);
@@ -1696,7 +1696,7 @@ async function refreshLinkedReferences(
 }
 
 function projectReferenceIsCurrent(
-  link: import("../domain/workspace").ProjectReferenceLink,
+  link: import("../domain/workspace/workspace").ProjectReferenceLink,
   reference: import("../domain/reference-library").BibliographicRecord,
 ): boolean {
   const snapshot = link.snapshot;

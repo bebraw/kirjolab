@@ -16,7 +16,7 @@ import {
   type ReviewMember,
   type ReviewMemberSeed,
   type ReviewRole,
-} from "../domain/review-catalog";
+} from "../domain/review/review-catalog";
 import { runSQLiteMigrations, type SQLiteMigration } from "./migrations";
 import { currentRecoveryBookmark } from "./recovery";
 

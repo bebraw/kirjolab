@@ -1,6 +1,6 @@
-import { normalizePublicationDoi } from "../domain/publication-intake";
+import { normalizePublicationDoi } from "../domain/publication/publication-intake";
 import { isRecord } from "../domain/unknown-value";
-import type { OpenAccessPdfCandidate, OpenAccessPdfProvider } from "../domain/open-access-pdf";
+import type { OpenAccessPdfCandidate, OpenAccessPdfProvider } from "../domain/reference-library/open-access-pdf";
 import { readBoundedResponseJson } from "./bounded-response";
 
 type Fetcher = (input: string | URL | Request, init?: RequestInit) => Promise<Response>;

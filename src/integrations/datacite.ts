@@ -1,7 +1,7 @@
-import { normalizeDoi } from "../domain/bibliography";
-import { isValidDoi, normalizePublicationDoi } from "../domain/publication-intake";
+import { normalizeDoi } from "../domain/reference-library/bibliography";
+import { isValidDoi, normalizePublicationDoi } from "../domain/publication/publication-intake";
 import { isRecord } from "../domain/unknown-value";
-import type { PublicationEnrichment } from "../domain/workspace";
+import type { PublicationEnrichment } from "../domain/workspace/workspace";
 import { readBoundedResponseJson } from "./bounded-response";
 import { boundProviderText as bound, stripProviderMarkup as stripMarkup } from "./provider-text";
 

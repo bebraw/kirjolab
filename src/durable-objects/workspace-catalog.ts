@@ -1,5 +1,5 @@
 import { DurableObject } from "cloudflare:workers";
-import { demoWorkspaceId, type WorkspaceSummary } from "../domain/workspace";
+import { demoWorkspaceId, type WorkspaceSummary } from "../domain/workspace/workspace";
 import type { GitHubRepositorySelection, GitHubRepositorySnapshot } from "../integrations/github-app";
 import { runSQLiteMigrations, type SQLiteMigration } from "./migrations";
 import { currentRecoveryBookmark } from "./recovery";

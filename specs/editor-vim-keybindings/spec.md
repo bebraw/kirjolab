@@ -14,7 +14,7 @@ textarea or affecting standard-editor users.
 - **Preference:** The enabled flag is browser-local under
   `kirjolab:vim-keybindings`; mode, counts, pending commands, and register data
   are ephemeral.
-- **Command model:** `src/client/vim-keybindings.ts` is a pure state transition
+- **Command model:** `src/client/editor/vim-keybindings.ts` is a pure state transition
   over textarea value and selection snapshots.
 - **Browser adapter:** handled edits update the same textarea and dispatch an
   input event through the existing Yjs binding.

@@ -1,7 +1,7 @@
 import * as pdfJsRuntime from "pdfjs-dist/legacy/build/pdf.mjs";
-import { detectPdfHighlights } from "../client/pdf-highlight-import";
-import { analyzePdfReferences } from "../client/pdf-reference-analysis";
-import { extractPdfText } from "../client/pdf-text-analysis";
+import { detectPdfHighlights } from "../client/pdf/pdf-highlight-import";
+import { analyzePdfReferences } from "../client/pdf/pdf-reference-analysis";
+import { extractPdfText } from "../client/pdf/pdf-text-analysis";
 import type { PdfTextExtraction } from "../domain/reference-library";
 import type { PdfHighlightAnalysisResult, PdfReferenceAnalysisResult } from "../domain/reference-library";
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { WorkspaceSnapshot } from "./workspace";
+import type { WorkspaceSnapshot } from "./workspace/workspace";
 import { buildWorkspaceKnowledgeGraph, isKnowledgeSearchResults, isWorkspaceKnowledgeGraph, searchWorkspaceKnowledge } from "./knowledge";
 
 const snapshot: WorkspaceSnapshot = {

@@ -1,8 +1,8 @@
 import { env } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
-import type { ReviewMember, ReviewSummary } from "../domain/review-catalog";
-import { defaultReviewProtocol } from "../domain/review-study";
-import type { ReviewArtifactPin } from "../domain/workspace";
+import type { ReviewMember, ReviewSummary } from "../domain/review/review-catalog";
+import { defaultReviewProtocol } from "../domain/review/review-study";
+import type { ReviewArtifactPin } from "../domain/workspace/workspace";
 import { ownerKeyForEmail, type AuthIdentity } from "../security/auth";
 import {
   confirmReviewMemberProjection,

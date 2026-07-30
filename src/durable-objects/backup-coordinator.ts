@@ -19,8 +19,8 @@ import {
   type OwnerBackupStatus,
   type OwnerReviewBackup,
   type OwnerWorkspaceBackup,
-} from "../domain/backups";
-import { localOwnerId } from "../domain/workspace";
+} from "../domain/backup/backups";
+import { localOwnerId } from "../domain/workspace/workspace";
 import type { AuthIdentity } from "../security/auth";
 import { runSQLiteMigrations, type SQLiteMigration } from "./migrations";
 

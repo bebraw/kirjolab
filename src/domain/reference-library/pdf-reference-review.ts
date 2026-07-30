@@ -1,6 +1,6 @@
 import * as v from "valibot";
-import type { CitationAssertion } from "../citation-assertions";
-import { normalizeDoi } from "../bibliography";
+import type { CitationAssertion } from "../citation/citation-assertions";
+import { normalizeDoi } from "./bibliography";
 import { isRecord } from "../unknown-value";
 import { isPdfReferenceAnalysisCandidate, type PdfReferenceAnalysisCandidate } from "./artifact-analysis";
 import { isBibliographicRecord, type BibliographicRecord } from "./metadata";

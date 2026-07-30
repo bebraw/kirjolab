@@ -5,8 +5,8 @@ import {
   type ReviewCatalogRecord,
   type ReviewMember,
   type ReviewSummary,
-} from "../domain/review-catalog";
-import { demoWorkspaceId, localOwnerId, type WorkspaceSummary } from "../domain/workspace";
+} from "../domain/review/review-catalog";
+import { demoWorkspaceId, localOwnerId, type WorkspaceSummary } from "../domain/workspace/workspace";
 import { ownerKeyForEmail, type AuthIdentity } from "../security/auth";
 import { handleReviewStudyApi } from "./review-study";
 import * as v from "valibot";
@@ -466,7 +466,7 @@ async function unlinkReviewProjectionIfActive(
 }
 
 function matchingActiveProjectProjection(
-  projection: readonly import("../domain/workspace").ProjectReviewLink[],
+  projection: readonly import("../domain/workspace/workspace").ProjectReviewLink[],
   link: ProjectReviewLink,
   storageKey: string,
 ): boolean {

@@ -10,13 +10,13 @@ files.
 
 ## Architecture
 
-- `src/domain/export-pipeline.ts` is the pure publication boundary. It composes
+- `src/domain/publication/export-pipeline.ts` is the pure publication boundary. It composes
   the project, computes reachable citation aliases, builds the intermediate,
   and materializes LaTeX.
 - `src/api/export-artifacts.ts` is the Worker adapter that encodes deterministic
   ZIP and PDF bytes from the already materialized bundle. It never recomposes
   source or recalculates citation scope.
-- `src/domain/publication-statistics.ts` defines the shared
+- `src/domain/publication/publication-statistics.ts` defines the shared
   `kirjolab-prose-v1` counting rule. The client may use this pure projection for
   live statistics without bundling artifact encoders.
 - Every intermediate carries the exact composed Markdown, citation-scoped

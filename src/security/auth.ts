@@ -1,4 +1,4 @@
-import { localOwnerId } from "../domain/workspace";
+import { localOwnerId } from "../domain/workspace/workspace";
 import { isRecord } from "../domain/unknown-value";
 
 export interface AuthIdentity {

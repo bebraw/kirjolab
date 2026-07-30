@@ -24,7 +24,7 @@ import {
   serializeBibTeX,
   type BibTeXEntry,
   type BibTeXPublicationProjection,
-} from "../domain/bibliography";
+} from "../domain/reference-library/bibliography";
 import {
   applyYjsUpdateOnce,
   encodeServerCollaborationMessage,
@@ -36,16 +36,16 @@ import {
   resolveManuscriptAnchor,
   toManuscriptAnchorSelector,
   type StoredManuscriptAnchor,
-} from "../domain/manuscript-anchor";
+} from "../domain/manuscript/manuscript-anchor";
 import {
   compareProjectRevisions,
   type ProjectMilestone,
   type ProjectRevisionContent,
   type ProjectRevisionDiff,
   type ProjectRevisionSummary,
-} from "../domain/project-history";
+} from "../domain/project/project-history";
 import { calculateTextSplice } from "../domain/text";
-import { isValidCitationKey, suggestCitationKey } from "../domain/publication-intake";
+import { isValidCitationKey, suggestCitationKey } from "../domain/publication/publication-intake";
 import {
   composeProject,
   inboundProjectIncludes,
@@ -58,8 +58,8 @@ import {
   type ProjectAsset,
   type ProjectFile,
   type ProjectFolder,
-} from "../domain/project-files";
-import { isProjectTemplateSeed, resolveTemplateEntryPath, type ProjectTemplateSeed } from "../domain/project-templates";
+} from "../domain/project/project-files";
+import { isProjectTemplateSeed, resolveTemplateEntryPath, type ProjectTemplateSeed } from "../domain/project/project-templates";
 import { bibliographicSnapshot, type BibliographicRecord, type BibliographicSnapshot, type WebSnapshot } from "../domain/reference-library";
 import type { ResearchShareSnapshot } from "../domain/reference-library";
 import {
@@ -118,7 +118,7 @@ import {
   type ReviewArtifactPin,
   type UpsertClaimInput,
   type WorkspaceSnapshot,
-} from "../domain/workspace";
+} from "../domain/workspace/workspace";
 import { runSQLiteMigrations, type SQLiteMigration } from "./migrations";
 import { currentRecoveryBookmark } from "./recovery";
 

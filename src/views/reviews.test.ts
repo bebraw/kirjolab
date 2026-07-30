@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { ReviewProjectLinkView } from "../api/reviews";
-import type { ReviewMember, ReviewSummary } from "../domain/review-catalog";
-import type { WorkspaceSummary } from "../domain/workspace";
+import type { ReviewMember, ReviewSummary } from "../domain/review/review-catalog";
+import type { WorkspaceSummary } from "../domain/workspace/workspace";
 import { renderReviewPage, renderReviewsPage } from "./reviews";
 
 const reviewId = "11111111-1111-4111-8111-111111111111";

@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const bindReviewStudyPlanning = vi.fn();
 
-vi.mock("./review-study", () => ({ bindReviewStudyPlanning }));
+vi.mock("./review/review-study", () => ({ bindReviewStudyPlanning }));
 
 beforeEach(() => {
   vi.resetModules();

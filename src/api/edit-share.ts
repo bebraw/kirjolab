@@ -1,6 +1,6 @@
 import * as v from "valibot";
-import type { WorkspaceSnapshot } from "../domain/workspace";
-import { buildExportBundle } from "../domain/export-pipeline";
+import type { WorkspaceSnapshot } from "../domain/workspace/workspace";
+import { buildExportBundle } from "../domain/publication/export-pipeline";
 import type { ProjectFileReplaceResult } from "../durable-objects/document-room";
 import type { ResolvedEditShare } from "../durable-objects/workspace-access";
 import { isSameOriginMutation } from "../security/auth";

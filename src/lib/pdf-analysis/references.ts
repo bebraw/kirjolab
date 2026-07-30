@@ -1,4 +1,4 @@
-import { normalizeDoi } from "../../domain/bibliography";
+import { normalizeDoi } from "../../domain/reference-library/bibliography";
 import type {
   PdfReferenceAnalysisCandidate,
   PdfReferenceAnalysisResult,

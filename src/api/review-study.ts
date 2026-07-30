@@ -1,21 +1,21 @@
 import { isRecord } from "../domain/unknown-value";
-import { parseReviewProtocolContent, type ReviewProfile } from "../domain/review-study";
-import { previewReviewBibTeX, reviewBibTeXImport, reviewImportLimits } from "../domain/review-search";
-import { parseReviewModelCandidateRequest, type ReviewModelOperation } from "../domain/review-model";
-import { parseReviewFindingInput, type ReviewFindingInput } from "../domain/review-findings";
+import { parseReviewProtocolContent, type ReviewProfile } from "../domain/review/review-study";
+import { previewReviewBibTeX, reviewBibTeXImport, reviewImportLimits } from "../domain/review/review-search";
+import { parseReviewModelCandidateRequest, type ReviewModelOperation } from "../domain/review/review-model";
+import { parseReviewFindingInput, type ReviewFindingInput } from "../domain/review/review-findings";
 import {
   parseEvidencePointer,
   parseExtractionValueShape,
   type ExtractionValue,
   type ReviewEvidencePointer,
   type ReviewSourceSelectorValue,
-} from "../domain/review-evidence";
+} from "../domain/review/review-evidence";
 import {
   blockingReviewSynthesisDiagnostics,
   reviewSynthesisCsv,
   reviewSynthesisMarkdown,
   reviewSynthesisReportDefinition,
-} from "../domain/review-synthesis";
+} from "../domain/review/review-synthesis";
 import {
   buildReviewPackage,
   reviewAuthorityJson,
@@ -24,9 +24,9 @@ import {
   reviewPrismaData,
   reviewPrismaSvg,
   stableReviewJson,
-} from "../domain/review-export";
+} from "../domain/review/review-export";
 import type { AuthIdentity } from "../security/auth";
-import { canonicalReviewArtifactPath } from "../domain/workspace";
+import { canonicalReviewArtifactPath } from "../domain/workspace/workspace";
 import * as v from "valibot";
 
 const maximumProtocolRequestBytes = 2 * 1024 * 1024;

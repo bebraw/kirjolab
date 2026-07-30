@@ -1,6 +1,6 @@
 import * as v from "valibot";
 import { isPublicationReferenceDeclaration, renderSync } from "scholarmark";
-import type { WorkspaceMember, WorkspaceSnapshot } from "./workspace";
+import type { WorkspaceMember, WorkspaceSnapshot } from "./workspace/workspace";
 
 export type KnowledgeResourceKind =
   | "project"

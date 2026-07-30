@@ -1,7 +1,7 @@
 import { env, runInDurableObject } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
-import { builtInProjectTemplate } from "../domain/project-templates";
-import { defaultProjectPublicationProfile } from "../domain/workspace";
+import { builtInProjectTemplate } from "../domain/project/project-templates";
+import { defaultProjectPublicationProfile } from "../domain/workspace/workspace";
 import { ProjectTemplateCatalog } from "./project-template-catalog";
 
 describe("ProjectTemplateCatalog in the Workers runtime", () => {

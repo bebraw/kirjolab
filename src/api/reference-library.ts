@@ -48,7 +48,7 @@ import {
   isReferenceDiscoveryQuery,
   mergeReferenceDiscoveryCandidates,
   type ReferenceDiscoveryCandidate,
-} from "../domain/reference-discovery";
+} from "../domain/reference-library/reference-discovery";
 import {
   isCreateCitationAssertionInput,
   isReviewCitationAssertionInput,
@@ -56,22 +56,22 @@ import {
   type CitationNetwork,
   type CreateCitationAssertionInput,
   type ReviewCitationAssertionInput,
-} from "../domain/citation-assertions";
+} from "../domain/citation/citation-assertions";
 import {
   type CitationCandidateAcceptance,
   type CitationCandidateBatchAcceptance,
   type CitationCandidateSource,
   type CitationExpansionDirection,
-} from "../domain/citation-expansion-types";
-import { isAcceptCitationCandidateInput, isAcceptCitationCandidatesInput } from "../domain/citation-expansion-acceptance";
+} from "../domain/citation/citation-expansion-types";
+import { isAcceptCitationCandidateInput, isAcceptCitationCandidatesInput } from "../domain/citation/citation-expansion-acceptance";
 import {
   isQueueCitationReferenceInput,
   type CitationResearchQueueItem,
   type QueueCitationReferenceInput,
-} from "../domain/citation-research-queue";
+} from "../domain/citation/citation-research-queue";
 import type { ReferenceDeletionImpact, ReferenceImportItem, WebCaptureItem } from "../durable-objects/reference-library";
-import { normalizeDoi, parseBibTeX } from "../domain/bibliography";
-import { isValidDoi } from "../domain/publication-intake";
+import { normalizeDoi, parseBibTeX } from "../domain/reference-library/bibliography";
+import { isValidDoi } from "../domain/publication/publication-intake";
 import {
   CrossrefUnavailableError,
   fetchCrossrefReferences,
@@ -98,7 +98,7 @@ import {
   parsePortableResearch,
   portableResearch,
   referenceToCslJson,
-} from "../domain/library-interchange";
+} from "../domain/reference-library/library-interchange";
 import { renderAnnotatedPdf } from "./annotated-pdf";
 import { downloadR2Object } from "./r2-download";
 import { workspaceStorageKey } from "./reviews";

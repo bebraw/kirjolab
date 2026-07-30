@@ -7,6 +7,14 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 ## Global Rules
 
 - Keep the template lightweight, reusable, easy to clone, and easy to prune.
+- Organize browser and domain source by product capability once a source root
+  contains multiple cohesive feature clusters. Keep browser entrypoints at
+  `src/client/`, colocate implementations with their tests in the owning
+  capability directory, and reserve `src/client/platform/` for browser-wide
+  technical primitives without product behavior. Keep cross-capability domain
+  leaf modules at `src/domain/`; use a capability directory when several
+  modules evolve together. Do not reorganize either layer into generic
+  component, controller, service, model, or utility buckets.
 - Treat repo documentation as living context that should evolve with the code.
 - Treat architectural decisions as explicit records, not implicit tribal knowledge.
 - Treat specs and ADRs as the durable source of truth for expected behavior and architectural intent. Code, including AI-generated code, is only acceptable when it matches those documents or updates them intentionally in the same change set.

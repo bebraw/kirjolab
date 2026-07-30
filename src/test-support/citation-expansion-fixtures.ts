@@ -1,4 +1,4 @@
-import type { CitationExpansionResult } from "../domain/citation-expansion-types";
+import type { CitationExpansionResult } from "../domain/citation/citation-expansion-types";
 
 export const citationExpansionResponseId = `sha256:${"a".repeat(64)}`;
 export const citationExpansionTimestamp = "2026-07-16T10:00:00.000Z";

@@ -1,9 +1,9 @@
-import { normalizeDoi } from "../domain/bibliography";
-import { isValidDoi, normalizePublicationDoi } from "../domain/publication-intake";
+import { normalizeDoi } from "../domain/reference-library/bibliography";
+import { isValidDoi, normalizePublicationDoi } from "../domain/publication/publication-intake";
 import { isRecord } from "../domain/unknown-value";
-import type { PublicationEnrichment } from "../domain/workspace";
-import type { ReferenceDiscoveryIdentifier } from "../domain/reference-discovery";
-import type { CitationExpansionCandidate } from "../domain/citation-expansion-types";
+import type { PublicationEnrichment } from "../domain/workspace/workspace";
+import type { ReferenceDiscoveryIdentifier } from "../domain/reference-library/reference-discovery";
+import type { CitationExpansionCandidate } from "../domain/citation/citation-expansion-types";
 import { readBoundedResponseJson } from "./bounded-response";
 import { boundProviderText as bound } from "./provider-text";
 

@@ -1,5 +1,5 @@
 import { DurableObject } from "cloudflare:workers";
-import { normalizeDoi, parseBibTeX } from "../domain/bibliography";
+import { normalizeDoi, parseBibTeX } from "../domain/reference-library/bibliography";
 import {
   buildCitationNetwork,
   type CitationAssertion,
@@ -7,13 +7,13 @@ import {
   type CitationNetwork,
   type CreateCitationAssertionInput,
   type ReviewCitationAssertionInput,
-} from "../domain/citation-assertions";
+} from "../domain/citation/citation-assertions";
 import type {
   CitationCandidateAcceptance,
   CitationCandidateBatchAcceptance,
   CitationCandidateSource,
-} from "../domain/citation-expansion-types";
-import type { CitationResearchQueueItem, QueueCitationReferenceInput } from "../domain/citation-research-queue";
+} from "../domain/citation/citation-expansion-types";
+import type { CitationResearchQueueItem, QueueCitationReferenceInput } from "../domain/citation/citation-research-queue";
 import type {
   ArtifactAnalysis,
   ArtifactAnalysisKind,

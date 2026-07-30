@@ -1,6 +1,6 @@
 import { env } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
-import { defaultReviewProtocol } from "../domain/review-study";
+import { defaultReviewProtocol } from "../domain/review/review-study";
 import type { AuthIdentity } from "../security/auth";
 import { handleReviewStudyApi } from "./review-study";
 

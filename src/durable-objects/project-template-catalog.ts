@@ -6,7 +6,7 @@ import {
   type ProjectTemplateRecord,
   type ProjectTemplateSeed,
   type ProjectTemplateSummary,
-} from "../domain/project-templates";
+} from "../domain/project/project-templates";
 import { runSQLiteMigrations, type SQLiteMigration } from "./migrations";
 import { currentRecoveryBookmark } from "./recovery";
 

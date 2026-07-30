@@ -1,5 +1,5 @@
 import type { ReviewProjectLinkView } from "../api/reviews";
-import type { ReviewSummary } from "../domain/review-catalog";
+import type { ReviewSummary } from "../domain/review/review-catalog";
 import { escapeHtml } from "../html";
 
 type PublicationTarget = ReviewProjectLinkView & { readonly project: NonNullable<ReviewProjectLinkView["project"]> };

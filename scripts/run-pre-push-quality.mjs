@@ -15,10 +15,10 @@ const mutationSourcePattern =
   /^src\/(?!api\/|durable-objects\/|test-support(?:\.ts$|\/))(?!.*(?:\.d|\.test|\.e2e|\.workers\.test)\.ts$).*\.ts$/u;
 const excludedMutationSources = new Set([
   "src/client/app.ts",
-  "src/client/markdown-runtime.ts",
-  "src/client/pdf-viewer.ts",
-  "src/client/pdfjs-runtime.ts",
-  "src/client/review-study.ts",
+  "src/client/preview/markdown-runtime.ts",
+  "src/client/pdf/pdf-viewer.ts",
+  "src/client/pdf/pdfjs-runtime.ts",
+  "src/client/review/review-study.ts",
   "src/client/service-worker.ts",
 ]);
 

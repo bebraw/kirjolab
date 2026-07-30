@@ -6,10 +6,10 @@ import {
   projectAssociatedReviewOwnerBackupSchemaVersion,
   type OwnerBackupManifest,
   type ProjectAssociatedReviewOwnerBackupManifest,
-} from "../domain/backups";
+} from "../domain/backup/backups";
 import { canonicalValue } from "../domain/canonical-value";
-import type { ReviewAccessBackupState, ReviewCatalogRecord } from "../domain/review-catalog";
-import type { ReviewBackupReference, ReviewBackupVerification } from "../domain/review-backup";
+import type { ReviewAccessBackupState, ReviewCatalogRecord } from "../domain/review/review-catalog";
+import type { ReviewBackupReference, ReviewBackupVerification } from "../domain/review/review-backup";
 import { runSQLiteMigrations, type SQLiteMigration } from "./migrations";
 
 const migrations = [

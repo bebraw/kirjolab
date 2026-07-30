@@ -1,13 +1,13 @@
-import { convertLatexInspection, LatexConversionError } from "../domain/latex-converter";
+import { convertLatexInspection, LatexConversionError } from "../domain/manuscript/latex-converter";
 import {
   inspectLatexArchive,
   LatexArchiveFailure,
   latexArchiveMaximumCompressedBytes,
   type LatexArchiveInspection,
-} from "../domain/latex-import";
-import { isProjectTemplateSeed } from "../domain/project-templates";
-import { hasProjectImageSignature } from "../domain/project-image-signatures";
-import { isCreateWorkspaceInput, type ProjectAsset } from "../domain/workspace";
+} from "../domain/manuscript/latex-import";
+import { isProjectTemplateSeed } from "../domain/project/project-templates";
+import { hasProjectImageSignature } from "../domain/project/project-image-signatures";
+import { isCreateWorkspaceInput, type ProjectAsset } from "../domain/workspace/workspace";
 import type { AuthIdentity } from "../security/auth";
 
 const supportedArchiveTypes = new Set(["application/zip", "application/x-zip-compressed"]);

@@ -1,7 +1,7 @@
 import { env, runInDurableObject } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
-import { defaultReviewProtocol, type ReviewSearchSource } from "../domain/review-study";
-import { previewReviewBibTeX, reviewImportLimits } from "../domain/review-search";
+import { defaultReviewProtocol, type ReviewSearchSource } from "../domain/review/review-study";
+import { previewReviewBibTeX, reviewImportLimits } from "../domain/review/review-search";
 import { ReviewStudy } from "./review-study";
 
 describe("ReviewStudy in the Workers runtime", () => {

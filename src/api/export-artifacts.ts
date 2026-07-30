@@ -1,7 +1,7 @@
 import { strToU8, zipSync, type Zippable } from "fflate";
 import { PDFDocument, StandardFonts, type PDFFont, type PDFPage } from "pdf-lib";
-import { assertExportable, exportPdfEngine, type MaterializedExportBundle } from "../domain/export-pipeline";
-import type { ProjectFile } from "../domain/project-files";
+import { assertExportable, exportPdfEngine, type MaterializedExportBundle } from "../domain/publication/export-pipeline";
+import type { ProjectFile } from "../domain/project/project-files";
 import {
   isPublicationBibliographyDirective,
   isPublicationReferenceDeclaration,
@@ -19,9 +19,9 @@ import {
   type PublicationFootnote,
   type PublicationStructure,
   type PublicationTableAlignment,
-} from "../domain/publication-structure";
-import { resolveSubmissionTemplate, submissionPageSize } from "../domain/submission-templates";
-import type { ProjectPublicationProfile } from "../domain/workspace";
+} from "../domain/publication/publication-structure";
+import { resolveSubmissionTemplate, submissionPageSize } from "../domain/publication/submission-templates";
+import type { ProjectPublicationProfile } from "../domain/workspace/workspace";
 
 const reproducibleTimestamp = new Date("1980-01-01T00:00:00.000Z");
 const headingLine = /^(?<marks>#{1,6})[ \t]+(?<title>.+?)[ \t]*(?:\{#[^}\r\n]+\})?[ \t]*$/u;

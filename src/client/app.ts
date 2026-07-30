@@ -1,11 +1,11 @@
 import * as Y from "yjs";
-import "./action-menu-controller";
-import { parseAppBootstrap } from "./app-contracts";
-import { collectAppElements } from "./app-elements";
-import { CollaborationSession } from "./collaboration-session";
-import { CollaborationSocket } from "./collaboration-socket";
-import { errorMessage } from "./http";
-import { createBrowserOfflineWorkspaceSession } from "./offline-workspace";
+import "./app/action-menu-controller";
+import { parseAppBootstrap } from "./app/app-contracts";
+import { collectAppElements } from "./app/app-elements";
+import { CollaborationSession } from "./collaboration/collaboration-session";
+import { CollaborationSocket } from "./collaboration/collaboration-socket";
+import { errorMessage } from "./platform/http";
+import { createBrowserOfflineWorkspaceSession } from "./platform/offline-workspace";
 
 const { workspaceId, identityEmail, apiBase, workspaceMode } = parseAppBootstrap(document.body.dataset);
 const elements = collectAppElements();

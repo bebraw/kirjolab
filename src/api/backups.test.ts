@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { handleBackupApi } from "./backups";
-import type { OwnerBackupDrillStatus, OwnerBackupStatus } from "../domain/backups";
+import type { OwnerBackupDrillStatus, OwnerBackupStatus } from "../domain/backup/backups";
 
 const identity = {
   subject: "subject",
