@@ -60,6 +60,7 @@
     "diagnostics:codebase": "npm run diagnostics:readability && npm run diagnostics:health",
     "diagnostics:dependencies": "node ./scripts/report-dependency-costs.mjs",
     "diagnostics:pdf-references": "node ./scripts/run-pdf-reference-quality-report.mjs",
+    "diagnostics:citation-providers": "node ./scripts/run-citation-provider-diagnostics.mjs",
     "diagnostics:health": "fallow health --score --hotspots --targets --quiet --no-cache",
     "diagnostics:prepush": "node ./scripts/run-fallow-prepush.mjs",
     "diagnostics:readability": "fallow audit --max-crap 100 --quiet --no-cache",

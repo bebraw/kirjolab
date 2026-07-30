@@ -20,6 +20,7 @@ The template needs a verification baseline that stays strict enough for end-to-e
 - **Whole-repo health diagnostics:** `npm run diagnostics:health`
 - **Dependency-cost diagnostics:** `npm run diagnostics:dependencies`
 - **PDF reference quality:** `npm run diagnostics:pdf-references`
+- **Live citation-provider coverage:** `npm run diagnostics:citation-providers`
 - **Full mutation gate:** `npm run mutation`
 - **Affected mutation gate:** `npm run mutation:affected -- --mutate <files>`
 - **Incremental mutation gate:** `npm run mutation:incremental`
@@ -60,6 +61,8 @@ The template needs a verification baseline that stays strict enough for end-to-e
 - Do not treat colocated tests or test-support files as runtime source code when deciding whether unit coverage is missing.
 - Do not add unbounded specialist analysis to the routine readiness gate when
   it already has an explicit command and authoritative CI job.
+- Do not make repository readiness depend on live scholarly-provider coverage,
+  latency, or quota state.
 - Do not make routine readiness depend on a container when the same
   authoritative package scripts run natively on the supported host.
 - Do not parse Agent CI's human-oriented logs when its versioned event stream
@@ -76,6 +79,8 @@ The template needs a verification baseline that stays strict enough for end-to-e
 - [ ] The affected guardrail path scopes formatting, JavaScript syntax checks, Worker client-code checks, package audit, and unit tests to affected files when possible.
 - [ ] The affected test gate runs tests related to affected runtime files, runs affected unit test files directly, and falls back to full coverage for broad test environment changes or affected runtime files with no related tests.
 - [ ] The advisory codebase diagnostics report changed-code readability risk, whole-repo health, hotspots, duplication, and cleanup evidence without becoming part of the hard quality gate.
+- [ ] Citation-provider diagnostics use production bounded adapters, report
+      current coverage and completeness, and remain outside the hard gate.
 - [ ] The browser gate covers each canonical Playwright baseline file once.
 - [ ] The full mutation gate covers runtime `src/**/*.ts` files with Stryker, Vitest, and TypeScript checking.
 - [ ] The affected mutation gate retains TypeScript checking and limits routine
@@ -110,6 +115,9 @@ The template needs a verification baseline that stays strict enough for end-to-e
 - `npm run diagnostics:dependencies` must read the lockfile and existing built
   artifacts without writing reports, and must support deterministic Markdown
   and JSON output.
+- `npm run diagnostics:citation-providers` must remain read-only and advisory,
+  accept explicit DOI overrides, and expose provider failures without turning
+  them into repository-readiness failures.
 - Pre-push must run Fallow only when affected JavaScript, TypeScript, package,
   or Fallow configuration inputs make its signal relevant.
 - Passing pre-push diagnostics must keep inherited Fallow findings and individual

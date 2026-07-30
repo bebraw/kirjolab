@@ -98,6 +98,11 @@ by` relationships. Selecting a neighboring source refocuses the same trail
   against a versioned, non-user corpus and reports heading, reference, and
   in-text mention precision, recall, F1, and concrete failure examples. The
   report is advisory and may also emit JSON for trend capture.
+- `npm run diagnostics:citation-providers` runs the production bounded Crossref
+  and Semantic Scholar expansion adapters over a versioned or explicitly named
+  DOI seed. It reports live availability, candidate counts, metadata
+  completeness, truncation, latency, and concrete failures without writing to
+  the Library or gating repository readiness.
 
 ### API Contracts
 
@@ -196,6 +201,8 @@ by` relationships. Selecting a neighboring source refocuses the same trail
       discovery direction without overloading reading state.
 - [x] Pure, API, integration, Workers-runtime, view, and browser tests cover
       derivation, validation, persistence, review, filtering, and interaction.
+- [x] An advisory live diagnostic exposes current provider coverage and
+      metadata completeness without claiming cross-direction accuracy.
 
 ### Regression Guardrails
 

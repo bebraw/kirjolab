@@ -102,6 +102,10 @@ If optional container parity warns with `No such remote 'origin'`, add `GITHUB_R
 - Run advisory codebase readability diagnostics with `npm run diagnostics:codebase`.
 - Run the versioned PDF-reference extraction corpus with
   `npm run diagnostics:pdf-references` (`-- --json` for machine-readable output).
+- Probe current backward and forward citation-provider coverage with
+  `npm run diagnostics:citation-providers` (`-- --doi <doi>` to replace the
+  versioned seed and `-- --json` for machine-readable output). This live command
+  is advisory and spends provider quota.
 - Run the shipped runtime dependency audit with `npm run security:audit`.
 - Start the local Worker and configured model companion with `npm run dev`.
   The command explicitly selects loopback-only local authentication; it does
