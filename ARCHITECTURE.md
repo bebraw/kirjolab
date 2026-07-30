@@ -118,7 +118,12 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   theme-specific palettes. Let one bounded light-DOM Lit control own the
   System/Light/Dark template, normalization, browser-local persistence, and
   root theme plus `color-scheme` projection without application startup wiring.
-- Keep the interface design system thin and source-local under `src/ui/`: foundations, visual primitives, shared state contracts, typed icons, and small markup helpers only. Domain components compose it without moving application behavior or state into a second UI architecture.
+- Keep the interface design system thin and source-local under `src/ui/`:
+  foundations, visual primitives, shared state contracts, typed icons, small
+  markup helpers, and feature-owned stylesheet modules only. Keep
+  `src/tailwind-input.css` as an ordered import manifest; domain components
+  compose the design system without moving application behavior or state into
+  a second UI architecture.
 - Incubate reusable capabilities as source-local modules first. Create a private
   workspace package only for two independently built consumers with a justified
   runtime, dependency, build, or release boundary; tests, fixtures, examples,

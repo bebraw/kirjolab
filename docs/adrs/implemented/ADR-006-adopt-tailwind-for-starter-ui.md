@@ -24,8 +24,9 @@ We will adopt the same lightweight Tailwind v4 setup pattern for the starter Wor
 The template now uses:
 
 - `tailwindcss` and `@tailwindcss/cli` pinned in `devDependencies`
-- `pnpm run build:css` to generate `.generated/styles.css`
-- `src/tailwind-input.css` as the single Tailwind entry file
+- `npm run build:css` to generate `.generated/styles.css`
+- `src/tailwind-input.css` as the single, import-only Tailwind entry file
+- ordered foundation and feature stylesheet modules under `src/ui/`
 - Wrangler build configuration to run the CSS build automatically
 - `/styles.css` served by the Worker from the generated stylesheet
 
@@ -40,6 +41,7 @@ The Worker starter exists and is now a real frontend surface. The inline-style v
 **Positive:**
 
 - The starter UI is easier to evolve than a large inline `<style>` block.
+- Feature styles remain reviewable without changing the single-bundle runtime.
 - Styling conventions now match the reference Tailwind baseline the user asked to copy.
 - Generated CSS remains out of version control and rebuilds automatically through Wrangler.
 

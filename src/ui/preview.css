@@ -1,0 +1,226 @@
+@layer components {
+  .preview-scroll {
+    padding: clamp(2rem, 5vw, 4.5rem) clamp(1.25rem, 5vw, 4.5rem);
+  }
+
+  .prose-preview {
+    max-width: 44rem;
+    margin-inline: auto;
+    color: var(--color-app-text);
+    font-size: 1.05rem;
+    line-height: 1.8;
+  }
+
+  .prose-preview [data-preview-sync-active="true"] {
+    border-radius: 0.12rem;
+    outline: 2px solid color-mix(in srgb, var(--color-app-accent) 55%, transparent);
+    outline-offset: 0.18rem;
+  }
+
+  .prose-preview h1 {
+    margin-top: 3rem;
+    margin-bottom: 1.25rem;
+    color: var(--color-app-ink);
+    font-size: clamp(2.4rem, 4vw, 3.4rem);
+    font-weight: 600;
+    letter-spacing: -0.05em;
+    line-height: 1;
+  }
+
+  .prose-preview h1:first-child {
+    margin-top: 0;
+  }
+
+  .prose-preview h2 {
+    margin-top: 2.6rem;
+    margin-bottom: 1rem;
+    color: var(--color-app-ink);
+    font-size: clamp(1.9rem, 3vw, 2.7rem);
+    font-weight: 600;
+    letter-spacing: -0.045em;
+    line-height: 1.05;
+  }
+
+  .prose-preview h2:first-child {
+    margin-top: 0;
+  }
+
+  .prose-preview h3 {
+    margin-top: 2rem;
+    font-size: 1.45rem;
+    font-weight: 600;
+  }
+
+  .prose-preview h4 {
+    margin-top: 1.5rem;
+    font-weight: 700;
+  }
+
+  .prose-preview p,
+  .prose-preview ul,
+  .prose-preview ol,
+  .prose-preview table,
+  .prose-preview blockquote,
+  .prose-preview pre {
+    margin-top: 1rem;
+  }
+
+  .prose-preview ul,
+  .prose-preview ol {
+    padding-left: 1.4rem;
+  }
+
+  .prose-preview ul {
+    list-style: square;
+  }
+
+  .prose-preview ol {
+    list-style: decimal;
+  }
+
+  .prose-preview li > ul,
+  .prose-preview li > ol {
+    margin-top: 0;
+  }
+
+  .prose-preview table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.92rem;
+  }
+
+  .prose-preview th,
+  .prose-preview td {
+    border-bottom: 1px solid var(--color-app-line);
+    padding: 0.55rem 0.65rem;
+    text-align: left;
+    vertical-align: top;
+  }
+
+  .prose-preview th {
+    color: var(--color-app-ink);
+    font-family: var(--font-sans);
+    font-size: 0.72rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .prose-preview blockquote {
+    border-left: 3px solid var(--color-app-line);
+    padding-left: 1rem;
+    color: var(--color-app-text-soft);
+  }
+
+  .prose-preview img {
+    max-width: 100%;
+    height: auto;
+  }
+
+  .prose-preview > b {
+    display: block;
+    margin-top: 1.5rem;
+  }
+
+  .prose-preview .section-number {
+    color: var(--color-app-text-soft);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .prose-preview pre {
+    overflow: auto;
+    border-left: 3px solid var(--color-app-accent);
+    background: var(--color-app-surface);
+    padding: 1rem;
+    font-family: "SFMono-Regular", Consolas, monospace;
+    font-size: 0.78rem;
+  }
+
+  .semantic-citation,
+  .semantic-reference {
+    border-radius: 0.15rem;
+    background: var(--color-app-accent-ghost);
+    color: var(--color-app-accent-strong);
+    text-decoration: none;
+    box-shadow: 0 0 0 2px var(--color-app-accent-ghost);
+  }
+
+  .semantic-citation {
+    cursor: pointer;
+    border: 0;
+    padding: 0;
+  }
+
+  .semantic-citation:hover {
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
+  }
+
+  .native-figure {
+    margin: 2rem 0;
+  }
+
+  .native-figure-graphic {
+    display: block;
+    width: 100%;
+    height: auto;
+    overflow: visible;
+    color: var(--color-app-text);
+  }
+
+  .native-figure-grid {
+    stroke: var(--color-app-line);
+    stroke-width: 1;
+  }
+
+  .native-figure-whisker,
+  .native-figure-median {
+    stroke: currentColor;
+    stroke-width: 1.5;
+  }
+
+  .native-figure-median {
+    stroke-width: 2.5;
+  }
+
+  .native-figure-box {
+    fill: var(--color-app-accent-ghost);
+    stroke: currentColor;
+    stroke-width: 1.5;
+  }
+
+  .native-figure-tick,
+  .native-figure-mark-label,
+  .native-figure-axis-label-x,
+  .native-figure-axis-label-y {
+    fill: currentColor;
+    font-size: 12px;
+  }
+
+  .native-figure-tick,
+  .native-figure-axis-label-x {
+    text-anchor: middle;
+  }
+
+  .native-figure-mark-label {
+    dominant-baseline: middle;
+    text-anchor: end;
+  }
+
+  .native-figure-axis-label-x,
+  .native-figure-axis-label-y {
+    font-weight: 600;
+  }
+
+  .native-figure figcaption {
+    margin-top: 0.75rem;
+    color: var(--color-app-text-soft);
+    font-size: 0.85rem;
+  }
+
+  .prose-preview .footnotes {
+    margin-top: 2.5rem;
+    border-top: 1px solid var(--color-app-line);
+    padding-top: 1rem;
+    font-size: 0.88rem;
+  }
+}
