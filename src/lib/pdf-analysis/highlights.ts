@@ -93,8 +93,11 @@ function flattenedHighlightCandidates(
   height: number,
 ): PdfHighlightAnalysisCandidate[] {
   const pieces = regions
-    .map((region) => ({ region, spanIndexes: intersectingSpanIndexes(region, spans) }))
-    .filter((piece) => piece.spanIndexes.length > 0)
+    .map((region) => {
+      const intersectingSpans = spans.filter((span) => spanOverlapRatio(region, span) >= 0.08);
+      return { region, spanIndexes: intersectingSpans.map((span) => span.index), intersectingSpans };
+    })
+    .filter((piece) => piece.spanIndexes.length > 0 && regionMatchesTextHighlightBand(piece.region, piece.intersectingSpans))
     .sort((left, right) => left.spanIndexes[0]! - right.spanIndexes[0]! || left.region.top - right.region.top);
   const groups: (typeof pieces)[] = [];
   for (const piece of pieces) {
@@ -137,8 +140,14 @@ function flattenedPiecesConnect(
   );
 }
 
-function intersectingSpanIndexes(region: PdfAnalysisPixelRect, spans: readonly PdfAnalysisTextSpan[]): number[] {
-  return spans.filter((span) => overlapArea(region, span.rect) >= area(span.rect) * 0.08).map((span) => span.index);
+function regionMatchesTextHighlightBand(region: PdfAnalysisPixelRect, spans: readonly PdfAnalysisTextSpan[]): boolean {
+  const regionHeight = region.bottom - region.top;
+  const maximumTextHeight = Math.max(...spans.map((span) => span.rect.bottom - span.rect.top));
+  return regionHeight <= Math.max(8, maximumTextHeight * 1.8);
+}
+
+function spanOverlapRatio(region: PdfAnalysisPixelRect, span: PdfAnalysisTextSpan): number {
+  return overlapArea(region, span.rect) / area(span.rect);
 }
 
 function quoteForRegions(regions: readonly PdfAnalysisPixelRect[], spans: readonly PdfAnalysisTextSpan[]): string {

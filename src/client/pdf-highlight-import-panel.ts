@@ -32,12 +32,14 @@ interface CandidateReview {
 
 export class PdfHighlightImportPanel extends LightDomElement {
   static override properties = {
+    expanded: { state: true },
     importing: { state: true },
     loading: { state: true },
     reviews: { state: true },
     status: { state: true },
   };
 
+  declare private expanded: boolean;
   declare private importing: boolean;
   declare private loading: boolean;
   declare private reviews: readonly CandidateReview[];
@@ -48,6 +50,7 @@ export class PdfHighlightImportPanel extends LightDomElement {
 
   constructor() {
     super();
+    this.expanded = false;
     this.importing = false;
     this.loading = false;
     this.reviews = [];
@@ -66,6 +69,7 @@ export class PdfHighlightImportPanel extends LightDomElement {
   protected showResult(result: PdfHighlightAnalysisResult): void {
     this.loading = false;
     this.reviews = result.candidates.map((candidate) => ({ candidate, comment: candidate.comment, selected: true }));
+    this.expanded = result.candidates.length > 0;
     if (result.candidates.length === 0) {
       this.status = `No new highlights found across ${result.pagesScanned} scanned page${result.pagesScanned === 1 ? "" : "s"}.`;
       return;
@@ -84,10 +88,12 @@ export class PdfHighlightImportPanel extends LightDomElement {
 
   protected showError(message: string): void {
     this.loading = false;
+    this.expanded = true;
     this.status = message;
   }
 
   reset(message = defaultStatus): void {
+    this.expanded = false;
     this.importing = false;
     this.reviews = [];
     this.loading = false;
@@ -98,75 +104,84 @@ export class PdfHighlightImportPanel extends LightDomElement {
 
   protected override render(): TemplateResult {
     return html`
-      <div class="flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <strong id="library-highlight-import-title">Highlights in this PDF</strong>
-          <p class="mt-1 text-xs leading-5 text-app-text-soft" id="library-highlight-import-status" role="status" aria-live="polite">
-            ${this.status}
-          </p>
+      <details class="library-highlight-import-details" .open=${this.expanded} @toggle=${this.toggleExpanded}>
+        <summary id="library-highlight-import-title">
+          <span>Detected highlights</span>
+          ${this.reviews.length > 0 ? html`<span class="count-badge">${this.reviews.length}</span>` : ""}
+        </summary>
+        <div class="library-highlight-import-body">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <p class="text-xs leading-5 text-app-text-soft" id="library-highlight-import-status" role="status" aria-live="polite">
+              ${this.status}
+            </p>
+            ${this.#analysis?.status === "failed"
+              ? html`<button
+                  class="button-secondary"
+                  id="retry-library-pdf-highlights"
+                  type="button"
+                  ?disabled=${this.loading}
+                  @click=${this.retry}
+                >
+                  ${this.loading ? "Retrying…" : "Retry analysis"}
+                </button>`
+              : ""}
+          </div>
+          <form class="mt-3" id="library-highlight-import-form" ?hidden=${this.reviews.length === 0} @submit=${this.importSelected}>
+            <div class="space-y-2" id="library-highlight-import-list">
+              ${this.reviews.map(
+                ({ candidate, comment, selected }) => html`
+                  <article class="resource-card" data-highlight-import-id=${candidate.id}>
+                    <label class="flex items-start gap-2">
+                      <input
+                        type="checkbox"
+                        data-highlight-import-selection="true"
+                        .checked=${selected}
+                        ?disabled=${this.importing}
+                        @change=${this.changeSelection}
+                      />
+                      <span class="min-w-0">
+                        <span class="eyebrow block">
+                          Page ${candidate.page} · ${candidate.source === "annotation" ? "PDF annotation" : "Detected yellow highlight"}
+                        </span>
+                        <strong class="mt-1 block font-sans">${candidate.quote}</strong>
+                      </span>
+                    </label>
+                    <input
+                      class="field mt-2"
+                      maxlength="8000"
+                      placeholder="Add a private note (optional)"
+                      aria-label="Private note for detected highlight on page ${candidate.page}"
+                      data-highlight-import-comment="true"
+                      .value=${comment}
+                      ?disabled=${this.importing}
+                      @input=${this.changeComment}
+                    />
+                  </article>
+                `,
+              )}
+            </div>
+            <div class="mt-3 flex flex-wrap gap-2">
+              <button class="button-primary" type="submit" ?disabled=${this.importing}>
+                ${this.importing ? "Importing…" : "Import selected"}
+              </button>
+              <button
+                class="button-secondary"
+                id="cancel-library-highlight-import"
+                type="button"
+                ?disabled=${this.importing}
+                @click=${this.cancel}
+              >
+                Clear selection
+              </button>
+            </div>
+          </form>
         </div>
-        ${this.#analysis?.status === "failed"
-          ? html`<button
-              class="button-secondary"
-              id="retry-library-pdf-highlights"
-              type="button"
-              ?disabled=${this.loading}
-              @click=${this.retry}
-            >
-              ${this.loading ? "Retrying…" : "Retry analysis"}
-            </button>`
-          : ""}
-      </div>
-      <form class="mt-3" id="library-highlight-import-form" ?hidden=${this.reviews.length === 0} @submit=${this.importSelected}>
-        <div class="space-y-2" id="library-highlight-import-list">
-          ${this.reviews.map(
-            ({ candidate, comment, selected }) => html`
-              <article class="resource-card" data-highlight-import-id=${candidate.id}>
-                <label class="flex items-start gap-2">
-                  <input
-                    type="checkbox"
-                    data-highlight-import-selection="true"
-                    .checked=${selected}
-                    ?disabled=${this.importing}
-                    @change=${this.changeSelection}
-                  />
-                  <span class="min-w-0">
-                    <span class="eyebrow block">
-                      Page ${candidate.page} · ${candidate.source === "annotation" ? "PDF annotation" : "Detected yellow highlight"}
-                    </span>
-                    <strong class="mt-1 block font-sans">${candidate.quote}</strong>
-                  </span>
-                </label>
-                <input
-                  class="field mt-2"
-                  maxlength="8000"
-                  placeholder="Add a private note (optional)"
-                  aria-label="Private note for detected highlight on page ${candidate.page}"
-                  data-highlight-import-comment="true"
-                  .value=${comment}
-                  ?disabled=${this.importing}
-                  @input=${this.changeComment}
-                />
-              </article>
-            `,
-          )}
-        </div>
-        <div class="mt-3 flex flex-wrap gap-2">
-          <button class="button-primary" type="submit" ?disabled=${this.importing}>
-            ${this.importing ? "Importing…" : "Import selected"}
-          </button>
-          <button
-            class="button-secondary"
-            id="cancel-library-highlight-import"
-            type="button"
-            ?disabled=${this.importing}
-            @click=${this.cancel}
-          >
-            Clear selection
-          </button>
-        </div>
-      </form>
+      </details>
     `;
+  }
+
+  protected toggleExpanded(event: Event): void {
+    this.expanded = (event.currentTarget as HTMLDetailsElement).open;
   }
 
   protected async importSelected(event: SubmitEvent): Promise<void> {

@@ -2385,8 +2385,59 @@
     padding-inline: 0.35rem;
   }
 
+  .pdf-page-jump {
+    display: grid;
+    place-items: center;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .pdf-page-jump-display {
+    min-width: 0;
+    border-radius: 0.35rem;
+    padding: 0.2rem 0.3rem;
+    color: inherit;
+    white-space: nowrap;
+  }
+
+  .pdf-page-jump-display:hover {
+    background: var(--color-app-surface);
+    color: var(--color-app-text);
+  }
+
+  .pdf-page-jump-input {
+    width: 2.8rem;
+    border: 1px solid var(--color-app-accent);
+    border-radius: 0.35rem;
+    background: var(--color-app-paper);
+    padding: 0.2rem;
+    color: var(--color-app-text);
+    font: inherit;
+    text-align: center;
+  }
+
+  .pdf-page-jump-input:focus {
+    outline: 2px solid var(--color-app-accent);
+    outline-offset: 1px;
+  }
+
   .context-mode-controls > button {
     min-width: 2.5rem;
+  }
+
+  #toggle-paper-continuous {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  #toggle-paper-continuous[aria-pressed="true"] {
+    background: var(--color-app-accent-ghost);
+    color: var(--color-app-accent-strong);
+  }
+
+  #toggle-paper-continuous .ui-icon {
+    width: 1rem;
+    height: 1rem;
   }
 
   .context-tab-controls button {
@@ -3179,6 +3230,14 @@
     gap: 0.35rem;
   }
 
+  .library-pdf-page-controls .pdf-page-jump {
+    min-height: 1.8rem;
+  }
+
+  .library-pdf-page-controls .pdf-page-jump-display {
+    font: inherit;
+  }
+
   .library-pdf-annotation-tools {
     min-height: 0;
   }
@@ -3445,6 +3504,22 @@
   }
   .library-annotation-details-body {
     padding: 0 0.75rem 0.75rem;
+  }
+  .library-highlight-import-details {
+    border-bottom: 1px solid var(--color-app-line);
+    margin-bottom: 0.65rem;
+  }
+  .library-highlight-import-details > summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-block: 0.55rem;
+    cursor: pointer;
+    color: var(--color-app-text-soft);
+    font: 600 0.72rem var(--font-sans);
+  }
+  .library-highlight-import-body {
+    padding-bottom: 0.65rem;
   }
   .library-project-details {
     margin-top: 0.65rem;
@@ -4958,6 +5033,29 @@
     transform-origin: top center;
   }
 
+  .pdf-continuous-pages {
+    display: flex;
+    min-width: 100%;
+    flex-direction: column;
+    align-items: center;
+    gap: clamp(0.85rem, 2.5vw, 1.5rem);
+    padding-bottom: clamp(1rem, 3vw, 2rem);
+  }
+
+  .pdf-continuous-pages[hidden] {
+    display: none;
+  }
+
+  .pdf-continuous-page {
+    flex: none;
+    scroll-margin-top: clamp(1rem, 3vw, 2rem);
+  }
+
+  .pdf-reader[data-display-mode="continuous"] {
+    scroll-behavior: smooth;
+    touch-action: pan-y;
+  }
+
   .pdf-highlights,
   .pdf-links,
   .pdf-markups,
@@ -5103,7 +5201,7 @@
   }
 
   .pdf-highlights[data-private-select="true"] {
-    pointer-events: auto;
+    z-index: 3;
   }
 
   .pdf-highlights[data-private-select="true"] .pdf-highlight[data-private="true"] {

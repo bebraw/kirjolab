@@ -9,6 +9,7 @@ const ICONS = {
   chevronUp: '<path d="m7 14 5-5 5 5"></path>',
   close: '<path d="m7 7 10 10M17 7 7 17"></path>',
   comments: '<path d="M4 5.25h16v11.5H9l-5 3z"></path>',
+  continuousPages: '<rect x="5" y="3.5" width="14" height="7" rx="1"></rect><rect x="5" y="13.5" width="14" height="7" rx="1"></rect>',
   download: '<path d="M12 4v11m-4-4 4 4 4-4M5 19h14"></path>',
   draw: '<path d="m5 19 3.5-.8L18 8.7 15.3 6 5.8 15.5Z"></path><path d="m13.8 7.5 2.7 2.7"></path>',
   fileAdd: '<path d="M6 3.75h8l4 4v12.5H6z"></path><path d="M14 3.75v4h4"></path><path d="M9 14h6M12 11v6"></path>',

@@ -17,7 +17,10 @@ describe("renderLibraryPdfRail", () => {
     expect(html).toContain('aria-label="PDF page navigation"');
     expectControlIcon(html, "previous-library-paper-page", "chevronUp");
     expectControlIcon(html, "next-library-paper-page", "chevronDown");
-    expect(html).toContain('id="library-paper-page-indicator">–<span class="sr-only"> PDF page</span>');
+    expectControlIcon(html, "toggle-library-paper-continuous", "continuousPages");
+    expect(html).toContain('id="toggle-library-paper-continuous" type="button" aria-pressed="false"');
+    expect(html).toContain('id="library-paper-page-indicator"');
+    expect(html).toContain('class="pdf-page-jump-input" type="number" min="1"');
   });
 
   it("binds every annotation action to its semantic icon", () => {

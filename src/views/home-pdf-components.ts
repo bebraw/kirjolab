@@ -6,14 +6,17 @@ export function renderLibraryPdfRail(): string {
                 <button class="library-pdf-rail-button button-icon" id="previous-library-paper-page" type="button" aria-label="Previous PDF page" title="Previous page" data-touch-target="true">
                   ${renderIcon("chevronUp")}
                 </button>
-                <span id="library-paper-page-indicator">–<span class="sr-only"> PDF page</span></span>
+                ${renderPdfPageIndicator("library-paper-page-indicator")}
                 <button class="library-pdf-rail-button button-icon" id="next-library-paper-page" type="button" aria-label="Next PDF page" title="Next page" data-touch-target="true">
                   ${renderIcon("chevronDown")}
+                </button>
+                <button class="library-pdf-rail-button button-icon" id="toggle-library-paper-continuous" type="button" aria-pressed="false" title="Use continuous scrolling" data-touch-target="true">
+                  ${renderIcon("continuousPages")}<span class="sr-only" data-pdf-display-label>Continuous scroll</span>
                 </button>
               </div>
               <library-pdf-annotation-toolbar id="library-pdf-annotation-toolbar">
                 <div class="library-pdf-annotation-tools" role="toolbar" aria-label="PDF tools">
-                <button class="library-pdf-rail-button button-icon" id="library-select-tool" type="button" aria-pressed="false" title="Select, edit, move, or delete an existing annotation" data-touch-target="true">
+                <button class="library-pdf-rail-button button-icon" id="library-select-tool" type="button" aria-pressed="false" title="Select and copy text, or edit an existing annotation" data-touch-target="true">
                   ${renderIcon("select")}<span class="sr-only">Select</span>
                 </button>
                 <button class="library-pdf-rail-button button-icon" id="library-text-tool" type="button" aria-pressed="true" title="Select text and save a quotation" data-touch-target="true">
@@ -50,4 +53,13 @@ export function renderLibraryPdfRail(): string {
                 </div>
               </library-pdf-annotation-toolbar>
             </nav>`;
+}
+
+export function renderPdfPageIndicator(id: string): string {
+  return `<span class="context-page-indicator pdf-page-jump" id="${id}">
+                  <button class="pdf-page-jump-display" type="button" aria-label="Go to a specific PDF page" title="Go to page">
+                    <span data-pdf-page-current>–</span> / <span data-pdf-page-total>–</span>
+                  </button>
+                  <input class="pdf-page-jump-input" type="number" min="1" inputmode="numeric" aria-label="PDF page number" hidden>
+                </span>`;
 }

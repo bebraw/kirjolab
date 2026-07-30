@@ -3,6 +3,7 @@ import type { AnnotationResource, PdfSelectionRect } from "../domain/workspace";
 import type { LibraryHighlight } from "../domain/reference-library";
 import { deriveTextQuoteContext, normalizeSelectionRects } from "./pdf-selection";
 import { readPdfTextContent } from "./pdf-text-content";
+import { PdfContinuousView } from "./pdf-continuous-view";
 import {
   advancePdfWheelPaging,
   initialPdfWheelPagingState,
@@ -34,6 +35,8 @@ interface PdfViewerElements {
   links: HTMLElement;
   textLayer: HTMLElement;
   highlights: HTMLElement;
+  continuousPages: HTMLElement;
+  continuousModeButtons: readonly HTMLButtonElement[];
   pageIndicators: readonly HTMLElement[];
   previousPages: readonly HTMLButtonElement[];
   nextPages: readonly HTMLButtonElement[];
@@ -56,12 +59,16 @@ interface OpenPdfOptions {
   privateHighlights?: readonly LibraryHighlight[];
 }
 
+export type PdfTextSelectionMode = "copy" | "disabled" | "highlight";
+export type PdfDisplayMode = "continuous" | "single";
+
 export class PdfEvidenceViewer {
   readonly #elements: PdfViewerElements;
   readonly #onSelection: (capture: PdfSelectionCapture) => void;
   readonly #onHighlight: (annotationId: string, fragmentId: string) => void;
   readonly #onPageChange: (page: number) => void;
   readonly #onPrivateHighlight: (highlightId: string) => void;
+  readonly #continuousView: PdfContinuousView;
   readonly #lifecycle = createPdfViewerActor();
   #document: PDFDocumentProxy | null = null;
   #loadingTask: PDFDocumentLoadingTask | null = null;
@@ -74,6 +81,7 @@ export class PdfEvidenceViewer {
   #draftSelection: PdfSelectionCapture | null = null;
   #mode: "evidence" | "private-highlight" | "read-only" = "evidence";
   #privateHighlightSelection = false;
+  #textSelectionMode: PdfTextSelectionMode = "highlight";
   #selectedPrivateHighlightId: string | null = null;
   #zoom = 1;
   #renderedZoom = 1;
@@ -84,8 +92,11 @@ export class PdfEvidenceViewer {
   #wheelPagingState: PdfWheelPagingState = initialPdfWheelPagingState();
   #wheelZoomRenderTimer: number | undefined;
   #selectionCaptureTimer: number | undefined;
+  #selectionPointerActive = false;
+  #selectionSettleDelay = 80;
   #zoomAnchor: PdfZoomAnchor | null = null;
   #renderedViewport: { convertToViewportPoint(x: number, y: number): number[] } | null = null;
+  #displayMode: PdfDisplayMode = readPdfDisplayMode();
 
   static forDocument(root: Document, presentation: PdfViewerPresentation): PdfEvidenceViewer {
     return new PdfEvidenceViewer(
@@ -96,6 +107,11 @@ export class PdfEvidenceViewer {
         links: requiredViewerElement(root, "paper-links", HTMLElement),
         textLayer: requiredViewerElement(root, "paper-text-layer", HTMLElement),
         highlights: requiredViewerElement(root, "paper-highlights", HTMLElement),
+        continuousPages: requiredViewerElement(root, "paper-continuous-pages", HTMLElement),
+        continuousModeButtons: [
+          requiredViewerElement(root, "toggle-paper-continuous", HTMLButtonElement),
+          requiredViewerElement(root, "toggle-library-paper-continuous", HTMLButtonElement),
+        ],
         pageIndicators: [
           requiredViewerElement(root, "paper-page-indicator", HTMLElement),
           requiredViewerElement(root, "library-paper-page-indicator", HTMLElement),
@@ -129,9 +145,27 @@ export class PdfEvidenceViewer {
     this.#onHighlight = onHighlight;
     this.#onPageChange = onPageChange;
     this.#onPrivateHighlight = onPrivateHighlight;
+    this.#continuousView = new PdfContinuousView({
+      container: elements.continuousPages,
+      reader: elements.reader,
+      onPageChange: (page) => this.#presentContinuousPage(page),
+      renderOverlays: (view, viewport, annotations) => {
+        this.#renderPdfLinks(viewport, annotations, view.links);
+        this.#renderHighlightsForPage(view.page, view.highlights);
+      },
+    });
     for (const button of elements.previousPages) button.addEventListener("click", () => void this.#move(-1));
     for (const button of elements.nextPages) button.addEventListener("click", () => void this.#move(1));
-    elements.textLayer.addEventListener("pointerup", () => this.#queueSelectionCapture());
+    for (const indicator of elements.pageIndicators) this.#bindPageJump(indicator);
+    for (const button of elements.continuousModeButtons) {
+      button.addEventListener("click", () => void this.setDisplayMode(this.#displayMode === "continuous" ? "single" : "continuous"));
+    }
+    elements.textLayer.addEventListener("pointerdown", (event) => this.#startTextSelection(event));
+    elements.textLayer.addEventListener("pointerup", () => this.#finishTextSelection());
+    elements.textLayer.addEventListener("pointercancel", () => this.#cancelTextSelection());
+    elements.continuousPages.addEventListener("pointerdown", (event) => this.#startTextSelection(event));
+    elements.continuousPages.addEventListener("pointerup", () => this.#finishTextSelection());
+    elements.continuousPages.addEventListener("pointercancel", () => this.#cancelTextSelection());
     document.addEventListener("selectionchange", () => {
       if (this.#mode === "private-highlight") this.#queueSelectionCapture();
     });
@@ -151,6 +185,39 @@ export class PdfEvidenceViewer {
     return this.#focusedAnnotationId ?? null;
   }
 
+  async setDisplayMode(mode: PdfDisplayMode): Promise<void> {
+    const alreadyPresented =
+      mode === "continuous"
+        ? this.#elements.page.hidden && !this.#elements.continuousPages.hidden
+        : !this.#elements.page.hidden && this.#elements.continuousPages.hidden;
+    if (mode === this.#displayMode && alreadyPresented) return;
+    this.#displayMode = mode;
+    writePdfDisplayMode(mode);
+    this.#syncDisplayModeControls();
+    const documentModel = this.#document;
+    const runtime = this.#runtime;
+    if (!documentModel || !runtime) return;
+    this.clearDraftSelection();
+    this.#zoom = 1;
+    this.#renderedZoom = 1;
+    this.#elements.reader.dataset.zoomed = "false";
+    if (mode === "continuous") {
+      this.#elements.page.hidden = true;
+      this.#elements.continuousPages.hidden = false;
+      this.#elements.reader.dataset.displayMode = "continuous";
+      this.#elements.status.textContent = "Preparing continuous view…";
+      await this.#continuousView.open(documentModel, runtime, this.#pageNumber, this.#availablePageWidth());
+      this.#presentContinuousPage(this.#pageNumber);
+      return;
+    }
+    this.#pageNumber = this.#continuousView.currentPage;
+    this.#elements.continuousPages.hidden = true;
+    this.#elements.page.hidden = false;
+    delete this.#elements.reader.dataset.displayMode;
+    this.#elements.reader.scrollTop = 0;
+    await this.#renderPage();
+  }
+
   async open(options: OpenPdfOptions): Promise<boolean> {
     this.#lifecycle.send({ type: "OPEN" });
     const documentRequest = this.#lifecycle.getSnapshot().context.documentRequest;
@@ -159,6 +226,11 @@ export class PdfEvidenceViewer {
     await previousTask?.destroy();
     if (!pdfViewerDocumentRequestActive(this.#lifecycle.getSnapshot(), documentRequest)) return false;
     this.#document = null;
+    this.#continuousView.close();
+    this.#elements.continuousPages.hidden = true;
+    this.#elements.page.hidden = false;
+    delete this.#elements.reader.dataset.displayMode;
+    this.#syncDisplayModeControls();
     this.#annotations = options.annotations;
     this.#privateHighlights = options.privateHighlights ?? [];
     this.#focusedAnnotationId = options.focusAnnotationId;
@@ -212,6 +284,7 @@ export class PdfEvidenceViewer {
       return false;
     }
     await this.#renderPage();
+    if (this.#displayMode === "continuous") await this.setDisplayMode("continuous");
     const snapshot = this.#lifecycle.getSnapshot();
     return documentRequest === snapshot.context.documentRequest && snapshot.matches("ready");
   }
@@ -219,19 +292,24 @@ export class PdfEvidenceViewer {
   updateAnnotations(annotations: AnnotationResource[]): void {
     this.#annotations = annotations;
     this.#renderHighlights();
+    this.#continuousView.refreshOverlays();
   }
 
   updatePrivateHighlights(highlights: readonly LibraryHighlight[]): void {
     this.#privateHighlights = highlights;
     this.#renderHighlights();
+    this.#continuousView.refreshOverlays();
   }
 
   showError(error: unknown): void {
     this.#elements.status.textContent = error instanceof Error ? error.message : "Could not render this PDF";
   }
 
-  setTextSelectionEnabled(enabled: boolean): void {
-    this.#elements.textLayer.style.pointerEvents = enabled ? "auto" : "none";
+  setTextSelectionMode(mode: PdfTextSelectionMode): void {
+    this.#textSelectionMode = mode;
+    this.#elements.textLayer.style.pointerEvents = mode === "disabled" ? "none" : "auto";
+    this.#continuousView.setTextSelectionEnabled(mode !== "disabled");
+    if (mode === "disabled" && this.#displayMode === "continuous") void this.setDisplayMode("single");
   }
 
   clearDraftSelection(): void {
@@ -240,6 +318,7 @@ export class PdfEvidenceViewer {
     this.#draftSelection = null;
     this.#zoomAnchor = null;
     this.#renderHighlights();
+    this.#continuousView.refreshOverlays();
   }
 
   setTool(tool: "paint" | "erase"): void {
@@ -257,7 +336,8 @@ export class PdfEvidenceViewer {
     window.clearTimeout(this.#wheelZoomRenderTimer);
     this.#wheelZoomRenderTimer = undefined;
     this.#fittedWidth = null;
-    await this.#renderPage();
+    if (this.#displayMode === "continuous") await this.#continuousView.resize(this.#availablePageWidth());
+    else await this.#renderPage();
   }
 
   async #move(offset: number): Promise<void> {
@@ -290,6 +370,10 @@ export class PdfEvidenceViewer {
   }
 
   #handleWheel(event: WheelEvent): void {
+    if (this.#displayMode === "continuous") {
+      if (event.ctrlKey) event.preventDefault();
+      return;
+    }
     if (event.ctrlKey) {
       this.#zoomFromWheel(event);
       return;
@@ -346,10 +430,7 @@ export class PdfEvidenceViewer {
     if (!pdfViewerRenderRequestActive(this.#lifecycle.getSnapshot(), renderRequest)) return;
 
     const unscaled = page.getViewport({ scale: 1 });
-    const readerStyle = window.getComputedStyle(this.#elements.reader);
-    const horizontalPadding = (Number.parseFloat(readerStyle.paddingLeft) || 0) + (Number.parseFloat(readerStyle.paddingRight) || 0);
-    const readerWidth = this.#elements.reader.clientWidth || 760;
-    const availableWidth = this.#fittedWidth ?? Math.max(320, Math.min(900, readerWidth - horizontalPadding));
+    const availableWidth = this.#fittedWidth ?? this.#availablePageWidth();
     this.#fittedWidth = availableWidth;
     const renderedZoom = this.#zoom;
     const viewport = page.getViewport({ scale: (availableWidth / unscaled.width) * renderedZoom });
@@ -420,9 +501,7 @@ export class PdfEvidenceViewer {
     this.#renderPdfLinks(viewport, annotations);
     this.#renderHighlights();
     this.#restoreZoomAnchor();
-    for (const indicator of this.#elements.pageIndicators) indicator.textContent = `${this.#pageNumber} / ${documentModel.numPages}`;
-    for (const button of this.#elements.previousPages) button.disabled = this.#pageNumber === 1;
-    for (const button of this.#elements.nextPages) button.disabled = this.#pageNumber === documentModel.numPages;
+    this.#presentPageNavigation(documentModel.numPages);
     this.#elements.status.textContent =
       this.#mode === "private-highlight"
         ? "Private library PDF · select text to highlight"
@@ -433,6 +512,85 @@ export class PdfEvidenceViewer {
     this.#onPageChange(this.#pageNumber);
   }
 
+  #presentContinuousPage(page: number): void {
+    const documentModel = this.#document;
+    if (!documentModel) return;
+    this.#pageNumber = clamp(page, 1, documentModel.numPages);
+    this.#presentPageNavigation(documentModel.numPages);
+    this.#elements.status.textContent =
+      this.#mode === "private-highlight"
+        ? "Continuous view · select text to highlight"
+        : this.#mode === "read-only"
+          ? "Continuous view · shared project PDF"
+          : "Continuous view · select text to capture evidence";
+    this.#onPageChange(this.#pageNumber);
+  }
+
+  #syncDisplayModeControls(): void {
+    const continuous = this.#displayMode === "continuous";
+    for (const button of this.#elements.continuousModeButtons) {
+      button.setAttribute("aria-pressed", String(continuous));
+      button.title = continuous ? "Use single-page view" : "Use continuous scrolling";
+      const label = button.querySelector("[data-pdf-display-label]");
+      if (label) label.textContent = continuous ? "Single page" : "Continuous scroll";
+    }
+  }
+
+  #bindPageJump(indicator: HTMLElement): void {
+    const button = indicator.querySelector<HTMLButtonElement>(".pdf-page-jump-display");
+    const input = indicator.querySelector<HTMLInputElement>(".pdf-page-jump-input");
+    if (!button || !input) return;
+    button.addEventListener("click", () => {
+      button.hidden = true;
+      input.hidden = false;
+      input.value = String(this.#pageNumber);
+      input.focus();
+      input.select();
+    });
+    input.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        this.#closePageJump(button, input);
+      } else if (event.key === "Enter") {
+        event.preventDefault();
+        const page = Number(input.value);
+        this.#closePageJump(button, input);
+        if (Number.isInteger(page)) void this.#goToPage(page);
+      }
+    });
+    input.addEventListener("blur", () => this.#closePageJump(button, input));
+  }
+
+  #closePageJump(button: HTMLButtonElement, input: HTMLInputElement): void {
+    input.hidden = true;
+    button.hidden = false;
+  }
+
+  #presentPageNavigation(totalPages: number): void {
+    for (const indicator of this.#elements.pageIndicators) {
+      const current = indicator.querySelector<HTMLElement>("[data-pdf-page-current]");
+      const total = indicator.querySelector<HTMLElement>("[data-pdf-page-total]");
+      const button = indicator.querySelector<HTMLButtonElement>(".pdf-page-jump-display");
+      const input = indicator.querySelector<HTMLInputElement>(".pdf-page-jump-input");
+      if (current) current.textContent = String(this.#pageNumber);
+      if (total) total.textContent = String(totalPages);
+      if (button) button.setAttribute("aria-label", `Page ${this.#pageNumber} of ${totalPages}. Go to a specific PDF page`);
+      if (input) {
+        input.max = String(totalPages);
+        if (document.activeElement !== input) input.value = String(this.#pageNumber);
+      }
+    }
+    for (const button of this.#elements.previousPages) button.disabled = this.#pageNumber === 1;
+    for (const button of this.#elements.nextPages) button.disabled = this.#pageNumber === totalPages;
+  }
+
+  #availablePageWidth(): number {
+    const readerStyle = window.getComputedStyle(this.#elements.reader);
+    const horizontalPadding = (Number.parseFloat(readerStyle.paddingLeft) || 0) + (Number.parseFloat(readerStyle.paddingRight) || 0);
+    const readerWidth = this.#elements.reader.clientWidth || 760;
+    return Math.max(320, Math.min(900, readerWidth - horizontalPadding));
+  }
+
   #failRender(renderRequest: number, error: unknown): void {
     const message = error instanceof Error ? error.message : "Could not render the PDF page";
     this.#lifecycle.send({ type: "RENDER_FAILED", renderRequest, message });
@@ -440,41 +598,77 @@ export class PdfEvidenceViewer {
   }
 
   #queueSelectionCapture(): void {
-    if (this.#mode === "read-only") return;
     window.clearTimeout(this.#selectionCaptureTimer);
-    this.#selectionCaptureTimer = window.setTimeout(() => this.#captureSelection(), 80);
+    if (this.#mode === "read-only" || this.#textSelectionMode !== "highlight") return;
+    if (this.#selectionPointerActive) return;
+    this.#selectionCaptureTimer = window.setTimeout(() => this.#captureSelection(), this.#selectionSettleDelay);
+  }
+
+  #startTextSelection(event: PointerEvent): void {
+    window.clearTimeout(this.#selectionCaptureTimer);
+    this.#selectionPointerActive = true;
+    this.#selectionSettleDelay = event.pointerType === "touch" ? 700 : 80;
+  }
+
+  #finishTextSelection(): void {
+    this.#selectionPointerActive = false;
+    this.#queueSelectionCapture();
+  }
+
+  #cancelTextSelection(): void {
+    window.clearTimeout(this.#selectionCaptureTimer);
+    this.#selectionPointerActive = false;
   }
 
   #captureSelection(): void {
     this.#selectionCaptureTimer = undefined;
+    this.#selectionSettleDelay = 80;
     const selection = window.getSelection();
     if (!selection || selection.isCollapsed || selection.rangeCount === 0) return;
     const range = selection.getRangeAt(0);
-    if (!this.#elements.textLayer.contains(range.commonAncestorContainer)) return;
+    const source = this.#selectionSource(range.commonAncestorContainer);
+    if (!source) return;
     const maximumRects = this.#mode === "private-highlight" ? 512 : 64;
-    const rects = normalizeSelectionRects(range.getClientRects(), this.#elements.page.getBoundingClientRect(), maximumRects);
-    const context = deriveTextQuoteContext(this.#pageText, selection.toString());
+    const rects = normalizeSelectionRects(range.getClientRects(), source.element.getBoundingClientRect(), maximumRects);
+    const context = deriveTextQuoteContext(source.text, selection.toString());
     if (!context.quote || rects.length === 0) return;
-    const capture = { page: this.#pageNumber, ...context, rects };
+    const capture = { page: source.page, ...context, rects };
     if (sameSelectionCapture(capture, this.#draftSelection)) return;
     this.#draftSelection = capture;
     this.#renderHighlights();
+    this.#continuousView.refreshOverlays();
     this.#onSelection(this.#draftSelection);
     this.#elements.status.textContent =
       this.#mode === "private-highlight"
-        ? `Private selection captured from page ${this.#pageNumber}`
-        : `${rects.length} ${rects.length === 1 ? "line" : "lines"} captured from page ${this.#pageNumber}`;
+        ? `Private selection captured from page ${source.page}`
+        : `${rects.length} ${rects.length === 1 ? "line" : "lines"} captured from page ${source.page}`;
     if (this.#mode === "evidence") selection.removeAllRanges();
+  }
+
+  #selectionSource(node: Node): { element: HTMLElement; page: number; text: string } | null {
+    if (this.#displayMode === "continuous") {
+      const view = this.#continuousView.pageViewForNode(node);
+      return view ? { element: view.pageElement, page: view.page, text: view.text } : null;
+    }
+    return this.#elements.textLayer.contains(node) ? { element: this.#elements.page, page: this.#pageNumber, text: this.#pageText } : null;
   }
 
   #clearNativeSelection(): void {
     const selection = window.getSelection();
-    if (selection?.anchorNode && this.#elements.textLayer.contains(selection.anchorNode)) selection.removeAllRanges();
+    if (
+      selection?.anchorNode &&
+      (this.#elements.textLayer.contains(selection.anchorNode) || this.#elements.continuousPages.contains(selection.anchorNode))
+    )
+      selection.removeAllRanges();
   }
 
   #renderHighlights(): void {
-    this.#elements.highlights.replaceChildren();
-    for (const annotation of this.#annotations.filter((item) => item.page === this.#pageNumber)) {
+    this.#renderHighlightsForPage(this.#pageNumber, this.#elements.highlights);
+  }
+
+  #renderHighlightsForPage(page: number, container: HTMLElement): void {
+    container.replaceChildren();
+    for (const annotation of this.#annotations.filter((item) => item.page === page)) {
       const fragments =
         annotation.fragments.length > 0 ? annotation.fragments : [{ id: `legacy-${annotation.id}`, rects: annotation.rects }];
       for (const fragment of fragments) {
@@ -488,11 +682,11 @@ export class PdfEvidenceViewer {
           highlight.dataset.annotationId = annotation.id;
           highlight.dataset.fragmentId = fragment.id;
           highlight.addEventListener("click", () => this.#onHighlight(annotation.id, fragment.id));
-          this.#elements.highlights.append(highlight);
+          container.append(highlight);
         }
       }
     }
-    for (const annotation of this.#privateHighlights.filter((item) => item.page === this.#pageNumber)) {
+    for (const annotation of this.#privateHighlights.filter((item) => item.page === page)) {
       for (const rect of annotation.rects) {
         const highlight = document.createElement(this.#privateHighlightSelection ? "button" : "span");
         if (highlight instanceof HTMLButtonElement) highlight.type = "button";
@@ -503,21 +697,22 @@ export class PdfEvidenceViewer {
         positionPdfOverlay(highlight, rect);
         highlight.title = annotation.comment || annotation.quote;
         if (this.#privateHighlightSelection) highlight.addEventListener("click", () => this.#onPrivateHighlight(annotation.id));
-        this.#elements.highlights.append(highlight);
+        container.append(highlight);
       }
     }
-    if (this.#draftSelection?.page === this.#pageNumber) {
+    if (this.#draftSelection?.page === page) {
       for (const rect of this.#draftSelection.rects) {
         const highlight = document.createElement("span");
         highlight.className = "pdf-highlight";
         highlight.dataset.draft = "true";
         positionPdfOverlay(highlight, rect);
-        this.#elements.highlights.append(highlight);
+        container.append(highlight);
       }
     }
   }
 
   #startTouchGesture(event: TouchEvent): void {
+    if (this.#displayMode === "continuous") return;
     if (this.#touchTargetsActiveDrawing(event)) {
       event.preventDefault();
       this.#touchPanStart = null;
@@ -633,8 +828,12 @@ export class PdfEvidenceViewer {
     this.#elements.reader.scrollTop += correction.top;
   }
 
-  #renderPdfLinks(viewport: { convertToViewportPoint(x: number, y: number): number[] }, annotations: readonly unknown[]): void {
-    this.#elements.links.replaceChildren();
+  #renderPdfLinks(
+    viewport: { convertToViewportPoint(x: number, y: number): number[] },
+    annotations: readonly unknown[],
+    container: HTMLElement = this.#elements.links,
+  ): void {
+    container.replaceChildren();
     for (const value of annotations) {
       const annotation = pdfLinkAnnotation(value);
       if (!annotation) continue;
@@ -659,7 +858,7 @@ export class PdfEvidenceViewer {
           void this.#followPdfDestination(annotation);
         });
       }
-      this.#elements.links.append(link);
+      container.append(link);
     }
   }
 
@@ -683,20 +882,27 @@ export class PdfEvidenceViewer {
         : null;
     if (!page) return;
     await this.#goToPage(page);
+    if (this.#displayMode === "continuous") return;
     this.#scrollToPdfDestination(destination);
   }
 
   async #goToPage(page: number): Promise<void> {
     if (!this.#document) return;
     const next = clamp(page, 1, this.#document.numPages);
-    if (next === this.#pageNumber) return;
+    if (next === this.#pageNumber) {
+      if (this.#displayMode === "continuous") this.#continuousView.scrollToPage(next);
+      return;
+    }
     this.#pageNumber = next;
     this.#focusedAnnotationId = undefined;
     this.#draftSelection = null;
     this.#zoomAnchor = null;
     window.clearTimeout(this.#wheelZoomRenderTimer);
     this.#wheelZoomRenderTimer = undefined;
-    await this.#renderPage();
+    if (this.#displayMode === "continuous") {
+      this.#continuousView.scrollToPage(next);
+      this.#presentContinuousPage(next);
+    } else await this.#renderPage();
   }
 
   #scrollToPdfDestination(destination: readonly unknown[]): void {
@@ -818,4 +1024,22 @@ function sameSelectionCapture(left: PdfSelectionCapture, right: PdfSelectionCapt
 
 function clamp(value: number, minimum: number, maximum: number): number {
   return Math.min(maximum, Math.max(minimum, value));
+}
+
+const pdfDisplayModeStorageKey = "kirjolab.pdf.display-mode";
+
+function readPdfDisplayMode(): PdfDisplayMode {
+  try {
+    return window.localStorage.getItem(pdfDisplayModeStorageKey) === "continuous" ? "continuous" : "single";
+  } catch {
+    return "single";
+  }
+}
+
+function writePdfDisplayMode(mode: PdfDisplayMode): void {
+  try {
+    window.localStorage.setItem(pdfDisplayModeStorageKey, mode);
+  } catch {
+    // Viewing still works when storage is unavailable.
+  }
 }

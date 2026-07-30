@@ -145,10 +145,18 @@ const context: PdfHighlightImportContext = {
   referenceId: "reference/1",
 };
 
+function templateMarkup(value: unknown): string {
+  if (typeof value === "string") return value;
+  if (Array.isArray(value)) return value.map(templateMarkup).join("");
+  if (!value || typeof value !== "object") return "";
+  const template = value as { readonly strings?: readonly string[]; readonly values?: readonly unknown[] };
+  return [...(template.strings ?? []), ...(Array.isArray(template.values) ? template.values.map(templateMarkup) : [])].join("");
+}
+
 describe("PDF highlight import panel", () => {
   it("loads automatic analysis and renders empty, mixed, error, and completion states", async () => {
     const panel = new TestPdfHighlightImportPanel();
-    expect(panel.renderForTest()).toBeDefined();
+    expect(templateMarkup(panel.renderForTest())).toContain("library-highlight-import-details");
     expect(panel.rootForTest()).toBe(panel);
     panel.setContext(context);
     await settle();

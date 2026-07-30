@@ -1,5 +1,6 @@
 import { escapeHtml } from "../html";
 import { renderIcon } from "../ui/icons";
+import { renderPdfPageIndicator } from "./home-pdf-components";
 
 export type HomeAppMode = "workspace" | "library";
 export type HomeRoute = { path: string; purpose: string };
@@ -43,8 +44,11 @@ export function renderContextTabs(): string {
             <div class="context-mode-controls" id="pdf-context-controls" hidden>
               <span class="context-status" id="paper-status">Loading PDF…</span>
               <button id="previous-paper-page" type="button" aria-label="Previous PDF page">←</button>
-              <span class="context-page-indicator" id="paper-page-indicator">– / –</span>
+              ${renderPdfPageIndicator("paper-page-indicator")}
               <button id="next-paper-page" type="button" aria-label="Next PDF page">→</button>
+              <button id="toggle-paper-continuous" type="button" aria-pressed="false" title="Use continuous scrolling">
+                ${renderIcon("continuousPages")}<span class="sr-only" data-pdf-display-label>Continuous scroll</span>
+              </button>
             </div>
             <button class="preview-navigation-toggle" id="toggle-preview-navigation" type="button" aria-controls="app-header" aria-pressed="false" aria-label="Hide top navigation" title="Hide top navigation">
               ${renderIcon("chevronUp")}

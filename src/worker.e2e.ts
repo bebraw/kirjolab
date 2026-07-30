@@ -2746,9 +2746,43 @@ test("shares linked reference PDFs with members but not public links", async ({ 
   await expect(page.locator("#paper-page-indicator")).toHaveText("2 / 2");
   await page.keyboard.press("ArrowLeft");
   await expect(page.locator("#paper-page-indicator")).toHaveText("1 / 2");
+  await page.locator("#toggle-library-paper-continuous").click();
+  await expect(page.locator("#toggle-library-paper-continuous")).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator("#paper-continuous-pages")).toBeVisible();
+  await expect(page.locator("#paper-continuous-pages .pdf-continuous-page")).toHaveCount(2);
+  await expect
+    .poll(async () => Number(await page.locator('.pdf-continuous-page[data-pdf-page="1"] canvas').getAttribute("width")))
+    .toBeGreaterThan(0);
+  await page.locator('.pdf-continuous-page[data-pdf-page="2"]').scrollIntoViewIfNeeded();
+  await expect(page.locator("#paper-page-indicator")).toHaveText("2 / 2");
+  await page.locator("#library-paper-page-indicator .pdf-page-jump-display").click();
+  await page.locator("#library-paper-page-indicator .pdf-page-jump-input").fill("1");
+  await page.locator("#library-paper-page-indicator .pdf-page-jump-input").press("Enter");
+  await expect(page.locator("#paper-page-indicator")).toHaveText("1 / 2");
+  await page.locator("#toggle-library-paper-continuous").click();
+  await expect(page.locator("#toggle-library-paper-continuous")).toHaveAttribute("aria-pressed", "false");
+  await expect(page.locator("#paper-continuous-pages")).toBeHidden();
   await page.getByRole("button", { name: "Select", exact: true }).focus();
   await page.keyboard.press("ArrowRight");
   await expect(page.locator("#paper-page-indicator")).toHaveText("1 / 2");
+  await page.getByRole("button", { name: "Select", exact: true }).click();
+  await expect(page.locator("#paper-text-layer")).toHaveCSS("pointer-events", "auto");
+  const selectedPdfText = await page.locator("#paper-text-layer").evaluate((layer) => {
+    const span = layer.querySelector("span");
+    if (!span?.firstChild) throw new Error("Expected selectable private PDF text");
+    const range = document.createRange();
+    range.selectNodeContents(span);
+    const selection = window.getSelection();
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    layer.dispatchEvent(new PointerEvent("pointerup", { bubbles: true }));
+    return selection?.toString() ?? "";
+  });
+  expect(selectedPdfText).not.toBe("");
+  await page.waitForTimeout(120);
+  await expect(page.locator("#library-highlight-composer")).toBeHidden();
+  await expect(page.locator("#paper-highlights [data-draft='true']")).toHaveCount(0);
+  await page.getByRole("button", { name: "Text", exact: true }).click();
   const fittedCanvasWidth = Number(await page.locator("#paper-canvas").getAttribute("width"));
   await page.locator("#paper-reader").dispatchEvent("wheel", { ctrlKey: true, deltaY: -80, deltaMode: 0 });
   await expect.poll(async () => Number(await page.locator("#paper-canvas").getAttribute("width"))).toBeGreaterThan(fittedCanvasWidth);
@@ -2782,6 +2816,7 @@ test("shares linked reference PDFs with members but not public links", async ({ 
   await page.locator("#previous-library-paper-page").click();
   await expect(page.locator("#paper-page-indicator")).toHaveText("1 / 2");
   await page.locator("#paper-text-layer").evaluate((layer) => {
+    layer.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, pointerId: 41, pointerType: "mouse" }));
     const span = layer.querySelector("span");
     if (!span?.firstChild) throw new Error("Expected private PDF text");
     const range = document.createRange();
@@ -2789,8 +2824,11 @@ test("shares linked reference PDFs with members but not public links", async ({ 
     const selection = window.getSelection();
     selection?.removeAllRanges();
     selection?.addRange(range);
-    layer.dispatchEvent(new PointerEvent("pointerup", { bubbles: true }));
   });
+  await page.waitForTimeout(120);
+  await expect(page.locator("#library-highlight-composer")).toBeHidden();
+  await expect(page.locator("#paper-highlights [data-draft='true']")).toHaveCount(0);
+  await page.locator("#paper-text-layer").dispatchEvent("pointerup", { bubbles: true, pointerId: 41, pointerType: "mouse" });
   await expect(page.locator("#paper-highlights [data-draft='true']")).toHaveCount(1);
   await expect(page.locator("#paper-status")).toHaveText("Private selection captured from page 1");
   await expect(page.locator("#library-highlight-composer")).toBeVisible();

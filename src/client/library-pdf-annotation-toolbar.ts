@@ -97,7 +97,7 @@ export class LibraryPdfAnnotationToolbar extends LightDomElement {
   protected override render(): TemplateResult {
     return html`
       <div class="library-pdf-annotation-tools" role="toolbar" aria-label="PDF tools">
-        ${this.toolButton("select", "Select, edit, move, or delete an existing annotation")}
+        ${this.toolButton("select", "Select and copy text, or edit an existing annotation")}
         ${this.toolButton("text", "Select text and save a quotation")} ${this.toolButton("note", "Tap the page to attach a private note")}
         <div class="library-draw-rail-control">
           ${this.toolButton("draw", "Draw directly on the page with Apple Pencil or a mouse")}

@@ -234,7 +234,7 @@ function testPdfViewer(): Parameters<ContextResourcePresenter["bindProjectKnowle
     open: vi.fn().mockResolvedValue(true),
     resize: vi.fn(),
     setPrivateHighlightSelection: vi.fn(),
-    setTextSelectionEnabled: vi.fn(),
+    setTextSelectionMode: vi.fn(),
     setTool: vi.fn(),
     showError: vi.fn(),
     updateAnnotations: vi.fn(),
@@ -760,7 +760,7 @@ describe("context resource presenter", () => {
       open: vi.fn().mockResolvedValue(true),
       resize: vi.fn(),
       setPrivateHighlightSelection: vi.fn(),
-      setTextSelectionEnabled: vi.fn(),
+      setTextSelectionMode: vi.fn(),
       setTool: vi.fn(),
       showError: vi.fn(),
       updateAnnotations: vi.fn(),
@@ -813,7 +813,7 @@ describe("context resource presenter", () => {
       open: vi.fn().mockRejectedValue(new Error("Could not open PDF")),
       resize: vi.fn(),
       setPrivateHighlightSelection: vi.fn(),
-      setTextSelectionEnabled: vi.fn(),
+      setTextSelectionMode: vi.fn(),
       setTool: vi.fn(),
       showError: vi.fn(),
       updateAnnotations: vi.fn(),
@@ -836,7 +836,7 @@ describe("context resource presenter", () => {
       open: vi.fn().mockResolvedValue(true),
       resize: vi.fn(),
       setPrivateHighlightSelection: vi.fn(),
-      setTextSelectionEnabled: vi.fn(),
+      setTextSelectionMode: vi.fn(),
       setTool: vi.fn(),
       showError: vi.fn(),
       updateAnnotations: vi.fn(),
@@ -1484,7 +1484,7 @@ describe("context resource presenter", () => {
     expect(presenter.chooseLibraryPdfTool("text")).toEqual({
       privateHighlightId: null,
       privateHighlightSelection: false,
-      textSelectionEnabled: true,
+      textSelectionMode: "highlight",
     });
 
     expect(chooseTool).toHaveBeenCalledWith("text");
@@ -1493,6 +1493,12 @@ describe("context resource presenter", () => {
     expect(setStatus).toHaveBeenCalledWith("Select text to highlight.");
     expect(setInspectorOpen).toHaveBeenCalledWith(false);
     expect(setToolbarOpen).toHaveBeenCalledWith(false);
+
+    expect(presenter.chooseLibraryPdfTool("select")).toEqual({
+      privateHighlightId: null,
+      privateHighlightSelection: true,
+      textSelectionMode: "copy",
+    });
   });
 
   it("owns private-PDF draft clearing and exposes markup selection state", () => {
@@ -1615,7 +1621,7 @@ describe("context resource presenter", () => {
       open: vi.fn().mockResolvedValue(true),
       resize: vi.fn(),
       setPrivateHighlightSelection: vi.fn(),
-      setTextSelectionEnabled: vi.fn(),
+      setTextSelectionMode: vi.fn(),
       setTool: vi.fn(),
       showError: vi.fn(),
       updateAnnotations: vi.fn(),
@@ -1656,7 +1662,7 @@ describe("context resource presenter", () => {
       new CustomEvent("library-pdf-annotation-action", { detail: { action: "highlight-saved", kind: "created" } }),
     );
 
-    expect(viewer.setTextSelectionEnabled).toHaveBeenCalledWith(true);
+    expect(viewer.setTextSelectionMode).toHaveBeenCalledWith("highlight");
     expect(viewer.setPrivateHighlightSelection).toHaveBeenCalledWith(false, null);
     expect(setInspectorOpen).toHaveBeenCalledWith(true, "references");
     expect(coordinator.completeMarkup).toHaveBeenCalledWith("Drawing saved privately.");

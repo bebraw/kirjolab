@@ -580,6 +580,7 @@ export function renderHomePage(
                 <div class="textLayer" id="paper-text-layer"></div>
                 <library-pdf-markup-layer class="pdf-markups" id="paper-markups" data-tool="text" aria-label="Private PDF annotations"></library-pdf-markup-layer>
               </div>
+              <div class="pdf-continuous-pages" id="paper-continuous-pages" aria-label="PDF pages" hidden></div>
             </div>
             <project-annotation-form class="contents" id="project-annotation-form">
             <aside class="annotation-composer" id="annotation-composer" aria-labelledby="annotation-composer-title">
@@ -689,19 +690,13 @@ export function renderHomePage(
                 <summary><span>Annotations</span></summary>
                 <div class="library-annotation-details-body">
                   <pdf-highlight-import-panel class="library-highlight-import" id="pdf-highlight-import-panel" aria-labelledby="library-highlight-import-title">
-                    <div class="flex flex-wrap items-center justify-between gap-2">
-                      <div>
-                        <strong id="library-highlight-import-title">Highlights in this PDF</strong>
-                        <p class="mt-1 text-xs leading-5 text-app-text-soft" id="library-highlight-import-status" role="status" aria-live="polite">Highlights are analyzed automatically after PDF import.</p>
+                    <details class="library-highlight-import-details">
+                      <summary id="library-highlight-import-title"><span>Detected highlights</span></summary>
+                      <div class="library-highlight-import-body">
+                        <p class="text-xs leading-5 text-app-text-soft" id="library-highlight-import-status" role="status" aria-live="polite">Highlights are analyzed automatically after PDF import.</p>
+                        <form class="mt-3" id="library-highlight-import-form" hidden></form>
                       </div>
-                    </div>
-                    <form class="mt-3" id="library-highlight-import-form" hidden>
-                      <div class="space-y-2" id="library-highlight-import-list"></div>
-                      <div class="mt-3 flex flex-wrap gap-2">
-                        <button class="button-primary" type="submit">Import selected</button>
-                        <button class="button-secondary" id="cancel-library-highlight-import" type="button">Clear selection</button>
-                      </div>
-                    </form>
+                    </details>
                   </pdf-highlight-import-panel>
                   <library-pdf-annotation-list class="space-y-2" id="library-highlight-list"><p class="empty-state">No private annotations yet.</p></library-pdf-annotation-list>
                   <details class="library-project-details">

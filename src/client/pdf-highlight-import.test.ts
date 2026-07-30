@@ -95,6 +95,21 @@ describe("PDF highlight import", () => {
     expect(flattenedPdfHighlightCandidates(pixels, 50, 12, spans, 1).map((candidate) => candidate.quote)).toEqual(["first", "second"]);
   });
 
+  it("rejects tall yellow figure callouts while retaining line-height highlights", () => {
+    const pixels = whitePixels(80, 50);
+    paint(pixels, 80, { left: 4, top: 2, right: 60, bottom: 30 }, [255, 235, 80, 255]);
+    paint(pixels, 80, { left: 4, top: 38, right: 42, bottom: 46 }, [255, 235, 80, 255]);
+    const spans: PdfHighlightTextSpan[] = [
+      { index: 0, text: "Thought 1: determine the location", rect: { left: 8, top: 7, right: 56, bottom: 15 }, hasEol: true },
+      { index: 1, text: "to query the weather service.", rect: { left: 8, top: 17, right: 51, bottom: 25 }, hasEol: true },
+      { index: 2, text: "Actual highlighted evidence", rect: { left: 6, top: 38, right: 40, bottom: 46 }, hasEol: true },
+    ];
+
+    expect(flattenedPdfHighlightCandidates(pixels, 80, 50, spans, 1).map((candidate) => candidate.quote)).toEqual([
+      "Actual highlighted evidence",
+    ]);
+  });
+
   it("rejects malformed pixel buffers", () => {
     expect(detectYellowRegions(new Uint8ClampedArray(3), 10, 10)).toEqual([]);
     expect(detectYellowRegions(new Uint8ClampedArray(), 0, 0)).toEqual([]);

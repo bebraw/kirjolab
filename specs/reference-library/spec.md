@@ -241,12 +241,22 @@ memory and makes citation aliases compete with stable source identity.
   accessible name. Placeholder text is guidance, not the control's only label.
 - An attached private PDF opens from its library record in a kind-qualified
   context tab. Reading uses the owner-private stream and local page state. Text
-  selection creates only an ephemeral private-highlight draft. Selection
-  changes settle briefly so iPad handles can establish the complete range, and
-  fragmented browser rectangles coalesce into continuous visual-line geometry.
+  selection creates only an ephemeral private-highlight draft. The annotation
+  pane remains closed while a selection pointer is active; selection changes
+  then settle briefly, with additional time for iPad handles to establish the
+  complete range. Fragmented browser rectangles coalesce into continuous
+  visual-line geometry.
   An explicit save records its artifact, page, quote, optional comment, and
   bounded normalized selection rectangles in the owner library
   without adding, sharing, or annotating the artifact in a project.
+  The reader offers single-page and continuous-scroll display modes. Continuous
+  mode presents a one-page-wide vertical column, keeps rendering bounded around
+  the visible pages, tracks the page nearest the reading focus, and remembers
+  the researcher's display preference. Page controls and arrow-key navigation
+  scroll to page boundaries in continuous mode. The current-page indicator is
+  directly editable for a bounded Enter-to-jump page number. Choosing a page-annotation tool
+  returns to single-page mode, where private note and drawing coordinates remain
+  unambiguous.
 - Saving a text selection whose normalized rectangles overlap a saved
   highlight on the same artifact page extends that stable highlight instead of
   creating a second resource. Geometry, quotation text, and distinct comments
@@ -261,7 +271,9 @@ memory and makes citation aliases compete with stable source identity.
   analyses while retrying missing or failed work.
   Standard PDF highlight annotations retain their bounded geometry and optional
   comment; flattened yellow page graphics are detected from a bounded managed-
-  browser render and matched back to the PDF text layer. Candidates
+  browser render and matched back to the PDF text layer. A flattened region
+  must remain close to the height of the text band it intersects so yellow
+  multi-line callouts inside paper figures are not treated as highlights. Candidates
   without recoverable text are ignored. The researcher reviews selection and
   may edit each private note before one explicit, atomic import. Detection never
   uploads page pixels, silently saves a candidate, shares research, or mutates a
@@ -304,6 +316,8 @@ memory and makes citation aliases compete with stable source identity.
   empty, mixed-source, error,
   saved-highlight overlap filtering, review-selection, private-note, stable
   import transport, busy, explicit analysis retry, and completion presentation. It
+  keeps routine status in a collapsed Detected highlights disclosure and
+  expands it when candidates or a retryable failure need attention. It
   accepts explicit artifact, reference, and saved-highlight context, ignores
   stale asynchronous results after that identity changes, and emits only a
   typed completed-import outcome. The application coordinator retains
@@ -316,8 +330,10 @@ memory and makes citation aliases compete with stable source identity.
   a compact Select, Text, Note, and Draw toolbar. One typed interaction
   owner keeps tool selection, note composition, saved-resource selection, note
   dragging, and drawing mutually exclusive. Changing tools or cancelling a
-  pointer interaction clears its transient draft. Text selection
-  opens a contextual save row; Note places a page-anchored private note; Draw
+  pointer interaction clears its transient draft. Select allows native PDF text
+  selection and copying without creating a highlight draft while retaining
+  saved-annotation selection. Text selection opens a contextual save row; Note
+  places a page-anchored private note; Draw
   captures Apple Pencil or mouse strokes with red as the default color and an
   adjustable 1–24 pixel width while touch remains available for pan and zoom.
   The Draw surface disables native browser gestures before pointer input begins

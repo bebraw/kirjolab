@@ -26,7 +26,7 @@ import { LibraryPdfInspector } from "./library-pdf-inspector";
 import { LightDomController } from "./light-dom-controller";
 import { LibraryPdfMarkupLayer, type LibraryPdfNoteDraft, type PdfAnnotationTool } from "./library-pdf-markup-layer";
 import { ManuscriptCommentList, type ManuscriptCommentAuthoring } from "./manuscript-comment-list";
-import { PdfEvidenceViewer, type PdfSelectionCapture } from "./pdf-viewer";
+import { PdfEvidenceViewer, type PdfSelectionCapture, type PdfTextSelectionMode } from "./pdf-viewer";
 import { libraryPdfAnnotationActionEvent, type LibraryPdfAnnotationAction } from "./library-pdf-annotation-forms";
 import { libraryPdfAnnotationListActionEvent, type LibraryPdfAnnotationListAction } from "./library-pdf-annotation-list";
 import { libraryPdfInspectorCloseEvent } from "./library-pdf-inspector";
@@ -88,7 +88,7 @@ export interface AssistantCandidatePresenter {
 export interface LibraryPdfToolPresentation {
   readonly privateHighlightId: string | null;
   readonly privateHighlightSelection: boolean;
-  readonly textSelectionEnabled: boolean;
+  readonly textSelectionMode: PdfTextSelectionMode;
 }
 
 export interface LibraryPdfInspectorClosePresentation {
@@ -100,7 +100,7 @@ export interface LibraryPdfSelectionPresentation {
   readonly clearDraftSelection: boolean;
   readonly privateHighlightId?: string | null;
   readonly privateHighlightSelection?: boolean;
-  readonly textSelectionEnabled?: boolean;
+  readonly textSelectionMode?: PdfTextSelectionMode;
 }
 
 export interface ContextRouteOwners {
@@ -151,7 +151,7 @@ export interface ContextViewerState {
 
 type ContextPdfViewer = Pick<
   PdfEvidenceViewer,
-  "clearDraftSelection" | "resize" | "setPrivateHighlightSelection" | "setTextSelectionEnabled" | "setTool"
+  "clearDraftSelection" | "resize" | "setPrivateHighlightSelection" | "setTextSelectionMode" | "setTool"
 > &
   Pick<PdfEvidenceViewer, "currentPage" | "focusedAnnotationId" | "open" | "showError" | "updateAnnotations" | "updatePrivateHighlights">;
 
@@ -937,7 +937,7 @@ export class ContextResourcePresenter extends LightDomController {
     return {
       privateHighlightId: markups?.selectedHighlightId ?? null,
       privateHighlightSelection: tool === "select",
-      textSelectionEnabled: tool === "text",
+      textSelectionMode: tool === "text" ? "highlight" : tool === "select" ? "copy" : "disabled",
     };
   }
 
@@ -1159,7 +1159,7 @@ export class ContextResourcePresenter extends LightDomController {
     const viewer = this.pdfViewer;
     if (!viewer) return;
     if ("clearDraftSelection" in presentation && presentation.clearDraftSelection) viewer.clearDraftSelection();
-    if (presentation.textSelectionEnabled !== undefined) viewer.setTextSelectionEnabled(presentation.textSelectionEnabled);
+    if (presentation.textSelectionMode !== undefined) viewer.setTextSelectionMode(presentation.textSelectionMode);
     if (presentation.privateHighlightSelection !== undefined)
       viewer.setPrivateHighlightSelection(presentation.privateHighlightSelection, presentation.privateHighlightId);
   }
