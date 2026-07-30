@@ -38,9 +38,17 @@ const footnoteReference = /(?<!\\)\[\^(?<id>[^\]\s]{1,100})\]/gu;
 export function projectPublicationStructure(markdown: string): PublicationStructure {
   const lines = markdown.split(/\r?\n/u);
   const literalLines = fencedLiteralLines(lines);
+  const footnotes = projectFootnotes(lines, literalLines);
+  const tables = projectTables(lines, literalLines, footnotes.footnoteDefinitionLines);
+  return { ...tables, ...footnotes };
+}
+
+function projectFootnotes(
+  lines: readonly string[],
+  literalLines: ReadonlySet<number>,
+): Pick<PublicationStructure, "footnotesById" | "footnoteDefinitionLines" | "footnotes"> {
   const definitions = new Map<string, FootnoteDefinition>();
   const footnoteDefinitionLines = new Set<number>();
-
   for (let lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
     if (literalLines.has(lineIndex)) continue;
     const match = footnoteDefinition.exec(lines[lineIndex] ?? "");
@@ -56,24 +64,40 @@ export function projectPublicationStructure(markdown: string): PublicationStruct
     }
     definitions.set(id, { id, content: content.filter(Boolean).join(" "), startLine, endLine: lineIndex });
   }
+  const orderedIds = referencedFootnoteIds(lines, literalLines, footnoteDefinitionLines, definitions);
+  const footnotes = orderedIds.map((id, index) => ({ ...definitions.get(id)!, number: index + 1 }) satisfies PublicationFootnote);
+  return {
+    footnotes,
+    footnotesById: new Map(footnotes.map((note) => [note.id, note])),
+    footnoteDefinitionLines,
+  };
+}
 
-  const orderedIds: string[] = [];
-  const seenIds = new Set<string>();
+function referencedFootnoteIds(
+  lines: readonly string[],
+  literalLines: ReadonlySet<number>,
+  definitionLines: ReadonlySet<number>,
+  definitions: ReadonlyMap<string, FootnoteDefinition>,
+): string[] {
+  const ordered: string[] = [];
+  const seen = new Set<string>();
   for (let lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
-    if (literalLines.has(lineIndex) || footnoteDefinitionLines.has(lineIndex)) continue;
+    if (literalLines.has(lineIndex) || definitionLines.has(lineIndex)) continue;
     for (const match of (lines[lineIndex] ?? "").matchAll(footnoteReference)) {
       const id = match.groups?.id;
-      if (!id || seenIds.has(id) || !definitions.has(id)) continue;
-      seenIds.add(id);
-      orderedIds.push(id);
+      if (!id || seen.has(id) || !definitions.has(id)) continue;
+      seen.add(id);
+      ordered.push(id);
     }
   }
-  const footnotes = orderedIds.map((id, index) => {
-    const definition = definitions.get(id)!;
-    return { ...definition, number: index + 1 } satisfies PublicationFootnote;
-  });
-  const footnotesById = new Map(footnotes.map((note) => [note.id, note]));
+  return ordered;
+}
 
+function projectTables(
+  lines: readonly string[],
+  literalLines: ReadonlySet<number>,
+  footnoteDefinitionLines: ReadonlySet<number>,
+): Pick<PublicationStructure, "tablesByStartLine" | "tableLines"> {
   const tablesByStartLine = new Map<number, PublicationTable>();
   const tableLines = new Set<number>();
   for (let lineIndex = 0; lineIndex + 1 < lines.length; lineIndex += 1) {
@@ -84,8 +108,7 @@ export function projectPublicationStructure(markdown: string): PublicationStruct
     for (let consumed = table.startLine; consumed <= table.endLine; consumed += 1) tableLines.add(consumed);
     lineIndex = table.endLine;
   }
-
-  return { tablesByStartLine, tableLines, footnotesById, footnoteDefinitionLines, footnotes };
+  return { tablesByStartLine, tableLines };
 }
 
 export function replacePublicationFootnoteReferences(
