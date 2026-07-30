@@ -51,7 +51,8 @@
       "2026-07-30-local-workers-tests",
       "2026-07-30-relax-npm-version-hint",
       "2026-07-30-clean-disposable-state",
-      "2026-07-30-refresh-core-tooling"
+      "2026-07-30-refresh-core-tooling",
+      "2026-07-30-playwright-1-62-ci-image"
     ]
   },
   "scripts": {
@@ -114,7 +115,7 @@
     "@codemirror/lang-markdown": "6.5.1",
     "@codemirror/state": "6.7.1",
     "@codemirror/view": "6.43.7",
-    "@playwright/test": "1.61.1",
+    "@playwright/test": "1.62.0",
     "@redwoodjs/agent-ci": "0.17.1",
     "@replit/codemirror-vim": "6.4.0",
     "@stryker-mutator/core": "9.6.1",

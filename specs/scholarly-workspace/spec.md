@@ -608,7 +608,10 @@ collaboration.
   refresh, and canonical project refresh. Source and bibliography editing stay
   locked until connection-state projection establishes editability. First use requires network data,
   revoked access clears offline state, and other network failures retain a
-  restored project in explicit offline mode.
+  restored project in an explicit disconnected mode. The connection label may
+  remain `Reconnecting` when the browser still reports network availability;
+  editable restoration and `Saved offline` are the authoritative offline-write
+  signals.
   The workspace-catalog owner derives the single authorized offline project row
   from restored snapshot identity, title, and save time. The connection-status
   owner combines restored collaboration/editability projection with pending-

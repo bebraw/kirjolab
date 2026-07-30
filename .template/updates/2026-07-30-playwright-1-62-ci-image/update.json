@@ -1,0 +1,10 @@
+{
+  "id": "2026-07-30-playwright-1-62-ci-image",
+  "title": "Align the Playwright 1.62 CI image",
+  "status": "implemented",
+  "risk": "low",
+  "supersedes": ["2026-07-10-playwright-1-61-ci-image"],
+  "adrs": ["docs/adrs/implemented/ADR-009-split-fast-and-browser-verification.md"],
+  "touches": ["package.json", "package-lock.json", ".github/workflows/ci.yml", "docs/development.md", "specs/quality-gate/spec.md"],
+  "checks": ["npm run playwright:install", "npm run e2e"]
+}

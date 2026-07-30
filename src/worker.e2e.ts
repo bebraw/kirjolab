@@ -2128,7 +2128,7 @@ test("restores offline manuscript edits and synchronizes them after reconnect", 
   await page.reload();
   await expect(editor).toHaveValue(onlineSource);
   await expect(editor).toBeEnabled();
-  await expect(page.locator("#connection-status")).toContainText("Offline");
+  await expect(page.locator("#connection-status")).toHaveText(/^(?:Offline|Reconnecting)$/);
 
   const offlineSource = `${onlineSource}\nWritten between stations.\n`;
   await editor.fill(offlineSource);

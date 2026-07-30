@@ -50,6 +50,8 @@ copying unrelated starter structure.
   - `2026-07-30-local-workers-tests`
   - `2026-07-30-relax-npm-version-hint`
   - `2026-07-30-clean-disposable-state`
+  - `2026-07-30-refresh-core-tooling`
+  - `2026-07-30-playwright-1-62-ci-image`
 
 ### Anti-Patterns
 
