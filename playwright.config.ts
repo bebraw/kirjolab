@@ -10,6 +10,7 @@ export default defineConfig({
     baseURL: "http://127.0.0.1:8788",
     browserName: "chromium",
     headless: true,
+    viewport: { width: 1600, height: 900 },
     trace: "retain-on-failure",
   },
   webServer: {
