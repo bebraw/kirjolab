@@ -357,6 +357,10 @@
     color: var(--color-app-accent-strong);
   }
 
+  .library-pdf-rail-menu {
+    position: static;
+  }
+
   .library-pdf-rail-menu[open] > .library-pdf-rail-button {
     border-color: var(--color-app-line);
     background: var(--color-app-surface);

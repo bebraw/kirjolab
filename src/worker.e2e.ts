@@ -2746,19 +2746,21 @@ test("shares linked reference PDFs with members but not public links", async ({ 
   await expect(page.locator("#context-surface")).toBeVisible();
   const tabletReaderHeight = await page.locator("#paper-reader").evaluate((element) => element.getBoundingClientRect().height);
   await page.locator("#library-pdf-view-options").click();
-  const viewOptionsFitReader = await page.getByRole("group", { name: "PDF view options" }).evaluate((menu) => {
+  const viewOptionsBounds = await page.getByRole("group", { name: "PDF view options" }).evaluate((menu) => {
     const readerBody = menu.closest(".context-pdf-body");
     if (!(readerBody instanceof HTMLElement)) throw new Error("Expected PDF view options inside the reader body");
     const menuBounds = menu.getBoundingClientRect();
     const readerBounds = readerBody.getBoundingClientRect();
-    return (
-      menuBounds.left >= readerBounds.left &&
-      menuBounds.right <= readerBounds.right &&
-      menuBounds.top >= readerBounds.top &&
-      menuBounds.bottom <= readerBounds.bottom
-    );
+    return {
+      insideReader:
+        menuBounds.left >= readerBounds.left &&
+        menuBounds.right <= readerBounds.right &&
+        menuBounds.top >= readerBounds.top &&
+        menuBounds.bottom <= readerBounds.bottom,
+      usableSize: menuBounds.width > 200 && menuBounds.height > 250,
+    };
   });
-  expect(viewOptionsFitReader).toBe(true);
+  expect(viewOptionsBounds).toEqual({ insideReader: true, usableSize: true });
   await page.getByRole("button", { name: "Contents & thumbnails" }).click();
   await expect(page.locator("#pdf-navigation-panel .pdf-navigation-panel")).toBeVisible();
   await expect

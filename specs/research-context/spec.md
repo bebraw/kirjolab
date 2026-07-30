@@ -86,8 +86,8 @@ changing their canonical data, selector, authorization, or rendering contracts.
   left icon rail. Page stepping, search, annotation modes, and the annotation
   overview remain immediately available. Lower-frequency display controls and
   document actions live in labelled View and PDF-action menus; drawing style
-  remains contextual to the active Draw mode. Those menus stay within the PDF
-  reader body in focused and split layouts. Annotation editors, overview, and
+  remains contextual to the active Draw mode. Those menus remain fully usable
+  within the PDF reader body in focused and split layouts. Annotation editors, overview, and
   project sharing appear in a transient inspector only when requested or
   required. Page-anchored note pins and freehand strokes persist in the owner
   library using normalized page coordinates and rerender on page change.
