@@ -33,6 +33,7 @@ No accepted ADRs are awaiting implementation.
 
 | ADR                                                                                       | Status               | Summary                                                                                                         |
 | ----------------------------------------------------------------------------------------- | -------------------- | --------------------------------------------------------------------------------------------------------------- |
+| [ADR-209](./implemented/ADR-209-keep-workers-runtime-tests-local.md)                      | Implemented          | Disable remote binding sessions in Worker tests while marking production-only AI access explicitly remote.      |
 | [ADR-208](./implemented/ADR-208-validate-the-adr-registry.md)                             | Implemented          | Validate unique ADR identities, lifecycle metadata, index coverage, and local links in the fast gate.           |
 | [ADR-207](./implemented/ADR-207-configure-native-editor-indentation.md)                   | Implemented          | Configure browser-local spaces or tabs while preserving the native collaborative editor.                        |
 | [ADR-206](./implemented/ADR-206-separate-review-responses-from-comments.md)               | Implemented          | Keep portable external-review responses separate from range-bound collaborator comments.                        |

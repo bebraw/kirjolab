@@ -10,6 +10,7 @@ The template needs a verification baseline that stays strict enough for end-to-e
 
 - **Fast gate:** `npm run quality:gate:fast`
 - **Workers runtime gate:** `npm run test:workers`
+- **Workers test binding policy:** local Miniflare bindings with remote binding sessions disabled
 - **Affected guardrails:** `npm run quality:affected`
 - **Browser gate:** `npm run e2e`
 - **Browser discovery boundary:** canonical `src/**/*.e2e.ts` files outside
@@ -77,6 +78,7 @@ The template needs a verification baseline that stays strict enough for end-to-e
 ### Definition of Done
 
 - [ ] The fast gate covers formatting, type checking, Worker client-code guardrails, runtime audit, unit coverage, and real Workers-runtime tests.
+- [ ] Worker-runtime tests run without Cloudflare preview sessions, account credentials, or remote binding availability.
 - [ ] The ADR registry guard rejects duplicate identifiers, mismatched headings,
       missing lifecycle metadata, absent index entries, and broken local ADR links.
 - [ ] The affected guardrail path scopes formatting, JavaScript syntax checks, Worker client-code checks, package audit, and unit tests to affected files when possible.
@@ -170,6 +172,8 @@ The template needs a verification baseline that stays strict enough for end-to-e
   Workers test files, and Workers test configuration to `npm run test:workers`.
 - The Node affected-test path must never execute `*.workers.test.ts`; those files
   belong exclusively to the Workers runtime project.
+- The Workers Vitest pool must keep `remoteBindings` disabled. A remote service
+  integration belongs in an explicit diagnostic, not the local readiness gate.
 - The affected test path must run full unit coverage when package metadata, TypeScript config, Vitest config, coverage-gate logic, or affected-test logic changes.
 - The affected test path must run full unit coverage when affected-file helper logic changes.
 - The affected test path must run full unit coverage when affected runtime files have no related tests and no affected unit test files were supplied.

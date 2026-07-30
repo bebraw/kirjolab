@@ -4,6 +4,7 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   plugins: [
     cloudflareTest({
+      remoteBindings: false,
       miniflare: {
         bindings: {
           AUTH_MODE: "local",

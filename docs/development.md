@@ -117,6 +117,10 @@ If optional container parity warns with `No such remote 'origin'`, add `GITHUB_R
 - Run unit and integration tests with `npm test`.
 - Run Durable Object integration tests in the local Workers runtime with
   `npm run test:workers`.
+- Worker-runtime tests disable remote binding sessions and require neither a
+  Cloudflare account nor preview-token access. Production Workers AI remains an
+  explicitly remote binding; add a local test double before testing AI behavior
+  in the readiness gate.
 - Run tests related to affected runtime or unit test files with `npm run test:affected`.
 - Run the unit coverage gate with `npm run test:coverage`.
 - Run full mutation tests with `npm run mutation`.
@@ -244,7 +248,7 @@ Durable Object integration tests use the separate
 `vitest.workers.config.mts`, select `src/**/*.workers.test.ts`, and receive their
 test-only types through `tsconfig.workers-test.json`. Run them with
 `npm run test:workers`; the Cloudflare Vitest integration starts a local
-`workerd` runtime. The project pins
+`workerd` runtime with remote binding sessions disabled. The project pins
 `@cloudflare/vitest-pool-workers` 0.18.4 alongside Vitest 4.1.8. Each test gets
 isolated local storage and can use `cloudflare:test` to inspect private Durable
 Object SQLite state or evict an instance while retaining persisted storage.

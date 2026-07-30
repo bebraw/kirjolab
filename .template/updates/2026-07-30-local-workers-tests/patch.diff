@@ -1,0 +1,22 @@
+diff --git a/vitest.workers.config.mts b/vitest.workers.config.mts
+--- a/vitest.workers.config.mts
++++ b/vitest.workers.config.mts
+@@ -5,5 +5,6 @@ export default defineConfig({
+   plugins: [
+     cloudflareTest({
++      remoteBindings: false,
+       miniflare: {
+         bindings: {
+           AUTH_MODE: "local",
+diff --git a/wrangler.jsonc b/wrangler.jsonc
+--- a/wrangler.jsonc
++++ b/wrangler.jsonc
+@@ -49,7 +49,7 @@
+   ],
+   "triggers": { "crons": ["17 2 * * *"] },
+   "browser": { "binding": "ARTIFACT_ANALYSIS_BROWSER" },
+-  "ai": { "binding": "AI" },
++  "ai": { "binding": "AI", "remote": true },
+   "version_metadata": { "binding": "CF_VERSION_METADATA" },
+   "queues": {
+     "producers": [{ "binding": "ARTIFACT_ANALYSIS_QUEUE", "queue": "kirjolab-artifact-analysis" }],

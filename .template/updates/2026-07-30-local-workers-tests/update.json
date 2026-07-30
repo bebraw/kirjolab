@@ -1,0 +1,10 @@
+{
+  "id": "2026-07-30-local-workers-tests",
+  "title": "Keep Worker tests local",
+  "status": "implemented",
+  "risk": "low",
+  "supersedes": [],
+  "adrs": ["docs/adrs/implemented/ADR-209-keep-workers-runtime-tests-local.md"],
+  "touches": ["vitest.workers.config.mts", "wrangler.jsonc", "scripts/", "docs/development.md", "specs/quality-gate/spec.md"],
+  "checks": ["npm run test:tooling", "npm run test:workers", "npm run ci:local"]
+}

@@ -47,6 +47,7 @@ copying unrelated starter structure.
   - `2026-07-17-fingerprint-pwa-shell`
   - `2026-07-17-native-local-ci`
   - `2026-07-30-validate-adr-registry`
+  - `2026-07-30-local-workers-tests`
 
 ### Anti-Patterns
 

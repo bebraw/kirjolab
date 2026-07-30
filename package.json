@@ -42,7 +42,8 @@
       "2026-07-17-native-local-ci",
       "2026-07-22-pre-push-deep-quality",
       "2026-07-25-dependency-cost-diagnostic",
-      "2026-07-30-validate-adr-registry"
+      "2026-07-30-validate-adr-registry",
+      "2026-07-30-local-workers-tests"
     ]
   },
   "scripts": {

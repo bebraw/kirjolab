@@ -12,3 +12,13 @@ test("forces loopback-only authentication for interactive development", async ()
   assert.match(command, /--var AUTH_MODE:local\b/u);
   assert.doesNotMatch(command, /AUTH_MODE:access/u);
 });
+
+test("keeps Worker tests local while declaring production AI access remote", async () => {
+  const [testConfig, wranglerConfig] = await Promise.all([
+    readFile(new URL("../vitest.workers.config.mts", import.meta.url), "utf8"),
+    readFile(new URL("../wrangler.jsonc", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(testConfig, /remoteBindings:\s*false/u);
+  assert.match(wranglerConfig, /"ai":\s*\{\s*"binding":\s*"AI",\s*"remote":\s*true\s*\}/u);
+});
