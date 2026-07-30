@@ -100,10 +100,10 @@ export function renderSharedEditorPage(snapshot: WorkspaceSnapshot, options: Sha
       <div class="app-header-row">
         <div class="app-header-primary min-w-0">
           <span class="app-brand shrink-0 font-sans text-sm font-black tracking-[-0.04em] text-app-ink">KIRJOLAB</span>
-          <span class="shared-editor-project-title truncate" title="${escapeHtml(snapshot.title)}">${escapeHtml(snapshot.title)}</span>
+          <span class="min-w-0 truncate border-s border-app-line ps-3 font-sans text-[0.78rem] font-[750] text-app-text" title="${escapeHtml(snapshot.title)}">${escapeHtml(snapshot.title)}</span>
         </div>
         <div class="app-header-secondary">
-          <span class="shared-editor-connection" id="${ids.liveStatus}" role="status">Connecting…</span>
+          <span class="shared-editor-connection whitespace-nowrap font-sans text-[0.65rem] font-[750] text-app-text-soft" id="${ids.liveStatus}" role="status">Connecting…</span>
           <span class="count-badge shared-editor-capability" title="${capabilityDescription}" aria-label="${capabilityDescription}">${capabilityLabel}</span>
           <label class="project-view-control hidden items-center gap-2 font-sans text-xs text-app-text-soft min-[72rem]:flex">View
             <select class="workspace-switcher" id="shared-editor-layout" aria-label="Shared project view">
@@ -123,7 +123,7 @@ export function renderSharedEditorPage(snapshot: WorkspaceSnapshot, options: Sha
 
     <main class="workspace-grid shared-editor-grid" id="shared-editor-surfaces" data-active-surface="authoring" data-layout="${initialLayout}">
       <aside class="source-rail min-w-0 border-b border-app-line bg-app-paper min-[72rem]:border-r min-[72rem]:border-b-0" aria-label="Project files">
-        <div class="shared-editor-rail-heading">
+        <div class="flex min-h-[5.5rem] items-start justify-between gap-4 border-b border-app-line px-4 py-[1.1rem]">
           <div class="min-w-0">
             <p class="eyebrow">Shared project</p>
             <h1 class="mt-1 truncate text-xl font-semibold tracking-[-0.035em] text-app-ink">${escapeHtml(snapshot.title)}</h1>
@@ -135,8 +135,8 @@ export function renderSharedEditorPage(snapshot: WorkspaceSnapshot, options: Sha
           <select class="workspace-switcher min-w-0 flex-1" id="${ids.fileSwitcher}" name="file">${fileOptions}</select>
           <button class="button-secondary shrink-0" type="submit">Open</button>
         </form>
-        <nav class="shared-editor-file-list hidden min-[72rem]:grid" aria-label="Shared project files">${fileLinks}</nav>
-        <p class="shared-editor-scope-note">${sourceDescription} Private research, members, history, and project administration stay unavailable.</p>
+        <nav class="hidden gap-[0.15rem] p-[0.65rem] min-[72rem]:grid" aria-label="Shared project files">${fileLinks}</nav>
+        <p class="shared-editor-scope-note m-[0.65rem] border-t border-app-line px-3 py-[0.8rem] font-sans text-[0.65rem] leading-[1.55] text-app-text-soft">${sourceDescription} Private research, members, history, and project administration stay unavailable.</p>
       </aside>
 
       <section class="editor-column min-w-0 border-b border-app-line bg-app-surface min-[72rem]:border-r min-[72rem]:border-b-0" id="shared-authoring-surface" aria-label="Markdown source">
@@ -145,7 +145,7 @@ export function renderSharedEditorPage(snapshot: WorkspaceSnapshot, options: Sha
             <span class="editor-target-status" title="${escapeHtml(activeSource.path)}">${escapeHtml(activeSource.path)}</span>
           </div>
           <div class="editor-toolbar-group">
-            <span class="shared-editor-mode-label">${sourceAction}</span>
+            <span class="whitespace-nowrap font-sans text-[0.65rem] font-[750] uppercase tracking-[0.07em] text-app-accent-strong">${sourceAction}</span>
             <span class="text-xs text-app-text-soft" id="${ids.saveStatus}" role="status">${editable ? `Saved · revision ${snapshot.revision}` : `Read only · revision ${snapshot.revision}`}</span>
           </div>
         </div>
@@ -164,12 +164,12 @@ export function renderSharedEditorPage(snapshot: WorkspaceSnapshot, options: Sha
             <span class="context-tab" role="tab" aria-selected="true">PDF preview</span>
           </div>
           <div class="context-tab-controls">
-            <a class="shared-editor-open-pdf" href="${escapeHtml(pdfPath)}" target="_blank" rel="noreferrer">Open PDF</a>
+            <a class="flex min-w-max items-center px-3 font-sans text-[0.64rem] font-extrabold uppercase tracking-[0.04em] text-app-accent-strong hover:bg-app-accent-ghost" href="${escapeHtml(pdfPath)}" target="_blank" rel="noreferrer">Open PDF</a>
           </div>
         </div>
         <section class="context-panel context-preview-panel" aria-label="Rendered PDF preview">
-          <div class="shared-editor-pdf-shell">
-            <iframe class="shared-editor-pdf-frame" id="${ids.pdfViewer}" data-shared-pdf-viewer src="${escapeHtml(pdfPath)}" title="Rendered PDF for ${escapeHtml(snapshot.title)}">
+          <div class="shared-editor-pdf-shell min-h-0 flex-1 bg-app-pdf-surround p-3">
+            <iframe class="shared-editor-pdf-frame block h-full min-h-[34rem] w-full border border-app-line bg-app-paper" id="${ids.pdfViewer}" data-shared-pdf-viewer src="${escapeHtml(pdfPath)}" title="Rendered PDF for ${escapeHtml(snapshot.title)}">
               <p class="p-5 font-sans text-sm">Your browser cannot display this PDF. <a class="text-app-accent-strong underline" href="${escapeHtml(pdfPath)}">Open the rendered PDF</a>.</p>
             </iframe>
           </div>

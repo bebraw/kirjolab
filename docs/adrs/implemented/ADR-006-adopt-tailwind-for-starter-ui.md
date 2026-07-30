@@ -27,6 +27,7 @@ The template now uses:
 - `npm run build:css` to generate `.generated/styles.css`
 - `src/tailwind-input.css` as the single, import-only Tailwind entry file
 - ordered foundation and feature stylesheet modules under `src/ui/`
+- utilities for one-off leaf composition, with semantic CSS retained for shared, stateful, generated, and responsive rules
 - Wrangler build configuration to run the CSS build automatically
 - `/styles.css` served by the Worker from the generated stylesheet
 

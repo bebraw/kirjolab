@@ -73,7 +73,7 @@ describe("read-only project viewer", () => {
     );
     expect(html).toContain('id="shared-pdf-viewer" data-shared-pdf-viewer src="/share/locator.secret/document.pdf"');
     expect(html).toContain('id="shared-save-status" role="status">Read only · revision 7</span>');
-    expect(html).toContain('<span class="shared-editor-mode-label">Viewing</span>');
+    expect(html).toMatch(/<span class="[^"]*text-app-accent-strong[^"]*">Viewing<\/span>/u);
     expect(html).toContain('id="shared-source-shell"');
     expect(html).toContain('id="shared-collaborator-selections" data-shared-collaborator-selections');
     expect(html).toContain('<p class="sr-only" id="shared-editor-help">This Markdown source is read-only.</p>');

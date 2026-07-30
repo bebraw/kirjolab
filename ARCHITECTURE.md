@@ -122,8 +122,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   foundations, visual primitives, shared state contracts, typed icons, small
   markup helpers, and feature-owned stylesheet modules only. Keep
   `src/tailwind-input.css` as an ordered import manifest; domain components
-  compose the design system without moving application behavior or state into
-  a second UI architecture.
+  use utilities for one-off leaf composition and retain semantic selectors for
+  shared, stateful, generated, or responsive rules. They compose the design
+  system without moving application behavior or state into a second UI
+  architecture.
 - Incubate reusable capabilities as source-local modules first. Create a private
   workspace package only for two independently built consumers with a justified
   runtime, dependency, build, or release boundary; tests, fixtures, examples,

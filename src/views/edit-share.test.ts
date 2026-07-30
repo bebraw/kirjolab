@@ -68,7 +68,7 @@ describe("editable project viewer", () => {
     expect(html).toContain('id="edit-collaborator-selections" data-shared-collaborator-selections aria-live="polite"');
     expect(html).toContain('id="edit-source-shell"');
     expect(html).toContain('id="edit-save-status" role="status">Saved · revision 9</span>');
-    expect(html).toContain('<span class="shared-editor-mode-label">Editing</span>');
+    expect(html).toMatch(/<span class="[^"]*text-app-accent-strong[^"]*">Editing<\/span>/u);
     expect(html).toContain('<p class="sr-only" id="shared-editor-help">Markdown changes save to this shared project.</p>');
     expect(html).toContain("# Main &lt;source&gt;");
     expect(html).not.toContain("# Main <source>");
