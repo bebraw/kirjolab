@@ -120,6 +120,7 @@ describe("citation network panel", () => {
       focusedReferenceId: null,
       network: { ...network, edges: [], nodes: [] },
       pdfArtifactIds: [],
+      queue: [{ referenceId: "b", seedReferenceId: "a", direction: "references", addedAt: timestamp }],
       referenceTitles: {},
     });
     expect(panel.renderForTest()).toBeDefined();
@@ -129,6 +130,7 @@ describe("citation network panel", () => {
       focusedReferenceId: null,
       network: { ...network, edges: [], nodes: [] },
       pdfArtifactIds: [],
+      queue: [],
       referenceTitles: {},
     });
     expect(panel.renderForTest()).toBeDefined();
@@ -138,6 +140,7 @@ describe("citation network panel", () => {
       focusedReferenceId: "a",
       network,
       pdfArtifactIds: ["artifact:1"],
+      queue: [],
       referenceTitles: { a: "Seed A" },
     });
     panel.setCandidateSaving("10.5555/c", true);
@@ -163,6 +166,7 @@ describe("citation network panel", () => {
         ],
       },
       pdfArtifactIds: [],
+      queue: [],
       referenceTitles: {},
     });
     expect(panel.renderForTest()).toBeDefined();
@@ -173,7 +177,15 @@ describe("citation network panel", () => {
     const panel = new TestCitationNetworkPanel();
     const actions: CitationNetworkAction[] = [];
     panel.addEventListener(citationNetworkActionEvent, (event) => actions.push((event as CustomEvent<CitationNetworkAction>).detail));
-    panel.setData({ expansion, filterProject: false, focusedReferenceId: null, network, pdfArtifactIds: [], referenceTitles: {} });
+    panel.setData({
+      expansion,
+      filterProject: false,
+      focusedReferenceId: null,
+      network,
+      pdfArtifactIds: [],
+      queue: [],
+      referenceTitles: {},
+    });
 
     panel.actForTest("expand", { referenceId: "a", direction: "references" });
     panel.actForTest("expand", { referenceId: "a", direction: "citations" });
@@ -182,6 +194,8 @@ describe("citation network panel", () => {
     panel.actForTest("review", { assertionId: "assertion:1", decision: "unknown" });
     panel.actForTest("save-candidate", { candidateDoi: "10.5555/c" });
     panel.actForTest("save-all-candidates");
+    panel.actForTest("queue", { referenceId: "b", seedReferenceId: "a", direction: "references" });
+    panel.actForTest("dequeue", { referenceId: "b" });
     panel.setCandidateSaving("10.5555/c", true);
     panel.actForTest("save-candidate", { candidateDoi: "10.5555/c" });
     panel.actForTest("unknown");
@@ -193,6 +207,8 @@ describe("citation network panel", () => {
       { action: "review", assertionId: "assertion:1", decision: "confirmed" },
       { action: "save-candidate", candidate: expansion.unmatched[0], expansion },
       { action: "save-all-candidates", expansion },
+      { action: "queue", referenceId: "b", seedReferenceId: "a", direction: "references" },
+      { action: "dequeue", referenceId: "b" },
     ]);
   });
 
@@ -224,6 +240,7 @@ describe("citation network panel", () => {
       focusedReferenceId: "a",
       network: mixed,
       pdfArtifactIds: [],
+      queue: [],
       referenceTitles: {},
     });
     panel.toggleEvidenceForTest("confirmed");

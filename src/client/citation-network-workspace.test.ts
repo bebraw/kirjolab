@@ -79,18 +79,21 @@ describe("citation network workspace", () => {
 
   it("owns visibility, network loading, filter requests, and nested presentation", async () => {
     const { panel, scrollIntoView, workspace } = configuredWorkspace();
-    const fetchMock = vi.fn().mockResolvedValue(json(network));
+    const fetchMock = vi.fn((input: string | URL | Request) =>
+      String(input).includes("citation-research-queue") ? Promise.resolve(json([])) : Promise.resolve(json(network)),
+    );
     vi.stubGlobal("fetch", fetchMock);
 
     workspace.hidden = true;
     await workspace.open("source:1");
     workspace.updateForTest("references", "data");
     workspace.toggleForTest();
-    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
     workspace.closeForTest();
 
     expect(fetchMock).toHaveBeenNthCalledWith(1, "/api/library/citation-network", { credentials: "same-origin" });
-    expect(fetchMock).toHaveBeenNthCalledWith(2, "/api/library/citation-network?projectId=workspace-1", {
+    expect(fetchMock).toHaveBeenCalledWith("/api/library/citation-research-queue", { credentials: "same-origin" });
+    expect(fetchMock).toHaveBeenNthCalledWith(3, "/api/library/citation-network?projectId=workspace-1", {
       credentials: "same-origin",
     });
     expect(panel.setReferences).toHaveBeenCalledWith([
@@ -226,6 +229,49 @@ describe("citation network workspace", () => {
       headers: { "content-type": "application/json" },
       method: "POST",
     });
+  });
+
+  it("queues and removes promising trail references", async () => {
+    const { workspace } = configuredWorkspace();
+    const item = {
+      referenceId: "source:2",
+      seedReferenceId: "source:1",
+      direction: "references" as const,
+      addedAt: citationExpansionTimestamp,
+    };
+    const fetchMock = vi.fn((input: string | URL | Request, init?: RequestInit) => {
+      if (String(input).includes("citation-research-queue")) return Promise.resolve(json([item]));
+      if (init?.method === "DELETE") return Promise.resolve(json(item));
+      return Promise.resolve(json(item, 201));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const outcomes: CitationNetworkOutcome[] = [];
+    workspace.addEventListener(citationNetworkOutcomeEvent, (event) =>
+      outcomes.push((event as CustomEvent<CitationNetworkOutcome>).detail),
+    );
+
+    await workspace.actionForTest({
+      action: "queue",
+      referenceId: item.referenceId,
+      seedReferenceId: item.seedReferenceId,
+      direction: item.direction,
+    });
+    await workspace.actionForTest({ action: "dequeue", referenceId: item.referenceId });
+
+    expect(fetchMock).toHaveBeenCalledWith("/api/library/references/source%3A2/research-queue", {
+      body: JSON.stringify({ seedReferenceId: "source:1", direction: "references" }),
+      credentials: "same-origin",
+      headers: { "content-type": "application/json" },
+      method: "PUT",
+    });
+    expect(fetchMock).toHaveBeenCalledWith("/api/library/references/source%3A2/research-queue", {
+      credentials: "same-origin",
+      method: "DELETE",
+    });
+    expect(outcomes).toEqual([
+      { action: "notice", message: "Reference queued for this research trail." },
+      { action: "notice", message: "Reference removed from the research queue." },
+    ]);
   });
 
   it("reports invalid selections, provider errors, and malformed responses", async () => {

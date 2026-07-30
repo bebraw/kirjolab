@@ -5,6 +5,7 @@ import { isCitationNetwork, type CitationNetwork } from "../domain/citation-asse
 import { isCitationCandidateAcceptance, isCitationCandidateBatchAcceptance } from "../domain/citation-expansion-acceptance";
 import { isCitationExpansionResult } from "../domain/citation-expansion";
 import type { CitationExpansionCandidate, CitationExpansionResult } from "../domain/citation-expansion-types";
+import { isCitationResearchQueue } from "../domain/citation-research-queue";
 import type { LibraryPdfArtifact } from "../domain/reference-library";
 import { errorMessage, expectOk, jsonFetch } from "./http";
 import {
@@ -24,7 +25,7 @@ export type CitationNetworkOutcome =
 
 type CitationNetworkPresentation = Omit<CitationNetworkData, "filterProject" | "focusedReferenceId">;
 
-const emptyData: CitationNetworkPresentation = { expansion: null, network: null, pdfArtifactIds: [], referenceTitles: {} };
+const emptyData: CitationNetworkPresentation = { expansion: null, network: null, pdfArtifactIds: [], queue: [], referenceTitles: {} };
 
 export class CitationNetworkWorkspace extends LightDomElement {
   static override properties = {
@@ -59,7 +60,7 @@ export class CitationNetworkWorkspace extends LightDomElement {
   async open(referenceId: string | null = null): Promise<void> {
     this.focusedReferenceId = referenceId;
     this.hidden = false;
-    await this.refresh();
+    await Promise.all([this.refresh(), this.refreshQueue()]);
     if (typeof this.scrollIntoView === "function") this.scrollIntoView({ block: "start" });
   }
 
@@ -77,6 +78,18 @@ export class CitationNetworkWorkspace extends LightDomElement {
       this.status = "";
     } catch (error) {
       if (requestId === this.requestId) this.status = errorMessage(error, "Could not load the citation network.");
+    }
+  }
+
+  async refreshQueue(): Promise<void> {
+    try {
+      const response = await fetch("/api/library/citation-research-queue", { credentials: "same-origin" });
+      await expectOk(response);
+      const value: unknown = await response.json();
+      if (!isCitationResearchQueue(value)) throw new Error("Citation research queue returned an invalid representation");
+      this.data = { ...this.data, queue: value };
+    } catch (error) {
+      this.emitOutcome({ action: "notice", message: errorMessage(error, "Could not load the citation research queue.") });
     }
   }
 
@@ -176,7 +189,9 @@ export class CitationNetworkWorkspace extends LightDomElement {
     else if (action.action === "record") await this.recordAssertion(action);
     else if (action.action === "review") await this.reviewAssertion(action.assertionId, action.decision);
     else if (action.action === "save-candidate") await this.acceptCandidate(action.expansion, action.candidate);
-    else await this.acceptCandidates(action.expansion);
+    else if (action.action === "save-all-candidates") await this.acceptCandidates(action.expansion);
+    else if (action.action === "queue") await this.queueReference(action.referenceId, action.seedReferenceId, action.direction);
+    else await this.dequeueReference(action.referenceId);
   }
 
   private focusReference(referenceId: string): void {
@@ -305,6 +320,35 @@ export class CitationNetworkWorkspace extends LightDomElement {
     } catch (error) {
       this.setExpansionSaving(false);
       this.emitOutcome({ action: "notice", message: errorMessage(error, "Could not save citation candidates") });
+    }
+  }
+
+  private async queueReference(referenceId: string, seedReferenceId: string, direction: "references" | "citations"): Promise<void> {
+    try {
+      const response = await jsonFetch(
+        `/api/library/references/${encodeURIComponent(referenceId)}/research-queue`,
+        { seedReferenceId, direction },
+        "PUT",
+      );
+      await expectOk(response);
+      await this.refreshQueue();
+      this.emitOutcome({ action: "notice", message: "Reference queued for this research trail." });
+    } catch (error) {
+      this.emitOutcome({ action: "notice", message: errorMessage(error, "Could not queue the reference.") });
+    }
+  }
+
+  private async dequeueReference(referenceId: string): Promise<void> {
+    try {
+      const response = await fetch(`/api/library/references/${encodeURIComponent(referenceId)}/research-queue`, {
+        credentials: "same-origin",
+        method: "DELETE",
+      });
+      await expectOk(response);
+      this.data = { ...this.data, queue: this.data.queue.filter((item) => item.referenceId !== referenceId) };
+      this.emitOutcome({ action: "notice", message: "Reference removed from the research queue." });
+    } catch (error) {
+      this.emitOutcome({ action: "notice", message: errorMessage(error, "Could not update the research queue.") });
     }
   }
 

@@ -13,6 +13,7 @@ import type {
   CitationCandidateBatchAcceptance,
   CitationCandidateSource,
 } from "../domain/citation-expansion-types";
+import type { CitationResearchQueueItem, QueueCitationReferenceInput } from "../domain/citation-research-queue";
 import type {
   ArtifactAnalysis,
   ArtifactAnalysisKind,
@@ -230,6 +231,13 @@ interface CitationAssertionRow extends Record<string, SqlStorageValue> {
   reviewed_at: string | null;
   review_note: string | null;
   created_at: string;
+}
+
+interface CitationResearchQueueRow extends Record<string, SqlStorageValue> {
+  reference_id: string;
+  seed_reference_id: string;
+  direction: string;
+  added_at: string;
 }
 
 interface PdfReferenceReviewRow extends Record<string, SqlStorageValue> {
@@ -635,6 +643,23 @@ const migrations = [
       return undefined;
     },
   },
+  {
+    version: 14,
+    name: "queue-citation-trail-research",
+    apply(sql): undefined {
+      sql.exec(`
+        CREATE TABLE citation_research_queue (
+          reference_id TEXT PRIMARY KEY REFERENCES library_references(id) ON DELETE CASCADE,
+          seed_reference_id TEXT NOT NULL REFERENCES library_references(id) ON DELETE CASCADE,
+          direction TEXT NOT NULL CHECK (direction IN ('references', 'citations')),
+          added_at TEXT NOT NULL,
+          CHECK (reference_id <> seed_reference_id)
+        );
+        CREATE INDEX citation_research_queue_added ON citation_research_queue(added_at, reference_id);
+      `);
+      return undefined;
+    },
+  },
 ] as const satisfies readonly SQLiteMigration[];
 
 export class ReferenceLibrary extends DurableObject<Env> {
@@ -841,6 +866,26 @@ export class ReferenceLibrary extends DurableObject<Env> {
         duplicate.id,
       );
       this.ctx.storage.sql.exec("DELETE FROM reading_state WHERE reference_id = ?", duplicate.id);
+      this.ctx.storage.sql.exec(
+        "DELETE FROM citation_research_queue WHERE reference_id = ? AND seed_reference_id = ?",
+        canonical.id,
+        duplicate.id,
+      );
+      this.ctx.storage.sql.exec(
+        "UPDATE citation_research_queue SET seed_reference_id = ? WHERE seed_reference_id = ? AND reference_id <> ?",
+        canonical.id,
+        duplicate.id,
+        canonical.id,
+      );
+      this.ctx.storage.sql.exec(
+        `INSERT OR IGNORE INTO citation_research_queue (reference_id, seed_reference_id, direction, added_at)
+         SELECT ?, seed_reference_id, direction, added_at FROM citation_research_queue
+         WHERE reference_id = ? AND seed_reference_id <> ?`,
+        canonical.id,
+        duplicate.id,
+        canonical.id,
+      );
+      this.ctx.storage.sql.exec("DELETE FROM citation_research_queue WHERE reference_id = ?", duplicate.id);
       this.ctx.storage.sql.exec("UPDATE library_references SET identity_key = ? WHERE id = ?", `merged:${duplicate.id}`, duplicate.id);
       this.#writeReference(merged, identityKey, false, referenceKeyStateFromRow(canonicalRow));
       this.ctx.storage.sql.exec(
@@ -871,6 +916,56 @@ export class ReferenceLibrary extends DurableObject<Env> {
   createCitationAssertions(inputs: readonly CreateCitationAssertionInput[], actor: string): CitationAssertion[] {
     if (inputs.length === 0 || inputs.length > 128) throw new Error("Add between 1 and 128 citation assertions at a time");
     return this.ctx.storage.transactionSync(() => inputs.map((input) => this.#createCitationAssertion(input, actor)));
+  }
+
+  getCitationResearchQueue(): CitationResearchQueueItem[] {
+    return this.ctx.storage.sql
+      .exec<CitationResearchQueueRow>(
+        "SELECT reference_id, seed_reference_id, direction, added_at FROM citation_research_queue ORDER BY added_at, reference_id LIMIT 129",
+      )
+      .toArray()
+      .slice(0, 128)
+      .map(citationResearchQueueItemFromRow);
+  }
+
+  queueCitationReference(referenceId: string, input: QueueCitationReferenceInput): CitationResearchQueueItem {
+    this.#reference(referenceId);
+    this.#reference(input.seedReferenceId);
+    if (referenceId === input.seedReferenceId || (input.direction !== "references" && input.direction !== "citations")) {
+      throw new Error("Citation research queue item is invalid");
+    }
+    const alreadyQueued = this.ctx.storage.sql
+      .exec<{ found: number }>("SELECT 1 AS found FROM citation_research_queue WHERE reference_id = ?", referenceId)
+      .toArray()[0];
+    const count =
+      this.ctx.storage.sql.exec<{ count: number }>("SELECT COUNT(*) AS count FROM citation_research_queue").toArray()[0]?.count ?? 0;
+    if (!alreadyQueued && count >= 128) throw new Error("Citation research queue is full");
+    const item: CitationResearchQueueItem = { ...input, referenceId, addedAt: new Date().toISOString() };
+    this.ctx.storage.sql.exec(
+      `INSERT INTO citation_research_queue (reference_id, seed_reference_id, direction, added_at)
+       VALUES (?, ?, ?, ?)
+       ON CONFLICT(reference_id) DO UPDATE SET
+         seed_reference_id = excluded.seed_reference_id,
+         direction = excluded.direction,
+         added_at = excluded.added_at`,
+      item.referenceId,
+      item.seedReferenceId,
+      item.direction,
+      item.addedAt,
+    );
+    return item;
+  }
+
+  removeCitationResearchQueueItem(referenceId: string): CitationResearchQueueItem {
+    const existing = this.ctx.storage.sql
+      .exec<CitationResearchQueueRow>(
+        "SELECT reference_id, seed_reference_id, direction, added_at FROM citation_research_queue WHERE reference_id = ?",
+        referenceId,
+      )
+      .toArray()[0];
+    if (!existing) throw new Error("Citation research queue item not found");
+    this.ctx.storage.sql.exec("DELETE FROM citation_research_queue WHERE reference_id = ?", referenceId);
+    return citationResearchQueueItemFromRow(existing);
   }
 
   acceptCitationCandidate(
@@ -2736,6 +2831,15 @@ function citationAssertionFromRow(row: CitationAssertionRow): CitationAssertion 
     confidence: row.confidence,
     review,
     createdAt: row.created_at,
+  };
+}
+
+function citationResearchQueueItemFromRow(row: CitationResearchQueueRow): CitationResearchQueueItem {
+  return {
+    referenceId: row.reference_id,
+    seedReferenceId: row.seed_reference_id,
+    direction: row.direction === "citations" ? "citations" : "references",
+    addedAt: row.added_at,
   };
 }
 

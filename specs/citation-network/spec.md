@@ -53,6 +53,9 @@ provider result, extraction, or model suggestion as equally trustworthy.
 - A focused trail separates outgoing `References cited` from incoming `Cited
 by` relationships. Selecting a neighboring source refocuses the same trail
   and pushes its stable reference UUID into browser history.
+- An owner may queue at most 128 neighboring Library references for later trail
+  exploration. Each durable item retains its latest seed, direction, and
+  server timestamp without changing reading state or expanding providers.
 - Every relationship card retains assertion provenance beside the edge. When
   PDF-extracted provenance names a current Library artifact, its first in-text
   mention page (or bibliography page fallback) links directly to the existing
@@ -105,6 +108,9 @@ by` relationships. Selecting a neighboring source refocuses the same trail
   rejection, reviewer, time, and note without mutating source provenance.
 - `GET /api/library/citation-network[?projectId={id}]` returns stable reference
   nodes, grouped directional edges, derived states, and underlying assertions.
+- `GET /api/library/citation-research-queue` lists the bounded owner queue.
+  `PUT` and `DELETE` on
+  `/api/library/references/{id}/research-queue` add, update, or remove one item.
 - `POST /api/library/references/{id}/citation-expansions` explicitly retrieves
   outgoing Crossref references and returns matched assertions plus unmatched
   DOI candidates.
@@ -127,6 +133,8 @@ by` relationships. Selecting a neighboring source refocuses the same trail
 
 - Citation assertions and network routes use the verified owner-library
   boundary. Workspace membership alone cannot browse them.
+- Research queue routes use the same owner-library boundary and accept only
+  existing owner reference UUIDs.
 - External retrieval targets the fixed Crossref HTTPS origin, uses an encoded
   validated DOI, applies response and candidate bounds, and performs no
   automatic recursive expansion.
@@ -184,6 +192,8 @@ by` relationships. Selecting a neighboring source refocuses the same trail
       and accessible relationship list.
 - [x] A Library source opens an addressable, one-hop reference trail.
 - [x] A trail supports directional refocus and exact PDF evidence navigation.
+- [x] A durable bounded queue retains promising trail neighbors and their
+      discovery direction without overloading reading state.
 - [x] Pure, API, integration, Workers-runtime, view, and browser tests cover
       derivation, validation, persistence, review, filtering, and interaction.
 
@@ -240,6 +250,13 @@ by` relationships. Selecting a neighboring source refocuses the same trail
   follows the evidence locator
 - Then: browser history reflects each focused source and the Library PDF reader
   opens on the first captured evidence page
+
+**Scenario: Researcher postpones a trail**
+
+- Given: an immediate incoming or outgoing neighbor looks promising
+- When: the owner queues it for later exploration
+- Then: the queue retains that reference, seed, and direction until the owner
+  follows or removes it without changing reading priority
 
 **Scenario: Crossref names an unknown reference**
 

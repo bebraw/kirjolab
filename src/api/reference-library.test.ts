@@ -1690,6 +1690,43 @@ describe("reference library API", () => {
     );
     await expect(accepted.json()).resolves.toMatchObject({ accepted: [{ created: true }, { created: false }] });
   });
+
+  it("owns the bounded citation research queue", async () => {
+    const fixture = apiFixture();
+    const seedReferenceId = crypto.randomUUID();
+    const queueItem = { referenceId: reference.id, seedReferenceId, direction: "references" as const, addedAt: now };
+    fixture.library.getCitationResearchQueue.mockResolvedValueOnce([queueItem]);
+
+    const listed = await handleReferenceLibraryApi(
+      new Request("https://example.test/api/library/citation-research-queue"),
+      fixture.env,
+      identity,
+    );
+    await expect(listed.json()).resolves.toEqual([queueItem]);
+
+    const queued = await handleReferenceLibraryApi(
+      jsonRequest(`/api/library/references/${reference.id}/research-queue`, { seedReferenceId, direction: "references" }, "PUT"),
+      fixture.env,
+      identity,
+    );
+    expect(queued.status).toBe(201);
+    expect(fixture.library.queueCitationReference).toHaveBeenCalledWith(reference.id, { seedReferenceId, direction: "references" });
+
+    const removed = await handleReferenceLibraryApi(
+      new Request(`https://example.test/api/library/references/${reference.id}/research-queue`, { method: "DELETE" }),
+      fixture.env,
+      identity,
+    );
+    expect(removed.status).toBe(200);
+    expect(fixture.library.removeCitationResearchQueueItem).toHaveBeenCalledWith(reference.id);
+
+    const invalid = await handleReferenceLibraryApi(
+      jsonRequest(`/api/library/references/${reference.id}/research-queue`, { seedReferenceId, direction: "sideways" }, "PUT"),
+      fixture.env,
+      identity,
+    );
+    expect(invalid.status).toBe(400);
+  });
 });
 
 function apiFixture(bucket = new MemoryR2Bucket()) {
@@ -1956,6 +1993,20 @@ function apiFixture(bucket = new MemoryR2Bucket()) {
         })),
       }),
     ),
+    getCitationResearchQueue: vi.fn(async (): Promise<import("../domain/citation-research-queue").CitationResearchQueueItem[]> => []),
+    queueCitationReference: vi.fn(
+      async (referenceId: string, input: import("../domain/citation-research-queue").QueueCitationReferenceInput) => ({
+        ...input,
+        referenceId,
+        addedAt: now,
+      }),
+    ),
+    removeCitationResearchQueueItem: vi.fn(async (referenceId: string) => ({
+      referenceId,
+      seedReferenceId: crypto.randomUUID(),
+      direction: "references" as const,
+      addedAt: now,
+    })),
     getCitationAssertions: vi.fn(async () => [citationAssertion]),
     reviewCitationAssertion: vi.fn(async (_id: string, input: import("../domain/citation-assertions").ReviewCitationAssertionInput) => ({
       ...citationAssertion,

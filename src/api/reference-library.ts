@@ -62,6 +62,11 @@ import {
   type CitationExpansionDirection,
 } from "../domain/citation-expansion-types";
 import { isAcceptCitationCandidateInput, isAcceptCitationCandidatesInput } from "../domain/citation-expansion-acceptance";
+import {
+  isQueueCitationReferenceInput,
+  type CitationResearchQueueItem,
+  type QueueCitationReferenceInput,
+} from "../domain/citation-research-queue";
 import type { ReferenceDeletionImpact, ReferenceImportItem, WebCaptureItem } from "../durable-objects/reference-library";
 import { normalizeDoi, parseBibTeX } from "../domain/bibliography";
 import { isValidDoi } from "../domain/publication-intake";
@@ -226,6 +231,9 @@ interface ReferenceLibraryApi {
     source: CitationCandidateSource,
     actor: string,
   ): Promise<CitationCandidateBatchAcceptance>;
+  getCitationResearchQueue(): Promise<CitationResearchQueueItem[]>;
+  queueCitationReference(referenceId: string, input: QueueCitationReferenceInput): Promise<CitationResearchQueueItem>;
+  removeCitationResearchQueueItem(referenceId: string): Promise<CitationResearchQueueItem>;
   getCitationAssertions(referenceId?: string): Promise<CitationAssertion[]>;
   reviewCitationAssertion(assertionId: string, input: ReviewCitationAssertionInput, reviewer: string): Promise<CitationAssertion>;
   getCitationNetwork(projectId?: string): Promise<CitationNetwork>;
@@ -421,7 +429,7 @@ async function handleLibraryTopLevelRoutes(context: ReferenceLibraryRouteContext
 
 async function handleLibraryReferenceRoutes(context: ReferenceLibraryRouteContext): Promise<Response> {
   const referenceMatch =
-    /^\/references\/([0-9a-f-]{36})(?:\/(tags|collections|notes|highlights|highlight-imports|pdf-markups|reading|deletion-impact|web-snapshots|citation-expansions|citation-candidates|pdf-metadata))?$/iu.exec(
+    /^\/references\/([0-9a-f-]{36})(?:\/(tags|collections|notes|highlights|highlight-imports|pdf-markups|reading|deletion-impact|web-snapshots|citation-expansions|citation-candidates|research-queue|pdf-metadata))?$/iu.exec(
       context.suffix,
     );
   if (!referenceMatch?.[1]) return jsonError("Library route not found", 404);
@@ -450,6 +458,9 @@ async function handleLibraryCollectionRoutes(context: ReferenceLibraryRouteConte
   }
   if (suffix === "/reconciliation" && request.method === "GET") {
     return Response.json(await library.getReferenceReconciliationReport(), noStore());
+  }
+  if (suffix === "/citation-research-queue" && request.method === "GET") {
+    return Response.json(await library.getCitationResearchQueue(), noStore());
   }
   if (suffix === "/reconciliation/merge" && request.method === "POST") {
     const body: unknown = await request.json();
@@ -936,8 +947,22 @@ async function handleLibraryReferenceLifecycleRoutes(context: LibraryReferenceRo
   if (lookupResponse) return lookupResponse;
   const citationResponse = await handleLibraryReferenceCitationRoutes(context);
   if (citationResponse) return citationResponse;
+  const queueResponse = await handleLibraryReferenceResearchQueueRoute(context);
+  if (queueResponse) return queueResponse;
   const deletionResponse = await handleLibraryReferenceDeletionRoute(context);
   return deletionResponse ?? jsonError("Library route not found", 404);
+}
+
+async function handleLibraryReferenceResearchQueueRoute(context: LibraryReferenceRouteContext): Promise<Response | null> {
+  const { request, action, referenceId, library } = context;
+  if (action !== "research-queue") return null;
+  if (request.method === "PUT") {
+    const body: unknown = await request.json();
+    if (!isQueueCitationReferenceInput(body)) return jsonError("Invalid citation research queue item", 400);
+    return Response.json(await library.queueCitationReference(referenceId, body), { status: 201, ...noStore() });
+  }
+  if (request.method === "DELETE") return Response.json(await library.removeCitationResearchQueueItem(referenceId), noStore());
+  return null;
 }
 
 async function handleLibraryReferenceReadingRoute(context: LibraryReferenceRouteContext): Promise<Response | null> {

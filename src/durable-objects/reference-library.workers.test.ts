@@ -1005,6 +1005,34 @@ describe("ReferenceLibrary in the Workers runtime", () => {
     expect((await library.getSnapshot()).references).toHaveLength(4);
   });
 
+  it("persists a bounded citation trail research queue", async () => {
+    const library = env.REFERENCE_LIBRARIES.getByName(`citation-queue-${crypto.randomUUID()}`);
+    const imported = await library.importBibTeX(
+      `@article{seed, title={Seed}, year={2026}, doi={10.1000/seed}}
+       @article{candidate, title={Candidate}, year={2025}, doi={10.1000/candidate}}`,
+      "owner@example.test",
+    );
+    const seed = imported[0]!.reference;
+    const candidate = imported[1]!.reference;
+
+    const queued = await library.queueCitationReference(candidate.id, { seedReferenceId: seed.id, direction: "references" });
+    expect(await library.getCitationResearchQueue()).toEqual([queued]);
+    const updated = await library.queueCitationReference(candidate.id, { seedReferenceId: seed.id, direction: "citations" });
+    expect(await library.getCitationResearchQueue()).toEqual([updated]);
+    await expect(library.removeCitationResearchQueueItem(candidate.id)).resolves.toEqual(updated);
+    expect(await library.getCitationResearchQueue()).toEqual([]);
+
+    await runInDurableObject(library, (instance: ReferenceLibrary, state) => {
+      expect(() => instance.queueCitationReference(seed.id, { seedReferenceId: seed.id, direction: "references" })).toThrow("invalid");
+      expect(() => instance.removeCitationResearchQueueItem(candidate.id)).toThrow("not found");
+      expect(
+        state.storage.sql
+          .exec<{ version: number; name: string }>("SELECT version, name FROM _kirjolab_migrations WHERE version = 14")
+          .toArray(),
+      ).toEqual([{ version: 14, name: "queue-citation-trail-research" }]);
+    });
+  });
+
   it("persists bounded private page notes and freehand drawings", async () => {
     const library = env.REFERENCE_LIBRARIES.getByName(`pdf-markups-${crypto.randomUUID()}`);
     const draft = await library.createPdfDraft(

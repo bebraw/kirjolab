@@ -2,6 +2,7 @@ import { html, nothing, type TemplateResult } from "lit";
 import { LightDomElement } from "./light-dom-controller";
 import type { CitationAssertionState, CitationAssertionView, CitationNetwork } from "../domain/citation-assertions";
 import type { CitationExpansionCandidate, CitationExpansionDirection, CitationExpansionResult } from "../domain/citation-expansion-types";
+import type { CitationResearchQueueItem } from "../domain/citation-research-queue";
 import { libraryPdfRoute } from "./library-ui-route";
 import "./citation-network-graph";
 
@@ -22,7 +23,14 @@ export type CitationNetworkAction =
       readonly candidate: CitationExpansionCandidate;
       readonly expansion: CitationExpansionResult;
     }
-  | { readonly action: "save-all-candidates"; readonly expansion: CitationExpansionResult };
+  | { readonly action: "save-all-candidates"; readonly expansion: CitationExpansionResult }
+  | {
+      readonly action: "queue";
+      readonly referenceId: string;
+      readonly seedReferenceId: string;
+      readonly direction: CitationExpansionDirection;
+    }
+  | { readonly action: "dequeue"; readonly referenceId: string };
 
 export interface CitationNetworkData {
   readonly expansion: CitationExpansionResult | null;
@@ -30,6 +38,7 @@ export interface CitationNetworkData {
   readonly focusedReferenceId: string | null;
   readonly network: CitationNetwork | null;
   readonly pdfArtifactIds: readonly string[];
+  readonly queue: readonly CitationResearchQueueItem[];
   readonly referenceTitles: Readonly<Record<string, string>>;
 }
 
@@ -65,7 +74,15 @@ export class CitationNetworkPanel extends LightDomElement {
     super();
     this.citedReferenceId = "";
     this.citingReferenceId = "";
-    this.data = { expansion: null, filterProject: false, focusedReferenceId: null, network: null, pdfArtifactIds: [], referenceTitles: {} };
+    this.data = {
+      expansion: null,
+      filterProject: false,
+      focusedReferenceId: null,
+      network: null,
+      pdfArtifactIds: [],
+      queue: [],
+      referenceTitles: {},
+    };
     this.polarity = "cites";
     this.references = [];
     this.savingDois = new Set();
@@ -136,7 +153,7 @@ export class CitationNetworkPanel extends LightDomElement {
         </label>
         <div class="flex items-end"><button class="button-primary w-full justify-center" type="submit">Record assertion</button></div>
       </form>
-      ${focusedNetwork ? this.evidenceLegend(focusedNetwork) : nothing}
+      ${focusedNetwork ? this.evidenceLegend(focusedNetwork) : nothing} ${this.researchQueue()}
       <citation-network-graph
         class="mt-4 block overflow-hidden border border-app-line bg-app-paper"
         .network=${network}
@@ -202,6 +219,24 @@ export class CitationNetworkPanel extends LightDomElement {
     }
     if (action === "save-all-candidates" && this.data.expansion && !this.savingExpansion) {
       this.emit({ action, expansion: this.data.expansion });
+      return;
+    }
+    if (
+      action === "queue" &&
+      button.dataset.referenceId &&
+      button.dataset.seedReferenceId &&
+      (button.dataset.direction === "references" || button.dataset.direction === "citations")
+    ) {
+      this.emit({
+        action,
+        referenceId: button.dataset.referenceId,
+        seedReferenceId: button.dataset.seedReferenceId,
+        direction: button.dataset.direction,
+      });
+      return;
+    }
+    if (action === "dequeue" && button.dataset.referenceId) {
+      this.emit({ action, referenceId: button.dataset.referenceId });
       return;
     }
     if (action !== "save-candidate" || !button.dataset.candidateDoi || !this.data.expansion) return;
@@ -366,6 +401,8 @@ export class CitationNetworkPanel extends LightDomElement {
             ? edges.map((edge) => {
                 const neighborNodeId = edge[neighborEndpoint];
                 const neighborReferenceId = neighborNodeId.slice("reference:".length);
+                const direction = neighborEndpoint === "to" ? "references" : "citations";
+                const queued = this.data.queue.some(({ referenceId }) => referenceId === neighborReferenceId);
                 return html`
                   <article class="resource-card">
                     ${this.label(edge.state)}
@@ -379,10 +416,64 @@ export class CitationNetworkPanel extends LightDomElement {
                       ${labels.get(neighborNodeId) ?? neighborReferenceId}
                     </button>
                     ${edge.assertions.map((assertion) => this.assertion(assertion))}
+                    <button
+                      type="button"
+                      class="button-secondary mt-2"
+                      data-citation-action="queue"
+                      data-reference-id=${neighborReferenceId}
+                      data-seed-reference-id=${this.data.focusedReferenceId ?? ""}
+                      data-direction=${direction}
+                      ?disabled=${queued}
+                      @click=${this.act}
+                    >
+                      ${queued ? "Queued to explore" : "Queue to explore"}
+                    </button>
                   </article>
                 `;
               })
             : html`<p class="empty-state">No ${title.toLocaleLowerCase()} relationships recorded.</p>`}
+        </div>
+      </section>
+    `;
+  }
+
+  private researchQueue(): TemplateResult | typeof nothing {
+    if (this.data.queue.length === 0) return nothing;
+    return html`
+      <section class="mt-4 border-y border-app-line py-3" aria-labelledby="citation-research-queue-heading">
+        <div class="flex items-center gap-2">
+          <h4 class="eyebrow" id="citation-research-queue-heading">Explore next</h4>
+          <span class="count-badge">${this.data.queue.length}</span>
+        </div>
+        <div class="mt-2 grid gap-2 md:grid-cols-2">
+          ${this.data.queue.map(
+            (item) => html`
+              <article class="resource-card">
+                ${this.label(item.direction === "references" ? "Found in references" : "Found in citing works")}
+                <button
+                  type="button"
+                  class="mt-1 block w-full text-left text-sm font-semibold text-app-accent-strong underline decoration-app-border underline-offset-4"
+                  data-citation-action="focus"
+                  data-reference-id=${item.referenceId}
+                  @click=${this.act}
+                >
+                  ${this.data.referenceTitles[item.referenceId] ?? item.referenceId}
+                </button>
+                <p class="mt-1 text-xs text-app-text-soft">
+                  From ${this.data.referenceTitles[item.seedReferenceId] ?? item.seedReferenceId}
+                </p>
+                <button
+                  type="button"
+                  class="button-secondary mt-2"
+                  data-citation-action="dequeue"
+                  data-reference-id=${item.referenceId}
+                  @click=${this.act}
+                >
+                  Remove from queue
+                </button>
+              </article>
+            `,
+          )}
         </div>
       </section>
     `;
