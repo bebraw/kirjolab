@@ -33,6 +33,11 @@ with an authored passage.
 - The PDF viewer is hosted inside the right research-context pane. Its
   annotation draft is locked to the visible PDF while authoring remains
   available beside it.
+- Narrow Context mode hides both authoring and the project rail. Tablet
+  landscape Split keeps authoring and Context side by side without the project
+  rail; the three-pane shell is reserved for viewports wide enough to preserve
+  useful editor and PDF widths. PDF search and document navigation overlay the
+  reader without adding grid rows or shrinking the rendered page.
 - A bounded project annotation form owns the complete composer shell,
   publication-intake composition, visibility, visible-PDF choices, captured
   page and quotation context, the optional note, selection status, citation
@@ -94,6 +99,8 @@ with an authored passage.
       atomically or creates neither.
 - [x] The PDF and evidence composer remain visible beside manuscript authoring
       without a modal covering the editor.
+- [x] Tablet layouts preserve a useful PDF reading width and opening PDF search
+      or navigation does not resize the page.
 - [x] Reopening an annotation restores its page and visible highlight.
 - [x] An annotation can select its linked manuscript passage.
 - [x] Existing manual annotations without geometry remain readable.
@@ -118,6 +125,8 @@ with an authored passage.
   viewer construction instead of leaving a partially bound reader.
 - A superseded document or render request must never replace the active canvas,
   text layer, page indicators, or viewer status.
+- Selecting Context on a narrow viewport must not leave the project rail above
+  the PDF, and PDF auxiliary panels must not participate in reader grid sizing.
 - Stored highlights must never mutate the imported R2 object.
 - The embedded annotation composer must always target the currently visible
   PDF; it must not expose an independent editable artifact selector.
@@ -150,3 +159,10 @@ with an authored passage.
 - When: the researcher saves and links a captured PDF selection
 - Then: Kirjolab commits the annotation and passage link together, or rejects
   both when the manuscript selection has become stale
+
+**Scenario: Researcher reads a PDF on iPad**
+
+- Given: a workspace PDF is active at tablet portrait or landscape width
+- When: the researcher switches to Context or opens document navigation
+- Then: the PDF keeps the full height and a useful reading width while the
+  project rail or navigation panel yields through the responsive hierarchy

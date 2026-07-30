@@ -1007,6 +1007,50 @@
     body[data-app-mode="library"] .library-header-context .context-resource-tabs .context-tab {
       max-width: 12rem;
     }
+
+    body[data-app-mode="workspace"] .app-header-row {
+      display: grid;
+      height: 6.5rem;
+      min-height: 0;
+      grid-template-rows: repeat(2, minmax(0, 1fr));
+      align-items: stretch;
+      gap: 0.5rem;
+      padding: 0.5rem 0.75rem;
+    }
+
+    body[data-app-mode="workspace"] .app-header-row > div:first-child,
+    body[data-app-mode="workspace"] .app-header-row > div:last-child {
+      width: 100%;
+      gap: 0.5rem;
+    }
+
+    body[data-app-mode="workspace"] .app-header-row > div:first-child {
+      justify-content: flex-start;
+    }
+
+    body[data-app-mode="workspace"] .app-header-row > div:last-child {
+      justify-content: flex-end;
+    }
+
+    body[data-app-mode="workspace"] #workspace-switcher {
+      min-width: 4.5rem;
+      flex: 1;
+    }
+
+    body[data-app-mode="workspace"] #connection-status {
+      max-width: 7rem;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    body[data-app-mode="workspace"] .surface-switcher {
+      top: 6.5rem;
+    }
+
+    body[data-app-mode="workspace"] #workspace-surfaces {
+      min-height: calc(100vh - 6.5rem - 1px);
+    }
   }
 
   .edit-link-label-short {
@@ -1232,6 +1276,12 @@
     container-type: inline-size;
     max-height: min(24rem, 48vh);
     overflow: auto;
+  }
+
+  @media (max-width: 69.999rem) {
+    .workspace-grid[data-active-surface="context"] .source-rail {
+      display: none;
+    }
   }
 
   .rail-panel {
@@ -1690,7 +1740,106 @@
     padding: 0.65rem;
   }
 
-  @media (min-width: 72rem) {
+  @media (min-width: 70rem) and (max-width: 89.999rem) {
+    .workspace-grid {
+      grid-template-columns: minmax(24rem, 0.9fr) 0.5rem minmax(30rem, 1.1fr);
+      grid-template-rows: minmax(0, calc(100dvh - 4rem - 1px));
+      overflow: hidden;
+    }
+
+    .surface-switcher,
+    .workspace-grid[data-layout="split"] .source-rail,
+    .workspace-grid[data-layout="split"] .source-rail-resizer {
+      display: none;
+    }
+
+    .workspace-grid[data-layout="split"] .editor-column,
+    .workspace-grid[data-layout="split"] .context-column {
+      display: flex;
+    }
+
+    .workspace-grid[data-layout="split"] .editor-column {
+      grid-column: 1;
+    }
+
+    .workspace-grid[data-layout="split"] .authoring-context-resizer {
+      display: block;
+      grid-column: 2;
+    }
+
+    .workspace-grid[data-layout="split"] .context-column {
+      grid-column: 3;
+    }
+
+    .workspace-grid[data-layout="editor"] {
+      grid-template-columns: var(--source-rail-width, 17rem) 0.5rem minmax(0, 1fr);
+    }
+
+    .workspace-grid[data-layout="editor"] :is(.source-rail, .source-rail-resizer, .editor-column) {
+      display: flex;
+    }
+
+    .workspace-grid[data-layout="editor"] .source-rail {
+      display: block;
+    }
+
+    .workspace-grid[data-layout="editor"] .context-column,
+    .workspace-grid[data-layout="context"] :is(.source-rail, .source-rail-resizer, .editor-column, .authoring-context-resizer),
+    .workspace-grid[data-layout="pdf"] :is(.source-rail, .source-rail-resizer, .editor-column, .authoring-context-resizer) {
+      display: none;
+    }
+
+    .workspace-grid[data-layout="context"],
+    .workspace-grid[data-layout="pdf"] {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .workspace-grid[data-layout="context"] .context-column,
+    .workspace-grid[data-layout="pdf"] .context-column {
+      display: flex;
+      grid-column: 1;
+    }
+
+    .source-rail,
+    .editor-column,
+    .context-column,
+    .source-editor-shell {
+      min-height: 0;
+    }
+
+    .source-rail {
+      display: block;
+      max-height: none;
+      overflow: auto;
+    }
+
+    .editor-column {
+      overflow: hidden;
+    }
+
+    .source-editor-shell {
+      flex: 1;
+      overflow: hidden;
+    }
+
+    .source-editor {
+      height: 100%;
+      min-height: 100%;
+      resize: none;
+      overflow: auto;
+    }
+
+    .source-rail-resizer,
+    .authoring-context-resizer {
+      position: relative;
+      cursor: col-resize;
+      background: var(--color-app-paper);
+      box-shadow: inset 1px 0 var(--color-app-line);
+      touch-action: none;
+    }
+  }
+
+  @media (min-width: 90rem) {
     .workspace-grid {
       grid-template-columns: var(--source-rail-width, 17rem) 0.5rem minmax(26rem, var(--authoring-pane-width, 0.95fr)) 0.5rem minmax(
           28rem,
@@ -2557,7 +2706,7 @@
     height: 100%;
   }
 
-  @media (min-width: 72rem) {
+  @media (min-width: 90rem) {
     body[data-preview-navigation="hidden"] .workspace-grid {
       grid-template-rows: minmax(0, 100dvh);
     }
@@ -3194,22 +3343,39 @@
     overflow: hidden;
   }
 
+  pdf-search-panel,
+  pdf-navigation-panel {
+    display: contents;
+  }
+
   .pdf-search-panel {
+    position: absolute;
+    z-index: 7;
+    top: 0;
+    bottom: 0;
+    left: 0;
     width: min(23rem, 40vw);
     min-width: 18rem;
     overflow: auto;
     border-right: 1px solid var(--color-app-line);
     background: var(--color-app-paper);
     padding: 1rem;
+    box-shadow: 0.75rem 0 2rem var(--color-app-shadow);
   }
 
   .pdf-navigation-panel {
+    position: absolute;
+    z-index: 7;
+    top: 0;
+    bottom: 0;
+    left: 0;
     width: min(24rem, 42vw);
     min-width: 19rem;
     overflow: auto;
     border-right: 1px solid var(--color-app-line);
     background: var(--color-app-paper);
     padding: 1rem;
+    box-shadow: 0.75rem 0 2rem var(--color-app-shadow);
   }
 
   .pdf-bookmark-current {
@@ -3390,6 +3556,11 @@
     padding: 0.55rem 0;
     color: var(--color-app-text-soft);
     font: 0.68rem var(--font-sans);
+  }
+
+  .context-pdf-panel[data-library-pdf="true"] :is(.pdf-search-panel, .pdf-navigation-panel) {
+    left: 3.5rem;
+    max-width: calc(100% - 3.5rem);
   }
 
   .context-pdf-panel[data-readonly-pdf="true"] .library-pdf-annotation-tools {
@@ -4589,7 +4760,7 @@
     color: var(--color-app-text-soft);
   }
 
-  @media (min-width: 72rem) {
+  @media (min-width: 70rem) {
     .source-editor-shell {
       height: auto;
       min-height: 0;
@@ -5469,6 +5640,11 @@
       padding-block: 0.35rem;
     }
 
+    .context-pdf-panel[data-library-pdf="true"] :is(.pdf-search-panel, .pdf-navigation-panel) {
+      left: 3.15rem;
+      max-width: calc(100% - 3.15rem);
+    }
+
     .library-pdf-rail-button {
       width: 2.75rem;
       height: 2.75rem;
@@ -6281,7 +6457,7 @@
   }
 }
 
-@media (min-width: 72rem) {
+@media (min-width: 90rem) {
   .workspace-grid.shared-editor-grid {
     grid-template-columns: 17rem minmax(26rem, 0.95fr) minmax(28rem, 1.05fr);
     grid-template-rows: minmax(0, calc(100dvh - 4rem - 1px));

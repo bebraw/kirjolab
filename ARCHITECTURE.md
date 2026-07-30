@@ -166,6 +166,13 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   live Context owner, activate an available PDF through that owner when needed,
   and replace the canonical URL. During workspace route restoration,
   apply the persisted layout first and let an explicit URL layout override it.
+- Treat workspace responsiveness as a hierarchy change rather than a scaled
+  desktop shell. Narrow Context owns the full workspace without the project
+  rail; tablet landscape Split retains only authoring and Context; the project
+  rail joins the simultaneous layout only when all three panes meet their
+  minimum useful widths. PDF search, navigation, and annotation inspectors are
+  bounded overlays and must never participate in the reader grid or resize the
+  rendered page.
 - Let the workspace surface switcher's route binding own Write/Map route
   effects. Every Write outcome activates Authoring without a second navigation
   event, focuses the supplied authoring target, and replaces the canonical URL;

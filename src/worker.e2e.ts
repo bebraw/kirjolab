@@ -2733,6 +2733,22 @@ test("shares linked reference PDFs with members but not public links", async ({ 
   await expect(page.getByRole("button", { name: "Note", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Draw", exact: true })).toBeVisible();
   await expect(page.locator("#context-pdf-panel .context-pdf-body")).toHaveCSS("grid-template-columns", /\d+(?:\.\d+)?px \d+(?:\.\d+)?px/);
+  await page.setViewportSize({ width: 1180, height: 820 });
+  await expect(page.locator("#source-rail")).toBeHidden();
+  await expect(page.locator("#authoring-surface")).toBeVisible();
+  await expect(page.locator("#context-surface")).toBeVisible();
+  const tabletReaderHeight = await page.locator("#paper-reader").evaluate((element) => element.getBoundingClientRect().height);
+  await page.getByRole("button", { name: "Open PDF contents and thumbnails" }).click();
+  await expect(page.locator("#pdf-navigation-panel .pdf-navigation-panel")).toBeVisible();
+  await expect
+    .poll(() => page.locator("#paper-reader").evaluate((element) => element.getBoundingClientRect().height))
+    .toBe(tabletReaderHeight);
+  await page.getByRole("button", { name: "Close PDF navigation" }).click();
+  await page.setViewportSize({ width: 820, height: 1180 });
+  await expect(page.locator("#source-rail")).toBeHidden();
+  await expect(page.locator("#authoring-surface")).toBeHidden();
+  await expect(page.locator("#context-surface")).toBeVisible();
+  await page.setViewportSize({ width: 1440, height: 900 });
   await page.getByRole("button", { name: "Annotations", exact: true }).click();
   await expect(page.locator("#library-highlight-composer")).toBeVisible();
   await expect(page.getByRole("button", { name: "Annotations", exact: true })).toHaveAttribute("aria-expanded", "true");
