@@ -72,6 +72,104 @@ describe("Semantic Scholar metadata integration", () => {
     }
   });
 
+  it("rejects invalid and unsuccessful forward-citation requests precisely", async () => {
+    const fetcher = vi.fn(async () => Response.json({ data: [] }));
+    await expect(fetchSemanticScholarCitations("invalid", "", fetcher)).rejects.toThrow("Publication DOI is invalid");
+    expect(fetcher).not.toHaveBeenCalled();
+
+    const missingFetcher = vi.fn(async () => new Response(null, { status: 404 }));
+    await expect(fetchSemanticScholarCitations("10.1000/missing", "", missingFetcher)).rejects.toThrow(
+      "Semantic Scholar has no record for this DOI",
+    );
+    expect(missingFetcher).toHaveBeenCalledOnce();
+
+    const rejectedFetcher = vi.fn(async () => new Response(null, { status: 400 }));
+    await expect(fetchSemanticScholarCitations("10.1000/rejected", "", rejectedFetcher)).rejects.toThrow(
+      "Semantic Scholar citations request failed",
+    );
+    expect(rejectedFetcher).toHaveBeenCalledOnce();
+  });
+
+  it("rejects malformed forward-citation metadata", async () => {
+    await expect(fetchSemanticScholarCitations("10.1000/seed", "", async () => Response.json([]))).rejects.toThrow(
+      "Semantic Scholar returned invalid citation metadata",
+    );
+    await expect(fetchSemanticScholarCitations("10.1000/seed", "", async () => Response.json({ data: null }))).rejects.toThrow(
+      "Semantic Scholar returned invalid citation metadata",
+    );
+  });
+
+  it("filters malformed citation rows and normalizes optional fields", async () => {
+    const expansion = await fetchSemanticScholarCitations("10.1000/seed", "", async () =>
+      Response.json({
+        data: [
+          null,
+          {},
+          { citingPaper: null },
+          {
+            citingPaper: semanticScholarPaper({
+              authors: [null, { name: " Alice Example " }],
+              externalIds: { DOI: "10.1000/normalized" },
+              title: " Normalized title ",
+              year: 2026.5,
+            }),
+          },
+        ],
+      }),
+    );
+
+    expect(expansion).toMatchObject({
+      candidates: [
+        {
+          authors: "Alice Example",
+          doi: "10.1000/normalized",
+          title: "Normalized title",
+          year: "",
+        },
+      ],
+      truncated: false,
+    });
+  });
+
+  it("bounds forward citations and fingerprints their canonical content", async () => {
+    const data = Array.from({ length: 129 }, (_, index) => ({
+      citingPaper: semanticScholarPaper({
+        externalIds: { DOI: `10.1000/citing-${index}` },
+        paperId: `citing-${index}`,
+      }),
+    }));
+    const first = await fetchSemanticScholarCitations("10.1000/seed", "", async () => Response.json({ data }));
+    const second = await fetchSemanticScholarCitations("10.1000/seed", "", async () =>
+      Response.json({ data: [{ citingPaper: semanticScholarPaper({ externalIds: { DOI: "10.1000/different" } }) }] }),
+    );
+
+    expect(first.candidates).toHaveLength(128);
+    expect(first.truncated).toBe(true);
+    expect(first.responseId).not.toBe(second.responseId);
+  });
+
+  it("classifies exhausted provider retries", async () => {
+    const error = new SemanticScholarUnavailableError();
+    expect(error).toMatchObject({
+      message: "Semantic Scholar is temporarily unavailable; try again shortly",
+      name: "SemanticScholarUnavailableError",
+    });
+
+    vi.useFakeTimers();
+    try {
+      const networkFetcher = vi.fn(async (): Promise<Response> => {
+        throw new Error("network unavailable");
+      });
+      const request = fetchSemanticScholarCitations("10.1000/seed", "", networkFetcher);
+      const rejection = expect(request).rejects.toBeInstanceOf(SemanticScholarUnavailableError);
+      await vi.runAllTimersAsync();
+      await rejection;
+      expect(networkFetcher).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("maps a DOI paper and uses the optional API key", async () => {
     let observedUrl = "";
     let observedHeaders: HeadersInit | undefined;
