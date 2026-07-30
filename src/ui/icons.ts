@@ -18,6 +18,7 @@ const ICONS = {
   imageAdd:
     '<rect x="3.5" y="5" width="17" height="14" rx="1.5"></rect><circle cx="8.25" cy="9.25" r="1.5"></circle><path d="m5.5 17 4.25-4.25 3 3 2-2 3.75 3.25"></path><path d="M18.5 2.75v4M16.5 4.75h4"></path>',
   guide: '<path d="M5 4h14v16H5z"></path><path d="M8 8h8M8 12h5M8 16h7"></path>',
+  more: '<circle cx="5" cy="12" r="1"></circle><circle cx="12" cy="12" r="1"></circle><circle cx="19" cy="12" r="1"></circle>',
   note: '<path d="M5 4h14v12H9l-4 4Z"></path><path d="M9 8h6M9 12h4"></path>',
   pages:
     '<rect x="4" y="4" width="7" height="8" rx="1"></rect><rect x="13" y="4" width="7" height="8" rx="1"></rect><path d="M4 16h16M4 20h12"></path>',

@@ -90,8 +90,8 @@ export class LibraryPdfAnnotationToolbar extends LightDomElement {
   }
 
   focusInspectorButton(panel: "annotations" | "references"): void {
-    const id = panel === "references" ? "#open-library-pdf-references" : "#open-library-pdf-inspector";
-    void this.updateComplete.then(() => this.querySelector<HTMLButtonElement>(id)?.focus());
+    const id = panel === "references" ? "#library-pdf-more-actions" : "#open-library-pdf-inspector";
+    void this.updateComplete.then(() => this.querySelector<HTMLElement>(id)?.focus());
   }
 
   protected override render(): TemplateResult {
@@ -130,29 +130,6 @@ export class LibraryPdfAnnotationToolbar extends LightDomElement {
             </button>
           </div>
         </div>
-        <span class="library-pdf-rail-divider" aria-hidden="true"></span>
-        <button
-          class="library-pdf-rail-button button-icon"
-          id="download-library-original-pdf"
-          type="button"
-          ?disabled=${!this.exportTarget || this.exporting}
-          title="Download the original PDF"
-          data-touch-target="true"
-          @click=${this.downloadOriginal}
-        >
-          ${icon("guide")}<span class="sr-only">${this.exporting ? "Preparing PDF download" : "Download original PDF"}</span>
-        </button>
-        <button
-          class="library-pdf-rail-button button-icon"
-          id="export-library-annotated-pdf"
-          type="button"
-          ?disabled=${this.annotationCount === 0 || !this.exportTarget || this.exporting}
-          title="Download a copy with private notes and ink"
-          data-touch-target="true"
-          @click=${this.exportAnnotated}
-        >
-          ${icon("download")}<span class="sr-only">${this.exporting ? "Preparing annotated PDF" : "Export annotated"}</span>
-        </button>
         <button
           class="library-pdf-rail-button library-pdf-annotations-button button-icon"
           id="open-library-pdf-inspector"
@@ -167,19 +144,50 @@ export class LibraryPdfAnnotationToolbar extends LightDomElement {
           ${icon("annotations")}<span class="sr-only">Annotations</span
           ><span class="count-badge" id="library-highlight-count">${this.annotationCount}</span>
         </button>
-        <button
-          class="library-pdf-rail-button button-icon"
-          id="open-library-pdf-references"
-          type="button"
-          aria-label="References"
-          aria-expanded=${String(this.inspectorOpen && this.inspectorPanel === "references")}
-          aria-controls="library-highlight-composer"
-          title="Open references"
-          data-touch-target="true"
-          @click=${() => this.emitAction({ action: "open-references" })}
-        >
-          ${icon("research")}<span class="sr-only">References</span>
-        </button>
+        <details class="action-menu library-pdf-rail-menu" data-action-menu>
+          <summary
+            class="library-pdf-rail-button button-icon"
+            id="library-pdf-more-actions"
+            role="button"
+            aria-label="More PDF actions"
+            aria-haspopup="menu"
+            title="More PDF actions"
+            data-touch-target="true"
+          >
+            ${icon("more")}
+          </summary>
+          <div class="library-pdf-rail-menu-panel" role="group" aria-label="PDF actions">
+            <p class="library-pdf-menu-heading">Document</p>
+            <button
+              class="library-pdf-menu-action"
+              id="open-library-pdf-references"
+              type="button"
+              aria-expanded=${String(this.inspectorOpen && this.inspectorPanel === "references")}
+              aria-controls="library-highlight-composer"
+              @click=${() => this.emitAction({ action: "open-references" })}
+            >
+              ${icon("research")}<span>References</span>
+            </button>
+            <button
+              class="library-pdf-menu-action"
+              id="download-library-original-pdf"
+              type="button"
+              ?disabled=${!this.exportTarget || this.exporting}
+              @click=${this.downloadOriginal}
+            >
+              ${icon("guide")}<span>${this.exporting ? "Preparing download…" : "Download original"}</span>
+            </button>
+            <button
+              class="library-pdf-menu-action"
+              id="export-library-annotated-pdf"
+              type="button"
+              ?disabled=${this.annotationCount === 0 || !this.exportTarget || this.exporting}
+              @click=${this.exportAnnotated}
+            >
+              ${icon("download")}<span>${this.exporting ? "Preparing export…" : "Export annotated copy"}</span>
+            </button>
+          </div>
+        </details>
       </div>
     `;
   }

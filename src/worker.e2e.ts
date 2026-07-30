@@ -754,9 +754,10 @@ test("imports, annotates, and exports a private PDF without a project", async ({
   await page.locator("#library-select-tool").click();
   await expect(page.locator("#library-highlight-composer")).toBeHidden();
   await expect(page.locator("#paper-text-layer")).toContainText("Knowledge grows through inspectable evidence.");
+  await page.locator("#library-pdf-more-actions").click();
   await expect(page.locator("#export-library-annotated-pdf")).toBeDisabled();
   await expect(page.locator("#download-library-original-pdf")).toBeEnabled();
-  await page.getByRole("button", { name: "Download original PDF" }).click();
+  await page.getByRole("button", { name: "Download original" }).click();
   await expect(page.locator("#toast")).toHaveText("Choose Save to Files to keep the original PDF.");
   await expect
     .poll(async () => JSON.parse((await page.evaluate(() => sessionStorage.getItem("shared-pdf"))) ?? "null"))
@@ -764,8 +765,9 @@ test("imports, annotates, and exports a private PDF without a project", async ({
   await page.getByRole("button", { name: "Annotations", exact: true }).click();
   await expect(page.locator("#library-highlight-import-status")).toContainText("1 candidate found");
   await expect(page.locator("#library-highlight-import-list")).toContainText("Knowledge grows through inspectable evidence.");
+  await page.locator("#library-pdf-more-actions").click();
   await page.getByRole("button", { name: "References", exact: true }).click();
-  await expect(page.getByRole("button", { name: "References", exact: true })).toHaveAttribute("aria-expanded", "true");
+  await expect(page.locator("#open-library-pdf-references")).toHaveAttribute("aria-expanded", "true");
   await expect(page.getByRole("button", { name: "Annotations", exact: true })).toHaveAttribute("aria-expanded", "false");
   await expect(page.locator("#pdf-reference-analysis-list")).toContainText("Inspectable references");
   await page.getByRole("button", { name: "Add all 1 to Library" }).click();
@@ -860,8 +862,9 @@ test("imports, annotates, and exports a private PDF without a project", async ({
   const savedDrawing = page.locator('#paper-markups .pdf-ink-stroke:not([data-markup-id="draft"])');
   await expect(savedDrawing).toHaveCount(1);
   await expect(savedDrawing).toHaveAttribute("points", /,/u);
+  await page.locator("#library-pdf-more-actions").click();
   await expect(page.locator("#export-library-annotated-pdf")).toBeEnabled();
-  await page.getByRole("button", { name: "Export annotated" }).click();
+  await page.getByRole("button", { name: "Export annotated copy" }).click();
   await expect(page.locator("#toast")).toHaveText("Choose Save to Files to keep the annotated PDF.");
   await expect
     .poll(async () => JSON.parse((await page.evaluate(() => sessionStorage.getItem("shared-pdf"))) ?? "null"))
@@ -2742,7 +2745,8 @@ test("shares linked reference PDFs with members but not public links", async ({ 
   await expect(page.locator("#authoring-surface")).toBeVisible();
   await expect(page.locator("#context-surface")).toBeVisible();
   const tabletReaderHeight = await page.locator("#paper-reader").evaluate((element) => element.getBoundingClientRect().height);
-  await page.getByRole("button", { name: "Open PDF contents and thumbnails" }).click();
+  await page.locator("#library-pdf-view-options").click();
+  await page.getByRole("button", { name: "Contents & thumbnails" }).click();
   await expect(page.locator("#pdf-navigation-panel .pdf-navigation-panel")).toBeVisible();
   await expect
     .poll(() => page.locator("#paper-reader").evaluate((element) => element.getBoundingClientRect().height))
@@ -2769,6 +2773,7 @@ test("shares linked reference PDFs with members but not public links", async ({ 
   await expect(page.locator("#paper-page-indicator")).toHaveText("2 / 2");
   await page.keyboard.press("ArrowLeft");
   await expect(page.locator("#paper-page-indicator")).toHaveText("1 / 2");
+  await page.locator("#library-pdf-view-options").click();
   await page.locator("#toggle-library-paper-continuous").click();
   await expect(page.locator("#toggle-library-paper-continuous")).toHaveAttribute("aria-pressed", "true");
   await expect(page.locator("#paper-continuous-pages")).toBeVisible();
@@ -2782,6 +2787,7 @@ test("shares linked reference PDFs with members but not public links", async ({ 
   await page.locator("#library-paper-page-indicator .pdf-page-jump-input").fill("1");
   await page.locator("#library-paper-page-indicator .pdf-page-jump-input").press("Enter");
   await expect(page.locator("#paper-page-indicator")).toHaveText("1 / 2");
+  await page.locator("#library-pdf-view-options").click();
   await page.locator("#toggle-library-paper-continuous").click();
   await expect(page.locator("#toggle-library-paper-continuous")).toHaveAttribute("aria-pressed", "false");
   await expect(page.locator("#paper-continuous-pages")).toBeHidden();
@@ -3024,9 +3030,10 @@ test("shares linked reference PDFs with members but not public links", async ({ 
   await expect(page.locator("#toast")).toHaveText("Line style updated.");
   await expect(page.locator("#paper-markups polyline")).toHaveAttribute("stroke", "#116655");
   await page.getByRole("button", { name: "Select", exact: true }).click();
+  await page.locator("#library-pdf-more-actions").click();
   await expect(page.locator("#export-library-annotated-pdf")).toBeEnabled();
   const annotatedDownload = page.waitForEvent("download");
-  await page.getByRole("button", { name: "Export annotated" }).click();
+  await page.getByRole("button", { name: "Export annotated copy" }).click();
   await expect.poll(async () => (await annotatedDownload).suggestedFilename()).toBe("climate_adaptation-annotated.pdf");
   await expect(page.locator("#paper-highlights [data-draft='true']")).toHaveCount(0);
   expect(await readWorkspaceSnapshot(page, api)).toEqual(beforePrivateReading);

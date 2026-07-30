@@ -33,6 +33,7 @@ No accepted ADRs are awaiting implementation.
 
 | ADR                                                                                       | Status               | Summary                                                                                                         |
 | ----------------------------------------------------------------------------------------- | -------------------- | --------------------------------------------------------------------------------------------------------------- |
+| [ADR-201](./implemented/ADR-201-prioritize-frequent-pdf-tools.md)                         | Implemented          | Keep frequent private-PDF tools visible and group display and document actions in labelled secondary menus.     |
 | [ADR-199](./implemented/ADR-199-prioritize-workspace-surfaces-on-tablets.md)              | Implemented          | Give tablet authoring and PDF context priority over the project rail and keep PDF auxiliary panels as overlays. |
 | [ADR-200](./implemented/ADR-200-extract-the-pdf-context-session.md)                       | Implemented          | Isolate active PDF viewer identity, loading, scroll restoration, and layout access behind a bounded session.    |
 | [ADR-191](./implemented/ADR-191-adopt-cytoscape-for-citation-graphs.md)                   | Implemented          | Use a lazy Cytoscape runtime for interactive citation graphs while retaining accessible DOM authority.          |

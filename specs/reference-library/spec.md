@@ -467,6 +467,11 @@ memory and makes citation aliases compete with stable source identity.
 - At tablet widths, page navigation and annotation tools share one left rail so
   the page retains vertical and horizontal space. Short landscape viewports use
   two columns without shrinking touch targets; taller viewports use one. A
+  frequency-based hierarchy keeps page stepping, search, Select, Note, Draw,
+  and the annotation overview persistent. Contents, scrolling and page-display
+  controls move behind a labelled View menu; reference inspection and PDF file
+  actions move behind a separate labelled action menu. Menu items keep visible
+  text while persistent rail controls keep accessible names and tooltips. A
   horizontal swipe begun on the fitted page or its surround changes page,
   except when it begins on an interactive PDF link or saved annotation. A
   two-finger gesture zooms the PDF rather than the application, anchored at the

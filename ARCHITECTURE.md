@@ -1286,6 +1286,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   route lookup, and the browser-history restoration subscription while bound
   context, project-file, route, comparison, and toast owners supply
   authorization effects, cross-feature navigation, and notices.
+  Keep the private-PDF rail frequency-led: page stepping, search, annotation
+  modes, and annotation overview remain persistent, while display and document
+  actions use labelled secondary menus without moving their existing event and
+  workflow ownership boundaries.
   Coalesce selected PDF text into normalized visual-line rectangles, and export
   each saved highlight as one interoperable multi-quad PDF annotation without
   mutating source bytes.

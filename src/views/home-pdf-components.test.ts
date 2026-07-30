@@ -44,4 +44,16 @@ describe("renderLibraryPdfRail", () => {
     expect(html).toContain('id="open-library-pdf-inspector" type="button" aria-label="Annotations"');
     expect(html).toContain('id="library-highlight-count">0</span>');
   });
+
+  it("keeps frequent controls visible and groups secondary PDF actions", () => {
+    const html = renderLibraryPdfRail();
+
+    expect(html).toContain('id="open-library-pdf-search"');
+    expect(html).toContain('id="library-pdf-view-options" role="button" aria-label="View options" aria-haspopup="menu"');
+    expect(html).toContain('role="group" aria-label="PDF view options"');
+    expect(html).toContain('id="library-pdf-more-actions" role="button" aria-label="More PDF actions" aria-haspopup="menu"');
+    expect(html).toContain('role="group" aria-label="PDF actions"');
+    expect(html).toContain("Contents &amp; thumbnails");
+    expect(html).toContain("Export annotated copy");
+  });
 });
