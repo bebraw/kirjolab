@@ -3371,6 +3371,9 @@ test("records and reviews source citation assertions in an accessible shared net
   const workspaceId = await createWorkspace(page, "Citation assertion network");
   await page.goto(`/editor/${workspaceId}`);
   await expect(page.getByText(/Live · 1 writer/)).toBeVisible();
+  await page.locator("#preferences-menu > summary").click();
+  await page.locator("#theme-preference").selectOption("dark");
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
 
   await page.getByRole("tab", { name: "Library" }).click();
   await page.locator("#library-bibliography-upload").setInputFiles({

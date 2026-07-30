@@ -87,59 +87,10 @@ export class CitationNetworkGraph extends LightDomElement {
       return;
     }
     if (generation !== this.renderGeneration || !this.isConnected) return;
-    const computed = getComputedStyle(this);
     const runtime = cytoscape({
       container,
       elements: citationGraphElements(network, this.focusedReferenceId),
-      style: [
-        {
-          selector: "node",
-          style: {
-            "background-color": color(computed, "--color-app-paper", "#f6f4ed"),
-            "border-color": color(computed, "--color-app-ink", "#18231f"),
-            "border-width": 2,
-            color: color(computed, "--color-app-ink", "#18231f"),
-            "font-family": "ui-sans-serif, system-ui, sans-serif",
-            "font-size": 11,
-            label: "data(label)",
-            "text-background-color": color(computed, "--color-app-paper", "#f6f4ed"),
-            "text-background-opacity": 0.9,
-            "text-background-padding": "3px",
-            "text-margin-y": 24,
-            "text-max-width": "130px",
-            "text-wrap": "ellipsis",
-            height: 28,
-            width: 28,
-          },
-        },
-        {
-          selector: "node.project",
-          style: { "background-color": color(computed, "--color-app-accent", "#5bb99d"), height: 34, width: 34 },
-        },
-        {
-          selector: "node.focused, node:selected",
-          style: { "border-color": color(computed, "--color-app-accent-strong", "#0c7655"), "border-width": 5 },
-        },
-        {
-          selector: "edge",
-          style: {
-            "curve-style": "bezier",
-            "line-color": color(computed, "--color-app-graph-extracted", "#4e6b61"),
-            "target-arrow-color": color(computed, "--color-app-graph-extracted", "#4e6b61"),
-            "target-arrow-shape": "triangle",
-            width: 2,
-          },
-        },
-        ...(["confirmed", "extracted", "conflicting", "inferred"] as const).map((state) => ({
-          selector: `edge.${state}`,
-          style: {
-            "line-color": color(computed, `--color-app-graph-${state}`, "#4e6b61"),
-            "target-arrow-color": color(computed, `--color-app-graph-${state}`, "#4e6b61"),
-            ...(state === "inferred" ? { "line-style": "dashed" as const } : {}),
-            ...(state === "confirmed" ? { width: 3 } : {}),
-          },
-        })),
-      ],
+      style: citationGraphStyles(container),
       layout: graphLayout(),
       minZoom: 0.2,
       maxZoom: 4,
@@ -212,8 +163,69 @@ function graphLayout() {
   };
 }
 
-function color(style: CSSStyleDeclaration, token: string, fallback: string): string {
-  return style.getPropertyValue(token).trim() || fallback;
+export function citationGraphStyles(element: HTMLElement): cytoscape.StylesheetJson {
+  const color = (token: string, fallback: string): string => resolvedCssColor(element, token, fallback);
+  return [
+    {
+      selector: "node",
+      style: {
+        "background-color": color("--color-app-paper", "#f6f4ed"),
+        "border-color": color("--color-app-ink", "#18231f"),
+        "border-width": 2,
+        color: color("--color-app-ink", "#18231f"),
+        "font-family": "ui-sans-serif, system-ui, sans-serif",
+        "font-size": 11,
+        label: "data(label)",
+        "text-background-color": color("--color-app-paper", "#f6f4ed"),
+        "text-background-opacity": 0.9,
+        "text-background-padding": "3px",
+        "text-margin-y": 24,
+        "text-max-width": "130px",
+        "text-wrap": "ellipsis",
+        height: 28,
+        width: 28,
+      },
+    },
+    {
+      selector: "node.project",
+      style: { "background-color": color("--color-app-accent", "#5bb99d"), height: 34, width: 34 },
+    },
+    {
+      selector: "node.focused, node:selected",
+      style: { "border-color": color("--color-app-accent-strong", "#0c7655"), "border-width": 5 },
+    },
+    {
+      selector: "edge",
+      style: {
+        "curve-style": "bezier",
+        "line-color": color("--color-app-graph-extracted", "#4e6b61"),
+        "target-arrow-color": color("--color-app-graph-extracted", "#4e6b61"),
+        "target-arrow-shape": "triangle",
+        width: 2,
+      },
+    },
+    ...(["confirmed", "extracted", "conflicting", "inferred"] as const).map((state) => ({
+      selector: `edge.${state}`,
+      style: {
+        "line-color": color(`--color-app-graph-${state}`, "#4e6b61"),
+        "target-arrow-color": color(`--color-app-graph-${state}`, "#4e6b61"),
+        ...(state === "inferred" ? { "line-style": "dashed" as const } : {}),
+        ...(state === "confirmed" ? { width: 3 } : {}),
+      },
+    })),
+  ];
+}
+
+export function resolvedCssColor(element: HTMLElement, token: string, fallback: string): string {
+  const previousColor = element.style.color;
+  try {
+    element.style.color = `var(${token}, ${fallback})`;
+    return getComputedStyle(element).color.trim() || fallback;
+  } catch {
+    return fallback;
+  } finally {
+    element.style.color = previousColor;
+  }
 }
 
 if (typeof customElements !== "undefined" && !customElements.get("citation-network-graph")) {

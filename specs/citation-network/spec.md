@@ -58,6 +58,10 @@ by` relationships. Selecting a neighboring source refocuses the same trail
   scroll or pinch zoom, fit and reset controls, and node selection that follows
   the same addressable reference trail as the accessible list. A runtime-load
   failure leaves every relationship and action available in that list.
+- Canvas colors are resolved through the browser's active color scheme before
+  they enter Cytoscape. Node labels and their backing surfaces therefore retain
+  the application ink/paper contrast in both light and dark themes rather than
+  passing unresolved `light-dark()` token values to the renderer.
 - One bounded reactive graph element owns renderer lifecycle, derived geometry,
   and viewport controls. Its parent view owns accessible node and edge cards,
   assertion provenance, review controls, expansion candidates, and
@@ -164,6 +168,8 @@ by` relationships. Selecting a neighboring source refocuses the same trail
 - [x] A graph and accessible provenance list expose the same projection.
 - [x] The graph supports pan, zoom, fit, reset, and trail navigation without
       persisting renderer state.
+- [x] Graph labels resolve theme tokens to contrasting concrete colors before
+      canvas rendering.
 - [x] A Library source opens an addressable, one-hop reference trail.
 - [x] A trail supports directional refocus and exact PDF evidence navigation.
 - [x] Pure, API, integration, Workers-runtime, view, and browser tests cover
@@ -187,6 +193,8 @@ by` relationships. Selecting a neighboring source refocuses the same trail
 - Component tests must retain load and filter URLs, manual assertion and review
   payloads, expansion and candidate acceptance, malformed and provider errors,
   and delayed-response rejection.
+- Cytoscape styles must receive browser-resolved colors rather than raw
+  color-scheme functions from custom properties.
 
 ### Scenarios
 
