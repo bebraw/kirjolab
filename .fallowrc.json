@@ -35,6 +35,11 @@
   "health": {
     "ignore": ["**/*.test.ts", "**/*.test.mts", "**/*.test.mjs", "**/*.e2e.ts"]
   },
+  "typeAware": {
+    "enabled": false,
+    "projects": ["tsconfig.json", "tsconfig.client.json", "tsconfig.workers-test.json"],
+    "require": "best-effort"
+  },
   "usedClassMembers": [
     { "extends": "DurableObject", "members": ["*"] },
     { "extends": "LightDomElement", "members": ["properties"] }

@@ -24,6 +24,7 @@ Add Fallow as a pinned development dependency and expose it through advisory
 diagnostic scripts:
 
 - `npm run diagnostics:readability`
+- `npm run diagnostics:type-aware`
 - `npm run diagnostics:health`
 - `npm run diagnostics:codebase`
 
@@ -63,6 +64,16 @@ public members on `DurableObject` subclasses as framework-invoked RPC surface.
 This keeps generated types and Cloudflare's runtime dispatch model from
 obscuring actionable new-only findings.
 
+Fallow 3.10's optional TypeScript-Go pass runs separately from the syntactic
+changed-code audit. The semantic pass receives the repository's root, browser,
+and Workers-test TypeScript projects explicitly, uses best-effort completeness,
+and refines existing export, type, and class-member candidates without emitting
+compiler or typed-lint diagnostics. Keeping the new-only audit syntactic avoids
+comparing incompatible semantic identities while a branch introduces or changes
+the type-aware configuration. Whole-repo health additionally reports advisory
+public-signature type coupling; neither semantic report changes the baseline
+quality gate.
+
 Package commands enter project-owned build and compiler scripts before those
 scripts resolve tool files under `node_modules`. This keeps Fallow's entry-point
 discovery inside the project root and avoids hiding genuine diagnostics among
@@ -83,12 +94,16 @@ implement it.
   describe.
 - Whole-repo health output can prioritize refactoring without adding a hard CI
   gate.
+- Type-aware evidence distinguishes exact static use and TypeScript contracts
+  from conservative dynamic or framework abstentions.
 
 **Negative:**
 
 - The template gains one more pinned development dependency.
 - Fallow findings need light project configuration to avoid framework and
   toolchain false positives.
+- Type-aware analysis adds an optional sidecar process and may retain findings
+  when its closed-world evidence is incomplete.
 
 **Neutral:**
 

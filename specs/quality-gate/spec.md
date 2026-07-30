@@ -23,6 +23,7 @@ failures quickly during normal development.
 - **Affected test gate:** `npm run test:affected`
 - **Advisory codebase diagnostics:** `npm run diagnostics:codebase`
 - **Changed-code readability diagnostics:** `npm run diagnostics:readability`
+- **Type-aware cleanup diagnostics:** `npm run diagnostics:type-aware`
 - **Whole-repo health diagnostics:** `npm run diagnostics:health`
 - **Dependency-cost diagnostics:** `npm run diagnostics:dependencies`
 - **Disposable-state cleanup:** `npm run maintenance:clean`
@@ -141,6 +142,14 @@ failures quickly during normal development.
   surviving-mutant listings out of routine output while preserving tool exit
   status, health score, mutation progress, and final mutation score.
 - Fallow diagnostics must use `--no-cache` in repo scripts so normal diagnostic runs do not create a persistent `.fallow/` cache.
+- Fallow type-aware diagnostics must use the explicit root, browser, and
+  Workers-test TypeScript projects with best-effort completeness, must remain
+  advisory, and must not replace the repository's TypeScript compiler checks.
+- Fallow's new-only changed-code audit must remain syntactic so branches that
+  introduce or change semantic configuration are not compared against an
+  incompatible type-aware baseline.
+- Whole-repo Fallow health diagnostics must include advisory type-coupling
+  evidence without changing the health score or baseline readiness gate.
 - Fallow's new-only audit may create a temporary Git worktree to compare the
   branch with its upstream and must keep inherited findings advisory.
 - Fallow must exclude generated Worker declarations from analysis and treat
@@ -273,7 +282,9 @@ failures quickly during normal development.
 
 - Given: a change is ready for review or a refactor target is unclear
 - When: the contributor runs `npm run diagnostics:codebase`
-- Then: Fallow reports changed-code readability risk, health scoring, hotspots, duplication, and cleanup evidence without replacing the baseline gate
+- Then: Fallow reports changed-code readability risk, type-aware cleanup
+  evidence, health scoring, hotspots, duplication, and type coupling without
+  replacing the baseline gate
 
 **Scenario: Contributor wants a fast baseline signal**
 

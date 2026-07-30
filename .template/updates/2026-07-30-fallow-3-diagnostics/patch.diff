@@ -29,6 +29,12 @@ diff --git a/.fallowrc.json b/.fallowrc.json
 +    "y-protocols"
 +  ],
 @@
++  "typeAware": {
++    "enabled": false,
++    "projects": ["tsconfig.json", "tsconfig.client.json", "tsconfig.workers-test.json"],
++    "require": "best-effort"
++  },
+@@
 -  "usedClassMembers": [{ "extends": "LightDomElement", "members": ["properties"] }]
 +  "usedClassMembers": [
 +    { "extends": "DurableObject", "members": ["*"] },
@@ -38,5 +44,68 @@ diff --git a/package.json b/package.json
 --- a/package.json
 +++ b/package.json
 @@
+-    "diagnostics:codebase": "npm run diagnostics:readability && npm run diagnostics:health",
++    "diagnostics:codebase": "npm run diagnostics:readability && npm run diagnostics:type-aware && npm run diagnostics:health",
+@@
+-    "diagnostics:health": "fallow health --score --hotspots --targets --quiet --no-cache",
++    "diagnostics:health": "fallow health --score --hotspots --targets --type-aware --type-coupling --quiet --no-cache",
+@@
++    "diagnostics:type-aware": "node ./scripts/run-fallow-type-aware.mjs",
+@@
 -    "fallow": "2.97.0",
 +    "fallow": "3.10.0",
+diff --git a/scripts/run-fallow-type-aware.mjs b/scripts/run-fallow-type-aware.mjs
+new file mode 100644
+--- /dev/null
++++ b/scripts/run-fallow-type-aware.mjs
+@@
++import { join } from "node:path";
++import process from "node:process";
++import { pathToFileURL } from "node:url";
++import { getRepoRoot, spawn } from "./affected-file-utils.mjs";
++
++export const typeAwareArguments = [
++  "dead-code",
++  "--unused-exports",
++  "--unused-types",
++  "--unused-class-members",
++  "--type-aware",
++  "--quiet",
++  "--no-cache",
++  "--format",
++  "json",
++];
++
++export function typeAwareSummary(report) {
++  const analysis = typeAwareAnalysis(report);
++  return `Fallow type-aware: ${analysis.identity.completeness} (${analysis.candidate_count} candidates · ${analysis.confirmed_used_count} confirmed used · ${analysis.contract_preserved_count} contract preserved · ${analysis.abstained_count} abstained)`;
++}
++
++function typeAwareAnalysis(report) {
++  const analysis = report._meta.type_aware;
++  if (analysis.executed !== true || typeof analysis.identity.completeness !== "string") semanticReportError();
++  requireSemanticCount(analysis.candidate_count);
++  requireSemanticCount(analysis.confirmed_used_count);
++  requireSemanticCount(analysis.contract_preserved_count);
++  requireSemanticCount(analysis.abstained_count);
++  return analysis;
++}
++
++function requireSemanticCount(value) {
++  if (typeof value !== "number") semanticReportError();
++}
++
++function semanticReportError() {
++  throw new Error("Fallow type-aware report did not include executed semantic analysis");
++}
++
++function main() {
++  const repoRoot = getRepoRoot();
++  const fallow = join(repoRoot, "node_modules", ".bin", "fallow");
++  const result = spawn(repoRoot, fallow, typeAwareArguments, { allowFailure: true, encoding: "utf8" });
++  const report = JSON.parse(result.stdout);
++  console.log(typeAwareSummary(report));
++  if (result.status !== 0 && result.status !== 1) process.exit(result.status ?? 1);
++}
++
++if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) main();

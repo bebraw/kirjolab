@@ -2,6 +2,7 @@ import { join } from "node:path";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
 import { getRepoRoot, spawn } from "./affected-file-utils.mjs";
+import { typeAwareArguments, typeAwareSummary } from "./run-fallow-type-aware.mjs";
 
 export function auditSummary(report) {
   const attribution = report.attribution ?? {};
@@ -36,6 +37,12 @@ function parseReport(result, label) {
 function main() {
   const repoRoot = getRepoRoot();
   const fallow = join(repoRoot, "node_modules", ".bin", "fallow");
+  runAudit(repoRoot, fallow);
+  runTypeAware(repoRoot, fallow);
+  runHealth(repoRoot, fallow);
+}
+
+function runAudit(repoRoot, fallow) {
   const auditResult = spawn(repoRoot, fallow, ["audit", "--max-crap", "100", "--quiet", "--no-cache", "--format", "json"], {
     allowFailure: true,
     encoding: "utf8",
@@ -46,11 +53,20 @@ function main() {
     console.error("Run `npm run diagnostics:readability` for details.");
     process.exit(auditResult.status ?? 1);
   }
+}
 
+function runTypeAware(repoRoot, fallow) {
+  const typeAwareResult = spawn(repoRoot, fallow, typeAwareArguments, { allowFailure: true, encoding: "utf8" });
+  const typeAware = parseReport(typeAwareResult, "Fallow type-aware analysis");
+  console.log(typeAwareSummary(typeAware));
+  if (typeAwareResult.status !== 0 && typeAwareResult.status !== 1) process.exit(typeAwareResult.status ?? 1);
+}
+
+function runHealth(repoRoot, fallow) {
   const healthResult = spawn(
     repoRoot,
     fallow,
-    ["health", "--score", "--hotspots", "--targets", "--quiet", "--no-cache", "--format", "json"],
+    ["health", "--score", "--hotspots", "--targets", "--type-aware", "--type-coupling", "--quiet", "--no-cache", "--format", "json"],
     { allowFailure: true, encoding: "utf8" },
   );
   const health = parseReport(healthResult, "Fallow health");
