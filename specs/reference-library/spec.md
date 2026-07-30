@@ -264,6 +264,10 @@ memory and makes citation aliases compete with stable source identity.
   line so a researcher can inspect every detected place where that specific
   reference is used. This semantic trail does not claim exhaustive citation
   matching and remains distinct from literal document search.
+  A collapsible document map resolves the PDF outline to direct page jumps,
+  renders bounded lazy page previews, and stores private per-document page
+  bookmarks in local browser storage. Outline absence does not prevent thumbnail
+  or bookmark navigation.
 - Saving a text selection whose normalized rectangles overlap a saved
   highlight on the same artifact page extends that stable highlight instead of
   creating a second resource. Geometry, quotation text, and distinct comments

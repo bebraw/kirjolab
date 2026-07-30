@@ -5,6 +5,7 @@ import { deriveTextQuoteContext, normalizeSelectionRects } from "./pdf-selection
 import { readPdfTextContent } from "./pdf-text-content";
 import { PdfContinuousView } from "./pdf-continuous-view";
 import type { PdfSearchResult } from "./pdf-search-panel";
+import type { PdfOutlineItem } from "./pdf-navigation-panel";
 import {
   advancePdfWheelPaging,
   initialPdfWheelPagingState,
@@ -52,6 +53,7 @@ interface PdfViewerPresentation {
 }
 
 interface OpenPdfOptions {
+  documentKey?: string;
   url: string;
   annotations: AnnotationResource[];
   page?: number;
@@ -99,6 +101,7 @@ export class PdfEvidenceViewer {
   #renderedViewport: { convertToViewportPoint(x: number, y: number): number[] } | null = null;
   #displayMode: PdfDisplayMode = readPdfDisplayMode();
   #searchTextCache: readonly { readonly page: number; readonly text: string }[] | null = null;
+  #documentKey = "";
 
   static forDocument(root: Document, presentation: PdfViewerPresentation): PdfEvidenceViewer {
     return new PdfEvidenceViewer(
@@ -228,6 +231,7 @@ export class PdfEvidenceViewer {
     await previousTask?.destroy();
     if (!pdfViewerDocumentRequestActive(this.#lifecycle.getSnapshot(), documentRequest)) return false;
     this.#document = null;
+    this.#documentKey = options.documentKey ?? options.url;
     this.#searchTextCache = null;
     this.#continuousView.close();
     this.#elements.continuousPages.hidden = true;
@@ -313,6 +317,56 @@ export class PdfEvidenceViewer {
 
   async goToPage(page: number): Promise<void> {
     await this.#goToPage(page);
+  }
+
+  get documentKey(): string {
+    return this.#documentKey;
+  }
+
+  async navigation(): Promise<{ readonly outline: readonly PdfOutlineItem[]; readonly pages: number }> {
+    const documentModel = this.#document;
+    if (!documentModel) return { outline: [], pages: 0 };
+    const outline = await documentModel.getOutline();
+    return { outline: await this.#resolveOutline(outline ?? []), pages: documentModel.numPages };
+  }
+
+  async thumbnail(pageNumber: number): Promise<string> {
+    const documentModel = this.#document;
+    if (!documentModel) return "";
+    const page = await documentModel.getPage(clamp(pageNumber, 1, documentModel.numPages));
+    try {
+      const unscaled = page.getViewport({ scale: 1 });
+      const viewport = page.getViewport({ scale: 128 / unscaled.width });
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.ceil(viewport.width);
+      canvas.height = Math.ceil(viewport.height);
+      await page.render({ canvas, viewport }).promise;
+      return canvas.toDataURL("image/jpeg", 0.72);
+    } finally {
+      page.cleanup();
+    }
+  }
+
+  async #resolveOutline(items: readonly unknown[]): Promise<PdfOutlineItem[]> {
+    const documentModel = this.#document;
+    if (!documentModel) return [];
+    const resolved: PdfOutlineItem[] = [];
+    for (const value of items) {
+      if (!isPdfOutlineSource(value)) continue;
+      let destination = value.dest;
+      if (typeof destination === "string") destination = await documentModel.getDestination(destination);
+      const reference = Array.isArray(destination) ? destination[0] : null;
+      let page: number | null = null;
+      if (reference && typeof reference === "object") {
+        try {
+          page = (await documentModel.getPageIndex(reference)) + 1;
+        } catch {
+          page = null;
+        }
+      }
+      resolved.push({ title: value.title, page, children: await this.#resolveOutline(value.items ?? []) });
+    }
+    return resolved;
   }
 
   updateAnnotations(annotations: AnnotationResource[]): void {
@@ -1050,6 +1104,12 @@ function sameSelectionCapture(left: PdfSelectionCapture, right: PdfSelectionCapt
 
 function clamp(value: number, minimum: number, maximum: number): number {
   return Math.min(maximum, Math.max(minimum, value));
+}
+
+function isPdfOutlineSource(
+  value: unknown,
+): value is { readonly title: string; readonly dest: unknown; readonly items?: readonly unknown[] } {
+  return typeof value === "object" && value !== null && "title" in value && typeof value.title === "string" && "dest" in value;
 }
 
 export function searchPdfPageTexts(

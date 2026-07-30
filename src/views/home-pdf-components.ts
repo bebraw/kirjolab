@@ -41,6 +41,9 @@ export function renderLibraryPdfRail(): string {
                 <button class="library-pdf-rail-button button-icon" id="open-library-pdf-search" type="button" aria-label="Search this PDF" title="Search this PDF" data-touch-target="true">
                   ${renderIcon("search")}<span class="sr-only">Search PDF</span>
                 </button>
+                <button class="library-pdf-rail-button button-icon" id="open-library-pdf-navigation" type="button" aria-label="Open PDF contents and thumbnails" title="Contents and thumbnails" data-touch-target="true">
+                  ${renderIcon("pages")}<span class="sr-only">PDF navigation</span>
+                </button>
                 <button class="library-pdf-rail-button button-icon" id="download-library-original-pdf" type="button" disabled title="Download the original PDF" data-touch-target="true">
                   ${renderIcon("guide")}<span class="sr-only">Download original PDF</span>
                 </button>

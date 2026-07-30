@@ -29,6 +29,8 @@ import { ManuscriptCommentList, type ManuscriptCommentAuthoring } from "./manusc
 import { PdfEvidenceViewer, type PdfSelectionCapture, type PdfTextSelectionMode } from "./pdf-viewer";
 import { PdfSearchPanel } from "./pdf-search-panel";
 import "./pdf-search-panel";
+import { PdfNavigationPanel } from "./pdf-navigation-panel";
+import "./pdf-navigation-panel";
 import { libraryPdfAnnotationActionEvent, type LibraryPdfAnnotationAction } from "./library-pdf-annotation-forms";
 import { libraryPdfAnnotationListActionEvent, type LibraryPdfAnnotationListAction } from "./library-pdf-annotation-list";
 import { libraryPdfInspectorCloseEvent } from "./library-pdf-inspector";
@@ -161,7 +163,10 @@ type ContextPdfViewer = Pick<
     "currentPage" | "focusedAnnotationId" | "open" | "showError" | "updateAnnotations" | "updatePrivateHighlights"
   > & {
     goToPage?(page: number): Promise<void>;
+    readonly documentKey?: string;
+    navigation?(): Promise<{ readonly outline: readonly import("./pdf-navigation-panel").PdfOutlineItem[]; readonly pages: number }>;
     search?(query: string): Promise<readonly import("./pdf-search-panel").PdfSearchResult[]>;
+    thumbnail?(page: number): Promise<string>;
   };
 
 export interface ProjectKnowledgeOwners {
@@ -606,6 +611,14 @@ export class ContextResourcePresenter extends LightDomController {
     });
     this.element("open-paper-search", HTMLElement)?.addEventListener("click", () => searchPanel?.show());
     this.element("open-library-pdf-search", HTMLElement)?.addEventListener("click", () => searchPanel?.show());
+    const navigationPanel = this.element("pdf-navigation-panel", PdfNavigationPanel);
+    navigationPanel?.bind({
+      navigation: async () => (viewer.navigation ? await viewer.navigation() : { outline: [], pages: 0 }),
+      openPage: async (page) => viewer.goToPage?.(page),
+      thumbnail: async (page) => (viewer.thumbnail ? await viewer.thumbnail(page) : ""),
+    });
+    this.element("open-paper-navigation", HTMLElement)?.addEventListener("click", () => navigationPanel?.show());
+    this.element("open-library-pdf-navigation", HTMLElement)?.addEventListener("click", () => navigationPanel?.show());
     if (typeof this.ownerDocument.addEventListener === "function") {
       this.ownerDocument.addEventListener("keydown", (event) => {
         if ((event.metaKey || event.ctrlKey) && event.key.toLocaleLowerCase() === "f" && this.currentActiveTab?.kind.endsWith("pdf")) {
@@ -826,6 +839,7 @@ export class ContextResourcePresenter extends LightDomController {
     }
     try {
       const opened = await viewer.open({
+        documentKey: context.tab.key,
         url: context.url,
         annotations: context.annotations,
         page: context.tab.page,
@@ -835,6 +849,7 @@ export class ContextResourcePresenter extends LightDomController {
       });
       if (!opened || this.currentActiveTab?.key !== context.tab.key) return;
       this.renderedPdfContextKey = context.tab.key;
+      this.element("pdf-navigation-panel", PdfNavigationPanel)?.setDocument(context.tab.key, viewer.currentPage);
       this.currentRenderedPdfId = context.workspacePdf?.id;
       if (reader) reader.scrollTop = context.tab.scrollTop;
     } catch (error) {
@@ -914,6 +929,7 @@ export class ContextResourcePresenter extends LightDomController {
   }
 
   presentPdfPage(page: number): void {
+    this.element("pdf-navigation-panel", PdfNavigationPanel)?.setCurrentPage(page);
     this.presentLibraryPdfPage(this.currentLibrary, page);
     const activeTab = this.currentActiveTab;
     const activePdf = activeTab?.kind === "pdf" || activeTab?.kind === "library-pdf";

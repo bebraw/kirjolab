@@ -209,7 +209,7 @@ describe("renderHomePage", () => {
     expect(html).toContain('id="github-pull-review"');
     expect(html).toContain('id="github-sync-menu"');
     expect(html).toContain('id="github-sync-push"');
-    expect(html.match(/data-touch-target="true"/gu)).toHaveLength(12);
+    expect(html.match(/data-touch-target="true"/gu)).toHaveLength(13);
     expect(html).toContain('id="archive-workspace" type="button" data-destructive="true"');
     expect(html).toContain('id="context-resource-tabs" role="presentation"');
     expect(html).toContain('id="context-tab-overview" data-action-menu hidden');

@@ -786,6 +786,7 @@ describe("context resource presenter", () => {
     expect(viewer.updateAnnotations).toHaveBeenCalledWith([annotation]);
     expect(viewer.open).toHaveBeenCalledWith({
       annotations: [annotation],
+      documentKey: tab.key,
       focusAnnotationId: annotation.id,
       mode: "evidence",
       page: 2,

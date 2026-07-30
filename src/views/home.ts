@@ -573,6 +573,7 @@ export function renderHomePage(
           <div class="context-pdf-body">
             ${renderLibraryPdfRail()}
             <pdf-search-panel id="pdf-search-panel"></pdf-search-panel>
+            <pdf-navigation-panel id="pdf-navigation-panel"></pdf-navigation-panel>
             <div class="pdf-reader" id="paper-reader">
               <div class="pdf-page" id="paper-page">
                 <canvas class="block" id="paper-canvas"></canvas>

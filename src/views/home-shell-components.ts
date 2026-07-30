@@ -52,6 +52,9 @@ export function renderContextTabs(): string {
               <button id="open-paper-search" type="button" aria-label="Search this PDF" title="Search this PDF">
                 ${renderIcon("search")}<span class="sr-only">Search PDF</span>
               </button>
+              <button id="open-paper-navigation" type="button" aria-label="Open PDF contents and thumbnails" title="Contents and thumbnails">
+                ${renderIcon("pages")}<span class="sr-only">PDF navigation</span>
+              </button>
             </div>
             <button class="preview-navigation-toggle" id="toggle-preview-navigation" type="button" aria-controls="app-header" aria-pressed="false" aria-label="Hide top navigation" title="Hide top navigation">
               ${renderIcon("chevronUp")}

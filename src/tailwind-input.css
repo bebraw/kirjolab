@@ -3193,6 +3193,81 @@
     padding: 1rem;
   }
 
+  .pdf-navigation-panel {
+    width: min(24rem, 42vw);
+    min-width: 19rem;
+    overflow: auto;
+    border-right: 1px solid var(--color-app-line);
+    background: var(--color-app-paper);
+    padding: 1rem;
+  }
+
+  .pdf-bookmark-current {
+    width: 100%;
+    justify-content: center;
+    margin-top: 1rem;
+  }
+  .pdf-navigation-section {
+    margin-top: 1.15rem;
+    border-top: 1px solid var(--color-app-line);
+    padding-top: 0.85rem;
+  }
+  .pdf-navigation-section h3 {
+    font: 700 0.72rem/1 var(--font-sans);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .pdf-bookmark-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    margin-top: 0.6rem;
+  }
+  .pdf-bookmark-list button {
+    border: 1px solid var(--color-app-line);
+    border-radius: 999px;
+    padding: 0.25rem 0.55rem;
+  }
+  .pdf-outline-list {
+    margin-top: 0.55rem;
+    padding-left: 0.75rem;
+  }
+  .pdf-outline-list .pdf-outline-list {
+    border-left: 1px solid var(--color-app-line);
+  }
+  .pdf-outline-list button {
+    width: 100%;
+    padding: 0.3rem 0.4rem;
+    text-align: left;
+  }
+  .pdf-outline-list button:hover:not(:disabled) {
+    color: var(--color-app-accent-strong);
+  }
+  .pdf-thumbnail-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.55rem;
+    margin-top: 0.7rem;
+  }
+  .pdf-thumbnail-grid button {
+    display: grid;
+    gap: 0.25rem;
+    color: var(--color-app-text-soft);
+    font: 700 0.68rem/1 var(--font-sans);
+  }
+  .pdf-thumbnail-grid img,
+  .pdf-thumbnail-placeholder {
+    width: 100%;
+    aspect-ratio: 0.72;
+    border: 1px solid var(--color-app-line);
+    background: white;
+    object-fit: contain;
+    box-shadow: 0 1px 3px rgb(0 0 0 / 0.12);
+  }
+  .pdf-thumbnail-grid button:hover img {
+    border-color: var(--color-app-accent);
+  }
+
   .pdf-search-header,
   .pdf-search-form {
     display: flex;
