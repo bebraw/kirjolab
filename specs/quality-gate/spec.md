@@ -222,6 +222,9 @@ failures quickly during normal development.
   are separated into Node-testable modules that remain in mutation scope. Pure
   domain and security logic called by excluded adapters remains in mutation
   scope.
+- Unit coverage must apply the same browser-orchestration boundary: DOM wiring
+  and presentation owners covered by Playwright may be excluded only while
+  their deterministic contracts remain in Node-testable modules in coverage.
 - Mutation testing must exclude dynamic browser runtime loaders because their
   versioned module boundaries are exercised by Playwright and expanding
   third-party runtime types during Stryker instrumentation exceeds Node's

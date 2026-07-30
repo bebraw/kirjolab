@@ -27,6 +27,8 @@ export default defineConfig({
         "src/api/reviews.ts",
         "src/api/review-study.ts",
         "src/client/review/review-study.ts",
+        "src/client/review/review-study-elements.ts",
+        "src/client/review/review-study-ui.ts",
         "src/durable-objects/**",
       ],
       reporter: ["text", "html"],
