@@ -1,0 +1,24 @@
+diff --git a/docs/branch-protection.md b/docs/branch-protection.md
+new file mode 100644
+--- /dev/null
++++ b/docs/branch-protection.md
+@@ -0,0 +1,19 @@
++# Main Branch Protection
++
++Protect the repository's default branch with the authoritative CI checks.
++
++## Required Policy
++
++- Changes reach the default branch through a pull request.
++- The pull request branch must be current with the default branch.
++- Every authoritative CI check must pass and be pinned to its expected GitHub
++  App provider.
++- Review conversations must be resolved before merge.
++- Administrators do not bypass the policy.
++- Force pushes and branch deletion remain disabled.
++- Deployment and preview checks are not required unless the quality contract
++  explicitly makes them merge authorities.
++
++Set the approving-review count to zero for a solo-maintainer repository because
++authors cannot approve their own pull requests. Revisit that count when the
++maintainer model changes.

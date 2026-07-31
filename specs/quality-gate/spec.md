@@ -48,6 +48,11 @@ failures quickly during normal development.
 - **Container retry:** `npm run ci:local:container:retry -- --name <runner-name>`
 - **Remote workflow:** `.github/workflows/ci.yml`
 - **Remote recovery trigger:** GitHub Actions `workflow_dispatch`
+- **Protected branch:** `main`
+- **Required remote checks:** `quality-fast`, `quality-browser`, and
+  `quality-mutation` from the GitHub Actions App
+- **Remote merge boundary:** an up-to-date pull request with resolved review
+  conversations and no administrator bypass
 - **CI dependency install:** plain `npm ci`
 - **Action pinning:** every GitHub Actions `uses:` reference must use a full commit SHA
 - **Git hook path:** `.githooks/`
@@ -119,6 +124,8 @@ failures quickly during normal development.
 - [ ] Mutation configuration changes force-refresh the incremental report so
       its score contains only the currently configured mutation surface.
 - [ ] Local and remote CI use the same fast and browser package scripts for non-documentation changes.
+- [ ] GitHub protects `main` with pull requests and the authoritative fast,
+      browser, and full-mutation checks.
 - [ ] Native local CI preserves full-gate live output and periodic phase heartbeats.
 - [ ] Optional container parity preserves Agent CI job progress, failure, and retry semantics.
 - [ ] Documentation-only changes can skip local CI when they do not alter executable behavior or workflow configuration.
@@ -189,6 +196,15 @@ failures quickly during normal development.
 - The CI workflow must cancel superseded runs for the same ref.
 - The CI workflow must support manual dispatch so trigger delivery can be
   diagnosed independently from workflow execution.
+- The protected `main` branch must require an up-to-date pull request and the
+  `quality-fast`, `quality-browser`, and `quality-mutation` checks from the
+  GitHub Actions App.
+- Branch protection must apply to administrators, require review conversations
+  to be resolved, and disallow force pushes and branch deletion.
+- Branch protection must not require approving reviews while the repository has
+  only one maintainer.
+- Cloudflare deployment checks must not become required quality checks without
+  a separate quality-gate decision.
 - The CI workflow must read the pinned Node version from `package.json` instead of a separate version file.
 - The CI workflow must keep using npm for install and verification steps without depending on one exact npm patch release.
 - The npm release used by CI must stay inside the supported npm range declared in `package.json`.
@@ -329,6 +345,13 @@ failures quickly during normal development.
 - Given: an expected push or pull-request workflow run was not created
 - When: the contributor manually dispatches the CI workflow
 - Then: GitHub Actions creates an observable run for the selected branch
+
+**Scenario: Contributor updates main**
+
+- Given: a contributor has a change ready to land
+- When: they open a pull request targeting `main`
+- Then: GitHub permits merge only after the branch is current, all three
+  authoritative CI checks pass, and review conversations are resolved
 
 **Scenario: Contributor monitors the full quality gate**
 

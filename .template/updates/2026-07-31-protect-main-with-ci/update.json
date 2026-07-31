@@ -1,0 +1,10 @@
+{
+  "id": "2026-07-31-protect-main-with-ci",
+  "title": "Protect main with authoritative CI",
+  "status": "implemented",
+  "risk": "medium",
+  "supersedes": [],
+  "adrs": ["docs/adrs/implemented/ADR-213-protect-main-with-authoritative-ci.md"],
+  "touches": ["docs/branch-protection.md", "docs/development.md", "specs/quality-gate/spec.md", "GitHub branch protection"],
+  "checks": ["npm run format:check", "npm run check:adrs", "gh api repos/OWNER/REPO/branches/BRANCH/protection"]
+}

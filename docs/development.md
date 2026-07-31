@@ -195,6 +195,13 @@ banner with an **Enable Actions on this repository** control; enable it there,
 then verify the next push creates a `push` event run before configuring required
 status checks.
 
+The `main` branch follows [the recorded branch-protection policy](./branch-protection.md).
+Create a topic branch and pull request for every change. GitHub requires the
+branch to be current and the `quality-fast`, `quality-browser`, and
+`quality-mutation` checks to pass before merge; administrators follow the same
+rule. The approval count remains zero for the solo-maintainer workflow, but
+review conversations must be resolved.
+
 Kirjolab's UI retains the Tailwind v4 pipeline inherited from
 `thesis-journey-tracker`: Tailwind input lives in `src/tailwind-input.css`,
 generated CSS is written to `.generated/styles.css`, and Wrangler runs
