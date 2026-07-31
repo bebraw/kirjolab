@@ -32,3 +32,12 @@ test("isolates E2E runs from artifact-analysis browser jobs", async () => {
   assert.match(wranglerConfig, /"ARTIFACT_ANALYSIS_MODE":\s*"enabled"/u);
   assert.match(server, /"ARTIFACT_ANALYSIS_MODE:disabled"/u);
 });
+
+test("fails the browser gate when Playwright discovers no tests", async () => {
+  const packageJson = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
+  const command = packageJson.scripts?.e2e;
+
+  assert.equal(typeof command, "string");
+  assert.match(command, /\bplaywright test\b/u);
+  assert.doesNotMatch(command, /--pass-with-no-tests\b/u);
+});

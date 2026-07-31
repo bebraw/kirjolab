@@ -19,6 +19,8 @@ failures quickly during normal development.
 - **Workers test binding policy:** local Miniflare bindings with remote binding sessions disabled
 - **Affected guardrails:** `npm run quality:affected`
 - **Browser gate:** `npm run e2e`
+- **Browser discovery failure policy:** Playwright must fail when the canonical
+  suite resolves to zero tests; the gate must not use `--pass-with-no-tests`.
 - **Browser artifact-analysis boundary:** E2E acknowledges queued analysis jobs
   without launching Browser Rendering; production and normal local development
   keep analysis enabled

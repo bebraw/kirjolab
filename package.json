@@ -80,7 +80,7 @@
     "diagnostics:prepush": "node ./scripts/run-fallow-prepush.mjs",
     "diagnostics:readability": "fallow audit --max-crap 100 --quiet --no-cache",
     "diagnostics:type-aware": "node ./scripts/run-fallow-type-aware.mjs",
-    "e2e": "NO_COLOR= FORCE_COLOR=0 playwright test --pass-with-no-tests",
+    "e2e": "NO_COLOR= FORCE_COLOR=0 playwright test",
     "e2e:server": "node ./scripts/run-e2e-server.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check . --cache --cache-strategy content --cache-location .cache/prettier",
