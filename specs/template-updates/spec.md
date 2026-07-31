@@ -20,40 +20,11 @@ copying unrelated starter structure.
 - **Agent sync entrypoint:** `.template/updates/AGENT_SYNC.md`
 - **Patch role:** focused first-attempt migration patch
 - **Guide role:** manual fallback for diverged target projects
-- **Applied update record:** target project docs or package metadata
-- **Current backfilled updates:**
-  - `2026-06-09-node-24-npm-baseline`
-  - `2026-06-10-capability-kits`
-  - `2026-06-11-mutation-quality-gate`
-  - `2026-06-12-affected-guardrails`
-  - `2026-06-12-incremental-local-mutation`
-  - `2026-06-13-affected-unit-tests`
-  - `2026-06-13-relative-stryker-concurrency`
-  - `2026-06-13-github-only-mutation-ci`
-  - `2026-06-14-agent-ci-warm-cache`
-  - `2026-06-14-agent-sync-entrypoint`
-  - `2026-06-17-advisory-fallow-diagnostics`
-  - `2026-06-17-shared-affected-file-utils`
-  - `2026-07-08-typescript-7-typecheck`
-  - `2026-07-10-playwright-1-61-ci-image`
-  - `2026-07-13-agent-ci-progress`
-  - `2026-07-13-agent-ci-progress-events` (implemented by the stronger local
-    progress formatter and heartbeat contract)
-  - `2026-07-14-agent-ci-cache-isolation`
-  - `2026-07-14-scope-prettier-to-owned-files`
-  - `2026-07-14-prettier-content-cache`
-  - `2026-07-14-oxlint-correctness-gate`
-  - `2026-07-15-quality-gate-progress`
-  - `2026-07-17-fingerprint-pwa-shell`
-  - `2026-07-17-native-local-ci`
-  - `2026-07-30-validate-adr-registry`
-  - `2026-07-30-local-workers-tests`
-  - `2026-07-30-relax-npm-version-hint`
-  - `2026-07-30-clean-disposable-state`
-  - `2026-07-30-refresh-core-tooling`
-  - `2026-07-30-playwright-1-62-ci-image`
-  - `2026-07-30-fallow-3-diagnostics`
-  - `2026-07-31-cloudflare-mcp-skill-baseline`
+- **Applied update record:** target project docs or package metadata;
+  `vibeTemplate.updates` records behaviors present in this project and may
+  include upstream updates that were not backfilled as local packs
+- **Current backfilled update registry:** directories containing
+  `.template/updates/*/update.json`
 
 ### Anti-Patterns
 
@@ -98,7 +69,7 @@ copying unrelated starter structure.
 ### Verification
 
 - **Automated checks:** `npm run quality:gate` and `npm run ci:local`
-- **Manifest parse:** `node -e "for (const f of require('node:fs').readdirSync('.template/updates')) { if (f !== 'README.md') JSON.parse(require('node:fs').readFileSync('.template/updates/' + f + '/update.json', 'utf8')) }"`
+- **Manifest parse:** `node -e "const fs=require('node:fs'); for (const d of fs.readdirSync('.template/updates',{withFileTypes:true}).filter((entry)=>entry.isDirectory())) { const manifest=JSON.parse(fs.readFileSync('.template/updates/'+d.name+'/update.json','utf8')); if (manifest.id !== d.name) throw new Error(d.name+': manifest id mismatch') }"`
 - **Docs check:** `rg "template update|\\.template/updates|update pack"`
 - **Agent entrypoint:** `test -f .template/updates/AGENT_SYNC.md`
 
