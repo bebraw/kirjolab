@@ -47,6 +47,7 @@ import type { ProjectReferencePdf, SharedResearchContent } from "../domain/refer
 import { handleGitHubWorkspaceSyncApi } from "./github-sync";
 import { handleReviewStudyApi } from "./review-study";
 import { ensureLegacyReviewResource, workspaceStorageKey } from "./reviews";
+import type { ProjectBinaryObjectReplacements } from "../durable-objects/document-room";
 import * as v from "valibot";
 
 const maximumPdfBytes = 25 * 1024 * 1024;
@@ -115,6 +116,16 @@ interface WorkspaceSettingsUpdate {
 }
 
 type WorkspaceCreationSeedResult = { readonly seed: ProjectTemplateRecord["seed"] | null } | { readonly error: Response };
+
+interface WorkspaceBinarySeed {
+  readonly assets: readonly ProjectAsset[];
+  readonly pdfs: readonly PdfResource[];
+}
+
+interface CopiedWorkspaceBinaries {
+  readonly objectKeys: readonly string[];
+  readonly replacements: ProjectBinaryObjectReplacements;
+}
 
 export async function handleWorkspaceApi(request: Request, env: Env, identity: AuthIdentity): Promise<Response> {
   const url = new URL(request.url);
@@ -264,10 +275,10 @@ async function handleWorkspaceSettingsRoutes(context: WorkspaceRouteContext): Pr
 }
 
 async function handleWorkspaceDuplicateRoute(context: WorkspaceRouteContext): Promise<Response | null> {
-  const { request, suffix, role, workspaceId, identity, env, room, catalog } = context;
+  const { request, suffix, role, identity, env, room, catalog } = context;
   if (suffix !== "/duplicate" || request.method !== "POST") return null;
   if (role !== "owner") return jsonError("Only the workspace owner can duplicate a project", 403);
-  return await duplicateWorkspace(request, workspaceId, room, catalog, env, identity);
+  return await duplicateWorkspace(request, room, catalog, env, identity);
 }
 
 async function handleWorkspaceTemplateRoute(context: WorkspaceRouteContext): Promise<Response | null> {
@@ -664,7 +675,6 @@ function workspaceSettingsUpdate(value: unknown): WorkspaceSettingsUpdate | null
 
 async function duplicateWorkspace(
   request: Request,
-  workspaceId: string,
   room: DurableObjectStub<import("../durable-objects/document-room").DocumentRoom>,
   catalog: DurableObjectStub<import("../durable-objects/workspace-catalog").WorkspaceCatalog>,
   env: Env,
@@ -674,26 +684,11 @@ async function duplicateWorkspace(
   const input = v.safeParse(v.object({ title: workspaceTitleSchema }), body);
   if (!input.success) return jsonError("Invalid duplicate title", 400);
   const id = crypto.randomUUID();
-  const storageKey = workspaceStorageKey(identity, id);
-  const snapshot = await room.getSnapshot(workspaceId);
-  const copiedAssets: Array<{ id: string; objectKey: string; fingerprint: string; updatedAt: string }> = [];
-  for (const asset of snapshot.assets) {
-    const source = await env.PAPERS.get(asset.objectKey);
-    if (!source) throw new Error(`Project image is unavailable: ${asset.path}`);
-    const objectKey = `${storageKey}/assets/${asset.id}`;
-    const stored = await env.PAPERS.put(objectKey, source.body, { httpMetadata: { contentType: asset.mediaType } });
-    copiedAssets.push({
-      id: asset.id,
-      objectKey,
-      fingerprint: `r2-etag:${stored.etag.replaceAll('"', "")}`,
-      updatedAt: new Date().toISOString(),
-    });
-  }
-  await env.WORKSPACE_ACCESS.getByName(storageKey).initializeOwner(identity.email);
-  const duplicate = env.DOCUMENT_ROOMS.getByName(storageKey);
-  await duplicate.seedFromRevision(id, input.output.title.trim(), await room.getHeadRevisionSeed());
-  if (copiedAssets.length > 0) await duplicate.replaceProjectAssetObjects(id, copiedAssets);
-  return Response.json(await catalog.registerWorkspace(id, input.output.title.trim()), { status: 201 });
+  const title = input.output.title.trim();
+  const copySeed = await room.getRevisionCopySeed();
+  return Response.json(await registerIndependentWorkspaceCopy(id, title, copySeed.revisionSeed, copySeed, catalog, env, identity), {
+    status: 201,
+  });
 }
 
 async function saveWorkspaceTemplate(
@@ -842,12 +837,94 @@ async function handleProjectSeedRoute(context: ProjectHistoryRouteContext): Prom
   if (!input.success) return jsonError("Invalid workspace seed", 400);
   const id = crypto.randomUUID();
   const title = input.output.title.trim();
-  const storageKey = workspaceStorageKey(identity, id);
+  const copySeed = await room.getRevisionCopySeed(revision);
+  return Response.json(await registerIndependentWorkspaceCopy(id, title, copySeed.revisionSeed, copySeed, catalog, env, identity), {
+    status: 201,
+  });
+}
+
+async function registerIndependentWorkspaceCopy(
+  workspaceId: string,
+  title: string,
+  revisionSeed: string,
+  binaries: WorkspaceBinarySeed,
+  catalog: WorkspaceCatalogStub,
+  env: Env,
+  identity: AuthIdentity,
+): Promise<WorkspaceSummary> {
+  const storageKey = workspaceStorageKey(identity, workspaceId);
+  const copied = await copyWorkspaceBinaries(env.PAPERS, storageKey, binaries);
   const access = env.WORKSPACE_ACCESS.getByName(storageKey);
-  await access.initializeOwner(identity.email);
-  const target = env.DOCUMENT_ROOMS.getByName(storageKey);
-  await target.seedFromRevision(id, title, await room.getRevisionSeed(revision));
-  return Response.json(await catalog.registerWorkspace(id, title), { status: 201 });
+  const room = env.DOCUMENT_ROOMS.getByName(storageKey);
+  try {
+    await access.initializeOwner(identity.email);
+    await room.seedFromRevision(workspaceId, title, revisionSeed, copied.replacements);
+    return await catalog.registerWorkspace(workspaceId, title);
+  } catch (error) {
+    const cleanup = [catalog.removeWorkspace(workspaceId), room.deleteWorkspaceData(), access.deleteWorkspaceAccess(identity.email)];
+    if (copied.objectKeys.length > 0) cleanup.push(env.PAPERS.delete([...copied.objectKeys]));
+    await Promise.allSettled(cleanup);
+    throw error;
+  }
+}
+
+async function copyWorkspaceBinaries(
+  bucket: R2Bucket,
+  storageKey: string,
+  binaries: WorkspaceBinarySeed,
+): Promise<CopiedWorkspaceBinaries> {
+  const objectKeys: string[] = [];
+  const replacements: {
+    assets: Array<{ id: string; objectKey: string; fingerprint: string; updatedAt: string }>;
+    pdfs: Array<{ id: string; objectKey: string; fingerprint: string }>;
+  } = { assets: [], pdfs: [] };
+  try {
+    for (const pdf of binaries.pdfs) {
+      const objectKey = `${storageKey}/${pdf.id}.pdf`;
+      const stored = await copyWorkspaceBinary(bucket, pdf.objectKey, objectKey, `Project PDF is unavailable: ${pdf.name}`, objectKeys);
+      replacements.pdfs.push({ id: pdf.id, objectKey, fingerprint: r2Fingerprint(stored) });
+    }
+    for (const asset of binaries.assets) {
+      const objectKey = `${storageKey}/assets/${asset.id}`;
+      const stored = await copyWorkspaceBinary(
+        bucket,
+        asset.objectKey,
+        objectKey,
+        `Project image is unavailable: ${asset.path}`,
+        objectKeys,
+      );
+      replacements.assets.push({
+        id: asset.id,
+        objectKey,
+        fingerprint: r2Fingerprint(stored),
+        updatedAt: new Date().toISOString(),
+      });
+    }
+    return { objectKeys, replacements };
+  } catch (error) {
+    if (objectKeys.length > 0) await bucket.delete(objectKeys);
+    throw error;
+  }
+}
+
+async function copyWorkspaceBinary(
+  bucket: R2Bucket,
+  sourceKey: string,
+  objectKey: string,
+  missingMessage: string,
+  copiedKeys: string[],
+): Promise<R2Object> {
+  const source = await bucket.get(sourceKey);
+  if (!source) throw new Error(missingMessage);
+  copiedKeys.push(objectKey);
+  return await bucket.put(objectKey, source.body, {
+    ...(source.httpMetadata ? { httpMetadata: source.httpMetadata } : {}),
+    ...(source.customMetadata ? { customMetadata: source.customMetadata } : {}),
+  });
+}
+
+function r2Fingerprint(object: R2Object): string {
+  return `r2-etag:${object.etag.replaceAll('"', "")}`;
 }
 
 function revisionParameter(value: string | null): number | null {

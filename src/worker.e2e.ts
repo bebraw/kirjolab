@@ -1196,6 +1196,78 @@ test("renames, archives, duplicates, and permanently deletes projects", async ({
   expect((await page.request.get(`/api/workspaces/${duplicate.id}`)).ok()).toBe(true);
 });
 
+test("copies project binaries into independent duplicate and revision projects", async ({ page }) => {
+  const workspaceId = await createWorkspace(page, "Binary copy source");
+  const api = `/api/workspaces/${workspaceId}`;
+  const headers = { origin: "http://127.0.0.1:8788" };
+  const pdfBytes = createEvidencePdf("Independent project PDF.");
+  const uploadedPdf = await page.request.post(`${api}/pdfs`, {
+    headers: { ...headers, "content-type": "application/pdf", "x-file-name": "independent.pdf" },
+    data: pdfBytes,
+  });
+  expect(uploadedPdf.status()).toBe(201);
+  const pdfValue: unknown = await uploadedPdf.json();
+  if (!isRecord(pdfValue) || typeof pdfValue.id !== "string") throw new Error("Expected an uploaded project PDF");
+
+  const imageBytes = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=", "base64");
+  const uploadedImage = await page.request.post(`${api}/assets`, {
+    headers: {
+      ...headers,
+      "content-type": "image/png",
+      "x-file-path": encodeURIComponent("figures/independent.png"),
+    },
+    data: imageBytes,
+  });
+  expect(uploadedImage.status()).toBe(201);
+  const source = await readWorkspaceSnapshot(page, api);
+  const sourcePdf = source.pdfs.find(({ id }) => id === pdfValue.id);
+  const sourceAsset = source.assets.find(({ path }) => path === "figures/independent.png");
+  if (!sourcePdf || !sourceAsset) throw new Error("Expected source project binaries");
+
+  const duplicateResponse = await page.request.post(`${api}/duplicate`, { headers, data: { title: "Binary duplicate" } });
+  expect(duplicateResponse.status()).toBe(201);
+  const duplicateValue: unknown = await duplicateResponse.json();
+  if (!isRecord(duplicateValue) || typeof duplicateValue.id !== "string") throw new Error("Expected a duplicate project");
+
+  const historyValue: unknown = await (await page.request.get(`${api}/history`)).json();
+  if (!Array.isArray(historyValue) || !isRecord(historyValue[0]) || typeof historyValue[0].revision !== "number") {
+    throw new Error("Expected project revision history");
+  }
+  const branchResponse = await page.request.post(`${api}/history/${historyValue[0].revision}/seed`, {
+    headers,
+    data: { title: "Binary branch" },
+  });
+  expect(branchResponse.status()).toBe(201);
+  const branchValue: unknown = await branchResponse.json();
+  if (!isRecord(branchValue) || typeof branchValue.id !== "string") throw new Error("Expected a revision project");
+
+  for (const copiedWorkspaceId of [duplicateValue.id, branchValue.id]) {
+    const copiedApi = `/api/workspaces/${copiedWorkspaceId}`;
+    const copied = await readWorkspaceSnapshot(page, copiedApi);
+    const copiedPdf = copied.pdfs.find(({ id }) => id === sourcePdf.id);
+    const copiedAsset = copied.assets.find(({ id }) => id === sourceAsset.id);
+    if (!copiedPdf || !copiedAsset) throw new Error("Expected copied project binaries");
+    expect(copiedPdf.objectKey).not.toBe(sourcePdf.objectKey);
+    expect(copiedAsset.objectKey).not.toBe(sourceAsset.objectKey);
+
+    const copiedPdfResponse = await page.request.get(`${copiedApi}/pdfs/${copiedPdf.id}`);
+    expect(copiedPdfResponse.ok()).toBe(true);
+    expect(await copiedPdfResponse.body()).toEqual(pdfBytes);
+    const copiedAssetResponse = await page.request.get(`${copiedApi}/assets/${copiedAsset.id}`);
+    expect(copiedAssetResponse.ok()).toBe(true);
+    expect(await copiedAssetResponse.body()).toEqual(imageBytes);
+
+    expect((await page.request.delete(`${copiedApi}/pdfs/${copiedPdf.id}`, { headers })).status()).toBe(204);
+    expect((await page.request.delete(`${copiedApi}/assets/${copiedAsset.id}`, { headers })).ok()).toBe(true);
+    const sourcePdfResponse = await page.request.get(`${api}/pdfs/${sourcePdf.id}`);
+    expect(sourcePdfResponse.ok()).toBe(true);
+    expect(await sourcePdfResponse.body()).toEqual(pdfBytes);
+    const sourceAssetResponse = await page.request.get(`${api}/assets/${sourceAsset.id}`);
+    expect(sourceAssetResponse.ok()).toBe(true);
+    expect(await sourceAssetResponse.body()).toEqual(imageBytes);
+  }
+});
+
 test("keeps GitHub publish confirmation visible after refreshing sync state", async ({ page }) => {
   const workspaceId = await createWorkspace(page, "GitHub publish feedback");
   const api = `/api/workspaces/${workspaceId}/github-sync`;

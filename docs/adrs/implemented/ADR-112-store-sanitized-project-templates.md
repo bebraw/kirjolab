@@ -37,6 +37,13 @@ Templates never remain linked to their source project or to projects created
 from them. Replacing a personal template is an explicit owner action that
 captures a new sanitized snapshot.
 
+Live-project duplication and revision branching retain their complete-copy
+contract by copying every project PDF and image into destination-scoped R2
+keys, rewriting the seeded binary metadata in revision zero, and registering
+the destination only after all copies and Durable Object initialization
+succeed. A failed copy removes partial destination objects and coordination
+state. Source and copied projects can therefore delete binaries independently.
+
 Template-list responses may derive a bounded preview from the seed: total file
 and folder counts, at most eight paths of each kind, bibliography presence, and
 publication settings. They never return file contents, bibliography contents,
@@ -70,7 +77,7 @@ layouts.
 **Neutral:**
 
 - Duplication and revision branching retain their existing complete-copy
-  semantics.
+  semantics, including independently owned project binary objects.
 - Portable BibTeX may contain public bibliographic metadata but retains no
   private-library identity or notes.
 - Template previews are owner-scoped derived metadata, not another canonical

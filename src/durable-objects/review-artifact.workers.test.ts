@@ -206,7 +206,7 @@ describe("review synthesis project artifact", () => {
     delete oldSeed.tables.review_artifact_pins;
 
     const target = env.DOCUMENT_ROOMS.getByName(`review-artifact-old-target-${crypto.randomUUID()}`);
-    const seeded = await target.seedFromRevision("target", "Imported history", JSON.stringify(oldSeed));
+    const seeded = await target.seedFromRevision("target", "Imported history", JSON.stringify(oldSeed), { assets: [], pdfs: [] });
     expect(seeded.reviewArtifactPins).toEqual([]);
     expect((await target.getRevision(0)).reviewArtifactPins).toEqual([]);
   });
@@ -227,7 +227,7 @@ describe("review synthesis project artifact", () => {
     }
 
     const target = env.DOCUMENT_ROOMS.getByName(`review-artifact-legacy-target-${crypto.randomUUID()}`);
-    const seeded = await target.seedFromRevision("target", "Imported legacy review", JSON.stringify(legacySeed));
+    const seeded = await target.seedFromRevision("target", "Imported legacy review", JSON.stringify(legacySeed), { assets: [], pdfs: [] });
     expect(seeded.reviewArtifactPins).toEqual([
       expect.objectContaining({
         path: pin.path,

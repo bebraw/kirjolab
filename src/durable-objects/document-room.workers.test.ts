@@ -242,9 +242,21 @@ describe("DocumentRoom in the Workers runtime", () => {
 
     const seedWorkspaceId = "project-history-seed";
     const seedStub = roomStub(seedWorkspaceId);
-    await seedStub.seedFromRevision(seedWorkspaceId, "Submission branch", await stub.getRevisionSeed(head.revision));
+    await seedStub.seedFromRevision(seedWorkspaceId, "Submission branch", await stub.getRevisionSeed(head.revision), {
+      assets: [],
+      pdfs: [
+        {
+          id: historicalPdf.id,
+          objectKey: `${seedWorkspaceId}/${historicalPdf.id}.pdf`,
+          fingerprint: historicalPdf.fingerprint,
+        },
+      ],
+    });
     const seeded = await seedStub.getSnapshot(seedWorkspaceId);
     expect(seeded).toMatchObject({ title: "Submission branch", revision: 0 });
+    expect(seeded.pdfs).toContainEqual(
+      expect.objectContaining({ id: historicalPdf.id, objectKey: `${seedWorkspaceId}/${historicalPdf.id}.pdf` }),
+    );
     expect(seeded.files).toContainEqual(expect.objectContaining({ id: chapter!.id, path: "chapters/revisions.md" }));
     expect(seeded.links).toContainEqual(
       expect.objectContaining({ annotationId: linked.annotation.id, resolution: expect.objectContaining({ status: "resolved" }) }),

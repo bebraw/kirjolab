@@ -143,6 +143,26 @@ export type ProjectReviewLinkResult = DocumentRoomOperationResult<
   "link-provenance-conflict" | "active-review-link-conflict"
 >;
 
+export interface ProjectBinaryObjectReplacements {
+  readonly assets: readonly {
+    readonly id: string;
+    readonly objectKey: string;
+    readonly fingerprint: string;
+    readonly updatedAt: string;
+  }[];
+  readonly pdfs: readonly {
+    readonly id: string;
+    readonly objectKey: string;
+    readonly fingerprint: string;
+  }[];
+}
+
+export interface ProjectRevisionCopySeed {
+  readonly assets: readonly ProjectAsset[];
+  readonly pdfs: readonly PdfResource[];
+  readonly revisionSeed: string;
+}
+
 export interface GitHubProjectBindingInput {
   readonly installationId: number;
   readonly repositoryId: number;
@@ -979,12 +999,26 @@ export class DocumentRoom extends DurableObject<Env> {
     return this.#revisionRow(revision).snapshot_json;
   }
 
+  getRevisionCopySeed(revision?: number): ProjectRevisionCopySeed {
+    const row =
+      revision === undefined
+        ? this.ctx.storage.sql.exec<ProjectRevisionRow>("SELECT * FROM project_revisions ORDER BY revision DESC LIMIT 1").one()
+        : this.#revisionRow(revision);
+    const content = projectRevisionContent(row.revision, parseStoredProjectRevision(row.snapshot_json));
+    return { assets: content.assets, pdfs: content.pdfs, revisionSeed: row.snapshot_json };
+  }
+
   getHeadRevisionSeed(): string {
     const row = this.ctx.storage.sql.exec<ProjectRevisionRow>("SELECT * FROM project_revisions ORDER BY revision DESC LIMIT 1").one();
     return row.snapshot_json;
   }
 
-  seedFromRevision(workspaceId: string, titleValue: string, seedValue: string): WorkspaceSnapshot {
+  seedFromRevision(
+    workspaceId: string,
+    titleValue: string,
+    seedValue: string,
+    binaryObjects: ProjectBinaryObjectReplacements,
+  ): WorkspaceSnapshot {
     const seed = parseStoredProjectRevision(seedValue);
     const title = titleValue.trim();
     if (!title || title.length > 120) throw new Error("Workspace title is invalid");
@@ -994,6 +1028,7 @@ export class DocumentRoom extends DurableObject<Env> {
     try {
       this.ctx.storage.transactionSync(() => {
         this.#replaceRevisionTables(seed, workspaceId);
+        this.#replaceSeedBinaryObjects(binaryObjects);
         this.ctx.storage.sql.exec("DELETE FROM candidates");
         this.ctx.storage.sql.exec("DELETE FROM project_milestones");
         this.ctx.storage.sql.exec("DELETE FROM project_revisions");
@@ -1016,6 +1051,44 @@ export class DocumentRoom extends DurableObject<Env> {
     }
     this.#broadcastResources();
     return this.getSnapshot(workspaceId);
+  }
+
+  #replaceSeedBinaryObjects(replacements: ProjectBinaryObjectReplacements): void {
+    const assets = this.#projectAssets();
+    const pdfs = this.#pdfs();
+    if (
+      !binaryReplacementIdsMatch(
+        assets.map((asset) => asset.id),
+        replacements.assets,
+      ) ||
+      !binaryReplacementIdsMatch(
+        pdfs.map((pdf) => pdf.id),
+        replacements.pdfs,
+      ) ||
+      replacements.assets.some(
+        ({ objectKey, fingerprint, updatedAt }) => !objectKey || !fingerprint || !updatedAt || Number.isNaN(Date.parse(updatedAt)),
+      ) ||
+      replacements.pdfs.some(({ objectKey, fingerprint }) => !objectKey || !fingerprint)
+    ) {
+      throw new Error("Project binary copy metadata is invalid");
+    }
+    for (const replacement of replacements.assets) {
+      this.ctx.storage.sql.exec(
+        "UPDATE project_assets SET object_key = ?, fingerprint = ?, updated_at = ? WHERE id = ?",
+        replacement.objectKey,
+        replacement.fingerprint,
+        replacement.updatedAt,
+        replacement.id,
+      );
+    }
+    for (const replacement of replacements.pdfs) {
+      this.ctx.storage.sql.exec(
+        "UPDATE pdfs SET object_key = ?, fingerprint = ? WHERE id = ?",
+        replacement.objectKey,
+        replacement.fingerprint,
+        replacement.id,
+      );
+    }
   }
 
   seedFromTemplate(workspaceId: string, titleValue: string, seed: ProjectTemplateSeed): WorkspaceSnapshot {
@@ -2230,44 +2303,6 @@ export class DocumentRoom extends DurableObject<Env> {
       {},
       () => this.ctx.storage.sql.exec("DELETE FROM project_assets WHERE id = ?", assetId),
       "project-asset-delete",
-    );
-    this.#broadcast(encodeServerCollaborationMessage({ type: "revision", revision: persisted.revision }));
-    this.#broadcastResources();
-    return this.getSnapshot(workspaceId);
-  }
-
-  replaceProjectAssetObjects(
-    workspaceId: string,
-    replacements: readonly { readonly id: string; readonly objectKey: string; readonly fingerprint: string; readonly updatedAt: string }[],
-  ): WorkspaceSnapshot {
-    const assets = this.#projectAssets();
-    if (
-      replacements.length !== assets.length ||
-      replacements.some(
-        (replacement) =>
-          !assets.some((asset) => asset.id === replacement.id) ||
-          !replacement.objectKey ||
-          !replacement.fingerprint ||
-          !replacement.updatedAt,
-      )
-    ) {
-      throw new Error("Project asset copy metadata is invalid");
-    }
-    const persisted = this.#persistDocument(
-      this.#workspaceRow(),
-      {},
-      () => {
-        for (const replacement of replacements) {
-          this.ctx.storage.sql.exec(
-            "UPDATE project_assets SET object_key = ?, fingerprint = ?, updated_at = ? WHERE id = ?",
-            replacement.objectKey,
-            replacement.fingerprint,
-            replacement.updatedAt,
-            replacement.id,
-          );
-        }
-      },
-      "project-assets-copy",
     );
     this.#broadcast(encodeServerCollaborationMessage({ type: "revision", revision: persisted.revision }));
     this.#broadcastResources();
@@ -4084,6 +4119,12 @@ function projectRevisionContent(revision: number, state: StoredProjectRevision):
       comments: state.tables.manuscript_comments.length,
     },
   };
+}
+
+function binaryReplacementIdsMatch(resourceIds: readonly string[], replacements: readonly { readonly id: string }[]): boolean {
+  if (resourceIds.length !== replacements.length) return false;
+  const replacementIds = new Set(replacements.map(({ id }) => id));
+  return replacementIds.size === replacements.length && resourceIds.every((id) => replacementIds.has(id));
 }
 
 function parseStoredProjectRevision(value: string): StoredProjectRevision {

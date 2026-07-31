@@ -638,6 +638,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   uploaded image bytes in Yjs. Accept SVG only as validated UTF-8 image content
   without active or external-resource constructs, and serve it under a
   no-script, no-network sandbox policy.
+- Give every duplicated or revision-seeded project independent destination-
+  scoped R2 objects for all project PDFs and images. Copy and re-key those
+  binaries before publishing the destination catalog entry; never let a copied
+  project's mutation delete or overwrite its source project's bytes.
 - Let the Preview DOM adapter resolve safe relative Markdown image targets
   through canonical file/source-map and authorized asset inputs. Keep hidden
   deletion state and workspace authorization in the application coordinator.
