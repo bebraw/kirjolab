@@ -1,0 +1,10 @@
+{
+  "id": "2026-07-31-manual-ci-dispatch",
+  "title": "Add a manual CI recovery trigger",
+  "status": "implemented",
+  "risk": "low",
+  "supersedes": [],
+  "adrs": [],
+  "touches": [".github/workflows/ci.yml", "docs/development.md", "specs/quality-gate/spec.md"],
+  "checks": ["npm run quality:affected", "npm run ci:local", "gh workflow run CI --ref main"]
+}

@@ -47,6 +47,7 @@ failures quickly during normal development.
 - **Container workflow heartbeat:** every 15 seconds while the workflow is active
 - **Container retry:** `npm run ci:local:container:retry -- --name <runner-name>`
 - **Remote workflow:** `.github/workflows/ci.yml`
+- **Remote recovery trigger:** GitHub Actions `workflow_dispatch`
 - **CI dependency install:** plain `npm ci`
 - **Action pinning:** every GitHub Actions `uses:` reference must use a full commit SHA
 - **Git hook path:** `.githooks/`
@@ -186,6 +187,8 @@ failures quickly during normal development.
   changes.
 - `npm install` must keep the repo-managed `pre-push` hook configured without requiring extra setup steps.
 - The CI workflow must cancel superseded runs for the same ref.
+- The CI workflow must support manual dispatch so trigger delivery can be
+  diagnosed independently from workflow execution.
 - The CI workflow must read the pinned Node version from `package.json` instead of a separate version file.
 - The CI workflow must keep using npm for install and verification steps without depending on one exact npm patch release.
 - The npm release used by CI must stay inside the supported npm range declared in `package.json`.
@@ -320,6 +323,12 @@ failures quickly during normal development.
 - Given: a non-documentation change is ready for review or merge
 - When: the contributor runs `npm run ci:local`
 - Then: the fast and browser verification paths pass
+
+**Scenario: Contributor diagnoses missing remote trigger delivery**
+
+- Given: an expected push or pull-request workflow run was not created
+- When: the contributor manually dispatches the CI workflow
+- Then: GitHub Actions creates an observable run for the selected branch
 
 **Scenario: Contributor monitors the full quality gate**
 

@@ -1,0 +1,11 @@
+diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
+--- a/.github/workflows/ci.yml
++++ b/.github/workflows/ci.yml
+@@ -1,6 +1,7 @@
+ name: CI
+ 
+ on:
++  workflow_dispatch:
+   pull_request:
+   push:
+     branches:
