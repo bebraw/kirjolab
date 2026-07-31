@@ -393,7 +393,8 @@ published deliberately into several writing projects.
   `bibliography.bib`, PRISMA JSON/SVG, search history, event history, model
   disclosure, and separate analysis definitions, diagnostics, contributors,
   reassessment history, and complete evidence-linked finding history. Its
-  manifest pins the schema, generator, review UUID, review and protocol
+  entry timestamps use fixed local DOS fields so archive bytes remain identical
+  across runner timezones. Its manifest pins the schema, generator, review UUID, review and protocol
   revisions, generation time, byte counts, and SHA-256 file digests.
 - DOCX may become an optional publication target but never becomes canonical
   review, analysis, or manuscript state.

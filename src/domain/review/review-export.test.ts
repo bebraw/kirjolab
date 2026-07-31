@@ -117,7 +117,7 @@ describe("review reproducibility export", () => {
       record-1,Included Study,2,finding,finding,Finding,Finding,Effective,,,,,pdf-annotation,pdf-1,annotation-1,"Exact, quoted evidence",4,Results,reviewer@example.com,2026-07-17T10:00:00.000Z
       ",
         "historySha256": "9313a17e21e3f5919fcf9a69ad21239e24745d01da69d7213f4c99a9b24f10e5",
-        "packageSha256": "3c7b21f6b1ab1d694fe7132b34a9226f2031b4a15f6ec8d1afc3a4fd726d80d1",
+        "packageSha256": "cadd8bfeea507788fab3470ad175bf14a88b033349fffa5c4c9ea5a2a5763b71",
         "prisma": {
           "duplicatesRemoved": 0,
           "exclusionReasons": {
@@ -137,6 +137,20 @@ describe("review reproducibility export", () => {
       ",
       }
     `);
+  });
+
+  it("keeps package bytes stable across runner timezones", async () => {
+    const originalTimezone = process.env.TZ;
+    try {
+      process.env.TZ = "UTC";
+      const utc = await buildReviewPackage("review-1", fixture());
+      process.env.TZ = "Pacific/Honolulu";
+      const honolulu = await buildReviewPackage("review-1", fixture());
+      expect(honolulu).toEqual(utc);
+    } finally {
+      if (originalTimezone === undefined) delete process.env.TZ;
+      else process.env.TZ = originalTimezone;
+    }
   });
 
   it("reports exclusions, adjudications, model disclosure, and empty extraction tables", async () => {
@@ -497,7 +511,7 @@ describe("review reproducibility export", () => {
       record-1,Included Study,2,finding,finding,Finding,Finding,,,,,Not reported,,,,,,,reviewer@example.com,2026-07-17T10:00:00.000Z
       ",
         "historySha256": "65dc3da9f01671530f20cde6491f67155777535a00f59f71665beea7c920146b",
-        "packageSha256": "33b84c50997ccebeb547f86b7994368b743e97d3dca7d838bfa099109954a8b1",
+        "packageSha256": "2b5eb7a58e65365ee0395b6836934272fc261893769f72e1f5327ffcbd2c7002",
         "prisma": {
           "duplicatesRemoved": 0,
           "exclusionReasons": {

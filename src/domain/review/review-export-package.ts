@@ -5,8 +5,6 @@ import { reviewPrismaData, reviewPrismaSvg } from "./review-export-prisma";
 import { reviewBibliographyBibTeX, reviewExtractionCsv } from "./review-export-tabular";
 import { reviewExportSchemaVersion, type ReviewExportAuthority } from "./review-export-types";
 
-const archiveTimestamp = new Date("1980-01-01T00:00:00.000Z");
-
 export async function buildReviewPackage(reviewId: string, authority: ReviewExportAuthority): Promise<Uint8Array> {
   const prisma = reviewPrismaData(authority);
   const files = reviewPackageFiles(authority);
@@ -27,10 +25,17 @@ export async function buildReviewPackage(reviewId: string, authority: ReviewExpo
     files: manifestFiles,
   });
   const zippable: Zippable = {};
+  const archiveTimestamp = reproducibleZipTimestamp();
   for (const path of Object.keys(files).sort()) {
     zippable[path] = [strToU8(files[path]!), { mtime: archiveTimestamp, os: 3, attrs: 0o100644 << 16 }];
   }
   return zipSync(zippable, { level: 9, mtime: archiveTimestamp, os: 3 });
+}
+
+function reproducibleZipTimestamp(): Date {
+  // ZIP stores local DOS date fields without a timezone. Constructing local
+  // midnight keeps those fields identical on runners in every timezone.
+  return new Date(1980, 0, 1, 0, 0, 0, 0);
 }
 
 function reviewPackageFiles(authority: ReviewExportAuthority): Record<string, string> {
