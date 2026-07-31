@@ -259,7 +259,7 @@ belong in `.env` and are never deployed.
 
 The Lighthouse setup is also generic, but the Worker stub gives it a concrete local target. Use `LIGHTHOUSE_URL=http://127.0.0.1:8787 LIGHTHOUSE_SERVER_COMMAND="npm run dev" npm run lighthouse`. Reports are written to `reports/lighthouse/`.
 
-The Node Vitest setup remains the fast home for pure logic. `vitest.config.ts`
+The Node Vitest setup remains the fast home for pure logic. `vitest.config.mts`
 targets colocated `src/**/*.test.ts` files while excluding end-to-end and
 Workers-runtime tests. The default `npm test` command uses `--passWithNoTests`
 so the template remains usable before a project adds its first test file.

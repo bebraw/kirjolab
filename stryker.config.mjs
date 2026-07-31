@@ -39,7 +39,7 @@ const config = {
     prioritizePerformanceOverAccuracy: true,
   },
   vitest: {
-    configFile: "vitest.config.ts",
+    configFile: "vitest.config.mts",
     related: true,
   },
 };

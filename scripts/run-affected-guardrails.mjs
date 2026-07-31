@@ -121,7 +121,7 @@ function affectsTypecheck(file) {
     [
       "tsconfig.json",
       "tsconfig.workers-test.json",
-      "vitest.config.ts",
+      "vitest.config.mts",
       "vitest.workers.config.mts",
       "playwright.config.ts",
       "wrangler.jsonc",
@@ -175,7 +175,7 @@ function affectsTestEnvironment(file) {
     "package.json",
     "package-lock.json",
     "tsconfig.json",
-    "vitest.config.ts",
+    "vitest.config.mts",
     "scripts/run-coverage-gate.mjs",
     "scripts/run-affected-tests.mjs",
     "scripts/affected-file-utils.mjs",

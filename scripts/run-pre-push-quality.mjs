@@ -9,7 +9,7 @@ const mutationConfigurationFiles = new Set([
   "package-lock.json",
   "stryker.config.mjs",
   "tsconfig.json",
-  "vitest.config.ts",
+  "vitest.config.mts",
 ]);
 const mutationSourcePattern =
   /^src\/(?!api\/|durable-objects\/|test-support(?:\.ts$|\/))(?!.*(?:\.d|\.test|\.e2e|\.workers\.test)\.ts$).*\.ts$/u;
