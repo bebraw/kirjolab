@@ -28,8 +28,8 @@ import {
 import type { AuthIdentity } from "../security/auth";
 import { canonicalReviewArtifactPath, type WorkspaceSnapshot } from "../domain/workspace/workspace";
 import * as v from "valibot";
+import { maximumReviewJsonRequestBytes, readReviewJson } from "./review-request";
 
-const maximumProtocolRequestBytes = 2 * 1024 * 1024;
 const safeRevisionSchema = v.pipe(v.number(), v.safeInteger());
 const positiveRevisionSchema = v.pipe(safeRevisionSchema, v.minValue(1));
 const screeningStageSchema = v.picklist(["title-abstract", "full-text"]);
@@ -404,7 +404,7 @@ async function synthesisPublishRequest(
   publicationId: string;
   analysisDefinitionId: string;
 }> {
-  const value: unknown = await request.json();
+  const value = await readReviewJson(request);
   if (
     !isRecord(value) ||
     typeof value.expectedProjectRevision !== "number" ||
@@ -446,13 +446,13 @@ async function synthesisPublishRequest(
 }
 
 async function reviewFindingRequest(request: Request): Promise<{ expectedRevision: number; finding: ReviewFindingInput }> {
-  const value: unknown = await request.json();
+  const value = await readReviewJson(request);
   if (!isRecord(value) || !("finding" in value)) throw new Error("Review finding request is invalid");
   return { expectedRevision: parseRevision(value.expectedRevision), finding: parseReviewFindingInput(value.finding) };
 }
 
 async function modelCandidateRequest(request: Request) {
-  const value: unknown = await request.json();
+  const value = await readReviewJson(request);
   return parseReviewModelCandidateRequest(value);
 }
 
@@ -540,9 +540,7 @@ async function searchRunRequest(request: Request) {
 }
 
 async function searchImportBody(request: Request): Promise<Record<string, unknown> & { bibtex: string }> {
-  const length = Number(request.headers.get("content-length") ?? "0");
-  if (Number.isFinite(length) && length > reviewImportLimits.bibtexBytes + 100_000) throw new Error("Review BibTeX import is too large");
-  const value: unknown = await request.json();
+  const value = await readReviewJson(request, reviewImportLimits.bibtexBytes + 100_000);
   if (!isRecord(value) || typeof value.bibtex !== "string") throw new Error("Review BibTeX import request is invalid");
   return { ...value, bibtex: value.bibtex };
 }
@@ -552,8 +550,7 @@ async function duplicateResolutionRequest(request: Request) {
 }
 
 async function protocolRequest(request: Request, requireRationale = false) {
-  assertRequestSize(request);
-  const value: unknown = await request.json();
+  const value = await readReviewJson(request);
   if (!isRecord(value)) throw new Error("Review protocol request is invalid");
   const expectedRevision = parseRevision(value.expectedRevision);
   const content = parseReviewProtocolContent(value.content);
@@ -564,8 +561,7 @@ async function protocolRequest(request: Request, requireRationale = false) {
 }
 
 async function expectedRevisionRequest(request: Request): Promise<{ expectedRevision: number }> {
-  assertRequestSize(request);
-  const value: unknown = await request.json();
+  const value = await readReviewJson(request);
   if (!isRecord(value)) throw new Error("Review protocol request is invalid");
   return { expectedRevision: parseRevision(value.expectedRevision) };
 }
@@ -573,11 +569,6 @@ async function expectedRevisionRequest(request: Request): Promise<{ expectedRevi
 function parseRevision(value: unknown): number {
   if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 1) throw new Error("Review revision is invalid");
   return value;
-}
-
-function assertRequestSize(request: Request): void {
-  const length = Number(request.headers.get("content-length") ?? "0");
-  if (Number.isFinite(length) && length > maximumProtocolRequestBytes) throw new Error("Review protocol request is too large");
 }
 
 function validReviewImportFilename(value: string): boolean {
@@ -600,7 +591,7 @@ function hasAsciiControlCharacter(value: string): boolean {
 }
 
 async function validatedRequest<TOutput>(request: Request, schema: v.GenericSchema<unknown, TOutput>, message: string): Promise<TOutput> {
-  const input = v.safeParse(schema, await request.json());
+  const input = v.safeParse(schema, await readReviewJson(request, maximumReviewJsonRequestBytes));
   if (!input.success) throw new Error(message);
   return input.output;
 }

@@ -9,6 +9,7 @@ import {
 import { demoWorkspaceId, localOwnerId, type WorkspaceSummary } from "../domain/workspace/workspace";
 import { ownerKeyForEmail, type AuthIdentity } from "../security/auth";
 import { handleReviewStudyApi } from "./review-study";
+import { readReviewJson, ReviewRequestTooLargeError } from "./review-request";
 import * as v from "valibot";
 
 const reviewTitleSchema = v.pipe(
@@ -526,7 +527,7 @@ async function reviewWorkflowProjectContext(
   const url = new URL(request.url);
   let requestedLinkId = url.searchParams.get("projectLinkId") ?? request.headers.get("x-kirjolab-project-link-id");
   if (!requestedLinkId && request.method === "POST" && url.pathname.endsWith("/synthesis/publish")) {
-    const value: unknown = await request.clone().json();
+    const value = await readReviewJson(request.clone());
     const input = v.safeParse(optionalProjectLinkSchema, value);
     if (input.success && input.output.projectLinkId) requestedLinkId = input.output.projectLinkId;
   }
@@ -563,7 +564,7 @@ async function reviewCatalogOwnerKey(identity: AuthIdentity, email: string): Pro
 }
 
 async function createReviewRequest(request: Request): Promise<{ title: string; profile: "slr" | "mlr" }> {
-  const value: unknown = await request.json();
+  const value = await readReviewJson(request);
   const input = v.safeParse(reviewCreationSchema, value);
   if (!input.success) throw new Error("Review creation request is invalid");
   const title = v.safeParse(reviewTitleSchema, input.output.title);
@@ -572,7 +573,7 @@ async function createReviewRequest(request: Request): Promise<{ title: string; p
 }
 
 async function updateReviewRequest(request: Request): Promise<{ title?: string; archived?: boolean }> {
-  const value: unknown = await request.json();
+  const value = await readReviewJson(request);
   const input = v.safeParse(reviewSettingsSchema, value);
   if (!input.success) {
     if (typeof value === "object" && value !== null && "profile" in value && value.profile !== undefined) {
@@ -584,14 +585,14 @@ async function updateReviewRequest(request: Request): Promise<{ title?: string; 
 }
 
 async function reviewMemberEmailRequest(request: Request): Promise<string> {
-  const value: unknown = await request.json();
+  const value = await readReviewJson(request);
   const input = v.safeParse(reviewMemberSchema, value);
   if (!input.success) throw new Error("Review member request is invalid");
   return normalizeReviewEmail(input.output.email);
 }
 
 async function projectLinkRequest(request: Request): Promise<string> {
-  const value: unknown = await request.json();
+  const value = await readReviewJson(request);
   const input = v.safeParse(reviewProjectLinkSchema, value);
   if (!input.success) throw new Error("Review project link request is invalid");
   return input.output.workspaceId;
@@ -599,13 +600,16 @@ async function projectLinkRequest(request: Request): Promise<string> {
 
 function reviewError(error: unknown): Response {
   const message = error instanceof Error ? error.message : "Review operation failed";
-  const status = /access denied|only the review owner|project access denied/iu.test(message)
-    ? 403
-    : /not found/iu.test(message)
-      ? 404
-      : /limit|conflict|already|cannot change|deleted|unavailable|active project link/iu.test(message)
-        ? 409
-        : 400;
+  const status =
+    error instanceof ReviewRequestTooLargeError
+      ? 413
+      : /access denied|only the review owner|project access denied/iu.test(message)
+        ? 403
+        : /not found/iu.test(message)
+          ? 404
+          : /limit|conflict|already|cannot change|deleted|unavailable|active project link/iu.test(message)
+            ? 409
+            : 400;
   return jsonError(message, status);
 }
 

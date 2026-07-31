@@ -77,6 +77,8 @@ Adopted boundaries are:
   adjudication, duplicate-resolution, quality-answer, extraction-value, and
   reassessment-completion schemas while concurrency, evidence parsing and
   authorization, actor identity, and Durable Object mutation remain explicit.
+  Review JSON body reading enforces byte limits on the stream instead of
+  trusting `Content-Length`.
 - Edit-capability file mutations: one request schema replaces the record,
   content, length, numeric, and safe-integer checks while bounded body reading,
   bearer and same-origin authorization, revision conflicts, and mutation error

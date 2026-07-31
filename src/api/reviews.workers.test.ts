@@ -28,6 +28,23 @@ interface TestProject {
 }
 
 describe("independent reviews API in the Workers runtime", () => {
+  it("rejects oversized chunked JSON before creating a review", async () => {
+    const owner = await testIdentity("oversized-review-request");
+    const response = await handleReviewsApi(
+      new Request("http://example.com/api/reviews", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ title: "x".repeat(2 * 1024 * 1024), profile: "slr" }),
+      }),
+      env,
+      owner,
+    );
+
+    expect(response.status).toBe(413);
+    await expect(response.json()).resolves.toEqual({ error: "Review API request is too large" });
+    await expect(env.REVIEW_CATALOGS.getByName(owner.ownerKey).listReviews()).resolves.toEqual([]);
+  });
+
   it("creates, lists, and reads reviews independently", async () => {
     const owner = await testIdentity("independent-owner");
     const systematic = await createReview(owner, "Systematic evidence", "slr");

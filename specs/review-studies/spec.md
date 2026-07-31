@@ -518,7 +518,9 @@ published deliberately into several writing projects.
 - One bibliographic import contains at most 20,000 records and 32 MiB of UTF-8
   input; the same 32 MiB byte bound applies cumulatively across a review's
   confirmed import batches. One review API JSON request is bounded to 2 MiB
-  unless an import route declares the larger boundary.
+  unless an import route declares the larger boundary. The server enforces
+  these limits while streaming the body rather than trusting `Content-Length`,
+  and rejects over-limit input with HTTP 413 before mutation.
 - Strings, identifiers, arrays, selectors, and exported cell values have
   explicit field-level limits in the domain guards.
 - Formula-looking CSV cells beginning with `=`, `+`, `-`, or `@` are escaped on
