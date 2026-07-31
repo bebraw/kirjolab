@@ -43,6 +43,10 @@ Projects link to stable library identities and assign project-local citation
 keys. Renaming a project alias updates project source without renaming or
 duplicating the library record.
 
+Duplicating a project or seeding one from retained history creates dependency
+rows for the destination project before its catalog entry becomes visible. A
+failed copy removes any partially registered destination dependencies.
+
 BibTeX becomes a derived interchange and export representation. Generated
 BibTeX uses project aliases and snapshots the relevant library metadata. Normal
 paper exports include only sources cited by the composed `main.md`; archival

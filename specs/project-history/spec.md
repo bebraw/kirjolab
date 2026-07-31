@@ -60,8 +60,10 @@ continues to use a narrow source revision for stale-selection checks.
   rewrites project-scoped research-share identity to the new workspace, and
   does not copy collaborators or milestones. Before the new workspace becomes
   visible, every retained project PDF and image is streamed into an independent
-  destination-scoped R2 key and revision-zero metadata is rewritten to those
-  keys. Partial copy failure leaves no catalog entry or copied binary objects.
+  destination-scoped R2 key, revision-zero metadata is rewritten to those keys,
+  and every copied library reference is registered in the owner dependency
+  ledger. Partial copy failure leaves no catalog entry, copied binary objects,
+  or dependency rows.
 - Diffs join files and PDFs by stable id. Text files report added/removed lines,
   path changes are renames, and composed `main.md` is compared at both
   endpoints. The composed comparison also reports before, after, and delta
@@ -118,6 +120,8 @@ continues to use a narrow source revision for stale-selection checks.
   source workspace id.
 - Seeded and duplicated projects must own independent R2 objects for every
   project PDF and image; deleting a copied binary must not affect its source.
+- Seeded and duplicated projects must register every copied library reference
+  against their new project identity so deletion impact remains authoritative.
 - Seed may retain historical materialized review artifacts and their provenance
   pins, but it must not copy the source project's live review links or grant
   access to any review.

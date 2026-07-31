@@ -48,6 +48,9 @@ memory and makes citation aliases compete with stable source identity.
   citation alias and a bounded bibliographic snapshot. Alias rename rewrites
   exact `:cite[...]`, `:citet[...]`, and `:citep[...]` keys across all project
   files in the same revision.
+- Project duplication and revision seeding register the destination project's
+  copied reference identities before publishing it. Failed copies remove any
+  partially registered dependency rows.
 - Project bibliography text is derived from linked snapshots. Normal export
   includes only aliases cited by composed `main.md`; archival export may use
   every explicit project link.

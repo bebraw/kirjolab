@@ -642,6 +642,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   scoped R2 objects for all project PDFs and images. Copy and re-key those
   binaries before publishing the destination catalog entry; never let a copied
   project's mutation delete or overwrite its source project's bytes.
+- Register every copied library reference under the duplicated or revision-
+  seeded project identity before publishing its catalog entry, and remove
+  partially registered dependency rows during copy cleanup.
 - Treat active project PDF and image deletion as a metadata transition. Retain
   project-scoped R2 objects while any logical revision references them,
   authorize downloads through current metadata, include historical binary keys

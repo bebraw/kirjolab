@@ -856,12 +856,24 @@ async function registerIndependentWorkspaceCopy(
   const copied = await copyWorkspaceBinaries(env.PAPERS, storageKey, binaries);
   const access = env.WORKSPACE_ACCESS.getByName(storageKey);
   const room = env.DOCUMENT_ROOMS.getByName(storageKey);
+  const library = env.REFERENCE_LIBRARIES.getByName(identity.ownerKey);
+  const registeredReferenceIds: string[] = [];
   try {
     await access.initializeOwner(identity.email);
     await room.seedFromRevision(workspaceId, title, revisionSeed, copied.replacements);
+    const snapshot = await room.getSnapshot(workspaceId);
+    for (const reference of snapshot.projectReferences) {
+      await library.registerProjectDependency(workspaceId, reference.referenceId);
+      registeredReferenceIds.push(reference.referenceId);
+    }
     return await catalog.registerWorkspace(workspaceId, title);
   } catch (error) {
-    const cleanup = [catalog.removeWorkspace(workspaceId), room.deleteWorkspaceData(), access.deleteWorkspaceAccess(identity.email)];
+    const cleanup: Promise<unknown>[] = [
+      catalog.removeWorkspace(workspaceId),
+      room.deleteWorkspaceData(),
+      access.deleteWorkspaceAccess(identity.email),
+      ...registeredReferenceIds.map(async (referenceId) => await library.unregisterProjectDependency(workspaceId, referenceId)),
+    ];
     if (copied.objectKeys.length > 0) cleanup.push(env.PAPERS.delete([...copied.objectKeys]));
     await Promise.allSettled(cleanup);
     throw error;

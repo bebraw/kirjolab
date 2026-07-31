@@ -1319,6 +1319,49 @@ test("retains deleted project binaries for revision restoration", async ({ page 
   expect(await restoredAssetResponse.body()).toEqual(imageBytes);
 });
 
+test("registers copied project reference dependencies", async ({ page }) => {
+  const workspaceId = await createWorkspace(page, "Reference dependency source");
+  const api = `/api/workspaces/${workspaceId}`;
+  const headers = { origin: "http://127.0.0.1:8788" };
+  const imported = await page.request.post(`${api}/bibliography/import`, {
+    headers,
+    data: {
+      bibtex: `@article{copydependency2026,
+        author = {Dependency, Ada},
+        title = {Copied Projects Retain Reference Guards},
+        year = {2026},
+        journal = {Journal of Project Integrity}
+      }`,
+    },
+  });
+  expect(imported.ok()).toBe(true);
+  const source = await readWorkspaceSnapshot(page, api);
+  const reference = source.projectReferences.find(({ citationAlias }) => citationAlias === "copydependency2026");
+  if (!reference) throw new Error("Expected a linked project reference");
+
+  const duplicateResponse = await page.request.post(`${api}/duplicate`, { headers, data: { title: "Reference duplicate" } });
+  expect(duplicateResponse.status()).toBe(201);
+  const duplicate: unknown = await duplicateResponse.json();
+  if (!isRecord(duplicate) || typeof duplicate.id !== "string") throw new Error("Expected a duplicate project");
+
+  const historyValue: unknown = await (await page.request.get(`${api}/history`)).json();
+  if (!Array.isArray(historyValue) || !isRecord(historyValue[0]) || typeof historyValue[0].revision !== "number") {
+    throw new Error("Expected project revision history");
+  }
+  const branchResponse = await page.request.post(`${api}/history/${historyValue[0].revision}/seed`, {
+    headers,
+    data: { title: "Reference branch" },
+  });
+  expect(branchResponse.status()).toBe(201);
+  const branch: unknown = await branchResponse.json();
+  if (!isRecord(branch) || typeof branch.id !== "string") throw new Error("Expected a revision project");
+
+  const impact: unknown = await (await page.request.get(`/api/library/references/${reference.referenceId}/deletion-impact`)).json();
+  if (!isRecord(impact) || !Array.isArray(impact.projectIds)) throw new Error("Expected reference deletion impact");
+  expect(impact.projectIds).toHaveLength(3);
+  expect(impact.projectIds).toEqual(expect.arrayContaining([workspaceId, duplicate.id, branch.id]));
+});
+
 test("keeps GitHub publish confirmation visible after refreshing sync state", async ({ page }) => {
   const workspaceId = await createWorkspace(page, "GitHub publish feedback");
   const api = `/api/workspaces/${workspaceId}/github-sync`;
