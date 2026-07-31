@@ -10,6 +10,12 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 
 - Keep Kirjolab's platform setup lightweight and reviewable. Preserve reusable
   maintenance conventions without weakening product-specific contracts.
+- Use the connected Cloudflare MCP as the current documentation, API-discovery,
+  and account-operation layer for Cloudflare work. Keep repository-local
+  `workers-best-practices` and `wrangler` guidance, and retain the
+  `durable-objects` skill while Durable Objects remain a product dependency.
+  Add other product-specific Cloudflare skills only with the capability that
+  needs them.
 - Organize browser and domain source by product capability once a source root
   contains multiple cohesive feature clusters. Keep browser entrypoints at
   `src/client/`, colocate implementations with their tests in the owning

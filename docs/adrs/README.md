@@ -33,6 +33,7 @@ No accepted ADRs are awaiting implementation.
 
 | ADR                                                                                       | Status               | Summary                                                                                                         |
 | ----------------------------------------------------------------------------------------- | -------------------- | --------------------------------------------------------------------------------------------------------------- |
+| [ADR-212](./implemented/ADR-212-use-cloudflare-mcp-as-platform-knowledge.md)              | Implemented          | Use Cloudflare MCP for current platform knowledge while retaining focused skills for adopted capabilities.      |
 | [ADR-211](./implemented/ADR-211-clean-only-disposable-local-state.md)                     | Implemented          | Clean reproducible local artifacts through a symlink-safe allowlist while preserving application state.         |
 | [ADR-210](./implemented/ADR-210-isolate-e2e-artifact-analysis.md)                         | Implemented          | Acknowledge artifact-analysis jobs only in disposable E2E state while keeping production execution enabled.     |
 | [ADR-209](./implemented/ADR-209-keep-workers-runtime-tests-local.md)                      | Implemented          | Disable remote binding sessions in Worker tests while marking production-only AI access explicitly remote.      |

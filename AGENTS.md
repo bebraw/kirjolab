@@ -67,6 +67,14 @@
   Linux-container parity investigation.
 - Skip local CI for documentation-only changes that do not alter executable behavior or workflow configuration.
 
+## Cloudflare
+
+- Use the connected Cloudflare MCP for current product documentation, API discovery, and account operations.
+- Use the project-local [`workers-best-practices`](./.codex/skills/workers-best-practices/SKILL.md) skill when authoring or reviewing Worker code.
+- Use the project-local [`wrangler`](./.codex/skills/wrangler/SKILL.md) skill before running Wrangler commands.
+- Retain the project-local [`durable-objects`](./.codex/skills/durable-objects/SKILL.md) skill while Kirjolab uses Durable Objects.
+- Add other product-specific Cloudflare skills only when Kirjolab adopts the corresponding product or workflow.
+
 ## Frontend Design
 
 - Use the project-local [`frontend-design`](./.codex/skills/frontend-design/SKILL.md) skill for substantial UI work such as page redesigns, component styling, app shells, and frontend experiments.

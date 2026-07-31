@@ -1,0 +1,10 @@
+{
+  "id": "2026-07-31-cloudflare-mcp-skill-baseline",
+  "title": "Use Cloudflare MCP with a focused skill baseline",
+  "status": "implemented",
+  "risk": "low",
+  "supersedes": [],
+  "adrs": ["docs/adrs/implemented/ADR-212-use-cloudflare-mcp-as-platform-knowledge.md"],
+  "touches": [".codex/skills/", ".github/skills/", "AGENTS.md", "ARCHITECTURE.md", "specs/"],
+  "checks": ["npm run format:check"]
+}

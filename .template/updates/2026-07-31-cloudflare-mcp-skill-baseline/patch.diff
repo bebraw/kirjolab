@@ -1,0 +1,7 @@
+diff --git a/ARCHITECTURE.md b/ARCHITECTURE.md
+--- a/ARCHITECTURE.md
++++ b/ARCHITECTURE.md
+@@ -17,3 +17,4 @@
+ ## Tooling Baseline
++- Use a connected Cloudflare MCP as the retrieval and account-operation layer for current Cloudflare product work. Keep `workers-best-practices` and `wrangler` in the baseline, and preserve product-specific skills only for capabilities the target actually uses.
+ - Node is pinned exactly through `package.json`, and npm is constrained to a compatible major there instead of an exact patch pin.
