@@ -12,8 +12,11 @@ delivery from a workflow execution failure.
 
 ## Fallback
 
-If manual dispatch also fails to create a run, inspect repository Actions
-permissions and the workflow's active state before changing job definitions.
+If automatic triggers create no runs, inspect the repository's Actions page as
+well as its API permissions. GitHub can show an **Enable Actions on this
+repository** control even while the API reports Actions and the workflow as
+enabled. If manual dispatch also fails, verify the workflow's active state
+before changing job definitions.
 
 ## Verify
 

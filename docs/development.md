@@ -188,6 +188,13 @@ type checking instead of replacing either tool.
 
 The GitHub Actions CI workflow splits fast checks, browser checks, and mutation checks into separate jobs, supports manual dispatch when an automatic push or pull-request trigger needs diagnosis, reads the pinned Node version from `package.json`, relies on the npm release bundled with that Node setup as long as it satisfies the repo's npm 11 constraint, runs repository-shape validation as part of the fast job, runs the browser job in the version-pinned Playwright container image `mcr.microsoft.com/playwright:v1.62.1-noble`, pins every `uses:` action reference to a full commit SHA, and cancels superseded runs on the same ref. The full `quality-mutation` workflow job is reserved for GitHub Actions with a `github.server_url` guard; use `npm run mutation:incremental` or `npm run mutation` explicitly when local mutation feedback is needed. Dependency installation uses plain `npm ci`. Optional Agent CI 0.17.1 container parity explicitly prewarms through the fast job's stable `install` step, then gives concurrent jobs isolated writable dependency views. Its wrapper consumes Agent CI's versioned JSON events and reports each job and step with elapsed time, including a heartbeat every 15 seconds.
 
+If authenticated pushes create no workflow runs even though the Actions API
+reports the repository and workflow as enabled, inspect the repository's Actions
+page. GitHub can still show a **Workflows aren't being run on this repository**
+banner with an **Enable Actions on this repository** control; enable it there,
+then verify the next push creates a `push` event run before configuring required
+status checks.
+
 Kirjolab's UI retains the Tailwind v4 pipeline inherited from
 `thesis-journey-tracker`: Tailwind input lives in `src/tailwind-input.css`,
 generated CSS is written to `.generated/styles.css`, and Wrangler runs
