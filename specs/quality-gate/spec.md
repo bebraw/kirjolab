@@ -198,6 +198,8 @@ failures quickly during normal development.
 - The Worker client-code guard must fail on inline script blocks without a `src`, inline event-handler attributes, and `javascript:` URLs in Worker/view runtime files while allowing external scripts from the typed client build.
 - The ADR registry guard must run in the fast gate and affected guardrails when
   ADR records, their index, or the validator change.
+- The ADR registry guard must reject lifecycle status text outside Proposed,
+  Accepted, Implemented, and explicit full or partial supersession forms.
 - The affected guardrail path must pass only affected Worker/view runtime files to the Worker client-code guard.
 - The affected guardrail path must run JavaScript syntax checks only for affected JavaScript files.
 - The affected guardrail path must run package audit only when package metadata or lockfiles change.

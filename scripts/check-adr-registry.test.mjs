@@ -47,3 +47,33 @@ test("reports mismatched headings, lifecycle metadata, dates, and broken ADR lin
     "implemented/ADR-010-right.md: broken ADR link to ADR-999-missing.md",
   ]);
 });
+
+test("rejects arbitrary implemented statuses", () => {
+  const invalid = record("011", "Invent Lifecycle", { status: "Banana" });
+  const index = `| [ADR-011](./implemented/${invalid.name}) | Banana | Summary |`;
+
+  assert.deepEqual(validateAdrRegistry([invalid], index), [
+    "implemented/ADR-011-invent-lifecycle.md: implemented ADR must have Accepted, Implemented, or a supersession status",
+  ]);
+});
+
+test("accepts linked, bare, multiline, and qualified supersession statuses", () => {
+  const records = [
+    record("012", "Linked", { status: "Superseded by [ADR-016](./ADR-016-successor.md)" }),
+    record("013", "Bare", { status: "Superseded by ADR-016" }),
+    record("014", "Partial", { status: "Partially superseded by [ADR-016](./ADR-016-successor.md)" }),
+    record("015", "Qualified", {
+      status: "Implemented; model candidate scope superseded by [ADR-016](./ADR-016-successor.md)",
+    }),
+    record("016", "Successor"),
+  ];
+  records.push({
+    ...record("017", "Multiline"),
+    content: "# ADR-017: Multiline\n\n**Status:** Partially superseded by\n[ADR-016](./ADR-016-successor.md)\n\n**Date:** 2026-07-30\n",
+  });
+  const index = records
+    .map(({ directory, name }) => `| [${name.slice(0, 7)}](./${directory}/${name}) | Implemented | Summary |`)
+    .join("\n");
+
+  assert.deepEqual(validateAdrRegistry(records, index), []);
+});

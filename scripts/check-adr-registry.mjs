@@ -72,7 +72,21 @@ function statusErrors(record) {
   if (record.directory === "proposed" && status !== "Proposed") return [`${path}: proposed ADR must have Proposed status`];
   if (record.directory === "accepted" && status !== "Accepted") return [`${path}: accepted ADR must have Accepted status`];
   if (record.directory === "implemented" && status === "Proposed") return [`${path}: implemented ADR cannot have Proposed status`];
+  if (record.directory === "implemented" && !isImplementedStatus(status, record.content)) {
+    return [`${path}: implemented ADR must have Accepted, Implemented, or a supersession status`];
+  }
   return [];
+}
+
+function isImplementedStatus(status, content) {
+  if (status === "Accepted" || status === "Implemented") return true;
+  const target = String.raw`(?:ADR-\d{3}|\[ADR-\d{3}\]\(\.\/ADR-\d{3}-[a-z0-9-]+\.md\))`;
+  const targets = String.raw`${target}(?: and ${target})*`;
+  if (new RegExp(String.raw`^(?:Partially superseded by|Superseded by) ${targets}$`, "u").test(status)) return true;
+  if (/^(?:Partially superseded by|Superseded by)$/u.test(status)) {
+    return new RegExp(String.raw`^\*\*Status:\*\* ${status}\n${target}`, "mu").test(content);
+  }
+  return new RegExp(String.raw`^Implemented; [a-z0-9 -]+ superseded by ${targets}$`, "iu").test(status);
 }
 
 function dateErrors(record, id) {
