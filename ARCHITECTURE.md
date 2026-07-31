@@ -1854,6 +1854,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   production preflight must all disable Wrangler's automatic `.env` and
   `.dev.vars` discovery so machine-local values cannot enter the committed
   declaration or make its freshness environment-dependent.
+- Keep committed Wrangler authentication variables fail-closed for hosted use:
+  `AUTH_MODE=local` with blank Access values. The repository-owned production
+  deploy command alone supplies `AUTH_MODE=access`, the exact team domain, and
+  audience after validating the protected custom hostname.
 
 ## Capability Kits
 

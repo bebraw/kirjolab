@@ -23,6 +23,14 @@ test("keeps Worker tests local while declaring production AI access remote", asy
   assert.match(wranglerConfig, /"ai":\s*\{\s*"binding":\s*"AI",\s*"remote":\s*true\s*\}/u);
 });
 
+test("keeps bare Wrangler deploys fail-closed behind local auth defaults", async () => {
+  const wranglerConfig = await readFile(new URL("../wrangler.jsonc", import.meta.url), "utf8");
+
+  assert.match(wranglerConfig, /"AUTH_MODE":\s*"local"/u);
+  assert.match(wranglerConfig, /"ACCESS_TEAM_DOMAIN":\s*""/u);
+  assert.match(wranglerConfig, /"ACCESS_AUD":\s*""/u);
+});
+
 test("isolates E2E runs from artifact-analysis browser jobs", async () => {
   const [server, wranglerConfig] = await Promise.all([
     readFile(new URL("./run-e2e-server.mjs", import.meta.url), "utf8"),

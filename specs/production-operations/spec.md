@@ -14,6 +14,10 @@ rollback workflow without adding a second identity system.
 - A production deploy preflight supplies `AUTH_MODE=access`, the exact team
   domain, application audience, and protected custom hostname. Local development
   remains an explicit loopback-only command.
+- Committed Wrangler variables remain `AUTH_MODE=local` with blank Access
+  values, so a bare `wrangler deploy` is safely unusable on a public hostname.
+  Only the repository-owned production command supplies hosted identity values
+  after its preflight passes.
 - SQLite Durable Object PITR is the exact short-window recovery mechanism.
 - One SQLite-backed backup coordinator registers authenticated owners, records
   recovery bookmarks, builds owner-scoped logical snapshots, and stores backup

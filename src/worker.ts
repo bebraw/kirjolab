@@ -298,7 +298,7 @@ async function handleStaticRequest(request: Request, url: URL, env: Env | undefi
     return await loadBrowserRuntimeAsset(request, env);
   }
   if (url.pathname === "/api/health") {
-    const deployment = env?.AUTH_MODE === "access" ? env.CF_VERSION_METADATA : null;
+    const deployment = env && String(env.AUTH_MODE) === "access" ? env.CF_VERSION_METADATA : null;
     return createHealthResponse(
       exampleRoutes.map((route) => route.path),
       deployment,
