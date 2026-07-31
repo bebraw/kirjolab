@@ -1,14 +1,17 @@
-# Feature: Scholarly Workspace Vertical Slice
+# Feature: Scholarly Workspace
 
 ## Blueprint
 
 ### Context
 
-Kirjolab needs to prove one complete scholarly loop before expanding into a
-general editor or reference manager. A researcher must be able to move evidence
-from an immutable PDF into an anchored annotation, connect it to manuscript
-text, ask a local model for a grounded revision, review the candidate, and
-export portable source.
+Kirjolab coordinates collaborative writing projects, an owner-private reference
+library, and independent systematic or multivocal reviews. Its original
+evidence-to-prose vertical slice remains the core end-to-end proof: a researcher
+can move evidence from immutable PDF bytes into an anchored annotation, connect
+it to manuscript text, ask a local model for a grounded revision, review the
+candidate, and export portable source. This umbrella specifies how those
+capabilities meet in one product shell; feature-domain specs remain
+authoritative for their detailed behavior and bounds.
 
 The compatible `demo` workspace remains the default active catalog entry, while
 authorized projects open canonically at `/editor/{workspaceId}`. `/editor`
@@ -16,6 +19,20 @@ redirects to the first active project. `/` is now the application dashboard and
 does not bootstrap a workspace. The current editor supports loopback local
 identity and a fail-closed Cloudflare Access mode for authenticated hosted
 collaboration.
+
+### Contract Map
+
+- Project composition and binary assets: [`specs/project-composition/spec.md`](../project-composition/spec.md)
+- Project revision history: [`specs/project-history/spec.md`](../project-history/spec.md)
+- Owner-private research memory: [`specs/reference-library/spec.md`](../reference-library/spec.md)
+- Independent review resources and workflows: [`specs/review-studies/spec.md`](../review-studies/spec.md)
+- Publication representations: [`specs/export-pipeline/spec.md`](../export-pipeline/spec.md)
+- Identity, membership, and capability access: [`specs/workspace-access/spec.md`](../workspace-access/spec.md)
+- Production release and recovery: [`specs/production-operations/spec.md`](../production-operations/spec.md)
+- Readiness gates: [`specs/quality-gate/spec.md`](../quality-gate/spec.md)
+
+When this umbrella summarizes a domain contract, the linked feature spec owns
+the precise route, validation, persistence, and regression requirements.
 
 ### Architecture
 
@@ -868,7 +885,7 @@ collaboration.
 - `PATCH /api/workspaces/demo/files/{fileId}` renames it and atomically updates
   inbound include paths.
 - `DELETE /api/workspaces/demo/files/{fileId}` deletes an unreferenced
-  supporting file; the root `main.md` cannot be renamed or deleted.
+  file; the selected entry file must first be replaced by another project file.
 - `GET /api/workspaces/demo/pdfs/{id}` streams an imported PDF, forwarding HTTP
   byte ranges and object preconditions to R2 for bounded reader requests and
   ETag validation.
@@ -924,6 +941,10 @@ collaboration.
 - `POST /api/workspaces/demo/history/{revision}/milestones` immutably names an
   exact revision. Owner-only `restore` creates a new head and owner-only `seed`
   creates a new isolated workspace from the retained state.
+- `GET /api/reviews` and `POST /api/reviews` list or create independent SLR/MLR resources;
+  `/api/reviews/{id}` owns settings, membership, project links, and the bounded
+  protocol, search, screening, quality, extraction, finding, synthesis, and
+  export workflow defined in `specs/review-studies/spec.md`.
 - `GET /api/workspaces/{id}/export/*` exposes the source-mapped publication
   representations defined in `specs/export-pipeline/spec.md`, including
   composed Markdown, cited BibTeX, LaTeX ZIP, bounded PDF, source ZIP,
@@ -1140,6 +1161,9 @@ collaboration.
       local minimal `Y.Text` splice and preserves surrounding anchors.
 - [x] One source-mapped Markdown, BibTeX, LaTeX, PDF, statistics, diagnostics,
       and archive export boundary without private library state.
+- [x] Independent SLR and MLR resources retain their own access, protocol,
+      search, screening, quality, extraction, finding, and synthesis authority
+      while linking explicitly to zero or more writing projects.
 - [x] Unit coverage and browser tests exercise the critical workflow.
 
 ### Regression Guardrails
@@ -1398,7 +1422,9 @@ collaboration.
 
 **Scenario: Researcher exports portable work**
 
-- Given: the manuscript and bibliography have been edited collaboratively
-- When: the researcher requests both export endpoints
-- Then: plain Markdown and BibTeX downloads are returned without Yjs or private
-  runtime state
+- Given: the composed manuscript and derived bibliography have been edited
+  collaboratively
+- When: the researcher requests a supported publication or archive export
+- Then: the shared source-mapped pipeline returns Markdown, cited BibTeX,
+  LaTeX, PDF, source bundle, diagnostics, intermediate data, or statistics as
+  requested without Yjs or owner-private library state
