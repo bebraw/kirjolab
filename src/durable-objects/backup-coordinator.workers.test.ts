@@ -131,11 +131,19 @@ describe("BackupCoordinator in the Workers runtime", () => {
     expect(unchanged).toMatchObject({ outcome: "unchanged", digest: created.digest, manifestKey: created.manifestKey, error: null });
     expect(await backupArtifactCount(ownerKey)).toBe(artifactCount);
 
+    await room.deletePdf(pdfId);
     await room.renameWorkspace("Changed backup fixture");
     const changed = await coordinator.runOwnerBackup(ownerKey, ownerEmail);
     expect(changed).toMatchObject({ outcome: "created", error: null });
     expect(changed.digest).not.toBe(created.digest);
     expect(changed.manifestKey).not.toBe(created.manifestKey);
+    const changedManifestObject = await env.PAPERS.get(changed.manifestKey!);
+    if (!changedManifestObject) throw new Error("Expected a changed backup manifest");
+    const changedManifest = parseOwnerBackupManifest(await changedManifestObject.text());
+    expect(changedManifest.state.workspaces[0]?.snapshot.pdfs).toEqual([]);
+    expect(changedManifest.binaries).toEqual([
+      expect.objectContaining({ sourceKey, size: 11, backupKey: expect.stringMatching(`^backups/blobs/${ownerKey}/`) }),
+    ]);
 
     const drill = await coordinator.runRecoveryDrill(ownerKey);
     expect(drill).toMatchObject({

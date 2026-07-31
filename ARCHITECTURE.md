@@ -642,6 +642,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   scoped R2 objects for all project PDFs and images. Copy and re-key those
   binaries before publishing the destination catalog entry; never let a copied
   project's mutation delete or overwrite its source project's bytes.
+- Treat active project PDF and image deletion as a metadata transition. Retain
+  project-scoped R2 objects while any logical revision references them,
+  authorize downloads through current metadata, include historical binary keys
+  in owner backups, and reclaim the full prefix only on permanent project
+  deletion.
 - Let the Preview DOM adapter resolve safe relative Markdown image targets
   through canonical file/source-map and authorized asset inputs. Keep hidden
   deletion state and workspace authorization in the application coordinator.

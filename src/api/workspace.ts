@@ -422,8 +422,8 @@ async function handleWorkspaceProjectPdfRoutes(context: WorkspaceRouteContext): 
   if (suffix === "/pdfs" && request.method === "POST") return await uploadPdf(request, storageKey, env, room);
   if (!suffix.startsWith("/pdfs/")) return null;
   const artifactId = suffix.slice("/pdfs/".length);
-  if (request.method === "GET") return await downloadPdf(request, storageKey, artifactId, env);
-  if (request.method === "DELETE") return await deletePdf(storageKey, artifactId, env, room);
+  if (request.method === "GET") return await downloadPdf(request, artifactId, env, room);
+  if (request.method === "DELETE") return await deletePdf(artifactId, room);
   return null;
 }
 
@@ -447,7 +447,7 @@ async function handleWorkspaceAssetRoutes(context: WorkspaceRouteContext): Promi
   if (!suffix.startsWith("/assets/")) return null;
   const assetId = suffix.slice("/assets/".length);
   if (request.method === "GET") return await downloadProjectAsset(assetId, env, room);
-  if (request.method === "DELETE") return await deleteProjectAsset(workspaceId, assetId, env, room);
+  if (request.method === "DELETE") return await deleteProjectAsset(workspaceId, assetId, room);
   return null;
 }
 
@@ -1087,10 +1087,17 @@ async function uploadPdf(
   return Response.json(pdf, { status: 201 });
 }
 
-async function downloadPdf(request: Request, workspaceId: string, pdfId: string, env: Env): Promise<Response> {
+async function downloadPdf(
+  request: Request,
+  pdfId: string,
+  env: Env,
+  room: DurableObjectStub<import("../durable-objects/document-room").DocumentRoom>,
+): Promise<Response> {
   if (!/^[0-9a-f-]{36}$/iu.test(pdfId)) return jsonError("PDF not found", 404);
+  const pdf = await room.getActivePdf(pdfId);
+  if (!pdf) return jsonError("PDF not found", 404);
   return (
-    (await downloadR2Object(request, env.PAPERS, `${workspaceId}/${pdfId}.pdf`, {
+    (await downloadR2Object(request, env.PAPERS, pdf.objectKey, {
       cacheControl: "private, max-age=300",
       contentDisposition: "inline",
     })) ?? jsonError("PDF not found", 404)
@@ -1098,14 +1105,11 @@ async function downloadPdf(request: Request, workspaceId: string, pdfId: string,
 }
 
 async function deletePdf(
-  workspaceId: string,
   pdfId: string,
-  env: Env,
   room: DurableObjectStub<import("../durable-objects/document-room").DocumentRoom>,
 ): Promise<Response> {
   if (!/^[0-9a-f-]{36}$/iu.test(pdfId)) return jsonError("PDF not found", 404);
-  const pdf = await room.deletePdf(pdfId);
-  await env.PAPERS.delete(pdf.objectKey || `${workspaceId}/${pdfId}.pdf`);
+  await room.deletePdf(pdfId);
   return new Response(null, { status: 204 });
 }
 
@@ -1172,7 +1176,8 @@ async function downloadProjectAsset(
   room: DurableObjectStub<import("../durable-objects/document-room").DocumentRoom>,
 ): Promise<Response> {
   if (!/^[0-9a-f-]{36}$/iu.test(assetId)) return jsonError("Project image not found", 404);
-  const asset = await room.getProjectAsset(assetId);
+  const asset = await room.getActiveProjectAsset(assetId);
+  if (!asset) return jsonError("Project image not found", 404);
   const object = await env.PAPERS.get(asset.objectKey);
   if (!object) return jsonError("Project image not found", 404);
   const headers = new Headers({
@@ -1193,13 +1198,10 @@ async function downloadProjectAsset(
 async function deleteProjectAsset(
   workspaceId: string,
   assetId: string,
-  env: Env,
   room: DurableObjectStub<import("../durable-objects/document-room").DocumentRoom>,
 ): Promise<Response> {
   if (!/^[0-9a-f-]{36}$/iu.test(assetId)) return jsonError("Project image not found", 404);
-  const asset = await room.getProjectAsset(assetId);
   const snapshot = await room.deleteProjectAsset(workspaceId, assetId);
-  await env.PAPERS.delete(asset.objectKey);
   return Response.json(snapshot);
 }
 

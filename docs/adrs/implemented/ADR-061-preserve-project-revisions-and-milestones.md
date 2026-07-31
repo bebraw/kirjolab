@@ -39,6 +39,12 @@ diffs between retained revisions. Text files receive semantic text diffs.
 Binary files initially receive side-by-side inspection with content identity,
 size, type, dimensions or page count, and metadata changes.
 
+Deleting a current project PDF or image removes its active SQLite metadata but
+does not delete its project-scoped R2 object while retained history can still
+restore it. Current download routes authorize through active metadata, so
+retained historical bytes are not exposed as current resources. Permanent
+project deletion reclaims the complete project object prefix.
+
 Every user-visible logical revision and named milestone is retained indefinitely
 unless the project owner explicitly removes eligible history. Internal CRDT
 updates and storage deltas may be compacted only when exact retained content,
@@ -80,6 +86,8 @@ diffs as requirements for revisiting publication milestones.
   one visible revision per keystroke.
 - Removing an active file creates a revision; it does not erase that file from
   earlier retained history.
+- Owner backups copy binaries referenced only by retained project revisions as
+  well as binaries present in the current snapshot.
 
 ## Alternatives Considered
 

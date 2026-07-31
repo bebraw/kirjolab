@@ -69,6 +69,12 @@ continues to use a narrow source revision for stale-selection checks.
   and fingerprint changes.
 - Logical history and named milestones are retained indefinitely. This slice
   exposes no automatic pruning or milestone mutation.
+- Removing a current project PDF or image removes only its active SQLite
+  metadata. Project-scoped R2 bytes remain retained while any logical revision
+  references them, current downloads authorize through active metadata, and
+  permanent project deletion reclaims the complete project object prefix.
+- Owner backups include the R2 keys referenced by retained revisions even when
+  those binaries are absent from the current snapshot.
 
 ### API Contracts
 
@@ -105,6 +111,9 @@ continues to use a narrow source revision for stale-selection checks.
 - Comment creation and resolution must create distinct resource revisions while
   leaving the manuscript concurrency revision unchanged.
 - Restore must preserve every older revision and milestone.
+- Deleted PDFs and images must return 404 from current resource routes, restore
+  with their original bytes from an older revision, and remain covered by the
+  immutable backup binary ledger.
 - Seed must not inherit workspace membership or point research shares at the
   source workspace id.
 - Seeded and duplicated projects must own independent R2 objects for every

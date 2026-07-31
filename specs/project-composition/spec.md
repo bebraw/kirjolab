@@ -291,8 +291,10 @@ collaborative, and unambiguous about what preview and export mean.
   project. SVG must pass the active-content and external-resource validator.
 - `GET /api/workspaces/{id}/assets/{assetId}` authorizes through workspace
   membership and serves the image with its stored media type and `nosniff`.
-- `DELETE /api/workspaces/{id}/assets/{assetId}` removes current metadata and
-  stored bytes. The `figures/` folder itself cannot be moved or deleted.
+- `DELETE /api/workspaces/{id}/assets/{assetId}` removes current metadata while
+  retaining stored bytes referenced by project history. The inactive asset is
+  no longer downloadable; permanent project deletion reclaims its bytes. The
+  `figures/` folder itself cannot be moved or deleted.
 - Passage-link and model-candidate inputs carry `fileId`; persisted selectors
   retain it with their Yjs relative positions.
 

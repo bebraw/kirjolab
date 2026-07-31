@@ -1268,6 +1268,57 @@ test("copies project binaries into independent duplicate and revision projects",
   }
 });
 
+test("retains deleted project binaries for revision restoration", async ({ page }) => {
+  const workspaceId = await createWorkspace(page, "Binary history retention");
+  const api = `/api/workspaces/${workspaceId}`;
+  const headers = { origin: "http://127.0.0.1:8788" };
+  const pdfBytes = createEvidencePdf("A retained project PDF.");
+  const uploadedPdf = await page.request.post(`${api}/pdfs`, {
+    headers: { ...headers, "content-type": "application/pdf", "x-file-name": "retained.pdf" },
+    data: pdfBytes,
+  });
+  expect(uploadedPdf.status()).toBe(201);
+  const pdfValue: unknown = await uploadedPdf.json();
+  if (!isRecord(pdfValue) || typeof pdfValue.id !== "string") throw new Error("Expected an uploaded project PDF");
+
+  const imageBytes = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=", "base64");
+  const uploadedImage = await page.request.post(`${api}/assets`, {
+    headers: {
+      ...headers,
+      "content-type": "image/png",
+      "x-file-path": encodeURIComponent("figures/retained.png"),
+    },
+    data: imageBytes,
+  });
+  expect(uploadedImage.status()).toBe(201);
+  const retained = await readWorkspaceSnapshot(page, api);
+  const retainedPdf = retained.pdfs.find(({ id }) => id === pdfValue.id);
+  const retainedAsset = retained.assets.find(({ path }) => path === "figures/retained.png");
+  if (!retainedPdf || !retainedAsset) throw new Error("Expected retained project binaries");
+  const historyValue: unknown = await (await page.request.get(`${api}/history`)).json();
+  if (!Array.isArray(historyValue) || !isRecord(historyValue[0]) || typeof historyValue[0].revision !== "number") {
+    throw new Error("Expected project revision history");
+  }
+  const retainedRevision = historyValue[0].revision;
+
+  expect((await page.request.delete(`${api}/pdfs/${retainedPdf.id}`, { headers })).status()).toBe(204);
+  expect((await page.request.delete(`${api}/assets/${retainedAsset.id}`, { headers })).ok()).toBe(true);
+  expect((await page.request.get(`${api}/pdfs/${retainedPdf.id}`)).status()).toBe(404);
+  expect((await page.request.get(`${api}/assets/${retainedAsset.id}`)).status()).toBe(404);
+
+  const restored = await page.request.post(`${api}/history/${retainedRevision}/restore`, {
+    headers,
+    data: {},
+  });
+  expect(restored.ok()).toBe(true);
+  const restoredPdfResponse = await page.request.get(`${api}/pdfs/${retainedPdf.id}`);
+  expect(restoredPdfResponse.ok()).toBe(true);
+  expect(await restoredPdfResponse.body()).toEqual(pdfBytes);
+  const restoredAssetResponse = await page.request.get(`${api}/assets/${retainedAsset.id}`);
+  expect(restoredAssetResponse.ok()).toBe(true);
+  expect(await restoredAssetResponse.body()).toEqual(imageBytes);
+});
+
 test("keeps GitHub publish confirmation visible after refreshing sync state", async ({ page }) => {
   const workspaceId = await createWorkspace(page, "GitHub publish feedback");
   const api = `/api/workspaces/${workspaceId}/github-sync`;

@@ -897,12 +897,18 @@ export class DocumentRoom extends DurableObject<Env> {
     };
   }
 
-  async getBackupSnapshot(workspaceId: string): Promise<{ snapshot: WorkspaceSnapshot; revisionSeed: string; bookmark: string | null }> {
+  async getBackupSnapshot(workspaceId: string): Promise<{
+    snapshot: WorkspaceSnapshot;
+    revisionSeed: string;
+    retainedBinaryObjectKeys: string[];
+    bookmark: string | null;
+  }> {
     const snapshot = this.getSnapshot(workspaceId);
     const revisionSeed = this.getHeadRevisionSeed();
     return {
       snapshot,
       revisionSeed,
+      retainedBinaryObjectKeys: this.#retainedBinaryObjectKeys(snapshot),
       bookmark: await currentRecoveryBookmark(this.ctx.storage, this.env.AUTH_MODE),
     };
   }
@@ -2296,6 +2302,10 @@ export class DocumentRoom extends DurableObject<Env> {
     return asset;
   }
 
+  getActiveProjectAsset(assetId: string): ProjectAsset | null {
+    return this.#projectAssets().find((item) => item.id === assetId) ?? null;
+  }
+
   deleteProjectAsset(workspaceId: string, assetId: string): WorkspaceSnapshot {
     this.getProjectAsset(assetId);
     const persisted = this.#persistDocument(
@@ -2378,6 +2388,10 @@ export class DocumentRoom extends DurableObject<Env> {
       );
     });
     return pdf;
+  }
+
+  getActivePdf(pdfId: string): PdfResource | null {
+    return this.#pdfs().find((item) => item.id === pdfId) ?? null;
   }
 
   deletePdf(pdfId: string): PdfResource {
@@ -3219,6 +3233,19 @@ export class DocumentRoom extends DurableObject<Env> {
     return (
       this.ctx.storage.sql.exec<GitHubProjectBindingRow>("SELECT * FROM github_project_binding WHERE singleton = 1").toArray()[0] ?? null
     );
+  }
+
+  #retainedBinaryObjectKeys(snapshot: WorkspaceSnapshot): string[] {
+    const keys = new Set<string>([
+      ...snapshot.pdfs.map(({ objectKey }) => objectKey),
+      ...snapshot.assets.map(({ objectKey }) => objectKey),
+    ]);
+    for (const row of this.ctx.storage.sql.exec<ProjectRevisionRow>("SELECT * FROM project_revisions").toArray()) {
+      const revision = parseStoredProjectRevision(row.snapshot_json);
+      for (const pdf of revisionRows(revision, "pdfs")) keys.add(sqlString(pdf, "object_key"));
+      for (const asset of revisionRows(revision, "project_assets")) keys.add(sqlString(asset, "object_key"));
+    }
+    return [...keys].sort();
   }
 
   #githubTrackedFiles(): GitHubSyncBaseFile[] {

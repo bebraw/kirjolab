@@ -27,7 +27,7 @@ For each owner, the coordinator will read the owner catalog and private library,
 include only workspaces where that identity is the recorded owner, and collect
 the current project snapshot, revision seed, membership, library state, and
 PITR bookmarks for each authoritative Durable Object. It will also collect every
-R2 key referenced by those snapshots.
+R2 key referenced by those snapshots or by retained project revisions.
 
 The coordinator will compute a canonical digest that excludes observation time
 and PITR bookmark churn. If it equals the previous successful digest, the run

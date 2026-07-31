@@ -251,8 +251,8 @@ export class BackupCoordinator extends DurableObject<Env> {
   async #backupOwner(owner: OwnerRow): Promise<OwnerBackupStatus> {
     const checkedAt = new Date().toISOString();
     try {
-      const { state, recovery } = await this.#ownerState(owner);
-      const binaries = await this.#binaryObjects(state);
+      const { state, recovery, retainedBinaryObjectKeys } = await this.#ownerState(owner);
+      const binaries = await this.#binaryObjects(state, retainedBinaryObjectKeys);
       for (const binary of binaries) await this.#ensureBinaryCopy(binary);
       const digest = await ownerBackupDigest(state, binaries);
       const previous = this.getStatus(owner.owner_key);
@@ -293,7 +293,11 @@ export class BackupCoordinator extends DurableObject<Env> {
     }
   }
 
-  async #ownerState(owner: OwnerRow): Promise<{ state: OwnerBackupState; recovery: OwnerBackupRecovery }> {
+  async #ownerState(owner: OwnerRow): Promise<{
+    state: OwnerBackupState;
+    recovery: OwnerBackupRecovery;
+    retainedBinaryObjectKeys: string[];
+  }> {
     const catalog = this.env.WORKSPACE_CATALOGS.getByName(owner.owner_key);
     const reviewCatalog = this.env.REVIEW_CATALOGS.getByName(owner.owner_key);
     const library = this.env.REFERENCE_LIBRARIES.getByName(owner.owner_key);
@@ -315,6 +319,7 @@ export class BackupCoordinator extends DurableObject<Env> {
     const reviewCatalogBackup = await reviewCatalog.getBackupSnapshot();
 
     const workspaces: OwnerWorkspaceBackup[] = [];
+    const retainedBinaryObjectKeys = new Set<string>();
     const recoveryWorkspaces: OwnerBackupRecovery["workspaces"][number][] = [];
     for (const summary of catalogBackup.workspaces) {
       const storageKey = summary.id === "demo" ? `${owner.owner_key}:demo` : summary.id;
@@ -328,6 +333,7 @@ export class BackupCoordinator extends DurableObject<Env> {
         snapshot: documentBackup.snapshot,
         revisionSeed: documentBackup.revisionSeed,
       });
+      for (const objectKey of documentBackup.retainedBinaryObjectKeys) retainedBinaryObjectKeys.add(objectKey);
       recoveryWorkspaces.push({
         workspaceId: summary.id,
         access: accessBackup.bookmark,
@@ -382,13 +388,15 @@ export class BackupCoordinator extends DurableObject<Env> {
         reviewCatalog: reviewCatalogBackup.bookmark,
         reviews: recoveryReviews,
       },
+      retainedBinaryObjectKeys: [...retainedBinaryObjectKeys].sort(),
     };
   }
 
-  async #binaryObjects(state: OwnerBackupState): Promise<BackupBinaryObject[]> {
+  async #binaryObjects(state: OwnerBackupState, retainedBinaryObjectKeys: readonly string[]): Promise<BackupBinaryObject[]> {
     const workspaceIds = state.workspaces.map((workspace) => workspace.summary.id);
     const binaries: BackupBinaryObject[] = [];
-    for (const sourceKey of referencedBinaryKeys(state)) {
+    const sourceKeys = new Set([...referencedBinaryKeys(state), ...retainedBinaryObjectKeys]);
+    for (const sourceKey of [...sourceKeys].sort()) {
       if (!isOwnedBinaryKey(state.ownerKey, workspaceIds, sourceKey)) throw new Error("Backup source key is outside owner scope");
       const source = await this.env.PAPERS.head(sourceKey);
       if (!source) throw new Error("A referenced backup source is missing");
