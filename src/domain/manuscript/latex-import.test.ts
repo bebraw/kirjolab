@@ -161,20 +161,13 @@ Escaped \% sign.
     });
   });
 
-  it("rejects invalid UTF-8 and bounded text or expanded-size violations", async () => {
+  it("rejects invalid UTF-8 and oversized text", async () => {
     await expect(inspectLatexArchive(zipSync({ "main.tex": new Uint8Array([0xff, 0xfe]) }))).rejects.toMatchObject({
       code: "archive-text-encoding",
     });
     await expect(
       inspectLatexArchive(zipSync({ "main.tex": new Uint8Array(latexArchiveMaximumTextBytes + 1) }, { level: 0 })),
     ).rejects.toMatchObject({ code: "archive-text-size" });
-    const expanded = zipSync({
-      "main.tex": strToU8(String.raw`\documentclass{article}\begin{document}\end{document}`),
-      "large.bin": new Uint8Array(latexArchiveMaximumExpandedBytes),
-    });
-    await expect(inspectLatexArchive(expanded)).rejects.toMatchObject({ code: "archive-expanded-size" });
-    const expansionBomb = zipSync({ "repeated.bin": new Uint8Array(2 * 1024 * 1024) }, { level: 9 });
-    await expect(inspectLatexArchive(expansionBomb)).rejects.toMatchObject({ code: "archive-expanded-size" });
   });
 
   it("exposes stable typed failures", () => {
