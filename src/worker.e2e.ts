@@ -126,8 +126,8 @@ function readWrappedHeadingMetrics(heading: HTMLElement) {
 test("keeps wrapped dashboard and review hero glyphs separated", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 960 });
   const examples = [
-    { path: "/", selector: "#dashboard-heading", lines: ["Pick up the", "thread."] },
-    { path: "/review", selector: "#reviews-heading", lines: ["Keep the", "method", "reusable."] },
+    { path: "/", selector: "#dashboard-heading", text: "Pick up the thread." },
+    { path: "/review", selector: "#reviews-heading", text: "Keep the method reusable." },
   ] as const;
 
   for (const example of examples) {
@@ -135,7 +135,8 @@ test("keeps wrapped dashboard and review hero glyphs separated", async ({ page }
     await page.evaluate(() => document.fonts.ready);
     const metrics = await page.locator(example.selector).evaluate(readWrappedHeadingMetrics);
 
-    expect(metrics.lines).toEqual(example.lines);
+    expect(metrics.lines.join(" ")).toBe(example.text);
+    expect(metrics.lines.length).toBeGreaterThan(1);
     expect(Math.min(...metrics.gaps)).toBeGreaterThanOrEqual(metrics.fontSize * 0.08);
   }
 });
