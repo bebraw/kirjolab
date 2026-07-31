@@ -12,6 +12,10 @@ failures quickly during normal development.
 
 - **Fast gate:** `npm run quality:gate:fast`
 - **Workers runtime gate:** `npm run test:workers`
+  The multi-step GitHub OAuth and installation lifecycle scenario has an
+  explicit 15-second timeout because concurrent Workers isolates on the pinned
+  Node runtime can exceed Vitest's 5-second unit default; all other Workers
+  scenarios retain the default timeout.
 - **Workers test binding policy:** local Miniflare bindings with remote binding sessions disabled
 - **Affected guardrails:** `npm run quality:affected`
 - **Browser gate:** `npm run e2e`

@@ -36,6 +36,11 @@ Vitest configuration. `vitest.workers.config.mts` selects only
 affected-test discovery continue to use Node for pure domain and routing
 behavior.
 
+Retain Vitest's default five-second timeout for ordinary Workers scenarios.
+Give the multi-step GitHub OAuth and installation lifecycle scenario an explicit
+15-second timeout because concurrent isolates on the pinned Node runtime can
+exceed the unit default without hanging or failing behaviorally.
+
 Run Workers tests in a real local `workerd` runtime with isolated storage for
 each test. Address Durable Objects through configured bindings and use
 `cloudflare:test` utilities such as `runInDurableObject()` to seed and inspect

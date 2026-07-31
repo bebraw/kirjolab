@@ -99,7 +99,7 @@ describe("GitHub user connection API in the Workers runtime", () => {
     );
     expect(setup.status).toBe(302);
     expect(setup.headers.get("location")).toBe("https://kirjolab.test/?new=github&github=installed");
-  });
+  }, 15_000);
 
   it("rejects spoofed installation ids and deletes only the current owner's connection", async () => {
     const identity = testIdentity();
