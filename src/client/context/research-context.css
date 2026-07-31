@@ -276,6 +276,10 @@
     font: 0.68rem var(--font-sans);
   }
 
+  .context-pdf-panel[data-library-pdf="true"] .library-pdf-page-rail:has(.library-pdf-rail-menu[open]) {
+    overflow: visible;
+  }
+
   .context-pdf-panel[data-library-pdf="true"] :is(.pdf-search-panel, .pdf-navigation-panel) {
     left: 3.5rem;
     max-width: calc(100% - 3.5rem);

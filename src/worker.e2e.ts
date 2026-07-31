@@ -2747,6 +2747,7 @@ test("shares linked reference PDFs with members but not public links", async ({ 
   await expect(page.locator("#context-surface")).toBeVisible();
   const tabletReaderHeight = await page.locator("#paper-reader").evaluate((element) => element.getBoundingClientRect().height);
   await page.locator("#library-pdf-view-options").click();
+  await expect(page.locator(".library-pdf-page-rail")).toHaveCSS("overflow", "visible");
   const viewOptionsBounds = await page.getByRole("group", { name: "PDF view options" }).evaluate((menu) => {
     const readerBody = menu.closest(".context-pdf-body");
     if (!(readerBody instanceof HTMLElement)) throw new Error("Expected PDF view options inside the reader body");
