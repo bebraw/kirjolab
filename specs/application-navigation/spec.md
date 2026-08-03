@@ -84,7 +84,10 @@ entries.
   content remains unambiguous to assistive technology.
 - Active-destination styling and accessible names identify the current task.
   Compact layouts keep every destination reachable without introducing page
-  overflow or obscuring the active task's contextual controls.
+  overflow or obscuring the active task's contextual controls. In a compact
+  desktop workspace header, the project selector yields width before the
+  non-wrapping primary navigation and keeps its selected title contained
+  within the control.
 - Unknown browser routes retain the shared responsive not-found experience and
   provide a direct return to the dashboard.
 - Network-first offline authoring recognizes canonical editor routes. The
@@ -165,6 +168,8 @@ entries.
   review hero wraps after “the” and “method”; adjacent painted glyph envelopes
   retain at least `0.08em` clearance without losing the compact editorial
   hierarchy.
+- At a 1366-pixel-wide workspace layout, a long project title remains inside a
+  usable project selector and cannot overlap the Reviews destination.
 - Legacy project redirects must not drop query parameters owned by editor
   navigation.
 - Editor offline fallback remains identity-and-workspace scoped and cannot make
@@ -242,3 +247,11 @@ entries.
 - When: the collaborator enters the application
 - Then: dashboard aggregation reveals only records authorized for that verified
   identity and project access does not expose the owner's private records
+
+**Scenario: Long project title shares a compact desktop header**
+
+- Given: a researcher opens a workspace with a long project title at a
+  1366-pixel desktop viewport
+- When: the application header lays out primary navigation and project controls
+- Then: the project selector remains usable and its title does not overlap the
+  Reviews destination

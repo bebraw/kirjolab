@@ -29,6 +29,23 @@
     font-family: var(--font-sans);
   }
 
+  body[data-app-mode="workspace"] .app-header-primary > .primary-navigation {
+    flex: none;
+  }
+
+  body[data-app-mode="workspace"] #workspace-switcher-control {
+    display: block;
+    min-width: 0;
+    max-width: 18rem;
+    flex: 1 1 18rem;
+  }
+
+  body[data-app-mode="workspace"] #workspace-switcher {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+  }
+
   .primary-navigation-link {
     border-radius: var(--ui-radius-sm);
     padding: 0.45rem 0.55rem;

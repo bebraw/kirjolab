@@ -1681,9 +1681,29 @@ test("reports an activated application update from the Library", async ({ page }
 });
 
 test("keeps the workspace within a compact desktop viewport", async ({ page }) => {
-  await page.setViewportSize({ width: 1100, height: 800 });
-  const workspaceId = await createWorkspace(page, "Compact desktop");
+  await page.setViewportSize({ width: 1366, height: 1024 });
+  const workspaceId = await createWorkspace(page, "MSc evaluation - Hung Nguyen");
   await page.goto(`/editor/${workspaceId}`);
+  await expect(page.locator("#workspace-switcher option:checked")).toHaveText("MSc evaluation - Hung Nguyen");
+
+  const headerLayout = await page.evaluate(() => {
+    const reviews = [...document.querySelectorAll<HTMLAnchorElement>(".primary-navigation-link")].find(
+      (link) => link.textContent?.trim() === "Reviews",
+    );
+    const switcher = document.querySelector<HTMLSelectElement>("#workspace-switcher");
+    if (!reviews || !switcher) throw new Error("Expected workspace header controls");
+    const reviewsBounds = reviews.getBoundingClientRect();
+    const switcherBounds = switcher.getBoundingClientRect();
+    return {
+      controlsDoNotOverlap: reviewsBounds.right <= switcherBounds.left,
+      switcherFitsViewport: switcherBounds.left >= 0 && switcherBounds.right <= innerWidth,
+      switcherWidth: switcherBounds.width,
+    };
+  });
+  expect(headerLayout).toMatchObject({ controlsDoNotOverlap: true, switcherFitsViewport: true });
+  expect(headerLayout.switcherWidth).toBeGreaterThan(160);
+
+  await page.setViewportSize({ width: 1100, height: 800 });
 
   await expect(page.locator("#show-authoring-surface")).toBeVisible();
   await expect(page.locator("#show-context-surface")).toBeVisible();
