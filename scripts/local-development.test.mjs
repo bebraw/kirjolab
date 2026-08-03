@@ -10,7 +10,20 @@ test("forces loopback-only authentication for interactive development", async ()
   assert.match(command, /\bwrangler dev --local\b/u);
   assert.match(command, /--ip 127\.0\.0\.1\b/u);
   assert.match(command, /--var AUTH_MODE:local\b/u);
+  assert.match(command, /KIRJOLAB_BROWSER_SHELL_MODE=development\b/u);
   assert.doesNotMatch(command, /AUTH_MODE:access/u);
+});
+
+test("uses Lit diagnostics only in owned development and test runtimes", async () => {
+  const [e2eServer, packageJson, vitestConfig] = await Promise.all([
+    readFile(new URL("./run-e2e-server.mjs", import.meta.url), "utf8"),
+    readFile(new URL("../package.json", import.meta.url), "utf8").then(JSON.parse),
+    readFile(new URL("../vitest.config.mts", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(e2eServer, /KIRJOLAB_BROWSER_SHELL_MODE:\s*"development"/u);
+  assert.doesNotMatch(packageJson.scripts?.["build:browser-shell"] ?? "", /development/u);
+  assert.match(vitestConfig, /conditions:\s*\["module",\s*"browser",\s*"development"\]/u);
 });
 
 test("keeps Worker tests local while declaring production AI access remote", async () => {

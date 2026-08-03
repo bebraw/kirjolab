@@ -3,6 +3,7 @@ import { fileURLToPath } from "node:url";
 
 export default defineConfig({
   resolve: {
+    conditions: ["module", "browser", "development"],
     alias: {
       "cloudflare:workers": fileURLToPath(new URL("./src/test-support/cloudflare-workers.ts", import.meta.url).href),
     },

@@ -74,11 +74,13 @@ describe("production deployment preflight", () => {
       productionWranglerEnvironment({
         ...validEnvironment,
         CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV: "true",
+        KIRJOLAB_BROWSER_SHELL_MODE: "development",
         KIRJOLAB_MODEL_UPSTREAM: "http://127.0.0.1:1234",
       }),
     ).toEqual({
       ...validEnvironment,
       CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV: "false",
+      KIRJOLAB_BROWSER_SHELL_MODE: "production",
       KIRJOLAB_MODEL_UPSTREAM: "http://127.0.0.1:1234",
     });
   });
@@ -88,9 +90,15 @@ describe("production deployment preflight", () => {
     runProductionDeploy({ environment: validEnvironment, dryRunOnly: true, run });
     expect(run).toHaveBeenCalledTimes(2);
     expect(run.mock.calls[0]?.[0]).toEqual(["types", "--check"]);
-    expect(run.mock.calls[0]?.[1]).toMatchObject({ CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV: "false" });
+    expect(run.mock.calls[0]?.[1]).toMatchObject({
+      CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV: "false",
+      KIRJOLAB_BROWSER_SHELL_MODE: "production",
+    });
     expect(run.mock.calls[1]?.[0]).toContain("--dry-run");
-    expect(run.mock.calls[1]?.[1]).toMatchObject({ CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV: "false" });
+    expect(run.mock.calls[1]?.[1]).toMatchObject({
+      CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV: "false",
+      KIRJOLAB_BROWSER_SHELL_MODE: "production",
+    });
 
     run.mockClear();
     runProductionDeploy({ environment: validEnvironment, run });
@@ -98,6 +106,7 @@ describe("production deployment preflight", () => {
     expect(run.mock.calls[2]?.[0]).not.toContain("--dry-run");
     expect(run.mock.calls[3]?.[0]).toEqual(["versions", "list"]);
     expect(run.mock.calls.every((call) => call[1]?.CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV === "false")).toBe(true);
+    expect(run.mock.calls.every((call) => call[1]?.KIRJOLAB_BROWSER_SHELL_MODE === "production")).toBe(true);
   });
 
   it("does not continue after a failed preflight command", () => {

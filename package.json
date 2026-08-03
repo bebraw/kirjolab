@@ -72,7 +72,7 @@
     "deploy": "node ./scripts/deploy-production.mjs",
     "deploy:dry-run": "node ./scripts/deploy-production.mjs --dry-run-only",
     "dev": "node --env-file-if-exists=.env ./scripts/run-dev.mjs",
-    "dev:worker": "CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV=false HOME=$PWD wrangler dev --local --ip 127.0.0.1 --port 8787 --var AUTH_MODE:local --inspector-ip 127.0.0.1 --inspector-port 9229 --log-level error --show-interactive-dev-session=false",
+    "dev:worker": "KIRJOLAB_BROWSER_SHELL_MODE=development CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV=false HOME=$PWD wrangler dev --local --ip 127.0.0.1 --port 8787 --var AUTH_MODE:local --inspector-ip 127.0.0.1 --inspector-port 9229 --log-level error --show-interactive-dev-session=false",
     "diagnostics:codebase": "npm run diagnostics:readability && npm run diagnostics:type-aware && npm run diagnostics:health",
     "diagnostics:dependencies": "node ./scripts/report-dependency-costs.mjs",
     "diagnostics:pdf-references": "node ./scripts/run-pdf-reference-quality-report.mjs",

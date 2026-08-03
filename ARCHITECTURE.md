@@ -165,7 +165,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   presenters extend the normal owner's controller specialization for empty
   rendering and typed sibling lookup. Reactive owners use the shared host's
   fail-fast typed descendant lookup instead of repeating local query-and-error
-  helpers. Keep domain bindings, effects, and
+  helpers. Resolve Lit's `development` package export only for Vitest,
+  Playwright, and the loopback `npm run dev` workflow. Browser-shell builds
+  default to the explicit `production` export condition, assert the resolved
+  Lit inputs from esbuild metadata, and let the repository-owned deploy command
+  override ambient mode with `production`. Keep domain bindings, effects, and
   reconnect work in the concrete components.
 - Let the project-map Lit workspace own its authorized knowledge-search request,
   response validation, and idle, result, and error lifecycle because those

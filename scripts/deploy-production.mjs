@@ -90,7 +90,11 @@ export function runProductionDeploy({ environment = process.env, dryRunOnly = fa
 }
 
 export function productionWranglerEnvironment(environment = process.env) {
-  return { ...environment, CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV: "false" };
+  return {
+    ...environment,
+    CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV: "false",
+    KIRJOLAB_BROWSER_SHELL_MODE: "production",
+  };
 }
 
 function required(environment, name) {

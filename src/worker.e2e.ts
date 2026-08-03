@@ -6587,6 +6587,7 @@ test("serves stable health and browser assets", async ({ request }) => {
   expect(serviceWorker.ok(), serviceWorkerBody).toBe(true);
   expect(styles.headers()["content-type"]).toContain("text/css");
   expect(client.headers()["content-type"]).toContain("text/javascript");
+  expect(clientBody).toContain("Lit is in dev mode");
 
   const pdfRuntimePath = clientBody.match(/\/pdfjs-module-[a-f0-9]{16}\.js/u)?.[0];
   const markdownRuntimePath = clientBody.match(/\/markdown-module-[a-f0-9]{16}\.js/u)?.[0];

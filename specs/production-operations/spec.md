@@ -14,6 +14,11 @@ rollback workflow without adding a second identity system.
 - A production deploy preflight supplies `AUTH_MODE=access`, the exact team
   domain, application audience, and protected custom hostname. Local development
   remains an explicit loopback-only command.
+- Browser-shell builds default to Lit's production package export. Vitest,
+  Playwright, and the loopback development command opt into Lit development
+  diagnostics explicitly. The build validates actual Lit-family esbuild inputs,
+  and the repository-owned production deploy overwrites any ambient browser-
+  shell mode with `production` before invoking Wrangler.
 - Committed Wrangler variables remain `AUTH_MODE=local` with blank Access
   values, so a bare `wrangler deploy` is safely unusable on a public hostname.
   Only the repository-owned production command supplies hosted identity values
@@ -73,6 +78,9 @@ rollback workflow without adding a second identity system.
 - [x] Every production Wrangler subprocess disables project-root `.env`
       discovery so local companion settings cannot alter generated Worker types
       or deployment bindings.
+- [x] Every production Wrangler subprocess forces the production browser-shell
+      mode, and the browser build rejects resolved Lit development inputs in
+      production output.
 - [x] Worker binding generation and freshness checks use canonical package
       scripts with the same disabled-discovery environment, and the fast quality
       gate rejects environment-dependent generated declarations before deploy.
@@ -139,6 +147,14 @@ rollback workflow without adding a second identity system.
   or placeholder text
 - When production deploy is requested
 - Then preflight exits before Wrangler uploads a Worker
+
+**Development-mode Lit cannot reach production**
+
+- Given a developer shell has selected Lit development diagnostics
+- When the repository-owned production deploy starts its type check, dry run,
+  or upload
+- Then every Wrangler subprocess rebuilds with Lit production exports and
+  rejects any emitted Lit development input
 
 **Recovery drill**
 

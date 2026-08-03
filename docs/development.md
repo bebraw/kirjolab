@@ -213,6 +213,12 @@ shell build fingerprints immutable runtime filenames and derives the offline
 cache generation from emitted content before compiling the final application
 and service worker. The Worker serves the generated service worker at
 `/service-worker.js`; all local output remains disposable and ignored by Git.
+Browser-shell builds resolve Lit through explicit package export conditions:
+`npm run dev`, Playwright, and Vitest use Lit's development diagnostics, while
+an ordinary build defaults to production. The production deploy command also
+forces production mode so an inherited local development setting cannot enter
+deployed assets. Each Lit-bearing browser entry validates its resolved esbuild
+inputs before output is accepted.
 
 ### Local Model Companion
 
