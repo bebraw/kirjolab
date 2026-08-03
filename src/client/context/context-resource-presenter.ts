@@ -783,7 +783,6 @@ export class ContextResourcePresenter extends LightDomController {
       activeKey: context.activeKey,
       candidates: sources.snapshot?.candidates ?? [],
       libraryArtifacts: sources.library?.artifacts ?? [],
-      pdfs: sources.snapshot?.pdfs ?? [],
       publications: sources.snapshot?.publications ?? [],
       referencePdfs: this.referencePdfs,
       standaloneLibrary,

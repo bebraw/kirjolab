@@ -699,9 +699,12 @@ test("imports, annotates, and exports a private PDF without a project", async ({
   const studentPdf = page.locator("#reference-library-list .library-reference-row").filter({ hasText: /student submission/iu });
   await expect(studentPdf).toBeVisible();
   await studentPdf.getByRole("button", { name: "PDF", exact: true }).click();
-  await expect(page.getByRole("tab", { name: "student_submission.pdf" })).toHaveAttribute("aria-selected", "true");
-  await expect(page.getByRole("button", { name: "Close student_submission.pdf" })).toBeVisible();
-  await expect(page.locator("header").getByRole("tab", { name: "student_submission.pdf" })).toBeVisible();
+  const studentPdfTab = page.locator("#context-resource-tabs [role='tab'][aria-selected='true']");
+  const studentPdfKey = await requiredLocatorAttribute(studentPdfTab, "data-context-key", "Expected a private PDF context key");
+  if (!studentPdfKey.startsWith("library-pdf:")) throw new Error("Expected a private PDF context key");
+  await expect(studentPdfTab).toHaveText(studentPdfKey);
+  await expect(page.getByRole("button", { name: `Close ${studentPdfKey}` })).toBeVisible();
+  await expect(page.locator("header").getByRole("tab", { name: studentPdfKey })).toBeVisible();
   await expect(page.locator("#context-tab-overview")).toBeHidden();
   await expect(page.locator("#context-tab-overview-list")).toBeEmpty();
   await expect(page.locator("header #pdf-context-controls")).toBeHidden();
@@ -871,7 +874,7 @@ test("imports, annotates, and exports a private PDF without a project", async ({
   await expect
     .poll(async () => JSON.parse((await page.evaluate(() => sessionStorage.getItem("shared-pdf"))) ?? "null"))
     .toMatchObject({ name: "student_submission-annotated.pdf", type: "application/pdf" });
-  await page.getByRole("button", { name: "Close student_submission.pdf" }).click();
+  await page.getByRole("button", { name: `Close ${studentPdfKey}` }).click();
   await expect(page).toHaveURL(/\/library$/u);
   await expect(page.locator("header #context-library-tab")).toHaveAttribute("aria-selected", "true");
   await expect(page.locator("#context-library-panel")).toBeVisible();
@@ -2408,7 +2411,7 @@ test("opens a live WYSIWYM scholarly workspace", async ({ page }) => {
   await expect(assistantTab).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollHeight <= document.documentElement.clientHeight)).toBe(true);
   const previewTab = page.getByRole("tab", { name: "Preview" });
-  const libraryTab = page.getByRole("tab", { name: "Library" });
+  const libraryTab = page.getByRole("tab", { name: "Library", exact: true });
   await previewTab.focus();
   await previewTab.press("ArrowRight");
   await expect(libraryTab).toBeFocused();
@@ -2981,7 +2984,7 @@ test("shares linked reference PDFs with members but not public links", async ({ 
   await page.goto(`/editor/${workspaceId}`);
   await expect(page.getByText(/Live · 1 writer/)).toBeVisible();
 
-  await page.getByRole("tab", { name: "Library" }).click();
+  await page.getByRole("tab", { name: "Library", exact: true }).click();
   await expect(page.locator("#context-library-panel")).toBeVisible();
   await expect(page.locator("#reference-library-dialog")).toHaveCount(0);
   await page.locator("#library-bibliography-upload").setInputFiles({
@@ -3013,7 +3016,10 @@ test("shares linked reference PDFs with members but not public links", async ({ 
   const beforePrivateReading = await readWorkspaceSnapshot(page, api);
   await expect(pdfCard.locator(".library-reference-details")).not.toHaveAttribute("open", "");
   await pdfCard.getByRole("button", { name: "PDF", exact: true }).click();
-  await expect(page.getByRole("tab", { name: "climate_adaptation.pdf" })).toHaveAttribute("aria-selected", "true");
+  const climatePdfTab = page.locator("#context-resource-tabs [role='tab'][aria-selected='true']");
+  const climatePdfKey = await requiredLocatorAttribute(climatePdfTab, "data-context-key", "Expected a private PDF context key");
+  if (!climatePdfKey.startsWith("library-pdf:")) throw new Error("Expected a private PDF context key");
+  await expect(climatePdfTab).toHaveText(climatePdfKey);
   await expect(page.locator("#pdf-context-controls")).toBeHidden();
   await expect(page.locator("#paper-status")).toHaveText("Private library PDF · select text to highlight");
   await expect(page.locator("#paper-status")).toHaveAttribute("data-state", "ready");
@@ -3345,7 +3351,7 @@ test("shares linked reference PDFs with members but not public links", async ({ 
   await page.locator("#next-library-paper-page").click();
   await expect(page.locator("#paper-page-indicator")).toHaveText("2 / 2");
   expect(await readWorkspaceSnapshot(page, api)).toEqual(beforePrivateReading);
-  await page.getByRole("tab", { name: "Library" }).click();
+  await page.getByRole("tab", { name: "Library", exact: true }).click();
   const refreshedPdfCard = page.locator("#reference-library-list .library-reference-row").filter({ hasText: "climate adaptation" });
   await refreshedPdfCard.getByRole("button", { name: "PDF", exact: true }).click();
   await expect(page.locator("#paper-page-indicator")).toHaveText("2 / 2");
@@ -3420,7 +3426,7 @@ test("shares linked reference PDFs with members but not public links", async ({ 
   await page.getByRole("button", { name: "Revoke highlight share" }).click();
   await expect(page.getByRole("button", { name: "Share highlight with project" })).toBeVisible();
   await expect.poll(async () => (await readWorkspaceSnapshot(page, api)).researchShares.length).toBe(0);
-  await page.getByRole("tab", { name: "Library" }).click();
+  await page.getByRole("tab", { name: "Library", exact: true }).click();
 
   await openLibraryReferenceDetails(card);
   await expect(card.getByLabel("Reading status for Private Research Guide")).toBeVisible();
@@ -3469,7 +3475,7 @@ test("shares linked reference PDFs with members but not public links", async ({ 
     element.scrollTop = 160;
   });
   await page.getByRole("tab", { name: "Preview" }).click();
-  await page.getByRole("tab", { name: "Library" }).click();
+  await page.getByRole("tab", { name: "Library", exact: true }).click();
   await expect.poll(async () => await page.locator("#context-library-scroll").evaluate((element) => element.scrollTop)).toBe(160);
   await page.locator("#source-editor").fill("# Study\n\nThis uses the guide :cite[writer2026].\n");
   await expect.poll(async () => await (await page.request.get(`${api}/export/bibliography.bib`)).text()).toContain("writer2026");
@@ -3493,7 +3499,7 @@ test("uploads a bounded PDF batch with partial success and retry", async ({ page
 
   await page.goto(`/editor/${workspaceId}`);
   await expect(page.getByText(/Live · 1 writer/)).toBeVisible();
-  await page.getByRole("tab", { name: "Library" }).click();
+  await page.getByRole("tab", { name: "Library", exact: true }).click();
   await page.locator("#library-pdf-upload").setInputFiles([
     { name: "batch_alpha.pdf", mimeType: "application/pdf", buffer: createEvidencePdf("Batch alpha evidence.") },
     { name: "batch_beta.pdf", mimeType: "application/pdf", buffer: createEvidencePdf("Batch beta evidence.") },
@@ -3529,7 +3535,7 @@ test("resolves an exact PDF repeat and reveals its archived Library source", asy
   const workspaceId = await createWorkspace(page, "Exact PDF identity");
   const bytes = createEvidencePdf("Canonical duplicate evidence.");
   await page.goto(`/editor/${workspaceId}`);
-  await page.getByRole("tab", { name: "Library" }).click();
+  await page.getByRole("tab", { name: "Library", exact: true }).click();
   await page.locator("#library-pdf-upload").setInputFiles({
     name: "canonical_repeat.pdf",
     mimeType: "application/pdf",
@@ -3568,7 +3574,7 @@ test("resolves an exact PDF repeat and reveals its archived Library source", asy
 test("reviews bounded PDF metadata before enriching a library record", async ({ page }) => {
   const workspaceId = await createWorkspace(page, "PDF metadata review");
   await page.goto(`/editor/${workspaceId}`);
-  await page.getByRole("tab", { name: "Library" }).click();
+  await page.getByRole("tab", { name: "Library", exact: true }).click();
   await page.locator("#library-pdf-upload").setInputFiles({
     name: "metadata_review.pdf",
     mimeType: "application/pdf",
@@ -3610,7 +3616,7 @@ test("reviews bounded PDF metadata before enriching a library record", async ({ 
 test("reviews a selected provider match and fields during PDF metadata refinement", async ({ page }) => {
   const workspaceId = await createWorkspace(page, "Provider metadata refinement");
   await page.goto(`/editor/${workspaceId}`);
-  await page.getByRole("tab", { name: "Library" }).click();
+  await page.getByRole("tab", { name: "Library", exact: true }).click();
   await page.locator("#library-pdf-upload").setInputFiles({
     name: "provider_review.pdf",
     mimeType: "application/pdf",
@@ -3712,7 +3718,7 @@ test("reviews a selected provider match and fields during PDF metadata refinemen
 test("round-trips CSL JSON and portable library metadata", async ({ page }) => {
   const workspaceId = await createWorkspace(page, "Library interchange");
   await page.goto(`/editor/${workspaceId}`);
-  await page.getByRole("tab", { name: "Library" }).click();
+  await page.getByRole("tab", { name: "Library", exact: true }).click();
   await page.locator("#library-csl-upload").setInputFiles({
     name: "zotero-export.json",
     mimeType: "application/json",
@@ -3740,7 +3746,7 @@ test("round-trips CSL JSON and portable library metadata", async ({ page }) => {
 test("reviews and reconciles a strong duplicate Library reference", async ({ page }) => {
   const workspaceId = await createWorkspace(page, "Reference reconciliation");
   await page.goto(`/editor/${workspaceId}`);
-  await page.getByRole("tab", { name: "Library" }).click();
+  await page.getByRole("tab", { name: "Library", exact: true }).click();
   await page.locator("#library-bibliography-upload").setInputFiles({
     name: "duplicate-references.bib",
     mimeType: "application/x-bibtex",
@@ -3784,7 +3790,7 @@ test("records and reviews source citation assertions in an accessible shared net
   await page.locator("#theme-preference").selectOption("dark");
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
 
-  await page.getByRole("tab", { name: "Library" }).click();
+  await page.getByRole("tab", { name: "Library", exact: true }).click();
   await page.locator("#library-bibliography-upload").setInputFiles({
     name: "citation-network.bib",
     mimeType: "application/x-bibtex",
@@ -3971,17 +3977,19 @@ test("keeps resource-keyed research context beside authoring", async ({ page }) 
 
   const imported = await readWorkspaceSnapshot(page, api);
   const delayedPdf = imported.pdfs.find((pdf) => pdf.name === "context-paper.pdf");
+  const currentPdf = imported.pdfs.find((pdf) => pdf.name === "current-paper.pdf");
   if (!delayedPdf) throw new Error("Expected the delayed PDF resource");
+  if (!currentPdf) throw new Error("Expected the current PDF resource");
   await page.route(`**${api}/pdfs/${delayedPdf.id}`, async (route) => {
     await new Promise((resolve) => setTimeout(resolve, 250));
     await route.continue().catch(() => undefined);
   });
   await page.locator("#pdf-list button[data-pdf-id]").filter({ hasText: "context-paper.pdf" }).click();
   await page.locator("#pdf-list button[data-pdf-id]").filter({ hasText: "current-paper.pdf" }).click();
-  await expect(page.getByRole("tab", { name: "current-paper.pdf", exact: true })).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByRole("tab", { name: `pdf:${currentPdf.id}`, exact: true })).toHaveAttribute("aria-selected", "true");
   await expect(page.locator("#paper-text-layer")).toContainText("Knowledge grows through inspectable evidence.");
   await page.waitForTimeout(300);
-  await expect(page.getByRole("tab", { name: "current-paper.pdf", exact: true })).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByRole("tab", { name: `pdf:${currentPdf.id}`, exact: true })).toHaveAttribute("aria-selected", "true");
   await expect(page.locator("#paper-text-layer")).toContainText("Knowledge grows through inspectable evidence.");
   await page.unroute(`**${api}/pdfs/${delayedPdf.id}`);
   await page.getByRole("tab", { name: "Preview" }).click();
@@ -4031,7 +4039,7 @@ test("keeps resource-keyed research context beside authoring", async ({ page }) 
   const libraryPosition = await libraryScroll.evaluate((element) => element.scrollTop);
   expect(libraryPosition).toBeGreaterThan(0);
   await page.getByRole("tab", { name: "The Normative Structure of Science" }).click();
-  await page.getByRole("tab", { name: "Library" }).click();
+  await page.getByRole("tab", { name: "Library", exact: true }).click();
   expect(await libraryScroll.evaluate((element) => element.scrollTop)).toBe(libraryPosition);
   await page.getByRole("tab", { name: "The Normative Structure of Science" }).click();
 
@@ -4058,7 +4066,7 @@ test("keeps resource-keyed research context beside authoring", async ({ page }) 
   await expect(page.locator("#context-pdf-panel")).toBeVisible();
   await expect(page.getByRole("tab", { name: "The Normative Structure of Science" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Close The Normative Structure of Science" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Close context-paper.pdf" })).toBeVisible();
+  await expect(page.getByRole("button", { name: `Close pdf:${delayedPdf.id}` })).toBeVisible();
   const contextOverview = page.locator("#context-tab-overview");
   await expect(contextOverview).toBeVisible();
   await expect(page.locator("#context-tab-overview-count")).toHaveText("5");
@@ -4067,8 +4075,8 @@ test("keeps resource-keyed research context beside authoring", async ({ page }) 
   await expect(page.locator("#context-tab-overview-list")).toContainText("The Normative Structure of Science");
   await page.locator("#context-tab-overview-list [data-context-key]").filter({ hasText: "Preview" }).click();
   await expect(page.getByRole("tab", { name: "Preview" })).toHaveAttribute("aria-selected", "true");
-  await page.getByRole("tab", { name: "context-paper.pdf" }).click();
-  const pdfTabId = await page.getByRole("tab", { name: "context-paper.pdf" }).getAttribute("id");
+  await page.getByRole("tab", { name: `pdf:${delayedPdf.id}` }).click();
+  const pdfTabId = await page.getByRole("tab", { name: `pdf:${delayedPdf.id}` }).getAttribute("id");
   await expect(page.locator("#context-pdf-panel")).toHaveAttribute("aria-labelledby", pdfTabId ?? "missing");
   await expect(page.locator("#annotation-pdf")).toBeDisabled();
   await expect(page.locator("#annotation-pdf")).toHaveValue(delayedPdf.id);
@@ -4104,7 +4112,7 @@ test("keeps resource-keyed research context beside authoring", async ({ page }) 
   );
   expect(await previewScroll.evaluate((element) => element.scrollTop)).toBe(previewPosition);
   contextMutations.length = 0;
-  await page.getByRole("tab", { name: "context-paper.pdf" }).click();
+  await page.getByRole("tab", { name: `pdf:${delayedPdf.id}` }).click();
   await expect(page.locator("#paper-page-indicator")).toHaveText("2 / 2");
   const pdfPosition = await page.locator("#paper-reader").evaluate((element) => element.scrollTop);
   expect(pdfPosition).toBeGreaterThan(0);
@@ -4129,7 +4137,7 @@ test("keeps resource-keyed research context beside authoring", async ({ page }) 
   await page.locator("#cite-active-pdf").click();
   await expect(editor).toHaveValue(`${source} :cite[merton1942]{locator="p. 2"}`);
   await expect(page.locator("#preview .semantic-citation[data-citation='merton1942'][data-locator='p. 2']")).toHaveCount(1);
-  await page.getByRole("tab", { name: "context-paper.pdf" }).click();
+  await page.getByRole("tab", { name: `pdf:${delayedPdf.id}` }).click();
   await page.locator("#previous-paper-page").click();
   await expect(page.locator("#paper-page-indicator")).toHaveText("1 / 2");
   await page.getByRole("tab", { name: "Preview" }).click();
@@ -4142,7 +4150,7 @@ test("keeps resource-keyed research context beside authoring", async ({ page }) 
   await page.getByRole("tab", { name: "The Normative Structure of Science" }).click();
   await page.getByRole("tab", { name: "Preview" }).focus();
   await page.keyboard.press("End");
-  await expect(page.getByRole("tab", { name: "context-paper.pdf" })).toBeFocused();
+  await expect(page.getByRole("tab", { name: `pdf:${delayedPdf.id}` })).toBeFocused();
   await expect(page.getByRole("tab", { name: "The Normative Structure of Science" })).toHaveAttribute("aria-selected", "true");
   await page.keyboard.press("Enter");
   await expect(page.locator("#context-pdf-panel")).toBeVisible();
@@ -5555,7 +5563,7 @@ test("derives collaborative project bibliography from shared-library aliases", a
   await expect(page.locator("#bibliography-editor")).toHaveAttribute("readonly", "");
   await expect(page.locator("#bibliography-editor")).toBeHidden();
   await expect(collaborator.locator("#bibliography-editor")).toHaveValue(/@article\{collaborative2026/u);
-  await page.getByRole("tab", { name: "Library" }).click();
+  await page.getByRole("tab", { name: "Library", exact: true }).click();
   const referenceCard = page
     .locator("#reference-library-list .library-reference-row")
     .filter({ hasText: "Collaborative Reference Projection" });
@@ -5631,7 +5639,7 @@ test("keeps legacy project BibTeX import compatible without exposing it in the p
     metadataSource: "bibtex",
   });
 
-  await page.getByRole("tab", { name: "Library" }).click();
+  await page.getByRole("tab", { name: "Library", exact: true }).click();
   const importedCard = page
     .locator("#reference-library-list .library-reference-row")
     .filter({ hasText: "Inspectable Reference Workflows" });
@@ -6021,7 +6029,7 @@ test("turns one clarity answer into a reviewable targeted revision", async ({ pa
   await expect(page.getByRole("button", { name: "Saved to library" })).toBeDisabled();
   expect(requests).toHaveLength(6);
 
-  await page.getByRole("tab", { name: "Library" }).click();
+  await page.getByRole("tab", { name: "Library", exact: true }).click();
   await page.locator("#library-discovery").getByText("Discover scholarly works").click();
   await page.locator("#library-discovery-query").fill("visible evidence review time");
   await page.locator("#library-discovery-form").getByRole("button", { name: "Search references" }).click();
@@ -6064,10 +6072,12 @@ test("moves evidence from PDF annotation through reviewed model prose", async ({
     element.dispatchEvent(new Event("select", { bubbles: true }));
   });
 
-  await page.locator("#pdf-list button[data-pdf-id]").first().click();
+  const evidencePdfButton = page.locator("#pdf-list button[data-pdf-id]").first();
+  const evidencePdfId = await requiredLocatorAttribute(evidencePdfButton, "data-pdf-id", "Expected an evidence PDF resource id");
+  await evidencePdfButton.click();
   await expect(page.locator("#context-preview-panel")).toBeHidden();
   await expect(page.locator("#context-pdf-panel")).toBeVisible();
-  await expect(page.getByRole("tab", { name: "evidence.pdf" })).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByRole("tab", { name: `pdf:${evidencePdfId}` })).toHaveAttribute("aria-selected", "true");
   await expect(page.locator("#paper-status")).toHaveText("Select text to capture evidence");
   await page.locator("#paper-text-layer").evaluate(selectFirstPdfText);
   await expect(page.locator("#annotation-quote")).toHaveValue("Knowledge grows through inspectable evidence.");
@@ -6194,7 +6204,7 @@ test("moves evidence from PDF annotation through reviewed model prose", async ({
   await page.getByRole("tab", { name: "Preview" }).click();
   await expect(page.locator("#context-preview-panel")).toBeVisible();
   await expect(page.locator("#context-pdf-panel")).toBeHidden();
-  await page.getByRole("tab", { name: "evidence.pdf" }).click();
+  await page.getByRole("tab", { name: `pdf:${evidencePdfId}` }).click();
   await expect(page.locator("#paper-highlights .pdf-highlight[data-focused='true']")).toBeVisible();
   await annotationCard.getByRole("button", { name: "Open linked passage" }).click();
   await expect(editor).toBeFocused();

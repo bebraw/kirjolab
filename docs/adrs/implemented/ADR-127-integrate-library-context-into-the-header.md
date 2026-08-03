@@ -29,7 +29,7 @@ standalone Library already gives its context surface the full content area, so
 
 Do not render a second context strip inside the standalone context surface.
 Keep the existing pane-local strip unchanged in workspace mode. At tablet
-widths, truncate the document title while retaining its close icon.
+widths, truncate the document resource ID while retaining its close icon.
 
 The tab and control elements keep their existing ids, roles, keyboard behavior,
 route synchronization, and application state; only their server-rendered host
@@ -50,8 +50,8 @@ changes by application mode.
 **Negative:**
 
 - The global header carries more controls while a desktop PDF is active.
-- Responsive rules must truncate document titles without obscuring their close
-  icons at tablet widths.
+- Responsive rules must truncate document resource IDs without obscuring their
+  close icons at tablet widths.
 - The server view has one shared tab fragment with two conditional hosts.
 
 ## Alternatives Considered

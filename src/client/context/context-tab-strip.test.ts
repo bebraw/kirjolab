@@ -33,7 +33,7 @@ const pdf: PdfResource = {
   createdAt,
   fingerprint: "fingerprint",
   id: "pdf:1",
-  name: "paper.pdf",
+  name: "10.1016_j.journal.final(4).pdf",
   objectKey: "pdfs/paper.pdf",
   size: 1024,
 };
@@ -42,7 +42,7 @@ const artifact: LibraryPdfArtifact = {
   createdAt,
   fingerprint: "library-fingerprint",
   id: "library-pdf:1",
-  name: "library.pdf",
+  name: "download_7f82c1b0.pdf",
   objectKey: "library/library.pdf",
   referenceId: publication.id,
   rights: "private",
@@ -51,7 +51,7 @@ const artifact: LibraryPdfArtifact = {
 const referencePdf: ProjectReferencePdf = {
   fingerprint: "reference-fingerprint",
   id: "reference-pdf:1",
-  name: "reference.pdf",
+  name: "fulltext (accepted manuscript) [1].pdf",
   referenceId: publication.id,
   size: 4096,
 };
@@ -143,7 +143,6 @@ function sources(
     activeKey,
     candidates: [],
     libraryArtifacts: [],
-    pdfs: [],
     publications: [],
     referencePdfs: [],
     standaloneLibrary: false,
@@ -170,7 +169,7 @@ describe("context tab strip", () => {
     expect(replaced).toBe(true);
   });
 
-  it("owns fixed and canonical resource titles", () => {
+  it("owns fixed titles and resource-keyed PDF labels", () => {
     const strip = new TestContextTabStrip();
     strip.setTabs(
       sources(
@@ -192,7 +191,7 @@ describe("context tab strip", () => {
           },
           { id: "missing", key: "candidate:missing", kind: "candidate", scrollTop: 0 },
         ],
-        { libraryArtifacts: [artifact], pdfs: [pdf], publications: [publication], referencePdfs: [referencePdf] },
+        { libraryArtifacts: [artifact], publications: [publication], referencePdfs: [referencePdf] },
       ),
     );
 
@@ -201,11 +200,68 @@ describe("context tab strip", () => {
       "Library",
       "Writing assistant",
       publication.title,
-      pdf.name,
-      artifact.name,
-      referencePdf.name,
+      `pdf:${pdf.id}`,
+      `library-pdf:${artifact.id}`,
+      `library-pdf:${referencePdf.id}`,
       "Revision",
     ]);
+  });
+
+  it("keeps PDF labels stable when filename metadata changes or is unavailable", () => {
+    const strip = new TestContextTabStrip();
+    const projectTab = {
+      id: pdf.id,
+      key: `pdf:${pdf.id}` as const,
+      kind: "pdf" as const,
+      page: 1,
+      focusedAnnotationId: null,
+      scrollTop: 0,
+    };
+    const libraryTab = {
+      id: artifact.id,
+      key: `library-pdf:${artifact.id}` as const,
+      kind: "library-pdf" as const,
+      page: 1,
+      focusedAnnotationId: null,
+      scrollTop: 0,
+    };
+
+    strip.setTabs(sources(projectTab.key, [projectTab, libraryTab], { libraryArtifacts: [artifact] }));
+    expect(strip.titlesForTest()).toEqual([projectTab.key, libraryTab.key]);
+
+    strip.setTabs(
+      sources(projectTab.key, [projectTab, libraryTab], {
+        libraryArtifacts: [{ ...artifact, name: "renamed-library.pdf" }],
+      }),
+    );
+    expect(strip.titlesForTest()).toEqual([projectTab.key, libraryTab.key]);
+
+    strip.setTabs(sources(projectTab.key, [projectTab, libraryTab]));
+    expect(strip.titlesForTest()).toEqual([projectTab.key, libraryTab.key]);
+  });
+
+  it("kind-qualifies colliding workspace and Library PDF ids", () => {
+    const strip = new TestContextTabStrip();
+    const projectTab = {
+      id: "shared-id",
+      key: "pdf:shared-id" as const,
+      kind: "pdf" as const,
+      page: 1,
+      focusedAnnotationId: null,
+      scrollTop: 0,
+    };
+    const libraryTab = {
+      id: "shared-id",
+      key: "library-pdf:shared-id" as const,
+      kind: "library-pdf" as const,
+      page: 1,
+      focusedAnnotationId: null,
+      scrollTop: 0,
+    };
+
+    strip.setTabs(sources(projectTab.key, [projectTab, libraryTab]));
+
+    expect(strip.titlesForTest()).toEqual([projectTab.key, libraryTab.key]);
   });
 
   it("emits bounded primary tab intents", () => {
@@ -315,7 +371,7 @@ describe("context tab strip", () => {
       page: 1,
       focusedAnnotationId: null,
     };
-    strip.setTabs(sources(projectPdf.key, [projectPdf], { pdfs: [pdf] }));
+    strip.setTabs(sources(projectPdf.key, [projectPdf]));
     expect(strip.panels.get("pdf-context-controls")?.hidden).toBe(false);
 
     const privatePdf = {

@@ -1,7 +1,7 @@
 import { html, type PropertyValues, type TemplateResult } from "lit";
 import { LightDomElement } from "../platform/light-dom-controller";
 import type { LibraryPdfArtifact, ProjectReferencePdf } from "../../domain/reference-library";
-import type { ModelCandidate, PdfResource, PublicationResource } from "../../domain/workspace/workspace";
+import type { ModelCandidate, PublicationResource } from "../../domain/workspace/workspace";
 import "../preview/preview-navigation-control";
 import type { ContextTabAction } from "./context-tab-action";
 import { contextResourceTabActionEvent, contextResourceTabId, type ContextResourceTabs } from "./context-resource-tabs";
@@ -29,7 +29,6 @@ export interface ContextTabStripSources {
   readonly activeKey: ResearchContextKey;
   readonly candidates: readonly ModelCandidate[];
   readonly libraryArtifacts: readonly LibraryPdfArtifact[];
-  readonly pdfs: readonly PdfResource[];
   readonly publications: readonly PublicationResource[];
   readonly referencePdfs: readonly ProjectReferencePdf[];
   readonly standaloneLibrary: boolean;
@@ -250,15 +249,8 @@ export class ContextTabStrip extends LightDomElement {
     if (tab.kind === "preview") return "Preview";
     if (tab.kind === "library") return "Library";
     if (tab.kind === "assistant") return "Writing assistant";
+    if (tab.kind === "pdf" || tab.kind === "library-pdf") return tab.key;
     if (tab.kind === "publication") return sources.publications.find(({ id }) => id === tab.id)?.title ?? "Reference";
-    if (tab.kind === "pdf") return sources.pdfs.find(({ id }) => id === tab.id)?.name ?? "Paper";
-    if (tab.kind === "library-pdf") {
-      return (
-        sources.libraryArtifacts.find(({ id }) => id === tab.id)?.name ??
-        sources.referencePdfs.find(({ id }) => id === tab.id)?.name ??
-        "Reference PDF"
-      );
-    }
     const candidate = sources.candidates.find(({ id }) => id === tab.id);
     return candidate ? `Revision · ${candidate.model} · ${candidate.id.slice(0, 4)}` : "Revision";
   }

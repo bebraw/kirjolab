@@ -190,10 +190,10 @@ changing their canonical data, selector, authorization, or rendering contracts.
   complete navigation model.
 - The composed context tab strip derives the six controlled panel targets from
   the same canonical active-tab input used for fixed, resource, and overview
-  presentation. It owns fixed and resource title derivation from canonical
-  publication, project-PDF, private-Library, shared-reference, and candidate
-  inputs, panel visibility, active resource labels, and PDF-mode presentation
-  plus fixed-panel scroll capture and restoration during the same canonical tab
+  presentation. It owns fixed labels, kind-qualified PDF labels from stable tab
+  identity, publication and candidate title derivation from canonical inputs,
+  panel visibility, active resource labels, and PDF-mode presentation plus
+  fixed-panel scroll capture and restoration during the same canonical tab
   update. It routes fixed, resource-strip, and overview navigation through one
   typed coordinator boundary. The enclosing context-resource presenter retains
   canonical tab state, authorization reconciliation, resource closure, PDF
@@ -343,9 +343,11 @@ changing their canonical data, selector, authorization, or rendering contracts.
 - The tab list uses standard tab semantics: the container has `tablist`, each
   tab has `tab`, the active tab exposes `aria-selected="true"`, and its content
   has `tabpanel` with an accessible label relationship.
-- The tab row owns active-context status and page navigation. A PDF filename
-  appears in its resource tab instead of being repeated in a second content
-  header, and each closable resource tab integrates its own labelled close icon.
+- The tab row owns active-context status and page navigation. A PDF resource's
+  stable, kind-qualified Kirjolab ID appears in its tab instead of its mutable,
+  potentially confusing filename, and each closable resource tab integrates
+  its own labelled close icon. The filename remains available in PDF metadata
+  and download surfaces.
 - Left/Right Arrow moves tab focus, Home/End reaches the first/last tab, Enter
   or Space activates a focused tab, and a close control is independently
   labelled. Closing the active resource selects the nearest remaining tab;
@@ -424,7 +426,8 @@ changing their canonical data, selector, authorization, or rendering contracts.
 - Do not remove or make the Preview tab closable.
 - Do not remove, duplicate, or make the Library tab closable.
 - Do not move, duplicate, or make the Writing assistant tab closable.
-- Do not identify open tabs by mutable citation key, title, or filename.
+- Do not identify open tabs by mutable citation key, title, or filename, and do
+  not derive visible PDF tab labels from filenames.
 - Do not persist ephemeral context navigation as collaborative workspace state.
 - Do not reload a PDF from page one merely because another tab was viewed.
 - Do not create a library record, citation, annotation, claim, or relationship
