@@ -20,9 +20,10 @@ describe("application element registry", () => {
       return Object.create(type.prototype) as T;
     });
 
-    expect(ids).toHaveLength(70);
+    expect(ids).toHaveLength(71);
     expect(new Set(ids)).toHaveLength(ids.length);
     expect(elements.contextResourcePresenter).toBeDefined();
+    expect(elements.chapterNotesPanel).toBeDefined();
     expect(elements.assistantGenerationPresenter).toBeDefined();
     expect(elements.referenceLibraryWorkspace).toBeDefined();
     expect(elements.source).toBeDefined();

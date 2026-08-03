@@ -5,6 +5,7 @@ import {
   isInertSvgImage,
   normalizeProjectPath,
   previewProjectFile,
+  projectCompanionNotesPath,
   projectFileCollaborationTextName,
   projectUsesCitationAlias,
   relativeProjectPath,
@@ -43,6 +44,14 @@ function reviewArtifact(path = "review/synthesis.md"): ReviewArtifactBinding {
 }
 
 describe("project composition", () => {
+  it("derives companion notes paths only for non-notes lowercase Markdown files", () => {
+    expect(projectCompanionNotesPath("sections/01_introduction.md")).toBe("sections/01_introduction.notes.md");
+    expect(projectCompanionNotesPath("main.md")).toBe("main.notes.md");
+    expect(projectCompanionNotesPath("sections/01_introduction.notes.md")).toBeNull();
+    expect(projectCompanionNotesPath("sections/01_introduction.MD")).toBeNull();
+    expect(projectCompanionNotesPath("sections/01_introduction.markdown")).toBeNull();
+  });
+
   it("accepts inert SVG figures and rejects active or external content", () => {
     const svg = (source: string): Uint8Array => new TextEncoder().encode(source);
     expect(

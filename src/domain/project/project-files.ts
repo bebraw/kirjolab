@@ -2,6 +2,11 @@ import { projectMarkdownComments } from "scholarmark";
 
 export const projectEntryPath = "main.md";
 
+export function projectCompanionNotesPath(path: string): string | null {
+  if (!path.endsWith(".md") || path.endsWith(".notes.md")) return null;
+  return `${path.slice(0, -3)}.notes.md`;
+}
+
 export interface ProjectFile {
   readonly id: string;
   readonly path: string;

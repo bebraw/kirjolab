@@ -38,7 +38,7 @@ describe("workspace UI routes", () => {
     ).toEqual({ rail: "files", mode: "write", surface: "authoring", contextKey: "publication:pub-1" });
   });
 
-  it.each(["preview", "library", "assistant"] as const)("accepts the permanent %s context", (context) => {
+  it.each(["preview", "chapter-notes", "library", "assistant"] as const)("accepts the permanent %s context", (context) => {
     expect(readWorkspaceUiRoute(new URL(`https://example.test/editor/demo?context=${context}`)).contextKey).toBe(context);
     expect(researchTargetFromContextKey(context)).toBeNull();
   });

@@ -4916,6 +4916,64 @@ test("creates and inserts transcluded project files", async ({ page }) => {
   expect(fileDeletionValue.files.some((file) => file.path === "main.md")).toBe(false);
 });
 
+test("reads paired chapter notes in Context and opens them for editing", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const workspaceId = await createWorkspace(page, "Paired chapter notes");
+  const api = `/api/workspaces/${workspaceId}`;
+  const chapterPath = "chapters/01_introduction.md";
+  const notesPath = "chapters/01_introduction.notes.md";
+  const chapterSource = "## Introduction\n\nA concise chapter draft.\n";
+  const notesSource = "## Questions\n\n- Verify the opening claim.\n";
+  const createChapter = await page.request.post(`${api}/files`, {
+    headers: { origin: "http://127.0.0.1:8788" },
+    data: { path: chapterPath, content: chapterSource },
+  });
+  expect(createChapter.status()).toBe(201);
+  await page.goto(`/editor/${workspaceId}`);
+
+  await page.locator(`[data-project-path="${chapterPath}"]`).click();
+  const fileMenu = page.locator(".action-menu", { has: page.locator("#create-project-notes") });
+  await fileMenu.locator("summary").click();
+  await expect(page.locator("#create-project-notes")).toContainText("Create paired notes");
+  await page.locator("#create-project-notes").click();
+  await expect(page.locator("#project-file-path")).toHaveValue(notesPath);
+  await expect(page.locator("#project-file-path")).toHaveAttribute("readonly", "");
+  await page.locator("#project-file-form").getByRole("button", { name: "Create notes" }).click();
+  await expect(page.locator(`[data-project-path="${notesPath}"]`)).toHaveAttribute("aria-current", "page");
+  await page.locator("#source-editor").fill(notesSource);
+  await expect(page.locator("#save-status")).toHaveText("Saved");
+
+  await page.locator(`[data-project-path="${chapterPath}"]`).click();
+  const source = page.locator("#source-editor");
+  await expect(source).toHaveValue(chapterSource);
+  await source.evaluate((element: HTMLTextAreaElement) => {
+    element.focus();
+    element.setSelectionRange(3, 15);
+    element.dispatchEvent(new Event("select", { bubbles: true }));
+  });
+  await expect(page.locator("#preview")).not.toContainText("Verify the opening claim.");
+  const notesTab = page.getByRole("tab", { name: "Chapter notes" });
+  await expect(notesTab).toBeVisible();
+  await notesTab.click();
+  await expect(page.locator("#context-chapter-notes-panel")).toBeVisible();
+  await expect(page.locator("#chapter-notes-path")).toHaveText(notesPath);
+  await expect(page.locator("#chapter-notes-document")).toContainText("Verify the opening claim.");
+  await expect(source).toHaveValue(chapterSource);
+  expect(await source.evaluate((element: HTMLTextAreaElement) => [element.selectionStart, element.selectionEnd])).toEqual([3, 15]);
+
+  await page.getByRole("button", { name: "Open in editor" }).click();
+  await expect(page.locator(`[data-project-path="${notesPath}"]`)).toHaveAttribute("aria-current", "page");
+  await expect(page.locator("#source-editor")).toHaveValue(notesSource);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.locator(`[data-project-path="${chapterPath}"]`).click();
+  await page.locator("#show-context-surface").click();
+  await page.locator('[aria-label="Open context list"]').click();
+  await page.getByRole("button", { name: /Chapter notes chapter notes/u }).click();
+  await expect(page.locator("#chapter-notes-document")).toContainText("Verify the opening claim.");
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390);
+});
+
 test("completes include paths relative to the active project file", async ({ page }) => {
   const workspaceId = await createWorkspace(page, "Include completion");
   await page.goto(`/editor/${workspaceId}`);

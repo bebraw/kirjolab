@@ -1,31 +1,38 @@
-import { html, type TemplateResult } from "lit";
+import { html, nothing, type TemplateResult } from "lit";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { renderIcon } from "../../ui/icons";
 import { LightDomElement } from "../platform/light-dom-controller";
 
 export const projectFileActionEvent = "project-file-action";
 
-export type ProjectFileAction = "create" | "create-and-include" | "create-folder" | "delete" | "rename" | "upload-images";
+export type ProjectFileAction = "create" | "create-and-include" | "create-folder" | "create-notes" | "delete" | "rename" | "upload-images";
 
 type ProjectFileActionsVariant = "menu" | "rail";
 
 export class ProjectFileActions extends LightDomElement {
   static override properties = {
+    companionNotesPath: { state: true },
     entryFileActive: { state: true },
     variant: { type: String },
   };
 
+  declare private companionNotesPath: string | null;
   declare private entryFileActive: boolean;
   declare protected variant: ProjectFileActionsVariant;
 
   constructor() {
     super();
+    this.companionNotesPath = null;
     this.entryFileActive = true;
     this.variant = "menu";
   }
 
   setEntryFileActive(entryFileActive: boolean): void {
     this.entryFileActive = entryFileActive;
+  }
+
+  setCompanionNotesPath(path: string | null): void {
+    this.companionNotesPath = path;
   }
 
   protected override render(): TemplateResult {
@@ -56,6 +63,18 @@ export class ProjectFileActions extends LightDomElement {
       <button id="create-and-include-project-file" type="button" @click=${() => this.emitAction("create-and-include")}>
         <strong>Create and include</strong><code>at the current caret</code>
       </button>
+      ${
+        this.companionNotesPath
+          ? html`<button
+              id="create-project-notes"
+              type="button"
+              title=${`Create ${this.companionNotesPath}`}
+              @click=${() => this.emitAction("create-notes")}
+            >
+              <strong>Create paired notes</strong><code>${this.companionNotesPath.split("/").at(-1)}</code>
+            </button>`
+          : nothing
+      }
       <button id="rename-project-file" type="button" @click=${() => this.emitAction("rename")}>
         <strong>Move or rename file</strong>
       </button>

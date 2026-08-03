@@ -21,6 +21,7 @@ describe("project file actions", () => {
     actions.variantForTest("rail");
     expect(actions.renderForTest()).toBeDefined();
     actions.variantForTest("menu");
+    actions.setCompanionNotesPath("chapters/01_introduction.notes.md");
     actions.setEntryFileActive(false);
     expect(actions.renderForTest()).toBeDefined();
   });
@@ -30,10 +31,10 @@ describe("project file actions", () => {
     const received: ProjectFileAction[] = [];
     actions.addEventListener(projectFileActionEvent, (event) => received.push((event as CustomEvent<ProjectFileAction>).detail));
 
-    for (const action of ["create", "create-and-include", "create-folder", "delete", "rename", "upload-images"] as const) {
+    for (const action of ["create", "create-and-include", "create-folder", "create-notes", "delete", "rename", "upload-images"] as const) {
       actions.emitForTest(action);
     }
 
-    expect(received).toEqual(["create", "create-and-include", "create-folder", "delete", "rename", "upload-images"]);
+    expect(received).toEqual(["create", "create-and-include", "create-folder", "create-notes", "delete", "rename", "upload-images"]);
   });
 });

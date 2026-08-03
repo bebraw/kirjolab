@@ -1,4 +1,4 @@
-import { html, type PropertyValues, type TemplateResult } from "lit";
+import { html, nothing, type PropertyValues, type TemplateResult } from "lit";
 import { LightDomElement } from "../platform/light-dom-controller";
 import type { LibraryPdfArtifact, ProjectReferencePdf } from "../../domain/reference-library";
 import type { ModelCandidate, PublicationResource } from "../../domain/workspace/workspace";
@@ -12,7 +12,7 @@ import type { ResearchContextKey, ResearchContextTab, ResearchResourceTab } from
 
 export const contextPrimaryTabActionEvent = "context-primary-tab-action";
 
-export type ContextPrimaryTabAction = "preview" | "library" | "assistant";
+export type ContextPrimaryTabAction = "preview" | "chapter-notes" | "library" | "assistant";
 
 interface ContextTabStripItem {
   readonly tab: ResearchContextTab;
@@ -28,6 +28,7 @@ interface ContextTabStripData {
 export interface ContextTabStripSources {
   readonly activeKey: ResearchContextKey;
   readonly candidates: readonly ModelCandidate[];
+  readonly chapterNotesAvailable: boolean;
   readonly libraryArtifacts: readonly LibraryPdfArtifact[];
   readonly publications: readonly PublicationResource[];
   readonly referencePdfs: readonly ProjectReferencePdf[];
@@ -86,7 +87,9 @@ export class ContextTabStrip extends LightDomElement {
   setTabs(sources: ContextTabStripSources): void {
     this.data = {
       activeKey: sources.activeKey,
-      items: sources.tabs.map((tab) => ({ tab, title: this.tabTitle(tab, sources) })),
+      items: sources.tabs
+        .filter((tab) => tab.kind !== "chapter-notes" || sources.chapterNotesAvailable)
+        .map((tab) => ({ tab, title: this.tabTitle(tab, sources) })),
       standaloneLibrary: sources.standaloneLibrary,
     };
     this.syncControlledPanels(sources);
@@ -98,7 +101,9 @@ export class ContextTabStrip extends LightDomElement {
 
   focusTab(key: ResearchContextKey): void {
     const id =
-      key === "preview" || key === "library" || key === "assistant" ? `context-${key}-tab` : `context-tab-${key.replace(":", "-")}`;
+      key === "preview" || key === "chapter-notes" || key === "library" || key === "assistant"
+        ? `context-${key}-tab`
+        : `context-tab-${key.replace(":", "-")}`;
     queueMicrotask(() =>
       Array.from(this.querySelectorAll<HTMLButtonElement>("[role=tab]"))
         .find((tab) => tab.id === id)
@@ -116,6 +121,11 @@ export class ContextTabStrip extends LightDomElement {
         @keydown=${this.moveFocus}
       >
         ${this.renderPrimaryTab("preview", "Preview", "context-preview-panel")}
+        ${
+          this.data.items.some(({ tab }) => tab.kind === "chapter-notes")
+            ? this.renderPrimaryTab("chapter-notes", "Chapter notes", "context-chapter-notes-panel")
+            : nothing
+        }
         ${this.renderPrimaryTab("library", "Library", "context-library-panel")}
         ${this.renderPrimaryTab("assistant", "Writing assistant", "context-assistant-panel")}
         <context-resource-tabs-panel id="context-resource-tabs-panel"></context-resource-tabs-panel>
@@ -129,7 +139,7 @@ export class ContextTabStrip extends LightDomElement {
       activeKey: this.data.activeKey,
       items: this.data.items.filter(
         (item): item is { readonly tab: ResearchResourceTab; readonly title: string } =>
-          item.tab.kind !== "preview" && item.tab.kind !== "library" && item.tab.kind !== "assistant",
+          item.tab.kind !== "preview" && item.tab.kind !== "chapter-notes" && item.tab.kind !== "library" && item.tab.kind !== "assistant",
       ),
     });
     this.querySelector<ContextTabOverview>("context-tab-overview-panel")?.setTabs(this.data);
@@ -185,6 +195,7 @@ export class ContextTabStrip extends LightDomElement {
     const projectPdf = active?.kind === "pdf";
     const states: readonly [id: string, selected: boolean][] = [
       ["context-preview-panel", preview],
+      ["context-chapter-notes-panel", this.data.activeKey === "chapter-notes"],
       ["context-library-panel", this.data.activeKey === "library"],
       ["context-assistant-panel", this.data.activeKey === "assistant"],
       ["context-publication-panel", active?.kind === "publication"],
@@ -216,7 +227,8 @@ export class ContextTabStrip extends LightDomElement {
   }
 
   private syncResourceLabel(active: ResearchContextTab | undefined): void {
-    if (!active || active.kind === "preview" || active.kind === "library" || active.kind === "assistant") return;
+    if (!active || active.kind === "preview" || active.kind === "chapter-notes" || active.kind === "library" || active.kind === "assistant")
+      return;
     const panel = this.controlledPanel(this.resourcePanelId(active));
     panel?.setAttribute("aria-labelledby", contextResourceTabId(active));
     panel?.removeAttribute("aria-label");
@@ -232,11 +244,13 @@ export class ContextTabStrip extends LightDomElement {
     const id =
       key === "preview"
         ? "preview-scroll"
-        : key === "library"
-          ? "context-library-scroll"
-          : key === "assistant"
-            ? "context-assistant-scroll"
-            : null;
+        : key === "chapter-notes"
+          ? "context-chapter-notes-scroll"
+          : key === "library"
+            ? "context-library-scroll"
+            : key === "assistant"
+              ? "context-assistant-scroll"
+              : null;
     return id ? this.controlledPanel(id) : null;
   }
 
@@ -247,6 +261,7 @@ export class ContextTabStrip extends LightDomElement {
 
   private tabTitle(tab: ResearchContextTab, sources: ContextTabStripSources): string {
     if (tab.kind === "preview") return "Preview";
+    if (tab.kind === "chapter-notes") return "Chapter notes";
     if (tab.kind === "library") return "Library";
     if (tab.kind === "assistant") return "Writing assistant";
     if (tab.kind === "pdf" || tab.kind === "library-pdf") return tab.key;

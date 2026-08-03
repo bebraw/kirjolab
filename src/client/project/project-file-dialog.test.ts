@@ -81,13 +81,14 @@ function mutationCallbacks() {
   return {
     assistantGenerationPresenter: { refreshAvailability: vi.fn() },
     authoringModeTabs: { navigate: vi.fn() },
+    contextResourcePresenter: { presentChapterNotes: vi.fn() },
     editorInsertMenu: { insert: vi.fn(), setFiles: vi.fn() },
     editorStatus: { preserveInsertionPoint: vi.fn(() => null), selectRange: vi.fn(), setProjectFile: presentFile },
     fileActivated,
     presentFile,
     presentNotice,
     previewChanged,
-    projectFileMenuActions: Object.assign(new EventTarget(), { setEntryFileActive: vi.fn() }),
+    projectFileMenuActions: Object.assign(new EventTarget(), { setCompanionNotesPath: vi.fn(), setEntryFileActive: vi.fn() }),
     projectFileRailActions: new EventTarget(),
     projectImageUpload: Object.assign(new EventTarget(), { choose: vi.fn(), configure: vi.fn() }),
     projectTreePanel: Object.assign(new EventTarget(), { configure: vi.fn(), focusFilter: vi.fn(), setTree: vi.fn() }),
@@ -119,6 +120,7 @@ function bindTestWorkflow(
   routing: TestWorkflowRouting,
 ): ReturnType<typeof vi.fn> {
   const menuActions = Object.assign(routing.actionControls[1] ?? new EventTarget(), {
+    setCompanionNotesPath: presentation.projectFileMenuActions.setCompanionNotesPath,
     setEntryFileActive: presentation.projectFileMenuActions.setEntryFileActive,
   });
   const tree = Object.assign(routing.tree, {
@@ -182,9 +184,11 @@ function bindProjectRefresh(panel: ProjectFileDialog, binding: ReturnType<typeof
 describe("project file dialog", () => {
   it("classifies file and folder operations", () => {
     expect(projectFileDialogIsFolder("create")).toBe(false);
+    expect(projectFileDialogIsFolder("create-notes")).toBe(false);
     expect(projectFileDialogIsFolder("create-folder")).toBe(true);
     expect(projectFileDialogIsFolder("rename-folder")).toBe(true);
     expect(projectFileDialogIsCreating("create-and-include")).toBe(true);
+    expect(projectFileDialogIsCreating("create-notes")).toBe(true);
     expect(projectFileDialogIsCreating("rename")).toBe(false);
   });
 
@@ -259,7 +263,7 @@ describe("project file dialog", () => {
   it("renders each operation from bounded mode and path state", () => {
     const panel = new TestProjectFileDialog();
     expect(panel.rootForTest()).toBe(panel);
-    for (const mode of ["create", "create-and-include", "rename", "create-folder", "rename-folder"] as const) {
+    for (const mode of ["create", "create-and-include", "create-notes", "rename", "create-folder", "rename-folder"] as const) {
       panel.configureForTest(mode, mode.includes("folder") ? "chapters" : "chapters/method.md");
       expect(panel.renderForTest()).toBeDefined();
     }
@@ -302,6 +306,7 @@ describe("project file dialog", () => {
     const supporting = { ...snapshot.files[0]!, id: "file-2", path: "chapter.md" };
     const project = { ...snapshot, files: [...snapshot.files, supporting] };
     panel.presentProject(project, "/assets", true);
+    const show = vi.spyOn(panel, "show").mockResolvedValue();
     const showFor = vi.spyOn(panel, "showFor").mockResolvedValue();
     const deleteFile = vi.spyOn(panel, "deleteFile");
     const asset = {
@@ -320,6 +325,7 @@ describe("project file dialog", () => {
     actions.dispatchEvent(new CustomEvent(projectFileActionEvent, { detail: "delete" }));
     actions.dispatchEvent(new CustomEvent(projectFileActionEvent, { detail: "create-folder" }));
     actions.dispatchEvent(new CustomEvent(projectFileActionEvent, { detail: "create-and-include" }));
+    actions.dispatchEvent(new CustomEvent(projectFileActionEvent, { detail: "create-notes" }));
     tree.dispatchEvent(
       new CustomEvent(projectTreeActionEvent, { detail: { action: "select-file", fileId: supporting.id, focusEditor: true } }),
     );
@@ -334,6 +340,7 @@ describe("project file dialog", () => {
     expect(showFor).toHaveBeenNthCalledWith(1, "create-folder", snapshot.files[0], undefined);
     expect(showFor).toHaveBeenNthCalledWith(2, "create-and-include", snapshot.files[0], undefined);
     expect(showFor).toHaveBeenNthCalledWith(3, "rename-folder", supporting, undefined);
+    expect(show).toHaveBeenCalledWith("create-notes", "chapters/method.notes.md");
     expect(mutations.presentFile).toHaveBeenCalledWith(supporting, project.entryFileId, true);
     expect(mutations.fileActivated).toHaveBeenCalledOnce();
     expect(callbacks.focusEditor).toHaveBeenCalledOnce();
@@ -369,12 +376,13 @@ describe("project file dialog", () => {
 
   it("presents canonical project files through the bound Lit owners", () => {
     const panel = new TestProjectFileDialog();
+    const presentation = mutationCallbacks();
     const editorInsertMenu = { insert: vi.fn(), setFiles: vi.fn() };
-    const projectFileMenuActions = Object.assign(new EventTarget(), { setEntryFileActive: vi.fn() });
+    const projectFileMenuActions = Object.assign(new EventTarget(), { setCompanionNotesPath: vi.fn(), setEntryFileActive: vi.fn() });
     const sourceCompletion = { setProject: vi.fn() };
     const projectTreePanel = Object.assign(new EventTarget(), { configure: vi.fn(), focusFilter: vi.fn(), setTree: vi.fn() });
     panel.bindPresentation({
-      ...mutationCallbacks(),
+      ...presentation,
       editorInsertMenu,
       projectFileMenuActions,
       projectTreePanel,
@@ -399,9 +407,27 @@ describe("project file dialog", () => {
     });
     expect(editorInsertMenu.setFiles).toHaveBeenCalledWith(snapshot.files[0], snapshot.files);
     expect(sourceCompletion.setProject).toHaveBeenCalledWith(snapshot, snapshot.entryFileId, true);
+    expect(presentation.contextResourcePresenter.presentChapterNotes).toHaveBeenCalledWith(snapshot.entryFileId, snapshot.files);
+    expect(projectFileMenuActions.setCompanionNotesPath).toHaveBeenCalledWith("chapters/method.notes.md");
     expect(projectFileMenuActions.setEntryFileActive).toHaveBeenCalledWith(true);
     expect(panel.activeFileId).toBe(snapshot.entryFileId);
     expect(panel.project).toBe(snapshot);
+  });
+
+  it("suppresses paired-notes creation when the companion already exists", () => {
+    const panel = new TestProjectFileDialog();
+    const presentation = mutationCallbacks();
+    const chapter = snapshot.files[0]!;
+    const notes = { ...chapter, id: "notes-1", path: "chapters/method.notes.md" };
+    const project = { ...snapshot, files: [...snapshot.files, notes] };
+    panel.bindPresentation(presentation);
+    const show = vi.spyOn(panel, "show").mockResolvedValue();
+
+    panel.presentProject(project, "/api/workspaces/demo/assets", true);
+    presentation.projectFileMenuActions.dispatchEvent(new CustomEvent(projectFileActionEvent, { detail: "create-notes" }));
+
+    expect(presentation.projectFileMenuActions.setCompanionNotesPath).toHaveBeenCalledWith(null);
+    expect(show).not.toHaveBeenCalled();
   });
 
   it("projects visible snapshot or live collaborative file content", () => {
@@ -447,6 +473,7 @@ describe("project file dialog", () => {
     expect(panel.selectFile(supporting.id)).toBe(true);
     expect(panel.activeFileId).toBe(supporting.id);
     expect(callbacks.presentFile).toHaveBeenLastCalledWith(supporting, project.entryFileId, true);
+    expect(callbacks.contextResourcePresenter.presentChapterNotes).toHaveBeenLastCalledWith(supporting.id, project.files);
     expect(callbacks.fileActivated).toHaveBeenCalledOnce();
     expect(panel.selectFile(supporting.id)).toBe(false);
     expect(panel.selectFile("missing-file")).toBe(false);
@@ -631,6 +658,26 @@ describe("project file dialog", () => {
     expect(include).toHaveBeenCalledWith("\n::include[results.md]\n");
     expect(presentProject.mock.invocationCallOrder[0]).toBeLessThan(include.mock.invocationCallOrder[0] ?? 0);
     expect(callbacks.presentNotice).toHaveBeenCalledWith("Created chapters/results.md and included it at the remembered caret.", undefined);
+  });
+
+  it("creates paired notes at the locked companion path", async () => {
+    const panel = new TestProjectFileDialog();
+    const callbacks = mutationCallbacks();
+    const notesPath = "chapters/method.notes.md";
+    const notes = { ...snapshot.files[0]!, id: "notes-1", path: notesPath };
+    const project = { ...snapshot, files: [...snapshot.files, notes] };
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(Response.json(project));
+    panel.configureApi("/api/workspaces/workspace", callbacks);
+    panel.configureForTest("create-notes", notesPath);
+    panel.input.value = "unrelated.md";
+
+    await panel.saveForTest();
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/workspaces/workspace/files",
+      expect.objectContaining({ body: JSON.stringify({ path: notesPath }), method: "POST" }),
+    );
+    expect(callbacks.presentNotice).toHaveBeenCalledWith(`Added paired notes at ${notesPath}.`, undefined);
   });
 
   it("uses the stable target for rename and permits retry after failure", async () => {

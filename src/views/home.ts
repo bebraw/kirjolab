@@ -266,6 +266,7 @@ export function renderHomePage(
                   <p class="editor-command-menu-label">File</p>
                   <button id="new-project-file" type="button"><strong>Add file</strong></button>
                   <button id="create-and-include-project-file" type="button"><strong>Create and include</strong><code>at the current caret</code></button>
+                  <button id="create-project-notes" type="button" hidden><strong>Create paired notes</strong></button>
                   <button id="rename-project-file" type="button"><strong>Move or rename file</strong></button>
                   <button id="delete-project-file" type="button"><strong>Delete file</strong></button>
                 </project-file-actions>
@@ -359,6 +360,31 @@ export function renderHomePage(
               <preview-diagnostics-panel class="mx-auto mt-8 max-w-[44rem] border-t border-app-line pt-4" id="diagnostics"></preview-diagnostics-panel>
             </workspace-preview>
           </div>
+        </section>
+
+        <section
+          class="context-panel context-chapter-notes-panel"
+          id="context-chapter-notes-panel"
+          role="tabpanel"
+          aria-labelledby="context-chapter-notes-tab"
+          tabindex="0"
+          hidden
+        >
+          <chapter-notes-panel id="chapter-notes-panel">
+            <header class="context-resource-header">
+              <div class="min-w-0">
+                <p class="eyebrow">Companion document</p>
+                <h2 class="context-resource-title" id="chapter-notes-title">Chapter notes</h2>
+                <p class="context-resource-meta">Open a chapter to read its companion notes.</p>
+              </div>
+              <button class="button-secondary justify-center" id="open-chapter-notes" type="button" disabled>Open in editor</button>
+            </header>
+            <div class="context-publication-body" id="context-chapter-notes-scroll">
+              <article class="prose-preview" aria-labelledby="chapter-notes-title" aria-live="polite">
+                <p class="empty-state">This chapter has no available companion notes.</p>
+              </article>
+            </div>
+          </chapter-notes-panel>
         </section>
 
         <section class="context-panel context-library-panel" id="context-library-panel" role="tabpanel" aria-labelledby="context-library-tab" tabindex="0" hidden>

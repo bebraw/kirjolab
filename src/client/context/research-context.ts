@@ -1,11 +1,16 @@
 export const RESEARCH_PREVIEW_KEY = "preview" as const;
+export const RESEARCH_CHAPTER_NOTES_KEY = "chapter-notes" as const;
 export const RESEARCH_LIBRARY_KEY = "library" as const;
 export const RESEARCH_ASSISTANT_KEY = "assistant" as const;
 
 export type ResearchResourceKind = "publication" | "pdf" | "library-pdf" | "candidate";
 export type ResearchResourceKey = `${ResearchResourceKind}:${string}`;
 export type ResearchContextKey =
-  typeof RESEARCH_PREVIEW_KEY | typeof RESEARCH_LIBRARY_KEY | typeof RESEARCH_ASSISTANT_KEY | ResearchResourceKey;
+  | typeof RESEARCH_PREVIEW_KEY
+  | typeof RESEARCH_CHAPTER_NOTES_KEY
+  | typeof RESEARCH_LIBRARY_KEY
+  | typeof RESEARCH_ASSISTANT_KEY
+  | ResearchResourceKey;
 
 export interface ResearchResourceTarget {
   readonly kind: ResearchResourceKind;
@@ -15,6 +20,12 @@ export interface ResearchResourceTarget {
 export interface PreviewResearchTab {
   readonly kind: "preview";
   readonly key: typeof RESEARCH_PREVIEW_KEY;
+  readonly scrollTop: number;
+}
+
+export interface ChapterNotesResearchTab {
+  readonly kind: "chapter-notes";
+  readonly key: typeof RESEARCH_CHAPTER_NOTES_KEY;
   readonly scrollTop: number;
 }
 
@@ -51,11 +62,12 @@ export interface PdfResearchTab extends ResourceResearchTab {
 }
 
 export type ResearchResourceTab = PublicationResearchTab | PdfResearchTab | CandidateResearchTab;
-export type ResearchContextTab = PreviewResearchTab | LibraryResearchTab | AssistantResearchTab | ResearchResourceTab;
+export type ResearchContextTab =
+  PreviewResearchTab | ChapterNotesResearchTab | LibraryResearchTab | AssistantResearchTab | ResearchResourceTab;
 
 export interface ResearchContextState {
   readonly activeKey: ResearchContextKey;
-  /** Preview, Library, and Writing assistant are always first, followed by resources in the order they were opened. */
+  /** Preview, Chapter notes, Library, and Writing assistant are always first, followed by resources in open order. */
   readonly tabs: readonly ResearchContextTab[];
 }
 
@@ -76,6 +88,7 @@ export function createResearchContext(): ResearchContextState {
     activeKey: RESEARCH_PREVIEW_KEY,
     tabs: [
       { kind: "preview", key: RESEARCH_PREVIEW_KEY, scrollTop: 0 },
+      { kind: "chapter-notes", key: RESEARCH_CHAPTER_NOTES_KEY, scrollTop: 0 },
       { kind: "library", key: RESEARCH_LIBRARY_KEY, scrollTop: 0 },
       { kind: "assistant", key: RESEARCH_ASSISTANT_KEY, scrollTop: 0 },
     ],
@@ -106,7 +119,7 @@ export function activateResearchTab(state: ResearchContextState, key: string): R
 export function closeResearchTab(state: ResearchContextState, key: string): ResearchContextState {
   const index = state.tabs.findIndex((tab) => tab.key === key);
   const target = state.tabs[index];
-  if (!target || isPermanentTab(target)) return state;
+  if (!target || isPermanentResearchTab(target)) return state;
 
   const tabs = state.tabs.filter((tab) => tab.key !== key);
   return {
@@ -173,12 +186,14 @@ function normalizePage(page: number): number {
 }
 
 function isAuthorized(tab: ResearchContextTab, authorization: ResearchContextAuthorization): boolean {
-  if (isPermanentTab(tab)) return true;
+  if (isPermanentResearchTab(tab)) return true;
   if (tab.kind === "publication") return authorization.publicationIds.has(tab.id);
   if (tab.kind === "pdf") return authorization.pdfIds.has(tab.id);
   return tab.kind === "library-pdf" ? authorization.libraryPdfIds.has(tab.id) : authorization.candidateIds.has(tab.id);
 }
 
-function isPermanentTab(tab: ResearchContextTab): tab is PreviewResearchTab | LibraryResearchTab | AssistantResearchTab {
-  return tab.kind === "preview" || tab.kind === "library" || tab.kind === "assistant";
+export function isPermanentResearchTab(
+  tab: ResearchContextTab,
+): tab is PreviewResearchTab | ChapterNotesResearchTab | LibraryResearchTab | AssistantResearchTab {
+  return tab.kind === "preview" || tab.kind === "chapter-notes" || tab.kind === "library" || tab.kind === "assistant";
 }

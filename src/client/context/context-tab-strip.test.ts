@@ -142,6 +142,7 @@ function sources(
   return {
     activeKey,
     candidates: [],
+    chapterNotesAvailable: false,
     libraryArtifacts: [],
     publications: [],
     referencePdfs: [],
@@ -205,6 +206,24 @@ describe("context tab strip", () => {
       `library-pdf:${referencePdf.id}`,
       "Revision",
     ]);
+  });
+
+  it("shows Chapter notes only when the active file has a companion", () => {
+    const strip = new TestContextTabStrip();
+    const tabs: readonly ResearchContextTab[] = [
+      { kind: "preview", key: "preview", scrollTop: 0 },
+      { kind: "chapter-notes", key: "chapter-notes", scrollTop: 18 },
+      { kind: "library", key: "library", scrollTop: 0 },
+      { kind: "assistant", key: "assistant", scrollTop: 0 },
+    ];
+
+    strip.setTabs(sources("preview", tabs));
+    expect(strip.titlesForTest()).toEqual(["Preview", "Library", "Writing assistant"]);
+
+    strip.setTabs(sources("chapter-notes", tabs, { chapterNotesAvailable: true }));
+    expect(strip.titlesForTest()).toEqual(["Preview", "Chapter notes", "Library", "Writing assistant"]);
+    expect(strip.panels.get("context-chapter-notes-panel")?.hidden).toBe(false);
+    expect(strip.panels.get("context-chapter-notes-scroll")?.scrollTop).toBe(18);
   });
 
   it("keeps PDF labels stable when filename metadata changes or is unavailable", () => {
@@ -273,10 +292,11 @@ describe("context tab strip", () => {
 
     strip.activateForTest();
     strip.activateForTest("preview");
+    strip.activateForTest("chapter-notes");
     strip.activateForTest("library");
     strip.activateForTest("assistant");
 
-    expect(actions).toEqual(["preview", "library", "assistant"]);
+    expect(actions).toEqual(["preview", "chapter-notes", "library", "assistant"]);
   });
 
   it("routes primary and child navigation through one boundary", () => {
@@ -285,6 +305,7 @@ describe("context tab strip", () => {
     strip.bindNavigation(navigation);
 
     strip.activateForTest("preview");
+    strip.activateForTest("chapter-notes");
     strip.activateForTest("library");
     strip.dispatchEvent(new CustomEvent(contextResourceTabActionEvent, { detail: { action: "activate", key: "publication:reference-1" } }));
     strip.dispatchEvent(new CustomEvent(contextResourceTabActionEvent, { detail: { action: "close", key: "pdf:pdf-1" } }));
@@ -292,7 +313,12 @@ describe("context tab strip", () => {
     strip.dispatchEvent(new CustomEvent(contextTabOverviewActionEvent, { detail: { action: "close", key: "library-pdf:artifact-1" } }));
 
     expect(navigation.openLibrary).toHaveBeenCalledOnce();
-    expect(navigation.activate.mock.calls).toEqual([["preview"], ["publication:reference-1"], ["candidate:candidate-1"]]);
+    expect(navigation.activate.mock.calls).toEqual([
+      ["preview"],
+      ["chapter-notes"],
+      ["publication:reference-1"],
+      ["candidate:candidate-1"],
+    ]);
     expect(navigation.close.mock.calls).toEqual([["pdf:pdf-1"], ["library-pdf:artifact-1"]]);
   });
 

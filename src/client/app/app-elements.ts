@@ -8,6 +8,7 @@ import { AuthoringModeTabs } from "../workspace/authoring-mode-tabs";
 import { CandidateListPanel } from "../assistant/candidate-list-panel";
 import { CandidateReviewPanel } from "../assistant/candidate-review-panel";
 import { ClaimListPanel } from "../assistant/claim-list-panel";
+import { ChapterNotesPanel } from "../context/chapter-notes-panel";
 import { CollaboratorSelectionList } from "../collaboration/collaborator-selection-list";
 import { ConnectionStatus } from "../collaboration/connection-status";
 import { ContextTabStrip } from "../context/context-tab-strip";
@@ -106,6 +107,7 @@ export function collectAppElements(requireElement = requiredAppElement) {
     workspaceSurfaceSwitcher: requireElement("workspace-surface-switcher", WorkspaceSurfaceSwitcher),
     sourceCitationControl: requireElement("source-citation-control", SourceCitationControl),
     contextTabStrip: requireElement("context-tab-strip", ContextTabStrip),
+    chapterNotesPanel: requireElement("chapter-notes-panel", ChapterNotesPanel),
     contextResourcePresenter: requireElement("context-resource-presenter", ContextResourcePresenter),
     assistantGenerationPresenter: requireElement("assistant-generation-presenter", AssistantGenerationPresenter),
     previewContextControls: requireElement("preview-context-controls", PreviewContextStatus),

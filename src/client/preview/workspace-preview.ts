@@ -275,8 +275,11 @@ export class WorkspacePreview extends LightDomElement {
       exportDialog.setStatistics(publicationWordStatistics(outcome.publicationComposition, request.files));
     }
     const resources = this.ownerDocument?.getElementById("context-resource-presenter");
-    if (resources instanceof ContextResourcePresenter && outcome.available && request.resolvedSnapshot) {
-      resources.presentResolvedWorkspace(request.resolvedSnapshot, request.bibliography, outcome.publicationComposition?.content);
+    if (resources instanceof ContextResourcePresenter) {
+      resources.presentChapterNotes(request.activeFileId ?? request.snapshot?.entryFileId ?? null, request.files);
+      if (outcome.available && request.resolvedSnapshot) {
+        resources.presentResolvedWorkspace(request.resolvedSnapshot, request.bibliography, outcome.publicationComposition?.content);
+      }
     }
   }
 

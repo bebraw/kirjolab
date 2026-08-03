@@ -1,5 +1,6 @@
 import type * as Y from "yjs";
 import { resolveManuscriptAnchor } from "../../domain/manuscript/manuscript-anchor";
+import { projectCompanionNotesPath, type ProjectFile } from "../../domain/project/project-files";
 import type {
   LibraryHighlight,
   LibraryPdfArtifact,
@@ -22,6 +23,7 @@ import { CandidateReviewPanel } from "../assistant/candidate-review-panel";
 import { citationPageFromLocator, type CitationContext } from "../citation/citations";
 import { ClaimListPanel } from "../assistant/claim-list-panel";
 import { ContextTabStrip } from "./context-tab-strip";
+import { ChapterNotesPanel, chapterNotesPanelActionEvent, type ChapterNotesPanelAction } from "./chapter-notes-panel";
 import type { EditorApplicationOwners, EditorStatus } from "../editor/editor-status";
 import { expectOk } from "../platform/http";
 import { LibraryPdfAnnotationToolbar } from "../library/library-pdf-annotation-toolbar";
@@ -56,6 +58,7 @@ import {
   researchResourceKey,
   setPdfResearchLocation,
   RESEARCH_ASSISTANT_KEY,
+  RESEARCH_CHAPTER_NOTES_KEY,
   RESEARCH_LIBRARY_KEY,
   RESEARCH_PREVIEW_KEY,
   setResearchTabScroll,
@@ -140,7 +143,11 @@ export interface ContextPresentationOwners {
     readonly replacePdfRoute: (artifactId: string | undefined, page: number) => void;
     readonly replaceLibraryRoute: () => void;
   };
-  readonly projectFileDialog: { readonly project: WorkspaceSnapshot | null };
+  readonly projectFileDialog: {
+    readonly activeFileId: string | null;
+    readonly project: WorkspaceSnapshot | null;
+    projectFiles(): ProjectFile[];
+  };
   readonly workspaceSurfaceSwitcher: {
     readonly navigate: (surface: "context", notify: false) => void;
     readonly syncRoute: (mode: "push" | "replace") => void;
@@ -156,7 +163,7 @@ interface ContextPresentationBinding {
 
 export interface ProjectKnowledgeOwners {
   readonly editorStatus: { readonly caret: number | null };
-  readonly projectFileDialog: { revealAuthoring(): void };
+  readonly projectFileDialog: { revealAuthoring(): void; selectFile(fileId: string): boolean };
   readonly referenceLibraryWorkspace: {
     applyProjectMutation(snapshot: WorkspaceSnapshot): Promise<void>;
     completeRefresh(message: string, failureMessage: string): Promise<void>;
@@ -165,6 +172,7 @@ export interface ProjectKnowledgeOwners {
   readonly workspaceSharingPanel: { open(): void };
   readonly workspacePreview: { scrollToAnchor(id: string): void };
   readonly workspaceSwitcher: { focusSelect(): void };
+  readonly workspaceSurfaceSwitcher: { navigate(surface: "authoring", notify?: boolean): void };
 }
 
 export type ContextApplicationOwners = AssistantApplicationOwners &
@@ -179,6 +187,8 @@ export type ContextApplicationOwners = AssistantApplicationOwners &
 
 export class ContextResourcePresenter extends LightDomController {
   private contextState = createResearchContext();
+  private chapterNotesAvailable = false;
+  private chapterNotesFileId: string | null = null;
   private contextPresentation: ContextPresentationBinding | null = null;
   private candidatePresenter: AssistantCandidatePresenter | null = null;
   private currentActiveTab: ResearchResourceTab | undefined;
@@ -471,6 +481,15 @@ export class ContextResourcePresenter extends LightDomController {
       const target = researchTargetFromContextKey(key);
       if (target) return await this.restoreTarget(target, page, annotationId);
       if (key === RESEARCH_LIBRARY_KEY) return await this.contextPresentation?.owners.referenceLibraryWorkspace.open(false);
+      if (key === RESEARCH_CHAPTER_NOTES_KEY) {
+        const owners = this.contextPresentation?.owners.projectFileDialog;
+        if (owners) this.syncChapterNotes(owners.activeFileId, owners.projectFiles(), false);
+        if (!this.chapterNotesAvailable) {
+          this.presentBoundContext(false);
+          this.presentNotice("This chapter has no paired notes to restore.");
+          return;
+        }
+      }
       this.navigateContext(key);
     } catch (error) {
       this.activateContext(RESEARCH_PREVIEW_KEY);
@@ -594,6 +613,20 @@ export class ContextResourcePresenter extends LightDomController {
     this.pdfSession.bind(apiBase, viewer);
     this.element("project-annotation-form", ProjectAnnotationForm)?.configure(apiBase);
     this.libraryPdfProject = { apiBase, owners };
+    this.element("chapter-notes-panel", ChapterNotesPanel)?.addEventListener(chapterNotesPanelActionEvent, (event) => {
+      const detail = (event as CustomEvent<ChapterNotesPanelAction>).detail;
+      if (detail.action !== "open-in-editor") return;
+      const returnToNotes = this.activeKey === RESEARCH_CHAPTER_NOTES_KEY;
+      if (returnToNotes) this.contextState = activateResearchTab(this.contextState, RESEARCH_PREVIEW_KEY);
+      if (!owners.projectFileDialog.selectFile(detail.fileId)) {
+        if (returnToNotes && this.chapterNotesAvailable) {
+          this.contextState = activateResearchTab(this.contextState, RESEARCH_CHAPTER_NOTES_KEY);
+        }
+        return;
+      }
+      owners.projectFileDialog.revealAuthoring();
+      owners.workspaceSurfaceSwitcher.navigate("authoring");
+    });
     const searchPanel = this.element("pdf-search-panel", PdfSearchPanel);
     searchPanel?.bind({
       search: async (query) => (viewer.search ? await viewer.search(query) : []),
@@ -782,6 +815,7 @@ export class ContextResourcePresenter extends LightDomController {
     this.element("context-tab-strip", ContextTabStrip)?.setTabs({
       activeKey: context.activeKey,
       candidates: sources.snapshot?.candidates ?? [],
+      chapterNotesAvailable: this.chapterNotesAvailable,
       libraryArtifacts: sources.library?.artifacts ?? [],
       publications: sources.snapshot?.publications ?? [],
       referencePdfs: this.referencePdfs,
@@ -790,7 +824,11 @@ export class ContextResourcePresenter extends LightDomController {
     });
     const activeTab = context.tabs.find(
       (tab): tab is ResearchResourceTab =>
-        tab.kind !== "preview" && tab.kind !== "library" && tab.kind !== "assistant" && tab.key === context.activeKey,
+        tab.kind !== "preview" &&
+        tab.kind !== "chapter-notes" &&
+        tab.kind !== "library" &&
+        tab.kind !== "assistant" &&
+        tab.key === context.activeKey,
     );
     this.currentActiveTab = activeTab;
     return { activeTab, ...this.present({ ...resourceSources, activeTab }) };
@@ -842,6 +880,7 @@ export class ContextResourcePresenter extends LightDomController {
     const sources = binding ? this.boundSources(binding) : null;
     if (!binding || !sources?.snapshot) return;
     this.reconcileContext(this.resourceAuthorization(sources.snapshot, sources.library));
+    this.syncChapterNotes(binding.owners.projectFileDialog.activeFileId, binding.owners.projectFileDialog.projectFiles(), false);
     this.presentWorkspace(sources.snapshot);
     this.presentBoundContext();
     binding.owners.assistantGenerationPresenter.refreshAvailability();
@@ -853,6 +892,38 @@ export class ContextResourcePresenter extends LightDomController {
     this.element("claim-list-panel", ClaimListPanel)?.setPassageLinks(snapshot.claimLinks);
     this.presentComments(snapshot.comments);
     this.element("project-map", ProjectMapWorkspace)?.presentWorkspace(snapshot, bibliography, source);
+  }
+
+  presentChapterNotes(activeFileId: string | null, files: readonly ProjectFile[]): void {
+    this.syncChapterNotes(activeFileId, files, true);
+  }
+
+  private syncChapterNotes(activeFileId: string | null, files: readonly ProjectFile[], refreshContext: boolean): void {
+    const activeFile = files.find(({ id }) => id === activeFileId);
+    const notesPath = activeFile ? projectCompanionNotesPath(activeFile.path) : null;
+    const notes = notesPath ? (files.find(({ path }) => path === notesPath) ?? null) : null;
+    const notesFileChanged = (notes?.id ?? null) !== this.chapterNotesFileId;
+    this.chapterNotesFileId = notes?.id ?? null;
+    if (notesFileChanged) {
+      this.contextState = setResearchTabScroll(this.contextState, RESEARCH_CHAPTER_NOTES_KEY, 0);
+      const scroll = this.element("context-chapter-notes-scroll", HTMLElement);
+      if (scroll) scroll.scrollTop = 0;
+    }
+    void this.element("chapter-notes-panel", ChapterNotesPanel)?.presentNotes({
+      chapterPath: activeFile?.path ?? "",
+      notes: notes ? { content: notes.content, id: notes.id, path: notes.path } : null,
+    });
+
+    const available = notes !== null;
+    const availabilityChanged = available !== this.chapterNotesAvailable;
+    this.chapterNotesAvailable = available;
+    if (!available && this.activeKey === RESEARCH_CHAPTER_NOTES_KEY) {
+      this.contextState = activateResearchTab(this.contextState, RESEARCH_PREVIEW_KEY);
+      if (refreshContext) this.presentNotice("The selected chapter has no paired notes, so Preview is shown instead.");
+    }
+    if (!refreshContext || !availabilityChanged) return;
+    this.presentBoundContext(false);
+    this.contextPresentation?.owners.workspaceSurfaceSwitcher.syncRoute("replace");
   }
 
   resourceAuthorization(
