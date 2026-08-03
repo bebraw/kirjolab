@@ -76,6 +76,10 @@ entries.
 - Bounded editor query parameters continue to restore authorized file, rail,
   authoring mode, layout, context target, and PDF state under ADR-116. Unknown
   or unauthorized values still canonicalize to safe defaults.
+- The foreign `layout-debug=1` parameter opts the current browser session into
+  local layout diagnostics. It is not reconstructible project state, remains
+  outside the workspace route contract, and survives route synchronization
+  unchanged like other feature-owned query parameters.
 - User-facing navigation uses Dashboard, Library, Editor, and Reviews as task
   destinations. Project remains the user-facing resource noun inside the
   editor; `workspace` remains an API, type, and coordination term.
@@ -172,6 +176,8 @@ entries.
   usable project selector and cannot overlap the Reviews destination.
 - Legacy project redirects must not drop query parameters owned by editor
   navigation.
+- Workspace route synchronization must preserve `layout-debug=1` without
+  interpreting, normalizing, or persisting it as project state.
 - Editor offline fallback remains identity-and-workspace scoped and cannot make
   dashboard or review data available offline accidentally.
 - Review copy and navigation must describe independent ownership, explicit

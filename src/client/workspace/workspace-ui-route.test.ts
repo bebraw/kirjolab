@@ -86,7 +86,7 @@ describe("workspace UI routes", () => {
   });
 
   it("omits defaults and preserves parameters owned by other features", () => {
-    const url = workspaceUiRouteUrl(new URL("https://example.test/editor/demo?keep=yes&rail=comments"), {
+    const url = workspaceUiRouteUrl(new URL("https://example.test/editor/demo?keep=yes&layout-debug=1&rail=comments"), {
       rail: "files",
       mode: "write",
       surface: "context",
@@ -94,7 +94,7 @@ describe("workspace UI routes", () => {
       contextKey: "library-pdf:artifact-1",
       page: 2,
     });
-    expect(url).toBe("/editor/demo?keep=yes&surface=context&context=library-pdf%3Aartifact-1&page=2");
+    expect(url).toBe("/editor/demo?keep=yes&layout-debug=1&surface=context&context=library-pdf%3Aartifact-1&page=2");
   });
 
   it("writes every non-default selection and keeps the URL fragment", () => {

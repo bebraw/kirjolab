@@ -2,6 +2,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { ApplicationVersionControl } from "./application-version-control";
 import { applicationVersion } from "../platform/offline-service-worker";
 
+const activeLayoutDiagnosticsReport = vi.hoisted(() => vi.fn<(reason: string) => string | null>(() => null));
+
+vi.mock("./layout-diagnostics", () => ({ activeLayoutDiagnosticsReport }));
+
 class TestApplicationVersionControl extends ApplicationVersionControl {
   copyForTest(): Promise<void> {
     return this.copyVersion();
@@ -17,7 +21,10 @@ class TestApplicationVersionControl extends ApplicationVersionControl {
 }
 
 describe("application version control", () => {
-  afterEach(() => vi.unstubAllGlobals());
+  afterEach(() => {
+    activeLayoutDiagnosticsReport.mockReset().mockReturnValue(null);
+    vi.unstubAllGlobals();
+  });
 
   it("renders and copies deployment and shell diagnostics", async () => {
     const writeText = vi.fn(async () => undefined);
@@ -81,6 +88,27 @@ describe("application version control", () => {
     expect(input.select).toHaveBeenCalledTimes(2);
     expect(input.remove).toHaveBeenCalledTimes(2);
     expect(notices).toEqual(["Copied diagnostics.", "Could not copy diagnostics"]);
+  });
+
+  it("appends a fresh active layout report to copied diagnostics", async () => {
+    const writeText = vi.fn(async () => undefined);
+    vi.stubGlobal("navigator", { clipboard: { writeText } });
+    activeLayoutDiagnosticsReport.mockReturnValue('Kirjolab layout diagnostics\n{"schemaVersion":1}');
+    const control = new TestApplicationVersionControl();
+
+    await control.copyForTest();
+
+    expect(activeLayoutDiagnosticsReport).toHaveBeenCalledWith("settings-copy");
+    expect(writeText).toHaveBeenCalledWith(
+      [
+        "Kirjolab diagnostics",
+        "deployment=local",
+        `shell=${applicationVersion}`,
+        "",
+        "Kirjolab layout diagnostics",
+        '{"schemaVersion":1}',
+      ].join("\n"),
+    );
   });
 
   it("owns offline shell registration, navigation caching, and update refresh", async () => {

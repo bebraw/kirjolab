@@ -71,6 +71,32 @@ Set `KIRJOLAB_BUILD_WEEK_CDP_URL` only when the dedicated loopback HTTP endpoint
 uses a port other than `9222`. Generated media is ignored and should remain out
 of commits.
 
+## Inspect A Physical iPad
+
+Use the hosted application for physical-device diagnosis. The normal
+development Worker intentionally binds to `127.0.0.1`, so an iPad cannot open it
+directly over the local network.
+
+1. On the iPad, enable **Settings → Safari → Advanced → Web Inspector**. On
+   newer iPadOS releases Safari settings may appear below **Settings → Apps**.
+2. On the Mac, enable Safari's developer features from **Safari → Settings →
+   Advanced**, then connect the unlocked iPad by USB and accept any trust
+   prompts.
+3. Open the affected hosted editor URL on the iPad with `layout-debug=1` added
+   to its query string. Preserve any existing query parameters.
+4. Reproduce the issue. Keep the same orientation and windowing mode and, when
+   relevant, leave the software keyboard open.
+5. In Mac Safari, choose **Develop → [iPad] → [Kirjolab page]** to inspect the
+   live page. The iPad's fixed **Layout debug** control can refresh highlights
+   or copy the complete bounded report without a reload.
+
+Compare the report's `shell` with **Settings → Diagnostics → Copy** on a known
+current browser before treating the symptom as a new layout regression. Record
+the iPad model and iPadOS version plus Safari versus Home Screen use, full
+screen versus Split View or Stage Manager, orientation, and keyboard state.
+The copied report contains no manuscript text or project identity and is never
+uploaded automatically.
+
 ## Safety Notes
 
 - Bind the endpoint locally and do not expose port `9222` to a network.

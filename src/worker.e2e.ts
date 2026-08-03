@@ -1957,6 +1957,93 @@ test("locks iPad viewport zoom and keeps editor layers aligned", async ({ browse
   await context.close();
 });
 
+test("keeps layout diagnostics behind the exact query opt-in", async ({ page }) => {
+  await page.goto("/editor/demo");
+  await expect(page.locator("#layout-debug-panel")).toHaveCount(0);
+
+  await page.goto("/editor/demo?layout-debug=true");
+  await expect(page.locator("#layout-debug-panel")).toHaveCount(0);
+});
+
+test("finds horizontal overflow with iPad layout diagnostics", async ({ browser }) => {
+  const context = await browser.newContext({ hasTouch: true, viewport: { width: 1194, height: 834 } });
+  const page = await context.newPage();
+  await page.goto("/editor/demo?layout-debug=1");
+  await expect(page.locator("#workspace-surfaces")).toHaveAttribute("data-ready", "true");
+
+  const panel = page.locator("#layout-debug-panel");
+  const status = page.locator("#layout-debug-status");
+  const refresh = page.locator("#refresh-layout-debug");
+  const copy = page.locator("#copy-layout-debug");
+  await expect(panel).toBeVisible();
+  await expect(refresh).toBeVisible();
+  await expect(copy).toBeVisible();
+  await refresh.click();
+  const initialStatus = await status.textContent();
+  if (!initialStatus) throw new Error("Layout diagnostic status is unavailable");
+
+  const initialContainment = await panel.evaluate((element) => {
+    const panelBounds = element.getBoundingClientRect();
+    const containedControls = ["#layout-debug-status", "#refresh-layout-debug", "#copy-layout-debug"].every((selector) => {
+      const control = element.querySelector<HTMLElement>(selector);
+      if (!control) return false;
+      const bounds = control.getBoundingClientRect();
+      return (
+        bounds.left >= panelBounds.left &&
+        bounds.right <= panelBounds.right &&
+        bounds.top >= panelBounds.top &&
+        bounds.bottom <= panelBounds.bottom
+      );
+    });
+    const documentOverflow = () => document.documentElement.scrollWidth - document.documentElement.clientWidth;
+    const overflowWithPanel = documentOverflow();
+    const panelElement = element as HTMLElement;
+    const previousDisplay = panelElement.style.display;
+    panelElement.style.display = "none";
+    const overflowWithoutPanel = documentOverflow();
+    panelElement.style.display = previousDisplay;
+    const restoredOverflow = documentOverflow();
+    return {
+      panelFits:
+        panelBounds.left >= 0 && panelBounds.right <= window.innerWidth && panelBounds.top >= 0 && panelBounds.bottom <= window.innerHeight,
+      containedControls,
+      overflowWithoutPanel,
+      restoredOverflow,
+      overflowWithPanel,
+    };
+  });
+  expect(initialContainment).toMatchObject({ panelFits: true, containedControls: true });
+  expect(initialContainment.overflowWithPanel).toBe(initialContainment.overflowWithoutPanel);
+  expect(initialContainment.restoredOverflow).toBe(initialContainment.overflowWithPanel);
+
+  const overflowAmount = await page.evaluate(() => {
+    const toolbar = document.querySelector<HTMLElement>(".editor-toolbar");
+    if (!toolbar) throw new Error("Editor toolbar is unavailable");
+    const offender = document.createElement("div");
+    offender.id = "layout-debug-e2e-offender";
+    Object.assign(offender.style, {
+      height: "1px",
+      left: `${document.documentElement.scrollWidth + 1}px`,
+      position: "absolute",
+      top: "0",
+      width: "48px",
+    });
+    toolbar.append(offender);
+    return document.documentElement.scrollWidth - document.documentElement.clientWidth;
+  });
+  expect(overflowAmount).toBeGreaterThan(initialContainment.overflowWithPanel);
+
+  await refresh.click();
+  await expect(page.locator("#layout-debug-e2e-offender")).toHaveAttribute("data-layout-debug-offender", "true");
+  await expect(status).toHaveText(/page x \+[1-9]\d* \/ y \+\d+ · offenders [1-9]\d*/u);
+
+  await page.locator("#layout-debug-e2e-offender").evaluate((element) => element.remove());
+  await refresh.click();
+  await expect(status).toHaveText(initialStatus);
+
+  await context.close();
+});
+
 test("keeps workspace and Library navigation usable on a phone", async ({ page }) => {
   const workspaceId = await createWorkspace(page, "Phone layout");
   await page.setViewportSize({ width: 390, height: 844 });

@@ -1153,6 +1153,17 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   offline-persistence and toast owners together during shell preparation so the
   control owns the pinned update notice, persistence-before-refresh sequence,
   reload action, and copy outcomes.
+- Keep physical-device layout diagnostics local and explicitly opt-in through
+  the exact `layout-debug=1` query. The disabled path must not measure the DOM,
+  register diagnostic viewport or focus listeners, or render diagnostic UI.
+  Once opted in, keep only a bounded event history and measure a content-free
+  inventory of stable header, workspace, toolbar, and editor geometry on
+  refresh or copy. Include the shell fingerprint, viewport and media state,
+  safe structural labels, overflow, and sibling overlap; never include authored
+  text, control values, project identity, URL state, dynamic resource ids,
+  persistence, upload, or telemetry. Preserve this foreign query during
+  reconstructible workspace-route synchronization without promoting it to
+  project state.
 - Publish immutable browser runtimes under content-fingerprinted URLs. Derive
   the service-worker cache namespace from the built shell so a shell change
   installs a new cache generation and activation removes older Kirjolab shell

@@ -3,6 +3,7 @@
 @import "./ui/primitives.css";
 @import "./ui/app-shell.css";
 @import "./ui/workspace.css";
+@import "./client/app/layout-diagnostics.css";
 @import "./client/library/library.css";
 @import "./client/context/research-context.css";
 @import "./client/editor/editor.css";

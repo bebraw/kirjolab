@@ -33,6 +33,7 @@ No accepted ADRs are awaiting implementation.
 
 | ADR                                                                                       | Status               | Summary                                                                                                         |
 | ----------------------------------------------------------------------------------------- | -------------------- | --------------------------------------------------------------------------------------------------------------- |
+| [ADR-215](./implemented/ADR-215-keep-layout-diagnostics-local-and-opt-in.md)              | Implemented          | Capture bounded, content-free layout evidence only in an explicitly opted-in local browser session.             |
 | [ADR-214](./implemented/ADR-214-read-paired-chapter-notes-in-context.md)                  | Implemented          | Read conventionally paired chapter notes in Context while retaining ordinary Markdown file semantics.           |
 | [ADR-213](./implemented/ADR-213-protect-main-with-authoritative-ci.md)                    | Implemented          | Require pull requests and authoritative GitHub Actions checks before updating main.                             |
 | [ADR-212](./implemented/ADR-212-use-cloudflare-mcp-as-platform-knowledge.md)              | Implemented          | Use Cloudflare MCP for current platform knowledge while retaining focused skills for adopted capabilities.      |

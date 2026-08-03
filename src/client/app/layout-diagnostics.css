@@ -1,0 +1,70 @@
+@layer components {
+  .layout-debug-panel {
+    position: fixed;
+    right: max(0.75rem, env(safe-area-inset-right));
+    bottom: max(0.75rem, env(safe-area-inset-bottom));
+    z-index: 100;
+    display: flex;
+    width: fit-content;
+    max-width: calc(100vw - 1.5rem);
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.45rem;
+    border: 1px solid var(--color-app-line);
+    border-radius: var(--ui-radius-md);
+    padding: 0.45rem;
+    background: var(--color-app-canvas-overlay);
+    box-shadow: var(--ui-elevation-menu);
+    color: var(--color-app-text);
+    font-family: var(--font-sans);
+    font-size: 0.68rem;
+  }
+
+  .layout-debug-panel strong {
+    color: var(--color-app-ink);
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .layout-debug-status {
+    min-width: 0;
+    color: var(--color-app-text-soft);
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+  }
+
+  .layout-debug-copy-status {
+    color: var(--color-app-accent-strong);
+    font-size: 0.64rem;
+    font-weight: 800;
+  }
+
+  .layout-debug-action {
+    min-height: var(--ui-control-compact);
+    border: 1px solid var(--color-app-line);
+    border-radius: var(--ui-radius-sm);
+    padding-inline: 0.65rem;
+    background: var(--color-app-paper);
+    color: var(--color-app-accent-strong);
+    font-size: 0.66rem;
+    font-weight: 800;
+  }
+
+  .layout-debug-action:hover {
+    border-color: var(--color-app-accent);
+    background: var(--color-app-accent-ghost);
+  }
+
+  [data-layout-debug-offender="true"] {
+    outline: 2px solid var(--color-app-error);
+    outline-offset: -2px;
+  }
+
+  @media (pointer: coarse) {
+    .layout-debug-action {
+      min-height: var(--ui-control-touch);
+    }
+  }
+}
