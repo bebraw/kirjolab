@@ -321,8 +321,10 @@ and `src/test-support.ts`. It includes static mutants and the configured
 detailed reports. `npm run mutation:affected` accepts an explicit Stryker
 `--mutate` list, ignores static mutants, and retains concise clear-text and
 progress reporting for a human-readable bounded signal. The automated
-pull-request and pre-push selectors append `--reporters progress` so their final
-option overrides the base reporters.
+pre-push selector appends `--reporters progress` so its final option overrides
+the base reporters. Pull-request mutation instead uses
+`stryker.pr.config.mjs`, which requests console progress plus a JSON report and
+disables Stryker's built-in raw break threshold only for that CI path.
 `npm run mutation:incremental` enables Stryker incremental mode so repeated
 full-surface local runs can reuse previous mutant results while ignoring static
 mutants. Both local commands retain the configured TypeScript checker; a plain
@@ -331,25 +333,68 @@ project typecheck cannot determine whether each mutated program still compiles.
 before rebuilding it. It remains an explicit manual full-surface cache refresh;
 the pre-push selector does not invoke it automatically.
 GitHub runs `npm run mutation:ci` from a clean checkout for pull requests only.
-The selector compares explicit base and head SHAs, retains added, copied,
-modified, and renamed configured production sources, and maps changed colocated
-Node unit tests back to their production sources. Changes to `package.json`,
-`package-lock.json`, `stryker.config.mjs`, `tsconfig.json`,
+The selector compares explicit base and head SHAs. A NUL-delimited
+`git diff --name-status --diff-filter=ACMRD -z base...head` supplies added,
+copied, modified, renamed, and deleted status while retaining both old and new
+paths for renames. Deleted production sources are omitted because no head-side
+file remains. For each surviving directly changed configured production source,
+a zero-context diff supplies positive new/head-side hunk spans. Renamed sources
+use `git diff --unified=0 --find-renames base...head -- old-file new-file` so a
+move is not misread as a full addition; other changes use only the head-side
+path. The selector projects those spans to Stryker
+`file.ts:start-end` patterns and coalesces overlapping or adjacent ranges.
+Stryker only mutates AST nodes fully contained by a range, so any deletion-only
+hunk or absence of a positive new-side span promotes the surviving source to a
+full-file pattern.
+
+A changed, deleted, or renamed colocated Node unit test maps its surviving
+production counterpart as a full-file pattern only when that source was not
+directly changed. Direct range or safety-fallback selection takes precedence
+when both source and test changed. Changes, deletions, or renames involving
+`package.json`, `package-lock.json`, `stryker.config.mjs`, `tsconfig.json`,
 `vitest.config.mts`, `.github/workflows/ci.yml`,
 `scripts/affected-file-utils.mjs`, `scripts/run-ci-mutation.mjs`, or
-`scripts/run-pre-push-quality.mjs` add `src/views/app-navigation.ts` as a stable
-canary. The selector requires full base and head commit SHAs to exist in the
+`scripts/run-pre-push-quality.mjs` add `src/views/app-navigation.ts` as an
+always-full-file stable canary. Full-file selection dominates ranges for the
+same source, so the canary stays full-file even when it was also changed
+directly. The selector requires full base and head commit SHAs to exist in the
 checkout and fails explicitly when either is unavailable instead of falling
 back to a full run. The required check succeeds without starting Stryker when
-no source or canary is selected. Otherwise it invokes the non-incremental
-affected command with an explicit `--mutate` list, ignores static mutants, emits
-progress only, and must finish within 30 minutes.
-The aggregate break threshold is 68, rebased to the whole-number score observed
-after the well-tested local Markdown renderer moved behind the Scholarmark
-package boundary; the 80 and 90 warning bands remain visible. The threshold is
-blocking for the selected pull-request scope, but that result is not a
-repository-wide score; run `npm run mutation` explicitly for a full audit. The
-Vitest runner uses Stryker's per-test coverage
+no line range, full-file fallback, test-mapped source, or canary is selected.
+Otherwise it invokes the non-incremental affected command with an explicit
+`--mutate` list, ignores static mutants, emits console progress plus JSON under
+the existing disposable `reports/mutation/` target, and must finish within 30
+minutes. After Stryker completes successfully, the selector postprocesses that
+JSON report. `Killed`, `Timeout`, `Survived`, and `NoCoverage` are valid;
+`Killed`, `Timeout`, and `Survived` are covered; and `Killed` plus `Timeout` are
+detected. `CompileError` and `Ignored` are excluded. `Pending`, `RuntimeError`,
+and a missing or malformed report fail the check. A report with zero valid
+mutants passes; otherwise changed-mutant coverage (`covered / valid`) must be at
+least 90% and covered mutation score (`detected / covered`) must be at least
+68%.
+
+The changed-line refinement follows an affected-file GitHub run that timed out
+after 30 minutes 16 seconds with 5,015 of 6,930 mutants tested and one checker
+and one test runner active. The 30-minute timeout remains a hard upper bound
+rather than a target runtime.
+The base `stryker.config.mjs` break threshold remains 68, rebased to the whole-
+number score observed after the well-tested local Markdown renderer moved
+behind the Scholarmark package boundary; the 80 and 90 warning bands remain
+visible. It remains blocking for full, affected, incremental, and pre-push
+mutation. The dedicated pull-request configuration disables that raw threshold
+because Stryker's raw `detected / valid` score conflates uncovered changed
+mutants with detection strength; the two postprocessed metrics above are the
+pull-request authority instead.
+
+The measured changed-line report had 3,154 valid mutants, 2,852 covered mutants
+(90.42%), and 1,922 detected mutants (67.39% of covered mutants). It therefore
+passes the coverage floor but misses the covered mutation floor. With the
+covered denominator unchanged, reaching 68% requires 1,940 detections, or 18
+more. Tests must harden that result rather than lowering the floor. This
+pull-request result is not a repository-wide score; run `npm run mutation`
+explicitly for a full audit.
+
+The Vitest runner uses Stryker's per-test coverage
 analysis and related-test narrowing, so each runtime mutant runs against the
 tests Stryker can associate with the mutated file instead of blindly rerunning
 the whole suite. Stryker worker concurrency is set to `50%` so mutation testing
