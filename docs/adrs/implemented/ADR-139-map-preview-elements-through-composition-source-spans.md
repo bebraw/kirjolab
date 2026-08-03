@@ -25,9 +25,13 @@ passage relationships. Repeated source occurrences will resolve to the matching
 Preview element nearest the current viewport.
 
 The interface will expose explicit source-to-Preview and Preview-to-source
-actions at the pane boundary. It may also follow deliberate source navigation
-while both panes are visible, but ordinary typing will not cause Preview
-scrolling or source focus changes.
+actions at the pane boundary plus an opt-in scroll-lock action. While locked,
+the most recent deliberate scroll intent selects the leading pane and
+the other pane follows through the same source-span mapping. Programmatic
+follower movement must not feed back into the leader. Preview-led continuous
+scrolling only recenters the active source file and does not move the caret,
+focus the editor, or switch files. Ordinary typing clears the active scroll
+leader and does not cause Preview scrolling or source focus changes.
 
 ## Consequences
 

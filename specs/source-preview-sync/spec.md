@@ -28,10 +28,11 @@ Preview offset may belong to a supporting file.
   retains source-map translation, project-file selection, canonical image
   metadata and hidden-id inputs, publication resolution, citation navigation,
   and resulting transitions.
-- A compact two-button control straddles the authoring/context divider while
+- A compact three-button control straddles the authoring/context divider while
   the Preview tab is active in desktop split view. The right arrow reveals the
-  passage centered in the source editor in Preview; the left arrow reveals the
-  passage centered in Preview in the source editor.
+  passage centered in the source editor in Preview; the middle scroll-lock
+  action enables or disables continuous viewport synchronization; the left arrow
+  reveals the passage centered in Preview in the source editor.
 - Clicking non-interactive Preview content reveals that element's start in the
   source editor. Citation buttons, links, and form controls retain their own
   actions.
@@ -43,6 +44,16 @@ Preview offset may belong to a supporting file.
   versus selected source-offset choice, and explicit-versus-automatic callback
   routing. The workspace coordinator supplies the current Preview-context and
   layout state and retains the resulting Preview DOM navigation.
+- Locked scrolling is opt-in and transient. The most recent deliberate wheel,
+  touch, pointer, or scroll-key interaction selects the leading pane. Updates
+  are throttled to one animation frame, programmatic movement of the following
+  pane does not feed back into the leader, and text input clears the active
+  leader.
+- Source-led linked scrolling maps the center of the source viewport to
+  Preview. Preview-led linked scrolling recenters the source viewport only
+  when the mapped content belongs to the active file. It does not move the
+  caret, steal focus, or switch files; explicit arrows and Preview clicks
+  retain cross-file navigation.
 - When a source location occurs more than once through repeated includes, Sync
   chooses the rendered occurrence nearest the current Preview viewport.
 - A synchronized Preview target receives a brief token-colored outline. Sync
@@ -62,6 +73,9 @@ Preview offset may belong to a supporting file.
   file-or-entry fallback, Write-mode entry, and normalized range selection.
   Direct Preview clicks reveal the mapped source without forcing viewport
   centering.
+- **Locked scrolling:** Activating the scroll lock lets either pane lead
+  continuous viewport alignment until the control is unlinked. The latest
+  direct scroll intent determines the leader.
 - **Unavailable mapping:** Keep the current panes and selections unchanged.
 - **Narrow layouts:** Hide the divider control because both panes are not
   simultaneously visible. Direct Preview clicks remain available and return
@@ -73,6 +87,10 @@ Preview offset may belong to a supporting file.
 - Do not persist Preview DOM offsets or use them as durable manuscript anchors.
 - Do not follow every input event or steal source focus while typing.
 - Do not let Preview synchronization scroll the outer workspace document.
+- Do not map linked scrolling by raw scroll percentages or let programmatic
+  follower scrolling bounce back into the leading pane.
+- Do not switch source files during continuous Preview-led scrolling;
+  cross-file navigation remains an explicit action.
 - Do not let Sync override citations, links, or other interactive Preview
   elements.
 - Bind the native source, highlight layer, project-file owner, and workspace
@@ -86,11 +104,16 @@ Preview offset may belong to a supporting file.
 - Markdown tests verify source-position attributes survive the Preview
   sanitizer without exposing unrelated positional metadata.
 - View tests verify the bidirectional control and its accessible names.
+- Control tests cover link state, latest-intent leadership, loop suppression,
+  input interruption, and cross-file protection.
+- Browser tests cover bidirectional linked scrolling without caret movement or
+  feedback loops.
 
 ## Current Milestone
 
-- Implemented: bidirectional explicit Sync, Preview-to-source click navigation,
-  conservative desktop source following, composed-file mapping, and transient
-  target highlighting. The same bounded DOM adapter resolves authorized local
-  project images relative to their canonical source-file mapping while leaving
-  external and optimistically hidden assets untouched.
+- Implemented: bidirectional explicit Sync, opt-in locked viewport scrolling,
+  Preview-to-source click navigation, conservative desktop source following,
+  composed-file mapping, and transient target highlighting. The same bounded
+  DOM adapter resolves authorized local project images relative to their
+  canonical source-file mapping while leaving external and optimistically
+  hidden assets untouched.

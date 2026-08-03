@@ -788,7 +788,9 @@
     .authoring-context-resizer[data-dragging="true"]::before {
       background: var(--color-app-accent);
     }
+  }
 
+  @media (min-width: 70rem) {
     .preview-sync-controls {
       position: absolute;
       top: 4.25rem;
@@ -818,7 +820,9 @@
       border-top: 1px solid var(--color-app-line);
     }
 
-    .preview-sync-controls > button:hover {
+    .preview-sync-controls > button:hover,
+    .preview-sync-controls > button:focus-visible,
+    .preview-sync-controls > button[aria-pressed="true"] {
       background: var(--color-app-accent-ghost);
       color: var(--color-app-accent-strong);
     }

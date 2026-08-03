@@ -2684,6 +2684,104 @@ test("synchronizes Preview from the centered editor passage instead of a stale c
     .toBeLessThan(1);
 });
 
+test("locks source and Preview scrolling without moving the source caret", async ({ page }) => {
+  await page.setViewportSize({ width: 1366, height: 900 });
+  const workspaceId = await createWorkspace(page, "Linked source Preview scrolling");
+  const source = Array.from({ length: 40 }, (_, index) => `## Section ${index + 1}\n\nPassage ${index + 1}.\n`).join("\n");
+  await page.goto(`/editor/${workspaceId}`);
+  const editor = page.locator("#source-editor");
+  await editor.fill(source);
+
+  const controls = page.getByRole("group", { name: "Synchronize source and preview" });
+  const toggle = page.getByRole("button", { name: "Source and Preview scroll lock" });
+  await expect(controls).toBeVisible();
+  await expect(toggle).toHaveAttribute("aria-pressed", "false");
+  await toggle.click();
+  await expect(toggle).toHaveAttribute("aria-pressed", "true");
+
+  const sourceLine30 = page.locator("#source-editor-highlight .source-editor-line", { hasText: "Passage 30." });
+  const passage30 = page.locator("#preview p", { hasText: "Passage 30." });
+  const previewScroll = page.locator("#preview-scroll");
+  await editor.dispatchEvent("wheel");
+  await sourceLine30.evaluate((line) => {
+    const sourceEditor = document.querySelector<HTMLTextAreaElement>("#source-editor");
+    if (!sourceEditor || !(line instanceof HTMLElement)) throw new Error("Expected source editor line");
+    sourceEditor.scrollTop = line.offsetTop + line.clientHeight / 2 - sourceEditor.clientHeight / 2;
+  });
+  await expect
+    .poll(async () =>
+      Math.abs(
+        await passage30.evaluate((element) => {
+          const previewScroll = document.querySelector("#preview-scroll");
+          if (!previewScroll) throw new Error("Expected Preview scroller");
+          const passageBounds = element.getBoundingClientRect();
+          const previewBounds = previewScroll.getBoundingClientRect();
+          return passageBounds.top + passageBounds.height / 2 - (previewBounds.top + previewBounds.height / 2);
+        }),
+      ),
+    )
+    .toBeLessThan(1);
+
+  await toggle.click();
+  await expect(toggle).toHaveAttribute("aria-pressed", "false");
+  await editor.evaluate((element: HTMLTextAreaElement) => {
+    element.setSelectionRange(0, 0);
+    element.scrollTop = element.scrollHeight;
+  });
+  await previewScroll.evaluate((element) => {
+    element.scrollTop = 0;
+  });
+  await expect.poll(async () => await editor.evaluate((element) => element.scrollTop)).toBeGreaterThan(1_000);
+  await expect.poll(async () => await previewScroll.evaluate((element) => element.scrollTop)).toBeLessThan(1);
+  await toggle.click();
+  await expect(toggle).toHaveAttribute("aria-pressed", "true");
+  const caretBeforePreviewScroll = await editor.evaluate((element: HTMLTextAreaElement) => element.selectionStart);
+  await previewScroll.focus();
+  await page.keyboard.press("Home");
+  await expect.poll(async () => await previewScroll.evaluate((element) => element.scrollTop)).toBeLessThan(1);
+  await expect.poll(async () => await editor.evaluate((element) => element.scrollTop)).toBeLessThan(1);
+  expect(await editor.evaluate((element: HTMLTextAreaElement) => element.selectionStart)).toBe(caretBeforePreviewScroll);
+
+  const sourceLine5 = page.locator("#source-editor-highlight .source-editor-line", { hasText: "Passage 5." });
+  const passage5 = page.locator("#preview p", { hasText: "Passage 5." });
+  await previewScroll.dispatchEvent("wheel");
+  await passage5.evaluate((element) => {
+    const viewport = document.querySelector<HTMLElement>("#preview-scroll");
+    if (!viewport) throw new Error("Expected Preview scroller");
+    const passageBounds = element.getBoundingClientRect();
+    const viewportBounds = viewport.getBoundingClientRect();
+    viewport.scrollTop += passageBounds.top + passageBounds.height / 2 - (viewportBounds.top + viewportBounds.height / 2);
+  });
+  await expect
+    .poll(async () =>
+      Math.abs(
+        await sourceLine5.evaluate((line) => {
+          const sourceEditor = document.querySelector<HTMLTextAreaElement>("#source-editor");
+          if (!sourceEditor || !(line instanceof HTMLElement)) throw new Error("Expected source editor line");
+          return line.offsetTop + line.clientHeight / 2 - (sourceEditor.scrollTop + sourceEditor.clientHeight / 2);
+        }),
+      ),
+    )
+    .toBeLessThan(1);
+  expect(await editor.evaluate((element: HTMLTextAreaElement) => element.selectionStart)).toBe(caretBeforePreviewScroll);
+  await expect
+    .poll(async () =>
+      Math.abs(
+        await passage5.evaluate((element) => {
+          const viewport = document.querySelector("#preview-scroll");
+          if (!viewport) throw new Error("Expected Preview scroller");
+          const passageBounds = element.getBoundingClientRect();
+          const viewportBounds = viewport.getBoundingClientRect();
+          return passageBounds.top + passageBounds.height / 2 - (viewportBounds.top + viewportBounds.height / 2);
+        }),
+      ),
+    )
+    .toBeLessThan(1);
+
+  await toggle.click();
+  await expect(toggle).toHaveAttribute("aria-pressed", "false");
+});
+
 test("keeps Markdown comment blocks in source and out of publication", async ({ page }) => {
   const workspaceId = await createWorkspace(page, "Markdown comments workspace");
   const api = `/api/workspaces/${workspaceId}`;

@@ -17,6 +17,7 @@ const ICONS = {
   folderAdd: '<path d="M3.5 6.75h6l2 2h9v9.5h-17z"></path><path d="M9 13.5h6M12 10.5v6"></path>',
   imageAdd:
     '<rect x="3.5" y="5" width="17" height="14" rx="1.5"></rect><circle cx="8.25" cy="9.25" r="1.5"></circle><path d="m5.5 17 4.25-4.25 3 3 2-2 3.75 3.25"></path><path d="M18.5 2.75v4M16.5 4.75h4"></path>',
+  lock: '<rect x="5" y="10" width="14" height="10" rx="2"></rect><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v2"></path>',
   guide: '<path d="M5 4h14v16H5z"></path><path d="M8 8h8M8 12h5M8 16h7"></path>',
   more: '<circle cx="5" cy="12" r="1"></circle><circle cx="12" cy="12" r="1"></circle><circle cx="19" cy="12" r="1"></circle>',
   note: '<path d="M5 4h14v12H9l-4 4Z"></path><path d="M9 8h6M9 12h4"></path>',
@@ -35,6 +36,7 @@ const ICONS = {
     '<circle cx="12" cy="12" r="3"></circle><path d="M19 13.5v-3l-2.1-.7a7.5 7.5 0 0 0-.7-1.7l1-2-2.1-2.1-2 1a7.5 7.5 0 0 0-1.7-.7L10.5 2h-3l-.7 2.1a7.5 7.5 0 0 0-1.7.7l-2-1L1 5.9l1 2a7.5 7.5 0 0 0-.7 1.7L-1 10.5v3l2.1.7a7.5 7.5 0 0 0 .7 1.7l-1 2L3 20l2-1a7.5 7.5 0 0 0 1.7.7l.8 2.3h3l.7-2.1a7.5 7.5 0 0 0 1.7-.7l2 1 2.1-2.1-1-2a7.5 7.5 0 0 0 .7-1.7z" transform="translate(2)"></path>',
   text: '<path d="M5 6h14M12 6v12M8.5 18h7"></path><path class="library-pdf-icon-accent" d="M5 20h14"></path>',
   undo: '<path d="M9 7 5 11l4 4"></path><path d="M5.5 11H14a5 5 0 0 1 5 5"></path>',
+  unlock: '<rect x="5" y="10" width="14" height="10" rx="2"></rect><path d="M9 10V7a4 4 0 0 1 7.5-2M12 14v2"></path>',
 } as const;
 
 export type IconName = keyof typeof ICONS;
