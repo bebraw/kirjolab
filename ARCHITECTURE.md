@@ -16,6 +16,15 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   `durable-objects` skill while Durable Objects remain a product dependency.
   Add other product-specific Cloudflare skills only with the capability that
   needs them.
+- Treat `.codex/skills/` as the canonical root for project-local skills. Keep
+  `.github/skills/` and capability-kit copies only for intentionally supported
+  compatibility or distribution surfaces. When the same skill is maintained in
+  `.codex/skills/`, keep an intentional copy equivalent unless a documented
+  adaptation is needed; a compatibility-only skill need not be installed for
+  Codex.
+- Vendor third-party agent skills at a reviewed source revision, retain their
+  license and provenance, and adapt only the integration points needed for
+  Kirjolab's durable context and authorization boundaries.
 - Organize browser and domain source by product capability once a source root
   contains multiple cohesive feature clusters. Keep browser entrypoints at
   `src/client/`, colocate implementations with their tests in the owning
@@ -29,6 +38,13 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Treat specs and ADRs as the durable source of truth for expected behavior and architectural intent. Code, including AI-generated code, is only acceptable when it matches those documents or updates them intentionally in the same change set.
 - Add or update an ADR in `docs/adrs/` whenever a change introduces or changes a lasting architectural constraint, selects between credible architectural alternatives, or replaces an earlier decision. Keep drafts in `docs/adrs/proposed/`, approved-but-not-yet-implemented decisions in `docs/adrs/accepted/`, and implemented decisions in `docs/adrs/implemented/`.
 - Create or update the relevant feature spec in `specs/` in the same change set whenever feature behavior, contracts, workflows, or regression guardrails change.
+- Keep optional multi-session discovery maps under
+  `docs/wayfinding/<effort>.md`. Treat them as working context rather than
+  durable authority, and promote lasting outcomes into `ARCHITECTURE.md`, ADRs,
+  or feature specs.
+- Use focused red-green slices for observable runtime behavior and regression
+  fixes when a stable public test seam exists. When no meaningful failing test
+  can be written, use and state the relevant deterministic verification instead.
 - Add or update a template update pack in `.template/updates/` in the same change set whenever a reusable template maintenance change should be portable to downstream projects.
 - Keep the quality gate green before considering a change ready.
 - Keep workflow writes explicit. New generated output, local state, cache, archive, or tool-artifact paths should be documented in the same change that introduces them.
@@ -1917,9 +1933,15 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Keep update packs as reviewable plain files with metadata, a migration guide, and a focused patch.
 - Use update packs for later changes to projects that already use this template or one of its capability kits.
 - Do not treat update packs as source snapshots; preserve downstream project conventions and use the migration guide when the patch does not apply cleanly.
+- Record a verified upstream source and full tree-matched baseline revision with
+  applied update IDs in package metadata when the repository derives from a
+  template. Use that provenance to resolve future syncs; never infer a source or
+  revision merely because a checkout has a familiar name.
 
 ## Spec Conventions
 
 - Put feature-level specs under `specs/{feature-domain}/spec.md`.
 - Keep one spec per independently evolvable feature or domain.
+- Synthesize only settled context into specs. Keep unresolved discovery in
+  conversation or a wayfinding map, and keep architectural rationale in ADRs.
 - Update the relevant spec in the same change set whenever behavior, contracts, workflows, or guardrails change.

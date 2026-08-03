@@ -1,0 +1,9 @@
+{
+  "id": "2026-08-03-readme-skill-catalog",
+  "title": "Add a discoverable README skill catalog",
+  "status": "implemented",
+  "risk": "low",
+  "adrs": [],
+  "touches": ["README.md"],
+  "checks": ["npm run format:check"]
+}

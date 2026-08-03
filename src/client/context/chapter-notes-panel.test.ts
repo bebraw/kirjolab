@@ -77,7 +77,10 @@ describe("chapter notes panel", () => {
   it("renders unavailable and empty companion states", async () => {
     const panel = new TestChapterNotesPanel();
     expect(panel.rootForTest()).toBe(panel);
-    expect(templateText(panel.renderForTest())).toContain("Open a chapter to read its companion notes.");
+    const initialRender = templateText(panel.renderForTest());
+    expect(panel.stateForTest()).toBe("unavailable");
+    expect(initialRender).toContain("Open a chapter to read its companion notes.");
+    expect(initialRender).toContain("This chapter has no available companion notes.");
 
     await expect(panel.presentNotes({ chapterPath, notes: null })).resolves.toEqual({ available: false });
     expect(panel.stateForTest()).toBe("unavailable");

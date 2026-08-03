@@ -1,0 +1,9 @@
+{
+  "id": "2026-07-22-engineering-quality-skills",
+  "title": "Add engineering quality skills",
+  "status": "implemented",
+  "risk": "low",
+  "adrs": ["docs/adrs/implemented/ADR-217-vendor-focused-engineering-quality-skills.md"],
+  "touches": [".codex/skills/", "AGENTS.md", ".capabilities/", "docs/", "specs/"],
+  "checks": ["npm run format:check", "npm run quality:gate", "npm run ci:local"]
+}

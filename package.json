@@ -18,6 +18,8 @@
     }
   },
   "vibeTemplate": {
+    "source": "https://github.com/bebraw/vibe-template",
+    "baseline": "4386a397be47008e8497c331033b50e108b6698f",
     "updates": [
       "2026-06-09-node-24-npm-baseline",
       "2026-06-10-capability-kits",
@@ -46,6 +48,7 @@
       "2026-07-17-fingerprint-pwa-shell",
       "2026-07-17-native-local-ci",
       "2026-07-22-pre-push-deep-quality",
+      "2026-07-22-engineering-quality-skills",
       "2026-07-25-dependency-cost-diagnostic",
       "2026-07-30-validate-adr-registry",
       "2026-07-30-local-workers-tests",
@@ -57,7 +60,11 @@
       "2026-07-31-cloudflare-mcp-skill-baseline",
       "2026-07-31-scope-local-agent-ci",
       "2026-07-31-manual-ci-dispatch",
-      "2026-08-03-bound-pr-mutation-ci"
+      "2026-08-03-bound-pr-mutation-ci",
+      "2026-08-03-repository-local-wayfinder",
+      "2026-08-03-repository-local-spec-tdd",
+      "2026-08-03-readme-skill-catalog",
+      "2026-08-03-record-template-provenance"
     ]
   },
   "scripts": {

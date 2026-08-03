@@ -58,9 +58,9 @@ Open <http://127.0.0.1:8787>.
 
 `npm install` also configures the repository's pre-push hook. The hook runs
 affected guardrails, Fallow for affected codebase inputs, and targeted Stryker
-checks for affected Node-testable sources. Mutation configuration changes fall
-back to the full incremental command. Generated browser assets are written to
-the ignored `.generated/` directory.
+checks for affected Node-testable sources. Mutation configuration changes add
+the stable canary source. Generated browser assets are written to the ignored
+`.generated/` directory.
 
 ## Use a Local Writing Model
 
@@ -184,6 +184,42 @@ submission-period implementation range from Kirjolab's earlier foundation.
 - `src/client/` contains the browser application and local-model operations.
 - `src/views/` contains the server-rendered workspace shell.
 - Tests live next to the code they exercise under `src/`.
+
+## Agent Skills
+
+Repository-local skills in [`.codex/skills/`](./.codex/skills/) help coding
+agents follow Kirjolab's conventions. Describe a job normally or request a
+skill by name, such as `$security`. `$wayfinder` and `$to-spec` are
+explicit-only, so they run only when explicitly requested.
+
+### Product Work
+
+- [`$brainstorming`](./.codex/skills/brainstorming/SKILL.md) — compare approaches and clarify trade-offs before implementation.
+- [`$wayfinder`](./.codex/skills/wayfinder/SKILL.md) — map a large, uncertain, multi-session initiative. Explicit invocation required.
+- [`$to-spec`](./.codex/skills/to-spec/SKILL.md) — capture settled behavior in the owning feature spec. Explicit invocation required.
+- [`$tdd`](./.codex/skills/tdd/SKILL.md) — implement observable behavior through focused red-green slices.
+- [`$debug`](./.codex/skills/debug/SKILL.md) — reproduce and isolate failures, then add regression guards when fixing them.
+- [`$simplify`](./.codex/skills/simplify/SKILL.md) — clarify recently changed code without altering behavior.
+
+### Review and Risk
+
+- [`$review`](./.codex/skills/review/SKILL.md) — find prioritized regressions, risks, and readiness gaps.
+- [`$correctness-review`](./.codex/skills/correctness-review/SKILL.md) — inspect changed logic for concrete behavioral errors and broken contracts.
+- [`$test-review`](./.codex/skills/test-review/SKILL.md) — evaluate meaningful test gaps and brittle or redundant coverage.
+- [`$security`](./.codex/skills/security/SKILL.md) — review authentication, secrets, access control, and data-handling risks.
+
+### Interface and Performance
+
+- [`$frontend-design`](./.codex/skills/frontend-design/SKILL.md) — design substantial production UI while preserving Kirjolab's reusable conventions.
+- [`$minimal-visual-style`](./.codex/skills/minimal-visual-style/SKILL.md) — extend the minimal, editorial, token-driven visual language.
+- [`$web-perf`](./.codex/skills/web-perf/SKILL.md) — audit Core Web Vitals, loading behavior, layout shifts, and accessibility signals.
+
+### Cloudflare and Validation
+
+- [`$durable-objects`](./.codex/skills/durable-objects/SKILL.md) — implement and review Kirjolab's stateful Cloudflare coordination layer.
+- [`$workers-best-practices`](./.codex/skills/workers-best-practices/SKILL.md) — author and review production Cloudflare Worker code.
+- [`$wrangler`](./.codex/skills/wrangler/SKILL.md) — guide Wrangler configuration, development, deployment, and resource commands.
+- [`$agent-ci`](./.codex/skills/agent-ci/SKILL.md) — run Kirjolab's native local gate and optional container parity checks.
 
 ## Template Maintenance
 
