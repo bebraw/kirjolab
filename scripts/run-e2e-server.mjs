@@ -34,6 +34,7 @@ const wrangler = spawn(
       CHOKIDAR_INTERVAL: "200",
       CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV: "false",
       HOME: process.cwd(),
+      KIRJOLAB_BROWSER_SHELL_MODE: "development",
     },
   },
 );

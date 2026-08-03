@@ -8,6 +8,8 @@
 [ADR-134](./ADR-134-keep-mutation-explicit.md),
 [ADR-162](./ADR-162-run-deep-quality-checks-before-push.md)
 
+**Amended by:** [ADR-216](./ADR-216-bound-pull-request-mutation-ci.md)
+
 ## Context
 
 The review-study browser module combines DOM event wiring with deterministic

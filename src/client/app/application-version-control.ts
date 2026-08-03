@@ -2,8 +2,10 @@ import { html, type TemplateResult } from "lit";
 import * as v from "valibot";
 import type { AppToast } from "./app-toast";
 import { LightDomElement } from "../platform/light-dom-controller";
+import { copyText } from "../platform/clipboard";
 import type { OfflineWorkspaceSession } from "../platform/offline-workspace";
 import { applicationVersion, cacheOfflineNavigation, registerOfflineServiceWorker } from "../platform/offline-service-worker";
+import { activeLayoutDiagnosticsReport } from "./layout-diagnostics";
 
 const healthDiagnosticsSchema = v.object({
   deployment: v.nullable(
@@ -53,7 +55,8 @@ export class ApplicationVersionControl extends LightDomElement {
 
   protected async copyVersion(): Promise<void> {
     try {
-      await copyText(this.report);
+      const layoutReport = activeLayoutDiagnosticsReport("settings-copy");
+      await copyText(layoutReport ? `${this.report}\n\n${layoutReport}` : this.report);
       this.notice("Copied diagnostics.");
     } catch {
       this.notice("Could not copy diagnostics");
@@ -113,25 +116,6 @@ function diagnosticReport(deployment: DeploymentMetadata): string {
 
 function normalizedDeploymentTag(deployment: NonNullable<DeploymentMetadata>): string {
   return deployment.tag.trim();
-}
-
-async function copyText(value: string): Promise<void> {
-  try {
-    await navigator.clipboard?.writeText(value);
-    if (navigator.clipboard) return;
-  } catch {
-    // Fall back when clipboard permission is unavailable in a browser or installed PWA.
-  }
-  const input = document.createElement("textarea");
-  input.value = value;
-  input.readOnly = true;
-  input.style.position = "fixed";
-  input.style.opacity = "0";
-  document.body.append(input);
-  input.select();
-  const copied = document.execCommand("copy");
-  input.remove();
-  if (!copied) throw new Error("Clipboard unavailable");
 }
 
 if (typeof customElements !== "undefined" && !customElements.get("application-version-control")) {

@@ -58,15 +58,19 @@ describe("renderContextTabs", () => {
 });
 
 describe("renderPreviewSyncControls", () => {
-  it("binds each source-preview direction to its semantic arrow", () => {
+  it("binds each source-preview direction and the linked-scroll toggle to semantic icons", () => {
     const html = renderPreviewSyncControls();
     const sourceToPreviewStart = html.indexOf('id="sync-preview-from-source"');
+    const scrollLinkStart = html.indexOf('id="toggle-preview-scroll-sync"');
     const previewToSourceStart = html.indexOf('id="sync-source-from-preview"');
     const sourceToPreview = html.slice(sourceToPreviewStart, html.indexOf("</button>", sourceToPreviewStart));
+    const scrollLink = html.slice(scrollLinkStart, html.indexOf("</button>", scrollLinkStart));
     const previewToSource = html.slice(previewToSourceStart, html.indexOf("</button>", previewToSourceStart));
 
     expect(html).toContain('role="group" aria-label="Synchronize source and preview"');
     expect(sourceToPreview).toContain(renderIcon("arrowRight"));
+    expect(scrollLink).toContain('aria-label="Source and Preview scroll lock" aria-pressed="false"');
+    expect(scrollLink).toContain(renderIcon("unlock"));
     expect(previewToSource).toContain(renderIcon("arrowLeft"));
   });
 });

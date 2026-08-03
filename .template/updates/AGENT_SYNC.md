@@ -13,8 +13,10 @@ into the current target repository without copying unrelated starter files.
 - **Template repo:** a local checkout or remote source for `vibe-template`.
 - **Update root:** `vibe-template/.template/updates/`.
 
-If the template repo path is not obvious, ask for it. If network access or clone
-access is needed, request approval before fetching anything.
+If the template repo path is not obvious, inspect a `vibeTemplate` object in
+package metadata or durable project docs for `source` and `baseline`. Ask only
+when neither the local checkout nor a recorded source resolves it. If network
+access or clone access is needed, request approval before fetching anything.
 
 ## Workflow
 
@@ -25,6 +27,7 @@ access is needed, request approval before fetching anything.
    - existing `.capabilities/`
    - existing `.template/updates/`
    - docs or package metadata recording applied template updates
+   - recorded template source and baseline revision
 2. Read `vibe-template/.template/updates/README.md`.
 3. List update packs under `vibe-template/.template/updates/*/update.json`.
 4. Determine which packs are already applied:
@@ -49,12 +52,15 @@ access is needed, request approval before fetching anything.
    ```json
    {
      "vibeTemplate": {
+       "source": "https://github.com/example/vibe-template",
+       "baseline": "<full-git-revision>",
        "updates": ["2026-06-14-agent-ci-warm-cache"]
      }
    }
    ```
 
-   Use a docs record instead when package metadata is not appropriate.
+   Use the actual discovered source. Use a docs record instead when package
+   metadata is not appropriate.
 
 8. Run the checks listed by the applied update packs, adjusted to the target
    repo's package manager and script names.

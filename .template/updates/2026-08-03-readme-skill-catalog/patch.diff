@@ -1,0 +1,46 @@
+diff --git a/README.md b/README.md
+index f4e8359..5f088e1 100644
+--- a/README.md
++++ b/README.md
+@@ -19,3 +19,40 @@ Local development in this repo targets macOS. Other platforms may need script an
+ - Template maintenance update packs: `.template/updates/`
+-
++
++## Agent Skills
++
++The repository includes focused instructions under `.codex/skills/` that help coding agents follow its conventions. You can describe the job normally and let the agent select a matching skill, or require one by name—for example, `Use $security to review this authentication change`.
++
++`$wayfinder` and `$to-spec` are intentionally explicit: the agent uses them only when you name them. This keeps exploratory maps and durable specifications from appearing as accidental side effects.
++
++### From Idea to Implementation
++
++- [`$brainstorming`](.codex/skills/brainstorming/SKILL.md) — compare lightweight approaches and clarify trade-offs before committing to a design.
++- [`$wayfinder`](.codex/skills/wayfinder/SKILL.md) — map a large, uncertain, multi-session initiative in `docs/wayfinding/` when it is not ready for a responsible spec. Explicit invocation required.
++- [`$to-spec`](.codex/skills/to-spec/SKILL.md) — turn settled discussion or wayfinding results into the repository's living `specs/<feature-domain>/spec.md`. Explicit invocation required.
++- [`$tdd`](.codex/skills/tdd/SKILL.md) — implement observable runtime behavior through focused red-green slices when a stable test seam exists.
++- [`$debug`](.codex/skills/debug/SKILL.md) — reproduce and localize failures, fix their root cause, add a regression guard, and verify the result.
++- [`$simplify`](.codex/skills/simplify/SKILL.md) — reduce incidental complexity in recently changed code without altering behavior.
++
++### Review and Risk
++
++- [`$review`](.codex/skills/review/SKILL.md) — perform a broad, prioritized review for bugs, regressions, and readiness gaps.
++- [`$correctness-review`](.codex/skills/correctness-review/SKILL.md) — inspect changed logic specifically for behavioral errors, edge cases, and broken contracts.
++- [`$test-review`](.codex/skills/test-review/SKILL.md) — evaluate whether tests cover meaningful behavior without becoming brittle or redundant.
++- [`$security`](.codex/skills/security/SKILL.md) — review authentication, secrets, access control, data exposure, and input-handling risks proportionately.
++
++### Frontend and Performance
++
++- [`$frontend-design`](.codex/skills/frontend-design/SKILL.md) — design or substantially revise production-quality UI while preserving the starter's reusable nature.
++- [`$minimal-visual-style`](.codex/skills/minimal-visual-style/SKILL.md) — extend the existing minimal, editorial, token-driven visual language.
++- [`$web-perf`](.codex/skills/web-perf/SKILL.md) — audit Core Web Vitals, loading behavior, network costs, layout shifts, and related accessibility signals.
++
++### Cloudflare and Validation
++
++- [`$workers-best-practices`](.codex/skills/workers-best-practices/SKILL.md) — author or review Worker code using current production guidance and repository conventions.
++- [`$wrangler`](.codex/skills/wrangler/SKILL.md) — guide Wrangler configuration and commands for local development, bindings, deployment, and platform resources.
++- [`$sandbox-sdk`](.codex/skills/sandbox-sdk/SKILL.md) — build applications that execute untrusted or agent-generated code in Cloudflare sandboxes.
++- [`$agent-ci`](.codex/skills/agent-ci/SKILL.md) — run the repository's GitHub Actions workflow locally for workflow-sensitive or release-readiness validation.
++
++Each linked `SKILL.md` is the source of truth for boundaries and workflow details. Project-wide routing rules live in [`AGENTS.md`](AGENTS.md).
++
+ ## Runtime

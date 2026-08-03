@@ -1,0 +1,6 @@
+interface:
+  display_name: "To Spec"
+  short_description: "Turn settled context into a repository spec"
+  default_prompt: "Use $to-spec to turn this settled discussion into a repository-local feature spec."
+policy:
+  allow_implicit_invocation: false

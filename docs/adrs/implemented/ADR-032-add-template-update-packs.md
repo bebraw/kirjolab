@@ -4,6 +4,8 @@
 
 **Date:** 2026-06-14
 
+**Amended:** 2026-08-03 — record verified template source and baseline provenance
+
 ## Context
 
 Projects that start from `vibe-template` usually diverge. They keep some of the
@@ -30,6 +32,12 @@ Update packs are plain files. Contributors and agents should apply them as
 small migrations, run the listed checks, and record applied update IDs in the
 target project.
 
+When the target repository's origin can be verified, record the upstream source
+and the full Git baseline revision whose tree seeded the project beside those
+IDs. This provenance lets later sync work resolve and compare the right
+template without guessing from a checkout name. Use durable project docs when
+package metadata is not an appropriate record.
+
 Capability kits remain the path for adopting a capability for the first time.
 Update packs are the path for syncing later maintenance changes.
 
@@ -49,6 +57,7 @@ past changes.
   target project.
 - Historical reusable changes have migration records instead of living only in
   commit history and ADRs.
+- A verified source and baseline make later template discovery reproducible.
 
 **Negative:**
 

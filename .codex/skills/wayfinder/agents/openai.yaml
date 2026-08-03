@@ -1,0 +1,6 @@
+interface:
+  display_name: "Wayfinder"
+  short_description: "Map large uncertain work inside the repository"
+  default_prompt: "Use $wayfinder to map this large uncertain effort before implementation."
+policy:
+  allow_implicit_invocation: false

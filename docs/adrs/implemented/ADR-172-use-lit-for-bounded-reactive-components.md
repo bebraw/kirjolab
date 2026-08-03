@@ -4,6 +4,8 @@
 
 **Date:** 2026-07-25
 
+**Amended:** 2026-08-03 — make Lit runtime mode explicit and production-fail-closed
+
 ## Context
 
 Kirjolab's server-rendered application shell keeps initial navigation and
@@ -33,6 +35,15 @@ its own authorized inputs or validated request result.
 Light-DOM components share one Lit base for first-connection server-markup
 cleanup and render-root selection. Non-rendering presenters extend its
 controller specialization for empty rendering and typed sibling lookup.
+Resolve Lit packages with explicit browser-shell export conditions rather than
+inferring mode from `NODE_ENV`: production is the fail-closed default, while
+Vitest, Playwright, and the loopback development command select `development`
+for Lit's diagnostics. Retain esbuild's `module` condition in both modes so the
+explicit selection preserves the existing ESM resolution. Inspect esbuild
+metafiles for every Lit-bearing browser entry and reject a production build
+that resolves any Lit-family `development/` input. The production deploy owner
+overrides an inherited browser-shell mode with `production` before every
+Wrangler subprocess.
 Concrete components retain every domain binding, reconnect action, and effect.
 After those ownership extractions, keep the remaining one-instance browser
 composition as module-private constants plus one directly invoked Lit startup
@@ -1620,6 +1631,9 @@ components do not duplicate query-and-error boilerplate.
   constructor value imports are also the registration edge for collected
   custom elements; the application entry retains side-effect imports only for
   registration-only elements absent from the registry.
+- The browser-shell build fails visibly if a Lit-bearing production entry
+  resolves Lit development inputs, while owned development and test bundles
+  retain Lit's additional diagnostics.
 - The persisted reference-Library boundary uses shared Valibot schemas for
   Crossref metadata, web-source rows, immutable web-snapshot rows, and string-
   array maps instead of parallel structural predicates. Explicit domain guards
@@ -1636,6 +1650,8 @@ components do not duplicate query-and-error boilerplate.
 - The first extraction adds more lines than it removes because it establishes
   the boundary and preserves server-rendered fallback content.
 - Browser bundles and production installs gain Lit and its transitive packages.
+- Development and browser-test bundles are intentionally larger because they
+  include Lit's diagnostic runtime.
 - Component behavior needs browser-level coverage in addition to
   server-template checks.
 
@@ -1663,3 +1679,10 @@ large migration and duplicate or replace the current server-rendered authority.
 A project-owned base could be smaller initially but would recreate scheduling,
 property updates, template escaping, and event binding that Lit already
 maintains.
+
+### Infer the Lit build from `NODE_ENV` or bundler defaults
+
+`NODE_ENV` does not select Lit's conditional package exports in esbuild, and an
+implicit default does not prove that a future build change kept development
+inputs out of production. Explicit conditions plus emitted-input validation
+make both environments reviewable and fail closed.

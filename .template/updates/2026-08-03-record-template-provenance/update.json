@@ -1,0 +1,9 @@
+{
+  "id": "2026-08-03-record-template-provenance",
+  "title": "Record template source provenance",
+  "status": "implemented",
+  "risk": "low",
+  "adrs": ["docs/adrs/implemented/ADR-032-add-template-update-packs.md"],
+  "touches": ["package.json", ".template/updates/", "ARCHITECTURE.md", "docs/", "specs/"],
+  "checks": ["npm run format:check", "npm run check:adrs", "npm run ci:local"]
+}

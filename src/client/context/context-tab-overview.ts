@@ -1,6 +1,6 @@
 import { html, nothing, type TemplateResult } from "lit";
 import { contextTabAction } from "./context-tab-action";
-import type { ResearchContextKey, ResearchContextTab } from "./research-context";
+import { isPermanentResearchTab, type ResearchContextKey, type ResearchContextTab } from "./research-context";
 import { LightDomElement } from "../platform/light-dom-controller";
 
 export const contextTabOverviewActionEvent = "context-tab-overview-action";
@@ -60,7 +60,7 @@ export class ContextTabOverview extends LightDomElement {
   }
 
   private renderItem({ tab, title }: ContextTabOverviewItem): TemplateResult {
-    const permanent = tab.kind === "preview" || tab.kind === "library" || tab.kind === "assistant";
+    const permanent = isPermanentResearchTab(tab);
     return html`
       <div class="context-tab-overview-row">
         <button

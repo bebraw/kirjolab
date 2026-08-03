@@ -33,7 +33,7 @@ const pdf: PdfResource = {
   createdAt,
   fingerprint: "fingerprint",
   id: "pdf:1",
-  name: "paper.pdf",
+  name: "10.1016_j.journal.final(4).pdf",
   objectKey: "pdfs/paper.pdf",
   size: 1024,
 };
@@ -42,7 +42,7 @@ const artifact: LibraryPdfArtifact = {
   createdAt,
   fingerprint: "library-fingerprint",
   id: "library-pdf:1",
-  name: "library.pdf",
+  name: "download_7f82c1b0.pdf",
   objectKey: "library/library.pdf",
   referenceId: publication.id,
   rights: "private",
@@ -51,7 +51,7 @@ const artifact: LibraryPdfArtifact = {
 const referencePdf: ProjectReferencePdf = {
   fingerprint: "reference-fingerprint",
   id: "reference-pdf:1",
-  name: "reference.pdf",
+  name: "fulltext (accepted manuscript) [1].pdf",
   referenceId: publication.id,
   size: 4096,
 };
@@ -142,8 +142,8 @@ function sources(
   return {
     activeKey,
     candidates: [],
+    chapterNotesAvailable: false,
     libraryArtifacts: [],
-    pdfs: [],
     publications: [],
     referencePdfs: [],
     standaloneLibrary: false,
@@ -170,7 +170,7 @@ describe("context tab strip", () => {
     expect(replaced).toBe(true);
   });
 
-  it("owns fixed and canonical resource titles", () => {
+  it("owns fixed titles and resource-keyed PDF labels", () => {
     const strip = new TestContextTabStrip();
     strip.setTabs(
       sources(
@@ -192,7 +192,7 @@ describe("context tab strip", () => {
           },
           { id: "missing", key: "candidate:missing", kind: "candidate", scrollTop: 0 },
         ],
-        { libraryArtifacts: [artifact], pdfs: [pdf], publications: [publication], referencePdfs: [referencePdf] },
+        { libraryArtifacts: [artifact], publications: [publication], referencePdfs: [referencePdf] },
       ),
     );
 
@@ -201,11 +201,86 @@ describe("context tab strip", () => {
       "Library",
       "Writing assistant",
       publication.title,
-      pdf.name,
-      artifact.name,
-      referencePdf.name,
+      `pdf:${pdf.id}`,
+      `library-pdf:${artifact.id}`,
+      `library-pdf:${referencePdf.id}`,
       "Revision",
     ]);
+  });
+
+  it("shows Chapter notes only when the active file has a companion", () => {
+    const strip = new TestContextTabStrip();
+    const tabs: readonly ResearchContextTab[] = [
+      { kind: "preview", key: "preview", scrollTop: 0 },
+      { kind: "chapter-notes", key: "chapter-notes", scrollTop: 18 },
+      { kind: "library", key: "library", scrollTop: 0 },
+      { kind: "assistant", key: "assistant", scrollTop: 0 },
+    ];
+
+    strip.setTabs(sources("preview", tabs));
+    expect(strip.titlesForTest()).toEqual(["Preview", "Library", "Writing assistant"]);
+
+    strip.setTabs(sources("chapter-notes", tabs, { chapterNotesAvailable: true }));
+    expect(strip.titlesForTest()).toEqual(["Preview", "Chapter notes", "Library", "Writing assistant"]);
+    expect(strip.panels.get("context-chapter-notes-panel")?.hidden).toBe(false);
+    expect(strip.panels.get("context-chapter-notes-scroll")?.scrollTop).toBe(18);
+  });
+
+  it("keeps PDF labels stable when filename metadata changes or is unavailable", () => {
+    const strip = new TestContextTabStrip();
+    const projectTab = {
+      id: pdf.id,
+      key: `pdf:${pdf.id}` as const,
+      kind: "pdf" as const,
+      page: 1,
+      focusedAnnotationId: null,
+      scrollTop: 0,
+    };
+    const libraryTab = {
+      id: artifact.id,
+      key: `library-pdf:${artifact.id}` as const,
+      kind: "library-pdf" as const,
+      page: 1,
+      focusedAnnotationId: null,
+      scrollTop: 0,
+    };
+
+    strip.setTabs(sources(projectTab.key, [projectTab, libraryTab], { libraryArtifacts: [artifact] }));
+    expect(strip.titlesForTest()).toEqual([projectTab.key, libraryTab.key]);
+
+    strip.setTabs(
+      sources(projectTab.key, [projectTab, libraryTab], {
+        libraryArtifacts: [{ ...artifact, name: "renamed-library.pdf" }],
+      }),
+    );
+    expect(strip.titlesForTest()).toEqual([projectTab.key, libraryTab.key]);
+
+    strip.setTabs(sources(projectTab.key, [projectTab, libraryTab]));
+    expect(strip.titlesForTest()).toEqual([projectTab.key, libraryTab.key]);
+  });
+
+  it("kind-qualifies colliding workspace and Library PDF ids", () => {
+    const strip = new TestContextTabStrip();
+    const projectTab = {
+      id: "shared-id",
+      key: "pdf:shared-id" as const,
+      kind: "pdf" as const,
+      page: 1,
+      focusedAnnotationId: null,
+      scrollTop: 0,
+    };
+    const libraryTab = {
+      id: "shared-id",
+      key: "library-pdf:shared-id" as const,
+      kind: "library-pdf" as const,
+      page: 1,
+      focusedAnnotationId: null,
+      scrollTop: 0,
+    };
+
+    strip.setTabs(sources(projectTab.key, [projectTab, libraryTab]));
+
+    expect(strip.titlesForTest()).toEqual([projectTab.key, libraryTab.key]);
   });
 
   it("emits bounded primary tab intents", () => {
@@ -217,10 +292,11 @@ describe("context tab strip", () => {
 
     strip.activateForTest();
     strip.activateForTest("preview");
+    strip.activateForTest("chapter-notes");
     strip.activateForTest("library");
     strip.activateForTest("assistant");
 
-    expect(actions).toEqual(["preview", "library", "assistant"]);
+    expect(actions).toEqual(["preview", "chapter-notes", "library", "assistant"]);
   });
 
   it("routes primary and child navigation through one boundary", () => {
@@ -229,6 +305,7 @@ describe("context tab strip", () => {
     strip.bindNavigation(navigation);
 
     strip.activateForTest("preview");
+    strip.activateForTest("chapter-notes");
     strip.activateForTest("library");
     strip.dispatchEvent(new CustomEvent(contextResourceTabActionEvent, { detail: { action: "activate", key: "publication:reference-1" } }));
     strip.dispatchEvent(new CustomEvent(contextResourceTabActionEvent, { detail: { action: "close", key: "pdf:pdf-1" } }));
@@ -236,7 +313,12 @@ describe("context tab strip", () => {
     strip.dispatchEvent(new CustomEvent(contextTabOverviewActionEvent, { detail: { action: "close", key: "library-pdf:artifact-1" } }));
 
     expect(navigation.openLibrary).toHaveBeenCalledOnce();
-    expect(navigation.activate.mock.calls).toEqual([["preview"], ["publication:reference-1"], ["candidate:candidate-1"]]);
+    expect(navigation.activate.mock.calls).toEqual([
+      ["preview"],
+      ["chapter-notes"],
+      ["publication:reference-1"],
+      ["candidate:candidate-1"],
+    ]);
     expect(navigation.close.mock.calls).toEqual([["pdf:pdf-1"], ["library-pdf:artifact-1"]]);
   });
 
@@ -315,7 +397,7 @@ describe("context tab strip", () => {
       page: 1,
       focusedAnnotationId: null,
     };
-    strip.setTabs(sources(projectPdf.key, [projectPdf], { pdfs: [pdf] }));
+    strip.setTabs(sources(projectPdf.key, [projectPdf]));
     expect(strip.panels.get("pdf-context-controls")?.hidden).toBe(false);
 
     const privatePdf = {

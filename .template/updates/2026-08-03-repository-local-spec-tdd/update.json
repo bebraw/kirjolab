@@ -1,0 +1,9 @@
+{
+  "id": "2026-08-03-repository-local-spec-tdd",
+  "title": "Add repository-local specification and TDD",
+  "status": "implemented",
+  "risk": "low",
+  "adrs": ["docs/adrs/implemented/ADR-219-adopt-local-spec-and-tdd-skills.md"],
+  "touches": [".codex/skills/", "AGENTS.md", "ARCHITECTURE.md", "docs/", "specs/"],
+  "checks": ["npm run quality:gate"]
+}

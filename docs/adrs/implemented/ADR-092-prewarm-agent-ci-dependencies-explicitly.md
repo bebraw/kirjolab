@@ -6,6 +6,8 @@
 
 **Partially supersedes:** [ADR-072](./ADR-072-report-local-ci-progress.md)
 
+**Amended by:** [ADR-216](./ADR-216-bound-pull-request-mutation-ci.md)
+
 ## Context
 
 Kirjolab temporarily constrained local Agent CI to one job after interrupted

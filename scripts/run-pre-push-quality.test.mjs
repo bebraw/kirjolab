@@ -4,6 +4,7 @@ import {
   affectedMutationSources,
   affectsFallow,
   isMutationSource,
+  mutationCanarySource,
   mutationCommandArguments,
   mutationPlan,
 } from "./run-pre-push-quality.mjs";
@@ -36,10 +37,14 @@ test("maps affected Node unit tests back to mutation sources", () => {
   assert.deepEqual(affectedMutationSources(process.cwd(), ["src/domain/removed-module.ts"]), []);
 });
 
-test("refreshes stale incremental results after any mutation configuration change", () => {
+test("uses a bounded canary after any mutation configuration change", () => {
   assert.deepEqual(mutationPlan(process.cwd(), ["stryker.config.mjs", "src/domain/workspace/workspace.ts"]), {
-    script: "mutation:incremental:refresh",
-    sources: [],
+    script: "mutation:affected",
+    sources: ["src/domain/workspace/workspace.ts", mutationCanarySource],
+  });
+  assert.deepEqual(mutationPlan(process.cwd(), ["vitest.config.mts"]), {
+    script: "mutation:affected",
+    sources: [mutationCanarySource],
   });
   assert.deepEqual(mutationPlan(process.cwd(), ["src/domain/workspace/workspace.ts"]), {
     script: "mutation:affected",
@@ -57,12 +62,5 @@ test("keeps passing pre-push mutation output concise", () => {
     "progress",
     "--mutate",
     "src/domain/workspace/workspace.ts",
-  ]);
-  assert.deepEqual(mutationCommandArguments({ script: "mutation:incremental:refresh", sources: [] }), [
-    "run",
-    "mutation:incremental:refresh",
-    "--",
-    "--reporters",
-    "progress",
   ]);
 });

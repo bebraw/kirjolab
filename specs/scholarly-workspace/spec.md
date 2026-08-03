@@ -345,7 +345,13 @@ the precise route, validation, persistence, and regression requirements.
   upload timestamp, and built offline-shell fingerprint for error and cache
   reporting. When Worker metadata is absent in local development or cannot be
   loaded, the panel identifies the deployment as local and retains the shell
-  fingerprint. Project
+  fingerprint. The exact `layout-debug=1` query additionally activates a fixed,
+  flow-neutral local control that stays inside the current Visual Viewport,
+  keeps a bounded viewport/focus history, and copies fresh, content-free header,
+  workspace, toolbar, and editor geometry. It includes the shell fingerprint,
+  visual viewport, responsive media, overflow, and sibling overlap without
+  authored text, project identity, persistence, upload, or telemetry. Other
+  query values leave the diagnostic interface and listeners absent. Project
   layout, sharing, export, and publication controls remain in their
   task-specific surfaces. Writing assistant links back to the shared panel
   rather than duplicating model controls.
@@ -354,8 +360,8 @@ the precise route, validation, persistence, and regression requirements.
   normalization, browser-local restoration and persistence, storage-failure
   tolerance, and document-root theme plus color-scheme projection.
   A bounded light-DOM version control validates the no-store public health
-  response, combines deployment and shell presentation, and owns both Clipboard
-  API and textarea fallback copying. It derives the shell identifier from the
+  response, combines deployment and shell presentation, and owns copy outcomes
+  through the shared Clipboard API and textarea fallback boundary. It derives the shell identifier from the
   built offline shell and owns service-worker registration, update refresh
   sequencing, workspace-navigation caching, ready projection, and fail-open
   behavior. It binds the offline-persistence and toast owners together during
@@ -1081,6 +1087,9 @@ the precise route, validation, persistence, and regression requirements.
 - [x] Header Preferences exposes copyable deployment id, tag, timestamp, and
       active build-derived offline-shell generation, with an explicit local
       fallback when deployment metadata is unavailable.
+- [x] The exact `layout-debug=1` opt-in exposes a contained local refresh/copy
+      control and bounded physical-device geometry report; normal editor URLs
+      install no layout-diagnostic interface or listeners.
 - [x] An activated offline-shell update keeps a Refresh now notice available
       until the user accepts it, then persists open offline work before reload.
 - [x] Writing assistant opens the shared model preferences without duplicating
@@ -1172,6 +1181,10 @@ the precise route, validation, persistence, and regression requirements.
   semantic tokens rather than component-specific parallel palettes.
 - Appearance preference must remain browser-local and must not enter workspace,
   Yjs, Durable Object, or collaboration state.
+- Layout diagnostics must remain exact-query opt-in, bounded, content-free,
+  local-only, and flow-neutral. They must not expose authored values or project
+  identity, scan unbounded PDF descendants, persist, upload, or become
+  reconstructible project state.
 - The bearer-link editor shell must not initialize identity-authorized project
   APIs, offline state, private research, history, comments, administration,
   general exports, or writable Yjs collaboration.

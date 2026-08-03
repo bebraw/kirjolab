@@ -1,0 +1,1125 @@
+diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
+index acb361d2..c30f9efa 100644
+--- a/.github/workflows/ci.yml
++++ b/.github/workflows/ci.yml
+@@ -86,10 +86,13 @@ jobs:
+         run: npm run e2e
+
+   quality-mutation:
+-    if: ${{ github.server_url == 'https://github.com' }}
++    if: ${{ github.server_url == 'https://github.com' && github.event_name == 'pull_request' }}
+     runs-on: ubuntu-latest
++    timeout-minutes: 30
+     steps:
+       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
++        with:
++          fetch-depth: 0
+
+       - name: Restore npm cache
+         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+@@ -109,6 +112,9 @@ jobs:
+         shell: bash
+         run: npm ci
+
+-      - name: Run mutation quality gate
++      - name: Run affected mutation quality gate
+         shell: bash
+-        run: npm run mutation
++        env:
++          MUTATION_BASE_SHA: ${{ github.event.pull_request.base.sha }}
++          MUTATION_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
++        run: npm run mutation:ci
+diff --git a/package.json b/package.json
+index 76630e59..6bbc0b24 100644
+--- a/package.json
++++ b/package.json
+@@ -56,7 +56,8 @@
+       "2026-07-30-fallow-3-diagnostics",
+       "2026-07-31-cloudflare-mcp-skill-baseline",
+       "2026-07-31-scope-local-agent-ci",
+-      "2026-07-31-manual-ci-dispatch"
++      "2026-07-31-manual-ci-dispatch",
++      "2026-08-03-bound-pr-mutation-ci"
+     ]
+   },
+   "scripts": {
+@@ -92,6 +93,7 @@
+     "model:companion": "npm run build:model-companion && node --env-file-if-exists=.env ./.generated/model-companion.mjs",
+     "mutation": "NODE_OPTIONS=--max-old-space-size=8192 stryker run",
+     "mutation:affected": "NODE_OPTIONS=--max-old-space-size=8192 stryker run --ignoreStatic --reporters clear-text,progress",
++    "mutation:ci": "node ./scripts/run-ci-mutation.mjs",
+     "mutation:incremental": "NODE_OPTIONS=--max-old-space-size=8192 stryker run --incremental --ignoreStatic",
+     "mutation:incremental:refresh": "NODE_OPTIONS=--max-old-space-size=8192 node ./scripts/run-mutation-refresh.mjs",
+     "playwright:install": "playwright install chromium",
+diff --git a/scripts/run-ci-mutation.mjs b/scripts/run-ci-mutation.mjs
+new file mode 100644
+index 00000000..f173404d
+--- /dev/null
++++ b/scripts/run-ci-mutation.mjs
+@@ -0,0 +1,404 @@
++import process from "node:process";
++import { readFileSync, rmSync } from "node:fs";
++import { join } from "node:path";
++import { pathToFileURL } from "node:url";
++
++import { getRepoRoot, run, spawn } from "./affected-file-utils.mjs";
++import { affectedMutationSources, isMutationConfigurationFile, mutationCanarySource } from "./run-pre-push-quality.mjs";
++
++export { mutationCanarySource };
++
++export const mutationPrConfigFile = "stryker.pr.config.mjs";
++export const mutationPrReportPath = "reports/mutation/pull-request.json";
++
++const fullCommitShaPattern = /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/iu;
++const mutationPatternMagicCharacters = ",:*?[]{}!()@+|";
++const mutationPrCoverageThreshold = 90;
++const mutationPrCoveredScoreThreshold = 68;
++const mutationPrStatusFields = new Map([
++  ["Killed", "killed"],
++  ["Timeout", "timeout"],
++  ["Survived", "survived"],
++  ["NoCoverage", "noCoverage"],
++  ["CompileError", "compileError"],
++  ["Ignored", "ignored"],
++]);
++const rejectedMutationPrStatuses = new Set(["Pending", "RuntimeError"]);
++const mutationCiRoutingFiles = new Set([
++  ".github/workflows/ci.yml",
++  "scripts/affected-file-utils.mjs",
++  "scripts/run-ci-mutation.mjs",
++  "scripts/run-pre-push-quality.mjs",
++  mutationPrConfigFile,
++]);
++
++export function validateMutationCommitSha(value, variableName) {
++  if (!value || !fullCommitShaPattern.test(value)) {
++    throw new Error(`${variableName} must be a full 40- or 64-character hexadecimal commit SHA.`);
++  }
++  return value;
++}
++
++export function mutationCiRefs(environment = process.env) {
++  return {
++    baseSha: validateMutationCommitSha(environment.MUTATION_BASE_SHA, "MUTATION_BASE_SHA"),
++    headSha: validateMutationCommitSha(environment.MUTATION_HEAD_SHA, "MUTATION_HEAD_SHA"),
++  };
++}
++
++export function mutationDiffArguments({ baseSha, headSha }) {
++  validateMutationCommitSha(baseSha, "baseSha");
++  validateMutationCommitSha(headSha, "headSha");
++  return ["diff", "--name-status", "--diff-filter=ACMRD", "-z", `${baseSha}...${headSha}`, "--"];
++}
++
++export function mutationLineDiffArguments({ baseSha, headSha }, file, previousFile) {
++  validateMutationCommitSha(baseSha, "baseSha");
++  validateMutationCommitSha(headSha, "headSha");
++  validateMutationPatternPath(file);
++  if (previousFile === undefined) {
++    return ["diff", "--unified=0", "--no-color", "--no-ext-diff", `${baseSha}...${headSha}`, "--", file];
++  }
++
++  validateMutationPatternPath(previousFile);
++  return ["diff", "--unified=0", "--no-color", "--no-ext-diff", "--find-renames", `${baseSha}...${headSha}`, "--", previousFile, file];
++}
++
++export function validateMutationPatternPath(file) {
++  const hasUnsafeSyntax =
++    typeof file !== "string" ||
++    file.length === 0 ||
++    file.startsWith("/") ||
++    file.includes("\\") ||
++    /\p{Cc}/u.test(file) ||
++    [...file].some((character) => mutationPatternMagicCharacters.includes(character)) ||
++    file.split("/").some((part) => part === "" || part === "." || part === "..");
++  if (hasUnsafeSyntax) throw new Error(`Unsafe Stryker mutation path: ${JSON.stringify(file)}`);
++  return file;
++}
++
++function requiredGitStatusPath(iterator, statusToken) {
++  const result = iterator.next();
++  if (result.done || result.value.length === 0) throw new Error(`Git ${statusToken} status is missing its old or new path.`);
++  return result.value;
++}
++
++function parseGitStatusChange(statusToken, fields) {
++  if (/^[AMD]$/u.test(statusToken)) {
++    return { status: statusToken, path: requiredGitStatusPath(fields, statusToken) };
++  }
++
++  const similarityMatch = /^([CR])(\d{1,3})$/u.exec(statusToken);
++  if (!similarityMatch || Number.parseInt(similarityMatch[2], 10) > 100) {
++    throw new Error(`Unsupported Git mutation diff status: ${JSON.stringify(statusToken)}`);
++  }
++  return {
++    status: similarityMatch[1],
++    score: Number.parseInt(similarityMatch[2], 10),
++    oldPath: requiredGitStatusPath(fields, statusToken),
++    path: requiredGitStatusPath(fields, statusToken),
++  };
++}
++
++export function parseChangedFiles(output) {
++  if (output === "") return [];
++  if (!output.endsWith("\0")) throw new Error("Malformed NUL-delimited Git name-status output.");
++
++  const fields = output.slice(0, -1).split("\0")[Symbol.iterator]();
++  const changes = [];
++  for (let status = fields.next(); !status.done; status = fields.next()) {
++    changes.push(parseGitStatusChange(status.value, fields));
++  }
++  return changes;
++}
++
++export function coalesceLineRanges(ranges) {
++  for (const { startLine, endLine } of ranges) {
++    if (!Number.isSafeInteger(startLine) || !Number.isSafeInteger(endLine) || startLine <= 0 || endLine < startLine) {
++      throw new Error("Unsafe mutation line range.");
++    }
++  }
++  const sortedRanges = [...ranges].sort((left, right) => left.startLine - right.startLine || left.endLine - right.endLine);
++  const result = [];
++
++  for (const range of sortedRanges) {
++    const previous = result.at(-1);
++    if (previous && range.startLine <= previous.endLine + 1) {
++      previous.endLine = Math.max(previous.endLine, range.endLine);
++    } else {
++      result.push({ ...range });
++    }
++  }
++
++  return result;
++}
++
++function parseHunkValue(value, fallback = 1) {
++  const parsed = value === undefined ? fallback : Number.parseInt(value, 10);
++  if (!Number.isSafeInteger(parsed) || parsed < 0) throw new Error("Unsafe Git hunk line value.");
++  return parsed;
++}
++
++function assertValidHunkPosition(startLine, lineCount) {
++  if (lineCount > 0 && startLine === 0) throw new Error("Invalid Git hunk line range.");
++  const endLine = startLine + Math.max(lineCount - 1, 0);
++  if (!Number.isSafeInteger(endLine)) throw new Error("Unsafe Git hunk line value.");
++}
++
++function parseHunkHeader(line) {
++  const match = /^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@(?:.*)$/u.exec(line);
++  if (!match) throw new Error(`Malformed zero-context Git hunk header: ${JSON.stringify(line)}`);
++
++  const oldStart = parseHunkValue(match[1]);
++  const oldCount = parseHunkValue(match[2]);
++  const startLine = parseHunkValue(match[3]);
++  const lineCount = parseHunkValue(match[4]);
++  assertValidHunkPosition(oldStart, oldCount);
++  assertValidHunkPosition(startLine, lineCount);
++  if (oldCount === 0 && lineCount === 0) throw new Error("Invalid Git hunk line range.");
++  return { startLine, lineCount };
++}
++
++export function parseChangedLineDiff(output) {
++  const ranges = [];
++  let hasDeletionOnlyHunk = false;
++
++  for (const rawLine of output.split("\n")) {
++    const line = rawLine.endsWith("\r") ? rawLine.slice(0, -1) : rawLine;
++    if (!line.startsWith("@@")) continue;
++    const { startLine, lineCount } = parseHunkHeader(line);
++    if (lineCount === 0) {
++      hasDeletionOnlyHunk = true;
++      continue;
++    }
++    ranges.push({ startLine, endLine: startLine + lineCount - 1 });
++  }
++
++  return { ranges: coalesceLineRanges(ranges), hasDeletionOnlyHunk };
++}
++
++export function parseChangedLineRanges(output) {
++  return parseChangedLineDiff(output).ranges;
++}
++
++export function affectsMutationCiRouting(file) {
++  return mutationCiRoutingFiles.has(file) || isMutationConfigurationFile(file);
++}
++
++export function mutationAffectedPaths(changes) {
++  return changes.flatMap((change) => {
++    if (change.status === "R") return [change.oldPath, change.path];
++    return [change.path];
++  });
++}
++
++export function mutationSourceInputPaths(changes) {
++  return changes.flatMap((change) => {
++    if (change.status === "D") return change.path.endsWith(".test.ts") ? [change.path] : [];
++    if (change.status === "R" && change.oldPath.endsWith(".test.ts")) return [change.oldPath, change.path];
++    return [change.path];
++  });
++}
++
++export function directlyChangedMutationSources(repoRoot, changes) {
++  const survivingChangedPaths = changes.filter((change) => change.status !== "D").map((change) => change.path);
++  const survivingPathSet = new Set(survivingChangedPaths);
++  return affectedMutationSources(repoRoot, survivingChangedPaths).filter((source) => survivingPathSet.has(source));
++}
++
++export function mutationCiPlan(repoRoot, changes, changedLineRanges = new Map()) {
++  const affectedPaths = mutationAffectedPaths(changes);
++  const routesThroughCanary = affectedPaths.some(affectsMutationCiRouting);
++  const sourceInputs = mutationSourceInputPaths(changes);
++  const inputs = routesThroughCanary ? [...sourceInputs, mutationCanarySource] : sourceInputs;
++  const sources = affectedMutationSources(repoRoot, inputs);
++  const directlyChangedSources = new Set(directlyChangedMutationSources(repoRoot, changes));
++  const mutationPatterns = sources.flatMap((source) => {
++    validateMutationPatternPath(source);
++    if (!directlyChangedSources.has(source) || (routesThroughCanary && source === mutationCanarySource)) return [source];
++
++    const lineSelection = changedLineRanges.get(source);
++    if (!lineSelection || lineSelection.fullFile || lineSelection.ranges.length === 0) return [source];
++    return coalesceLineRanges(lineSelection.ranges).map(({ startLine, endLine }) => `${source}:${startLine}-${endLine}`);
++  });
++  return mutationPatterns.length > 0 ? { script: "mutation:affected", sources: mutationPatterns } : null;
++}
++
++export function mutationPrCommandArguments(plan) {
++  if (!Array.isArray(plan.sources) || plan.sources.length === 0)
++    throw new Error("PR mutation command requires an explicit mutation scope.");
++  return ["run", plan.script, "--", mutationPrConfigFile, "--reporters", "progress,json", "--mutate", plan.sources.join(",")];
++}
++
++function isRecord(value) {
++  return typeof value === "object" && value !== null && !Array.isArray(value);
++}
++
++function mutationPrReportMutants(report) {
++  if (!isRecord(report) || !isRecord(report.files)) throw new Error("Malformed PR mutation report: expected a files object.");
++  return Object.entries(report.files).flatMap(([file, fileResult]) => {
++    if (!isRecord(fileResult) || !Array.isArray(fileResult.mutants)) {
++      throw new Error(`Malformed PR mutation report entry for ${JSON.stringify(file)}.`);
++    }
++    return fileResult.mutants;
++  });
++}
++
++function mutationPrStatusField(mutant, index) {
++  if (!isRecord(mutant) || typeof mutant.status !== "string") {
++    throw new Error(`Malformed PR mutation result at index ${index}.`);
++  }
++  if (rejectedMutationPrStatuses.has(mutant.status)) throw new Error(`Incomplete PR mutation result status: ${mutant.status}.`);
++  const field = mutationPrStatusFields.get(mutant.status);
++  if (!field) throw new Error(`Unknown PR mutation result status: ${JSON.stringify(mutant.status)}.`);
++  return field;
++}
++
++export function countMutationPrResults(report) {
++  const counts = { killed: 0, timeout: 0, survived: 0, noCoverage: 0, compileError: 0, ignored: 0 };
++  for (const [index, mutant] of mutationPrReportMutants(report).entries()) {
++    const field = mutationPrStatusField(mutant, index);
++    counts[field] += 1;
++  }
++  return counts;
++}
++
++function meetsPercentThreshold(numerator, denominator, threshold) {
++  return BigInt(numerator) * 100n >= BigInt(denominator) * BigInt(threshold);
++}
++
++export function evaluateMutationPrReport(report) {
++  const counts = countMutationPrResults(report);
++  const detected = counts.killed + counts.timeout;
++  const covered = detected + counts.survived;
++  const valid = covered + counts.noCoverage;
++  if (valid === 0) {
++    return { passed: true, coveragePassed: true, coveredScorePassed: true, detected, covered, valid, counts };
++  }
++
++  const coveragePassed = meetsPercentThreshold(covered, valid, mutationPrCoverageThreshold);
++  const coveredScorePassed = covered > 0 && meetsPercentThreshold(detected, covered, mutationPrCoveredScoreThreshold);
++  return { passed: coveragePassed && coveredScorePassed, coveragePassed, coveredScorePassed, detected, covered, valid, counts };
++}
++
++function formatMutationPercent(numerator, denominator) {
++  return denominator === 0 ? "n/a" : `${((numerator * 100) / denominator).toFixed(2)}%`;
++}
++
++export function formatMutationPrResult(result) {
++  const { counts } = result;
++  return [
++    "PR mutation result:",
++    `valid=${result.valid}`,
++    `killed=${counts.killed}`,
++    `timeout=${counts.timeout}`,
++    `survived=${counts.survived}`,
++    `noCoverage=${counts.noCoverage}`,
++    `compileError=${counts.compileError}`,
++    `ignored=${counts.ignored}`,
++    `coverage=${formatMutationPercent(result.covered, result.valid)}`,
++    `covered-score=${formatMutationPercent(result.detected, result.covered)}`,
++  ].join(" ");
++}
++
++export function assertMutationPrReport(report, write = console.log) {
++  const result = evaluateMutationPrReport(report);
++  write(formatMutationPrResult(result));
++  if (!result.passed) {
++    const failures = [];
++    if (!result.coveragePassed) failures.push(`coverage must be at least ${mutationPrCoverageThreshold}%`);
++    if (!result.coveredScorePassed) failures.push(`covered score must be at least ${mutationPrCoveredScoreThreshold}%`);
++    throw new Error(`PR mutation result gate failed: ${failures.join(" and ")}.`);
++  }
++  return result;
++}
++
++export function removeMutationPrReport(repoRoot) {
++  rmSync(join(repoRoot, mutationPrReportPath), { force: true });
++}
++
++export function readMutationPrReport(repoRoot) {
++  const reportPath = join(repoRoot, mutationPrReportPath);
++  let source;
++  try {
++    source = readFileSync(reportPath, "utf8");
++  } catch (cause) {
++    throw new Error(`PR mutation report is missing or unreadable at ${mutationPrReportPath}.`, { cause });
++  }
++  try {
++    return JSON.parse(source);
++  } catch (cause) {
++    throw new Error(`PR mutation report contains malformed JSON at ${mutationPrReportPath}.`, { cause });
++  }
++}
++
++function git(repoRoot, arguments_, options = {}) {
++  return spawn(repoRoot, "git", arguments_, { ...options, encoding: "utf8" });
++}
++
++export function changedMutationFiles(repoRoot, refs, runGit = git) {
++  const diffArguments = mutationDiffArguments(refs);
++  for (const [label, sha] of [
++    ["base", refs.baseSha],
++    ["head", refs.headSha],
++  ]) {
++    const result = runGit(repoRoot, ["cat-file", "-e", `${sha}^{commit}`], { allowFailure: true });
++    if ((result.status ?? 1) !== 0) {
++      throw new Error(`The ${label} mutation commit ${sha} is not available in this checkout.`);
++    }
++  }
++
++  const result = runGit(repoRoot, diffArguments);
++  return parseChangedFiles(result.stdout);
++}
++
++export function changedMutationLineRanges(repoRoot, refs, changes, runGit = git) {
++  const directlyChangedSources = directlyChangedMutationSources(repoRoot, changes);
++  const changesByPath = new Map(changes.map((change) => [change.path, change]));
++  return new Map(
++    directlyChangedSources.map((source) => {
++      const change = changesByPath.get(source);
++      const previousSource = change?.status === "R" ? change.oldPath : undefined;
++      const result = runGit(repoRoot, mutationLineDiffArguments(refs, source, previousSource));
++      const { ranges, hasDeletionOnlyHunk } = parseChangedLineDiff(result.stdout);
++      return [source, { ranges, fullFile: hasDeletionOnlyHunk || ranges.length === 0 }];
++    }),
++  );
++}
++
++export function runCiMutation({
++  environment = process.env,
++  readReport = readMutationPrReport,
++  removeReport = removeMutationPrReport,
++  repoRoot = getRepoRoot(),
++  runCommand = run,
++  runGit = git,
++  write = console.log,
++} = {}) {
++  const refs = mutationCiRefs(environment);
++  const changes = changedMutationFiles(repoRoot, refs, runGit);
++  const changedLineRanges = changedMutationLineRanges(repoRoot, refs, changes, runGit);
++  const plan = mutationCiPlan(repoRoot, changes, changedLineRanges);
++
++  if (!plan) {
++    write("Mutation quality gate skipped: no affected Stryker inputs.");
++    return null;
++  }
++
++  write(`Running mutation tests for ${plan.sources.length} pull-request mutation target(s)...`);
++  removeReport(repoRoot);
++  runCommand(repoRoot, "npm", mutationPrCommandArguments(plan));
++  assertMutationPrReport(readReport(repoRoot), write);
++  return plan;
++}
++
++function main() {
++  try {
++    runCiMutation();
++  } catch (error) {
++    console.error(error instanceof Error ? error.message : String(error));
++    process.exitCode = 1;
++  }
++}
++
++if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) main();
+diff --git a/scripts/run-ci-mutation.test.mjs b/scripts/run-ci-mutation.test.mjs
+new file mode 100644
+index 00000000..34ce5571
+--- /dev/null
++++ b/scripts/run-ci-mutation.test.mjs
+@@ -0,0 +1,543 @@
++import assert from "node:assert/strict";
++import { readFileSync } from "node:fs";
++import test from "node:test";
++
++import prStrykerConfig from "../stryker.pr.config.mjs";
++import strykerConfig from "../stryker.config.mjs";
++
++import {
++  affectsMutationCiRouting,
++  assertMutationPrReport,
++  changedMutationFiles,
++  changedMutationLineRanges,
++  coalesceLineRanges,
++  countMutationPrResults,
++  evaluateMutationPrReport,
++  formatMutationPrResult,
++  mutationCanarySource,
++  mutationCiPlan,
++  mutationCiRefs,
++  mutationDiffArguments,
++  mutationLineDiffArguments,
++  mutationPrConfigFile,
++  mutationPrReportPath,
++  parseChangedFiles,
++  parseChangedLineDiff,
++  parseChangedLineRanges,
++  runCiMutation,
++  validateMutationCommitSha,
++  validateMutationPatternPath,
++} from "./run-ci-mutation.mjs";
++
++const baseSha = "1".repeat(40);
++const headSha = "a".repeat(40);
++const workspaceSource = "src/domain/workspace/workspace.ts";
++const workspaceTest = "src/domain/workspace/workspace.test.ts";
++
++function mutationReport(statuses) {
++  return {
++    files: {
++      [workspaceSource]: {
++        mutants: statuses.map((status) => ({ status })),
++      },
++    },
++  };
++}
++
++const emptyMutationReport = mutationReport([]);
++
++test("requires explicit full commit SHAs", () => {
++  assert.deepEqual(mutationCiRefs({ MUTATION_BASE_SHA: baseSha, MUTATION_HEAD_SHA: headSha }), {
++    baseSha,
++    headSha,
++  });
++  assert.equal(validateMutationCommitSha("B".repeat(64), "sha"), "B".repeat(64));
++  assert.throws(() => mutationCiRefs({ MUTATION_HEAD_SHA: headSha }), /MUTATION_BASE_SHA/u);
++  assert.throws(() => mutationCiRefs({ MUTATION_BASE_SHA: "main", MUTATION_HEAD_SHA: headSha }), /40- or 64-character hexadecimal/u);
++});
++
++test("isolates pull-request reporting and thresholds from the base Stryker config", () => {
++  const { thresholds: prThresholds, reporters: prReporters, jsonReporter, ...prShared } = prStrykerConfig;
++  const { thresholds: baseThresholds, reporters: baseReporters, ...baseShared } = strykerConfig;
++
++  assert.equal(baseThresholds.break, 68);
++  assert.deepEqual(prThresholds, { ...baseThresholds, break: null });
++  assert.deepEqual(prReporters, ["progress", "json"]);
++  assert.deepEqual(jsonReporter, { fileName: mutationPrReportPath });
++  assert.equal(mutationPrConfigFile, "stryker.pr.config.mjs");
++  assert.deepEqual(prShared, baseShared);
++  assert.deepEqual(baseReporters, ["clear-text", "progress", "html", "json"]);
++});
++
++test("parses NUL-safe ACMRD statuses and retains both rename and copy paths", () => {
++  assert.deepEqual(mutationDiffArguments({ baseSha, headSha }), [
++    "diff",
++    "--name-status",
++    "--diff-filter=ACMRD",
++    "-z",
++    `${baseSha}...${headSha}`,
++    "--",
++  ]);
++  assert.deepEqual(
++    parseChangedFiles(
++      "M\0src/modified.ts\0A\0src/added.ts\0D\0src/deleted.ts\0R087\0src/old.ts\0src/new.ts\0C100\0src/source.ts\0src/copy.ts\0",
++    ),
++    [
++      { status: "M", path: "src/modified.ts" },
++      { status: "A", path: "src/added.ts" },
++      { status: "D", path: "src/deleted.ts" },
++      { status: "R", score: 87, oldPath: "src/old.ts", path: "src/new.ts" },
++      { status: "C", score: 100, oldPath: "src/source.ts", path: "src/copy.ts" },
++    ],
++  );
++  assert.deepEqual(parseChangedFiles("M\0docs/a\nname.md\0"), [{ status: "M", path: "docs/a\nname.md" }]);
++  assert.deepEqual(parseChangedFiles(""), []);
++  assert.throws(() => parseChangedFiles("M\0src/a.ts"), /Malformed NUL-delimited/u);
++  assert.throws(() => parseChangedFiles("R100\0src/a.ts\0"), /missing its old or new path/u);
++  assert.throws(() => parseChangedFiles("R\0src/a.ts\0"), /Unsupported Git mutation diff status/u);
++  assert.throws(() => parseChangedFiles("T\0src/a.ts\0"), /Unsupported Git mutation diff status/u);
++});
++
++test("rejects unsafe Stryker pattern paths", () => {
++  assert.equal(validateMutationPatternPath(workspaceSource), workspaceSource);
++  for (const file of [
++    "/src/absolute.ts",
++    "../src/traversal.ts",
++    "src/../traversal.ts",
++    "src\\windows.ts",
++    "src/control\n.ts",
++    "src/comma,name.ts",
++    "src/colon:name.ts",
++    "src/star*.ts",
++    "src/question?.ts",
++    "src/bracket[name].ts",
++    "src/brace{name}.ts",
++    "src/bang!name.ts",
++    "src/extglob+(name).ts",
++    "src/at@name.ts",
++    "src/pipe|name.ts",
++  ]) {
++    assert.throws(() => validateMutationPatternPath(file), /Unsafe Stryker mutation path/u, file);
++    assert.throws(() => mutationLineDiffArguments({ baseSha, headSha }, file), /Unsafe Stryker mutation path/u, file);
++    assert.throws(() => mutationLineDiffArguments({ baseSha, headSha }, workspaceSource, file), /Unsafe Stryker mutation path/u, file);
++  }
++});
++
++test("derives and coalesces one-based zero-context new-side line ranges", () => {
++  assert.deepEqual(mutationLineDiffArguments({ baseSha, headSha }, workspaceSource), [
++    "diff",
++    "--unified=0",
++    "--no-color",
++    "--no-ext-diff",
++    `${baseSha}...${headSha}`,
++    "--",
++    workspaceSource,
++  ]);
++
++  const parsed = parseChangedLineDiff(`
++@@ -1,0 +3,2 @@ first addition
++@@ -8 +10,2 @@ replacement
++@@ -12 +12 @@ adjacent replacement
++@@ -20,3 +21,0 @@ deletion only
++@@ -30 +28 @@ separate replacement
++`);
++  assert.deepEqual(parsed, {
++    ranges: [
++      { startLine: 3, endLine: 4 },
++      { startLine: 10, endLine: 12 },
++      { startLine: 28, endLine: 28 },
++    ],
++    hasDeletionOnlyHunk: true,
++  });
++  assert.deepEqual(parseChangedLineRanges("Binary files a/source.ts and b/source.ts differ\n"), []);
++  assert.deepEqual(
++    coalesceLineRanges([
++      { startLine: 8, endLine: 10 },
++      { startLine: 3, endLine: 4 },
++      { startLine: 5, endLine: 8 },
++    ]),
++    [{ startLine: 3, endLine: 10 }],
++  );
++  assert.throws(() => coalesceLineRanges([{ startLine: 0, endLine: 2 }]), /Unsafe mutation line range/u);
++  assert.throws(() => parseChangedLineDiff("@@ malformed @@\n"), /Malformed zero-context Git hunk/u);
++  assert.throws(() => parseChangedLineDiff("@@ -1 +9007199254740992 @@\n"), /Unsafe Git hunk line value/u);
++});
++
++test("verifies both commits before collecting the pull-request status diff", () => {
++  const calls = [];
++  const runGit = (_repoRoot, arguments_) => {
++    calls.push(arguments_);
++    return { status: 0, stdout: arguments_[0] === "diff" ? `M\0${workspaceTest}\0` : "" };
++  };
++
++  assert.deepEqual(changedMutationFiles(process.cwd(), { baseSha, headSha }, runGit), [{ status: "M", path: workspaceTest }]);
++  assert.deepEqual(calls, [
++    ["cat-file", "-e", `${baseSha}^{commit}`],
++    ["cat-file", "-e", `${headSha}^{commit}`],
++    mutationDiffArguments({ baseSha, headSha }),
++  ]);
++});
++
++test("rejects unavailable or malformed refs before collecting changes", () => {
++  assert.throws(
++    () =>
++      changedMutationFiles(process.cwd(), { baseSha, headSha }, (_repoRoot, arguments_) => ({
++        status: arguments_[2]?.startsWith(baseSha) ? 1 : 0,
++        stdout: "",
++      })),
++    /base mutation commit .* is not available/u,
++  );
++
++  let gitRuns = 0;
++  assert.throws(
++    () =>
++      changedMutationFiles(process.cwd(), { baseSha: "main", headSha }, () => {
++        gitRuns += 1;
++        return { status: 0, stdout: "" };
++      }),
++    /baseSha must be a full/u,
++  );
++  assert.equal(gitRuns, 0);
++});
++
++test("collects line ranges only for production sources changed directly", () => {
++  const calls = [];
++  const changes = [
++    { status: "M", path: workspaceSource },
++    { status: "M", path: "src/views/home.test.ts" },
++  ];
++  const lineRanges = changedMutationLineRanges(process.cwd(), { baseSha, headSha }, changes, (_repoRoot, arguments_) => {
++    calls.push(arguments_);
++    return { status: 0, stdout: "@@ -6,2 +7,3 @@\n" };
++  });
++
++  assert.deepEqual([...lineRanges], [[workspaceSource, { ranges: [{ startLine: 7, endLine: 9 }], fullFile: false }]]);
++  assert.deepEqual(calls, [mutationLineDiffArguments({ baseSha, headSha }, workspaceSource)]);
++});
++
++test("preserves production rename ancestry when collecting changed-line ranges", () => {
++  const previousWorkspaceSource = "src/domain/workspace/legacy-workspace.ts";
++  const changes = [
++    { status: "R", score: 96, oldPath: previousWorkspaceSource, path: workspaceSource },
++    { status: "M", path: "src/views/home.test.ts" },
++  ];
++  const calls = [];
++  const lineRanges = changedMutationLineRanges(process.cwd(), { baseSha, headSha }, changes, (_repoRoot, arguments_) => {
++    calls.push(arguments_);
++    return { status: 0, stdout: "@@ -2 +2 @@\n" };
++  });
++
++  assert.deepEqual([...lineRanges], [[workspaceSource, { ranges: [{ startLine: 2, endLine: 2 }], fullFile: false }]]);
++  assert.deepEqual(calls, [
++    [
++      "diff",
++      "--unified=0",
++      "--no-color",
++      "--no-ext-diff",
++      "--find-renames",
++      `${baseSha}...${headSha}`,
++      "--",
++      previousWorkspaceSource,
++      workspaceSource,
++    ],
++  ]);
++});
++
++test("promotes an unscopable surviving source to a full-file target", () => {
++  for (const output of ["Binary files a/source.ts and b/source.ts differ\n", "@@ -10,3 +9,0 @@\n", "@@ -2 +2 @@\n@@ -10,3 +9,0 @@\n"]) {
++    const lineRanges = changedMutationLineRanges(process.cwd(), { baseSha, headSha }, [{ status: "M", path: workspaceSource }], () => ({
++      status: 0,
++      stdout: output,
++    }));
++    assert.equal(lineRanges.get(workspaceSource).fullFile, true, output);
++  }
++});
++
++test("keeps test-mapped sources full while directly changed sources use ranges", () => {
++  assert.deepEqual(mutationCiPlan(process.cwd(), [{ status: "M", path: workspaceTest }]), {
++    script: "mutation:affected",
++    sources: [workspaceSource],
++  });
++  assert.equal(mutationCiPlan(process.cwd(), [{ status: "M", path: "docs/development.md" }]), null);
++  assert.deepEqual(
++    mutationCiPlan(
++      process.cwd(),
++      [
++        { status: "M", path: workspaceSource },
++        { status: "M", path: workspaceTest },
++        { status: "M", path: "src/views/home.test.ts" },
++      ],
++      new Map([[workspaceSource, { ranges: [{ startLine: 14, endLine: 17 }], fullFile: false }]]),
++    ),
++    {
++      script: "mutation:affected",
++      sources: [`${workspaceSource}:14-17`, "src/views/home.ts"],
++    },
++  );
++});
++
++test("routes deleted and renamed colocated tests to surviving full sources", () => {
++  assert.deepEqual(mutationCiPlan(process.cwd(), [{ status: "D", path: workspaceTest }]), {
++    script: "mutation:affected",
++    sources: [workspaceSource],
++  });
++  assert.deepEqual(
++    mutationCiPlan(process.cwd(), [{ status: "R", score: 100, oldPath: "src/views/home.test.ts", path: "src/views/reviews.test.ts" }]),
++    {
++      script: "mutation:affected",
++      sources: ["src/views/home.ts", "src/views/reviews.ts"],
++    },
++  );
++  assert.equal(mutationCiPlan(process.cwd(), [{ status: "D", path: workspaceSource }]), null);
++});
++
++test("keeps the configuration canary full and lets it dominate direct ranges", () => {
++  assert.equal(mutationCanarySource, "src/views/app-navigation.ts");
++  for (const file of [
++    ".github/workflows/ci.yml",
++    "package.json",
++    "package-lock.json",
++    "scripts/affected-file-utils.mjs",
++    "scripts/run-ci-mutation.mjs",
++    "scripts/run-pre-push-quality.mjs",
++    mutationPrConfigFile,
++    "stryker.config.mjs",
++    "tsconfig.json",
++    "vitest.config.mts",
++  ]) {
++    assert.equal(affectsMutationCiRouting(file), true, file);
++    assert.deepEqual(mutationCiPlan(process.cwd(), [{ status: "M", path: file }]), {
++      script: "mutation:affected",
++      sources: [mutationCanarySource],
++    });
++  }
++  assert.deepEqual(mutationCiPlan(process.cwd(), [{ status: "D", path: "vitest.config.mts" }]), {
++    script: "mutation:affected",
++    sources: [mutationCanarySource],
++  });
++  assert.deepEqual(
++    mutationCiPlan(process.cwd(), [{ status: "R", score: 100, oldPath: ".github/workflows/ci.yml", path: "docs/old-ci.md" }]),
++    { script: "mutation:affected", sources: [mutationCanarySource] },
++  );
++  assert.deepEqual(
++    mutationCiPlan(
++      process.cwd(),
++      [
++        { status: "M", path: "vitest.config.mts" },
++        { status: "M", path: workspaceSource },
++        { status: "M", path: mutationCanarySource },
++      ],
++      new Map([
++        [workspaceSource, { ranges: [{ startLine: 4, endLine: 8 }], fullFile: false }],
++        [mutationCanarySource, { ranges: [{ startLine: 12, endLine: 13 }], fullFile: false }],
++      ]),
++    ),
++    {
++      script: "mutation:affected",
++      sources: [`${workspaceSource}:4-8`, mutationCanarySource],
++    },
++  );
++});
++
++test("passes the PR result gate at the exact coverage and covered-score boundaries", () => {
++  const report = mutationReport([
++    ...Array(152).fill("Killed"),
++    "Timeout",
++    ...Array(72).fill("Survived"),
++    ...Array(25).fill("NoCoverage"),
++    "CompileError",
++    "Ignored",
++  ]);
++  const result = evaluateMutationPrReport(report);
++
++  assert.deepEqual(result, {
++    passed: true,
++    coveragePassed: true,
++    coveredScorePassed: true,
++    detected: 153,
++    covered: 225,
++    valid: 250,
++    counts: { killed: 152, timeout: 1, survived: 72, noCoverage: 25, compileError: 1, ignored: 1 },
++  });
++  assert.equal(
++    formatMutationPrResult(result),
++    "PR mutation result: valid=250 killed=152 timeout=1 survived=72 noCoverage=25 compileError=1 ignored=1 coverage=90.00% covered-score=68.00%",
++  );
++  const messages = [];
++  assert.equal(assertMutationPrReport(report, (message) => messages.push(message)).passed, true);
++  assert.equal(messages.length, 1);
++});
++
++test("fails the PR result gate immediately below either integer boundary", () => {
++  const belowCoverage = evaluateMutationPrReport(
++    mutationReport([...Array(152).fill("Killed"), "Timeout", ...Array(72).fill("Survived"), ...Array(26).fill("NoCoverage")]),
++  );
++  assert.equal(belowCoverage.coveragePassed, false);
++  assert.equal(belowCoverage.coveredScorePassed, true);
++  assert.throws(() => assertMutationPrReport(mutationReport([...Array(225).fill("Killed"), ...Array(26).fill("NoCoverage")])), /coverage/u);
++
++  const belowCoveredScoreReport = mutationReport([
++    ...Array(151).fill("Killed"),
++    "Timeout",
++    ...Array(73).fill("Survived"),
++    ...Array(25).fill("NoCoverage"),
++  ]);
++  const belowCoveredScore = evaluateMutationPrReport(belowCoveredScoreReport);
++  assert.equal(belowCoveredScore.coveragePassed, true);
++  assert.equal(belowCoveredScore.coveredScorePassed, false);
++  assert.throws(() => assertMutationPrReport(belowCoveredScoreReport), /covered score/u);
++});
++
++test("passes when the PR report has no valid mutants", () => {
++  const result = evaluateMutationPrReport(mutationReport(["Ignored", "CompileError"]));
++
++  assert.equal(result.passed, true);
++  assert.equal(result.valid, 0);
++  assert.equal(result.covered, 0);
++  assert.deepEqual(countMutationPrResults(emptyMutationReport), {
++    killed: 0,
++    timeout: 0,
++    survived: 0,
++    noCoverage: 0,
++    compileError: 0,
++    ignored: 0,
++  });
++  assert.match(formatMutationPrResult(result), /coverage=n\/a covered-score=n\/a/u);
++});
++
++test("fails closed for incomplete, unknown, or malformed PR mutation results", () => {
++  for (const status of ["Pending", "RuntimeError"]) {
++    assert.throws(() => evaluateMutationPrReport(mutationReport([status])), /Incomplete PR mutation result status/u, status);
++  }
++  assert.throws(() => evaluateMutationPrReport(mutationReport(["FutureStatus"])), /Unknown PR mutation result status/u);
++  for (const report of [null, {}, { files: [] }, { files: { [workspaceSource]: null } }, { files: { [workspaceSource]: {} } }]) {
++    assert.throws(() => evaluateMutationPrReport(report), /Malformed PR mutation report/u);
++  }
++  assert.throws(() => evaluateMutationPrReport({ files: { [workspaceSource]: { mutants: [null, {}] } } }), /Malformed PR mutation result/u);
++});
++
++test("skips npm when the pull-request mutation scope is empty", () => {
++  const messages = [];
++  let commandRuns = 0;
++  const plan = runCiMutation({
++    environment: { MUTATION_BASE_SHA: baseSha, MUTATION_HEAD_SHA: headSha },
++    repoRoot: process.cwd(),
++    runCommand: () => {
++      commandRuns += 1;
++    },
++    runGit: (_repoRoot, arguments_) => ({
++      status: 0,
++      stdout: arguments_.includes("--name-status") ? "M\0docs/development.md\0" : "",
++    }),
++    write: (message) => messages.push(message),
++  });
++
++  assert.equal(plan, null);
++  assert.equal(commandRuns, 0);
++  assert.deepEqual(messages, ["Mutation quality gate skipped: no affected Stryker inputs."]);
++});
++
++test("runs a test-mapped source as a full-file target", () => {
++  const commands = [];
++  const plan = runCiMutation({
++    environment: { MUTATION_BASE_SHA: baseSha, MUTATION_HEAD_SHA: headSha },
++    readReport: () => emptyMutationReport,
++    removeReport: () => undefined,
++    repoRoot: process.cwd(),
++    runCommand: (...arguments_) => commands.push(arguments_),
++    runGit: (_repoRoot, arguments_) => ({
++      status: 0,
++      stdout: arguments_.includes("--name-status") ? `M\0${workspaceTest}\0` : "",
++    }),
++    write: () => undefined,
++  });
++
++  assert.deepEqual(plan, { script: "mutation:affected", sources: [workspaceSource] });
++  assert.deepEqual(commands, [
++    [
++      process.cwd(),
++      "npm",
++      ["run", "mutation:affected", "--", mutationPrConfigFile, "--reporters", "progress,json", "--mutate", workspaceSource],
++    ],
++  ]);
++});
++
++test("runs direct production changes only for changed new-side ranges", () => {
++  const commands = [];
++  const plan = runCiMutation({
++    environment: { MUTATION_BASE_SHA: baseSha, MUTATION_HEAD_SHA: headSha },
++    readReport: () => emptyMutationReport,
++    removeReport: () => undefined,
++    repoRoot: process.cwd(),
++    runCommand: (...arguments_) => commands.push(arguments_),
++    runGit: (_repoRoot, arguments_) => {
++      if (arguments_.includes("--name-status")) return { status: 0, stdout: `M\0${workspaceSource}\0` };
++      if (arguments_.includes("--unified=0")) return { status: 0, stdout: "@@ -4,2 +5,2 @@\n@@ -20 +21 @@\n" };
++      return { status: 0, stdout: "" };
++    },
++    write: () => undefined,
++  });
++
++  const patterns = [`${workspaceSource}:5-6`, `${workspaceSource}:21-21`];
++  assert.deepEqual(plan, { script: "mutation:affected", sources: patterns });
++  assert.deepEqual(commands, [
++    [
++      process.cwd(),
++      "npm",
++      ["run", "mutation:affected", "--", mutationPrConfigFile, "--reporters", "progress,json", "--mutate", patterns.join(",")],
++    ],
++  ]);
++});
++
++test("promotes a surviving deletion-only source edit but omits a deleted source", () => {
++  const commands = [];
++  const deletionOnlyPlan = runCiMutation({
++    environment: { MUTATION_BASE_SHA: baseSha, MUTATION_HEAD_SHA: headSha },
++    readReport: () => emptyMutationReport,
++    removeReport: () => undefined,
++    repoRoot: process.cwd(),
++    runCommand: (...arguments_) => commands.push(arguments_),
++    runGit: (_repoRoot, arguments_) => {
++      if (arguments_.includes("--name-status")) return { status: 0, stdout: `M\0${workspaceSource}\0` };
++      if (arguments_.includes("--unified=0")) return { status: 0, stdout: "@@ -10,3 +9,0 @@\n" };
++      return { status: 0, stdout: "" };
++    },
++    write: () => undefined,
++  });
++  assert.deepEqual(deletionOnlyPlan, { script: "mutation:affected", sources: [workspaceSource] });
++
++  const deletedPlan = runCiMutation({
++    environment: { MUTATION_BASE_SHA: baseSha, MUTATION_HEAD_SHA: headSha },
++    repoRoot: process.cwd(),
++    runCommand: (...arguments_) => commands.push(arguments_),
++    runGit: (_repoRoot, arguments_) => ({
++      status: 0,
++      stdout: arguments_.includes("--name-status") ? `D\0${workspaceSource}\0` : "",
++    }),
++    write: () => undefined,
++  });
++  assert.equal(deletedPlan, null);
++  assert.equal(commands.length, 1);
++});
++
++test("retains the bounded Stryker and TypeScript-checker contract", () => {
++  const packageJson = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
++
++  assert.match(packageJson.scripts["mutation:affected"], /(?:^|\s)--ignoreStatic(?:\s|$)/u);
++  assert.deepEqual(strykerConfig.checkers, ["typescript"]);
++  assert.equal(strykerConfig.typescriptChecker?.prioritizePerformanceOverAccuracy, true);
++});
++
++test("keeps the GitHub mutation job bounded to pull-request changes", () => {
++  const workflow = readFileSync(new URL("../.github/workflows/ci.yml", import.meta.url), "utf8");
++  const mutationJob = workflow.split("\n  quality-mutation:\n")[1];
++
++  assert.ok(mutationJob, "quality-mutation job must exist");
++  assert.match(mutationJob, /if:.*github\.event_name == 'pull_request'/u);
++  assert.match(mutationJob, /timeout-minutes: 30/u);
++  assert.match(mutationJob, /fetch-depth: 0/u);
++  assert.match(mutationJob, /MUTATION_BASE_SHA:.*github\.event\.pull_request\.base\.sha/u);
++  assert.match(mutationJob, /MUTATION_HEAD_SHA:.*github\.event\.pull_request\.head\.sha/u);
++  assert.match(mutationJob, /run: npm run mutation:ci/u);
++  assert.doesNotMatch(mutationJob, /run: npm run mutation\s*$/mu);
++});
+diff --git a/scripts/run-pre-push-quality.mjs b/scripts/run-pre-push-quality.mjs
+index ac68b7f7..ae222b77 100644
+--- a/scripts/run-pre-push-quality.mjs
++++ b/scripts/run-pre-push-quality.mjs
+@@ -22,6 +22,12 @@ const excludedMutationSources = new Set([
+   "src/client/service-worker.ts",
+ ]);
+
++export const mutationCanarySource = "src/views/app-navigation.ts";
++
++export function isMutationConfigurationFile(file) {
++  return mutationConfigurationFiles.has(file);
++}
++
+ export function affectsFallow(file) {
+   return (
+     /\.(?:js|jsx|mjs|cjs|ts|tsx|mts|cts)$/.test(file) ||
+@@ -46,10 +52,8 @@ export function affectedMutationSources(repoRoot, files) {
+ }
+
+ export function mutationPlan(repoRoot, files) {
+-  if (files.some((file) => mutationConfigurationFiles.has(file))) {
+-    return { script: "mutation:incremental:refresh", sources: [] };
+-  }
+-  const sources = affectedMutationSources(repoRoot, files);
++  const inputs = files.some(isMutationConfigurationFile) ? [...files, mutationCanarySource] : files;
++  const sources = affectedMutationSources(repoRoot, inputs);
+   return sources.length > 0 ? { script: "mutation:affected", sources } : null;
+ }
+
+@@ -71,14 +75,11 @@ function runPrePushQuality(repoRoot, affectedFiles) {
+   }
+
+   const plan = mutationPlan(repoRoot, affectedFiles);
+-  if (plan?.script === "mutation:incremental:refresh") {
+-    console.log("Refreshing incremental mutation results because mutation configuration changed...");
+-    run(repoRoot, "npm", mutationCommandArguments(plan));
+-  } else if (plan) {
++  if (plan) {
+     console.log(`Running mutation tests for ${plan.sources.length} affected source file(s) before push...`);
+     run(repoRoot, "npm", mutationCommandArguments(plan));
+   } else {
+-    console.log("Incremental mutation tests skipped: no affected Stryker inputs.");
++    console.log("Mutation tests skipped: no affected Stryker inputs.");
+   }
+ }
+
+diff --git a/scripts/run-pre-push-quality.test.mjs b/scripts/run-pre-push-quality.test.mjs
+index 8195f226..e111eca7 100644
+--- a/scripts/run-pre-push-quality.test.mjs
++++ b/scripts/run-pre-push-quality.test.mjs
+@@ -4,6 +4,7 @@ import {
+   affectedMutationSources,
+   affectsFallow,
+   isMutationSource,
++  mutationCanarySource,
+   mutationCommandArguments,
+   mutationPlan,
+ } from "./run-pre-push-quality.mjs";
+@@ -36,10 +37,14 @@ test("maps affected Node unit tests back to mutation sources", () => {
+   assert.deepEqual(affectedMutationSources(process.cwd(), ["src/domain/removed-module.ts"]), []);
+ });
+
+-test("refreshes stale incremental results after any mutation configuration change", () => {
++test("uses a bounded canary after any mutation configuration change", () => {
+   assert.deepEqual(mutationPlan(process.cwd(), ["stryker.config.mjs", "src/domain/workspace/workspace.ts"]), {
+-    script: "mutation:incremental:refresh",
+-    sources: [],
++    script: "mutation:affected",
++    sources: ["src/domain/workspace/workspace.ts", mutationCanarySource],
++  });
++  assert.deepEqual(mutationPlan(process.cwd(), ["vitest.config.mts"]), {
++    script: "mutation:affected",
++    sources: [mutationCanarySource],
+   });
+   assert.deepEqual(mutationPlan(process.cwd(), ["src/domain/workspace/workspace.ts"]), {
+     script: "mutation:affected",
+@@ -58,11 +63,4 @@ test("keeps passing pre-push mutation output concise", () => {
+     "--mutate",
+     "src/domain/workspace/workspace.ts",
+   ]);
+-  assert.deepEqual(mutationCommandArguments({ script: "mutation:incremental:refresh", sources: [] }), [
+-    "run",
+-    "mutation:incremental:refresh",
+-    "--",
+-    "--reporters",
+-    "progress",
+-  ]);
+ });
+diff --git a/stryker.pr.config.mjs b/stryker.pr.config.mjs
+new file mode 100644
+index 00000000..9a38a6d8
+--- /dev/null
++++ b/stryker.pr.config.mjs
+@@ -0,0 +1,18 @@
++// @ts-check
++
++import baseConfig from "./stryker.config.mjs";
++
++/** @type {import("@stryker-mutator/api/core").PartialStrykerOptions} */
++const config = {
++  ...baseConfig,
++  jsonReporter: {
++    fileName: "reports/mutation/pull-request.json",
++  },
++  reporters: ["progress", "json"],
++  thresholds: {
++    ...baseConfig.thresholds,
++    break: null,
++  },
++};
++
++export default config;

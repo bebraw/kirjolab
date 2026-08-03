@@ -18,6 +18,8 @@
     }
   },
   "vibeTemplate": {
+    "source": "https://github.com/bebraw/vibe-template",
+    "baseline": "4386a397be47008e8497c331033b50e108b6698f",
     "updates": [
       "2026-06-09-node-24-npm-baseline",
       "2026-06-10-capability-kits",
@@ -46,6 +48,7 @@
       "2026-07-17-fingerprint-pwa-shell",
       "2026-07-17-native-local-ci",
       "2026-07-22-pre-push-deep-quality",
+      "2026-07-22-engineering-quality-skills",
       "2026-07-25-dependency-cost-diagnostic",
       "2026-07-30-validate-adr-registry",
       "2026-07-30-local-workers-tests",
@@ -56,7 +59,12 @@
       "2026-07-30-fallow-3-diagnostics",
       "2026-07-31-cloudflare-mcp-skill-baseline",
       "2026-07-31-scope-local-agent-ci",
-      "2026-07-31-manual-ci-dispatch"
+      "2026-07-31-manual-ci-dispatch",
+      "2026-08-03-bound-pr-mutation-ci",
+      "2026-08-03-repository-local-wayfinder",
+      "2026-08-03-repository-local-spec-tdd",
+      "2026-08-03-readme-skill-catalog",
+      "2026-08-03-record-template-provenance"
     ]
   },
   "scripts": {
@@ -72,7 +80,7 @@
     "deploy": "node ./scripts/deploy-production.mjs",
     "deploy:dry-run": "node ./scripts/deploy-production.mjs --dry-run-only",
     "dev": "node --env-file-if-exists=.env ./scripts/run-dev.mjs",
-    "dev:worker": "CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV=false HOME=$PWD wrangler dev --local --ip 127.0.0.1 --port 8787 --var AUTH_MODE:local --inspector-ip 127.0.0.1 --inspector-port 9229 --log-level error --show-interactive-dev-session=false",
+    "dev:worker": "KIRJOLAB_BROWSER_SHELL_MODE=development CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV=false HOME=$PWD wrangler dev --local --ip 127.0.0.1 --port 8787 --var AUTH_MODE:local --inspector-ip 127.0.0.1 --inspector-port 9229 --log-level error --show-interactive-dev-session=false",
     "diagnostics:codebase": "npm run diagnostics:readability && npm run diagnostics:type-aware && npm run diagnostics:health",
     "diagnostics:dependencies": "node ./scripts/report-dependency-costs.mjs",
     "diagnostics:pdf-references": "node ./scripts/run-pdf-reference-quality-report.mjs",
@@ -92,6 +100,7 @@
     "model:companion": "npm run build:model-companion && node --env-file-if-exists=.env ./.generated/model-companion.mjs",
     "mutation": "NODE_OPTIONS=--max-old-space-size=8192 stryker run",
     "mutation:affected": "NODE_OPTIONS=--max-old-space-size=8192 stryker run --ignoreStatic --reporters clear-text,progress",
+    "mutation:ci": "node ./scripts/run-ci-mutation.mjs",
     "mutation:incremental": "NODE_OPTIONS=--max-old-space-size=8192 stryker run --incremental --ignoreStatic",
     "mutation:incremental:refresh": "NODE_OPTIONS=--max-old-space-size=8192 node ./scripts/run-mutation-refresh.mjs",
     "playwright:install": "playwright install chromium",

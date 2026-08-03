@@ -16,6 +16,15 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   `durable-objects` skill while Durable Objects remain a product dependency.
   Add other product-specific Cloudflare skills only with the capability that
   needs them.
+- Treat `.codex/skills/` as the canonical root for project-local skills. Keep
+  `.github/skills/` and capability-kit copies only for intentionally supported
+  compatibility or distribution surfaces. When the same skill is maintained in
+  `.codex/skills/`, keep an intentional copy equivalent unless a documented
+  adaptation is needed; a compatibility-only skill need not be installed for
+  Codex.
+- Vendor third-party agent skills at a reviewed source revision, retain their
+  license and provenance, and adapt only the integration points needed for
+  Kirjolab's durable context and authorization boundaries.
 - Organize browser and domain source by product capability once a source root
   contains multiple cohesive feature clusters. Keep browser entrypoints at
   `src/client/`, colocate implementations with their tests in the owning
@@ -29,6 +38,13 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Treat specs and ADRs as the durable source of truth for expected behavior and architectural intent. Code, including AI-generated code, is only acceptable when it matches those documents or updates them intentionally in the same change set.
 - Add or update an ADR in `docs/adrs/` whenever a change introduces or changes a lasting architectural constraint, selects between credible architectural alternatives, or replaces an earlier decision. Keep drafts in `docs/adrs/proposed/`, approved-but-not-yet-implemented decisions in `docs/adrs/accepted/`, and implemented decisions in `docs/adrs/implemented/`.
 - Create or update the relevant feature spec in `specs/` in the same change set whenever feature behavior, contracts, workflows, or regression guardrails change.
+- Keep optional multi-session discovery maps under
+  `docs/wayfinding/<effort>.md`. Treat them as working context rather than
+  durable authority, and promote lasting outcomes into `ARCHITECTURE.md`, ADRs,
+  or feature specs.
+- Use focused red-green slices for observable runtime behavior and regression
+  fixes when a stable public test seam exists. When no meaningful failing test
+  can be written, use and state the relevant deterministic verification instead.
 - Add or update a template update pack in `.template/updates/` in the same change set whenever a reusable template maintenance change should be portable to downstream projects.
 - Keep the quality gate green before considering a change ready.
 - Keep workflow writes explicit. New generated output, local state, cache, archive, or tool-artifact paths should be documented in the same change that introduces them.
@@ -165,7 +181,11 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   presenters extend the normal owner's controller specialization for empty
   rendering and typed sibling lookup. Reactive owners use the shared host's
   fail-fast typed descendant lookup instead of repeating local query-and-error
-  helpers. Keep domain bindings, effects, and
+  helpers. Resolve Lit's `development` package export only for Vitest,
+  Playwright, and the loopback `npm run dev` workflow. Browser-shell builds
+  default to the explicit `production` export condition, assert the resolved
+  Lit inputs from esbuild metadata, and let the repository-owned deploy command
+  override ambient mode with `production`. Keep domain bindings, effects, and
   reconnect work in the concrete components.
 - Let the project-map Lit workspace own its authorized knowledge-search request,
   response validation, and idle, result, and error lifecycle because those
@@ -1149,6 +1169,17 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   offline-persistence and toast owners together during shell preparation so the
   control owns the pinned update notice, persistence-before-refresh sequence,
   reload action, and copy outcomes.
+- Keep physical-device layout diagnostics local and explicitly opt-in through
+  the exact `layout-debug=1` query. The disabled path must not measure the DOM,
+  register diagnostic viewport or focus listeners, or render diagnostic UI.
+  Once opted in, keep only a bounded event history and measure a content-free
+  inventory of stable header, workspace, toolbar, and editor geometry on
+  refresh or copy. Include the shell fingerprint, viewport and media state,
+  safe structural labels, overflow, and sibling overlap; never include authored
+  text, control values, project identity, URL state, dynamic resource ids,
+  persistence, upload, or telemetry. Preserve this foreign query during
+  reconstructible workspace-route synchronization without promoting it to
+  project state.
 - Publish immutable browser runtimes under content-fingerprinted URLs. Derive
   the service-worker cache namespace from the built shell so a shell change
   installs a new cache generation and activation removes older Kirjolab shell
@@ -1818,10 +1849,40 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - The verification baseline is split into a fast gate and a browser gate so quick checks can return earlier without dropping full coverage.
 - The repo-managed `pre-push` Git hook should run affected-file guardrails,
   Fallow for affected codebase inputs, and targeted Stryker checks for affected
-  Node-testable sources. Mutation configuration changes should force-refresh
-  the full incremental report so removed mutants cannot remain in the score.
-  Passing hooks should report concise Fallow health and Stryker score/progress
-  output; detailed advisory findings remain available through explicit commands.
+  Node-testable sources. Mutation and test configuration changes should add the
+  stable production canary to affected configured sources instead of forcing a
+  full incremental refresh. Keep that refresh available as an explicit manual
+  command. Passing hooks should report concise Fallow health and Stryker
+  score/progress output; detailed advisory findings remain available through
+  explicit commands.
+- Keep the required GitHub `quality-mutation` check clean and pull-request-only.
+  Preserve added/copied/modified/renamed/deleted status plus old and new rename
+  paths through a NUL-delimited name-status diff. For each surviving directly
+  changed production source, use `git diff --unified=0` over its explicit base
+  and head, passing both paths with rename detection when the source moved, and
+  project positive new/head-side hunks to coalesced Stryker
+  `file.ts:start-end` ranges. Omit deleted production sources, but promote a
+  surviving directly changed source to full-file when any hunk is deletion-only
+  or no positive new-side span exists because Stryker mutates only AST nodes
+  fully contained by a range.
+  Map changed, deleted, or renamed colocated Node tests to a surviving full-file
+  source only when that source was not directly changed. Keep the stable
+  mutation/test/selector configuration canary full-file even for deletions; its
+  full-file reason dominates ranges. Missing or malformed commits should fail
+  explicitly rather than expanding to a full run. An empty production scope
+  should pass without starting Stryker. The selected non-incremental run should
+  ignore static mutants, emit console progress plus a JSON report under the
+  existing disposable `reports/mutation/` target, and stay within a 30-minute
+  job bound. Use `stryker.pr.config.mjs` to disable Stryker's raw break threshold
+  only for the pull-request path, then fail unless JSON postprocessing reports
+  at least 90% changed-mutant coverage (`covered / valid`) and at least 68%
+  covered mutation score (`detected / covered`). Count `Timeout` as detected;
+  exclude `CompileError` and `Ignored`; fail on `Pending`, `RuntimeError`, or a
+  missing or malformed report; and pass a report with zero valid mutants. Keep
+  the base `stryker.config.mjs` break threshold at 68 for full, affected,
+  incremental, and pre-push mutation. Do not repeat mutation on the merge push
+  to `main`; retain `npm run mutation` as the explicit full local or manual
+  audit.
 - Formatting, Oxlint correctness checks, type checking, unit tests, and end-to-end tests are part of the baseline quality gate.
 - Oxlint uses its default correctness rules and complements rather than replaces Prettier formatting and TypeScript type checking.
 - Browser tests launch Wrangler with a fresh operating-system temporary persistence directory and remove it on shutdown. Test workspaces must never accumulate in the interactive development catalog.
@@ -1872,9 +1933,15 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Keep update packs as reviewable plain files with metadata, a migration guide, and a focused patch.
 - Use update packs for later changes to projects that already use this template or one of its capability kits.
 - Do not treat update packs as source snapshots; preserve downstream project conventions and use the migration guide when the patch does not apply cleanly.
+- Record a verified upstream source and full tree-matched baseline revision with
+  applied update IDs in package metadata when the repository derives from a
+  template. Use that provenance to resolve future syncs; never infer a source or
+  revision merely because a checkout has a familiar name.
 
 ## Spec Conventions
 
 - Put feature-level specs under `specs/{feature-domain}/spec.md`.
 - Keep one spec per independently evolvable feature or domain.
+- Synthesize only settled context into specs. Keep unresolved discovery in
+  conversation or a wayfinding map, and keep architectural rationale in ADRs.
 - Update the relevant spec in the same change set whenever behavior, contracts, workflows, or guardrails change.

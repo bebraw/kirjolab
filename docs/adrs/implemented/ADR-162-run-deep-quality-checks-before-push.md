@@ -8,6 +8,8 @@
 [ADR-033](./ADR-033-add-advisory-fallow-diagnostics.md),
 [ADR-134](./ADR-134-keep-mutation-explicit.md)
 
+**Amended by:** [ADR-216](./ADR-216-bound-pull-request-mutation-ci.md)
+
 ## Context
 
 Routine local readiness intentionally excludes Fallow and Stryker so normal

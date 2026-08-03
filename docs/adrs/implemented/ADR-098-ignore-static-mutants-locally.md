@@ -6,6 +6,8 @@
 
 **Amends:** [ADR-028](./ADR-028-use-incremental-local-mutation-gate.md)
 
+**Amended by:** [ADR-216](./ADR-216-bound-pull-request-mutation-ci.md)
+
 ## Context
 
 The local incremental mutation gate detected eight static mutants, only three percent of the mutant set, that Stryker estimated would consume 62 percent of the test runtime. Static mutants execute while modules load, so Stryker cannot switch them inside an already-running test environment and must use a fresh environment for each run.

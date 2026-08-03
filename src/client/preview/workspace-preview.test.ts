@@ -210,6 +210,7 @@ describe("workspace preview", () => {
     const resources = new ContextResourcePresenter();
     const presentProject = vi.spyOn(manuscriptMap, "presentProject").mockImplementation(() => undefined);
     const setStatistics = vi.spyOn(exportDialog, "setStatistics").mockImplementation(() => undefined);
+    const presentChapterNotes = vi.spyOn(resources, "presentChapterNotes").mockImplementation(() => undefined);
     const presentResolvedWorkspace = vi.spyOn(resources, "presentResolvedWorkspace").mockImplementation(() => undefined);
     Object.defineProperty(preview, "ownerDocument", {
       value: {
@@ -244,6 +245,7 @@ describe("workspace preview", () => {
       expect.objectContaining({ files: projectRequest.files, source: publicationComposition.content }),
     );
     expect(setStatistics).toHaveBeenCalledWith(expect.objectContaining({ totalWords: 2 }));
+    expect(presentChapterNotes).toHaveBeenCalledWith(projectRequest.activeFileId, projectRequest.files);
     expect(presentResolvedWorkspace).toHaveBeenCalledWith(
       workspaceSnapshotFixture,
       projectRequest.bibliography,

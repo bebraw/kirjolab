@@ -788,7 +788,9 @@
     .authoring-context-resizer[data-dragging="true"]::before {
       background: var(--color-app-accent);
     }
+  }
 
+  @media (min-width: 70rem) {
     .preview-sync-controls {
       position: absolute;
       top: 4.25rem;
@@ -818,7 +820,9 @@
       border-top: 1px solid var(--color-app-line);
     }
 
-    .preview-sync-controls > button:hover {
+    .preview-sync-controls > button:hover,
+    .preview-sync-controls > button:focus-visible,
+    .preview-sync-controls > button[aria-pressed="true"] {
       background: var(--color-app-accent-ghost);
       color: var(--color-app-accent-strong);
     }
@@ -1525,6 +1529,7 @@
   }
 
   .context-preview-panel,
+  .context-chapter-notes-panel,
   .context-library-panel,
   .context-assistant-panel,
   .context-publication-panel,
@@ -1534,6 +1539,7 @@
   }
 
   .context-preview-panel:not([hidden]),
+  .context-chapter-notes-panel:not([hidden]),
   .context-library-panel:not([hidden]),
   .context-assistant-panel:not([hidden]),
   .context-publication-panel:not([hidden]),
@@ -1542,6 +1548,7 @@
     display: flex;
   }
 
+  .context-chapter-notes-panel > chapter-notes-panel,
   .context-publication-panel > publication-context-panel,
   .context-candidate-panel > candidate-review-panel {
     display: flex;

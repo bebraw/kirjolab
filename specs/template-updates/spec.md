@@ -21,8 +21,17 @@ copying unrelated starter structure.
 - **Patch role:** focused first-attempt migration patch
 - **Guide role:** manual fallback for diverged target projects
 - **Applied update record:** target project docs or package metadata;
-  `vibeTemplate.updates` records behaviors present in this project and may
-  include upstream updates that were not backfilled as local packs
+  `vibeTemplate.source` identifies the upstream repository,
+  `vibeTemplate.baseline` records the verified full Git revision whose tree
+  seeded this project, and `vibeTemplate.updates` records behaviors present in
+  this project; update IDs may include upstream updates that were not backfilled
+  as local packs
+- **Adopted updates in this batch:**
+  `2026-07-22-engineering-quality-skills`,
+  `2026-08-03-repository-local-wayfinder`, and
+  `2026-08-03-repository-local-spec-tdd`, plus the discoverability-only
+  `2026-08-03-readme-skill-catalog` and the focused
+  `2026-08-03-record-template-provenance`
 - **Current backfilled update registry:** directories containing
   `.template/updates/*/update.json`
 
@@ -38,6 +47,10 @@ copying unrelated starter structure.
   docs structure, workflow names, or source layout.
 - Do not require a custom CLI before update packs are useful.
 - Do not make agents infer the cross-repo sync workflow from scattered docs.
+- Do not guess a template source or baseline revision. Record provenance only
+  after the repository relationship is verified.
+- Do not record an update as applied until its behavior, routing, durable
+  architecture record, and feature contract are present in the target project.
 
 ## Contract
 
@@ -50,6 +63,10 @@ copying unrelated starter structure.
 - [ ] Patch files are focused on reusable migration steps rather than whole
       template snapshots.
 - [ ] Durable docs mention update packs as the template-maintenance sync path.
+- [ ] The applied update record exposes the verified upstream source and full
+      baseline revision so a future sync can locate and compare the template.
+- [ ] The applied update record includes each adopted agent-workflow update
+      only after its canonical skills and Kirjolab-specific routing are present.
 - [ ] The spec is updated in the same change set.
 
 ### Regression Guardrails
@@ -62,9 +79,13 @@ copying unrelated starter structure.
 - The agent sync entrypoint must be explicit enough that a target-repo agent can
   act on "look at vibe-template for latest updates" without additional prompt
   engineering.
+- The sync workflow must use a verified local checkout or recorded source and
+  baseline; it must not invent provenance when neither is available.
 - Backfilled packs should cover reusable historical changes, not every commit.
 - New reusable template maintenance changes should add or update an update pack
   in the same change set.
+- A clean patch check must not bypass target-specific ADR identifiers, canonical
+  skill ownership, or other repository conventions.
 
 ### Verification
 
@@ -87,6 +108,15 @@ copying unrelated starter structure.
 - When: the update pack patch does not apply cleanly
 - Then: the contributor follows the pack README and ports the behavior manually
 
+**Scenario: Reusable skill pack conflicts with Kirjolab conventions**
+
+- Given: an upstream skill pack assumes different ADR identifiers, skill-copy
+  ownership, or agent routing
+- When: Kirjolab adopts the reusable workflow
+- Then: the contributor preserves the pack's behavior while using Kirjolab's
+  next ADR identifiers, canonical `.codex/skills/` root, selective compatibility
+  copies, and existing Blueprint/Contract specs
+
 **Scenario: New reusable template maintenance lands**
 
 - Given: a template change affects downstream maintenance behavior
@@ -100,6 +130,14 @@ copying unrelated starter structure.
 - Then: the agent reads `.template/updates/AGENT_SYNC.md`, recommends relevant
   unapplied packs, applies only approved migrations, runs checks, and records
   applied update IDs
+
+**Scenario: Template checkout path is not obvious**
+
+- Given: the current repository has a verified `vibeTemplate.source` and
+  `vibeTemplate.baseline` record but no obvious sibling checkout
+- When: an agent begins a template sync
+- Then: it uses the recorded provenance to resolve or request access to the
+  upstream repository instead of guessing a path or revision
 
 **Scenario: Routine dependency update**
 

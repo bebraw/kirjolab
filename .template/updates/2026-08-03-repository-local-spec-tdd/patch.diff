@@ -1,0 +1,225 @@
+diff --git a/.codex/skills/to-spec/LICENSE b/.codex/skills/to-spec/LICENSE
+new file mode 100644
+--- /dev/null
++++ b/.codex/skills/to-spec/LICENSE
+@@ -0,0 +1,21 @@
++MIT License
++
++Copyright (c) 2026 Matt Pocock
++
++Permission is hereby granted, free of charge, to any person obtaining a copy
++of this software and associated documentation files (the "Software"), to deal
++in the Software without restriction, including without limitation the rights
++to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
++copies of the Software, and to permit persons to whom the Software is
++furnished to do so, subject to the following conditions:
++
++The above copyright notice and this permission notice shall be included in all
++copies or substantial portions of the Software.
++
++THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
++AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
++OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
++SOFTWARE.
+diff --git a/.codex/skills/to-spec/SKILL.md b/.codex/skills/to-spec/SKILL.md
+new file mode 100644
+--- /dev/null
++++ b/.codex/skills/to-spec/SKILL.md
+@@ -0,0 +1,54 @@
++---
++name: to-spec
++description: Turn settled conversation, wayfinding results, or an approved design into a repository-local feature spec. Use when the user explicitly asks to capture the agreed behavior as a spec without reopening discovery or publishing to an issue tracker.
++---
++
++# To Spec
++
++Synthesize settled context into the repository's durable feature contract. Preserve decisions; do not invent missing ones or restart the interview.
++
++## Boundaries
++
++- Write to `specs/<feature-domain>/spec.md`; never publish to an issue tracker.
++- Prefer updating the existing domain spec over creating another document.
++- Keep one spec per independently evolvable feature domain.
++- Capture accepted state, not the conversation, discarded options, or planning history.
++- Route unresolved product or architecture decisions back to `brainstorming` or `wayfinder` instead of guessing.
++- Keep architectural rationale in ADRs and global constraints in `ARCHITECTURE.md`; link them from the spec.
++
++## Readiness
++
++Read the current conversation, any referenced wayfinding map, `AGENTS.md`, `ARCHITECTURE.md`, relevant ADRs, the relevant existing spec, and enough code to verify the current state.
++
++Continue only when the feature's intended behavior and important constraints are settled. If a missing answer would materially change the contract or architecture, name that decision and stop. Do not interview the user about facts available in the repository.
++
++## Process
++
++1. Select the target spec. Reuse an existing feature domain when one owns the behavior; otherwise propose a concise kebab-case domain under `specs/`.
++2. Present the target path and a short synthesis of the problem, architecture impact, and behavioral contract. Confirm this framing before writing.
++3. Create or update the spec using `specs/feature-template/spec.md` as the structural baseline. Preserve useful domain-specific sections already present.
++4. Record only verified, settled context:
++   - **Context:** why the feature exists and whose problem it solves.
++   - **Architecture:** entry points, data models, dependencies, and relevant source paths.
++   - **Anti-Patterns:** tempting approaches that would violate an accepted constraint, with the reason.
++   - **Definition of Done:** observable outcomes, including required documentation and tests.
++   - **Regression Guardrails:** behavior that must remain true across later changes.
++   - **Verification:** exact checks and critical paths that prove the contract.
++   - **Scenarios:** concrete Given/When/Then examples for important behavior and edge cases.
++5. When settled context introduces or changes a lasting architectural decision, add or update the corresponding ADR in the same change set. Link it rather than duplicating its rationale.
++6. Review the result against the conversation and codebase. Remove speculative requirements, implementation narration, duplicated ADR content, and placeholders that are not explicit open items.
++7. Write the spec and run the smallest relevant documentation checks. Do not implement the feature unless the user asks for that next step.
++
++## Completion
++
++Finish only when:
++
++- the target feature domain is unambiguous;
++- every contract statement is supported by settled context or current code;
++- observable success criteria and regression guardrails are present;
++- architectural decisions point to their durable ADRs; and
++- no issue-tracker or temporary planning state is required to understand the spec.
++
++## Provenance
++
++Adapted from Matt Pocock's MIT-licensed [`to-spec`](https://github.com/mattpocock/skills) skill at revision `2ab958093e83e0ec752e6c1c5932da465bf23e0c`. This version targets the template's repository-local Blueprint/Contract specs and ADR workflow.
+diff --git a/.codex/skills/to-spec/agents/openai.yaml b/.codex/skills/to-spec/agents/openai.yaml
+new file mode 100644
+--- /dev/null
++++ b/.codex/skills/to-spec/agents/openai.yaml
+@@ -0,0 +1,6 @@
++interface:
++  display_name: "To Spec"
++  short_description: "Turn settled context into a repository spec"
++  default_prompt: "Use $to-spec to turn this settled discussion into a repository-local feature spec."
++policy:
++  allow_implicit_invocation: false
+diff --git a/.codex/skills/tdd/LICENSE b/.codex/skills/tdd/LICENSE
+new file mode 100644
+--- /dev/null
++++ b/.codex/skills/tdd/LICENSE
+@@ -0,0 +1,21 @@
++MIT License
++
++Copyright (c) 2026 Matt Pocock
++
++Permission is hereby granted, free of charge, to any person obtaining a copy
++of this software and associated documentation files (the "Software"), to deal
++in the Software without restriction, including without limitation the rights
++to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
++copies of the Software, and to permit persons to whom the Software is
++furnished to do so, subject to the following conditions:
++
++The above copyright notice and this permission notice shall be included in all
++copies or substantial portions of the Software.
++
++THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
++AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
++OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
++SOFTWARE.
+diff --git a/.codex/skills/tdd/SKILL.md b/.codex/skills/tdd/SKILL.md
+new file mode 100644
+--- /dev/null
++++ b/.codex/skills/tdd/SKILL.md
+@@ -0,0 +1,47 @@
++---
++name: tdd
++description: Implement or repair observable source behavior through focused red-green slices. Use for new runtime behavior, regression fixes, or explicit test-first requests when a stable test seam exists; skip documentation-only, prototype, generated, and purely mechanical changes.
++---
++
++# Test-Driven Development
++
++Build one observable behavior slice at a time: prove the missing behavior with a red test, make it green with the smallest production change, then repeat.
++
++## Context and seam
++
++Read `AGENTS.md`, the relevant feature spec and ADRs, nearby source, and existing tests before writing anything. If the requested behavior changes a contract, update the spec in the same change set.
++
++Test through the highest stable public seam that exposes the behavior. Prefer an existing seam. Ask the user only when adding or moving a seam would create a lasting architecture choice; ordinary tests at an established seam need no extra confirmation.
++
++Skip this workflow when no meaningful red test exists, including documentation-only edits, generated output, throwaway prototypes, and mechanical changes already proven by deterministic tooling. State the alternative verification instead.
++
++## Red-green loop
++
++1. **Red:** Add the smallest behavioral test for one vertical slice.
++2. Use an expected result independent of the implementation: a spec scenario, regression example, protocol requirement, or worked literal.
++3. Run the narrowest relevant test and confirm it fails for the intended missing behavior. A test that passes, crashes for unrelated setup, or fails for the wrong reason is not red.
++4. **Green:** Make the smallest production change that satisfies the test without anticipating later slices.
++5. Run the narrow test until it passes, then choose the next behavior slice informed by what the cycle revealed.
++
++Keep every cycle independently understandable and reviewable. Do not write all tests first or all implementation first.
++
++## Test quality
++
++- Assert observable outcomes through public interfaces, not private methods, internal call order, or implementation details.
++- Mock true external boundaries such as third-party APIs, time, randomness, or unavailable infrastructure. Prefer real local collaborators and test substitutes already used by the project.
++- Keep expected values independent; never recompute the assertion using the same algorithm as production code.
++- Give each test one behavioral reason to fail and a name that reads as a specification.
++- Avoid broad refactors during green. Perform only cleanup needed to keep the touched slice clear; handle wider simplification separately after behavior is proven.
++
++## Completion
++
++After the final slice:
++
++1. Run the focused tests for the changed behavior.
++2. Run the repository's required quality gate.
++3. Confirm the relevant spec, regression guardrails, and verification commands match the delivered behavior.
++4. Use `test-review` when a separate adequacy pass is requested; TDD does not prove that every meaningful scenario was chosen.
++
++## Provenance
++
++Adapted from Matt Pocock's MIT-licensed [`tdd`](https://github.com/mattpocock/skills) skill at revision `2ab958093e83e0ec752e6c1c5932da465bf23e0c`. This version uses the template's living specs, existing test seams, and quality gate without a companion skill suite.
+diff --git a/.codex/skills/tdd/agents/openai.yaml b/.codex/skills/tdd/agents/openai.yaml
+new file mode 100644
+--- /dev/null
++++ b/.codex/skills/tdd/agents/openai.yaml
+@@ -0,0 +1,4 @@
++interface:
++  display_name: "TDD"
++  short_description: "Build behavior through focused red-green slices"
++  default_prompt: "Use $tdd to implement this behavior through focused red-green slices."
+diff --git a/AGENTS.md b/AGENTS.md
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -88,6 +88,18 @@
+ - Keep each effort in one repository-local `docs/wayfinding/<effort>.md` map by default; do not introduce an issue tracker or companion workflow suite.
+ - Treat wayfinding maps as temporary planning context. Promote lasting architecture and behavior into `ARCHITECTURE.md`, ADRs, and feature specs before declaring a map ready for specification.
+-
++
++## Specification
++
++- Use the project-local [`to-spec`](./.codex/skills/to-spec/SKILL.md) skill when the user explicitly asks to turn settled discussion, wayfinding results, or an approved design into a feature spec.
++- Write or update `specs/{feature-domain}/spec.md`; do not publish specs to an issue tracker or invent decisions that remain unresolved.
++- Keep architectural rationale in ADRs and global constraints in `ARCHITECTURE.md`, linked from the feature spec instead of duplicated.
++
++## Test-Driven Development
++
++- Use the project-local [`tdd`](./.codex/skills/tdd/SKILL.md) skill for observable runtime behavior and regression fixes when a stable test seam exists.
++- Work in focused red-green slices with independent expected values and tests through public interfaces.
++- Skip TDD for documentation-only, prototype, generated, and purely mechanical changes; state the alternative verification instead.
++
+ ## Review
+-
++
+ - Use the project-local [`review`](./.codex/skills/review/SKILL.md) skill when the user asks for review, risk analysis, or a merge-readiness pass.
+diff --git a/ARCHITECTURE.md b/ARCHITECTURE.md
+--- a/ARCHITECTURE.md
++++ b/ARCHITECTURE.md
+@@ -14,6 +14,7 @@
+ - Create or update the relevant feature spec in `specs/` in the same change set whenever feature behavior, contracts, workflows, or regression guardrails change.
+ - Add or update a template update pack in `.template/updates/` in the same change set whenever a reusable template maintenance change should be portable to downstream projects.
+ - Keep optional multi-session discovery maps under `docs/wayfinding/<effort>.md`. Treat them as working context rather than durable authority, and promote lasting outcomes into `ARCHITECTURE.md`, ADRs, or feature specs.
++- Use focused red-green slices for observable runtime behavior and regression fixes when a stable test seam exists. When no meaningful failing test can be written, use and state the relevant deterministic verification instead.
+ - Keep the quality gate green before considering a change ready.
+ - Keep workflow writes explicit. New generated output, local state, cache, archive, or tool-artifact paths should be documented in the same change that introduces them.
+ - Do not place executable browser code inline in Worker-rendered HTML. Client behavior should live in typed TypeScript modules before it is served to browsers.
+@@ -67,4 +68,5 @@
+-
++
+ - Put feature-level specs under `specs/{feature-domain}/spec.md`.
+ - Keep one spec per independently evolvable feature or domain.
++- Synthesize only settled context into specs; keep unresolved discovery in conversation or a wayfinding map and keep architectural rationale in ADRs.
+ - Update the relevant spec in the same change set whenever behavior, contracts, workflows, or guardrails change.

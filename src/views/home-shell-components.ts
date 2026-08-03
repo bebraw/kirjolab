@@ -73,6 +73,9 @@ export function renderPreviewSyncControls(): string {
           <button id="sync-preview-from-source" type="button" aria-label="Reveal centered source passage in Preview" title="Source to Preview">
             ${renderIcon("arrowRight")}
           </button>
+          <button id="toggle-preview-scroll-sync" type="button" aria-label="Source and Preview scroll lock" aria-pressed="false" title="Lock scrolling">
+            ${renderIcon("unlock")}
+          </button>
           <button id="sync-source-from-preview" type="button" aria-label="Reveal centered Preview passage in source" title="Preview to source">
             ${renderIcon("arrowLeft")}
           </button>

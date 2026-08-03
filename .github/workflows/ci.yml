@@ -86,10 +86,13 @@ jobs:
         run: npm run e2e
 
   quality-mutation:
-    if: ${{ github.server_url == 'https://github.com' }}
+    if: ${{ github.server_url == 'https://github.com' && github.event_name == 'pull_request' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
 
       - name: Restore npm cache
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
@@ -109,6 +112,9 @@ jobs:
         shell: bash
         run: npm ci
 
-      - name: Run mutation quality gate
+      - name: Run affected mutation quality gate
         shell: bash
-        run: npm run mutation
+        env:
+          MUTATION_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          MUTATION_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: npm run mutation:ci

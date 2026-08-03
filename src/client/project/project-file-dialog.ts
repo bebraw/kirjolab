@@ -1,5 +1,6 @@
 import { html, type TemplateResult } from "lit";
 import {
+  projectCompanionNotesPath,
   projectFileCollaborationTextName,
   relativeProjectPath,
   type ProjectAsset,
@@ -31,7 +32,7 @@ import { loadWorkspaceSnapshot, WorkspaceAccessError } from "../workspace/worksp
 import type { WorkspaceLayoutApplicationOwners, WorkspaceLayoutControl } from "../workspace/workspace-layout-control";
 import type { WorkspaceSettingsApplicationOwners, WorkspaceSettingsPanel } from "../workspace/workspace-settings-panel";
 
-export type ProjectFileDialogMode = "create" | "create-and-include" | "rename" | "create-folder" | "rename-folder";
+export type ProjectFileDialogMode = "create" | "create-and-include" | "create-notes" | "rename" | "create-folder" | "rename-folder";
 
 export interface ProjectImageInsertion {
   readonly message: string;
@@ -81,6 +82,7 @@ interface ProjectRefreshBinding {
 export interface ProjectFilePresentationBinding {
   readonly assistantGenerationPresenter: { readonly refreshAvailability: () => void };
   readonly authoringModeTabs: { navigate(mode: "write"): void };
+  readonly contextResourcePresenter: { presentChapterNotes(activeFileId: string | null, files: readonly ProjectFile[]): void };
   readonly editorStatus: {
     preserveInsertionPoint(): ((directive: string) => boolean) | null;
     selectRange(from: number, to: number): void;
@@ -91,7 +93,10 @@ export interface ProjectFilePresentationBinding {
     setFiles(activeFile: ProjectFile | null, files: readonly ProjectFile[]): void;
   };
   readonly toast: { readonly show: (message: string, options?: DeferredDeletionNoticeOptions) => void };
-  readonly projectFileMenuActions: EventTarget & { setEntryFileActive(active: boolean): void };
+  readonly projectFileMenuActions: EventTarget & {
+    setCompanionNotesPath(path: string | null): void;
+    setEntryFileActive(active: boolean): void;
+  };
   readonly projectFileRailActions: EventTarget;
   readonly projectImageUpload: EventTarget & { choose(): void; configure(apiBase: string): void };
   readonly projectTreePanel: EventTarget & {
@@ -151,12 +156,13 @@ export function projectFileDialogIsFolder(mode: ProjectFileDialogMode): boolean 
 }
 
 export function projectFileDialogIsCreating(mode: ProjectFileDialogMode): boolean {
-  return mode === "create" || mode === "create-and-include" || mode === "create-folder";
+  return mode === "create" || mode === "create-and-include" || mode === "create-notes" || mode === "create-folder";
 }
 
 function projectFileDialogTitle(mode: ProjectFileDialogMode): string {
   if (mode === "create") return "Add Markdown file";
   if (mode === "create-and-include") return "Create and include file";
+  if (mode === "create-notes") return "Create paired notes";
   if (mode === "rename") return "Move or rename file";
   if (mode === "create-folder") return "Add folder";
   return "Move or rename folder";
@@ -165,6 +171,8 @@ function projectFileDialogTitle(mode: ProjectFileDialogMode): string {
 function projectFileDialogHelp(mode: ProjectFileDialogMode): string {
   if (projectFileDialogIsFolder(mode)) return "Use a relative path. Moving a folder also moves its files and keeps includes valid.";
   if (mode === "rename") return "Change the folder or filename by editing this relative path. Inbound includes stay valid.";
+  if (mode === "create-notes")
+    return "This companion stays separate from manuscript composition and export until you include it explicitly.";
   return "Compose this file from the project entry with ::include[path].";
 }
 
@@ -368,6 +376,11 @@ export class ProjectFileDialog extends LightDomElement {
       });
       presentation.editorInsertMenu.setFiles(visibleActiveFile, files);
       presentation.sourceCompletion.setProject(snapshot, activeFileId, workspace);
+      presentation.contextResourcePresenter.presentChapterNotes(activeFileId, this.projectFiles());
+      const notesPath = visibleActiveFile ? projectCompanionNotesPath(visibleActiveFile.path) : null;
+      presentation.projectFileMenuActions.setCompanionNotesPath(
+        notesPath && !files.some(({ path }) => path === notesPath) ? notesPath : null,
+      );
       presentation.projectFileMenuActions.setEntryFileActive(activeFileId === snapshot.entryFileId);
     }
     if (activeFile) this.presentation?.editorStatus.setProjectFile(activeFile, snapshot.entryFileId, resetFile);
@@ -544,6 +557,7 @@ export class ProjectFileDialog extends LightDomElement {
 
   protected override render(): TemplateResult {
     const folderMode = projectFileDialogIsFolder(this.mode);
+    const companionMode = this.mode === "create-notes";
     return html`
       <dialog class="new-workspace-dialog ui-dialog" id="project-file-dialog">
         <form class="p-5" id="project-file-form" @submit=${this.save}>
@@ -552,13 +566,14 @@ export class ProjectFileDialog extends LightDomElement {
             ${projectFileDialogTitle(this.mode)}
           </h2>
           <label class="field-label mt-5"
-            >Relative path
+            >${companionMode ? "Paired notes path" : "Relative path"}
             <input
               class="field"
               id="project-file-path"
               type="text"
               maxlength="1024"
               required
+              ?readonly=${companionMode}
               placeholder=${folderMode ? "chapters" : "chapters/01_introduction.md"}
               .value=${this.initialPath}
             />
@@ -567,7 +582,7 @@ export class ProjectFileDialog extends LightDomElement {
           <div class="mt-5 flex justify-end gap-2">
             <button class="button-secondary" id="cancel-project-file" type="button" @click=${this.cancel}>Cancel</button>
             <button class="button-primary" id="save-project-file" type="submit" ?disabled=${this.saving}>
-              ${this.saving ? "Saving…" : folderMode ? "Save folder" : "Save file"}
+              ${this.saving ? "Saving…" : folderMode ? "Save folder" : companionMode ? "Create notes" : "Save file"}
             </button>
           </div>
           <p class="status-line" role="status" ?hidden=${!this.status}>${this.status}</p>
@@ -586,7 +601,7 @@ export class ProjectFileDialog extends LightDomElement {
 
   protected async save(event: SubmitEvent): Promise<void> {
     event.preventDefault();
-    const path = this.pathInput.value.trim();
+    const path = this.mode === "create-notes" ? this.initialPath : this.pathInput.value.trim();
     const folder = projectFileDialogIsFolder(this.mode);
     const creating = projectFileDialogIsCreating(this.mode);
     if (this.saving || (!creating && !this.targetId)) return;
@@ -623,8 +638,16 @@ export class ProjectFileDialog extends LightDomElement {
     const action = (event as CustomEvent<ProjectFileAction>).detail;
     if (action === "upload-images") owners.projectImageUpload.choose();
     else if (action === "delete") this.deleteActiveFile();
+    else if (action === "create-notes") this.openCompanionNotesDialog();
     else this.openDialog(action);
   };
+
+  private openCompanionNotesDialog(): void {
+    const activeFile = this.activeFile;
+    const path = activeFile ? projectCompanionNotesPath(activeFile.path) : null;
+    if (!path || this.snapshot?.files.some((file) => file.path === path)) return;
+    void this.show("create-notes", path);
+  }
 
   private readonly handleTreeAction = (event: Event): void => {
     const owners = this.presentation;
@@ -712,6 +735,7 @@ function projectFileSavedMessage(mode: ProjectFileDialogMode, path: string): str
   if (mode === "create-folder") return `Added ${path}.`;
   if (mode === "rename-folder") return `Moved folder to ${path}; project paths and includes were updated.`;
   if (mode === "create-and-include") return `Created ${path} and included it at the remembered caret.`;
+  if (mode === "create-notes") return `Added paired notes at ${path}.`;
   if (mode === "create") return `Added ${path}.`;
   return `Renamed file to ${path}; inbound includes were updated.`;
 }

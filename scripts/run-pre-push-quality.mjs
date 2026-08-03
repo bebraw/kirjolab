@@ -22,6 +22,12 @@ const excludedMutationSources = new Set([
   "src/client/service-worker.ts",
 ]);
 
+export const mutationCanarySource = "src/views/app-navigation.ts";
+
+export function isMutationConfigurationFile(file) {
+  return mutationConfigurationFiles.has(file);
+}
+
 export function affectsFallow(file) {
   return (
     /\.(?:js|jsx|mjs|cjs|ts|tsx|mts|cts)$/.test(file) ||
@@ -46,10 +52,8 @@ export function affectedMutationSources(repoRoot, files) {
 }
 
 export function mutationPlan(repoRoot, files) {
-  if (files.some((file) => mutationConfigurationFiles.has(file))) {
-    return { script: "mutation:incremental:refresh", sources: [] };
-  }
-  const sources = affectedMutationSources(repoRoot, files);
+  const inputs = files.some(isMutationConfigurationFile) ? [...files, mutationCanarySource] : files;
+  const sources = affectedMutationSources(repoRoot, inputs);
   return sources.length > 0 ? { script: "mutation:affected", sources } : null;
 }
 
@@ -71,14 +75,11 @@ function runPrePushQuality(repoRoot, affectedFiles) {
   }
 
   const plan = mutationPlan(repoRoot, affectedFiles);
-  if (plan?.script === "mutation:incremental:refresh") {
-    console.log("Refreshing incremental mutation results because mutation configuration changed...");
-    run(repoRoot, "npm", mutationCommandArguments(plan));
-  } else if (plan) {
+  if (plan) {
     console.log(`Running mutation tests for ${plan.sources.length} affected source file(s) before push...`);
     run(repoRoot, "npm", mutationCommandArguments(plan));
   } else {
-    console.log("Incremental mutation tests skipped: no affected Stryker inputs.");
+    console.log("Mutation tests skipped: no affected Stryker inputs.");
   }
 }
 

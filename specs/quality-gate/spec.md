@@ -35,9 +35,30 @@ failures quickly during normal development.
 - **Disposable-state cleanup:** `npm run maintenance:clean`
 - **PDF reference quality:** `npm run diagnostics:pdf-references`
 - **Live citation-provider coverage:** `npm run diagnostics:citation-providers`
-- **Full mutation gate:** `npm run mutation`
+- **Explicit full mutation audit:** `npm run mutation`
 - **Affected mutation gate:** `npm run mutation:affected -- --mutate <files>`
 - **Incremental mutation gate:** `npm run mutation:incremental`
+- **Manual incremental refresh:** `npm run mutation:incremental:refresh`
+- **Pull-request mutation gate:** `npm run mutation:ci`
+- **Pull-request mutation selector:** `scripts/run-ci-mutation.mjs`
+- **Pull-request mutation configuration:** `stryker.pr.config.mjs`, inheriting
+  the base configuration while disabling Stryker's raw break threshold only for
+  the pull-request path
+- **Mutation configuration canary:** `src/views/app-navigation.ts`
+- **Pull-request mutation scope:** directly changed configured production
+  sources projected from zero-context new/head-side hunks to coalesced Stryker
+  line ranges with full-file safety fallback for deletion-only or empty positive
+  spans, changed/deleted/renamed Node unit tests mapped to surviving full-file
+  production counterparts only when those sources were not directly changed,
+  and an always-full-file stable canary for mutation configuration or routing
+  changes including deletion
+- **Pull-request mutation result:** postprocess the JSON report under the
+  existing disposable `reports/mutation/` target; require at least 90%
+  changed-mutant coverage and at least 68% covered mutation score
+- **Measured changed-line baseline:** 3,154 valid mutants, 2,852 covered
+  mutants (90.42%), and 1,922 detected mutants (67.39% of covered mutants)
+- **Pull-request mutation bounds:** non-incremental, static mutants ignored,
+  console progress plus JSON output, and a 30-minute job timeout
 - **Full gate:** `npm run quality:gate` (fast gate followed by browser gate)
 - **Full gate progress:** named phase transitions plus a 30-second elapsed-time heartbeat while a phase is running
 - **Local readiness:** `npm run ci:local` delegates to the native full gate
@@ -51,6 +72,8 @@ failures quickly during normal development.
 - **Protected branch:** `main`
 - **Required remote checks:** `quality-fast`, `quality-browser`, and
   `quality-mutation` from the GitHub Actions App
+- **Mutation workflow trigger:** GitHub pull requests only; pushes to `main` do
+  not repeat the mutation job
 - **Remote merge boundary:** an up-to-date pull request with resolved review
   conversations and no administrator bypass
 - **CI dependency install:** plain `npm ci`
@@ -112,20 +135,52 @@ failures quickly during normal development.
 - [ ] The browser gate covers each canonical Playwright baseline file once.
 - [ ] The browser gate does not launch real artifact-analysis browser jobs for
       analysis endpoints that the E2E suite replaces with deterministic mocks.
-- [ ] The full mutation gate covers runtime `src/**/*.ts` files with Stryker, Vitest, and TypeScript checking.
+- [ ] The explicit full mutation audit covers runtime `src/**/*.ts` files with
+      Stryker, Vitest, TypeScript checking, static mutants, and the configured
+      full reporters.
 - [ ] The affected mutation gate retains TypeScript checking and limits routine
       pre-push mutation to affected Node-testable source files.
 - [ ] The incremental mutation gate reuses prior Stryker results and ignores static mutants for explicit full-surface local test-hardening runs while preserving a complete mutation report.
+- [ ] The pull-request mutation selector compares explicit base and head commit
+      SHAs, preserves deletion status and both rename paths through a
+      NUL-delimited name-status diff, derives positive new/head-side spans from
+      per-source zero-context diffs, and emits coalesced `file.ts:start-end`
+      Stryker patterns for surviving directly changed configured production
+      sources.
+- [ ] A surviving directly changed source with any deletion-only hunk or no
+      positive new-side span becomes a full-file pattern because Stryker mutates
+      only AST nodes fully contained by a range; a deleted source is omitted.
+- [ ] Changed, deleted, or renamed Node unit tests map to their surviving
+      production counterpart as a full-file pattern only when that source was
+      not directly changed; mutation configuration or routing changes, including
+      deletions, select the stable production canary as an always-full-file
+      pattern.
+- [ ] Malformed or unavailable base or head commits fail the pull-request check
+      without expanding to the full mutation surface, while an empty selected
+      scope succeeds without starting Stryker.
+- [ ] Pull-request mutation ignores static mutants, reports console progress
+      plus JSON under `reports/mutation/`, and is bounded to 30 minutes.
+- [ ] The pull-request configuration disables Stryker's built-in raw break only
+      for that path; the base 68 break remains blocking for full, affected,
+      incremental, and pre-push mutation.
+- [ ] Pull-request JSON postprocessing requires at least 90% changed-mutant
+      coverage and at least 68% covered mutation score, counts `Timeout` as
+      detected, excludes `CompileError` and `Ignored`, fails on `Pending`,
+      `RuntimeError`, or malformed input, and passes when there are zero valid
+      mutants.
 - [ ] The full gate runs the fast and browser gates in order.
 - [ ] The full gate reports phase starts, completions, failures, and periodic elapsed-time heartbeats.
 - [ ] The repo-managed `pre-push` hook runs affected-file guardrails, relevant
       Fallow diagnostics, and relevant targeted mutation checks before a
       push leaves the machine.
-- [ ] Mutation configuration changes force-refresh the incremental report so
-      its score contains only the currently configured mutation surface.
+- [ ] Pre-push mutation configuration changes run affected configured sources
+      plus the stable canary without force-refreshing the full incremental
+      report.
 - [ ] Local and remote CI use the same fast and browser package scripts for non-documentation changes.
 - [ ] GitHub protects `main` with pull requests and the authoritative fast,
-      browser, and full-mutation checks.
+      browser, and affected pull-request mutation checks.
+- [ ] The required pull-request mutation check retains the `quality-mutation`
+      name and does not repeat after merge on pushes to `main`.
 - [ ] Native local CI preserves full-gate live output and periodic phase heartbeats.
 - [ ] Optional container parity preserves Agent CI job progress, failure, and retry semantics.
 - [ ] Documentation-only changes can skip local CI when they do not alter executable behavior or workflow configuration.
@@ -177,21 +232,73 @@ failures quickly during normal development.
   repetition.
 - `npm run mutation` must fail when the mutation score is below the configured break threshold.
 - `npm run mutation:incremental` must fail when the resulting mutation score is below the configured break threshold.
-- The mutation break threshold must remain at the whole-number baseline of 68
-  established after delegating the scientific Markdown implementation, while
-  the 80 and 90 warning bands continue to expose mutation debt.
+- The base mutation break threshold must remain at the whole-number baseline of
+  68 established after delegating the scientific Markdown implementation,
+  while the 80 and 90 warning bands continue to expose mutation debt. It stays
+  blocking for full, affected, incremental, and pre-push mutation.
 - A denominator-changing source delegation may recalibrate the aggregate break
   threshold only when the mutation surface remains unchanged and the measured
   score change is documented in an implemented ADR.
-- `npm run mutation:incremental` must ignore static mutants to keep the repeated local gate proportionate, while `npm run mutation` must continue to test them in the clean GitHub mutation job.
+- `npm run mutation:incremental` must ignore static mutants to keep repeated
+  local test-hardening proportionate, while the explicit `npm run mutation`
+  audit must continue to test static mutants and retain the full configured
+  reporters.
 - `npm run mutation:affected` and `npm run mutation:incremental` must retain
   Stryker's mutation-time TypeScript checker so compile-invalid mutants are not
   counted as surviving or uncovered behavior.
 - Pre-push must run affected mutation for configured mutation sources, map Node
-  unit tests back to their source when it exists, and force-refresh incremental
-  mutation whenever mutation/test configuration changes, even when source files
-  also changed. It must skip mutation for documentation-only or Worker-only
-  changes.
+  unit tests back to their source when it exists, and add the stable canary for
+  mutation or test configuration changes. It must not force-refresh the full
+  incremental report and must skip mutation for documentation-only or
+  Worker-only changes.
+- `npm run mutation:incremental:refresh` must remain available as the explicit
+  manual full-surface incremental-cache refresh.
+- `npm run mutation:ci` must require explicit full base and head commit SHAs,
+  verify that both commits exist locally, and read added, copied, modified,
+  renamed, and deleted status plus both rename paths from a NUL-delimited
+  `git diff --name-status --diff-filter=ACMRD -z base...head` without falling
+  back to a repository-wide mutation run.
+- `npm run mutation:ci` must derive positive new/head-side line spans for
+  surviving directly changed configured production sources from per-source
+  zero-context diffs, passing both old and new paths with rename detection when
+  a source moved. It must coalesce overlapping and adjacent spans and emit each
+  as `file.ts:start-end`.
+- A surviving directly changed source with any deletion-only hunk or no positive
+  new-side span must become a full-file pattern; a deleted source must add no
+  mutation pattern.
+- `npm run mutation:ci` must map changed, deleted, or renamed Node unit tests to
+  surviving full-file source counterparts only when those sources were not
+  directly changed, and must add the stable always-full-file production canary
+  when mutation configuration, the CI workflow, or affected-mutation routing
+  changes, including deletions.
+- Canary and deletion-safety full-file selection must dominate line ranges for
+  the same source. A colocated test mapping applies only when its source was not
+  directly changed, so a simultaneous source-and-test change does not widen
+  safe direct ranges.
+- `npm run mutation:ci` must succeed without starting Stryker when no production
+  source or canary is selected.
+- Pull-request mutation must invoke the clean non-incremental
+  `npm run mutation:affected` path with an explicit mutate list, TypeScript
+  checking, `--ignoreStatic`, and the dedicated `stryker.pr.config.mjs`
+  configuration. That configuration must disable Stryker's raw break threshold
+  only for the pull-request path and emit console progress plus JSON under the
+  existing disposable `reports/mutation/` target.
+- After a successful Stryker run, pull-request postprocessing must classify
+  `Killed`, `Timeout`, `Survived`, and `NoCoverage` as valid; classify `Killed`,
+  `Timeout`, and `Survived` as covered; and classify `Killed` and `Timeout` as
+  detected. It must exclude `CompileError` and `Ignored` from the metrics.
+- A pull-request report with zero valid mutants must pass. Every other report
+  must reach at least 90% changed-mutant coverage (`covered / valid`) and at
+  least 68% covered mutation score (`detected / covered`). `Pending`,
+  `RuntimeError`, and missing or malformed report data must fail closed.
+- The measured changed-line baseline of 3,154 valid, 2,852 covered (90.42%), and
+  1,922 detected mutants (67.39% of covered) must be raised to the 68% covered
+  mutation floor through stronger tests, not through a lower threshold. With
+  the covered denominator unchanged, that requires 1,940 detections, 18 more
+  than the measured report.
+- The GitHub `quality-mutation` job must run only for pull requests, retain its
+  branch-protection check name, stop after 30 minutes, and not repeat on pushes
+  to `main`.
 - `npm install` must keep the repo-managed `pre-push` hook configured without requiring extra setup steps.
 - The CI workflow must cancel superseded runs for the same ref.
 - The CI workflow must support manual dispatch so trigger delivery can be
@@ -276,7 +383,9 @@ failures quickly during normal development.
   instrumentation without changing Stryker's score threshold or concurrency.
 - Mutation testing must use the Vitest runner's per-test coverage analysis and related-test narrowing rather than an ad hoc minimization wrapper.
 - Mutation testing must set Stryker worker concurrency as a percentage of available parallelism instead of a fixed worker count.
-- GitHub Actions must run the full mutation gate instead of the incremental mutation gate.
+- GitHub Actions must run the bounded `npm run mutation:ci` selector for the
+  required pull-request mutation check instead of an incremental or
+  repository-wide mutation run.
 - Mutation reports and Stryker incremental data must be written under ignored `reports/`, and Stryker's temporary sandbox must stay under ignored `.stryker-tmp/`.
 - Mutation sandboxes must not copy ignored `.wrangler/` runtime state; live
   SQLite WAL files are ephemeral application data, not mutation-test inputs.
@@ -395,9 +504,77 @@ failures quickly during normal development.
 
 **Scenario: GitHub verifies mutation strength**
 
-- Given: a push or pull request runs GitHub Actions
+- Given: a pull request directly changes lines in a configured production source
 - When: the `quality-mutation` job runs
-- Then: it runs `npm run mutation` instead of the incremental mutation command
+- Then: `npm run mutation:ci` compares the explicit base and head commits and
+  runs clean non-incremental mutation only for its coalesced new/head-side
+  `file.ts:start-end` ranges, with static mutants ignored, console progress plus
+  JSON output, at least 90% changed-mutant coverage, at least 68% covered
+  mutation score, and a 30-minute bound
+
+**Scenario: Selected scope produces no valid mutants**
+
+- Given: Stryker completes a selected pull-request mutation scope with zero
+  valid mutants
+- When: `npm run mutation:ci` postprocesses its JSON report
+- Then: the mutation result passes without dividing by zero
+
+**Scenario: Pull-request mutation report is incomplete**
+
+- Given: the pull-request mutation report is missing or malformed or contains a
+  `Pending` or `RuntimeError` mutant
+- When: `npm run mutation:ci` postprocesses the report
+- Then: the required `quality-mutation` check fails closed
+
+**Scenario: Pull request changes only a Node unit test**
+
+- Given: a pull request changes, deletes, or renames a colocated Node unit test
+  but not its surviving configured production counterpart
+- When: `npm run mutation:ci` selects its scope
+- Then: it mutates the mapped production source as a full-file pattern
+
+**Scenario: Direct source change has no new lines**
+
+- Given: a surviving directly changed configured production source has any
+  deletion-only hunk or no positive new-side span
+- When: `npm run mutation:ci` selects its scope
+- Then: it mutates that source as a full-file safety fallback
+
+**Scenario: Pull request deletes a production source**
+
+- Given: a pull request deletes a configured production source
+- When: `npm run mutation:ci` selects its scope
+- Then: the deleted source contributes no mutation pattern because no head-side
+  file remains
+
+**Scenario: Pull request has no mutation scope**
+
+- Given: a pull request changes no configured production source, mapped Node
+  unit test, mutation configuration, or mutation routing input
+- When: `npm run mutation:ci` selects its scope
+- Then: the required `quality-mutation` check succeeds without starting Stryker
+
+**Scenario: Pull request changes mutation routing**
+
+- Given: a pull request changes, renames, or deletes mutation configuration, the
+  CI workflow, or an affected-mutation routing script
+- When: `npm run mutation:ci` selects its scope
+- Then: it includes the stable production canary as a full-file pattern instead
+  of returning a vacuous success or expanding other sources to full files
+
+**Scenario: Pull-request commit is unavailable**
+
+- Given: the explicit mutation base or head is malformed or unavailable in the
+  checkout
+- When: `npm run mutation:ci` validates the pull-request range
+- Then: the required check fails with the invalid commit instead of starting a
+  repository-wide mutation run
+
+**Scenario: Pull request merges to main**
+
+- Given: the pull request passed the required `quality-mutation` check
+- When: its merge commit triggers the `main` push workflow
+- Then: GitHub does not repeat the mutation job
 
 **Scenario: Contributor adds browser behavior to a Worker view**
 

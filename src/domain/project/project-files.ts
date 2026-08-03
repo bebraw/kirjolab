@@ -1,6 +1,12 @@
 import { projectMarkdownComments } from "scholarmark";
+import { isRecord } from "../unknown-value";
 
 export const projectEntryPath = "main.md";
+
+export function projectCompanionNotesPath(path: string): string | null {
+  if (!path.endsWith(".md") || path.endsWith(".notes.md")) return null;
+  return `${path.slice(0, -3)}.notes.md`;
+}
 
 export interface ProjectFile {
   readonly id: string;
@@ -387,17 +393,7 @@ function expand(
   state: ExpansionState,
   limits: RequiredLimits,
 ): void {
-  if (state.stopped) return;
-  if (chain.length > limits.maximumDepth) {
-    state.diagnostics.push(diagnostic("depth-limit", `Include depth exceeds ${limits.maximumDepth}`, file, 0, 0, chain));
-    return;
-  }
-  state.expandedFiles.add(file.id);
-  if (state.expandedFiles.size > limits.maximumFiles) {
-    state.diagnostics.push(diagnostic("file-limit", `Composition includes more than ${limits.maximumFiles} files`, file, 0, 0, chain));
-    state.stopped = true;
-    return;
-  }
+  if (!beginExpansion(file, chain, state, limits)) return;
 
   const prepared = isEntry ? { content: file.content, sourceOffset: 0 } : stripFrontmatter(file.content);
   const { content, sourceOffset } = prepared;
@@ -406,62 +402,119 @@ function expand(
     const index = match.index;
     append(file, content, cursor, index, sourceOffset, chain, state, limits);
     if (state.stopped) return;
-    const requested = match.groups?.path?.trim() ?? "";
-    const reviewArtifact = match.groups?.kind === "review-artifact";
-    const resolvedPath = reviewArtifact ? normalizeProjectPath(requested) : resolveProjectPath(file.path, requested);
-    const from = sourceOffset + index + (match[0].indexOf(requested) >= 0 ? match[0].indexOf(requested) : 0);
-    const to = from + requested.length;
-    if (!resolvedPath || (reviewArtifact && (!resolvedPath.startsWith("review/") || resolvedPath !== requested))) {
-      state.diagnostics.push(diagnostic("invalid-path", `Invalid include path: ${requested}`, file, from, to, chain));
-    } else {
-      const dependency = byPath.get(resolvedPath);
-      if (!dependency) {
-        state.diagnostics.push(diagnostic("missing-file", `Included file does not exist: ${resolvedPath}`, file, from, to, chain));
-      } else if (!reviewArtifact && resolvedPath.startsWith("review/")) {
-        state.diagnostics.push(
-          diagnostic(
-            "review-artifact-directive-required",
-            `Review artifacts require ::review-artifact syntax: ${resolvedPath}`,
-            file,
-            from,
-            to,
-            chain,
-          ),
-        );
-      } else if (reviewArtifact && !state.reviewArtifactBindings.has(resolvedPath)) {
-        state.diagnostics.push(
-          diagnostic(
-            "unpinned-review-artifact",
-            `Review artifact is not pinned to this project revision: ${resolvedPath}`,
-            file,
-            from,
-            to,
-            chain,
-          ),
-        );
-      } else {
-        const dependencies = state.dependencies.get(file.id) ?? new Set<string>();
-        dependencies.add(dependency.id);
-        state.dependencies.set(file.id, dependencies);
-        if (chain.includes(dependency.id)) {
-          state.diagnostics.push(
-            diagnostic(
-              "cycle",
-              `Include cycle: ${[...chain, dependency.id].map((id) => byIdPath(byPath, id)).join(" → ")}`,
-              file,
-              from,
-              to,
-              chain,
-            ),
-          );
-        } else {
-          expand(dependency, [...chain, dependency.id], false, byPath, state, limits);
-        }
-      }
-    }
+    expandDirective(file, chain, match, sourceOffset, byPath, state, limits);
     cursor = index + match[0].length;
   }
   append(file, content, cursor, content.length, sourceOffset, chain, state, limits);
+}
+
+function beginExpansion(file: ProjectFile, chain: readonly string[], state: ExpansionState, limits: RequiredLimits): boolean {
+  if (state.stopped) return false;
+  if (chain.length > limits.maximumDepth) {
+    state.diagnostics.push(diagnostic("depth-limit", `Include depth exceeds ${limits.maximumDepth}`, file, 0, 0, chain));
+    return false;
+  }
+  state.expandedFiles.add(file.id);
+  if (state.expandedFiles.size <= limits.maximumFiles) return true;
+  state.diagnostics.push(diagnostic("file-limit", `Composition includes more than ${limits.maximumFiles} files`, file, 0, 0, chain));
+  state.stopped = true;
+  return false;
+}
+
+interface CompositionDirective {
+  readonly requested: string;
+  readonly reviewArtifact: boolean;
+  readonly resolvedPath: string | null;
+  readonly from: number;
+  readonly to: number;
+}
+
+function expandDirective(
+  file: ProjectFile,
+  chain: readonly string[],
+  match: RegExpExecArray,
+  sourceOffset: number,
+  byPath: ReadonlyMap<string, ProjectFile>,
+  state: ExpansionState,
+  limits: RequiredLimits,
+): void {
+  const directive = compositionDirective(file, match, sourceOffset);
+  if (!isResolvedDirective(directive)) {
+    state.diagnostics.push(
+      diagnostic("invalid-path", `Invalid include path: ${directive.requested}`, file, directive.from, directive.to, chain),
+    );
+    return;
+  }
+  const dependency = byPath.get(directive.resolvedPath);
+  if (!dependency) {
+    state.diagnostics.push(
+      diagnostic("missing-file", `Included file does not exist: ${directive.resolvedPath}`, file, directive.from, directive.to, chain),
+    );
+    return;
+  }
+  if (!directive.reviewArtifact && directive.resolvedPath.startsWith("review/")) {
+    state.diagnostics.push(
+      diagnostic(
+        "review-artifact-directive-required",
+        `Review artifacts require ::review-artifact syntax: ${directive.resolvedPath}`,
+        file,
+        directive.from,
+        directive.to,
+        chain,
+      ),
+    );
+    return;
+  }
+  if (directive.reviewArtifact && !state.reviewArtifactBindings.has(directive.resolvedPath)) {
+    state.diagnostics.push(
+      diagnostic(
+        "unpinned-review-artifact",
+        `Review artifact is not pinned to this project revision: ${directive.resolvedPath}`,
+        file,
+        directive.from,
+        directive.to,
+        chain,
+      ),
+    );
+    return;
+  }
+  const dependencies = state.dependencies.get(file.id) ?? new Set<string>();
+  dependencies.add(dependency.id);
+  state.dependencies.set(file.id, dependencies);
+  if (chain.includes(dependency.id)) {
+    state.diagnostics.push(
+      diagnostic(
+        "cycle",
+        `Include cycle: ${[...chain, dependency.id].map((id) => byIdPath(byPath, id)).join(" → ")}`,
+        file,
+        directive.from,
+        directive.to,
+        chain,
+      ),
+    );
+    return;
+  }
+  expand(dependency, [...chain, dependency.id], false, byPath, state, limits);
+}
+
+function compositionDirective(file: ProjectFile, match: RegExpExecArray, sourceOffset: number): CompositionDirective {
+  const requested = match.groups?.path?.trim() ?? "";
+  const reviewArtifact = match.groups?.kind === "review-artifact";
+  const requestedOffset = match[0].indexOf(requested);
+  const from = sourceOffset + match.index + (requestedOffset >= 0 ? requestedOffset : 0);
+  return {
+    requested,
+    reviewArtifact,
+    resolvedPath: reviewArtifact ? normalizeProjectPath(requested) : resolveProjectPath(file.path, requested),
+    from,
+    to: from + requested.length,
+  };
+}
+
+function isResolvedDirective(directive: CompositionDirective): directive is CompositionDirective & { readonly resolvedPath: string } {
+  if (!directive.resolvedPath) return false;
+  if (!directive.reviewArtifact) return true;
+  return directive.resolvedPath.startsWith("review/") && directive.resolvedPath === directive.requested;
 }
 
 function append(
@@ -527,31 +580,36 @@ function assertLimit(value: number, name: string): void {
   if (!Number.isSafeInteger(value) || value < 1) throw new RangeError(`${name} must be a positive safe integer`);
 }
 
-function isComposableReviewArtifactBinding(value: ReviewArtifactBinding): boolean {
-  const path = normalizeProjectPath(value.path);
+export function isComposableReviewArtifactBinding(value: unknown): value is ReviewArtifactBinding {
+  if (!isRecord(value)) return false;
+  const path = typeof value.path === "string" ? normalizeProjectPath(value.path) : null;
   return (
+    path !== null &&
     path === value.path &&
     path.startsWith("review/") &&
     path.endsWith(".md") &&
     isTrimmedBoundedString(value.reviewId, 128) &&
     isTrimmedBoundedString(value.linkId, 128) &&
     isTrimmedBoundedString(value.publicationId, 128) &&
-    Number.isSafeInteger(value.reviewRevision) &&
-    value.reviewRevision > 0 &&
-    Number.isSafeInteger(value.protocolRevision) &&
-    value.protocolRevision > 0 &&
-    Number.isSafeInteger(value.analysisDefinitionRevision) &&
-    value.analysisDefinitionRevision > 0 &&
+    isPositiveSafeInteger(value.reviewRevision) &&
+    isPositiveSafeInteger(value.protocolRevision) &&
+    isPositiveSafeInteger(value.analysisDefinitionRevision) &&
     isTrimmedBoundedString(value.analysisDefinitionId, 128) &&
     isTrimmedBoundedString(value.generator, 128) &&
     isTrimmedBoundedString(value.generatorSchema, 128) &&
+    typeof value.digest === "string" &&
     /^[a-f0-9]{64}$/u.test(value.digest) &&
-    isTrimmedBoundedString(value.publishedBy, 320)
+    isTrimmedBoundedString(value.publishedBy, 320) &&
+    typeof value.generatedAt === "string"
   );
 }
 
-function isTrimmedBoundedString(value: string, maximumLength: number): boolean {
-  return value.length > 0 && value.length <= maximumLength && value === value.trim();
+function isTrimmedBoundedString(value: unknown, maximumLength: number): value is string {
+  return typeof value === "string" && value.length > 0 && value.length <= maximumLength && value === value.trim();
+}
+
+function isPositiveSafeInteger(value: unknown): value is number {
+  return typeof value === "number" && Number.isSafeInteger(value) && value > 0;
 }
 
 function compareProjectPaths(left: string, right: string): number {

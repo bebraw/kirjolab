@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { PreviewSyncControls, type PreviewSyncAction } from "./preview-sync-controls";
+import { PreviewSyncControls, type PreviewScrollBinding, type PreviewSyncAction } from "./preview-sync-controls";
 
 class TestPreviewSyncControls extends PreviewSyncControls {
   renderForTest() {
@@ -14,6 +14,10 @@ class TestPreviewSyncControls extends PreviewSyncControls {
     const event = new Event("test");
     Object.defineProperty(event, "currentTarget", { value: { dataset: { syncAction: action } } });
     this.sync(event);
+  }
+
+  scrollLinkedForTest(): boolean {
+    return this.scrollLinked;
   }
 }
 
@@ -64,10 +68,15 @@ describe("preview sync controls", () => {
     const highlight = document.createElement("div");
 
     controls.bindSource({
-      projectFileDialog: { focusRange: (fileId, start) => focusSource({ fileId, offset: start }) },
+      projectFileDialog: {
+        activeFileId: "part",
+        focusRange: (fileId, start) => focusSource({ fileId, offset: start }),
+        project: null,
+      },
       source: source as HTMLTextAreaElement,
       sourceHighlight: highlight,
-      workspacePreview: { centeredSourceOffset: () => 13, syncFromSource: sourceToPreview },
+      workspacePreview: { bindScrollSync: vi.fn(), centeredSourceOffset: () => 13, syncFromSource: sourceToPreview },
+      workspaceSurfaces: { dataset: { layout: "split" } } as unknown as HTMLElement,
     });
     controls.setSourceMap([
       { fileId: "part", includeChain: [], outputEnd: 20, outputStart: 0, path: "part.md", sourceEnd: 20, sourceStart: 0 },
@@ -92,5 +101,170 @@ describe("preview sync controls", () => {
     expect(source.scrollTop).toBe(160);
     expect(sourceToPreview.mock.calls).toEqual([[false], [false], [false], [true]]);
     expect(focusSource).toHaveBeenCalledWith({ fileId: "part", offset: 13 });
+  });
+
+  it("finds the centered line logarithmically in long manuscripts", () => {
+    const controls = new TestPreviewSyncControls();
+    const lineCount = 4096;
+    const targetIndex = 3071;
+    const value = Array.from({ length: lineCount }, (_, index) => `line ${index + 1}`).join("\n");
+    const lines = Array.from({ length: lineCount }, (_, index) => ({
+      dataset: { lineNumber: String(index + 1) },
+      offsetHeight: 20,
+      offsetTop: index * 20,
+    }));
+    let indexedReads = 0;
+    const trackedLines = new Proxy(lines, {
+      get(target, property, receiver) {
+        if (typeof property === "string" && /^\d+$/u.test(property)) indexedReads += 1;
+        return Reflect.get(target, property, receiver);
+      },
+    });
+    const source = Object.assign(new EventTarget(), {
+      clientHeight: 200,
+      scrollTop: lines[targetIndex]!.offsetTop + 10 - 100,
+      selectionEnd: 0,
+      value,
+    });
+
+    controls.bindSource({
+      projectFileDialog: { activeFileId: "part", focusRange: vi.fn(), project: null },
+      source: source as HTMLTextAreaElement,
+      sourceHighlight: {
+        querySelector: vi.fn(),
+        querySelectorAll: () => trackedLines,
+      } as unknown as HTMLElement,
+      workspacePreview: { bindScrollSync: vi.fn(), centeredSourceOffset: () => null, syncFromSource: vi.fn() },
+      workspaceSurfaces: { dataset: { layout: "split" } } as unknown as HTMLElement,
+    });
+
+    expect(controls.sourceOffsetAtCenter()).toBe(value.indexOf(`line ${targetIndex + 1}`));
+    expect(indexedReads).toBeLessThanOrEqual(20);
+  });
+
+  it("uses the preceding source line when it is nearest the editor center", () => {
+    const controls = new TestPreviewSyncControls();
+    const lines = [1, 2, 3].map((line, index) => ({
+      dataset: { lineNumber: String(line) },
+      offsetHeight: 20,
+      offsetTop: index * 100,
+    }));
+    const source = Object.assign(new EventTarget(), {
+      clientHeight: 100,
+      scrollTop: 105,
+      selectionEnd: 0,
+      value: "first\nsecond\nthird",
+    });
+    controls.bindSource({
+      projectFileDialog: { activeFileId: "part", focusRange: vi.fn(), project: null },
+      source: source as HTMLTextAreaElement,
+      sourceHighlight: {
+        querySelector: vi.fn(),
+        querySelectorAll: () => lines,
+      } as unknown as HTMLElement,
+      workspacePreview: { bindScrollSync: vi.fn(), centeredSourceOffset: () => null, syncFromSource: vi.fn() },
+      workspaceSurfaces: { dataset: { layout: "split" } } as unknown as HTMLElement,
+    });
+
+    expect(controls.sourceOffsetAtCenter()).toBe(6);
+  });
+
+  it("links deliberate source and Preview scrolling without reciprocal loops or cross-file churn", () => {
+    const controls = new TestPreviewSyncControls();
+    const sourceToPreview = vi.fn();
+    const focusSource = vi.fn();
+    const centeredSourceOffset = vi.fn(() => 13);
+    let previewBinding: PreviewScrollBinding | undefined;
+    const frames: FrameRequestCallback[] = [];
+    const requestAnimationFrame = vi.fn((callback: FrameRequestCallback) => {
+      frames.push(callback);
+      return frames.length;
+    });
+    vi.stubGlobal("window", {
+      cancelAnimationFrame: vi.fn(),
+      matchMedia: vi.fn(() => ({ matches: true })),
+      requestAnimationFrame,
+    });
+
+    const lines = [1, 2, 3].map((line, index) => ({
+      dataset: { lineNumber: String(line) },
+      offsetHeight: 20,
+      offsetTop: index * 100,
+    }));
+    const source = Object.assign(new EventTarget(), {
+      clientHeight: 100,
+      scrollTop: 0,
+      selectionEnd: 0,
+      value: "first\nsecond\nthird",
+    });
+    const highlight = {
+      querySelector: (selector: string) => lines.find((line) => selector.endsWith(`[data-line-number="${line.dataset.lineNumber}"]`)),
+      querySelectorAll: () => lines,
+    } as unknown as HTMLElement;
+
+    controls.bindSource({
+      projectFileDialog: { activeFileId: "part", focusRange: focusSource, project: null },
+      source: source as HTMLTextAreaElement,
+      sourceHighlight: highlight,
+      workspacePreview: {
+        bindScrollSync: (binding) => {
+          previewBinding = binding;
+        },
+        centeredSourceOffset,
+        syncFromSource: sourceToPreview,
+      },
+      workspaceSurfaces: { dataset: { layout: "split" } } as unknown as HTMLElement,
+    });
+    controls.setSourceMap([
+      { fileId: "part", includeChain: [], outputEnd: 20, outputStart: 0, path: "part.md", sourceEnd: 20, sourceStart: 0 },
+    ]);
+
+    controls.syncForTest("toggle-scroll-link");
+    expect(controls.scrollLinkedForTest()).toBe(true);
+    source.dispatchEvent(new Event("wheel"));
+    source.dispatchEvent(new Event("scroll"));
+    source.dispatchEvent(new Event("scroll"));
+    expect(requestAnimationFrame).toHaveBeenCalledTimes(1);
+    frames.shift()?.(0);
+    expect(sourceToPreview).toHaveBeenLastCalledWith(true, false);
+
+    previewBinding?.onScroll();
+    expect(requestAnimationFrame).toHaveBeenCalledTimes(1);
+    previewBinding?.onIntent(new Event("wheel"));
+    previewBinding?.onScroll();
+    frames.shift()?.(0);
+    expect(centeredSourceOffset).toHaveBeenLastCalledWith(false);
+    expect(source.scrollTop).toBe(160);
+    expect(focusSource).not.toHaveBeenCalled();
+
+    source.dispatchEvent(new Event("wheel"));
+    source.dispatchEvent(new Event("scroll"));
+    expect(requestAnimationFrame).toHaveBeenCalledTimes(3);
+    const sourceSyncCount = sourceToPreview.mock.calls.length;
+    source.dispatchEvent(new Event("input"));
+    frames.shift()?.(0);
+    expect(sourceToPreview).toHaveBeenCalledTimes(sourceSyncCount);
+    source.dispatchEvent(new Event("scroll"));
+    expect(requestAnimationFrame).toHaveBeenCalledTimes(3);
+
+    const homeKey = new Event("keydown");
+    Object.defineProperty(homeKey, "key", { value: "Home" });
+    previewBinding?.onIntent(homeKey);
+    expect(requestAnimationFrame).toHaveBeenCalledTimes(4);
+    frames.shift()?.(0);
+    expect(centeredSourceOffset).toHaveBeenLastCalledWith(false);
+
+    controls.setSourceMap([
+      { fileId: "other", includeChain: [], outputEnd: 20, outputStart: 0, path: "other.md", sourceEnd: 20, sourceStart: 0 },
+    ]);
+    source.scrollTop = 0;
+    previewBinding?.onIntent(new Event("wheel"));
+    previewBinding?.onScroll();
+    frames.shift()?.(0);
+    expect(source.scrollTop).toBe(0);
+    expect(focusSource).not.toHaveBeenCalled();
+
+    controls.syncForTest("toggle-scroll-link");
+    expect(controls.scrollLinkedForTest()).toBe(false);
   });
 });

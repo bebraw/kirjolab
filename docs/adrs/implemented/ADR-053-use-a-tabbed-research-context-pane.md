@@ -41,6 +41,12 @@ Each opened resource receives a persistent local tab in stable opening order.
 Following another citation or evidence link opens or focuses its own
 kind-qualified tab and never replaces an earlier resource. Each resource tab
 integrates a labelled close icon and remains open until the user activates it.
+PDF tabs expose their kind-qualified Kirjolab PDF or artifact resource ID as
+their label, not the uploaded filename. The scope prefix keeps workspace and
+Library PDFs distinct even if their raw IDs coincide. Source-level reference
+keys and project citation aliases do not substitute for PDF identity because
+one source may own several PDF artifacts and one PDF may be linked to several
+publications.
 Each tab retains its own reading position while the user switches context:
 preview scroll for the Preview tab, and page, scroll, and focused annotation
 for a PDF tab.

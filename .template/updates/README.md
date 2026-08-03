@@ -42,8 +42,8 @@ Each update lives under `.template/updates/{update-id}/` and contains:
 4. If it applies cleanly, apply it and adapt package versions as needed.
 5. If it does not apply cleanly, use `README.md` as the manual migration guide.
 6. Run the listed checks.
-7. Record the applied update ID in the target project's durable docs or package
-   metadata.
+7. Record the verified template source, full baseline revision, and applied
+   update ID in the target project's durable docs or package metadata.
 
 ## Recording Applied Updates
 
@@ -52,13 +52,17 @@ Prefer a lightweight record in the target repo:
 ```json
 {
   "vibeTemplate": {
+    "source": "https://github.com/example/vibe-template",
+    "baseline": "<full-git-revision>",
     "updates": ["2026-06-14-agent-ci-warm-cache"]
   }
 }
 ```
 
-Use a docs record instead when package metadata is not the right place for the
-target project.
+Use the actual verified source and full Git baseline whose tree seeded the
+target project; do not infer either value from a familiar checkout name. Use a
+docs record instead when package metadata is not the right place for the target
+project.
 
 ## Authoring A New Pack
 

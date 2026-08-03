@@ -22,6 +22,7 @@ import {
   type ResearchContextSources,
 } from "./context-resource-presenter";
 import { ContextTabStrip } from "./context-tab-strip";
+import { ChapterNotesPanel, chapterNotesPanelActionEvent } from "./chapter-notes-panel";
 import { LibraryPdfAnnotationToolbar } from "../library/library-pdf-annotation-toolbar";
 import { LibraryPdfInspector } from "../library/library-pdf-inspector";
 import { LibraryPdfMarkupLayer } from "../library/library-pdf-markup-layer";
@@ -124,6 +125,7 @@ function standaloneLibraryRoutes() {
 }
 
 interface TestContextBinding {
+  readonly activeFileId?: () => string | null;
   readonly activateSurface: () => void;
   readonly citationAvailable: () => boolean;
   readonly openLibrary: (updateHistory?: boolean) => Promise<void>;
@@ -157,9 +159,13 @@ function contextBinding(options: TestContextBinding): Parameters<ContextResource
         ...options.standaloneLibraryRoutes,
       },
       projectFileDialog: {
+        get activeFileId() {
+          return options.activeFileId?.() ?? source().snapshot?.entryFileId ?? null;
+        },
         get project() {
           return source().snapshot;
         },
+        projectFiles: () => source().snapshot?.files ?? [],
       },
       workspaceLayout: { restorePaneWidth: options.restorePaneWidth },
       workspaceSurfaceSwitcher: { navigate: () => options.activateSurface(), syncRoute: options.syncRoute },
@@ -214,7 +220,7 @@ function projectKnowledgeOwners(
 ): Parameters<ContextResourcePresenter["bindProjectKnowledge"]>[1] {
   return {
     editorStatus: { caret: null },
-    projectFileDialog: { revealAuthoring: vi.fn() },
+    projectFileDialog: { revealAuthoring: vi.fn(), selectFile: vi.fn().mockReturnValue(true) },
     referenceLibraryWorkspace: {
       applyProjectMutation: vi.fn().mockResolvedValue(undefined),
       completeRefresh: vi.fn().mockResolvedValue(undefined),
@@ -222,6 +228,7 @@ function projectKnowledgeOwners(
     },
     workspaceSharingPanel: { open: vi.fn() },
     workspacePreview: { scrollToAnchor: vi.fn() },
+    workspaceSurfaceSwitcher: { navigate: vi.fn() },
     workspaceSwitcher: { focusSelect: vi.fn() },
   };
 }
@@ -282,8 +289,10 @@ function setup() {
     "assistant-workflow-status": new AssistantWorkflowStatus(),
     "candidate-list-panel": new CandidateListPanel(),
     "candidate-review-panel": new CandidateReviewPanel(),
+    "chapter-notes-panel": new ChapterNotesPanel(),
     "claim-list-panel": new ClaimListPanel(),
     "context-tab-strip": new ContextTabStrip(),
+    "context-chapter-notes-scroll": new HTMLElement(),
     "library-pdf-annotation-toolbar": new LibraryPdfAnnotationToolbar(),
     "library-pdf-inspector": new LibraryPdfInspector(),
     "paper-markups": new LibraryPdfMarkupLayer(),
@@ -399,6 +408,88 @@ describe("context resource presenter", () => {
     expect(presenter.activeTab).toEqual(tab);
   });
 
+  it("presents paired chapter notes and opens their stable file in the editor", () => {
+    const { elements, presenter, routes } = setup();
+    const chapter = workspaceSnapshotFixture.files[0]!;
+    const notes = { ...chapter, content: "# Working notes", id: "notes-1", path: "chapters/method.notes.md" };
+    const snapshot = { ...workspaceSnapshotFixture, files: [...workspaceSnapshotFixture.files, notes] };
+    const presentNotes = vi.spyOn(elements["chapter-notes-panel"], "presentNotes").mockResolvedValue({ available: true });
+    const setTabs = vi.spyOn(elements["context-tab-strip"], "setTabs").mockImplementation(() => undefined);
+    vi.spyOn(elements["context-tab-strip"], "focusTab").mockImplementation(() => undefined);
+    const owners = projectKnowledgeOwners();
+    bindTestProjectKnowledge(presenter, owners);
+    presenter.bindContext(
+      ...contextBinding({
+        activateSurface: vi.fn(),
+        citationAvailable: () => false,
+        openLibrary: vi.fn().mockResolvedValue(undefined),
+        refreshAssistant: vi.fn(),
+        restorePaneWidth: vi.fn(),
+        sources: () => ({ ...sources(undefined), snapshot, standaloneLibrary: false }),
+        standaloneLibraryRoutes: standaloneLibraryRoutes(),
+        syncRoute: vi.fn(),
+      }),
+    );
+
+    presenter.presentChapterNotes(chapter.id, snapshot.files);
+
+    expect(presentNotes).toHaveBeenCalledWith({
+      chapterPath: chapter.path,
+      notes: { content: notes.content, id: notes.id, path: notes.path },
+    });
+    expect(setTabs).toHaveBeenCalledWith(expect.objectContaining({ chapterNotesAvailable: true }));
+    elements["context-chapter-notes-scroll"].scrollTop = 48;
+    presenter.presentChapterNotes(chapter.id, snapshot.files);
+    expect(elements["context-chapter-notes-scroll"].scrollTop).toBe(48);
+    vi.spyOn(presenter, "captureBoundContext").mockImplementation(() => undefined);
+    presenter.navigateContext("chapter-notes");
+
+    elements["chapter-notes-panel"].dispatchEvent(
+      new CustomEvent(chapterNotesPanelActionEvent, {
+        detail: { action: "open-in-editor", chapterPath: chapter.path, fileId: notes.id, path: notes.path },
+      }),
+    );
+
+    expect(owners.projectFileDialog.selectFile).toHaveBeenCalledWith(notes.id);
+    expect(owners.projectFileDialog.revealAuthoring).toHaveBeenCalledOnce();
+    expect(owners.workspaceSurfaceSwitcher.navigate).toHaveBeenCalledWith("authoring");
+    expect(presenter.activeKey).toBe("preview");
+    expect(routes.presentNotice).not.toHaveBeenCalledWith("The selected chapter has no paired notes, so Preview is shown instead.");
+
+    const nextChapter = { ...chapter, id: "chapter-2", path: "chapters/results.md" };
+    const nextNotes = { ...notes, id: "notes-2", path: "chapters/results.notes.md" };
+    presenter.presentChapterNotes(nextChapter.id, [nextChapter, nextNotes]);
+    expect(elements["context-chapter-notes-scroll"].scrollTop).toBe(0);
+  });
+
+  it("returns to Preview when the selected chapter has no paired notes", () => {
+    const { elements, presenter, routes } = setup();
+    const chapter = workspaceSnapshotFixture.files[0]!;
+    const notes = { ...chapter, content: "Notes", id: "notes-1", path: "chapters/method.notes.md" };
+    vi.spyOn(elements["chapter-notes-panel"], "presentNotes").mockResolvedValue({ available: true });
+    vi.spyOn(elements["context-tab-strip"], "setTabs").mockImplementation(() => undefined);
+    vi.spyOn(elements["context-tab-strip"], "focusTab").mockImplementation(() => undefined);
+    presenter.bindContext(
+      ...contextBinding({
+        activateSurface: vi.fn(),
+        citationAvailable: () => false,
+        openLibrary: vi.fn().mockResolvedValue(undefined),
+        refreshAssistant: vi.fn(),
+        restorePaneWidth: vi.fn(),
+        sources: () => ({ ...sources(undefined), standaloneLibrary: false }),
+        standaloneLibraryRoutes: standaloneLibraryRoutes(),
+        syncRoute: vi.fn(),
+      }),
+    );
+    presenter.presentChapterNotes(chapter.id, [...workspaceSnapshotFixture.files, notes]);
+    presenter.navigateContext("chapter-notes");
+
+    presenter.presentChapterNotes(chapter.id, workspaceSnapshotFixture.files);
+
+    expect(presenter.activeKey).toBe("preview");
+    expect(routes.presentNotice).toHaveBeenCalledWith("The selected chapter has no paired notes, so Preview is shown instead.");
+  });
+
   it("owns canonical research-context transitions and authorization reconciliation", () => {
     const { presenter } = setup();
 
@@ -499,6 +590,39 @@ describe("context resource presenter", () => {
     expect(restoreTarget).toHaveBeenNthCalledWith(2, { kind: "pdf", id: "missing" }, undefined, undefined);
     expect(presenter.activeKey).toBe("preview");
     expect(routes.presentNotice).toHaveBeenCalledWith("PDF is unavailable");
+  });
+
+  it("reconciles the routed file before restoring Chapter notes", async () => {
+    const { elements, presenter, routes } = setup();
+    const entry = workspaceSnapshotFixture.files[0]!;
+    const chapter = { ...entry, id: "chapter-2", path: "chapters/results.md" };
+    const notes = { ...entry, content: "Results notes", id: "notes-2", path: "chapters/results.notes.md" };
+    const snapshot = { ...workspaceSnapshotFixture, files: [...workspaceSnapshotFixture.files, chapter, notes] };
+    let activeFileId = entry.id;
+    vi.spyOn(elements["chapter-notes-panel"], "presentNotes").mockResolvedValue({ available: true });
+    vi.spyOn(elements["context-tab-strip"], "setTabs").mockImplementation(() => undefined);
+    vi.spyOn(elements["context-tab-strip"], "focusTab").mockImplementation(() => undefined);
+    presenter.bindContext(
+      ...contextBinding({
+        activeFileId: () => activeFileId,
+        activateSurface: vi.fn(),
+        citationAvailable: () => false,
+        openLibrary: vi.fn().mockResolvedValue(undefined),
+        refreshAssistant: vi.fn(),
+        restorePaneWidth: vi.fn(),
+        sources: () => ({ ...sources(undefined), snapshot, standaloneLibrary: false }),
+        standaloneLibraryRoutes: standaloneLibraryRoutes(),
+        syncRoute: vi.fn(),
+      }),
+    );
+    presenter.presentChapterNotes(entry.id, snapshot.files);
+    expect(presenter.activeKey).toBe("preview");
+
+    activeFileId = chapter.id;
+    await presenter.restoreContext("chapter-notes");
+
+    expect(presenter.activeKey).toBe("chapter-notes");
+    expect(routes.presentNotice).not.toHaveBeenCalledWith("This chapter has no paired notes to restore.");
   });
 
   it("selects an authorized PDF for PDF-only layout", async () => {

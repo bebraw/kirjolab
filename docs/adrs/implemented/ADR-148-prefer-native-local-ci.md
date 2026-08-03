@@ -4,6 +4,8 @@
 
 **Date:** 2026-07-17
 
+**Amended by:** [ADR-216](./ADR-216-bound-pull-request-mutation-ci.md)
+
 ## Context
 
 The canonical `npm run ci:local` command executed the complete GitHub Actions

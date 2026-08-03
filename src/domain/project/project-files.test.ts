@@ -2,9 +2,11 @@ import { describe, expect, it } from "vitest";
 import {
   composeProject,
   inboundProjectIncludes,
+  isComposableReviewArtifactBinding,
   isInertSvgImage,
   normalizeProjectPath,
   previewProjectFile,
+  projectCompanionNotesPath,
   projectFileCollaborationTextName,
   projectUsesCitationAlias,
   relativeProjectPath,
@@ -43,6 +45,14 @@ function reviewArtifact(path = "review/synthesis.md"): ReviewArtifactBinding {
 }
 
 describe("project composition", () => {
+  it("derives companion notes paths only for non-notes lowercase Markdown files", () => {
+    expect(projectCompanionNotesPath("sections/01_introduction.md")).toBe("sections/01_introduction.notes.md");
+    expect(projectCompanionNotesPath("main.md")).toBe("main.notes.md");
+    expect(projectCompanionNotesPath("sections/01_introduction.notes.md")).toBeNull();
+    expect(projectCompanionNotesPath("sections/01_introduction.MD")).toBeNull();
+    expect(projectCompanionNotesPath("sections/01_introduction.markdown")).toBeNull();
+  });
+
   it("accepts inert SVG figures and rejects active or external content", () => {
     const svg = (source: string): Uint8Array => new TextEncoder().encode(source);
     expect(
@@ -138,6 +148,7 @@ describe("project composition", () => {
     ];
     const valid = reviewArtifact();
     const invalidBindings: readonly ReviewArtifactBinding[] = [
+      { ...valid, path: "" },
       { ...valid, path: "review/../synthesis.md" },
       { ...valid, path: "artifacts/synthesis.md" },
       { ...valid, path: "review/synthesis.txt" },
@@ -161,7 +172,12 @@ describe("project composition", () => {
       { ...valid, publishedBy: "p".repeat(321) },
     ];
 
+    expect(isComposableReviewArtifactBinding(valid)).toBe(true);
+    expect(isComposableReviewArtifactBinding({ ...valid, generatedAt: "legacy-timestamp" })).toBe(true);
+    expect(isComposableReviewArtifactBinding({ ...valid, generatedAt: 42 })).toBe(false);
+    expect(isComposableReviewArtifactBinding(null)).toBe(false);
     for (const invalid of invalidBindings) {
+      expect(isComposableReviewArtifactBinding(invalid), JSON.stringify(invalid)).toBe(false);
       const result = composeProject(files, "main", {}, [invalid]);
       expect(result.content).toBe("");
       expect(result.diagnostics).toEqual([expect.objectContaining({ code: "unpinned-review-artifact", fileId: "main", path: "main.md" })]);

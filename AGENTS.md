@@ -85,10 +85,39 @@
 - Use the project-local [`brainstorming`](./.codex/skills/brainstorming/SKILL.md) skill when the user is exploring options, shaping a feature, or comparing approaches before implementation.
 - Treat the skill as guidance for producing concrete, lightweight options that can turn cleanly into specs, ADRs, or code.
 
+## Wayfinding
+
+- Use the project-local [`wayfinder`](./.codex/skills/wayfinder/SKILL.md) skill only when the user explicitly asks to map a large, uncertain initiative that is not yet clear enough to specify or plan responsibly.
+- Keep each effort in one repository-local `docs/wayfinding/<effort>.md` map by default; do not introduce an issue tracker or companion workflow suite.
+- Treat wayfinding maps as temporary planning context. Promote lasting architecture and behavior into `ARCHITECTURE.md`, ADRs, and feature specs before declaring a map ready for specification.
+
+## Specification
+
+- Use the project-local [`to-spec`](./.codex/skills/to-spec/SKILL.md) skill only when the user explicitly asks to turn settled discussion, wayfinding results, or an approved design into a feature spec.
+- Write or update `specs/{feature-domain}/spec.md`; do not publish specs to an issue tracker or invent decisions that remain unresolved.
+- Keep architectural rationale in ADRs and global constraints in `ARCHITECTURE.md`, linked from the feature spec instead of duplicated.
+
+## Test-Driven Development
+
+- Use the project-local [`tdd`](./.codex/skills/tdd/SKILL.md) skill for observable runtime behavior and regression fixes when a stable test seam exists.
+- Work in focused red-green slices with independent expected values and tests through public interfaces.
+- Skip TDD for documentation-only, prototype, generated, and purely mechanical changes; state the alternative verification instead.
+
 ## Review
 
 - Use the project-local [`review`](./.codex/skills/review/SKILL.md) skill when the user asks for review, risk analysis, or a merge-readiness pass.
 - Treat the skill as guidance for prioritizing bugs, regressions, and quality-gate gaps over style commentary.
+
+## Focused Review
+
+- Use the project-local [`correctness-review`](./.codex/skills/correctness-review/SKILL.md) skill when the user asks whether changed logic is behaviorally correct or wants edge cases and broken contracts checked.
+- Use the project-local [`test-review`](./.codex/skills/test-review/SKILL.md) skill when the user asks whether changed behavior has meaningful, maintainable test coverage.
+- Treat both focused review skills as evidence-driven lenses that complement the broader `review` skill without inventing findings.
+
+## Debugging
+
+- Use the project-local [`debug`](./.codex/skills/debug/SKILL.md) skill when tests fail, builds break, or runtime behavior differs from expectations.
+- Treat the skill as a stop-the-line workflow: reproduce, localize, and reduce first. For diagnosis-only requests, stop with evidence and a root-cause explanation; fix, add a regression test, and verify end to end only when the user authorizes implementation.
 
 ## Security
 

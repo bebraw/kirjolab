@@ -26,7 +26,7 @@ import {
   PreviewDiagnosticsPanel,
   type PreviewDiagnosticSelection,
 } from "./preview-presentation";
-import { PreviewSyncControls, type PreviewSyncOwners } from "./preview-sync-controls";
+import { PreviewSyncControls, type PreviewScrollBinding, type PreviewSyncOwners } from "./preview-sync-controls";
 import type { ProjectFileDialog } from "../project/project-file-dialog";
 import { ProjectExportDialog } from "../project/project-export-dialog";
 import { RESEARCH_PREVIEW_KEY } from "../context/research-context";
@@ -246,7 +246,7 @@ export class WorkspacePreview extends LightDomElement {
 
   private readonly renderProjectUpdate = (): void => void this.renderBoundProject();
 
-  syncFromSource(explicit = true): boolean {
+  syncFromSource(explicit = true, markTarget = true): boolean {
     const binding = this.projectBinding;
     if (!binding) return false;
     const snapshot = binding.owners.projectFileDialog.project;
@@ -257,7 +257,7 @@ export class WorkspacePreview extends LightDomElement {
       binding.owners.contextResourcePresenter.activeKey === RESEARCH_PREVIEW_KEY,
       binding.owners.workspaceSurfaces.dataset.layout === "split",
     );
-    return offsets.length > 0 && this.revealNearestSource(offsets);
+    return offsets.length > 0 && (markTarget ? this.revealNearestSource(offsets) : this.revealNearestSource(offsets, false));
   }
 
   protected presentProjectCompanions(request: ProjectPreviewRequest, outcome: ProjectPreviewOutcome): void {
@@ -275,8 +275,11 @@ export class WorkspacePreview extends LightDomElement {
       exportDialog.setStatistics(publicationWordStatistics(outcome.publicationComposition, request.files));
     }
     const resources = this.ownerDocument?.getElementById("context-resource-presenter");
-    if (resources instanceof ContextResourcePresenter && outcome.available && request.resolvedSnapshot) {
-      resources.presentResolvedWorkspace(request.resolvedSnapshot, request.bibliography, outcome.publicationComposition?.content);
+    if (resources instanceof ContextResourcePresenter) {
+      resources.presentChapterNotes(request.activeFileId ?? request.snapshot?.entryFileId ?? null, request.files);
+      if (outcome.available && request.resolvedSnapshot) {
+        resources.presentResolvedWorkspace(request.resolvedSnapshot, request.bibliography, outcome.publicationComposition?.content);
+      }
     }
   }
 
@@ -293,7 +296,18 @@ export class WorkspacePreview extends LightDomElement {
     }
   }
 
-  centeredSourceOffset(): number | null {
+  // PreviewSyncControls binds this through the PreviewSyncOwners workspace adapter.
+  // fallow-ignore-next-line unused-class-member
+  bindScrollSync(binding: PreviewScrollBinding, signal: AbortSignal): void {
+    const options = { signal };
+    this.viewport.addEventListener("pointerdown", binding.onIntent, options);
+    this.viewport.addEventListener("scroll", binding.onScroll, { ...options, passive: true });
+    this.viewport.addEventListener("touchstart", binding.onIntent, { ...options, passive: true });
+    this.viewport.addEventListener("wheel", binding.onIntent, { ...options, passive: true });
+    this.viewport.addEventListener("keydown", binding.onIntent, options);
+  }
+
+  centeredSourceOffset(markTarget = true): number | null {
     const bounds = this.viewport.getBoundingClientRect();
     const centered = document
       .elementFromPoint(bounds.left + bounds.width / 2, bounds.top + bounds.height / 2)
@@ -302,15 +316,15 @@ export class WorkspacePreview extends LightDomElement {
     if (!target) return null;
     const offset = sourceOffset(target);
     if (offset === null) return null;
-    this.markSyncTarget(target);
+    if (markTarget) this.markSyncTarget(target);
     return offset;
   }
 
-  revealNearestSource(offsets: readonly number[]): boolean {
+  revealNearestSource(offsets: readonly number[], markTarget = true): boolean {
     const target = this.nearestSourceElement(offsets);
     if (!target) return false;
     this.center(target);
-    this.markSyncTarget(target);
+    if (markTarget) this.markSyncTarget(target);
     return true;
   }
 

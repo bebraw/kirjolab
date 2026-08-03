@@ -1,6 +1,6 @@
 import { env } from "cloudflare:workers";
 import { runInDurableObject } from "cloudflare:test";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   legacyOwnerBackupSchemaVersion,
   ownerBackupDigest,
@@ -241,8 +241,28 @@ describe("BackupCoordinator in the Workers runtime", () => {
       digest: changed.digest,
       manifestKey: changed.manifestKey,
       lastBackedUpAt: changed.lastBackedUpAt,
-      error: "A referenced backup source is missing",
+      error: `A referenced backup source is missing: ${sourceKey}`,
     });
+
+    const errorLog = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    try {
+      await expect(coordinator.runScheduledBackups()).resolves.toEqual({
+        checked: 1,
+        created: 0,
+        unchanged: 0,
+        failed: 1,
+        truncated: false,
+      });
+      expect(errorLog).toHaveBeenCalledOnce();
+      expect(JSON.parse(String(errorLog.mock.calls[0]?.[0]))).toEqual({
+        event: "backup-owner-failed",
+        ownerKey,
+        error: `A referenced backup source is missing: ${sourceKey}`,
+      });
+      expect(String(errorLog.mock.calls[0]?.[0])).not.toContain(ownerEmail);
+    } finally {
+      errorLog.mockRestore();
+    }
   });
 
   it("registers unregistered legacy studies from archived projects before scheduled v3 backups", async () => {

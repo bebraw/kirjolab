@@ -1,0 +1,4 @@
+interface:
+  display_name: "TDD"
+  short_description: "Build behavior through focused red-green slices"
+  default_prompt: "Use $tdd to implement this behavior through focused red-green slices."
