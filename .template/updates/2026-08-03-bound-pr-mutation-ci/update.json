@@ -1,0 +1,10 @@
+{
+  "id": "2026-08-03-bound-pr-mutation-ci",
+  "title": "Bound pull-request mutation CI",
+  "status": "implemented",
+  "risk": "medium",
+  "supersedes": ["2026-06-13-github-only-mutation-ci", "2026-07-14-ignore-static-mutants-locally", "2026-07-16-keep-mutation-explicit"],
+  "adrs": ["docs/adrs/implemented/ADR-216-bound-pull-request-mutation-ci.md"],
+  "touches": [".github/workflows/ci.yml", "package.json", "scripts/", "docs/", "specs/"],
+  "checks": ["npm run test:tooling", "npm run quality:gate", "npm run ci:local"]
+}

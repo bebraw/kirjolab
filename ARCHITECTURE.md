@@ -1833,10 +1833,22 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - The verification baseline is split into a fast gate and a browser gate so quick checks can return earlier without dropping full coverage.
 - The repo-managed `pre-push` Git hook should run affected-file guardrails,
   Fallow for affected codebase inputs, and targeted Stryker checks for affected
-  Node-testable sources. Mutation configuration changes should force-refresh
-  the full incremental report so removed mutants cannot remain in the score.
-  Passing hooks should report concise Fallow health and Stryker score/progress
-  output; detailed advisory findings remain available through explicit commands.
+  Node-testable sources. Mutation and test configuration changes should add the
+  stable production canary to affected configured sources instead of forcing a
+  full incremental refresh. Keep that refresh available as an explicit manual
+  command. Passing hooks should report concise Fallow health and Stryker
+  score/progress output; detailed advisory findings remain available through
+  explicit commands.
+- Keep the required GitHub `quality-mutation` check clean and pull-request-only.
+  Derive its production mutation scope from the explicit base-to-head diff, map
+  changed colocated Node unit tests back to their production sources, and use a
+  stable production canary when mutation, test, or selector configuration
+  changes. Missing or malformed commits should fail explicitly rather than
+  expanding to a full run. An empty production scope should pass without
+  starting Stryker. The selected non-incremental run should ignore static
+  mutants, emit progress only, and stay within a 30-minute job bound. Do not
+  repeat it on the merge push to `main`; retain `npm run mutation` as the
+  explicit full local or manual audit.
 - Formatting, Oxlint correctness checks, type checking, unit tests, and end-to-end tests are part of the baseline quality gate.
 - Oxlint uses its default correctness rules and complements rather than replaces Prettier formatting and TypeScript type checking.
 - Browser tests launch Wrangler with a fresh operating-system temporary persistence directory and remove it on shutdown. Test workspaces must never accumulate in the interactive development catalog.

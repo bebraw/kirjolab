@@ -19,6 +19,16 @@ rollback workflow without adding a second identity system.
   diagnostics explicitly. The build validates actual Lit-family esbuild inputs,
   and the repository-owned production deploy overwrites any ambient browser-
   shell mode with `production` before invoking Wrangler.
+- The required GitHub mutation check runs only for pull requests and derives a
+  clean, non-incremental production-source scope from the explicit base-to-head
+  diff. Changed colocated Node unit tests map back to their production sources;
+  package, mutation, TypeScript, Vitest, workflow, and selector configuration
+  changes add a stable production canary. Missing or malformed commits fail
+  instead of expanding to a full run. An empty scope passes without Stryker.
+  Selected runs ignore static mutants, emit progress only, and have a 30-minute
+  job bound. Full repository mutation stays an explicit local or manual audit
+  rather than a duplicate post-merge job. Pre-push uses the same configuration
+  canary instead of forcing a full incremental refresh.
 - Committed Wrangler variables remain `AUTH_MODE=local` with blank Access
   values, so a bare `wrangler deploy` is safely unusable on a public hostname.
   Only the repository-owned production command supplies hosted identity values
@@ -113,6 +123,19 @@ rollback workflow without adding a second identity system.
       drill behavior.
 - [x] Production logs, smoke checks, versions, and rollback commands are
       documented.
+- [x] `quality-mutation` remains a required clean pull-request check, selects
+      only affected configured production sources, maps changed Node unit tests,
+      and exercises a stable canary for configuration changes.
+- [x] A pull request with no selected production mutation source passes the
+      required check without starting Stryker.
+- [x] The selector rejects malformed or unavailable base and head commits
+      without falling back to a full mutation run.
+- [x] Pull-request mutation ignores static mutants, emits progress-only output,
+      and stops at 30 minutes; `npm run mutation` remains the explicit full
+      audit and no mutation job repeats on the merge push to `main`.
+- [x] Mutation-configuration pushes test affected production sources plus the
+      stable canary without automatically rebuilding the full incremental
+      report; explicit manual refresh remains available.
 - [x] Full quality gate, local Agent CI, generated type check, startup check,
       and production dry run pass.
 
@@ -161,6 +184,40 @@ rollback workflow without adding a second identity system.
   or upload
 - Then every Wrangler subprocess rebuilds with Lit production exports and
   rejects any emitted Lit development input
+
+**Affected pull-request mutation**
+
+- Given a pull request changes a configured production source or its colocated
+  Node unit test
+- When the required `quality-mutation` check compares the explicit base and head
+- Then it starts a clean non-incremental Stryker run only for the mapped
+  production scope, ignores static mutants, emits progress only, and enforces
+  the configured threshold within 30 minutes
+
+**Empty pull-request mutation scope**
+
+- Given a pull request changes no configured production source, mapped unit
+  test, or mutation configuration input
+- When the required `quality-mutation` check evaluates its base-to-head diff
+- Then it succeeds without starting Stryker
+
+**Unavailable pull-request mutation commit**
+
+- Given a pull request base or head SHA is malformed or unavailable in the
+  checkout
+- When the required `quality-mutation` check selects its scope
+- Then it fails with the missing commit instead of silently starting a full
+  mutation run
+
+**Mutation configuration canary**
+
+- Given a pull request or pre-push diff changes `package.json`,
+  `package-lock.json`, `stryker.config.mjs`, `tsconfig.json`, or
+  `vitest.config.mts` without changing a configured production source, or a
+  pull request changes the CI workflow or an affected-mutation routing script
+- When the mutation selector chooses its affected scope
+- Then it mutates the stable production canary instead of returning a vacuous
+  success or rebuilding the full incremental report
 
 **Recovery drill**
 

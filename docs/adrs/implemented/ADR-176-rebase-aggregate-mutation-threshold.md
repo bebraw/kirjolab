@@ -8,6 +8,8 @@
 [ADR-166](./ADR-166-separate-browser-binders-from-mutation-contracts.md),
 [ADR-175](./ADR-175-delegate-scientific-markdown-to-scholarmark.md)
 
+**Amended by:** [ADR-216](./ADR-216-bound-pull-request-mutation-ci.md)
+
 ## Context
 
 ADR-175 removed more than 1,600 net lines by delegating the scientific Markdown

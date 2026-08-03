@@ -35,9 +35,18 @@ failures quickly during normal development.
 - **Disposable-state cleanup:** `npm run maintenance:clean`
 - **PDF reference quality:** `npm run diagnostics:pdf-references`
 - **Live citation-provider coverage:** `npm run diagnostics:citation-providers`
-- **Full mutation gate:** `npm run mutation`
+- **Explicit full mutation audit:** `npm run mutation`
 - **Affected mutation gate:** `npm run mutation:affected -- --mutate <files>`
 - **Incremental mutation gate:** `npm run mutation:incremental`
+- **Manual incremental refresh:** `npm run mutation:incremental:refresh`
+- **Pull-request mutation gate:** `npm run mutation:ci`
+- **Pull-request mutation selector:** `scripts/run-ci-mutation.mjs`
+- **Mutation configuration canary:** `src/views/app-navigation.ts`
+- **Pull-request mutation scope:** clean affected configured production sources,
+  changed Node unit tests mapped to their production source, and a stable
+  canary for mutation configuration or routing changes
+- **Pull-request mutation bounds:** non-incremental, static mutants ignored,
+  progress-only output, and a 30-minute job timeout
 - **Full gate:** `npm run quality:gate` (fast gate followed by browser gate)
 - **Full gate progress:** named phase transitions plus a 30-second elapsed-time heartbeat while a phase is running
 - **Local readiness:** `npm run ci:local` delegates to the native full gate
@@ -51,6 +60,8 @@ failures quickly during normal development.
 - **Protected branch:** `main`
 - **Required remote checks:** `quality-fast`, `quality-browser`, and
   `quality-mutation` from the GitHub Actions App
+- **Mutation workflow trigger:** GitHub pull requests only; pushes to `main` do
+  not repeat the mutation job
 - **Remote merge boundary:** an up-to-date pull request with resolved review
   conversations and no administrator bypass
 - **CI dependency install:** plain `npm ci`
@@ -112,20 +123,36 @@ failures quickly during normal development.
 - [ ] The browser gate covers each canonical Playwright baseline file once.
 - [ ] The browser gate does not launch real artifact-analysis browser jobs for
       analysis endpoints that the E2E suite replaces with deterministic mocks.
-- [ ] The full mutation gate covers runtime `src/**/*.ts` files with Stryker, Vitest, and TypeScript checking.
+- [ ] The explicit full mutation audit covers runtime `src/**/*.ts` files with
+      Stryker, Vitest, TypeScript checking, static mutants, and the configured
+      full reporters.
 - [ ] The affected mutation gate retains TypeScript checking and limits routine
       pre-push mutation to affected Node-testable source files.
 - [ ] The incremental mutation gate reuses prior Stryker results and ignores static mutants for explicit full-surface local test-hardening runs while preserving a complete mutation report.
+- [ ] The pull-request mutation selector compares explicit base and head commit
+      SHAs and starts a clean, non-incremental affected mutation run only for
+      configured production sources selected by the pull-request diff.
+- [ ] Changed Node unit tests map to their production source when it exists;
+      mutation configuration or routing changes select the stable production
+      canary.
+- [ ] Malformed or unavailable base or head commits fail the pull-request check
+      without expanding to the full mutation surface, while an empty selected
+      scope succeeds without starting Stryker.
+- [ ] Pull-request mutation ignores static mutants, reports progress only, and
+      is bounded to 30 minutes.
 - [ ] The full gate runs the fast and browser gates in order.
 - [ ] The full gate reports phase starts, completions, failures, and periodic elapsed-time heartbeats.
 - [ ] The repo-managed `pre-push` hook runs affected-file guardrails, relevant
       Fallow diagnostics, and relevant targeted mutation checks before a
       push leaves the machine.
-- [ ] Mutation configuration changes force-refresh the incremental report so
-      its score contains only the currently configured mutation surface.
+- [ ] Pre-push mutation configuration changes run affected configured sources
+      plus the stable canary without force-refreshing the full incremental
+      report.
 - [ ] Local and remote CI use the same fast and browser package scripts for non-documentation changes.
 - [ ] GitHub protects `main` with pull requests and the authoritative fast,
-      browser, and full-mutation checks.
+      browser, and affected pull-request mutation checks.
+- [ ] The required pull-request mutation check retains the `quality-mutation`
+      name and does not repeat after merge on pushes to `main`.
 - [ ] Native local CI preserves full-gate live output and periodic phase heartbeats.
 - [ ] Optional container parity preserves Agent CI job progress, failure, and retry semantics.
 - [ ] Documentation-only changes can skip local CI when they do not alter executable behavior or workflow configuration.
@@ -183,15 +210,35 @@ failures quickly during normal development.
 - A denominator-changing source delegation may recalibrate the aggregate break
   threshold only when the mutation surface remains unchanged and the measured
   score change is documented in an implemented ADR.
-- `npm run mutation:incremental` must ignore static mutants to keep the repeated local gate proportionate, while `npm run mutation` must continue to test them in the clean GitHub mutation job.
+- `npm run mutation:incremental` must ignore static mutants to keep repeated
+  local test-hardening proportionate, while the explicit `npm run mutation`
+  audit must continue to test static mutants and retain the full configured
+  reporters.
 - `npm run mutation:affected` and `npm run mutation:incremental` must retain
   Stryker's mutation-time TypeScript checker so compile-invalid mutants are not
   counted as surviving or uncovered behavior.
 - Pre-push must run affected mutation for configured mutation sources, map Node
-  unit tests back to their source when it exists, and force-refresh incremental
-  mutation whenever mutation/test configuration changes, even when source files
-  also changed. It must skip mutation for documentation-only or Worker-only
-  changes.
+  unit tests back to their source when it exists, and add the stable canary for
+  mutation or test configuration changes. It must not force-refresh the full
+  incremental report and must skip mutation for documentation-only or
+  Worker-only changes.
+- `npm run mutation:incremental:refresh` must remain available as the explicit
+  manual full-surface incremental-cache refresh.
+- `npm run mutation:ci` must require explicit full base and head commit SHAs,
+  verify that both commits exist locally, and diff added, copied, modified, and
+  renamed paths without falling back to a full mutation run.
+- `npm run mutation:ci` must select only configured production sources affected
+  by the pull request, map changed Node unit tests back to their source when it
+  exists, and add the stable production canary when mutation configuration, the
+  CI workflow, or affected-mutation routing changes.
+- `npm run mutation:ci` must succeed without starting Stryker when no production
+  source or canary is selected.
+- Pull-request mutation must invoke the clean non-incremental
+  `npm run mutation:affected` path with an explicit mutate list, TypeScript
+  checking, `--ignoreStatic`, and progress-only reporting.
+- The GitHub `quality-mutation` job must run only for pull requests, retain its
+  branch-protection check name, stop after 30 minutes, and not repeat on pushes
+  to `main`.
 - `npm install` must keep the repo-managed `pre-push` hook configured without requiring extra setup steps.
 - The CI workflow must cancel superseded runs for the same ref.
 - The CI workflow must support manual dispatch so trigger delivery can be
@@ -276,7 +323,9 @@ failures quickly during normal development.
   instrumentation without changing Stryker's score threshold or concurrency.
 - Mutation testing must use the Vitest runner's per-test coverage analysis and related-test narrowing rather than an ad hoc minimization wrapper.
 - Mutation testing must set Stryker worker concurrency as a percentage of available parallelism instead of a fixed worker count.
-- GitHub Actions must run the full mutation gate instead of the incremental mutation gate.
+- GitHub Actions must run the bounded `npm run mutation:ci` selector for the
+  required pull-request mutation check instead of an incremental or
+  repository-wide mutation run.
 - Mutation reports and Stryker incremental data must be written under ignored `reports/`, and Stryker's temporary sandbox must stay under ignored `.stryker-tmp/`.
 - Mutation sandboxes must not copy ignored `.wrangler/` runtime state; live
   SQLite WAL files are ephemeral application data, not mutation-test inputs.
@@ -395,9 +444,41 @@ failures quickly during normal development.
 
 **Scenario: GitHub verifies mutation strength**
 
-- Given: a push or pull request runs GitHub Actions
+- Given: a pull request changes a configured production source or its colocated
+  Node unit test
 - When: the `quality-mutation` job runs
-- Then: it runs `npm run mutation` instead of the incremental mutation command
+- Then: `npm run mutation:ci` compares the explicit base and head commits and
+  runs clean non-incremental mutation only for the affected production scope
+  with static mutants ignored, progress-only output, and a 30-minute bound
+
+**Scenario: Pull request has no mutation scope**
+
+- Given: a pull request changes no configured production source, mapped Node
+  unit test, mutation configuration, or mutation routing input
+- When: `npm run mutation:ci` selects its scope
+- Then: the required `quality-mutation` check succeeds without starting Stryker
+
+**Scenario: Pull request changes mutation routing**
+
+- Given: a pull request changes mutation configuration, the CI workflow, or an
+  affected-mutation routing script
+- When: `npm run mutation:ci` selects its scope
+- Then: it includes the stable production canary instead of returning a vacuous
+  success or expanding to the full mutation surface
+
+**Scenario: Pull-request commit is unavailable**
+
+- Given: the explicit mutation base or head is malformed or unavailable in the
+  checkout
+- When: `npm run mutation:ci` validates the pull-request range
+- Then: the required check fails with the invalid commit instead of starting a
+  repository-wide mutation run
+
+**Scenario: Pull request merges to main**
+
+- Given: the pull request passed the required `quality-mutation` check
+- When: its merge commit triggers the `main` push workflow
+- Then: GitHub does not repeat the mutation job
 
 **Scenario: Contributor adds browser behavior to a Worker view**
 

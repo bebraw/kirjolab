@@ -8,6 +8,8 @@
 
 **Amends:** [ADR-022](./ADR-022-add-mutation-testing-gate.md), [ADR-030](./ADR-030-reserve-full-mutation-ci-for-github.md), [ADR-130](./ADR-130-emit-quality-gate-progress.md)
 
+**Amended by:** [ADR-216](./ADR-216-bound-pull-request-mutation-ci.md)
+
 ## Context
 
 The default local `quality:gate` included incremental Stryker after fast and

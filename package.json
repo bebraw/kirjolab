@@ -56,7 +56,8 @@
       "2026-07-30-fallow-3-diagnostics",
       "2026-07-31-cloudflare-mcp-skill-baseline",
       "2026-07-31-scope-local-agent-ci",
-      "2026-07-31-manual-ci-dispatch"
+      "2026-07-31-manual-ci-dispatch",
+      "2026-08-03-bound-pr-mutation-ci"
     ]
   },
   "scripts": {
@@ -92,6 +93,7 @@
     "model:companion": "npm run build:model-companion && node --env-file-if-exists=.env ./.generated/model-companion.mjs",
     "mutation": "NODE_OPTIONS=--max-old-space-size=8192 stryker run",
     "mutation:affected": "NODE_OPTIONS=--max-old-space-size=8192 stryker run --ignoreStatic --reporters clear-text,progress",
+    "mutation:ci": "node ./scripts/run-ci-mutation.mjs",
     "mutation:incremental": "NODE_OPTIONS=--max-old-space-size=8192 stryker run --incremental --ignoreStatic",
     "mutation:incremental:refresh": "NODE_OPTIONS=--max-old-space-size=8192 node ./scripts/run-mutation-refresh.mjs",
     "playwright:install": "playwright install chromium",
