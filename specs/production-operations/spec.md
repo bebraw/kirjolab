@@ -67,6 +67,10 @@ rollback workflow without adding a second identity system.
   links, locators, and pinned revisions.
 - Backup payloads and logs never contain Access tokens. R2 paths use opaque
   owner keys rather than email addresses.
+- A scheduled owner failure emits one structured `backup-owner-failed` event
+  with the opaque owner key and bounded failure reason, never the owner email.
+  Missing referenced R2 sources include the exact source key in owner status
+  and in that operator-facing event so repair can target the absent object.
 
 ## Contract
 
@@ -86,6 +90,8 @@ rollback workflow without adding a second identity system.
       gate rejects environment-dependent generated declarations before deploy.
 - [x] A daily scheduled handler invokes the backup coordinator.
 - [x] Authenticated owners are registered idempotently for scheduled backup.
+- [x] Scheduled owner failures identify the affected opaque owner and concrete
+      missing source key without logging owner email or authentication data.
 - [x] An unchanged owner state produces no new manifest or binary write.
 - [x] A changed owner state produces one stable, versioned manifest after all
       referenced binary backup objects are available.

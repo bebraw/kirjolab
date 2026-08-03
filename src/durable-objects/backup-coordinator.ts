@@ -244,6 +244,15 @@ export class BackupCoordinator extends DurableObject<Env> {
       const status = await this.#backupOwner(owner);
       summary.checked += 1;
       summary[status.outcome === "never" ? "failed" : status.outcome] += 1;
+      if (status.outcome === "failed") {
+        console.error(
+          JSON.stringify({
+            event: "backup-owner-failed",
+            ownerKey: owner.owner_key,
+            error: status.error,
+          }),
+        );
+      }
     }
     return summary;
   }
@@ -399,7 +408,7 @@ export class BackupCoordinator extends DurableObject<Env> {
     for (const sourceKey of [...sourceKeys].sort()) {
       if (!isOwnedBinaryKey(state.ownerKey, workspaceIds, sourceKey)) throw new Error("Backup source key is outside owner scope");
       const source = await this.env.PAPERS.head(sourceKey);
-      if (!source) throw new Error("A referenced backup source is missing");
+      if (!source) throw new Error(`A referenced backup source is missing: ${sourceKey}`);
       binaries.push({
         sourceKey,
         sourceEtag: source.etag,
