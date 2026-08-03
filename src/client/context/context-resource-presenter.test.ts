@@ -439,6 +439,8 @@ describe("context resource presenter", () => {
     });
     expect(setTabs).toHaveBeenCalledWith(expect.objectContaining({ chapterNotesAvailable: true }));
     elements["context-chapter-notes-scroll"].scrollTop = 48;
+    presenter.presentChapterNotes(chapter.id, snapshot.files);
+    expect(elements["context-chapter-notes-scroll"].scrollTop).toBe(48);
     vi.spyOn(presenter, "captureBoundContext").mockImplementation(() => undefined);
     presenter.navigateContext("chapter-notes");
 

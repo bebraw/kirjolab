@@ -142,6 +142,33 @@ describe("preview sync controls", () => {
     expect(indexedReads).toBeLessThanOrEqual(20);
   });
 
+  it("uses the preceding source line when it is nearest the editor center", () => {
+    const controls = new TestPreviewSyncControls();
+    const lines = [1, 2, 3].map((line, index) => ({
+      dataset: { lineNumber: String(line) },
+      offsetHeight: 20,
+      offsetTop: index * 100,
+    }));
+    const source = Object.assign(new EventTarget(), {
+      clientHeight: 100,
+      scrollTop: 105,
+      selectionEnd: 0,
+      value: "first\nsecond\nthird",
+    });
+    controls.bindSource({
+      projectFileDialog: { activeFileId: "part", focusRange: vi.fn(), project: null },
+      source: source as HTMLTextAreaElement,
+      sourceHighlight: {
+        querySelector: vi.fn(),
+        querySelectorAll: () => lines,
+      } as unknown as HTMLElement,
+      workspacePreview: { bindScrollSync: vi.fn(), centeredSourceOffset: () => null, syncFromSource: vi.fn() },
+      workspaceSurfaces: { dataset: { layout: "split" } } as unknown as HTMLElement,
+    });
+
+    expect(controls.sourceOffsetAtCenter()).toBe(6);
+  });
+
   it("links deliberate source and Preview scrolling without reciprocal loops or cross-file churn", () => {
     const controls = new TestPreviewSyncControls();
     const sourceToPreview = vi.fn();

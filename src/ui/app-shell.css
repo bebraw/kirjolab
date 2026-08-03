@@ -284,7 +284,8 @@
   }
 
   .dashboard-section-heading h2,
-  .reviews-model-note h2 {
+  .reviews-model-note h2,
+  .review-create-panel h2 {
     margin-top: 0.25rem;
     color: var(--color-app-ink);
     font-size: 1.35rem;
@@ -397,14 +398,6 @@
     gap: clamp(1.5rem, 4vw, 3rem);
     border-top: 1px solid var(--color-app-line);
     padding-block: 1.5rem 2rem;
-  }
-
-  .review-create-panel h2 {
-    margin-top: 0.25rem;
-    color: var(--color-app-ink);
-    font-size: 1.35rem;
-    font-weight: 650;
-    letter-spacing: -0.04em;
   }
 
   .review-create-panel > div > p:last-child {
@@ -1052,50 +1045,6 @@
   }
 
   @media (max-width: 40rem) {
-    body[data-app-mode="workspace"] .app-header-row {
-      display: grid;
-      height: 6.5rem;
-      min-height: 0;
-      grid-template-rows: repeat(2, minmax(0, 1fr));
-      align-items: stretch;
-      gap: 0.5rem;
-      padding: 0.5rem 0.75rem;
-    }
-
-    body[data-app-mode="workspace"] .app-header-row > div:first-child,
-    body[data-app-mode="workspace"] .app-header-row > div:last-child {
-      width: 100%;
-      gap: 0.5rem;
-    }
-
-    body[data-app-mode="workspace"] .app-header-row > div:first-child {
-      justify-content: flex-start;
-    }
-
-    body[data-app-mode="workspace"] .app-header-row > div:last-child {
-      justify-content: flex-end;
-    }
-
-    body[data-app-mode="workspace"] #workspace-switcher {
-      min-width: 4.5rem;
-      flex: 1;
-    }
-
-    body[data-app-mode="workspace"] #connection-status {
-      max-width: 7rem;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    body[data-app-mode="workspace"] .surface-switcher {
-      top: 6.5rem;
-    }
-
-    body[data-app-mode="workspace"] #workspace-surfaces {
-      min-height: calc(100vh - 6.5rem - 1px);
-    }
-
     body[data-app-mode="library"] .app-header-row {
       display: grid;
       height: 7rem;

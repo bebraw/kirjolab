@@ -205,6 +205,8 @@ export class ContextResourcePresenter extends LightDomController {
   private routeBinding: ContextRouteBinding | null = null;
   private loadedReferencePdfs: readonly ProjectReferencePdf[] = [];
 
+  // Invoked through the structurally typed project-file application owners.
+  // fallow-ignore-next-line unused-class-member
   bindApplication(
     apiBase: string,
     workspace: boolean,
@@ -228,6 +230,8 @@ export class ContextResourcePresenter extends LightDomController {
     return this.currentActiveTab;
   }
 
+  // Read through WorkspaceLayoutOwners when the resizable PDF pane is bound.
+  // fallow-ignore-next-line unused-class-member
   get layoutPdfViewer(): Pick<ContextPdfViewer, "resize"> | null {
     return this.pdfSession.layoutViewer;
   }
@@ -853,6 +857,8 @@ export class ContextResourcePresenter extends LightDomController {
     );
   }
 
+  // PdfEvidenceViewer invokes this through its presentation callback.
+  // fallow-ignore-next-line unused-class-member
   selectLibraryHighlight(highlightId: string): void {
     const highlight = this.boundLibrary()?.highlights.find((item) => item.id === highlightId);
     if (!highlight) return;
@@ -899,22 +905,24 @@ export class ContextResourcePresenter extends LightDomController {
   }
 
   private syncChapterNotes(activeFileId: string | null, files: readonly ProjectFile[], refreshContext: boolean): void {
-    const activeFile = files.find(({ id }) => id === activeFileId);
-    const notesPath = activeFile ? projectCompanionNotesPath(activeFile.path) : null;
-    const notes = notesPath ? (files.find(({ path }) => path === notesPath) ?? null) : null;
-    const notesFileChanged = (notes?.id ?? null) !== this.chapterNotesFileId;
-    this.chapterNotesFileId = notes?.id ?? null;
-    if (notesFileChanged) {
-      this.contextState = setResearchTabScroll(this.contextState, RESEARCH_CHAPTER_NOTES_KEY, 0);
-      const scroll = this.element("context-chapter-notes-scroll", HTMLElement);
-      if (scroll) scroll.scrollTop = 0;
-    }
+    const { activeFile, notes } = companionNotes(activeFileId, files);
+    this.syncChapterNotesFile(notes?.id ?? null);
     void this.element("chapter-notes-panel", ChapterNotesPanel)?.presentNotes({
       chapterPath: activeFile?.path ?? "",
       notes: notes ? { content: notes.content, id: notes.id, path: notes.path } : null,
     });
+    this.syncChapterNotesAvailability(notes !== null, refreshContext);
+  }
 
-    const available = notes !== null;
+  private syncChapterNotesFile(notesFileId: string | null): void {
+    if (notesFileId === this.chapterNotesFileId) return;
+    this.chapterNotesFileId = notesFileId;
+    this.contextState = setResearchTabScroll(this.contextState, RESEARCH_CHAPTER_NOTES_KEY, 0);
+    const scroll = this.element("context-chapter-notes-scroll", HTMLElement);
+    if (scroll) scroll.scrollTop = 0;
+  }
+
+  private syncChapterNotesAvailability(available: boolean, refreshContext: boolean): void {
     const availabilityChanged = available !== this.chapterNotesAvailable;
     this.chapterNotesAvailable = available;
     if (!available && this.activeKey === RESEARCH_CHAPTER_NOTES_KEY) {
@@ -1344,6 +1352,16 @@ export class ContextResourcePresenter extends LightDomController {
 function noticeExcerpt(value: string): string {
   const compact = value.replaceAll(/\s+/gu, " ").trim();
   return compact.length <= 240 ? compact : `${compact.slice(0, 239).trimEnd()}…`;
+}
+
+function companionNotes(
+  activeFileId: string | null,
+  files: readonly ProjectFile[],
+): { readonly activeFile: ProjectFile | undefined; readonly notes: ProjectFile | null } {
+  const activeFile = files.find(({ id }) => id === activeFileId);
+  if (!activeFile) return { activeFile, notes: null };
+  const notesPath = projectCompanionNotesPath(activeFile.path);
+  return { activeFile, notes: files.find(({ path }) => path === notesPath) ?? null };
 }
 
 if (typeof customElements !== "undefined" && !customElements.get("context-resource-presenter")) {

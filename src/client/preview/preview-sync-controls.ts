@@ -100,26 +100,7 @@ export class PreviewSyncControls extends LightDomElement {
     if (!source || !sourceHighlight) return 0;
     const center = source.scrollTop + source.clientHeight / 2;
     const lines = sourceHighlight.querySelectorAll<HTMLElement>(".source-editor-line");
-    if (lines.length === 0) return 0;
-    let lower = 0;
-    let upper = lines.length - 1;
-    while (lower < upper) {
-      const middle = Math.floor((lower + upper) / 2);
-      const line = lines[middle];
-      if (!line) return 0;
-      if (line.offsetTop + line.offsetHeight / 2 < center) lower = middle + 1;
-      else upper = middle;
-    }
-    let nearestLine = lines[lower];
-    const previousLine = lower > 0 ? lines[lower - 1] : undefined;
-    if (
-      nearestLine &&
-      previousLine &&
-      Math.abs(previousLine.offsetTop + previousLine.offsetHeight / 2 - center) <
-        Math.abs(nearestLine.offsetTop + nearestLine.offsetHeight / 2 - center)
-    ) {
-      nearestLine = previousLine;
-    }
+    const nearestLine = centeredSourceLine(lines, center);
     const lineNumber = Number.parseInt(nearestLine?.dataset.lineNumber ?? "1", 10);
     if (!Number.isSafeInteger(lineNumber) || lineNumber <= 1) return 0;
     const lineOffsets = this.#sourceLineOffsets(source);
@@ -324,6 +305,37 @@ export class PreviewSyncControls extends LightDomElement {
     this.#scrollFrame = null;
     this.#pendingScrollLeader = null;
   }
+}
+
+function centeredSourceLine(lines: NodeListOf<HTMLElement>, center: number): HTMLElement | null {
+  const lower = firstSourceLineAtCenter(lines, center);
+  if (lower === null) return null;
+  const nearest = lines[lower] ?? null;
+  const previous = lower > 0 ? (lines[lower - 1] ?? null) : null;
+  if (!nearest || !previous) return nearest;
+  return lineDistance(previous, center) < lineDistance(nearest, center) ? previous : nearest;
+}
+
+function firstSourceLineAtCenter(lines: NodeListOf<HTMLElement>, center: number): number | null {
+  if (lines.length === 0) return null;
+  let lower = 0;
+  let upper = lines.length - 1;
+  while (lower < upper) {
+    const middle = Math.floor((lower + upper) / 2);
+    const line = lines[middle];
+    if (!line) return null;
+    if (lineCenter(line) < center) lower = middle + 1;
+    else upper = middle;
+  }
+  return lower;
+}
+
+function lineDistance(line: HTMLElement, center: number): number {
+  return Math.abs(lineCenter(line) - center);
+}
+
+function lineCenter(line: HTMLElement): number {
+  return line.offsetTop + line.offsetHeight / 2;
 }
 
 if (typeof customElements !== "undefined" && !customElements.get("preview-sync-controls")) {

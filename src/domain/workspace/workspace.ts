@@ -5,11 +5,12 @@ import {
   type ManuscriptAnchorSelector,
 } from "../manuscript/manuscript-anchor";
 import {
-  normalizeProjectPath,
+  isComposableReviewArtifactBinding,
   type ProjectAsset,
   type ProjectComposition,
   type ProjectFile,
   type ProjectFolder,
+  type ReviewArtifactBinding,
 } from "../project/project-files";
 import type { BibliographicSnapshot } from "../reference-library";
 import type { ResearchShareSnapshot } from "../reference-library";
@@ -456,21 +457,7 @@ export interface ProjectReviewLink {
   readonly unlinkedAt: string | null;
 }
 
-export interface ReviewArtifactPin {
-  readonly path: string;
-  readonly reviewId: string;
-  readonly linkId: string;
-  readonly publicationId: string;
-  readonly reviewRevision: number;
-  readonly protocolRevision: number;
-  readonly analysisDefinitionId: string;
-  readonly analysisDefinitionRevision: number;
-  readonly generator: string;
-  readonly generatorSchema: string;
-  readonly digest: string;
-  readonly publishedBy: string;
-  readonly generatedAt: string;
-}
+export type ReviewArtifactPin = ReviewArtifactBinding;
 
 export interface WorkspaceSnapshot {
   id: string;
@@ -1003,11 +990,8 @@ export function isWorkspaceSnapshot(value: unknown): value is WorkspaceSnapshot 
 
 export function isReviewArtifactPin(value: unknown): value is ReviewArtifactPin {
   if (!isRecord(value)) return false;
-  const path = typeof value.path === "string" ? normalizeProjectPath(value.path) : null;
-  const generatedAt = typeof value.generatedAt === "string" ? new Date(value.generatedAt) : null;
-  if (path === null || generatedAt === null) return false;
-  return (
-    hasExactKeys(value, [
+  if (
+    !hasExactKeys(value, [
       "path",
       "reviewId",
       "linkId",
@@ -1021,26 +1005,12 @@ export function isReviewArtifactPin(value: unknown): value is ReviewArtifactPin 
       "digest",
       "publishedBy",
       "generatedAt",
-    ]) &&
-    path === value.path &&
-    path.startsWith("review/") &&
-    path.endsWith(".md") &&
-    isTrimmedBoundedString(value.reviewId, 128) &&
-    isTrimmedBoundedString(value.linkId, 128) &&
-    isTrimmedBoundedString(value.publicationId, 128) &&
-    isPositiveInteger(value.reviewRevision) &&
-    isPositiveInteger(value.protocolRevision) &&
-    isStringWithin(value.analysisDefinitionId, 128, true) &&
-    value.analysisDefinitionId === value.analysisDefinitionId.trim() &&
-    isPositiveInteger(value.analysisDefinitionRevision) &&
-    isTrimmedBoundedString(value.generator, 128) &&
-    isTrimmedBoundedString(value.generatorSchema, 128) &&
-    typeof value.digest === "string" &&
-    /^[a-f0-9]{64}$/u.test(value.digest) &&
-    isTrimmedBoundedString(value.publishedBy, 320) &&
-    Number.isFinite(generatedAt.getTime()) &&
-    generatedAt.toISOString() === value.generatedAt
-  );
+    ]) ||
+    !isComposableReviewArtifactBinding(value)
+  )
+    return false;
+  const generatedAt = new Date(value.generatedAt);
+  return Number.isFinite(generatedAt.getTime()) && generatedAt.toISOString() === value.generatedAt;
 }
 
 export function canonicalReviewArtifactPath(reviewId: string, artifactId: string): string | null {
