@@ -9,6 +9,7 @@ import {
 import { GitHubSyncReview } from "../integrations/github/github-sync-review";
 import { expectOk, jsonFetch } from "../platform/http";
 import type { GitHubSyncMenu } from "../integrations/github/github-sync-menu";
+import type { AppCapabilities } from "../app/app-contracts";
 import { LightDomElement } from "../platform/light-dom-controller";
 import type { ProjectStartingPointBrowser, StartingPointApplicationOwners } from "../project/project-starting-point-browser";
 import type { WorkspaceCatalogOwners, WorkspaceCatalogPanel } from "./workspace-catalog-panel";
@@ -66,12 +67,14 @@ export class WorkspaceSettingsPanel extends LightDomElement {
     gitHubStatus: { state: true },
     status: { state: true },
     view: { state: true },
+    githubAvailable: { state: true },
   };
 
   declare private busy: boolean;
   declare private gitHubStatus: string;
   declare private status: string;
   declare protected view: WorkspaceSettingsView;
+  declare private githubAvailable: boolean;
   private gitHubApiBase = "";
   private owners: WorkspaceSettingsOwners | undefined;
   private trigger: EventTarget | undefined;
@@ -83,6 +86,7 @@ export class WorkspaceSettingsPanel extends LightDomElement {
     this.busy = false;
     this.gitHubStatus = "Checking connection…";
     this.status = "";
+    this.githubAvailable = false;
     this.view = {
       archived: false,
       entryFileId: "",
@@ -163,12 +167,13 @@ export class WorkspaceSettingsPanel extends LightDomElement {
     workspaceId: string,
     apiBase: string,
     ambientGitHubRefresh: boolean,
+    capabilities: AppCapabilities,
     projectRefresh: ProjectRefresh,
     owners: WorkspaceSettingsApplicationOwners,
   ): void {
     owners.workspaceCatalogPanel.bindWorkspace(workspaceId, owners);
-    owners.newWorkspaceStartingPoints.bindApplication(apiBase, owners);
-    this.bindWorkspace(workspaceId, apiBase, ambientGitHubRefresh, projectRefresh, owners);
+    owners.newWorkspaceStartingPoints.bindApplication(apiBase, capabilities, owners);
+    this.bindWorkspace(workspaceId, apiBase, ambientGitHubRefresh, capabilities, projectRefresh, owners);
     owners.workspaceSharingPanel.configure(apiBase, owners);
   }
 
@@ -176,6 +181,7 @@ export class WorkspaceSettingsPanel extends LightDomElement {
     workspaceId: string,
     apiBase: string,
     ambientGitHubRefresh: boolean,
+    capabilities: AppCapabilities,
     projectRefresh: ProjectRefresh,
     owners: WorkspaceSettingsOwners,
   ): void {
@@ -183,8 +189,9 @@ export class WorkspaceSettingsPanel extends LightDomElement {
     this.owners = owners;
     this.trigger = owners.workspaceSettings;
     this.workspaceId = workspaceId;
+    this.githubAvailable = capabilities.github;
     this.bindTrigger();
-    owners.gitHubSyncMenu.bindWorkspace(apiBase, ambientGitHubRefresh, projectRefresh, { workspaceSettingsPanel: this });
+    owners.gitHubSyncMenu.bindWorkspace(apiBase, ambientGitHubRefresh, capabilities, projectRefresh, { workspaceSettingsPanel: this });
   }
 
   private bindTrigger(): void {
@@ -202,7 +209,7 @@ export class WorkspaceSettingsPanel extends LightDomElement {
       snapshot: owners.projectFileDialog.project,
       workspaceId: this.workspaceId,
     });
-    if (checkGitHub) void owners.gitHubSyncMenu.refreshWorkspace(true);
+    if (checkGitHub && this.githubAvailable) void owners.gitHubSyncMenu.refreshWorkspace(true);
   }
 
   override connectedCallback(): void {
@@ -311,7 +318,7 @@ export class WorkspaceSettingsPanel extends LightDomElement {
             </button>
           </div>
           <p class="ui-status mt-3" role="status" aria-live="polite">${this.status}</p>
-          <section class="mt-6 border-t border-app-line pt-5">
+          <section class="mt-6 border-t border-app-line pt-5" ?hidden=${!this.githubAvailable}>
             <p class="eyebrow">GitHub sync</p>
             <p class="mt-2 text-sm leading-6 text-app-text-soft" id="github-sync-status">${this.gitHubStatus}</p>
             <github-sync-review id="github-sync-review">

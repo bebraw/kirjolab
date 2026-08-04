@@ -33,6 +33,7 @@ No ADRs are currently accepted and awaiting implementation.
 
 | ADR                                                                                       | Status               | Summary                                                                                                         |
 | ----------------------------------------------------------------------------------------- | -------------------- | --------------------------------------------------------------------------------------------------------------- |
+| [ADR-221](./implemented/ADR-221-gate-optional-integrations-by-deployment-capability.md)   | Implemented          | Derive optional integrations from complete server configuration and expose only boolean browser capabilities.   |
 | [ADR-220](./implemented/ADR-220-establish-portable-self-host-boundaries.md)               | Implemented          | Add a loopback Compose evaluation profile and begin native portability at a provider-neutral SQLite adapter.    |
 | [ADR-219](./implemented/ADR-219-adopt-local-spec-and-tdd-skills.md)                       | Implemented          | Convert settled context into local specs and use focused TDD when observable behavior has a stable seam.        |
 | [ADR-218](./implemented/ADR-218-adopt-repository-local-wayfinding.md)                     | Implemented          | Preserve large, uncertain multi-session discovery in explicit repository-local maps.                            |

@@ -19,6 +19,9 @@ test("keeps the self-host Worker profile local and aligned with production stora
   assert.deepEqual(selfHost.compatibility_flags, production.compatibility_flags);
   assert.equal(selfHost.vars?.AUTH_MODE, "local");
   assert.equal(selfHost.vars?.ARTIFACT_ANALYSIS_MODE, "disabled");
+  for (const variable of ["GITHUB_APP_ID", "GITHUB_APP_CLIENT_ID", "GITHUB_APP_SLUG"]) {
+    assert.equal(selfHost.vars?.[variable], "", `${variable} must keep GitHub disabled in the evaluation profile`);
+  }
   assert.equal(selfHost.send_metrics, false);
   assert.deepEqual(selfHost.r2_buckets, [{ binding: "PAPERS", bucket_name: "kirjolab-self-host-papers" }]);
   assert.deepEqual(selfHost.assets, production.assets);

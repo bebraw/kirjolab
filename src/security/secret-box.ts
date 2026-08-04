@@ -32,10 +32,24 @@ export async function decryptSecret(value: string, encodedKey: string, context: 
   }
 }
 
+export function isSecretEncryptionKey(value: string): boolean {
+  try {
+    secretEncryptionKeyBytes(value);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 async function importKey(encodedKey: string, usage: "decrypt" | "encrypt"): Promise<CryptoKey> {
+  const bytes = secretEncryptionKeyBytes(encodedKey);
+  return await crypto.subtle.importKey("raw", bytes, "AES-GCM", false, [usage]);
+}
+
+function secretEncryptionKeyBytes(encodedKey: string): Uint8Array<ArrayBuffer> {
   const bytes = decodeBase64Url(encodedKey.trim());
   if (bytes.byteLength !== 32) throw new TypeError("Secret encryption key must contain 32 bytes");
-  return await crypto.subtle.importKey("raw", bytes, "AES-GCM", false, [usage]);
+  return bytes;
 }
 
 function encodeBase64Url(bytes: Uint8Array): string {

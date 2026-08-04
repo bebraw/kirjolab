@@ -23,17 +23,23 @@ describe("app response contracts", () => {
   it("parses the bounded application bootstrap dataset", () => {
     const bootstrap = {
       appMode: "workspace",
+      githubCapability: "enabled",
       identityEmail: "writer@example.test",
       workspaceId: "paper-1",
       unrelated: "ignored",
     };
     expect(parseAppBootstrap(bootstrap)).toEqual({
       apiBase: "/api/workspaces/paper-1",
+      capabilities: { github: true },
       identityEmail: "writer@example.test",
       workspaceId: "paper-1",
       workspaceMode: true,
     });
     expect(parseAppBootstrap({ ...bootstrap, appMode: "library" }).workspaceMode).toBe(false);
+    expect(parseAppBootstrap({ ...bootstrap, githubCapability: "disabled" }).capabilities).toEqual({ github: false });
+    expect(parseAppBootstrap({ appMode: "workspace", identityEmail: "writer@example.test", workspaceId: "paper-1" }).capabilities).toEqual({
+      github: false,
+    });
     for (const invalid of [
       null,
       { ...bootstrap, workspaceId: "" },
@@ -41,6 +47,7 @@ describe("app response contracts", () => {
       { ...bootstrap, identityEmail: "" },
       { ...bootstrap, identityEmail: "a".repeat(321) },
       { ...bootstrap, appMode: "dashboard" },
+      { ...bootstrap, githubCapability: "maybe" },
     ]) {
       expect(() => parseAppBootstrap(invalid)).toThrow("Invalid application bootstrap");
     }

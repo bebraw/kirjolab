@@ -30,6 +30,16 @@ portability work attached to explicit contracts.
   require Cloudflare credentials. Cloudflare Browser Rendering, Workers AI,
   Queue-backed artifact analysis, hosted Cron, Access, PITR, and production
   backup guarantees are outside this profile.
+- GitHub is disabled in the default Compose profile because its complete App,
+  OAuth, and encryption configuration is absent. The server derives a typed
+  `{ github: false }` deployment capability and projects only that boolean into
+  HTML bootstrap data; no GitHub identifier, credential, or missing-field
+  detail crosses that boundary.
+- When GitHub is unavailable, its server-rendered and browser-owned controls are
+  absent or inert, browser startup emits no GitHub requests, and direct GitHub
+  API calls return an explicit `503`. Existing GitHub connection and project
+  synchronization data remain untouched if an instance is restarted without
+  the integration configured.
 - The self-host profile tracks the hosted Durable Object binding and migration
   declarations through an automated tooling contract while omitting inherited
   cloud deployment configuration.
@@ -60,6 +70,10 @@ portability work attached to explicit contracts.
 - Do not connect the self-host profile to remote Cloudflare bindings.
 - Do not pass host environment files, `.dev.vars`, credentials, or bind mounts
   into the evaluation service.
+- Do not render an unavailable integration as actionable, use a browser request
+  to discover deployment capability, or treat hidden UI as the API boundary.
+- Do not delete retained integration state merely because optional deployment
+  configuration is absent.
 - Do not leak Cloudflare storage, namespace, or RPC types into the portable
   SQLite contract.
 - Do not grow the SQLite adapter into a generic platform service locator.
@@ -79,6 +93,8 @@ portability work attached to explicit contracts.
       named volume preserves that state.
 - [x] The evaluation configuration has no remote bindings and cloud-only
       artifact analysis fails explicitly rather than silently using Cloudflare.
+- [x] GitHub is unavailable by default: its UI emits no requests, direct API
+      calls fail explicitly with `503`, and retained state is not deleted.
 - [x] One provider-neutral SQLite migration suite passes against both a test
       adapter and Node `node:sqlite`.
 - [x] Existing Cloudflare Worker and Durable Object tests remain green.
@@ -94,6 +110,12 @@ portability work attached to explicit contracts.
   `127.0.0.1` on the host.
 - Self-host startup must not require a Cloudflare account, token, or remote
   resource identifier.
+- Optional-integration availability comes only from complete server
+  configuration. The browser receives booleans, and a false capability cannot
+  initiate background or user-triggered integration requests.
+- A disabled integration's API remains independently unavailable and its
+  retained connection, binding, synchronization, and project data remain
+  unchanged.
 - SQLite adapters must preserve append-only migration validation, atomic
   migration-plus-ledger writes, and rollback after a failed migration.
 - Row-producing SQL cannot silently ignore a following statement, and bound
@@ -128,6 +150,13 @@ portability work attached to explicit contracts.
 - Given the evaluation profile uses local authentication
 - When Compose publishes the application port
 - Then it binds only the host loopback interface
+
+**GitHub disabled by default**
+
+- Given the Compose profile has no complete GitHub App configuration
+- When Kirjolab renders and starts its browser application
+- Then GitHub controls are unavailable, no GitHub request is emitted, direct
+  GitHub API calls return `503`, and any retained GitHub data is unchanged
 
 **Failed SQLite migration**
 

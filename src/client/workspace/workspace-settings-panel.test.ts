@@ -174,6 +174,7 @@ describe("workspace settings panel", () => {
       "study",
       "/api/workspaces/study",
       false,
+      { github: true },
       { request: vi.fn() },
       {
         gitHubSyncMenu: { bindWorkspace: vi.fn(), refreshWorkspace: vi.fn() },
@@ -286,7 +287,7 @@ describe("workspace settings panel", () => {
     const saveTemplate = vi.fn();
     const bindGitHub = vi.fn();
     const projectRefresh = { request: vi.fn() };
-    panel.bindWorkspace(sources.workspaceId, "/api/workspaces/study", true, projectRefresh, {
+    panel.bindWorkspace(sources.workspaceId, "/api/workspaces/study", true, { github: true }, projectRefresh, {
       gitHubSyncMenu: { bindWorkspace: bindGitHub, refreshWorkspace: refreshGitHub },
       projectFileDialog: { hiddenFiles: sources.hiddenFileIds, project: sources.snapshot },
       saveTemplateDialog: { open: saveTemplate },
@@ -294,7 +295,9 @@ describe("workspace settings panel", () => {
       workspaceSettings: trigger,
     });
 
-    expect(bindGitHub).toHaveBeenCalledWith("/api/workspaces/study", true, projectRefresh, { workspaceSettingsPanel: panel });
+    expect(bindGitHub).toHaveBeenCalledWith("/api/workspaces/study", true, { github: true }, projectRefresh, {
+      workspaceSettingsPanel: panel,
+    });
 
     trigger.dispatchEvent(new Event("click"));
     await vi.waitFor(() => expect(panel.open).toBe(true));
@@ -310,6 +313,29 @@ describe("workspace settings panel", () => {
     expect(panel.open).toBe(false);
   });
 
+  it("keeps unavailable GitHub settings inert", async () => {
+    const panel = new LifecycleWorkspaceSettingsPanel();
+    const trigger = new EventTarget();
+    const bindGitHub = vi.fn();
+    const refreshGitHub = vi.fn();
+    const projectRefresh = { request: vi.fn() };
+    panel.bindWorkspace("study", "/api/workspaces/study", true, { github: false }, projectRefresh, {
+      gitHubSyncMenu: { bindWorkspace: bindGitHub, refreshWorkspace: refreshGitHub },
+      projectFileDialog: { hiddenFiles: new Set(), project: null },
+      saveTemplateDialog: { open: vi.fn() },
+      workspaceCatalogPanel: { catalog: [], refresh: vi.fn() },
+      workspaceSettings: trigger,
+    });
+
+    trigger.dispatchEvent(new Event("click"));
+    await vi.waitFor(() => expect(panel.open).toBe(true));
+
+    expect(bindGitHub).toHaveBeenCalledWith("/api/workspaces/study", true, { github: false }, projectRefresh, {
+      workspaceSettingsPanel: panel,
+    });
+    expect(refreshGitHub).not.toHaveBeenCalled();
+  });
+
   it("binds workspace administration atomically", () => {
     const panel = new LifecycleWorkspaceSettingsPanel();
     const bindCatalog = vi.fn();
@@ -319,7 +345,7 @@ describe("workspace settings panel", () => {
     const projectRefresh = { request: vi.fn() };
     const owners = {
       gitHubSyncMenu: { bindWorkspace: bindGitHub, refreshWorkspace: vi.fn() },
-      gitHubImportPanel: { open: vi.fn() },
+      gitHubImportPanel: { configure: vi.fn(), open: vi.fn() },
       latexImportPanel: { open: vi.fn() },
       manageWorkspaces: new EventTarget(),
       newWorkspace: new EventTarget() as HTMLElement,
@@ -334,11 +360,13 @@ describe("workspace settings panel", () => {
       workspaceSwitcher: { setData: vi.fn() },
     };
 
-    panel.bindApplication("study", "/api/workspaces/study", true, projectRefresh, owners);
+    panel.bindApplication("study", "/api/workspaces/study", true, { github: true }, projectRefresh, owners);
 
     expect(bindCatalog).toHaveBeenCalledWith("study", owners);
-    expect(bindStartingPoints).toHaveBeenCalledWith("/api/workspaces/study", owners);
-    expect(bindGitHub).toHaveBeenCalledWith("/api/workspaces/study", true, projectRefresh, { workspaceSettingsPanel: panel });
+    expect(bindStartingPoints).toHaveBeenCalledWith("/api/workspaces/study", { github: true }, owners);
+    expect(bindGitHub).toHaveBeenCalledWith("/api/workspaces/study", true, { github: true }, projectRefresh, {
+      workspaceSettingsPanel: panel,
+    });
     expect(configureSharing).toHaveBeenCalledWith("/api/workspaces/study", owners);
   });
 

@@ -25,4 +25,10 @@ describe("renderWorkspaceSettingsDialog", () => {
     expect(html).toContain('id="delete-workspace" type="button" data-destructive="true"');
     expect(html).toContain('id="close-workspace-settings" type="button"');
   });
+
+  it("hides GitHub settings when the deployment capability is disabled", () => {
+    const html = renderWorkspaceSettingsDialog(false);
+
+    expect(html).toContain("data-github-integration hidden>");
+  });
 });

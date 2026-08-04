@@ -49,6 +49,7 @@ import { handleReviewStudyApi } from "./review-study";
 import { ensureLegacyReviewResource, workspaceStorageKey } from "./reviews";
 import type { ProjectBinaryObjectReplacements } from "../durable-objects/document-room";
 import * as v from "valibot";
+import { gitHubIntegrationAvailable } from "../deployment-capabilities";
 
 const maximumPdfBytes = 25 * 1024 * 1024;
 const maximumImageBytes = 20 * 1024 * 1024;
@@ -223,6 +224,7 @@ async function handleWorkspaceIntegrationRoutes(context: WorkspaceRouteContext):
 async function handleWorkspaceGitHubSyncRoute(context: WorkspaceRouteContext): Promise<Response | null> {
   const { request, suffix, role, identity, env, room } = context;
   if (suffix === "/github-sync" || suffix.startsWith("/github-sync/")) {
+    if (!gitHubIntegrationAvailable(env)) return jsonError("GitHub integration is unavailable", 503);
     if (role !== "owner") return jsonError("Only the workspace owner can synchronize GitHub", 403);
     return await handleGitHubWorkspaceSyncApi(request, env, identity, room, suffix);
   }

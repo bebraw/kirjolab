@@ -8,7 +8,7 @@ import { CollaborationSocket } from "./collaboration/collaboration-socket";
 import { errorMessage } from "./platform/http";
 import { createBrowserOfflineWorkspaceSession } from "./platform/offline-workspace";
 
-const { workspaceId, identityEmail, apiBase, workspaceMode } = parseAppBootstrap(document.body.dataset);
+const { workspaceId, identityEmail, apiBase, capabilities, workspaceMode } = parseAppBootstrap(document.body.dataset);
 startLayoutDiagnostics();
 const elements = collectAppElements();
 const session = new CollaborationSession(new Y.Doc());
@@ -16,5 +16,5 @@ const offline = createBrowserOfflineWorkspaceSession(identityEmail, workspaceId,
 const socket = new CollaborationSocket(session, apiBase, offline, elements);
 
 void elements.projectFileDialog
-  .startApplication(apiBase, workspaceId, workspaceMode, elements, session, offline, socket)
+  .startApplication(apiBase, workspaceId, workspaceMode, capabilities, elements, session, offline, socket)
   .catch((error: unknown) => (document.body.textContent = errorMessage(error, "Kirjolab failed to start")));

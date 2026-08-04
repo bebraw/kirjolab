@@ -1,6 +1,7 @@
 import { html, nothing, type TemplateResult } from "lit";
 import { isProjectTemplateSummaries, type ProjectTemplateSummary } from "../../domain/project/project-templates";
 import { demoWorkspaceId, isWorkspaceSummaries, type WorkspaceSummary } from "../../domain/workspace/workspace";
+import type { AppCapabilities } from "../app/app-contracts";
 import { DeferredDeletionController, type DeferredDeletionNoticeOptions } from "../platform/deferred-deletion";
 import { LightDomElement } from "../platform/light-dom-controller";
 import { formatCalendarDate } from "../platform/format";
@@ -21,6 +22,7 @@ interface StartingPointWorkspaceOwners extends StartingPointOwners {
 }
 
 export type StartingPointApplicationOwners = StartingPointWorkspaceOwners & {
+  readonly gitHubImportPanel: StartingPointOwners["gitHubImportPanel"] & { configure(capabilities: AppCapabilities): void };
   readonly saveTemplateDialog: StartingPointOwners["saveTemplateDialog"] & {
     bindWorkspace(
       apiBase: string,
@@ -41,6 +43,7 @@ export class ProjectStartingPointBrowser extends LightDomElement {
     sourceTemplates: { state: true },
     status: { state: true },
     projectTitle: { state: true },
+    githubAvailable: { state: true },
   };
 
   declare private busy: boolean;
@@ -52,6 +55,7 @@ export class ProjectStartingPointBrowser extends LightDomElement {
   declare private sourceTemplates: ReadonlyMap<string, ProjectTemplateSummary>;
   declare private status: string;
   declare private projectTitle: string;
+  declare private githubAvailable: boolean;
   private parentDialog: HTMLDialogElement | null = null;
   private returnFocus: HTMLElement | null = null;
   private trigger: HTMLElement | null = null;
@@ -74,6 +78,11 @@ export class ProjectStartingPointBrowser extends LightDomElement {
     this.sourceTemplates = new Map();
     this.status = "Templates and existing projects create independent projects without research history.";
     this.projectTitle = "";
+    this.githubAvailable = false;
+  }
+
+  configure(capabilities: AppCapabilities): void {
+    this.githubAvailable = capabilities.github;
   }
 
   reset(): void {
@@ -94,7 +103,9 @@ export class ProjectStartingPointBrowser extends LightDomElement {
     this.startLoading();
   }
 
-  bindApplication(apiBase: string, owners: StartingPointApplicationOwners): void {
+  bindApplication(apiBase: string, capabilities: AppCapabilities, owners: StartingPointApplicationOwners): void {
+    this.configure(capabilities);
+    owners.gitHubImportPanel.configure(capabilities);
     this.bindWorkspace(owners);
     owners.saveTemplateDialog.bindWorkspace(apiBase, this, owners.toast);
   }
@@ -262,7 +273,13 @@ export class ProjectStartingPointBrowser extends LightDomElement {
             <button class="button-secondary" id="open-latex-import" type="button" @click=${() => this.openImport("import-latex")}>
               Import LaTeX
             </button>
-            <button class="button-secondary" id="open-github-import" type="button" @click=${() => this.openImport("import-github")}>
+            <button
+              class="button-secondary"
+              id="open-github-import"
+              type="button"
+              ?hidden=${!this.githubAvailable}
+              @click=${() => this.openImport("import-github")}
+            >
               Import GitHub
             </button>
             <button class="button-secondary" id="cancel-new-workspace" type="button" @click=${this.close}>Cancel</button>
@@ -302,6 +319,7 @@ export class ProjectStartingPointBrowser extends LightDomElement {
   }
 
   protected openImport(detail: StartingPointAction): void {
+    if (detail === "import-github" && !this.githubAvailable) return;
     this.close();
     if (detail === "import-latex") this.owners?.latexImportPanel.open();
     else this.owners?.gitHubImportPanel.open();

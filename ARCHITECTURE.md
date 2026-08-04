@@ -121,6 +121,15 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   Durable Object bindings and migrations while excluding remote bindings and
   cloud-only capabilities; `compose.yaml` must persist its local runtime state
   through one named volume.
+- Derive optional integrations as typed deployment capabilities from complete,
+  validated server configuration. Project only boolean availability into
+  server-rendered HTML bootstrap data; never expose configuration values or
+  provider credentials so the browser can infer availability. When a
+  capability is false, its server markup and browser owners must remain absent
+  or inert and emit no integration requests. APIs must independently enforce
+  the same server capability and return an explicit `503` before integration
+  work. Disabling a capability must not delete retained bindings, connection
+  state, synchronization data, or project content.
 - Keep normalized PDF analysis mechanics behind
   `src/lib/pdf-analysis/index.ts`. The core may depend on pure domain contracts
   but must not import PDF.js, browser globals, API handlers, client UI,

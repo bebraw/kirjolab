@@ -1,4 +1,4 @@
-export function renderWorkspaceSettingsDialog(): string {
+export function renderWorkspaceSettingsDialog(githubEnabled = true): string {
   return `<workspace-settings-panel id="workspace-settings-panel">
     <dialog class="new-workspace-dialog ui-dialog" id="workspace-settings-dialog">
       <form class="p-5" id="workspace-settings-form">
@@ -27,7 +27,7 @@ export function renderWorkspaceSettingsDialog(): string {
           <button class="button-secondary" id="duplicate-workspace" type="button">Duplicate</button>
           <button class="button-secondary" id="archive-workspace" type="button" data-destructive="true">Archive</button>
         </div>
-        <section class="mt-6 border-t border-app-line pt-5">
+        <section class="mt-6 border-t border-app-line pt-5" data-github-integration${githubEnabled ? "" : " hidden"}>
           <p class="eyebrow">GitHub sync</p>
           <p class="mt-2 text-sm leading-6 text-app-text-soft" id="github-sync-status">Checking connection…</p>
           <github-sync-review id="github-sync-review">

@@ -43,21 +43,27 @@ export async function handleGitHubWorkspaceSyncApi(
   identity: AuthIdentity,
   room: DocumentRoomStub,
   suffix: string,
-  client: GitHubSyncRemoteClient = githubClient(env),
+  client?: GitHubSyncRemoteClient,
   authorize: GitHubSelectionAuthorizer = authorizeGitHubSelection,
 ): Promise<Response> {
-  const context = { env, identity, room, client, authorize } satisfies GitHubSyncContext;
   try {
     if (suffix === "/github-sync" && request.method === "GET") return Response.json(await room.getGitHubSyncState());
-    if (suffix === "/github-sync/status" && request.method === "GET") return await inspectSync(context);
     if (suffix === "/github-sync" && request.method === "DELETE") {
       await room.disconnectGitHubProject();
       return new Response(null, { status: 204 });
     }
-    if (suffix === "/github-sync/pull-previews" && request.method === "POST") return await previewPull(context);
-    if (suffix === "/github-sync/pulls" && request.method === "POST") return await confirmPull(request, context);
-    if (suffix === "/github-sync/publish-previews" && request.method === "POST") return await previewPublish(request, context);
-    if (suffix === "/github-sync/publishes" && request.method === "POST") return await confirmPublish(request, context);
+    const remoteContext = (): GitHubSyncContext => ({
+      env,
+      identity,
+      room,
+      client: client ?? githubClient(env),
+      authorize,
+    });
+    if (suffix === "/github-sync/status" && request.method === "GET") return await inspectSync(remoteContext());
+    if (suffix === "/github-sync/pull-previews" && request.method === "POST") return await previewPull(remoteContext());
+    if (suffix === "/github-sync/pulls" && request.method === "POST") return await confirmPull(request, remoteContext());
+    if (suffix === "/github-sync/publish-previews" && request.method === "POST") return await previewPublish(request, remoteContext());
+    if (suffix === "/github-sync/publishes" && request.method === "POST") return await confirmPublish(request, remoteContext());
     return jsonError("GitHub sync route not found", 404);
   } catch (error) {
     return githubErrorResponse(error);

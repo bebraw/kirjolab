@@ -14,6 +14,35 @@ const identity = {
 } satisfies AuthIdentity;
 
 describe("GitHub sync API in the Workers runtime", () => {
+  it("reads and disconnects local sync state without GitHub credentials", async () => {
+    const room = env.DOCUMENT_ROOMS.getByName(`local-state-${crypto.randomUUID()}`);
+    const unconfiguredEnv = new Proxy(env, {
+      get(target, property) {
+        if (typeof property === "string" && property.startsWith("GITHUB_")) return "";
+        return Reflect.get(target, property);
+      },
+    });
+
+    const readResponse = await handleGitHubWorkspaceSyncApi(
+      new Request("http://example.com/api/workspaces/project/github-sync"),
+      unconfiguredEnv,
+      identity,
+      room,
+      "/github-sync",
+    );
+    expect(readResponse.status).toBe(200);
+    await expect(readResponse.json()).resolves.toBeNull();
+
+    const disconnectResponse = await handleGitHubWorkspaceSyncApi(
+      new Request("http://example.com/api/workspaces/project/github-sync", { method: "DELETE" }),
+      unconfiguredEnv,
+      identity,
+      room,
+      "/github-sync",
+    );
+    expect(disconnectResponse.status).toBe(204);
+  });
+
   it("imports an exact preview and publishes a reviewed direct commit", async () => {
     const client = new FakeGitHubClient(snapshot("a".repeat(40), "Imported head"));
     const previewResponse = await handleGitHubImportApi(

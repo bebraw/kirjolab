@@ -64,7 +64,13 @@ describe("GitHub sync menu", () => {
     const refreshProject = vi.fn(async () => undefined);
     vi.stubGlobal("navigator", { onLine: true });
     vi.spyOn(globalThis, "fetch").mockResolvedValue(Response.json(null));
-    menu.bindWorkspace("/api/workspaces/project", false, { request: refreshProject }, { workspaceSettingsPanel: settings });
+    menu.bindWorkspace(
+      "/api/workspaces/project",
+      false,
+      { github: true },
+      { request: refreshProject },
+      { workspaceSettingsPanel: settings },
+    );
 
     menu.dispatchEvent(new CustomEvent<GitHubSyncStateDetail>(gitHubSyncStateEvent, { detail: { connected: true, message: "Synced" } }));
     menu.dispatchEvent(new CustomEvent(gitHubSyncPullEvent));
@@ -89,7 +95,13 @@ describe("GitHub sync menu", () => {
     const settings = new TestWorkspaceSettings();
     vi.stubGlobal("navigator", { onLine: true });
     const refresh = vi.spyOn(menu, "refresh").mockResolvedValue();
-    menu.bindWorkspace("/api/workspaces/project", false, { request: async () => undefined }, { workspaceSettingsPanel: settings });
+    menu.bindWorkspace(
+      "/api/workspaces/project",
+      false,
+      { github: true },
+      { request: async () => undefined },
+      { workspaceSettingsPanel: settings },
+    );
 
     settings.activePreview = true;
     await menu.refreshWorkspace();
@@ -111,7 +123,13 @@ describe("GitHub sync menu", () => {
     vi.stubGlobal("window", browserWindow);
     vi.stubGlobal("document", browserDocument);
     const refreshWorkspace = vi.spyOn(menu, "refreshWorkspace").mockResolvedValue(undefined);
-    menu.bindWorkspace("/api/workspaces/project", true, { request: async () => undefined }, { workspaceSettingsPanel: settings });
+    menu.bindWorkspace(
+      "/api/workspaces/project",
+      true,
+      { github: true },
+      { request: async () => undefined },
+      { workspaceSettingsPanel: settings },
+    );
 
     browserWindow.dispatchEvent(new Event("focus"));
     browserWindow.dispatchEvent(new Event("online"));
@@ -125,9 +143,39 @@ describe("GitHub sync menu", () => {
     expect(refreshWorkspace).toHaveBeenCalledTimes(3);
   });
 
+  it("stays inert when the deployment has no GitHub capability", async () => {
+    const menu = new GitHubSyncMenu();
+    const settings = new TestWorkspaceSettings();
+    const browserWindow = new EventTarget();
+    const browserDocument = Object.assign(new EventTarget(), { visibilityState: "visible" });
+    vi.stubGlobal("window", browserWindow);
+    vi.stubGlobal("document", browserDocument);
+    const fetchMock = vi.spyOn(globalThis, "fetch");
+
+    menu.bindWorkspace(
+      "/api/workspaces/project",
+      true,
+      { github: false },
+      { request: async () => undefined },
+      { workspaceSettingsPanel: settings },
+    );
+    const ambientRefresh = vi.spyOn(menu, "refreshWorkspace");
+    browserWindow.dispatchEvent(new Event("focus"));
+    browserWindow.dispatchEvent(new Event("online"));
+    browserDocument.dispatchEvent(new Event("visibilitychange"));
+    expect(ambientRefresh).not.toHaveBeenCalled();
+    ambientRefresh.mockRestore();
+
+    await menu.refreshWorkspace(true);
+    await menu.refresh();
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(settings.resetCount).toBe(0);
+  });
+
   it("owns connection and status refresh presentation", async () => {
     const menu = new GitHubSyncMenu();
-    menu.configure("/api/workspaces/project");
+    menu.configure("/api/workspaces/project", { github: true });
     const states: GitHubSyncStateDetail[] = [];
     menu.addEventListener(gitHubSyncStateEvent, (event) => states.push((event as CustomEvent<GitHubSyncStateDetail>).detail));
     const fetchMock = vi
@@ -161,7 +209,7 @@ describe("GitHub sync menu", () => {
 
   it("reports disconnected and failed refreshes", async () => {
     const menu = new GitHubSyncMenu();
-    menu.configure("/api/workspaces/project");
+    menu.configure("/api/workspaces/project", { github: true });
     const states: GitHubSyncStateDetail[] = [];
     menu.addEventListener(gitHubSyncStateEvent, (event) => states.push((event as CustomEvent<GitHubSyncStateDetail>).detail));
     vi.spyOn(globalThis, "fetch")
@@ -179,7 +227,7 @@ describe("GitHub sync menu", () => {
 
   it("ignores a superseded connection response", async () => {
     const menu = new GitHubSyncMenu();
-    menu.configure("/api/workspaces/project");
+    menu.configure("/api/workspaces/project", { github: true });
     const states: GitHubSyncStateDetail[] = [];
     menu.addEventListener(gitHubSyncStateEvent, (event) => states.push((event as CustomEvent<GitHubSyncStateDetail>).detail));
     let resolveFirst: (response: Response) => void = () => undefined;

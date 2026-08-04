@@ -218,11 +218,13 @@ Kirjolab's Worker entry point is `src/worker.ts`. `npm run dev` supervises the
 Worker on `http://127.0.0.1:8787` and, when configured, the model companion on
 `http://127.0.0.1:8790`; stopping either process stops the other. Playwright
 uses `npm run e2e:server` on `http://127.0.0.1:8788` so browser tests can run
-without extra setup or a model process. The E2E launcher forces Chokidar polling
-mode, uses fresh temporary persistence, and acknowledges artifact-analysis jobs
-without launching Browser Rendering because those endpoints are mocked by the
-suite. It removes the persistence tree on shutdown. Browser-created workspaces
-therefore cannot accumulate in the interactive `npm run dev` catalog. API
+without extra setup or a model process. The Playwright gate also starts an
+unconfigured-GitHub profile on `http://127.0.0.1:8789` for disabled-capability
+coverage. Each E2E launcher forces Chokidar polling mode, uses fresh temporary
+persistence, and acknowledges artifact-analysis jobs without launching Browser
+Rendering because those endpoints are mocked by the suite. It removes the
+persistence tree on shutdown. Browser-created workspaces therefore cannot
+accumulate in the interactive `npm run dev` catalog. API
 modules live under `src/api/`, view modules live under `src/views/`, and tests
 are colocated under `src/`.
 

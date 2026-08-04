@@ -230,7 +230,7 @@ function normalizeConfig(config: GitHubUserClientConfig): GitHubUserClientConfig
   if (oauthBase && !/^https?:\/\//u.test(oauthBase)) throw new GitHubUserError("configuration", "GitHub OAuth base URL is invalid");
   return {
     clientId: config.clientId.trim(),
-    clientSecret: config.clientSecret,
+    clientSecret: config.clientSecret.trim(),
     ...(apiBase ? { apiBase } : {}),
     ...(oauthBase ? { oauthBase } : {}),
   };

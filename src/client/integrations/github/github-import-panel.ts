@@ -1,6 +1,7 @@
 import { html, type TemplateResult } from "lit";
 import { LightDomElement } from "../../platform/light-dom-controller";
 import {
+  type AppCapabilities,
   isGitHubBranchList,
   isGitHubConnectionState,
   isGitHubImportPreview,
@@ -48,6 +49,7 @@ export class GitHubImportPanel extends LightDomElement {
     canConfirm: { state: true },
     connected: { state: true },
     connectionMessage: { state: true },
+    available: { state: true },
   };
 
   declare private projectTitleValue: string;
@@ -68,8 +70,11 @@ export class GitHubImportPanel extends LightDomElement {
   declare private canConfirm: boolean;
   declare private connected: boolean;
   declare private connectionMessage: string;
+  declare private available: boolean;
   private pickerRequest = 0;
   private browserResultInitialized = false;
+  private capabilityConfigured = false;
+  private lifecycleConnected = false;
 
   constructor() {
     super();
@@ -91,6 +96,17 @@ export class GitHubImportPanel extends LightDomElement {
     this.canConfirm = false;
     this.connected = false;
     this.connectionMessage = "Checking connection…";
+    this.available = false;
+  }
+
+  configure(capabilities: AppCapabilities): void {
+    this.capabilityConfigured = true;
+    this.available = capabilities.github;
+    if (!this.available) {
+      this.pickerRequest += 1;
+      this.resetPreview();
+    }
+    this.initializeBrowserResult();
   }
 
   get selection(): GitHubImportSelection {
@@ -108,6 +124,7 @@ export class GitHubImportPanel extends LightDomElement {
   }
 
   open(): void {
+    if (!this.available) return;
     this.resetPreview();
     this.dialog.showModal();
     this.focusTitle();
@@ -119,7 +136,7 @@ export class GitHubImportPanel extends LightDomElement {
     replace = (path: string): void => history.replaceState(history.state, "", path),
   ): boolean {
     const result = url.searchParams.get("github");
-    if (result !== "connected" && result !== "installed") return false;
+    if (!this.available || (result !== "connected" && result !== "installed")) return false;
     this.open();
     replace(url.pathname);
     return true;
@@ -141,6 +158,7 @@ export class GitHubImportPanel extends LightDomElement {
   }
 
   async refreshConnection(): Promise<void> {
+    if (!this.available) return;
     const requestId = ++this.pickerRequest;
     this.resetPreview();
     this.beginConnectionRefresh();
@@ -320,14 +338,18 @@ export class GitHubImportPanel extends LightDomElement {
   }
 
   override connectedCallback(): void {
+    this.lifecycleConnected = true;
     super.connectedCallback();
-    if (!this.browserResultInitialized) {
-      this.browserResultInitialized = true;
-      void this.updateComplete.then(() => this.openFromBrowserResult());
-    }
+    this.initializeBrowserResult();
+  }
+
+  override disconnectedCallback(): void {
+    this.lifecycleConnected = false;
+    super.disconnectedCallback();
   }
 
   protected override render(): TemplateResult {
+    if (!this.available) return html``;
     const ready = Boolean(this.installationId && this.repositoryId && this.branch);
     return html`
       <section class="mt-5 border-y border-app-line py-4" aria-labelledby="github-connection-heading">
@@ -484,6 +506,7 @@ export class GitHubImportPanel extends LightDomElement {
 
   protected async previewImport(event: SubmitEvent): Promise<void> {
     event.preventDefault();
+    if (!this.available) return;
     this.beginPreview();
     try {
       const selection = this.selection;
@@ -510,7 +533,7 @@ export class GitHubImportPanel extends LightDomElement {
   }
 
   protected async confirmImport(): Promise<void> {
-    if (!this.preview) return;
+    if (!this.available || !this.preview) return;
     this.beginCreation();
     try {
       const value = await requestGitHubJson(
@@ -526,6 +549,7 @@ export class GitHubImportPanel extends LightDomElement {
   }
 
   protected async disconnect(): Promise<void> {
+    if (!this.available) return;
     if (!confirm("Disconnect your GitHub account from Kirjolab? Existing project files and repositories will not be deleted.")) return;
     try {
       await expectOk(await fetch("/api/github/connection", { method: "DELETE", credentials: "same-origin" }));
@@ -539,6 +563,12 @@ export class GitHubImportPanel extends LightDomElement {
     const dialog = this.closest("dialog");
     if (!(dialog instanceof HTMLDialogElement)) throw new Error("GitHub import panel requires a dialog parent");
     return dialog;
+  }
+
+  private initializeBrowserResult(): void {
+    if (this.browserResultInitialized || !this.lifecycleConnected || !this.capabilityConfigured || !this.available) return;
+    this.browserResultInitialized = true;
+    void this.updateComplete.then(() => this.openFromBrowserResult());
   }
 }
 

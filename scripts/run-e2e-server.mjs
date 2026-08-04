@@ -2,8 +2,12 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawn } from "node:child_process";
+import { generateKeyPairSync } from "node:crypto";
 
 const persistenceDirectory = await mkdtemp(join(tmpdir(), "kirjolab-e2e-"));
+const port = process.env.KIRJOLAB_E2E_PORT ?? "8788";
+const inspectorPort = process.env.KIRJOLAB_E2E_INSPECTOR_PORT ?? "9230";
+const gitHubVariables = process.env.KIRJOLAB_E2E_GITHUB === "disabled" ? [] : gitHubTestVariables();
 const wrangler = spawn(
   "./node_modules/.bin/wrangler",
   [
@@ -12,14 +16,15 @@ const wrangler = spawn(
     "--ip",
     "127.0.0.1",
     "--port",
-    "8788",
+    port,
     "--var",
     "AUTH_MODE:local",
     "ARTIFACT_ANALYSIS_MODE:disabled",
+    ...gitHubVariables,
     "--inspector-ip",
     "127.0.0.1",
     "--inspector-port",
-    "9230",
+    inspectorPort,
     "--persist-to",
     persistenceDirectory,
     "--log-level",
@@ -57,3 +62,19 @@ await rm(persistenceDirectory, { recursive: true, force: true });
 if ("error" in result) throw result.error;
 if (!requestedSignal && result.signal) process.kill(process.pid, result.signal);
 process.exitCode = requestedSignal ? 0 : (result.code ?? 1);
+
+function gitHubTestVariables() {
+  // This ephemeral key is not registered with GitHub; it only exercises the configured deployment path.
+  const privateKey = generateKeyPairSync("rsa", { modulusLength: 2048 })
+    .privateKey.export({ format: "pem", type: "pkcs1" })
+    .toString()
+    .replaceAll("\n", "\\n");
+  return [
+    "GITHUB_APP_ID:1",
+    "GITHUB_APP_CLIENT_ID:test-client",
+    "GITHUB_APP_SLUG:kirjolab-test",
+    `GITHUB_APP_PRIVATE_KEY:${privateKey}`,
+    "GITHUB_APP_CLIENT_SECRET:test-client-secret-1234",
+    "GITHUB_CONNECTION_ENCRYPTION_KEY:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+  ];
+}

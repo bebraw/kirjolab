@@ -39,6 +39,15 @@ incoming and outgoing mutation.
   schemas validate GitHub identity, installation/account, repository, and branch
   responses before domain projection; response-byte and pagination ceilings,
   OAuth input policy, and stable error mapping remain explicit transport rules.
+- GitHub is an optional deployment capability. The server derives its
+  availability from the complete, structurally valid App id, App client id,
+  App slug, private key, client secret, and connection-encryption key. Partial
+  configuration is unavailable rather than a degraded GitHub mode.
+- Only the resulting `github` boolean crosses the server-rendered HTML
+  bootstrap boundary. When false, GitHub import, connection, and synchronization
+  controls are absent or inert; their browser owners do not attach workflows,
+  subscribe to refresh triggers, or issue GitHub requests. No configuration
+  value or missing-field detail is exposed to the browser.
 - Import, Pull, and Publish are two-phase operations: a read-only preview is
   followed by an explicit confirmation carrying an opaque, expiring preview
   identity. Confirmation fails if the project revision, binding, remote head,
@@ -119,6 +128,11 @@ incoming and outgoing mutation.
 
 ### API Contracts
 
+- Every GitHub connection, import, and workspace-synchronization API checks the
+  server-derived GitHub deployment capability independently of browser state.
+  When unavailable, it returns an explicit `503` before provider access or
+  integration business logic. Retained connection, binding, synchronization,
+  and project data are not changed by that response.
 - `GET /api/github/connect` begins an owner-scoped GitHub user authorization;
   `GET /api/github/callback` consumes its one-time state and stores only
   encrypted token material.
@@ -219,6 +233,11 @@ incoming and outgoing mutation.
   installation, or write outside the configured subtree.
 - Do not treat a GitHub owner/name, branch name, path, client-supplied commit, or
   preview payload as sufficient authorization.
+- Do not infer availability from public GitHub identifiers in the browser,
+  probe an integration endpoint during startup, or rely on hidden controls to
+  protect the API.
+- Do not disconnect users, remove project bindings, or clear synchronization
+  bases when GitHub deployment configuration is absent.
 - Do not advance the synchronized base before the internal pull transaction or
   external reference update is known to have succeeded.
 
@@ -242,6 +261,9 @@ incoming and outgoing mutation.
       synchronization checkpoint without changing the project revision.
 - [x] A connected workspace shows automatic sync status and preview-first Pull
       and Push actions in the main toolbar.
+- [x] A deployment without complete GitHub configuration exposes no actionable
+      GitHub UI, emits no GitHub browser requests, returns `503` from direct
+      GitHub API calls, and preserves retained integration data.
 - [x] Unknown Markdown syntax and all untracked repository content remain
       byte-for-byte unchanged by operations that do not edit them.
 - [x] Revoked access, stale previews, protected branches, timeouts, and retries
@@ -260,6 +282,14 @@ incoming and outgoing mutation.
   history, or Durable Object storage.
 - GitHub user and refresh tokens are encrypted with owner-bound authenticated
   encryption in Durable Object storage and never returned to the browser.
+- GitHub availability is derived only from complete validated server
+  configuration; HTML bootstrap receives one boolean and never receives
+  provider configuration or credentials.
+- When GitHub is unavailable, no server-rendered or client-owned control may
+  start connection, import, status, Pull, Publish, or disconnect requests, and
+  every corresponding API remains independently guarded by an explicit `503`.
+- Disabling GitHub must not mutate encrypted connection state, project
+  bindings, synchronized bases, canonical project content, or GitHub itself.
 - Every remote write is confined to the immutable repository id, configured
   branch, and normalized subtree revalidated by the server at confirmation.
 - Pull and Publish always have a separately confirmed diff preview; preview
@@ -338,6 +368,16 @@ incoming and outgoing mutation.
 - Then: Kirjolab reports the protected-branch failure, creates no fallback PR,
   and leaves project content and the synchronized base unchanged
 
+**Scenario: Run without the GitHub integration**
+
+- Given: the deployment does not have complete valid GitHub configuration and
+  may retain a previously connected project's GitHub state
+- When: the user opens the dashboard or workspace, or a client calls a GitHub
+  API directly
+- Then: the browser exposes no actionable GitHub workflow or GitHub request,
+  the API returns `503`, and all retained integration and project data remains
+  unchanged
+
 ## Current Milestone
 
 - Implemented design: manual import, Pull, and reviewed direct Publish for bounded
@@ -361,6 +401,10 @@ incoming and outgoing mutation.
 - Implemented per-user connection boundary: owner-scoped OAuth and installation
   state, encrypted GitHub user tokens, accessible-installation verification,
   and repository-restricted installation token minting.
+- Implemented optional-deployment boundary: complete server configuration
+  derives one typed GitHub capability, only its boolean reaches browser
+  bootstrap, unavailable browser owners emit no requests, direct APIs return
+  `503`, and retained integration state remains non-destructive.
 - Implemented guided source selection: connected owners choose an accessible
   personal or organization installation, repository, and discovered branch;
   repository identity fields and installation ids are no longer typed by hand.
