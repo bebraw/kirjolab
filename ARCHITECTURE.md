@@ -106,6 +106,30 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   adjacent capability services. A delegated service may own SQL and mapping for
   its bounded lifecycle, but it must not hide or relocate a multi-resource
   transaction.
+- Keep portable runtime contracts source-local and capability-specific. Domain
+  and capability services may depend on provider-neutral contracts; Cloudflare,
+  Node.js, and other host adapters may depend on their platform APIs. Begin with
+  a narrow synchronous SQLite contract for statements, typed queries, and
+  atomic transactions. Keep Durable Object RPC, authorization, coordination,
+  blobs, jobs, scheduling, HTTP/WebSocket hosting, and deployment policy out of
+  that database contract.
+- Treat the Docker Compose self-host profile as a loopback-only, single-replica
+  evaluation surface until native identity, blob, job, scheduling, hosting, and
+  collaboration adapters are implemented. Its workerd/Miniflare state is not a
+  portable backup format, and local authentication must never be exposed as a
+  public trust boundary. Keep `wrangler.self-host.jsonc` aligned with the hosted
+  Durable Object bindings and migrations while excluding remote bindings and
+  cloud-only capabilities; `compose.yaml` must persist its local runtime state
+  through one named volume.
+- Derive optional integrations as typed deployment capabilities from complete,
+  validated server configuration. Project only boolean availability into
+  server-rendered HTML bootstrap data; never expose configuration values or
+  provider credentials so the browser can infer availability. When a
+  capability is false, its server markup and browser owners must remain absent
+  or inert and emit no integration requests. APIs must independently enforce
+  the same server capability and return an explicit `503` before integration
+  work. Disabling a capability must not delete retained bindings, connection
+  state, synchronization data, or project content.
 - Keep normalized PDF analysis mechanics behind
   `src/lib/pdf-analysis/index.ts`. The core may depend on pure domain contracts
   but must not import PDF.js, browser globals, API handlers, client UI,
@@ -385,7 +409,8 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   stage. Let the workspace Preview derive source-to-Preview eligibility
   from its bound active file, snapshot, context, layout, and sync owner, then
   reveal the nearest mapped DOM range itself. Keep file activation, authoring
-  mode, caret, and source-focus policy in the application coordinator.
+  mode, caret placement, and source-focus policy in the project-file
+  lifecycle.
 - Keep the DOI publication-intake XState actor, preview and acceptance
   requests, stale-response guards, local status, and focus lifecycle inside the
   bounded intake Lit component. Let that component also derive the active PDF's
@@ -1252,8 +1277,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   corresponding centered or selected source offset; and delegate file focus
   and Preview synchronization through directly bound project-file and Preview
   owners. The workspace Preview installs this complete source binding with its
-  project lifecycle. Keep active file, context, and layout authority, Preview DOM
-  navigation, caret placement, and focus policy in the application coordinator.
+  project lifecycle. Keep active-file, context, and layout authority in their
+  canonical owners; keep Preview DOM navigation and live geometry in the
+  workspace Preview; and keep file activation, caret placement, and focus
+  policy in the project-file lifecycle.
 - Keep source-completion interaction in its bounded light-DOM component: use
   one atomic workspace binding for the editor, citation-scope control, project
   acceptance owners, and API route; bind editor change, keyboard, and blur behavior there; invoke one coordinator

@@ -26,7 +26,8 @@ import {
   PreviewDiagnosticsPanel,
   type PreviewDiagnosticSelection,
 } from "./preview-presentation";
-import { PreviewSyncControls, type PreviewScrollBinding, type PreviewSyncOwners } from "./preview-sync-controls";
+import { PreviewSyncControls, type PreviewScrollBinding, type PreviewScrollEdge, type PreviewSyncOwners } from "./preview-sync-controls";
+import { lowerBound } from "./lower-bound";
 import type { ProjectFileDialog } from "../project/project-file-dialog";
 import { ProjectExportDialog } from "../project/project-export-dialog";
 import { RESEARCH_PREVIEW_KEY } from "../context/research-context";
@@ -84,6 +85,19 @@ export interface ProjectPreviewOutcome {
 
 type PreviewContent = { readonly kind: "html" | "source"; readonly value: string };
 
+interface PreviewScrollBlock {
+  readonly element: HTMLElement;
+  readonly from: number;
+  readonly to: number;
+}
+
+interface PreviewScrollBlockIndex {
+  readonly source: readonly PreviewScrollBlock[];
+  readonly sourcePositions: ReadonlyMap<PreviewScrollBlock, number>;
+  readonly visual: readonly PreviewScrollBlock[];
+  readonly visualPositions: ReadonlyMap<PreviewScrollBlock, number>;
+}
+
 export interface ProjectPreviewImageContext {
   readonly apiBase: string;
   readonly hiddenAssetIds: ReadonlySet<string>;
@@ -97,6 +111,7 @@ export class WorkspacePreview extends LightDomElement {
 
   declare private content: PreviewContent;
   private projectBinding: WorkspacePreviewProjectBinding | null = null;
+  private previewScrollBlockIndex: PreviewScrollBlockIndex | null = null;
   private renderVersion = 0;
   private syncHighlightTimer: number | undefined;
 
@@ -153,6 +168,7 @@ export class WorkspacePreview extends LightDomElement {
     } catch (error) {
       if (version !== this.renderVersion) return null;
       this.content = { kind: "source", value: request.renderedSource };
+      this.previewScrollBlockIndex = null;
       await this.updateComplete;
       this.diagnostics.showUnavailable(error instanceof Error ? error.message : "The Markdown renderer could not be loaded");
       return { available: false };
@@ -165,6 +181,7 @@ export class WorkspacePreview extends LightDomElement {
       { headingNumbers: previewHeadingNumbers(runtime, request.filePreview, request.publicationComposition) },
     );
     this.content = { kind: "html", value: rendered.html };
+    this.previewScrollBlockIndex = null;
     await this.updateComplete;
     if (version !== this.renderVersion) return null;
     if (request.snapshot) {
@@ -296,8 +313,6 @@ export class WorkspacePreview extends LightDomElement {
     }
   }
 
-  // PreviewSyncControls binds this through the PreviewSyncOwners workspace adapter.
-  // fallow-ignore-next-line unused-class-member
   bindScrollSync(binding: PreviewScrollBinding, signal: AbortSignal): void {
     const options = { signal };
     this.viewport.addEventListener("pointerdown", binding.onIntent, options);
@@ -318,6 +333,33 @@ export class WorkspacePreview extends LightDomElement {
     if (offset === null) return null;
     if (markTarget) this.markSyncTarget(target);
     return offset;
+  }
+
+  centeredPreviewScrollOffset(): number | null {
+    const index = this.scrollBlockIndex();
+    if (index.visual.length === 0) return null;
+    const viewportBounds = this.viewport.getBoundingClientRect();
+    return previewOffsetAtPosition(index, viewportBounds.top + this.viewport.clientHeight / 2);
+  }
+
+  centerPreviewScrollOffsets(offsets: readonly number[], edge: PreviewScrollEdge = null): boolean {
+    const index = this.scrollBlockIndex();
+    if (index.source.length === 0 || offsets.length === 0) return false;
+    const viewportBounds = this.viewport.getBoundingClientRect();
+    const viewportCenter = viewportBounds.top + this.viewport.clientHeight / 2;
+    let target: number | null = null;
+    for (const offset of offsets) {
+      const position = previewPositionForOffset(index, offset);
+      if (position === null) continue;
+      if (target === null || Math.abs(position - viewportCenter) < Math.abs(target - viewportCenter)) target = position;
+    }
+    if (target === null) return false;
+    this.viewport.scrollTop = edge === null ? this.viewport.scrollTop + target - viewportCenter : scrollTopAtEdge(this.viewport, edge);
+    return true;
+  }
+
+  previewScrollEdge(): PreviewScrollEdge {
+    return scrollEdge(this.viewport);
   }
 
   revealNearestSource(offsets: readonly number[], markTarget = true): boolean {
@@ -342,6 +384,25 @@ export class WorkspacePreview extends LightDomElement {
       });
     candidates.sort((left, right) => left.distance - right.distance || left.rangeLength - right.rangeLength);
     return candidates[0]?.element ?? null;
+  }
+
+  private scrollBlockIndex(): PreviewScrollBlockIndex {
+    if (this.previewScrollBlockIndex) return this.previewScrollBlockIndex;
+    const selector = "[data-source-from][data-source-to]";
+    const visual: PreviewScrollBlock[] = [];
+    for (const element of this.article.querySelectorAll<HTMLElement>(selector)) {
+      const ancestor = element.parentElement?.closest<HTMLElement>(selector);
+      if (ancestor && this.article.contains(ancestor)) continue;
+      const from = sourceBoundary(element.dataset.sourceFrom);
+      const to = sourceBoundary(element.dataset.sourceTo);
+      if (from === null || to === null || to <= from) continue;
+      visual.push({ element, from, to });
+    }
+    const source = [...visual].sort((left, right) => left.from - right.from || left.to - right.to);
+    const sourcePositions = new Map(source.map((block, position) => [block, position]));
+    const visualPositions = new Map(visual.map((block, position) => [block, position]));
+    this.previewScrollBlockIndex = { source, sourcePositions, visual, visualPositions };
+    return this.previewScrollBlockIndex;
   }
 
   protected center(target: HTMLElement): void {
@@ -447,6 +508,88 @@ function previewSourceRangeLength(element: HTMLElement): number {
   const from = Number.parseInt(element.dataset.sourceFrom ?? "", 10);
   const to = Number.parseInt(element.dataset.sourceTo ?? "", 10);
   return Number.isSafeInteger(from) && Number.isSafeInteger(to) ? Math.max(0, to - from) : Number.POSITIVE_INFINITY;
+}
+
+function sourceBoundary(value: string | undefined): number | null {
+  if (!value) return null;
+  const boundary = Number(value);
+  return Number.isSafeInteger(boundary) && boundary >= 0 ? boundary : null;
+}
+
+function previewOffsetAtPosition(index: PreviewScrollBlockIndex, position: number): number | null {
+  const blocks = index.visual;
+  const lower = lowerBound(blocks, (block) => rectBottom(block.element.getBoundingClientRect()) < position);
+  if (lower === null) return null;
+  const next = blocks[lower];
+  if (!next) {
+    const last = blocks.at(-1);
+    return last ? offsetWithinBlock(last, 1) : null;
+  }
+  const nextBounds = next.element.getBoundingClientRect();
+  if (position >= nextBounds.top) {
+    return offsetWithinBlock(next, progressBetween(nextBounds.top, rectBottom(nextBounds), position));
+  }
+  const previous = blocks[lower - 1];
+  if (!previous) return next.from;
+  if (previous.to > next.from || !areAdjacent(previous, next, index.sourcePositions)) return null;
+  const previousBounds = previous.element.getBoundingClientRect();
+  return interpolate(previous.to, next.from, progressBetween(rectBottom(previousBounds), nextBounds.top, position));
+}
+
+function previewPositionForOffset(index: PreviewScrollBlockIndex, offset: number): number | null {
+  if (!Number.isFinite(offset)) return null;
+  const blocks = index.source;
+  const lower = lowerBound(blocks, (block) => block.to <= offset);
+  if (lower === null) return null;
+  const next = blocks[lower];
+  if (!next) {
+    const lastBounds = blocks.at(-1)?.element.getBoundingClientRect();
+    return lastBounds ? rectBottom(lastBounds) : null;
+  }
+  const nextBounds = next.element.getBoundingClientRect();
+  if (offset >= next.from) return interpolate(nextBounds.top, rectBottom(nextBounds), progressBetween(next.from, next.to, offset));
+  const previous = blocks[lower - 1];
+  if (!previous) return nextBounds.top;
+  if (previous.to > next.from || !areAdjacent(previous, next, index.visualPositions)) return null;
+  const previousBounds = previous.element.getBoundingClientRect();
+  if (rectBottom(previousBounds) > nextBounds.top) return null;
+  return interpolate(rectBottom(previousBounds), nextBounds.top, progressBetween(previous.to, next.from, offset));
+}
+
+function areAdjacent(previous: PreviewScrollBlock, next: PreviewScrollBlock, positions: ReadonlyMap<PreviewScrollBlock, number>): boolean {
+  const previousPosition = positions.get(previous);
+  return previousPosition !== undefined && positions.get(next) === previousPosition + 1;
+}
+
+function offsetWithinBlock(block: PreviewScrollBlock, progress: number): number {
+  return interpolate(block.from, block.to - 0.000_001, progress);
+}
+
+function rectBottom(bounds: DOMRect): number {
+  return Number.isFinite(bounds.bottom) ? bounds.bottom : bounds.top + bounds.height;
+}
+
+function progressBetween(from: number, to: number, value: number): number {
+  if (to <= from) return 0;
+  return Math.max(0, Math.min(1, (value - from) / (to - from)));
+}
+
+function interpolate(from: number, to: number, progress: number): number {
+  return from + (to - from) * progress;
+}
+
+function scrollEdge(element: HTMLElement): PreviewScrollEdge {
+  if (element.scrollTop <= 1) return "start";
+  const maximum = maximumScrollTop(element);
+  return maximum - element.scrollTop <= 1 ? "end" : null;
+}
+
+function scrollTopAtEdge(element: HTMLElement, edge: Exclude<PreviewScrollEdge, null>): number {
+  return edge === "start" ? 0 : maximumScrollTop(element);
+}
+
+function maximumScrollTop(element: HTMLElement): number {
+  return Math.max(0, element.scrollHeight - element.clientHeight);
 }
 
 export function previewHeadingNumbers(

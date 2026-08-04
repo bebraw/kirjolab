@@ -1,8 +1,9 @@
-import { isRecord } from "../domain/unknown-value";
+import { isRecord } from "../../domain/unknown-value";
+import type { SQLiteCursor, SQLiteRow, SQLiteSql, SQLiteStorage } from "./storage";
 
 const migrationLedgerTable = "_kirjolab_migrations";
 
-interface MigrationLedgerRow extends Record<string, SqlStorageValue> {
+interface MigrationLedgerRow extends SQLiteRow {
   version: number;
   name: string;
 }
@@ -13,18 +14,11 @@ export interface SQLiteMigration {
   readonly apply: (sql: SQLiteMigrationSql) => undefined;
 }
 
-export interface SQLiteMigrationCursor<Row extends Record<string, SqlStorageValue>> {
-  toArray(): Row[];
-}
+export type SQLiteMigrationCursor<Row extends SQLiteRow> = SQLiteCursor<Row>;
 
-export interface SQLiteMigrationSql {
-  exec<Row extends Record<string, SqlStorageValue>>(query: string, ...bindings: SqlStorageValue[]): SQLiteMigrationCursor<Row>;
-}
+export type SQLiteMigrationSql = SQLiteSql;
 
-export interface SQLiteMigrationStorage {
-  readonly sql: SQLiteMigrationSql;
-  transactionSync<Result>(closure: () => Result): Result;
-}
+export type SQLiteMigrationStorage = SQLiteStorage;
 
 export function validateSQLiteMigrations(value: unknown): asserts value is readonly SQLiteMigration[] {
   if (!Array.isArray(value)) throw new TypeError("SQLite migrations must be an array");
@@ -73,6 +67,7 @@ export function runSQLiteMigrations(storage: SQLiteMigrationStorage, migrations:
 
   const latestAppliedVersion = Math.max(0, ...appliedByVersion.keys());
   for (const migration of migrations) {
+    // Stryker disable next-line EqualityOperator: an equal positive version is already present, so the has() guard makes < and <= equivalent.
     if (!appliedByVersion.has(migration.version) && migration.version < latestAppliedVersion) {
       throw new Error(
         `SQLite migration ${migration.version} cannot be applied after recorded migration ${latestAppliedVersion}; migrations are append-only`,

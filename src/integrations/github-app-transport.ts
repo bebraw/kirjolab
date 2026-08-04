@@ -95,6 +95,14 @@ export function invalidResponse(message: string): GitHubClientError {
   return new GitHubClientError("invalid-response", message);
 }
 
+export function isGitHubAppPrivateKey(value: string): boolean {
+  try {
+    return createPrivateKey(normalizePrivateKey(value)).asymmetricKeyType === "rsa";
+  } catch {
+    return false;
+  }
+}
+
 function validateConfig(config: GitHubAppConfig): GitHubAppConfig {
   if (!/^\d{1,20}$/u.test(config.appId.trim()) || !config.privateKey.trim()) {
     throw new GitHubClientError("configuration", "GitHub App credentials are not configured");

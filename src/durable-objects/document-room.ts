@@ -1,4 +1,5 @@
 import { DurableObject } from "cloudflare:workers";
+import { cloudflareSQLiteStorage } from "../persistence/sqlite/cloudflare";
 import * as Y from "yjs";
 import { isRecord as isRecordValue } from "../domain/unknown-value";
 import {
@@ -115,7 +116,7 @@ import {
   type WorkspaceSnapshot,
 } from "../domain/workspace/workspace";
 import { documentRoomDataMigrations, documentRoomSchemaMigrations } from "./document-room/migrations";
-import { runSQLiteMigrations } from "./migrations";
+import { runSQLiteMigrations } from "../persistence/sqlite/migrations";
 import { currentRecoveryBookmark } from "./recovery";
 
 export type DocumentRoomOperationResult<Value, Code extends string> = { ok: true; value: Value } | { ok: false; code: Code; error: string };
@@ -721,9 +722,10 @@ export class DocumentRoom extends DurableObject<Env> {
         workspaceRow: () => this.#workspaceRow(),
         folderAncestors,
       };
-      runSQLiteMigrations(this.ctx.storage, documentRoomSchemaMigrations(migrationDependencies));
+      const sqlite = cloudflareSQLiteStorage(this.ctx.storage);
+      runSQLiteMigrations(sqlite, documentRoomSchemaMigrations(migrationDependencies));
       this.#loadDocument();
-      runSQLiteMigrations(this.ctx.storage, documentRoomDataMigrations(migrationDependencies));
+      runSQLiteMigrations(sqlite, documentRoomDataMigrations(migrationDependencies));
       this.#ensureInitialRevision();
     });
   }

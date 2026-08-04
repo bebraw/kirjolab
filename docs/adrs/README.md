@@ -27,12 +27,14 @@ ADRs are grouped by lifecycle status:
 
 ## Accepted ADRs
 
-No accepted ADRs are awaiting implementation.
+No ADRs are currently accepted and awaiting implementation.
 
 ## Implemented ADRs
 
 | ADR                                                                                       | Status               | Summary                                                                                                         |
 | ----------------------------------------------------------------------------------------- | -------------------- | --------------------------------------------------------------------------------------------------------------- |
+| [ADR-221](./implemented/ADR-221-gate-optional-integrations-by-deployment-capability.md)   | Implemented          | Derive optional integrations from complete server configuration and expose only boolean browser capabilities.   |
+| [ADR-220](./implemented/ADR-220-establish-portable-self-host-boundaries.md)               | Implemented          | Add a loopback Compose evaluation profile and begin native portability at a provider-neutral SQLite adapter.    |
 | [ADR-219](./implemented/ADR-219-adopt-local-spec-and-tdd-skills.md)                       | Implemented          | Convert settled context into local specs and use focused TDD when observable behavior has a stable seam.        |
 | [ADR-218](./implemented/ADR-218-adopt-repository-local-wayfinding.md)                     | Implemented          | Preserve large, uncertain multi-session discovery in explicit repository-local maps.                            |
 | [ADR-217](./implemented/ADR-217-vendor-focused-engineering-quality-skills.md)             | Implemented          | Add pinned correctness-review, test-review, and debugging workflows under the canonical local skill root.       |

@@ -24,6 +24,7 @@ class FakeElement extends EventTarget {
   textContent = "";
   innerHTML = "";
   clientHeight = 100;
+  scrollHeight = 100;
   scrollTop = 0;
   scrolled = false;
   src = "";
@@ -153,6 +154,81 @@ describe("workspace preview document", () => {
     viewport.scrollTop = 0;
     preview.centerForTest(broad as never);
     expect(viewport.scrollTop).toBe(-5);
+  });
+
+  it("interpolates linked scrolling within rendered blocks and across their gaps", () => {
+    const article = new FakeElement();
+    const viewport = new FakeElement();
+    viewport.scrollHeight = 400;
+    viewport.scrollTop = 100;
+    viewport.setBounds({ top: 0, left: 0, width: 100, height: 100 });
+    const first = new FakeElement();
+    first.dataset.sourceFrom = "0";
+    first.dataset.sourceTo = "10";
+    first.setBounds({ top: -100, height: 100 });
+    const second = new FakeElement();
+    second.dataset.sourceFrom = "20";
+    second.dataset.sourceTo = "30";
+    second.setBounds({ top: 100, height: 100 });
+    article.sources.push(first, second);
+    const preview = new TestWorkspacePreview(htmlElement(article), htmlElement(viewport));
+
+    expect(preview.centeredPreviewScrollOffset()).toBe(15);
+    expect(preview.centerPreviewScrollOffsets([5])).toBe(true);
+    expect(viewport.scrollTop).toBe(0);
+    expect(preview.centerPreviewScrollOffsets([5], "end")).toBe(true);
+    expect(viewport.scrollTop).toBe(300);
+  });
+
+  it("maps source-reordered rendered blocks without interpolating across the reversal", () => {
+    const article = new FakeElement();
+    const viewport = new FakeElement();
+    viewport.setBounds({ top: 70, left: 0, width: 100, height: 100 });
+    const opening = new FakeElement();
+    opening.dataset.sourceFrom = "0";
+    opening.dataset.sourceTo = "9";
+    opening.setBounds({ top: 0, height: 20 });
+    const later = new FakeElement();
+    later.dataset.sourceFrom = "33";
+    later.dataset.sourceTo = "41";
+    later.setBounds({ top: 40, height: 20 });
+    const footnote = new FakeElement();
+    footnote.dataset.sourceFrom = "11";
+    footnote.dataset.sourceTo = "31";
+    footnote.setBounds({ top: 100, height: 40 });
+    article.sources.push(opening, later, footnote);
+    const preview = new TestWorkspacePreview(htmlElement(article), htmlElement(viewport));
+
+    expect(preview.centeredPreviewScrollOffset()).toBeCloseTo(21, 5);
+    expect(preview.centerPreviewScrollOffsets([21])).toBe(true);
+    expect(viewport.scrollTop).toBe(0);
+
+    const previewGapViewport = new FakeElement();
+    previewGapViewport.setBounds({ top: -20, left: 0, width: 100, height: 100 });
+    const previewGap = new TestWorkspacePreview(htmlElement(article), htmlElement(previewGapViewport));
+    expect(previewGap.centeredPreviewScrollOffset()).toBeNull();
+
+    const sourceGapViewport = new FakeElement();
+    sourceGapViewport.scrollTop = 7;
+    sourceGapViewport.setBounds({ top: 0, left: 0, width: 100, height: 100 });
+    const sourceGap = new TestWorkspacePreview(htmlElement(article), htmlElement(sourceGapViewport));
+    expect(sourceGap.centerPreviewScrollOffsets([10])).toBe(false);
+    expect(sourceGapViewport.scrollTop).toBe(7);
+  });
+
+  it("keeps the Preview tail inside the final half-open source range", () => {
+    const article = new FakeElement();
+    const viewport = new FakeElement();
+    viewport.setBounds({ top: 100, left: 0, width: 100, height: 100 });
+    const final = new FakeElement();
+    final.dataset.sourceFrom = "10";
+    final.dataset.sourceTo = "30";
+    final.setBounds({ top: 0, height: 40 });
+    article.sources.push(final);
+    const preview = new TestWorkspacePreview(htmlElement(article), htmlElement(viewport));
+
+    expect(preview.centeredPreviewScrollOffset()).toBeLessThan(30);
+    expect(preview.centeredPreviewScrollOffset()).toBeGreaterThan(29);
   });
 
   it("resolves authorized project images relative to their source files", () => {

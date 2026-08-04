@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { cloudflareSQLiteStorage, initializeCloudflareSQLiteMigrations } from "../persistence/sqlite/cloudflare";
 import {
   runSQLiteMigrations,
   validateSQLiteMigrations,
@@ -6,7 +7,7 @@ import {
   type SQLiteMigrationCursor,
   type SQLiteMigrationSql,
   type SQLiteMigrationStorage,
-} from "./migrations";
+} from "../persistence/sqlite/migrations";
 
 const apply = (): undefined => undefined;
 
@@ -45,6 +46,10 @@ describe("SQLite migration definitions", () => {
     expect(() => validateSQLiteMigrations([{ version: 1, name, apply }])).toThrow("migration names");
   });
 
+  it("accepts a migration name at the 200-character limit", () => {
+    expect(() => validateSQLiteMigrations([{ version: 1, name: "x".repeat(200), apply }])).not.toThrow();
+  });
+
   it("rejects non-array, non-object, and missing callback definitions", () => {
     expect(() => validateSQLiteMigrations(null)).toThrow("must be an array");
     expect(() => validateSQLiteMigrations([null])).toThrow("must be an object");
@@ -53,8 +58,38 @@ describe("SQLite migration definitions", () => {
 });
 
 describe("SQLite migration runner", () => {
+  it("initializes Cloudflare migrations inside the object concurrency gate", async () => {
+    const context = new FakeMigrationContext();
+    const migration: SQLiteMigration = { version: 1, name: "initialize", apply: vi.fn(apply) };
+
+    initializeCloudflareSQLiteMigrations(context, [migration]);
+    await Promise.all(context.initializations);
+
+    expect(context.blockCount).toBe(1);
+    expect(migration.apply).toHaveBeenCalledOnce();
+    expect(context.storage.recordedMigrations).toEqual([{ version: 1, name: "initialize" }]);
+  });
+
+  it("keeps a failed Cloudflare migration inside the rejecting concurrency gate", async () => {
+    const context = new FakeMigrationContext();
+    const migration: SQLiteMigration = {
+      version: 1,
+      name: "fail-initialize",
+      apply: () => {
+        throw new Error("migration failed");
+      },
+    };
+
+    initializeCloudflareSQLiteMigrations(context, [migration]);
+
+    await expect(Promise.all(context.initializations)).rejects.toThrow("migration failed");
+    expect(context.blockCount).toBe(1);
+    expect(context.storage.recordedMigrations).toEqual([]);
+  });
+
   it("applies each migration once and permits later append-only phases", () => {
-    const storage = new FakeMigrationStorage();
+    const source = new FakeMigrationStorage();
+    const storage = cloudflareSQLiteStorage(source);
     const first = vi.fn(apply);
     const second = vi.fn(apply);
 
@@ -64,7 +99,7 @@ describe("SQLite migration runner", () => {
 
     expect(first).toHaveBeenCalledOnce();
     expect(second).toHaveBeenCalledOnce();
-    expect(storage.recordedMigrations).toEqual([
+    expect(source.recordedMigrations).toEqual([
       { version: 2, name: "initial-phase" },
       { version: 4, name: "later-phase" },
     ]);
@@ -131,6 +166,19 @@ interface RecordedMigration {
   readonly name: string;
 }
 
+class FakeMigrationContext {
+  readonly storage = new FakeMigrationStorage();
+  readonly initializations: Promise<unknown>[] = [];
+  blockCount = 0;
+
+  blockConcurrencyWhile<Result>(callback: () => Promise<Result>): Promise<Result> {
+    this.blockCount += 1;
+    const initialization = callback();
+    this.initializations.push(initialization);
+    return initialization;
+  }
+}
+
 class FakeMigrationStorage implements SQLiteMigrationStorage {
   #ledger: RecordedMigration[] = [];
   #statements: string[] = [];
@@ -174,13 +222,25 @@ class FakeMigrationStorage implements SQLiteMigrationStorage {
 }
 
 function cursor<Row extends Record<string, SqlStorageValue>>(rows: readonly Record<string, SqlStorageValue>[]): SQLiteMigrationCursor<Row> {
+  const materialize = (): Row[] =>
+    rows.map((row) => {
+      const result = Object.create(null) as Row;
+      for (const [key, value] of Object.entries(row)) result[key as keyof Row] = value as Row[keyof Row];
+      return result;
+    });
   return {
     toArray(): Row[] {
-      return rows.map((row) => {
-        const result = Object.create(null) as Row;
-        for (const [key, value] of Object.entries(row)) result[key as keyof Row] = value as Row[keyof Row];
-        return result;
-      });
+      return materialize();
+    },
+    one(): Row {
+      const values = materialize();
+      if (values.length !== 1) throw new Error(`Expected exactly one row, received ${values.length}`);
+      const value = values[0];
+      if (value === undefined) throw new Error("Expected exactly one row, received 0");
+      return value;
+    },
+    *[Symbol.iterator](): IterableIterator<Row> {
+      yield* materialize();
     },
   };
 }

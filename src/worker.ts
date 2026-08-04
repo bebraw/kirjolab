@@ -20,6 +20,7 @@ import {
 } from "./api/reviews";
 import { exampleRoutes } from "./app-routes";
 import { buildExportBundle } from "./domain/publication/export-pipeline";
+import { deploymentCapabilities, type DeploymentCapabilities } from "./deployment-capabilities";
 import { DocumentRoom } from "./durable-objects/document-room";
 import { WorkspaceCatalog } from "./durable-objects/workspace-catalog";
 import { ProjectTemplateCatalog } from "./durable-objects/project-template-catalog";
@@ -58,7 +59,10 @@ type AuthenticatedApiHandler = (request: Request, env: Env, identity: AuthIdenti
 interface AuthenticatedApiRoute {
   readonly matches: (pathname: string) => boolean;
   readonly handle: AuthenticatedApiHandler;
+  readonly capability?: keyof DeploymentCapabilities;
 }
+
+const integrationNames = { github: "GitHub" } satisfies Readonly<Record<keyof DeploymentCapabilities, string>>;
 
 const githubConnectionPaths = new Set([
   "/api/github/connection",
@@ -71,11 +75,16 @@ const githubConnectionPaths = new Set([
 const authenticatedApiRoutes: readonly AuthenticatedApiRoute[] = [
   { matches: (path) => matchesApiFamily(path, "/api/backups"), handle: handleBackupApi },
   { matches: (path) => matchesApiFamily(path, "/api/project-templates"), handle: handleProjectTemplateApi },
-  { matches: (path) => path === "/api/github/import-previews" || path === "/api/github/imports", handle: handleGitHubImportApi },
+  {
+    matches: (path) => path === "/api/github/import-previews" || path === "/api/github/imports",
+    handle: handleGitHubImportApi,
+    capability: "github",
+  },
   { matches: (path) => path === "/api/latex-import-previews" || path === "/api/latex-imports", handle: handleLatexImportApi },
   {
     matches: (path) => githubConnectionPaths.has(path) || path.startsWith("/api/github/installations/"),
     handle: handleGitHubConnectionApi,
+    capability: "github",
   },
   { matches: (path) => matchesApiFamily(path, "/api/reviews"), handle: handleReviewsApi },
   { matches: (path) => matchesApiFamily(path, "/api/workspaces"), handle: handleWorkspaceApi },
@@ -137,6 +146,7 @@ async function handleAuthenticatedPageRequest(request: Request, url: URL, env: E
 }
 
 async function handleWorkspacePageRequest(url: URL, env: Env | undefined, identity: AuthIdentity): Promise<Response | null> {
+  const capabilities = deploymentCapabilities(env);
   if (url.pathname === "/") {
     const [workspaces, library, reviews] = env
       ? await Promise.all([
@@ -149,7 +159,7 @@ async function handleWorkspacePageRequest(url: URL, env: Env | undefined, identi
   }
 
   if (url.pathname === "/library" || /^\/library\/pdfs\/[^/]+$/u.test(url.pathname)) {
-    return htmlResponse(renderHomePage(exampleRoutes, "demo", identity.email, identity.mode, "library"), 200, url);
+    return htmlResponse(renderHomePage(exampleRoutes, "demo", identity.email, identity.mode, "library", capabilities), 200, url);
   }
 
   if (url.pathname === "/editor") {
@@ -164,7 +174,7 @@ async function handleWorkspacePageRequest(url: URL, env: Env | undefined, identi
 
   const editorPage = /^\/editor\/([a-z0-9-]{1,64})$/iu.exec(url.pathname);
   if (editorPage?.[1]) {
-    return htmlResponse(renderHomePage(exampleRoutes, editorPage[1], identity.email, identity.mode), 200, url);
+    return htmlResponse(renderHomePage(exampleRoutes, editorPage[1], identity.email, identity.mode, "workspace", capabilities), 200, url);
   }
 
   return null;
@@ -273,6 +283,9 @@ async function handleAuthenticatedApiRequest(
   const route = authenticatedApiRoutes.find(({ matches }) => matches(url.pathname));
   if (!route) return null;
   if (!env) return Response.json({ error: "Worker bindings unavailable" }, { status: 503 });
+  if (route.capability && !deploymentCapabilities(env)[route.capability]) {
+    return Response.json({ error: `${integrationNames[route.capability]} integration is unavailable` }, { status: 503 });
+  }
   return await route.handle(request, env, identity);
 }
 

@@ -1,7 +1,8 @@
 import { DurableObject } from "cloudflare:workers";
+import { initializeCloudflareSQLiteMigrations } from "../persistence/sqlite/cloudflare";
 import { demoWorkspaceId, type WorkspaceSummary } from "../domain/workspace/workspace";
 import type { GitHubRepositorySelection, GitHubRepositorySnapshot } from "../integrations/github-app";
-import { runSQLiteMigrations, type SQLiteMigration } from "./migrations";
+import type { SQLiteMigration } from "../persistence/sqlite/migrations";
 import { currentRecoveryBookmark } from "./recovery";
 
 const migrations = [
@@ -170,9 +171,7 @@ export interface GitHubFlowStateRecord {
 export class WorkspaceCatalog extends DurableObject<Env> {
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
-    ctx.blockConcurrencyWhile(async () => {
-      runSQLiteMigrations(this.ctx.storage, migrations);
-    });
+    initializeCloudflareSQLiteMigrations(ctx, migrations);
   }
 
   listWorkspaces(): WorkspaceSummary[] {

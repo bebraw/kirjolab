@@ -4,6 +4,11 @@ import { GitHubImportPanel } from "./github-import-panel";
 class TestGitHubImportPanel extends GitHubImportPanel {
   focusCount = 0;
 
+  constructor() {
+    super();
+    this.configure({ github: true });
+  }
+
   renderForTest() {
     return this.render();
   }
@@ -31,6 +36,12 @@ class TestGitHubImportPanel extends GitHubImportPanel {
   override focusTitle(): void {
     this.focusCount += 1;
   }
+}
+
+class DeferredCapabilityGitHubImportPanel extends GitHubImportPanel {
+  override performUpdate(): void {}
+
+  override focusTitle(): void {}
 }
 
 class FakeDialog extends EventTarget {
@@ -72,6 +83,38 @@ function jsonResponse(value: unknown, status = 200): Response {
 }
 
 describe("GitHub import panel", () => {
+  it("stays hidden and makes no requests without the GitHub capability", async () => {
+    const panel = new TestGitHubImportPanel();
+    const dialog = new FakeDialog();
+    const replace = vi.fn();
+    const fetcher = vi.fn();
+    vi.stubGlobal("HTMLDialogElement", FakeDialog);
+    vi.stubGlobal("fetch", fetcher);
+    vi.stubGlobal("confirm", () => true);
+    Object.defineProperty(panel, "closest", { value: () => dialog });
+    panel.configure({ github: false });
+    panel.setInstallations([installation]);
+    panel.setRepositories([repository]);
+    panel.setBranches([{ name: "main", protected: false }], "main");
+    panel.showPreview({
+      id: "preview-1",
+      commitSha: "1234567890abcdef",
+      entryPath: "main.md",
+      files: [{ path: "main.md", bytes: 10 }],
+    });
+
+    panel.open();
+    await panel.refreshConnection();
+    await panel.previewForTest();
+    await panel.confirmForTest();
+    await panel.disconnectForTest();
+
+    expect(panel.openFromBrowserResult(new URL("https://example.test/?github=connected"), replace)).toBe(false);
+    expect(dialog.modalCount).toBe(0);
+    expect(fetcher).not.toHaveBeenCalled();
+    expect(replace).not.toHaveBeenCalled();
+  });
+
   it("owns the light-DOM form and repository selection lifecycle", () => {
     const panel = new TestGitHubImportPanel();
     expect(panel.rootForTest()).toBe(panel);
@@ -272,5 +315,27 @@ describe("GitHub import panel", () => {
     expect(open).toHaveBeenCalledTimes(2);
     expect(replace).toHaveBeenNthCalledWith(1, "/");
     expect(replace).toHaveBeenNthCalledWith(2, "/");
+  });
+
+  it("activates a callback when capability configuration follows connection", async () => {
+    const panel = new DeferredCapabilityGitHubImportPanel();
+    const dialog = new FakeDialog();
+    const replaceState = vi.fn();
+    const fetcher = vi.fn().mockResolvedValue(jsonResponse({ connected: false }));
+    vi.stubGlobal("HTMLDialogElement", FakeDialog);
+    vi.stubGlobal("location", { href: "https://example.test/?github=connected" });
+    vi.stubGlobal("history", { replaceState, state: null });
+    vi.stubGlobal("fetch", fetcher);
+    Object.defineProperty(panel, "closest", { value: () => dialog });
+
+    panel.connectedCallback();
+    await panel.updateComplete;
+    expect(dialog.modalCount).toBe(0);
+
+    panel.configure({ github: true });
+    await vi.waitFor(() => expect(dialog.modalCount).toBe(1));
+
+    expect(fetcher).toHaveBeenCalledWith("/api/github/connection", { credentials: "same-origin" });
+    expect(replaceState).toHaveBeenCalledWith(null, "", "/");
   });
 });

@@ -12,8 +12,9 @@ work again.
 **Repository:** [github.com/bebraw/kirjolab](https://github.com/bebraw/kirjolab)  
 **Build Week disclosure:** [How Codex and GPT-5.6 were used](#built-with-codex-and-gpt-56)
 
-Kirjolab runs on Cloudflare Workers, Durable Objects, and R2. Local development
-is supported on macOS.
+Kirjolab's hosted deployment runs on Cloudflare Workers, Durable Objects, and
+R2. A Docker Compose profile is available for local, single-user evaluation;
+local source development is supported on macOS.
 
 ## What You Can Do
 
@@ -42,7 +43,41 @@ is supported on macOS.
   accept or reject the proposed change.
 - Export portable Markdown and BibTeX files.
 
-## Run It Locally
+## Try It with Docker Compose
+
+From a checkout, the only prerequisite is Docker with Compose:
+
+```bash
+docker compose up --build
+```
+
+Open <http://127.0.0.1:8787>. The image includes the pinned Node.js and Wrangler
+versions, runs as a non-root user, and needs neither local Node.js nor a
+Cloudflare account. Stop the foreground process with `Ctrl-C`; the named Docker
+volume retains workspace and uploaded-file state. `docker compose down` also
+removes the container while preserving that volume.
+
+This profile is for one researcher evaluating Kirjolab on the same computer.
+It is not a public, production, highly available, or supported multiplayer
+deployment. Browser/AI artifact analysis, scheduled backups, Cloudflare Access,
+and the GitHub App integration are unavailable. Its Miniflare state directory
+is opaque runtime state rather than a portable backup; export important
+Markdown and BibTeX through Kirjolab.
+
+To rebuild an updated checkout without deleting local state:
+
+```bash
+docker compose down
+git pull --ff-only
+docker compose up --build
+```
+
+To inspect a failed start, run `docker compose ps` and
+`docker compose logs kirjolab`. To deliberately reset all evaluation data, run
+`docker compose down --volumes`; **that reset permanently deletes the named
+volume**. More detail is in [docs/development.md](./docs/development.md#docker-compose-evaluation).
+
+## Develop It Locally
 
 You need [nvm](https://github.com/nvm-sh/nvm) and the project-pinned Node.js
 version. The local workflow uses Wrangler's Durable Object and R2 emulation, so
@@ -175,6 +210,8 @@ submission-period implementation range from Kirjolab's earlier foundation.
 - [VISION.md](./VISION.md) explains the product direction.
 - [ARCHITECTURE.md](./ARCHITECTURE.md) records global technical constraints.
 - [specs/](./specs/) contains implemented feature contracts.
+- [specs/self-hosting/spec.md](./specs/self-hosting/spec.md) defines the bounded
+  Docker Compose evaluation and SQLite portability contracts.
 - [docs/adrs/](./docs/adrs/) contains architecture decisions and their status.
 - [docs/operations/](./docs/operations/) contains production runbooks.
 - `src/worker.ts` is the Worker entry point and top-level router.

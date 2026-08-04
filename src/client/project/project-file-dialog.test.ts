@@ -246,10 +246,19 @@ describe("project file dialog", () => {
     const session = new CollaborationSession(new Y.Doc());
     const socket = { connect: vi.fn(), scheduleSelection: vi.fn() };
 
-    await panel.startApplication("/api/workspaces/paper", "paper", true, owners as never, session, refresh.offline, socket);
+    await panel.startApplication(
+      "/api/workspaces/paper",
+      "paper",
+      true,
+      { github: true },
+      owners as never,
+      session,
+      refresh.offline,
+      socket,
+    );
 
     expect(bindContext).toHaveBeenCalledWith("/api/workspaces/paper", true, session, panel.refreshCoordinator, socket, owners);
-    expect(bindSettings).toHaveBeenCalledWith("paper", "/api/workspaces/paper", true, panel.refreshCoordinator, owners);
+    expect(bindSettings).toHaveBeenCalledWith("paper", "/api/workspaces/paper", true, { github: true }, panel.refreshCoordinator, owners);
     expect(bindPreview).toHaveBeenCalledOnce();
     expect(bindHistory).toHaveBeenCalledOnce();
     expect(bindMap).toHaveBeenCalledOnce();

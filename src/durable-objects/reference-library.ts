@@ -1,4 +1,5 @@
 import { DurableObject } from "cloudflare:workers";
+import { cloudflareSQLiteStorage } from "../persistence/sqlite/cloudflare";
 import { normalizeDoi, parseBibTeX } from "../domain/reference-library/bibliography";
 import {
   buildCitationNetwork,
@@ -69,7 +70,7 @@ import {
   referenceReconciliationReason,
 } from "../domain/reference-library";
 import { ArtifactAnalysisService } from "./reference-library/artifact-analysis";
-import { runSQLiteMigrations } from "./migrations";
+import { runSQLiteMigrations } from "../persistence/sqlite/migrations";
 import { referenceLibraryMigrations } from "./reference-library/migrations";
 import { currentRecoveryBookmark } from "./recovery";
 
@@ -302,7 +303,7 @@ export class ReferenceLibrary extends DurableObject<Env> {
     this.#artifactAnalyses = new ArtifactAnalysisService(ctx.storage.sql);
     ctx.blockConcurrencyWhile(async () => {
       this.ctx.storage.sql.exec("PRAGMA foreign_keys = ON");
-      runSQLiteMigrations(this.ctx.storage, referenceLibraryMigrations);
+      runSQLiteMigrations(cloudflareSQLiteStorage(this.ctx.storage), referenceLibraryMigrations);
       this.#backfillReferenceKeys();
     });
   }

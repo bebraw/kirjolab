@@ -458,4 +458,14 @@ describe("renderHomePage", () => {
     expect(html).not.toContain('id="assistant-model-settings"');
     expect(html.indexOf('id="model-instruction"')).toBeLessThan(html.indexOf('id="generate-candidate"'));
   });
+
+  it("renders GitHub entry points inert when the deployment capability is disabled", () => {
+    const html = renderHomePage(exampleRoutes, "demo", "local@kirjolab.invalid", "local", "workspace", { github: false });
+
+    expect(html).toContain('data-github-capability="disabled"');
+    expect(html).toContain('<github-sync-menu id="github-sync-control" hidden>');
+    expect(html).toContain('id="open-github-import" type="button" hidden>Import GitHub</button>');
+    expect(html).toContain('id="github-import-dialog" hidden>');
+    expect(html).toContain("data-github-integration hidden>");
+  });
 });

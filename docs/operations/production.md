@@ -1,5 +1,10 @@
 # Production Runbook
 
+This runbook governs Kirjolab's Cloudflare-hosted deployment. The repository's
+Docker Compose profile is a loopback-only, single-user evaluation surface; it
+does not provide the identity, backup, recovery, multiplayer, or availability
+guarantees described here.
+
 ## One-Time Cloudflare Setup
 
 1. Create the private bucket: `npx wrangler r2 bucket create kirjolab-papers`.

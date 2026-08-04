@@ -1,4 +1,5 @@
 import { escapeHtml } from "../html";
+import type { DeploymentCapabilities } from "../deployment-capabilities";
 import { renderIcon } from "../ui/icons";
 import { renderPrimaryNavigation } from "./app-navigation";
 import { renderLibraryPdfRail } from "./home-pdf-components";
@@ -20,6 +21,7 @@ export function renderHomePage(
   identityEmail = "local@kirjolab.invalid",
   identityMode: "local" | "access" = "local",
   appMode: HomeAppMode = "workspace",
+  capabilities: DeploymentCapabilities = { github: true },
 ): string {
   const escapedWorkspaceId = escapeHtml(workspaceId);
   const escapedIdentityEmail = escapeHtml(identityEmail);
@@ -38,7 +40,7 @@ export function renderHomePage(
     <link rel="stylesheet" href="/styles.css">
     <script type="module" src="/app.js"></script>
   </head>
-  <body class="min-h-screen bg-app-canvas text-app-text antialiased" data-app-mode="${appMode}" data-workspace-id="${escapedWorkspaceId}" data-identity-email="${escapedIdentityEmail}">
+  <body class="min-h-screen bg-app-canvas text-app-text antialiased" data-app-mode="${appMode}" data-workspace-id="${escapedWorkspaceId}" data-identity-email="${escapedIdentityEmail}" data-github-capability="${capabilities.github ? "enabled" : "disabled"}">
     <header class="sticky top-0 z-30 border-b border-app-line bg-app-canvas/95 backdrop-blur" id="app-header">
       <div class="app-header-row">
         <div class="app-header-primary">
@@ -67,7 +69,7 @@ export function renderHomePage(
         ${appMode === "library" ? `<div class="library-header-context">${contextTabs}</div>` : ""}
         <div class="app-header-secondary">
           ${workspaceLayoutControl}
-          <github-sync-menu id="github-sync-control">
+          <github-sync-menu id="github-sync-control"${capabilities.github ? "" : " hidden"}>
             <details class="action-menu github-sync-menu ui-menu" id="github-sync-menu" data-action-menu hidden>
               <summary class="github-sync-trigger" id="github-sync-trigger" aria-label="GitHub synchronization status">
                 <span class="github-sync-dot" aria-hidden="true"></span>
@@ -835,7 +837,7 @@ export function renderHomePage(
             <p class="ui-status" id="new-workspace-template-status" role="status">Templates and existing projects create independent projects without research history.</p>
             <div class="ui-cluster justify-end">
               <button class="button-secondary" id="open-latex-import" type="button">Import LaTeX</button>
-              <button class="button-secondary" id="open-github-import" type="button">Import GitHub</button>
+              <button class="button-secondary" id="open-github-import" type="button"${capabilities.github ? "" : " hidden"}>Import GitHub</button>
               <button class="button-secondary" id="cancel-new-workspace" type="button">Cancel</button>
               <button class="button-primary" id="create-workspace" type="submit" disabled>Create project</button>
             </div>
@@ -866,7 +868,7 @@ export function renderHomePage(
       </latex-import-panel>
     </dialog>
 
-    <dialog class="new-workspace-dialog ui-dialog" id="github-import-dialog">
+    <dialog class="new-workspace-dialog ui-dialog" id="github-import-dialog"${capabilities.github ? "" : " hidden"}>
       <div class="p-5">
         <p class="eyebrow">GitHub-backed project</p>
         <h2 class="mt-1 text-xl font-semibold tracking-[-0.035em]">Import a Markdown folder</h2>
@@ -902,7 +904,7 @@ export function renderHomePage(
       </div>
     </dialog>
 
-    ${renderWorkspaceSettingsDialog()}
+    ${renderWorkspaceSettingsDialog(capabilities.github)}
 
     <project-template-save-dialog id="project-template-save-dialog">
       <dialog class="new-workspace-dialog ui-dialog" id="save-template-dialog">

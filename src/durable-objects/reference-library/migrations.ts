@@ -1,4 +1,4 @@
-import type { SQLiteMigration } from "../migrations";
+import type { SQLiteMigration } from "../../persistence/sqlite/migrations";
 
 export const referenceLibraryMigrations = [
   {

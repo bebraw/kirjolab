@@ -1,5 +1,5 @@
 import { html, type TemplateResult } from "lit";
-import { isGitHubSyncState } from "../../app/app-contracts";
+import { isGitHubSyncState, type AppCapabilities } from "../../app/app-contracts";
 import { gitHubSyncPresentation, isGitHubSyncStatus, type GitHubSyncStatus } from "./github-sync-status";
 import { gitHubSyncMutationEvent, type GitHubSyncMutation } from "./github-sync-review";
 import { expectOk } from "../../platform/http";
@@ -35,6 +35,7 @@ export class GitHubSyncMenu extends LightDomElement {
     tone: { state: true },
     canPull: { state: true },
     canPush: { state: true },
+    available: { state: true },
   };
 
   declare private connected: boolean;
@@ -44,6 +45,7 @@ export class GitHubSyncMenu extends LightDomElement {
   declare private tone: "quiet" | "attention" | "warning";
   declare private canPull: boolean;
   declare private canPush: boolean;
+  declare private available: boolean;
   private apiBase = "";
   private refreshRequest = 0;
   private refreshedAt = 0;
@@ -59,18 +61,27 @@ export class GitHubSyncMenu extends LightDomElement {
     this.tone = "quiet";
     this.canPull = false;
     this.canPush = false;
+    this.available = false;
   }
 
-  configure(apiBase: string): void {
+  configure(apiBase: string, capabilities: AppCapabilities): void {
     this.apiBase = apiBase;
+    this.available = capabilities.github;
   }
 
-  bindWorkspace(apiBase: string, ambient: boolean, projectRefresh: GitHubRefresh, owners: GitHubSyncOwners): void {
-    this.configure(apiBase);
+  bindWorkspace(
+    apiBase: string,
+    ambient: boolean,
+    capabilities: AppCapabilities,
+    projectRefresh: GitHubRefresh,
+    owners: GitHubSyncOwners,
+  ): void {
+    this.configure(apiBase, capabilities);
     const settings = owners.workspaceSettingsPanel;
     settings.configureGitHub(apiBase);
     this.settings = settings;
     this.projectRefresh = projectRefresh;
+    if (!this.available) return;
     settings.addEventListener(gitHubSyncMutationEvent, (event) => {
       void this.handleMutation((event as CustomEvent<GitHubSyncMutation>).detail);
     });
@@ -87,7 +98,7 @@ export class GitHubSyncMenu extends LightDomElement {
 
   async refreshWorkspace(force = false, resetReview = true): Promise<void> {
     const settings = this.settings;
-    if (!navigator.onLine || !settings) return;
+    if (!this.available || !navigator.onLine || !settings) return;
     if (!force && (settings.hasActiveGitHubPreview || settings.open)) return;
     if (!this.refreshDue(force)) return;
     if (resetReview) settings.resetGitHubReview();
@@ -99,6 +110,7 @@ export class GitHubSyncMenu extends LightDomElement {
   }
 
   async refresh(): Promise<void> {
+    if (!this.available) return;
     const requestId = ++this.refreshRequest;
     this.refreshedAt = Date.now();
     try {
@@ -162,7 +174,12 @@ export class GitHubSyncMenu extends LightDomElement {
 
   protected override render(): TemplateResult {
     return html`
-      <details class="action-menu github-sync-menu ui-menu" id="github-sync-menu" data-action-menu ?hidden=${!this.connected}>
+      <details
+        class="action-menu github-sync-menu ui-menu"
+        id="github-sync-menu"
+        data-action-menu
+        ?hidden=${!this.available || !this.connected}
+      >
         <summary class="github-sync-trigger" id="github-sync-trigger" aria-label="GitHub synchronization status" data-tone=${this.tone}>
           <span class="github-sync-dot" aria-hidden="true"></span>
           <span id="github-sync-label">${this.label}</span>

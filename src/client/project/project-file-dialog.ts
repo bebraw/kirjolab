@@ -9,6 +9,7 @@ import {
 import { isWorkspaceSnapshot, type WorkspaceSnapshot } from "../../domain/workspace/workspace";
 import type { ApplicationVersionControl } from "../app/application-version-control";
 import type { AppToast } from "../app/app-toast";
+import type { AppCapabilities } from "../app/app-contracts";
 import { CoalescedRefresh } from "../collaboration/collaboration";
 import { DeferredDeletionController, type DeferredDeletionNoticeOptions } from "../platform/deferred-deletion";
 import type { CollaborationSession } from "../collaboration/collaboration-session";
@@ -218,13 +219,14 @@ export class ProjectFileDialog extends LightDomElement {
     apiBase: string,
     workspaceId: string,
     workspace: boolean,
+    capabilities: AppCapabilities,
     owners: ProjectFileApplicationOwners,
     session: CollaborationSession,
     offline: ProjectRefreshBinding["offline"],
     socket: Pick<CollaborationSocket, "connect" | "scheduleSelection">,
   ): Promise<void> {
     owners.contextResourcePresenter.bindApplication(apiBase, workspace, session, this.refreshCoordinator, socket, owners);
-    owners.workspaceSettingsPanel.bindApplication(workspaceId, apiBase, workspace, this.refreshCoordinator, owners);
+    owners.workspaceSettingsPanel.bindApplication(workspaceId, apiBase, workspace, capabilities, this.refreshCoordinator, owners);
     this.configureApi(apiBase, owners, owners.workspaceLayout);
     this.bindLiveContent(session);
     this.bindProjectRefresh(workspace, owners, session, offline);

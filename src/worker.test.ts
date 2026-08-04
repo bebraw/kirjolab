@@ -75,6 +75,7 @@ describe("worker", () => {
     expect(body).toContain('data-workspace-id="abc-123"');
     expect(body).toContain("/api/workspaces/abc-123/export/document.md");
     expect(body).toContain('<a class="primary-navigation-link" href="/editor/abc-123" aria-current="page">Editor</a>');
+    expect(body).toContain('data-github-capability="disabled"');
   });
 
   it("permanently redirects legacy workspace links while preserving route state", async () => {

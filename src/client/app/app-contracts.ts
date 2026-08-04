@@ -10,6 +10,7 @@ const appBootstrapSchema = v.object({
   workspaceId: v.pipe(v.string(), v.regex(/^[a-z0-9-]{1,64}$/iu)),
   identityEmail: v.pipe(v.string(), v.minLength(1), v.maxLength(320)),
   appMode: v.picklist(["workspace", "library"]),
+  githubCapability: v.optional(v.picklist(["enabled", "disabled"]), "disabled"),
 });
 
 const webSnapshotComparisonHunkSchema = v.object({
@@ -182,7 +183,17 @@ export type GitHubRepositoryOption = Readonly<v.InferInput<typeof gitHubReposito
 export type GitHubBranchOption = Readonly<v.InferInput<typeof gitHubBranchOptionSchema>>;
 export type GitHubImportPreview = Readonly<v.InferInput<typeof gitHubImportPreviewSchema>>;
 export type LatexImportPreview = Readonly<v.InferInput<typeof latexImportPreviewSchema>>;
-export type AppBootstrap = Readonly<Omit<v.InferInput<typeof appBootstrapSchema>, "appMode"> & { apiBase: string; workspaceMode: boolean }>;
+export interface AppCapabilities {
+  readonly github: boolean;
+}
+
+export type AppBootstrap = Readonly<
+  Omit<v.InferOutput<typeof appBootstrapSchema>, "appMode" | "githubCapability"> & {
+    apiBase: string;
+    capabilities: AppCapabilities;
+    workspaceMode: boolean;
+  }
+>;
 
 export interface WebSnapshotComparisonResponse {
   readonly before: WebSnapshot;
@@ -199,8 +210,14 @@ export interface ShareLinkStatus {
 export function parseAppBootstrap(value: unknown): AppBootstrap {
   const result = v.safeParse(appBootstrapSchema, value);
   if (!result.success) throw new Error("Invalid application bootstrap");
-  const { workspaceId, identityEmail, appMode } = result.output;
-  return { workspaceId, identityEmail, apiBase: `/api/workspaces/${workspaceId}`, workspaceMode: appMode === "workspace" };
+  const { workspaceId, identityEmail, appMode, githubCapability } = result.output;
+  return {
+    workspaceId,
+    identityEmail,
+    apiBase: `/api/workspaces/${workspaceId}`,
+    capabilities: { github: githubCapability === "enabled" },
+    workspaceMode: appMode === "workspace",
+  };
 }
 
 export function isWebSnapshotComparisonResponse(value: unknown): value is WebSnapshotComparisonResponse {

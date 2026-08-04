@@ -53,6 +53,11 @@ class TestProjectStartingPointBrowser extends ProjectStartingPointBrowser {
   modalCount = 0;
   openDialog = false;
 
+  constructor() {
+    super();
+    this.configure({ github: true });
+  }
+
   renderForTest() {
     return this.render();
   }
@@ -169,6 +174,25 @@ afterEach(() => {
 });
 
 describe("project starting point browser", () => {
+  it("does not expose the GitHub import action when the capability is unavailable", () => {
+    const browser = new TestProjectStartingPointBrowser();
+    const openGitHub = vi.fn();
+    browser.configure({ github: false });
+    browser.bindWorkspace({
+      gitHubImportPanel: { open: openGitHub },
+      latexImportPanel: { open: vi.fn() },
+      newWorkspace: new EventTarget() as HTMLElement,
+      saveTemplateDialog: { syncTemplates: vi.fn() },
+      toast: { show: vi.fn() },
+      workspaceCatalogPanel: { catalog: [] },
+    });
+
+    browser.importForTest("import-github");
+
+    expect(openGitHub).not.toHaveBeenCalled();
+    expect(browser.closeCount).toBe(0);
+  });
+
   it("owns the light-DOM create form and template presentation", () => {
     const browser = new TestProjectStartingPointBrowser();
     expect(browser.rootForTest()).toBe(browser);

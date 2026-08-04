@@ -18,7 +18,7 @@ describe("GitHub user authorization client", () => {
         refresh_token_expires_in: 15_897_600,
       }),
     );
-    const client = new GitHubUserClient(config, fetchMock);
+    const client = new GitHubUserClient({ ...config, clientSecret: ` ${config.clientSecret} ` }, fetchMock);
     const authorization = new URL(client.authorizationUrl("https://kirjolab.test/api/github/callback", "secure-state"));
     expect(authorization.origin).toBe("https://github.test");
     expect(authorization.pathname).toBe("/login/oauth/authorize");
@@ -39,6 +39,7 @@ describe("GitHub user authorization client", () => {
     expect(request?.method).toBe("POST");
     expect(request?.headers).toEqual({ accept: "application/json", "content-type": "application/x-www-form-urlencoded" });
     expect(String(request?.body)).toContain("code=authorization-code");
+    expect(new URLSearchParams(String(request?.body)).get("client_secret")).toBe(config.clientSecret);
     expect(String(request?.body)).toContain("redirect_uri=https%3A%2F%2Fkirjolab.test%2Fapi%2Fgithub%2Fcallback");
     expect(String(request?.body)).not.toContain("secure-state");
   });
