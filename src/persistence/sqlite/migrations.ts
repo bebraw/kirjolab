@@ -67,6 +67,7 @@ export function runSQLiteMigrations(storage: SQLiteMigrationStorage, migrations:
 
   const latestAppliedVersion = Math.max(0, ...appliedByVersion.keys());
   for (const migration of migrations) {
+    // Stryker disable next-line EqualityOperator: an equal positive version is already present, so the has() guard makes < and <= equivalent.
     if (!appliedByVersion.has(migration.version) && migration.version < latestAppliedVersion) {
       throw new Error(
         `SQLite migration ${migration.version} cannot be applied after recorded migration ${latestAppliedVersion}; migrations are append-only`,

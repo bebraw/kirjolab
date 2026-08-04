@@ -313,8 +313,6 @@ export class WorkspacePreview extends LightDomElement {
     }
   }
 
-  // PreviewSyncControls binds this through the PreviewSyncOwners workspace adapter.
-  // fallow-ignore-next-line unused-class-member
   bindScrollSync(binding: PreviewScrollBinding, signal: AbortSignal): void {
     const options = { signal };
     this.viewport.addEventListener("pointerdown", binding.onIntent, options);
@@ -360,8 +358,6 @@ export class WorkspacePreview extends LightDomElement {
     return true;
   }
 
-  // Invoked through PreviewSyncOwners' structural workspacePreview contract.
-  // fallow-ignore-next-line unused-class-member
   previewScrollEdge(): PreviewScrollEdge {
     return scrollEdge(this.viewport);
   }

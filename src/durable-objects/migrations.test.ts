@@ -46,6 +46,10 @@ describe("SQLite migration definitions", () => {
     expect(() => validateSQLiteMigrations([{ version: 1, name, apply }])).toThrow("migration names");
   });
 
+  it("accepts a migration name at the 200-character limit", () => {
+    expect(() => validateSQLiteMigrations([{ version: 1, name: "x".repeat(200), apply }])).not.toThrow();
+  });
+
   it("rejects non-array, non-object, and missing callback definitions", () => {
     expect(() => validateSQLiteMigrations(null)).toThrow("must be an array");
     expect(() => validateSQLiteMigrations([null])).toThrow("must be an object");
