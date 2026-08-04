@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { cloudflareSQLiteStorage } from "../persistence/sqlite/cloudflare";
+import { cloudflareSQLiteStorage, initializeCloudflareSQLiteMigrations } from "../persistence/sqlite/cloudflare";
 import {
   runSQLiteMigrations,
   validateSQLiteMigrations,
@@ -54,6 +54,35 @@ describe("SQLite migration definitions", () => {
 });
 
 describe("SQLite migration runner", () => {
+  it("initializes Cloudflare migrations inside the object concurrency gate", async () => {
+    const context = new FakeMigrationContext();
+    const migration: SQLiteMigration = { version: 1, name: "initialize", apply: vi.fn(apply) };
+
+    initializeCloudflareSQLiteMigrations(context, [migration]);
+    await Promise.all(context.initializations);
+
+    expect(context.blockCount).toBe(1);
+    expect(migration.apply).toHaveBeenCalledOnce();
+    expect(context.storage.recordedMigrations).toEqual([{ version: 1, name: "initialize" }]);
+  });
+
+  it("keeps a failed Cloudflare migration inside the rejecting concurrency gate", async () => {
+    const context = new FakeMigrationContext();
+    const migration: SQLiteMigration = {
+      version: 1,
+      name: "fail-initialize",
+      apply: () => {
+        throw new Error("migration failed");
+      },
+    };
+
+    initializeCloudflareSQLiteMigrations(context, [migration]);
+
+    await expect(Promise.all(context.initializations)).rejects.toThrow("migration failed");
+    expect(context.blockCount).toBe(1);
+    expect(context.storage.recordedMigrations).toEqual([]);
+  });
+
   it("applies each migration once and permits later append-only phases", () => {
     const source = new FakeMigrationStorage();
     const storage = cloudflareSQLiteStorage(source);
@@ -131,6 +160,19 @@ describe("SQLite migration runner", () => {
 interface RecordedMigration {
   readonly version: number;
   readonly name: string;
+}
+
+class FakeMigrationContext {
+  readonly storage = new FakeMigrationStorage();
+  readonly initializations: Promise<unknown>[] = [];
+  blockCount = 0;
+
+  blockConcurrencyWhile<Result>(callback: () => Promise<Result>): Promise<Result> {
+    this.blockCount += 1;
+    const initialization = callback();
+    this.initializations.push(initialization);
+    return initialization;
+  }
 }
 
 class FakeMigrationStorage implements SQLiteMigrationStorage {

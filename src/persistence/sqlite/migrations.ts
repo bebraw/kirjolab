@@ -1,5 +1,5 @@
 import { isRecord } from "../../domain/unknown-value";
-import type { SQLiteCursor, SQLiteRow, SQLiteSql, SQLiteStorage, SQLiteValue } from "./storage";
+import type { SQLiteCursor, SQLiteRow, SQLiteSql, SQLiteStorage } from "./storage";
 
 const migrationLedgerTable = "_kirjolab_migrations";
 
@@ -101,5 +101,3 @@ function bootstrapMigrationLedger(sql: SQLiteMigrationSql): void {
     );
   `);
 }
-
-export type { SQLiteValue };

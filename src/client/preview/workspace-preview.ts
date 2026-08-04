@@ -27,6 +27,7 @@ import {
   type PreviewDiagnosticSelection,
 } from "./preview-presentation";
 import { PreviewSyncControls, type PreviewScrollBinding, type PreviewScrollEdge, type PreviewSyncOwners } from "./preview-sync-controls";
+import { lowerBound } from "./lower-bound";
 import type { ProjectFileDialog } from "../project/project-file-dialog";
 import { ProjectExportDialog } from "../project/project-export-dialog";
 import { RESEARCH_PREVIEW_KEY } from "../context/research-context";
@@ -359,6 +360,8 @@ export class WorkspacePreview extends LightDomElement {
     return true;
   }
 
+  // Invoked through PreviewSyncOwners' structural workspacePreview contract.
+  // fallow-ignore-next-line unused-class-member
   previewScrollEdge(): PreviewScrollEdge {
     return scrollEdge(this.viewport);
   }
@@ -519,15 +522,8 @@ function sourceBoundary(value: string | undefined): number | null {
 
 function previewOffsetAtPosition(index: PreviewScrollBlockIndex, position: number): number | null {
   const blocks = index.visual;
-  let lower = 0;
-  let upper = blocks.length;
-  while (lower < upper) {
-    const middle = Math.floor((lower + upper) / 2);
-    const block = blocks[middle];
-    if (!block) return null;
-    if (rectBottom(block.element.getBoundingClientRect()) < position) lower = middle + 1;
-    else upper = middle;
-  }
+  const lower = lowerBound(blocks, (block) => rectBottom(block.element.getBoundingClientRect()) < position);
+  if (lower === null) return null;
   const next = blocks[lower];
   if (!next) {
     const last = blocks.at(-1);
@@ -547,15 +543,8 @@ function previewOffsetAtPosition(index: PreviewScrollBlockIndex, position: numbe
 function previewPositionForOffset(index: PreviewScrollBlockIndex, offset: number): number | null {
   if (!Number.isFinite(offset)) return null;
   const blocks = index.source;
-  let lower = 0;
-  let upper = blocks.length;
-  while (lower < upper) {
-    const middle = Math.floor((lower + upper) / 2);
-    const block = blocks[middle];
-    if (!block) return null;
-    if (block.to <= offset) lower = middle + 1;
-    else upper = middle;
-  }
+  const lower = lowerBound(blocks, (block) => block.to <= offset);
+  if (lower === null) return null;
   const next = blocks[lower];
   if (!next) {
     const lastBounds = blocks.at(-1)?.element.getBoundingClientRect();

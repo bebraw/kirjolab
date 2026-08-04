@@ -1,5 +1,5 @@
 import { DurableObject } from "cloudflare:workers";
-import { cloudflareSQLiteStorage } from "../persistence/sqlite/cloudflare";
+import { initializeCloudflareSQLiteMigrations } from "../persistence/sqlite/cloudflare";
 import { isRecord as isRecordValue } from "../domain/unknown-value";
 import {
   defaultReviewProtocol,
@@ -83,7 +83,6 @@ import {
   type ReviewModelOperation,
   type ReviewModelSnapshot,
 } from "../domain/review/review-model";
-import { runSQLiteMigrations } from "../persistence/sqlite/migrations";
 import { currentRecoveryBookmark } from "./recovery";
 import { reviewStudyMigrations } from "./review-study/migrations";
 import { parseStoredReviewImportRecord } from "./review-study/records";
@@ -342,9 +341,7 @@ export interface CreateReviewModelCandidateInput {
 export class ReviewStudy extends DurableObject<Env> {
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
-    ctx.blockConcurrencyWhile(async () => {
-      runSQLiteMigrations(cloudflareSQLiteStorage(this.ctx.storage), reviewStudyMigrations);
-    });
+    initializeCloudflareSQLiteMigrations(ctx, reviewStudyMigrations);
   }
 
   hasReviewData(): boolean {

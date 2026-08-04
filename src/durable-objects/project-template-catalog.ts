@@ -1,5 +1,5 @@
 import { DurableObject } from "cloudflare:workers";
-import { cloudflareSQLiteStorage } from "../persistence/sqlite/cloudflare";
+import { initializeCloudflareSQLiteMigrations } from "../persistence/sqlite/cloudflare";
 import {
   isPersonalProjectTemplateId,
   isProjectTemplateSeed,
@@ -8,7 +8,7 @@ import {
   type ProjectTemplateSeed,
   type ProjectTemplateSummary,
 } from "../domain/project/project-templates";
-import { runSQLiteMigrations, type SQLiteMigration } from "../persistence/sqlite/migrations";
+import type { SQLiteMigration } from "../persistence/sqlite/migrations";
 import { currentRecoveryBookmark } from "./recovery";
 
 const maximumPersonalTemplates = 50;
@@ -52,9 +52,7 @@ export interface SavePersonalProjectTemplate {
 export class ProjectTemplateCatalog extends DurableObject<Env> {
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
-    ctx.blockConcurrencyWhile(async () => {
-      runSQLiteMigrations(cloudflareSQLiteStorage(this.ctx.storage), migrations);
-    });
+    initializeCloudflareSQLiteMigrations(ctx, migrations);
   }
 
   listTemplates(): ProjectTemplateSummary[] {
