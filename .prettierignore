@@ -10,5 +10,7 @@ worker-configuration.d.ts
 playwright-report
 reports
 test-results
+Dockerfile
+.dockerignore
 vendor/satteri-wasm32-wasi/satteri_napi.wasi-browser.js
 vendor/satteri-wasm32-wasi/wasi-worker-browser.mjs

@@ -35,6 +35,56 @@ container parity.
 
 The repo pins CLI tooling in `devDependencies`, including Wrangler for Cloudflare-based experiments. Prefer invoking those tools through `npx` or repo scripts so the project version is used instead of a global install.
 
+## Docker Compose Evaluation
+
+The repository root contains an evaluation-only Compose distribution. It is a
+way to try Kirjolab, not the macOS source-development baseline or the optional
+Agent CI container. From a clean checkout, Docker supplies the pinned Node.js
+runtime and all application dependencies:
+
+```sh
+docker compose up --build
+```
+
+Compose builds `Dockerfile`, starts one non-root `kirjolab` service, publishes
+only `127.0.0.1:8787`, and reports health through `/api/health`. The dedicated
+`wrangler.self-host.jsonc` profile runs entirely locally with artifact analysis
+disabled. It contains no remote binding, Cloudflare credential, queue, cron,
+Browser Rendering, Workers AI, Access, or version-metadata configuration. The
+container may listen on `0.0.0.0` inside its private Docker network; the Compose
+port mapping is the required host-side loopback boundary.
+
+The `kirjolab-data` named volume owns local Durable Object SQLite and R2
+simulation state. These commands preserve it:
+
+```sh
+docker compose down
+docker compose up --build --detach
+docker compose restart kirjolab
+```
+
+After changing to an updated checkout, rebuild the image with
+`docker compose up --build`; Compose reuses the named volume. Export important
+Markdown and BibTeX before upgrades because the internal Miniflare directory is
+not a supported backup, interchange format, or future native self-host storage
+layout.
+
+Use `docker compose ps` to inspect health and `docker compose logs --follow
+kirjolab` to inspect startup. If port 8787 is already allocated, stop the
+ordinary `npm run dev` Worker or other process using that port before starting
+Compose. A clean image rebuild is available through `docker compose build
+--no-cache`. The destructive reset is:
+
+```sh
+docker compose down --volumes
+```
+
+That command permanently removes all evaluation state in the named volume.
+The profile deliberately supports one local researcher and one replica only;
+do not expose it through a LAN address, reverse proxy, tunnel, or public
+hostname, and do not rely on it for multiplayer, high availability, scheduled
+backup, or production recovery.
+
 ### Package promotion gates
 
 Keep a reusable capability source-local until an architectural review shows

@@ -17,6 +17,9 @@ portability work attached to explicit contracts.
 
 - `docker compose up --build` starts one repository-pinned local Worker runtime
   and publishes Kirjolab only at `http://127.0.0.1:8787`.
+- The image pins Node.js 24.15.0, installs from `package-lock.json`, builds the
+  browser assets during image construction, and runs Wrangler directly as the
+  non-root `node` user behind Compose's init process.
 - The profile uses `AUTH_MODE=local`. It must remain loopback-only because the
   local identity and optional test identity header are not a public trust
   boundary.
@@ -27,6 +30,9 @@ portability work attached to explicit contracts.
   require Cloudflare credentials. Cloudflare Browser Rendering, Workers AI,
   Queue-backed artifact analysis, hosted Cron, Access, PITR, and production
   backup guarantees are outside this profile.
+- The self-host profile tracks the hosted Durable Object binding and migration
+  declarations through an automated tooling contract while omitting inherited
+  cloud deployment configuration.
 - The compatibility host remains workerd/Miniflare. Its files are runtime-local
   implementation details and are not a Kirjolab backup or interchange format.
 - Provider-neutral SQLite contracts live outside Durable Object modules.
@@ -52,6 +58,8 @@ portability work attached to explicit contracts.
 - Do not describe Compose or its named volume as production-ready, highly
   available, multiplayer-supported, or a backup strategy.
 - Do not connect the self-host profile to remote Cloudflare bindings.
+- Do not pass host environment files, `.dev.vars`, credentials, or bind mounts
+  into the evaluation service.
 - Do not leak Cloudflare storage, namespace, or RPC types into the portable
   SQLite contract.
 - Do not grow the SQLite adapter into a generic platform service locator.
@@ -62,19 +70,19 @@ portability work attached to explicit contracts.
 
 ### Definition of Done
 
-- [ ] A clean checkout starts through `docker compose up --build` without local
+- [x] A clean checkout starts through `docker compose up --build` without local
       Node.js, npm, or Cloudflare credentials.
-- [ ] The published port is bound to host loopback and `GET /api/health`
+- [x] The published port is bound to host loopback and `GET /api/health`
       succeeds from the host.
-- [ ] The local instance can create and read ordinary Kirjolab workspace state.
-- [ ] Stopping and recreating the application container without deleting its
+- [x] The local instance can create and read ordinary Kirjolab workspace state.
+- [x] Stopping and recreating the application container without deleting its
       named volume preserves that state.
-- [ ] The evaluation configuration has no remote bindings and cloud-only
+- [x] The evaluation configuration has no remote bindings and cloud-only
       artifact analysis fails explicitly rather than silently using Cloudflare.
 - [x] One provider-neutral SQLite migration suite passes against both a test
       adapter and Node `node:sqlite`.
-- [ ] Existing Cloudflare Worker and Durable Object tests remain green.
-- [ ] README and development documentation state the support boundary, startup,
+- [x] Existing Cloudflare Worker and Durable Object tests remain green.
+- [x] README and development documentation state the support boundary, startup,
       persistence, reset, upgrade, and troubleshooting commands.
 
 ### Regression Guardrails

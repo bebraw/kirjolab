@@ -7,6 +7,10 @@ documents. Its first production deployment must fail closed, retain recoverable
 state, and give one operator a deterministic deploy, backup, restore, smoke, and
 rollback workflow without adding a second identity system.
 
+This contract governs the Cloudflare-hosted production deployment. The
+loopback-only Docker Compose profile is a separate evaluation surface and must
+not be operated under this production runbook or its recovery claims.
+
 ## Architecture
 
 - Cloudflare Access remains the hosted identity boundary. The Worker still

@@ -1,6 +1,6 @@
 # ADR-220: Establish Portable Self-Host Boundaries
 
-**Status:** Accepted
+**Status:** Implemented
 
 **Date:** 2026-08-04
 

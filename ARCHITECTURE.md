@@ -117,7 +117,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   evaluation surface until native identity, blob, job, scheduling, hosting, and
   collaboration adapters are implemented. Its workerd/Miniflare state is not a
   portable backup format, and local authentication must never be exposed as a
-  public trust boundary.
+  public trust boundary. Keep `wrangler.self-host.jsonc` aligned with the hosted
+  Durable Object bindings and migrations while excluding remote bindings and
+  cloud-only capabilities; `compose.yaml` must persist its local runtime state
+  through one named volume.
 - Keep normalized PDF analysis mechanics behind
   `src/lib/pdf-analysis/index.ts`. The core may depend on pure domain contracts
   but must not import PDF.js, browser globals, API handlers, client UI,
