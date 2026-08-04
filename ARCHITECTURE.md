@@ -106,6 +106,18 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   adjacent capability services. A delegated service may own SQL and mapping for
   its bounded lifecycle, but it must not hide or relocate a multi-resource
   transaction.
+- Keep portable runtime contracts source-local and capability-specific. Domain
+  and capability services may depend on provider-neutral contracts; Cloudflare,
+  Node.js, and other host adapters may depend on their platform APIs. Begin with
+  a narrow synchronous SQLite contract for statements, typed queries, and
+  atomic transactions. Keep Durable Object RPC, authorization, coordination,
+  blobs, jobs, scheduling, HTTP/WebSocket hosting, and deployment policy out of
+  that database contract.
+- Treat the Docker Compose self-host profile as a loopback-only, single-replica
+  evaluation surface until native identity, blob, job, scheduling, hosting, and
+  collaboration adapters are implemented. Its workerd/Miniflare state is not a
+  portable backup format, and local authentication must never be exposed as a
+  public trust boundary.
 - Keep normalized PDF analysis mechanics behind
   `src/lib/pdf-analysis/index.ts`. The core may depend on pure domain contracts
   but must not import PDF.js, browser globals, API handlers, client UI,

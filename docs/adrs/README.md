@@ -27,7 +27,9 @@ ADRs are grouped by lifecycle status:
 
 ## Accepted ADRs
 
-No accepted ADRs are awaiting implementation.
+| ADR                                                                      | Status   | Summary                                                                                                      |
+| ------------------------------------------------------------------------ | -------- | ------------------------------------------------------------------------------------------------------------ |
+| [ADR-220](./accepted/ADR-220-establish-portable-self-host-boundaries.md) | Accepted | Add a loopback Compose evaluation profile and begin native portability at a provider-neutral SQLite adapter. |
 
 ## Implemented ADRs
 
