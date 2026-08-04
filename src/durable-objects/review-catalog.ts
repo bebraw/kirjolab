@@ -1,4 +1,5 @@
 import { DurableObject } from "cloudflare:workers";
+import { cloudflareSQLiteStorage } from "../persistence/sqlite/cloudflare";
 import {
   isIsoTimestamp,
   isReviewId,
@@ -16,7 +17,7 @@ import {
   type ReviewSummary,
   type UpdateReviewCatalogInput,
 } from "../domain/review/review-catalog";
-import { runSQLiteMigrations, type SQLiteMigration } from "./migrations";
+import { runSQLiteMigrations, type SQLiteMigration } from "../persistence/sqlite/migrations";
 import { currentRecoveryBookmark } from "./recovery";
 
 const migrations = [
@@ -59,7 +60,7 @@ export class ReviewCatalog extends DurableObject<Env> {
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
     ctx.blockConcurrencyWhile(async () => {
-      runSQLiteMigrations(this.ctx.storage, migrations);
+      runSQLiteMigrations(cloudflareSQLiteStorage(this.ctx.storage), migrations);
     });
   }
 

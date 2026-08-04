@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { cloudflareSQLiteStorage } from "../persistence/sqlite/cloudflare";
 import {
   runSQLiteMigrations,
   validateSQLiteMigrations,
@@ -6,7 +7,7 @@ import {
   type SQLiteMigrationCursor,
   type SQLiteMigrationSql,
   type SQLiteMigrationStorage,
-} from "./migrations";
+} from "../persistence/sqlite/migrations";
 
 const apply = (): undefined => undefined;
 
@@ -54,7 +55,8 @@ describe("SQLite migration definitions", () => {
 
 describe("SQLite migration runner", () => {
   it("applies each migration once and permits later append-only phases", () => {
-    const storage = new FakeMigrationStorage();
+    const source = new FakeMigrationStorage();
+    const storage = cloudflareSQLiteStorage(source);
     const first = vi.fn(apply);
     const second = vi.fn(apply);
 
@@ -64,7 +66,7 @@ describe("SQLite migration runner", () => {
 
     expect(first).toHaveBeenCalledOnce();
     expect(second).toHaveBeenCalledOnce();
-    expect(storage.recordedMigrations).toEqual([
+    expect(source.recordedMigrations).toEqual([
       { version: 2, name: "initial-phase" },
       { version: 4, name: "later-phase" },
     ]);
@@ -174,13 +176,25 @@ class FakeMigrationStorage implements SQLiteMigrationStorage {
 }
 
 function cursor<Row extends Record<string, SqlStorageValue>>(rows: readonly Record<string, SqlStorageValue>[]): SQLiteMigrationCursor<Row> {
+  const materialize = (): Row[] =>
+    rows.map((row) => {
+      const result = Object.create(null) as Row;
+      for (const [key, value] of Object.entries(row)) result[key as keyof Row] = value as Row[keyof Row];
+      return result;
+    });
   return {
     toArray(): Row[] {
-      return rows.map((row) => {
-        const result = Object.create(null) as Row;
-        for (const [key, value] of Object.entries(row)) result[key as keyof Row] = value as Row[keyof Row];
-        return result;
-      });
+      return materialize();
+    },
+    one(): Row {
+      const values = materialize();
+      if (values.length !== 1) throw new Error(`Expected exactly one row, received ${values.length}`);
+      const value = values[0];
+      if (value === undefined) throw new Error("Expected exactly one row, received 0");
+      return value;
+    },
+    *[Symbol.iterator](): IterableIterator<Row> {
+      yield* materialize();
     },
   };
 }

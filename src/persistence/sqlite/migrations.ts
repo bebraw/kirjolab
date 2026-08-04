@@ -1,8 +1,9 @@
-import { isRecord } from "../domain/unknown-value";
+import { isRecord } from "../../domain/unknown-value";
+import type { SQLiteCursor, SQLiteRow, SQLiteSql, SQLiteStorage, SQLiteValue } from "./storage";
 
 const migrationLedgerTable = "_kirjolab_migrations";
 
-interface MigrationLedgerRow extends Record<string, SqlStorageValue> {
+interface MigrationLedgerRow extends SQLiteRow {
   version: number;
   name: string;
 }
@@ -13,18 +14,11 @@ export interface SQLiteMigration {
   readonly apply: (sql: SQLiteMigrationSql) => undefined;
 }
 
-export interface SQLiteMigrationCursor<Row extends Record<string, SqlStorageValue>> {
-  toArray(): Row[];
-}
+export type SQLiteMigrationCursor<Row extends SQLiteRow> = SQLiteCursor<Row>;
 
-export interface SQLiteMigrationSql {
-  exec<Row extends Record<string, SqlStorageValue>>(query: string, ...bindings: SqlStorageValue[]): SQLiteMigrationCursor<Row>;
-}
+export type SQLiteMigrationSql = SQLiteSql;
 
-export interface SQLiteMigrationStorage {
-  readonly sql: SQLiteMigrationSql;
-  transactionSync<Result>(closure: () => Result): Result;
-}
+export type SQLiteMigrationStorage = SQLiteStorage;
 
 export function validateSQLiteMigrations(value: unknown): asserts value is readonly SQLiteMigration[] {
   if (!Array.isArray(value)) throw new TypeError("SQLite migrations must be an array");
@@ -107,3 +101,5 @@ function bootstrapMigrationLedger(sql: SQLiteMigrationSql): void {
     );
   `);
 }
+
+export type { SQLiteValue };

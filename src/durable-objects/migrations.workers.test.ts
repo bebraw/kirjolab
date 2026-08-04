@@ -1,8 +1,9 @@
 import { env } from "cloudflare:workers";
 import { runInDurableObject } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
+import { cloudflareSQLiteStorage } from "../persistence/sqlite/cloudflare";
 import { DocumentRoom } from "./document-room";
-import { runSQLiteMigrations, type SQLiteMigration } from "./migrations";
+import { runSQLiteMigrations, type SQLiteMigration } from "../persistence/sqlite/migrations";
 
 interface MigrationLedgerRow extends Record<string, SqlStorageValue> {
   name: string;
@@ -15,6 +16,7 @@ describe("SQLite migrations in the Workers runtime", () => {
     await stub.getSnapshot("migration-runner");
 
     await runInDurableObject(stub, (_instance: DocumentRoom, state) => {
+      const sqlite = cloudflareSQLiteStorage(state.storage);
       const failingMigration: SQLiteMigration = {
         version: 10_000,
         name: "runtime-rollback-probe",
@@ -25,7 +27,7 @@ describe("SQLite migrations in the Workers runtime", () => {
         },
       };
 
-      expect(() => runSQLiteMigrations(state.storage, [failingMigration])).toThrow("deliberate migration failure");
+      expect(() => runSQLiteMigrations(sqlite, [failingMigration])).toThrow("deliberate migration failure");
       expect(tableExists(state, "migration_runtime_probe")).toBe(false);
       expect(migrationRows(state).some((row) => row.version === 10_000)).toBe(false);
 
@@ -41,14 +43,14 @@ describe("SQLite migrations in the Workers runtime", () => {
         },
       };
 
-      runSQLiteMigrations(state.storage, [successfulMigration]);
-      runSQLiteMigrations(state.storage, [successfulMigration]);
+      runSQLiteMigrations(sqlite, [successfulMigration]);
+      runSQLiteMigrations(sqlite, [successfulMigration]);
       expect(applyCount).toBe(1);
       expect(state.storage.sql.exec<{ value: string }>("SELECT value FROM migration_runtime_probe").one().value).toBe("committed");
       expect(migrationRows(state).filter((row) => row.version === 10_000)).toEqual([{ version: 10_000, name: "runtime-commit-probe" }]);
 
       expect(() =>
-        runSQLiteMigrations(state.storage, [
+        runSQLiteMigrations(sqlite, [
           {
             version: 10_000,
             name: "renamed-runtime-commit-probe",

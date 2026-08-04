@@ -33,6 +33,13 @@ portability work attached to explicit contracts.
   Cloudflare Durable Object storage and Node `node:sqlite` are adapters to that
   contract. The contract owns statements, typed queries, and synchronous atomic
   transactions only.
+- Portable SQLite values are `ArrayBuffer | string | number | null`. The Node
+  adapter copies driver-owned binary views into exact `ArrayBuffer` values,
+  enforces one-row cursor cardinality, supports binding-free multi-statement
+  migration batches, and rejects nested or asynchronous transactions.
+- Database paths, connection lifecycle, foreign-key policy, authority-to-file
+  mapping, and per-authority request serialization remain composition-root
+  responsibilities rather than database-contract behavior.
 - Durable Object facades retain RPC, authorization, coordination, and
   multi-resource transaction ownership. Portable blobs, jobs, schedulers,
   identity, HTTP/WebSocket hosting, and multi-replica coordination require
@@ -64,7 +71,7 @@ portability work attached to explicit contracts.
       named volume preserves that state.
 - [ ] The evaluation configuration has no remote bindings and cloud-only
       artifact analysis fails explicitly rather than silently using Cloudflare.
-- [ ] One provider-neutral SQLite migration suite passes against both a test
+- [x] One provider-neutral SQLite migration suite passes against both a test
       adapter and Node `node:sqlite`.
 - [ ] Existing Cloudflare Worker and Durable Object tests remain green.
 - [ ] README and development documentation state the support boundary, startup,
@@ -81,6 +88,9 @@ portability work attached to explicit contracts.
   resource identifier.
 - SQLite adapters must preserve append-only migration validation, atomic
   migration-plus-ledger writes, and rollback after a failed migration.
+- Row-producing SQL cannot silently ignore a following statement, and bound
+  multi-statement batches remain unsupported until both adapters define them.
+- The Worker dependency graph must not import or evaluate the Node adapter.
 - The provider-neutral SQLite module must not import `cloudflare:workers` or
   `node:sqlite`; those imports belong to adapter modules.
 

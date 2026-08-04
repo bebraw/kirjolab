@@ -9,7 +9,7 @@ import {
   defaultTransclusionSource,
   legacyDefaultSource,
 } from "../../domain/workspace/workspace";
-import type { SQLiteMigration } from "../migrations";
+import type { SQLiteMigration } from "../../persistence/sqlite/migrations";
 
 interface DocumentRoomMigrationDependencies {
   readonly document: Y.Doc;

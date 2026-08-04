@@ -1,4 +1,5 @@
 import { DurableObject } from "cloudflare:workers";
+import { cloudflareSQLiteStorage } from "../persistence/sqlite/cloudflare";
 import {
   maximumOwnerBackupBytes,
   ownerBackupSchemaVersion,
@@ -10,7 +11,7 @@ import {
 import { canonicalValue } from "../domain/canonical-value";
 import type { ReviewAccessBackupState, ReviewCatalogRecord } from "../domain/review/review-catalog";
 import type { ReviewBackupReference, ReviewBackupVerification } from "../domain/review/review-backup";
-import { runSQLiteMigrations, type SQLiteMigration } from "./migrations";
+import { runSQLiteMigrations, type SQLiteMigration } from "../persistence/sqlite/migrations";
 
 const migrations = [
   {
@@ -94,7 +95,7 @@ export class BackupRecovery extends DurableObject<Env> {
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
     ctx.blockConcurrencyWhile(async () => {
-      runSQLiteMigrations(this.ctx.storage, migrations);
+      runSQLiteMigrations(cloudflareSQLiteStorage(this.ctx.storage), migrations);
     });
   }
 

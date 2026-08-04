@@ -4,7 +4,7 @@ import { reviewDuplicateKeys } from "../../domain/review/review-search";
 import { type ScreeningDecisionValue, type ScreeningStage } from "../../domain/review/review-screening";
 import { parseEvidencePointer } from "../../domain/review/review-evidence";
 import { parseScreeningModelResult, type ReviewModelOperation } from "../../domain/review/review-model";
-import type { SQLiteMigration, SQLiteMigrationSql } from "../migrations";
+import type { SQLiteMigration, SQLiteMigrationSql } from "../../persistence/sqlite/migrations";
 import { parseStoredReviewImportRecord } from "./records";
 
 export const reviewStudyMigrations = [

@@ -1,4 +1,5 @@
 import { DurableObject } from "cloudflare:workers";
+import { cloudflareSQLiteStorage } from "../persistence/sqlite/cloudflare";
 import { ensureLegacyReviewResource, workspaceStorageKey } from "../api/reviews";
 import {
   backupBlobKey,
@@ -22,7 +23,7 @@ import {
 } from "../domain/backup/backups";
 import { localOwnerId } from "../domain/workspace/workspace";
 import type { AuthIdentity } from "../security/auth";
-import { runSQLiteMigrations, type SQLiteMigration } from "./migrations";
+import { runSQLiteMigrations, type SQLiteMigration } from "../persistence/sqlite/migrations";
 
 const maximumOwnersPerRun = 50;
 const maximumWorkspacesPerOwner = 200;
@@ -122,7 +123,7 @@ export class BackupCoordinator extends DurableObject<Env> {
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
     ctx.blockConcurrencyWhile(async () => {
-      runSQLiteMigrations(this.ctx.storage, migrations);
+      runSQLiteMigrations(cloudflareSQLiteStorage(this.ctx.storage), migrations);
     });
   }
 
