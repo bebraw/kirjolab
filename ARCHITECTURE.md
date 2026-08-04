@@ -400,7 +400,8 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   stage. Let the workspace Preview derive source-to-Preview eligibility
   from its bound active file, snapshot, context, layout, and sync owner, then
   reveal the nearest mapped DOM range itself. Keep file activation, authoring
-  mode, caret, and source-focus policy in the application coordinator.
+  mode, caret placement, and source-focus policy in the project-file
+  lifecycle.
 - Keep the DOI publication-intake XState actor, preview and acceptance
   requests, stale-response guards, local status, and focus lifecycle inside the
   bounded intake Lit component. Let that component also derive the active PDF's
@@ -1267,8 +1268,10 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   corresponding centered or selected source offset; and delegate file focus
   and Preview synchronization through directly bound project-file and Preview
   owners. The workspace Preview installs this complete source binding with its
-  project lifecycle. Keep active file, context, and layout authority, Preview DOM
-  navigation, caret placement, and focus policy in the application coordinator.
+  project lifecycle. Keep active-file, context, and layout authority in their
+  canonical owners; keep Preview DOM navigation and live geometry in the
+  workspace Preview; and keep file activation, caret placement, and focus
+  policy in the project-file lifecycle.
 - Keep source-completion interaction in its bounded light-DOM component: use
   one atomic workspace binding for the editor, citation-scope control, project
   acceptance owners, and API route; bind editor change, keyboard, and blur behavior there; invoke one coordinator

@@ -2789,9 +2789,39 @@ test("locks source and Preview scrolling without moving the source caret", async
   await toggle.click();
   await expect(toggle).toHaveAttribute("aria-pressed", "true");
 
+  const linkedMotion = await page.evaluate(async () => {
+    const source = document.querySelector<HTMLTextAreaElement>("#source-editor");
+    const preview = document.querySelector<HTMLElement>("#preview-scroll");
+    if (!source || !preview) throw new Error("Expected linked source and Preview scrollers");
+    const settle = async () => await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+    const sample = async (leader: HTMLElement, follower: HTMLElement): Promise<readonly number[]> => {
+      const maximum = Math.max(0, leader.scrollHeight - leader.clientHeight);
+      const start = maximum * 0.2;
+      const distance = maximum * 0.4;
+      leader.dispatchEvent(new WheelEvent("wheel"));
+      const positions: number[] = [];
+      for (let index = 0; index <= 40; index += 1) {
+        leader.scrollTop = start + (distance * index) / 40;
+        leader.dispatchEvent(new Event("scroll"));
+        await settle();
+        positions.push(follower.scrollTop);
+      }
+      return positions;
+    };
+    return {
+      preview: await sample(source, preview),
+      source: await sample(preview, source),
+    };
+  });
+  for (const positions of [linkedMotion.preview, linkedMotion.source]) {
+    const movingSteps = positions.slice(1).filter((position, index) => Math.abs(position - positions[index]!) >= 0.5).length;
+    expect(movingSteps).toBeGreaterThanOrEqual(32);
+  }
+
   const sourceLine30 = page.locator("#source-editor-highlight .source-editor-line", { hasText: "Passage 30." });
   const passage30 = page.locator("#preview p", { hasText: "Passage 30." });
   const previewScroll = page.locator("#preview-scroll");
+  const linkedCenterTolerance = 3;
   await editor.dispatchEvent("wheel");
   await sourceLine30.evaluate((line) => {
     const sourceEditor = document.querySelector<HTMLTextAreaElement>("#source-editor");
@@ -2810,7 +2840,7 @@ test("locks source and Preview scrolling without moving the source caret", async
         }),
       ),
     )
-    .toBeLessThan(1);
+    .toBeLessThan(linkedCenterTolerance);
 
   await toggle.click();
   await expect(toggle).toHaveAttribute("aria-pressed", "false");
@@ -2852,7 +2882,7 @@ test("locks source and Preview scrolling without moving the source caret", async
         }),
       ),
     )
-    .toBeLessThan(1);
+    .toBeLessThan(linkedCenterTolerance);
   expect(await editor.evaluate((element: HTMLTextAreaElement) => element.selectionStart)).toBe(caretBeforePreviewScroll);
   await expect
     .poll(async () =>

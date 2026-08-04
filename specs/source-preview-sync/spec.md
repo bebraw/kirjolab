@@ -24,10 +24,10 @@ Preview offset may belong to a supporting file.
   citation buttons into typed source-offset or citation intents without
   exposing Preview elements, and routes those intents plus nested diagnostic
   selections directly through the sync, Context, and project-file owners in
-  its existing project binding. The workspace coordinator
-  retains source-map translation, project-file selection, canonical image
-  metadata and hidden-id inputs, publication resolution, citation navigation,
-  and resulting transitions.
+  its existing project binding. The bound synchronization and project owners
+  retain composition source-map translation, project-file selection, canonical
+  image metadata and hidden-id inputs, publication resolution, citation
+  navigation, and resulting transitions.
 - A compact three-button control straddles the authoring/context divider while
   the Preview tab is active in desktop split view. The right arrow reveals the
   passage centered in the source editor in Preview; the middle scroll-lock
@@ -42,13 +42,25 @@ Preview offset may belong to a supporting file.
   synchronization control owns those native source listeners, their navigation-
   key classification, teardown, responsive split-layout eligibility, centered
   versus selected source-offset choice, and explicit-versus-automatic callback
-  routing. The workspace coordinator supplies the current Preview-context and
-  layout state and retains the resulting Preview DOM navigation.
+  routing. Bound canonical owners supply the current Preview-context and layout
+  state; the workspace Preview retains resulting Preview DOM navigation and
+  live geometry, while the project-file lifecycle retains caret and focus
+  policy.
 - Locked scrolling is opt-in and transient. The most recent deliberate wheel,
   touch, pointer, or scroll-key interaction selects the leading pane. Updates
   are throttled to one animation frame, programmatic movement of the following
   pane does not feed back into the leader, and text input clears the active
-  leader.
+  leader. Within a contiguous mapping, each update interpolates the follower
+  viewport center through the source-mapped boundaries of logical source lines
+  and outermost rendered blocks. Visual and source gaps are bridged only when
+  their boundary blocks are adjacent and ordered alike in both source and
+  visual indexes, so unequal line and block heights do not cause hold-and-jump
+  snapping. Rendered blocks moved out of source order, such as footnotes,
+  remain directly addressable without interpolating across intervening or
+  reversed boundaries. Preview block references and ranges are cached per
+  render while their live geometry is read during interpolation. After finding
+  a valid mapping, a leader at its top or bottom endpoint pins the follower to
+  the corresponding endpoint.
 - Source-led linked scrolling maps the center of the source viewport to
   Preview. Preview-led linked scrolling recenters the source viewport only
   when the mapped content belongs to the active file. It does not move the
@@ -75,7 +87,11 @@ Preview offset may belong to a supporting file.
   centering.
 - **Locked scrolling:** Activating the scroll lock lets either pane lead
   continuous viewport alignment until the control is unlinked. The latest
-  direct scroll intent determines the leader.
+  direct scroll intent determines the leader. Within a contiguous same-file
+  mapping, the follower advances proportionally between neighboring semantic
+  boundaries instead of remaining centered on one line or rendered block
+  until another becomes nearest. This alignment is approximate rather than a
+  pixel-exact correspondence between rendered and source text.
 - **Unavailable mapping:** Keep the current panes and selections unchanged.
 - **Narrow layouts:** Hide the divider control because both panes are not
   simultaneously visible. Direct Preview clicks remain available and return
@@ -89,6 +105,9 @@ Preview offset may belong to a supporting file.
 - Do not let Preview synchronization scroll the outer workspace document.
 - Do not map linked scrolling by raw scroll percentages or let programmatic
   follower scrolling bounce back into the leading pane.
+- Do not repeatedly recenter the nearest line or rendered block, or start a
+  browser smooth-scroll animation for every synchronization frame; those
+  approaches produce stepping or accumulated lag.
 - Do not switch source files during continuous Preview-led scrolling;
   cross-file navigation remains an explicit action.
 - Do not let Sync override citations, links, or other interactive Preview
@@ -104,10 +123,13 @@ Preview offset may belong to a supporting file.
 - Markdown tests verify source-position attributes survive the Preview
   sanitizer without exposing unrelated positional metadata.
 - View tests verify the bidirectional control and its accessible names.
-- Control tests cover link state, latest-intent leadership, loop suppression,
-  input interruption, and cross-file protection.
-- Browser tests cover bidirectional linked scrolling without caret movement or
-  feedback loops.
+- Control and Preview document tests cover link state, latest-intent
+  leadership, loop suppression, input interruption, cross-file protection,
+  endpoints, interpolation within logical lines and rendered blocks, unequal
+  gaps, half-open range tails, and source-reordered rendered blocks.
+- Browser tests sample intermediate follower positions in both directions and
+  cover linked scrolling without caret movement or feedback loops; endpoint
+  alignment alone is not a sufficient continuity assertion.
 
 ## Current Milestone
 

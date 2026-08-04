@@ -7,6 +7,7 @@ import { renderIcon } from "../../ui/icons";
 import { previewOffsetsForSourceLocation, sourceLocationForPreviewOffset, type PreviewSourceLocation } from "./source-preview-sync";
 
 export type PreviewSyncAction = "preview-to-source" | "source-to-preview" | "toggle-scroll-link";
+export type PreviewScrollEdge = "end" | "start" | null;
 
 export interface PreviewScrollBinding {
   readonly onIntent: (event: Event) => void;
@@ -23,7 +24,10 @@ export interface PreviewSyncOwners {
   readonly sourceHighlight: HTMLElement;
   readonly workspacePreview: {
     bindScrollSync(binding: PreviewScrollBinding, signal: AbortSignal): void;
+    centeredPreviewScrollOffset(): number | null;
     centeredSourceOffset(markTarget?: boolean): number | null;
+    centerPreviewScrollOffsets(offsets: readonly number[], edge?: PreviewScrollEdge): boolean;
+    previewScrollEdge(): PreviewScrollEdge;
     syncFromSource(explicit: boolean, markTarget?: boolean): void;
   };
   readonly workspaceSurfaces: HTMLElement;
@@ -32,6 +36,7 @@ export interface PreviewSyncOwners {
 const sourceNavigationKeys = new Set(["ArrowDown", "ArrowLeft", "ArrowRight", "ArrowUp", "End", "Home", "PageDown", "PageUp"]);
 const previewScrollKeys = new Set([" ", "ArrowDown", "ArrowUp", "End", "Home", "PageDown", "PageUp"]);
 type ScrollLeader = "preview" | "source";
+type SourceLineCollection = { readonly [index: number]: HTMLElement | undefined; readonly length: number };
 
 export class PreviewSyncControls extends LightDomElement {
   static override properties = { scrollLinked: { state: true } };
@@ -94,17 +99,61 @@ export class PreviewSyncControls extends LightDomElement {
     if (line) source.scrollTop = line.offsetTop + line.offsetHeight / 2 - source.clientHeight / 2;
   }
 
+  centerSourceScrollOffset(sourceOffset: number, edge: PreviewScrollEdge = null): void {
+    const source = this.#owners?.source;
+    const sourceHighlight = this.#owners?.sourceHighlight;
+    if (!source || !sourceHighlight) return;
+    if (edge !== null) {
+      source.scrollTop = edge === "start" ? 0 : maximumScrollTop(source);
+      return;
+    }
+    const lineOffsets = this.#sourceLineOffsets(source);
+    const boundedOffset = Math.max(0, Math.min(source.value.length, sourceOffset));
+    let lower = 0;
+    let upper = lineOffsets.length;
+    while (lower < upper) {
+      const middle = Math.floor((lower + upper) / 2);
+      if ((lineOffsets[middle] ?? 0) <= boundedOffset) lower = middle + 1;
+      else upper = middle;
+    }
+    const lineIndex = Math.max(0, lower - 1);
+    const line = sourceEditorLines(sourceHighlight)[lineIndex];
+    if (!line) return;
+    const from = lineOffsets[lineIndex] ?? 0;
+    const to = lineOffsets[lineIndex + 1] ?? source.value.length;
+    const progress = to > from ? (boundedOffset - from) / (to - from) : 0.5;
+    source.scrollTop = line.offsetTop + line.offsetHeight * clampUnit(progress) - source.clientHeight / 2;
+  }
+
   sourceOffsetAtCenter(): number {
     const source = this.#owners?.source;
     const sourceHighlight = this.#owners?.sourceHighlight;
     if (!source || !sourceHighlight) return 0;
     const center = source.scrollTop + source.clientHeight / 2;
-    const lines = sourceHighlight.querySelectorAll<HTMLElement>(".source-editor-line");
+    const lines = sourceEditorLines(sourceHighlight);
     const nearestLine = centeredSourceLine(lines, center);
     const lineNumber = Number.parseInt(nearestLine?.dataset.lineNumber ?? "1", 10);
     if (!Number.isSafeInteger(lineNumber) || lineNumber <= 1) return 0;
     const lineOffsets = this.#sourceLineOffsets(source);
     return lineOffsets[lineNumber - 1] ?? source.value.length;
+  }
+
+  sourceScrollOffsetAtCenter(): number {
+    const source = this.#owners?.source;
+    const sourceHighlight = this.#owners?.sourceHighlight;
+    if (!source || !sourceHighlight) return 0;
+    const center = source.scrollTop + source.clientHeight / 2;
+    const lines = sourceEditorLines(sourceHighlight);
+    const lineIndex = sourceLineAtPosition(lines, center);
+    if (lineIndex === null) return 0;
+    const line = lines[lineIndex];
+    if (!line) return 0;
+    const lineOffsets = this.#sourceLineOffsets(source);
+    const from = lineOffsets[lineIndex] ?? 0;
+    const to = lineOffsets[lineIndex + 1] ?? source.value.length;
+    if (to <= from || line.offsetHeight <= 0) return from;
+    const progress = clampUnit((center - line.offsetTop) / line.offsetHeight);
+    return from + (to - from) * progress;
   }
 
   setVisible(visible: boolean): void {
@@ -252,19 +301,30 @@ export class PreviewSyncControls extends LightDomElement {
       const pending = this.#pendingScrollLeader;
       this.#pendingScrollLeader = null;
       if (!pending || pending !== this.#scrollLeader || !this.#canFollowScroll()) return;
-      if (pending === "source") this.#owners?.workspacePreview.syncFromSource(true, false);
+      if (pending === "source") this.#syncPreviewViewportFromSource();
       else this.#syncSourceViewportFromPreview();
     });
   }
 
+  #syncPreviewViewportFromSource(): void {
+    const owners = this.#owners;
+    if (!owners) return;
+    const activeFileId = owners.projectFileDialog.activeFileId ?? owners.projectFileDialog.project?.entryFileId;
+    if (!activeFileId) return;
+    owners.workspacePreview.centerPreviewScrollOffsets(
+      this.previewOffsets(activeFileId, this.sourceScrollOffsetAtCenter()),
+      scrollEdge(owners.source),
+    );
+  }
+
   #syncSourceViewportFromPreview(): void {
     const owners = this.#owners;
-    const previewOffset = owners?.workspacePreview.centeredSourceOffset(false) ?? null;
+    const previewOffset = owners?.workspacePreview.centeredPreviewScrollOffset() ?? null;
     if (!owners || previewOffset === null) return;
     const location = this.sourceLocation(previewOffset);
     const activeFileId = owners.projectFileDialog.activeFileId ?? owners.projectFileDialog.project?.entryFileId;
     if (!location || location.fileId !== activeFileId) return;
-    this.centerSourceOffset(location.offset);
+    this.centerSourceScrollOffset(location.offset, owners.workspacePreview.previewScrollEdge());
   }
 
   #canFollowScroll(): boolean {
@@ -307,7 +367,13 @@ export class PreviewSyncControls extends LightDomElement {
   }
 }
 
-function centeredSourceLine(lines: NodeListOf<HTMLElement>, center: number): HTMLElement | null {
+function sourceEditorLines(highlight: HTMLElement): SourceLineCollection {
+  return (
+    (highlight.children as unknown as SourceLineCollection | undefined) ?? highlight.querySelectorAll<HTMLElement>(".source-editor-line")
+  );
+}
+
+function centeredSourceLine(lines: SourceLineCollection, center: number): HTMLElement | null {
   const lower = firstSourceLineAtCenter(lines, center);
   if (lower === null) return null;
   const nearest = lines[lower] ?? null;
@@ -316,7 +382,21 @@ function centeredSourceLine(lines: NodeListOf<HTMLElement>, center: number): HTM
   return lineDistance(previous, center) < lineDistance(nearest, center) ? previous : nearest;
 }
 
-function firstSourceLineAtCenter(lines: NodeListOf<HTMLElement>, center: number): number | null {
+function sourceLineAtPosition(lines: SourceLineCollection, position: number): number | null {
+  if (lines.length === 0) return null;
+  let lower = 0;
+  let upper = lines.length - 1;
+  while (lower < upper) {
+    const middle = Math.floor((lower + upper) / 2);
+    const line = lines[middle];
+    if (!line) return null;
+    if (line.offsetTop + line.offsetHeight < position) lower = middle + 1;
+    else upper = middle;
+  }
+  return lower;
+}
+
+function firstSourceLineAtCenter(lines: SourceLineCollection, center: number): number | null {
   if (lines.length === 0) return null;
   let lower = 0;
   let upper = lines.length - 1;
@@ -336,6 +416,20 @@ function lineDistance(line: HTMLElement, center: number): number {
 
 function lineCenter(line: HTMLElement): number {
   return line.offsetTop + line.offsetHeight / 2;
+}
+
+function clampUnit(value: number): number {
+  return Math.max(0, Math.min(1, value));
+}
+
+function maximumScrollTop(element: Pick<HTMLElement, "clientHeight" | "scrollHeight">): number {
+  return Math.max(0, element.scrollHeight - element.clientHeight);
+}
+
+function scrollEdge(element: Pick<HTMLElement, "clientHeight" | "scrollHeight" | "scrollTop">): PreviewScrollEdge {
+  if (element.scrollTop <= 1) return "start";
+  const maximum = maximumScrollTop(element);
+  return Number.isFinite(maximum) && maximum - element.scrollTop <= 1 ? "end" : null;
 }
 
 if (typeof customElements !== "undefined" && !customElements.get("preview-sync-controls")) {
