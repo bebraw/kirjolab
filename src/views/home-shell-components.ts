@@ -5,13 +5,13 @@ import { renderPdfPageIndicator } from "./home-pdf-components";
 export type HomeAppMode = "workspace" | "library";
 export type HomeRoute = { path: string; purpose: string };
 
-const workspaceLayoutOptions = `<option value="split">Split</option><option value="editor">Editor only</option>
+const workspaceLayoutOptions = `<option value="split">Split</option><option value="editor">Editor + navigation</option>
               <option value="context">Context only</option><option value="pdf">PDF only</option>`;
 
 export function renderWorkspaceLayoutControl(appMode: HomeAppMode): string {
   return appMode === "library"
     ? `<workspace-layout-control id="workspace-layout-control" mode="library"><select id="workspace-layout" hidden aria-hidden="true" tabindex="-1">${workspaceLayoutOptions}</select></workspace-layout-control>`
-    : `<workspace-layout-control id="workspace-layout-control" mode="workspace"><label class="project-view-control hidden items-center gap-2 font-sans text-xs text-app-text-soft min-[72rem]:flex">View
+    : `<workspace-layout-control id="workspace-layout-control" mode="workspace"><label class="project-view-control hidden items-center gap-2 font-sans text-xs text-app-text-soft min-[70rem]:flex"><span>View</span>
             <select class="workspace-switcher" id="workspace-layout" aria-label="Project view">
               ${workspaceLayoutOptions}
             </select>

@@ -323,14 +323,14 @@ export class WorkspaceLayoutControl extends LightDomElement {
       @change=${this.change}
     >
       <option value="split">Split</option>
-      <option value="editor">Editor only</option>
+      <option value="editor">Editor + navigation</option>
       <option value="context">Context only</option>
       <option value="pdf">PDF only</option>
     </select>`;
     return this.mode === "library"
       ? select
-      : html`<label class="project-view-control hidden items-center gap-2 font-sans text-xs text-app-text-soft min-[72rem]:flex"
-          >View ${select}</label
+      : html`<label class="project-view-control hidden items-center gap-2 font-sans text-xs text-app-text-soft min-[70rem]:flex"
+          ><span>View</span>${select}</label
         >`;
   }
 

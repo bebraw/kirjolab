@@ -735,6 +735,21 @@
     }
   }
 
+  @media (min-width: 70rem) and (max-width: 89.999rem) {
+    body[data-app-mode="workspace"] .app-header-row {
+      gap: 0.375rem;
+      padding-inline: 0.75rem;
+    }
+
+    body[data-app-mode="workspace"] :is(.app-header-primary, .app-header-secondary) {
+      gap: 0.375rem;
+    }
+
+    body[data-app-mode="workspace"] .project-view-control > span {
+      display: none;
+    }
+  }
+
   .library-header-context {
     display: none;
   }

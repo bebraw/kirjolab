@@ -266,6 +266,10 @@ the precise route, validation, persistence, and regression requirements.
   lifecycle; no separate
   non-element layout manager exists. Widths remain context-specific transient
   UI state rather than collaborative data or workspace URL state.
+  The native project-view selector appears wherever tablet Split begins hiding
+  the project rail. Its `Editor + navigation` choice restores the rail and
+  authoring surface while yielding Context, and the selected layout continues
+  through the existing workspace-local persistence and URL contracts.
   On desktop the rail width is adjustable by pointer or keyboard within bounded
   readable limits and persists as a browser-local, cross-project preference.
   It can collapse without losing that width and exposes an editor-toolbar
@@ -1064,6 +1068,9 @@ the precise route, validation, persistence, and regression requirements.
       default width, and preserves primary-pane minimum widths.
 - [x] The desktop project rail collapses and restores without losing its
       preferred expanded width or changing compact layouts.
+- [x] Tablet-landscape Split keeps the project rail out of the two-pane layout
+      while a visible `Editor + navigation` view choice restores it without
+      horizontal overflow.
 - [x] Wider project rails reveal mode labels, and desktop separators visibly
       communicate their pointer and keyboard interactions.
 - [x] Desktop Authoring fills the workspace content row without an empty footer
@@ -1332,6 +1339,14 @@ the precise route, validation, persistence, and regression requirements.
   stored locally, and the editor reports that they are saved offline
 - And: after connectivity returns, only the state absent from the last
   acknowledged server vector is queued after `sync` and durably acknowledged
+
+**Scenario: Researcher opens project navigation on an iPad**
+
+- Given: tablet-landscape Split is showing Authoring and Context without the
+  project rail
+- When: the researcher chooses `Editor + navigation` from Project view
+- Then: the project rail and Authoring are visible, Context yields the space,
+  and the workspace does not overflow horizontally
 
 **Scenario: Offline support has no authorized local copy**
 

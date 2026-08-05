@@ -6,11 +6,14 @@ describe("renderWorkspaceLayoutControl", () => {
   it("renders a labelled project view selector in workspace mode", () => {
     const html = renderWorkspaceLayoutControl("workspace");
 
-    expect(html).toContain('<label class="project-view-control');
+    expect(html).toContain(
+      '<label class="project-view-control hidden items-center gap-2 font-sans text-xs text-app-text-soft min-[70rem]:flex">',
+    );
+    expect(html).toContain("<span>View</span>");
     expect(html).toContain('<workspace-layout-control id="workspace-layout-control" mode="workspace">');
     expect(html).toContain('id="workspace-layout" aria-label="Project view"');
     expect(html).toContain('<option value="split">Split</option>');
-    expect(html).toContain('<option value="editor">Editor only</option>');
+    expect(html).toContain('<option value="editor">Editor + navigation</option>');
     expect(html).toContain('<option value="context">Context only</option>');
     expect(html).toContain('<option value="pdf">PDF only</option>');
     expect(html).not.toContain("aria-hidden");
