@@ -2199,6 +2199,36 @@ test("keeps editor controls visible at a compact split width", async ({ page }) 
   await expect(page.locator("#toast")).toContainText("Included ");
 });
 
+test("lets tablet users restore project file navigation", async ({ page }) => {
+  await page.setViewportSize({ width: 1120, height: 744 });
+  const workspaceId = await createWorkspace(page, "Tablet project navigation");
+  await page.goto(`/editor/${workspaceId}`);
+  await expect(page.locator("#connection-status")).toContainText("Live");
+
+  const projectView = page.getByLabel("Project view");
+  const projectRail = page.locator(".source-rail");
+  await expect(projectView).toBeVisible();
+  await expect(projectRail).toBeHidden();
+
+  await projectView.selectOption({ label: "Editor + navigation" });
+  await expect(projectRail).toBeVisible();
+  await expect(page.locator("#files-rail-panel")).toBeVisible();
+  await expect(page.locator("#authoring-surface")).toBeVisible();
+  await expect(page.locator("#context-surface")).toBeHidden();
+  const layout = await page.evaluate(() => ({
+    clientWidth: document.documentElement.clientWidth,
+    scrollWidth: document.documentElement.scrollWidth,
+    overflowing: [...document.querySelectorAll<HTMLElement>("body *")]
+      .filter((element) => element.offsetParent !== null && Math.round(element.getBoundingClientRect().right) > innerWidth)
+      .map((element) => ({
+        className: element.className,
+        id: element.id,
+        right: Math.round(element.getBoundingClientRect().right),
+      })),
+  }));
+  expect(layout).toEqual({ clientWidth: 1120, scrollWidth: 1120, overflowing: [] });
+});
+
 test("keeps the local editor target visible after focus moves to Context", async ({ page }) => {
   const workspaceId = await createWorkspace(page, "Remembered editor target");
   await page.goto(`/editor/${workspaceId}`);
@@ -3150,7 +3180,9 @@ test("shares linked reference PDFs with members but not public links", async ({ 
   await expect(page.getByRole("button", { name: "Draw", exact: true })).toBeVisible();
   await expect(page.locator("#context-pdf-panel .context-pdf-body")).toHaveCSS("grid-template-columns", /\d+(?:\.\d+)?px \d+(?:\.\d+)?px/);
   await page.setViewportSize({ width: 1180, height: 820 });
-  await expect(page.locator("#source-rail")).toBeHidden();
+  const projectRail = page.locator(".source-rail");
+  await expect(projectRail).toHaveCount(1);
+  await expect(projectRail).toBeHidden();
   await expect(page.locator("#authoring-surface")).toBeVisible();
   await expect(page.locator("#context-surface")).toBeVisible();
   const tabletReaderHeight = await page.locator("#paper-reader").evaluate((element) => element.getBoundingClientRect().height);
@@ -3181,7 +3213,7 @@ test("shares linked reference PDFs with members but not public links", async ({ 
     .toBe(tabletReaderHeight);
   await page.getByRole("button", { name: "Close PDF navigation" }).click();
   await page.setViewportSize({ width: 820, height: 1180 });
-  await expect(page.locator("#source-rail")).toBeHidden();
+  await expect(projectRail).toBeHidden();
   await expect(page.locator("#authoring-surface")).toBeHidden();
   await expect(page.locator("#context-surface")).toBeVisible();
   await page.setViewportSize({ width: 1440, height: 900 });

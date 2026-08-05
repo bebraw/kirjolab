@@ -168,14 +168,17 @@ changing their canonical data, selector, authorization, or rendering contracts.
 - The desktop project rail can collapse independently of its preferred width.
   Collapsing it reveals a labelled restoration control in the editor toolbar,
   persists locally across projects, and does not affect compact layouts.
-- In workspace mode, a desktop view control switches among Split, Editor only,
-  Context only, and PDF only. The standalone Library does not expose this
-  project-layout control because its reader already owns the full content area.
-  A bounded light-DOM component owns option presentation, normalization,
-  selection, workspace-scoped resilient local persistence, and a typed change
-  outcome. The choice survives reload, never enters collaborative state, and
-  the workspace coordinator retains surface mutation, PDF activation, URL
-  synchronization, and PDF rerendering after geometry changes.
+- In workspace mode, a tablet-landscape and desktop view control switches among
+  Split, Editor + navigation, Context only, and PDF only. It appears at the same
+  breakpoint where tablet Split begins omitting the project rail, so navigation
+  remains reachable without forcing an undersized three-pane layout. The
+  standalone Library does not expose this project-layout control because its
+  reader already owns the full content area. A bounded light-DOM component owns
+  option presentation, normalization, selection, workspace-scoped resilient
+  local persistence, and a typed change outcome. The choice survives reload,
+  never enters collaborative state, and the workspace coordinator retains
+  surface mutation, PDF activation, URL synchronization, and PDF rerendering
+  after geometry changes.
 - PDF only activates an open PDF or the first project PDF when available; an
   empty project explains that a PDF must be added instead of showing a broken
   viewer.

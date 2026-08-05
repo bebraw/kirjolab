@@ -4,6 +4,8 @@
 
 **Date:** 2026-07-30
 
+**Amended:** 2026-08-05
+
 ## Context
 
 The desktop workspace begins rendering the project rail, authoring pane, and
@@ -24,8 +26,9 @@ Use three responsive workspace hierarchies:
 - Narrow viewports show one task surface. Context hides both authoring and the
   project rail so the active research resource owns the available workspace.
 - Tablet landscape Split shows authoring and Context side by side and omits the
-  project rail. Explicit Editor-only mode retains the rail, while Context-only
-  and PDF-only modes retain their existing focused behavior.
+  project rail. The project-view control begins at the same breakpoint, and its
+  explicit `Editor + navigation` mode retains the rail while Context-only and
+  PDF-only modes retain their existing focused behavior.
 - The simultaneous project-rail, authoring, and Context layout begins at 90rem.
 
 Render PDF search and document navigation as bounded overlays within the PDF
@@ -43,7 +46,7 @@ tracks or change the reader's dimensions.
 
 **Negative:**
 
-- The project rail is one interaction away while using tablet Split.
+- The project rail requires switching out of Split while using a tablet.
 - Auxiliary PDF panels temporarily cover part of the page.
 - The layout now has a distinct intermediate-width hierarchy to maintain.
 

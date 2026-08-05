@@ -1,3 +1,4 @@
+import type { TemplateResult } from "lit";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { WorkspaceLayoutControl, type WorkspaceLayoutElement } from "./workspace-layout-control";
 import type { WorkspaceLayout } from "./workspace-ui-route";
@@ -58,6 +59,13 @@ function bindWorkspace(control: WorkspaceLayoutControl, workspaceId: string, wor
   return workspace;
 }
 
+function requiredTemplateResult(value: unknown): TemplateResult {
+  if (typeof value !== "object" || value === null || !("strings" in value) || !("values" in value)) {
+    throw new Error("Expected a nested Lit template result");
+  }
+  return value as TemplateResult;
+}
+
 afterEach(() => vi.unstubAllGlobals());
 
 describe("workspace layout control", () => {
@@ -113,5 +121,27 @@ describe("workspace layout control", () => {
     await expect(control.restore()).resolves.toBe("split");
     await expect(control.navigate("editor")).resolves.toBe("editor");
     expect(control.value).toBe("editor");
+  });
+
+  it("renders the complete workspace project-view contract", () => {
+    const control = new TestWorkspaceLayoutControl();
+    const layout = control.renderForTest();
+
+    expect(layout.strings.join("")).toContain(
+      'class="project-view-control hidden items-center gap-2 font-sans text-xs text-app-text-soft min-[70rem]:flex"',
+    );
+    expect(layout.strings.join("")).toContain("<span>View</span>");
+    expect(layout.values).toHaveLength(1);
+    const select = requiredTemplateResult(layout.values[0]);
+    expect(select.strings.join("")).toContain(
+      '<option value="split">Split</option>\n      <option value="editor">Editor + navigation</option>\n      <option value="context">Context only</option>\n      <option value="pdf">PDF only</option>',
+    );
+    expect(select.values).toEqual(["workspace-switcher", "Project view", "false", "0", false, "split", expect.any(Function)]);
+
+    control.attributeChangedCallback("mode", null, "library");
+    const librarySelect = control.renderForTest();
+    expect(librarySelect.strings.join("")).toContain("<select");
+    expect(librarySelect.strings.join("")).not.toContain("<label");
+    expect(librarySelect.values).toEqual(["", "", "true", "-1", true, "split", expect.any(Function)]);
   });
 });
