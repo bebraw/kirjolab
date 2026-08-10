@@ -708,7 +708,7 @@ test("imports, annotates, and exports a private PDF without a project", async ({
   });
   const studentPdf = page.locator("#reference-library-list .library-reference-row").filter({ hasText: /student submission/iu });
   await expect(studentPdf).toBeVisible();
-  await studentPdf.getByRole("button", { name: "PDF", exact: true }).click();
+  await studentPdf.locator("button.library-reference-open").click();
   const studentPdfTab = page.locator("#context-resource-tabs [role='tab'][aria-selected='true']");
   const studentPdfKey = await requiredLocatorAttribute(studentPdfTab, "data-context-key", "Expected a private PDF context key");
   if (!studentPdfKey.startsWith("library-pdf:")) throw new Error("Expected a private PDF context key");
@@ -910,7 +910,7 @@ test("follows internal and external links from the active PDF page", async ({ pa
     buffer: createLinkedEvidencePdf(),
   });
   const linkedPdf = page.locator("#reference-library-list .library-reference-row").filter({ hasText: /linked reading/iu });
-  await linkedPdf.getByRole("button", { name: "PDF", exact: true }).click();
+  await linkedPdf.locator("button.library-reference-open").click();
 
   await expect(page.locator("#paper-links .pdf-link")).toHaveCount(2);
   const external = page.getByRole("link", { name: "Open PDF link: https://example.com/source" });
@@ -3158,7 +3158,7 @@ test("shares linked reference PDFs with members but not public links", async ({ 
   const card = page.locator("#reference-library-list .library-reference-row").filter({ hasText: "Private Research Guide" });
   await expect(card).toBeVisible();
   await expect(card).toContainText("writer2026");
-  await expect(card.getByRole("button", { name: "PDF", exact: true })).toHaveCount(0);
+  await expect(card.locator("button.library-reference-open")).toHaveCount(0);
   await expect(page.locator("#publication-list")).not.toContainText("Private Research Guide");
 
   await card.getByRole("button", { name: "Add" }).click();
@@ -3174,7 +3174,10 @@ test("shares linked reference PDFs with members but not public links", async ({ 
 
   const beforePrivateReading = await readWorkspaceSnapshot(page, api);
   await expect(pdfCard.locator(".library-reference-details")).not.toHaveAttribute("open", "");
-  await pdfCard.getByRole("button", { name: "PDF", exact: true }).click();
+  await expect(pdfCard.getByRole("heading", { name: /climate adaptation/iu })).toBeVisible();
+  const pdfSummary = pdfCard.locator("button.library-reference-open");
+  await expect(pdfSummary).toHaveAccessibleName(/open climate adaptation pdf/iu);
+  await pdfSummary.click();
   const climatePdfTab = page.locator("#context-resource-tabs [role='tab'][aria-selected='true']");
   const climatePdfKey = await requiredLocatorAttribute(climatePdfTab, "data-context-key", "Expected a private PDF context key");
   if (!climatePdfKey.startsWith("library-pdf:")) throw new Error("Expected a private PDF context key");
@@ -3668,7 +3671,7 @@ test("shares linked reference PDFs with members but not public links", async ({ 
   expect(await readWorkspaceSnapshot(page, api)).toEqual(beforePrivateReading);
   await page.getByRole("tab", { name: "Library", exact: true }).click();
   const refreshedPdfCard = page.locator("#reference-library-list .library-reference-row").filter({ hasText: "climate adaptation" });
-  await refreshedPdfCard.getByRole("button", { name: "PDF", exact: true }).click();
+  await refreshedPdfCard.locator("button.library-reference-open").click();
   await expect(page.locator("#paper-page-indicator")).toHaveText("2 / 2");
   await page.getByRole("button", { name: "Annotations", exact: true }).click();
   await page

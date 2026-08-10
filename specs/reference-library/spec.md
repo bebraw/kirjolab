@@ -139,7 +139,8 @@ memory and makes citation aliases compete with stable source identity.
   visibility when needed, focus the available reference, and emit a standalone
   route only after successful focus.
 - A bounded light-DOM reference summary owns each result's display title,
-  compact metadata, PDF action, project-link state, link and unlink transport,
+  compact metadata, primary-PDF summary activation, project-link state, link
+  and unlink transport,
   canonical workspace-response validation, and typed completed mutation
   outcomes. The workspace coordinator retains PDF presentation, canonical
   snapshot application, metadata editing and refinement, and Library refresh
@@ -235,10 +236,11 @@ memory and makes citation aliases compete with stable source identity.
   visible; filters and maintenance tools use separate compact menus. References
   render as dense two-line rows suitable for large collections, while metadata,
   organization, reading state, and attached research remain available through
-  per-reference progressive disclosure. A reference with an attached PDF
-  exposes a compact row-level **PDF** action so opening the private reader never
-  depends on expanding metadata details; references without an artifact omit
-  the action.
+  per-reference progressive disclosure. A reference with an attached PDF makes
+  its title-and-metadata summary a native keyboard-operable action that opens
+  the row's primary PDF directly, without expanding metadata details.
+  References without an artifact keep that summary noninteractive; **Find PDF**,
+  **Trail**, project actions, and **Details** retain their independent behavior.
 - Every metadata, organization, reading-state, and private-note control in the
   per-reference disclosure has a stable identifier and a reference-qualified
   accessible name. Placeholder text is guidance, not the control's only label.
@@ -752,8 +754,9 @@ memory and makes citation aliases compete with stable source identity.
   reuse fails closed, and repeated markup deletion converges. Pure tests prove
   fragmented DOM rectangles become visual
   lines and exported multi-line highlights remain one multi-quad annotation.
-  Browser coverage opens attached PDFs directly from collapsed library rows and
-  verifies that references without artifacts expose no PDF action.
+  Browser coverage activates the native title-and-metadata summary to open an
+  attached PDF directly from a collapsed library row and verifies that a
+  reference without an artifact keeps that summary noninteractive.
 - Pure tests cover yellow-region recovery, text reconstruction, candidate
   bounds, and bulk-import validation. Real-`workerd` coverage proves reviewed
   candidates commit atomically. Browser coverage detects a flattened yellow

@@ -192,7 +192,29 @@
   }
 
   .library-reference-main {
+    position: relative;
     min-width: 0;
+  }
+
+  .library-reference-open {
+    position: absolute;
+    z-index: 1;
+    inset: 0;
+    appearance: none;
+    border: 0;
+    padding: 0;
+    background: transparent;
+    cursor: pointer;
+  }
+
+  .library-reference-open:focus-visible {
+    border-radius: 0.2rem;
+    outline: 2px solid var(--color-app-accent);
+    outline-offset: 0.2rem;
+  }
+
+  .library-reference-main:has(.library-reference-open:hover) .library-reference-title {
+    color: var(--color-app-accent-strong);
   }
 
   .library-reference-title {

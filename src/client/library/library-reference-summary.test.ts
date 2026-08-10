@@ -30,6 +30,10 @@ class TestLibraryReferenceSummary extends LibraryReferenceSummary {
     this.emitAction(action);
   }
 
+  openPrimaryPdfForTest(): void {
+    this.openPrimaryPdf();
+  }
+
   linkForTest(): Promise<void> {
     return this.linkReference();
   }
@@ -116,6 +120,22 @@ describe("library reference summary", () => {
       { action: "open-citation-network", referenceId: reference.id },
       { action: "find-open-pdf", reference },
     ]);
+  });
+
+  it("opens the primary PDF from its summary and leaves summaries without PDFs inert", () => {
+    const summary = new TestLibraryReferenceSummary();
+    const actions: LibraryReferenceSummaryAction[] = [];
+    summary.addEventListener(libraryReferenceSummaryActionEvent, (event) => {
+      actions.push((event as CustomEvent<LibraryReferenceSummaryAction>).detail);
+    });
+
+    summary.openPrimaryPdfForTest();
+    summary.setData(data());
+    summary.openPrimaryPdfForTest();
+    summary.setData(data({ primaryArtifact: artifact }));
+    summary.openPrimaryPdfForTest();
+
+    expect(actions).toEqual([{ action: "open-pdf", artifact }]);
   });
 
   it("owns stable link and unlink requests and emits completed workspace outcomes", async () => {
