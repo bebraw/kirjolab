@@ -1,3 +1,4 @@
+import type { TemplateResult } from "lit";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { LibraryPdfDrawing } from "../../domain/reference-library";
 import { LibraryPdfAnnotationToolbar, libraryPdfToolbarActionEvent, type LibraryPdfToolbarAction } from "./library-pdf-annotation-toolbar";
@@ -56,6 +57,13 @@ const drawing: LibraryPdfDrawing = {
   width: 4,
 };
 
+function undoPresentation(toolbar: TestLibraryPdfAnnotationToolbar): { readonly disabled: unknown; readonly title: unknown } {
+  const template: TemplateResult = toolbar.renderForTest();
+  const disabledIndex = template.strings.findIndex((part) => part.includes('id="undo-library-drawing"'));
+  if (disabledIndex < 0) throw new Error("Undo drawing control is unavailable");
+  return { disabled: template.values[disabledIndex], title: template.values[disabledIndex + 1] };
+}
+
 afterEach(() => {
   vi.useRealTimers();
   vi.restoreAllMocks();
@@ -81,6 +89,22 @@ describe("library PDF annotation toolbar", () => {
     expect(toolbar.renderForTest()).toBeDefined();
   });
 
+  it("emits the complete drawing style when a style control changes", () => {
+    const toolbar = new TestLibraryPdfAnnotationToolbar();
+    const actions: LibraryPdfToolbarAction[] = [];
+    toolbar.addEventListener(libraryPdfToolbarActionEvent, (event) => {
+      actions.push((event as CustomEvent<LibraryPdfToolbarAction>).detail);
+    });
+
+    toolbar.changeForTest("color", "#116655");
+    toolbar.changeForTest("width", "7");
+
+    expect(actions).toEqual([
+      { action: "drawing-style-changed", style: { color: "#116655", width: 4 } },
+      { action: "drawing-style-changed", style: { color: "#116655", width: 7 } },
+    ]);
+  });
+
   it("renders empty and populated annotation availability", () => {
     const toolbar = new TestLibraryPdfAnnotationToolbar();
     toolbar.setAnnotationAvailability(0);
@@ -100,7 +124,7 @@ describe("library PDF annotation toolbar", () => {
     toolbar.chooseForTest("select");
     toolbar.chooseForTest("note");
     toolbar.chooseForTest("draw");
-    toolbar.emitForTest({ action: "drawing-undone" });
+    toolbar.emitForTest({ action: "drawing-undone", drawingId: "drawing-1" });
     toolbar.emitForTest({ action: "export-status", message: "Preparing annotated PDF…" });
     toolbar.emitForTest({ action: "open-inspector" });
     toolbar.emitForTest({ action: "open-references" });
@@ -109,7 +133,7 @@ describe("library PDF annotation toolbar", () => {
       { action: "choose-tool", tool: "select" },
       { action: "choose-tool", tool: "note" },
       { action: "choose-tool", tool: "draw" },
-      { action: "drawing-undone" },
+      { action: "drawing-undone", drawingId: "drawing-1" },
       { action: "export-status", message: "Preparing annotated PDF…" },
       { action: "open-inspector" },
       { action: "open-references" },
@@ -281,7 +305,38 @@ describe("library PDF annotation toolbar", () => {
       credentials: "same-origin",
       method: "DELETE",
     });
-    expect(actions).toEqual([{ action: "drawing-undone" }]);
+    expect(actions).toEqual([{ action: "drawing-undone", drawingId: "drawing/3" }]);
+  });
+
+  it("does not undo an older drawing while a newly released stroke lacks a safe identity", async () => {
+    const toolbar = new TestLibraryPdfAnnotationToolbar();
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 200 }));
+    toolbar.setUndoDrawings([drawing]);
+
+    toolbar.setDrawingPending(true);
+    await toolbar.undoForTest();
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    toolbar.setDrawingPending(false);
+    await toolbar.undoForTest();
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
+  it("presents and enforces undo availability for missing, ready, and pending drawings", async () => {
+    const toolbar = new TestLibraryPdfAnnotationToolbar();
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 200 }));
+
+    expect(undoPresentation(toolbar)).toEqual({ disabled: true, title: "Remove the latest drawing on this page" });
+    await toolbar.undoForTest();
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    toolbar.setUndoDrawings([drawing]);
+    expect(undoPresentation(toolbar)).toEqual({ disabled: false, title: "Remove the latest drawing on this page" });
+
+    toolbar.setDrawingPending(true);
+    expect(undoPresentation(toolbar)).toEqual({ disabled: true, title: "Wait for the drawing to finish saving" });
+    await toolbar.undoForTest();
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("reports undo failures, suppresses overlap, and permits retry", async () => {

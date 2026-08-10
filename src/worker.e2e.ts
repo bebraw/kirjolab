@@ -271,6 +271,11 @@ function workspaceIdFromPage(page: Page, message: string): string {
   return workspaceId;
 }
 
+function isDifferentEditorWorkspace(url: URL, sourceWorkspaceId: string): boolean {
+  const destinationWorkspaceId = /^\/editor\/([0-9a-f-]{36})$/u.exec(url.pathname)?.[1];
+  return destinationWorkspaceId !== undefined && destinationWorkspaceId !== sourceWorkspaceId;
+}
+
 function workspaceHasFile(snapshot: WorkspaceSnapshot, path: string): boolean {
   return snapshot.files.some((file) => file.path === path);
 }
@@ -708,7 +713,7 @@ test("imports, annotates, and exports a private PDF without a project", async ({
   });
   const studentPdf = page.locator("#reference-library-list .library-reference-row").filter({ hasText: /student submission/iu });
   await expect(studentPdf).toBeVisible();
-  await studentPdf.getByRole("button", { name: "PDF", exact: true }).click();
+  await studentPdf.locator("button.library-reference-open").click();
   const studentPdfTab = page.locator("#context-resource-tabs [role='tab'][aria-selected='true']");
   const studentPdfKey = await requiredLocatorAttribute(studentPdfTab, "data-context-key", "Expected a private PDF context key");
   if (!studentPdfKey.startsWith("library-pdf:")) throw new Error("Expected a private PDF context key");
@@ -841,7 +846,7 @@ test("imports, annotates, and exports a private PDF without a project", async ({
   await page.locator("#library-note-form").getByRole("button", { name: "Save note" }).click();
   await expect(page.locator("#toast")).toHaveText("Note attached privately.");
 
-  await page.locator("#library-select-tool").click();
+  await expect(page.locator("#library-note-tool")).toHaveAttribute("aria-pressed", "true");
   const notePin = page.locator("#paper-markups .pdf-note-pin");
   await notePin.click();
   await expect(page.locator(".pdf-note-card")).toContainText("A private page note");
@@ -852,6 +857,7 @@ test("imports, annotates, and exports a private PDF without a project", async ({
   await notePin.click();
   await expect(page.locator(".pdf-note-card")).toBeVisible();
   await page.locator("#edit-selected-library-note").click();
+  await expect(page.locator("#library-note-tool")).toHaveAttribute("aria-pressed", "true");
   await expect(page.locator(".pdf-note-card")).toHaveCount(0);
   await page.locator("#library-note-body").fill("An edited private page note");
   await page.locator("#library-note-form").getByRole("button", { name: "Save note" }).click();
@@ -870,12 +876,12 @@ test("imports, annotates, and exports a private PDF without a project", async ({
   await page.mouse.move(markupBounds.x + markupBounds.width * 0.2, markupBounds.y + markupBounds.height * 0.3);
   await page.mouse.down();
   await page.mouse.move(markupBounds.x + markupBounds.width * 0.7, markupBounds.y + markupBounds.height * 0.3, { steps: 5 });
-  await expectPaintedPdfDrawing(page.locator('#paper-markups .pdf-ink-stroke[data-markup-id="draft"]'));
+  await expectPaintedPdfDrawing(page.locator("#paper-markups .pdf-ink-stroke:not([data-markup-id])"));
   await page.waitForTimeout(900);
   await page.mouse.move(markupBounds.x + markupBounds.width * 0.75, markupBounds.y + markupBounds.height * 0.3);
   await page.mouse.up();
   await expect(page.locator("#toast")).toHaveText("Drawing saved privately.");
-  const savedDrawing = page.locator('#paper-markups .pdf-ink-stroke:not([data-markup-id="draft"])');
+  const savedDrawing = page.locator("#paper-markups .pdf-ink-stroke[data-markup-id]");
   await expectPaintedPdfDrawing(savedDrawing);
   await expect(savedDrawing).toHaveAttribute("points", /,/u);
   await page.locator("#library-pdf-more-actions").click();
@@ -909,7 +915,7 @@ test("follows internal and external links from the active PDF page", async ({ pa
     buffer: createLinkedEvidencePdf(),
   });
   const linkedPdf = page.locator("#reference-library-list .library-reference-row").filter({ hasText: /linked reading/iu });
-  await linkedPdf.getByRole("button", { name: "PDF", exact: true }).click();
+  await linkedPdf.locator("button.library-reference-open").click();
 
   await expect(page.locator("#paper-links .pdf-link")).toHaveCount(2);
   const external = page.getByRole("link", { name: "Open PDF link: https://example.com/source" });
@@ -3157,7 +3163,7 @@ test("shares linked reference PDFs with members but not public links", async ({ 
   const card = page.locator("#reference-library-list .library-reference-row").filter({ hasText: "Private Research Guide" });
   await expect(card).toBeVisible();
   await expect(card).toContainText("writer2026");
-  await expect(card.getByRole("button", { name: "PDF", exact: true })).toHaveCount(0);
+  await expect(card.locator("button.library-reference-open")).toHaveCount(0);
   await expect(page.locator("#publication-list")).not.toContainText("Private Research Guide");
 
   await card.getByRole("button", { name: "Add" }).click();
@@ -3173,7 +3179,10 @@ test("shares linked reference PDFs with members but not public links", async ({ 
 
   const beforePrivateReading = await readWorkspaceSnapshot(page, api);
   await expect(pdfCard.locator(".library-reference-details")).not.toHaveAttribute("open", "");
-  await pdfCard.getByRole("button", { name: "PDF", exact: true }).click();
+  await expect(pdfCard.getByRole("heading", { name: /climate adaptation/iu })).toBeVisible();
+  const pdfSummary = pdfCard.locator("button.library-reference-open");
+  await expect(pdfSummary).toHaveAccessibleName(/open climate adaptation pdf/iu);
+  await pdfSummary.click();
   const climatePdfTab = page.locator("#context-resource-tabs [role='tab'][aria-selected='true']");
   const climatePdfKey = await requiredLocatorAttribute(climatePdfTab, "data-context-key", "Expected a private PDF context key");
   if (!climatePdfKey.startsWith("library-pdf:")) throw new Error("Expected a private PDF context key");
@@ -3501,6 +3510,160 @@ test("shares linked reference PDFs with members but not public links", async ({ 
   await expect(page.locator("#toast")).toHaveText("Line style updated.");
   await expect(page.locator("#paper-markups polyline")).toHaveAttribute("stroke", "#116655");
   await page.getByRole("button", { name: "Select", exact: true }).click();
+  await page.locator("#library-pdf-view-options").click();
+  await page.locator("#toggle-library-paper-continuous").click();
+  const continuousPageMarkups = page.locator('.pdf-continuous-page[data-pdf-page="1"] library-pdf-markup-layer');
+  const secondContinuousPage = page.locator('.pdf-continuous-page[data-pdf-page="2"]');
+  const secondContinuousPageMarkups = secondContinuousPage.locator("library-pdf-markup-layer");
+  await expect(page.locator("#toggle-library-paper-continuous")).toHaveAttribute("aria-pressed", "true");
+  await expect(continuousPageMarkups.locator(".pdf-note-pin:not([data-draft='true'])")).toHaveCount(1);
+  await expect(continuousPageMarkups.locator(".pdf-ink-stroke")).toHaveAttribute("stroke", "#116655");
+  await secondContinuousPage.scrollIntoViewIfNeeded();
+  await expect(secondContinuousPageMarkups).toBeVisible();
+  await expect(page.locator("#paper-page-indicator")).toHaveText("2 / 2");
+  await page.getByRole("button", { name: "Draw", exact: true }).click();
+  await expect(page.locator("#toggle-library-paper-continuous")).toHaveAttribute("aria-pressed", "true");
+  await page.locator("#library-draw-color").fill("#7848c2");
+  await page.locator("#library-draw-width").fill("6");
+  const continuousTouchPan = await secondContinuousPageMarkups.evaluate((layer) => {
+    const reader = layer.closest<HTMLElement>("#paper-reader");
+    if (!reader) throw new Error("Expected the PDF reader");
+    const overflow = document.createElement("div");
+    overflow.style.height = "1000px";
+    reader.append(overflow);
+    const previousHeight = reader.style.height;
+    const previousOverflowAnchor = reader.style.overflowAnchor;
+    const previousScrollBehavior = reader.style.scrollBehavior;
+    reader.style.overflowAnchor = "none";
+    reader.style.scrollBehavior = "auto";
+    reader.style.height = "100px";
+    reader.scrollTop = 40;
+    const startScrollTop = reader.scrollTop;
+    const startTouch = new Touch({ identifier: 3, target: layer, clientX: 100, clientY: 100 });
+    const start = new TouchEvent("touchstart", { bubbles: true, cancelable: true, touches: [startTouch] });
+    layer.dispatchEvent(start);
+    const movedTouch = new Touch({ identifier: 3, target: layer, clientX: 100, clientY: 70 });
+    const move = new TouchEvent("touchmove", { bubbles: true, cancelable: true, touches: [movedTouch] });
+    layer.dispatchEvent(move);
+    layer.dispatchEvent(new TouchEvent("touchend", { bubbles: true, changedTouches: [movedTouch], touches: [] }));
+    const scrollTop = reader.scrollTop;
+    overflow.remove();
+    reader.style.height = previousHeight;
+    reader.style.overflowAnchor = previousOverflowAnchor;
+    reader.style.scrollBehavior = previousScrollBehavior;
+    return { startPrevented: start.defaultPrevented, movePrevented: move.defaultPrevented, scrollDelta: scrollTop - startScrollTop };
+  });
+  expect(continuousTouchPan).toEqual({ startPrevented: true, movePrevented: true, scrollDelta: 30 });
+  await secondContinuousPage.scrollIntoViewIfNeeded();
+  const flowingMarkupBox = await secondContinuousPageMarkups.boundingBox();
+  if (!flowingMarkupBox) throw new Error("Expected a drawable continuous PDF page");
+  const drawingCreationRoute = /\/api\/library\/references\/[^/]+\/pdf-markups$/u;
+  let releaseDrawingResponse = (): void => undefined;
+  const drawingResponseGate = new Promise<void>((resolve) => {
+    releaseDrawingResponse = resolve;
+  });
+  let observeDrawingCommit = (): void => undefined;
+  const drawingCommitted = new Promise<void>((resolve) => {
+    observeDrawingCommit = resolve;
+  });
+  await page.route(drawingCreationRoute, async (route) => {
+    if (route.request().method() !== "POST") {
+      await route.continue();
+      return;
+    }
+    const response = await route.fetch();
+    observeDrawingCommit();
+    await drawingResponseGate;
+    await route.fulfill({ response });
+  });
+  let releaseLibraryRefresh = (): void => undefined;
+  const libraryRefreshGate = new Promise<void>((resolve) => {
+    releaseLibraryRefresh = resolve;
+  });
+  let observeLibraryRefresh = (): void => undefined;
+  const libraryRefreshStarted = new Promise<void>((resolve) => {
+    observeLibraryRefresh = resolve;
+  });
+  await page.route("**/api/library", async (route) => {
+    if (route.request().method() !== "GET") {
+      await route.continue();
+      return;
+    }
+    observeLibraryRefresh();
+    await libraryRefreshGate;
+    await route.continue();
+  });
+  const drawingCreated = page.waitForResponse(
+    (response) => response.request().method() === "POST" && drawingCreationRoute.test(new URL(response.url()).pathname),
+  );
+  await page.mouse.move(flowingMarkupBox.x + flowingMarkupBox.width * 0.25, flowingMarkupBox.y + flowingMarkupBox.height * 0.35);
+  await page.mouse.down();
+  await page.mouse.move(flowingMarkupBox.x + flowingMarkupBox.width * 0.7, flowingMarkupBox.y + flowingMarkupBox.height * 0.42, {
+    steps: 6,
+  });
+  await page.mouse.up();
+  await drawingCommitted;
+  await expect(secondContinuousPageMarkups.locator(".pdf-ink-stroke")).toHaveCount(1);
+  await expect(secondContinuousPageMarkups.locator(".pdf-ink-stroke")).not.toHaveAttribute("data-markup-id");
+  await page.locator("#library-pdf-view-options").click();
+  await page.locator("#toggle-library-paper-continuous").click();
+  await expect(page.locator("#toggle-library-paper-continuous")).toHaveAttribute("aria-pressed", "false");
+  await expect(page.locator("#paper-markups .pdf-ink-stroke")).toHaveCount(1);
+  await expect(page.locator("#paper-markups .pdf-ink-stroke")).not.toHaveAttribute("data-markup-id");
+  await page.locator("#library-pdf-view-options").click();
+  await page.locator("#toggle-library-paper-continuous").click();
+  await expect(page.locator("#toggle-library-paper-continuous")).toHaveAttribute("aria-pressed", "true");
+  await secondContinuousPage.scrollIntoViewIfNeeded();
+  await expect(secondContinuousPageMarkups.locator(".pdf-ink-stroke")).toHaveCount(1);
+  releaseDrawingResponse();
+  const drawingResponse = await drawingCreated;
+  const createdDrawing: unknown = await drawingResponse.json();
+  if (typeof createdDrawing !== "object" || createdDrawing === null || !("id" in createdDrawing) || typeof createdDrawing.id !== "string") {
+    throw new Error("Expected the drawing creation response to contain its canonical identity");
+  }
+  await libraryRefreshStarted;
+  await expect(secondContinuousPageMarkups.locator(".pdf-ink-stroke")).toHaveCount(1);
+  await expect(secondContinuousPageMarkups.locator(".pdf-ink-stroke")).not.toHaveAttribute("data-markup-id");
+  releaseLibraryRefresh();
+  await expect(page.locator("#toast")).toHaveText("Drawing saved privately.");
+  const secondPageDrawing = secondContinuousPageMarkups.locator(".pdf-ink-stroke[data-markup-id]");
+  await expect(secondPageDrawing).toHaveCount(1);
+  await expect(secondPageDrawing).toHaveAttribute("data-markup-id", createdDrawing.id);
+  await expect(secondPageDrawing).toHaveAttribute("stroke", "#7848c2");
+  await expect(secondPageDrawing).toHaveAttribute("stroke-width", "6");
+  await page.unroute(drawingCreationRoute);
+  await page.unroute("**/api/library");
+  await expect(continuousPageMarkups.locator(".pdf-ink-stroke")).toHaveCount(1);
+  await expect(continuousPageMarkups.locator(".pdf-ink-stroke")).toHaveAttribute("stroke", "#116655");
+  await page.getByRole("button", { name: "Note", exact: true }).click();
+  await expect(page.locator("#toggle-library-paper-continuous")).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator("#paper-continuous-pages")).toBeVisible();
+  await expect(page.locator("#paper-page")).toBeHidden();
+  await secondContinuousPage.scrollIntoViewIfNeeded();
+  await secondContinuousPageMarkups.evaluate((layer) => {
+    const rect = layer.getBoundingClientRect();
+    const event = {
+      bubbles: true,
+      clientX: rect.left + rect.width * 0.4,
+      clientY: rect.top + rect.height * 0.6,
+      pointerId: 74,
+      pointerType: "mouse",
+    };
+    layer.dispatchEvent(new PointerEvent("pointerdown", event));
+    layer.dispatchEvent(new PointerEvent("pointerup", event));
+  });
+  await expect(secondContinuousPageMarkups.locator(".pdf-note-pin[data-draft='true']")).toHaveCount(1);
+  await expect(continuousPageMarkups.locator(".pdf-note-pin[data-draft='true']")).toHaveCount(0);
+  await expect(page.locator("#library-note-form")).toBeVisible();
+  await page.locator("#cancel-library-note").click();
+  await page.locator("#library-paper-page-indicator .pdf-page-jump-display").click();
+  await page.locator("#library-paper-page-indicator .pdf-page-jump-input").fill("1");
+  await page.locator("#library-paper-page-indicator .pdf-page-jump-input").press("Enter");
+  await expect(page.locator("#paper-page-indicator")).toHaveText("1 / 2");
+  await page.getByRole("button", { name: "Select", exact: true }).click();
+  await page.locator("#library-pdf-view-options").click();
+  await page.locator("#toggle-library-paper-continuous").click();
+  await expect(page.locator("#toggle-library-paper-continuous")).toHaveAttribute("aria-pressed", "false");
   await page.locator("#library-pdf-more-actions").click();
   await expect(page.locator("#export-library-annotated-pdf")).toBeEnabled();
   const annotatedDownload = page.waitForEvent("download");
@@ -3513,7 +3676,7 @@ test("shares linked reference PDFs with members but not public links", async ({ 
   expect(await readWorkspaceSnapshot(page, api)).toEqual(beforePrivateReading);
   await page.getByRole("tab", { name: "Library", exact: true }).click();
   const refreshedPdfCard = page.locator("#reference-library-list .library-reference-row").filter({ hasText: "climate adaptation" });
-  await refreshedPdfCard.getByRole("button", { name: "PDF", exact: true }).click();
+  await refreshedPdfCard.locator("button.library-reference-open").click();
   await expect(page.locator("#paper-page-indicator")).toHaveText("2 / 2");
   await page.getByRole("button", { name: "Annotations", exact: true }).click();
   await page
@@ -5407,9 +5570,13 @@ test("starts from built-in and promoted personal project templates", async ({ pa
   await expect(page.locator("#new-workspace-template-preview")).toContainText("sections/lab-checklist.md");
   await expect(page.locator("#new-workspace-template-id")).toHaveValue(`project:${reviewWorkspaceId}`);
   await page.locator("#new-workspace-title").fill("Direct project copy");
-  await page.locator("#create-workspace").click();
-  await page.waitForURL(/\/editor\/[0-9a-f-]{36}$/u);
+  const directCopySourceId = workspaceIdFromPage(page, "Expected a direct project-copy source workspace id");
+  await Promise.all([
+    page.waitForURL((url) => isDifferentEditorWorkspace(url, directCopySourceId)),
+    page.locator("#create-workspace").click(),
+  ]);
   const directCopyId = workspaceIdFromPage(page, "Expected a direct project-copy workspace id");
+  expect(directCopyId).not.toBe(directCopySourceId);
   const directCopy = await readWorkspaceSnapshot(page, `/api/workspaces/${directCopyId}`);
   expect(workspaceHasFile(directCopy, "sections/lab-checklist.md")).toBe(true);
   expect(directCopy.pdfs).toEqual([]);
@@ -5441,10 +5608,14 @@ test("starts from built-in and promoted personal project templates", async ({ pa
   await expect(page.locator("#new-workspace-template-preview")).toContainText("sections/lab-checklist.md");
   await expect(page.locator("#new-workspace-template-id")).toHaveValue(personal.id);
   await page.locator("#new-workspace-title").fill("Reusable review");
-  await page.locator("#create-workspace").click();
-  await page.waitForURL(/\/editor\/[0-9a-f-]{36}$/u);
+  const personalSourceId = workspaceIdFromPage(page, "Expected a personal-template source workspace id");
+  await Promise.all([
+    page.waitForURL((url) => isDifferentEditorWorkspace(url, personalSourceId)),
+    page.locator("#create-workspace").click(),
+  ]);
 
   const personalWorkspaceId = workspaceIdFromPage(page, "Expected a personal-template workspace id");
+  expect(personalWorkspaceId).not.toBe(personalSourceId);
   const personalApi = `/api/workspaces/${personalWorkspaceId}`;
   const personalSnapshot = await readWorkspaceSnapshot(page, personalApi);
   expect(workspaceHasFile(personalSnapshot, "sections/lab-checklist.md")).toBe(true);

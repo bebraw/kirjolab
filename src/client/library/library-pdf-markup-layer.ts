@@ -1,14 +1,18 @@
 import { html, nothing, svg, type TemplateResult } from "lit";
-import type {
-  LibraryPdfArtifact,
-  LibraryPdfDrawing,
-  LibraryPdfMarkup,
-  LibraryPdfNote,
-  LibraryPdfPoint,
+import {
+  isLibraryPdfMarkup,
+  type LibraryPdfArtifact,
+  type LibraryPdfDrawing,
+  type LibraryPdfMarkup,
+  type LibraryPdfNote,
+  type LibraryPdfPoint,
 } from "../../domain/reference-library";
 import { LightDomElement } from "../platform/light-dom-controller";
 import { manipulateRecognizedShape, recognizeDrawnShape, type RecognizedDrawnShape } from "../pdf/drawn-shape-recognition";
 import { errorMessage, expectOk, jsonFetch } from "../platform/http";
+
+const shapeRecognitionDelayMs = 850;
+const shapeRecognitionJitterTolerancePx = 6;
 
 export type PdfAnnotationTool = "select" | "note" | "draw";
 
@@ -67,9 +71,26 @@ interface ActiveDrawing {
   readonly points: readonly LibraryPdfPoint[];
 }
 
-interface DrawingSave extends Pick<LibraryPdfDrawing, "color" | "page" | "points" | "width"> {
+export interface LibraryPdfDrawingPreview extends Pick<LibraryPdfDrawing, "color" | "page" | "points" | "width"> {
   readonly artifactId: string;
+  readonly baselineDrawingIds: readonly string[];
+  readonly drawingId: string | null;
+  readonly provisionalId: string;
   readonly referenceId: string;
+}
+
+type DrawingSave = Omit<LibraryPdfDrawingPreview, "baselineDrawingIds" | "drawingId" | "provisionalId">;
+
+interface OptimisticDrawing {
+  readonly baselineDrawingIds: Set<string>;
+  canonicalId: string | null;
+  drawing: DrawingSave;
+  readonly provisionalId: string;
+}
+
+interface ShapeRecognitionHold {
+  readonly anchor: LibraryPdfPoint;
+  readonly pointCount: number;
 }
 
 export interface LibraryPdfNotePressResult {
@@ -89,7 +110,19 @@ interface MarkupTargetElement {
 export const libraryPdfMarkupActionEvent = "library-pdf-markup-action";
 
 export type LibraryPdfMarkupAction =
-  | { readonly action: "drawing-saved" }
+  | {
+      readonly action: "drawing-saved";
+      readonly drawing: LibraryPdfDrawing | null;
+      readonly drawingId: string | null;
+      readonly preview: LibraryPdfDrawingPreview;
+    }
+  | {
+      readonly action: "drawing-save-state";
+      readonly failure: string | null;
+      readonly pending: boolean;
+      readonly preview: LibraryPdfDrawingPreview;
+    }
+  | { readonly action: "drawing-discarded"; readonly provisionalId: string }
   | { readonly action: "note-moved" }
   | { readonly action: "select-markup"; readonly id: string }
   | {
@@ -105,7 +138,7 @@ export class LibraryPdfMarkupLayer extends LightDomElement {
   declare private savingDrawing: boolean;
   declare private status: string;
   private drawing: ActiveDrawing | null = null;
-  private failedDrawing: DrawingSave | null = null;
+  private failedDrawing: OptimisticDrawing | null = null;
   private interactionTool: PdfAnnotationTool = "select";
   private noteDraftValue: LibraryPdfNoteDraft | null = null;
   private noteDrag: ActiveNoteDrag | null = null;
@@ -114,9 +147,12 @@ export class LibraryPdfMarkupLayer extends LightDomElement {
   private movingNoteId: string | null = null;
   private openNoteId: string | null = null;
   private recognizedShape: RecognizedDrawnShape | null = null;
+  private recognitionHold: ShapeRecognitionHold | null = null;
   private recognitionTimer: ReturnType<typeof globalThis.setTimeout> | undefined;
   private selectedHighlightIdValue: string | null = null;
   private selectedMarkupIdValue: string | null = null;
+  private readonly pendingDrawingSaves = new Set<string>();
+  private optimisticDrawings: OptimisticDrawing[] = [];
 
   constructor() {
     super();
@@ -131,10 +167,7 @@ export class LibraryPdfMarkupLayer extends LightDomElement {
 
   setData(data: LibraryPdfMarkupLayerData): void {
     this.data = data;
-    if (this.failedDrawing && (this.failedDrawing.artifactId !== data.drawingTarget?.artifactId || this.failedDrawing.page !== data.page)) {
-      this.failedDrawing = null;
-      this.status = "";
-    }
+    this.reconcileOptimisticDrawings(data);
     if (!this.movingNoteId) this.noteMovePreview = null;
     if (this.isConnected) this.performUpdate();
   }
@@ -157,8 +190,99 @@ export class LibraryPdfMarkupLayer extends LightDomElement {
     return drawings;
   }
 
+  projectCreatedDrawing(drawing: LibraryPdfDrawing): void {
+    const data = this.data;
+    if (!data || !drawingTargetsData(drawing, data) || data.drawings.some(({ id }) => id === drawing.id)) return;
+    const existing = this.optimisticDrawings.find(({ canonicalId }) => canonicalId === drawing.id);
+    if (existing) {
+      existing.drawing = drawingSaveFrom(drawing);
+    } else {
+      this.optimisticDrawings = [
+        ...this.optimisticDrawings,
+        {
+          baselineDrawingIds: new Set(),
+          canonicalId: drawing.id,
+          drawing: drawingSaveFrom(drawing),
+          provisionalId: nextPdfDrawingProvisionalId(),
+        },
+      ];
+    }
+    this.requestUpdate();
+  }
+
+  retireCreatedDrawing(id: string): void {
+    const retained = this.optimisticDrawings.filter(({ canonicalId }) => canonicalId !== id);
+    if (retained.length === this.optimisticDrawings.length) return;
+    this.optimisticDrawings = retained;
+    this.requestUpdate();
+  }
+
+  projectProvisionalDrawing(preview: LibraryPdfDrawingPreview): void {
+    const data = this.data;
+    if (!data || !drawingTargetsData(preview, data)) return;
+    const existing = this.optimisticDrawings.find(({ provisionalId }) => provisionalId === preview.provisionalId);
+    const projected = {
+      baselineDrawingIds: new Set(preview.baselineDrawingIds),
+      canonicalId: preview.drawingId,
+      drawing: drawingSaveFrom(preview),
+      provisionalId: preview.provisionalId,
+    } satisfies OptimisticDrawing;
+    if (existing) {
+      existing.canonicalId = preview.drawingId;
+      existing.drawing = drawingSaveFrom(preview);
+    } else {
+      this.optimisticDrawings = [...this.optimisticDrawings, projected];
+    }
+    const adoption = optimisticDrawingAdoption(this.optimisticDrawings, data.drawings);
+    markClaimedCanonicalDrawings(this.optimisticDrawings, adoption);
+    if (adoption.adoptedIds.has(preview.provisionalId)) {
+      this.retireProvisionalDrawing(preview.provisionalId);
+      return;
+    }
+    this.requestUpdate();
+  }
+
+  projectDrawingSaveState(preview: LibraryPdfDrawingPreview, pending: boolean, failure: string | null): void {
+    const optimistic = this.optimisticDrawings.find(({ provisionalId }) => provisionalId === preview.provisionalId);
+    if (!optimistic) return;
+    if (pending) {
+      this.pendingDrawingSaves.add(preview.provisionalId);
+      if (this.failedDrawing?.provisionalId === preview.provisionalId) {
+        this.failedDrawing = null;
+        this.status = "";
+      }
+    } else {
+      this.pendingDrawingSaves.delete(preview.provisionalId);
+      if (failure) {
+        this.failedDrawing = optimistic;
+        this.status = failure;
+      } else if (this.failedDrawing?.provisionalId === preview.provisionalId) {
+        this.failedDrawing = null;
+        this.status = "";
+      }
+    }
+    this.requestUpdate();
+  }
+
+  retireProvisionalDrawing(provisionalId: string): void {
+    const retained = this.optimisticDrawings.filter((drawing) => drawing.provisionalId !== provisionalId);
+    const pending = this.pendingDrawingSaves.delete(provisionalId);
+    const failed = this.failedDrawing?.provisionalId === provisionalId;
+    if (failed) {
+      this.failedDrawing = null;
+      this.status = "";
+    }
+    if (retained.length === this.optimisticDrawings.length && !pending && !failed) return;
+    this.optimisticDrawings = retained;
+    this.requestUpdate();
+  }
+
   get noteDraft(): LibraryPdfNoteDraft | null {
     return this.noteDraftValue;
+  }
+
+  get page(): number | null {
+    return this.data?.page ?? null;
   }
 
   get selectedHighlightId(): string | null {
@@ -174,8 +298,17 @@ export class LibraryPdfMarkupLayer extends LightDomElement {
   }
 
   chooseTool(tool: PdfAnnotationTool): void {
-    this.resetState();
+    this.resetToolPresentation();
     this.setInteraction(tool);
+  }
+
+  private resetToolPresentation(): void {
+    this.noteDraftValue = null;
+    this.openNoteId = null;
+    this.selectedHighlightIdValue = null;
+    this.selectedMarkupIdValue = null;
+    if (!this.failedDrawing) this.status = "";
+    this.requestUpdate();
   }
 
   resetState(): void {
@@ -185,6 +318,7 @@ export class LibraryPdfMarkupLayer extends LightDomElement {
     this.selectedHighlightIdValue = null;
     this.selectedMarkupIdValue = null;
     this.failedDrawing = null;
+    this.pendingDrawingSaves.clear();
     this.status = "";
     this.requestUpdate();
   }
@@ -196,7 +330,7 @@ export class LibraryPdfMarkupLayer extends LightDomElement {
   }
 
   editNote(note: Pick<LibraryPdfNote, "id" | "page" | "x" | "y">): void {
-    this.setInteraction("select");
+    this.setInteraction(this.tool === "note" ? "note" : "select");
     this.selectedHighlightIdValue = null;
     this.selectedMarkupIdValue = note.id;
     this.openNoteId = null;
@@ -217,7 +351,8 @@ export class LibraryPdfMarkupLayer extends LightDomElement {
   }
 
   selectMarkup(id: string): void {
-    if (this.tool !== "select") return;
+    const noteSelectedInNoteMode = this.tool === "note" && this.data?.notes.some((note) => note.id === id);
+    if (this.tool !== "select" && !noteSelectedInNoteMode) return;
     this.selectedHighlightIdValue = null;
     this.selectedMarkupIdValue = id;
     this.requestUpdate();
@@ -273,22 +408,12 @@ export class LibraryPdfMarkupLayer extends LightDomElement {
   ): LibraryPdfPointerAction | null {
     if (isMarkupTargetElement(event.target)) {
       const target = this.markupTarget(event.target);
-      if (target?.kind === "note") {
-        if (!target.id || this.interactionTool !== "select" || this.movingNoteId) return null;
-        this.noteDrag = {
-          id: target.id,
-          pointerId: event.pointerId,
-          startX: event.clientX,
-          startY: event.clientY,
-          moved: false,
-        };
-        this.setPointerCapture(event.pointerId);
-        return { id: target.id, kind: "note" };
-      }
+      if (target?.kind === "note") return this.startNoteDrag(event, target.id);
       if (target?.kind === "drawing" && this.interactionTool === "select") {
         event.preventDefault();
         return target;
       }
+      if (event.target.closest("button, input, textarea, select, a[href]")) return null;
     }
     const point = this.point(event);
     if (!point) return null;
@@ -304,16 +429,35 @@ export class LibraryPdfMarkupLayer extends LightDomElement {
     }
     if (this.interactionTool !== "draw") return null;
     if (event.pointerType === "touch") return { kind: "touch-drawing" };
-    if (this.savingDrawing) return null;
+    if (this.savingDrawing || this.pendingDrawingSaves.size > 0 || this.failedDrawing) return null;
     event.preventDefault();
-    this.failedDrawing = null;
+    this.startDrawing(event.pointerId, point);
+    return { kind: "start-drawing" };
+  }
+
+  private startDrawing(pointerId: number, point: LibraryPdfPoint): void {
     this.status = "";
     this.cancelShapeRecognition();
-    this.drawing = { pointerId: event.pointerId, points: [point] };
-    this.setPointerCapture(event.pointerId);
+    this.drawing = { pointerId, points: [point] };
+    this.setPointerCapture(pointerId);
     this.setInteraction("draw", true);
     this.requestUpdate();
-    return { kind: "start-drawing" };
+  }
+
+  private startNoteDrag(
+    event: Pick<PointerEvent, "clientX" | "clientY" | "pointerId">,
+    noteId: string | null,
+  ): { readonly id: string; readonly kind: "note" } | null {
+    if (!noteId || (this.interactionTool !== "select" && this.interactionTool !== "note") || this.movingNoteId) return null;
+    this.noteDrag = {
+      id: noteId,
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      moved: false,
+    };
+    this.setPointerCapture(event.pointerId);
+    return { id: noteId, kind: "note" };
   }
 
   extendDrawing(event: DrawingPointerEvent, draft: readonly LibraryPdfPoint[]): readonly LibraryPdfPoint[] | null {
@@ -349,21 +493,44 @@ export class LibraryPdfMarkupLayer extends LightDomElement {
   }
 
   scheduleShapeRecognition(points: readonly LibraryPdfPoint[]): void {
+    const pointer = points.at(-1);
+    const hold = this.recognitionHold;
+    const rect = this.getBoundingClientRect();
+    if (
+      pointer &&
+      hold &&
+      this.recognitionTimer !== undefined &&
+      rect.width > 0 &&
+      rect.height > 0 &&
+      points
+        .slice(hold.pointCount)
+        .every(
+          (point) =>
+            Math.hypot((point.x - hold.anchor.x) * rect.width, (point.y - hold.anchor.y) * rect.height) <=
+            shapeRecognitionJitterTolerancePx,
+        )
+    ) {
+      return;
+    }
     this.cancelShapeRecognition();
+    if (!pointer) return;
+    this.recognitionHold = { anchor: pointer, pointCount: points.length };
     this.recognitionTimer = globalThis.setTimeout(() => {
       this.recognitionTimer = undefined;
+      this.recognitionHold = null;
       const recognized = this.recognizeShape(points);
       if (!recognized) return;
       this.recognizedShape = recognized.shape;
       this.updateDrawing(recognized.points);
       const label = { line: "Line", ellipse: "Circle", rectangle: "Rectangle", triangle: "Triangle" }[recognized.shape.kind];
       this.emitAction({ action: "status", message: `${label} snapped into place. Keep dragging to adjust it, or lift to save.` });
-    }, 850);
+    }, shapeRecognitionDelayMs);
   }
 
   cancelShapeRecognition(): void {
     if (this.recognitionTimer !== undefined) globalThis.clearTimeout(this.recognitionTimer);
     this.recognitionTimer = undefined;
+    this.recognitionHold = null;
     this.recognizedShape = null;
   }
 
@@ -388,12 +555,15 @@ export class LibraryPdfMarkupLayer extends LightDomElement {
     const drawing = this.drawing;
     if (!drawing || drawing.pointerId !== pointerId) return;
     const points = drawing.points;
+    const data = this.data;
+    const optimistic =
+      data?.drawingTarget && points.length >= 2
+        ? this.createOptimisticDrawing({ ...data.drawingTarget, ...data.drawingStyle, page: data.page, points }, data.drawings)
+        : null;
     this.drawing = null;
     this.setInteraction("draw");
     this.requestUpdate();
-    const data = this.data;
-    if (!data?.drawingTarget || points.length < 2) return;
-    await this.persistDrawing({ ...data.drawingTarget, ...data.drawingStyle, page: data.page, points });
+    if (optimistic) await this.persistDrawing(optimistic);
   }
 
   cancelDrawing(): boolean {
@@ -515,13 +685,16 @@ export class LibraryPdfMarkupLayer extends LightDomElement {
     const data = this.data;
     if (!data) return html``;
     const draft = this.noteDraft;
-    const drawingDraft = this.drawing ? { ...data.drawingStyle, points: this.drawing.points } : this.failedDrawing;
+    const drawingDrafts = [
+      ...this.optimisticDrawings.filter(({ drawing }) => drawingTargetsData(drawing, data)).map(({ drawing }) => drawing),
+      ...(this.drawing ? [{ ...data.drawingStyle, points: this.drawing.points }] : []),
+    ];
     return html`
       ${
-        data.drawings.length > 0 || drawingDraft
+        data.drawings.length > 0 || drawingDrafts.length > 0
           ? html`<svg class="pdf-ink-layer" viewBox="0 0 1000 1000" preserveAspectRatio="none">
               ${data.drawings.map((drawing) => this.renderDrawing(drawing, drawing.id === this.selectedMarkupId))}
-              ${drawingDraft ? this.renderDrawing({ id: "draft", ...drawingDraft }, false) : nothing}
+              ${drawingDrafts.map((drawing) => this.renderDrawing({ id: null, ...drawing }, false))}
             </svg>`
           : nothing
       }
@@ -541,10 +714,20 @@ export class LibraryPdfMarkupLayer extends LightDomElement {
       ${
         this.failedDrawing
           ? html`<div class="library-context-actions">
-              <button class="button-primary" type="button" ?disabled=${this.savingDrawing} @click=${this.retryDrawing}>
-                ${this.savingDrawing ? "Saving…" : "Retry drawing"}
+              <button
+                class="button-primary"
+                type="button"
+                ?disabled=${this.savingDrawing || this.pendingDrawingSaves.has(this.failedDrawing.provisionalId)}
+                @click=${this.retryDrawing}
+              >
+                ${this.savingDrawing || this.pendingDrawingSaves.has(this.failedDrawing.provisionalId) ? "Saving…" : "Retry drawing"}
               </button>
-              <button class="button-secondary" type="button" ?disabled=${this.savingDrawing} @click=${this.discardFailedDrawing}>
+              <button
+                class="button-secondary"
+                type="button"
+                ?disabled=${this.savingDrawing || this.pendingDrawingSaves.has(this.failedDrawing.provisionalId)}
+                @click=${this.discardFailedDrawing}
+              >
                 Discard
               </button>
             </div>`
@@ -558,9 +741,45 @@ export class LibraryPdfMarkupLayer extends LightDomElement {
   }
 
   protected discardFailedDrawing(): void {
-    this.failedDrawing = null;
+    this.removeFailedDrawing();
     this.status = "";
     this.requestUpdate();
+  }
+
+  private createOptimisticDrawing(drawing: DrawingSave, existingDrawings: readonly LibraryPdfDrawing[]): OptimisticDrawing {
+    const optimistic = {
+      baselineDrawingIds: new Set(existingDrawings.map(({ id }) => id)),
+      canonicalId: null,
+      drawing,
+      provisionalId: nextPdfDrawingProvisionalId(),
+    } satisfies OptimisticDrawing;
+    this.optimisticDrawings = [...this.optimisticDrawings, optimistic];
+    return optimistic;
+  }
+
+  private reconcileOptimisticDrawings(data: LibraryPdfMarkupLayerData): void {
+    const candidates = this.optimisticDrawings.filter((drawing) => drawingTargetsData(drawing.drawing, data));
+    const adoption = optimisticDrawingAdoption(candidates, data.drawings);
+    markClaimedCanonicalDrawings(candidates, adoption);
+    this.optimisticDrawings = candidates.filter(({ provisionalId }) => !adoption.adoptedIds.has(provisionalId));
+    const retainedIds = new Set(this.optimisticDrawings.map(({ provisionalId }) => provisionalId));
+    for (const provisionalId of this.pendingDrawingSaves) {
+      if (!retainedIds.has(provisionalId)) this.pendingDrawingSaves.delete(provisionalId);
+    }
+    if (this.failedDrawing && (!this.optimisticDrawings.includes(this.failedDrawing) || this.failedDrawing.drawing.page !== data.page)) {
+      this.failedDrawing = null;
+      this.status = "";
+    }
+  }
+
+  private removeFailedDrawing(): void {
+    const failed = this.failedDrawing;
+    if (failed) {
+      this.optimisticDrawings = this.optimisticDrawings.filter(({ provisionalId }) => provisionalId !== failed.provisionalId);
+      this.pendingDrawingSaves.delete(failed.provisionalId);
+    }
+    this.failedDrawing = null;
+    if (failed) this.emitAction({ action: "drawing-discarded", provisionalId: failed.provisionalId });
   }
 
   private readonly handlePointerDown = (event: PointerEvent): void => {
@@ -600,29 +819,62 @@ export class LibraryPdfMarkupLayer extends LightDomElement {
     this.dispatchEvent(new CustomEvent<LibraryPdfMarkupAction>(libraryPdfMarkupActionEvent, { bubbles: true, detail }));
   }
 
-  private async persistDrawing(drawing: DrawingSave): Promise<void> {
+  private async persistDrawing(optimistic: OptimisticDrawing): Promise<void> {
     if (this.savingDrawing) return;
     this.savingDrawing = true;
     this.status = "Saving private drawing…";
+    this.emitAction({ action: "drawing-save-state", failure: null, pending: true, preview: drawingPreviewFrom(optimistic) });
+    let failure: string | null = null;
     try {
+      const drawing = optimistic.drawing;
       const { referenceId, ...body } = drawing;
       const response = await jsonFetch(`/api/library/references/${encodeURIComponent(referenceId)}/pdf-markups`, {
         kind: "drawing",
+        mutationId: optimistic.provisionalId,
         ...body,
       });
       await expectOk(response);
+      const value: unknown = await response.json().catch(() => null);
+      const responseDrawing =
+        isLibraryPdfMarkup(value) &&
+        value.kind === "drawing" &&
+        value.id === optimistic.provisionalId &&
+        drawingTargetsDrawing(value, drawing) &&
+        !optimistic.baselineDrawingIds.has(value.id)
+          ? value
+          : null;
+      const createdDrawing = responseDrawing && sameDrawing(responseDrawing, drawing) ? responseDrawing : null;
+      optimistic.canonicalId = responseDrawing?.id ?? null;
+      if (createdDrawing) {
+        optimistic.drawing = drawingSaveFrom(createdDrawing);
+      }
       this.failedDrawing = null;
       this.status = "";
-      this.emitAction({ action: "drawing-saved" });
+      if (this.data) this.reconcileOptimisticDrawings(this.data);
+      this.emitAction({
+        action: "drawing-saved",
+        drawing: createdDrawing,
+        drawingId: responseDrawing?.id ?? null,
+        preview: drawingPreviewFrom(optimistic),
+      });
     } catch (error) {
-      this.failedDrawing = drawing;
-      this.status = errorMessage(error, "Could not save the private drawing.");
+      const data = this.data;
+      const current = this.optimisticDrawings.find(({ provisionalId }) => provisionalId === optimistic.provisionalId);
+      failure = errorMessage(error, "Could not save the private drawing.");
+      if (data && current && drawingTargetsData(current.drawing, data)) {
+        this.failedDrawing = current;
+        this.status = failure;
+      }
     } finally {
       this.savingDrawing = false;
+      this.emitAction({ action: "drawing-save-state", failure, pending: false, preview: drawingPreviewFrom(optimistic) });
     }
   }
 
-  private renderDrawing(drawing: Pick<LibraryPdfDrawing, "color" | "id" | "points" | "width">, selected: boolean): TemplateResult {
+  private renderDrawing(
+    drawing: Pick<LibraryPdfDrawing, "color" | "points" | "width"> & { readonly id: string | null },
+    selected: boolean,
+  ): TemplateResult {
     return svg`<polyline
       class="pdf-ink-stroke"
       points=${drawingPoints(drawing.points)}
@@ -632,7 +884,7 @@ export class LibraryPdfMarkupLayer extends LightDomElement {
       stroke-linecap="round"
       stroke-linejoin="round"
       vector-effect="non-scaling-stroke"
-      data-markup-id=${drawing.id}
+      data-markup-id=${drawing.id ?? nothing}
       data-selected=${selected ? "true" : nothing}
     ></polyline>`;
   }
@@ -647,7 +899,7 @@ export class LibraryPdfMarkupLayer extends LightDomElement {
         data-selected=${note.id === this.selectedMarkupId ? "true" : nothing}
         style=${`left: ${point.x * 100}%; top: ${point.y * 100}%`}
         aria-label=${`Open note on page ${note.page}`}
-        title=${this.tool === "select" ? "Tap to select; drag to move" : "Choose Select to edit this note"}
+        title=${this.tool === "select" || this.tool === "note" ? "Tap to select; drag to move" : "Choose Note or Select to edit this note"}
       ></button>
       ${
         this.openNoteId === note.id
@@ -674,6 +926,86 @@ export class LibraryPdfMarkupLayer extends LightDomElement {
       }
     `;
   }
+}
+
+interface OptimisticDrawingAdoption {
+  readonly adoptedIds: ReadonlySet<string>;
+  readonly claimedDrawings: readonly LibraryPdfDrawing[];
+}
+
+function optimisticDrawingAdoption(
+  optimisticDrawings: readonly OptimisticDrawing[],
+  drawings: readonly LibraryPdfDrawing[],
+): OptimisticDrawingAdoption {
+  const adopted = new Set<string>();
+  const usedCanonicalIds = new Set<string>();
+  const drawingsById = new Map(drawings.map((drawing) => [drawing.id, drawing]));
+  for (const optimistic of optimisticDrawings) {
+    const expectedId = optimistic.canonicalId ?? optimistic.provisionalId;
+    if (optimistic.baselineDrawingIds.has(expectedId) || !drawingsById.has(expectedId)) continue;
+    adopted.add(optimistic.provisionalId);
+    usedCanonicalIds.add(expectedId);
+  }
+  return {
+    adoptedIds: adopted,
+    claimedDrawings: drawings.filter(({ id }) => usedCanonicalIds.has(id)),
+  };
+}
+
+function markClaimedCanonicalDrawings(optimisticDrawings: readonly OptimisticDrawing[], adoption: OptimisticDrawingAdoption): void {
+  for (const optimistic of optimisticDrawings) {
+    if (optimistic.canonicalId || adoption.adoptedIds.has(optimistic.provisionalId)) continue;
+    for (const drawing of adoption.claimedDrawings) {
+      if (sameDrawing(drawing, optimistic.drawing)) optimistic.baselineDrawingIds.add(drawing.id);
+    }
+  }
+}
+
+function drawingSaveFrom(
+  drawing: Pick<LibraryPdfDrawing, "artifactId" | "color" | "page" | "points" | "referenceId" | "width">,
+): DrawingSave {
+  return {
+    artifactId: drawing.artifactId,
+    color: drawing.color,
+    page: drawing.page,
+    points: drawing.points,
+    referenceId: drawing.referenceId,
+    width: drawing.width,
+  };
+}
+
+function drawingPreviewFrom(optimistic: OptimisticDrawing): LibraryPdfDrawingPreview {
+  return {
+    ...optimistic.drawing,
+    baselineDrawingIds: [...optimistic.baselineDrawingIds],
+    drawingId: optimistic.canonicalId,
+    provisionalId: optimistic.provisionalId,
+  };
+}
+
+function nextPdfDrawingProvisionalId(): string {
+  return crypto.randomUUID();
+}
+
+function drawingTargetsData(drawing: DrawingSave, data: LibraryPdfMarkupLayerData): boolean {
+  const target = data.drawingTarget;
+  return (
+    target !== null && drawing.artifactId === target.artifactId && drawing.referenceId === target.referenceId && drawing.page === data.page
+  );
+}
+
+function drawingTargetsDrawing(drawing: LibraryPdfDrawing, target: DrawingSave): boolean {
+  return drawing.artifactId === target.artifactId && drawing.referenceId === target.referenceId && drawing.page === target.page;
+}
+
+function sameDrawing(drawing: LibraryPdfDrawing, target: DrawingSave): boolean {
+  return (
+    drawingTargetsDrawing(drawing, target) &&
+    drawing.color === target.color.toLocaleLowerCase() &&
+    drawing.width === target.width &&
+    drawing.points.length === target.points.length &&
+    drawing.points.every((point, index) => point.x === target.points[index]?.x && point.y === target.points[index]?.y)
+  );
 }
 
 function relativePoints(

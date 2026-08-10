@@ -54,6 +54,17 @@ export class LibraryReferenceSummary extends ProjectReferenceMutationElement {
       <div class="library-reference-main">
         <h3 class="library-reference-title" title=${displayTitle}>${displayTitle}</h3>
         <p class="library-reference-meta" title=${details}>${details}</p>
+        ${
+          primaryArtifact
+            ? html`<button
+                class="library-reference-open"
+                type="button"
+                aria-label=${`Open ${displayTitle} PDF`}
+                title=${`Open ${primaryArtifact.name}`}
+                @click=${this.openPrimaryPdf}
+              ></button>`
+            : nothing
+        }
       </div>
       <div class="library-reference-actions">
         <button
@@ -65,27 +76,16 @@ export class LibraryReferenceSummary extends ProjectReferenceMutationElement {
           Trail
         </button>
         ${
-          primaryArtifact
-            ? html`
-                <button
-                  class="button-secondary"
-                  type="button"
-                  title=${`Open ${primaryArtifact.name}`}
-                  @click=${() => this.emitAction({ action: "open-pdf", artifact: primaryArtifact })}
-                >
-                  PDF
-                </button>
-              `
-            : reference.doi
-              ? html`<button
-                  class="button-secondary"
-                  type="button"
-                  title=${`Find an open-access PDF for ${displayTitle}`}
-                  @click=${() => this.emitAction({ action: "find-open-pdf", reference })}
-                >
-                  Find PDF
-                </button>`
-              : nothing
+          !primaryArtifact && reference.doi
+            ? html`<button
+                class="button-secondary"
+                type="button"
+                title=${`Find an open-access PDF for ${displayTitle}`}
+                @click=${() => this.emitAction({ action: "find-open-pdf", reference })}
+              >
+                Find PDF
+              </button>`
+            : nothing
         }
         ${
           projectApiBase
@@ -120,6 +120,11 @@ export class LibraryReferenceSummary extends ProjectReferenceMutationElement {
     this.dispatchEvent(
       new CustomEvent<LibraryReferenceSummaryAction>(libraryReferenceSummaryActionEvent, { bubbles: true, detail: action }),
     );
+  }
+
+  protected openPrimaryPdf(): void {
+    const artifact = this.data?.primaryArtifact;
+    if (artifact) this.emitAction({ action: "open-pdf", artifact });
   }
 
   protected linkReference(): Promise<void> {

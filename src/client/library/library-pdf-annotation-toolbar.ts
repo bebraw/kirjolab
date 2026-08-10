@@ -8,7 +8,9 @@ import type { PdfAnnotationTool } from "./library-pdf-markup-layer";
 
 export type LibraryPdfToolbarAction =
   | { readonly action: "choose-tool"; readonly tool: PdfAnnotationTool }
-  | { readonly action: "drawing-undone" | "open-inspector" | "open-references" }
+  | { readonly action: "drawing-undone"; readonly drawingId: string }
+  | { readonly action: "drawing-style-changed"; readonly style: Pick<LibraryPdfDrawing, "color" | "width"> }
+  | { readonly action: "open-inspector" | "open-references" }
   | { readonly action: "export-status"; readonly message: string };
 
 export const libraryPdfToolbarActionEvent = "library-pdf-toolbar-action";
@@ -19,6 +21,7 @@ export class LibraryPdfAnnotationToolbar extends LightDomElement {
   static override properties = {
     tool: { state: true },
     drawingColor: { state: true },
+    drawingPending: { state: true },
     drawingWidth: { state: true },
     undoing: { state: true },
     undoStatus: { state: true },
@@ -30,6 +33,7 @@ export class LibraryPdfAnnotationToolbar extends LightDomElement {
 
   declare private tool: PdfAnnotationTool;
   declare private drawingColor: string;
+  declare private drawingPending: boolean;
   declare private drawingWidth: number;
   declare private undoing: boolean;
   declare private undoStatus: string;
@@ -44,6 +48,7 @@ export class LibraryPdfAnnotationToolbar extends LightDomElement {
     super();
     this.tool = "select";
     this.drawingColor = "#d33f49";
+    this.drawingPending = false;
     this.drawingWidth = 4;
     this.undoing = false;
     this.undoStatus = "";
@@ -84,6 +89,10 @@ export class LibraryPdfAnnotationToolbar extends LightDomElement {
     this.requestUpdate();
   }
 
+  setDrawingPending(pending: boolean): void {
+    this.drawingPending = pending;
+  }
+
   setInspectorOpen(open: boolean, panel: "annotations" | "references" = "annotations"): void {
     this.inspectorOpen = open;
     this.inspectorPanel = panel;
@@ -122,8 +131,8 @@ export class LibraryPdfAnnotationToolbar extends LightDomElement {
               class="library-pdf-rail-button library-undo-drawing button-icon"
               id="undo-library-drawing"
               type="button"
-              ?disabled=${!this.undoTarget || this.undoing}
-              title=${this.undoStatus || "Remove the latest drawing on this page"}
+              ?disabled=${!this.undoTarget || this.undoing || this.drawingPending}
+              title=${this.drawingPending ? "Wait for the drawing to finish saving" : this.undoStatus || "Remove the latest drawing on this page"}
               @click=${this.undoDrawing}
             >
               ${icon("undo")}<span class="sr-only">${this.undoing ? "Removing latest drawing" : "Undo latest drawing"}</span>
@@ -198,15 +207,17 @@ export class LibraryPdfAnnotationToolbar extends LightDomElement {
 
   protected updateDrawingColor(event: Event): void {
     this.drawingColor = inputValue(event);
+    this.emitAction({ action: "drawing-style-changed", style: this.drawingStyle });
   }
 
   protected updateDrawingWidth(event: Event): void {
     this.drawingWidth = Number(inputValue(event));
+    this.emitAction({ action: "drawing-style-changed", style: this.drawingStyle });
   }
 
   protected async undoDrawing(): Promise<void> {
     const target = this.undoTarget;
-    if (!target || this.undoing) return;
+    if (!target || this.undoing || this.drawingPending) return;
     this.undoing = true;
     this.undoStatus = "Removing latest drawing…";
     try {
@@ -218,7 +229,7 @@ export class LibraryPdfAnnotationToolbar extends LightDomElement {
       this.undoTarget = null;
       this.undoStatus = "";
       this.requestUpdate();
-      this.emitAction({ action: "drawing-undone" });
+      this.emitAction({ action: "drawing-undone", drawingId: target.id });
     } catch (error) {
       this.undoStatus = `${errorMessage(error, "Could not undo the latest drawing.")} Select Undo to retry.`;
     } finally {

@@ -5,6 +5,7 @@ import type {
   BibliographicRecord,
   LibraryHighlight,
   LibraryPdfArtifact,
+  LibraryPdfDrawing,
   LibraryPdfNote,
   ProjectReferencePdf,
   ReferenceLibrarySnapshot,
@@ -23,9 +24,13 @@ import {
 } from "./context-resource-presenter";
 import { ContextTabStrip } from "./context-tab-strip";
 import { ChapterNotesPanel, chapterNotesPanelActionEvent } from "./chapter-notes-panel";
-import { LibraryPdfAnnotationToolbar } from "../library/library-pdf-annotation-toolbar";
+import {
+  LibraryPdfAnnotationToolbar,
+  libraryPdfToolbarActionEvent,
+  type LibraryPdfToolbarAction,
+} from "../library/library-pdf-annotation-toolbar";
 import { LibraryPdfInspector } from "../library/library-pdf-inspector";
-import { LibraryPdfMarkupLayer } from "../library/library-pdf-markup-layer";
+import { LibraryPdfMarkupLayer, type LibraryPdfDrawingPreview, type LibraryPdfMarkupAction } from "../library/library-pdf-markup-layer";
 import { ManuscriptCommentList, type ManuscriptCommentAuthoring } from "../project/manuscript-comment-list";
 import { ProjectAnnotationForm } from "../project/project-annotation-form";
 import { ProjectEvidencePanel } from "../assistant/project-evidence-panel";
@@ -93,6 +98,44 @@ const note = {
   x: 0.2,
   y: 0.3,
 } satisfies LibraryPdfNote;
+const drawing = {
+  artifactId: libraryPdf.id,
+  color: "#7848c2",
+  createdAt: "created",
+  id: "drawing-1",
+  kind: "drawing",
+  page: 2,
+  points: [
+    { x: 0.25, y: 0.35 },
+    { x: 0.7, y: 0.42 },
+  ],
+  referenceId: "reference:1",
+  updatedAt: "updated",
+  width: 6,
+} satisfies LibraryPdfDrawing;
+
+function drawingPreview(
+  source: LibraryPdfDrawing = drawing,
+  provisionalId = `provisional:${source.id}`,
+  drawingId: string | null = source.id,
+): LibraryPdfDrawingPreview {
+  return {
+    artifactId: source.artifactId,
+    baselineDrawingIds: [],
+    color: source.color,
+    drawingId,
+    page: source.page,
+    points: source.points,
+    provisionalId,
+    referenceId: source.referenceId,
+    width: source.width,
+  };
+}
+
+function dispatchLibraryPdfMarkupAction(layer: LibraryPdfMarkupLayer, action: LibraryPdfMarkupAction): void {
+  layer.dispatchEvent(new CustomEvent("library-pdf-markup-action", { detail: action }));
+}
+
 const library: ReferenceLibrarySnapshot = {
   artifacts: [libraryPdf],
   collections: {},
@@ -223,7 +266,7 @@ function projectKnowledgeOwners(
     projectFileDialog: { revealAuthoring: vi.fn(), selectFile: vi.fn().mockReturnValue(true) },
     referenceLibraryWorkspace: {
       applyProjectMutation: vi.fn().mockResolvedValue(undefined),
-      completeRefresh: vi.fn().mockResolvedValue(undefined),
+      completeRefresh: vi.fn().mockResolvedValue(true),
       ...library,
     },
     workspaceSharingPanel: { open: vi.fn() },
@@ -260,6 +303,7 @@ interface TestLibraryPdfCoordinator {
   readonly canInsertCitation: ReturnType<typeof vi.fn<() => boolean>>;
   readonly completeMarkup: (message: string) => void;
   readonly projectApiBase: string;
+  readonly refreshResult?: () => Promise<boolean>;
 }
 
 function bindTestLibraryPdf(presenter: ContextResourcePresenter, coordinator: TestLibraryPdfCoordinator, viewer = testPdfViewer()): void {
@@ -276,7 +320,10 @@ function bindTestLibraryPdf(presenter: ContextResourcePresenter, coordinator: Te
       referenceLibraryWorkspace: {
         ...owners.referenceLibraryWorkspace,
         applyProjectMutation: coordinator.acceptProjectMutation,
-        completeRefresh: async (message) => coordinator.completeMarkup(message),
+        completeRefresh: async (message) => {
+          coordinator.completeMarkup(message);
+          return await (coordinator.refreshResult?.() ?? Promise.resolve(true));
+        },
       },
     },
     viewer,
@@ -353,7 +400,10 @@ describe("context resource presenter", () => {
     presenter.openPassage(anchor);
     expect(routes.presentNotice).toHaveBeenCalledWith("Changed linked passage selected; review its current text.");
   });
-  afterEach(() => vi.unstubAllGlobals());
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
 
   it("presents publication and candidate resources through their Lit owners", () => {
     const { elements, presenter } = setup();
@@ -1587,6 +1637,42 @@ describe("context resource presenter", () => {
     expect(libraryRoutes.replacePdfRoute).toHaveBeenCalledWith(libraryPdf.id, 2);
   });
 
+  it("creates page-local private markup surfaces for flowing PDF layouts", () => {
+    const { elements, presenter } = setup();
+    const libraryWithMarkups = { ...library, pdfMarkups: [note] };
+    const tab = resourceTab("library-pdf", libraryPdf.id);
+    const chooseTool = vi.spyOn(LibraryPdfMarkupLayer.prototype, "chooseTool").mockImplementation(() => undefined);
+    vi.spyOn(elements["library-pdf-inspector"], "clearMarkup").mockImplementation(() => undefined);
+    vi.spyOn(elements["library-pdf-inspector"], "draftState", "get").mockReturnValue({ highlight: false, markup: false, note: false });
+    presenter.present({ ...sources(tab), library: libraryWithMarkups });
+    presenter.chooseLibraryPdfTool("note");
+    vi.spyOn(elements["paper-markups"], "tool", "get").mockReturnValue("note");
+    const setLibraryPage = vi.spyOn(LibraryPdfMarkupLayer.prototype, "setLibraryPage");
+
+    const layer = (presenter as unknown as { createPdfPageOverlay(page: number): LibraryPdfMarkupLayer | null }).createPdfPageOverlay(3);
+
+    expect(layer).toBeInstanceOf(LibraryPdfMarkupLayer);
+    expect(layer?.className).toBe("pdf-markups");
+    expect(chooseTool).toHaveBeenLastCalledWith("note");
+    expect(setLibraryPage).toHaveBeenCalledWith(libraryPdf, [note], 3, elements["library-pdf-annotation-toolbar"].drawingStyle);
+  });
+
+  it("refreshes each flowing markup surface from its owning PDF page", () => {
+    const { elements, presenter } = setup();
+    const flowingLayer = new LibraryPdfMarkupLayer();
+    vi.spyOn(flowingLayer, "page", "get").mockReturnValue(3);
+    const setFlowingPage = vi.spyOn(flowingLayer, "setLibraryPage").mockReturnValue([]);
+    const continuousPages = Object.assign(new HTMLElement(), {
+      querySelectorAll: vi.fn(() => [flowingLayer]),
+    });
+    (elements as Record<string, unknown>)["paper-continuous-pages"] = continuousPages;
+    presenter.present(sources(resourceTab("library-pdf", libraryPdf.id)));
+
+    presenter.presentPdfPage(2);
+
+    expect(setFlowingPage).toHaveBeenCalledWith(libraryPdf, [], 3, elements["library-pdf-annotation-toolbar"].drawingStyle);
+  });
+
   it("leaves canonical context unchanged when a PDF is not active", () => {
     const { presenter } = setup();
     presenter.present(sources(undefined));
@@ -1629,13 +1715,848 @@ describe("context resource presenter", () => {
     expect(clearMarkup).toHaveBeenCalledOnce();
   });
 
+  it("keeps private-PDF tools synchronized across flowing page surfaces", () => {
+    const { elements, presenter } = setup();
+    const flowingLayer = new LibraryPdfMarkupLayer();
+    const container = Object.assign(new HTMLElement(), {
+      querySelectorAll: vi.fn(() => [flowingLayer]),
+    });
+    (elements as Record<string, unknown>)["paper-continuous-pages"] = container;
+    const chooseSingle = vi.spyOn(elements["paper-markups"], "chooseTool").mockImplementation(() => undefined);
+    const chooseFlowing = vi.spyOn(flowingLayer, "chooseTool").mockImplementation(() => undefined);
+    const inspector = elements["library-pdf-inspector"];
+    vi.spyOn(inspector, "clearMarkup").mockImplementation(() => undefined);
+    vi.spyOn(inspector, "draftState", "get").mockReturnValue({ highlight: false, markup: false, note: false });
+
+    presenter.chooseLibraryPdfTool("note");
+
+    expect(chooseSingle).toHaveBeenCalledWith("note");
+    expect(chooseFlowing).toHaveBeenCalledWith("note");
+  });
+
+  it("applies drawing style changes to primary and flowing PDF markup surfaces", () => {
+    const { elements, presenter } = setup();
+    const primaryLayer = elements["paper-markups"];
+    const flowingLayer = new LibraryPdfMarkupLayer();
+    flowingLayer.setLibraryPage(libraryPdf, [], 3, { color: "#d33f49", width: 4 });
+    const continuousPages = Object.assign(new HTMLElement(), {
+      querySelectorAll: vi.fn(() => [flowingLayer]),
+    });
+    (elements as Record<string, unknown>)["paper-continuous-pages"] = continuousPages;
+    bindTestLibraryPdf(presenter, {
+      acceptProjectMutation: vi.fn(async () => undefined),
+      canInsertCitation: vi.fn(() => true),
+      completeMarkup: vi.fn(),
+      projectApiBase: "/api/workspaces/workspace",
+    });
+    presenter.present(sources(resourceTab("library-pdf", libraryPdf.id)));
+    const setPrimaryPage = vi.spyOn(primaryLayer, "setLibraryPage");
+    const setFlowingPage = vi.spyOn(flowingLayer, "setLibraryPage");
+    const action = {
+      action: "drawing-style-changed",
+      style: { color: "#116655", width: 7 },
+    } satisfies LibraryPdfToolbarAction;
+
+    elements["library-pdf-annotation-toolbar"].dispatchEvent(
+      new CustomEvent<LibraryPdfToolbarAction>(libraryPdfToolbarActionEvent, { detail: action }),
+    );
+
+    expect(setPrimaryPage).toHaveBeenCalledWith(libraryPdf, [], 1, action.style);
+    expect(setFlowingPage).toHaveBeenCalledWith(libraryPdf, [], 3, action.style);
+  });
+
+  it("routes a detached flowing-page mutation outcome through the private-PDF coordinator once", () => {
+    const { elements, presenter } = setup();
+    const events = new EventTarget();
+    const continuousPages = Object.assign(new HTMLElement(), {
+      addEventListener: events.addEventListener.bind(events),
+      dispatchEvent: events.dispatchEvent.bind(events),
+      querySelectorAll: vi.fn(() => []),
+    });
+    (elements as Record<string, unknown>)["paper-continuous-pages"] = continuousPages;
+    const completeMarkup = vi.fn();
+    bindTestLibraryPdf(presenter, {
+      acceptProjectMutation: vi.fn(async () => undefined),
+      canInsertCitation: vi.fn(() => true),
+      completeMarkup,
+      projectApiBase: "/api/workspaces/workspace",
+    });
+    presenter.present(sources(resourceTab("library-pdf", libraryPdf.id)));
+    vi.spyOn(LibraryPdfMarkupLayer.prototype, "chooseTool").mockImplementation(() => undefined);
+    const layer = presenter.createPdfPageOverlay(3);
+    if (!layer) throw new Error("Expected a flowing PDF markup layer");
+    layer.disconnectedCallback();
+
+    layer.dispatchEvent(
+      new CustomEvent("library-pdf-markup-action", {
+        bubbles: true,
+        detail: { action: "drawing-saved", drawing: null, drawingId: null, preview: drawingPreview(drawing, "detached", null) },
+      }),
+    );
+
+    expect(completeMarkup).toHaveBeenCalledOnce();
+    expect(completeMarkup).toHaveBeenCalledWith("Drawing saved privately.");
+
+    continuousPages.dispatchEvent(new CustomEvent("library-pdf-markup-action", { detail: { action: "drawing-saved" } }));
+    expect(completeMarkup).toHaveBeenCalledOnce();
+  });
+
+  it("projects a pending drawing across current and future page surfaces until that exact preview is discarded", () => {
+    const { elements, presenter } = setup();
+    const flowingLayer = new LibraryPdfMarkupLayer();
+    flowingLayer.setLibraryPage(libraryPdf, [], drawing.page, { color: "#d33f49", width: 4 });
+    (elements as Record<string, unknown>)["paper-continuous-pages"] = Object.assign(new HTMLElement(), {
+      querySelectorAll: vi.fn(() => [flowingLayer]),
+    });
+    bindTestLibraryPdf(presenter, {
+      acceptProjectMutation: vi.fn(async () => undefined),
+      canInsertCitation: vi.fn(() => true),
+      completeMarkup: vi.fn(),
+      projectApiBase: "/api/workspaces/workspace",
+    });
+    const tab = { ...resourceTab("library-pdf", libraryPdf.id), page: drawing.page };
+    presenter.present(sources(tab));
+    presenter.presentPdfPage(drawing.page);
+    vi.spyOn(LibraryPdfMarkupLayer.prototype, "chooseTool").mockImplementation(() => undefined);
+    const projectProvisionalDrawing = vi.spyOn(LibraryPdfMarkupLayer.prototype, "projectProvisionalDrawing");
+    const retireProvisionalDrawing = vi.spyOn(LibraryPdfMarkupLayer.prototype, "retireProvisionalDrawing");
+    const setDrawingPending = vi.spyOn(elements["library-pdf-annotation-toolbar"], "setDrawingPending");
+    const first = drawingPreview(drawing, "provisional:first", null);
+    const second = drawingPreview({ ...drawing, id: "drawing-2" }, "provisional:second", null);
+
+    for (const preview of [first, second]) {
+      elements["paper-markups"].dispatchEvent(
+        new CustomEvent("library-pdf-markup-action", {
+          detail: { action: "drawing-save-state", failure: null, pending: true, preview },
+        }),
+      );
+    }
+
+    expect(projectProvisionalDrawing).toHaveBeenCalledTimes(4);
+    expect(setDrawingPending).toHaveBeenLastCalledWith(true);
+    projectProvisionalDrawing.mockClear();
+    expect(presenter.createPdfPageOverlay(drawing.page)).toBeInstanceOf(LibraryPdfMarkupLayer);
+    expect(projectProvisionalDrawing.mock.calls).toEqual([[first], [second]]);
+
+    elements["paper-markups"].dispatchEvent(
+      new CustomEvent("library-pdf-markup-action", {
+        detail: { action: "drawing-discarded", provisionalId: first.provisionalId },
+      }),
+    );
+    elements["paper-markups"].dispatchEvent(
+      new CustomEvent("library-pdf-markup-action", {
+        detail: { action: "drawing-save-state", failure: null, pending: false, preview: first },
+      }),
+    );
+
+    expect(retireProvisionalDrawing).toHaveBeenCalledWith(first.provisionalId);
+    expect(retireProvisionalDrawing).not.toHaveBeenCalledWith(second.provisionalId);
+    projectProvisionalDrawing.mockClear();
+    expect(presenter.createPdfPageOverlay(drawing.page)).toBeInstanceOf(LibraryPdfMarkupLayer);
+    expect(projectProvisionalDrawing).toHaveBeenCalledOnce();
+    expect(projectProvisionalDrawing).toHaveBeenCalledWith(second);
+  });
+
+  it("bridges failed drawing recovery from a detached flow owner to current and future sibling surfaces", () => {
+    const { elements, presenter } = setup();
+    let flowingLayers: LibraryPdfMarkupLayer[] = [];
+    (elements as Record<string, unknown>)["paper-continuous-pages"] = Object.assign(new HTMLElement(), {
+      querySelectorAll: vi.fn(() => flowingLayers),
+    });
+    bindTestLibraryPdf(presenter, {
+      acceptProjectMutation: vi.fn(async () => undefined),
+      canInsertCitation: vi.fn(() => true),
+      completeMarkup: vi.fn(),
+      projectApiBase: "/api/workspaces/workspace",
+      refreshResult: () => new Promise<boolean>(() => undefined),
+    });
+    const tab = { ...resourceTab("library-pdf", libraryPdf.id), page: drawing.page };
+    presenter.present(sources(tab));
+    presenter.presentPdfPage(drawing.page);
+    vi.spyOn(LibraryPdfMarkupLayer.prototype, "chooseTool").mockImplementation(() => undefined);
+    const projectDrawingSaveState = vi.spyOn(LibraryPdfMarkupLayer.prototype, "projectDrawingSaveState");
+    const owner = presenter.createPdfPageOverlay(drawing.page);
+    if (!owner) throw new Error("Expected a flowing PDF markup layer");
+    flowingLayers = [owner];
+    const provisionalId = "11111111-1111-4111-8111-111111111111";
+    const preview = drawingPreview({ ...drawing, id: provisionalId }, provisionalId, null);
+    const dispatch = (layer: LibraryPdfMarkupLayer, detail: LibraryPdfMarkupAction): void => {
+      layer.dispatchEvent(new CustomEvent("library-pdf-markup-action", { detail }));
+    };
+
+    dispatch(owner, { action: "drawing-save-state", failure: null, pending: true, preview });
+    expect(projectDrawingSaveState).toHaveBeenCalledTimes(2);
+    expect(projectDrawingSaveState).toHaveBeenLastCalledWith(preview, true, null);
+
+    flowingLayers = [];
+    owner.disconnectedCallback();
+    projectDrawingSaveState.mockClear();
+    dispatch(owner, { action: "drawing-save-state", failure: "Request failed (503)", pending: false, preview });
+    expect(projectDrawingSaveState).toHaveBeenCalledOnce();
+    expect(projectDrawingSaveState).toHaveBeenCalledWith(preview, false, "Request failed (503)");
+
+    projectDrawingSaveState.mockClear();
+    const sibling = presenter.createPdfPageOverlay(drawing.page);
+    if (!sibling) throw new Error("Expected a replacement flowing PDF markup layer");
+    expect(projectDrawingSaveState).toHaveBeenCalledOnce();
+    expect(projectDrawingSaveState).toHaveBeenCalledWith(preview, false, "Request failed (503)");
+    flowingLayers = [sibling];
+
+    projectDrawingSaveState.mockClear();
+    dispatch(sibling, { action: "drawing-save-state", failure: null, pending: true, preview });
+    expect(projectDrawingSaveState).toHaveBeenCalledTimes(2);
+    expect(projectDrawingSaveState).toHaveBeenLastCalledWith(preview, true, null);
+    const savedDrawing = { ...drawing, id: provisionalId } satisfies LibraryPdfDrawing;
+    const savedPreview = { ...preview, drawingId: provisionalId } satisfies LibraryPdfDrawingPreview;
+    dispatch(sibling, { action: "drawing-saved", drawing: savedDrawing, drawingId: provisionalId, preview: savedPreview });
+    dispatch(sibling, { action: "drawing-save-state", failure: null, pending: false, preview: savedPreview });
+
+    projectDrawingSaveState.mockClear();
+    expect(presenter.createPdfPageOverlay(drawing.page)).toBeInstanceOf(LibraryPdfMarkupLayer);
+    expect(projectDrawingSaveState).not.toHaveBeenCalled();
+  });
+
+  it("keeps failed drawing recovery when navigating to another artifact and back", () => {
+    const { elements, presenter } = setup();
+    Object.defineProperty(elements["paper-markups"], "dataset", { value: {} });
+    const otherArtifact = {
+      ...libraryPdf,
+      fingerprint: "other-fingerprint",
+      id: "library/other.pdf",
+      name: "other.pdf",
+      objectKey: "library/other.pdf",
+    } satisfies LibraryPdfArtifact;
+    const libraryWithBoth = { ...library, artifacts: [libraryPdf, otherArtifact] } satisfies ReferenceLibrarySnapshot;
+    const setContext = vi.mocked(elements["library-pdf-inspector"].setContext);
+    setContext.mockReturnValue({ artifactChanged: false, highlights: [], markups: [] });
+    bindTestLibraryPdf(presenter, {
+      acceptProjectMutation: vi.fn(async () => undefined),
+      canInsertCitation: vi.fn(() => true),
+      completeMarkup: vi.fn(),
+      projectApiBase: "/api/workspaces/workspace",
+      refreshResult: () => new Promise<boolean>(() => undefined),
+    });
+    const firstTab = { ...resourceTab("library-pdf", libraryPdf.id), page: drawing.page };
+    presenter.present({ ...sources(firstTab), library: libraryWithBoth });
+    presenter.presentPdfPage(drawing.page);
+    const provisionalId = "11111111-1111-4111-8111-111111111111";
+    const preview = drawingPreview({ ...drawing, id: provisionalId }, provisionalId, null);
+    elements["paper-markups"].dispatchEvent(
+      new CustomEvent<LibraryPdfMarkupAction>("library-pdf-markup-action", {
+        detail: { action: "drawing-save-state", failure: null, pending: true, preview },
+      }),
+    );
+    elements["paper-markups"].dispatchEvent(
+      new CustomEvent<LibraryPdfMarkupAction>("library-pdf-markup-action", {
+        detail: { action: "drawing-save-state", failure: "Request failed (503)", pending: false, preview },
+      }),
+    );
+
+    setContext.mockReturnValue({ artifactChanged: true, highlights: [], markups: [] });
+    const otherTab = { ...resourceTab("library-pdf", otherArtifact.id), page: drawing.page };
+    presenter.present({ ...sources(otherTab), library: libraryWithBoth });
+    const projectDrawingSaveState = vi.spyOn(LibraryPdfMarkupLayer.prototype, "projectDrawingSaveState");
+    vi.spyOn(LibraryPdfMarkupLayer.prototype, "chooseTool").mockImplementation(() => undefined);
+    presenter.present({ ...sources(firstTab), library: libraryWithBoth });
+    projectDrawingSaveState.mockClear();
+
+    expect(presenter.createPdfPageOverlay(drawing.page)).toBeInstanceOf(LibraryPdfMarkupLayer);
+    expect(projectDrawingSaveState).toHaveBeenCalledWith(preview, false, "Request failed (503)");
+  });
+
+  it("retires the matching one of two identical provisional strokes when the second canonical drawing arrives first", () => {
+    const { elements, presenter } = setup();
+    bindTestLibraryPdf(presenter, {
+      acceptProjectMutation: vi.fn(async () => undefined),
+      canInsertCitation: vi.fn(() => true),
+      completeMarkup: vi.fn(),
+      projectApiBase: "/api/workspaces/workspace",
+      refreshResult: () => new Promise<boolean>(() => undefined),
+    });
+    const tab = { ...resourceTab("library-pdf", libraryPdf.id), page: drawing.page };
+    presenter.present(sources(tab));
+    presenter.presentPdfPage(drawing.page);
+    vi.spyOn(LibraryPdfMarkupLayer.prototype, "chooseTool").mockImplementation(() => undefined);
+    const projectProvisionalDrawing = vi.spyOn(LibraryPdfMarkupLayer.prototype, "projectProvisionalDrawing");
+    const firstId = "11111111-1111-4111-8111-111111111111";
+    const secondId = "22222222-2222-4222-8222-222222222222";
+    const first = drawingPreview({ ...drawing, id: firstId }, firstId, null);
+    const second = drawingPreview({ ...drawing, id: secondId }, secondId, null);
+    for (const preview of [first, second]) {
+      elements["paper-markups"].dispatchEvent(
+        new CustomEvent("library-pdf-markup-action", {
+          detail: { action: "drawing-save-state", failure: null, pending: true, preview },
+        }),
+      );
+    }
+
+    presenter.present({ ...sources(tab), library: { ...library, pdfMarkups: [{ ...drawing, id: secondId }] } });
+    presenter.presentPdfPage(drawing.page);
+    projectProvisionalDrawing.mockClear();
+    expect(presenter.createPdfPageOverlay(drawing.page)).toBeInstanceOf(LibraryPdfMarkupLayer);
+
+    expect(projectProvisionalDrawing).toHaveBeenCalledOnce();
+    expect(projectProvisionalDrawing).toHaveBeenCalledWith(
+      expect.objectContaining({
+        provisionalId: first.provisionalId,
+      }),
+    );
+
+    const identifiedFirst = { ...first, drawingId: secondId } satisfies LibraryPdfDrawingPreview;
+    projectProvisionalDrawing.mockClear();
+    dispatchLibraryPdfMarkupAction(elements["paper-markups"], {
+      action: "drawing-saved",
+      drawing: null,
+      drawingId: secondId,
+      preview: identifiedFirst,
+    });
+
+    expect(projectProvisionalDrawing).toHaveBeenCalledWith(
+      expect.objectContaining({
+        baselineDrawingIds: [secondId],
+        drawingId: secondId,
+        provisionalId: firstId,
+      }),
+    );
+  });
+
+  it.each([
+    ["artifact", { artifactId: "library/other.pdf" }],
+    ["reference", { referenceId: "reference:other" }],
+    ["page", { page: drawing.page + 1 }],
+    ["color", { color: "#123456" }],
+    ["width", { width: drawing.width + 1 }],
+    ["point count", { points: [...drawing.points, { x: 0.9, y: 0.9 }] }],
+    ["point x", { points: [drawing.points[0]!, { ...drawing.points[1]!, x: 0.8 }] }],
+    ["point y", { points: [drawing.points[0]!, { ...drawing.points[1]!, y: 0.8 }] }],
+  ] satisfies readonly (readonly [string, Partial<LibraryPdfDrawingPreview>])[])(
+    "does not conflate concurrent drawing bridges when their %s differs",
+    (_field, mismatch) => {
+      const { elements, presenter } = setup();
+      const otherArtifact = {
+        ...libraryPdf,
+        fingerprint: "other-fingerprint",
+        id: "library/other.pdf",
+        name: "other.pdf",
+        objectKey: "library/other.pdf",
+      } satisfies LibraryPdfArtifact;
+      bindTestLibraryPdf(presenter, {
+        acceptProjectMutation: vi.fn(async () => undefined),
+        canInsertCitation: vi.fn(() => true),
+        completeMarkup: vi.fn(),
+        projectApiBase: "/api/workspaces/workspace",
+        refreshResult: () => new Promise<boolean>(() => undefined),
+      });
+      const tab = { ...resourceTab("library-pdf", libraryPdf.id), page: drawing.page };
+      const libraryWithBothArtifacts = { ...library, artifacts: [libraryPdf, otherArtifact] } satisfies ReferenceLibrarySnapshot;
+      presenter.present({ ...sources(tab), library: libraryWithBothArtifacts });
+      presenter.presentPdfPage(drawing.page);
+      vi.spyOn(LibraryPdfMarkupLayer.prototype, "chooseTool").mockImplementation(() => undefined);
+      const projectProvisionalDrawing = vi.spyOn(LibraryPdfMarkupLayer.prototype, "projectProvisionalDrawing");
+      const firstId = "11111111-1111-4111-8111-111111111111";
+      const secondId = "22222222-2222-4222-8222-222222222222";
+      const first = { ...drawingPreview(drawing, firstId, null), ...mismatch } satisfies LibraryPdfDrawingPreview;
+      const secondDrawing = { ...drawing, id: secondId } satisfies LibraryPdfDrawing;
+      const second = drawingPreview(secondDrawing, secondId, null);
+
+      for (const preview of [first, second]) {
+        dispatchLibraryPdfMarkupAction(elements["paper-markups"], {
+          action: "drawing-save-state",
+          failure: null,
+          pending: true,
+          preview,
+        });
+      }
+      presenter.present({
+        ...sources(tab),
+        library: { ...libraryWithBothArtifacts, pdfMarkups: [secondDrawing] },
+      });
+
+      projectProvisionalDrawing.mockClear();
+      dispatchLibraryPdfMarkupAction(elements["paper-markups"], {
+        action: "drawing-saved",
+        drawing: null,
+        drawingId: secondId,
+        preview: { ...first, drawingId: secondId },
+      });
+
+      expect(projectProvisionalDrawing).not.toHaveBeenCalled();
+      expect(presenter.createPdfPageOverlay(first.page)).toBeInstanceOf(LibraryPdfMarkupLayer);
+      expect(projectProvisionalDrawing).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([
+    ["the active artifact and page", {}, true],
+    ["another artifact", { artifactId: "library/other.pdf" }, false],
+    ["another page", { page: drawing.page + 1 }, false],
+  ] satisfies readonly (readonly [string, Partial<LibraryPdfDrawingPreview>, boolean])[])(
+    "reports a pending drawing only for %s",
+    (_scope, overrides, expected) => {
+      const { elements, presenter } = setup();
+      bindTestLibraryPdf(presenter, {
+        acceptProjectMutation: vi.fn(async () => undefined),
+        canInsertCitation: vi.fn(() => true),
+        completeMarkup: vi.fn(),
+        projectApiBase: "/api/workspaces/workspace",
+        refreshResult: () => new Promise<boolean>(() => undefined),
+      });
+      const tab = { ...resourceTab("library-pdf", libraryPdf.id), page: drawing.page };
+      presenter.present(sources(tab));
+      presenter.presentPdfPage(drawing.page);
+      const setDrawingPending = vi.spyOn(elements["library-pdf-annotation-toolbar"], "setDrawingPending");
+      const preview = { ...drawingPreview(drawing, "provisional:scope", null), ...overrides } satisfies LibraryPdfDrawingPreview;
+
+      dispatchLibraryPdfMarkupAction(elements["paper-markups"], {
+        action: "drawing-save-state",
+        failure: null,
+        pending: true,
+        preview,
+      });
+
+      expect(setDrawingPending).toHaveBeenLastCalledWith(expected);
+    },
+  );
+
+  it("does not report a pending drawing without an active artifact and mounted page", () => {
+    const { elements, presenter } = setup();
+    bindTestLibraryPdf(presenter, {
+      acceptProjectMutation: vi.fn(async () => undefined),
+      canInsertCitation: vi.fn(() => true),
+      completeMarkup: vi.fn(),
+      projectApiBase: "/api/workspaces/workspace",
+      refreshResult: () => new Promise<boolean>(() => undefined),
+    });
+    presenter.present(sources(undefined));
+    const setDrawingPending = vi.spyOn(elements["library-pdf-annotation-toolbar"], "setDrawingPending");
+
+    dispatchLibraryPdfMarkupAction(elements["paper-markups"], {
+      action: "drawing-save-state",
+      failure: null,
+      pending: true,
+      preview: drawingPreview(drawing, "provisional:no-active-page", null),
+    });
+
+    expect(setDrawingPending).toHaveBeenLastCalledWith(false);
+  });
+
+  it("unblocks Undo after the active-page drawing gains a server-confirmed bridge", () => {
+    const { elements, presenter } = setup();
+    bindTestLibraryPdf(presenter, {
+      acceptProjectMutation: vi.fn(async () => undefined),
+      canInsertCitation: vi.fn(() => true),
+      completeMarkup: vi.fn(),
+      projectApiBase: "/api/workspaces/workspace",
+      refreshResult: () => new Promise<boolean>(() => undefined),
+    });
+    const tab = { ...resourceTab("library-pdf", libraryPdf.id), page: drawing.page };
+    presenter.present(sources(tab));
+    presenter.presentPdfPage(drawing.page);
+    const setDrawingPending = vi.spyOn(elements["library-pdf-annotation-toolbar"], "setDrawingPending");
+    const provisional = drawingPreview(drawing, "provisional:confirmed", null);
+    const confirmed = { ...provisional, drawingId: drawing.id } satisfies LibraryPdfDrawingPreview;
+
+    dispatchLibraryPdfMarkupAction(elements["paper-markups"], {
+      action: "drawing-save-state",
+      failure: null,
+      pending: true,
+      preview: provisional,
+    });
+    dispatchLibraryPdfMarkupAction(elements["paper-markups"], {
+      action: "drawing-saved",
+      drawing,
+      drawingId: drawing.id,
+      preview: confirmed,
+    });
+    dispatchLibraryPdfMarkupAction(elements["paper-markups"], {
+      action: "drawing-save-state",
+      failure: null,
+      pending: false,
+      preview: confirmed,
+    });
+
+    expect(setDrawingPending).toHaveBeenLastCalledWith(false);
+  });
+
+  it.each([
+    ["alongside another markup", [drawing, note]],
+    ["as the only markup", [drawing]],
+  ])("unblocks Undo when an identified drawing is already canonical %s", (_case, pdfMarkups) => {
+    const { elements, presenter } = setup();
+    bindTestLibraryPdf(presenter, {
+      acceptProjectMutation: vi.fn(async () => undefined),
+      canInsertCitation: vi.fn(() => true),
+      completeMarkup: vi.fn(),
+      projectApiBase: "/api/workspaces/workspace",
+      refreshResult: () => new Promise<boolean>(() => undefined),
+    });
+    const tab = { ...resourceTab("library-pdf", libraryPdf.id), page: drawing.page };
+    presenter.present({ ...sources(tab), library: { ...library, pdfMarkups } });
+    presenter.presentPdfPage(drawing.page);
+    const setDrawingPending = vi.spyOn(elements["library-pdf-annotation-toolbar"], "setDrawingPending");
+    const preview = {
+      ...drawingPreview(drawing, "provisional:canonical", drawing.id),
+      baselineDrawingIds: [drawing.id],
+    } satisfies LibraryPdfDrawingPreview;
+
+    dispatchLibraryPdfMarkupAction(elements["paper-markups"], {
+      action: "drawing-save-state",
+      failure: null,
+      pending: true,
+      preview,
+    });
+    dispatchLibraryPdfMarkupAction(elements["paper-markups"], {
+      action: "drawing-save-state",
+      failure: null,
+      pending: false,
+      preview,
+    });
+
+    expect(setDrawingPending).toHaveBeenLastCalledWith(false);
+  });
+
+  it("offers Undo only for unrefreshed drawings on the active artifact page", () => {
+    const { elements, presenter } = setup();
+    bindTestLibraryPdf(presenter, {
+      acceptProjectMutation: vi.fn(async () => undefined),
+      canInsertCitation: vi.fn(() => true),
+      completeMarkup: vi.fn(),
+      projectApiBase: "/api/workspaces/workspace",
+      refreshResult: () => new Promise<boolean>(() => undefined),
+    });
+    const tab = { ...resourceTab("library-pdf", libraryPdf.id), page: drawing.page };
+    presenter.present(sources(tab));
+    presenter.presentPdfPage(drawing.page);
+    const active = { ...drawing, id: "drawing:active" } satisfies LibraryPdfDrawing;
+    const otherArtifact = { ...drawing, artifactId: "library/other.pdf", id: "drawing:other-artifact" } satisfies LibraryPdfDrawing;
+    const otherPage = { ...drawing, id: "drawing:other-page", page: drawing.page + 1 } satisfies LibraryPdfDrawing;
+    for (const savedDrawing of [active, otherArtifact, otherPage]) {
+      dispatchLibraryPdfMarkupAction(elements["paper-markups"], {
+        action: "drawing-saved",
+        drawing: savedDrawing,
+        drawingId: savedDrawing.id,
+        preview: drawingPreview(savedDrawing),
+      });
+    }
+    const setUndoDrawings = vi.spyOn(elements["library-pdf-annotation-toolbar"], "setUndoDrawings");
+
+    presenter.presentPdfPage(drawing.page);
+
+    expect(setUndoDrawings).toHaveBeenLastCalledWith([active]);
+  });
+
+  it.each([
+    ["the active page", drawing.page, true],
+    ["no page", null, false],
+    ["an unavailable page", undefined, false],
+  ] as const)("refreshes the page-local drawing surface after Undo for %s", (_case, page, expectedRefresh) => {
+    const { elements, presenter } = setup();
+    bindTestLibraryPdf(presenter, {
+      acceptProjectMutation: vi.fn(async () => undefined),
+      canInsertCitation: vi.fn(() => true),
+      completeMarkup: vi.fn(),
+      projectApiBase: "/api/workspaces/workspace",
+      refreshResult: () => new Promise<boolean>(() => undefined),
+    });
+    const tab = { ...resourceTab("library-pdf", libraryPdf.id), page: drawing.page };
+    presenter.present({ ...sources(tab), library: { ...library, pdfMarkups: [drawing] } });
+    presenter.presentPdfPage(drawing.page);
+    Object.defineProperty(elements["paper-markups"], "page", { configurable: true, get: () => page });
+    const setLibraryPage = vi.spyOn(elements["paper-markups"], "setLibraryPage");
+
+    elements["library-pdf-annotation-toolbar"].dispatchEvent(
+      new CustomEvent<LibraryPdfToolbarAction>(libraryPdfToolbarActionEvent, {
+        detail: { action: "drawing-undone", drawingId: drawing.id },
+      }),
+    );
+
+    if (expectedRefresh) expect(setLibraryPage).toHaveBeenCalledOnce();
+    else expect(setLibraryPage).not.toHaveBeenCalled();
+  });
+
+  it("does not duplicate a drawing bridge when the saved drawing is already canonical", () => {
+    const { elements, presenter } = setup();
+    bindTestLibraryPdf(presenter, {
+      acceptProjectMutation: vi.fn(async () => undefined),
+      canInsertCitation: vi.fn(() => true),
+      completeMarkup: vi.fn(),
+      projectApiBase: "/api/workspaces/workspace",
+      refreshResult: () => new Promise<boolean>(() => undefined),
+    });
+    const tab = { ...resourceTab("library-pdf", libraryPdf.id), page: drawing.page };
+    presenter.present({ ...sources(tab), library: { ...library, pdfMarkups: [drawing, note] } });
+    presenter.presentPdfPage(drawing.page);
+    const projectCreatedDrawing = vi.spyOn(LibraryPdfMarkupLayer.prototype, "projectCreatedDrawing");
+    const preview = { ...drawingPreview(), baselineDrawingIds: [drawing.id] } satisfies LibraryPdfDrawingPreview;
+
+    dispatchLibraryPdfMarkupAction(elements["paper-markups"], {
+      action: "drawing-saved",
+      drawing,
+      drawingId: drawing.id,
+      preview,
+    });
+
+    expect(projectCreatedDrawing).not.toHaveBeenCalled();
+  });
+
+  it("scopes pending drawing and Undo state to the current artifact and page", () => {
+    const { elements, presenter } = setup();
+    bindTestLibraryPdf(presenter, {
+      acceptProjectMutation: vi.fn(async () => undefined),
+      canInsertCitation: vi.fn(() => true),
+      completeMarkup: vi.fn(),
+      projectApiBase: "/api/workspaces/workspace",
+      refreshResult: () => new Promise<boolean>(() => undefined),
+    });
+    const tab = { ...resourceTab("library-pdf", libraryPdf.id), page: drawing.page };
+    presenter.present(sources(tab));
+    presenter.presentPdfPage(drawing.page);
+    const toolbar = elements["library-pdf-annotation-toolbar"];
+    const setDrawingPending = vi.spyOn(toolbar, "setDrawingPending");
+    const setUndoDrawings = vi.spyOn(toolbar, "setUndoDrawings");
+    const otherDrawing = { ...drawing, artifactId: "library/other.pdf", id: "other-drawing" } satisfies LibraryPdfDrawing;
+    const preview = drawingPreview(otherDrawing, "provisional:other", null);
+
+    elements["paper-markups"].dispatchEvent(
+      new CustomEvent("library-pdf-markup-action", {
+        detail: { action: "drawing-save-state", failure: null, pending: true, preview },
+      }),
+    );
+    setUndoDrawings.mockClear();
+    elements["paper-markups"].dispatchEvent(
+      new CustomEvent("library-pdf-markup-action", {
+        detail: {
+          action: "drawing-saved",
+          drawing: otherDrawing,
+          drawingId: otherDrawing.id,
+          preview: { ...preview, drawingId: otherDrawing.id },
+        },
+      }),
+    );
+
+    expect(setDrawingPending).toHaveBeenLastCalledWith(false);
+    expect(setUndoDrawings).not.toHaveBeenCalled();
+  });
+
+  it("keeps Undo blocked when a drawing response cannot provide a safe new target", async () => {
+    const { elements, presenter } = setup();
+    const refreshResult = vi.fn().mockResolvedValue(false);
+    bindTestLibraryPdf(presenter, {
+      acceptProjectMutation: vi.fn(async () => undefined),
+      canInsertCitation: vi.fn(() => true),
+      completeMarkup: vi.fn(),
+      projectApiBase: "/api/workspaces/workspace",
+      refreshResult,
+    });
+    const tab = { ...resourceTab("library-pdf", libraryPdf.id), page: drawing.page };
+    presenter.present({ ...sources(tab), library: { ...library, pdfMarkups: [drawing] } });
+    presenter.presentPdfPage(drawing.page);
+    const setDrawingPending = vi.spyOn(elements["library-pdf-annotation-toolbar"], "setDrawingPending");
+    const preview = {
+      ...drawingPreview({ ...drawing, id: "unidentified-drawing" }, "provisional:unidentified", null),
+      baselineDrawingIds: [drawing.id],
+    };
+
+    elements["paper-markups"].dispatchEvent(
+      new CustomEvent("library-pdf-markup-action", {
+        detail: { action: "drawing-save-state", failure: null, pending: true, preview },
+      }),
+    );
+    elements["paper-markups"].dispatchEvent(
+      new CustomEvent("library-pdf-markup-action", {
+        detail: { action: "drawing-saved", drawing: null, drawingId: null, preview },
+      }),
+    );
+    elements["paper-markups"].dispatchEvent(
+      new CustomEvent("library-pdf-markup-action", {
+        detail: { action: "drawing-save-state", failure: null, pending: false, preview },
+      }),
+    );
+
+    await vi.waitFor(() => expect(refreshResult).toHaveBeenCalledOnce());
+    expect(setDrawingPending).toHaveBeenLastCalledWith(true);
+
+    elements["paper-markups"].dispatchEvent(
+      new CustomEvent("library-pdf-markup-action", {
+        detail: { action: "drawing-discarded", provisionalId: preview.provisionalId },
+      }),
+    );
+    expect(setDrawingPending).toHaveBeenLastCalledWith(false);
+  });
+
+  it("bridges a created drawing across existing and future PDF page surfaces until canonical refresh", () => {
+    const { elements, presenter } = setup();
+    const flowingLayer = new LibraryPdfMarkupLayer();
+    flowingLayer.setLibraryPage(libraryPdf, [], drawing.page, { color: "#d33f49", width: 4 });
+    const continuousPages = Object.assign(new HTMLElement(), {
+      querySelectorAll: vi.fn(() => [flowingLayer]),
+    });
+    (elements as Record<string, unknown>)["paper-continuous-pages"] = continuousPages;
+    const completeMarkup = vi.fn();
+    bindTestLibraryPdf(presenter, {
+      acceptProjectMutation: vi.fn(async () => undefined),
+      canInsertCitation: vi.fn(() => true),
+      completeMarkup,
+      projectApiBase: "/api/workspaces/workspace",
+      refreshResult: () => new Promise<boolean>(() => undefined),
+    });
+    const tab = { ...resourceTab("library-pdf", libraryPdf.id), page: drawing.page };
+    presenter.present(sources(tab));
+    presenter.presentPdfPage(drawing.page);
+    vi.spyOn(LibraryPdfMarkupLayer.prototype, "chooseTool").mockImplementation(() => undefined);
+    const projectProvisionalDrawing = vi.spyOn(LibraryPdfMarkupLayer.prototype, "projectProvisionalDrawing");
+    const projectCreatedDrawing = vi.spyOn(LibraryPdfMarkupLayer.prototype, "projectCreatedDrawing");
+    const setUndoDrawings = vi.spyOn(elements["library-pdf-annotation-toolbar"], "setUndoDrawings");
+    const preview = drawingPreview();
+
+    elements["paper-markups"].dispatchEvent(
+      new CustomEvent("library-pdf-markup-action", {
+        detail: { action: "drawing-saved", drawing, drawingId: drawing.id, preview },
+      }),
+    );
+
+    expect(projectProvisionalDrawing).toHaveBeenCalledTimes(2);
+    expect(projectCreatedDrawing).toHaveBeenCalledTimes(2);
+    expect(projectCreatedDrawing).toHaveBeenCalledWith(drawing);
+    expect(projectProvisionalDrawing.mock.invocationCallOrder[0]).toBeLessThan(projectCreatedDrawing.mock.invocationCallOrder[0] ?? 0);
+    expect(setUndoDrawings).toHaveBeenLastCalledWith([drawing]);
+    expect(completeMarkup).toHaveBeenCalledWith("Drawing saved privately.");
+    presenter.presentPdfPage(drawing.page);
+    expect(setUndoDrawings).toHaveBeenLastCalledWith([drawing]);
+    expect(presenter.createPdfPageOverlay(drawing.page)).toBeInstanceOf(LibraryPdfMarkupLayer);
+    expect(projectCreatedDrawing).toHaveBeenCalledTimes(5);
+
+    projectCreatedDrawing.mockClear();
+    projectProvisionalDrawing.mockClear();
+    presenter.present({ ...sources(tab), library: { ...library, pdfMarkups: [drawing] } });
+    expect(presenter.createPdfPageOverlay(drawing.page)).toBeInstanceOf(LibraryPdfMarkupLayer);
+    expect(projectCreatedDrawing).not.toHaveBeenCalled();
+    expect(projectProvisionalDrawing).not.toHaveBeenCalled();
+  });
+
+  it("does not let an identical drawing adopt a bridge after the creation response identifies a different drawing", () => {
+    const { elements, presenter } = setup();
+    bindTestLibraryPdf(presenter, {
+      acceptProjectMutation: vi.fn(async () => undefined),
+      canInsertCitation: vi.fn(() => true),
+      completeMarkup: vi.fn(),
+      projectApiBase: "/api/workspaces/workspace",
+      refreshResult: () => new Promise<boolean>(() => undefined),
+    });
+    const tab = { ...resourceTab("library-pdf", libraryPdf.id), page: drawing.page };
+    presenter.present({ ...sources(tab), library: { ...library, pdfMarkups: [drawing] } });
+    presenter.presentPdfPage(drawing.page);
+    vi.spyOn(LibraryPdfMarkupLayer.prototype, "chooseTool").mockImplementation(() => undefined);
+    const projectProvisionalDrawing = vi.spyOn(LibraryPdfMarkupLayer.prototype, "projectProvisionalDrawing");
+    const identifiedPreview = drawingPreview(
+      { ...drawing, id: "drawing-identical-but-distinct" },
+      "provisional:identified",
+      "drawing-identical-but-distinct",
+    );
+
+    elements["paper-markups"].dispatchEvent(
+      new CustomEvent("library-pdf-markup-action", {
+        detail: {
+          action: "drawing-saved",
+          drawing: null,
+          drawingId: identifiedPreview.drawingId,
+          preview: identifiedPreview,
+        },
+      }),
+    );
+
+    expect(projectProvisionalDrawing).toHaveBeenCalledWith(identifiedPreview);
+    projectProvisionalDrawing.mockClear();
+    expect(presenter.createPdfPageOverlay(drawing.page)).toBeInstanceOf(LibraryPdfMarkupLayer);
+    expect(projectProvisionalDrawing).toHaveBeenCalledWith(identifiedPreview);
+  });
+
+  it("keeps an undone drawing hidden while an older canonical refresh is still in flight", () => {
+    const { elements, presenter } = setup();
+    const completeMarkup = vi.fn();
+    bindTestLibraryPdf(presenter, {
+      acceptProjectMutation: vi.fn(async () => undefined),
+      canInsertCitation: vi.fn(() => true),
+      completeMarkup,
+      projectApiBase: "/api/workspaces/workspace",
+      refreshResult: () => new Promise<boolean>(() => undefined),
+    });
+    const tab = { ...resourceTab("library-pdf", libraryPdf.id), page: drawing.page };
+    const staleLibrary = { ...library, pdfMarkups: [drawing] };
+    presenter.present({ ...sources(tab), library: staleLibrary });
+    presenter.presentPdfPage(drawing.page);
+    const setLibraryPage = vi.spyOn(elements["paper-markups"], "setLibraryPage");
+
+    elements["library-pdf-annotation-toolbar"].dispatchEvent(
+      new CustomEvent<LibraryPdfToolbarAction>(libraryPdfToolbarActionEvent, {
+        detail: { action: "drawing-undone", drawingId: drawing.id },
+      }),
+    );
+    presenter.present({ ...sources(tab), library: { ...library, pdfMarkups: [] } });
+    presenter.present({ ...sources(tab), library: staleLibrary });
+    presenter.presentPdfPage(drawing.page);
+
+    expect(setLibraryPage).toHaveBeenLastCalledWith(libraryPdf, [], drawing.page, elements["library-pdf-annotation-toolbar"].drawingStyle);
+    expect(completeMarkup).toHaveBeenCalledWith("Private annotation deleted.");
+  });
+
+  it("retires only the successful drawing bridge after its authoritative refresh", async () => {
+    const { presenter } = setup();
+    let completeFirstRefresh: ((succeeded: boolean) => void) | undefined;
+    const firstRefresh = new Promise<boolean>((resolve) => {
+      completeFirstRefresh = resolve;
+    });
+    const secondRefresh = new Promise<boolean>(() => undefined);
+    const refreshResult = vi.fn().mockReturnValueOnce(firstRefresh).mockReturnValueOnce(secondRefresh);
+    bindTestLibraryPdf(presenter, {
+      acceptProjectMutation: vi.fn(async () => undefined),
+      canInsertCitation: vi.fn(() => true),
+      completeMarkup: vi.fn(),
+      projectApiBase: "/api/workspaces/workspace",
+      refreshResult,
+    });
+    const tab = resourceTab("library-pdf", libraryPdf.id);
+    presenter.present(sources(tab));
+    vi.spyOn(LibraryPdfMarkupLayer.prototype, "chooseTool").mockImplementation(() => undefined);
+    const retireCreatedDrawing = vi.spyOn(LibraryPdfMarkupLayer.prototype, "retireCreatedDrawing");
+    const retireProvisionalDrawing = vi.spyOn(LibraryPdfMarkupLayer.prototype, "retireProvisionalDrawing");
+    const secondDrawing = { ...drawing, id: "drawing-2" } satisfies LibraryPdfDrawing;
+    const firstPreview = drawingPreview(drawing, "provisional:first");
+    const secondPreview = drawingPreview(secondDrawing, "provisional:second");
+
+    for (const [savedDrawing, preview] of [
+      [drawing, firstPreview],
+      [secondDrawing, secondPreview],
+    ] as const) {
+      presenter.createPdfPageOverlay(savedDrawing.page)?.dispatchEvent(
+        new CustomEvent("library-pdf-markup-action", {
+          detail: { action: "drawing-saved", drawing: savedDrawing, drawingId: savedDrawing.id, preview },
+        }),
+      );
+    }
+    await vi.waitFor(() => expect(refreshResult).toHaveBeenCalledTimes(2));
+    completeFirstRefresh?.(true);
+
+    await vi.waitFor(() => expect(retireProvisionalDrawing).toHaveBeenCalledWith(firstPreview.provisionalId));
+    expect(retireProvisionalDrawing).not.toHaveBeenCalledWith(secondPreview.provisionalId);
+    expect(retireCreatedDrawing).toHaveBeenCalledWith(drawing.id);
+    expect(retireCreatedDrawing).not.toHaveBeenCalledWith(secondDrawing.id);
+  });
+
   it("owns private-PDF draft clearing and exposes markup selection state", () => {
     const { elements, presenter } = setup();
     const markups = elements["paper-markups"];
+    const flowingLayer = new LibraryPdfMarkupLayer();
+    const continuousPages = Object.assign(new HTMLElement(), {
+      querySelectorAll: vi.fn(() => [flowingLayer]),
+    });
+    (elements as Record<string, unknown>)["paper-continuous-pages"] = continuousPages;
     const inspector = elements["library-pdf-inspector"];
     vi.spyOn(markups, "tool", "get").mockReturnValue("select");
     const clearNote = vi.spyOn(markups, "clearNote");
     const clearSelection = vi.spyOn(markups, "clearSelection");
+    const clearFlowingNote = vi.spyOn(flowingLayer, "clearNote");
+    const clearFlowingSelection = vi.spyOn(flowingLayer, "clearSelection");
     const clearInspectorNote = vi.spyOn(inspector, "clearNote").mockImplementation(() => undefined);
     const clearInspectorMarkup = vi.spyOn(inspector, "clearMarkup").mockImplementation(() => undefined);
 
@@ -1644,6 +2565,8 @@ describe("context resource presenter", () => {
 
     expect(clearNote).toHaveBeenCalledOnce();
     expect(clearSelection).toHaveBeenCalledOnce();
+    expect(clearFlowingNote).toHaveBeenCalledOnce();
+    expect(clearFlowingSelection).toHaveBeenCalledOnce();
     expect(clearInspectorNote).toHaveBeenCalledOnce();
     expect(clearInspectorMarkup).toHaveBeenCalledOnce();
   });
@@ -1694,13 +2617,35 @@ describe("context resource presenter", () => {
     expect(editNote).toHaveBeenCalledWith(note);
   });
 
+  it("keeps Note mode active while editing a selected note", () => {
+    const { elements, presenter } = setup();
+    const markups = elements["paper-markups"];
+    const inspector = elements["library-pdf-inspector"];
+    vi.spyOn(markups, "tool", "get").mockReturnValue("note");
+    const editMarkupNote = vi.spyOn(markups, "editNote").mockImplementation(() => undefined);
+    const editNote = vi.spyOn(inspector, "editNote").mockImplementation(() => undefined);
+    const chooseTool = vi.spyOn(presenter, "chooseLibraryPdfTool");
+
+    expect(presenter.editLibraryPdfNote(note)).toEqual({ clearDraftSelection: false });
+
+    expect(chooseTool).not.toHaveBeenCalled();
+    expect(editMarkupNote).toHaveBeenCalledWith(note);
+    expect(editNote).toHaveBeenCalledWith(note);
+  });
+
   it("coordinates private-PDF markup selection and highlight-draft cleanup", () => {
     const { elements, presenter } = setup();
     const markups = elements["paper-markups"];
+    const flowingLayer = new LibraryPdfMarkupLayer();
+    const continuousPages = Object.assign(new HTMLElement(), {
+      querySelectorAll: vi.fn(() => [flowingLayer]),
+    });
+    (elements as Record<string, unknown>)["paper-continuous-pages"] = continuousPages;
     const inspector = elements["library-pdf-inspector"];
     vi.spyOn(inspector, "draftState", "get").mockReturnValue({ highlight: true, markup: false, note: false });
     const clearHighlight = vi.spyOn(inspector, "clearHighlight").mockImplementation(() => undefined);
     const selectMarkup = vi.spyOn(markups, "selectMarkup");
+    const selectFlowingMarkup = vi.spyOn(flowingLayer, "selectMarkup");
     const selectInspectorMarkup = vi.spyOn(inspector, "selectMarkup").mockImplementation(() => undefined);
 
     expect(presenter.selectLibraryPdfMarkup(note, 3)).toEqual({
@@ -1710,6 +2655,7 @@ describe("context resource presenter", () => {
 
     expect(clearHighlight).toHaveBeenCalledWith(3, "Selection cancelled. Nothing was saved.");
     expect(selectMarkup).toHaveBeenCalledWith(note.id);
+    expect(selectFlowingMarkup).toHaveBeenCalledWith(note.id);
     expect(selectInspectorMarkup).toHaveBeenCalledWith(note);
   });
 
@@ -1782,7 +2728,11 @@ describe("context resource presenter", () => {
     elements["library-pdf-annotation-toolbar"].dispatchEvent(
       new CustomEvent("library-pdf-toolbar-action", { detail: { action: "open-references" } }),
     );
-    elements["paper-markups"].dispatchEvent(new CustomEvent("library-pdf-markup-action", { detail: { action: "drawing-saved" } }));
+    elements["paper-markups"].dispatchEvent(
+      new CustomEvent("library-pdf-markup-action", {
+        detail: { action: "drawing-saved", drawing: null, drawingId: null, preview: drawingPreview(drawing, "sibling", null) },
+      }),
+    );
     elements["library-pdf-inspector"].dispatchEvent(
       new CustomEvent("library-pdf-annotation-list-action", { detail: { action: "open-highlight", highlight } }),
     );

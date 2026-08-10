@@ -5,14 +5,16 @@ import type { PdfJsRuntime } from "./pdfjs-runtime";
 export interface PdfContinuousPageView {
   readonly page: number;
   readonly pageElement: HTMLElement;
-  readonly links: HTMLElement;
-  readonly highlights: HTMLElement;
-  readonly textLayer: HTMLElement;
+  links: HTMLElement;
+  highlights: HTMLElement;
+  textLayer: HTMLElement;
+  pageOverlay: HTMLElement | null;
   text: string;
 }
 
 interface PdfContinuousViewOptions {
   readonly container: HTMLElement;
+  readonly createPageOverlay?: (page: number) => HTMLElement | null;
   readonly reader: HTMLElement;
   readonly onPageChange: (page: number) => void;
   readonly renderOverlays: (
@@ -27,6 +29,7 @@ type PdfContinuousRuntime = Pick<PdfJsRuntime, "TextLayer">;
 
 export class PdfContinuousView {
   readonly #container: HTMLElement;
+  readonly #createPageOverlay: NonNullable<PdfContinuousViewOptions["createPageOverlay"]>;
   readonly #reader: HTMLElement;
   readonly #onPageChange: (page: number) => void;
   readonly #renderOverlays: PdfContinuousViewOptions["renderOverlays"];
@@ -43,6 +46,7 @@ export class PdfContinuousView {
 
   constructor(options: PdfContinuousViewOptions) {
     this.#container = options.container;
+    this.#createPageOverlay = options.createPageOverlay ?? (() => null);
     this.#reader = options.reader;
     this.#onPageChange = options.onPageChange;
     this.#renderOverlays = options.renderOverlays;
@@ -59,31 +63,40 @@ export class PdfContinuousView {
     initialPage: number,
     width: number,
     rotation = 0,
+    scrollToInitialPage = true,
   ): Promise<void> {
     const generation = ++this.#generation;
+    const reuseViews = this.#document === documentModel && this.#views.size === documentModel.numPages;
     this.#observer?.disconnect();
     this.#observer = null;
     this.#document = documentModel;
     this.#runtime = runtime;
     this.#currentPage = initialPage;
     this.#rotation = rotation;
-    this.#views.clear();
+    if (!reuseViews) this.#views.clear();
     this.#rendering.clear();
-    this.#container.replaceChildren();
+    if (!reuseViews) this.#container.replaceChildren();
 
     const initialPdfPage = await documentModel.getPage(initialPage);
     if (generation !== this.#generation) return;
     const initialUnscaled = initialPdfPage.getViewport({ scale: 1, rotation });
     const initialViewport = initialPdfPage.getViewport({ scale: width / initialUnscaled.width, rotation });
-    for (let pageNumber = 1; pageNumber <= documentModel.numPages; pageNumber += 1) {
-      const view = createPageView(pageNumber, initialViewport.width, initialViewport.height, this.#textLayerPointerEvents);
-      this.#views.set(pageNumber, view);
-      this.#container.append(view.pageElement);
+    if (reuseViews) {
+      for (const view of this.#views.values()) {
+        resetPageView(view, initialViewport.width, initialViewport.height, this.#textLayerPointerEvents);
+      }
+    } else {
+      for (let pageNumber = 1; pageNumber <= documentModel.numPages; pageNumber += 1) {
+        const view = createPageView(pageNumber, initialViewport.width, initialViewport.height, this.#textLayerPointerEvents);
+        this.#views.set(pageNumber, view);
+        this.#container.append(view.pageElement);
+      }
     }
 
     this.#observePages(generation);
     await this.#renderPage(initialPage, generation);
-    this.scrollToPage(initialPage, "instant");
+    if (generation !== this.#generation) return;
+    if (scrollToInitialPage) this.scrollToPage(initialPage, "instant");
   }
 
   close(): void {
@@ -101,7 +114,7 @@ export class PdfContinuousView {
     const documentModel = this.#document;
     const runtime = this.#runtime;
     if (!documentModel || !runtime) return;
-    await this.open(documentModel, runtime, this.#currentPage, width, this.#rotation);
+    await this.open(documentModel, runtime, this.#currentPage, width, this.#rotation, false);
   }
 
   setTextSelectionEnabled(enabled: boolean): void {
@@ -196,10 +209,23 @@ export class PdfContinuousView {
         ]);
       }
       if (generation !== this.#generation) return;
-      this.#renderOverlays(view, viewport, await annotationsPromise);
-    })().finally(() => this.#rendering.delete(pageNumber));
+      if (!view.pageOverlay) {
+        view.pageOverlay = this.#createPageOverlay(pageNumber);
+        if (view.pageOverlay) {
+          view.pageOverlay.addEventListener("pointerdown", () => this.#setCurrentPage(pageNumber), { capture: true });
+          view.pageElement.append(view.pageOverlay);
+        }
+      }
+      const annotations = await annotationsPromise;
+      if (generation !== this.#generation) return;
+      this.#renderOverlays(view, viewport, annotations);
+    })();
     this.#rendering.set(pageNumber, task);
-    return task;
+    try {
+      return await task;
+    } finally {
+      if (this.#rendering.get(pageNumber) === task) this.#rendering.delete(pageNumber);
+    }
   }
 
   #releasePage(page: number): void {
@@ -256,7 +282,26 @@ function createPageView(page: number, width: number, height: number, pointerEven
   const textLayer = layer("textLayer");
   textLayer.style.pointerEvents = pointerEvents;
   pageElement.append(canvas, links, highlights, textLayer);
-  return { page, pageElement, links, highlights, textLayer, text: "" };
+  return { page, pageElement, links, highlights, textLayer, pageOverlay: null, text: "" };
+}
+
+function resetPageView(view: PdfContinuousPageView, width: number, height: number, pointerEvents: string): void {
+  view.pageElement.style.width = `${width}px`;
+  view.pageElement.style.height = `${height}px`;
+  const canvas = document.createElement("canvas");
+  canvas.className = "block";
+  view.pageElement.querySelector("canvas")?.replaceWith(canvas);
+  const links = layer("pdf-links", "PDF links");
+  const highlights = layer("pdf-highlights");
+  const textLayer = layer("textLayer");
+  textLayer.style.pointerEvents = pointerEvents;
+  view.links.replaceWith(links);
+  view.highlights.replaceWith(highlights);
+  view.textLayer.replaceWith(textLayer);
+  view.links = links;
+  view.highlights = highlights;
+  view.textLayer = textLayer;
+  view.text = "";
 }
 
 function layer(className: string, label?: string): HTMLElement {

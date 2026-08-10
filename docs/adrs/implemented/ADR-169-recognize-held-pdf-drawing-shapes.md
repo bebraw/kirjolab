@@ -33,11 +33,13 @@ Kirjolab-owned shape-recognition module. The package supplies the BSD-licensed
   persisted drawing points.
 
 An 850 millisecond stationary period attempts recognition while the pointer is
-still down. A successful match transitions the PDF annotation actor from
-`drawing` to `manipulatingShape`. Later pointer movement replaces the canonical
-preview through guarded actor events rather than appending ink or rerunning the
-classifier. Pointer release saves the final point sequence through the existing
-private drawing API.
+still down. Samples that remain within six CSS pixels of the held endpoint are
+treated as device jitter and do not restart the period; meaningful movement
+beyond that tolerance starts a new hold. A successful match transitions the
+page-local markup layer from drawing freehand points to manipulating the fitted
+shape. Later pointer movement replaces the canonical preview in that same layer
+rather than appending ink or rerunning the classifier. Pointer release saves the
+final point sequence through the existing private drawing API.
 
 Recognized shapes are not persisted as semantic editable objects. They remain
 ordinary drawing point sequences, preserving existing storage, annotated PDF

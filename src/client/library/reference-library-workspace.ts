@@ -94,6 +94,8 @@ export interface StandaloneLibraryOwners {
 export class ReferenceLibraryWorkspace extends LightDomHost {
   private data: ReferenceLibraryWorkspaceData | null = null;
   private librarySnapshot: ReferenceLibrarySnapshot | null = null;
+  private latestAppliedRefresh = 0;
+  private nextRefreshRequest = 0;
   private browserHistory: ReferenceLibraryHistory | null = null;
   private owners: ReferenceLibraryWorkspaceOwners | null = null;
   private projectApiBase: string | null = null;
@@ -230,11 +232,14 @@ export class ReferenceLibraryWorkspace extends LightDomHost {
   }
 
   async refresh(fetcher: typeof fetch = fetch): Promise<ReferenceLibrarySnapshot> {
+    const requestId = ++this.nextRefreshRequest;
     const archived = this.includesArchivedReferences ? "?archived=include" : "";
     const response = await fetcher(`/api/library${archived}`, { credentials: "same-origin" });
     await expectOk(response);
     const value: unknown = await response.json();
     if (!isReferenceLibrarySnapshot(value)) throw new Error("Reference library returned an invalid snapshot");
+    if (requestId < this.latestAppliedRefresh && this.librarySnapshot) return this.librarySnapshot;
+    this.latestAppliedRefresh = requestId;
     this.librarySnapshot = value;
     return value;
   }
@@ -348,12 +353,14 @@ export class ReferenceLibraryWorkspace extends LightDomHost {
     this.element("unidentified-pdf-list", UnidentifiedPdfList)?.complete(requestId);
   }
 
-  async completeRefresh(message: string, fallback: string, options: LibraryRefreshOptions = {}): Promise<void> {
+  async completeRefresh(message: string, fallback: string, options: LibraryRefreshOptions = {}): Promise<boolean> {
     try {
       await (options.refresh?.() ?? this.refreshBoundProject());
       this.presentNotice(message);
+      return true;
     } catch {
       this.presentNotice(fallback);
+      return false;
     } finally {
       options.complete?.();
     }

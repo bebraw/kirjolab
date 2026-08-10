@@ -139,7 +139,8 @@ memory and makes citation aliases compete with stable source identity.
   visibility when needed, focus the available reference, and emit a standalone
   route only after successful focus.
 - A bounded light-DOM reference summary owns each result's display title,
-  compact metadata, PDF action, project-link state, link and unlink transport,
+  compact metadata, primary-PDF summary activation, project-link state, link
+  and unlink transport,
   canonical workspace-response validation, and typed completed mutation
   outcomes. The workspace coordinator retains PDF presentation, canonical
   snapshot application, metadata editing and refinement, and Library refresh
@@ -235,10 +236,11 @@ memory and makes citation aliases compete with stable source identity.
   visible; filters and maintenance tools use separate compact menus. References
   render as dense two-line rows suitable for large collections, while metadata,
   organization, reading state, and attached research remain available through
-  per-reference progressive disclosure. A reference with an attached PDF
-  exposes a compact row-level **PDF** action so opening the private reader never
-  depends on expanding metadata details; references without an artifact omit
-  the action.
+  per-reference progressive disclosure. A reference with an attached PDF makes
+  its title-and-metadata summary a native keyboard-operable action that opens
+  the row's primary PDF directly, without expanding metadata details.
+  References without an artifact keep that summary noninteractive; **Find PDF**,
+  **Trail**, project actions, and **Details** retain their independent behavior.
 - Every metadata, organization, reading-state, and private-note control in the
   per-reference disclosure has a stable identifier and a reference-qualified
   accessible name. Placeholder text is guidance, not the control's only label.
@@ -257,9 +259,11 @@ memory and makes citation aliases compete with stable source identity.
   the visible pages, tracks the page nearest the reading focus, and remembers
   the researcher's display preference. Page controls and arrow-key navigation
   scroll to page boundaries in continuous mode. The current-page indicator is
-  directly editable for a bounded Enter-to-jump page number. Choosing a page-annotation tool
-  returns to single-page mode, where private note and drawing coordinates remain
-  unambiguous.
+  directly editable for a bounded Enter-to-jump page number. Saved private notes
+  and drawings appear at their owning-page coordinates in single, continuous,
+  and spread layouts. Selecting Select, Note, or Draw preserves the current
+  display mode and its remembered preference; note placement and drawing resolve
+  normalized coordinates against the flowing page under the pointer.
   The reader exposes Cmd/Ctrl+F text search across the complete native PDF text
   layer, returning bounded page contexts and occurrence counts with direct page
   jumps. Parsed bibliography entries separately expose conservative semantic
@@ -286,9 +290,9 @@ memory and makes citation aliases compete with stable source identity.
   Explicit reading controls provide fit-width, fit-page, and actual-size modes,
   bounded zoom from 50% to 400% in single and flowing layouts, clockwise
   rotation, and a two-page spread with the cover alone on the right. Spread and
-  continuous layouts retain bounded rendering, links, text selection, and page
-  tracking; choosing coordinate-sensitive note or drawing tools returns to
-  single-page mode.
+  continuous layouts retain bounded rendering, links, text selection, page
+  tracking, and page-local private markup without coupling annotation tools to
+  display preferences.
 - Saving a text selection whose normalized rectangles overlap a saved
   highlight on the same artifact page extends that stable highlight instead of
   creating a second resource. Geometry, quotation text, and distinct comments
@@ -365,7 +369,8 @@ memory and makes citation aliases compete with stable source identity.
   pointer interaction clears its transient draft. Select retains native PDF
   text selection for copying, opens a contextual highlight save row after the
   selection settles, and also selects saved annotations for editing. Note
-  places a page-anchored private note; Draw
+  places a page-anchored private note on blank page space and selects an
+  existing note for editing or dragging when its saved pin is targeted; Draw
   captures Apple Pencil or mouse strokes with red as the default color and an
   adjustable 1–24 pixel width while touch remains available for pan and zoom.
   The Draw surface disables native browser gestures before pointer input begins
@@ -376,7 +381,9 @@ memory and makes citation aliases compete with stable source identity.
   cancelled.
   Holding the pointer still for 850 milliseconds after drawing a sufficiently
   large single-stroke line, circle or ellipse, rectangle, or triangle attempts
-  local shape recognition. A confident match replaces the live rough stroke
+  local shape recognition. Endpoint jitter within six CSS pixels on the
+  displayed page does not restart that hold; meaningful movement beyond the
+  tolerance does. A confident match replaces the live rough stroke
   with fitted geometry while the pointer remains captured. Continued movement
   scales and rotates that shape around its opposite anchor; lifting saves the
   adjusted shape, while an uncertain, open, or undersized stroke remains
@@ -392,7 +399,8 @@ memory and makes citation aliases compete with stable source identity.
 - Successful private drawing saves, drawing undo, note moves, and saved-markup
   deletion converge through one canonical Library refresh. The completion
   notice is shown after refresh, and refresh failure remains visible instead of
-  leaving an unhandled completion request.
+  leaving an unhandled completion request. Concurrent Library refreshes apply
+  monotonically so a late older response cannot replace newer canonical state.
 - The enclosing reference-Library component owns this same refresh-completion
   lifecycle for discovery, import, PDF intake, metadata, personal-field,
   citation-network, web-source, archive, and identification outcomes. It always
@@ -415,9 +423,12 @@ memory and makes citation aliases compete with stable source identity.
 - A companion light-DOM toolbar component owns active-tool presentation,
   drawing color and width, undo and export availability, annotation count, and
   inspector-expanded state. From the active page drawings, it derives the
-  newest stable undo target and owns its deletion, pending suppression,
-  retryable local failure state, and typed completion outcome. It also emits
-  typed tool and inspector intents. Given a stable artifact identity and
+  newest stable undo target, including a server-confirmed drawing whose refresh
+  is still pending, and owns its deletion, pending suppression, retryable local
+  failure state, and typed identity-bearing completion outcome. The coordinator
+  hides that deleted identity from stale in-flight projections until canonical
+  absence is observed. The toolbar also emits typed tool and inspector intents.
+  Given a stable artifact identity and
   filename, it owns original-PDF download independently of annotation state as
   well as annotated-PDF download and installed-app file sharing, including
   cancellation and download fallback, and emits typed status outcomes. The
@@ -446,9 +457,30 @@ memory and makes citation aliases compete with stable source identity.
   suppresses overlapping move gestures, restores canonical geometry after a
   retryable failure, and emits a typed completed-move outcome. Given the active
   artifact and reference identities, it also persists a completed normalized
-  drawing with the style captured at pointer release. A failed drawing remains
-  visible for explicit retry or discard, and a pending save suppresses a new
-  stroke. The annotation forms own page-note composition persistence; the
+  drawing with the style captured at pointer release. After pointer release, a
+  valid completed stroke remains painted with that geometry and style while
+  creation is pending, across retryable failure and retry, and after success
+  until a matching canonical page projection replaces it without removal or
+  duplication. Before transport, the layer emits that normalized preview with
+  a per-stroke provisional identity; the presenter projects the same identity
+  into existing and newly created page surfaces. That UUID is the drawing-
+  creation mutation identity and becomes the accepted drawing's server
+  identity. A failed drawing remains available for explicit retry or discard, a
+  pending save suppresses a new stroke in its owner, and a pending or
+  unidentified projection suppresses Undo of an older drawing on that artifact
+  and page. The client reuses the UUID only while creation remains unresolved;
+  an equivalent retry against the unchanged live result returns the same
+  canonical drawing instead of inserting duplicate ink. Canonical adoption is
+  one-to-one: one server drawing may replace at most one provisional stroke.
+  Library refreshes apply monotonically so a late older response cannot replace
+  a newer snapshot. A failed refresh retains the painted bridge; the
+  corresponding successful authoritative refresh atomically adopts it when
+  present or retires only that provisional identity when absent, so concurrent
+  saves remain independent and deletion cannot resurrect optimistic ink. Flow
+  layouts retain a visited page's markup layer through distant PDF content
+  release and same-document view rebuilds so pending completion and failed-
+  drawing retry state survive. The annotation forms own page-note composition
+  persistence; the
   application coordinator retains canonical refreshes, inspector policy, and
   notifications.
 - A bounded light-DOM annotation list owns the private reader's saved highlight
@@ -595,8 +627,17 @@ memory and makes citation aliases compete with stable source identity.
 - `POST /api/library/references/{referenceId}/pdf-markups` creates an
   owner-private note or drawing for an identified artifact. Notes are limited
   to 8,000 characters; colors use six-digit hex; widths are 1–24; drawings
-  contain 2–2,048 normalized points. `DELETE` of a markup requires the same
-  reference ownership boundary. PDF markups are not project-share resources.
+  contain 2–2,048 normalized points. Drawing requests require a stable client
+  UUID in `mutationId`, and an accepted response uses that value as its `id`.
+  During an unresolved creation attempt, repeating the same request against its
+  unchanged live result returns the same canonical drawing; reusing that
+  identity for another target, geometry, or style fails with `409`. A successful
+  `201` response returns the complete canonical note or drawing, including its
+  stable markup identity and timestamps. `DELETE` of a markup requires the same
+  reference ownership boundary. It returns `200` with the deleted markup, or
+  JSON `null` when the identity is already absent or belongs to another
+  reference; those cases are intentionally indistinguishable. PDF markups are
+  not project-share resources.
 - `PATCH /api/library/references/{referenceId}/pdf-markups/{markupId}` moves an
   owner-private note to a validated normalized anchor and may replace its
   bounded body. It cannot turn a drawing into a note or mutate a resource owned
@@ -686,11 +727,36 @@ memory and makes citation aliases compete with stable source identity.
   page-and-quote highlight, restores reading state, keeps project evidence
   controls unavailable, and proves that capture does not mutate the workspace
   snapshot. It also extends an overlapping highlight and edits saved highlight
-  and page-note text without replacing their identities. Pure tests prove
-  fragmented DOM rectangles become visual lines and exported multi-line
-  highlights remain one multi-quad annotation. Browser
-  coverage opens attached PDFs directly from collapsed library rows and verifies
-  that references without artifacts expose no PDF action.
+  and page-note text without replacing their identities, including selecting
+  and editing the saved note without leaving Note mode. It projects a saved page
+  note and drawing into continuous mode, keeps that display mode while Note or
+  Draw is selected, pans the Draw surface by touch, applies a changed drawing
+  style immediately, saves a new drawing only on its owning second page, and
+  places a new note draft against that flowing page.
+  Viewer tests prove that disabling text selection neither changes nor rewrites
+  the active continuous or spread preference, and that both flowing layouts
+  retain Draw-surface one-finger pan and two-finger zoom. Flow-view tests prove
+  a pointer activates its owning right-hand spread page and that releasing
+  distant PDF content retains one stateful markup overlay. Markup-layer and
+  presenter tests defer drawing creation and canonical refresh to prove a
+  finished stroke remains painted exactly once through pending, retryable,
+  confirmed, display-change, canonical-adoption, refresh-failure, and
+  per-stroke authoritative-retirement states, and that Retry/Discard follows a
+  failed stroke into current and future sibling layouts without changing its
+  mutation identity. They also prove Undo remains scoped to the active artifact
+  and page and cannot target an older drawing while the new stroke lacks a
+  stable identity, bounded pointer jitter cannot starve held-shape recognition,
+  and Note mode selects a saved note instead of placing another one over it.
+  Workspace tests prove a late older Library
+  response cannot replace a newer applied snapshot. Real-
+  `workerd` and API tests prove equivalent drawing-creation retries against the
+  unchanged live result return one canonical row, conflicting mutation-identity
+  reuse fails closed, and repeated markup deletion converges. Pure tests prove
+  fragmented DOM rectangles become visual
+  lines and exported multi-line highlights remain one multi-quad annotation.
+  Browser coverage activates the native title-and-metadata summary to open an
+  attached PDF directly from a collapsed library row and verifies that a
+  reference without an artifact keeps that summary noninteractive.
 - Pure tests cover yellow-region recovery, text reconstruction, candidate
   bounds, and bulk-import validation. Real-`workerd` coverage proves reviewed
   candidates commit atomically. Browser coverage detects a flattened yellow
