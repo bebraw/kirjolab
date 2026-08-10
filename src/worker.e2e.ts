@@ -271,6 +271,11 @@ function workspaceIdFromPage(page: Page, message: string): string {
   return workspaceId;
 }
 
+function isDifferentEditorWorkspace(url: URL, sourceWorkspaceId: string): boolean {
+  const destinationWorkspaceId = /^\/editor\/([0-9a-f-]{36})$/u.exec(url.pathname)?.[1];
+  return destinationWorkspaceId !== undefined && destinationWorkspaceId !== sourceWorkspaceId;
+}
+
 function workspaceHasFile(snapshot: WorkspaceSnapshot, path: string): boolean {
   return snapshot.files.some((file) => file.path === path);
 }
@@ -5565,9 +5570,13 @@ test("starts from built-in and promoted personal project templates", async ({ pa
   await expect(page.locator("#new-workspace-template-preview")).toContainText("sections/lab-checklist.md");
   await expect(page.locator("#new-workspace-template-id")).toHaveValue(`project:${reviewWorkspaceId}`);
   await page.locator("#new-workspace-title").fill("Direct project copy");
-  await page.locator("#create-workspace").click();
-  await page.waitForURL(/\/editor\/[0-9a-f-]{36}$/u);
+  const directCopySourceId = workspaceIdFromPage(page, "Expected a direct project-copy source workspace id");
+  await Promise.all([
+    page.waitForURL((url) => isDifferentEditorWorkspace(url, directCopySourceId)),
+    page.locator("#create-workspace").click(),
+  ]);
   const directCopyId = workspaceIdFromPage(page, "Expected a direct project-copy workspace id");
+  expect(directCopyId).not.toBe(directCopySourceId);
   const directCopy = await readWorkspaceSnapshot(page, `/api/workspaces/${directCopyId}`);
   expect(workspaceHasFile(directCopy, "sections/lab-checklist.md")).toBe(true);
   expect(directCopy.pdfs).toEqual([]);
@@ -5599,10 +5608,14 @@ test("starts from built-in and promoted personal project templates", async ({ pa
   await expect(page.locator("#new-workspace-template-preview")).toContainText("sections/lab-checklist.md");
   await expect(page.locator("#new-workspace-template-id")).toHaveValue(personal.id);
   await page.locator("#new-workspace-title").fill("Reusable review");
-  await page.locator("#create-workspace").click();
-  await page.waitForURL(/\/editor\/[0-9a-f-]{36}$/u);
+  const personalSourceId = workspaceIdFromPage(page, "Expected a personal-template source workspace id");
+  await Promise.all([
+    page.waitForURL((url) => isDifferentEditorWorkspace(url, personalSourceId)),
+    page.locator("#create-workspace").click(),
+  ]);
 
   const personalWorkspaceId = workspaceIdFromPage(page, "Expected a personal-template workspace id");
+  expect(personalWorkspaceId).not.toBe(personalSourceId);
   const personalApi = `/api/workspaces/${personalWorkspaceId}`;
   const personalSnapshot = await readWorkspaceSnapshot(page, personalApi);
   expect(workspaceHasFile(personalSnapshot, "sections/lab-checklist.md")).toBe(true);
