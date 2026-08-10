@@ -298,7 +298,11 @@ export class LibraryPdfMarkupLayer extends LightDomElement {
   }
 
   chooseTool(tool: PdfAnnotationTool): void {
+    this.resetToolPresentation();
     this.setInteraction(tool);
+  }
+
+  private resetToolPresentation(): void {
     this.noteDraftValue = null;
     this.openNoteId = null;
     this.selectedHighlightIdValue = null;
@@ -427,13 +431,17 @@ export class LibraryPdfMarkupLayer extends LightDomElement {
     if (event.pointerType === "touch") return { kind: "touch-drawing" };
     if (this.savingDrawing || this.pendingDrawingSaves.size > 0 || this.failedDrawing) return null;
     event.preventDefault();
+    this.startDrawing(event.pointerId, point);
+    return { kind: "start-drawing" };
+  }
+
+  private startDrawing(pointerId: number, point: LibraryPdfPoint): void {
     this.status = "";
     this.cancelShapeRecognition();
-    this.drawing = { pointerId: event.pointerId, points: [point] };
-    this.setPointerCapture(event.pointerId);
+    this.drawing = { pointerId, points: [point] };
+    this.setPointerCapture(pointerId);
     this.setInteraction("draw", true);
     this.requestUpdate();
-    return { kind: "start-drawing" };
   }
 
   private startNoteDrag(

@@ -76,11 +76,9 @@ export class PdfContinuousView {
     this.#runtime = runtime;
     this.#currentPage = initialPage;
     this.#rotation = rotation;
+    if (!reuseViews) this.#views.clear();
     this.#rendering.clear();
-    if (!reuseViews) {
-      this.#views.clear();
-      this.#container.replaceChildren();
-    }
+    if (!reuseViews) this.#container.replaceChildren();
 
     const initialPdfPage = await documentModel.getPage(initialPage);
     if (generation !== this.#generation) return;
