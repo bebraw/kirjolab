@@ -1,4 +1,4 @@
-import { html, nothing, type TemplateResult } from "lit";
+import { html, nothing, svg, type TemplateResult } from "lit";
 import type {
   LibraryPdfArtifact,
   LibraryPdfDrawing,
@@ -623,7 +623,7 @@ export class LibraryPdfMarkupLayer extends LightDomElement {
   }
 
   private renderDrawing(drawing: Pick<LibraryPdfDrawing, "color" | "id" | "points" | "width">, selected: boolean): TemplateResult {
-    return html`<polyline
+    return svg`<polyline
       class="pdf-ink-stroke"
       points=${drawingPoints(drawing.points)}
       fill="none"
