@@ -404,18 +404,7 @@ export class LibraryPdfMarkupLayer extends LightDomElement {
   ): LibraryPdfPointerAction | null {
     if (isMarkupTargetElement(event.target)) {
       const target = this.markupTarget(event.target);
-      if (target?.kind === "note") {
-        if (!target.id || (this.interactionTool !== "select" && this.interactionTool !== "note") || this.movingNoteId) return null;
-        this.noteDrag = {
-          id: target.id,
-          pointerId: event.pointerId,
-          startX: event.clientX,
-          startY: event.clientY,
-          moved: false,
-        };
-        this.setPointerCapture(event.pointerId);
-        return { id: target.id, kind: "note" };
-      }
+      if (target?.kind === "note") return this.startNoteDrag(event, target.id);
       if (target?.kind === "drawing" && this.interactionTool === "select") {
         event.preventDefault();
         return target;
@@ -445,6 +434,22 @@ export class LibraryPdfMarkupLayer extends LightDomElement {
     this.setInteraction("draw", true);
     this.requestUpdate();
     return { kind: "start-drawing" };
+  }
+
+  private startNoteDrag(
+    event: Pick<PointerEvent, "clientX" | "clientY" | "pointerId">,
+    noteId: string | null,
+  ): { readonly id: string; readonly kind: "note" } | null {
+    if (!noteId || (this.interactionTool !== "select" && this.interactionTool !== "note") || this.movingNoteId) return null;
+    this.noteDrag = {
+      id: noteId,
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      moved: false,
+    };
+    this.setPointerCapture(event.pointerId);
+    return { id: noteId, kind: "note" };
   }
 
   extendDrawing(event: DrawingPointerEvent, draft: readonly LibraryPdfPoint[]): readonly LibraryPdfPoint[] | null {

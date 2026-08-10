@@ -1002,7 +1002,6 @@ export class ContextResourcePresenter extends LightDomController {
   }
 
   // PdfEvidenceViewer invokes this while constructing flowing page placeholders.
-  // fallow-ignore-next-line unused-class-member
   createPdfPageOverlay(page: number): LibraryPdfMarkupLayer | null {
     const artifact = this.currentLibraryPdf;
     const toolbar = this.element("library-pdf-annotation-toolbar", LibraryPdfAnnotationToolbar);
@@ -1318,90 +1317,123 @@ export class ContextResourcePresenter extends LightDomController {
 
   private handleLibraryPdfToolbarAction(action: LibraryPdfToolbarAction): void {
     if (!this.libraryPdfProject) return;
-    if (action.action === "choose-tool") this.applyViewerPresentation(this.chooseLibraryPdfTool(action.tool));
-    else if (action.action === "drawing-style-changed") this.applyLibraryPdfDrawingStyle(action.style);
-    else if (action.action === "drawing-undone") {
-      this.pendingDeletedLibraryPdfDrawingIds.add(action.drawingId);
-      this.unrefreshedLibraryPdfDrawings.delete(action.drawingId);
-      for (const [provisionalId, preview] of this.provisionalLibraryPdfDrawings) {
-        if (preview.drawingId !== action.drawingId) continue;
-        this.provisionalLibraryPdfDrawings.delete(provisionalId);
-        this.pendingLibraryPdfDrawingSaves.delete(provisionalId);
-        this.failedLibraryPdfDrawingSaves.delete(provisionalId);
-        for (const layer of this.libraryPdfMarkupLayers()) layer.retireProvisionalDrawing(provisionalId);
-      }
-      for (const layer of this.libraryPdfMarkupLayers()) layer.retireCreatedDrawing(action.drawingId);
-      const page = this.element("paper-markups", LibraryPdfMarkupLayer)?.page;
-      if (page !== null && page !== undefined) this.presentLibraryPdfPage(this.currentLibrary, page);
-      this.completeLibraryMarkup("Private annotation deleted.", { kind: "deleted-drawing", drawingId: action.drawingId });
-    } else if (action.action === "export-status") this.presentNotice(action.message);
-    else if (action.action === "open-references") this.setLibraryPdfInspector(true, "references");
-    else this.setLibraryPdfInspector(true, "annotations");
+    switch (action.action) {
+      case "choose-tool":
+        this.applyViewerPresentation(this.chooseLibraryPdfTool(action.tool));
+        return;
+      case "drawing-style-changed":
+        this.applyLibraryPdfDrawingStyle(action.style);
+        return;
+      case "drawing-undone":
+        this.completeLibraryPdfDrawingUndo(action.drawingId);
+        return;
+      case "export-status":
+        this.presentNotice(action.message);
+        return;
+      case "open-references":
+        this.setLibraryPdfInspector(true, "references");
+        return;
+      case "open-inspector":
+        this.setLibraryPdfInspector(true, "annotations");
+    }
   }
 
   private handleLibraryPdfMarkupAction(action: LibraryPdfMarkupAction): void {
     if (!this.libraryPdfProject) return;
-    if (action.action === "drawing-save-state") {
-      if (action.pending) {
-        this.failedLibraryPdfDrawingSaves.delete(action.preview.provisionalId);
-        this.pendingLibraryPdfDrawingSaves.set(action.preview.provisionalId, action.preview);
-        const retained = this.projectLibraryPdfDrawingPreview(action.preview);
-        if (retained) {
-          this.pendingLibraryPdfDrawingSaves.set(retained.provisionalId, retained);
-          this.projectLibraryPdfDrawingSaveState(retained, true, null);
-        }
-      } else {
-        this.pendingLibraryPdfDrawingSaves.delete(action.preview.provisionalId);
-        const retained = this.provisionalLibraryPdfDrawings.get(action.preview.provisionalId);
-        if (action.failure && retained) {
-          const failed = { failure: action.failure, preview: retained } satisfies FailedLibraryPdfDrawingSave;
-          this.failedLibraryPdfDrawingSaves.set(retained.provisionalId, failed);
-          this.projectLibraryPdfDrawingSaveState(retained, false, failed.failure);
-        } else {
-          this.failedLibraryPdfDrawingSaves.delete(action.preview.provisionalId);
-          this.projectLibraryPdfDrawingSaveState(retained ?? action.preview, false, null);
-        }
-      }
-      this.syncLibraryPdfUndoPending();
-    } else if (action.action === "drawing-discarded") {
-      this.pendingLibraryPdfDrawingSaves.delete(action.provisionalId);
-      this.failedLibraryPdfDrawingSaves.delete(action.provisionalId);
-      this.provisionalLibraryPdfDrawings.delete(action.provisionalId);
-      for (const layer of this.libraryPdfMarkupLayers()) layer.retireProvisionalDrawing(action.provisionalId);
-      this.syncLibraryPdfUndoPending();
-    } else if (action.action === "drawing-saved" || action.action === "note-moved") {
-      if (action.action === "drawing-saved") {
-        this.failedLibraryPdfDrawingSaves.delete(action.preview.provisionalId);
-        const retained = this.projectLibraryPdfDrawingPreview(action.preview);
-        if (retained) {
-          this.projectLibraryPdfDrawingSaveState(retained, this.pendingLibraryPdfDrawingSaves.has(retained.provisionalId), null);
-        }
-        if (action.drawing) {
-          const canonical = this.currentLibrary?.pdfMarkups?.some(({ id }) => id === action.drawing?.id) ?? false;
-          if (!canonical) {
-            this.unrefreshedLibraryPdfDrawings.set(action.drawing.id, action.drawing);
-            for (const layer of this.libraryPdfMarkupLayers()) layer.projectCreatedDrawing(action.drawing);
-          }
-          this.presentCreatedDrawingUndo(action.drawing);
-        }
-      }
-      this.syncLibraryPdfUndoPending();
-      this.completeLibraryMarkup(
-        action.action === "drawing-saved" ? "Drawing saved privately." : "Note moved.",
-        action.action === "drawing-saved"
-          ? {
-              drawingId: action.drawingId,
-              kind: "saved-drawing",
-              provisionalId: action.preview.provisionalId,
-            }
-          : undefined,
-      );
-    } else if (action.action === "select-markup") this.selectBoundLibraryPdfMarkup(action.id);
-    else if (action.action === "status") this.element("library-pdf-inspector", LibraryPdfInspector)?.setStatus(action.message);
-    else {
-      for (const layer of this.libraryPdfMarkupLayers()) layer.placeNote(action.draft.page, action.draft);
-      this.beginLibraryPdfNote(action.draft);
+    switch (action.action) {
+      case "drawing-save-state":
+        this.handleLibraryPdfDrawingSaveState(action);
+        return;
+      case "drawing-discarded":
+        this.discardLibraryPdfDrawing(action.provisionalId);
+        return;
+      case "drawing-saved":
+        this.completeLibraryPdfDrawingSave(action);
+        return;
+      case "note-moved":
+        this.syncLibraryPdfUndoPending();
+        this.completeLibraryMarkup("Note moved.");
+        return;
+      case "select-markup":
+        this.selectBoundLibraryPdfMarkup(action.id);
+        return;
+      case "status":
+        this.element("library-pdf-inspector", LibraryPdfInspector)?.setStatus(action.message);
+        return;
+      case "place-note":
+        for (const layer of this.libraryPdfMarkupLayers()) layer.placeNote(action.draft.page, action.draft);
+        this.beginLibraryPdfNote(action.draft);
     }
+  }
+
+  private completeLibraryPdfDrawingUndo(drawingId: string): void {
+    this.pendingDeletedLibraryPdfDrawingIds.add(drawingId);
+    this.unrefreshedLibraryPdfDrawings.delete(drawingId);
+    for (const [provisionalId, preview] of this.provisionalLibraryPdfDrawings) {
+      if (preview.drawingId !== drawingId) continue;
+      this.provisionalLibraryPdfDrawings.delete(provisionalId);
+      this.pendingLibraryPdfDrawingSaves.delete(provisionalId);
+      this.failedLibraryPdfDrawingSaves.delete(provisionalId);
+      for (const layer of this.libraryPdfMarkupLayers()) layer.retireProvisionalDrawing(provisionalId);
+    }
+    for (const layer of this.libraryPdfMarkupLayers()) layer.retireCreatedDrawing(drawingId);
+    const page = this.element("paper-markups", LibraryPdfMarkupLayer)?.page;
+    if (page !== null && page !== undefined) this.presentLibraryPdfPage(this.currentLibrary, page);
+    this.completeLibraryMarkup("Private annotation deleted.", { kind: "deleted-drawing", drawingId });
+  }
+
+  private handleLibraryPdfDrawingSaveState(action: Extract<LibraryPdfMarkupAction, { readonly action: "drawing-save-state" }>): void {
+    if (action.pending) {
+      this.failedLibraryPdfDrawingSaves.delete(action.preview.provisionalId);
+      this.pendingLibraryPdfDrawingSaves.set(action.preview.provisionalId, action.preview);
+      const retained = this.projectLibraryPdfDrawingPreview(action.preview);
+      if (retained) {
+        this.pendingLibraryPdfDrawingSaves.set(retained.provisionalId, retained);
+        this.projectLibraryPdfDrawingSaveState(retained, true, null);
+      }
+    } else {
+      this.pendingLibraryPdfDrawingSaves.delete(action.preview.provisionalId);
+      const retained = this.provisionalLibraryPdfDrawings.get(action.preview.provisionalId);
+      if (action.failure && retained) {
+        const failed = { failure: action.failure, preview: retained } satisfies FailedLibraryPdfDrawingSave;
+        this.failedLibraryPdfDrawingSaves.set(retained.provisionalId, failed);
+        this.projectLibraryPdfDrawingSaveState(retained, false, failed.failure);
+      } else {
+        this.failedLibraryPdfDrawingSaves.delete(action.preview.provisionalId);
+        this.projectLibraryPdfDrawingSaveState(retained ?? action.preview, false, null);
+      }
+    }
+    this.syncLibraryPdfUndoPending();
+  }
+
+  private discardLibraryPdfDrawing(provisionalId: string): void {
+    this.pendingLibraryPdfDrawingSaves.delete(provisionalId);
+    this.failedLibraryPdfDrawingSaves.delete(provisionalId);
+    this.provisionalLibraryPdfDrawings.delete(provisionalId);
+    for (const layer of this.libraryPdfMarkupLayers()) layer.retireProvisionalDrawing(provisionalId);
+    this.syncLibraryPdfUndoPending();
+  }
+
+  private completeLibraryPdfDrawingSave(action: Extract<LibraryPdfMarkupAction, { readonly action: "drawing-saved" }>): void {
+    this.failedLibraryPdfDrawingSaves.delete(action.preview.provisionalId);
+    const retained = this.projectLibraryPdfDrawingPreview(action.preview);
+    if (retained) {
+      this.projectLibraryPdfDrawingSaveState(retained, this.pendingLibraryPdfDrawingSaves.has(retained.provisionalId), null);
+    }
+    if (action.drawing) {
+      const canonical = this.currentLibrary?.pdfMarkups?.some(({ id }) => id === action.drawing?.id) ?? false;
+      if (!canonical) {
+        this.unrefreshedLibraryPdfDrawings.set(action.drawing.id, action.drawing);
+        for (const layer of this.libraryPdfMarkupLayers()) layer.projectCreatedDrawing(action.drawing);
+      }
+      this.presentCreatedDrawingUndo(action.drawing);
+    }
+    this.syncLibraryPdfUndoPending();
+    this.completeLibraryMarkup("Drawing saved privately.", {
+      drawingId: action.drawingId,
+      kind: "saved-drawing",
+      provisionalId: action.preview.provisionalId,
+    });
   }
 
   private completeLibraryMarkup(message: string, retirement?: LibraryPdfMarkupRefreshRetirement): void {

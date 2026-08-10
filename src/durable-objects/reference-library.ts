@@ -182,6 +182,15 @@ interface PdfMarkupRow extends Record<string, SqlStorageValue> {
   updated_at: string;
 }
 
+interface PdfDrawingMutationInput {
+  readonly referenceId: string;
+  readonly artifactId: string;
+  readonly page: number;
+  readonly color: string;
+  readonly width: number;
+  readonly points: readonly LibraryPdfPoint[];
+}
+
 interface ReadingRow extends Record<string, SqlStorageValue> {
   reference_id: string;
   status: string;
@@ -1348,36 +1357,14 @@ export class ReferenceLibrary extends DurableObject<Env> {
     this.#reference(referenceId);
     const artifact = this.#artifact(artifactId);
     const color = colorValue.toLocaleLowerCase();
-    if (
-      artifact.referenceId !== referenceId ||
-      !uuidPattern.test(mutationId) ||
-      !Number.isInteger(page) ||
-      page < 1 ||
-      !/^#[0-9a-f]{6}$/u.test(color) ||
-      !Number.isFinite(width) ||
-      width < 1 ||
-      width > 24 ||
-      points.length < 2 ||
-      points.length > 2_048 ||
-      !points.every((point) => normalizedCoordinate(point.x) && normalizedCoordinate(point.y))
-    ) {
-      throw new Error("Invalid private PDF drawing");
-    }
+    const mutation = { referenceId, artifactId, page, color, width, points } satisfies PdfDrawingMutationInput;
+    if (!validPdfDrawingMutation(artifact.referenceId, mutationId, mutation)) throw new Error("Invalid private PDF drawing");
     const drawingPoints = points.map((point) => ({ x: point.x, y: point.y }));
     const existingRow = this.ctx.storage.sql.exec<PdfMarkupRow>("SELECT * FROM pdf_markups WHERE id = ?", mutationId).toArray()[0];
     if (existingRow) {
       const existing = pdfMarkupFromRow(existingRow);
-      if (
-        existing.kind !== "drawing" ||
-        existing.referenceId !== referenceId ||
-        existing.artifactId !== artifactId ||
-        existing.page !== page ||
-        existing.color !== color ||
-        existing.width !== width ||
-        !samePdfPoints(existing.points, drawingPoints)
-      ) {
+      if (!samePdfDrawingMutation(existing, { ...mutation, points: drawingPoints }))
         throw new Error("Private PDF drawing mutation conflict");
-      }
       return existing;
     }
     const now = new Date().toISOString();
@@ -2424,6 +2411,46 @@ function parsePdfPoints(value: string): LibraryPdfPoint[] | null {
 
 function samePdfPoints(left: readonly LibraryPdfPoint[], right: readonly LibraryPdfPoint[]): boolean {
   return left.length === right.length && left.every((point, index) => point.x === right[index]?.x && point.y === right[index]?.y);
+}
+
+function validPdfDrawingMutation(artifactReferenceId: string | null, mutationId: string, mutation: PdfDrawingMutationInput): boolean {
+  return (
+    validPdfDrawingTarget(artifactReferenceId, mutationId, mutation) &&
+    validPdfDrawingStyle(mutation.color, mutation.width) &&
+    validPdfDrawingPoints(mutation.points)
+  );
+}
+
+function validPdfDrawingTarget(
+  artifactReferenceId: string | null,
+  mutationId: string,
+  mutation: Pick<PdfDrawingMutationInput, "page" | "referenceId">,
+): boolean {
+  return (
+    artifactReferenceId === mutation.referenceId && uuidPattern.test(mutationId) && Number.isInteger(mutation.page) && mutation.page >= 1
+  );
+}
+
+function validPdfDrawingStyle(color: string, width: number): boolean {
+  return /^#[0-9a-f]{6}$/u.test(color) && Number.isFinite(width) && width >= 1 && width <= 24;
+}
+
+function validPdfDrawingPoints(points: readonly LibraryPdfPoint[]): boolean {
+  return (
+    points.length >= 2 && points.length <= 2_048 && points.every((point) => normalizedCoordinate(point.x) && normalizedCoordinate(point.y))
+  );
+}
+
+function samePdfDrawingMutation(existing: LibraryPdfMarkup, mutation: PdfDrawingMutationInput): existing is LibraryPdfDrawing {
+  return (
+    existing.kind === "drawing" &&
+    existing.referenceId === mutation.referenceId &&
+    existing.artifactId === mutation.artifactId &&
+    existing.page === mutation.page &&
+    existing.color === mutation.color &&
+    existing.width === mutation.width &&
+    samePdfPoints(existing.points, mutation.points)
+  );
 }
 
 function normalizedCoordinate(value: unknown): value is number {
