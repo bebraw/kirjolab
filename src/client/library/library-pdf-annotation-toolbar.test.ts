@@ -1,3 +1,4 @@
+import type { TemplateResult } from "lit";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { LibraryPdfDrawing } from "../../domain/reference-library";
 import { LibraryPdfAnnotationToolbar, libraryPdfToolbarActionEvent, type LibraryPdfToolbarAction } from "./library-pdf-annotation-toolbar";
@@ -55,6 +56,13 @@ const drawing: LibraryPdfDrawing = {
   updatedAt: "2026-07-25T00:00:00.000Z",
   width: 4,
 };
+
+function undoPresentation(toolbar: TestLibraryPdfAnnotationToolbar): { readonly disabled: unknown; readonly title: unknown } {
+  const template: TemplateResult = toolbar.renderForTest();
+  const disabledIndex = template.strings.findIndex((part) => part.includes('id="undo-library-drawing"'));
+  if (disabledIndex < 0) throw new Error("Undo drawing control is unavailable");
+  return { disabled: template.values[disabledIndex], title: template.values[disabledIndex + 1] };
+}
 
 afterEach(() => {
   vi.useRealTimers();
@@ -312,6 +320,23 @@ describe("library PDF annotation toolbar", () => {
     toolbar.setDrawingPending(false);
     await toolbar.undoForTest();
     expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
+  it("presents and enforces undo availability for missing, ready, and pending drawings", async () => {
+    const toolbar = new TestLibraryPdfAnnotationToolbar();
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 200 }));
+
+    expect(undoPresentation(toolbar)).toEqual({ disabled: true, title: "Remove the latest drawing on this page" });
+    await toolbar.undoForTest();
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    toolbar.setUndoDrawings([drawing]);
+    expect(undoPresentation(toolbar)).toEqual({ disabled: false, title: "Remove the latest drawing on this page" });
+
+    toolbar.setDrawingPending(true);
+    expect(undoPresentation(toolbar)).toEqual({ disabled: true, title: "Wait for the drawing to finish saving" });
+    await toolbar.undoForTest();
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("reports undo failures, suppresses overlap, and permits retry", async () => {

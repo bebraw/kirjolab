@@ -1,3 +1,4 @@
+import type { TemplateResult } from "lit";
 import { describe, expect, it } from "vitest";
 import type { BibliographicRecord, LibraryPdfArtifact } from "../../domain/reference-library";
 import type { WorkspaceSnapshot } from "../../domain/workspace/workspace";
@@ -93,6 +94,21 @@ function data(overrides: Partial<LibraryReferenceSummaryData> = {}): LibraryRefe
   };
 }
 
+function nestedTemplate(template: TemplateResult, marker: string): TemplateResult | null {
+  if (template.strings.join("").includes(marker)) return template;
+  for (const value of template.values) {
+    if (isTemplateResult(value)) {
+      const match = nestedTemplate(value, marker);
+      if (match) return match;
+    }
+  }
+  return null;
+}
+
+function isTemplateResult(value: unknown): value is TemplateResult {
+  return typeof value === "object" && value !== null && "strings" in value && "values" in value;
+}
+
 describe("library reference summary", () => {
   it("owns light-DOM summary and project availability variants", () => {
     const summary = new TestLibraryReferenceSummary();
@@ -136,6 +152,49 @@ describe("library reference summary", () => {
     summary.openPrimaryPdfForTest();
 
     expect(actions).toEqual([{ action: "open-pdf", artifact }]);
+  });
+
+  it("renders an attached PDF summary as a labelled native action", () => {
+    const summary = new TestLibraryReferenceSummary();
+    const actions: LibraryReferenceSummaryAction[] = [];
+    summary.addEventListener(libraryReferenceSummaryActionEvent, (event) => {
+      actions.push((event as CustomEvent<LibraryReferenceSummaryAction>).detail);
+    });
+    summary.setData(data({ primaryArtifact: artifact }));
+
+    const openAction = nestedTemplate(summary.renderForTest(), 'class="library-reference-open"');
+
+    expect(openAction?.strings.join("")).toContain(
+      '<button\n                class="library-reference-open"\n                type="button"',
+    );
+    expect(openAction?.values.slice(0, 2)).toEqual(["Open A Useful Paper PDF", "Open paper.pdf"]);
+    const click = openAction?.values[2];
+    expect(click).toBeTypeOf("function");
+    (click as () => void).call(summary);
+    expect(actions).toEqual([{ action: "open-pdf", artifact }]);
+  });
+
+  it("offers Find PDF only for an unresolved DOI and keeps its action typed", () => {
+    const summary = new TestLibraryReferenceSummary();
+    const actions: LibraryReferenceSummaryAction[] = [];
+    summary.addEventListener(libraryReferenceSummaryActionEvent, (event) => {
+      actions.push((event as CustomEvent<LibraryReferenceSummaryAction>).detail);
+    });
+    summary.setData(data());
+
+    const findAction = nestedTemplate(summary.renderForTest(), "Find PDF");
+
+    expect(findAction?.strings.join("")).toContain('class="button-secondary"');
+    expect(findAction?.values[0]).toBe("Find an open-access PDF for A Useful Paper");
+    const click = findAction?.values[1];
+    expect(click).toBeTypeOf("function");
+    (click as () => void).call(summary);
+    expect(actions).toEqual([{ action: "find-open-pdf", reference }]);
+
+    summary.setData(data({ primaryArtifact: artifact }));
+    expect(nestedTemplate(summary.renderForTest(), "Find PDF")).toBeNull();
+    summary.setData(data({ reference: { ...reference, doi: "" } }));
+    expect(nestedTemplate(summary.renderForTest(), "Find PDF")).toBeNull();
   });
 
   it("owns stable link and unlink requests and emits completed workspace outcomes", async () => {

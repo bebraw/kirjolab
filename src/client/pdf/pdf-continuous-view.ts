@@ -66,10 +66,7 @@ export class PdfContinuousView {
     scrollToInitialPage = true,
   ): Promise<void> {
     const generation = ++this.#generation;
-    const reuseViews =
-      this.#document === documentModel &&
-      this.#views.size === documentModel.numPages &&
-      [...this.#views.keys()].every((page) => page >= 1 && page <= documentModel.numPages);
+    const reuseViews = this.#document === documentModel && this.#views.size === documentModel.numPages;
     this.#observer?.disconnect();
     this.#observer = null;
     this.#document = documentModel;

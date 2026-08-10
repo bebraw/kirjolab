@@ -223,6 +223,19 @@ describe("reference Library workspace", () => {
     expect(workspace.snapshot).toEqual(newer);
   });
 
+  it("applies each newer sequential Library refresh after an existing snapshot", async () => {
+    const { workspace } = setup();
+    const newer = {
+      ...library,
+      references: library.references.map((item) => ({ ...item, title: "Sequentially newer snapshot" })),
+    };
+
+    await expect(workspace.refresh(async () => Response.json(library))).resolves.toEqual(library);
+    await expect(workspace.refresh(async () => Response.json(newer))).resolves.toEqual(newer);
+
+    expect(workspace.snapshot).toEqual(newer);
+  });
+
   it("owns canonical project mutation application and Library projection", async () => {
     const { owners, workspace } = setup();
     const applyProjectMutation = vi.fn().mockResolvedValue(undefined);
@@ -607,6 +620,20 @@ describe("reference Library workspace", () => {
     await expect(workspace.completeRefresh("Saved", "Refresh failed", { complete })).resolves.toBe(false);
 
     expect(presentNotice).toHaveBeenCalledWith("Refresh failed");
+    expect(complete).toHaveBeenCalledOnce();
+  });
+
+  it("reports successful refresh completion to its caller", async () => {
+    const { workspace } = setup();
+    const complete = vi.fn();
+    const presentNotice = vi.fn();
+    const refresh = vi.fn().mockResolvedValue(undefined);
+    bindOwnerHarness(workspace, { presentNotice });
+
+    await expect(workspace.completeRefresh("Saved", "Refresh failed", { complete, refresh })).resolves.toBe(true);
+
+    expect(refresh).toHaveBeenCalledOnce();
+    expect(presentNotice).toHaveBeenCalledWith("Saved");
     expect(complete).toHaveBeenCalledOnce();
   });
 });

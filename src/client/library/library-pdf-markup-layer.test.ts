@@ -56,6 +56,20 @@ function renderedDrawingRecovery(layer: TestMarkupLayer): TemplateResult | null 
   );
 }
 
+function drawingRecoveryPresentation(layer: TestMarkupLayer): {
+  readonly discardDisabled: unknown;
+  readonly retryDisabled: unknown;
+  readonly retryLabel: unknown;
+} | null {
+  const recovery = renderedDrawingRecovery(layer);
+  return recovery ? { discardDisabled: recovery.values[3], retryDisabled: recovery.values[0], retryLabel: recovery.values[2] } : null;
+}
+
+function drawingStatusPresentation(layer: TestMarkupLayer): readonly [unknown, unknown] {
+  const rendered = layer.renderForTest();
+  return [rendered.values[3], rendered.values[4]];
+}
+
 function savedAction(actions: readonly LibraryPdfMarkupAction[]): Extract<LibraryPdfMarkupAction, { readonly action: "drawing-saved" }> {
   const action = actions.find(
     (candidate): candidate is Extract<LibraryPdfMarkupAction, { readonly action: "drawing-saved" }> => candidate.action === "drawing-saved",
@@ -105,6 +119,54 @@ const artifact: LibraryPdfArtifact = {
   size: 2048,
 };
 
+const drawingSurfaceData = {
+  drawingStyle: { color: "#ABCDEF", width: 7 },
+  drawingTarget: { artifactId: "artifact:1", referenceId: "reference/1" },
+  drawings: [],
+  notes: [],
+  page: 3,
+} as const;
+
+function drawingResponse(id: string): LibraryPdfDrawing {
+  return {
+    ...drawing,
+    artifactId: drawingSurfaceData.drawingTarget.artifactId,
+    color: "#abcdef",
+    id,
+    page: drawingSurfaceData.page,
+    points: [
+      { x: 0.1, y: 0.2 },
+      { x: 0.5, y: 0.2 },
+    ],
+    referenceId: drawingSurfaceData.drawingTarget.referenceId,
+    width: drawingSurfaceData.drawingStyle.width,
+  };
+}
+
+function configureDrawingSurface(layer: TestMarkupLayer, actions: LibraryPdfMarkupAction[]): void {
+  Object.defineProperties(layer, {
+    dataset: { value: {} },
+    getBoundingClientRect: { value: () => ({ height: 200, left: 0, top: 0, width: 400 }) },
+    setPointerCapture: { value: vi.fn() },
+  });
+  layer.setData(drawingSurfaceData);
+  layer.addEventListener(libraryPdfMarkupActionEvent, (event) => {
+    actions.push((event as CustomEvent<LibraryPdfMarkupAction>).detail);
+  });
+  layer.chooseTool("draw");
+}
+
+function drawingPointer(clientX: number, clientY = 40) {
+  return {
+    clientX,
+    clientY,
+    pointerId: 7,
+    pointerType: "mouse",
+    preventDefault: vi.fn(),
+    target: new EventTarget(),
+  } as const;
+}
+
 describe("library PDF markup layer", () => {
   afterEach(() => {
     vi.restoreAllMocks();
@@ -138,6 +200,29 @@ describe("library PDF markup layer", () => {
     });
     layer.editNote(note);
     expect(layer.renderForTest()).toBeDefined();
+  });
+
+  it("describes saved-note interaction for each active tool", () => {
+    const layer = new TestMarkupLayer();
+    Object.defineProperty(layer, "dataset", { value: {} });
+    layer.setData({
+      drawingStyle: { color: "#000000", width: 3 },
+      drawingTarget: null,
+      drawings: [],
+      notes: [note],
+      page: note.page,
+    });
+    const title = (): unknown => {
+      const notes = layer.renderForTest().values[2];
+      if (!Array.isArray(notes)) throw new Error("Expected rendered notes");
+      return requiredTemplateResult(notes[0]).values[4];
+    };
+
+    expect(title()).toBe("Tap to select; drag to move");
+    layer.chooseTool("note");
+    expect(title()).toBe("Tap to select; drag to move");
+    layer.chooseTool("draw");
+    expect(title()).toBe("Choose Note or Select to edit this note");
   });
 
   it("renders saved drawings as painted SVG polylines", () => {
@@ -426,6 +511,161 @@ describe("library PDF markup layer", () => {
     });
   });
 
+  it("accepts a creation response only when its complete drawing payload matches", async () => {
+    const layer = new TestMarkupLayer();
+    const actions: LibraryPdfMarkupAction[] = [];
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (_input, init) => {
+      const mutationId = String(JSON.parse(String(init?.body)).mutationId);
+      return Response.json(drawingResponse(mutationId), { status: 201 });
+    });
+    configureDrawingSurface(layer, actions);
+
+    expect(layer.pointerAction(drawingPointer(40))).toEqual({ kind: "start-drawing" });
+    expect(layer.continueDrawing(drawingPointer(200))).toBe(true);
+    await layer.finishDrawing(7);
+
+    const saved = savedAction(actions);
+    expect(saved.drawingId).toBe(saved.preview.provisionalId);
+    expect(saved.drawing).toEqual(drawingResponse(saved.preview.provisionalId));
+  });
+
+  it.each([
+    {
+      difference: "artifact identity",
+      exposesCreatedId: false,
+      vary: (value: LibraryPdfDrawing) => ({ ...value, artifactId: "artifact:other" }),
+    },
+    {
+      difference: "reference identity",
+      exposesCreatedId: false,
+      vary: (value: LibraryPdfDrawing) => ({ ...value, referenceId: "reference/other" }),
+    },
+    {
+      difference: "page",
+      exposesCreatedId: false,
+      vary: (value: LibraryPdfDrawing) => ({ ...value, page: value.page + 1 }),
+    },
+    {
+      difference: "color",
+      exposesCreatedId: true,
+      vary: (value: LibraryPdfDrawing) => ({ ...value, color: "#123456" }),
+    },
+    {
+      difference: "width",
+      exposesCreatedId: true,
+      vary: (value: LibraryPdfDrawing) => ({ ...value, width: value.width + 1 }),
+    },
+    {
+      difference: "point count",
+      exposesCreatedId: true,
+      vary: (value: LibraryPdfDrawing) => ({ ...value, points: [...value.points, { x: 0.7, y: 0.2 }] }),
+    },
+    {
+      difference: "point x coordinate",
+      exposesCreatedId: true,
+      vary: (value: LibraryPdfDrawing) => ({ ...value, points: [{ x: 0.2, y: 0.2 }, value.points[1]!] }),
+    },
+    {
+      difference: "point y coordinate",
+      exposesCreatedId: true,
+      vary: (value: LibraryPdfDrawing) => ({ ...value, points: [{ x: 0.1, y: 0.3 }, value.points[1]!] }),
+    },
+  ])("does not claim a creation response whose $difference differs", async ({ exposesCreatedId, vary }) => {
+    const layer = new TestMarkupLayer();
+    const actions: LibraryPdfMarkupAction[] = [];
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (_input, init) => {
+      const mutationId = String(JSON.parse(String(init?.body)).mutationId);
+      return Response.json(vary(drawingResponse(mutationId)), { status: 201 });
+    });
+    configureDrawingSurface(layer, actions);
+
+    layer.pointerAction(drawingPointer(40));
+    layer.continueDrawing(drawingPointer(200));
+    await layer.finishDrawing(7);
+
+    const saved = savedAction(actions);
+    expect(saved.drawing).toBeNull();
+    expect(saved.drawingId).toBe(exposesCreatedId ? saved.preview.provisionalId : null);
+    expect(renderedDrawings(layer)).toHaveLength(1);
+  });
+
+  it.each([
+    {
+      difference: "artifact identity",
+      vary: (value: LibraryPdfDrawing) => ({ ...value, artifactId: "artifact:other" }),
+    },
+    {
+      difference: "reference identity",
+      vary: (value: LibraryPdfDrawing) => ({ ...value, referenceId: "reference/other" }),
+    },
+    { difference: "page", vary: (value: LibraryPdfDrawing) => ({ ...value, page: value.page + 1 }) },
+    { difference: "color", vary: (value: LibraryPdfDrawing) => ({ ...value, color: "#123456" }) },
+    { difference: "width", vary: (value: LibraryPdfDrawing) => ({ ...value, width: value.width + 1 }) },
+    {
+      difference: "point count",
+      vary: (value: LibraryPdfDrawing) => ({ ...value, points: value.points.slice(0, 1) }),
+    },
+    {
+      difference: "point x coordinate",
+      vary: (value: LibraryPdfDrawing) => ({ ...value, points: [{ x: 0.2, y: 0.2 }, value.points[1]!] }),
+    },
+    {
+      difference: "point y coordinate",
+      vary: (value: LibraryPdfDrawing) => ({ ...value, points: [{ x: 0.1, y: 0.3 }, value.points[1]!] }),
+    },
+  ])("does not poison a sibling stroke's adoption when a claimed drawing differs by $difference", ({ vary }) => {
+    const layer = new TestMarkupLayer();
+    const preview = (provisionalId: string): LibraryPdfDrawingPreview => ({
+      ...drawingSurfaceData.drawingStyle,
+      ...drawingSurfaceData.drawingTarget,
+      baselineDrawingIds: [],
+      drawingId: null,
+      page: drawingSurfaceData.page,
+      points: drawingResponse(provisionalId).points,
+      provisionalId,
+    });
+    const first = preview("11111111-1111-4111-8111-111111111111");
+    const sibling = preview("22222222-2222-4222-8222-222222222222");
+    layer.setData(drawingSurfaceData);
+    layer.projectProvisionalDrawing(first);
+    layer.projectProvisionalDrawing(sibling);
+
+    const claimedDrawing = vary(drawingResponse(first.provisionalId));
+    layer.setData({ ...drawingSurfaceData, drawings: [claimedDrawing] });
+    expect(renderedDrawings(layer)).toHaveLength(2);
+
+    layer.projectProvisionalDrawing({ ...sibling, drawingId: claimedDrawing.id });
+    expect(renderedDrawings(layer)).toHaveLength(1);
+    expect(renderedDrawings(layer)[0]?.values[3]).toBe(claimedDrawing.id);
+  });
+
+  it("does not let an equivalent claimed drawing adopt a second identical stroke", () => {
+    const layer = new TestMarkupLayer();
+    const preview = (provisionalId: string): LibraryPdfDrawingPreview => ({
+      ...drawingSurfaceData.drawingStyle,
+      ...drawingSurfaceData.drawingTarget,
+      baselineDrawingIds: [],
+      drawingId: null,
+      page: drawingSurfaceData.page,
+      points: drawingResponse(provisionalId).points,
+      provisionalId,
+    });
+    const first = preview("11111111-1111-4111-8111-111111111111");
+    const sibling = preview("22222222-2222-4222-8222-222222222222");
+    const claimedDrawing = drawingResponse(first.provisionalId);
+    layer.setData(drawingSurfaceData);
+    layer.projectProvisionalDrawing(first);
+    layer.projectProvisionalDrawing(sibling);
+
+    layer.setData({ ...drawingSurfaceData, drawings: [claimedDrawing] });
+    layer.projectProvisionalDrawing({ ...sibling, drawingId: claimedDrawing.id });
+
+    const rendered = renderedDrawings(layer);
+    expect(rendered).toHaveLength(2);
+    expect(rendered[0]?.values[3]).toBe(claimedDrawing.id);
+    expect(rendered[1]?.values[3]).not.toBe(claimedDrawing.id);
+  });
+
   it("selects an existing note for editing while the Note tool is active", () => {
     const layer = new TestMarkupLayer();
     Object.defineProperties(layer, {
@@ -643,6 +883,62 @@ describe("library PDF markup layer", () => {
         width: 7,
       }),
     });
+  });
+
+  it("presents an exact retry lifecycle for a projected failed drawing", async () => {
+    const layer = new TestMarkupLayer();
+    const actions: LibraryPdfMarkupAction[] = [];
+    let respond = (_response: Response): void => undefined;
+    vi.spyOn(globalThis, "fetch").mockReturnValue(
+      new Promise<Response>((resolve) => {
+        respond = resolve;
+      }),
+    );
+    configureDrawingSurface(layer, actions);
+    const preview: LibraryPdfDrawingPreview = {
+      ...drawingSurfaceData.drawingStyle,
+      ...drawingSurfaceData.drawingTarget,
+      baselineDrawingIds: [],
+      drawingId: null,
+      page: drawingSurfaceData.page,
+      points: drawingResponse("projected").points,
+      provisionalId: "projected",
+    };
+    layer.projectProvisionalDrawing(preview);
+    layer.projectDrawingSaveState(preview, false, "Offline");
+
+    expect(drawingRecoveryPresentation(layer)).toEqual({
+      discardDisabled: false,
+      retryDisabled: false,
+      retryLabel: "Retry drawing",
+    });
+    expect(drawingStatusPresentation(layer)).toEqual([false, "Offline"]);
+
+    const retry = layer.retryDrawingForTest();
+    expect(drawingRecoveryPresentation(layer)).toEqual({
+      discardDisabled: true,
+      retryDisabled: true,
+      retryLabel: "Saving…",
+    });
+    expect(drawingStatusPresentation(layer)).toEqual([false, "Saving private drawing…"]);
+    respond(new Response("Unavailable", { status: 503 }));
+    await retry;
+
+    expect(drawingRecoveryPresentation(layer)).toEqual({
+      discardDisabled: false,
+      retryDisabled: false,
+      retryLabel: "Retry drawing",
+    });
+    expect(drawingStatusPresentation(layer)).toEqual([false, "Request failed (503)"]);
+
+    layer.projectDrawingSaveState(preview, true, null);
+    expect(drawingRecoveryPresentation(layer)).toBeNull();
+    expect(drawingStatusPresentation(layer)).toEqual([true, ""]);
+    layer.projectDrawingSaveState(preview, false, "Still offline");
+    layer.discardDrawingForTest();
+    expect(drawingRecoveryPresentation(layer)).toBeNull();
+    expect(drawingStatusPresentation(layer)).toEqual([true, ""]);
+    expect(actions).toContainEqual({ action: "drawing-discarded", provisionalId: preview.provisionalId });
   });
 
   it("lets a projected sibling retry a failed drawing with the same mutation id", async () => {
@@ -902,6 +1198,73 @@ describe("library PDF markup layer", () => {
     matching.setData({ ...data, drawings: [drawing], page: drawing.page });
     expect(renderedDrawings(matching)).toHaveLength(1);
     expect(renderedDrawings(matching)[0]?.values[3]).toBe(drawing.id);
+  });
+
+  it.each([
+    { reason: "the layer is not bound", prepare: (_layer: TestMarkupLayer) => undefined },
+    {
+      reason: "the page has no drawing target",
+      prepare: (layer: TestMarkupLayer) =>
+        layer.setData({ drawingStyle: { color: "#000000", width: 3 }, drawingTarget: null, drawings: [], notes: [], page: drawing.page }),
+    },
+    {
+      reason: "the artifact differs",
+      prepare: (layer: TestMarkupLayer) =>
+        layer.setData({
+          drawingStyle: { color: "#000000", width: 3 },
+          drawingTarget: { artifactId: "artifact-other", referenceId: drawing.referenceId },
+          drawings: [],
+          notes: [],
+          page: drawing.page,
+        }),
+    },
+    {
+      reason: "the reference differs",
+      prepare: (layer: TestMarkupLayer) =>
+        layer.setData({
+          drawingStyle: { color: "#000000", width: 3 },
+          drawingTarget: { artifactId: drawing.artifactId, referenceId: "reference-other" },
+          drawings: [],
+          notes: [],
+          page: drawing.page,
+        }),
+    },
+    {
+      reason: "the page differs",
+      prepare: (layer: TestMarkupLayer) =>
+        layer.setData({
+          drawingStyle: { color: "#000000", width: 3 },
+          drawingTarget: { artifactId: drawing.artifactId, referenceId: drawing.referenceId },
+          drawings: [],
+          notes: [],
+          page: drawing.page + 1,
+        }),
+    },
+    {
+      reason: "the canonical drawing is already present",
+      prepare: (layer: TestMarkupLayer) =>
+        layer.setData({
+          drawingStyle: { color: "#000000", width: 3 },
+          drawingTarget: { artifactId: drawing.artifactId, referenceId: drawing.referenceId },
+          drawings: [drawing],
+          notes: [],
+          page: drawing.page,
+        }),
+    },
+  ])("does not project a confirmed drawing when $reason", ({ prepare }) => {
+    const layer = new TestMarkupLayer();
+    prepare(layer);
+
+    layer.projectCreatedDrawing(drawing);
+    layer.setData({
+      drawingStyle: { color: "#000000", width: 3 },
+      drawingTarget: { artifactId: drawing.artifactId, referenceId: drawing.referenceId },
+      drawings: [],
+      notes: [],
+      page: drawing.page,
+    });
+
+    expect(renderedDrawings(layer)).toHaveLength(0);
   });
 
   it("projects one provisional stroke into a fresh layer and adopts its canonical drawing without duplication", () => {
@@ -1421,6 +1784,76 @@ describe("library PDF markup layer", () => {
       action: "status",
       message: "Line snapped into place. Keep dragging to adjust it, or lift to save.",
     });
+  });
+
+  it("treats six vertical pixels as hold jitter and seven as meaningful movement", () => {
+    vi.useFakeTimers();
+    const createLayer = () => {
+      const layer = new TestMarkupLayer();
+      Object.defineProperties(layer, {
+        dataset: { value: {} },
+        getBoundingClientRect: { value: () => ({ height: 200, left: 0, top: 0, width: 400 }) },
+        setPointerCapture: { value: vi.fn() },
+      });
+      const actions: LibraryPdfMarkupAction[] = [];
+      layer.addEventListener(libraryPdfMarkupActionEvent, (event) => {
+        actions.push((event as CustomEvent<LibraryPdfMarkupAction>).detail);
+      });
+      layer.setInteraction("draw");
+      layer.pointerAction(drawingPointer(40));
+      layer.continueDrawing(drawingPointer(200));
+      return { actions, layer };
+    };
+
+    const boundary = createLayer();
+    vi.advanceTimersByTime(800);
+    boundary.layer.continueDrawing(drawingPointer(200, 46));
+    vi.advanceTimersByTime(50);
+    expect(boundary.actions).toContainEqual({
+      action: "status",
+      message: "Line snapped into place. Keep dragging to adjust it, or lift to save.",
+    });
+
+    vi.clearAllTimers();
+    const moved = createLayer();
+    vi.advanceTimersByTime(400);
+    moved.layer.continueDrawing(drawingPointer(200, 42));
+    vi.advanceTimersByTime(400);
+    moved.layer.continueDrawing(drawingPointer(200, 47));
+    vi.advanceTimersByTime(849);
+    expect(moved.actions).toEqual([]);
+    vi.advanceTimersByTime(1);
+    expect(moved.actions).toContainEqual({
+      action: "status",
+      message: "Line snapped into place. Keep dragging to adjust it, or lift to save.",
+    });
+  });
+
+  it.each(["width", "height"] as const)("restarts the recognition hold while the page has zero $dimension", (dimension) => {
+    vi.useFakeTimers();
+    const layer = new TestMarkupLayer();
+    const rect = { height: 200, left: 0, top: 0, width: 400 };
+    Object.defineProperties(layer, {
+      dataset: { value: {} },
+      getBoundingClientRect: { value: () => rect },
+      setPointerCapture: { value: vi.fn() },
+    });
+    const actions: LibraryPdfMarkupAction[] = [];
+    layer.addEventListener(libraryPdfMarkupActionEvent, (event) => {
+      actions.push((event as CustomEvent<LibraryPdfMarkupAction>).detail);
+    });
+    const points = [
+      { x: 0.1, y: 0.2 },
+      { x: 0.5, y: 0.2 },
+    ];
+    layer.scheduleShapeRecognition(points);
+
+    vi.advanceTimersByTime(800);
+    rect[dimension] = 0;
+    layer.scheduleShapeRecognition([...points, { x: 0.505, y: 0.2 }]);
+    rect[dimension] = dimension === "width" ? 400 : 200;
+    vi.advanceTimersByTime(50);
+    expect(actions).toEqual([]);
   });
 });
 
