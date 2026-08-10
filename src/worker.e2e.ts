@@ -59,6 +59,16 @@ async function expectContrastAtLeast(foreground: Locator, background: Locator, m
   expect(contrastRatio(foregroundColor, backgroundColor)).toBeGreaterThanOrEqual(minimum);
 }
 
+async function expectPaintedPdfDrawing(drawing: Locator): Promise<void> {
+  await expect(drawing).toHaveCount(1);
+  expect(
+    await drawing.evaluate((element) => ({
+      namespace: element.namespaceURI,
+      stroke: getComputedStyle(element).stroke,
+    })),
+  ).toEqual({ namespace: "http://www.w3.org/2000/svg", stroke: "rgb(211, 63, 73)" });
+}
+
 function contrastRatio(foreground: string, background: string): number {
   const foregroundLuminance = relativeLuminance(parseRgb(foreground));
   const backgroundLuminance = relativeLuminance(parseRgb(background));
@@ -860,12 +870,13 @@ test("imports, annotates, and exports a private PDF without a project", async ({
   await page.mouse.move(markupBounds.x + markupBounds.width * 0.2, markupBounds.y + markupBounds.height * 0.3);
   await page.mouse.down();
   await page.mouse.move(markupBounds.x + markupBounds.width * 0.7, markupBounds.y + markupBounds.height * 0.3, { steps: 5 });
+  await expectPaintedPdfDrawing(page.locator('#paper-markups .pdf-ink-stroke[data-markup-id="draft"]'));
   await page.waitForTimeout(900);
   await page.mouse.move(markupBounds.x + markupBounds.width * 0.75, markupBounds.y + markupBounds.height * 0.3);
   await page.mouse.up();
   await expect(page.locator("#toast")).toHaveText("Drawing saved privately.");
   const savedDrawing = page.locator('#paper-markups .pdf-ink-stroke:not([data-markup-id="draft"])');
-  await expect(savedDrawing).toHaveCount(1);
+  await expectPaintedPdfDrawing(savedDrawing);
   await expect(savedDrawing).toHaveAttribute("points", /,/u);
   await page.locator("#library-pdf-more-actions").click();
   await expect(page.locator("#export-library-annotated-pdf")).toBeEnabled();

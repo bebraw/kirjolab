@@ -1,3 +1,4 @@
+import type { TemplateResult } from "lit";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { LibraryPdfArtifact, LibraryPdfDrawing, LibraryPdfNote } from "../../domain/reference-library";
 import { LibraryPdfMarkupLayer, libraryPdfMarkupActionEvent, type LibraryPdfMarkupAction } from "./library-pdf-markup-layer";
@@ -18,6 +19,13 @@ class TestMarkupLayer extends LibraryPdfMarkupLayer {
   discardDrawingForTest(): void {
     this.discardFailedDrawing();
   }
+}
+
+function requiredTemplateResult(value: unknown): TemplateResult {
+  if (typeof value !== "object" || value === null || !("_$litType$" in value) || !("strings" in value) || !("values" in value)) {
+    throw new Error("Expected a Lit template result");
+  }
+  return value as TemplateResult;
 }
 
 const drawing: LibraryPdfDrawing = {
@@ -94,6 +102,31 @@ describe("library PDF markup layer", () => {
     });
     layer.editNote(note);
     expect(layer.renderForTest()).toBeDefined();
+  });
+
+  it("renders saved drawings as painted SVG polylines", () => {
+    const layer = new TestMarkupLayer();
+    layer.setData({
+      drawingStyle: { color: "#000000", width: 3 },
+      drawingTarget: null,
+      drawings: [drawing],
+      notes: [],
+      page: 2,
+    });
+    layer.selectMarkup(drawing.id);
+
+    const inkLayer = requiredTemplateResult(layer.renderForTest().values[0]);
+    const drawingTemplates = inkLayer.values[0];
+    if (!Array.isArray(drawingTemplates)) throw new Error("Expected drawing templates");
+    const drawingTemplate = requiredTemplateResult(drawingTemplates[0]);
+
+    expect(drawingTemplate._$litType$).toBe(2);
+    expect(drawingTemplate.strings.join("")).toContain('class="pdf-ink-stroke"');
+    expect(drawingTemplate.strings.join("")).toContain('fill="none"');
+    expect(drawingTemplate.strings.join("")).toContain('stroke-linecap="round"');
+    expect(drawingTemplate.strings.join("")).toContain('stroke-linejoin="round"');
+    expect(drawingTemplate.strings.join("")).toContain('vector-effect="non-scaling-stroke"');
+    expect(drawingTemplate.values).toEqual(["100,200 300,400", "#ff0000", 4, "drawing-1", "true"]);
   });
 
   it("derives page-local drawings and notes from canonical Library markups", () => {
