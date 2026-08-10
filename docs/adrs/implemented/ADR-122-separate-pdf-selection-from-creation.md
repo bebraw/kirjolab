@@ -13,17 +13,21 @@ could recognize a two-finger pinch, which made navigation destructive on iPad.
 
 ## Decision
 
-Use explicit Select, Text, Note, and Draw tools for private PDF annotation.
-Select is the only mode that makes saved page annotations directly interactive:
+Use explicit Select, Note, and Draw tools for private PDF annotation. Select
+retains native text selection and makes every saved page annotation directly
+interactive:
 
 - selecting a highlight opens its comment editor;
 - selecting a line exposes color, width, and deletion actions;
 - selecting a note exposes text and deletion actions, while dragging its pin
   updates the normalized page position.
 
-Note creation renders a pending pin at the chosen position until save or cancel.
-The annotation toolbar remains a single row and uses a compact, labelled export
-action.
+Note also keeps saved note pins interactive so a researcher can select, edit,
+or drag an existing note without leaving the mode used to place notes. Blank
+page space still starts note creation and renders a pending pin at the chosen
+position until save or cancel. Saved highlights and drawings remain inert in
+Note mode. The annotation toolbar remains a single row and uses a compact,
+labelled export action.
 
 Touch input always belongs to PDF pan and pinch-zoom navigation while Draw is
 active. Pen and mouse pointers create freehand ink. Imported PDF bytes remain
@@ -35,6 +39,7 @@ immutable; all edits update the external owner-private annotation resources.
 
 - Editing is discoverable from the page instead of depending on list scanning
   or hidden gestures.
+- Researchers can revise a saved note without switching away from Note mode.
 - Selection cannot accidentally create another annotation.
 - iPad touch navigation no longer leaves stray ink.
 - Note placement is visible before the note is committed.
@@ -50,8 +55,10 @@ immutable; all edits update the external owner-private annotation resources.
 
 ### Keep every saved annotation interactive in every tool
 
-This makes note dragging convenient but allows editing gestures to conflict with
-text selection, note placement, drawing, and pinch navigation.
+This makes cross-type editing convenient but allows gestures on highlights and
+drawings to conflict with text selection, note placement, drawing, and pinch
+navigation. Keeping only saved notes interactive in Note mode resolves the
+same-type ambiguity without broadening every tool's hit targets.
 
 ### Delay touch ink until a pinch can be ruled out
 

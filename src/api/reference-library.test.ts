@@ -7,6 +7,7 @@ import type {
   ArtifactAnalysisKind,
   BibliographicRecord,
   LibraryHighlight,
+  LibraryPdfMarkup,
   MetadataRefinementPreview,
   PdfReferenceReviewQueue,
   ReferenceLibrarySnapshot,
@@ -600,6 +601,36 @@ describe("reference library API", () => {
         )
       ).status,
     ).toBe(400);
+    const drawingPoints = [
+      { x: 0.1, y: 0.2 },
+      { x: 0.6, y: 0.25 },
+    ];
+    const drawingMutationId = "55555555-5555-4555-8555-555555555555";
+    const createdDrawing = await handleReferenceLibraryApi(
+      jsonRequest(`/api/library/references/${id}/pdf-markups`, {
+        kind: "drawing",
+        mutationId: drawingMutationId,
+        artifactId: "artifact",
+        page: 2,
+        color: "#116655",
+        width: 7,
+        points: drawingPoints,
+      }),
+      fixture.env,
+      identity,
+    );
+    expect(createdDrawing.status).toBe(201);
+    await expect(createdDrawing.json()).resolves.toMatchObject({
+      artifactId: "artifact",
+      color: "#116655",
+      id: drawingMutationId,
+      kind: "drawing",
+      page: 2,
+      points: drawingPoints,
+      referenceId: id,
+      width: 7,
+    });
+    expect(fixture.library.createPdfDrawing).toHaveBeenCalledWith(id, "artifact", 2, "#116655", 7, drawingPoints, drawingMutationId);
     const highlightId = "44444444-4444-4444-8444-444444444444";
     expect(
       (
@@ -699,6 +730,22 @@ describe("reference library API", () => {
         { kind: "drawing", artifactId: "artifact", page: 2, color: "#000", width: 2, points: [{ x: "0.2", y: 0.3 }] },
         "POST",
       ],
+      [
+        `${id}/pdf-markups`,
+        {
+          kind: "drawing",
+          mutationId: "not-a-uuid",
+          artifactId: "artifact",
+          page: 2,
+          color: "#116655",
+          width: 2,
+          points: [
+            { x: 0.2, y: 0.3 },
+            { x: 0.4, y: 0.5 },
+          ],
+        },
+        "POST",
+      ],
       [`${id}/pdf-markups/${markupId}`, { x: "0.2", y: 0.3 }, "PATCH"],
       [`${id}/pdf-markups/${markupId}`, { color: "#000", width: "2" }, "PATCH"],
       [`${id}/highlights/${highlightId}`, { comment: 4 }, "PATCH"],
@@ -708,6 +755,61 @@ describe("reference library API", () => {
       const response = await handleReferenceLibraryApi(jsonRequest(`/api/library/references/${path}`, body, method), fixture.env, identity);
       expect(response.status).toBe(400);
     }
+  });
+
+  it("treats repeated and arbitrary absent private-PDF markup deletes as converged", async () => {
+    const fixture = apiFixture();
+    const markupId = "33333333-3333-4333-8333-333333333333";
+    const deleteMarkup = () =>
+      handleReferenceLibraryApi(
+        new Request(`https://example.test/api/library/references/${reference.id}/pdf-markups/${markupId}`, { method: "DELETE" }),
+        fixture.env,
+        identity,
+      );
+
+    const deleted = await deleteMarkup();
+    expect(deleted.status).toBe(200);
+    await expect(deleted.json()).resolves.toMatchObject({ id: markupId, referenceId: reference.id });
+    const retried = await deleteMarkup();
+    expect(retried.status).toBe(200);
+    await expect(retried.json()).resolves.toBeNull();
+
+    const absentId = "77777777-7777-4777-8777-777777777777";
+    const absent = await handleReferenceLibraryApi(
+      new Request(`https://example.test/api/library/references/${reference.id}/pdf-markups/${absentId}`, { method: "DELETE" }),
+      fixture.env,
+      identity,
+    );
+    expect(absent.status).toBe(200);
+    await expect(absent.json()).resolves.toBeNull();
+    expect(fixture.library.deletePdfMarkup).toHaveBeenNthCalledWith(1, reference.id, markupId);
+    expect(fixture.library.deletePdfMarkup).toHaveBeenNthCalledWith(2, reference.id, markupId);
+    expect(fixture.library.deletePdfMarkup).toHaveBeenNthCalledWith(3, reference.id, absentId);
+  });
+
+  it("maps a conflicting PDF drawing mutation to HTTP conflict", async () => {
+    const fixture = apiFixture();
+    fixture.library.createPdfDrawing.mockRejectedValueOnce(new Error("Private PDF drawing mutation conflict"));
+    const response = await handleReferenceLibraryApi(
+      jsonRequest(`/api/library/references/${reference.id}/pdf-markups`, {
+        kind: "drawing",
+        mutationId: "55555555-5555-4555-8555-555555555555",
+        artifactId: "artifact",
+        page: 2,
+        color: "#116655",
+        width: 7,
+        points: [
+          { x: 0.1, y: 0.2 },
+          { x: 0.6, y: 0.25 },
+        ],
+      }),
+      fixture.env,
+      identity,
+    );
+
+    expect(response.status).toBe(409);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    await expect(response.json()).resolves.toEqual({ error: "Private PDF drawing mutation conflict" });
   });
 
   it("identifies PDFs, records rights, and maps domain errors without leaking cacheable responses", async () => {
@@ -1820,6 +1922,7 @@ function apiFixture(bucket = new MemoryR2Bucket()) {
     createdAt: now,
   } as const;
   const metadataPreviewCache = new Map<string, MetadataRefinementPreview>();
+  const pdfMarkupIds = new Set(["33333333-3333-4333-8333-333333333333"]);
   const analysis = {
     artifactId: artifact.id,
     fingerprint: artifact.fingerprint,
@@ -1959,8 +2062,9 @@ function apiFixture(bucket = new MemoryR2Bucket()) {
         color: string,
         width: number,
         points: readonly { x: number; y: number }[],
+        mutationId: string,
       ) => ({
-        id: "pdf-drawing",
+        id: mutationId,
         kind: "drawing" as const,
         referenceId,
         artifactId,
@@ -1987,18 +2091,21 @@ function apiFixture(bucket = new MemoryR2Bucket()) {
       createdAt: now,
       updatedAt: now,
     })),
-    deletePdfMarkup: vi.fn(async (referenceId: string, markupId: string) => ({
-      id: markupId,
-      kind: "note" as const,
-      referenceId,
-      artifactId: artifact.id,
-      page: 1,
-      x: 0.5,
-      y: 0.5,
-      body: "Deleted",
-      createdAt: now,
-      updatedAt: now,
-    })),
+    deletePdfMarkup: vi.fn(async (referenceId: string, markupId: string): Promise<LibraryPdfMarkup | null> => {
+      if (!pdfMarkupIds.delete(markupId)) return null;
+      return {
+        id: markupId,
+        kind: "note" as const,
+        referenceId,
+        artifactId: artifact.id,
+        page: 1,
+        x: 0.5,
+        y: 0.5,
+        body: "Deleted",
+        createdAt: now,
+        updatedAt: now,
+      };
+    }),
     setReadingState: vi.fn(
       async (referenceId: string, status: "unread" | "reading" | "read", rating: number | null, priority: "low" | "normal" | "high") => ({
         referenceId,

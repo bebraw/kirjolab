@@ -81,6 +81,22 @@ describe("library PDF annotation toolbar", () => {
     expect(toolbar.renderForTest()).toBeDefined();
   });
 
+  it("emits the complete drawing style when a style control changes", () => {
+    const toolbar = new TestLibraryPdfAnnotationToolbar();
+    const actions: LibraryPdfToolbarAction[] = [];
+    toolbar.addEventListener(libraryPdfToolbarActionEvent, (event) => {
+      actions.push((event as CustomEvent<LibraryPdfToolbarAction>).detail);
+    });
+
+    toolbar.changeForTest("color", "#116655");
+    toolbar.changeForTest("width", "7");
+
+    expect(actions).toEqual([
+      { action: "drawing-style-changed", style: { color: "#116655", width: 4 } },
+      { action: "drawing-style-changed", style: { color: "#116655", width: 7 } },
+    ]);
+  });
+
   it("renders empty and populated annotation availability", () => {
     const toolbar = new TestLibraryPdfAnnotationToolbar();
     toolbar.setAnnotationAvailability(0);
@@ -100,7 +116,7 @@ describe("library PDF annotation toolbar", () => {
     toolbar.chooseForTest("select");
     toolbar.chooseForTest("note");
     toolbar.chooseForTest("draw");
-    toolbar.emitForTest({ action: "drawing-undone" });
+    toolbar.emitForTest({ action: "drawing-undone", drawingId: "drawing-1" });
     toolbar.emitForTest({ action: "export-status", message: "Preparing annotated PDF…" });
     toolbar.emitForTest({ action: "open-inspector" });
     toolbar.emitForTest({ action: "open-references" });
@@ -109,7 +125,7 @@ describe("library PDF annotation toolbar", () => {
       { action: "choose-tool", tool: "select" },
       { action: "choose-tool", tool: "note" },
       { action: "choose-tool", tool: "draw" },
-      { action: "drawing-undone" },
+      { action: "drawing-undone", drawingId: "drawing-1" },
       { action: "export-status", message: "Preparing annotated PDF…" },
       { action: "open-inspector" },
       { action: "open-references" },
@@ -281,7 +297,21 @@ describe("library PDF annotation toolbar", () => {
       credentials: "same-origin",
       method: "DELETE",
     });
-    expect(actions).toEqual([{ action: "drawing-undone" }]);
+    expect(actions).toEqual([{ action: "drawing-undone", drawingId: "drawing/3" }]);
+  });
+
+  it("does not undo an older drawing while a newly released stroke lacks a safe identity", async () => {
+    const toolbar = new TestLibraryPdfAnnotationToolbar();
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 200 }));
+    toolbar.setUndoDrawings([drawing]);
+
+    toolbar.setDrawingPending(true);
+    await toolbar.undoForTest();
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    toolbar.setDrawingPending(false);
+    await toolbar.undoForTest();
+    expect(fetchMock).toHaveBeenCalledOnce();
   });
 
   it("reports undo failures, suppresses overlap, and permits retry", async () => {

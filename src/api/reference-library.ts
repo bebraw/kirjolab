@@ -203,10 +203,11 @@ interface ReferenceLibraryApi {
     color: string,
     width: number,
     points: readonly LibraryPdfPoint[],
+    mutationId: string,
   ): Promise<LibraryPdfDrawing>;
   updatePdfNote(referenceId: string, markupId: string, x: number, y: number, body?: string): Promise<LibraryPdfNote>;
   updatePdfDrawing(referenceId: string, markupId: string, color: string, width: number): Promise<LibraryPdfDrawing>;
-  deletePdfMarkup(referenceId: string, markupId: string): Promise<LibraryPdfMarkup>;
+  deletePdfMarkup(referenceId: string, markupId: string): Promise<LibraryPdfMarkup | null>;
   setReadingState(
     referenceId: string,
     status: ReadingState["status"],
@@ -319,6 +320,7 @@ const libraryPdfNoteCreationSchema = v.object({
 });
 const libraryPdfDrawingCreationSchema = v.object({
   kind: v.literal("drawing"),
+  mutationId: v.pipe(v.string(), v.uuid()),
   artifactId: v.string(),
   page: v.number(),
   color: v.string(),
@@ -408,7 +410,7 @@ export async function handleReferenceLibraryApi(
     const status =
       error instanceof CrossrefUnavailableError || error instanceof SemanticScholarUnavailableError
         ? 503
-        : /changed|already|before deleting|before identifying/iu.test(message)
+        : /changed|already|mutation conflict|before deleting|before identifying/iu.test(message)
           ? 409
           : /not found/iu.test(message)
             ? 404
@@ -1022,10 +1024,13 @@ async function handleLibraryReferencePdfMarkupCreationRoute(context: LibraryRefe
     });
   }
   if (v.is(libraryPdfDrawingCreationSchema, body)) {
-    return Response.json(await library.createPdfDrawing(referenceId, body.artifactId, body.page, body.color, body.width, body.points), {
-      status: 201,
-      ...noStore(),
-    });
+    return Response.json(
+      await library.createPdfDrawing(referenceId, body.artifactId, body.page, body.color, body.width, body.points, body.mutationId),
+      {
+        status: 201,
+        ...noStore(),
+      },
+    );
   }
   return jsonError("Invalid private PDF annotation", 400);
 }

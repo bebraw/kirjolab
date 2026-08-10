@@ -1425,9 +1425,19 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   presentation. Project DOI and source links from server-validated fields, and
   keep graph construction and candidate acceptance outside the reader panel.
 - Keep private-PDF tool, selection, note-composition, open-card, and pointer-
-  gesture state inside the bounded light-DOM markup layer that presents it.
-  Let the layer derive its saved drawings, notes, and stable drawing target for
-  the active page from canonical artifact and markup inputs.
+  gesture state inside bounded page-local light-DOM markup layers. The single-
+  page surface and each rendered flowing page derive saved drawings, notes, and
+  a stable drawing target for their owning page from canonical artifact and
+  markup inputs. Keep the viewer's remembered display mode independent from
+  annotation-tool selection.
+  Let the context-resource presenter create flowing layers lazily, synchronize
+  their tool, drawing style, selection, note-draft lifecycle, and canonical
+  markup projections, and receive their directly registered typed outcomes.
+  Release a distant page's expensive canvas, text, link, and highlight content,
+  but retain its lightweight markup layer and reuse it across same-document view
+  rebuilds so pending saves and retryable failures keep their interaction owner;
+  keep active pointer and drawing gesture state local to the page under the
+  pointer.
   Bind raw host pointer events there and emit typed selection, stationary-note,
   interaction-status, and completed-mutation outcomes; let the layer own
   touch-versus-drawing and recognized-shape guidance while the coordinator
@@ -1436,13 +1446,38 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   Let that layer persist completed note moves from its stable saved-note
   context, suppress overlapping moves, and restore canonical geometry after a
   retryable failure. Let the layer also persist completed drawings from its
-  normalized stroke, active style, and stable artifact context, retaining a
-  failed draft for explicit retry or discard. The annotation forms own page-
-  note composition persistence; the application coordinator retains canonical
-  refresh, inspector, and notification policy.
+  normalized stroke, active style, and stable artifact context. Move a released
+  valid stroke atomically into a transient painted projection, retain it through
+  pending persistence and retryable failure, and replace it only when the same
+  canonical drawing is projected so neither a blank nor duplicate frame is
+  observable. Retain failed geometry for explicit retry or discard. Before
+  transport, give each released stroke a provisional identity and let the
+  presenter project that identity across existing and future page layers;
+  reuse its UUID as the creation mutation identity and accepted canonical markup
+  identity. Key pending and failed-save recovery by the same provisional
+  identity, and project its Retry/Discard state into current and future sibling
+  surfaces so display or artifact navigation cannot hide recovery. The client
+  may retry that UUID only while creation is unresolved. An equivalent retry
+  against the unchanged live result must return the same canonical drawing,
+  conflicting identity reuse must fail closed, and one canonical row may adopt
+  at most one provisional stroke.
+  Treat the bridge as bounded reconciliation state rather than canonical
+  storage: scope it to the owning artifact and page, apply concurrent Library
+  refreshes monotonically, preserve it on refresh failure, and replace or retire
+  only its correlated provisional identity on the corresponding successful
+  authoritative refresh. Canonical deletion or authoritative absence wins. The
+  annotation forms own page-note composition persistence; the application
+  coordinator retains canonical refresh, inspector, and notification policy.
 - Let the Library PDF annotation toolbar derive the newest drawing on the
-  active page and own undo deletion through its stable reference and markup
-  identities, including pending suppression and retryable local failure state.
+  active page, including a server-confirmed drawing awaiting canonical refresh,
+  and own undo deletion through its stable reference and markup identities,
+  including artifact-and-page-scoped pending suppression until the newest
+  visible stroke has a safe server identity and retryable local failure state.
+  Carry the deleted identity in its typed outcome so the presenter can tombstone
+  it against stale in-flight snapshots until authoritative absence is observed.
+  Make repeated deletion of an already-absent markup converge, and return the
+  same null result for an identity owned by another reference, without exposing
+  which case occurred.
   Let it also own annotated-PDF download and installed-app file-share mechanics
   from the stable artifact identity and filename. Keep canonical Library refresh
   and notification presentation in the application coordinator.
@@ -1460,7 +1495,9 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
 - Keep citation style and locale as versioned project publication settings consumed by preview and export; never rewrite canonical Markdown or shared bibliographic records when they change.
 - Resolve project submission layouts from bounded versioned presets; never execute uploaded TeX, scripts, remote assets, or arbitrary template paths in the export pipeline.
 - Keep reference-library search, facets, and sorting as ephemeral local projections over the authorized private snapshot; never persist private search intent into project or collaboration state.
-- Render only the active PDF page through the PDF.js display layer; keep its worker version matched with the pinned display dependency.
+- Render the active PDF page in single-page mode and only a bounded visible and
+  nearby page set in continuous or spread mode through the PDF.js display
+  layer; keep its worker version matched with the pinned display dependency.
 - Derive each active PDF load context through one pure projection over the
   active typed context tab and authorized project, Library, and shared-reference
   snapshots. Let a bounded PDF context session apply that projection through

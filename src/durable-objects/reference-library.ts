@@ -76,6 +76,7 @@ import { currentRecoveryBookmark } from "./recovery";
 
 const metadataPreviewCacheTtlMilliseconds = 5 * 60 * 1_000;
 const maximumMetadataPreviewCacheEntries = 16;
+const uuidPattern = /^[\da-f]{8}(?:-[\da-f]{4}){3}-[\da-f]{12}$/iu;
 
 interface MetadataPreviewCacheEntry {
   readonly preview: MetadataRefinementPreview;
@@ -1342,12 +1343,14 @@ export class ReferenceLibrary extends DurableObject<Env> {
     colorValue: string,
     width: number,
     points: readonly LibraryPdfPoint[],
+    mutationId: string,
   ): LibraryPdfDrawing {
     this.#reference(referenceId);
     const artifact = this.#artifact(artifactId);
     const color = colorValue.toLocaleLowerCase();
     if (
       artifact.referenceId !== referenceId ||
+      !uuidPattern.test(mutationId) ||
       !Number.isInteger(page) ||
       page < 1 ||
       !/^#[0-9a-f]{6}$/u.test(color) ||
@@ -1360,16 +1363,33 @@ export class ReferenceLibrary extends DurableObject<Env> {
     ) {
       throw new Error("Invalid private PDF drawing");
     }
+    const drawingPoints = points.map((point) => ({ x: point.x, y: point.y }));
+    const existingRow = this.ctx.storage.sql.exec<PdfMarkupRow>("SELECT * FROM pdf_markups WHERE id = ?", mutationId).toArray()[0];
+    if (existingRow) {
+      const existing = pdfMarkupFromRow(existingRow);
+      if (
+        existing.kind !== "drawing" ||
+        existing.referenceId !== referenceId ||
+        existing.artifactId !== artifactId ||
+        existing.page !== page ||
+        existing.color !== color ||
+        existing.width !== width ||
+        !samePdfPoints(existing.points, drawingPoints)
+      ) {
+        throw new Error("Private PDF drawing mutation conflict");
+      }
+      return existing;
+    }
     const now = new Date().toISOString();
     const drawing: LibraryPdfDrawing = {
-      id: crypto.randomUUID(),
+      id: mutationId,
       referenceId,
       artifactId,
       page,
       kind: "drawing",
       color,
       width,
-      points: points.map((point) => ({ x: point.x, y: point.y })),
+      points: drawingPoints,
       createdAt: now,
       updatedAt: now,
     };
@@ -1390,13 +1410,13 @@ export class ReferenceLibrary extends DurableObject<Env> {
     return drawing;
   }
 
-  deletePdfMarkup(referenceId: string, markupId: string): LibraryPdfMarkup {
+  deletePdfMarkup(referenceId: string, markupId: string): LibraryPdfMarkup | null {
     this.#reference(referenceId);
     const row = this.ctx.storage.sql
       .exec<PdfMarkupRow>("SELECT * FROM pdf_markups WHERE id = ? AND reference_id = ?", markupId, referenceId)
       .toArray()[0];
-    if (!row) throw new Error("Private PDF annotation not found");
-    this.ctx.storage.sql.exec("DELETE FROM pdf_markups WHERE id = ?", markupId);
+    if (!row) return null;
+    this.ctx.storage.sql.exec("DELETE FROM pdf_markups WHERE id = ? AND reference_id = ?", markupId, referenceId);
     return pdfMarkupFromRow(row);
   }
 
@@ -2400,6 +2420,10 @@ function parsePdfPoints(value: string): LibraryPdfPoint[] | null {
     points.push({ x: point.x, y: point.y });
   }
   return points;
+}
+
+function samePdfPoints(left: readonly LibraryPdfPoint[], right: readonly LibraryPdfPoint[]): boolean {
+  return left.length === right.length && left.every((point, index) => point.x === right[index]?.x && point.y === right[index]?.y);
 }
 
 function normalizedCoordinate(value: unknown): value is number {

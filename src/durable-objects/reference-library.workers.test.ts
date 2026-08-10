@@ -200,15 +200,98 @@ describe("ReferenceLibrary in the Workers runtime", () => {
       x: 0.3,
       y: 0.4,
     });
-    const drawing = await library.createPdfDrawing(draft.reference.id, draft.artifact.id, 1, "#d33f49", 4, [
-      { x: 0.1, y: 0.2 },
-      { x: 0.3, y: 0.4 },
-    ]);
+    const drawing = await library.createPdfDrawing(
+      draft.reference.id,
+      draft.artifact.id,
+      1,
+      "#d33f49",
+      4,
+      [
+        { x: 0.1, y: 0.2 },
+        { x: 0.3, y: 0.4 },
+      ],
+      crypto.randomUUID(),
+    );
     expect(await library.updatePdfDrawing(draft.reference.id, drawing.id, "#116655", 7)).toMatchObject({
       id: drawing.id,
       color: "#116655",
       width: 7,
     });
+  });
+
+  it("creates one canonical PDF drawing across mutation retries and rejects conflicting reuse", async () => {
+    const library = env.REFERENCE_LIBRARIES.getByName(`drawing-idempotency-${crypto.randomUUID()}`);
+    const artifactId = crypto.randomUUID();
+    const draft = await library.createPdfDraft(
+      {
+        id: artifactId,
+        referenceId: null,
+        name: "drawing.pdf",
+        contentType: "application/pdf",
+        size: 100,
+        objectKey: `libraries/owner/${artifactId}.pdf`,
+        fingerprint: `etag:${artifactId}`,
+        rights: "private",
+        createdAt: "2026-08-10T10:00:00.000Z",
+      },
+      "owner@example.test",
+    );
+    const otherArtifactId = crypto.randomUUID();
+    const otherDraft = await library.createPdfDraft(
+      {
+        id: otherArtifactId,
+        referenceId: null,
+        name: "other-drawing.pdf",
+        contentType: "application/pdf",
+        size: 100,
+        objectKey: `libraries/owner/${otherArtifactId}.pdf`,
+        fingerprint: `etag:${otherArtifactId}`,
+        rights: "private",
+        createdAt: "2026-08-10T10:00:00.000Z",
+      },
+      "owner@example.test",
+    );
+    const mutationId = crypto.randomUUID();
+    const points = [
+      { x: 0.1, y: 0.2 },
+      { x: 0.3, y: 0.4 },
+    ] as const;
+
+    const created = await library.createPdfDrawing(draft.reference.id, draft.artifact.id, 1, "#d33f49", 4, points, mutationId);
+    const retried = await library.createPdfDrawing(draft.reference.id, draft.artifact.id, 1, "#d33f49", 4, points, mutationId);
+
+    expect(created.id).toBe(mutationId);
+    expect(retried).toEqual(created);
+    await runInDurableObject(library, (instance: ReferenceLibrary, state) => {
+      expect(() => instance.createPdfDrawing(draft.reference.id, draft.artifact.id, 1, "#d33f49", 5, points, mutationId)).toThrow(
+        "mutation conflict",
+      );
+      expect(() =>
+        instance.createPdfDrawing(
+          draft.reference.id,
+          draft.artifact.id,
+          1,
+          "#d33f49",
+          4,
+          [
+            { x: 0.1, y: 0.2 },
+            { x: 0.4, y: 0.5 },
+          ],
+          mutationId,
+        ),
+      ).toThrow("mutation conflict");
+      expect(() => instance.createPdfDrawing(otherDraft.reference.id, otherDraft.artifact.id, 1, "#d33f49", 4, points, mutationId)).toThrow(
+        "mutation conflict",
+      );
+      expect(
+        state.storage.sql.exec<{ count: number }>("SELECT COUNT(*) AS count FROM pdf_markups WHERE id = ?", mutationId).toArray(),
+      ).toEqual([{ count: 1 }]);
+    });
+    expect((await library.getSnapshot()).pdfMarkups).toEqual([created]);
+
+    const otherNote = await library.createPdfNote(otherDraft.reference.id, otherDraft.artifact.id, 1, 0.3, 0.4, "Other reference");
+    await expect(library.deletePdfMarkup(draft.reference.id, otherNote.id)).resolves.toBeNull();
+    expect((await library.getSnapshot()).pdfMarkups).toEqual(expect.arrayContaining([created, otherNote]));
   });
 
   it("keeps artifact analysis idempotent across duplicate and stale queue deliveries", async () => {
@@ -1074,16 +1157,28 @@ describe("ReferenceLibrary in the Workers runtime", () => {
       "owner@example.test",
     );
     const note = await library.createPdfNote(draft.reference.id, draft.artifact.id, 2, 0.25, 0.4, "Check this claim");
-    const drawing = await library.createPdfDrawing(draft.reference.id, draft.artifact.id, 2, "#d33f49", 4, [
-      { x: 0.1, y: 0.2 },
-      { x: 0.3, y: 0.4 },
-    ]);
+    const drawing = await library.createPdfDrawing(
+      draft.reference.id,
+      draft.artifact.id,
+      2,
+      "#d33f49",
+      4,
+      [
+        { x: 0.1, y: 0.2 },
+        { x: 0.3, y: 0.4 },
+      ],
+      crypto.randomUUID(),
+    );
     expect((await library.getSnapshot()).pdfMarkups).toEqual(expect.arrayContaining([note, drawing]));
     await expect(library.deletePdfMarkup(draft.reference.id, note.id)).resolves.toEqual(note);
+    await expect(library.deletePdfMarkup(draft.reference.id, note.id)).resolves.toBeNull();
+    await expect(library.deletePdfMarkup(draft.reference.id, crypto.randomUUID())).resolves.toBeNull();
     expect((await library.getSnapshot()).pdfMarkups).toEqual([drawing]);
     await runInDurableObject(library, (instance: ReferenceLibrary, state) => {
       expect(() => instance.createPdfNote(draft.reference.id, draft.artifact.id, 1, -0.1, 0.5, "Bad")).toThrow("Invalid");
-      expect(() => instance.createPdfDrawing(draft.reference.id, draft.artifact.id, 1, "red", 4, [{ x: 0, y: 0 }])).toThrow("Invalid");
+      expect(() =>
+        instance.createPdfDrawing(draft.reference.id, draft.artifact.id, 1, "red", 4, [{ x: 0, y: 0 }], crypto.randomUUID()),
+      ).toThrow("Invalid");
       expect(
         state.storage.sql
           .exec<{ version: number; name: string }>("SELECT version, name FROM _kirjolab_migrations ORDER BY version")
