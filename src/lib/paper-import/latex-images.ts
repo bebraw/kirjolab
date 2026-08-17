@@ -213,7 +213,7 @@ function resolveImageCandidates(
   const candidates = new Set<string>();
   for (const base of bases) {
     for (const extension of extensions) {
-      acceptCandidateProbe(resolutionBudget);
+      resolutionBudget.candidateProbes = acceptLatexImageCandidateProbe(resolutionBudget.candidateProbes);
       const candidate = `${base}${extension}`;
       if (imagePaths.has(candidate)) candidates.add(candidate);
     }
@@ -221,9 +221,9 @@ function resolveImageCandidates(
   return [...candidates].sort(comparePortableText);
 }
 
-function acceptCandidateProbe(budget: ImageResolutionBudget): void {
-  budget.candidateProbes += 1;
-  if (budget.candidateProbes <= latexImageMaximumCandidateProbes) return;
+export function acceptLatexImageCandidateProbe(candidateProbes: number, maximumCandidateProbes = latexImageMaximumCandidateProbes): number {
+  const nextCandidateProbes = candidateProbes + 1;
+  if (nextCandidateProbes <= Math.min(maximumCandidateProbes, latexImageMaximumCandidateProbes)) return nextCandidateProbes;
   throw new LatexConversionError("image-resolution-limit", "LaTeX image resolution exceeds the 100,000 candidate-probe limit");
 }
 

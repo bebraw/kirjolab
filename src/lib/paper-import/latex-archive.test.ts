@@ -1,12 +1,12 @@
 import { strToU8, zipSync } from "fflate";
 import { describe, expect, it } from "vitest";
+import { itOutsideMutation } from "../../test-support/mutation";
 import {
   inspectLatexArchive,
   latexArchiveMaximumCompressedBytes,
   latexArchiveMaximumPathCodeUnits,
   latexArchiveMaximumPathSegments,
   latexArchiveMaximumStructuralRecords,
-  latexArchiveMaximumTextBytes,
   type LatexArchiveLimits,
 } from "./latex-archive";
 
@@ -69,19 +69,23 @@ describe("neutral LaTeX archive inspection", () => {
     expect(result.bibliographies).toEqual([]);
   });
 
-  it("handles dense below-cap unmatched structural groups with deterministic empty inventories", async () => {
-    const result = await inspectLatexArchive(
-      zipSync({
-        "main.tex": strToU8(`\\documentclass{article}\\begin{document}${"\\input{".repeat(50_000)}\\end{document}`),
-        "malformed-bibliography.tex": strToU8("\\addbibresource[".repeat(30_000)),
-        "malformed-root.tex": strToU8("\\documentclass[".repeat(30_000)),
-      }),
-    );
+  itOutsideMutation(
+    "handles dense below-cap unmatched structural groups with deterministic empty inventories",
+    async () => {
+      const result = await inspectLatexArchive(
+        zipSync({
+          "main.tex": strToU8(`\\documentclass{article}\\begin{document}${"\\input{".repeat(50_000)}\\end{document}`),
+          "malformed-bibliography.tex": strToU8("\\addbibresource[".repeat(30_000)),
+          "malformed-root.tex": strToU8("\\documentclass[".repeat(30_000)),
+        }),
+      );
 
-    expect(result.rootCandidates).toEqual(["main.tex"]);
-    expect(result.includes).toEqual([]);
-    expect(result.bibliographies).toEqual([]);
-  }, 20_000);
+      expect(result.rootCandidates).toEqual(["main.tex"]);
+      expect(result.includes).toEqual([]);
+      expect(result.bibliographies).toEqual([]);
+    },
+    20_000,
+  );
 
   it("enforces consumer limits when they tighten the hard ceilings", async () => {
     const source = "\\documentclass{article}\\begin{document}text\\end{document}";
@@ -99,7 +103,7 @@ describe("neutral LaTeX archive inspection", () => {
     });
   });
 
-  it("does not let consumer limits loosen a hard security ceiling", async () => {
+  itOutsideMutation("does not let consumer limits loosen a hard security ceiling", async () => {
     const oversized = new Uint8Array(latexArchiveMaximumCompressedBytes + 1);
 
     await expect(inspectLatexArchive(oversized, { maximumCompressedBytes: latexArchiveMaximumCompressedBytes + 1 })).rejects.toMatchObject({
@@ -154,15 +158,20 @@ describe("neutral LaTeX archive inspection", () => {
     });
   });
 
-  it("aborts forged-size deflate expansion at the configured actual-byte ceiling", async () => {
-    const source = `\\documentclass{article}\\begin{document}` + "x".repeat(1_500_000) + "\\end{document}";
-    expect(strToU8(source).byteLength).toBeLessThan(latexArchiveMaximumTextBytes);
-    const archive = patchFirstLocalAndCentralExpandedSize(zipSync({ "main.tex": strToU8(source) }, { level: 9 }), 1);
+  it("aborts forged-size deflate expansion at a small configured actual-byte ceiling", async () => {
+    const source = `\\documentclass{article}\\begin{document}` + "x".repeat(8 * 1_024) + "\\end{document}";
+    const sourceBytes = strToU8(source);
+    const archive = patchFirstLocalAndCentralExpandedSize(zipSync({ "main.tex": sourceBytes }, { level: 9 }), 1);
 
-    await expect(inspectLatexArchive(archive, { maximumExpandedBytes: 64 * 1_024 })).rejects.toMatchObject({
+    await expect(inspectLatexArchive(archive, { maximumExpandedBytes: 128 })).rejects.toMatchObject({
       name: "LatexArchiveFailure",
       code: "archive-expanded-size",
-      message: "Expanded LaTeX archive exceeds the configured limit of 65536 bytes",
+      message: "Expanded LaTeX archive exceeds the configured limit of 128 bytes",
+    });
+    await expect(inspectLatexArchive(archive, { maximumExpandedBytes: sourceBytes.byteLength })).rejects.toMatchObject({
+      name: "LatexArchiveFailure",
+      code: "archive-format",
+      message: "ZIP expanded size does not match the central directory",
     });
   });
 
@@ -191,7 +200,22 @@ describe("neutral LaTeX archive inspection", () => {
     expect(message.length).toBeLessThan(100);
   });
 
-  it("enforces the fixed aggregate structural-reference and diagnostic ceiling", async () => {
+  it("counts structural references and diagnostics against one configured aggregate budget", async () => {
+    const source = "\\documentclass{article}\\begin{document}\\input{missing}\\end{document}";
+    const archive = zipSync({ "main.tex": strToU8(source) });
+
+    await expect(inspectLatexArchive(archive, { maximumStructuralRecords: 2 })).resolves.toMatchObject({
+      includes: [expect.objectContaining({ requestedPath: "missing", resolvedPath: null })],
+      diagnostics: [expect.objectContaining({ code: "missing-include" })],
+    });
+    await expect(inspectLatexArchive(archive, { maximumStructuralRecords: 1 })).rejects.toMatchObject({
+      name: "LatexArchiveFailure",
+      code: "archive-structural-record-limit",
+      message: "LaTeX archive exceeds the structural record limit of 1",
+    });
+  });
+
+  itOutsideMutation("enforces the fixed aggregate structural-reference and diagnostic ceiling", async () => {
     const boundarySource = `\\documentclass{article}\\begin{document}${"\\input{x}".repeat(
       latexArchiveMaximumStructuralRecords,
     )}\\end{document}`;

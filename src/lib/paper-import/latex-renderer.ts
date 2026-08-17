@@ -8,11 +8,6 @@ import type {
 import {
   LatexConversionError,
   latexMaximumCitationKeys,
-  latexMaximumRenderedFileCodeUnits,
-  latexMaximumRenderedFolderCodeUnits,
-  latexMaximumRenderedFolders,
-  latexMaximumRenderedProjectCodeUnits,
-  latexMaximumRenderedTableCodeUnits,
   latexMaximumTableColumns,
   latexMaximumTableRows,
   latexMaximumTikzBlocks,
@@ -20,6 +15,13 @@ import {
 } from "./latex-contracts";
 import { resolveLatexImageReferences, type LatexImageReferenceResolution } from "./latex-images";
 import { latexCommandArgument, matchingLatexBrace, skipLatexWhitespace } from "./latex-render-helpers";
+import {
+  addLatexRenderedFolder,
+  addLatexRenderedProjectCodeUnits,
+  addLatexRenderedTableLine,
+  assertLatexRenderedFileCodeUnits,
+  type LatexRenderedFolderUsage,
+} from "./latex-render-limits";
 import { displayMathOccurrences, latexDocumentWindow, latexSourceProjections, maskedLatex, structuralLatexSource } from "./latex-source";
 import { comparePortableText } from "./portable-path";
 import { sha256Hex } from "./sha256";
@@ -103,19 +105,8 @@ export function renderLatexProject(inspection: LatexArchiveInspection, selection
       pathMap,
       images.references.get(path) ?? [],
     );
-    if (conversion.markdown.length > latexMaximumRenderedFileCodeUnits) {
-      throw new LatexConversionError(
-        "render-limit",
-        `Rendered LaTeX file exceeds ${latexMaximumRenderedFileCodeUnits} UTF-16 code units: ${path}`,
-      );
-    }
-    renderedCodeUnits += conversion.markdown.length;
-    if (renderedCodeUnits > latexMaximumRenderedProjectCodeUnits) {
-      throw new LatexConversionError(
-        "render-limit",
-        `Rendered LaTeX project exceeds ${latexMaximumRenderedProjectCodeUnits} UTF-16 code units`,
-      );
-    }
+    assertLatexRenderedFileCodeUnits(path, conversion.markdown.length);
+    renderedCodeUnits = addLatexRenderedProjectCodeUnits(renderedCodeUnits, conversion.markdown.length);
     tikzBlocks += conversion.tikzBlocks;
     diagnostics.push(...conversion.diagnostics);
     files.push({ sourcePath: path, path: pathMap.get(path)!, content: conversion.markdown });
@@ -855,13 +846,7 @@ function tableMarkdown(body: string, argumentCount: number): string {
   return `\n\n${lines.join("\n")}\n\n`;
 
   function appendLine(line: string): void {
-    outputCodeUnits += line.length + (lines.length === 0 ? 0 : 1);
-    if (outputCodeUnits > latexMaximumRenderedTableCodeUnits) {
-      throw new LatexConversionError(
-        "render-limit",
-        `Rendered LaTeX table exceeds ${latexMaximumRenderedTableCodeUnits} UTF-16 code units`,
-      );
-    }
+    outputCodeUnits = addLatexRenderedTableLine(outputCodeUnits, line.length, lines.length > 0);
     lines.push(line);
   }
 }
@@ -1135,7 +1120,7 @@ function relativeMarkdownPath(sourcePath: string, targetPath: string): string {
 
 function projectFolders(paths: readonly string[]): string[] {
   const folders = new Set<string>();
-  let codeUnits = 0;
+  let usage: LatexRenderedFolderUsage = { folders: 0, codeUnits: 0 };
   for (const path of paths) {
     const parts = path.split("/");
     parts.pop();
@@ -1143,11 +1128,8 @@ function projectFolders(paths: readonly string[]): string[] {
     for (const part of parts) {
       prefix = prefix ? `${prefix}/${part}` : part;
       if (folders.has(prefix)) continue;
+      usage = addLatexRenderedFolder(usage, prefix);
       folders.add(prefix);
-      codeUnits += prefix.length;
-      if (folders.size > latexMaximumRenderedFolders || codeUnits > latexMaximumRenderedFolderCodeUnits) {
-        throw new LatexConversionError("render-limit", "Converted project exceeds the derived-folder limit");
-      }
     }
   }
   return [...folders].sort(comparePortableText);

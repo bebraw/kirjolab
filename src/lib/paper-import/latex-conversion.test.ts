@@ -1,5 +1,6 @@
 import { strToU8 } from "fflate";
 import { describe, expect, it } from "vitest";
+import { itOutsideMutation } from "../../test-support/mutation";
 import { adaptLatexProjectToSeed } from "../../domain/project/latex-project-adapter";
 import { analyzeLatexArchiveFiles, latexArchiveMaximumTextBytes, type LatexArchiveFile } from "./latex-archive";
 import {
@@ -16,6 +17,7 @@ import {
   latexConversionMaximumSemanticRecords,
   type LatexConversionOptions,
 } from "./latex-conversion";
+import { renderLatexProject } from "./latex-renderer";
 
 const tex = (path: string, source: string): LatexArchiveFile => ({ path, kind: "tex", bytes: strToU8(source), text: source });
 const bib = (path: string, source: string): LatexArchiveFile => ({ path, kind: "bibtex", bytes: strToU8(source), text: source });
@@ -57,7 +59,7 @@ describe("product-neutral LaTeX conversion", () => {
     );
   });
 
-  it("does not let conversion options loosen the hard semantic-record ceiling", () => {
+  itOutsideMutation("does not let conversion options loosen the hard semantic-record ceiling", () => {
     const citations = "\\cite{x}".repeat(latexConversionMaximumSemanticRecords + 1);
     const source = `\\documentclass{article}\\begin{document}${citations}\\end{document}`;
     const inspection = analyzeLatexArchiveFiles([tex("paper.tex", source)]);
@@ -84,82 +86,87 @@ describe("product-neutral LaTeX conversion", () => {
     expect(() => convertLatexProject(analyzeLatexArchiveFiles([tex("paper.tex", rejected)]), { rootPath: "paper.tex" })).toThrowError(
       expect.objectContaining({ name: "LatexConversionError", code: "semantic-record-limit" }),
     );
+  });
 
+  it("counts citation keys against a tightened aggregate semantic ceiling", () => {
+    const source = String.raw`\documentclass{article}\begin{document}\cite{a,b,c}\end{document}`;
+    const inspection = analyzeLatexArchiveFiles([tex("paper.tex", source)]);
+
+    expect(convertLatexProject(inspection, { rootPath: "paper.tex" }, { maximumSemanticRecords: 6 }).citations[0]?.keys).toEqual([
+      "a",
+      "b",
+      "c",
+    ]);
+    expect(() => convertLatexProject(inspection, { rootPath: "paper.tex" }, { maximumSemanticRecords: 5 })).toThrowError(
+      expect.objectContaining({ name: "LatexConversionError", code: "semantic-record-limit" }),
+    );
+  });
+
+  itOutsideMutation("counts citation keys against the aggregate semantic ceiling", () => {
+    const atLimit = Array.from({ length: 1_000 }, (_, index) => `k${index}`).join(",");
     const aggregate = `\\documentclass{article}\\begin{document}${`\\cite{${atLimit}}`.repeat(50)}\\end{document}`;
     expect(() => convertLatexProject(analyzeLatexArchiveFiles([tex("paper.tex", aggregate)]), { rootPath: "paper.tex" })).toThrowError(
       expect.objectContaining({ name: "LatexConversionError", code: "semantic-record-limit" }),
     );
   });
 
-  it("preserves a below-cap run of unmatched simple-command openers without unbounded rescanning", () => {
-    const malformed = "\\textbf{".repeat(49_000);
-    const body = `${malformed}${"x".repeat(1536 * 1024)}`;
+  it("stops simple-command scanning at the first unmatched group", () => {
+    const body = "\\textbf{broken \\textbf{nested}";
     const source = `\\documentclass{article}\\begin{document}${body}\\end{document}`;
-    expect(strToU8(source).byteLength).toBeLessThanOrEqual(latexArchiveMaximumTextBytes);
     const conversion = convertLatexProject(analyzeLatexArchiveFiles([tex("paper.tex", source)]), { rootPath: "paper.tex" });
 
     expect(conversion.files[0]?.content).toBe(`${body}\n`);
+    expect(conversion.files[0]?.content).not.toContain("**nested**");
     expect(conversion.diagnostics).toContainEqual(
       expect.objectContaining({ code: "unsupported-command", message: "Unsupported LaTeX command remains for review: \\textbf" }),
     );
-  }, 10_000);
+  });
 
-  it("renders a dense below-cap run of valid simple commands in one pass", () => {
-    const commands = "\\textbf{x}".repeat(40_000);
+  it("renders adjacent simple commands without offset drift", () => {
+    const commands = "\\textbf{one}\\textbf{two}";
     const source = `\\documentclass{article}\\begin{document}${commands}\\end{document}`;
     const conversion = convertLatexProject(analyzeLatexArchiveFiles([tex("paper.tex", source)]), { rootPath: "paper.tex" });
 
-    expect(conversion.files[0]?.content).toBe(`${"**x**".repeat(40_000)}\n`);
-  }, 10_000);
+    expect(conversion.files[0]?.content).toBe("**one****two**\n");
+  });
 
-  it("inventories dense adjacent section labels without copying every source suffix", () => {
-    const sections = Array.from({ length: 20_000 }, (_, index) => `\\section{s${index}}\\label{l${index}}\n`).join("");
+  it("associates adjacent sections with their own labels", () => {
+    const sections = "\\section{One}\\label{one}\n\\section{Two}\\label{two}\n";
     const source = `\\documentclass{article}\\begin{document}${sections}\\end{document}`;
-    expect(strToU8(source).byteLength).toBeLessThanOrEqual(latexArchiveMaximumTextBytes);
 
     const conversion = convertLatexProject(analyzeLatexArchiveFiles([tex("paper.tex", source)]), { rootPath: "paper.tex" });
 
-    expect(conversion.sections).toHaveLength(20_000);
-    expect(conversion.sections[0]).toMatchObject({ title: "s0", label: "l0" });
-    expect(conversion.sections.at(-1)).toMatchObject({ title: "s19999", label: "l19999" });
-  }, 10_000);
+    expect(conversion.sections).toEqual([
+      expect.objectContaining({ title: "One", label: "one" }),
+      expect.objectContaining({ title: "Two", label: "two" }),
+    ]);
+  });
 
-  it("omits below-cap unmatched semantic command groups without rescanning every suffix", () => {
-    const malformed = "\\title{".repeat(49_000);
-    const source = `\\documentclass{article}${malformed}${"x".repeat(1536 * 1024)}\\begin{document}tail\\end{document}`;
-    expect(strToU8(source).byteLength).toBeLessThanOrEqual(latexArchiveMaximumTextBytes);
+  it("stops semantic-command scanning at the first unmatched group", () => {
+    const source = "\\documentclass{article}\\title{broken \\title{Nested}\\begin{document}tail\\end{document}";
     const conversion = convertLatexProject(analyzeLatexArchiveFiles([tex("paper.tex", source)]), { rootPath: "paper.tex" });
 
     expect(conversion.metadata.title).toBeUndefined();
     expect(conversion.files[0]?.content).toBe("tail\n");
-  }, 10_000);
+  });
 
-  it("preserves malformed optional command groups after one suffix scan", () => {
-    const body = `${"\\textbf[".repeat(49_000)}]${"x".repeat(1650 * 1024)}`;
+  it("skips command-looking content inside optional groups", () => {
+    const body = "\\textbf[\\textbf{nested}]tail";
     const bodySource = `\\documentclass{article}\\begin{document}${body}\\end{document}`;
-    expect(strToU8(bodySource).byteLength).toBeLessThanOrEqual(latexArchiveMaximumTextBytes);
     expect(convertLatexProject(analyzeLatexArchiveFiles([tex("paper.tex", bodySource)]), { rootPath: "paper.tex" }).files[0]?.content).toBe(
       `${body}\n`,
     );
 
-    const preamble = `${"\\title[".repeat(49_000)}]${"x".repeat(1650 * 1024)}`;
+    const preamble = "\\title[\\title{Nested}]tail";
     const preambleSource = `\\documentclass{article}${preamble}\\begin{document}tail\\end{document}`;
-    expect(strToU8(preambleSource).byteLength).toBeLessThanOrEqual(latexArchiveMaximumTextBytes);
     expect(
       convertLatexProject(analyzeLatexArchiveFiles([tex("paper.tex", preambleSource)]), { rootPath: "paper.tex" }).metadata.title,
     ).toBeUndefined();
-  }, 10_000);
+  });
 
-  it("bounds malformed renderer cleanup command groups", () => {
-    const malformed =
-      "\\bibliographystyle{".repeat(8_000) +
-      "\\href{".repeat(8_000) +
-      "\\section{".repeat(8_000) +
-      "\\caption{".repeat(8_000) +
-      "\\begin{".repeat(8_000) +
-      "x".repeat(1024 * 1024);
+  it("stops renderer cleanup scanners at the first unmatched group", () => {
+    const malformed = "\\bibliographystyle{\\href{\\section{\\caption{\\begin{x";
     const source = `\\documentclass{article}\\begin{document}${malformed}\\end{document}`;
-    expect(strToU8(source).byteLength).toBeLessThanOrEqual(latexArchiveMaximumTextBytes);
 
     const conversion = convertLatexProject(analyzeLatexArchiveFiles([tex("paper.tex", source)]), { rootPath: "paper.tex" });
     expect(conversion.files[0]?.content).toContain("\\bibliographystyle{");
@@ -167,47 +174,39 @@ describe("product-neutral LaTeX conversion", () => {
     expect(conversion.files[0]?.content).toContain("\\section{");
     expect(conversion.files[0]?.content).toContain("\\caption{");
     expect(conversion.files[0]?.content).toContain("\\begin{");
-  }, 10_000);
+  });
 
-  it("preserves below-cap unmatched display-math openers with one linear scan", () => {
-    const malformed = "\\[".repeat(49_000);
-    const body = `${malformed}${"x".repeat(1800 * 1024)}`;
+  it("preserves an unmatched display-math opener", () => {
+    const body = "before \\[broken";
     const source = `\\documentclass{article}\\begin{document}${body}\\end{document}`;
-    expect(strToU8(source).byteLength).toBeLessThanOrEqual(latexArchiveMaximumTextBytes);
     const conversion = convertLatexProject(analyzeLatexArchiveFiles([tex("paper.tex", source)]), { rootPath: "paper.tex" });
 
     expect(conversion.equations).toEqual([]);
     expect(conversion.files[0]?.content).toBe(`${body}\n`);
-  }, 10_000);
+  });
 
-  it("bounds unmatched TikZ environment scans inside a figure", () => {
-    const malformed = "\\begin{tikzpicture}".repeat(49_000);
-    const filler = "x".repeat(1024 * 1024);
+  it("keeps an unmatched TikZ opener inert inside a literal figure block", () => {
+    const literal = "\\begin{tikzpicture}tail";
     const source =
-      `\\documentclass{article}\\begin{document}\\begin{figure}\\begin{lstlisting}${malformed}${filler}` +
+      `\\documentclass{article}\\begin{document}\\begin{figure}\\begin{lstlisting}${literal}` +
       "\\end{lstlisting}\\end{figure}\\end{document}";
-    expect(strToU8(source).byteLength).toBeLessThanOrEqual(latexArchiveMaximumTextBytes);
     const conversion = convertLatexProject(analyzeLatexArchiveFiles([tex("paper.tex", source)]), { rootPath: "paper.tex" });
 
-    expect(conversion.codeBlocks[0]?.value).toBe(`${malformed}${filler}`);
+    expect(conversion.codeBlocks[0]?.value).toBe(literal);
     expect(conversion.diagnostics.filter(({ code }) => code === "unsupported-environment")).toEqual([]);
-  }, 10_000);
+  });
 
-  it("bounds malformed prepared-boxplot scans inside legal TikZ blocks", () => {
-    const malformedSummaries = "\\addplot+[".repeat(8_000);
-    const tikz =
-      "\\begin{tikzpicture}\\begin{axis}[yticklabels={A}]" + `${malformedSummaries}${"x".repeat(40_000)}` + "\\end{axis}\\end{tikzpicture}";
-    const body = tikz.repeat(16);
-    const source = `\\documentclass{article}\\begin{document}${body}\\end{document}`;
-    expect(strToU8(source).byteLength).toBeLessThanOrEqual(latexArchiveMaximumTextBytes);
+  it("preserves a legal TikZ block with a malformed prepared boxplot", () => {
+    const tikz = "\\begin{tikzpicture}\\begin{axis}[yticklabels={A}]\\addplot+[broken\\end{axis}\\end{tikzpicture}";
+    const source = `\\documentclass{article}\\begin{document}${tikz}\\end{document}`;
 
     const conversion = convertLatexProject(analyzeLatexArchiveFiles([tex("paper.tex", source)]), { rootPath: "paper.tex" });
 
-    expect(conversion.diagnostics.filter(({ code }) => code === "tikz-preserved")).toHaveLength(16);
-    expect(conversion.files[0]?.content.match(/```tikz/gu)).toHaveLength(16);
-  }, 10_000);
+    expect(conversion.diagnostics.filter(({ code }) => code === "tikz-preserved")).toHaveLength(1);
+    expect(conversion.files[0]?.content.match(/```tikz/gu)).toHaveLength(1);
+  });
 
-  it("bounds rendered table rows, columns, and output", () => {
+  it("bounds rendered table rows and columns", () => {
     const convertTable = (body: string) => {
       const source = `\\documentclass{article}\\begin{document}\\begin{tabular}{c}${body}\\end{tabular}\\end{document}`;
       expect(strToU8(source).byteLength).toBeLessThanOrEqual(latexArchiveMaximumTextBytes);
@@ -221,48 +220,54 @@ describe("product-neutral LaTeX conversion", () => {
 
     const tooManyRows = Array.from({ length: latexMaximumTableRows + 1 }, () => "x").join("\\\\");
     expect(() => convertTable(tooManyRows)).toThrowError(expect.objectContaining({ code: "render-limit" }));
+  });
 
-    const wideRow = Array.from({ length: latexMaximumTableColumns }, () => "xx").join("&");
-    const amplified = Array.from({ length: latexMaximumTableRows }, () => wideRow).join("\\\\");
-    expect(() => convertTable(amplified)).toThrowError(
+  itOutsideMutation("enforces the rendered-table output bound", () => {
+    const cell = "x".repeat(Math.ceil(latexMaximumRenderedTableCodeUnits / latexMaximumTableColumns));
+    const oversizedRow = Array.from({ length: latexMaximumTableColumns }, () => cell).join("&");
+    const source = `\\documentclass{article}\\begin{document}\\begin{tabular}{c}${oversizedRow}\\end{tabular}\\end{document}`;
+    expect(strToU8(source).byteLength).toBeLessThanOrEqual(latexArchiveMaximumTextBytes);
+    expect(() => convertLatexProject(analyzeLatexArchiveFiles([tex("paper.tex", source)]), { rootPath: "paper.tex" })).toThrowError(
       expect.objectContaining({ code: "render-limit", message: expect.stringContaining(String(latexMaximumRenderedTableCodeUnits)) }),
     );
   });
 
-  it("stops malformed table row options without rescanning later delimiters", () => {
-    const body = `${"\\\\[".repeat(49_000)}${"x".repeat(1800 * 1024)}`;
+  it("stops malformed table row options before later delimiters", () => {
+    const body = String.raw`A\\[broken B\\C`;
     const source = `\\documentclass{article}\\begin{document}\\begin{tabular}{c}${body}\\end{tabular}\\end{document}`;
-    expect(strToU8(source).byteLength).toBeLessThanOrEqual(latexArchiveMaximumTextBytes);
 
     const conversion = convertLatexProject(analyzeLatexArchiveFiles([tex("paper.tex", source)]), { rootPath: "paper.tex" });
     expect(conversion.tables).toHaveLength(1);
-  }, 10_000);
+    expect(conversion.files[0]?.content).toContain("| A |");
+    expect(conversion.files[0]?.content).not.toContain("broken B");
+    expect(conversion.files[0]?.content).not.toContain("C");
+  });
 
-  it("stops malformed list and environment options after one suffix scan", () => {
-    const listBody = `${"\\item[".repeat(49_000)}${"x".repeat(1700 * 1024)}`;
+  it("stops malformed list and environment options", () => {
+    const listBody = "\\item Kept\\item[broken \\item Hidden";
     const listSource = `\\documentclass{article}\\begin{document}\\begin{itemize}${listBody}\\end{itemize}\\end{document}`;
-    expect(strToU8(listSource).byteLength).toBeLessThanOrEqual(latexArchiveMaximumTextBytes);
-    expect(convertLatexProject(analyzeLatexArchiveFiles([tex("paper.tex", listSource)]), { rootPath: "paper.tex" }).files[0]?.content).toBe(
-      "\n",
-    );
+    const listConversion = convertLatexProject(analyzeLatexArchiveFiles([tex("paper.tex", listSource)]), { rootPath: "paper.tex" });
+    expect(listConversion.files[0]?.content).toContain("- Kept");
+    expect(listConversion.files[0]?.content).not.toContain("Hidden");
 
-    const malformedEnvironments = "\\begin{abstract}[\\end{abstract}".repeat(20_000);
+    const malformedEnvironments = "\\begin{abstract}[\\end{abstract}\\begin{abstract}Visible\\end{abstract}";
     const environmentSource = `\\documentclass{article}\\begin{document}${malformedEnvironments}\\end{document}`;
-    expect(strToU8(environmentSource).byteLength).toBeLessThanOrEqual(latexArchiveMaximumTextBytes);
     const conversion = convertLatexProject(analyzeLatexArchiveFiles([tex("paper.tex", environmentSource)]), {
       rootPath: "paper.tex",
     });
     expect(conversion.abstracts).toEqual([]);
-  }, 10_000);
+    expect(conversion.files[0]?.content).not.toContain("## Abstract");
+  });
 
-  it("streams code-fence selection and enforces rendered-file output bounds", () => {
-    const separatedRuns = "`x".repeat(130_000);
+  it("selects a code fence longer than every authored run", () => {
+    const separatedRuns = "`x``y```z";
     const accepted = `\\documentclass{article}\\begin{document}\\begin{verbatim}${separatedRuns}\\end{verbatim}\\end{document}`;
-    expect(strToU8(accepted).byteLength).toBeLessThanOrEqual(latexArchiveMaximumTextBytes);
-    expect(
-      convertLatexProject(analyzeLatexArchiveFiles([tex("paper.tex", accepted)]), { rootPath: "paper.tex" }).codeBlocks[0]?.value,
-    ).toBe(separatedRuns);
+    const conversion = convertLatexProject(analyzeLatexArchiveFiles([tex("paper.tex", accepted)]), { rootPath: "paper.tex" });
+    expect(conversion.codeBlocks[0]?.value).toBe(separatedRuns);
+    expect(conversion.files[0]?.content).toBe(`\`\`\`\`\n${separatedRuns}\n\`\`\`\`\n`);
+  });
 
+  itOutsideMutation("enforces the rendered-file output bound", () => {
     const longRun = "`".repeat(1536 * 1024);
     const rejected = `\\documentclass{article}\\begin{document}\\begin{verbatim}${longRun}\\end{verbatim}\\end{document}`;
     expect(strToU8(rejected).byteLength).toBeLessThanOrEqual(latexArchiveMaximumTextBytes);
@@ -275,21 +280,27 @@ describe("product-neutral LaTeX conversion", () => {
     expect(latexMaximumRenderedProjectCodeUnits).toBeGreaterThan(latexMaximumRenderedFileCodeUnits);
   });
 
-  it("enforces aggregate rendered-project and derived-folder bounds", () => {
-    const code = "`".repeat(1200 * 1024);
-    const childSource = `\\begin{verbatim}${code}\\end{verbatim}`;
-    expect(strToU8(childSource).byteLength).toBeLessThanOrEqual(latexArchiveMaximumTextBytes);
-    const root = `\\documentclass{article}\\begin{document}${Array.from({ length: 5 }, (_, index) => `\\input{child-${index}}`).join(
-      "",
-    )}\\end{document}`;
-    const aggregateFiles = [tex("main.tex", root), ...Array.from({ length: 5 }, (_, index) => tex(`child-${index}.tex`, childSource))];
-    expect(() => convertLatexProject(analyzeLatexArchiveFiles(aggregateFiles), { rootPath: "main.tex" })).toThrowError(
-      expect.objectContaining({
-        code: "render-limit",
-        message: expect.stringContaining(String(latexMaximumRenderedProjectCodeUnits)),
-      }),
-    );
+  itOutsideMutation(
+    "enforces the aggregate rendered-project bound",
+    () => {
+      const code = "`".repeat(1200 * 1024);
+      const childSource = `\\begin{verbatim}${code}\\end{verbatim}`;
+      expect(strToU8(childSource).byteLength).toBeLessThanOrEqual(latexArchiveMaximumTextBytes);
+      const root = `\\documentclass{article}\\begin{document}${Array.from({ length: 5 }, (_, index) => `\\input{child-${index}}`).join(
+        "",
+      )}\\end{document}`;
+      const aggregateFiles = [tex("main.tex", root), ...Array.from({ length: 5 }, (_, index) => tex(`child-${index}.tex`, childSource))];
+      expect(() => renderLatexProject(analyzeLatexArchiveFiles(aggregateFiles), { rootPath: "main.tex" })).toThrowError(
+        expect.objectContaining({
+          code: "render-limit",
+          message: expect.stringContaining(String(latexMaximumRenderedProjectCodeUnits)),
+        }),
+      );
+    },
+    20_000,
+  );
 
+  itOutsideMutation("enforces the aggregate derived-folder bound", () => {
     const directories = Array.from({ length: 16 }, (_, index) => `d${index}`).join("/");
     const paths = Array.from({ length: Math.ceil(latexMaximumRenderedFolders / 16) }, (_, index) => `p${index}/${directories}/child.tex`);
     const folderRoot = `\\documentclass{article}\\begin{document}${paths
@@ -297,7 +308,7 @@ describe("product-neutral LaTeX conversion", () => {
       .join("")}\\end{document}`;
     expect(strToU8(folderRoot).byteLength).toBeLessThanOrEqual(latexArchiveMaximumTextBytes);
     expect(() =>
-      convertLatexProject(analyzeLatexArchiveFiles([tex("main.tex", folderRoot), ...paths.map((path) => tex(path, "x"))]), {
+      renderLatexProject(analyzeLatexArchiveFiles([tex("main.tex", folderRoot), ...paths.map((path) => tex(path, "x"))]), {
         rootPath: "main.tex",
       }),
     ).toThrowError(expect.objectContaining({ code: "render-limit", message: "Converted project exceeds the derived-folder limit" }));

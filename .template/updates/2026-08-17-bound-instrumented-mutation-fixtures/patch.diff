@@ -1,0 +1,19 @@
+diff --git a/src/test-support/mutation.ts b/src/test-support/mutation.ts
+new file mode 100644
+--- /dev/null
++++ b/src/test-support/mutation.ts
+@@
++import { describe, it } from "vitest";
++
++const isMutationWorker = process.env.STRYKER_MUTATOR_WORKER !== undefined;
++export const itOutsideMutation = isMutationWorker ? it.skip : it;
++export const describeOutsideMutation = isMutationWorker ? describe.skip : describe;
+diff --git a/specs/quality-gate/spec.md b/specs/quality-gate/spec.md
+--- a/specs/quality-gate/spec.md
++++ b/specs/quality-gate/spec.md
+@@
++- **Instrumented large-fixture exclusion:** Tests whose purpose is near-cap
++  complexity or whose public integration fixture is inherently boundary-sized
++  may skip only inside a Stryker worker through the centralized test helper.
++  Normal unit and coverage CI must execute them. Every exclusion must retain a
++  mutation-selected deterministic behavioral or production-limit counterpart.

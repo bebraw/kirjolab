@@ -1,5 +1,5 @@
-import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";
 import { describe, expect, it } from "vitest";
+import { itOutsideMutation } from "../../test-support/mutation";
 import { inspectLatexArchive } from "./latex-archive";
 import { convertLatexProject } from "./latex-conversion";
 import { createPdfTextExtractor, type PdfTextRuntime } from "./pdf-text";
@@ -12,7 +12,34 @@ import {
   createReviewedLatexConformanceFixtureV1,
   createTwoPagePdfConformanceFixtureV1,
   paperImportConformanceCorpusVersion,
+  type LatexArchiveFailureConformanceFixtureV1,
+  type LatexArchiveFailureConformanceIdV1,
 } from "./conformance-corpus";
+
+const archiveFailureFixtureIds = [
+  "empty-archive",
+  "malformed-archive",
+  "traversal-path",
+  "absolute-path",
+  "windows-absolute-path",
+  "backslash-path",
+  "prototype-poisoning-path",
+  "case-folded-duplicate",
+  "symbolic-link",
+  "encrypted-entry",
+  "zip64-archive",
+  "expansion-ratio",
+  "invalid-utf8",
+  "oversized-source",
+] satisfies readonly LatexArchiveFailureConformanceIdV1[];
+
+async function expectArchiveFailure(fixture: LatexArchiveFailureConformanceFixtureV1): Promise<void> {
+  await expect(inspectLatexArchive(fixture.archive)).rejects.toMatchObject({
+    name: "LatexArchiveFailure",
+    code: fixture.expected.code,
+    message: fixture.expected.message,
+  });
+}
 
 describe("paper-import conformance corpus", () => {
   it("exposes one versioned consumer entry point without application authorities", () => {
@@ -158,37 +185,29 @@ describe("paper-import conformance corpus", () => {
     expect(conversion.assets).toEqual([]);
   });
 
-  it("rejects every versioned archive-security fixture with its literal stable failure", async () => {
+  it("rejects every compact archive-security fixture with its literal stable failure", async () => {
+    const fixtures = createLatexArchiveFailureConformanceFixturesV1();
+
+    expect(fixtures.map(({ id }) => id)).toEqual(archiveFailureFixtureIds);
+    const compactFixtures = fixtures.filter(({ id }) => id !== "oversized-source");
+    expect(compactFixtures).toHaveLength(13);
+    for (const fixture of compactFixtures) {
+      await expectArchiveFailure(fixture);
+    }
+  });
+
+  itOutsideMutation("keeps archive-security fixtures deterministic and rejects the exact oversized source", async () => {
     const first = createLatexArchiveFailureConformanceFixturesV1();
     const second = createLatexArchiveFailureConformanceFixturesV1();
 
-    expect(first.map(({ id }) => id)).toEqual([
-      "empty-archive",
-      "malformed-archive",
-      "traversal-path",
-      "absolute-path",
-      "windows-absolute-path",
-      "backslash-path",
-      "prototype-poisoning-path",
-      "case-folded-duplicate",
-      "symbolic-link",
-      "encrypted-entry",
-      "zip64-archive",
-      "expansion-ratio",
-      "invalid-utf8",
-      "oversized-source",
-    ]);
-    for (const [index, fixture] of first.entries()) {
-      expect(fixture.archive).toEqual(second[index]?.archive);
-      await expect(inspectLatexArchive(fixture.archive)).rejects.toMatchObject({
-        name: "LatexArchiveFailure",
-        code: fixture.expected.code,
-        message: fixture.expected.message,
-      });
-    }
-  }, 15_000);
+    expect(first.map(({ archive }) => archive)).toEqual(second.map(({ archive }) => archive));
+    const oversizedSource = first.find(({ id }) => id === "oversized-source");
+    if (!oversizedSource) throw new Error("Missing oversized-source conformance fixture");
+    await expectArchiveFailure(oversizedSource);
+  });
 
-  it("extracts the deterministic two-page PDF fixture through the neutral byte seam", async () => {
+  itOutsideMutation("extracts the deterministic two-page PDF fixture through the neutral byte seam", async () => {
+    const { getDocument } = await import("pdfjs-dist/legacy/build/pdf.mjs");
     const fixture = createTwoPagePdfConformanceFixtureV1();
     const repeated = createTwoPagePdfConformanceFixtureV1();
     const cleanedPages: number[] = [];

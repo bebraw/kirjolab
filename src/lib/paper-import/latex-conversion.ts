@@ -1,16 +1,14 @@
 import type { LatexArchiveInspection } from "./latex-archive";
 import { analyzeLatexSemantics } from "./latex-analysis";
 import {
-  LatexConversionError,
   defaultLatexConversionOptions,
-  latexConversionMaximumSemanticRecords,
   latexConversionSchemaVersion,
   latexConverterVersion,
   type LatexConversionOptions,
   type LatexProjectConversion,
 } from "./latex-contracts";
 import { renderLatexProject, type LatexConversionSelection } from "./latex-renderer";
-import { assertLatexSemanticRecordLimit } from "./latex-semantic-limit";
+import { assertLatexSemanticRecordLimit, resolveMaximumSemanticRecords } from "./latex-semantic-limit";
 
 export { defaultLatexConversionOptions, latexConversionMaximumSemanticRecords, latexConverterVersion } from "./latex-contracts";
 export type { LatexConversionOptions, LatexProjectConversion } from "./latex-contracts";
@@ -59,12 +57,4 @@ export function convertLatexProject(
     diagnostics,
     ...semantics,
   };
-}
-
-function resolveMaximumSemanticRecords(options: LatexConversionOptions): number {
-  const value = options.maximumSemanticRecords ?? latexConversionMaximumSemanticRecords;
-  if (!Number.isSafeInteger(value) || value < 1) {
-    throw new LatexConversionError("invalid-conversion-options", "maximumSemanticRecords must be a positive safe integer");
-  }
-  return Math.min(value, latexConversionMaximumSemanticRecords);
 }

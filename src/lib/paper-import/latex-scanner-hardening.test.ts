@@ -1,8 +1,10 @@
 import { strToU8, zipSync } from "fflate";
 import { describe, expect, it } from "vitest";
+import { itOutsideMutation } from "../../test-support/mutation";
 import { inspectLatexArchive } from "./latex-archive";
 import { convertLatexProject } from "./latex-conversion";
 import {
+  acceptLatexImageCandidateProbe,
   latexImageMaximumCandidateProbes,
   latexImageMaximumSearchFolderCodeUnits,
   latexImageMaximumSearchFolders,
@@ -44,16 +46,20 @@ describe("LaTeX source scanner hardening", () => {
     ]);
   });
 
-  it("masks a dense below-cap sequence of literal environments with stable length and delimiters", () => {
-    const block = "\\begin{verbatim}\r\nx\r\n\\end{verbatim}\r\n";
-    const source = block.repeat(2_000);
-    const masked = structuralLatexSource(source);
+  itOutsideMutation(
+    "masks a dense below-cap sequence of literal environments with stable length and delimiters",
+    () => {
+      const block = "\\begin{verbatim}\r\nx\r\n\\end{verbatim}\r\n";
+      const source = block.repeat(2_000);
+      const masked = structuralLatexSource(source);
 
-    expect(masked).toHaveLength(source.length);
-    expect(masked.startsWith("\\begin{verbatim}\r\n ")).toBe(true);
-    expect(masked.endsWith("\\end{verbatim}\r\n")).toBe(true);
-    expect(masked.includes("\r\nx\r\n")).toBe(false);
-  }, 20_000);
+      expect(masked).toHaveLength(source.length);
+      expect(masked.startsWith("\\begin{verbatim}\r\n ")).toBe(true);
+      expect(masked.endsWith("\\end{verbatim}\r\n")).toBe(true);
+      expect(masked.includes("\r\nx\r\n")).toBe(false);
+    },
+    20_000,
+  );
 
   it("reports outermost cross-type literal blocks once in source order with exact ranges", () => {
     const nested = "\\begin{minted}[linenos]{python}\n" + "\\begin{lstlisting}nested\\end{lstlisting}\n" + "\\end{minted}";
@@ -168,31 +174,54 @@ describe("LaTeX source scanner hardening", () => {
     });
   });
 
-  it("scans a dense below-cap malformed graphic-path suffix once and retains no nested search folders", async () => {
-    const source =
-      `\\documentclass{article}${"\\graphicspath{{".repeat(20_000)}` + "\\begin{document}\\includegraphics{plot}\\end{document}";
-    const inspection = await inspectLatexArchive(zipSync({ "main.tex": strToU8(source) }));
-
-    expect(resolveLatexImageReferences(inspection, "main.tex", ["main.tex"])).toMatchObject([{ requestedPath: "plot", candidates: [] }]);
-  }, 20_000);
-
-  it("allows exactly the aggregate image candidate-probe budget and rejects the next probe batch", async () => {
-    expect(latexImageMaximumCandidateProbes).toBe(100_000);
-    const convertWithImageCount = async (imageCount: number) => {
-      const folders = Array.from({ length: 248 }, (_, index) => `{f${index}/}`).join("");
+  itOutsideMutation(
+    "scans a dense below-cap malformed graphic-path suffix once and retains no nested search folders",
+    async () => {
       const source =
-        `\\documentclass{article}\\graphicspath{${folders}}` +
-        `\\begin{document}${"\\includegraphics{plot}".repeat(imageCount)}\\end{document}`;
-      const inspection = await inspectLatexArchive(zipSync({ "nested/main.tex": strToU8(source) }));
-      return convertLatexProject(inspection, { rootPath: "nested/main.tex" });
-    };
+        `\\documentclass{article}${"\\graphicspath{{".repeat(20_000)}` + "\\begin{document}\\includegraphics{plot}\\end{document}";
+      const inspection = await inspectLatexArchive(zipSync({ "main.tex": strToU8(source) }));
 
-    const atBoundary = await convertWithImageCount(50);
-    expect(atBoundary.figures).toHaveLength(50);
-    await expect(convertWithImageCount(51)).rejects.toMatchObject({
-      name: "LatexConversionError",
-      code: "image-resolution-limit",
-      message: "LaTeX image resolution exceeds the 100,000 candidate-probe limit",
-    });
-  }, 20_000);
+      expect(resolveLatexImageReferences(inspection, "main.tex", ["main.tex"])).toMatchObject([{ requestedPath: "plot", candidates: [] }]);
+    },
+    20_000,
+  );
+
+  itOutsideMutation(
+    "allows exactly the aggregate image candidate-probe budget and rejects the next probe batch",
+    async () => {
+      expect(latexImageMaximumCandidateProbes).toBe(100_000);
+      const convertWithImageCount = async (imageCount: number) => {
+        const folders = Array.from({ length: 248 }, (_, index) => `{f${index}/}`).join("");
+        const source =
+          `\\documentclass{article}\\graphicspath{${folders}}` +
+          `\\begin{document}${"\\includegraphics{plot}".repeat(imageCount)}\\end{document}`;
+        const inspection = await inspectLatexArchive(zipSync({ "nested/main.tex": strToU8(source) }));
+        return convertLatexProject(inspection, { rootPath: "nested/main.tex" });
+      };
+
+      const atBoundary = await convertWithImageCount(50);
+      expect(atBoundary.figures).toHaveLength(50);
+      await expect(convertWithImageCount(51)).rejects.toMatchObject({
+        name: "LatexConversionError",
+        code: "image-resolution-limit",
+        message: "LaTeX image resolution exceeds the 100,000 candidate-probe limit",
+      });
+    },
+    20_000,
+  );
+
+  it("accumulates image candidate probes against a small mutation-test budget", () => {
+    let candidateProbes = 0;
+    candidateProbes = acceptLatexImageCandidateProbe(candidateProbes, 2);
+    candidateProbes = acceptLatexImageCandidateProbe(candidateProbes, 2);
+
+    expect(candidateProbes).toBe(2);
+    expect(() => acceptLatexImageCandidateProbe(candidateProbes, 2)).toThrowError(
+      expect.objectContaining({
+        name: "LatexConversionError",
+        code: "image-resolution-limit",
+        message: "LaTeX image resolution exceeds the 100,000 candidate-probe limit",
+      }),
+    );
+  });
 });

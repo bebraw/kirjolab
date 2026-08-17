@@ -1,8 +1,16 @@
 import type { LatexArchiveInspection } from "./latex-archive";
-import { LatexConversionError } from "./latex-contracts";
+import { LatexConversionError, latexConversionMaximumSemanticRecords, type LatexConversionOptions } from "./latex-contracts";
 import { latexCommandArgument, matchingLatexBrace } from "./latex-render-helpers";
 import { latexDocumentWindow, maskedLatex, semanticLatexSource } from "./latex-source";
 import type { LatexConversionSelection } from "./latex-renderer";
+
+export function resolveMaximumSemanticRecords(options: LatexConversionOptions): number {
+  const value = options.maximumSemanticRecords ?? latexConversionMaximumSemanticRecords;
+  if (!Number.isSafeInteger(value) || value < 1) {
+    throw new LatexConversionError("invalid-conversion-options", "maximumSemanticRecords must be a positive safe integer");
+  }
+  return Math.min(value, latexConversionMaximumSemanticRecords);
+}
 
 export function assertLatexSemanticRecordLimit(
   inspection: LatexArchiveInspection,

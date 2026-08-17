@@ -95,6 +95,18 @@ failures quickly during normal development.
   vendored `.codex/skills/**/references/`
 - **Formatting cache:** content-based results under ignored `.cache/prettier`
 - **Mutation config:** `stryker.config.mjs`
+- **Instrumented large-fixture exclusion:** Tests whose purpose is near-cap
+  complexity or whose public integration fixture is inherently boundary-sized
+  may skip only inside a Stryker worker, detected through the repository's
+  centralized `STRYKER_MUTATOR_WORKER` test helper. The helper contract is
+  reverified whenever the pinned Stryker version changes, and normal unit and
+  coverage CI must not inherit the worker marker. Every skipped performance
+  case must retain a mutation-selected deterministic test of the same parser
+  behavior. Every skipped hard-boundary integration must retain a
+  mutation-selected test of the production-used guard or accumulator that
+  proves the accepted boundary, first rejected value, aggregation when
+  applicable, and stable typed failure. A boundary-sized public fixture is not
+  a mutation-coverage waiver; use a small internal production seam.
 - **Mutation heap ceiling:** 8 GiB for TypeScript-aware Stryker instrumentation
 - **Readiness baseline:** `npm run ci:local` for non-documentation changes
 - **Documentation-only exception:** documentation-only changes may skip `npm run ci:local` when they do not alter executable config, generated artifacts, package metadata, source code, or tests

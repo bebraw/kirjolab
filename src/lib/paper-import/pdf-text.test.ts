@@ -1,5 +1,5 @@
-import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";
 import { describe, expect, it, vi } from "vitest";
+import { itOutsideMutation } from "../../test-support/mutation";
 import { createTwoPageEvidencePdf } from "../../test-support/pdf-fixture";
 import {
   createPdfTextExtractor,
@@ -51,7 +51,8 @@ describe("neutral PDF text extraction", () => {
     expect(destroy).toHaveBeenCalledOnce();
   });
 
-  it("extracts numbered pages and cleans them up through real PDF.js", async () => {
+  itOutsideMutation("extracts numbered pages and cleans them up through real PDF.js", async () => {
+    const { getDocument } = await import("pdfjs-dist/legacy/build/pdf.mjs");
     const cleanedPageNumbers: number[] = [];
     const destroy = vi.fn(async () => undefined);
     const runtime: PdfTextRuntime = {
