@@ -158,6 +158,11 @@ interface LatexDelimitedGroup {
   readonly end: number;
 }
 
+type ParsedLatexCommandArgument =
+  | { readonly kind: "argument"; readonly group: LatexDelimitedGroup }
+  | { readonly kind: "skip"; readonly next: number }
+  | { readonly kind: "stop" };
+
 function resolveArchiveLimits(limits: LatexArchiveLimits): EffectiveLatexArchiveLimits {
   return {
     maximumCompressedBytes: tightenedLimit(limits.maximumCompressedBytes, latexArchiveMaximumCompressedBytes, "maximumCompressedBytes"),
@@ -243,56 +248,9 @@ function analyzeLatexArchiveFilesWithLimit(files: readonly LatexArchiveFile[], m
   const includes = texFiles.flatMap((file) => latexIncludes(file, texPaths, acceptStructuralRecord));
   const bibliographies = texFiles.flatMap((file) => latexBibliographies(file, bibtexPaths, acceptStructuralRecord));
   const diagnostics: LatexImportDiagnostic[] = [];
-  const addDiagnostic = (diagnostic: LatexImportDiagnostic): void => {
+  for (const diagnostic of archiveDiagnostics(rootCandidates, includes, bibliographies, bibtexPaths)) {
     acceptStructuralRecord();
     diagnostics.push(diagnostic);
-  };
-  if (rootCandidates.length === 0) {
-    addDiagnostic({ code: "missing-root", severity: "error", message: "No LaTeX root document was found" });
-  } else if (rootCandidates.length > 1) {
-    addDiagnostic({
-      code: "ambiguous-root",
-      severity: "error",
-      message: `Choose one of ${rootCandidates.length} LaTeX root documents`,
-    });
-  }
-  for (const include of includes) {
-    if (include.resolvedPath) continue;
-    const unsafe = !safeArchiveReference(include.sourcePath, include.requestedPath);
-    addDiagnostic({
-      code: unsafe ? "unsafe-include" : "missing-include",
-      severity: "error",
-      message: unsafe
-        ? `Include escapes or uses an unsafe archive path: ${include.requestedPath}`
-        : `Included LaTeX file was not found: ${include.requestedPath}`,
-      path: include.sourcePath,
-      from: include.from,
-      to: include.to,
-    });
-  }
-  for (const bibliography of bibliographies) {
-    if (bibliography.resolvedPath) continue;
-    const unsafe = !safeArchiveReference(bibliography.sourcePath, bibliography.requestedPath);
-    addDiagnostic({
-      code: unsafe ? "unsafe-bibliography" : "missing-bibliography",
-      severity: "error",
-      message: unsafe
-        ? `Bibliography escapes or uses an unsafe archive path: ${bibliography.requestedPath}`
-        : `Bibliography file was not found: ${bibliography.requestedPath}`,
-      path: bibliography.sourcePath,
-      from: bibliography.from,
-      to: bibliography.to,
-    });
-  }
-  const referencedBibliographies = new Set(bibliographies.flatMap((reference) => (reference.resolvedPath ? [reference.resolvedPath] : [])));
-  for (const path of [...bibtexPaths].sort(comparePortableText)) {
-    if (referencedBibliographies.has(path)) continue;
-    addDiagnostic({
-      code: "unreferenced-bibliography",
-      severity: "warning",
-      message: `Bibliography is present but not referenced by a LaTeX file: ${path}`,
-      path,
-    });
   }
   return {
     files,
@@ -302,6 +260,69 @@ function analyzeLatexArchiveFilesWithLimit(files: readonly LatexArchiveFile[], m
     bibliographies,
     diagnostics,
   };
+}
+
+function* archiveDiagnostics(
+  rootCandidates: readonly string[],
+  includes: readonly LatexIncludeReference[],
+  bibliographies: readonly LatexBibliographyReference[],
+  bibtexPaths: ReadonlySet<string>,
+): Generator<LatexImportDiagnostic> {
+  const rootDiagnostic = rootCandidateDiagnostic(rootCandidates);
+  if (rootDiagnostic) yield rootDiagnostic;
+  yield* unresolvedReferenceDiagnostics(includes, "include");
+  yield* unresolvedReferenceDiagnostics(bibliographies, "bibliography");
+  yield* unreferencedBibliographyDiagnostics(bibliographies, bibtexPaths);
+}
+
+function rootCandidateDiagnostic(rootCandidates: readonly string[]): LatexImportDiagnostic | null {
+  if (rootCandidates.length === 0) {
+    return { code: "missing-root", severity: "error", message: "No LaTeX root document was found" };
+  }
+  return rootCandidates.length > 1
+    ? {
+        code: "ambiguous-root",
+        severity: "error",
+        message: `Choose one of ${rootCandidates.length} LaTeX root documents`,
+      }
+    : null;
+}
+
+function* unresolvedReferenceDiagnostics(
+  references: readonly (LatexIncludeReference | LatexBibliographyReference)[],
+  kind: "bibliography" | "include",
+): Generator<LatexImportDiagnostic> {
+  for (const reference of references) {
+    if (reference.resolvedPath) continue;
+    const unsafe = !safeArchiveReference(reference.sourcePath, reference.requestedPath);
+    const label = kind === "include" ? "Included LaTeX file" : "Bibliography file";
+    yield {
+      code: unsafe ? `unsafe-${kind}` : `missing-${kind}`,
+      severity: "error",
+      message: unsafe
+        ? `${kind === "include" ? "Include" : "Bibliography"} escapes or uses an unsafe archive path: ${reference.requestedPath}`
+        : `${label} was not found: ${reference.requestedPath}`,
+      path: reference.sourcePath,
+      from: reference.from,
+      to: reference.to,
+    };
+  }
+}
+
+function* unreferencedBibliographyDiagnostics(
+  bibliographies: readonly LatexBibliographyReference[],
+  bibtexPaths: ReadonlySet<string>,
+): Generator<LatexImportDiagnostic> {
+  const referencedBibliographies = new Set(bibliographies.flatMap((reference) => (reference.resolvedPath ? [reference.resolvedPath] : [])));
+  for (const path of [...bibtexPaths].sort(comparePortableText)) {
+    if (referencedBibliographies.has(path)) continue;
+    yield {
+      code: "unreferenced-bibliography",
+      severity: "warning",
+      message: `Bibliography is present but not referenced by a LaTeX file: ${path}`,
+      path,
+    };
+  }
 }
 
 function readCentralDirectory(bytes: Uint8Array, limits: EffectiveLatexArchiveLimits): readonly CentralDirectoryEntry[] {
@@ -688,19 +709,13 @@ function* commandArgumentOccurrences(source: string, commands: readonly LatexCom
       cursor = start + 1;
       continue;
     }
-    let position = start + 1 + command.name.length;
-    if (command.optionalArgument && source[position] === "[") {
-      const optionalArgument = delimitedGroup(source, position, "[", "]");
-      if (!optionalArgument) return;
-      position = optionalArgument.end;
-    }
-    position = skipLatexWhitespace(source, position);
-    if (source[position] !== "{") {
-      cursor = Math.max(position, start + 1);
+    const parsed = parseLatexCommandArgument(source, start, command);
+    if (parsed.kind === "stop") return;
+    if (parsed.kind === "skip") {
+      cursor = parsed.next;
       continue;
     }
-    const argument = delimitedGroup(source, position, "{", "}");
-    if (!argument) return;
+    const argument = parsed.group;
     cursor = argument.end;
     if (argument.bodyStart === argument.bodyEnd) continue;
     yield {
@@ -709,6 +724,19 @@ function* commandArgumentOccurrences(source: string, commands: readonly LatexCom
       argument: source.slice(argument.bodyStart, argument.bodyEnd),
     };
   }
+}
+
+function parseLatexCommandArgument(source: string, start: number, command: LatexCommandSpec): ParsedLatexCommandArgument {
+  let position = start + 1 + command.name.length;
+  if (command.optionalArgument && source[position] === "[") {
+    const optionalArgument = delimitedGroup(source, position, "[", "]");
+    if (!optionalArgument) return { kind: "stop" };
+    position = optionalArgument.end;
+  }
+  position = skipLatexWhitespace(source, position);
+  if (source[position] !== "{") return { kind: "skip", next: Math.max(position, start + 1) };
+  const group = delimitedGroup(source, position, "{", "}");
+  return group ? { kind: "argument", group } : { kind: "stop" };
 }
 
 function delimitedGroup(source: string, start: number, open: "[" | "{", close: "]" | "}"): LatexDelimitedGroup | null {

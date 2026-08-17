@@ -69,10 +69,6 @@ export function latexSourceProjections(source: string): LatexSourceProjections {
   };
 }
 
-export function activeLatexSource(source: string): string {
-  return latexSourceProjections(source).active;
-}
-
 export function structuralLatexSource(source: string): string {
   return latexSourceProjections(source).structural;
 }
@@ -83,10 +79,6 @@ export function semanticLatexSource(source: string): string {
 
 export function imageLatexSource(source: string): string {
   return semanticLatexSource(source);
-}
-
-export function isLatexLiteralEnvironment(environment: string): boolean {
-  return literalEnvironments.some((candidate) => candidate === environment);
 }
 
 export function literalEnvironmentOccurrences(
@@ -159,7 +151,7 @@ function sourceControlOccurrences(source: string, percentMasked: string): readon
     let bodyStart = open.end;
     let options: string | undefined;
     if (open.environment !== "comment" && percentMasked[bodyStart] === "[") {
-      const optionsEnd = balancedDelimitedGroupEnd(percentMasked, bodyStart, "[", "]", bodyEnd);
+      const optionsEnd = balancedLatexGroupEnd(percentMasked, bodyStart, "[", "]", bodyEnd);
       if (optionsEnd !== null) {
         options = source.slice(bodyStart + 1, optionsEnd - 1);
         bodyStart = optionsEnd;
@@ -228,6 +220,12 @@ interface EnvironmentBeginOccurrence<Environment extends string = string> extend
   readonly environment: Environment;
 }
 
+interface CommandSearchPosition {
+  readonly start: number;
+  readonly brace: number;
+  readonly next: number;
+}
+
 function findEnvironmentBegin<Environment extends string>(
   source: string,
   environments: readonly Environment[],
@@ -236,16 +234,15 @@ function findEnvironmentBegin<Environment extends string>(
   const commandText = "\\begin";
   let cursor = start;
   while (cursor < source.length) {
-    const commandStart = source.indexOf(commandText, cursor);
-    if (commandStart < 0) return null;
-    const brace = skipWhitespace(source, commandStart + commandText.length);
-    if (source[brace] === "{") {
+    const position = findCommandPosition(source, commandText, cursor);
+    if (!position) return null;
+    if (source[position.brace] === "{") {
       const environment = environments.find(
-        (candidate) => source.startsWith(candidate, brace + 1) && source[brace + 1 + candidate.length] === "}",
+        (candidate) => source.startsWith(candidate, position.brace + 1) && source[position.brace + 1 + candidate.length] === "}",
       );
-      if (environment) return { start: commandStart, end: brace + environment.length + 2, environment };
+      if (environment) return { start: position.start, end: position.brace + environment.length + 2, environment };
     }
-    cursor = Math.max(brace, commandStart + commandText.length);
+    cursor = position.next;
   }
   return null;
 }
@@ -259,17 +256,23 @@ function findEnvironmentCommand(
   const commandText = `\\${command}`;
   let cursor = start;
   while (cursor < source.length) {
-    const commandStart = source.indexOf(commandText, cursor);
-    if (commandStart < 0) return null;
-    const brace = skipWhitespace(source, commandStart + commandText.length);
-    const environmentStart = brace + 1;
+    const position = findCommandPosition(source, commandText, cursor);
+    if (!position) return null;
+    const environmentStart = position.brace + 1;
     const environmentEnd = environmentStart + environment.length;
-    if (source[brace] === "{" && source.startsWith(environment, environmentStart) && source[environmentEnd] === "}") {
-      return { start: commandStart, end: environmentEnd + 1 };
+    if (source[position.brace] === "{" && source.startsWith(environment, environmentStart) && source[environmentEnd] === "}") {
+      return { start: position.start, end: environmentEnd + 1 };
     }
-    cursor = Math.max(brace, commandStart + commandText.length);
+    cursor = position.next;
   }
   return null;
+}
+
+function findCommandPosition(source: string, command: string, start: number): CommandSearchPosition | null {
+  const commandStart = source.indexOf(command, start);
+  if (commandStart < 0) return null;
+  const brace = skipWhitespace(source, commandStart + command.length);
+  return { start: commandStart, brace, next: Math.max(brace, commandStart + command.length) };
 }
 
 function environmentBodyStart(source: string, beginEnd: number): number {
@@ -294,7 +297,7 @@ function flatDelimitedGroupEnd(source: string, start: number, open: "[" | "{", c
   return null;
 }
 
-function balancedDelimitedGroupEnd(source: string, start: number, open: "[" | "{", close: "]" | "}", limit: number): number | null {
+export function balancedLatexGroupEnd(source: string, start: number, open: "[" | "{", close: "]" | "}", limit: number): number | null {
   if (source[start] !== open) return null;
   let depth = 1;
   for (let cursor = start + 1; cursor < limit; cursor += 1) {
@@ -303,6 +306,17 @@ function balancedDelimitedGroupEnd(source: string, start: number, open: "[" | "{
     if (depth === 0) return cursor + 1;
   }
   return null;
+}
+
+export function latexDocumentWindow(
+  source: string,
+  active = structuralLatexSource(source),
+): { readonly start: number; readonly end: number } {
+  const begin = /\\begin\s*\{document\}/u.exec(active);
+  if (!begin) return { start: 0, end: source.length };
+  const start = begin.index + begin[0].length;
+  const end = /\\end\s*\{document\}/u.exec(active.slice(start));
+  return { start, end: end ? start + end.index : source.length };
 }
 
 function skipWhitespace(source: string, start: number): number {

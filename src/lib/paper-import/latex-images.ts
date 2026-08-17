@@ -1,7 +1,7 @@
 import { latexArchiveMaximumPathCodeUnits, type LatexArchiveInspection, type LatexIncludeReference } from "./latex-archive";
 import { LatexConversionError } from "./latex-contracts";
 import { comparePortableText, resolvePortablePath } from "./portable-path";
-import { imageLatexSource, structuralLatexSource } from "./latex-source";
+import { balancedLatexGroupEnd, imageLatexSource, latexDocumentWindow } from "./latex-source";
 
 export const latexImageMaximumCandidateProbes = 100_000;
 export const latexImageMaximumRequestedPathCodeUnits = latexArchiveMaximumPathCodeUnits;
@@ -58,7 +58,7 @@ export function resolveLatexImageReferences(
   const reachable = new Set(sourcePaths);
   const imagePaths = new Set(inspection.files.filter((file) => file.kind === "image").map((file) => file.path));
   const rootSource = requiredSource(inspection, rootPath);
-  const rootWindow = documentWindow(rootSource);
+  const rootWindow = latexDocumentWindow(rootSource);
   const resolutionBudget: ImageResolutionBudget = {
     candidateProbes: 0,
     searchFolders: 0,
@@ -77,7 +77,7 @@ export function resolveLatexImageReferences(
     if (visited.has(sourcePath) || !reachable.has(sourcePath)) return;
     visited.add(sourcePath);
     const source = requiredSource(inspection, sourcePath);
-    const window = sourcePath === rootPath ? documentWindow(source) : { start: 0, end: source.length };
+    const window = sourcePath === rootPath ? latexDocumentWindow(source) : { start: 0, end: source.length };
     const events: SourceEvent[] = [
       ...graphicPathOccurrences(source, window, resolutionBudget).map((occurrence) => ({
         kind: "graphic-path" as const,
@@ -138,25 +138,32 @@ function graphicPathOccurrences(source: string, window: SourceWindow, resolution
     const outer = delimitedGroup(active, outerStart, "{", "}", window.end);
     if (!outer) break;
     cursor = outer.end;
-    const folders: string[] = [];
-    let folderGroups = 0;
-    let folderStart = outer.bodyStart;
-    while (folderStart < outer.bodyEnd && active[folderStart] === "{") {
-      const folder = delimitedGroup(active, folderStart, "{", "}", outer.bodyEnd);
-      if (!folder) break;
-      folderGroups += 1;
-      const authoredLength = folder.bodyEnd - folder.bodyStart;
-      assertImagePathLength(authoredLength, "search path");
-      acceptSearchFolder(resolutionBudget, authoredLength);
-      const authored = source.slice(folder.bodyStart, folder.bodyEnd);
-      const normalized = authored.trim().replace(/^\.\//u, "").replace(/\/$/u, "");
-      if (normalized) folders.push(normalized);
-      folderStart = folder.end;
-    }
-    if (folderStart !== outer.bodyEnd || folderGroups === 0) continue;
+    const folders = graphicPathFolders(source, active, outer, resolutionBudget);
+    if (!folders) continue;
     occurrences.push({ start, end: outer.end, folders });
   }
   return occurrences;
+}
+
+function graphicPathFolders(
+  source: string,
+  active: string,
+  outer: DelimitedGroup,
+  resolutionBudget: ImageResolutionBudget,
+): string[] | null {
+  const folders: string[] = [];
+  let folderStart = outer.bodyStart;
+  while (folderStart < outer.bodyEnd && active[folderStart] === "{") {
+    const folder = delimitedGroup(active, folderStart, "{", "}", outer.bodyEnd);
+    if (!folder) return null;
+    const authoredLength = folder.bodyEnd - folder.bodyStart;
+    assertImagePathLength(authoredLength, "search path");
+    acceptSearchFolder(resolutionBudget, authoredLength);
+    const normalized = source.slice(folder.bodyStart, folder.bodyEnd).trim().replace(/^\.\//u, "").replace(/\/$/u, "");
+    if (normalized) folders.push(normalized);
+    folderStart = folder.end;
+  }
+  return folderStart === outer.bodyEnd && folders.length > 0 ? folders : null;
 }
 
 function imageOccurrences(source: string, window: SourceWindow): ImageOccurrence[] {
@@ -236,29 +243,14 @@ function assertImagePathLength(codeUnits: number, kind: "reference" | "search pa
 }
 
 function delimitedGroup(source: string, start: number, open: "[" | "{", close: "]" | "}", limit: number): DelimitedGroup | null {
-  if (source[start] !== open) return null;
-  let depth = 1;
-  for (let cursor = start + 1; cursor < limit; cursor += 1) {
-    if (source[cursor] === open) depth += 1;
-    else if (source[cursor] === close) depth -= 1;
-    if (depth === 0) return { bodyStart: start + 1, bodyEnd: cursor, end: cursor + 1 };
-  }
-  return null;
+  const end = balancedLatexGroupEnd(source, start, open, close, limit);
+  return end === null ? null : { bodyStart: start + 1, bodyEnd: end - 1, end };
 }
 
 function skipWhitespace(source: string, start: number, limit: number): number {
   let cursor = start;
   while (cursor < limit && /\s/u.test(source[cursor]!)) cursor += 1;
   return cursor;
-}
-
-function documentWindow(source: string): SourceWindow {
-  const active = structuralLatexSource(source);
-  const begin = /\\begin\s*\{document\}/u.exec(active);
-  if (!begin) return { start: 0, end: source.length };
-  const start = begin.index + begin[0].length;
-  const end = /\\end\s*\{document\}/u.exec(active.slice(start));
-  return { start, end: end ? start + end.index : source.length };
 }
 
 function requiredSource(inspection: LatexArchiveInspection, path: string): string {

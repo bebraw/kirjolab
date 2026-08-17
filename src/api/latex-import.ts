@@ -10,6 +10,7 @@ import { hasProjectImageSignature } from "../domain/project/project-image-signat
 import { isSha256Hex, sha256Bytes } from "../domain/sha256";
 import { isCreateWorkspaceInput, type ProjectAsset } from "../domain/workspace/workspace";
 import type { AuthIdentity } from "../security/auth";
+import { readBoundedRequestBytes } from "./request-body";
 import {
   latexArchiveManifestSha256,
   latexConverterVersion,
@@ -45,30 +46,11 @@ export async function handleLatexImportApi(request: Request, env: Env, identity:
 
 async function readLatexArchiveBytes(request: Request): Promise<Uint8Array> {
   if (!request.body) return new Uint8Array();
-  const reader = request.body.getReader();
-  const chunks: Uint8Array[] = [];
-  let byteLength = 0;
-  while (true) {
-    const result = await reader.read();
-    if (result.done) break;
-    byteLength += result.value.byteLength;
-    if (byteLength > latexArchiveMaximumCompressedBytes) {
-      try {
-        await reader.cancel();
-      } catch {
-        // Preserve the stable archive-size failure when request-stream teardown fails.
-      }
-      throw new LatexArchiveFailure("archive-size", "LaTeX archive must be between 1 byte and 20 MiB");
-    }
-    chunks.push(result.value);
-  }
-  const bytes = new Uint8Array(byteLength);
-  let offset = 0;
-  for (const chunk of chunks) {
-    bytes.set(chunk, offset);
-    offset += chunk.byteLength;
-  }
-  return bytes;
+  return await readBoundedRequestBytes(request.body, {
+    maximumBytes: latexArchiveMaximumCompressedBytes,
+    tooLarge: () => new LatexArchiveFailure("archive-size", "LaTeX archive must be between 1 byte and 20 MiB"),
+    preserveLimitErrorOnCancelFailure: true,
+  });
 }
 
 function validateImportRequest(request: Request, url: URL): Response | null {

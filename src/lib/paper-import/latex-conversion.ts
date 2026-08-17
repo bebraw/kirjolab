@@ -12,13 +12,8 @@ import {
 import { renderLatexProject, type LatexConversionSelection } from "./latex-renderer";
 import { assertLatexSemanticRecordLimit } from "./latex-semantic-limit";
 
-export {
-  defaultLatexConversionOptions,
-  latexConversionMaximumSemanticRecords,
-  latexConversionSchemaVersion,
-  latexConverterVersion,
-} from "./latex-contracts";
-export type { LatexConversionOptions, LatexConvertedFile, LatexProjectConversion } from "./latex-contracts";
+export { defaultLatexConversionOptions, latexConversionMaximumSemanticRecords, latexConverterVersion } from "./latex-contracts";
+export type { LatexConversionOptions, LatexProjectConversion } from "./latex-contracts";
 
 export function convertLatexProject(
   inspection: LatexArchiveInspection,

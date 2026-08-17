@@ -362,10 +362,7 @@ function twoPagePdfBytes(): Uint8Array {
   }
   const crossReferenceOffset = source.length;
   source += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
-  source += offsets
-    .slice(1)
-    .map((offset) => `${String(offset).padStart(10, "0")} 00000 n \n`)
-    .join("");
+  for (const offset of offsets.slice(1)) source += `${String(offset).padStart(10, "0")} 00000 n \n`;
   source += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${crossReferenceOffset}\n%%EOF\n`;
   return strToU8(source);
 }

@@ -18,8 +18,9 @@ import {
   latexMaximumTikzBlocks,
   latexMaximumTikzBytes,
 } from "./latex-contracts";
-import { resolveLatexImageReferences } from "./latex-images";
-import { displayMathOccurrences, latexSourceProjections, maskedLatex, structuralLatexSource } from "./latex-source";
+import { resolveLatexImageReferences, type LatexImageReferenceResolution } from "./latex-images";
+import { latexCommandArgument, matchingLatexBrace, skipLatexWhitespace } from "./latex-render-helpers";
+import { displayMathOccurrences, latexDocumentWindow, latexSourceProjections, maskedLatex, structuralLatexSource } from "./latex-source";
 import { comparePortableText } from "./portable-path";
 import { sha256Hex } from "./sha256";
 
@@ -59,16 +60,13 @@ export interface LatexConversionAsset {
   readonly bytes: Uint8Array;
 }
 
-const documentBegin = /\\begin\s*\{document\}/u;
-const documentEnd = /\\end\s*\{document\}/u;
-
 export function renderLatexProject(inspection: LatexArchiveInspection, selection: LatexConversionSelection): LatexRenderedProject {
   const root = inspection.files.find((file) => file.path === selection.rootPath && file.kind === "tex");
   if (!root || !inspection.rootCandidates.includes(selection.rootPath)) {
     throw new LatexConversionError("invalid-root-selection", `Selected LaTeX root is unavailable: ${selection.rootPath}`);
   }
   const rootText = root.text ?? "";
-  const rootWindow = documentWindow(rootText);
+  const rootWindow = latexDocumentWindow(rootText);
 
   const includesBySource = groupReferences(inspection.includes);
   const reachablePaths: string[] = [];
@@ -207,65 +205,102 @@ function referencedImages(
   readonly references: ReadonlyMap<string, readonly RenderedImageReference[]>;
   readonly diagnostics: readonly LatexImportDiagnostic[];
 } {
-  const { files } = inspection;
-  const imageFiles = new Map(files.filter((file) => file.kind === "image").map((file) => [file.path, file]));
-  const imageHashes = new Map<string, string>();
-  const assets = new Map<string, LatexConversionAsset>();
-  const assetHashes = new Map<string, string>();
-  const references = new Map<string, RenderedImageReference[]>();
-  const diagnostics: LatexImportDiagnostic[] = [];
-
-  for (const { sourcePath, requestedPath, start, end, candidates } of resolveLatexImageReferences(inspection, rootPath, sourcePaths)) {
-    if (candidates.length !== 1) {
-      addReference(sourcePath, { start, end, requestedPath, targetPath: null });
-      diagnostics.push({
-        code: candidates.length === 0 ? "missing-image" : "ambiguous-image",
-        severity: "warning",
-        path: sourcePath,
-        from: start,
-        to: end,
-        message:
-          candidates.length === 0
-            ? `Referenced figure was not found: ${requestedPath}`
-            : `Referenced figure matches more than one archive file: ${requestedPath}`,
-      });
-      continue;
-    }
-    const archivePath = candidates[0]!;
-    const image = imageFiles.get(archivePath)!;
-    const assetPath = archivePath.startsWith("figures/") ? archivePath : `figures/${archivePath.split("/").at(-1)!}`;
-    const assetKey = assetPath.toLowerCase();
-    const existing = assets.get(assetKey);
-    const imageHash = imageHashes.get(archivePath) ?? sha256Hex(image.bytes);
-    imageHashes.set(archivePath, imageHash);
-    if (existing && assetHashes.get(assetKey) !== imageHash) {
-      addReference(sourcePath, { start, end, requestedPath, targetPath: null });
-      diagnostics.push({
-        code: "ambiguous-image",
-        severity: "warning",
-        path: sourcePath,
-        message: `Referenced figures collide at project path: ${assetPath}`,
-      });
-      continue;
-    }
-    if (!existing) {
-      assets.set(assetKey, { path: assetPath, mediaType: imageMediaType(archivePath), bytes: image.bytes });
-      assetHashes.set(assetKey, imageHash);
-    }
-    addReference(sourcePath, { start, end, requestedPath, targetPath: existing?.path ?? assetPath });
+  const collection: ReferencedImageCollection = {
+    imageFiles: new Map(inspection.files.filter((file) => file.kind === "image").map((file) => [file.path, file])),
+    imageHashes: new Map(),
+    assets: new Map(),
+    assetHashes: new Map(),
+    references: new Map(),
+    diagnostics: [],
+  };
+  for (const resolution of resolveLatexImageReferences(inspection, rootPath, sourcePaths)) {
+    collectReferencedImage(collection, resolution);
   }
-  const markdownPathKeys = new Set([...markdownPaths.values()].map((path) => path.toLowerCase()));
-  for (const asset of assets.values()) {
+  assertDistinctImagePaths(collection.assets.values(), markdownPaths.values());
+  return {
+    assets: [...collection.assets.values()].sort((left, right) => comparePortableText(left.path, right.path)),
+    references: collection.references,
+    diagnostics: collection.diagnostics,
+  };
+}
+
+interface ReferencedImageCollection {
+  readonly imageFiles: ReadonlyMap<string, LatexArchiveFile>;
+  readonly imageHashes: Map<string, string>;
+  readonly assets: Map<string, LatexConversionAsset>;
+  readonly assetHashes: Map<string, string>;
+  readonly references: Map<string, RenderedImageReference[]>;
+  readonly diagnostics: LatexImportDiagnostic[];
+}
+
+function collectReferencedImage(collection: ReferencedImageCollection, resolution: LatexImageReferenceResolution): void {
+  if (resolution.candidates.length !== 1) {
+    addImageReference(collection.references, resolution, null);
+    collection.diagnostics.push(unresolvedImageDiagnostic(resolution));
+    return;
+  }
+
+  const archivePath = resolution.candidates[0]!;
+  const image = collection.imageFiles.get(archivePath)!;
+  const assetPath = archivePath.startsWith("figures/") ? archivePath : `figures/${archivePath.split("/").at(-1)!}`;
+  const assetKey = assetPath.toLowerCase();
+  const existing = collection.assets.get(assetKey);
+  const imageHash = collection.imageHashes.get(archivePath) ?? sha256Hex(image.bytes);
+  collection.imageHashes.set(archivePath, imageHash);
+
+  if (existing && collection.assetHashes.get(assetKey) !== imageHash) {
+    addImageReference(collection.references, resolution, null);
+    collection.diagnostics.push({
+      code: "ambiguous-image",
+      severity: "warning",
+      path: resolution.sourcePath,
+      message: `Referenced figures collide at project path: ${assetPath}`,
+    });
+    return;
+  }
+  if (!existing) {
+    collection.assets.set(assetKey, { path: assetPath, mediaType: imageMediaType(archivePath), bytes: image.bytes });
+    collection.assetHashes.set(assetKey, imageHash);
+  }
+  addImageReference(collection.references, resolution, existing?.path ?? assetPath);
+}
+
+function unresolvedImageDiagnostic(resolution: LatexImageReferenceResolution): LatexImportDiagnostic {
+  const missing = resolution.candidates.length === 0;
+  return {
+    code: missing ? "missing-image" : "ambiguous-image",
+    severity: "warning",
+    path: resolution.sourcePath,
+    from: resolution.start,
+    to: resolution.end,
+    message: missing
+      ? `Referenced figure was not found: ${resolution.requestedPath}`
+      : `Referenced figure matches more than one archive file: ${resolution.requestedPath}`,
+  };
+}
+
+function addImageReference(
+  references: Map<string, RenderedImageReference[]>,
+  resolution: LatexImageReferenceResolution,
+  targetPath: string | null,
+): void {
+  const reference = {
+    start: resolution.start,
+    end: resolution.end,
+    requestedPath: resolution.requestedPath,
+    targetPath,
+  };
+  const grouped = references.get(resolution.sourcePath);
+  if (grouped) grouped.push(reference);
+  else references.set(resolution.sourcePath, [reference]);
+}
+
+function assertDistinctImagePaths(assets: Iterable<LatexConversionAsset>, markdownPaths: Iterable<string>): void {
+  const markdownPathKeys = new Set([...markdownPaths].map((path) => path.toLowerCase()));
+  for (const asset of assets) {
     if (markdownPathKeys.has(asset.path.toLowerCase())) {
       throw new LatexConversionError("unsupported-environment", `Figure path collides with converted Markdown: ${asset.path}`);
     }
-  }
-  return { assets: [...assets.values()].sort((left, right) => comparePortableText(left.path, right.path)), references, diagnostics };
-
-  function addReference(sourcePath: string, reference: RenderedImageReference): void {
-    const grouped = references.get(sourcePath);
-    if (grouped) grouped.push(reference);
-    else references.set(sourcePath, [reference]);
   }
 }
 
@@ -288,26 +323,51 @@ function replaceSourceReferences(
   const current = markdownPaths.get(file.path);
   const sourceEnd = originalOffset + source.length;
   for (const reference of imageReferences) {
-    if (reference.start < originalOffset || reference.end > sourceEnd) continue;
-    const value =
-      reference.targetPath && current
-        ? `![Imported figure](${relativeMarkdownPath(current, reference.targetPath)})`
-        : `[Missing figure: ${reference.requestedPath}]`;
-    replacements.push({ start: reference.start - originalOffset, end: reference.end - originalOffset, value });
+    const replacement = imageReferenceReplacement(reference, current, originalOffset, sourceEnd);
+    if (replacement) replacements.push(replacement);
   }
   for (const include of includes) {
-    if (include.from < originalOffset || include.to > sourceEnd) continue;
-    if (!include.resolvedPath || !current) continue;
-    const target = markdownPaths.get(include.resolvedPath);
-    if (!target) continue;
-    replacements.push({
-      start: include.from - originalOffset,
-      end: include.to - originalOffset,
-      value: `\n\n::include[${relativeMarkdownPath(current, target)}]\n\n`,
-    });
+    const replacement = includeReferenceReplacement(include, current, markdownPaths, originalOffset, sourceEnd);
+    if (replacement) replacements.push(replacement);
   }
   replacements.sort((left, right) => left.start - right.start || left.end - right.end);
   return applyTextReplacements(source, replacements);
+}
+
+function imageReferenceReplacement(
+  reference: RenderedImageReference,
+  currentPath: string | undefined,
+  sourceStart: number,
+  sourceEnd: number,
+): TextReplacement | null {
+  if (outsideSourceRange(reference.start, reference.end, sourceStart, sourceEnd)) return null;
+  const value =
+    reference.targetPath && currentPath
+      ? `![Imported figure](${relativeMarkdownPath(currentPath, reference.targetPath)})`
+      : `[Missing figure: ${reference.requestedPath}]`;
+  return { start: reference.start - sourceStart, end: reference.end - sourceStart, value };
+}
+
+function includeReferenceReplacement(
+  include: LatexIncludeReference,
+  currentPath: string | undefined,
+  markdownPaths: ReadonlyMap<string, string>,
+  sourceStart: number,
+  sourceEnd: number,
+): TextReplacement | null {
+  if (outsideSourceRange(include.from, include.to, sourceStart, sourceEnd)) return null;
+  if (!include.resolvedPath || !currentPath) return null;
+  const targetPath = markdownPaths.get(include.resolvedPath);
+  if (!targetPath) return null;
+  return {
+    start: include.from - sourceStart,
+    end: include.to - sourceStart,
+    value: `\n\n::include[${relativeMarkdownPath(currentPath, targetPath)}]\n\n`,
+  };
+}
+
+function outsideSourceRange(start: number, end: number, sourceStart: number, sourceEnd: number): boolean {
+  return start < sourceStart || end > sourceEnd;
 }
 
 function imageMediaType(path: string): LatexConversionAsset["mediaType"] {
@@ -328,7 +388,7 @@ function convertLatexFile(
   imageReferences: readonly RenderedImageReference[],
 ): { readonly markdown: string; readonly diagnostics: readonly LatexImportDiagnostic[]; readonly tikzBlocks: number } {
   const originalSource = file.text ?? "";
-  const sourceWindow = root ? documentWindow(originalSource) : { start: 0, end: originalSource.length };
+  const sourceWindow = root ? latexDocumentWindow(originalSource) : { start: 0, end: originalSource.length };
   let source = originalSource.slice(sourceWindow.start, sourceWindow.end);
   const diagnostics: LatexImportDiagnostic[] = [];
   const footnotes: string[] = [];
@@ -471,51 +531,110 @@ interface PreparedBoxplotMark {
   readonly max: number;
 }
 
+interface PreparedBoxplotMetadata {
+  readonly xLabel: string | undefined;
+  readonly yLabel: string | undefined;
+  readonly title: string | undefined;
+}
+
 function translatePreparedBoxplot(source: string, caption?: string, id?: string): string | null {
   const axis = axisOptions(source);
   if (!axis) return null;
+  if (!isHorizontalBoxplot(axis)) return null;
+
+  const labels = preparedBoxplotLabels(axis);
+  if (!labels) return null;
+  const marks = preparedBoxplotMarks(source, labels);
+  if (!marks) return null;
+  const metadata = preparedBoxplotMetadata(axis);
+  if (!metadata) return null;
+  return renderPreparedBoxplot(marks, metadata, caption, id);
+}
+
+function isHorizontalBoxplot(axis: string): boolean {
   const direction = /boxplot\s*\/\s*draw\s+direction\s*=\s*([xy])/u.exec(axis)?.[1];
-  if (direction && direction !== "x") return null;
+  return direction === undefined || direction === "x";
+}
+
+function preparedBoxplotLabels(axis: string): readonly string[] | null {
   const labelsSource = /yticklabels\s*=\s*\{([^{}]*)\}/u.exec(axis)?.[1];
   if (!labelsSource) return null;
-  const labels = labelsSource.split(",").map(normalizePgfText);
-  if (labels.some((label) => label === null)) return null;
+  const labels: string[] = [];
+  for (const value of labelsSource.split(",")) {
+    const label = normalizePgfText(value);
+    if (label === null) return null;
+    labels.push(label);
+  }
+  return labels;
+}
 
+function preparedBoxplotMarks(source: string, labels: readonly string[]): readonly PreparedBoxplotMark[] | null {
   const summaries = preparedBoxplotSummaries(source);
   if (!summaries || summaries.length === 0 || summaries.length > 32 || summaries.length !== labels.length) return null;
   const marks: PreparedBoxplotMark[] = [];
   for (const [index, summary] of summaries.entries()) {
-    const prepared = /boxplot\s+prepared\s*=\s*\{([^{}]*)\}/u.exec(summary)?.[1];
     const label = labels[index];
-    if (!prepared || !label) return null;
-    const values = new Map(
-      prepared.split(",").map((item) => {
-        const [name, ...value] = item.split("=");
-        return [name?.trim().toLowerCase() ?? "", value.join("=").trim()] as const;
-      }),
-    );
-    const min = pgfNumber(values.get("lower whisker"));
-    const q1 = pgfNumber(values.get("lower quartile"));
-    const median = pgfNumber(values.get("median"));
-    const q3 = pgfNumber(values.get("upper quartile"));
-    const max = pgfNumber(values.get("upper whisker"));
-    if (min === null || q1 === null || median === null || q3 === null || max === null) return null;
-    if (!(min <= q1 && q1 <= median && median <= q3 && q3 <= max)) return null;
-    marks.push({ label, min, q1, median, q3, max });
+    if (!label) return null;
+    const mark = preparedBoxplotMark(summary, label);
+    if (!mark) return null;
+    marks.push(mark);
   }
+  return marks;
+}
 
+function preparedBoxplotMark(summary: string, label: string): PreparedBoxplotMark | null {
+  const prepared = /boxplot\s+prepared\s*=\s*\{([^{}]*)\}/u.exec(summary)?.[1];
+  if (!prepared) return null;
+  const values = preparedBoxplotValues(prepared);
+  if (!values || !orderedBoxplotValues(values)) return null;
+  return { label, ...values };
+}
+
+function preparedBoxplotValues(prepared: string): Omit<PreparedBoxplotMark, "label"> | null {
+  const properties = new Map(
+    prepared.split(",").map((item) => {
+      const [name, ...value] = item.split("=");
+      return [name?.trim().toLowerCase() ?? "", value.join("=").trim()] as const;
+    }),
+  );
+  const min = pgfNumber(properties.get("lower whisker"));
+  if (min === null) return null;
+  const q1 = pgfNumber(properties.get("lower quartile"));
+  if (q1 === null) return null;
+  const median = pgfNumber(properties.get("median"));
+  if (median === null) return null;
+  const q3 = pgfNumber(properties.get("upper quartile"));
+  if (q3 === null) return null;
+  const max = pgfNumber(properties.get("upper whisker"));
+  return max === null ? null : { min, q1, median, q3, max };
+}
+
+function orderedBoxplotValues(values: Omit<PreparedBoxplotMark, "label">): boolean {
+  return values.min <= values.q1 && values.q1 <= values.median && values.median <= values.q3 && values.q3 <= values.max;
+}
+
+function preparedBoxplotMetadata(axis: string): PreparedBoxplotMetadata | null {
   const xLabel = axisText(axis, "xlabel");
   const yLabel = axisText(axis, "ylabel");
   if (xLabel === null || yLabel === null) return null;
   const title = axisText(axis, "title");
   if (title === null) return null;
+  return { xLabel, yLabel, title };
+}
+
+function renderPreparedBoxplot(
+  marks: readonly PreparedBoxplotMark[],
+  metadata: PreparedBoxplotMetadata,
+  caption: string | undefined,
+  id: string | undefined,
+): string {
   const attributes = ['kind="boxplot"', "version=1"];
-  if (xLabel) attributes.push(`x-label="${xLabel}"`);
-  if (yLabel) attributes.push(`y-label="${yLabel}"`);
+  if (metadata.xLabel) attributes.push(`x-label="${metadata.xLabel}"`);
+  if (metadata.yLabel) attributes.push(`y-label="${metadata.yLabel}"`);
   const boxes = marks.map(
     (mark) => `::box[${mark.label}]{min=${mark.min} q1=${mark.q1} median=${mark.median} q3=${mark.q3} max=${mark.max}}`,
   );
-  return `:::figure{${attributes.join(" ")}}\n${boxes.join("\n")}\n::caption[${caption || title || "Imported PGFPlots boxplot."}]\n:::${id ? `\n::label[${id}]` : ""}`;
+  return `:::figure{${attributes.join(" ")}}\n${boxes.join("\n")}\n::caption[${caption || metadata.title || "Imported PGFPlots boxplot."}]\n:::${id ? `\n::label[${id}]` : ""}`;
 }
 
 function axisOptions(source: string): string | null {
@@ -574,15 +693,6 @@ function pgfNumber(value: string | undefined): number | null {
   if (value === undefined || !/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/iu.test(value)) return null;
   const parsed = Number(value);
   return Number.isFinite(parsed) && Math.abs(parsed) <= 1e12 ? parsed : null;
-}
-
-function documentWindow(source: string): { readonly start: number; readonly end: number } {
-  const active = structuralLatexSource(source);
-  const begin = documentBegin.exec(active);
-  if (!begin) return { start: 0, end: source.length };
-  const start = begin.index + begin[0].length;
-  const end = documentEnd.exec(active.slice(start));
-  return { start, end: end ? start + end.index : source.length };
 }
 
 function insideWindow(window: { readonly start: number; readonly end: number }, offset: number): boolean {
@@ -829,11 +939,11 @@ function replaceSectionCommands(source: string): string {
   for (const occurrence of commandGroupOccurrences(source, Object.keys(levels), true)) {
     let end = occurrence.end;
     let label: string | undefined;
-    const labelStart = skipWhitespace(source, end);
+    const labelStart = skipLatexWhitespace(source, end);
     if (source.startsWith("\\label", labelStart) && !/[A-Za-z]/u.test(source[labelStart + "\\label".length] ?? "")) {
-      const argument = commandArgument(source, labelStart + "\\label".length);
+      const argument = latexCommandArgument(source, labelStart + "\\label".length);
       if (argument.kind === "open") {
-        const close = matchingBrace(source, argument.open);
+        const close = matchingLatexBrace(source, argument.open);
         if (close >= 0) {
           label = source.slice(argument.open + 1, close);
           end = close + 1;
@@ -853,9 +963,9 @@ function replaceSectionCommands(source: string): string {
 function replaceHrefCommands(source: string): string {
   const replacements: TextReplacement[] = [];
   for (const occurrence of commandGroupOccurrences(source, ["href"])) {
-    const open = skipWhitespace(source, occurrence.end);
+    const open = skipLatexWhitespace(source, occurrence.end);
     if (source[open] !== "{") continue;
-    const close = matchingBrace(source, open);
+    const close = matchingLatexBrace(source, open);
     if (close < 0) break;
     const target = source.slice(occurrence.valueStart, occurrence.valueEnd);
     const label = source.slice(open + 1, close);
@@ -922,13 +1032,13 @@ function commandGroupOccurrences(source: string, commands: readonly string[], al
     const match = pattern.exec(source);
     if (!match) break;
     const afterCommand = match.index + match[0].length + (allowStar && source[match.index + match[0].length] === "*" ? 1 : 0);
-    const argument = commandArgument(source, afterCommand);
+    const argument = latexCommandArgument(source, afterCommand);
     if (argument.kind === "malformed") break;
     if (argument.kind === "absent") {
       cursor = Math.max(match.index + match[0].length, argument.next);
       continue;
     }
-    const close = matchingBrace(source, argument.open);
+    const close = matchingLatexBrace(source, argument.open);
     if (close < 0) break;
     occurrences.push({
       name: match[1] ?? "",
@@ -942,25 +1052,6 @@ function commandGroupOccurrences(source: string, commands: readonly string[], al
   return occurrences;
 }
 
-type CommandArgument =
-  { readonly kind: "open"; readonly open: number } | { readonly kind: "absent"; readonly next: number } | { readonly kind: "malformed" };
-
-function commandArgument(source: string, from: number): CommandArgument {
-  let cursor = skipWhitespace(source, from);
-  while (source[cursor] === "[") {
-    const close = source.indexOf("]", cursor + 1);
-    if (close < 0) return { kind: "malformed" };
-    cursor = skipWhitespace(source, close + 1);
-  }
-  return source[cursor] === "{" ? { kind: "open", open: cursor } : { kind: "absent", next: cursor };
-}
-
-function skipWhitespace(source: string, from: number): number {
-  let cursor = from;
-  while (cursor < source.length && /\s/u.test(source[cursor]!)) cursor += 1;
-  return cursor;
-}
-
 function applyTextReplacements(source: string, replacements: readonly TextReplacement[]): string {
   if (replacements.length === 0) return source;
   const converted: string[] = [];
@@ -972,20 +1063,6 @@ function applyTextReplacements(source: string, replacements: readonly TextReplac
   }
   converted.push(source.slice(cursor));
   return converted.join("");
-}
-
-function matchingBrace(source: string, open: number): number {
-  let depth = 0;
-  for (let index = open; index < source.length; index += 1) {
-    if (source[index] === "\\") {
-      index += 1;
-      continue;
-    }
-    if (source[index] === "{") depth += 1;
-    else if (source[index] === "}") depth -= 1;
-    if (depth === 0) return index;
-  }
-  return -1;
 }
 
 function uniqueCommandMatches(source: string): RegExpMatchArray[] {

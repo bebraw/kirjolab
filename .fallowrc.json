@@ -6,6 +6,7 @@
     "src/client/app.ts",
     "src/client/review-app.ts",
     "src/client/service-worker.ts",
+    "src/lib/paper-import/index.ts",
     "src/test-support/cloudflare-workers.ts",
     "scripts/citation-provider-diagnostics-entry.ts",
     "scripts/codemirror-parity-spike.ts",

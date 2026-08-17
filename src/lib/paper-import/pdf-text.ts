@@ -11,7 +11,7 @@ export const pdfTextHardMaximumInputBytes = 25 * 1024 * 1024;
 export const pdfTextHardMaximumPages = 200;
 export const pdfTextHardMaximumPageTextCodeUnits = 100_000;
 export const pdfTextHardMaximumDocumentTextCodeUnits = pdfTextHardMaximumPages * pdfTextHardMaximumPageTextCodeUnits;
-export const pdfTextSparseNativeTextCodeUnits = 24;
+const pdfTextSparseNativeTextCodeUnits = 24;
 
 export type PdfTextExtractionFailureCode =
   "pdf-encrypted" | "pdf-input-size" | "pdf-invalid-limits" | "pdf-malformed" | "pdf-runtime" | "pdf-signature";
@@ -84,6 +84,16 @@ interface EffectivePdfTextExtractionLimits {
   readonly maximumDocumentTextCodeUnits: number;
 }
 
+type SettledPdfExtraction =
+  { readonly ok: true; readonly result: PdfTextExtractionV1 } | { readonly ok: false; readonly failure: PdfTextExtractionFailure };
+
+interface ExtractedPdfPage {
+  readonly page: PdfTextExtractionPageV1;
+  readonly diagnostics: readonly PdfTextDiagnostic[];
+  readonly truncated: boolean;
+  readonly documentLimitReached: boolean;
+}
+
 export function createPdfTextExtractor(runtime: PdfTextRuntime): PdfTextExtractor {
   return async (bytes, limits) => {
     const effectiveLimits = resolvePdfTextExtractionLimits(limits);
@@ -107,81 +117,7 @@ export function createPdfTextExtractor(runtime: PdfTextRuntime): PdfTextExtracto
     } catch (error) {
       throw mapPdfExtractionFailure(error);
     }
-    const extractionOutcome = await (async (): Promise<PdfTextExtractionV1> => {
-      const documentModel = await task.promise;
-      const pages: PdfTextExtractionPageV1[] = [];
-      const diagnostics: PdfTextDiagnostic[] = [];
-      const pageLimit = effectiveLimits.maximumPages;
-      const pagesToExtract = Math.min(documentModel.numPages, pageLimit);
-      const pagesTruncated = documentModel.numPages > pagesToExtract;
-      let truncated = pagesTruncated;
-      if (pagesTruncated) {
-        diagnostics.push({
-          code: "pdf-page-limit",
-          severity: "warning",
-          message: `PDF text extraction stopped after ${pagesToExtract} of ${documentModel.numPages} pages`,
-        });
-      }
-      let documentTextCodeUnits = 0;
-      for (let pageNumber = 1; pageNumber <= pagesToExtract; pageNumber += 1) {
-        const remainingDocumentCodeUnits = effectiveLimits.maximumDocumentTextCodeUnits - documentTextCodeUnits;
-        const page = await documentModel.getPage(pageNumber);
-        try {
-          const maximumPageCodeUnits = Math.min(effectiveLimits.maximumPageTextCodeUnits, remainingDocumentCodeUnits);
-          const extractedPage = await readNormalizedPageText(page, maximumPageCodeUnits);
-          const warnings: PdfTextPageWarningCode[] = [];
-          if (extractedPage.truncated) {
-            if (remainingDocumentCodeUnits <= effectiveLimits.maximumPageTextCodeUnits) {
-              warnings.push("document-text-truncated");
-              diagnostics.push(documentTextLimitDiagnostic(effectiveLimits.maximumDocumentTextCodeUnits, pageNumber));
-            } else {
-              warnings.push("page-text-truncated");
-              diagnostics.push({
-                code: "pdf-page-text-limit",
-                severity: "warning",
-                pageNumber,
-                message: `PDF page ${pageNumber} native text was truncated at ${effectiveLimits.maximumPageTextCodeUnits} UTF-16 code units`,
-              });
-            }
-            truncated = true;
-          } else if (extractedPage.text.length === 0) {
-            warnings.push("no-native-text");
-          } else if (extractedPage.text.length < pdfTextSparseNativeTextCodeUnits) {
-            warnings.push("sparse-native-text");
-          }
-          documentTextCodeUnits += extractedPage.text.length;
-          pages.push({ pageNumber, text: extractedPage.text, warnings });
-          if (extractedPage.truncated && remainingDocumentCodeUnits <= effectiveLimits.maximumPageTextCodeUnits) {
-            break;
-          }
-          if (documentTextCodeUnits >= effectiveLimits.maximumDocumentTextCodeUnits && pageNumber < pagesToExtract) {
-            diagnostics.push(documentTextLimitDiagnostic(effectiveLimits.maximumDocumentTextCodeUnits));
-            truncated = true;
-            break;
-          }
-        } finally {
-          page.cleanup();
-        }
-      }
-      if (!pagesTruncated && pages.length > 0 && pages.every((page) => page.warnings.includes("no-native-text"))) {
-        diagnostics.push({
-          code: "pdf-no-native-text",
-          severity: "warning",
-          message: "PDF has no extractable native text; it may be scanned",
-        });
-      }
-      return {
-        schemaVersion: 1,
-        sha256,
-        pageCount: documentModel.numPages,
-        pages,
-        diagnostics,
-        truncated,
-      };
-    })().then(
-      (result) => ({ ok: true, result }) as const,
-      (error: unknown) => ({ failure: mapPdfExtractionFailure(error), ok: false }) as const,
-    );
+    const extractionOutcome = await settlePdfExtraction(extractPdfDocument(task.promise, effectiveLimits, sha256));
     try {
       await task.destroy();
     } catch (error) {
@@ -189,6 +125,108 @@ export function createPdfTextExtractor(runtime: PdfTextRuntime): PdfTextExtracto
     }
     if (!extractionOutcome.ok) throw extractionOutcome.failure;
     return extractionOutcome.result;
+  };
+}
+
+async function settlePdfExtraction(pending: Promise<PdfTextExtractionV1>): Promise<SettledPdfExtraction> {
+  try {
+    return { ok: true, result: await pending };
+  } catch (error) {
+    return { failure: mapPdfExtractionFailure(error), ok: false };
+  }
+}
+
+async function extractPdfDocument(
+  pendingDocument: Promise<PdfTextDocument>,
+  limits: EffectivePdfTextExtractionLimits,
+  sha256: string,
+): Promise<PdfTextExtractionV1> {
+  const documentModel = await pendingDocument;
+  const pages: PdfTextExtractionPageV1[] = [];
+  const pagesToExtract = Math.min(documentModel.numPages, limits.maximumPages);
+  const pagesTruncated = documentModel.numPages > pagesToExtract;
+  const diagnostics: PdfTextDiagnostic[] = pagesTruncated
+    ? [
+        {
+          code: "pdf-page-limit",
+          severity: "warning",
+          message: `PDF text extraction stopped after ${pagesToExtract} of ${documentModel.numPages} pages`,
+        },
+      ]
+    : [];
+  let documentTextCodeUnits = 0;
+  let truncated = pagesTruncated;
+
+  for (let pageNumber = 1; pageNumber <= pagesToExtract; pageNumber += 1) {
+    const remaining = limits.maximumDocumentTextCodeUnits - documentTextCodeUnits;
+    const extracted = await extractPdfPage(documentModel, pageNumber, remaining, limits);
+    pages.push(extracted.page);
+    diagnostics.push(...extracted.diagnostics);
+    documentTextCodeUnits += extracted.page.text.length;
+    truncated ||= extracted.truncated;
+    if (extracted.documentLimitReached) break;
+    if (documentTextCodeUnits >= limits.maximumDocumentTextCodeUnits && pageNumber < pagesToExtract) {
+      diagnostics.push(documentTextLimitDiagnostic(limits.maximumDocumentTextCodeUnits));
+      truncated = true;
+      break;
+    }
+  }
+  if (!pagesTruncated && pages.length > 0 && pages.every((page) => page.warnings.includes("no-native-text"))) {
+    diagnostics.push({
+      code: "pdf-no-native-text",
+      severity: "warning",
+      message: "PDF has no extractable native text; it may be scanned",
+    });
+  }
+  return { schemaVersion: 1, sha256, pageCount: documentModel.numPages, pages, diagnostics, truncated };
+}
+
+async function extractPdfPage(
+  documentModel: PdfTextDocument,
+  pageNumber: number,
+  remainingDocumentCodeUnits: number,
+  limits: EffectivePdfTextExtractionLimits,
+): Promise<ExtractedPdfPage> {
+  const page = await documentModel.getPage(pageNumber);
+  try {
+    const maximumPageCodeUnits = Math.min(limits.maximumPageTextCodeUnits, remainingDocumentCodeUnits);
+    const extracted = await readNormalizedPageText(page, maximumPageCodeUnits);
+    return classifyExtractedPage(extracted, pageNumber, remainingDocumentCodeUnits, limits);
+  } finally {
+    page.cleanup();
+  }
+}
+
+function classifyExtractedPage(
+  extracted: NormalizedPageText,
+  pageNumber: number,
+  remainingDocumentCodeUnits: number,
+  limits: EffectivePdfTextExtractionLimits,
+): ExtractedPdfPage {
+  const warnings: PdfTextPageWarningCode[] = [];
+  const diagnostics: PdfTextDiagnostic[] = [];
+  const documentLimitReached = extracted.truncated && remainingDocumentCodeUnits <= limits.maximumPageTextCodeUnits;
+  if (documentLimitReached) {
+    warnings.push("document-text-truncated");
+    diagnostics.push(documentTextLimitDiagnostic(limits.maximumDocumentTextCodeUnits, pageNumber));
+  } else if (extracted.truncated) {
+    warnings.push("page-text-truncated");
+    diagnostics.push({
+      code: "pdf-page-text-limit",
+      severity: "warning",
+      pageNumber,
+      message: `PDF page ${pageNumber} native text was truncated at ${limits.maximumPageTextCodeUnits} UTF-16 code units`,
+    });
+  } else if (extracted.text.length === 0) {
+    warnings.push("no-native-text");
+  } else if (extracted.text.length < pdfTextSparseNativeTextCodeUnits) {
+    warnings.push("sparse-native-text");
+  }
+  return {
+    page: { pageNumber, text: extracted.text, warnings },
+    diagnostics,
+    truncated: extracted.truncated,
+    documentLimitReached,
   };
 }
 
@@ -250,23 +288,27 @@ async function readNormalizedPageText(page: PdfTextPage, maximumCodeUnits: numbe
       const result = await reader.read();
       if (result.done) return { text, truncated: false };
       for (const item of result.value.items) {
-        if (!hasText(item)) continue;
-        const normalizedItem = item.str.replaceAll(/\s+/gu, " ").trim();
-        if (normalizedItem.length === 0) continue;
-        const addition = `${text.length === 0 ? "" : " "}${normalizedItem}`;
-        const remainingCodeUnits = maximumCodeUnits - text.length;
-        if (addition.length > remainingCodeUnits) {
-          text += utf16Prefix(addition, remainingCodeUnits);
-          text = text.trimEnd();
-          await reader.cancel();
-          return { text, truncated: true };
-        }
-        text += addition;
+        const appended = appendPageText(text, item, maximumCodeUnits);
+        if (!appended) continue;
+        text = appended.text;
+        if (!appended.truncated) continue;
+        await reader.cancel();
+        return appended;
       }
     }
   } finally {
     reader.releaseLock();
   }
+}
+
+function appendPageText(text: string, item: unknown, maximumCodeUnits: number): NormalizedPageText | null {
+  if (!hasText(item)) return null;
+  const normalizedItem = item.str.replaceAll(/\s+/gu, " ").trim();
+  if (normalizedItem.length === 0) return null;
+  const addition = `${text.length === 0 ? "" : " "}${normalizedItem}`;
+  const remainingCodeUnits = maximumCodeUnits - text.length;
+  if (addition.length <= remainingCodeUnits) return { text: text + addition, truncated: false };
+  return { text: (text + utf16Prefix(addition, remainingCodeUnits)).trimEnd(), truncated: true };
 }
 
 function documentTextLimitDiagnostic(maximumCodeUnits: number, pageNumber?: number): PdfTextDiagnostic {

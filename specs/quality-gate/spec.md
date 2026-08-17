@@ -226,6 +226,9 @@ failures quickly during normal development.
 - Fallow must register esbuild-only diagnostic/spike inputs and the unit-test
   Cloudflare runtime shim as entry points, and must not classify dependencies
   used exclusively by development scripts as production dependencies.
+- Fallow may register a source-local library barrel as an entry point only when
+  its feature spec defines that barrel as an intentional public contract;
+  internal modules must not use that convention to hide unused exports.
 - Fallow complexity and duplication diagnostics must exclude unit and end-to-end
   test files; test readability remains protected by formatting, linting,
   typechecking, and execution without penalizing deliberate exact-fixture

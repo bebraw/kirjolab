@@ -121,7 +121,7 @@ LaTeX as semantic structure and PDF as page and visual authority.
       provenance, archive-security, and deterministic PDF extraction behavior.
 - [x] Focused unit, coverage, Workers-runtime, and browser tests cover the public
       contracts and reviewed Kirjolab workflow.
-- [ ] The full native quality gate completes without a repository dependency-
+- [x] The full native quality gate completes without a repository dependency-
       audit blocker.
 
 ### Regression Guardrails
@@ -143,6 +143,9 @@ LaTeX as semantic structure and PDF as page and visual authority.
   bytes, or sends content to a model.
 - Conformance expectations never depend on locale ordering, current time,
   randomness, or Kirjolab application state.
+- The package-ready `index.ts` remains a Fallow entry point so intentional
+  public contracts are not confused with dead internal exports; internal
+  modules do not retain unused compatibility re-exports.
 
 ### Scenarios
 

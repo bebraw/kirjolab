@@ -7,34 +7,41 @@ import type {
   LatexEquationInventory,
   LatexFigureInventory,
   LatexLabelInventory,
+  LatexProjectConversion,
   LatexReferenceInventory,
   LatexSectionInventory,
-  LatexSourceFingerprint,
   LatexTableInventory,
   PaperSourceRange,
   SourcedLatexValue,
 } from "./latex-contracts";
 import { LatexConversionError, latexMaximumCitationKeys } from "./latex-contracts";
 import type { LatexConversionReport } from "./latex-renderer";
-import { resolveLatexImageReferences } from "./latex-images";
-import { displayMathOccurrences, latexSourceProjections, maskedLatex, type LatexLiteralEnvironmentOccurrence } from "./latex-source";
+import { resolveLatexImageReferences, type LatexImageReferenceResolution } from "./latex-images";
+import {
+  displayMathOccurrences,
+  latexDocumentWindow,
+  latexSourceProjections,
+  maskedLatex,
+  type LatexLiteralEnvironmentOccurrence,
+} from "./latex-source";
 import { sha256Hex } from "./sha256";
 
-export interface LatexSemanticInventory {
-  readonly metadata: LatexDocumentMetadata;
-  readonly abstracts: readonly SourcedLatexValue[];
-  readonly sections: readonly LatexSectionInventory[];
-  readonly citations: readonly LatexCitationInventory[];
-  readonly bibliographyEntries: readonly LatexBibliographyEntryInventory[];
-  readonly labels: readonly LatexLabelInventory[];
-  readonly references: readonly LatexReferenceInventory[];
-  readonly equations: readonly LatexEquationInventory[];
-  readonly tables: readonly LatexTableInventory[];
-  readonly codeBlocks: readonly LatexCodeBlockInventory[];
-  readonly footnotes: readonly SourcedLatexValue[];
-  readonly figures: readonly LatexFigureInventory[];
-  readonly sourceFingerprints: readonly LatexSourceFingerprint[];
-}
+export type LatexSemanticInventory = Pick<
+  LatexProjectConversion,
+  | "metadata"
+  | "abstracts"
+  | "sections"
+  | "citations"
+  | "bibliographyEntries"
+  | "labels"
+  | "references"
+  | "equations"
+  | "tables"
+  | "codeBlocks"
+  | "footnotes"
+  | "figures"
+  | "sourceFingerprints"
+>;
 
 interface CommandOccurrence {
   readonly name: string;
@@ -91,7 +98,7 @@ export function analyzeLatexSemantics(inspection: LatexArchiveInspection, report
   for (const file of sourceFiles) {
     const source = file.text ?? "";
     const projections = projectionsFor(file);
-    const window = file.path === report.rootPath ? documentWindow(source, projections.semantic) : { start: 0, end: source.length };
+    const window = file.path === report.rootPath ? latexDocumentWindow(source, projections.semantic) : { start: 0, end: source.length };
     abstracts.push(...environmentValues(source, projections.semantic, file.path, window, "abstract"));
     citations.push(...citationInventory(source, projections.semantic, file.path, window));
     labels.push(...labelInventory(source, projections.semantic, file.path, window));
@@ -131,90 +138,18 @@ function figureInventory(
   report: LatexConversionReport,
   projectionsFor: (file: LatexArchiveFile) => SourceProjections,
 ): LatexFigureInventory[] {
-  const imageFiles = new Map(inspection.files.filter((file) => file.kind === "image").map((file) => [file.path, file]));
-  const sourceContexts = new Map<string, FigureSourceContext>();
-  const contentHashes = new Map<string, string>();
-  const destinations = new Map<string, { readonly contentHash: string; readonly path: string }>();
-  const figures: LatexFigureInventory[] = [];
-
-  for (const reference of resolveLatexImageReferences(inspection, report.rootPath, report.sourceFiles)) {
-    const { sourcePath, requestedPath, start, end, candidates } = reference;
-    const context = contextFor(sourcePath);
-    const { source } = context;
-    const archivePath = candidates.length === 1 ? candidates[0]! : null;
-    const image = archivePath ? imageFiles.get(archivePath) : undefined;
-    const assetPath = archivePath ? (archivePath.startsWith("figures/") ? archivePath : `figures/${archivePath.split("/").at(-1)!}`) : null;
-    const contentHash = image
-      ? (contentHashes.get(image.path) ??
-        (() => {
-          const hash = sha256Hex(image.bytes);
-          contentHashes.set(image.path, hash);
-          return hash;
-        })())
-      : null;
-    const existingDestination = assetPath ? destinations.get(assetPath.toLowerCase()) : undefined;
-    const collision = Boolean(existingDestination && contentHash && existingDestination.contentHash !== contentHash);
-    if (assetPath && contentHash && !existingDestination) {
-      destinations.set(assetPath.toLowerCase(), { contentHash, path: assetPath });
-    }
-    const resolvedAssetPath = collision ? null : (existingDestination?.path ?? assetPath);
-    const enclosing = enclosingOccurrence(context.figures, start, end) ?? enclosingOccurrence(context.starredFigures, start, end);
-    const captionCommand = enclosing ? firstCommandInWindow(context.captions, enclosing) : undefined;
-    const labelCommand = enclosing ? firstCommandInWindow(context.labels, enclosing) : undefined;
-    const resolutionDiagnostics =
-      candidates.length === 0
-        ? [{ code: "missing-image" as const, severity: "warning" as const, message: `Referenced figure was not found: ${requestedPath}` }]
-        : candidates.length > 1
-          ? [
-              {
-                code: "ambiguous-image" as const,
-                severity: "warning" as const,
-                message: `Referenced figure matches more than one archive file: ${requestedPath}`,
-              },
-            ]
-          : collision
-            ? [
-                {
-                  code: "ambiguous-image" as const,
-                  severity: "warning" as const,
-                  message: `Referenced figures collide at project path: ${assetPath}`,
-                },
-              ]
-            : [];
-    figures.push({
-      sourcePath,
-      requestedPath,
-      archivePath,
-      resolvedAssetPath,
-      contentHash,
-      mediaType: archivePath ? imageMediaType(archivePath) : null,
-      ...(captionCommand ? { caption: sourcedCommand(sourcePath, captionCommand) } : {}),
-      ...(labelCommand ? { label: sourcedCommand(sourcePath, labelCommand) } : {}),
-      source: source.slice(start, end),
-      referenceRange: range(sourcePath, start, end),
-      ...(enclosing ? { figureRange: range(sourcePath, enclosing.start, enclosing.end) } : {}),
-      resolutionDiagnostics,
-    });
-  }
-  return figures;
-
-  function contextFor(path: string): FigureSourceContext {
-    const existing = sourceContexts.get(path);
-    if (existing) return existing;
-    const file = requiredTextFile(inspection.files, path);
-    const source = file.text ?? "";
-    const semantic = projectionsFor(file).semantic;
-    const window = path === report.rootPath ? documentWindow(source, semantic) : { start: 0, end: source.length };
-    const context: FigureSourceContext = {
-      source,
-      figures: environmentOccurrences(source, semantic, window, "figure"),
-      starredFigures: environmentOccurrences(source, semantic, window, "figure*"),
-      captions: commandOccurrences(source, semantic, window, ["caption"]),
-      labels: commandOccurrences(source, semantic, window, ["label"]),
-    };
-    sourceContexts.set(path, context);
-    return context;
-  }
+  const state: FigureInventoryState = {
+    inspection,
+    rootPath: report.rootPath,
+    projectionsFor,
+    imageFiles: new Map(inspection.files.filter((file) => file.kind === "image").map((file) => [file.path, file])),
+    sourceContexts: new Map(),
+    contentHashes: new Map(),
+    destinations: new Map(),
+  };
+  return resolveLatexImageReferences(inspection, report.rootPath, report.sourceFiles).map((reference) =>
+    figureForReference(state, reference),
+  );
 }
 
 interface FigureSourceContext {
@@ -223,6 +158,118 @@ interface FigureSourceContext {
   readonly starredFigures: readonly EnvironmentOccurrence[];
   readonly captions: readonly CommandOccurrence[];
   readonly labels: readonly CommandOccurrence[];
+}
+
+interface FigureInventoryState {
+  readonly inspection: LatexArchiveInspection;
+  readonly rootPath: string;
+  readonly projectionsFor: (file: LatexArchiveFile) => SourceProjections;
+  readonly imageFiles: ReadonlyMap<string, LatexArchiveFile>;
+  readonly sourceContexts: Map<string, FigureSourceContext>;
+  readonly contentHashes: Map<string, string>;
+  readonly destinations: Map<string, { readonly contentHash: string; readonly path: string }>;
+}
+
+interface FigureAsset {
+  readonly archivePath: string | null;
+  readonly assetPath: string | null;
+  readonly contentHash: string | null;
+  readonly collision: boolean;
+  readonly resolvedAssetPath: string | null;
+}
+
+function figureForReference(state: FigureInventoryState, reference: LatexImageReferenceResolution): LatexFigureInventory {
+  const { sourcePath, requestedPath, start, end } = reference;
+  const context = figureContextFor(state, sourcePath);
+  const asset = resolveFigureAsset(state, reference);
+  const enclosing = enclosingOccurrence(context.figures, start, end) ?? enclosingOccurrence(context.starredFigures, start, end);
+  const captionCommand = enclosing ? firstCommandInWindow(context.captions, enclosing) : undefined;
+  const labelCommand = enclosing ? firstCommandInWindow(context.labels, enclosing) : undefined;
+  return {
+    sourcePath,
+    requestedPath,
+    archivePath: asset.archivePath,
+    resolvedAssetPath: asset.resolvedAssetPath,
+    contentHash: asset.contentHash,
+    mediaType: asset.archivePath ? imageMediaType(asset.archivePath) : null,
+    ...(captionCommand ? { caption: sourcedCommand(sourcePath, captionCommand) } : {}),
+    ...(labelCommand ? { label: sourcedCommand(sourcePath, labelCommand) } : {}),
+    source: context.source.slice(start, end),
+    referenceRange: range(sourcePath, start, end),
+    ...(enclosing ? { figureRange: range(sourcePath, enclosing.start, enclosing.end) } : {}),
+    resolutionDiagnostics: figureResolutionDiagnostics(reference, asset),
+  };
+}
+
+function figureContextFor(state: FigureInventoryState, path: string): FigureSourceContext {
+  const existing = state.sourceContexts.get(path);
+  if (existing) return existing;
+  const file = requiredTextFile(state.inspection.files, path);
+  const source = file.text ?? "";
+  const semantic = state.projectionsFor(file).semantic;
+  const window = sourceWindow(path, state.rootPath, source, semantic);
+  const context: FigureSourceContext = {
+    source,
+    figures: environmentOccurrences(source, semantic, window, "figure"),
+    starredFigures: environmentOccurrences(source, semantic, window, "figure*"),
+    captions: commandOccurrences(source, semantic, window, ["caption"]),
+    labels: commandOccurrences(source, semantic, window, ["label"]),
+  };
+  state.sourceContexts.set(path, context);
+  return context;
+}
+
+function resolveFigureAsset(state: FigureInventoryState, reference: LatexImageReferenceResolution): FigureAsset {
+  const archivePath = reference.candidates.length === 1 ? reference.candidates[0]! : null;
+  const image = archivePath ? state.imageFiles.get(archivePath) : undefined;
+  const assetPath = archivePath ? figureAssetPath(archivePath) : null;
+  const contentHash = image ? imageContentHash(state, image) : null;
+  const destinationKey = assetPath?.toLowerCase();
+  const existing = destinationKey ? state.destinations.get(destinationKey) : undefined;
+  const collision = Boolean(existing && contentHash && existing.contentHash !== contentHash);
+  if (destinationKey && assetPath && contentHash && !existing) {
+    state.destinations.set(destinationKey, { contentHash, path: assetPath });
+  }
+  return {
+    archivePath,
+    assetPath,
+    contentHash,
+    collision,
+    resolvedAssetPath: collision ? null : (existing?.path ?? assetPath),
+  };
+}
+
+function figureAssetPath(archivePath: string): string {
+  return archivePath.startsWith("figures/") ? archivePath : `figures/${archivePath.split("/").at(-1)!}`;
+}
+
+function imageContentHash(state: FigureInventoryState, image: LatexArchiveFile): string {
+  const existing = state.contentHashes.get(image.path);
+  if (existing) return existing;
+  const contentHash = sha256Hex(image.bytes);
+  state.contentHashes.set(image.path, contentHash);
+  return contentHash;
+}
+
+function figureResolutionDiagnostics(
+  reference: LatexImageReferenceResolution,
+  asset: FigureAsset,
+): LatexFigureInventory["resolutionDiagnostics"] {
+  if (reference.candidates.length === 0) {
+    return [{ code: "missing-image", severity: "warning", message: `Referenced figure was not found: ${reference.requestedPath}` }];
+  }
+  if (reference.candidates.length > 1) {
+    return [
+      {
+        code: "ambiguous-image",
+        severity: "warning",
+        message: `Referenced figure matches more than one archive file: ${reference.requestedPath}`,
+      },
+    ];
+  }
+  return asset.collision
+    ? [{ code: "ambiguous-image", severity: "warning", message: `Referenced figures collide at project path: ${asset.assetPath}` }]
+    : [];
 }
 
 function enclosingOccurrence(occurrences: readonly EnvironmentOccurrence[], start: number, end: number): EnvironmentOccurrence | undefined {
@@ -262,14 +309,18 @@ function firstCommandInWindow(
   return candidate && candidate.end <= window.end ? candidate : undefined;
 }
 
-function imageMediaType(path: string): LatexFigureInventory["mediaType"] {
+const imageMediaTypes = new Map<string, NonNullable<LatexFigureInventory["mediaType"]>>([
+  [".png", "image/png"],
+  [".jpg", "image/jpeg"],
+  [".jpeg", "image/jpeg"],
+  [".gif", "image/gif"],
+  [".webp", "image/webp"],
+  [".avif", "image/avif"],
+]);
+
+function imageMediaType(path: string): NonNullable<LatexFigureInventory["mediaType"]> {
   const extension = path.slice(path.lastIndexOf(".")).toLowerCase();
-  if (extension === ".png") return "image/png";
-  if (extension === ".jpg" || extension === ".jpeg") return "image/jpeg";
-  if (extension === ".gif") return "image/gif";
-  if (extension === ".webp") return "image/webp";
-  if (extension === ".avif") return "image/avif";
-  return "image/svg+xml";
+  return imageMediaTypes.get(extension) ?? "image/svg+xml";
 }
 
 function metadataInventory(file: LatexArchiveFile, semantic: string): LatexDocumentMetadata {
@@ -287,83 +338,154 @@ function metadataInventory(file: LatexArchiveFile, semantic: string): LatexDocum
   };
 }
 
+const sectionNames = ["section", "subsection", "subsubsection", "paragraph"] as const;
+type SectionLevel = 1 | 2 | 3 | 4;
+
+const sectionLevels = new Map<string, SectionLevel>([
+  ["section", 1],
+  ["subsection", 2],
+  ["subsubsection", 3],
+  ["paragraph", 4],
+]);
+
+interface SectionInventoryState {
+  readonly inspection: LatexArchiveInspection;
+  readonly rootPath: string;
+  readonly semanticFor: (file: LatexArchiveFile) => string;
+  readonly parents: Map<number, string>;
+  readonly reachable: ReadonlySet<string>;
+  readonly includesBySource: ReadonlyMap<string, readonly LatexIncludeReference[]>;
+  readonly visited: Set<string>;
+  readonly sections: LatexSectionInventory[];
+}
+
+interface SectionSourceContext {
+  readonly path: string;
+  readonly source: string;
+  readonly semantic: string;
+  readonly window: SourceWindow;
+  readonly labelsByStart: ReadonlyMap<number, CommandOccurrence>;
+}
+
+type SectionEvent =
+  | { readonly kind: "section"; readonly position: number; readonly command: CommandOccurrence; readonly localIndex: number }
+  | { readonly kind: "include"; readonly position: number; readonly reference: LatexIncludeReference };
+
 function manuscriptSectionInventory(
   inspection: LatexArchiveInspection,
   report: LatexConversionReport,
   semanticFor: (file: LatexArchiveFile) => string,
 ): LatexSectionInventory[] {
-  const levels = new Map<string, 1 | 2 | 3 | 4>([
-    ["section", 1],
-    ["subsection", 2],
-    ["subsubsection", 3],
-    ["paragraph", 4],
-  ]);
-  const parents = new Map<number, string>();
-  const reachable = new Set(report.sourceFiles);
-  const includesBySource = new Map<string, LatexIncludeReference[]>();
-  for (const reference of inspection.includes) {
-    const grouped = includesBySource.get(reference.sourcePath);
-    if (grouped) grouped.push(reference);
-    else includesBySource.set(reference.sourcePath, [reference]);
-  }
-  const visited = new Set<string>();
-  const sections: LatexSectionInventory[] = [];
-  visit(report.rootPath);
-  return sections;
+  const state: SectionInventoryState = {
+    inspection,
+    rootPath: report.rootPath,
+    semanticFor,
+    parents: new Map(),
+    reachable: new Set(report.sourceFiles),
+    includesBySource: includesBySourcePath(inspection.includes),
+    visited: new Set(),
+    sections: [],
+  };
+  visitSectionSource(state, report.rootPath);
+  return state.sections;
+}
 
-  function visit(path: string): void {
-    if (visited.has(path) || !reachable.has(path)) return;
-    visited.add(path);
-    const file = requiredTextFile(inspection.files, path);
-    const source = file.text ?? "";
-    const semantic = semanticFor(file);
-    const window = path === report.rootPath ? documentWindow(source, semantic) : { start: 0, end: source.length };
-    const commands = commandOccurrences(source, semantic, window, [...levels.keys()]);
-    const labelsByStart = new Map(commandOccurrences(source, semantic, window, ["label"]).map((label) => [label.start, label]));
-    const adjacentWhitespace = /\s*/gy;
-    const includes = (includesBySource.get(path) ?? []).filter(
-      (reference) =>
-        reference.sourcePath === path &&
-        reference.from >= window.start &&
-        reference.to <= window.end &&
-        reference.resolvedPath !== null &&
-        reachable.has(reference.resolvedPath),
-    );
-    const events: Array<
-      | { readonly kind: "section"; readonly position: number; readonly command: CommandOccurrence; readonly localIndex: number }
-      | { readonly kind: "include"; readonly position: number; readonly reference: LatexIncludeReference }
-    > = [
-      ...commands.map((command, localIndex) => ({ kind: "section" as const, position: command.start, command, localIndex })),
-      ...includes.map((reference) => ({ kind: "include" as const, position: reference.from, reference })),
-    ];
-    events.sort((left, right) => left.position - right.position || (left.kind === "section" ? -1 : 1));
-    for (const event of events) {
-      if (event.kind === "include") {
-        const resolvedPath = event.reference.resolvedPath;
-        if (resolvedPath) visit(resolvedPath);
-        continue;
-      }
-      const { command, localIndex } = event;
-      const level = levels.get(command.name)!;
-      for (const prior of parents.keys()) if (prior >= level) parents.delete(prior);
-      const parentId = [...parents.entries()].sort((left, right) => right[0] - left[0]).find(([prior]) => prior < level)?.[1] ?? null;
-      const id = `${path}#section-${localIndex + 1}`;
-      parents.set(level, id);
-      adjacentWhitespace.lastIndex = command.end;
-      adjacentWhitespace.exec(semantic);
-      const label = labelsByStart.get(adjacentWhitespace.lastIndex);
-      const end = label?.end ?? command.end;
-      sections.push({
-        id,
-        parentId,
-        level,
-        title: command.value.trim(),
-        ...(label?.value.trim() ? { label: label.value.trim() } : {}),
-        source: source.slice(command.start, end),
-        range: range(path, command.start, end),
-      });
-    }
+function includesBySourcePath(references: readonly LatexIncludeReference[]): ReadonlyMap<string, readonly LatexIncludeReference[]> {
+  const includes = new Map<string, LatexIncludeReference[]>();
+  for (const reference of references) {
+    const grouped = includes.get(reference.sourcePath);
+    if (grouped) grouped.push(reference);
+    else includes.set(reference.sourcePath, [reference]);
   }
+  return includes;
+}
+
+function visitSectionSource(state: SectionInventoryState, path: string): void {
+  if (state.visited.has(path) || !state.reachable.has(path)) return;
+  state.visited.add(path);
+  const file = requiredTextFile(state.inspection.files, path);
+  const source = file.text ?? "";
+  const semantic = state.semanticFor(file);
+  const window = sourceWindow(path, state.rootPath, source, semantic);
+  const context: SectionSourceContext = {
+    path,
+    source,
+    semantic,
+    window,
+    labelsByStart: new Map(commandOccurrences(source, semantic, window, ["label"]).map((label) => [label.start, label])),
+  };
+  for (const event of sectionEvents(state, context)) {
+    if (event.kind === "section") appendSection(state, context, event);
+    else if (event.reference.resolvedPath) visitSectionSource(state, event.reference.resolvedPath);
+  }
+}
+
+function sectionEvents(state: SectionInventoryState, context: SectionSourceContext): SectionEvent[] {
+  const sections: SectionEvent[] = commandOccurrences(context.source, context.semantic, context.window, sectionNames).map(
+    (command, localIndex) => ({
+      kind: "section",
+      position: command.start,
+      command,
+      localIndex,
+    }),
+  );
+  const includes: SectionEvent[] = (state.includesBySource.get(context.path) ?? [])
+    .filter((reference) => isReachableInclude(reference, context.path, context.window, state.reachable))
+    .map((reference) => ({ kind: "include", position: reference.from, reference }));
+  return [...sections, ...includes].sort((left, right) => left.position - right.position || (left.kind === "section" ? -1 : 1));
+}
+
+function isReachableInclude(
+  reference: LatexIncludeReference,
+  sourcePath: string,
+  window: SourceWindow,
+  reachable: ReadonlySet<string>,
+): boolean {
+  return (
+    reference.sourcePath === sourcePath &&
+    reference.from >= window.start &&
+    reference.to <= window.end &&
+    reference.resolvedPath !== null &&
+    reachable.has(reference.resolvedPath)
+  );
+}
+
+function appendSection(
+  state: SectionInventoryState,
+  context: SectionSourceContext,
+  event: Extract<SectionEvent, { readonly kind: "section" }>,
+): void {
+  const { command, localIndex } = event;
+  const level = sectionLevels.get(command.name)!;
+  clearSectionParentsAtOrBelow(state.parents, level);
+  const parentId = closestSectionParent(state.parents, level);
+  const id = `${context.path}#section-${localIndex + 1}`;
+  state.parents.set(level, id);
+  const label = context.labelsByStart.get(skipWhitespace(context.semantic, command.end, context.semantic.length));
+  const end = label?.end ?? command.end;
+  state.sections.push({
+    id,
+    parentId,
+    level,
+    title: command.value.trim(),
+    ...(label?.value.trim() ? { label: label.value.trim() } : {}),
+    source: context.source.slice(command.start, end),
+    range: range(context.path, command.start, end),
+  });
+}
+
+function clearSectionParentsAtOrBelow(parents: Map<number, string>, level: SectionLevel): void {
+  for (const prior of parents.keys()) {
+    if (prior >= level) parents.delete(prior);
+  }
+}
+
+function closestSectionParent(parents: ReadonlyMap<number, string>, level: SectionLevel): string | null {
+  for (let prior = level - 1; prior >= 1; prior -= 1) {
+    const parent = parents.get(prior);
+    if (parent) return parent;
+  }
+  return null;
 }
 
 function citationInventory(source: string, semantic: string, path: string, window: SourceWindow): LatexCitationInventory[] {
@@ -377,21 +499,20 @@ function citationInventory(source: string, semantic: string, path: string, windo
 
 function boundedCitationKeys(value: string): readonly string[] {
   const keys: string[] = [];
-  let cursor = 0;
-  while (cursor <= value.length) {
-    const delimiter = value.indexOf(",", cursor);
-    const end = delimiter < 0 ? value.length : delimiter;
-    const key = value.slice(cursor, end).trim();
-    if (key) {
-      keys.push(key);
-      if (keys.length > latexMaximumCitationKeys) {
-        throw new LatexConversionError("semantic-record-limit", `LaTeX citation exceeds ${latexMaximumCitationKeys} keys`);
-      }
+  for (const key of citationKeys(value)) {
+    keys.push(key);
+    if (keys.length > latexMaximumCitationKeys) {
+      throw new LatexConversionError("semantic-record-limit", `LaTeX citation exceeds ${latexMaximumCitationKeys} keys`);
     }
-    if (delimiter < 0) break;
-    cursor = delimiter + 1;
   }
   return keys;
+}
+
+function* citationKeys(value: string): Generator<string> {
+  for (const match of value.matchAll(/(?:^|,)([^,]*)/gu)) {
+    const key = (match[1] ?? "").trim();
+    if (key) yield key;
+  }
 }
 
 function labelInventory(source: string, semantic: string, path: string, window: SourceWindow): LatexLabelInventory[] {
@@ -510,8 +631,7 @@ function bibliographyEntryInventory(path: string, source: string): LatexBibliogr
 
 function bibtexEntryEnd(source: string, open: number, opening: string): number {
   const closing = opening === "{" ? "}" : ")";
-  let depth = 0;
-  let braceDepth = 0;
+  const delimiter: BibtexDelimiterState = { depth: 0, braceDepth: 0 };
   let quoted = false;
   for (let index = open; index < source.length; index += 1) {
     const character = source[index];
@@ -524,20 +644,29 @@ function bibtexEntryEnd(source: string, open: number, opening: string): number {
       continue;
     }
     if (quoted) continue;
-    if (opening === "(" && character === "{") {
-      braceDepth += 1;
-      continue;
-    }
-    if (opening === "(" && character === "}" && braceDepth > 0) {
-      braceDepth -= 1;
-      continue;
-    }
-    if (braceDepth > 0) continue;
-    if (character === opening) depth += 1;
-    else if (character === closing) depth -= 1;
-    if (depth === 0) return index;
+    updateBibtexDelimiter(delimiter, opening, closing, character);
+    if (delimiter.depth === 0) return index;
   }
   return -1;
+}
+
+interface BibtexDelimiterState {
+  depth: number;
+  braceDepth: number;
+}
+
+function updateBibtexDelimiter(state: BibtexDelimiterState, opening: string, closing: string, character: string | undefined): void {
+  if (opening === "(" && character === "{") {
+    state.braceDepth += 1;
+    return;
+  }
+  if (opening === "(" && character === "}" && state.braceDepth > 0) {
+    state.braceDepth -= 1;
+    return;
+  }
+  if (state.braceDepth > 0) return;
+  if (character === opening) state.depth += 1;
+  else if (character === closing) state.depth -= 1;
 }
 
 function commandValues(
@@ -645,12 +774,8 @@ function skipWhitespace(source: string, from: number, end: number): number {
   return cursor;
 }
 
-function documentWindow(source: string, active: string): SourceWindow {
-  const begin = /\\begin\s*\{document\}/u.exec(active);
-  if (!begin) return { start: 0, end: source.length };
-  const start = begin.index + begin[0].length;
-  const end = /\\end\s*\{document\}/u.exec(active.slice(start));
-  return { start, end: end ? start + end.index : source.length };
+function sourceWindow(path: string, rootPath: string, source: string, semantic: string): SourceWindow {
+  return path === rootPath ? latexDocumentWindow(source, semantic) : { start: 0, end: source.length };
 }
 
 function matchingDelimiter(source: string, open: number, opening: string, closing: string): number {
