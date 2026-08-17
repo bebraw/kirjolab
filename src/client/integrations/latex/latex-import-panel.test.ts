@@ -3,6 +3,7 @@ import type { LatexImportPreview } from "../../app/app-contracts";
 import { LatexImportPanel } from "./latex-import-panel";
 
 const preview: LatexImportPreview = {
+  archiveSha256: "b".repeat(64),
   archive: {
     files: [{ bytes: 10, kind: "tex", path: "paper.tex" }],
     rootCandidates: ["paper.tex"],
@@ -19,7 +20,7 @@ const preview: LatexImportPreview = {
       files: [{ content: "# Paper", path: "paper.md" }],
     },
   },
-  digest: "a".repeat(64),
+  previewDigest: "a".repeat(64),
 };
 
 class TestLatexImportPanel extends LatexImportPanel {
@@ -138,7 +139,7 @@ describe("LaTeX import panel", () => {
     expect(fetchMock).toHaveBeenNthCalledWith(1, "/api/latex-import-previews", expect.objectContaining({ body: archive, method: "POST" }));
     expect(fetchMock).toHaveBeenNthCalledWith(
       2,
-      `/api/latex-imports?title=Reviewed+paper&previewDigest=${"a".repeat(64)}&root=paper.tex&bibliography=references.bib`,
+      `/api/latex-imports?title=Reviewed+paper&archiveSha256=${"b".repeat(64)}&previewDigest=${"a".repeat(64)}&root=paper.tex&bibliography=references.bib`,
       expect.objectContaining({ body: archive, method: "POST" }),
     );
   });
@@ -157,6 +158,46 @@ describe("LaTeX import panel", () => {
     await panel.previewForTest();
 
     expect(assign).not.toHaveBeenCalled();
+  });
+
+  it("ignores a stale preview response after the panel is reset for another archive", async () => {
+    const panel = new TestLatexImportPanel();
+    const firstArchive = new File(["first"], "first.zip", { type: "application/zip" });
+    const secondArchive = new File(["second"], "second.zip", { type: "application/zip" });
+    const firstResponse = deferred<Response>();
+    const secondResponse = deferred<Response>();
+    const secondPreview: LatexImportPreview = {
+      ...preview,
+      archiveSha256: "c".repeat(64),
+      previewDigest: "d".repeat(64),
+      conversion: {
+        ...preview.conversion!,
+        report: { ...preview.conversion!.report, rootPath: "second.tex", bibliographyPath: null },
+      },
+    };
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockImplementationOnce(async () => await firstResponse.promise)
+      .mockImplementationOnce(async () => await secondResponse.promise)
+      .mockResolvedValueOnce(Response.json({ workspace: { href: "/editor/second" } }));
+
+    panel.archiveFile = firstArchive;
+    const firstRequest = panel.previewForTest();
+    panel.reset();
+    panel.archiveFile = secondArchive;
+    const secondRequest = panel.previewForTest();
+    secondResponse.resolve(Response.json(secondPreview));
+    await secondRequest;
+    firstResponse.resolve(Response.json(preview));
+    await firstRequest;
+    panel.titleForTest("Second paper");
+    await panel.confirmForTest();
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      3,
+      `/api/latex-imports?title=Second+paper&archiveSha256=${"c".repeat(64)}&previewDigest=${"d".repeat(64)}&root=second.tex`,
+      expect.objectContaining({ body: secondArchive, method: "POST" }),
+    );
   });
 
   it("presents preview and creation response failures", async () => {
@@ -188,3 +229,11 @@ describe("LaTeX import panel", () => {
     expect(panel.focusCount).toBe(1);
   });
 });
+
+function deferred<T>(): { readonly promise: Promise<T>; resolve(value: T): void } {
+  let resolvePromise: (value: T) => void = () => undefined;
+  const promise = new Promise<T>((resolve) => {
+    resolvePromise = resolve;
+  });
+  return { promise, resolve: resolvePromise };
+}

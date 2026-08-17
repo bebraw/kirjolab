@@ -6,6 +6,7 @@ const safeIntegerSchema = v.pipe(v.number(), v.safeInteger());
 const nonNegativeIntegerSchema = v.pipe(safeIntegerSchema, v.minValue(0));
 const positiveIntegerSchema = v.pipe(safeIntegerSchema, v.minValue(1));
 const nullableStringSchema = v.nullable(v.string());
+const sha256HexSchema = v.pipe(v.string(), v.regex(/^[a-f0-9]{64}$/u));
 const appBootstrapSchema = v.object({
   workspaceId: v.pipe(v.string(), v.regex(/^[a-z0-9-]{1,64}$/iu)),
   identityEmail: v.pipe(v.string(), v.minLength(1), v.maxLength(320)),
@@ -145,11 +146,15 @@ const latexConversionSchema = v.object({
     ),
   }),
 });
-const latexImportPreviewSchema = v.object({
-  digest: v.pipe(v.string(), v.regex(/^[a-f0-9]{64}$/u)),
-  archive: latexArchiveSchema,
-  conversion: v.nullable(latexConversionSchema),
-});
+const latexImportPreviewSchema = v.pipe(
+  v.object({
+    archiveSha256: sha256HexSchema,
+    previewDigest: v.nullable(sha256HexSchema),
+    archive: latexArchiveSchema,
+    conversion: v.nullable(latexConversionSchema),
+  }),
+  v.check((value) => (value.previewDigest === null) === (value.conversion === null), "LaTeX preview digest must identify a conversion"),
+);
 const latexImportResultSchema = v.object({
   workspace: v.object({ href: v.string() }),
 });

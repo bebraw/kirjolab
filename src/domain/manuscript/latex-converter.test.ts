@@ -338,24 +338,18 @@ Escapes: \% \& \# \_ \$ and \textbackslash{} plus~space.`);
         code: "unsupported-command",
         severity: "warning",
         path: "main.tex",
-        from: expect.any(Number),
-        to: expect.any(Number),
         message: "Unsupported LaTeX command remains for review: \\textbf",
       },
       {
         code: "unsupported-command",
         severity: "warning",
         path: "main.tex",
-        from: expect.any(Number),
-        to: expect.any(Number),
         message: "Unsupported LaTeX command remains for review: \\unknown",
       },
       {
         code: "unsupported-command",
         severity: "warning",
         path: "main.tex",
-        from: expect.any(Number),
-        to: expect.any(Number),
         message: "Unsupported LaTeX command remains for review: \\other@command",
       },
     ]);
@@ -378,7 +372,8 @@ after`);
     ]);
     for (const diagnostic of result.report.diagnostics) {
       expect(diagnostic.path).toBe("main.tex");
-      expect(diagnostic.to).toBeGreaterThan(diagnostic.from ?? -1);
+      expect(diagnostic).not.toHaveProperty("from");
+      expect(diagnostic).not.toHaveProperty("to");
     }
   });
 

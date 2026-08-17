@@ -486,6 +486,19 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   and navigation to the successful response's canonical workspace href. Keep
   constructor and reopened-dialog state aligned through one local reset
   operation rather than duplicated initialization lists.
+- Bind LaTeX confirmation to both the original archive SHA-256 and a canonical
+  digest of the exact reviewed interpretation, including its effective root,
+  bibliography, converter/schema versions, conversion options, and extracted
+  manifest. Reinspect and reconvert before comparison, and return conflicts
+  before any Durable Object, catalog, access, or R2 write.
+- Incubate product-neutral LaTeX conversion, original-source provenance,
+  deterministic conformance cases, and bounded native PDF page-text extraction
+  under `src/lib/paper-import/`. Keep Kirjolab project seeds, publication
+  profiles, browser and OCR lifecycle, authorization, persistence, queues, and
+  cloud jobs in adapters. Define retained archive ranges against original
+  decoded text in UTF-16 code units and omit any range that cannot be safely
+  reconstructed. Keep this boundary source-local until ADR-186's independent
+  consumer and release gates are satisfied.
 - Preserve explicit TikZ source as canonical fenced Markdown. Do not render it
   until a separately approved isolated server boundary can compile it and its
   SVG output can pass inert-SVG validation.

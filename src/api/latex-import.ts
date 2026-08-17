@@ -7,8 +7,16 @@ import {
 } from "../domain/manuscript/latex-import";
 import { isProjectTemplateSeed } from "../domain/project/project-templates";
 import { hasProjectImageSignature } from "../domain/project/project-image-signatures";
+import { isSha256Hex, sha256Bytes } from "../domain/sha256";
 import { isCreateWorkspaceInput, type ProjectAsset } from "../domain/workspace/workspace";
 import type { AuthIdentity } from "../security/auth";
+import {
+  latexArchiveManifestSha256,
+  latexConverterVersion,
+  latexPreviewConversionOptions,
+  latexPreviewDigest,
+  latexPreviewIdentitySchemaVersion,
+} from "../domain/manuscript/latex-preview-identity";
 
 const supportedArchiveTypes = new Set(["application/zip", "application/x-zip-compressed"]);
 type LatexConversion = ReturnType<typeof convertLatexInspection>;
@@ -20,19 +28,47 @@ export async function handleLatexImportApi(request: Request, env: Env, identity:
   if (requestError) return requestError;
 
   try {
-    const bytes = new Uint8Array(await request.arrayBuffer());
-    const digest = await archiveDigest(bytes);
+    const bytes = await readLatexArchiveBytes(request);
     const inspection = await inspectLatexArchive(bytes);
+    const archiveSha256 = await sha256Bytes(bytes);
     const rootPath = url.searchParams.get("root") ?? inspection.selectedRoot;
     const bibliographyPath = url.searchParams.get("bibliography") ?? undefined;
 
-    if (preview) return previewImport(inspection, digest, rootPath, bibliographyPath);
-    return await confirmImport(url, inspection, digest, rootPath, bibliographyPath, env, identity);
+    if (preview) return await previewImport(inspection, archiveSha256, rootPath, bibliographyPath);
+    return await confirmImport(url, inspection, archiveSha256, rootPath, bibliographyPath, env, identity);
   } catch (error) {
     const response = importFailureResponse(error);
     if (response) return response;
     throw error;
   }
+}
+
+async function readLatexArchiveBytes(request: Request): Promise<Uint8Array> {
+  if (!request.body) return new Uint8Array();
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let byteLength = 0;
+  while (true) {
+    const result = await reader.read();
+    if (result.done) break;
+    byteLength += result.value.byteLength;
+    if (byteLength > latexArchiveMaximumCompressedBytes) {
+      try {
+        await reader.cancel();
+      } catch {
+        // Preserve the stable archive-size failure when request-stream teardown fails.
+      }
+      throw new LatexArchiveFailure("archive-size", "LaTeX archive must be between 1 byte and 20 MiB");
+    }
+    chunks.push(result.value);
+  }
+  const bytes = new Uint8Array(byteLength);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return bytes;
 }
 
 function validateImportRequest(request: Request, url: URL): Response | null {
@@ -57,15 +93,20 @@ function importFailureResponse(error: unknown): Response | null {
   return null;
 }
 
-function previewImport(
+async function previewImport(
   inspection: LatexArchiveInspection,
-  digest: string,
+  archiveSha256: string,
   rootPath: string | null,
   bibliographyPath: string | undefined,
-): Response {
+): Promise<Response> {
   const conversion = rootPath ? convertLatexInspection(inspection, conversionOptions(rootPath, bibliographyPath)) : null;
   return Response.json(
-    { digest, archive: publicInspection(inspection), conversion: conversion ? publicConversion(conversion) : null },
+    {
+      archiveSha256,
+      previewDigest: conversion ? await conversionPreviewDigest(inspection, archiveSha256, conversion) : null,
+      archive: publicInspection(inspection),
+      conversion: conversion ? publicConversion(conversion) : null,
+    },
     { headers: { "cache-control": "no-store" } },
   );
 }
@@ -73,20 +114,24 @@ function previewImport(
 async function confirmImport(
   url: URL,
   inspection: LatexArchiveInspection,
-  digest: string,
+  archiveSha256: string,
   rootPath: string | null,
   bibliographyPath: string | undefined,
   env: Env,
   identity: AuthIdentity,
 ): Promise<Response> {
   const title = url.searchParams.get("title") ?? "";
+  const expectedArchiveSha256 = url.searchParams.get("archiveSha256") ?? "";
   const previewDigest = url.searchParams.get("previewDigest") ?? "";
-  if (!isCreateWorkspaceInput({ title }) || !rootPath || !/^[a-f0-9]{64}$/u.test(previewDigest)) {
+  if (!isCreateWorkspaceInput({ title }) || !rootPath || !isSha256Hex(expectedArchiveSha256) || !isSha256Hex(previewDigest)) {
     return jsonError("Invalid LaTeX import confirmation", 400, "invalid-confirmation");
   }
-  if (digest !== previewDigest) return jsonError("LaTeX archive changed after preview", 409, "archive-changed");
+  if (archiveSha256 !== expectedArchiveSha256) return jsonError("LaTeX archive changed after preview", 409, "archive-changed");
 
   const conversion = convertLatexInspection(inspection, conversionOptions(rootPath, bibliographyPath));
+  if ((await conversionPreviewDigest(inspection, archiveSha256, conversion)) !== previewDigest) {
+    return jsonError("LaTeX conversion changed after preview", 409, "preview-changed");
+  }
   const conversionError = validateConversion(conversion);
   if (conversionError) return conversionError;
   return await createImportedWorkspace(env, identity, title.trim(), conversion);
@@ -149,6 +194,22 @@ function publicConversion(conversion: LatexConversion) {
   };
 }
 
+async function conversionPreviewDigest(
+  inspection: LatexArchiveInspection,
+  archiveSha256: string,
+  conversion: LatexConversion,
+): Promise<string> {
+  return await latexPreviewDigest({
+    schemaVersion: latexPreviewIdentitySchemaVersion,
+    archiveSha256,
+    rootPath: conversion.report.rootPath,
+    bibliographyPath: conversion.report.bibliographyPath,
+    converterVersion: latexConverterVersion,
+    options: latexPreviewConversionOptions,
+    manifestSha256: await latexArchiveManifestSha256(inspection.files),
+  });
+}
+
 async function storeAsset(env: Env, workspaceId: string, asset: LatexConversion["assets"][number]): Promise<ProjectAsset> {
   const id = crypto.randomUUID();
   const objectKey = `${workspaceId}/assets/${id}`;
@@ -164,11 +225,6 @@ async function storeAsset(env: Env, workspaceId: string, asset: LatexConversion[
     createdAt: now,
     updatedAt: now,
   };
-}
-
-async function archiveDigest(bytes: Uint8Array): Promise<string> {
-  const digest = await crypto.subtle.digest("SHA-256", bytes);
-  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
 function archiveFailureStatus(error: LatexArchiveFailure): number {

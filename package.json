@@ -13,6 +13,9 @@
     }
   },
   "overrides": {
+    "@cloudflare/puppeteer@1.2.0": {
+      "@puppeteer/browsers": "3.0.6"
+    },
     "typed-rest-client": {
       "qs": "6.15.3"
     }

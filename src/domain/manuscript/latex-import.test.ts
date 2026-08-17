@@ -178,7 +178,7 @@ Escaped \% sign.
     expect(failure.message).toBe("Broken");
   });
 
-  it("classifies supported file extensions case-insensitively and normalizes Windows newlines", async () => {
+  it("classifies supported file extensions case-insensitively and preserves decoded Windows newlines", async () => {
     const archive = zipSync({
       "MAIN.TEX": strToU8("\\documentclass{article}\r\n\\begin{document}\r\n\\end{document}\r\n"),
       "sources.BIB": strToU8("@misc{x,\r\n title={X}\r\n}\r\n"),
@@ -209,9 +209,9 @@ Escaped \% sign.
       ["unsupported.bmp", "ignored"],
     ]);
     expect(result.files.find(({ path }) => path === "MAIN.TEX")?.text).toBe(
-      "\\documentclass{article}\n\\begin{document}\n\\end{document}\n",
+      "\\documentclass{article}\r\n\\begin{document}\r\n\\end{document}\r\n",
     );
-    expect(result.files.find(({ path }) => path === "sources.BIB")?.text).toBe("@misc{x,\n title={X}\n}\n");
+    expect(result.files.find(({ path }) => path === "sources.BIB")?.text).toBe("@misc{x,\r\n title={X}\r\n}\r\n");
   });
 
   it("preserves escaped percent signs while removing active comments at the original offsets", () => {
@@ -489,6 +489,14 @@ triple \\\% \include{third}
       "Symbolic links are not supported: main.tex",
     );
     await expectArchiveFailure(
+      patchedZip((view, central) => {
+        view.setUint16(central + 4, 19 << 8, true);
+        view.setUint32(central + 38, 0o120000 << 16, true);
+      }),
+      "archive-symlink",
+      "Symbolic links are not supported: main.tex",
+    );
+    await expectArchiveFailure(
       patchedZip((view, central) => view.setUint32(central + 24, latexArchiveMaximumExpandedBytes + 1, true)),
       "archive-expanded-size",
       "Expanded LaTeX archive exceeds 64 MiB",
@@ -532,8 +540,8 @@ triple \\\% \include{third}
         view.setUint32(central + 20, 1_049, true);
         view.setUint32(central + 24, 1024 * 1024, true);
       }),
-      "archive-text-encoding",
-      "LaTeX text file must be UTF-8: main.tex",
+      "archive-format",
+      "ZIP local-file headers do not match the central directory",
     );
   });
 });
