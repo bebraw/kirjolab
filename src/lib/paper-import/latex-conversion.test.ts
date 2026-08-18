@@ -43,7 +43,7 @@ describe("product-neutral LaTeX conversion", () => {
 
     expect(Object.isFrozen(options)).toBe(true);
     expect(options).toEqual({ maximumSemanticRecords: 50_000 });
-    expect(convertLatexProject(inspection, { rootPath: "paper.tex" }, options).converterVersion).toBe("latex-converter-v1");
+    expect(convertLatexProject(inspection, { rootPath: "paper.tex" }, options).converterVersion).toBe("latex-converter-v2");
   });
 
   it("enforces a typed aggregate semantic-record ceiling at and above the consumer boundary", () => {
@@ -56,6 +56,18 @@ describe("product-neutral LaTeX conversion", () => {
     );
     expect(() => convertLatexProject(inspection, { rootPath: "paper.tex" }, { maximumSemanticRecords: 0 })).toThrowError(
       expect.objectContaining({ name: "LatexConversionError", code: "invalid-conversion-options" }),
+    );
+  });
+
+  it("counts prose blocks against the aggregate semantic-record ceiling", () => {
+    const source = String.raw`\documentclass{article}\begin{document}First paragraph.
+
+Second paragraph.\end{document}`;
+    const inspection = analyzeLatexArchiveFiles([tex("paper.tex", source)]);
+
+    expect(convertLatexProject(inspection, { rootPath: "paper.tex" }, { maximumSemanticRecords: 5 }).proseBlocks).toHaveLength(2);
+    expect(() => convertLatexProject(inspection, { rootPath: "paper.tex" }, { maximumSemanticRecords: 4 })).toThrowError(
+      expect.objectContaining({ name: "LatexConversionError", code: "semantic-record-limit" }),
     );
   });
 
@@ -88,16 +100,58 @@ describe("product-neutral LaTeX conversion", () => {
     );
   });
 
+  it("does not inventory a citation introduced by an escaped backslash", () => {
+    const source = String.raw`\documentclass{article}\begin{document}\\cite{fake}\end{document}`;
+    const inspection = analyzeLatexArchiveFiles([tex("paper.tex", source)]);
+
+    expect(convertLatexProject(inspection, { rootPath: "paper.tex" }).citations).toEqual([]);
+  });
+
+  it("applies backslash-run parity to semantic commands and environments without offset drift", () => {
+    const source =
+      "\\documentclass{article}\r\n\\begin{document}\r\n" +
+      "😀 \\cite{single}\r\n" +
+      "\\\\cite{escaped}\r\n" +
+      "\\\\\\cite{triple}\r\n" +
+      "\\\\section{Escaped section}\r\n" +
+      "\\section{Active section}\r\n" +
+      "\\\\begin{equation}escaped environment\\\\end{equation}\r\n" +
+      "\\begin{equation}before\\\\end{equation}after\\end{equation}\r\n" +
+      "% \\cite{commented}\r\n" +
+      "\\begin{verbatim}\\cite{literal}\\end{verbatim}\r\n" +
+      "\\end{document}\r\n";
+    const inspection = analyzeLatexArchiveFiles([tex("paper.tex", source)]);
+
+    const conversion = convertLatexProject(inspection, { rootPath: "paper.tex" });
+
+    expect(conversion.citations.map(({ keys }) => keys)).toEqual([["single"], ["triple"]]);
+    expect(conversion.sections.map(({ title }) => title)).toEqual(["Active section"]);
+    expect(conversion.equations).toHaveLength(1);
+    expect(conversion.equations[0]?.value).toContain("before\\\\end{equation}after");
+    expectOriginalRange(conversion.citations[0]!, "paper.tex", source, "\\cite{single}");
+    expectOriginalRange(conversion.citations[1]!, "paper.tex", source, "\\cite{triple}");
+    expect(conversion.files[0]?.content).not.toContain("## Escaped section");
+  });
+
+  it("keeps scanning until an active document closer after an escaped closer", () => {
+    const body = "Before.\\\\end{document}\r\nAfter \\cite{kept}.";
+    const source = `\\documentclass{article}\\begin{document}${body}\\end{document}`;
+    const conversion = convertLatexProject(analyzeLatexArchiveFiles([tex("paper.tex", source)]), { rootPath: "paper.tex" });
+
+    expect(conversion.citations.map(({ keys }) => keys)).toEqual([["kept"]]);
+    expect(conversion.files[0]?.content).toContain("After :cite[kept].");
+  });
+
   it("counts citation keys against a tightened aggregate semantic ceiling", () => {
     const source = String.raw`\documentclass{article}\begin{document}\cite{a,b,c}\end{document}`;
     const inspection = analyzeLatexArchiveFiles([tex("paper.tex", source)]);
 
-    expect(convertLatexProject(inspection, { rootPath: "paper.tex" }, { maximumSemanticRecords: 6 }).citations[0]?.keys).toEqual([
+    expect(convertLatexProject(inspection, { rootPath: "paper.tex" }, { maximumSemanticRecords: 7 }).citations[0]?.keys).toEqual([
       "a",
       "b",
       "c",
     ]);
-    expect(() => convertLatexProject(inspection, { rootPath: "paper.tex" }, { maximumSemanticRecords: 5 })).toThrowError(
+    expect(() => convertLatexProject(inspection, { rootPath: "paper.tex" }, { maximumSemanticRecords: 6 })).toThrowError(
       expect.objectContaining({ name: "LatexConversionError", code: "semantic-record-limit" }),
     );
   });
@@ -323,7 +377,9 @@ describe("product-neutral LaTeX conversion", () => {
     expect(conversion).not.toHaveProperty("seed");
     expect(conversion).not.toHaveProperty("publicationProfile");
     expect(conversion).not.toHaveProperty("report");
-    expect(conversion.files).toEqual([{ sourcePath: "paper.tex", path: "main.md", content: "## Result\n\nEvidence.\n" }]);
+    expect(conversion.files).toEqual([
+      { sourcePath: "paper.tex", path: "main.md", renderedFormat: "scholarmark-v1", content: "## Result\n\nEvidence.\n" },
+    ]);
 
     const adapted = adaptLatexProjectToSeed(conversion);
     expect(adapted.seed.entryPath).toBe("main.md");
@@ -419,6 +475,125 @@ describe("product-neutral LaTeX conversion", () => {
       expect(item.range.unit).toBe("utf16-code-unit");
       expect(originals.get(item.range.path)?.slice(item.range.start, item.range.end)).toBe(item.source);
     }
+  });
+
+  it("inventories ordinary paragraphs before and within a section with exact source ranges", () => {
+    const source =
+      "\\documentclass{article}\r\n\\begin{document}\r\n" +
+      "Lead 😀 paragraph with \\cite{lead}.\r\n\r\n" +
+      "\\section{Results}\r\n" +
+      "First result line with \\(x + y\\).\r\nContinued result.\r\n\r\n" +
+      "Second result paragraph.\r\n" +
+      "\\end{document}\r\n";
+    const conversion = convertLatexProject(analyzeLatexArchiveFiles([tex("paper.tex", source)]), { rootPath: "paper.tex" });
+
+    expect(conversion.proseBlocks).toMatchObject([
+      { id: "paper.tex#prose-1", kind: "paragraph", sectionId: null, text: "Lead 😀 paragraph with \\cite{lead}." },
+      {
+        id: "paper.tex#prose-2",
+        kind: "paragraph",
+        sectionId: "paper.tex#section-1",
+        text: "First result line with \\(x + y\\). Continued result.",
+      },
+      { id: "paper.tex#prose-3", kind: "paragraph", sectionId: "paper.tex#section-1", text: "Second result paragraph." },
+    ]);
+    for (const block of conversion.proseBlocks) {
+      expect(source.slice(block.range.start, block.range.end)).toBe(block.source);
+    }
+  });
+
+  it("uses active par commands as exact paragraph boundaries without splitting escaped commands", () => {
+    const source =
+      "\\documentclass{article}\\begin{document}" + "First paragraph.\\par\r\nSecond paragraph with \\\\par text." + "\\end{document}";
+    const conversion = convertLatexProject(analyzeLatexArchiveFiles([tex("paper.tex", source)]), { rootPath: "paper.tex" });
+
+    expect(conversion.proseBlocks.map(({ text, source: exactSource }) => ({ text, source: exactSource }))).toEqual([
+      { text: "First paragraph.", source: "First paragraph." },
+      { text: "Second paragraph with \\\\par text.", source: "Second paragraph with \\\\par text." },
+    ]);
+  });
+
+  it("inventories nested standard lists at their own depth with exact source ranges", () => {
+    const source =
+      "\\documentclass{article}\\begin{document}" +
+      "\\begin{itemize}\\item Outer.\\begin{enumerate}\\item Inner.\\end{enumerate}\\item Tail.\\end{itemize}" +
+      "\\end{document}";
+    const conversion = convertLatexProject(analyzeLatexArchiveFiles([tex("paper.tex", source)]), { rootPath: "paper.tex" });
+
+    expect(conversion.proseBlocks.map(({ kind, text }) => ({ kind, text }))).toEqual([
+      { kind: "list-item", text: "Outer." },
+      { kind: "list-item", text: "Inner." },
+      { kind: "list-item", text: "Tail." },
+    ]);
+    for (const block of conversion.proseBlocks) {
+      expect(source.slice(block.range.start, block.range.end)).toBe(block.source);
+    }
+    expect(conversion.files[0]?.content).toBe("- Outer.\n  1. Inner.\n- Tail.\n");
+  });
+
+  it("renders same-type nested lists without exposing raw item commands", () => {
+    const source =
+      "\\documentclass{article}\\begin{document}" +
+      "\\begin{itemize}\\item Outer.\\begin{itemize}\\item Inner.\\end{itemize}\\item Tail.\\end{itemize}" +
+      "\\end{document}";
+    const conversion = convertLatexProject(analyzeLatexArchiveFiles([tex("paper.tex", source)]), { rootPath: "paper.tex" });
+
+    expect(conversion.files[0]?.content).toBe("- Outer.\n  - Inner.\n- Tail.\n");
+  });
+
+  it("preserves section context through includes and inventories list items without literal or comment prose", () => {
+    const root =
+      "\\documentclass{article}\r\n\\begin{document}\r\n" +
+      "\\section{Methods}\r\nRoot introduction.\r\n\r\n" +
+      "\\input{part}\r\n\r\nAfter included section.\r\n" +
+      "\\end{document}\r\n";
+    const part =
+      "Inherited paragraph.\r\n\r\n" +
+      "\\begin{itemize}\r\n" +
+      "\\item First item with \\cite{one}.\r\n" +
+      "\\item[Named] Second item with \\(y\\).\r\n" +
+      "\\end{itemize}\r\n\r\n" +
+      "\\section{Included results}\r\nIncluded result prose.\r\n\r\n" +
+      "% Comment-only text must not become prose.\r\n" +
+      "\\begin{verbatim}\r\nLiteral text must not become prose.\r\n\\end{verbatim}\r\n";
+    const conversion = convertLatexProject(analyzeLatexArchiveFiles([tex("main.tex", root), tex("part.tex", part)]), {
+      rootPath: "main.tex",
+    });
+
+    expect(conversion.proseBlocks.map(({ id, kind, sectionId, text }) => ({ id, kind, sectionId, text }))).toEqual([
+      { id: "main.tex#prose-1", kind: "paragraph", sectionId: "main.tex#section-1", text: "Root introduction." },
+      { id: "part.tex#prose-1", kind: "paragraph", sectionId: "main.tex#section-1", text: "Inherited paragraph." },
+      {
+        id: "part.tex#prose-2",
+        kind: "list-item",
+        sectionId: "main.tex#section-1",
+        text: "First item with \\cite{one}.",
+      },
+      {
+        id: "part.tex#prose-3",
+        kind: "list-item",
+        sectionId: "main.tex#section-1",
+        text: "Second item with \\(y\\).",
+      },
+      {
+        id: "part.tex#prose-4",
+        kind: "paragraph",
+        sectionId: "part.tex#section-1",
+        text: "Included result prose.",
+      },
+      {
+        id: "main.tex#prose-2",
+        kind: "paragraph",
+        sectionId: "part.tex#section-1",
+        text: "After included section.",
+      },
+    ]);
+    for (const block of conversion.proseBlocks) {
+      const original = block.range.path === "main.tex" ? root : part;
+      expect(original.slice(block.range.start, block.range.end)).toBe(block.source);
+    }
+    expect(conversion.proseBlocks[2]?.source).toBe("\\item First item with \\cite{one}.");
+    expect(conversion.proseBlocks[3]?.source).toBe("\\item[Named] Second item with \\(y\\).");
   });
 
   it("orders hierarchical sections at include positions while retaining source-local ranges", () => {

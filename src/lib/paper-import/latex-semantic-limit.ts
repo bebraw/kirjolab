@@ -1,8 +1,8 @@
-import type { LatexArchiveInspection } from "./latex-archive";
-import { LatexConversionError, latexConversionMaximumSemanticRecords, type LatexConversionOptions } from "./latex-contracts";
-import { latexCommandArgument, matchingLatexBrace } from "./latex-render-helpers";
-import { latexDocumentWindow, maskedLatex, semanticLatexSource } from "./latex-source";
-import type { LatexConversionSelection } from "./latex-renderer";
+import type { LatexArchiveInspection } from "./latex-archive.js";
+import { LatexConversionError, latexConversionMaximumSemanticRecords, type LatexConversionOptions } from "./latex-contracts.js";
+import { latexCommandArgument, matchingLatexBrace } from "./latex-render-helpers.js";
+import { latexDocumentWindow, maskedLatex, nextActiveLatexMatch, semanticLatexSource } from "./latex-source.js";
+import type { LatexConversionSelection } from "./latex-renderer.js";
 
 export function resolveMaximumSemanticRecords(options: LatexConversionOptions): number {
   const value = options.maximumSemanticRecords ?? latexConversionMaximumSemanticRecords;
@@ -16,9 +16,9 @@ export function assertLatexSemanticRecordLimit(
   inspection: LatexArchiveInspection,
   selection: LatexConversionSelection,
   maximumRecords: number,
-): void {
+): number {
   const root = inspection.files.find((file) => file.path === selection.rootPath && file.kind === "tex" && file.text !== undefined);
-  if (!root) return;
+  if (!root) return 0;
   const reachable = new Set<string>();
   visit(selection.rootPath);
   let count = inspection.includes.length + inspection.bibliographies.length + inspection.diagnostics.length;
@@ -41,6 +41,7 @@ export function assertLatexSemanticRecordLimit(
     const source = inspection.files.find((file) => file.path === path && file.kind === "bibtex")?.text;
     if (source !== undefined) countMatches(maskedLatex(source), { start: 0, end: source.length }, /@[a-z]+\s*[({]/giu);
   }
+  return count;
 
   function visit(path: string): void {
     if (reachable.has(path)) return;
@@ -57,7 +58,7 @@ export function assertLatexSemanticRecordLimit(
   function countMatches(source: string, window: { readonly start: number; readonly end: number }, pattern: RegExp): void {
     pattern.lastIndex = window.start;
     while (true) {
-      const match = pattern.exec(source);
+      const match = nextActiveLatexMatch(pattern, source);
       if (!match || match.index >= window.end) return;
       count += 1;
       assertWithinLimit();
@@ -68,7 +69,7 @@ export function assertLatexSemanticRecordLimit(
     const pattern = /\\(?:citet|citep|cite)(?![A-Za-z])/gu;
     pattern.lastIndex = window.start;
     while (true) {
-      const match = pattern.exec(source);
+      const match = nextActiveLatexMatch(pattern, source);
       if (!match || match.index >= window.end) return;
       const argument = latexCommandArgument(source, match.index + match[0].length);
       if (argument.kind === "malformed") return;

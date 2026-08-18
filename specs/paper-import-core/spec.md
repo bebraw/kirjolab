@@ -11,13 +11,15 @@ LaTeX as semantic structure and PDF as page and visual authority.
 
 ### Architecture
 
-- `src/lib/paper-import/index.ts` exposes versioned, source-local contracts for LaTeX
-  conversion, exact provenance, native PDF page-text extraction, and reusable
-  conformance cases.
+- `src/lib/paper-import/index.ts` exposes versioned, product-neutral contracts for
+  LaTeX conversion, exact provenance, canonical preview identity, and native PDF
+  page-text extraction. Reusable fixtures remain behind the separate
+  `./conformance` entry rather than the main production entry.
 - The neutral LaTeX result identifies the selected root and bibliography,
   document metadata and abstracts, hierarchical sections, citations and
   bibliography entries, labels and references, equations, tables, code blocks,
-  footnotes, figures, diagnostics, source fingerprints, and converter/schema
+  footnotes, ordinary paragraph and list-item prose blocks, figures,
+  diagnostics, source fingerprints, rendered format, and converter/schema
   versions.
 - Kirjolab adapts that result into `ProjectTemplateSeed`, its default
   publication profile, project assets, and conversion preview. Those product
@@ -25,12 +27,31 @@ LaTeX as semantic structure and PDF as page and visual authority.
 - A `PaperSourceRange` contains an archive path, start and end offsets, and the
   unit `utf16-code-unit`. It always addresses the original decoded file, before
   body slicing, comment removal, or conversion rewrites.
+- Each retained prose block has a deterministic id, `paragraph` or `list-item`
+  kind, active section id when known, normalized retrieval text, exact authored
+  source, and an original-file range. Inclusion traversal carries the active
+  section into included files where possible. If exact provenance cannot be
+  established, conversion omits the block and emits a typed diagnostic rather
+  than returning transformed offsets. Nested `itemize` and `enumerate`
+  structures retain every item in both the inventory and the rendered
+  Scholarmark projection.
 - Figure provenance retains the original archive asset path, resolved consumer
   asset path, content hash, caption, label, every source reference range, and
   resolution diagnostics. Asset bytes remain separate from generated output.
-- Preview identity is a canonical SHA-256 digest over schema version, archive
-  SHA-256, effective root, effective bibliography, converter version, explicit
-  conversion options, and a deterministic extracted-file manifest SHA-256.
+- `LatexConvertedFile` explicitly identifies its content as
+  `scholarmark-v1`. Rendered files are a versioned Kirjolab-oriented projection,
+  not neutral Markdown that another product may interpret without an adapter;
+  semantic inventories and prose blocks remain the neutral interpretation.
+- `LatexPreviewIdentityV1` is exported from the neutral boundary together with
+  `createLatexPreviewIdentity` and `digestLatexPreviewIdentity`. Its canonical
+  SHA-256 covers the identity schema, archive SHA-256, effective root and
+  bibliography, converter version, effective conversion options, deterministic
+  archive-manifest SHA-256, and deterministic conversion-manifest SHA-256.
+- The conversion manifest represents the complete reviewed neutral
+  interpretation: conversion schema and converter versions, diagnostics,
+  semantic inventories including prose, source fingerprints, figure
+  provenance, hashed bibliography and rendered files, and asset byte counts,
+  media types, and SHA-256 hashes. Raw binary assets never enter canonical JSON.
 - Confirmation repeats archive inspection and conversion, verifies archive and
   preview identities, and returns a conflict before any persistent write when
   either differs.
@@ -39,10 +60,16 @@ LaTeX as semantic structure and PDF as page and visual authority.
   warnings, and diagnostics. PDF.js loading, URLs, canvases, OCR, browser
   automation, storage, and jobs stay in product adapters.
 - The conformance corpus uses deterministic synthetic inputs and independent
-  literal expectations. It is runnable without importing Kirjolab API, UI,
+  literal expectations, including preview-identity and conversion-manifest
+  digest vectors, complete resolved-figure provenance, and every retained prose
+  and figure source range. It is runnable without importing Kirjolab API, UI,
   Durable Object, storage, or deployment modules.
-- The core remains source-local under ADR-223. Package publication requires a
-  maintained external adapter and every ADR-186 release gate.
+- A private ESM `0.x` package candidate may assemble this neutral source for the
+  maintained Slideotter adapter. It exposes `.` and `./conformance` separately,
+  emits JavaScript and TypeScript declarations, supports the documented Node 24
+  runtime, keeps `fflate` as its only mandatory parser dependency, and leaves
+  PDF.js runtime-injected. The candidate is a reviewed private tarball, not
+  permission for registry publication.
 
 ### API Contracts
 
@@ -50,12 +77,25 @@ LaTeX as semantic structure and PDF as page and visual authority.
   without compiling or executing TeX.
 - `convertLatexProject(inspection, selection, options)` returns the versioned
   neutral conversion result; the Kirjolab adapter is a separate operation.
+- `createLatexPreviewIdentity({ archive, files, conversion })` derives the
+  normalized effective options and canonical archive and conversion manifest
+  fingerprints from the exact neutral conversion.
+  `digestLatexPreviewIdentity(identity)` returns the stable reviewed-preview
+  SHA-256.
 - `createPdfTextExtractor(runtime)` keeps PDF.js loading in the consumer adapter
   and returns `extractPdfText(bytes, limits)`. Extraction validates input size
   and the `%PDF-` signature before the runtime receives a cloned byte array.
 - Text and manifest ordering is locale-independent and deterministic.
+- A tooling guard fingerprints conversion- and reviewed-identity-affecting
+  source and requires a new `latexConverterVersion` registration when that
+  source changes; the conversion manifest independently binds the actual
+  neutral output.
 - Stable failures and diagnostics use typed codes; human-readable messages are
   explanatory rather than program authority.
+- Package `0.x` minor releases may change incompatible contracts with migration
+  notes; supported APIs are not removed without prior deprecation in the
+  changelog. README, license, security-reporting, runtime, and compatibility
+  documentation ship with the private candidate.
 - PDF adapter lifecycle failures use `pdf-runtime`; only PDF.js password and
   known input-format failures are classified as encrypted or malformed input.
 
@@ -75,17 +115,27 @@ LaTeX as semantic structure and PDF as page and visual authority.
   aggregate semantic-record budget. Rendered output is capped at 4,194,304
   UTF-16 code units per file and 16,777,216 per project. Derived output folders
   are capped at 10,000 entries and 1,048,576 aggregate path code units.
+- Standard lists nest at most 1,024 environments so rendering and provenance
+  traversal fail through a typed limit before exhausting the runtime stack.
 - Table conversion accepts at most 1,000 rows and 256 columns and emits at most
   1,048,576 UTF-16 code units per table. TikZ preservation accepts at most 32
   blocks of 131,072 bytes each.
+- Repeated figure records retain at most 16,777,216 aggregate UTF-16 code units
+  of reference, caption, label, and enclosing-figure provenance. The conversion
+  manifest hashes those repeated strings before canonical serialization so one
+  enclosing figure cannot amplify identity work quadratically.
+- Prose blocks retain at most 33,554,432 aggregate UTF-16 code units across
+  normalized text and exact source slices. The conversion manifest hashes each
+  exact source slice before canonical serialization so overlapping nested-list
+  ranges cannot amplify identity work quadratically.
 - PDF input is at most 25 MiB and page extraction is at most 200 pages.
 - PDF text is hard-capped at 100,000 UTF-16 code units per page and 20,000,000
   per document; consumer-provided limits can only tighten those ceilings.
 - Source ranges, diagnostics, semantic inventories, and conformance expectations
   contain no unbounded archive excerpts.
-- Archive-path, image-resolution, rendering, and semantic-limit failures use
-  the stable `archive-path`, `image-resolution-limit`, `render-limit`, and
-  `semantic-record-limit` codes.
+- Archive-path, image-resolution, provenance, rendering, and semantic-limit
+  failures use the stable `archive-path`, `image-resolution-limit`,
+  `provenance-limit`, `render-limit`, and `semantic-record-limit` codes.
 - The byte and returned-text ceilings do not replace process isolation,
   execution-time, or memory limits in the consumer-owned PDF.js adapter. PDF.js
   may perform parser and decompression work before bounded text reaches the
@@ -97,28 +147,38 @@ LaTeX as semantic structure and PDF as page and visual authority.
   or network retrieval.
 - Do not return offsets into normalized, body-sliced, comment-stripped, or
   otherwise transformed source.
+- Do not present `scholarmark-v1` rendered files as product-neutral Markdown or
+  make them the sole cross-product semantic authority.
 - Do not put `ProjectTemplateSeed`, publication profiles, browser globals,
   Durable Objects, R2, queues, OCR, or LLM policy in the neutral core.
 - Do not treat LaTeX and PDF as unrelated papers or let PDF extraction replace
   LaTeX semantic authority.
-- Do not publish a package merely because a prospective consumer exists.
+- Do not publish the private package candidate to a registry without the
+  separate ADR, credentials, provenance, and release gates required by ADR-186.
 
 ## Contract
 
 ### Definition of Done
 
-- [x] Archive and exact-preview SHA-256 identities are exposed separately and
+- [x] Archive and exact-preview SHA-256 identities are exposed separately; the
+      preview identity includes both archive and conversion manifests and is
       verified before confirmation writes.
 - [x] The neutral LaTeX result is versioned and preserves the required paper
-      semantics, fingerprints, diagnostics, and figure provenance.
+      semantics, prose blocks, fingerprints, diagnostics, and figure provenance.
 - [x] Every retained range round-trips through the original decoded file with
       UTF-16 code-unit semantics, including Unicode and CRLF cases.
+- [x] Rendered files declare `scholarmark-v1`, while neutral semantic and prose
+      inventories remain independently consumable.
 - [x] Kirjolab project adaptation is separate from neutral conversion.
 - [x] A neutral byte-oriented PDF seam enforces signature, size, page, and text
       bounds and reports malformed, encrypted, truncated, sparse, and no-text
       outcomes through stable codes.
 - [x] A versioned conformance corpus covers representative conversion,
-      provenance, archive-security, and deterministic PDF extraction behavior.
+      provenance, preview identity, manifest hashing, archive security, and
+      deterministic PDF extraction behavior.
+- [x] An isolated Node 24 consumer can install the deterministic private `0.x`
+      tarball and exercise archive inspection, neutral conversion, preview
+      identity, prose round trips, and injected PDF extraction.
 - [x] Focused unit, coverage, Workers-runtime, and browser tests cover the public
       contracts and reviewed Kirjolab workflow.
 - [x] The full native quality gate completes without a repository dependency-
@@ -127,10 +187,17 @@ LaTeX as semantic structure and PDF as page and visual authority.
 ### Regression Guardrails
 
 - A changed archive, root, bibliography, option, converter version, identity
-  schema, or extracted manifest invalidates confirmation and leaves persistent
-  state untouched.
+  schema, archive manifest, or neutral conversion manifest invalidates
+  confirmation and leaves persistent state untouched.
 - `originalFileText.slice(range.start, range.end)` equals the retained source
   for every range-bearing neutral record.
+- Prose ids and ordering are locale-independent and deterministic; prose before
+  the first section has a null section id, and reachable included files retain
+  the active section relationship where it can be established exactly.
+- A backslash introduces a command or environment only when its immediately
+  preceding backslash run has even length. Escaped commands remain inert in
+  ordinary text, comments, and literal-code environments without shifting
+  Unicode or CRLF source offsets.
 - Comment masking preserves source length; CRLF and Unicode before a construct
   do not shift its range, including astral characters inside masked comment,
   literal-code, or TikZ environments.
@@ -139,6 +206,8 @@ LaTeX as semantic structure and PDF as page and visual authority.
   literal-looking text inside an outer comment remains inert.
 - Figure bytes and generated presentation or Markdown output never share an
   identity or overwrite one another.
+- Canonical identity JSON contains hashes and byte counts for binary assets,
+  never the raw bytes.
 - PDF extraction never invokes OCR, creates a canvas, fetches a URL, persists
   bytes, or sends content to a model.
 - Conformance expectations never depend on locale ordering, current time,
@@ -153,7 +222,7 @@ LaTeX as semantic structure and PDF as page and visual authority.
 
 - Given: a researcher previews one root and bibliography from a bounded archive
 - When: confirmation repeats with identical bytes, selection, versions, options,
-  and manifest
+  archive manifest, and neutral conversion manifest
 - Then: both identities match and Kirjolab may adapt and persist the conversion
 
 **Scenario: Reject a changed selection without mutation**
@@ -164,6 +233,14 @@ LaTeX as semantic structure and PDF as page and visual authority.
 - Then: the Worker returns a conflict before any project, asset, access, room,
   or catalog write
 
+**Scenario: Ignore an escaped semantic command**
+
+- Given: source contains `\\cite{x}` beside active `\cite{x}` and
+  `\\\cite{x}` forms, comments, literal environments, Unicode, and CRLF
+- When: neutral conversion scans commands and environments
+- Then: the escaped command creates no semantic record while each active command
+  retains its exact original-file range
+
 **Scenario: Verify source provenance after Unicode**
 
 - Given: a decoded source contains CRLF text and non-BMP characters before a
@@ -171,6 +248,22 @@ LaTeX as semantic structure and PDF as page and visual authority.
 - When: neutral conversion retains its source range
 - Then: slicing the original JavaScript string with that range recovers the
   exact authored construct
+
+**Scenario: Recover ordinary prose under its active section**
+
+- Given: a multi-file manuscript has prose before its first section, paragraphs
+  and list items under a section, Unicode, CRLF, citations, and equations
+- When: neutral conversion emits its prose-block inventory
+- Then: every retained block round-trips to exact authored source and carries
+  its deterministic kind, order, and active section relationship
+
+**Scenario: Install the private package candidate**
+
+- Given: the maintained Slideotter adapter needs the neutral core without any
+  Kirjolab application or Cloudflare authority
+- When: its isolated Node 24 build installs the reviewed private `0.x` tarball
+- Then: production imports use `.`, fixtures use `./conformance`, PDF.js remains
+  injected, and no registry publication occurs
 
 **Scenario: Extract native PDF text locally**
 

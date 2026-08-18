@@ -86,6 +86,12 @@ failures quickly during normal development.
 - **Coverage gate logic:** `scripts/run-coverage-gate.mjs`
 - **Worker client-code guard:** `scripts/assert-no-worker-client-scripts.mjs`
 - **ADR registry guard:** `scripts/check-adr-registry.mjs`
+- **Private paper-import package build:** `npm run build:paper-import-package`
+- **Private paper-import package verification:** `npm run test:paper-import-package`
+- **Paper-import package staging target:** ignored `.generated/paper-import-package/`
+- **Paper-import package consumer baseline:** exact Node.js `24.15.0`, ESM,
+  NodeNext declaration compilation, offline tarball installation, and
+  consumer-owned PDF.js runtime injection
 - **Codebase diagnostics config:** `.fallowrc.json`
 - **Formatting ownership exclusions:** duplicated `.github/skills/` content and
   vendored `.codex/skills/**/references/`
@@ -189,6 +195,12 @@ failures quickly during normal development.
       name and does not repeat after merge on pushes to `main`.
 - [ ] Native local CI preserves full-gate live output and periodic phase heartbeats.
 - [ ] Optional container parity preserves Agent CI job progress, failure, and retry semantics.
+- [ ] Tooling tests rebuild and pack the private paper-import candidate
+      reproducibly, enforce the reviewed tarball allowlist, and exercise both
+      public exports from an isolated exact-Node-24 consumer.
+- [ ] The isolated paper-import consumer round-trips prose ranges, constructs
+      canonical preview identity, and extracts the PDF conformance fixture
+      through a consumer-owned injected PDF.js runtime.
 - [ ] Documentation-only changes can skip local CI when they do not alter executable behavior or workflow configuration.
 - [ ] The spec is updated in the same change set.
 
@@ -204,6 +216,15 @@ failures quickly during normal development.
 - `npm run test:affected` must avoid full coverage work when affected runtime or unit test files can be checked through related or direct Vitest runs.
 - `npm run quality:gate` must continue to represent the local baseline verification path.
 - `npm run quality:gate` must preserve each child command's live output and emit a progress heartbeat at least every 30 seconds while that command is still running.
+- Paper-import package verification must fail on nondeterministic staged bytes
+  or tarballs, undeclared pack contents, non-ESM output, missing declarations,
+  extra exports, parser dependencies beyond `fflate@0.8.3`, or imports outside
+  `src/lib/paper-import/`.
+- The package gate must verify PDF conformance using an injected consumer-owned
+  PDF.js installation; `pdfjs-dist` must not become a package dependency.
+- Affected guardrails must run the isolated package gate when paper-import
+  source, package metadata, its package tsconfig, or its build/test harness
+  changes.
 - `npm run diagnostics:codebase` must remain advisory and must not be required by the baseline readiness path.
 - `npm run diagnostics:dependencies` must read the lockfile and existing built
   artifacts without writing reports, and must support deterministic Markdown

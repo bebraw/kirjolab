@@ -2,18 +2,21 @@ import { describe, expect, it } from "vitest";
 import { itOutsideMutation } from "../../test-support/mutation";
 import { inspectLatexArchive } from "./latex-archive";
 import { convertLatexProject } from "./latex-conversion";
+import { createLatexPreviewIdentity, digestLatexPreviewIdentity } from "./index";
 import { createPdfTextExtractor, type PdfTextRuntime } from "./pdf-text";
 import { sha256Hex } from "./sha256";
 import {
-  createAmbiguousFigureConformanceFixtureV1,
-  createLatexArchiveFailureConformanceFixturesV1,
-  createLatexGraphConformanceFixtureV1,
-  createPaperImportConformanceCorpusV1,
-  createReviewedLatexConformanceFixtureV1,
-  createTwoPagePdfConformanceFixtureV1,
+  createAmbiguousFigureConformanceFixtureV2,
+  createEscapedCommandsConformanceFixtureV2,
+  createLatexArchiveFailureConformanceFixturesV2,
+  createLatexGraphConformanceFixtureV2,
+  createPaperImportConformanceCorpusV2,
+  createProseBlocksConformanceFixtureV2,
+  createReviewedLatexConformanceFixtureV2,
+  createTwoPagePdfConformanceFixtureV2,
   paperImportConformanceCorpusVersion,
-  type LatexArchiveFailureConformanceFixtureV1,
-  type LatexArchiveFailureConformanceIdV1,
+  type LatexArchiveFailureConformanceFixtureV2,
+  type LatexArchiveFailureConformanceIdV2,
 } from "./conformance-corpus";
 
 const archiveFailureFixtureIds = [
@@ -31,7 +34,7 @@ const archiveFailureFixtureIds = [
   "expansion-ratio",
   "invalid-utf8",
   "oversized-source",
-] satisfies readonly LatexArchiveFailureConformanceIdV1[];
+] satisfies readonly LatexArchiveFailureConformanceIdV2[];
 
 const archiveFailureFixtureSha256 = [
   { id: "empty-archive", sha256: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855" },
@@ -48,9 +51,9 @@ const archiveFailureFixtureSha256 = [
   { id: "expansion-ratio", sha256: "9de45096e35437ea743beba9dbff45ee6711e60abd787e6b28bc2c797ad71b98" },
   { id: "invalid-utf8", sha256: "d63b152ea7d94000590d7fee312ae710ac29b5dc7cee40d19feb9e733f9a24c5" },
   { id: "oversized-source", sha256: "e53094444a19cb06d6ea67b04ab57d9bef7c373a38019b90f1bb4aff3f88ff0a" },
-] satisfies ReadonlyArray<{ readonly id: LatexArchiveFailureConformanceIdV1; readonly sha256: string }>;
+] satisfies ReadonlyArray<{ readonly id: LatexArchiveFailureConformanceIdV2; readonly sha256: string }>;
 
-async function expectArchiveFailure(fixture: LatexArchiveFailureConformanceFixtureV1): Promise<void> {
+async function expectArchiveFailure(fixture: LatexArchiveFailureConformanceFixtureV2): Promise<void> {
   await expect(inspectLatexArchive(fixture.archive)).rejects.toMatchObject({
     name: "LatexArchiveFailure",
     code: fixture.expected.code,
@@ -60,22 +63,23 @@ async function expectArchiveFailure(fixture: LatexArchiveFailureConformanceFixtu
 
 describe("paper-import conformance corpus", () => {
   it("exposes one versioned consumer entry point without application authorities", () => {
-    const corpus = createPaperImportConformanceCorpusV1();
+    const corpus = createPaperImportConformanceCorpusV2();
 
-    expect(corpus.schemaVersion).toBe(1);
+    expect(corpus.schemaVersion).toBe(2);
     expect(corpus.latex.reviewedPaper.id).toBe("reviewed-latex-paper-v1");
     expect(corpus.latex.includeGraph.canonical.id).toBe("latex-include-graph-v1");
     expect(corpus.latex.includeGraph.reordered.id).toBe("latex-include-graph-v1");
     expect(corpus.latex.ambiguousFigure.id).toBe("latex-ambiguous-figure-v1");
+    expect(corpus.latex.escapedCommands.id).toBe("latex-escaped-commands-v1");
     expect(corpus.latex.archiveFailures).toHaveLength(14);
     expect(corpus.pdf.twoPageNativeText.id).toBe("two-page-native-text-pdf-v1");
   });
 
   it("publishes a versioned deterministic reviewed-paper fixture with literal expectations", () => {
-    const first = createReviewedLatexConformanceFixtureV1();
-    const second = createReviewedLatexConformanceFixtureV1();
+    const first = createReviewedLatexConformanceFixtureV2();
+    const second = createReviewedLatexConformanceFixtureV2();
 
-    expect(paperImportConformanceCorpusVersion).toBe(1);
+    expect(paperImportConformanceCorpusVersion).toBe(2);
     expect(first.archive).toEqual(second.archive);
     expect(sha256Hex(first.archive)).toBe(first.expected.archiveSha256);
     expect(first).toMatchObject({
@@ -91,7 +95,7 @@ describe("paper-import conformance corpus", () => {
   });
 
   it("runs the reviewed multi-file archive through the neutral public seams", async () => {
-    const fixture = createReviewedLatexConformanceFixtureV1();
+    const fixture = createReviewedLatexConformanceFixtureV2();
     const inspection = await inspectLatexArchive(fixture.archive);
     const conversion = convertLatexProject(inspection, fixture.selection);
 
@@ -104,10 +108,12 @@ describe("paper-import conformance corpus", () => {
       rootPath: conversion.rootPath,
       bibliographyPath: conversion.bibliographyPath,
       assets: conversion.assets.map(({ path, mediaType }) => ({ path, mediaType })),
+      renderedFormats: conversion.files.map(({ renderedFormat }) => renderedFormat),
       title: conversion.metadata.title?.value,
       authors: conversion.metadata.authors.map(({ value }) => value),
       abstracts: conversion.abstracts.map(({ value }) => value),
       sections: conversion.sections.map(({ title, label }) => ({ title, label })),
+      proseBlocks: conversion.proseBlocks.map(({ id, kind, sectionId, text }) => ({ id, kind, sectionId, text })),
       citations: conversion.citations.map(({ mode, keys }) => ({ mode, keys })),
       bibliographyEntries: conversion.bibliographyEntries.map(({ type, citationKey }) => ({ type, citationKey })),
       labels: conversion.labels.map(({ id }) => id),
@@ -116,20 +122,47 @@ describe("paper-import conformance corpus", () => {
       tables: conversion.tables.map(({ environment }) => environment),
       codeBlocks: conversion.codeBlocks.map(({ environment, language, value }) => ({ environment, language, value })),
       footnotes: conversion.footnotes.map(({ value }) => value),
-      figures: conversion.figures.map(({ requestedPath, archivePath, resolvedAssetPath, caption, label, resolutionDiagnostics }) => ({
-        requestedPath,
-        archivePath,
-        resolvedAssetPath,
-        caption: caption?.value,
-        label: label?.value,
-        resolutionDiagnostics: resolutionDiagnostics.map(({ code }) => code),
-      })),
+      figures: conversion.figures.map(
+        ({
+          sourcePath,
+          requestedPath,
+          archivePath,
+          resolvedAssetPath,
+          contentHash,
+          mediaType,
+          source,
+          referenceRange,
+          figureSource,
+          figureRange,
+          caption,
+          label,
+          resolutionDiagnostics,
+        }) => ({
+          sourcePath,
+          requestedPath,
+          archivePath,
+          resolvedAssetPath,
+          contentHash,
+          mediaType,
+          source,
+          referenceRange,
+          figureSource,
+          figureRange,
+          caption: caption?.value,
+          captionSource: caption?.source,
+          captionRange: caption?.range,
+          label: label?.value,
+          labelSource: label?.source,
+          labelRange: label?.range,
+          resolutionDiagnostics: resolutionDiagnostics.map(({ code }) => code),
+        }),
+      ),
       diagnosticCodes: conversion.diagnostics.map(({ code }) => code),
     }).toEqual(fixture.expected.conversion);
   });
 
   it("round-trips every reviewed Unicode and CRLF source range into original decoded text", async () => {
-    const fixture = createReviewedLatexConformanceFixtureV1();
+    const fixture = createReviewedLatexConformanceFixtureV2();
     const inspection = await inspectLatexArchive(fixture.archive);
     const conversion = convertLatexProject(inspection, fixture.selection);
     const ranged = [
@@ -137,6 +170,7 @@ describe("paper-import conformance corpus", () => {
       ...conversion.metadata.authors,
       ...conversion.abstracts,
       ...conversion.sections,
+      ...conversion.proseBlocks,
       ...conversion.citations,
       ...conversion.bibliographyEntries,
       ...conversion.labels,
@@ -145,7 +179,12 @@ describe("paper-import conformance corpus", () => {
       ...conversion.tables,
       ...conversion.codeBlocks,
       ...conversion.footnotes,
-      ...conversion.figures.flatMap((figure) => [{ source: figure.source, range: figure.referenceRange }, figure.caption, figure.label]),
+      ...conversion.figures.flatMap((figure) => [
+        { source: figure.source, range: figure.referenceRange },
+        ...(figure.figureSource && figure.figureRange ? [{ source: figure.figureSource, range: figure.figureRange }] : []),
+        figure.caption,
+        figure.label,
+      ]),
     ].filter((item) => item !== undefined);
 
     expect(inspection.includes.map(({ requestedPath }) => requestedPath)).toEqual(["sections/results"]);
@@ -157,9 +196,26 @@ describe("paper-import conformance corpus", () => {
     expect(ranged.map(({ source, range: { path, start, end } }) => ({ path, start, end, source }))).toEqual(fixture.expected.ranges);
   });
 
+  it("pins the reviewed archive, conversion manifest, and preview identity digests", async () => {
+    const fixture = createReviewedLatexConformanceFixtureV2();
+    const inspection = await inspectLatexArchive(fixture.archive);
+    const conversion = convertLatexProject(inspection, fixture.selection);
+    const identity = createLatexPreviewIdentity({
+      archive: fixture.archive,
+      files: inspection.files,
+      conversion,
+    });
+
+    expect({
+      archiveManifestSha256: identity.archiveManifestSha256,
+      conversionManifestSha256: identity.conversionManifestSha256,
+      previewDigest: digestLatexPreviewIdentity(identity),
+    }).toEqual(fixture.expected.identity);
+  });
+
   it("keeps include diagnostics and the full extracted manifest deterministic across ZIP entry order", async () => {
-    const canonical = createLatexGraphConformanceFixtureV1("canonical");
-    const reordered = createLatexGraphConformanceFixtureV1("reordered");
+    const canonical = createLatexGraphConformanceFixtureV2("canonical");
+    const reordered = createLatexGraphConformanceFixtureV2("reordered");
     const firstInspection = await inspectLatexArchive(canonical.archive);
     const secondInspection = await inspectLatexArchive(reordered.archive);
     const firstConversion = convertLatexProject(firstInspection, canonical.selection);
@@ -180,7 +236,7 @@ describe("paper-import conformance corpus", () => {
   });
 
   it("reports an ambiguous figure with literal null provenance instead of choosing an asset", async () => {
-    const fixture = createAmbiguousFigureConformanceFixtureV1();
+    const fixture = createAmbiguousFigureConformanceFixtureV2();
     const inspection = await inspectLatexArchive(fixture.archive);
     const conversion = convertLatexProject(inspection, fixture.selection);
 
@@ -202,8 +258,53 @@ describe("paper-import conformance corpus", () => {
     expect(conversion.assets).toEqual([]);
   });
 
+  it("pins escaped-command parity across Unicode, CRLF, comments, literals, sections, and environments", async () => {
+    const fixture = createEscapedCommandsConformanceFixtureV2();
+    const inspection = await inspectLatexArchive(fixture.archive);
+    const conversion = convertLatexProject(inspection, fixture.selection);
+    const actual = {
+      archiveSha256: sha256Hex(fixture.archive),
+      citations: conversion.citations.map(({ keys, source, range }) => ({ keys, source, range })),
+      sections: conversion.sections.map(({ title, source, range }) => ({ title, source, range })),
+      equations: conversion.equations.map(({ value, source, range }) => ({ value, source, range })),
+    };
+
+    expect(actual).toEqual(fixture.expected);
+    for (const item of [...actual.citations, ...actual.sections, ...actual.equations]) {
+      expect(item.range.path).toBe("main.tex");
+      expect(fixture.sourceByPath["main.tex"].slice(item.range.start, item.range.end)).toBe(item.source);
+    }
+  });
+
+  it("pins leading, sectioned, included, Unicode, and list prose with embedded TeX and exact ranges", async () => {
+    const fixture = createProseBlocksConformanceFixtureV2();
+    const inspection = await inspectLatexArchive(fixture.archive);
+    const conversion = convertLatexProject(inspection, fixture.selection);
+    const blocks = conversion.proseBlocks.map(({ id, kind, sectionId, text, source, range }) => ({
+      id,
+      kind,
+      sectionId,
+      text,
+      source,
+      range,
+    }));
+
+    expect({ archiveSha256: sha256Hex(fixture.archive), blocks }).toEqual(fixture.expected);
+    for (const block of blocks) {
+      const original =
+        block.range.path === "main.tex"
+          ? fixture.sourceByPath["main.tex"]
+          : block.range.path === "part.tex"
+            ? fixture.sourceByPath["part.tex"]
+            : undefined;
+      expect(original?.slice(block.range.start, block.range.end)).toBe(block.source);
+    }
+    expect(blocks[0]?.source).toContain("\\cite{lead}");
+    expect(blocks[0]?.source).toContain("\\(x + y\\)");
+  });
+
   it("pins and rejects every compact archive-security fixture with its literal stable failure", async () => {
-    const fixtures = createLatexArchiveFailureConformanceFixturesV1();
+    const fixtures = createLatexArchiveFailureConformanceFixturesV2();
 
     expect(fixtures.map(({ id }) => id)).toEqual(archiveFailureFixtureIds);
     const compactFixtures = fixtures.filter(({ id }) => id !== "oversized-source");
@@ -217,7 +318,7 @@ describe("paper-import conformance corpus", () => {
   });
 
   itOutsideMutation("pins and rejects the exact oversized archive-security fixture", async () => {
-    const fixtures = createLatexArchiveFailureConformanceFixturesV1();
+    const fixtures = createLatexArchiveFailureConformanceFixturesV2();
 
     const oversizedSource = fixtures.find(({ id }) => id === "oversized-source");
     if (!oversizedSource) throw new Error("Missing oversized-source conformance fixture");
@@ -228,10 +329,10 @@ describe("paper-import conformance corpus", () => {
   });
 
   it("pins the deterministic two-page PDF fixture bytes", () => {
-    const fixture = createTwoPagePdfConformanceFixtureV1();
+    const fixture = createTwoPagePdfConformanceFixtureV2();
 
     expect({ schemaVersion: fixture.schemaVersion, id: fixture.id, sha256: sha256Hex(fixture.bytes) }).toEqual({
-      schemaVersion: 1,
+      schemaVersion: 2,
       id: "two-page-native-text-pdf-v1",
       sha256: "19ac21175b4b299831fb1a7d7e8bd046ca5bdab709f592aeb6c39384a2a01dc6",
     });
@@ -239,8 +340,8 @@ describe("paper-import conformance corpus", () => {
 
   itOutsideMutation("extracts the deterministic two-page PDF fixture through the neutral byte seam", async () => {
     const { getDocument } = await import("pdfjs-dist/legacy/build/pdf.mjs");
-    const fixture = createTwoPagePdfConformanceFixtureV1();
-    const repeated = createTwoPagePdfConformanceFixtureV1();
+    const fixture = createTwoPagePdfConformanceFixtureV2();
+    const repeated = createTwoPagePdfConformanceFixtureV2();
     const cleanedPages: number[] = [];
     const runtime: PdfTextRuntime = {
       getDocument({ data }) {

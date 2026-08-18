@@ -1,6 +1,6 @@
 import { strToU8, zipSync } from "fflate";
 
-export const paperImportConformanceCorpusVersion = 1 as const;
+export const paperImportConformanceCorpusVersion = 2 as const;
 
 const reviewedExpected = {
   archiveSha256: "7445c30cfb4d9e4b2a7308a97a439bc45eb91249f205491fca77c3fe68703630",
@@ -12,15 +12,30 @@ const reviewedExpected = {
     rootCandidates: ["alternate.tex", "main.tex"],
     selectedRoot: null,
     convertedFilePaths: ["main.md", "sections/results.md"],
-    schemaVersion: 1,
-    converterVersion: "latex-converter-v1",
+    schemaVersion: 2,
+    converterVersion: "latex-converter-v2",
     rootPath: "main.tex",
     bibliographyPath: "refs.bib",
     assets: [{ path: "figures/plot.png", mediaType: "image/png" }],
+    renderedFormats: ["scholarmark-v1", "scholarmark-v1"],
     title: "Ångström 😀 study",
     authors: ["Ada Lovelace"],
     abstracts: ["Résumé 😀."],
     sections: [{ title: "Results", label: "sec:results" }],
+    proseBlocks: [
+      {
+        id: "sections/results.tex#prose-1",
+        kind: "paragraph",
+        sectionId: "main.tex#section-1",
+        text: "Evidence \\citep{doe2026} refers to Figure \\ref{fig:plot}.",
+      },
+      {
+        id: "sections/results.tex#prose-2",
+        kind: "paragraph",
+        sectionId: "main.tex#section-1",
+        text: "Foot\\footnote{Exact note.} Visible unsupported body. \\unknown",
+      },
+    ],
     citations: [{ mode: "parenthetical", keys: ["doe2026"] }],
     bibliographyEntries: [{ type: "article", citationKey: "doe2026" }],
     labels: ["sec:results", "fig:plot"],
@@ -31,21 +46,49 @@ const reviewedExpected = {
     footnotes: ["Exact note."],
     figures: [
       {
+        sourcePath: "sections/results.tex",
         requestedPath: "plot",
         archivePath: "figures/plot.png",
         resolvedAssetPath: "figures/plot.png",
+        contentHash: "4c4b6a3be1314ab86138bef4314dde022e600960d8689a2c8f8631802d20dab6",
+        mediaType: "image/png",
+        source: "\\includegraphics{plot}",
+        referenceRange: { path: "sections/results.tex", start: 75, end: 97, unit: "utf16-code-unit" },
+        figureSource: "\\begin{figure}\r\n\\includegraphics{plot}\r\n\\caption{Résumé 😀 plot}\r\n\\label{fig:plot}\r\n\\end{figure}",
+        figureRange: { path: "sections/results.tex", start: 59, end: 155, unit: "utf16-code-unit" },
         caption: "Résumé 😀 plot",
+        captionSource: "\\caption{Résumé 😀 plot}",
+        captionRange: { path: "sections/results.tex", start: 99, end: 123, unit: "utf16-code-unit" },
         label: "fig:plot",
+        labelSource: "\\label{fig:plot}",
+        labelRange: { path: "sections/results.tex", start: 125, end: 141, unit: "utf16-code-unit" },
         resolutionDiagnostics: [],
       },
     ],
     diagnosticCodes: ["unsupported-environment", "unsupported-environment", "unsupported-command"],
+  },
+  identity: {
+    archiveManifestSha256: "3133fface09acacdbf72e57227870b6827c128d111a9a6494f0eb5b42e499014",
+    conversionManifestSha256: "f49952f9f505bc5db20b2a8eb63c4bc5eed15cdc237e7f202133ee3a13eb00cf",
+    previewDigest: "8b46b68d4150c5fb220862f0a8af9a0201dcc2fbf8c3cd77ace648f32f1f55af",
   },
   ranges: [
     { path: "main.tex", start: 25, end: 50, source: "\\title{Ångström 😀 study}" },
     { path: "main.tex", start: 52, end: 73, source: "\\author{Ada Lovelace}" },
     { path: "main.tex", start: 139, end: 179, source: "\\begin{abstract}Résumé 😀.\\end{abstract}" },
     { path: "main.tex", start: 181, end: 217, source: "\\section{Results}\\label{sec:results}" },
+    {
+      path: "sections/results.tex",
+      start: 0,
+      end: 57,
+      source: "Evidence \\citep{doe2026} refers to Figure \\ref{fig:plot}.",
+    },
+    {
+      path: "sections/results.tex",
+      start: 289,
+      end: 380,
+      source: "Foot\\footnote{Exact note.}\r\n\\begin{mystery}Visible unsupported body.\\end{mystery}\r\n\\unknown",
+    },
     { path: "sections/results.tex", start: 9, end: 24, source: "\\citep{doe2026}" },
     { path: "refs.bib", start: 0, end: 35, source: "@article{doe2026, title={Evidence}}" },
     { path: "main.tex", start: 198, end: 217, source: "\\label{sec:results}" },
@@ -66,14 +109,20 @@ const reviewedExpected = {
     },
     { path: "sections/results.tex", start: 293, end: 315, source: "\\footnote{Exact note.}" },
     { path: "sections/results.tex", start: 75, end: 97, source: "\\includegraphics{plot}" },
+    {
+      path: "sections/results.tex",
+      start: 59,
+      end: 155,
+      source: "\\begin{figure}\r\n\\includegraphics{plot}\r\n\\caption{Résumé 😀 plot}\r\n\\label{fig:plot}\r\n\\end{figure}",
+    },
     { path: "sections/results.tex", start: 99, end: 123, source: "\\caption{Résumé 😀 plot}" },
     { path: "sections/results.tex", start: 125, end: 141, source: "\\label{fig:plot}" },
   ],
 } as const;
 
-export type ReviewedLatexConformanceExpectedV1 = typeof reviewedExpected;
+export type ReviewedLatexConformanceExpectedV2 = typeof reviewedExpected;
 
-export interface ReviewedLatexConformanceFixtureV1 {
+export interface ReviewedLatexConformanceFixtureV2 {
   readonly schemaVersion: typeof paperImportConformanceCorpusVersion;
   readonly id: "reviewed-latex-paper-v1";
   readonly archive: Uint8Array;
@@ -82,10 +131,10 @@ export interface ReviewedLatexConformanceFixtureV1 {
     readonly rootPath: "main.tex";
     readonly bibliographyPath: "refs.bib";
   };
-  readonly expected: ReviewedLatexConformanceExpectedV1;
+  readonly expected: ReviewedLatexConformanceExpectedV2;
 }
 
-export type LatexGraphConformanceOrderV1 = "canonical" | "reordered";
+export type LatexGraphConformanceOrderV2 = "canonical" | "reordered";
 
 const graphExpected = {
   inspection: {
@@ -150,7 +199,7 @@ const graphExpected = {
   },
 } as const;
 
-export interface LatexGraphConformanceFixtureV1 {
+export interface LatexGraphConformanceFixtureV2 {
   readonly schemaVersion: typeof paperImportConformanceCorpusVersion;
   readonly id: "latex-include-graph-v1";
   readonly archive: Uint8Array;
@@ -188,7 +237,7 @@ const ambiguousFigureExpected = {
   ],
 } as const;
 
-export interface AmbiguousFigureConformanceFixtureV1 {
+export interface AmbiguousFigureConformanceFixtureV2 {
   readonly schemaVersion: typeof paperImportConformanceCorpusVersion;
   readonly id: "latex-ambiguous-figure-v1";
   readonly archive: Uint8Array;
@@ -196,7 +245,109 @@ export interface AmbiguousFigureConformanceFixtureV1 {
   readonly expected: typeof ambiguousFigureExpected;
 }
 
-export type LatexArchiveFailureConformanceIdV1 =
+const escapedCommandsExpected = {
+  archiveSha256: "8ecf56abf41d174c2be044afa3b9ec1d9bb7d43d46acaa954dc56b2d1d23800a",
+  citations: [
+    {
+      keys: ["active"],
+      source: "\\cite{active}",
+      range: { path: "main.tex", start: 46, end: 59, unit: "utf16-code-unit" },
+    },
+    {
+      keys: ["triple"],
+      source: "\\cite{triple}",
+      range: { path: "main.tex", start: 81, end: 94, unit: "utf16-code-unit" },
+    },
+  ],
+  sections: [
+    {
+      title: "Active section",
+      source: "\\section{Active section}",
+      range: { path: "main.tex", start: 124, end: 148, unit: "utf16-code-unit" },
+    },
+  ],
+  equations: [
+    {
+      value: "active equation",
+      source: "\\begin{equation}active equation\\end{equation}",
+      range: { path: "main.tex", start: 266, end: 311, unit: "utf16-code-unit" },
+    },
+  ],
+} as const;
+
+export interface EscapedCommandsConformanceFixtureV2 {
+  readonly schemaVersion: typeof paperImportConformanceCorpusVersion;
+  readonly id: "latex-escaped-commands-v1";
+  readonly archive: Uint8Array;
+  readonly sourceByPath: Readonly<Record<"main.tex", string>>;
+  readonly selection: { readonly rootPath: "main.tex" };
+  readonly expected: typeof escapedCommandsExpected;
+}
+
+const proseBlocksExpected = {
+  archiveSha256: "b9e7f4cc48b982f0f534c6d8c6b714db895c0dd22e4dae7ea57af8e350e5e947",
+  blocks: [
+    {
+      id: "main.tex#prose-1",
+      kind: "paragraph",
+      sectionId: null,
+      text: "Lead 😀 with \\cite{lead} and \\(x + y\\).",
+      source: "Lead 😀 with \\cite{lead} and \\(x + y\\).",
+      range: { path: "main.tex", start: 43, end: 82, unit: "utf16-code-unit" },
+    },
+    {
+      id: "main.tex#prose-2",
+      kind: "paragraph",
+      sectionId: "main.tex#section-1",
+      text: "First method paragraph.",
+      source: "First method paragraph.",
+      range: { path: "main.tex", start: 105, end: 128, unit: "utf16-code-unit" },
+    },
+    {
+      id: "main.tex#prose-3",
+      kind: "paragraph",
+      sectionId: "main.tex#section-1",
+      text: "Second method paragraph.",
+      source: "Second method paragraph.",
+      range: { path: "main.tex", start: 132, end: 156, unit: "utf16-code-unit" },
+    },
+    {
+      id: "part.tex#prose-1",
+      kind: "paragraph",
+      sectionId: "main.tex#section-1",
+      text: "Inherited Å prose.",
+      source: "Inherited Å prose.",
+      range: { path: "part.tex", start: 0, end: 18, unit: "utf16-code-unit" },
+    },
+    {
+      id: "part.tex#prose-2",
+      kind: "list-item",
+      sectionId: "main.tex#section-1",
+      text: "First item with \\cite{one}.",
+      source: "\\item First item with \\cite{one}.",
+      range: { path: "part.tex", start: 39, end: 72, unit: "utf16-code-unit" },
+    },
+    {
+      id: "part.tex#prose-3",
+      kind: "list-item",
+      sectionId: "main.tex#section-1",
+      text: "Second item with \\(z\\).",
+      source: "\\item Second item with \\(z\\).",
+      range: { path: "part.tex", start: 74, end: 103, unit: "utf16-code-unit" },
+    },
+  ],
+} as const;
+
+export interface ProseBlocksConformanceFixtureV2 {
+  readonly schemaVersion: typeof paperImportConformanceCorpusVersion;
+  readonly id: "latex-prose-blocks-v1";
+  readonly archive: Uint8Array;
+  readonly sourceByPath: Readonly<Record<"main.tex" | "part.tex", string>>;
+  readonly selection: { readonly rootPath: "main.tex" };
+  readonly expected: typeof proseBlocksExpected;
+}
+
+export type LatexArchiveFailureConformanceIdV2 =
   | "empty-archive"
   | "malformed-archive"
   | "traversal-path"
@@ -212,9 +363,9 @@ export type LatexArchiveFailureConformanceIdV1 =
   | "invalid-utf8"
   | "oversized-source";
 
-export interface LatexArchiveFailureConformanceFixtureV1 {
+export interface LatexArchiveFailureConformanceFixtureV2 {
   readonly schemaVersion: typeof paperImportConformanceCorpusVersion;
-  readonly id: LatexArchiveFailureConformanceIdV1;
+  readonly id: LatexArchiveFailureConformanceIdV2;
   readonly archive: Uint8Array;
   readonly expected: {
     readonly code: string;
@@ -234,7 +385,7 @@ const twoPagePdfExpected = {
   truncated: false,
 } as const;
 
-export interface TwoPagePdfConformanceFixtureV1 {
+export interface TwoPagePdfConformanceFixtureV2 {
   readonly schemaVersion: typeof paperImportConformanceCorpusVersion;
   readonly id: "two-page-native-text-pdf-v1";
   readonly bytes: Uint8Array;
@@ -247,18 +398,20 @@ export interface TwoPagePdfConformanceFixtureV1 {
   readonly expected: typeof twoPagePdfExpected;
 }
 
-export interface PaperImportConformanceCorpusV1 {
+export interface PaperImportConformanceCorpusV2 {
   readonly schemaVersion: typeof paperImportConformanceCorpusVersion;
   readonly latex: {
-    readonly reviewedPaper: ReviewedLatexConformanceFixtureV1;
+    readonly reviewedPaper: ReviewedLatexConformanceFixtureV2;
     readonly includeGraph: {
-      readonly canonical: LatexGraphConformanceFixtureV1;
-      readonly reordered: LatexGraphConformanceFixtureV1;
+      readonly canonical: LatexGraphConformanceFixtureV2;
+      readonly reordered: LatexGraphConformanceFixtureV2;
     };
-    readonly ambiguousFigure: AmbiguousFigureConformanceFixtureV1;
-    readonly archiveFailures: readonly LatexArchiveFailureConformanceFixtureV1[];
+    readonly ambiguousFigure: AmbiguousFigureConformanceFixtureV2;
+    readonly escapedCommands: EscapedCommandsConformanceFixtureV2;
+    readonly proseBlocks: ProseBlocksConformanceFixtureV2;
+    readonly archiveFailures: readonly LatexArchiveFailureConformanceFixtureV2[];
   };
-  readonly pdf: { readonly twoPageNativeText: TwoPagePdfConformanceFixtureV1 };
+  readonly pdf: { readonly twoPageNativeText: TwoPagePdfConformanceFixtureV2 };
 }
 
 const reviewedMainSource =
@@ -297,6 +450,38 @@ const graphMainSource = "\\documentclass{article}\\begin{document}\\input{part}\
 const graphPartSource = "Part\\input{main}";
 const graphUnusedBibliographySource = "@misc{unused, title={Unused}}";
 const ambiguousFigureSource = "\\documentclass{article}\\begin{document}\\includegraphics{plot}\\end{document}";
+const escapedCommandsSource =
+  "\\documentclass{article}\r\n" +
+  "\\begin{document}\r\n" +
+  "😀 \\cite{active}\r\n" +
+  "\\\\cite{inactive}\r\n" +
+  "\\\\\\cite{triple}\r\n" +
+  "\\\\section{Escaped section}\r\n" +
+  "\\section{Active section}\r\n" +
+  "% \\cite{commented}\r\n" +
+  "\\begin{verbatim}\\cite{literal}\\end{verbatim}\r\n" +
+  "\\\\begin{equation}escaped equation\\\\end{equation}\r\n" +
+  "\\begin{equation}active equation\\end{equation}\r\n" +
+  "\\end{document}\r\n";
+const proseBlocksMainSource =
+  "\\documentclass{article}\r\n" +
+  "\\begin{document}\r\n" +
+  "Lead 😀 with \\cite{lead} and \\(x + y\\).\r\n\r\n" +
+  "\\section{Methods}\r\n" +
+  "First method paragraph.\r\n\r\n" +
+  "Second method paragraph.\r\n\r\n" +
+  "\\input{part}\r\n" +
+  "\\end{document}\r\n";
+const proseBlocksPartSource =
+  "Inherited Å prose.\r\n\r\n" +
+  "\\begin{itemize}\r\n" +
+  "\\item First item with \\cite{one}.\r\n" +
+  "\\item Second item with \\(z\\).\r\n" +
+  "\\end{itemize}\r\n\r\n" +
+  "% hidden\r\n" +
+  "\\begin{verbatim}\r\n" +
+  "literal hidden\r\n" +
+  "\\end{verbatim}\r\n";
 
 function zipFixture(entries: Record<string, Uint8Array>): Uint8Array {
   return zipSync(entries, { level: 0, mtime: new Date(1980, 0, 1, 0, 0, 0) });
@@ -367,7 +552,7 @@ function twoPagePdfBytes(): Uint8Array {
   return strToU8(source);
 }
 
-export function createReviewedLatexConformanceFixtureV1(): ReviewedLatexConformanceFixtureV1 {
+export function createReviewedLatexConformanceFixtureV2(): ReviewedLatexConformanceFixtureV2 {
   return {
     schemaVersion: paperImportConformanceCorpusVersion,
     id: "reviewed-latex-paper-v1",
@@ -391,7 +576,7 @@ export function createReviewedLatexConformanceFixtureV1(): ReviewedLatexConforma
   };
 }
 
-export function createLatexGraphConformanceFixtureV1(order: LatexGraphConformanceOrderV1): LatexGraphConformanceFixtureV1 {
+export function createLatexGraphConformanceFixtureV2(order: LatexGraphConformanceOrderV2): LatexGraphConformanceFixtureV2 {
   const entries = [
     ["main.tex", strToU8(graphMainSource)],
     ["part.tex", strToU8(graphPartSource)],
@@ -406,7 +591,7 @@ export function createLatexGraphConformanceFixtureV1(order: LatexGraphConformanc
   };
 }
 
-export function createAmbiguousFigureConformanceFixtureV1(): AmbiguousFigureConformanceFixtureV1 {
+export function createAmbiguousFigureConformanceFixtureV2(): AmbiguousFigureConformanceFixtureV2 {
   return {
     schemaVersion: paperImportConformanceCorpusVersion,
     id: "latex-ambiguous-figure-v1",
@@ -420,13 +605,35 @@ export function createAmbiguousFigureConformanceFixtureV1(): AmbiguousFigureConf
   };
 }
 
-export function createLatexArchiveFailureConformanceFixturesV1(): readonly LatexArchiveFailureConformanceFixtureV1[] {
+export function createEscapedCommandsConformanceFixtureV2(): EscapedCommandsConformanceFixtureV2 {
+  return {
+    schemaVersion: paperImportConformanceCorpusVersion,
+    id: "latex-escaped-commands-v1",
+    archive: zipFixture({ "main.tex": strToU8(escapedCommandsSource) }),
+    sourceByPath: { "main.tex": escapedCommandsSource },
+    selection: { rootPath: "main.tex" },
+    expected: escapedCommandsExpected,
+  };
+}
+
+export function createProseBlocksConformanceFixtureV2(): ProseBlocksConformanceFixtureV2 {
+  return {
+    schemaVersion: paperImportConformanceCorpusVersion,
+    id: "latex-prose-blocks-v1",
+    archive: zipFixture({ "main.tex": strToU8(proseBlocksMainSource), "part.tex": strToU8(proseBlocksPartSource) }),
+    sourceByPath: { "main.tex": proseBlocksMainSource, "part.tex": proseBlocksPartSource },
+    selection: { rootPath: "main.tex" },
+    expected: proseBlocksExpected,
+  };
+}
+
+export function createLatexArchiveFailureConformanceFixturesV2(): readonly LatexArchiveFailureConformanceFixtureV2[] {
   const fixture = (
-    id: LatexArchiveFailureConformanceIdV1,
+    id: LatexArchiveFailureConformanceIdV2,
     archive: Uint8Array,
     code: string,
     message: string,
-  ): LatexArchiveFailureConformanceFixtureV1 => ({
+  ): LatexArchiveFailureConformanceFixtureV2 => ({
     schemaVersion: paperImportConformanceCorpusVersion,
     id,
     archive,
@@ -499,7 +706,7 @@ export function createLatexArchiveFailureConformanceFixturesV1(): readonly Latex
   ];
 }
 
-export function createTwoPagePdfConformanceFixtureV1(): TwoPagePdfConformanceFixtureV1 {
+export function createTwoPagePdfConformanceFixtureV2(): TwoPagePdfConformanceFixtureV2 {
   return {
     schemaVersion: paperImportConformanceCorpusVersion,
     id: "two-page-native-text-pdf-v1",
@@ -514,18 +721,20 @@ export function createTwoPagePdfConformanceFixtureV1(): TwoPagePdfConformanceFix
   };
 }
 
-export function createPaperImportConformanceCorpusV1(): PaperImportConformanceCorpusV1 {
+export function createPaperImportConformanceCorpusV2(): PaperImportConformanceCorpusV2 {
   return {
     schemaVersion: paperImportConformanceCorpusVersion,
     latex: {
-      reviewedPaper: createReviewedLatexConformanceFixtureV1(),
+      reviewedPaper: createReviewedLatexConformanceFixtureV2(),
       includeGraph: {
-        canonical: createLatexGraphConformanceFixtureV1("canonical"),
-        reordered: createLatexGraphConformanceFixtureV1("reordered"),
+        canonical: createLatexGraphConformanceFixtureV2("canonical"),
+        reordered: createLatexGraphConformanceFixtureV2("reordered"),
       },
-      ambiguousFigure: createAmbiguousFigureConformanceFixtureV1(),
-      archiveFailures: createLatexArchiveFailureConformanceFixturesV1(),
+      ambiguousFigure: createAmbiguousFigureConformanceFixtureV2(),
+      escapedCommands: createEscapedCommandsConformanceFixtureV2(),
+      proseBlocks: createProseBlocksConformanceFixtureV2(),
+      archiveFailures: createLatexArchiveFailureConformanceFixturesV2(),
     },
-    pdf: { twoPageNativeText: createTwoPagePdfConformanceFixtureV1() },
+    pdf: { twoPageNativeText: createTwoPagePdfConformanceFixtureV2() },
   };
 }

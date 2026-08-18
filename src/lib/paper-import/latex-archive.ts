@@ -1,6 +1,6 @@
 import { Unzip, UnzipInflate, type UnzipFile } from "fflate";
-import { comparePortableText, normalizePortablePath, resolvePortablePath } from "./portable-path";
-import { structuralLatexSource } from "./latex-source";
+import { comparePortableText, normalizePortablePath, resolvePortablePath } from "./portable-path.js";
+import { isActiveLatexCommandStart, structuralLatexSource } from "./latex-source.js";
 
 export const latexArchiveMaximumCompressedBytes = 20 * 1024 * 1024;
 export const latexArchiveMaximumExpandedBytes = 64 * 1024 * 1024;
@@ -30,6 +30,7 @@ export type LatexImportDiagnosticCode =
   | "missing-include"
   | "missing-image"
   | "missing-root"
+  | "prose-provenance-unavailable"
   | "tikz-preserved"
   | "tikz-translated"
   | "unsupported-command"
@@ -138,7 +139,6 @@ const unsafeUnzipResultPaths = new Set(["__proto__"]);
 const maximumExpansionRatio = 1_000;
 const expansionRatioMinimumBytes = 1024 * 1024;
 const archiveExpansionInputChunkBytes = 1_024;
-const documentBeginPattern = /\\begin\s*\{document\}/u;
 const latexWhitespace = /\s/u;
 
 interface LatexCommandArgumentOccurrence {
@@ -241,7 +241,7 @@ function analyzeLatexArchiveFilesWithLimit(files: readonly LatexArchiveFile[], m
   const rootCandidates = texFiles
     .filter((file) => {
       const active = structuralLatexSource(file.text ?? "");
-      return hasDocumentClass(active) && documentBeginPattern.test(active);
+      return hasDocumentClass(active) && hasDocumentBegin(active);
     })
     .map((file) => file.path)
     .sort(comparePortableText);
@@ -686,6 +686,10 @@ function hasDocumentClass(source: string): boolean {
   while (cursor < source.length) {
     const start = source.indexOf(command, cursor);
     if (start < 0) return false;
+    if (!isActiveLatexCommandStart(source, start)) {
+      cursor = start + 1;
+      continue;
+    }
     let position = start + command.length;
     if (source[position] === "[") {
       const optionalArgument = delimitedGroup(source, position, "[", "]");
@@ -699,6 +703,15 @@ function hasDocumentClass(source: string): boolean {
   return false;
 }
 
+function hasDocumentBegin(source: string): boolean {
+  const pattern = /\\begin\s*\{document\}/gu;
+  while (true) {
+    const match = pattern.exec(source);
+    if (!match) return false;
+    if (isActiveLatexCommandStart(source, match.index)) return true;
+  }
+}
+
 function* commandArgumentOccurrences(source: string, commands: readonly LatexCommandSpec[]): Generator<LatexCommandArgumentOccurrence> {
   let cursor = 0;
   while (cursor < source.length) {
@@ -706,6 +719,10 @@ function* commandArgumentOccurrences(source: string, commands: readonly LatexCom
     if (start < 0) return;
     const command = commands.find((candidate) => source.startsWith(candidate.name, start + 1));
     if (!command) {
+      cursor = start + 1;
+      continue;
+    }
+    if (!isActiveLatexCommandStart(source, start)) {
       cursor = start + 1;
       continue;
     }

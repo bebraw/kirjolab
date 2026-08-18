@@ -5,7 +5,7 @@ import {
   latexMaximumRenderedFolders,
   latexMaximumRenderedProjectCodeUnits,
   latexMaximumRenderedTableCodeUnits,
-} from "./latex-contracts";
+} from "./latex-contracts.js";
 
 export interface LatexRenderedFolderUsage {
   readonly folders: number;

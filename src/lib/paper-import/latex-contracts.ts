@@ -1,12 +1,16 @@
-import type { LatexImportDiagnosticCode } from "./latex-archive";
-import type { LatexConversionAsset } from "./latex-renderer";
+import type { LatexImportDiagnosticCode } from "./latex-archive.js";
+import type { LatexConversionAsset } from "./latex-renderer.js";
 
-export const latexConversionSchemaVersion = 1 as const;
-export const latexConverterVersion = "latex-converter-v1" as const;
+export const latexConversionSchemaVersion = 2 as const;
+export const latexConverterVersion = "latex-converter-v2" as const;
+export const latexRenderedFormat = "scholarmark-v1" as const;
 export const latexConversionMaximumSemanticRecords = 50_000;
 export const latexMaximumCitationKeys = 1_000;
+export const latexMaximumListNestingDepth = 1_024;
 export const latexMaximumTikzBlocks = 32;
 export const latexMaximumTikzBytes = 128 * 1024;
+export const latexMaximumFigureProvenanceCodeUnits = 16 * 1024 * 1024;
+export const latexMaximumProseProvenanceCodeUnits = 32 * 1024 * 1024;
 export const latexMaximumTableColumns = 256;
 export const latexMaximumTableRows = 1_000;
 export const latexMaximumRenderedTableCodeUnits = 1024 * 1024;
@@ -20,6 +24,7 @@ export type LatexConversionErrorCode =
   | "invalid-bibliography-selection"
   | "invalid-conversion-options"
   | "invalid-root-selection"
+  | "provenance-limit"
   | "render-limit"
   | "semantic-record-limit"
   | "unsupported-environment";
@@ -38,7 +43,10 @@ export interface LatexConversionOptions {
   readonly maximumSemanticRecords?: number;
 }
 
-export const defaultLatexConversionOptions: Readonly<Required<LatexConversionOptions>> = Object.freeze({
+export type LatexPreviewOptionValue = boolean | number | string;
+export type LatexEffectiveConversionOptions = Readonly<Required<LatexConversionOptions>>;
+
+export const defaultLatexConversionOptions: LatexEffectiveConversionOptions = Object.freeze({
   maximumSemanticRecords: latexConversionMaximumSemanticRecords,
 });
 
@@ -68,6 +76,15 @@ export interface LatexSectionInventory {
   readonly level: 1 | 2 | 3 | 4;
   readonly title: string;
   readonly label?: string;
+  readonly source: string;
+  readonly range: PaperSourceRange;
+}
+
+export interface LatexProseBlockInventory {
+  readonly id: string;
+  readonly kind: "paragraph" | "list-item";
+  readonly sectionId: string | null;
+  readonly text: string;
   readonly source: string;
   readonly range: PaperSourceRange;
 }
@@ -130,6 +147,7 @@ export interface LatexFigureInventory {
   readonly label?: SourcedLatexValue;
   readonly source: string;
   readonly referenceRange: PaperSourceRange;
+  readonly figureSource?: string;
   readonly figureRange?: PaperSourceRange;
   readonly resolutionDiagnostics: readonly LatexFigureResolutionDiagnostic[];
 }
@@ -152,12 +170,14 @@ export interface LatexSourceFingerprint {
 export interface LatexConvertedFile {
   readonly sourcePath: string;
   readonly path: string;
+  readonly renderedFormat: typeof latexRenderedFormat;
   readonly content: string;
 }
 
 export interface LatexProjectConversion {
   readonly schemaVersion: typeof latexConversionSchemaVersion;
   readonly converterVersion: typeof latexConverterVersion;
+  readonly options: LatexEffectiveConversionOptions;
   readonly rootPath: string;
   readonly bibliographyPath: string | null;
   readonly sourceFiles: readonly string[];
@@ -170,6 +190,7 @@ export interface LatexProjectConversion {
   readonly metadata: LatexDocumentMetadata;
   readonly abstracts: readonly SourcedLatexValue[];
   readonly sections: readonly LatexSectionInventory[];
+  readonly proseBlocks: readonly LatexProseBlockInventory[];
   readonly citations: readonly LatexCitationInventory[];
   readonly bibliographyEntries: readonly LatexBibliographyEntryInventory[];
   readonly labels: readonly LatexLabelInventory[];

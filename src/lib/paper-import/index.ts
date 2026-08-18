@@ -1,4 +1,3 @@
-export * from "./conformance-corpus";
 export {
   inspectLatexArchive,
   LatexArchiveFailure,
@@ -9,7 +8,7 @@ export {
   latexArchiveMaximumPathSegments,
   latexArchiveMaximumStructuralRecords,
   latexArchiveMaximumTextBytes,
-} from "./latex-archive";
+} from "./latex-archive.js";
 export type {
   LatexArchiveFailureCode,
   LatexArchiveFile,
@@ -20,14 +19,15 @@ export type {
   LatexImportDiagnostic,
   LatexImportDiagnosticCode,
   LatexIncludeReference,
-} from "./latex-archive";
-export * from "./latex-contracts";
-export { convertLatexProject } from "./latex-conversion";
+} from "./latex-archive.js";
+export * from "./latex-contracts.js";
+export { convertLatexProject } from "./latex-conversion.js";
 export {
   latexImageMaximumCandidateProbes,
   latexImageMaximumRequestedPathCodeUnits,
   latexImageMaximumSearchFolderCodeUnits,
   latexImageMaximumSearchFolders,
-} from "./latex-images";
-export { LatexConversionError, type LatexConversionAsset, type LatexConversionSelection } from "./latex-renderer";
-export * from "./pdf-text";
+} from "./latex-images.js";
+export { LatexConversionError, type LatexConversionAsset, type LatexConversionSelection } from "./latex-renderer.js";
+export * from "./latex-preview-identity.js";
+export * from "./pdf-text.js";

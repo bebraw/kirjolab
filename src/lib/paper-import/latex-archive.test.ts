@@ -25,6 +25,55 @@ describe("neutral LaTeX archive inspection", () => {
     expect(source.slice(include.from, include.to)).toBe("\\input{missing}");
   });
 
+  it("recognizes root markers only after an even-length preceding backslash run", async () => {
+    const result = await inspectLatexArchive(
+      zipSync({
+        "single-root.tex": strToU8(String.raw`\documentclass{article}\begin{document}\end{document}`),
+        "escaped-class.tex": strToU8(String.raw`\\documentclass{article}\begin{document}\end{document}`),
+        "escaped-document.tex": strToU8(String.raw`\documentclass{article}\\begin{document}\end{document}`),
+        "triple-root.tex": strToU8(String.raw`\\\documentclass{article}\\\begin{document}\end{document}`),
+      }),
+    );
+
+    expect(result.rootCandidates).toEqual(["single-root.tex", "triple-root.tex"]);
+  });
+
+  it("ignores escaped references and retains active commands after a slash pair with exact Unicode CRLF offsets", async () => {
+    const source =
+      "\\documentclass{article}\r\n" +
+      "\\begin{document}\r\n" +
+      "Résumé 😀\r\n" +
+      String.raw`\input{single}` +
+      "\r\n" +
+      String.raw`\\input{escaped}` +
+      "\r\n" +
+      String.raw`\\\input{triple}` +
+      "\r\n" +
+      String.raw`\bibliography{single}` +
+      "\r\n" +
+      String.raw`\\bibliography{escaped}` +
+      "\r\n" +
+      String.raw`\\\bibliography{triple}` +
+      "\r\n\\end{document}\r\n";
+    const result = await inspectLatexArchive(
+      zipSync({
+        "main.tex": strToU8(source),
+        "single.tex": strToU8("Single."),
+        "triple.tex": strToU8("Triple."),
+        "single.bib": strToU8("@misc{single}"),
+        "triple.bib": strToU8("@misc{triple}"),
+      }),
+    );
+
+    expect(result.includes.map(({ requestedPath }) => requestedPath)).toEqual(["single", "triple"]);
+    expect(result.bibliographies.map(({ requestedPath }) => requestedPath)).toEqual(["single", "triple"]);
+    expect(result.includes.map(({ from, to }) => source.slice(from, to))).toEqual([String.raw`\input{single}`, String.raw`\input{triple}`]);
+    expect(result.bibliographies.map(({ from, to }) => source.slice(from, to))).toEqual([
+      String.raw`\bibliography{single}`,
+      String.raw`\bibliography{triple}`,
+    ]);
+  });
+
   it("space-masks line and comment-environment contents during reference scans", async () => {
     const source =
       "\\documentclass{article}\r\n" +

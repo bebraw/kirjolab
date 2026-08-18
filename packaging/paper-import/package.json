@@ -1,0 +1,26 @@
+{
+  "name": "@kirjolab/paper-import",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Product-neutral, bounded paper import core for maintained private consumers",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "engines": {
+    "node": "24.15.0"
+  },
+  "exports": {
+    ".": "./dist/index.js",
+    "./conformance": "./dist/conformance.js"
+  },
+  "files": [
+    "dist/",
+    "CHANGELOG.md",
+    "LICENSE",
+    "README.md",
+    "SECURITY.md"
+  ],
+  "dependencies": {
+    "fflate": "0.8.3"
+  }
+}

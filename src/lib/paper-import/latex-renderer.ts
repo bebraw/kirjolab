@@ -4,29 +4,38 @@ import type {
   LatexBibliographyReference,
   LatexImportDiagnostic,
   LatexIncludeReference,
-} from "./latex-archive";
+} from "./latex-archive.js";
 import {
   LatexConversionError,
   latexMaximumCitationKeys,
+  latexMaximumListNestingDepth,
   latexMaximumTableColumns,
   latexMaximumTableRows,
   latexMaximumTikzBlocks,
   latexMaximumTikzBytes,
-} from "./latex-contracts";
-import { resolveLatexImageReferences, type LatexImageReferenceResolution } from "./latex-images";
-import { latexCommandArgument, matchingLatexBrace, skipLatexWhitespace } from "./latex-render-helpers";
+} from "./latex-contracts.js";
+import { resolveLatexImageReferences, type LatexImageReferenceResolution } from "./latex-images.js";
+import { latexCommandArgument, matchingLatexBrace, skipLatexWhitespace } from "./latex-render-helpers.js";
 import {
   addLatexRenderedFolder,
   addLatexRenderedProjectCodeUnits,
   addLatexRenderedTableLine,
   assertLatexRenderedFileCodeUnits,
   type LatexRenderedFolderUsage,
-} from "./latex-render-limits";
-import { displayMathOccurrences, latexDocumentWindow, latexSourceProjections, maskedLatex, structuralLatexSource } from "./latex-source";
-import { comparePortableText } from "./portable-path";
-import { sha256Hex } from "./sha256";
+} from "./latex-render-limits.js";
+import {
+  displayMathOccurrences,
+  isActiveLatexCommandStart,
+  latexDocumentWindow,
+  latexSourceProjections,
+  maskedLatex,
+  nextActiveLatexMatch,
+  structuralLatexSource,
+} from "./latex-source.js";
+import { comparePortableText } from "./portable-path.js";
+import { sha256Hex } from "./sha256.js";
 
-export { LatexConversionError } from "./latex-contracts";
+export { LatexConversionError } from "./latex-contracts.js";
 
 export interface LatexConversionSelection {
   readonly rootPath: string;
@@ -384,6 +393,7 @@ function convertLatexFile(
   const diagnostics: LatexImportDiagnostic[] = [];
   const footnotes: string[] = [];
   const literalBlocks: string[] = [];
+  const protectedIndentations = new Map<number, string>();
   let tikzBlocks = 0;
 
   source = replaceSourceReferences(source, file, sourceWindow.start, includes, pathMap, imageReferences);
@@ -410,8 +420,13 @@ function convertLatexFile(
     if (new TextEncoder().encode(tikz).byteLength > latexMaximumTikzBytes) {
       throw new LatexConversionError("unsupported-environment", `TikZ block exceeds 128 KiB in ${file.path}`);
     }
-    const caption = normalizePgfCaption(/\\caption\s*\{([^{}]*)\}/u.exec(body)?.[1]);
-    const id = /\\label\s*\{([a-z][a-z0-9:_-]{0,63})\}/iu.exec(body)?.[1];
+    const captionOccurrence = commandGroupOccurrences(body, ["caption"])[0];
+    const labelOccurrence = commandGroupOccurrences(body, ["label"])[0];
+    const caption = normalizePgfCaption(
+      captionOccurrence ? body.slice(captionOccurrence.valueStart, captionOccurrence.valueEnd) : undefined,
+    );
+    const label = labelOccurrence ? body.slice(labelOccurrence.valueStart, labelOccurrence.valueEnd) : undefined;
+    const id = label && /^[a-z][a-z0-9:_-]{0,63}$/iu.test(label) ? label : undefined;
     const nativeFigure = translatePreparedBoxplot(tikz, caption, id);
     if (!nativeFigure) return whole;
     tikzBlocks += 1;
@@ -450,9 +465,7 @@ function convertLatexFile(
   source = replaceEnvironment(source, "tabularx", (body) => tableMarkdown(body, 2));
   source = replaceEnvironment(source, "tabular", (body) => tableMarkdown(body, 1));
   source = replaceEnvironment(source, "abstract", (body) => `\n\n## Abstract\n\n::label[abstract]\n\n${body.trim()}\n\n`);
-  for (const environment of ["itemize", "enumerate"] as const) {
-    source = replaceEnvironment(source, environment, (body) => listMarkdown(body, environment === "enumerate"));
-  }
+  source = replaceListEnvironments(source, protectIndentation);
   source = replaceEnvironment(source, "opening", (body) => body);
 
   source = replaceSimpleCommand(source, ["bibliographystyle"], () => "");
@@ -480,7 +493,17 @@ function convertLatexFile(
     ["caption", "keywords", "institute", "author", "title", "runningtitle", "runningauthor"],
     (value) => value,
   );
-  source = source.replace(/\\(?:maketitle|centering|noindent|medskip|smallskip|bigskip|newpage|clearpage|vfill)\b/gu, "");
+  source = replaceBareCommands(source, [
+    "maketitle",
+    "centering",
+    "noindent",
+    "medskip",
+    "smallskip",
+    "bigskip",
+    "newpage",
+    "clearpage",
+    "vfill",
+  ]);
   source = replaceEnvironmentMarkers(source, null, (environment) => {
     diagnostics.push({
       code: "unsupported-environment",
@@ -510,6 +533,15 @@ function convertLatexFile(
     const token = literalToken(literalBlocks.length);
     literalBlocks.push(block);
     return `\n\n${token}\n\n`;
+  }
+
+  function protectIndentation(codeUnits: number): string {
+    const existing = protectedIndentations.get(codeUnits);
+    if (existing) return existing;
+    const token = literalToken(literalBlocks.length);
+    literalBlocks.push(" ".repeat(codeUnits));
+    protectedIndentations.set(codeUnits, token);
+    return token;
   }
 }
 
@@ -629,7 +661,7 @@ function renderPreparedBoxplot(
 }
 
 function axisOptions(source: string): string | null {
-  const opener = /\\begin\s*\{axis\}\s*\[/gu.exec(source);
+  const opener = nextActiveLatexMatch(/\\begin\s*\{axis\}\s*\[/gu, source);
   if (!opener) return null;
   const start = opener.index + opener[0].length;
   const end = source.indexOf("]", start);
@@ -645,6 +677,10 @@ function preparedBoxplotSummaries(source: string): readonly string[] | null {
     opener.lastIndex = cursor;
     const open = opener.exec(source);
     if (!open) break;
+    if (!isActiveLatexCommandStart(source, open.index)) {
+      cursor = opener.lastIndex;
+      continue;
+    }
     const bodyStart = open.index + open[0].length;
     const close = source.indexOf("]", bodyStart);
     if (close < 0) return null;
@@ -718,11 +754,11 @@ function replaceEnvironment(
   let cursor = 0;
   while (cursor < source.length) {
     beginPattern.lastIndex = cursor;
-    const begin = beginPattern.exec(active);
+    const begin = nextActiveLatexMatch(beginPattern, active);
     if (!begin) break;
     let bodyStart = begin.index + begin[0].length;
     endPattern.lastIndex = bodyStart;
-    const end = endPattern.exec(active);
+    const end = nextActiveLatexMatch(endPattern, active);
     if (!end) break;
     let options: string | undefined;
     if (active[bodyStart] === "[") {
@@ -748,10 +784,10 @@ function singleEnvironmentBlock(source: string, environment: string): { readonly
   let cursor = 0;
   while (cursor < source.length) {
     beginPattern.lastIndex = cursor;
-    const begin = beginPattern.exec(source);
+    const begin = nextActiveLatexMatch(beginPattern, source);
     if (!begin) break;
     endPattern.lastIndex = begin.index + begin[0].length;
-    const end = endPattern.exec(source);
+    const end = nextActiveLatexMatch(endPattern, source);
     if (!end) break;
     if (block !== null) return null;
     const blockEnd = end.index + end[0].length;
@@ -798,13 +834,106 @@ function fencedCode(source: string, language?: string): string {
   return `${fence}${language ?? ""}\n${source}\n${fence}`;
 }
 
-function listMarkdown(body: string, ordered: boolean): string {
+type LatexListEnvironment = "itemize" | "enumerate";
+
+interface ListEnvironmentOccurrence {
+  readonly environment: LatexListEnvironment;
+  readonly start: number;
+  readonly bodyStart: number;
+  readonly bodyEnd: number;
+  readonly end: number;
+  readonly children: readonly ListEnvironmentOccurrence[];
+}
+
+interface OpenListEnvironment {
+  readonly environment: LatexListEnvironment;
+  readonly start: number;
+  readonly bodyStart: number;
+  readonly children: ListEnvironmentOccurrence[];
+}
+
+function replaceListEnvironments(source: string, indentationFor: (codeUnits: number) => string): string {
+  const roots = listEnvironmentTree(source);
+  const converted: string[] = [];
+  let cursor = 0;
+  for (const occurrence of roots) {
+    converted.push(source.slice(cursor, occurrence.start), renderListEnvironment(source, occurrence, indentationFor));
+    cursor = occurrence.end;
+  }
+  converted.push(source.slice(cursor));
+  return converted.join("");
+}
+
+interface ListEnvironmentBoundary {
+  readonly command: "begin" | "end";
+  readonly environment: LatexListEnvironment;
+  readonly start: number;
+  readonly end: number;
+}
+
+function listEnvironmentTree(source: string): ListEnvironmentOccurrence[] {
+  const active = maskedLatex(source);
+  const pattern = /\\(begin|end)\s*\{(itemize|enumerate)\}/gu;
+  const roots: ListEnvironmentOccurrence[] = [];
+  const stack: OpenListEnvironment[] = [];
+  while (true) {
+    const match = nextActiveLatexMatch(pattern, active, source);
+    if (!match) break;
+    const boundary = parseListEnvironmentBoundary(match);
+    if (!boundary) continue;
+    if (boundary.command === "begin") openListEnvironment(stack, boundary);
+    else closeListEnvironment(stack, roots, boundary);
+  }
+  return roots;
+}
+
+function parseListEnvironmentBoundary(match: RegExpExecArray): ListEnvironmentBoundary | null {
+  const command = match[1];
+  const environment = match[2];
+  if ((command !== "begin" && command !== "end") || (environment !== "itemize" && environment !== "enumerate")) return null;
+  return { command, environment, start: match.index, end: match.index + match[0].length };
+}
+
+function openListEnvironment(stack: OpenListEnvironment[], boundary: ListEnvironmentBoundary): void {
+  if (stack.length >= latexMaximumListNestingDepth) {
+    throw new LatexConversionError("render-limit", `LaTeX list nesting exceeds ${latexMaximumListNestingDepth} environments`);
+  }
+  stack.push({ environment: boundary.environment, start: boundary.start, bodyStart: boundary.end, children: [] });
+}
+
+function closeListEnvironment(stack: OpenListEnvironment[], roots: ListEnvironmentOccurrence[], boundary: ListEnvironmentBoundary): void {
+  const opened = stack.at(-1);
+  if (!opened || opened.environment !== boundary.environment) return;
+  stack.pop();
+  const occurrence: ListEnvironmentOccurrence = { ...opened, bodyEnd: boundary.start, end: boundary.end };
+  const parent = stack.at(-1);
+  if (parent) parent.children.push(occurrence);
+  else roots.push(occurrence);
+}
+
+function renderListEnvironment(
+  source: string,
+  occurrence: ListEnvironmentOccurrence,
+  indentationFor: (codeUnits: number) => string,
+): string {
+  const body: string[] = [];
+  let cursor = occurrence.bodyStart;
+  for (const child of occurrence.children) {
+    body.push(source.slice(cursor, child.start), `\n${renderListEnvironment(source, child, indentationFor).trim()}\n`);
+    cursor = child.end;
+  }
+  body.push(source.slice(cursor, occurrence.bodyEnd));
+  return listMarkdown(body.join(""), occurrence.environment === "enumerate", indentationFor);
+}
+
+function listMarkdown(body: string, ordered: boolean, indentationFor: (codeUnits: number) => string): string {
   const items: string[] = [];
   const pattern = /\\item(?![A-Za-z])/gu;
   let contentStart: number | null = null;
   while (true) {
     const match = pattern.exec(body);
     if (!match) break;
+    if (!isActiveLatexCommandStart(body, match.index)) continue;
     if (contentStart !== null) items.push(body.slice(contentStart, match.index));
     contentStart = match.index + match[0].length;
     if (body[contentStart] === "[") {
@@ -818,13 +947,20 @@ function listMarkdown(body: string, ordered: boolean): string {
     }
   }
   if (contentStart !== null) items.push(body.slice(contentStart));
-  return `\n\n${items.map((item, index) => `${ordered ? `${index + 1}.` : "-"} ${item.trim()}`).join("\n")}\n\n`;
+  return `\n\n${items.map((item, index) => listItemMarkdown(item, ordered ? `${index + 1}.` : "-", indentationFor)).join("\n")}\n\n`;
+}
+
+function listItemMarkdown(item: string, marker: string, indentationFor: (codeUnits: number) => string): string {
+  const [first = "", ...continuation] = item.trim().split(/\r?\n/u);
+  if (continuation.length === 0) return `${marker} ${first}`;
+  const indentation = indentationFor(marker.length + 1);
+  return `${marker} ${first}\n${continuation.map((line) => (line ? `${indentation}${line}` : "")).join("\n")}`;
 }
 
 function tableMarkdown(body: string, argumentCount: number): string {
   let rowsSource = body.trimStart();
   for (let index = 0; index < argumentCount; index += 1) rowsSource = removeLeadingBraceGroup(rowsSource).trimStart();
-  rowsSource = rowsSource.replace(/\\(?:toprule|midrule|bottomrule|hline)\b/gu, "");
+  rowsSource = replaceBareCommands(rowsSource, ["toprule", "midrule", "bottomrule", "hline"]);
   const rows: string[][] = [];
   let columns = 0;
   for (const rowSource of boundedTableRows(rowsSource)) {
@@ -925,7 +1061,11 @@ function replaceSectionCommands(source: string): string {
     let end = occurrence.end;
     let label: string | undefined;
     const labelStart = skipLatexWhitespace(source, end);
-    if (source.startsWith("\\label", labelStart) && !/[A-Za-z]/u.test(source[labelStart + "\\label".length] ?? "")) {
+    if (
+      source.startsWith("\\label", labelStart) &&
+      isActiveLatexCommandStart(source, labelStart) &&
+      !/[A-Za-z]/u.test(source[labelStart + "\\label".length] ?? "")
+    ) {
       const argument = latexCommandArgument(source, labelStart + "\\label".length);
       if (argument.kind === "open") {
         const close = matchingLatexBrace(source, argument.open);
@@ -993,6 +1133,20 @@ function replaceSimpleCommand(source: string, commands: readonly string[], repla
   return source;
 }
 
+function replaceBareCommands(source: string, commands: readonly string[]): string {
+  const alternatives = commands.map((command) => command.replaceAll(/[.*+?^${}()|[\]\\]/gu, "\\$&")).join("|");
+  const pattern = new RegExp(`\\\\(?:${alternatives})\\b`, "gu");
+  const replacements: TextReplacement[] = [];
+  while (true) {
+    const match = pattern.exec(source);
+    if (!match) break;
+    if (isActiveLatexCommandStart(source, match.index)) {
+      replacements.push({ start: match.index, end: match.index + match[0].length, value: "" });
+    }
+  }
+  return applyTextReplacements(source, replacements);
+}
+
 interface CommandGroupOccurrence {
   readonly name: string;
   readonly start: number;
@@ -1016,6 +1170,10 @@ function commandGroupOccurrences(source: string, commands: readonly string[], al
     pattern.lastIndex = cursor;
     const match = pattern.exec(source);
     if (!match) break;
+    if (!isActiveLatexCommandStart(source, match.index)) {
+      cursor = pattern.lastIndex;
+      continue;
+    }
     const afterCommand = match.index + match[0].length + (allowStar && source[match.index + match[0].length] === "*" ? 1 : 0);
     const argument = latexCommandArgument(source, afterCommand);
     if (argument.kind === "malformed") break;
@@ -1057,6 +1215,7 @@ function uniqueCommandMatches(source: string): RegExpMatchArray[] {
   while (true) {
     const match = pattern.exec(source);
     if (!match) break;
+    if (!isActiveLatexCommandStart(source, match.index)) continue;
     const command = match[1] ?? "";
     if (seen.has(command)) continue;
     seen.add(command);
@@ -1093,10 +1252,20 @@ function footnoteScope(path: string): string {
 }
 
 function unescapeLatex(source: string): string {
-  return source
-    .replaceAll("~", " ")
-    .replace(/\\([%&#_$])/gu, "$1")
-    .replaceAll("\\textbackslash{}", "\\");
+  source = source.replaceAll("~", " ");
+  const pattern = /\\(?:([%&#_$])|textbackslash\{\})/gu;
+  const replacements: TextReplacement[] = [];
+  while (true) {
+    const match = pattern.exec(source);
+    if (!match) break;
+    if (!isActiveLatexCommandStart(source, match.index)) continue;
+    replacements.push({
+      start: match.index,
+      end: match.index + match[0].length,
+      value: match[1] ?? "\\",
+    });
+  }
+  return applyTextReplacements(source, replacements);
 }
 
 function literalToken(index: number): string {

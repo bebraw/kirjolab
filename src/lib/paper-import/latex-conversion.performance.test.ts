@@ -2,6 +2,7 @@ import { strToU8 } from "fflate";
 import { expect, it } from "vitest";
 import { describeOutsideMutation } from "../../test-support/mutation";
 import { analyzeLatexArchiveFiles, latexArchiveMaximumTextBytes, type LatexArchiveFile } from "./latex-archive";
+import { LatexConversionError } from "./latex-contracts";
 import { convertLatexProject } from "./latex-conversion";
 
 const tex = (path: string, source: string): LatexArchiveFile => ({ path, kind: "tex", bytes: strToU8(source), text: source });
@@ -93,6 +94,60 @@ describeOutsideMutation("product-neutral LaTeX conversion performance regression
     const conversion = convertLatexProject(analyzeLatexArchiveFiles([tex("paper.tex", source)]), { rootPath: "paper.tex" });
     expect(conversion.equations).toEqual([]);
     expect(conversion.files[0]?.content).toBe(`${body}\n`);
+  }, 10_000);
+
+  it("filters a near-cap even backslash run before a command without unbounded rescanning", () => {
+    const escapedRun = "\\".repeat(1536 * 1024);
+    const body = `${escapedRun}cite{inactive}`;
+    const source = `\\documentclass{article}\\begin{document}${body}\\end{document}`;
+    expect(strToU8(source).byteLength).toBeLessThanOrEqual(latexArchiveMaximumTextBytes);
+
+    const conversion = convertLatexProject(analyzeLatexArchiveFiles([tex("paper.tex", source)]), { rootPath: "paper.tex" });
+
+    expect(conversion.citations).toEqual([]);
+    expect(conversion.files[0]?.content.endsWith("cite{inactive}\n")).toBe(true);
+  }, 10_000);
+
+  it("fails repeated enclosing-figure provenance before canonical hashing can amplify it", () => {
+    const references = "\\includegraphics{plot}\n".repeat(1_000);
+    const source =
+      `\\documentclass{article}\\begin{document}\\begin{figure}${references}` +
+      `\\caption{${"c".repeat(1_024)}}\\end{figure}\\end{document}`;
+    const image: LatexArchiveFile = {
+      path: "plot.png",
+      kind: "image",
+      bytes: new Uint8Array([137, 80, 78, 71]),
+    };
+    let failure: unknown;
+
+    try {
+      convertLatexProject(analyzeLatexArchiveFiles([tex("paper.tex", source), image]), { rootPath: "paper.tex" });
+    } catch (error) {
+      failure = error;
+    }
+
+    expect(failure).toBeInstanceOf(LatexConversionError);
+    expect(failure).toMatchObject({ code: "provenance-limit" });
+  }, 10_000);
+
+  it("fails deeply overlapping list provenance before retained source can amplify it", () => {
+    const depth = 1_000;
+    const nested =
+      Array.from(
+        { length: depth },
+        (_, index) => `\\begin{itemize}\\item Level ${index}.${index === depth - 1 ? "x".repeat(16_000) : ""}`,
+      ).join("") + "\\end{itemize}".repeat(depth);
+    const source = `\\documentclass{article}\\begin{document}${nested}\\end{document}`;
+    let failure: unknown;
+
+    try {
+      convertLatexProject(analyzeLatexArchiveFiles([tex("paper.tex", source)]), { rootPath: "paper.tex" });
+    } catch (error) {
+      failure = error;
+    }
+
+    expect(failure).toBeInstanceOf(LatexConversionError);
+    expect(failure).toMatchObject({ code: "provenance-limit" });
   }, 10_000);
 
   it("keeps a near-cap literal block inert during TikZ scanning", () => {
