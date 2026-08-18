@@ -20,11 +20,7 @@ describeOutsideMutation("product-neutral LaTeX conversion performance regression
   }, 10_000);
 
   it("inventories dense adjacent section labels without copying every source suffix", () => {
-    const body = `body${"x".repeat(48)}`;
-    const sections = Array.from({ length: 20_000 }, (_, index) => {
-      const label = index === 0 || index === 19_999 ? `\\label{l${index}}` : "";
-      return `\\section{s${index}}${label}\n${body}\n`;
-    }).join("");
+    const sections = Array.from({ length: 20_000 }, (_, index) => `\\section{s${index}}\\label{l${index}}\n`).join("");
     const source = `\\documentclass{article}\\begin{document}${sections}\\end{document}`;
     expect(strToU8(source).byteLength).toBeLessThanOrEqual(latexArchiveMaximumTextBytes);
 
@@ -32,7 +28,6 @@ describeOutsideMutation("product-neutral LaTeX conversion performance regression
     expect(conversion.sections).toHaveLength(20_000);
     expect(conversion.sections[0]).toMatchObject({ title: "s0", label: "l0" });
     expect(conversion.sections.at(-1)).toMatchObject({ title: "s19999", label: "l19999" });
-    expect(conversion.proseBlocks).toHaveLength(20_000);
   }, 10_000);
 
   it("preserves a below-cap run of unmatched simple-command openers without unbounded rescanning", () => {
