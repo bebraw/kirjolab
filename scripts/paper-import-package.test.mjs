@@ -55,6 +55,19 @@ const expectedPackedPaths = [
   "package.json",
 ];
 
+test("resolves libc-qualified native canvas package names", () => {
+  assert.equal(
+    canvasNativePackageName(["canvas", "canvas-linux-x64-gnu", "wasm-runtime"], "linux", "x64"),
+    "@napi-rs/canvas-linux-x64-gnu",
+  );
+  assert.equal(canvasNativePackageName(["canvas-linux-x64-musl"], "linux", "x64"), "@napi-rs/canvas-linux-x64-musl");
+  assert.equal(canvasNativePackageName(["canvas-darwin-arm64"], "darwin", "arm64"), "@napi-rs/canvas-darwin-arm64");
+  assert.throws(
+    () => canvasNativePackageName(["canvas-linux-x64-gnu", "canvas-linux-x64-musl"], "linux", "x64"),
+    /Expected one installed native canvas package for linux-x64, found 2/u,
+  );
+});
+
 test("packs a reproducible private paper-import package for an isolated Node 24 consumer", async () => {
   const temporaryRoot = await mkdtemp(join(tmpdir(), "kirjolab-paper-import-package-"));
   try {
@@ -132,7 +145,7 @@ async function verifyIsolatedConsumer({ nodeExecutable, npmEntrypoint, npmCache,
     `${JSON.stringify({ name: "paper-import-isolated-consumer", private: true, type: "module" }, null, 2)}\n`,
   );
 
-  const runtimePackages = ["fflate", "pdfjs-dist", "@napi-rs/canvas", `@napi-rs/canvas-${process.platform}-${process.arch}`];
+  const runtimePackages = ["fflate", "pdfjs-dist", "@napi-rs/canvas", await installedNativeCanvasPackageName()];
   const runtimeTarballs = [];
   for (const packageName of runtimePackages) {
     const packed = parsePackResult(
@@ -203,6 +216,22 @@ async function verifyIsolatedConsumer({ nodeExecutable, npmEntrypoint, npmCache,
   await execute(nodeExecutable, [typescriptEntrypoint, "-p", "tsconfig.json"], { cwd: consumerRoot });
   const runtime = await execute(nodeExecutable, ["consumer.mjs"], { cwd: consumerRoot, maxBuffer: 20 * 1024 * 1024 });
   assert.match(runtime.stdout, /paper-import consumer conformance passed/u);
+}
+
+async function installedNativeCanvasPackageName() {
+  const entries = await readdir(join(repositoryRoot, "node_modules/@napi-rs"), { withFileTypes: true });
+  return canvasNativePackageName(
+    entries.filter((entry) => entry.isDirectory()).map((entry) => entry.name),
+    process.platform,
+    process.arch,
+  );
+}
+
+function canvasNativePackageName(packageNames, platform, architecture) {
+  const prefix = `canvas-${platform}-${architecture}`;
+  const matches = packageNames.filter((packageName) => packageName === prefix || packageName.startsWith(`${prefix}-`)).sort(compareText);
+  assert.equal(matches.length, 1, `Expected one installed native canvas package for ${platform}-${architecture}, found ${matches.length}`);
+  return `@napi-rs/${matches[0]}`;
 }
 
 async function findExactNode(version) {

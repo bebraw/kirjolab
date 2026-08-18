@@ -285,26 +285,29 @@ type ProseContentEvent =
     };
 
 function appendProseBlocks(state: ProseInventoryState, path: string, source: string, semantic: string, start: number, end: number): void {
-  const window = { start, end };
+  const windowSource = source.slice(start, end);
+  const windowSemantic = semantic.slice(start, end);
+  if (!/\S/u.test(windowSemantic)) return;
+  const window = { start: 0, end: windowSemantic.length };
   const events: ProseContentEvent[] = [
     ...proseListEnvironments.flatMap((environment) =>
-      environmentOccurrences(source, semantic, window, environment).map((occurrence) => ({
+      environmentOccurrences(windowSource, windowSemantic, window, environment).map((occurrence) => ({
         kind: "list" as const,
-        position: occurrence.start,
-        occurrence,
+        position: occurrence.start + start,
+        occurrence: offsetOccurrence(occurrence, start),
       })),
     ),
     ...proseExcludedEnvironments.flatMap((environment) =>
-      environmentOccurrences(source, semantic, window, environment).map((occurrence) => ({
+      environmentOccurrences(windowSource, windowSemantic, window, environment).map((occurrence) => ({
         kind: "exclude" as const,
-        position: occurrence.start,
-        occurrence,
+        position: occurrence.start + start,
+        occurrence: offsetOccurrence(occurrence, start),
       })),
     ),
-    ...commandOccurrences(source, semantic, window, proseExcludedCommands).map((occurrence) => ({
+    ...commandOccurrences(windowSource, windowSemantic, window, proseExcludedCommands).map((occurrence) => ({
       kind: "exclude" as const,
-      position: occurrence.start,
-      occurrence,
+      position: occurrence.start + start,
+      occurrence: offsetOccurrence(occurrence, start),
     })),
   ].sort((left, right) => left.position - right.position || right.occurrence.end - left.occurrence.end);
   let cursor = start;
@@ -315,6 +318,16 @@ function appendProseBlocks(state: ProseInventoryState, path: string, source: str
     cursor = event.occurrence.end;
   }
   appendParagraphBlocks(state, path, source, semantic, cursor, end);
+}
+
+function offsetOccurrence<T extends CommandOccurrence | EnvironmentOccurrence>(occurrence: T, offset: number): T {
+  return {
+    ...occurrence,
+    start: occurrence.start + offset,
+    end: occurrence.end + offset,
+    valueStart: occurrence.valueStart + offset,
+    valueEnd: occurrence.valueEnd + offset,
+  };
 }
 
 function appendParagraphBlocks(
@@ -355,9 +368,10 @@ function appendParagraphBlock(
 ): void {
   while (start < end && /\s/u.test(semantic[start]!)) start += 1;
   while (end > start && /\s/u.test(semantic[end - 1]!)) end -= 1;
-  const displayMath = displayMathOccurrences(semantic, start, end);
-  if (displayMath.length === 1 && displayMath[0]?.start === start && displayMath[0].end === end) return;
-  const text = normalizeProseText(semantic.slice(start, end));
+  const paragraphSemantic = semantic.slice(start, end);
+  const displayMath = displayMathOccurrences(paragraphSemantic);
+  if (displayMath.length === 1 && displayMath[0]?.start === 0 && displayMath[0].end === paragraphSemantic.length) return;
+  const text = normalizeProseText(paragraphSemantic);
   if (!text) return;
   appendProseBlock(state, path, "paragraph", text, source, start, end);
 }

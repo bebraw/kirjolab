@@ -20,7 +20,7 @@ const converterSources = [
 ];
 
 const sourceFingerprintsByConverterVersion = {
-  "latex-converter-v2": "f64a38cc3b9f46aa54a2b14a5ae60d98b701e9eea3c26405f8838447272b8a5a",
+  "latex-converter-v2": "a25b3309a8655d6f97922f5fab60786ce875927a7e408519d6c8285041a156a2",
 };
 
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);
