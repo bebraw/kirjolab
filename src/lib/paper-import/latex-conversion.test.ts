@@ -502,6 +502,16 @@ Second paragraph.\end{document}`;
     }
   });
 
+  it("retains paragraphs with prose before or after display math", () => {
+    const paragraphs = ["leading prose \\[x\\]", "\\[y\\] trailing prose."];
+    const source = `\\documentclass{article}\\begin{document}${paragraphs.join("\n\n")}\\end{document}`;
+    const conversion = convertLatexProject(analyzeLatexArchiveFiles([tex("paper.tex", source)]), { rootPath: "paper.tex" });
+
+    expect(
+      conversion.proseBlocks.map(({ kind, sectionId, text, source: exactSource }) => ({ kind, sectionId, text, source: exactSource })),
+    ).toEqual(paragraphs.map((paragraph) => ({ kind: "paragraph", sectionId: null, text: paragraph, source: paragraph })));
+  });
+
   it("uses active par commands as exact paragraph boundaries without splitting escaped commands", () => {
     const source =
       "\\documentclass{article}\\begin{document}" + "First paragraph.\\par\r\nSecond paragraph with \\\\par text." + "\\end{document}";
