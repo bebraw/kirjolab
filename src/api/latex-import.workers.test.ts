@@ -2,6 +2,13 @@ import { env } from "cloudflare:workers";
 import { strToU8, zipSync } from "fflate";
 import { describe, expect, it } from "vitest";
 import { latexArchiveMaximumCompressedBytes } from "../domain/manuscript/latex-import";
+import {
+  convertLatexProject,
+  createLatexPreviewIdentity,
+  digestLatexPreviewIdentity,
+  inspectLatexArchive,
+  type LatexPreviewIdentityV1,
+} from "../lib/paper-import";
 import type { AuthIdentity } from "../security/auth";
 import { handleLatexImportApi } from "./latex-import";
 
@@ -30,6 +37,11 @@ describe("LaTeX import API in the Workers runtime", () => {
     const preview = await responseRecord(previewResponse);
     expect(preview.archiveSha256).toMatch(/^[a-f0-9]{64}$/u);
     expect(preview.previewDigest).toMatch(/^[a-f0-9]{64}$/u);
+    const inspection = await inspectLatexArchive(archive);
+    const neutralConversion = convertLatexProject(inspection, { rootPath: "main.tex", bibliographyPath: "refs.bib" });
+    expect(preview.previewDigest).toBe(
+      digestLatexPreviewIdentity(createLatexPreviewIdentity({ archive, files: inspection.files, conversion: neutralConversion })),
+    );
     expect(preview).not.toHaveProperty("digest");
     expect(preview.conversion).toMatchObject({
       seed: { entryPath: "main.md", files: [{ path: "main.md" }, { path: "section.md" }] },
@@ -145,6 +157,44 @@ describe("LaTeX import API in the Workers runtime", () => {
     await expect(persistentImportState()).resolves.toEqual(before);
   });
 
+  it.each([
+    ["conversion options", (value: LatexPreviewIdentityV1) => ({ ...value, options: { maximumSemanticRecords: 49_999 } })],
+    ["identity schema", (value: LatexPreviewIdentityV1) => ({ ...value, schemaVersion: 2 as 1 })],
+    ["converter version", (value: LatexPreviewIdentityV1) => ({ ...value, converterVersion: "latex-converter-drift" })],
+    ["archive manifest", (value: LatexPreviewIdentityV1) => ({ ...value, archiveManifestSha256: "a".repeat(64) })],
+    ["neutral conversion output", (value: LatexPreviewIdentityV1) => ({ ...value, conversionManifestSha256: "b".repeat(64) })],
+  ] satisfies ReadonlyArray<readonly [string, (value: LatexPreviewIdentityV1) => LatexPreviewIdentityV1]>)(
+    "rejects changed %s before persistent writes",
+    async (_field, mutate) => {
+      const archive = zipSync({
+        "main.tex": strToU8(String.raw`\documentclass{article}\begin{document}Reviewed output.\end{document}`),
+      });
+      const inspection = await inspectLatexArchive(archive);
+      const conversion = convertLatexProject(inspection, { rootPath: "main.tex" });
+      const reviewed = createLatexPreviewIdentity({
+        archive,
+        files: inspection.files,
+        conversion,
+      });
+      const before = await persistentImportState();
+      const query = new URLSearchParams({
+        title: "Drift guard",
+        archiveSha256: reviewed.archiveSha256,
+        previewDigest: digestLatexPreviewIdentity(mutate(reviewed)),
+      });
+
+      const response = await handleLatexImportApi(
+        zipRequest(`http://example.com/api/latex-imports?${query.toString()}`, archive),
+        persistenceRejectingEnv(),
+        identity,
+      );
+
+      expect(response.status).toBe(409);
+      await expect(response.json()).resolves.toMatchObject({ code: "preview-changed" });
+      await expect(persistentImportState()).resolves.toEqual(before);
+    },
+  );
+
   it("rejects invalid media without persistent writes", async () => {
     const archive = zipSync({
       "main.tex": strToU8(String.raw`\documentclass{article}\begin{document}Paper\end{document}`),
@@ -160,6 +210,29 @@ describe("LaTeX import API in the Workers runtime", () => {
       identity,
     );
     expect(invalidMedia.status).toBe(415);
+    await expect(persistentImportState()).resolves.toEqual(before);
+  });
+
+  it("rejects amplified prose provenance before persistent writes", async () => {
+    const depth = 1_000;
+    const nested =
+      Array.from(
+        { length: depth },
+        (_, index) => `\\begin{itemize}\\item Level ${index}.${index === depth - 1 ? "x".repeat(16_000) : ""}`,
+      ).join("") + "\\end{itemize}".repeat(depth);
+    const archive = zipSync({
+      "main.tex": strToU8(`\\documentclass{article}\\begin{document}${nested}\\end{document}`),
+    });
+    const before = await persistentImportState();
+
+    const response = await handleLatexImportApi(
+      zipRequest("http://example.com/api/latex-import-previews", archive),
+      persistenceRejectingEnv(),
+      identity,
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({ code: "provenance-limit" });
     await expect(persistentImportState()).resolves.toEqual(before);
   });
 

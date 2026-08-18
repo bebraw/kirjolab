@@ -1,36 +1,47 @@
-import type { LatexArchiveFile, LatexArchiveInspection, LatexIncludeReference } from "./latex-archive";
+import type { LatexArchiveFile, LatexArchiveInspection, LatexIncludeReference } from "./latex-archive.js";
 import type {
   LatexBibliographyEntryInventory,
   LatexCitationInventory,
   LatexCodeBlockInventory,
+  LatexConversionDiagnostic,
   LatexDocumentMetadata,
   LatexEquationInventory,
   LatexFigureInventory,
   LatexLabelInventory,
   LatexProjectConversion,
+  LatexProseBlockInventory,
   LatexReferenceInventory,
   LatexSectionInventory,
   LatexTableInventory,
   PaperSourceRange,
   SourcedLatexValue,
-} from "./latex-contracts";
-import { LatexConversionError, latexMaximumCitationKeys } from "./latex-contracts";
-import type { LatexConversionReport } from "./latex-renderer";
-import { resolveLatexImageReferences, type LatexImageReferenceResolution } from "./latex-images";
+} from "./latex-contracts.js";
+import {
+  LatexConversionError,
+  latexMaximumCitationKeys,
+  latexMaximumFigureProvenanceCodeUnits,
+  latexMaximumListNestingDepth,
+  latexMaximumProseProvenanceCodeUnits,
+} from "./latex-contracts.js";
+import type { LatexConversionReport } from "./latex-renderer.js";
+import { resolveLatexImageReferences, type LatexImageReferenceResolution } from "./latex-images.js";
 import {
   displayMathOccurrences,
+  isActiveLatexCommandStart,
   latexDocumentWindow,
   latexSourceProjections,
   maskedLatex,
+  nextActiveLatexMatch,
   type LatexLiteralEnvironmentOccurrence,
-} from "./latex-source";
-import { sha256Hex } from "./sha256";
+} from "./latex-source.js";
+import { sha256Hex } from "./sha256.js";
 
 export type LatexSemanticInventory = Pick<
   LatexProjectConversion,
   | "metadata"
   | "abstracts"
   | "sections"
+  | "proseBlocks"
   | "citations"
   | "bibliographyEntries"
   | "labels"
@@ -42,6 +53,10 @@ export type LatexSemanticInventory = Pick<
   | "figures"
   | "sourceFingerprints"
 >;
+
+export type LatexSemanticAnalysis = LatexSemanticInventory & {
+  readonly provenanceDiagnostics: readonly LatexConversionDiagnostic[];
+};
 
 interface CommandOccurrence {
   readonly name: string;
@@ -68,10 +83,17 @@ interface EnvironmentOccurrence {
   readonly value: string;
   readonly start: number;
   readonly end: number;
+  readonly valueStart: number;
+  readonly valueEnd: number;
   readonly options?: string;
 }
 
-export function analyzeLatexSemantics(inspection: LatexArchiveInspection, report: LatexConversionReport): LatexSemanticInventory {
+export function analyzeLatexSemantics(
+  inspection: LatexArchiveInspection,
+  report: LatexConversionReport,
+  maximumProseBlocks: number,
+  semanticRecordLimit: number,
+): LatexSemanticAnalysis {
   const root = requiredTextFile(inspection.files, report.rootPath);
   const sourceFiles = report.sourceFiles.map((path) => requiredTextFile(inspection.files, path));
   const projectionsByPath = new Map<string, SourceProjections>();
@@ -87,6 +109,14 @@ export function analyzeLatexSemantics(inspection: LatexArchiveInspection, report
   const metadata = metadataInventory(root, projectionsFor(root).semantic);
   const abstracts: SourcedLatexValue[] = [];
   const sections = manuscriptSectionInventory(inspection, report, (file) => projectionsFor(file).semantic);
+  const prose = manuscriptProseBlockInventory(
+    inspection,
+    report,
+    sections,
+    (file) => projectionsFor(file).semantic,
+    maximumProseBlocks,
+    semanticRecordLimit,
+  );
   const citations: LatexCitationInventory[] = [];
   const labels: LatexLabelInventory[] = [];
   const references: LatexReferenceInventory[] = [];
@@ -117,6 +147,7 @@ export function analyzeLatexSemantics(inspection: LatexArchiveInspection, report
     metadata,
     abstracts,
     sections,
+    proseBlocks: prose.blocks,
     citations,
     bibliographyEntries: bibliographyFile?.text ? bibliographyEntryInventory(bibliographyFile.path, bibliographyFile.text) : [],
     labels,
@@ -130,7 +161,361 @@ export function analyzeLatexSemantics(inspection: LatexArchiveInspection, report
       const file = inspection.files.find((candidate) => candidate.path === path)!;
       return { path: file.path, kind: file.kind, bytes: file.bytes.byteLength, sha256: sha256Hex(file.bytes) };
     }),
+    provenanceDiagnostics: prose.diagnostics,
   };
+}
+
+interface ProseInventoryState {
+  readonly inspection: LatexArchiveInspection;
+  readonly rootPath: string;
+  readonly semanticFor: (file: LatexArchiveFile) => string;
+  readonly maximumBlocks: number;
+  readonly semanticRecordLimit: number;
+  readonly reachable: ReadonlySet<string>;
+  readonly includesBySource: ReadonlyMap<string, readonly LatexIncludeReference[]>;
+  readonly sectionsByPath: ReadonlyMap<string, readonly LatexSectionInventory[]>;
+  readonly visited: Set<string>;
+  readonly localCounts: Map<string, number>;
+  readonly blocks: LatexProseBlockInventory[];
+  readonly diagnostics: LatexConversionDiagnostic[];
+  retainedProvenanceCodeUnits: number;
+  sectionId: string | null;
+}
+
+type ProseStructureEvent =
+  | { readonly kind: "section"; readonly position: number; readonly section: LatexSectionInventory }
+  | { readonly kind: "include"; readonly position: number; readonly reference: LatexIncludeReference };
+
+function manuscriptProseBlockInventory(
+  inspection: LatexArchiveInspection,
+  report: LatexConversionReport,
+  sections: readonly LatexSectionInventory[],
+  semanticFor: (file: LatexArchiveFile) => string,
+  maximumBlocks: number,
+  semanticRecordLimit: number,
+): { readonly blocks: LatexProseBlockInventory[]; readonly diagnostics: readonly LatexConversionDiagnostic[] } {
+  const groupedSections = new Map<string, LatexSectionInventory[]>();
+  for (const section of sections) {
+    const grouped = groupedSections.get(section.range.path);
+    if (grouped) grouped.push(section);
+    else groupedSections.set(section.range.path, [section]);
+  }
+  const state: ProseInventoryState = {
+    inspection,
+    rootPath: report.rootPath,
+    semanticFor,
+    maximumBlocks,
+    semanticRecordLimit,
+    reachable: new Set(report.sourceFiles),
+    includesBySource: includesBySourcePath(inspection.includes),
+    sectionsByPath: groupedSections,
+    visited: new Set(),
+    localCounts: new Map(),
+    blocks: [],
+    diagnostics: [],
+    retainedProvenanceCodeUnits: 0,
+    sectionId: null,
+  };
+  visitProseSource(state, report.rootPath);
+  return { blocks: state.blocks, diagnostics: state.diagnostics };
+}
+
+function visitProseSource(state: ProseInventoryState, path: string): void {
+  const sourceVisit = beginSourceVisit(state, path);
+  if (!sourceVisit) return;
+  const { source, semantic } = sourceVisit;
+  if (semantic.length !== source.length) {
+    state.diagnostics.push({
+      code: "prose-provenance-unavailable",
+      severity: "warning",
+      message: "Ordinary prose was omitted because exact original-source offsets could not be established",
+      sourcePath: path,
+    });
+    return;
+  }
+  const window = sourceWindow(path, state.rootPath, source, semantic);
+  const events: ProseStructureEvent[] = [
+    ...(state.sectionsByPath.get(path) ?? []).map((section) => ({ kind: "section" as const, position: section.range.start, section })),
+    ...(state.includesBySource.get(path) ?? [])
+      .filter((reference) => isReachableInclude(reference, path, window, state.reachable))
+      .map((reference) => ({ kind: "include" as const, position: reference.from, reference })),
+  ].sort((left, right) => left.position - right.position || (left.kind === "section" ? -1 : 1));
+
+  let cursor = window.start;
+  for (const event of events) {
+    appendProseBlocks(state, path, source, semantic, cursor, event.position);
+    if (event.kind === "section") {
+      state.sectionId = event.section.id;
+      cursor = event.section.range.end;
+    } else {
+      const resolvedPath = event.reference.resolvedPath;
+      if (resolvedPath) visitProseSource(state, resolvedPath);
+      cursor = event.reference.to;
+    }
+  }
+  appendProseBlocks(state, path, source, semantic, cursor, window.end);
+}
+
+const proseListEnvironments = ["itemize", "enumerate"] as const;
+const proseExcludedEnvironments = [
+  "abstract",
+  "figure",
+  "figure*",
+  "table",
+  "table*",
+  "tabular",
+  "tabularx",
+  "lstlisting",
+  "minted",
+  "verbatim",
+  "tikzpicture",
+  "equation",
+  "equation*",
+  "align",
+  "align*",
+] as const;
+const proseExcludedCommands = ["bibliography", "addbibresource", "bibliographystyle"] as const;
+
+type ProseContentEvent =
+  | { readonly kind: "list"; readonly position: number; readonly occurrence: EnvironmentOccurrence }
+  | {
+      readonly kind: "exclude";
+      readonly position: number;
+      readonly occurrence: Pick<EnvironmentOccurrence, "start" | "end"> | CommandOccurrence;
+    };
+
+function appendProseBlocks(state: ProseInventoryState, path: string, source: string, semantic: string, start: number, end: number): void {
+  const windowSource = source.slice(start, end);
+  const windowSemantic = semantic.slice(start, end);
+  if (!/\S/u.test(windowSemantic)) return;
+  const window = { start: 0, end: windowSemantic.length };
+  const events: ProseContentEvent[] = [
+    ...proseListEnvironments.flatMap((environment) =>
+      environmentOccurrences(windowSource, windowSemantic, window, environment).map((occurrence) => ({
+        kind: "list" as const,
+        position: occurrence.start + start,
+        occurrence: offsetOccurrence(occurrence, start),
+      })),
+    ),
+    ...proseExcludedEnvironments.flatMap((environment) =>
+      environmentOccurrences(windowSource, windowSemantic, window, environment).map((occurrence) => ({
+        kind: "exclude" as const,
+        position: occurrence.start + start,
+        occurrence: offsetOccurrence(occurrence, start),
+      })),
+    ),
+    ...commandOccurrences(windowSource, windowSemantic, window, proseExcludedCommands).map((occurrence) => ({
+      kind: "exclude" as const,
+      position: occurrence.start + start,
+      occurrence: offsetOccurrence(occurrence, start),
+    })),
+  ].sort((left, right) => left.position - right.position || right.occurrence.end - left.occurrence.end);
+  let cursor = start;
+  for (const event of events) {
+    if (event.occurrence.start < cursor) continue;
+    appendParagraphBlocks(state, path, source, semantic, cursor, event.occurrence.start);
+    if (event.kind === "list") appendListItemBlocks(state, path, source, semantic, event.occurrence);
+    cursor = event.occurrence.end;
+  }
+  appendParagraphBlocks(state, path, source, semantic, cursor, end);
+}
+
+function offsetOccurrence<T extends CommandOccurrence | EnvironmentOccurrence>(occurrence: T, offset: number): T {
+  return {
+    ...occurrence,
+    start: occurrence.start + offset,
+    end: occurrence.end + offset,
+    valueStart: occurrence.valueStart + offset,
+    valueEnd: occurrence.valueEnd + offset,
+  };
+}
+
+function appendParagraphBlocks(
+  state: ProseInventoryState,
+  path: string,
+  source: string,
+  semantic: string,
+  start: number,
+  end: number,
+): void {
+  const separator = /\r?\n[\t ]*\r?\n+|\\par(?![A-Za-z])/gu;
+  separator.lastIndex = start;
+  let cursor = start;
+  while (cursor < end) {
+    const match = nextParagraphSeparator(separator, semantic, end);
+    const paragraphEnd = match?.index ?? end;
+    appendParagraphBlock(state, path, source, semantic, cursor, paragraphEnd);
+    if (!match) break;
+    cursor = match.index + match[0].length;
+  }
+}
+
+function nextParagraphSeparator(pattern: RegExp, semantic: string, end: number): RegExpExecArray | null {
+  while (true) {
+    const match = pattern.exec(semantic);
+    if (!match || match.index >= end) return null;
+    if (!match[0].startsWith("\\") || isActiveLatexCommandStart(semantic, match.index)) return match;
+  }
+}
+
+function appendParagraphBlock(
+  state: ProseInventoryState,
+  path: string,
+  source: string,
+  semantic: string,
+  start: number,
+  end: number,
+): void {
+  while (start < end && /\s/u.test(semantic[start]!)) start += 1;
+  while (end > start && /\s/u.test(semantic[end - 1]!)) end -= 1;
+  const paragraphSemantic = semantic.slice(start, end);
+  const displayMath = displayMathOccurrences(paragraphSemantic);
+  if (displayMath.length === 1 && displayMath[0]?.start === 0 && displayMath[0].end === paragraphSemantic.length) return;
+  const text = normalizeProseText(paragraphSemantic);
+  if (!text) return;
+  appendProseBlock(state, path, "paragraph", text, source, start, end);
+}
+
+function normalizeProseText(value: string): string {
+  return value
+    .replaceAll(/\\(?:begin|end)\s*\{[^{}\r\n]+\}/gu, (whole, offset: number) => (isActiveLatexCommandStart(value, offset) ? " " : whole))
+    .replace(/^\\[A-Za-z@]+$/u, "")
+    .replaceAll(/\s+/gu, " ")
+    .trim();
+}
+
+function appendListItemBlocks(
+  state: ProseInventoryState,
+  path: string,
+  source: string,
+  semantic: string,
+  list: EnvironmentOccurrence,
+  nestingDepth = 1,
+): void {
+  if (nestingDepth > latexMaximumListNestingDepth) {
+    throw new LatexConversionError("provenance-limit", `LaTeX list nesting exceeds ${latexMaximumListNestingDepth} environments`);
+  }
+  const nestedLists = immediateNestedListOccurrences(source, semantic, list);
+  const items = listItemOccurrences(semantic, list, nestedLists);
+  for (const [index, item] of items.entries()) {
+    let end = items[index + 1]?.start ?? list.valueEnd;
+    while (end > item.bodyStart && /\s/u.test(semantic[end - 1]!)) end -= 1;
+    const itemNestedLists = nestedLists.filter((nested) => nested.start >= item.bodyStart && nested.end <= end);
+    const text = normalizeProseText(sourceWithoutOccurrences(semantic, item.bodyStart, end, itemNestedLists));
+    if (text) appendProseBlock(state, path, "list-item", text, source, item.start, end);
+    for (const nested of itemNestedLists) appendListItemBlocks(state, path, source, semantic, nested, nestingDepth + 1);
+  }
+}
+
+interface ProseListItemOccurrence {
+  readonly start: number;
+  readonly bodyStart: number;
+}
+
+function listItemOccurrences(
+  semantic: string,
+  list: EnvironmentOccurrence,
+  nestedLists: readonly EnvironmentOccurrence[],
+): ProseListItemOccurrence[] {
+  const pattern = /\\item(?![A-Za-z])/gu;
+  pattern.lastIndex = list.valueStart;
+  const items: ProseListItemOccurrence[] = [];
+  while (true) {
+    const match = nextTopLevelListItem(pattern, semantic, list.valueEnd, nestedLists);
+    if (!match) break;
+    const bodyStart = listItemBodyStart(semantic, match.index + match[0].length, list.valueEnd);
+    if (bodyStart === null) break;
+    pattern.lastIndex = bodyStart;
+    items.push({ start: match.index, bodyStart });
+  }
+  return items;
+}
+
+function nextTopLevelListItem(
+  pattern: RegExp,
+  semantic: string,
+  end: number,
+  nestedLists: readonly EnvironmentOccurrence[],
+): RegExpExecArray | null {
+  while (true) {
+    const match = nextActiveLatexMatch(pattern, semantic);
+    if (!match || match.index >= end) return null;
+    if (!nestedLists.some((nested) => match.index >= nested.start && match.index < nested.end)) return match;
+  }
+}
+
+function listItemBodyStart(semantic: string, start: number, end: number): number | null {
+  if (semantic[start] !== "[") return start;
+  const optionsEnd = semantic.indexOf("]", start + 1);
+  return optionsEnd < 0 || optionsEnd >= end ? null : optionsEnd + 1;
+}
+
+function immediateNestedListOccurrences(source: string, semantic: string, list: EnvironmentOccurrence): readonly EnvironmentOccurrence[] {
+  const window = { start: list.valueStart, end: list.valueEnd };
+  const nested = proseListEnvironments
+    .flatMap((environment) => environmentOccurrences(source, semantic, window, environment))
+    .sort((left, right) => left.start - right.start || right.end - left.end);
+  return nested.filter(
+    (candidate, index) =>
+      !nested.some(
+        (possibleParent, parentIndex) =>
+          parentIndex !== index &&
+          possibleParent.start <= candidate.start &&
+          possibleParent.end >= candidate.end &&
+          (possibleParent.start < candidate.start || possibleParent.end > candidate.end),
+      ),
+  );
+}
+
+function sourceWithoutOccurrences(
+  source: string,
+  start: number,
+  end: number,
+  occurrences: readonly Pick<EnvironmentOccurrence, "start" | "end">[],
+): string {
+  const parts: string[] = [];
+  let cursor = start;
+  for (const occurrence of occurrences) {
+    parts.push(source.slice(cursor, occurrence.start), " ");
+    cursor = occurrence.end;
+  }
+  parts.push(source.slice(cursor, end));
+  return parts.join("");
+}
+
+function appendProseBlock(
+  state: ProseInventoryState,
+  path: string,
+  kind: LatexProseBlockInventory["kind"],
+  text: string,
+  source: string,
+  start: number,
+  end: number,
+): void {
+  const retainedProvenanceCodeUnits = end - start + text.length;
+  if (state.retainedProvenanceCodeUnits + retainedProvenanceCodeUnits > latexMaximumProseProvenanceCodeUnits) {
+    throw new LatexConversionError(
+      "provenance-limit",
+      `LaTeX prose provenance exceeds ${latexMaximumProseProvenanceCodeUnits} retained UTF-16 code units`,
+    );
+  }
+  const localIndex = (state.localCounts.get(path) ?? 0) + 1;
+  if (state.blocks.length >= state.maximumBlocks) {
+    throw new LatexConversionError(
+      "semantic-record-limit",
+      `LaTeX conversion exceeds the semantic record limit of ${state.semanticRecordLimit}`,
+    );
+  }
+  state.retainedProvenanceCodeUnits += retainedProvenanceCodeUnits;
+  state.localCounts.set(path, localIndex);
+  state.blocks.push({
+    id: `${path}#prose-${localIndex}`,
+    kind,
+    sectionId: state.sectionId,
+    text,
+    source: source.slice(start, end),
+    range: range(path, start, end),
+  });
 }
 
 function figureInventory(
@@ -146,6 +531,7 @@ function figureInventory(
     sourceContexts: new Map(),
     contentHashes: new Map(),
     destinations: new Map(),
+    retainedProvenanceCodeUnits: 0,
   };
   return resolveLatexImageReferences(inspection, report.rootPath, report.sourceFiles).map((reference) =>
     figureForReference(state, reference),
@@ -168,6 +554,7 @@ interface FigureInventoryState {
   readonly sourceContexts: Map<string, FigureSourceContext>;
   readonly contentHashes: Map<string, string>;
   readonly destinations: Map<string, { readonly contentHash: string; readonly path: string }>;
+  retainedProvenanceCodeUnits: number;
 }
 
 interface FigureAsset {
@@ -185,6 +572,19 @@ function figureForReference(state: FigureInventoryState, reference: LatexImageRe
   const enclosing = enclosingOccurrence(context.figures, start, end) ?? enclosingOccurrence(context.starredFigures, start, end);
   const captionCommand = enclosing ? firstCommandInWindow(context.captions, enclosing) : undefined;
   const labelCommand = enclosing ? firstCommandInWindow(context.labels, enclosing) : undefined;
+  const retainedProvenanceCodeUnits =
+    end -
+    start +
+    (captionCommand ? captionCommand.end - captionCommand.start + captionCommand.valueEnd - captionCommand.valueStart : 0) +
+    (labelCommand ? labelCommand.end - labelCommand.start + labelCommand.valueEnd - labelCommand.valueStart : 0) +
+    (enclosing ? enclosing.end - enclosing.start : 0);
+  if (state.retainedProvenanceCodeUnits + retainedProvenanceCodeUnits > latexMaximumFigureProvenanceCodeUnits) {
+    throw new LatexConversionError(
+      "provenance-limit",
+      `LaTeX figure provenance exceeds ${latexMaximumFigureProvenanceCodeUnits} retained UTF-16 code units`,
+    );
+  }
+  state.retainedProvenanceCodeUnits += retainedProvenanceCodeUnits;
   return {
     sourcePath,
     requestedPath,
@@ -196,7 +596,12 @@ function figureForReference(state: FigureInventoryState, reference: LatexImageRe
     ...(labelCommand ? { label: sourcedCommand(sourcePath, labelCommand) } : {}),
     source: context.source.slice(start, end),
     referenceRange: range(sourcePath, start, end),
-    ...(enclosing ? { figureRange: range(sourcePath, enclosing.start, enclosing.end) } : {}),
+    ...(enclosing
+      ? {
+          figureSource: context.source.slice(enclosing.start, enclosing.end),
+          figureRange: range(sourcePath, enclosing.start, enclosing.end),
+        }
+      : {}),
     resolutionDiagnostics: figureResolutionDiagnostics(reference, asset),
   };
 }
@@ -400,12 +805,25 @@ function includesBySourcePath(references: readonly LatexIncludeReference[]): Rea
   return includes;
 }
 
-function visitSectionSource(state: SectionInventoryState, path: string): void {
-  if (state.visited.has(path) || !state.reachable.has(path)) return;
+function beginSourceVisit(
+  state: {
+    readonly inspection: LatexArchiveInspection;
+    readonly semanticFor: (file: LatexArchiveFile) => string;
+    readonly visited: Set<string>;
+    readonly reachable: ReadonlySet<string>;
+  },
+  path: string,
+): { readonly source: string; readonly semantic: string } | null {
+  if (state.visited.has(path) || !state.reachable.has(path)) return null;
   state.visited.add(path);
   const file = requiredTextFile(state.inspection.files, path);
-  const source = file.text ?? "";
-  const semantic = state.semanticFor(file);
+  return { source: file.text ?? "", semantic: state.semanticFor(file) };
+}
+
+function visitSectionSource(state: SectionInventoryState, path: string): void {
+  const sourceVisit = beginSourceVisit(state, path);
+  if (!sourceVisit) return;
+  const { source, semantic } = sourceVisit;
   const window = sourceWindow(path, state.rootPath, source, semantic);
   const context: SectionSourceContext = {
     path,
@@ -697,18 +1115,35 @@ function commandOccurrences(source: string, active: string, window: SourceWindow
   pattern.lastIndex = window.start;
   const occurrences: CommandOccurrence[] = [];
   while (true) {
-    const match = pattern.exec(active);
+    const match = nextActiveLatexMatch(pattern, active);
     if (!match || match.index >= window.end) break;
-    const afterCommand = match.index + match[0].length + (active[match.index + match[0].length] === "*" ? 1 : 0);
-    const argument = commandArgument(active, afterCommand, window.end);
-    if (argument.kind === "malformed") break;
-    if (argument.kind === "absent") {
-      pattern.lastIndex = Math.max(pattern.lastIndex, argument.next);
+    const result = commandOccurrenceAt(source, active, match, window.end);
+    if (result.kind === "stop") break;
+    if (result.kind === "skip") {
+      pattern.lastIndex = Math.max(pattern.lastIndex, result.next);
       continue;
     }
-    const close = matchingDelimiter(active, argument.open, "{", "}");
-    if (close < 0 || close >= window.end) break;
-    occurrences.push({
+    occurrences.push(result.occurrence);
+    pattern.lastIndex = result.occurrence.end;
+  }
+  return occurrences;
+}
+
+type CommandOccurrenceResult =
+  | { readonly kind: "found"; readonly occurrence: CommandOccurrence }
+  | { readonly kind: "skip"; readonly next: number }
+  | { readonly kind: "stop" };
+
+function commandOccurrenceAt(source: string, active: string, match: RegExpExecArray, windowEnd: number): CommandOccurrenceResult {
+  const matchEnd = match.index + match[0].length;
+  const argument = commandArgument(active, matchEnd + (active[matchEnd] === "*" ? 1 : 0), windowEnd);
+  if (argument.kind === "malformed") return { kind: "stop" };
+  if (argument.kind === "absent") return { kind: "skip", next: argument.next };
+  const close = matchingDelimiter(active, argument.open, "{", "}");
+  if (close < 0 || close >= windowEnd) return { kind: "stop" };
+  return {
+    kind: "found",
+    occurrence: {
       name: match[1] ?? "",
       source: source.slice(match.index, close + 1),
       value: source.slice(argument.open + 1, close),
@@ -716,20 +1151,17 @@ function commandOccurrences(source: string, active: string, window: SourceWindow
       end: close + 1,
       valueStart: argument.open + 1,
       valueEnd: close,
-    });
-    pattern.lastIndex = close + 1;
-  }
-  return occurrences;
+    },
+  };
 }
 
 function environmentOccurrences(source: string, active: string, window: SourceWindow, environment: string): EnvironmentOccurrence[] {
   const escaped = environment.replaceAll("*", "\\*");
   const begin = new RegExp(`\\\\begin\\s*\\{${escaped}\\}`, "gu");
-  const end = new RegExp(`\\\\end\\s*\\{${escaped}\\}`, "gu");
   begin.lastIndex = window.start;
   const occurrences: EnvironmentOccurrence[] = [];
   while (true) {
-    const open = begin.exec(active);
+    const open = nextActiveLatexMatch(begin, active);
     if (!open || open.index >= window.end) break;
     let valueStart = open.index + open[0].length;
     let options: string | undefined;
@@ -739,8 +1171,7 @@ function environmentOccurrences(source: string, active: string, window: SourceWi
       options = source.slice(valueStart + 1, optionsEnd);
       valueStart = optionsEnd + 1;
     }
-    end.lastIndex = valueStart;
-    const close = end.exec(active);
+    const close = matchingEnvironmentEnd(active, escaped, valueStart, window.end);
     if (!close || close.index + close[0].length > window.end) break;
     const wholeEnd = close.index + close[0].length;
     occurrences.push({
@@ -748,11 +1179,25 @@ function environmentOccurrences(source: string, active: string, window: SourceWi
       value: source.slice(valueStart, close.index),
       start: open.index,
       end: wholeEnd,
+      valueStart,
+      valueEnd: close.index,
       ...(options !== undefined ? { options } : {}),
     });
     begin.lastIndex = wholeEnd;
   }
   return occurrences;
+}
+
+function matchingEnvironmentEnd(source: string, escapedEnvironment: string, start: number, end: number): RegExpExecArray | null {
+  const boundary = new RegExp(`\\\\(begin|end)\\s*\\{${escapedEnvironment}\\}`, "gu");
+  boundary.lastIndex = start;
+  let depth = 1;
+  while (true) {
+    const match = nextActiveLatexMatch(boundary, source);
+    if (!match || match.index + match[0].length > end) return null;
+    depth += match[1] === "begin" ? 1 : -1;
+    if (depth === 0) return match;
+  }
 }
 
 type CommandArgument =

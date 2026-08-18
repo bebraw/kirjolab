@@ -7,6 +7,7 @@
     "src/client/review-app.ts",
     "src/client/service-worker.ts",
     "src/lib/paper-import/index.ts",
+    "src/lib/paper-import/conformance.ts",
     "src/test-support/cloudflare-workers.ts",
     "scripts/citation-provider-diagnostics-entry.ts",
     "scripts/codemirror-parity-spike.ts",
@@ -23,6 +24,7 @@
     "@stryker-mutator/api",
     "@unified-latex/unified-latex-util-parse",
     "chrome-launcher",
+    "fflate",
     "lighthouse",
     "mdast-util-directive",
     "typescript-7",
@@ -30,6 +32,7 @@
     "y-codemirror.next",
     "y-protocols"
   ],
+  "ignoreExports": [{ "file": "src/lib/paper-import/latex-conversion.ts", "exports": ["latexConverterVersion"] }],
   "duplicates": {
     "ignore": ["**/*.test.ts", "**/*.test.mts", "**/*.test.mjs", "**/*.e2e.ts"]
   },

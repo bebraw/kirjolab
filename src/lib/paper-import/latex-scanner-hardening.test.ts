@@ -46,6 +46,121 @@ describe("LaTeX source scanner hardening", () => {
     ]);
   });
 
+  it("recognizes comment and literal openers only after an even-length preceding backslash run", () => {
+    const escapedComment = String.raw`\\begin{comment}\input{escaped-comment-visible}\\end{comment}`;
+    const activeComment = String.raw`\\\begin{comment}\input{active-comment-hidden}\end{comment}`;
+    const escapedLiteral = String.raw`\\begin{verbatim}\input{escaped-literal-visible}\\end{verbatim}`;
+    const activeLiteral = String.raw`\\\begin{verbatim}\input{active-literal-hidden}\end{verbatim}`;
+    const source = `Before 😀\r\n${escapedComment}\r\n${activeComment}\r\n${escapedLiteral}\r\n${activeLiteral}\r\n`;
+    const structural = structuralLatexSource(source);
+    const literals = literalEnvironmentOccurrences(source);
+    const escapedCommentReference = source.indexOf("\\input{escaped-comment-visible}");
+    const activeCommentReference = source.indexOf("\\input{active-comment-hidden}");
+    const escapedLiteralReference = source.indexOf("\\input{escaped-literal-visible}");
+    const activeLiteralReference = source.indexOf("\\input{active-literal-hidden}");
+
+    expect(structural.slice(escapedCommentReference, escapedCommentReference + "\\input{escaped-comment-visible}".length)).toBe(
+      "\\input{escaped-comment-visible}",
+    );
+    expect(structural.slice(activeCommentReference, activeCommentReference + "\\input{active-comment-hidden}".length)).toBe(
+      " ".repeat("\\input{active-comment-hidden}".length),
+    );
+    expect(structural.slice(escapedLiteralReference, escapedLiteralReference + "\\input{escaped-literal-visible}".length)).toBe(
+      "\\input{escaped-literal-visible}",
+    );
+    expect(structural.slice(activeLiteralReference, activeLiteralReference + "\\input{active-literal-hidden}".length)).toBe(
+      " ".repeat("\\input{active-literal-hidden}".length),
+    );
+    expect(literals).toHaveLength(1);
+    expect(source.slice(literals[0]?.start, literals[0]?.end)).toBe(
+      String.raw`\begin{verbatim}\input{active-literal-hidden}\end{verbatim}`,
+    );
+  });
+
+  it("skips escaped comment and literal closers until the next active closer", () => {
+    const comment = String.raw`\begin{comment}\input{comment-hidden}\\end{comment}\input{comment-still-hidden}\end{comment}`;
+    const literal = String.raw`\begin{verbatim}\input{literal-hidden}\\end{verbatim}\input{literal-still-hidden}\end{verbatim}`;
+    const source = `${comment}\\input{after-comment}${literal}\\input{after-literal}`;
+    const structural = structuralLatexSource(source);
+    const literals = literalEnvironmentOccurrences(source);
+
+    for (const hidden of [
+      "\\input{comment-hidden}",
+      "\\input{comment-still-hidden}",
+      "\\input{literal-hidden}",
+      "\\input{literal-still-hidden}",
+    ]) {
+      const start = source.indexOf(hidden);
+      expect(structural.slice(start, start + hidden.length)).toBe(" ".repeat(hidden.length));
+    }
+    for (const visible of ["\\input{after-comment}", "\\input{after-literal}"]) {
+      const start = source.indexOf(visible);
+      expect(structural.slice(start, start + visible.length)).toBe(visible);
+    }
+    expect(literals).toHaveLength(1);
+    expect(source.slice(literals[0]?.start, literals[0]?.end)).toBe(literal);
+  });
+
+  it("preserves Unicode CRLF offsets while applying slash-run parity to display-math openers and closers", () => {
+    const escapedOpen = String.raw`\\[ignored\]`;
+    const activeAfterPair = String.raw`\\\[kept\]`;
+    const escapedClose = String.raw`\[left \\] right 😀\]`;
+    const source = `Résumé 😀\r\n${escapedOpen}\r\n${activeAfterPair}\r\n${escapedClose}\r\n`;
+    const occurrences = displayMathOccurrences(source);
+    const afterPairStart = source.indexOf(activeAfterPair) + 2;
+    const escapedCloseStart = source.indexOf(escapedClose);
+
+    expect(
+      occurrences.map(({ start, end, bodyStart, bodyEnd }) => ({
+        start,
+        end,
+        bodyStart,
+        bodyEnd,
+        source: source.slice(start, end),
+      })),
+    ).toEqual([
+      {
+        start: afterPairStart,
+        end: afterPairStart + String.raw`\[kept\]`.length,
+        bodyStart: afterPairStart + 2,
+        bodyEnd: afterPairStart + String.raw`\[kept`.length,
+        source: String.raw`\[kept\]`,
+      },
+      {
+        start: escapedCloseStart,
+        end: escapedCloseStart + escapedClose.length,
+        bodyStart: escapedCloseStart + 2,
+        bodyEnd: escapedCloseStart + escapedClose.length - 2,
+        source: escapedClose,
+      },
+    ]);
+  });
+
+  it("applies slash-run parity to graphic paths and image references", async () => {
+    const source =
+      String.raw`\documentclass{article}\begin{document}` +
+      String.raw`\\graphicspath{{fake/}}` +
+      String.raw`\\\graphicspath{{images/}}` +
+      String.raw`\includegraphics{active}` +
+      String.raw`\\includegraphics{fake}` +
+      String.raw`\\\includegraphics{triple}` +
+      String.raw`\end{document}`;
+    const archive = zipSync({
+      "main.tex": strToU8(source),
+      "images/active.png": new Uint8Array([137, 80, 78, 71]),
+      "images/triple.png": new Uint8Array([137, 80, 78, 71, 1]),
+      "fake/fake.png": new Uint8Array([137, 80, 78, 71, 2]),
+    });
+    const inspection = await inspectLatexArchive(archive);
+    const conversion = convertLatexProject(inspection, { rootPath: "main.tex" });
+
+    expect(conversion.figures.map(({ requestedPath, archivePath }) => ({ requestedPath, archivePath }))).toEqual([
+      { requestedPath: "active", archivePath: "images/active.png" },
+      { requestedPath: "triple", archivePath: "images/triple.png" },
+    ]);
+    expect(conversion.assets.map(({ path }) => path)).toEqual(["figures/active.png", "figures/triple.png"]);
+  });
+
   itOutsideMutation(
     "masks a dense below-cap sequence of literal environments with stable length and delimiters",
     () => {

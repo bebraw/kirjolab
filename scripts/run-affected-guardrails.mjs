@@ -3,6 +3,17 @@ import { getAffectedFiles, getRepoRoot, normalizeFiles, run } from "./affected-f
 
 const repoRoot = getRepoRoot();
 const affectedFiles = normalizeFiles(getAffectedFiles(repoRoot));
+const paperImportPackageInputs = new Set([
+  "package.json",
+  "package-lock.json",
+  "LICENSE",
+  "tsconfig.paper-import-package.json",
+  "scripts/build-paper-import-package.mjs",
+  "scripts/paper-import-converter-version.test.mjs",
+  "scripts/paper-import-package.test.mjs",
+  "scripts/run-typescript-7.mjs",
+]);
+const paperImportPackageInputPrefixes = ["packaging/paper-import/", "src/lib/paper-import/"];
 
 if (affectedFiles.length === 0) {
   console.log("Affected guardrails skipped: no affected files found.");
@@ -20,6 +31,7 @@ runWorkerClientGuard(affectedFiles);
 runAuditWhenNeeded(affectedFiles);
 runTestsWhenNeeded(affectedFiles);
 runWorkersTestsWhenNeeded(affectedFiles);
+runPaperImportPackageTestWhenNeeded(affectedFiles);
 
 function runPrettier(files) {
   console.log("Checking formatting for affected files...");
@@ -113,6 +125,20 @@ function runWorkersTestsWhenNeeded(files) {
 
   console.log("Running Workers runtime tests for affected Durable Object or test environment files...");
   run(repoRoot, "npm", ["run", "test:workers"]);
+}
+
+function runPaperImportPackageTestWhenNeeded(files) {
+  if (!files.some(affectsPaperImportPackage)) {
+    console.log("Paper-import package test skipped: no package boundary inputs changed.");
+    return;
+  }
+
+  console.log("Running the isolated paper-import package test because its boundary changed...");
+  run(repoRoot, "npm", ["run", "test:paper-import-package"]);
+}
+
+function affectsPaperImportPackage(file) {
+  return paperImportPackageInputs.has(file) || paperImportPackageInputPrefixes.some((prefix) => file.startsWith(prefix));
 }
 
 function affectsTypecheck(file) {

@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import * as paperImport from "./index";
+import { createPaperImportConformanceCorpusV2, paperImportConformanceCorpusVersion } from "./conformance";
 import {
   convertLatexProject,
-  createPaperImportConformanceCorpusV1,
   createPdfTextExtractor,
   defaultLatexConversionOptions,
   inspectLatexArchive,
@@ -21,6 +21,9 @@ import {
   latexImageMaximumSearchFolderCodeUnits,
   latexImageMaximumSearchFolders,
   latexMaximumCitationKeys,
+  latexMaximumFigureProvenanceCodeUnits,
+  latexMaximumListNestingDepth,
+  latexMaximumProseProvenanceCodeUnits,
   latexMaximumRenderedFileCodeUnits,
   latexMaximumRenderedFolderCodeUnits,
   latexMaximumRenderedFolders,
@@ -30,7 +33,6 @@ import {
   latexMaximumTableRows,
   latexMaximumTikzBlocks,
   latexMaximumTikzBytes,
-  paperImportConformanceCorpusVersion,
   pdfTextHardMaximumDocumentTextCodeUnits,
   pdfTextHardMaximumInputBytes,
   pdfTextHardMaximumPages,
@@ -42,7 +44,7 @@ import {
 
 describe("paper-import public entry point", () => {
   it("exposes the neutral archive, conversion, PDF, and conformance seams together", async () => {
-    const corpus = createPaperImportConformanceCorpusV1();
+    const corpus = createPaperImportConformanceCorpusV2();
     const selection: LatexConversionSelection = corpus.latex.reviewedPaper.selection;
     const inspection = await inspectLatexArchive(corpus.latex.reviewedPaper.archive);
     const conversion = convertLatexProject(inspection, selection, defaultLatexConversionOptions);
@@ -61,7 +63,7 @@ describe("paper-import public entry point", () => {
     });
     expect(createPdfTextExtractor(runtime)).toBeTypeOf("function");
     expect(limits.maximumPages).toBeGreaterThan(0);
-    expect(paperImportConformanceCorpusVersion).toBe(1);
+    expect(paperImportConformanceCorpusVersion).toBe(2);
     expect(latexArchiveMaximumCompressedBytes).toBe(20 * 1_024 * 1_024);
     expect(latexArchiveMaximumExpandedBytes).toBe(64 * 1_024 * 1_024);
     expect(latexArchiveMaximumEntries).toBe(1_024);
@@ -75,6 +77,9 @@ describe("paper-import public entry point", () => {
     expect(latexImageMaximumSearchFolderCodeUnits).toBe(65_536);
     expect(latexImageMaximumSearchFolders).toBe(256);
     expect(latexMaximumCitationKeys).toBe(1_000);
+    expect(latexMaximumFigureProvenanceCodeUnits).toBe(16 * 1_024 * 1_024);
+    expect(latexMaximumListNestingDepth).toBe(1_024);
+    expect(latexMaximumProseProvenanceCodeUnits).toBe(32 * 1_024 * 1_024);
     expect(latexMaximumTableColumns).toBe(256);
     expect(latexMaximumTableRows).toBe(1_000);
     expect(latexMaximumRenderedTableCodeUnits).toBe(1_024 * 1_024);
@@ -90,5 +95,6 @@ describe("paper-import public entry point", () => {
     expect(pdfTextHardMaximumDocumentTextCodeUnits).toBe(20_000_000);
     expect(paperImport).not.toHaveProperty("analyzeLatexArchiveFiles");
     expect(paperImport).not.toHaveProperty("renderLatexProject");
+    expect(paperImport).not.toHaveProperty("createPaperImportConformanceCorpusV2");
   });
 });

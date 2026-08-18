@@ -181,11 +181,15 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   compose the design system without moving application behavior or state into a
   second UI architecture.
 - Incubate reusable capabilities as source-local modules first. Create a private
-  workspace package only for two independently built consumers with a justified
-  runtime, dependency, build, or release boundary; tests, fixtures, examples,
-  spikes, and compatibility facades are not consumers. Public publication also
-  requires an external adopter, versioned compatibility policy, package and
-  security documentation, a release owner, and a separate release ADR.
+  package candidate only when a justified runtime, dependency, build, or release
+  boundary is demonstrated by either two independently built repository
+  executables or one named, maintained external adapter using its own build and
+  runtime; tests, fixtures, examples, spikes, compatibility facades, and
+  prospective integrations are not consumers. A deterministic private `0.x`
+  tarball may bootstrap that adapter but is not registry publication or, by
+  itself, maintained-consumer evidence. Public publication additionally requires
+  the versioned compatibility, package, security, ownership, provenance, and
+  separate release-ADR gates in ADR-186.
 - Use pinned Lit for bounded reactive browser components that own a cohesive
   local template, presentation state, presentation copy derived solely from
   component state and canonical inputs, and typed intent events. Keep network
@@ -488,17 +492,29 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   operation rather than duplicated initialization lists.
 - Bind LaTeX confirmation to both the original archive SHA-256 and a canonical
   digest of the exact reviewed interpretation, including its effective root,
-  bibliography, converter/schema versions, conversion options, and extracted
-  manifest. Reinspect and reconvert before comparison, and return conflicts
+  bibliography, converter/schema versions, conversion options, deterministic
+  archive manifest, and deterministic neutral conversion manifest. The
+  conversion manifest covers diagnostics, semantic and prose inventories,
+  source fingerprints, figure provenance, hashed rendered files and
+  bibliography, and asset byte counts, media types, and SHA-256 without raw
+  binary data. Reinspect and reconvert before comparison, and return conflicts
   before any Durable Object, catalog, access, or R2 write.
-- Incubate product-neutral LaTeX conversion, original-source provenance,
-  deterministic conformance cases, and bounded native PDF page-text extraction
-  under `src/lib/paper-import/`. Keep Kirjolab project seeds, publication
-  profiles, browser and OCR lifecycle, authorization, persistence, queues, and
-  cloud jobs in adapters. Define retained archive ranges against original
-  decoded text in UTF-16 code units and omit any range that cannot be safely
-  reconstructed. Keep this boundary source-local until ADR-186's independent
-  consumer and release gates are satisfied.
+- Maintain product-neutral LaTeX conversion, original-source provenance,
+  canonical preview identity, deterministic conformance cases, and bounded
+  native PDF page-text extraction under `src/lib/paper-import/`. Keep Kirjolab
+  project seeds, publication profiles, browser and OCR lifecycle, authorization,
+  persistence, queues, and cloud jobs in adapters. Define retained archive
+  ranges against original decoded text in UTF-16 code units and omit any range
+  that cannot be safely reconstructed. Ordinary paragraph and list-item prose
+  blocks retain exact source, deterministic identity and order, and the active
+  section across reachable includes where possible. Mark adapter-oriented
+  rendered files as `scholarmark-v1`; do not present them as neutral Markdown.
+  Expose conformance fixtures separately from the main production entry.
+- Permit the paper-import boundary to ship as a private ESM `0.x` candidate for
+  the maintained Slideotter adapter under ADR-186. Keep `fflate` as the only
+  mandatory parser dependency, inject PDF.js at runtime, emit JavaScript and
+  TypeScript declarations, verify a reproducible Node 24 installable tarball,
+  and do not add public registry publication or release credentials.
 - Preserve explicit TikZ source as canonical fenced Markdown. Do not render it
   until a separately approved isolated server boundary can compile it and its
   SVG output can pass inert-SVG validation.

@@ -13,6 +13,19 @@ export function maskedLatex(source: string): string {
     .join("\n");
 }
 
+export function isActiveLatexCommandStart(source: string, start: number): boolean {
+  let precedingBackslashes = 0;
+  for (let cursor = start - 1; cursor >= 0 && source[cursor] === "\\"; cursor -= 1) precedingBackslashes += 1;
+  return precedingBackslashes % 2 === 0;
+}
+
+export function nextActiveLatexMatch(pattern: RegExp, source: string, commandSource = source): RegExpExecArray | null {
+  while (true) {
+    const match = pattern.exec(source);
+    if (!match || isActiveLatexCommandStart(commandSource, match.index)) return match;
+  }
+}
+
 const literalEnvironments = ["lstlisting", "minted", "verbatim"] as const;
 const sourceControlEnvironments = ["comment", ...literalEnvironments] as const;
 export type LatexLiteralEnvironment = (typeof literalEnvironments)[number];
@@ -97,9 +110,9 @@ export function displayMathOccurrences(source: string, start = 0, end = source.l
   const occurrences: LatexDisplayMathOccurrence[] = [];
   let cursor = start;
   while (cursor < end) {
-    const open = source.indexOf("\\[", cursor);
+    const open = findActiveLatexText(source, "\\[", cursor);
     if (open < 0 || open >= end) break;
-    const close = source.indexOf("\\]", open + 2);
+    const close = findActiveLatexText(source, "\\]", open + 2);
     if (close < 0 || close + 2 > end) break;
     occurrences.push({ start: open, end: close + 2, bodyStart: open + 2, bodyEnd: close });
     cursor = close + 2;
@@ -269,10 +282,17 @@ function findEnvironmentCommand(
 }
 
 function findCommandPosition(source: string, command: string, start: number): CommandSearchPosition | null {
-  const commandStart = source.indexOf(command, start);
-  if (commandStart < 0) return null;
-  const brace = skipWhitespace(source, commandStart + command.length);
-  return { start: commandStart, brace, next: Math.max(brace, commandStart + command.length) };
+  let cursor = start;
+  while (cursor < source.length) {
+    const commandStart = source.indexOf(command, cursor);
+    if (commandStart < 0) return null;
+    if (isActiveLatexCommandStart(source, commandStart)) {
+      const brace = skipWhitespace(source, commandStart + command.length);
+      return { start: commandStart, brace, next: Math.max(brace, commandStart + command.length) };
+    }
+    cursor = commandStart + 1;
+  }
+  return null;
 }
 
 function environmentBodyStart(source: string, beginEnd: number): number {
@@ -312,11 +332,26 @@ export function latexDocumentWindow(
   source: string,
   active = structuralLatexSource(source),
 ): { readonly start: number; readonly end: number } {
-  const begin = /\\begin\s*\{document\}/u.exec(active);
+  const begin = nextActiveLatexPatternMatch(/\\begin\s*\{document\}/gu, active);
   if (!begin) return { start: 0, end: source.length };
   const start = begin.index + begin[0].length;
-  const end = /\\end\s*\{document\}/u.exec(active.slice(start));
-  return { start, end: end ? start + end.index : source.length };
+  const end = nextActiveLatexPatternMatch(/\\end\s*\{document\}/gu, active, start);
+  return { start, end: end?.index ?? source.length };
+}
+
+export function findActiveLatexText(source: string, value: string, start: number): number {
+  let cursor = start;
+  while (cursor < source.length) {
+    const index = source.indexOf(value, cursor);
+    if (index < 0 || isActiveLatexCommandStart(source, index)) return index;
+    cursor = index + 1;
+  }
+  return -1;
+}
+
+function nextActiveLatexPatternMatch(pattern: RegExp, source: string, start = 0): RegExpExecArray | null {
+  pattern.lastIndex = start;
+  return nextActiveLatexMatch(pattern, source);
 }
 
 function skipWhitespace(source: string, start: number): number {

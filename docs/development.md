@@ -92,11 +92,14 @@ that package boundaries solve a demonstrated build or dependency problem. Under
 [ADR-186](./adrs/implemented/ADR-186-promote-source-modules-through-evidence-gates.md),
 ordinary reuse within Kirjolab is not enough.
 
-Before adding a private npm workspace package, verify all of the following:
+Before adding a private package candidate, verify all of the following:
 
-- two independently built repository executables consume the capability;
+- independent consumption is demonstrated by either two independently built
+  repository executables or one named, maintained external adapter using its
+  own build and runtime;
 - neither tests, fixtures, examples, spikes, nor compatibility facades are being
-  counted as the second consumer;
+  counted as an independent consumer, and a prospective integration is not
+  treated as maintained evidence;
 - the proposed entry point is cohesive, typed, documented, and independent of
   unrelated Kirjolab authorities;
 - extraction removes duplicate mechanics or enforces a measured dependency or
@@ -105,8 +108,12 @@ Before adding a private npm workspace package, verify all of the following:
   diagnostics cover the new build unit; and
 - an ADR names the owner, compatibility policy, and reversal path.
 
-Start an approved workspace package as private with explicit exports. Do not add
-registry or release configuration at this stage.
+Start an approved package candidate as private `0.x` with explicit exports. A
+workspace package or deterministic installable tarball may bootstrap a named
+external adapter, but the artifact alone does not prove maintained consumption.
+Review emitted JavaScript and declarations, isolated installation, dependency
+scope, reproducibility, and `npm pack --dry-run` contents. Do not add registry,
+credentials, provenance, or public release configuration at this stage.
 
 Before public publication, additionally require a maintained external consumer
 or user-approved named adopter, semantic-versioning and deprecation policy,
@@ -114,6 +121,14 @@ package documentation and compatible licensing, a supported runtime matrix, a
 security reporting path, an inspected `npm pack` tarball, reproducible test and
 build evidence, and a named release owner. Approve registry credentials,
 provenance, and release automation in a separate ADR before publishing.
+
+The current paper-import candidate remains single-sourced under
+`src/lib/paper-import/`. Run `npm run build:paper-import-package` to emit its
+ESM JavaScript, declarations, and package metadata into the ignored
+`.generated/paper-import-package/` staging directory. Run
+`npm run test:paper-import-package` for the exact-Node-24 isolated consumer gate,
+or `npm run paper-import:pack` to create a local private tarball after review.
+None of these commands publish to a registry.
 
 ### GitHub App sync
 
@@ -517,7 +532,7 @@ Template update packs live under `.template/updates/`. Use them to port later te
 
 ## Write Boundaries
 
-Keep workflow write targets explicit and documented. Generated CSS and browser bundles belong in `.generated/`, including versioned Markdown and PDF runtime assets under `.generated/assets/`; ignored Build Week submission images and captions belong in `.generated/build-week-media/`; Lighthouse reports belong in `reports/lighthouse/`; coverage reports belong in `reports/coverage/`; mutation reports belong in `reports/mutation/`; Stryker temporary sandboxes belong in `.stryker-tmp/`; Prettier's disposable content cache belongs in ignored `.cache/prettier`; optional Fallow caches belong in ignored `.fallow/`; Agent CI local caches belong under Agent CI's managed cache directory; template update packs belong in `.template/updates/`; and local secrets belong in untracked files such as `.dev.vars` or `.env.agent-ci`.
+Keep workflow write targets explicit and documented. Generated CSS and browser bundles belong in `.generated/`, including versioned Markdown and PDF runtime assets under `.generated/assets/` and the private paper-import staging directory at `.generated/paper-import-package/`; ignored Build Week submission images and captions belong in `.generated/build-week-media/`; Lighthouse reports belong in `reports/lighthouse/`; coverage reports belong in `reports/coverage/`; mutation reports belong in `reports/mutation/`; Stryker temporary sandboxes belong in `.stryker-tmp/`; Prettier's disposable content cache belongs in ignored `.cache/prettier`; optional Fallow caches belong in ignored `.fallow/`; Agent CI local caches belong under Agent CI's managed cache directory; template update packs belong in `.template/updates/`; and local secrets belong in untracked files such as `.dev.vars` or `.env.agent-ci`.
 
 `npm run maintenance:clean` removes only the documented disposable targets:
 `.stryker-tmp/`, `.wrangler/tmp/`, `.wrangler/logs/`, generated coverage,

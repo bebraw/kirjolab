@@ -47,6 +47,9 @@ not translate cleanly.
 - `\cite`, `\citep`, and `\citet` preserve citation aliases and map to
   Kirjolab citation modes. `\label` and `\autoref` map to stable heading ids,
   anchors, and `:ref` directives where the target can be resolved.
+- A backslash starts a command or environment only when its immediately
+  preceding backslash run has even length. Escaped command-looking text does not
+  create headings, citations, includes, environments, or other semantic records.
 - `lstlisting`, `minted`, and `verbatim` bodies remain literal fenced code,
   including when nested in a figure. Recognized positional or `language=`
   metadata becomes a sanitized Markdown fence language without altering the
@@ -66,11 +69,22 @@ not translate cleanly.
   inspection and conversion before initializing normal project authorities.
   It verifies the original archive SHA-256 and a canonical preview digest that
   covers the effective root and bibliography, converter/schema versions,
-  conversion options, and deterministic extracted-file manifest. Either
-  mismatch returns a conflict before any persistent write.
+  conversion options, deterministic archive manifest, and deterministic neutral
+  conversion manifest. The conversion manifest covers diagnostics, semantics,
+  prose blocks, source fingerprints, figure provenance, asset hashes, and
+  versioned rendered-file hashes. Either mismatch returns a conflict before any
+  persistent write.
 - Product-neutral conversion and provenance live under the paper-import core in
-  ADR-223. A separate Kirjolab adapter creates the project seed, publication
-  profile, Markdown files, and asset registrations.
+  ADR-223. The same neutral core constructs Kirjolab's preview identity before a
+  separate adapter creates the project seed, publication profile, Scholarmark
+  files, and asset registrations.
+- Ordinary paragraph and list-item prose is inventoried independently from
+  headings. Each retained block has deterministic identity and ordering,
+  normalized retrieval text, its active section when known, and exact original
+  UTF-16 source provenance across reachable includes. Nested standard lists
+  preserve every outer and inner item in rendered order.
+- Converted files declare `renderedFormat: "scholarmark-v1"`; consumers must not
+  mistake Kirjolab directives for neutral Markdown.
 - Import is explicit and one-way. Reimport creates another project; it does not
   synchronize with Overleaf or maintain a LaTeX shadow tree.
 
@@ -89,6 +103,9 @@ not translate cleanly.
   through the original decoded file. Reports omit a range rather than expose an
   offset into transformed text. They never contain executable HTML or unbounded
   archive excerpts.
+- The neutral core exports canonical preview-identity construction and digest
+  operations. Conversion-manifest JSON represents binaries only by byte count,
+  media type, and SHA-256, never raw asset bytes.
 - Routine validation failures return typed results and create no project,
   library record, asset object, or catalog entry.
 
@@ -110,6 +127,13 @@ not translate cleanly.
   tighten but never loosen this ceiling.
 - Citation keys: at most 1,000 per command and counted against the aggregate
   semantic inventory.
+- Standard-list nesting: at most 1,024 `itemize` or `enumerate` environments.
+- Retained figure provenance: at most 16 Mi UTF-16 code units across image
+  references, captions, labels, and enclosing figure sources; repeated figure
+  strings are hashed in the canonical conversion manifest.
+- Retained prose provenance: at most 32 Mi UTF-16 code units across normalized
+  text and exact source slices; exact source is hashed in the canonical
+  conversion manifest so overlapping nested-list ranges remain bounded.
 - Rendered conversion: at most 4 Mi UTF-16 code units per file and 16 Mi per
   project, with at most 10,000 derived folders and 1 Mi aggregate derived-folder
   path code units.
@@ -160,8 +184,12 @@ not translate cleanly.
   preview state.
 - Import preview is non-mutating and confirmation is a separate deliberate
   action.
-- Archive, selection, manifest, conversion-option, converter-version, and
-  identity-schema changes invalidate confirmation before persistence.
+- Archive, selection, archive-manifest, conversion-manifest,
+  conversion-option, converter-version, identity-schema, and neutral-output
+  changes invalidate confirmation before persistence.
+- Every retained prose block and figure source range round-trips through the
+  original decoded file; prose ids, ordering, and section relationships are
+  deterministic and locale-independent.
 - Figure provenance retains archive and resolved asset paths, content hash,
   caption, label, source-reference ranges, and resolution diagnostics.
 - Every accepted path is normalized and archive-relative; no include, image,
@@ -173,12 +201,15 @@ not translate cleanly.
 
 ### Verification
 
-- **Unit tests:** ZIP path validation, root and include detection, bounds,
-  diagnostic stability, LaTeX-to-Kirjolab adaptation, citation and reference
-  mapping, ignored-file classification, and import-seed validation.
+- **Unit tests:** ZIP path validation, escaped-command handling, root and include
+  detection, bounds, diagnostic stability, prose and figure range round trips,
+  canonical manifest and preview digest vectors, LaTeX-to-Kirjolab adaptation,
+  citation and reference mapping, ignored-file classification, and import-seed
+  validation.
 - **Workers tests:** owner identity, request-size bounds, seed revalidation,
-  all-or-nothing project initialization, asset validation, and absence of writes
-  after rejected input.
+  all-or-nothing project initialization, asset validation, archive, selection,
+  version, option, and neutral-output drift, and absence of writes after rejected
+  input.
 - **Browser tests:** archive selection, ambiguous-root choice, preview rendering,
   explicit confirmation, progress, and error states.
 
@@ -207,6 +238,13 @@ not translate cleanly.
 - Then: the edge is rejected, no external file is read, and confirmation stays
   blocked with a source-qualified diagnostic
 
+**Scenario: Ignore an escaped citation**
+
+- Given: manuscript prose contains `\\cite{not-a-citation}`
+- When: the Worker performs structural and semantic conversion
+- Then: no citation record or rendered citation directive is created for the
+  escaped command
+
 **Scenario: Translate a prepared boxplot**
 
 - Given: a selected manuscript contains a bounded horizontal PGFPlots prepared
@@ -230,12 +268,21 @@ not translate cleanly.
 - Then: the Worker returns a conflict and leaves project, catalog, access,
   document-room, and asset state untouched
 
+**Scenario: Reject converter deployment drift**
+
+- Given: a preview was produced with one canonical neutral conversion manifest
+- When: confirmation under another deployment produces different diagnostics,
+  prose, figures, assets, or rendered output without changing archive bytes
+- Then: the Worker returns `preview-changed` before accessing any persistence
+  binding
+
 ## Current Milestone
 
-- Server-side archive inspection, reviewed conversion, exact-preview-bound project
-  creation, bibliography seeding, referenced figure storage, prepared-boxplot
-  translation, original-source provenance, and lossless unsupported-TikZ
-  preservation are implemented under ADR-141, ADR-142, ADR-145, and ADR-223.
+- Server-side archive inspection, reviewed conversion, archive-and-conversion-
+  manifest-bound project creation, bibliography seeding, referenced figure
+  storage, prose and figure source provenance, prepared-boxplot translation, and
+  lossless unsupported-TikZ preservation are implemented under ADR-141,
+  ADR-142, ADR-145, and ADR-223.
 - The supplied HTML First archive converts into ten Markdown files with its
   selected bibliography and referenced biography figure; layout-only commands
   remain explicit review warnings.

@@ -1,17 +1,18 @@
-import type { LatexArchiveInspection } from "./latex-archive";
-import { analyzeLatexSemantics } from "./latex-analysis";
+import type { LatexArchiveInspection } from "./latex-archive.js";
+import { analyzeLatexSemantics } from "./latex-analysis.js";
 import {
   defaultLatexConversionOptions,
   latexConversionSchemaVersion,
   latexConverterVersion,
+  latexRenderedFormat,
   type LatexConversionOptions,
   type LatexProjectConversion,
-} from "./latex-contracts";
-import { renderLatexProject, type LatexConversionSelection } from "./latex-renderer";
-import { assertLatexSemanticRecordLimit, resolveMaximumSemanticRecords } from "./latex-semantic-limit";
+} from "./latex-contracts.js";
+import { renderLatexProject, type LatexConversionSelection } from "./latex-renderer.js";
+import { assertLatexSemanticRecordLimit, resolveMaximumSemanticRecords } from "./latex-semantic-limit.js";
 
-export { defaultLatexConversionOptions, latexConversionMaximumSemanticRecords, latexConverterVersion } from "./latex-contracts";
-export type { LatexConversionOptions, LatexProjectConversion } from "./latex-contracts";
+export { defaultLatexConversionOptions, latexConversionMaximumSemanticRecords, latexConverterVersion } from "./latex-contracts.js";
+export type { LatexConversionOptions, LatexProjectConversion } from "./latex-contracts.js";
 
 export function convertLatexProject(
   inspection: LatexArchiveInspection,
@@ -19,9 +20,15 @@ export function convertLatexProject(
   options: LatexConversionOptions = defaultLatexConversionOptions,
 ): LatexProjectConversion {
   const maximumSemanticRecords = resolveMaximumSemanticRecords(options);
-  assertLatexSemanticRecordLimit(inspection, selection, maximumSemanticRecords);
+  const retainedSemanticRecords = assertLatexSemanticRecordLimit(inspection, selection, maximumSemanticRecords);
   const conversion = renderLatexProject(inspection, selection);
-  const semantics = analyzeLatexSemantics(inspection, conversion.report);
+  const semanticAnalysis = analyzeLatexSemantics(
+    inspection,
+    conversion.report,
+    maximumSemanticRecords - retainedSemanticRecords,
+    maximumSemanticRecords,
+  );
+  const { provenanceDiagnostics, ...semantics } = semanticAnalysis;
   const diagnostics = conversion.report.diagnostics.map((diagnostic) => {
     const source = diagnostic.path ? inspection.files.find((file) => file.path === diagnostic.path)?.text : undefined;
     const exactRange =
@@ -46,15 +53,16 @@ export function convertLatexProject(
   return {
     schemaVersion: latexConversionSchemaVersion,
     converterVersion: latexConverterVersion,
+    options: Object.freeze({ maximumSemanticRecords }),
     rootPath: conversion.report.rootPath,
     bibliographyPath: conversion.report.bibliographyPath,
     sourceFiles: conversion.report.sourceFiles,
     ignoredFiles: conversion.report.ignoredFiles,
     bibliography: conversion.bibliography,
-    files: conversion.files,
+    files: conversion.files.map((file) => ({ ...file, renderedFormat: latexRenderedFormat })),
     folders: conversion.folders,
     assets: conversion.assets,
-    diagnostics,
+    diagnostics: [...diagnostics, ...provenanceDiagnostics],
     ...semantics,
   };
 }

@@ -1,7 +1,7 @@
-import { latexArchiveMaximumPathCodeUnits, type LatexArchiveInspection, type LatexIncludeReference } from "./latex-archive";
-import { LatexConversionError } from "./latex-contracts";
-import { comparePortableText, resolvePortablePath } from "./portable-path";
-import { balancedLatexGroupEnd, imageLatexSource, latexDocumentWindow } from "./latex-source";
+import { latexArchiveMaximumPathCodeUnits, type LatexArchiveInspection, type LatexIncludeReference } from "./latex-archive.js";
+import { LatexConversionError } from "./latex-contracts.js";
+import { comparePortableText, resolvePortablePath } from "./portable-path.js";
+import { balancedLatexGroupEnd, findActiveLatexText, imageLatexSource, latexDocumentWindow } from "./latex-source.js";
 
 export const latexImageMaximumCandidateProbes = 100_000;
 export const latexImageMaximumRequestedPathCodeUnits = latexArchiveMaximumPathCodeUnits;
@@ -128,7 +128,7 @@ function graphicPathOccurrences(source: string, window: SourceWindow, resolution
   const command = "\\graphicspath";
   let cursor = window.start;
   while (cursor < window.end) {
-    const start = active.indexOf(command, cursor);
+    const start = findActiveLatexText(active, command, cursor);
     if (start < 0 || start >= window.end) break;
     const outerStart = skipWhitespace(active, start + command.length, window.end);
     if (active[outerStart] !== "{") {
@@ -172,7 +172,7 @@ function imageOccurrences(source: string, window: SourceWindow): ImageOccurrence
   const command = "\\includegraphics";
   let cursor = window.start;
   while (cursor < window.end) {
-    const start = active.indexOf(command, cursor);
+    const start = findActiveLatexText(active, command, cursor);
     if (start < 0 || start >= window.end) break;
     let position = start + command.length;
     if (active[position] === "[") {
