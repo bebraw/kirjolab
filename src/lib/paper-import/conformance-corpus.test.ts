@@ -202,24 +202,39 @@ describe("paper-import conformance corpus", () => {
     expect(conversion.assets).toEqual([]);
   });
 
-  it("rejects every compact archive-security fixture with its literal stable failure", async () => {
+  it("pins and rejects every compact archive-security fixture with its literal stable failure", async () => {
     const fixtures = createLatexArchiveFailureConformanceFixturesV1();
 
     expect(fixtures.map(({ id }) => id)).toEqual(archiveFailureFixtureIds);
     const compactFixtures = fixtures.filter(({ id }) => id !== "oversized-source");
     expect(compactFixtures).toHaveLength(13);
+    expect(compactFixtures.map(({ id, archive }) => ({ id, sha256: sha256Hex(archive) }))).toEqual(
+      archiveFailureFixtureSha256.filter(({ id }) => id !== "oversized-source"),
+    );
     for (const fixture of compactFixtures) {
       await expectArchiveFailure(fixture);
     }
   });
 
-  it("pins archive-security fixture bytes and rejects the exact oversized source", async () => {
+  itOutsideMutation("pins and rejects the exact oversized archive-security fixture", async () => {
     const fixtures = createLatexArchiveFailureConformanceFixturesV1();
 
-    expect(fixtures.map(({ id, archive }) => ({ id, sha256: sha256Hex(archive) }))).toEqual(archiveFailureFixtureSha256);
     const oversizedSource = fixtures.find(({ id }) => id === "oversized-source");
     if (!oversizedSource) throw new Error("Missing oversized-source conformance fixture");
+    expect({ id: oversizedSource.id, sha256: sha256Hex(oversizedSource.archive) }).toEqual(
+      archiveFailureFixtureSha256.find(({ id }) => id === "oversized-source"),
+    );
     await expectArchiveFailure(oversizedSource);
+  });
+
+  it("pins the deterministic two-page PDF fixture bytes", () => {
+    const fixture = createTwoPagePdfConformanceFixtureV1();
+
+    expect({ schemaVersion: fixture.schemaVersion, id: fixture.id, sha256: sha256Hex(fixture.bytes) }).toEqual({
+      schemaVersion: 1,
+      id: "two-page-native-text-pdf-v1",
+      sha256: "19ac21175b4b299831fb1a7d7e8bd046ca5bdab709f592aeb6c39384a2a01dc6",
+    });
   });
 
   itOutsideMutation("extracts the deterministic two-page PDF fixture through the neutral byte seam", async () => {
