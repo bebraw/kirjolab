@@ -33,6 +33,23 @@ const archiveFailureFixtureIds = [
   "oversized-source",
 ] satisfies readonly LatexArchiveFailureConformanceIdV1[];
 
+const archiveFailureFixtureSha256 = [
+  { id: "empty-archive", sha256: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855" },
+  { id: "malformed-archive", sha256: "a3989126344744ef800dbc88bf7e744853f3f2eac75c9ab3301f4e845ef22078" },
+  { id: "traversal-path", sha256: "82b1f83be2da0c3f9f329a9d556d8d4dd2ce3030345fbba63a255cef9db606f4" },
+  { id: "absolute-path", sha256: "cac90b089b43ff04db190147eb7f4e8ca763dd32d5b34af8c462a07810df077e" },
+  { id: "windows-absolute-path", sha256: "f48fc1d80e203000878c096f6aaec0ccdf905ac3667581d85f3fe7f05a79a8fa" },
+  { id: "backslash-path", sha256: "43545d4a78fbf6a333403e7c48b853113624f6dbba37121442a9558058beb420" },
+  { id: "prototype-poisoning-path", sha256: "41f3450bcb36992f8c8b0134f5368821fca72b1370efbb99e4b595f0be203f45" },
+  { id: "case-folded-duplicate", sha256: "1c18caabf67e7e99551c62dd6ff56b701d7de93e6b8c34a7cefeb2b8af8ecffc" },
+  { id: "symbolic-link", sha256: "021760cf877aff5dd048f742db1df575bf54a8f699115aef37c0f8ae1c623a1c" },
+  { id: "encrypted-entry", sha256: "09813e28380d607ffe92b915a40c93becd70aa1ceceae3dab90e3bc93d01ecce" },
+  { id: "zip64-archive", sha256: "599b4e307c41c712b5d9c616fa14d3b4fc2a634a5db0a40d74d47080fc602870" },
+  { id: "expansion-ratio", sha256: "9de45096e35437ea743beba9dbff45ee6711e60abd787e6b28bc2c797ad71b98" },
+  { id: "invalid-utf8", sha256: "d63b152ea7d94000590d7fee312ae710ac29b5dc7cee40d19feb9e733f9a24c5" },
+  { id: "oversized-source", sha256: "e53094444a19cb06d6ea67b04ab57d9bef7c373a38019b90f1bb4aff3f88ff0a" },
+] satisfies ReadonlyArray<{ readonly id: LatexArchiveFailureConformanceIdV1; readonly sha256: string }>;
+
 async function expectArchiveFailure(fixture: LatexArchiveFailureConformanceFixtureV1): Promise<void> {
   await expect(inspectLatexArchive(fixture.archive)).rejects.toMatchObject({
     name: "LatexArchiveFailure",
@@ -196,12 +213,11 @@ describe("paper-import conformance corpus", () => {
     }
   });
 
-  itOutsideMutation("keeps archive-security fixtures deterministic and rejects the exact oversized source", async () => {
-    const first = createLatexArchiveFailureConformanceFixturesV1();
-    const second = createLatexArchiveFailureConformanceFixturesV1();
+  it("pins archive-security fixture bytes and rejects the exact oversized source", async () => {
+    const fixtures = createLatexArchiveFailureConformanceFixturesV1();
 
-    expect(first.map(({ archive }) => archive)).toEqual(second.map(({ archive }) => archive));
-    const oversizedSource = first.find(({ id }) => id === "oversized-source");
+    expect(fixtures.map(({ id, archive }) => ({ id, sha256: sha256Hex(archive) }))).toEqual(archiveFailureFixtureSha256);
+    const oversizedSource = fixtures.find(({ id }) => id === "oversized-source");
     if (!oversizedSource) throw new Error("Missing oversized-source conformance fixture");
     await expectArchiveFailure(oversizedSource);
   });

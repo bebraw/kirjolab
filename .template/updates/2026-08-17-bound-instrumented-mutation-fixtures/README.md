@@ -15,7 +15,9 @@ hard-boundary integration fixtures unsuitable for repetition per mutant.
 5. Factor production-used guards or accumulators into cheap internal seams so
    mutation-selected tests still prove each skipped hard boundary, including
    aggregation and its stable failure.
-6. Reverify the worker marker whenever the pinned Stryker release changes.
+6. Pin large deterministic byte fixtures with literal fingerprints instead of
+   deep-comparing separately generated boundary-sized arrays.
+7. Reverify the worker marker whenever the pinned Stryker release changes.
 
 ## Fallback
 
