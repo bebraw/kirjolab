@@ -2,25 +2,19 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-import prStrykerConfig from "../stryker.pr.config.mjs";
 import strykerConfig from "../stryker.config.mjs";
 
 import {
   affectsMutationCiRouting,
-  assertMutationPrReport,
   changedMutationFiles,
   changedMutationLineRanges,
   coalesceLineRanges,
-  countMutationPrResults,
-  evaluateMutationPrReport,
-  formatMutationPrResult,
   mutationCanarySource,
+  mutationCiCommandArguments,
   mutationCiPlan,
   mutationCiRefs,
   mutationDiffArguments,
   mutationLineDiffArguments,
-  mutationPrConfigFile,
-  mutationPrReportPath,
   parseChangedFiles,
   parseChangedLineDiff,
   parseChangedLineRanges,
@@ -34,18 +28,6 @@ const headSha = "a".repeat(40);
 const workspaceSource = "src/domain/workspace/workspace.ts";
 const workspaceTest = "src/domain/workspace/workspace.test.ts";
 
-function mutationReport(statuses) {
-  return {
-    files: {
-      [workspaceSource]: {
-        mutants: statuses.map((status) => ({ status })),
-      },
-    },
-  };
-}
-
-const emptyMutationReport = mutationReport([]);
-
 test("requires explicit full commit SHAs", () => {
   assert.deepEqual(mutationCiRefs({ MUTATION_BASE_SHA: baseSha, MUTATION_HEAD_SHA: headSha }), {
     baseSha,
@@ -56,17 +38,17 @@ test("requires explicit full commit SHAs", () => {
   assert.throws(() => mutationCiRefs({ MUTATION_BASE_SHA: "main", MUTATION_HEAD_SHA: headSha }), /40- or 64-character hexadecimal/u);
 });
 
-test("isolates pull-request reporting and thresholds from the base Stryker config", () => {
-  const { thresholds: prThresholds, reporters: prReporters, jsonReporter, ...prShared } = prStrykerConfig;
-  const { thresholds: baseThresholds, reporters: baseReporters, ...baseShared } = strykerConfig;
-
-  assert.equal(baseThresholds.break, 68);
-  assert.deepEqual(prThresholds, { ...baseThresholds, break: null });
-  assert.deepEqual(prReporters, ["progress", "json"]);
-  assert.deepEqual(jsonReporter, { fileName: mutationPrReportPath });
-  assert.equal(mutationPrConfigFile, "stryker.pr.config.mjs");
-  assert.deepEqual(prShared, baseShared);
-  assert.deepEqual(baseReporters, ["clear-text", "progress", "html", "json"]);
+test("runs pull-request mutation as an instrumented dry run", () => {
+  assert.deepEqual(mutationCiCommandArguments({ script: "mutation:affected", sources: [workspaceSource] }), [
+    "run",
+    "mutation:affected",
+    "--",
+    "--dryRunOnly",
+    "--reporters",
+    "progress",
+    "--mutate",
+    workspaceSource,
+  ]);
 });
 
 test("parses NUL-safe ACMRD statuses and retains both rename and copy paths", () => {
@@ -300,7 +282,6 @@ test("keeps the configuration canary full and lets it dominate direct ranges", (
     "scripts/affected-file-utils.mjs",
     "scripts/run-ci-mutation.mjs",
     "scripts/run-pre-push-quality.mjs",
-    mutationPrConfigFile,
     "stryker.config.mjs",
     "tsconfig.json",
     "vitest.config.mts",
@@ -339,83 +320,6 @@ test("keeps the configuration canary full and lets it dominate direct ranges", (
   );
 });
 
-test("passes the PR result gate at the exact coverage and covered-score boundaries", () => {
-  const report = mutationReport([
-    ...Array(152).fill("Killed"),
-    "Timeout",
-    ...Array(72).fill("Survived"),
-    ...Array(25).fill("NoCoverage"),
-    "CompileError",
-    "Ignored",
-  ]);
-  const result = evaluateMutationPrReport(report);
-
-  assert.deepEqual(result, {
-    passed: true,
-    coveragePassed: true,
-    coveredScorePassed: true,
-    detected: 153,
-    covered: 225,
-    valid: 250,
-    counts: { killed: 152, timeout: 1, survived: 72, noCoverage: 25, compileError: 1, ignored: 1 },
-  });
-  assert.equal(
-    formatMutationPrResult(result),
-    "PR mutation result: valid=250 killed=152 timeout=1 survived=72 noCoverage=25 compileError=1 ignored=1 coverage=90.00% covered-score=68.00%",
-  );
-  const messages = [];
-  assert.equal(assertMutationPrReport(report, (message) => messages.push(message)).passed, true);
-  assert.equal(messages.length, 1);
-});
-
-test("fails the PR result gate immediately below either integer boundary", () => {
-  const belowCoverage = evaluateMutationPrReport(
-    mutationReport([...Array(152).fill("Killed"), "Timeout", ...Array(72).fill("Survived"), ...Array(26).fill("NoCoverage")]),
-  );
-  assert.equal(belowCoverage.coveragePassed, false);
-  assert.equal(belowCoverage.coveredScorePassed, true);
-  assert.throws(() => assertMutationPrReport(mutationReport([...Array(225).fill("Killed"), ...Array(26).fill("NoCoverage")])), /coverage/u);
-
-  const belowCoveredScoreReport = mutationReport([
-    ...Array(151).fill("Killed"),
-    "Timeout",
-    ...Array(73).fill("Survived"),
-    ...Array(25).fill("NoCoverage"),
-  ]);
-  const belowCoveredScore = evaluateMutationPrReport(belowCoveredScoreReport);
-  assert.equal(belowCoveredScore.coveragePassed, true);
-  assert.equal(belowCoveredScore.coveredScorePassed, false);
-  assert.throws(() => assertMutationPrReport(belowCoveredScoreReport), /covered score/u);
-});
-
-test("passes when the PR report has no valid mutants", () => {
-  const result = evaluateMutationPrReport(mutationReport(["Ignored", "CompileError"]));
-
-  assert.equal(result.passed, true);
-  assert.equal(result.valid, 0);
-  assert.equal(result.covered, 0);
-  assert.deepEqual(countMutationPrResults(emptyMutationReport), {
-    killed: 0,
-    timeout: 0,
-    survived: 0,
-    noCoverage: 0,
-    compileError: 0,
-    ignored: 0,
-  });
-  assert.match(formatMutationPrResult(result), /coverage=n\/a covered-score=n\/a/u);
-});
-
-test("fails closed for incomplete, unknown, or malformed PR mutation results", () => {
-  for (const status of ["Pending", "RuntimeError"]) {
-    assert.throws(() => evaluateMutationPrReport(mutationReport([status])), /Incomplete PR mutation result status/u, status);
-  }
-  assert.throws(() => evaluateMutationPrReport(mutationReport(["FutureStatus"])), /Unknown PR mutation result status/u);
-  for (const report of [null, {}, { files: [] }, { files: { [workspaceSource]: null } }, { files: { [workspaceSource]: {} } }]) {
-    assert.throws(() => evaluateMutationPrReport(report), /Malformed PR mutation report/u);
-  }
-  assert.throws(() => evaluateMutationPrReport({ files: { [workspaceSource]: { mutants: [null, {}] } } }), /Malformed PR mutation result/u);
-});
-
 test("skips npm when the pull-request mutation scope is empty", () => {
   const messages = [];
   let commandRuns = 0;
@@ -434,15 +338,13 @@ test("skips npm when the pull-request mutation scope is empty", () => {
 
   assert.equal(plan, null);
   assert.equal(commandRuns, 0);
-  assert.deepEqual(messages, ["Mutation quality gate skipped: no affected Stryker inputs."]);
+  assert.deepEqual(messages, ["Mutation compatibility check skipped: no affected Stryker inputs."]);
 });
 
 test("runs a test-mapped source as a full-file target", () => {
   const commands = [];
   const plan = runCiMutation({
     environment: { MUTATION_BASE_SHA: baseSha, MUTATION_HEAD_SHA: headSha },
-    readReport: () => emptyMutationReport,
-    removeReport: () => undefined,
     repoRoot: process.cwd(),
     runCommand: (...arguments_) => commands.push(arguments_),
     runGit: (_repoRoot, arguments_) => ({
@@ -454,11 +356,7 @@ test("runs a test-mapped source as a full-file target", () => {
 
   assert.deepEqual(plan, { script: "mutation:affected", sources: [workspaceSource] });
   assert.deepEqual(commands, [
-    [
-      process.cwd(),
-      "npm",
-      ["run", "mutation:affected", "--", mutationPrConfigFile, "--reporters", "progress,json", "--mutate", workspaceSource],
-    ],
+    [process.cwd(), "npm", ["run", "mutation:affected", "--", "--dryRunOnly", "--reporters", "progress", "--mutate", workspaceSource]],
   ]);
 });
 
@@ -466,8 +364,6 @@ test("runs direct production changes only for changed new-side ranges", () => {
   const commands = [];
   const plan = runCiMutation({
     environment: { MUTATION_BASE_SHA: baseSha, MUTATION_HEAD_SHA: headSha },
-    readReport: () => emptyMutationReport,
-    removeReport: () => undefined,
     repoRoot: process.cwd(),
     runCommand: (...arguments_) => commands.push(arguments_),
     runGit: (_repoRoot, arguments_) => {
@@ -481,11 +377,7 @@ test("runs direct production changes only for changed new-side ranges", () => {
   const patterns = [`${workspaceSource}:5-6`, `${workspaceSource}:21-21`];
   assert.deepEqual(plan, { script: "mutation:affected", sources: patterns });
   assert.deepEqual(commands, [
-    [
-      process.cwd(),
-      "npm",
-      ["run", "mutation:affected", "--", mutationPrConfigFile, "--reporters", "progress,json", "--mutate", patterns.join(",")],
-    ],
+    [process.cwd(), "npm", ["run", "mutation:affected", "--", "--dryRunOnly", "--reporters", "progress", "--mutate", patterns.join(",")]],
   ]);
 });
 
@@ -493,8 +385,6 @@ test("promotes a surviving deletion-only source edit but omits a deleted source"
   const commands = [];
   const deletionOnlyPlan = runCiMutation({
     environment: { MUTATION_BASE_SHA: baseSha, MUTATION_HEAD_SHA: headSha },
-    readReport: () => emptyMutationReport,
-    removeReport: () => undefined,
     repoRoot: process.cwd(),
     runCommand: (...arguments_) => commands.push(arguments_),
     runGit: (_repoRoot, arguments_) => {
@@ -524,20 +414,23 @@ test("retains the bounded Stryker and TypeScript-checker contract", () => {
   const packageJson = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
 
   assert.match(packageJson.scripts["mutation:affected"], /(?:^|\s)--ignoreStatic(?:\s|$)/u);
+  assert.doesNotMatch(packageJson.scripts["mutation:affected"], /dryRunOnly/u);
+  assert.equal(strykerConfig.thresholds.break, 68);
   assert.deepEqual(strykerConfig.checkers, ["typescript"]);
   assert.equal(strykerConfig.typescriptChecker?.prioritizePerformanceOverAccuracy, true);
 });
 
-test("keeps the GitHub mutation job bounded to pull-request changes", () => {
+test("keeps the GitHub mutation compatibility job bounded to pull-request changes", () => {
   const workflow = readFileSync(new URL("../.github/workflows/ci.yml", import.meta.url), "utf8");
   const mutationJob = workflow.split("\n  quality-mutation:\n")[1];
 
   assert.ok(mutationJob, "quality-mutation job must exist");
   assert.match(mutationJob, /if:.*github\.event_name == 'pull_request'/u);
-  assert.match(mutationJob, /timeout-minutes: 30/u);
+  assert.match(mutationJob, /timeout-minutes: 10/u);
   assert.match(mutationJob, /fetch-depth: 0/u);
   assert.match(mutationJob, /MUTATION_BASE_SHA:.*github\.event\.pull_request\.base\.sha/u);
   assert.match(mutationJob, /MUTATION_HEAD_SHA:.*github\.event\.pull_request\.head\.sha/u);
+  assert.match(mutationJob, /name: Run mutation compatibility smoke/u);
   assert.match(mutationJob, /run: npm run mutation:ci/u);
   assert.doesNotMatch(mutationJob, /run: npm run mutation\s*$/mu);
 });

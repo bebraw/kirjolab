@@ -7,7 +7,8 @@
 **Amends:** [ADR-022](./ADR-022-add-mutation-testing-gate.md), [ADR-028](./ADR-028-use-incremental-local-mutation-gate.md)
 
 **Amended by:** [ADR-134](./ADR-134-keep-mutation-explicit.md),
-[ADR-216](./ADR-216-bound-pull-request-mutation-ci.md)
+[ADR-216](./ADR-216-bound-pull-request-mutation-ci.md),
+[ADR-225](./ADR-225-use-instrumented-dry-run-for-required-mutation-ci.md)
 
 ## Context
 

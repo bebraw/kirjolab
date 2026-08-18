@@ -12,6 +12,9 @@ records the intended configuration and its verification boundary.
   - `quality-fast`
   - `quality-browser`
   - `quality-mutation`
+- `quality-mutation` is the clean Linux Stryker compatibility smoke. Scored
+  affected mutation remains a local pre-push boundary and is not asserted by
+  branch protection.
 - Review conversations must be resolved before merge.
 - Zero approving reviews are required while the repository has one maintainer;
   the pull-request boundary still applies.

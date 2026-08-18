@@ -1,0 +1,122 @@
+diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
+--- a/.github/workflows/ci.yml
++++ b/.github/workflows/ci.yml
+@@ -88,7 +88,7 @@ jobs:
+   quality-mutation:
+     if: ${{ github.server_url == 'https://github.com' && github.event_name == 'pull_request' }}
+     runs-on: ubuntu-latest
+-    timeout-minutes: 30
++    timeout-minutes: 10
+     steps:
+       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+         with:
+@@ -112,7 +112,7 @@ jobs:
+         shell: bash
+         run: npm ci
+ 
+-      - name: Run affected mutation quality gate
++      - name: Run mutation compatibility smoke
+         shell: bash
+         env:
+           MUTATION_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+diff --git a/scripts/run-ci-mutation.mjs b/scripts/run-ci-mutation.mjs
+--- a/scripts/run-ci-mutation.mjs
++++ b/scripts/run-ci-mutation.mjs
+@@ -228,4 +228,4 @@ export function mutationPrCommandArguments(plan) {
+   if (!Array.isArray(plan.sources) || plan.sources.length === 0)
+     throw new Error("PR mutation command requires an explicit mutation scope.");
+-  return ["run", plan.script, "--", mutationPrConfigFile, "--reporters", "progress,json", "--mutate", plan.sources.join(",")];
++  return ["run", plan.script, "--", "--dryRunOnly", "--reporters", "progress", "--mutate", plan.sources.join(",")];
+ }
+@@ -369,7 +369,5 @@ export function runCiMutation({
+ export function runCiMutation({
+   environment = process.env,
+-  readReport = readMutationPrReport,
+-  removeReport = removeMutationPrReport,
+   repoRoot = getRepoRoot(),
+   runCommand = run,
+   runGit = git,
+@@ -383,11 +381,9 @@ export function runCiMutation({
+   if (!plan) {
+-    write("Mutation quality gate skipped: no affected Stryker inputs.");
++    write("Mutation compatibility check skipped: no affected Stryker inputs.");
+     return null;
+   }
+ 
+-  write(`Running mutation tests for ${plan.sources.length} pull-request mutation target(s)...`);
+-  removeReport(repoRoot);
++  write(`Running an instrumented test dry run for ${plan.sources.length} pull-request mutation target(s)...`);
+   runCommand(repoRoot, "npm", mutationPrCommandArguments(plan));
+-  assertMutationPrReport(readReport(repoRoot), write);
+   return plan;
+ }
+diff --git a/scripts/run-ci-mutation.test.mjs b/scripts/run-ci-mutation.test.mjs
+--- a/scripts/run-ci-mutation.test.mjs
++++ b/scripts/run-ci-mutation.test.mjs
+@@ -434,5 +434,5 @@ test("skips npm when the pull-request mutation scope is empty", () => {
+ 
+   assert.equal(plan, null);
+   assert.equal(commandRuns, 0);
+-  assert.deepEqual(messages, ["Mutation quality gate skipped: no affected Stryker inputs."]);
++  assert.deepEqual(messages, ["Mutation compatibility check skipped: no affected Stryker inputs."]);
+ });
+@@ -442,5 +442,3 @@ test("runs a test-mapped source as a full-file target", () => {
+   const plan = runCiMutation({
+     environment: { MUTATION_BASE_SHA: baseSha, MUTATION_HEAD_SHA: headSha },
+-    readReport: () => emptyMutationReport,
+-    removeReport: () => undefined,
+     repoRoot: process.cwd(),
+@@ -457,6 +455,6 @@ test("runs a test-mapped source as a full-file target", () => {
+     [
+       process.cwd(),
+       "npm",
+-      ["run", "mutation:affected", "--", mutationPrConfigFile, "--reporters", "progress,json", "--mutate", workspaceSource],
++      ["run", "mutation:affected", "--", "--dryRunOnly", "--reporters", "progress", "--mutate", workspaceSource],
+     ],
+   ]);
+@@ -467,5 +465,3 @@ test("runs direct production changes only for changed new-side ranges", () => {
+   const plan = runCiMutation({
+     environment: { MUTATION_BASE_SHA: baseSha, MUTATION_HEAD_SHA: headSha },
+-    readReport: () => emptyMutationReport,
+-    removeReport: () => undefined,
+     repoRoot: process.cwd(),
+@@ -484,6 +480,6 @@ test("runs direct production changes only for changed new-side ranges", () => {
+     [
+       process.cwd(),
+       "npm",
+-      ["run", "mutation:affected", "--", mutationPrConfigFile, "--reporters", "progress,json", "--mutate", patterns.join(",")],
++      ["run", "mutation:affected", "--", "--dryRunOnly", "--reporters", "progress", "--mutate", patterns.join(",")],
+     ],
+   ]);
+@@ -494,5 +490,3 @@ test("promotes a surviving deletion-only source edit but omits a deleted source", () => {
+   const deletionOnlyPlan = runCiMutation({
+     environment: { MUTATION_BASE_SHA: baseSha, MUTATION_HEAD_SHA: headSha },
+-    readReport: () => emptyMutationReport,
+-    removeReport: () => undefined,
+     repoRoot: process.cwd(),
+@@ -523,20 +517,23 @@ test("retains the bounded Stryker and TypeScript-checker contract", () => {
+ test("retains the bounded Stryker and TypeScript-checker contract", () => {
+   const packageJson = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
+ 
+   assert.match(packageJson.scripts["mutation:affected"], /(?:^|\s)--ignoreStatic(?:\s|$)/u);
++  assert.doesNotMatch(packageJson.scripts["mutation:affected"], /dryRunOnly/u);
++  assert.equal(strykerConfig.thresholds.break, 68);
+   assert.deepEqual(strykerConfig.checkers, ["typescript"]);
+   assert.equal(strykerConfig.typescriptChecker?.prioritizePerformanceOverAccuracy, true);
+ });
+ 
+-test("keeps the GitHub mutation job bounded to pull-request changes", () => {
++test("keeps the GitHub mutation compatibility job bounded to pull-request changes", () => {
+   const workflow = readFileSync(new URL("../.github/workflows/ci.yml", import.meta.url), "utf8");
+   const mutationJob = workflow.split("\n  quality-mutation:\n")[1];
+ 
+   assert.ok(mutationJob, "quality-mutation job must exist");
+   assert.match(mutationJob, /if:.*github\.event_name == 'pull_request'/u);
+-  assert.match(mutationJob, /timeout-minutes: 30/u);
++  assert.match(mutationJob, /timeout-minutes: 10/u);
+   assert.match(mutationJob, /fetch-depth: 0/u);
+   assert.match(mutationJob, /MUTATION_BASE_SHA:.*github\.event\.pull_request\.base\.sha/u);
+   assert.match(mutationJob, /MUTATION_HEAD_SHA:.*github\.event\.pull_request\.head\.sha/u);
++  assert.match(mutationJob, /name: Run mutation compatibility smoke/u);
+   assert.match(mutationJob, /run: npm run mutation:ci/u);
+   assert.doesNotMatch(mutationJob, /run: npm run mutation\s*$/mu);

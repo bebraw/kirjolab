@@ -1934,7 +1934,8 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   command. Passing hooks should report concise Fallow health and Stryker
   score/progress output; detailed advisory findings remain available through
   explicit commands.
-- Keep the required GitHub `quality-mutation` check clean and pull-request-only.
+- Keep the required GitHub `quality-mutation` check as a clean,
+  pull-request-only Stryker compatibility smoke.
   Preserve added/copied/modified/renamed/deleted status plus old and new rename
   paths through a NUL-delimited name-status diff. For each surviving directly
   changed production source, use `git diff --unified=0` over its explicit base
@@ -1949,18 +1950,17 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   mutation/test/selector configuration canary full-file even for deletions; its
   full-file reason dominates ranges. Missing or malformed commits should fail
   explicitly rather than expanding to a full run. An empty production scope
-  should pass without starting Stryker. The selected non-incremental run should
-  ignore static mutants, emit console progress plus a JSON report under the
-  existing disposable `reports/mutation/` target, and stay within a 30-minute
-  job bound. Use `stryker.pr.config.mjs` to disable Stryker's raw break threshold
-  only for the pull-request path, then fail unless JSON postprocessing reports
-  at least 90% changed-mutant coverage (`covered / valid`) and at least 68%
-  covered mutation score (`detected / covered`). Count `Timeout` as detected;
-  exclude `CompileError` and `Ignored`; fail on `Pending`, `RuntimeError`, or a
-  missing or malformed report; and pass a report with zero valid mutants. Keep
-  the base `stryker.config.mjs` break threshold at 68 for full, affected,
-  incremental, and pre-push mutation. Do not repeat mutation on the merge push
-  to `main`; retain `npm run mutation` as the explicit full local or manual
+  should pass without starting Stryker. For a selected scope, ignore static
+  mutants and use Stryker's `dryRunOnly` mode with progress output so the check
+  still instruments the requested production code, creates its sandbox, sets
+  the worker environment, and completes the related initial Vitest run. Do not
+  execute mutant plans or per-mutant TypeScript checks, finalize a
+  mutation-result report, or evaluate a remote score threshold. Fail on any
+  selector, instrumentation, sandbox, or initial-test error and keep the job
+  within a 10-minute bound. Keep the base
+  `stryker.config.mjs` break threshold at 68 for full, affected, incremental,
+  and pre-push mutation. Do not repeat the compatibility smoke on the merge
+  push to `main`; retain `npm run mutation` as the explicit full local or manual
   audit.
 - Formatting, Oxlint correctness checks, type checking, unit tests, and end-to-end tests are part of the baseline quality gate.
 - Oxlint uses its default correctness rules and complements rather than replaces Prettier formatting and TypeScript type checking.

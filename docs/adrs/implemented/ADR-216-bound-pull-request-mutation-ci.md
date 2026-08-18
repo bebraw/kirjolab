@@ -4,6 +4,8 @@
 
 **Date:** 2026-08-03
 
+**Amended by:** [ADR-225](./ADR-225-use-instrumented-dry-run-for-required-mutation-ci.md)
+
 **Amends:** [ADR-022](./ADR-022-add-mutation-testing-gate.md),
 [ADR-028](./ADR-028-use-incremental-local-mutation-gate.md),
 [ADR-030](./ADR-030-reserve-full-mutation-ci-for-github.md),

@@ -68,7 +68,8 @@
       "2026-08-03-repository-local-spec-tdd",
       "2026-08-03-readme-skill-catalog",
       "2026-08-03-record-template-provenance",
-      "2026-08-17-bound-instrumented-mutation-fixtures"
+      "2026-08-17-bound-instrumented-mutation-fixtures",
+      "2026-08-18-replace-pr-mutation-with-dry-run"
     ]
   },
   "scripts": {

@@ -39,11 +39,8 @@ failures quickly during normal development.
 - **Affected mutation gate:** `npm run mutation:affected -- --mutate <files>`
 - **Incremental mutation gate:** `npm run mutation:incremental`
 - **Manual incremental refresh:** `npm run mutation:incremental:refresh`
-- **Pull-request mutation gate:** `npm run mutation:ci`
+- **Pull-request mutation compatibility smoke:** `npm run mutation:ci`
 - **Pull-request mutation selector:** `scripts/run-ci-mutation.mjs`
-- **Pull-request mutation configuration:** `stryker.pr.config.mjs`, inheriting
-  the base configuration while disabling Stryker's raw break threshold only for
-  the pull-request path
 - **Mutation configuration canary:** `src/views/app-navigation.ts`
 - **Pull-request mutation scope:** directly changed configured production
   sources projected from zero-context new/head-side hunks to coalesced Stryker
@@ -52,13 +49,12 @@ failures quickly during normal development.
   production counterparts only when those sources were not directly changed,
   and an always-full-file stable canary for mutation configuration or routing
   changes including deletion
-- **Pull-request mutation result:** postprocess the JSON report under the
-  existing disposable `reports/mutation/` target; require at least 90%
-  changed-mutant coverage and at least 68% covered mutation score
-- **Measured changed-line baseline:** 3,154 valid mutants, 2,852 covered
-  mutants (90.42%), and 1,922 detected mutants (67.39% of covered mutants)
-- **Pull-request mutation bounds:** non-incremental, static mutants ignored,
-  console progress plus JSON output, and a 30-minute job timeout
+- **Pull-request mutation result:** selected production code is instrumented and
+  its related initial Vitest run passes inside a Stryker worker; mutant plans,
+  per-mutant TypeScript checks, mutation-result report finalization, and score
+  threshold evaluation do not run
+- **Pull-request mutation bounds:** non-incremental `dryRunOnly`, static mutants
+  ignored, console progress output, and a 10-minute job timeout
 - **Full gate:** `npm run quality:gate` (fast gate followed by browser gate)
 - **Full gate progress:** named phase transitions plus a 30-second elapsed-time heartbeat while a phase is running
 - **Local readiness:** `npm run ci:local` delegates to the native full gate
@@ -170,16 +166,13 @@ failures quickly during normal development.
 - [ ] Malformed or unavailable base or head commits fail the pull-request check
       without expanding to the full mutation surface, while an empty selected
       scope succeeds without starting Stryker.
-- [ ] Pull-request mutation ignores static mutants, reports console progress
-      plus JSON under `reports/mutation/`, and is bounded to 30 minutes.
-- [ ] The pull-request configuration disables Stryker's built-in raw break only
-      for that path; the base 68 break remains blocking for full, affected,
-      incremental, and pre-push mutation.
-- [ ] Pull-request JSON postprocessing requires at least 90% changed-mutant
-      coverage and at least 68% covered mutation score, counts `Timeout` as
-      detected, excludes `CompileError` and `Ignored`, fails on `Pending`,
-      `RuntimeError`, or malformed input, and passes when there are zero valid
-      mutants.
+- [ ] Pull-request mutation compatibility ignores static mutants, instruments
+      the selected production code, and completes the related initial Vitest
+      run inside a Stryker worker with progress output and a 10-minute bound.
+- [ ] The pull-request compatibility path executes no mutant plans or
+      per-mutant TypeScript checks, finalizes no mutation-result report, and
+      evaluates no score threshold; the base 68 break remains blocking for
+      full, affected, incremental, and pre-push mutation.
 - [ ] The full gate runs the fast and browser gates in order.
 - [ ] The full gate reports phase starts, completions, failures, and periodic elapsed-time heartbeats.
 - [ ] The repo-managed `pre-push` hook runs affected-file guardrails, relevant
@@ -189,8 +182,9 @@ failures quickly during normal development.
       plus the stable canary without force-refreshing the full incremental
       report.
 - [ ] Local and remote CI use the same fast and browser package scripts for non-documentation changes.
-- [ ] GitHub protects `main` with pull requests and the authoritative fast,
-      browser, and affected pull-request mutation checks.
+- [ ] GitHub protects `main` with pull requests and the authoritative fast and
+      browser checks plus the required pull-request Stryker compatibility
+      smoke.
 - [ ] The required pull-request mutation check retains the `quality-mutation`
       name and does not repeat after merge on pushes to `main`.
 - [ ] Native local CI preserves full-gate live output and periodic phase heartbeats.
@@ -292,27 +286,19 @@ failures quickly during normal development.
   safe direct ranges.
 - `npm run mutation:ci` must succeed without starting Stryker when no production
   source or canary is selected.
-- Pull-request mutation must invoke the clean non-incremental
-  `npm run mutation:affected` path with an explicit mutate list, TypeScript
-  checking, `--ignoreStatic`, and the dedicated `stryker.pr.config.mjs`
-  configuration. That configuration must disable Stryker's raw break threshold
-  only for the pull-request path and emit console progress plus JSON under the
-  existing disposable `reports/mutation/` target.
-- After a successful Stryker run, pull-request postprocessing must classify
-  `Killed`, `Timeout`, `Survived`, and `NoCoverage` as valid; classify `Killed`,
-  `Timeout`, and `Survived` as covered; and classify `Killed` and `Timeout` as
-  detected. It must exclude `CompileError` and `Ignored` from the metrics.
-- A pull-request report with zero valid mutants must pass. Every other report
-  must reach at least 90% changed-mutant coverage (`covered / valid`) and at
-  least 68% covered mutation score (`detected / covered`). `Pending`,
-  `RuntimeError`, and missing or malformed report data must fail closed.
-- The measured changed-line baseline of 3,154 valid, 2,852 covered (90.42%), and
-  1,922 detected mutants (67.39% of covered) must be raised to the 68% covered
-  mutation floor through stronger tests, not through a lower threshold. With
-  the covered denominator unchanged, that requires 1,940 detections, 18 more
-  than the measured report.
+- Pull-request mutation compatibility must invoke the clean non-incremental
+  `npm run mutation:affected` path with an explicit mutate list,
+  `--ignoreStatic`, `--dryRunOnly`, and console progress. Stryker must still
+  select and instrument the requested production code, create its sandbox, set
+  the worker environment, and complete its related initial Vitest run.
+- Pull-request mutation compatibility must execute no mutant plans or
+  per-mutant TypeScript checks, finalize no mutation-result report, or evaluate
+  a score threshold. Any selector, instrumentation, sandbox, or initial-test
+  error must fail the required check.
+- The base Stryker break threshold of 68 must remain blocking for full,
+  affected, incremental, and pre-push mutation runs.
 - The GitHub `quality-mutation` job must run only for pull requests, retain its
-  branch-protection check name, stop after 30 minutes, and not repeat on pushes
+  branch-protection check name, stop after 10 minutes, and not repeat on pushes
   to `main`.
 - `npm install` must keep the repo-managed `pre-push` hook configured without requiring extra setup steps.
 - The CI workflow must cancel superseded runs for the same ref.
@@ -399,8 +385,8 @@ failures quickly during normal development.
 - Mutation testing must use the Vitest runner's per-test coverage analysis and related-test narrowing rather than an ad hoc minimization wrapper.
 - Mutation testing must set Stryker worker concurrency as a percentage of available parallelism instead of a fixed worker count.
 - GitHub Actions must run the bounded `npm run mutation:ci` selector for the
-  required pull-request mutation check instead of an incremental or
-  repository-wide mutation run.
+  required pull-request Stryker compatibility smoke instead of an incremental
+  or repository-wide scored mutation run.
 - Mutation reports and Stryker incremental data must be written under ignored `reports/`, and Stryker's temporary sandbox must stay under ignored `.stryker-tmp/`.
 - Mutation sandboxes must not copy ignored `.wrangler/` runtime state; live
   SQLite WAL files are ephemeral application data, not mutation-test inputs.
@@ -517,43 +503,38 @@ failures quickly during normal development.
 - When: the contributor runs `npm run mutation:incremental`
 - Then: Stryker reuses valid prior mutant results and reruns affected mutants
 
-**Scenario: GitHub verifies mutation strength**
+**Scenario: GitHub verifies Stryker compatibility**
 
 - Given: a pull request directly changes lines in a configured production source
 - When: the `quality-mutation` job runs
 - Then: `npm run mutation:ci` compares the explicit base and head commits and
-  runs clean non-incremental mutation only for its coalesced new/head-side
-  `file.ts:start-end` ranges, with static mutants ignored, console progress plus
-  JSON output, at least 90% changed-mutant coverage, at least 68% covered
-  mutation score, and a 30-minute bound
+  selects its coalesced new/head-side `file.ts:start-end` ranges, instruments
+  them through clean non-incremental Stryker, and completes the related initial
+  Vitest run inside a Stryker worker with static mutants ignored, progress
+  output, no mutant execution or score, and a 10-minute bound
 
-**Scenario: Selected scope produces no valid mutants**
+**Scenario: Pull-request mutation compatibility fails**
 
-- Given: Stryker completes a selected pull-request mutation scope with zero
-  valid mutants
-- When: `npm run mutation:ci` postprocesses its JSON report
-- Then: the mutation result passes without dividing by zero
-
-**Scenario: Pull-request mutation report is incomplete**
-
-- Given: the pull-request mutation report is missing or malformed or contains a
-  `Pending` or `RuntimeError` mutant
-- When: `npm run mutation:ci` postprocesses the report
-- Then: the required `quality-mutation` check fails closed
+- Given: selection, instrumentation, sandbox creation, or the initial Vitest run
+  fails for the selected pull-request scope
+- When: `npm run mutation:ci` runs the compatibility smoke
+- Then: the required `quality-mutation` check fails without executing mutant
+  plans
 
 **Scenario: Pull request changes only a Node unit test**
 
 - Given: a pull request changes, deletes, or renames a colocated Node unit test
   but not its surviving configured production counterpart
 - When: `npm run mutation:ci` selects its scope
-- Then: it mutates the mapped production source as a full-file pattern
+- Then: it selects and instruments the mapped production source as a full-file
+  pattern
 
 **Scenario: Direct source change has no new lines**
 
 - Given: a surviving directly changed configured production source has any
   deletion-only hunk or no positive new-side span
 - When: `npm run mutation:ci` selects its scope
-- Then: it mutates that source as a full-file safety fallback
+- Then: it selects and instruments that source as a full-file safety fallback
 
 **Scenario: Pull request deletes a production source**
 

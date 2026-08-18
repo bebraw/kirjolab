@@ -183,7 +183,8 @@ If optional container parity warns with `No such remote 'origin'`, add `GITHUB_R
 - Run full mutation tests with `npm run mutation`.
 - Run mutation tests for selected source files with
   `npm run mutation:affected -- --mutate <comma-separated-files>`.
-- Reproduce GitHub's pull-request mutation selector with explicit commit SHAs:
+- Reproduce GitHub's pull-request Stryker compatibility smoke with explicit
+  commit SHAs:
   `MUTATION_BASE_SHA=<base> MUTATION_HEAD_SHA=<head> npm run mutation:ci`.
 - Run incremental mutation tests with `npm run mutation:incremental`.
 - Explicitly rebuild the full incremental mutation report with
@@ -242,7 +243,27 @@ ignored; clean CI runners perform a cold check rather than restoring it.
 as failures. It complements Prettier's formatting ownership and TypeScript's
 type checking instead of replacing either tool.
 
-The GitHub Actions CI workflow splits fast checks, browser checks, and mutation checks into separate jobs, supports manual dispatch when an automatic push or pull-request trigger needs diagnosis, reads the pinned Node version from `package.json`, relies on the npm release bundled with that Node setup as long as it satisfies the repo's npm 11 constraint, runs repository-shape validation as part of the fast job, runs the browser job in the version-pinned Playwright container image `mcr.microsoft.com/playwright:v1.62.1-noble`, pins every `uses:` action reference to a full commit SHA, and cancels superseded runs on the same ref. The required `quality-mutation` job is GitHub- and pull-request-only, checks out full history, and supplies the pull request's base and head SHAs to `npm run mutation:ci`. It has a 30-minute timeout and does not repeat on the merge push to `main`. Use `npm run mutation:incremental`, `npm run mutation:affected`, or `npm run mutation` explicitly when local mutation feedback is needed. Dependency installation uses plain `npm ci`. Optional Agent CI 0.17.1 container parity explicitly prewarms through the fast job's stable `install` step, then gives concurrent jobs isolated writable dependency views. Its wrapper consumes Agent CI's versioned JSON events and reports each job and step with elapsed time, including a heartbeat every 15 seconds.
+The GitHub Actions CI workflow splits fast checks, browser checks, and a Stryker
+compatibility smoke into separate jobs, supports manual dispatch when an
+automatic push or pull-request trigger needs diagnosis, reads the pinned Node
+version from `package.json`, relies on the npm release bundled with that Node
+setup as long as it satisfies the repo's npm 11 constraint, runs
+repository-shape validation as part of the fast job, runs the browser job in the
+version-pinned Playwright container image
+`mcr.microsoft.com/playwright:v1.62.1-noble`, pins every `uses:` action
+reference to a full commit SHA, and cancels superseded runs on the same ref. The
+required `quality-mutation` job is GitHub- and pull-request-only, checks out full
+history, and supplies the pull request's base and head SHAs to
+`npm run mutation:ci`. It instruments the selected Stryker scope and completes
+the related initial Vitest run without executing mutant plans or calculating a
+score. It has a 10-minute timeout and does not repeat on the merge push to
+`main`. Use `npm run mutation:incremental`, `npm run mutation:affected`, or
+`npm run mutation` explicitly when scored mutation feedback is needed.
+Dependency installation uses plain `npm ci`. Optional Agent CI 0.17.1 container
+parity explicitly prewarms through the fast job's stable `install` step, then
+gives concurrent jobs isolated writable dependency views. Its wrapper consumes
+Agent CI's versioned JSON events and reports each job and step with elapsed
+time, including a heartbeat every 15 seconds.
 
 If authenticated pushes create no workflow runs even though the Actions API
 reports the repository and workflow as enabled, inspect the repository's Actions
@@ -374,9 +395,7 @@ detailed reports. `npm run mutation:affected` accepts an explicit Stryker
 `--mutate` list, ignores static mutants, and retains concise clear-text and
 progress reporting for a human-readable bounded signal. The automated
 pre-push selector appends `--reporters progress` so its final option overrides
-the base reporters. Pull-request mutation instead uses
-`stryker.pr.config.mjs`, which requests console progress plus a JSON report and
-disables Stryker's built-in raw break threshold only for that CI path.
+the base reporters.
 `npm run mutation:incremental` enables Stryker incremental mode so repeated
 full-surface local runs can reuse previous mutant results while ignoring static
 mutants. Both local commands retain the configured TypeScript checker; a plain
@@ -414,37 +433,30 @@ checkout and fails explicitly when either is unavailable instead of falling
 back to a full run. The required check succeeds without starting Stryker when
 no line range, full-file fallback, test-mapped source, or canary is selected.
 Otherwise it invokes the non-incremental affected command with an explicit
-`--mutate` list, ignores static mutants, emits console progress plus JSON under
-the existing disposable `reports/mutation/` target, and must finish within 30
-minutes. After Stryker completes successfully, the selector postprocesses that
-JSON report. `Killed`, `Timeout`, `Survived`, and `NoCoverage` are valid;
-`Killed`, `Timeout`, and `Survived` are covered; and `Killed` plus `Timeout` are
-detected. `CompileError` and `Ignored` are excluded. `Pending`, `RuntimeError`,
-and a missing or malformed report fail the check. A report with zero valid
-mutants passes; otherwise changed-mutant coverage (`covered / valid`) must be at
-least 90% and covered mutation score (`detected / covered`) must be at least
-68%.
+`--mutate` list, ignores static mutants, enables Stryker's `dryRunOnly` mode,
+and emits console progress. Stryker still selects and instruments the requested
+production code, creates its sandbox, sets the worker environment, and runs the
+related initial Vitest tests with mutants inactive. A selector,
+instrumentation, sandbox, or test failure fails the check. The compatibility
+smoke executes no mutant plans or per-mutant TypeScript checks, finalizes no
+mutation-result report, evaluates no score threshold, and must finish within 10
+minutes.
 
-The changed-line refinement follows an affected-file GitHub run that timed out
-after 30 minutes 16 seconds with 5,015 of 6,930 mutants tested and one checker
-and one test runner active. The 30-minute timeout remains a hard upper bound
-rather than a target runtime.
+This boundary follows a broad pull request that selected 4,825 eligible
+mutation plans. Its instrumented dry run completed 848 tests in 27 seconds, but
+only 964 plans completed before the 30-minute job limit and Stryker projected
+roughly another five hours. The required remote check therefore preserves the
+distinct Stryker-worker compatibility signal without making hosted mutant
+execution a merge prerequisite.
+
 The base `stryker.config.mjs` break threshold remains 68, rebased to the whole-
 number score observed after the well-tested local Markdown renderer moved
 behind the Scholarmark package boundary; the 80 and 90 warning bands remain
 visible. It remains blocking for full, affected, incremental, and pre-push
-mutation. The dedicated pull-request configuration disables that raw threshold
-because Stryker's raw `detected / valid` score conflates uncovered changed
-mutants with detection strength; the two postprocessed metrics above are the
-pull-request authority instead.
-
-The measured changed-line report had 3,154 valid mutants, 2,852 covered mutants
-(90.42%), and 1,922 detected mutants (67.39% of covered mutants). It therefore
-passes the coverage floor but misses the covered mutation floor. With the
-covered denominator unchanged, reaching 68% requires 1,940 detections, or 18
-more. Tests must harden that result rather than lowering the floor. This
-pull-request result is not a repository-wide score; run `npm run mutation`
-explicitly for a full audit.
+mutation. The required pull-request compatibility smoke does not evaluate that
+threshold; run affected mutation through pre-push or an explicit local command
+for assertion-strength evidence, and run `npm run mutation` explicitly for a
+full audit.
 
 The Vitest runner uses Stryker's per-test coverage
 analysis and related-test narrowing, so each runtime mutant runs against the
