@@ -486,6 +486,19 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   and navigation to the successful response's canonical workspace href. Keep
   constructor and reopened-dialog state aligned through one local reset
   operation rather than duplicated initialization lists.
+- Bind LaTeX confirmation to both the original archive SHA-256 and a canonical
+  digest of the exact reviewed interpretation, including its effective root,
+  bibliography, converter/schema versions, conversion options, and extracted
+  manifest. Reinspect and reconvert before comparison, and return conflicts
+  before any Durable Object, catalog, access, or R2 write.
+- Incubate product-neutral LaTeX conversion, original-source provenance,
+  deterministic conformance cases, and bounded native PDF page-text extraction
+  under `src/lib/paper-import/`. Keep Kirjolab project seeds, publication
+  profiles, browser and OCR lifecycle, authorization, persistence, queues, and
+  cloud jobs in adapters. Define retained archive ranges against original
+  decoded text in UTF-16 code units and omit any range that cannot be safely
+  reconstructed. Keep this boundary source-local until ADR-186's independent
+  consumer and release gates are satisfied.
 - Preserve explicit TikZ source as canonical fenced Markdown. Do not render it
   until a separately approved isolated server boundary can compile it and its
   SVG output can pass inert-SVG validation.
@@ -1921,7 +1934,8 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   command. Passing hooks should report concise Fallow health and Stryker
   score/progress output; detailed advisory findings remain available through
   explicit commands.
-- Keep the required GitHub `quality-mutation` check clean and pull-request-only.
+- Keep the required GitHub `quality-mutation` check as a clean,
+  pull-request-only Stryker compatibility smoke.
   Preserve added/copied/modified/renamed/deleted status plus old and new rename
   paths through a NUL-delimited name-status diff. For each surviving directly
   changed production source, use `git diff --unified=0` over its explicit base
@@ -1936,18 +1950,17 @@ Use this file for global constraints. Use feature specs under `specs/` for domai
   mutation/test/selector configuration canary full-file even for deletions; its
   full-file reason dominates ranges. Missing or malformed commits should fail
   explicitly rather than expanding to a full run. An empty production scope
-  should pass without starting Stryker. The selected non-incremental run should
-  ignore static mutants, emit console progress plus a JSON report under the
-  existing disposable `reports/mutation/` target, and stay within a 30-minute
-  job bound. Use `stryker.pr.config.mjs` to disable Stryker's raw break threshold
-  only for the pull-request path, then fail unless JSON postprocessing reports
-  at least 90% changed-mutant coverage (`covered / valid`) and at least 68%
-  covered mutation score (`detected / covered`). Count `Timeout` as detected;
-  exclude `CompileError` and `Ignored`; fail on `Pending`, `RuntimeError`, or a
-  missing or malformed report; and pass a report with zero valid mutants. Keep
-  the base `stryker.config.mjs` break threshold at 68 for full, affected,
-  incremental, and pre-push mutation. Do not repeat mutation on the merge push
-  to `main`; retain `npm run mutation` as the explicit full local or manual
+  should pass without starting Stryker. For a selected scope, ignore static
+  mutants and use Stryker's `dryRunOnly` mode with progress output so the check
+  still instruments the requested production code, creates its sandbox, sets
+  the worker environment, and completes the related initial Vitest run. Do not
+  execute mutant plans or per-mutant TypeScript checks, finalize a
+  mutation-result report, or evaluate a remote score threshold. Fail on any
+  selector, instrumentation, sandbox, or initial-test error and keep the job
+  within a 10-minute bound. Keep the base
+  `stryker.config.mjs` break threshold at 68 for full, affected, incremental,
+  and pre-push mutation. Do not repeat the compatibility smoke on the merge
+  push to `main`; retain `npm run mutation` as the explicit full local or manual
   audit.
 - Formatting, Oxlint correctness checks, type checking, unit tests, and end-to-end tests are part of the baseline quality gate.
 - Oxlint uses its default correctness rules and complements rather than replaces Prettier formatting and TypeScript type checking.

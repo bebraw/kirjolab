@@ -10,6 +10,7 @@ type LatexConversion = NonNullable<LatexImportPreview["conversion"]>;
 export class LatexImportPanel extends LightDomElement {
   static override properties = {
     busy: { state: true },
+    archiveSha256: { state: true },
     conversion: { state: true },
     previewDigest: { state: true },
     rootCandidates: { state: true },
@@ -19,12 +20,14 @@ export class LatexImportPanel extends LightDomElement {
   };
 
   declare private busy: LatexImportBusyState;
+  declare private archiveSha256: string | null;
   declare private conversion: LatexConversion | null;
   declare private previewDigest: string | null;
   declare private rootCandidates: readonly string[];
   declare private selectedRoot: string;
   declare private status: string;
   declare private projectTitle: string;
+  private previewRequestEpoch = 0;
   private bibliographyPath!: string | null;
 
   constructor() {
@@ -38,7 +41,9 @@ export class LatexImportPanel extends LightDomElement {
   }
 
   private resetState(): void {
+    this.previewRequestEpoch += 1;
     this.busy = null;
+    this.archiveSha256 = null;
     this.conversion = null;
     this.previewDigest = null;
     this.rootCandidates = [];
@@ -67,7 +72,8 @@ export class LatexImportPanel extends LightDomElement {
     this.rootCandidates = value.archive.rootCandidates;
     this.selectedRoot = value.conversion?.report.rootPath ?? this.selectedRoot;
     this.conversion = value.conversion;
-    this.previewDigest = value.conversion ? value.digest : null;
+    this.archiveSha256 = value.conversion ? value.archiveSha256 : null;
+    this.previewDigest = value.conversion ? value.previewDigest : null;
     this.bibliographyPath = value.conversion?.report.bibliographyPath ?? null;
     if (!value.conversion) {
       this.status = "Choose a root document, then preview again.";
@@ -173,6 +179,7 @@ export class LatexImportPanel extends LightDomElement {
       return;
     }
     this.clearPreview();
+    const requestEpoch = this.previewRequestEpoch;
     this.busy = "preview";
     this.status = "Inspecting and converting the archive on the server…";
     try {
@@ -184,22 +191,34 @@ export class LatexImportPanel extends LightDomElement {
         headers: { "content-type": "application/zip" },
         method: "POST",
       });
+      if (requestEpoch !== this.previewRequestEpoch) return;
       await expectOk(response);
       const value: unknown = await response.json();
+      if (requestEpoch !== this.previewRequestEpoch) return;
       if (!isLatexImportPreview(value)) throw new Error("LaTeX import returned an invalid preview");
       this.previewSucceeded(value);
     } catch (error) {
+      if (requestEpoch !== this.previewRequestEpoch) return;
       this.previewFailed(errorMessage(error, "Could not preview the LaTeX archive."));
     }
   }
 
   protected async confirm(): Promise<void> {
     const archive = this.archive();
-    if (this.busy || !archive || !this.previewDigest || !this.conversion || blockingDiagnosticCount(this.conversion) > 0) return;
+    if (
+      this.busy ||
+      !archive ||
+      !this.archiveSha256 ||
+      !this.previewDigest ||
+      !this.conversion ||
+      blockingDiagnosticCount(this.conversion) > 0
+    )
+      return;
     this.busy = "confirm";
     this.status = "Repeating conversion and creating the project…";
     const query = new URLSearchParams({
       title: this.projectTitle,
+      archiveSha256: this.archiveSha256,
       previewDigest: this.previewDigest,
       root: this.selectedRoot,
     });
@@ -276,6 +295,8 @@ ${file.content.length > 1_200 ? `${file.content.slice(0, 1_200)}\n…` : file.co
   }
 
   private clearPreview(): void {
+    this.previewRequestEpoch += 1;
+    this.archiveSha256 = null;
     this.conversion = null;
     this.previewDigest = null;
     this.bibliographyPath = null;

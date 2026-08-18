@@ -6,7 +6,8 @@
 
 **Amends:** [ADR-030](./ADR-030-reserve-full-mutation-ci-for-github.md), [ADR-134](./ADR-134-keep-mutation-explicit.md)
 
-**Amended by:** [ADR-216](./ADR-216-bound-pull-request-mutation-ci.md)
+**Amended by:** [ADR-216](./ADR-216-bound-pull-request-mutation-ci.md),
+[ADR-225](./ADR-225-use-instrumented-dry-run-for-required-mutation-ci.md)
 
 ## Context
 

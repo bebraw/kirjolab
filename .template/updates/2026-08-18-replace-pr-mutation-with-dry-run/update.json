@@ -1,0 +1,18 @@
+{
+  "id": "2026-08-18-replace-pr-mutation-with-dry-run",
+  "title": "Replace pull-request mutation with an instrumented dry run",
+  "status": "implemented",
+  "risk": "medium",
+  "supersedes": ["2026-08-03-bound-pr-mutation-ci"],
+  "adrs": ["docs/adrs/implemented/ADR-225-use-instrumented-dry-run-for-required-mutation-ci.md"],
+  "touches": [
+    ".github/workflows/ci.yml",
+    "package.json",
+    "scripts/run-ci-mutation.mjs",
+    "scripts/run-ci-mutation.test.mjs",
+    "stryker.pr.config.mjs",
+    "docs/",
+    "specs/"
+  ],
+  "checks": ["npm run test:tooling", "npm run ci:local"]
+}

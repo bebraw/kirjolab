@@ -23,8 +23,9 @@ not be operated under this production runbook or its recovery claims.
   diagnostics explicitly. The build validates actual Lit-family esbuild inputs,
   and the repository-owned production deploy overwrites any ambient browser-
   shell mode with `production` before invoking Wrangler.
-- The required GitHub mutation check runs only for pull requests and derives a
-  clean, non-incremental production scope from the explicit base-to-head diff.
+- The required GitHub mutation compatibility check runs only for pull requests
+  and derives a clean, non-incremental production scope from the explicit
+  base-to-head diff.
   A NUL-delimited name-status diff preserves deletion status and both rename
   paths. Directly changed surviving sources become coalesced new/head-side
   Stryker line ranges from per-source `git diff --unified=0` output; renamed
@@ -37,12 +38,15 @@ not be operated under this production runbook or its recovery claims.
   TypeScript, Vitest, workflow, and selector configuration changes, including
   deletion, add an always-full-file stable production canary. Missing or
   malformed commits fail instead of expanding to a full run. An empty scope
-  passes without Stryker. Selected runs ignore static mutants, emit console
-  progress plus JSON, require at least 90% changed-mutant coverage and 68%
-  covered mutation score, and have a 30-minute job bound. Full repository
+  passes without Stryker. Selected scopes ignore static mutants and use
+  Stryker's `dryRunOnly` mode with console progress and a 10-minute job bound.
+  They instrument the requested production code and complete the related
+  initial Vitest run inside a Stryker worker without executing mutant plans or
+  per-mutant TypeScript checks, finalizing a mutation-result report, or
+  evaluating a score threshold. Full repository
   mutation stays an explicit local or manual audit rather than a duplicate
-  post-merge job. Pre-push uses the same configuration canary instead of
-  forcing a full incremental refresh.
+  post-merge job. Scored affected mutation remains in pre-push, using the same
+  configuration canary without forcing a full incremental refresh.
 - Committed Wrangler variables remain `AUTH_MODE=local` with blank Access
   values, so a bare `wrangler deploy` is safely unusable on a public hostname.
   Only the repository-owned production command supplies hosted identity values
@@ -137,10 +141,11 @@ not be operated under this production runbook or its recovery claims.
       drill behavior.
 - [x] Production logs, smoke checks, versions, and rollback commands are
       documented.
-- [x] `quality-mutation` remains a required clean pull-request check, selects
-      changed-line ranges for directly changed configured production sources,
-      maps test-only changes to full-file sources, and exercises an always-full-
-      file stable canary for configuration changes.
+- [x] `quality-mutation` remains a required clean pull-request Stryker
+      compatibility check, selects changed-line ranges for directly changed
+      configured production sources, maps test-only changes to full-file
+      sources, and exercises an always-full-file stable canary for configuration
+      changes.
 - [x] Direct mutation line ranges come from positive new/head-side zero-context
       diff hunks, coalesce when overlapping or adjacent, and use
       `file.ts:start-end`; renamed sources diff both paths with rename detection,
@@ -150,10 +155,11 @@ not be operated under this production runbook or its recovery claims.
       required check without starting Stryker.
 - [x] The selector rejects malformed or unavailable base and head commits
       without falling back to a full mutation run.
-- [x] Pull-request mutation ignores static mutants, emits console progress plus
-      JSON, fails closed unless the postprocessed report reaches both result
-      floors, and stops at 30 minutes; `npm run mutation` remains the explicit
-      full audit and no mutation job repeats on the merge push to `main`.
+- [x] Pull-request mutation compatibility ignores static mutants, instruments
+      the selected code, completes the related initial Vitest run inside a
+      Stryker worker, and stops at 10 minutes without executing mutant plans or
+      calculating a score; `npm run mutation` remains the explicit full audit
+      and no mutation job repeats on the merge push to `main`.
 - [x] Mutation-configuration pushes test affected production sources plus the
       stable canary without automatically rebuilding the full incremental
       report; explicit manual refresh remains available.
@@ -206,28 +212,29 @@ not be operated under this production runbook or its recovery claims.
 - Then every Wrangler subprocess rebuilds with Lit production exports and
   rejects any emitted Lit development input
 
-**Affected pull-request mutation**
+**Affected pull-request mutation compatibility**
 
 - Given a pull request directly changes lines in a configured production source
 - When the required `quality-mutation` check compares the explicit base and head
-- Then it starts a clean non-incremental Stryker run only for the mapped
-  coalesced `file.ts:start-end` ranges, ignores static mutants, emits console
-  progress plus JSON, and requires at least 90% changed-mutant coverage and 68%
-  covered mutation score within 30 minutes
+- Then it selects and instruments only the mapped coalesced
+  `file.ts:start-end` ranges, ignores static mutants, and completes the related
+  initial Vitest run inside a Stryker worker with console progress, no mutant
+  execution or score, and a 10-minute bound
 
-**Test-only pull-request mutation**
+**Test-only pull-request mutation compatibility**
 
 - Given a pull request changes, deletes, or renames a colocated Node unit test
   without directly changing its surviving configured production counterpart
 - When the required `quality-mutation` check selects its scope
-- Then it mutates the mapped production source as a full-file pattern
+- Then it selects and instruments the mapped production source as a full-file
+  pattern
 
 **Deletion-only pull-request mutation**
 
 - Given a surviving directly changed configured production source has any
   deletion-only hunk or no positive new-side span
 - When the required `quality-mutation` check selects its scope
-- Then that source becomes a full-file safety fallback
+- Then that source becomes a full-file instrumentation safety fallback
 
 **Deleted-source pull-request mutation**
 

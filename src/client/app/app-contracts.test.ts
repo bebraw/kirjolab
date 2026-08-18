@@ -161,7 +161,8 @@ describe("app response contracts", () => {
   it("validates LaTeX archive previews with and without conversion", () => {
     const archive = { files: [{ path: "paper.tex", kind: "tex", bytes: 10 }], rootCandidates: ["paper.tex"] };
     const value = {
-      digest: "a".repeat(64),
+      archiveSha256: "a".repeat(64),
+      previewDigest: "b".repeat(64),
       archive,
       conversion: {
         seed: { files: [{ path: "paper.md", content: "# Paper" }], bibliography: "" },
@@ -175,8 +176,11 @@ describe("app response contracts", () => {
     };
 
     expect(isLatexImportPreview(value)).toBe(true);
-    expect(isLatexImportPreview({ digest: "b".repeat(64), archive, conversion: null })).toBe(true);
-    expect(isLatexImportPreview({ ...value, digest: "not-a-digest" })).toBe(false);
+    expect(isLatexImportPreview({ archiveSha256: "a".repeat(64), previewDigest: null, archive, conversion: null })).toBe(true);
+    expect(isLatexImportPreview({ ...value, previewDigest: null })).toBe(false);
+    expect(isLatexImportPreview({ ...value, conversion: null })).toBe(false);
+    expect(isLatexImportPreview({ ...value, archiveSha256: "not-a-digest" })).toBe(false);
+    expect(isLatexImportPreview({ ...value, previewDigest: "not-a-digest" })).toBe(false);
     expect(isLatexImportPreview({ ...value, archive: { ...archive, files: [{ path: "paper.tex", kind: "tex", bytes: -1 }] } })).toBe(false);
     expect(
       isLatexImportPreview({
@@ -384,10 +388,11 @@ describe("app response contracts", () => {
         ],
       },
     };
-    const value = { digest: "a".repeat(64), archive, conversion };
+    const value = { archiveSha256: "a".repeat(64), previewDigest: "b".repeat(64), archive, conversion };
     for (const changed of [
       null,
-      { ...value, digest: "A".repeat(64) },
+      { ...value, archiveSha256: "A".repeat(64) },
+      { ...value, previewDigest: "B".repeat(64) },
       { ...value, archive: null },
       { ...value, archive: { ...archive, files: null } },
       { ...value, archive: { ...archive, files: [null] } },

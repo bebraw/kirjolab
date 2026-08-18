@@ -33,6 +33,9 @@ No ADRs are currently accepted and awaiting implementation.
 
 | ADR                                                                                       | Status               | Summary                                                                                                         |
 | ----------------------------------------------------------------------------------------- | -------------------- | --------------------------------------------------------------------------------------------------------------- |
+| [ADR-225](./implemented/ADR-225-use-instrumented-dry-run-for-required-mutation-ci.md)     | Implemented          | Keep required GitHub mutation CI as an instrumented compatibility smoke while scoring mutation locally.         |
+| [ADR-224](./implemented/ADR-224-override-unused-puppeteer-browser-installer.md)           | Implemented          | Replace Puppeteer's unused vulnerable browser installer while retaining the tested Browser Run adapter.         |
+| [ADR-223](./implemented/ADR-223-incubate-paper-import-core.md)                            | Implemented          | Incubate reviewed paper-import contracts, exact preview identity, provenance, and conformance before packaging. |
 | [ADR-222](./implemented/ADR-222-keep-pdf-display-and-annotation-modes-independent.md)     | Implemented          | Project private markup through page-local layers without letting annotation tools change the display mode.      |
 | [ADR-221](./implemented/ADR-221-gate-optional-integrations-by-deployment-capability.md)   | Implemented          | Derive optional integrations from complete server configuration and expose only boolean browser capabilities.   |
 | [ADR-220](./implemented/ADR-220-establish-portable-self-host-boundaries.md)               | Implemented          | Add a loopback Compose evaluation profile and begin native portability at a provider-neutral SQLite adapter.    |

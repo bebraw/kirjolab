@@ -1,6 +1,4 @@
 import process from "node:process";
-import { readFileSync, rmSync } from "node:fs";
-import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 
 import { getRepoRoot, run, spawn } from "./affected-file-utils.mjs";
@@ -8,28 +6,13 @@ import { affectedMutationSources, isMutationConfigurationFile, mutationCanarySou
 
 export { mutationCanarySource };
 
-export const mutationPrConfigFile = "stryker.pr.config.mjs";
-export const mutationPrReportPath = "reports/mutation/pull-request.json";
-
 const fullCommitShaPattern = /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/iu;
 const mutationPatternMagicCharacters = ",:*?[]{}!()@+|";
-const mutationPrCoverageThreshold = 90;
-const mutationPrCoveredScoreThreshold = 68;
-const mutationPrStatusFields = new Map([
-  ["Killed", "killed"],
-  ["Timeout", "timeout"],
-  ["Survived", "survived"],
-  ["NoCoverage", "noCoverage"],
-  ["CompileError", "compileError"],
-  ["Ignored", "ignored"],
-]);
-const rejectedMutationPrStatuses = new Set(["Pending", "RuntimeError"]);
 const mutationCiRoutingFiles = new Set([
   ".github/workflows/ci.yml",
   "scripts/affected-file-utils.mjs",
   "scripts/run-ci-mutation.mjs",
   "scripts/run-pre-push-quality.mjs",
-  mutationPrConfigFile,
 ]);
 
 export function validateMutationCommitSha(value, variableName) {
@@ -224,112 +207,10 @@ export function mutationCiPlan(repoRoot, changes, changedLineRanges = new Map())
   return mutationPatterns.length > 0 ? { script: "mutation:affected", sources: mutationPatterns } : null;
 }
 
-export function mutationPrCommandArguments(plan) {
+export function mutationCiCommandArguments(plan) {
   if (!Array.isArray(plan.sources) || plan.sources.length === 0)
-    throw new Error("PR mutation command requires an explicit mutation scope.");
-  return ["run", plan.script, "--", mutationPrConfigFile, "--reporters", "progress,json", "--mutate", plan.sources.join(",")];
-}
-
-function isRecord(value) {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function mutationPrReportMutants(report) {
-  if (!isRecord(report) || !isRecord(report.files)) throw new Error("Malformed PR mutation report: expected a files object.");
-  return Object.entries(report.files).flatMap(([file, fileResult]) => {
-    if (!isRecord(fileResult) || !Array.isArray(fileResult.mutants)) {
-      throw new Error(`Malformed PR mutation report entry for ${JSON.stringify(file)}.`);
-    }
-    return fileResult.mutants;
-  });
-}
-
-function mutationPrStatusField(mutant, index) {
-  if (!isRecord(mutant) || typeof mutant.status !== "string") {
-    throw new Error(`Malformed PR mutation result at index ${index}.`);
-  }
-  if (rejectedMutationPrStatuses.has(mutant.status)) throw new Error(`Incomplete PR mutation result status: ${mutant.status}.`);
-  const field = mutationPrStatusFields.get(mutant.status);
-  if (!field) throw new Error(`Unknown PR mutation result status: ${JSON.stringify(mutant.status)}.`);
-  return field;
-}
-
-export function countMutationPrResults(report) {
-  const counts = { killed: 0, timeout: 0, survived: 0, noCoverage: 0, compileError: 0, ignored: 0 };
-  for (const [index, mutant] of mutationPrReportMutants(report).entries()) {
-    const field = mutationPrStatusField(mutant, index);
-    counts[field] += 1;
-  }
-  return counts;
-}
-
-function meetsPercentThreshold(numerator, denominator, threshold) {
-  return BigInt(numerator) * 100n >= BigInt(denominator) * BigInt(threshold);
-}
-
-export function evaluateMutationPrReport(report) {
-  const counts = countMutationPrResults(report);
-  const detected = counts.killed + counts.timeout;
-  const covered = detected + counts.survived;
-  const valid = covered + counts.noCoverage;
-  if (valid === 0) {
-    return { passed: true, coveragePassed: true, coveredScorePassed: true, detected, covered, valid, counts };
-  }
-
-  const coveragePassed = meetsPercentThreshold(covered, valid, mutationPrCoverageThreshold);
-  const coveredScorePassed = covered > 0 && meetsPercentThreshold(detected, covered, mutationPrCoveredScoreThreshold);
-  return { passed: coveragePassed && coveredScorePassed, coveragePassed, coveredScorePassed, detected, covered, valid, counts };
-}
-
-function formatMutationPercent(numerator, denominator) {
-  return denominator === 0 ? "n/a" : `${((numerator * 100) / denominator).toFixed(2)}%`;
-}
-
-export function formatMutationPrResult(result) {
-  const { counts } = result;
-  return [
-    "PR mutation result:",
-    `valid=${result.valid}`,
-    `killed=${counts.killed}`,
-    `timeout=${counts.timeout}`,
-    `survived=${counts.survived}`,
-    `noCoverage=${counts.noCoverage}`,
-    `compileError=${counts.compileError}`,
-    `ignored=${counts.ignored}`,
-    `coverage=${formatMutationPercent(result.covered, result.valid)}`,
-    `covered-score=${formatMutationPercent(result.detected, result.covered)}`,
-  ].join(" ");
-}
-
-export function assertMutationPrReport(report, write = console.log) {
-  const result = evaluateMutationPrReport(report);
-  write(formatMutationPrResult(result));
-  if (!result.passed) {
-    const failures = [];
-    if (!result.coveragePassed) failures.push(`coverage must be at least ${mutationPrCoverageThreshold}%`);
-    if (!result.coveredScorePassed) failures.push(`covered score must be at least ${mutationPrCoveredScoreThreshold}%`);
-    throw new Error(`PR mutation result gate failed: ${failures.join(" and ")}.`);
-  }
-  return result;
-}
-
-export function removeMutationPrReport(repoRoot) {
-  rmSync(join(repoRoot, mutationPrReportPath), { force: true });
-}
-
-export function readMutationPrReport(repoRoot) {
-  const reportPath = join(repoRoot, mutationPrReportPath);
-  let source;
-  try {
-    source = readFileSync(reportPath, "utf8");
-  } catch (cause) {
-    throw new Error(`PR mutation report is missing or unreadable at ${mutationPrReportPath}.`, { cause });
-  }
-  try {
-    return JSON.parse(source);
-  } catch (cause) {
-    throw new Error(`PR mutation report contains malformed JSON at ${mutationPrReportPath}.`, { cause });
-  }
+    throw new Error("CI mutation dry run requires an explicit mutation scope.");
+  return ["run", plan.script, "--", "--dryRunOnly", "--reporters", "progress", "--mutate", plan.sources.join(",")];
 }
 
 function git(repoRoot, arguments_, options = {}) {
@@ -368,8 +249,6 @@ export function changedMutationLineRanges(repoRoot, refs, changes, runGit = git)
 
 export function runCiMutation({
   environment = process.env,
-  readReport = readMutationPrReport,
-  removeReport = removeMutationPrReport,
   repoRoot = getRepoRoot(),
   runCommand = run,
   runGit = git,
@@ -381,14 +260,12 @@ export function runCiMutation({
   const plan = mutationCiPlan(repoRoot, changes, changedLineRanges);
 
   if (!plan) {
-    write("Mutation quality gate skipped: no affected Stryker inputs.");
+    write("Mutation compatibility check skipped: no affected Stryker inputs.");
     return null;
   }
 
-  write(`Running mutation tests for ${plan.sources.length} pull-request mutation target(s)...`);
-  removeReport(repoRoot);
-  runCommand(repoRoot, "npm", mutationPrCommandArguments(plan));
-  assertMutationPrReport(readReport(repoRoot), write);
+  write(`Running an instrumented test dry run for ${plan.sources.length} pull-request mutation target(s)...`);
+  runCommand(repoRoot, "npm", mutationCiCommandArguments(plan));
   return plan;
 }
 

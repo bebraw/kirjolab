@@ -19,9 +19,11 @@ not translate cleanly.
   requests, constructs them from its current reviewed state, validates both
   responses with the shared Valibot boundary contracts, closes itself on
   cancellation, and navigates to the successful response's canonical workspace
-  href.
+  href. A monotonically increasing preview-request epoch prevents a response
+  from an earlier archive or reopened dialog from replacing the current review.
 - Archive inspection and conservative conversion run in the authenticated
-  Worker. Uploaded ZIP bytes are transient request data and are never stored.
+  Worker. The request stream is capped before archive inspection or hashing;
+  uploaded ZIP bytes are transient request data and are never stored.
 - The importer accepts one bounded ZIP, rejects encrypted entries, traversal,
   absolute and backslash paths, symlinks, duplicate normalized paths, invalid
   UTF-8 manuscript files, excessive expansion ratios, and archive resource
@@ -62,19 +64,31 @@ not translate cleanly.
 - Confirmation uploads the archive again with reviewed selections to a
   dedicated authenticated project-creation endpoint. The Worker repeats
   inspection and conversion before initializing normal project authorities.
+  It verifies the original archive SHA-256 and a canonical preview digest that
+  covers the effective root and bibliography, converter/schema versions,
+  conversion options, and deterministic extracted-file manifest. Either
+  mismatch returns a conflict before any persistent write.
+- Product-neutral conversion and provenance live under the paper-import core in
+  ADR-223. A separate Kirjolab adapter creates the project seed, publication
+  profile, Markdown files, and asset registrations.
 - Import is explicit and one-way. Reimport creates another project; it does not
   synchronize with Overleaf or maintain a LaTeX shadow tree.
 
 ### API Contracts
 
 - `POST /api/latex-import-previews` accepts one bounded ZIP plus optional root
-  and bibliography selections and returns a non-mutating versioned preview.
+  and bibliography selections and returns a non-mutating versioned preview with
+  `archiveSha256` and, when conversion is possible, `previewDigest`.
 - `POST /api/latex-imports` accepts the same archive, a title, and reviewed
-  selections plus the preview digest, repeats conversion, and returns the
-  created workspace summary. A digest mismatch fails as stale review.
+  selections plus both identities, repeats conversion, and returns the created
+  workspace summary. An archive mismatch reports `archive-changed`; any other
+  reviewed-interpretation mismatch reports `preview-changed`.
 - Conversion reports contain stable diagnostic codes, severity, source path,
-  bounded source ranges, and a human-readable message. They never contain
-  executable HTML or unbounded archive excerpts.
+  trustworthy original-file source ranges when reconstructible, and a
+  human-readable message. Ranges use UTF-16 code units and must round-trip
+  through the original decoded file. Reports omit a range rather than expose an
+  offset into transformed text. They never contain executable HTML or unbounded
+  archive excerpts.
 - Routine validation failures return typed results and create no project,
   library record, asset object, or catalog entry.
 
@@ -84,8 +98,23 @@ not translate cleanly.
 - Expanded archive content: at most 64 MiB and 1,024 entries.
 - Markdown project result: existing 512-file and 2 MiB composition limits.
 - Individual TeX or BibTeX text input: at most 2 MiB.
+- Archive paths: at most 1,024 UTF-16 code units and 64 segments.
 - Images: existing project media types and 20 MiB per-asset limit.
+- Figure resolution: at most 1,024 UTF-16 code units per authored path, 256
+  retained search folders, 65,536 aggregate search-folder code units, and
+  100,000 candidate probes.
 - TikZ source: at most 128 KiB per block and 32 blocks per project.
+- Archive structural references and diagnostics: at most 10,000 retained
+  records.
+- Neutral semantic and rendering inventory: at most 50,000 records; callers may
+  tighten but never loosen this ceiling.
+- Citation keys: at most 1,000 per command and counted against the aggregate
+  semantic inventory.
+- Rendered conversion: at most 4 Mi UTF-16 code units per file and 16 Mi per
+  project, with at most 10,000 derived folders and 1 Mi aggregate derived-folder
+  path code units.
+- Converted tables: at most 1,000 rows, 256 columns, and 1 Mi UTF-16 output code
+  units per table.
 
 ### Anti-Patterns
 
@@ -121,7 +150,7 @@ not translate cleanly.
       bounded block counts and sizes.
 - [x] Malicious and over-limit archives fail closed without project, library,
       R2, or catalog writes.
-- [ ] Domain, Workers-runtime, and browser tests cover conversion, validation,
+- [x] Domain, Workers-runtime, and browser tests cover conversion, validation,
       review, confirmation, and preserved TikZ handling.
 
 ### Regression Guardrails
@@ -131,6 +160,10 @@ not translate cleanly.
   preview state.
 - Import preview is non-mutating and confirmation is a separate deliberate
   action.
+- Archive, selection, manifest, conversion-option, converter-version, and
+  identity-schema changes invalidate confirmation before persistence.
+- Figure provenance retains archive and resolved asset paths, content hash,
+  caption, label, source-reference ranges, and resolution diagnostics.
 - Every accepted path is normalized and archive-relative; no include, image,
   bibliography, or virtual-filesystem access can escape the selected archive.
 - Import performs no network retrieval or authored-code execution.
@@ -189,12 +222,20 @@ not translate cleanly.
 - Then: the canonical source block remains visible and a diagnostic explains
   that no renderer was run
 
+**Scenario: Reject a stale reviewed selection**
+
+- Given: a researcher previews one valid root and bibliography from an archive
+- When: confirmation submits another valid root or bibliography with the prior
+  preview digest
+- Then: the Worker returns a conflict and leaves project, catalog, access,
+  document-room, and asset state untouched
+
 ## Current Milestone
 
-- Server-side archive inspection, reviewed conversion, digest-bound project
+- Server-side archive inspection, reviewed conversion, exact-preview-bound project
   creation, bibliography seeding, referenced figure storage, prepared-boxplot
-  translation, and lossless unsupported-TikZ preservation are implemented under
-  ADR-141, ADR-142, and ADR-145.
+  translation, original-source provenance, and lossless unsupported-TikZ
+  preservation are implemented under ADR-141, ADR-142, ADR-145, and ADR-223.
 - The supplied HTML First archive converts into ten Markdown files with its
   selected bibliography and referenced biography figure; layout-only commands
   remain explicit review warnings.

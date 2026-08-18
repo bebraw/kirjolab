@@ -1,4 +1,5 @@
 import { projectMarkdownComments } from "scholarmark";
+import { normalizePortablePath, resolvePortablePath } from "../../lib/paper-import/portable-path";
 import { isRecord } from "../unknown-value";
 
 export const projectEntryPath = "main.md";
@@ -260,26 +261,8 @@ function isLocalSvgReference(value: string): boolean {
   return /^#[^\s]+$/u.test(reference) || embeddedRasterImage.test(reference);
 }
 
-export function normalizeProjectPath(value: string): string | null {
-  const candidate = value.trim().replaceAll("\\", "/");
-  if (!candidate || candidate.startsWith("/") || candidate.includes("\0")) return null;
-  const segments: string[] = [];
-  for (const segment of candidate.split("/")) {
-    if (!segment || segment === ".") continue;
-    if (segment === "..") {
-      if (segments.length === 0) return null;
-      segments.pop();
-    } else {
-      segments.push(segment);
-    }
-  }
-  return segments.length === 0 ? null : segments.join("/");
-}
-
-export function resolveProjectPath(fromPath: string, includePath: string): string | null {
-  const directory = fromPath.includes("/") ? fromPath.slice(0, fromPath.lastIndexOf("/")) : "";
-  return normalizeProjectPath(directory ? `${directory}/${includePath}` : includePath);
-}
+export const normalizeProjectPath = normalizePortablePath;
+export const resolveProjectPath = resolvePortablePath;
 
 export function inboundProjectIncludes(files: readonly ProjectFile[], targetPath: string): readonly ProjectFile[] {
   return files.filter((file) => {
