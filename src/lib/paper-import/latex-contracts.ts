@@ -2,7 +2,7 @@ import type { LatexImportDiagnosticCode } from "./latex-archive.js";
 import type { LatexConversionAsset } from "./latex-renderer.js";
 
 export const latexConversionSchemaVersion = 2 as const;
-export const latexConverterVersion = "latex-converter-v3" as const;
+export const latexConverterVersion = "latex-converter-v4" as const;
 export const latexRenderedFormat = "scholarmark-v1" as const;
 export const latexConversionMaximumSemanticRecords = 50_000;
 export const latexMaximumCitationKeys = 1_000;

@@ -71,6 +71,7 @@ describe("paper-import conformance corpus", () => {
     expect(corpus.latex.includeGraph.reordered.id).toBe("latex-include-graph-v1");
     expect(corpus.latex.ambiguousFigure.id).toBe("latex-ambiguous-figure-v1");
     expect(corpus.latex.escapedCommands.id).toBe("latex-escaped-commands-v1");
+    expect(corpus.latex.proseBlocks.id).toBe("latex-prose-blocks-v1");
     expect(corpus.latex.archiveFailures).toHaveLength(14);
     expect(corpus.pdf.twoPageNativeText.id).toBe("two-page-native-text-pdf-v1");
   });
@@ -304,12 +305,7 @@ describe("paper-import conformance corpus", () => {
       },
     }).toEqual(fixture.expected);
     for (const block of blocks) {
-      const original =
-        block.range.path === "main.tex"
-          ? fixture.sourceByPath["main.tex"]
-          : block.range.path === "part.tex"
-            ? fixture.sourceByPath["part.tex"]
-            : undefined;
+      const original = fixture.sourceByPath[block.range.path as keyof typeof fixture.sourceByPath];
       expect(original?.slice(block.range.start, block.range.end)).toBe(block.source);
     }
     expect(blocks[0]?.source).toContain("\\cite{lead}");

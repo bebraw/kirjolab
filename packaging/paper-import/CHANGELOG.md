@@ -2,11 +2,15 @@
 
 All notable changes to the private package candidate are documented here.
 
-## Unreleased
+## 0.1.1 - 2026-08-19
 
 - Exclude nested figure, table, code, and math environments from normalized
   list-item retrieval text while preserving exact item provenance and dedicated
   semantic inventories.
+- Exclude prose and list markers from files included inside prose-excluded
+  environments without splitting the authored parent item.
+- Exclude `\\bibliography`, `\\addbibresource`, and `\\bibliographystyle`
+  commands from normalized list-item text while preserving exact provenance.
 
 ## 0.1.0 - 2026-08-18
 

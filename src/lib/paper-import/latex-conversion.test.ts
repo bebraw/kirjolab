@@ -43,7 +43,7 @@ describe("product-neutral LaTeX conversion", () => {
 
     expect(Object.isFrozen(options)).toBe(true);
     expect(options).toEqual({ maximumSemanticRecords: 50_000 });
-    expect(convertLatexProject(inspection, { rootPath: "paper.tex" }, options).converterVersion).toBe("latex-converter-v3");
+    expect(convertLatexProject(inspection, { rootPath: "paper.tex" }, options).converterVersion).toBe("latex-converter-v4");
   });
 
   it("enforces a typed aggregate semantic-record ceiling at and above the consumer boundary", () => {
@@ -563,6 +563,106 @@ Second paragraph.\end{document}`;
     expectOriginalRange(conversion.proseBlocks[0]!, "paper.tex", source, itemSource);
     expect(conversion.figures).toHaveLength(1);
     expect(conversion.figures[0]?.caption?.value).toBe("Hidden 😀");
+  });
+
+  it("does not traverse includes inside excluded figures as prose or split list-item provenance", () => {
+    const itemSource = "\\item Before 😀.\r\n" + "\\begin{figure}\r\n" + "\\input{child}\r\n" + "\\end{figure}\r\n" + "After Å.";
+    const source =
+      "\\documentclass{article}\r\n\\begin{document}\r\n" +
+      `\\begin{itemize}\r\n${itemSource}\r\n\\end{itemize}\r\n` +
+      "\\end{document}\r\n";
+    const child =
+      "Hidden child prose.\r\n" + "\\item Bare phantom item.\r\n" + "\\begin{itemize}\r\n\\item Nested phantom item.\r\n\\end{itemize}\r\n";
+    const conversion = convertLatexProject(analyzeLatexArchiveFiles([tex("paper.tex", source), tex("child.tex", child)]), {
+      rootPath: "paper.tex",
+    });
+
+    expect(conversion.proseBlocks).toEqual([
+      expect.objectContaining({ id: "paper.tex#prose-1", kind: "list-item", text: "Before 😀. After Å." }),
+    ]);
+    expectOriginalRange(conversion.proseBlocks[0]!, "paper.tex", source, itemSource);
+  });
+
+  it.each([
+    ["abstract", ""],
+    ["figure", ""],
+    ["figure*", ""],
+    ["table", ""],
+    ["table*", ""],
+    ["tabular", "{c}"],
+    ["tabularx", "{\\linewidth}{X}"],
+    ["lstlisting", ""],
+    ["minted", "{text}"],
+    ["verbatim", ""],
+    ["tikzpicture", ""],
+    ["equation", ""],
+    ["equation*", ""],
+    ["align", ""],
+    ["align*", ""],
+  ])("does not traverse an include inside the excluded %s environment family", (environment, arguments_) => {
+    const itemSource =
+      "\\item Before 😀.\r\n" +
+      `\\begin{${environment}}${arguments_}\r\n` +
+      "\\input{child}\r\n" +
+      `\\end{${environment}}\r\n` +
+      "After Å.";
+    const source =
+      "\\documentclass{article}\r\n\\begin{document}\r\n" +
+      `\\begin{itemize}\r\n${itemSource}\r\n\\end{itemize}\r\n` +
+      "\\end{document}\r\n";
+    const child =
+      "Hidden child prose.\r\n" + "\\item Bare phantom item.\r\n" + "\\begin{itemize}\r\n\\item Nested phantom item.\r\n\\end{itemize}\r\n";
+    const conversion = convertLatexProject(analyzeLatexArchiveFiles([tex("paper.tex", source), tex("child.tex", child)]), {
+      rootPath: "paper.tex",
+    });
+
+    expect(conversion.proseBlocks).toEqual([
+      expect.objectContaining({ id: "paper.tex#prose-1", kind: "list-item", text: "Before 😀. After Å." }),
+    ]);
+    expectOriginalRange(conversion.proseBlocks[0]!, "paper.tex", source, itemSource);
+  });
+
+  it("still visits a child as prose when a visible include follows an excluded include", () => {
+    const itemSource = "\\item Before.\r\n" + "\\begin{figure}\r\n\\input{child}\r\n\\end{figure}\r\n" + "After.";
+    const source =
+      "\\documentclass{article}\r\n\\begin{document}\r\n" +
+      `\\begin{itemize}\r\n${itemSource}\r\n\\end{itemize}\r\n` +
+      "\\input{child}\r\n" +
+      "\\end{document}\r\n";
+    const childItemSource = "\\item Visible child item.";
+    const child = `Visible child prose.\r\n\r\n\\begin{itemize}\r\n${childItemSource}\r\n\\end{itemize}\r\n`;
+    const conversion = convertLatexProject(analyzeLatexArchiveFiles([tex("paper.tex", source), tex("child.tex", child)]), {
+      rootPath: "paper.tex",
+    });
+
+    expect(conversion.proseBlocks.map(({ kind, text }) => ({ kind, text }))).toEqual([
+      { kind: "list-item", text: "Before. After." },
+      { kind: "paragraph", text: "Visible child prose." },
+      { kind: "list-item", text: "Visible child item." },
+    ]);
+    expectOriginalRange(conversion.proseBlocks[0]!, "paper.tex", source, itemSource);
+    expectOriginalRange(conversion.proseBlocks[1]!, "child.tex", child, "Visible child prose.");
+    expectOriginalRange(conversion.proseBlocks[2]!, "child.tex", child, childItemSource);
+  });
+
+  it("excludes bibliography commands from nested list-item text without changing exact provenance", () => {
+    const nestedItemSource = "\\item Inner.\\addbibresource[location=remote]{nested.bib}Tail.";
+    const outerItemSource =
+      "\\item Before 😀.\\bibliography{refs}After Å.\r\n" +
+      `\\begin{enumerate}\r\n${nestedItemSource}\r\n\\end{enumerate}\r\n` +
+      "Outer end.\\bibliographystyle{plain}Done.";
+    const source =
+      "\\documentclass{article}\r\n\\begin{document}\r\n" +
+      `\\begin{itemize}\r\n${outerItemSource}\r\n\\end{itemize}\r\n` +
+      "\\end{document}\r\n";
+    const conversion = convertLatexProject(analyzeLatexArchiveFiles([tex("paper.tex", source)]), { rootPath: "paper.tex" });
+
+    expect(conversion.proseBlocks.map(({ kind, text }) => ({ kind, text }))).toEqual([
+      { kind: "list-item", text: "Before 😀. After Å. Outer end. Done." },
+      { kind: "list-item", text: "Inner. Tail." },
+    ]);
+    expectOriginalRange(conversion.proseBlocks[0]!, "paper.tex", source, outerItemSource);
+    expectOriginalRange(conversion.proseBlocks[1]!, "paper.tex", source, nestedItemSource);
   });
 
   it("excludes multiple nested table, code, and math environments while retaining visible nested items", () => {

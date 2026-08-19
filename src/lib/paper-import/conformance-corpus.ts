@@ -13,7 +13,7 @@ const reviewedExpected = {
     selectedRoot: null,
     convertedFilePaths: ["main.md", "sections/results.md"],
     schemaVersion: 2,
-    converterVersion: "latex-converter-v3",
+    converterVersion: "latex-converter-v4",
     rootPath: "main.tex",
     bibliographyPath: "refs.bib",
     assets: [{ path: "figures/plot.png", mediaType: "image/png" }],
@@ -69,8 +69,8 @@ const reviewedExpected = {
   },
   identity: {
     archiveManifestSha256: "3133fface09acacdbf72e57227870b6827c128d111a9a6494f0eb5b42e499014",
-    conversionManifestSha256: "85026543d4b45da02ebb13aa2f4256280cfaec6d935f3662834cefccb75b7dcb",
-    previewDigest: "658e6eeed3507f8348a407eb3463af11e877151d48dd6b7662ef2e3cea974555",
+    conversionManifestSha256: "09e36495acd11ab6219ab45048d68f89f15e5c6b29f67276d687ef7759447c47",
+    previewDigest: "e30580f91ed6c17ddbfdab3875069529453021af2979c244660586c1b89e4e61",
   },
   ranges: [
     { path: "main.tex", start: 25, end: 50, source: "\\title{Ångström 😀 study}" },
@@ -285,7 +285,7 @@ export interface EscapedCommandsConformanceFixtureV2 {
 }
 
 const proseBlocksExpected = {
-  archiveSha256: "f9a2ce34700a373c9ca55fda592ea34809706c08990149a818a482e37f4da07e",
+  archiveSha256: "6ee70efa80ead6b74a78fa73d3967d0ccc150a00ac48054db1aabdc9ad9208d2",
   blocks: [
     {
       id: "main.tex#prose-1",
@@ -331,10 +331,18 @@ const proseBlocksExpected = {
       id: "part.tex#prose-3",
       kind: "list-item",
       sectionId: "main.tex#section-1",
-      text: "Before 😀. After Å.",
+      text: "Before 😀. After Å. Done.",
       source:
-        "\\item Before 😀.\r\n\\begin{figure}\r\n\\includegraphics{plot}\r\n\\caption{Hidden figure}\r\n\\end{figure}\r\n\\begin{table}\r\n\\begin{tabular}{c}Hidden table\\end{tabular}\r\n\\end{table}\r\n\\begin{lstlisting}\r\nhidden code\r\n\\end{lstlisting}\r\n\\begin{equation}hidden math\\end{equation}\r\nAfter Å.",
-      range: { path: "part.tex", start: 74, end: 346, unit: "utf16-code-unit" },
+        "\\item Before 😀.\r\n\\begin{figure}\r\n\\includegraphics{plot}\r\n\\input{hidden}\r\n\\caption{Hidden figure}\r\n\\end{figure}\r\n\\begin{table}\r\n\\begin{tabular}{c}Hidden table\\end{tabular}\r\n\\end{table}\r\n\\begin{lstlisting}\r\nhidden code\r\n\\end{lstlisting}\r\n\\begin{equation}hidden math\\end{equation}\r\n\\bibliography{refs}\r\n\\begin{enumerate}\r\n\\item Nested before.\\addbibresource[location=remote]{refs.bib}Nested after.\r\n\\end{enumerate}\r\nAfter Å.\\bibliographystyle{plain}Done.",
+      range: { path: "part.tex", start: 74, end: 526, unit: "utf16-code-unit" },
+    },
+    {
+      id: "part.tex#prose-4",
+      kind: "list-item",
+      sectionId: "main.tex#section-1",
+      text: "Nested before. Nested after.",
+      source: "\\item Nested before.\\addbibresource[location=remote]{refs.bib}Nested after.",
+      range: { path: "part.tex", start: 394, end: 469, unit: "utf16-code-unit" },
     },
   ],
   excludedEnvironmentInventories: {
@@ -352,7 +360,7 @@ export interface ProseBlocksConformanceFixtureV2 {
   readonly schemaVersion: typeof paperImportConformanceCorpusVersion;
   readonly id: "latex-prose-blocks-v1";
   readonly archive: Uint8Array;
-  readonly sourceByPath: Readonly<Record<"main.tex" | "part.tex", string>>;
+  readonly sourceByPath: Readonly<Record<"hidden.tex" | "main.tex" | "part.tex" | "refs.bib", string>>;
   readonly selection: { readonly rootPath: "main.tex" };
   readonly expected: typeof proseBlocksExpected;
 }
@@ -489,6 +497,7 @@ const proseBlocksPartSource =
   "\\item Before 😀.\r\n" +
   "\\begin{figure}\r\n" +
   "\\includegraphics{plot}\r\n" +
+  "\\input{hidden}\r\n" +
   "\\caption{Hidden figure}\r\n" +
   "\\end{figure}\r\n" +
   "\\begin{table}\r\n" +
@@ -498,12 +507,23 @@ const proseBlocksPartSource =
   "hidden code\r\n" +
   "\\end{lstlisting}\r\n" +
   "\\begin{equation}hidden math\\end{equation}\r\n" +
-  "After Å.\r\n" +
+  "\\bibliography{refs}\r\n" +
+  "\\begin{enumerate}\r\n" +
+  "\\item Nested before.\\addbibresource[location=remote]{refs.bib}Nested after.\r\n" +
+  "\\end{enumerate}\r\n" +
+  "After Å.\\bibliographystyle{plain}Done.\r\n" +
   "\\end{itemize}\r\n\r\n" +
   "% hidden\r\n" +
   "\\begin{verbatim}\r\n" +
   "literal hidden\r\n" +
   "\\end{verbatim}\r\n";
+const proseBlocksHiddenSource =
+  "Hidden child prose.\r\n" +
+  "\\item Bare phantom item.\r\n" +
+  "\\begin{itemize}\r\n" +
+  "\\item Nested phantom item.\r\n" +
+  "\\end{itemize}\r\n";
+const proseBlocksBibliographySource = "@misc{refs, title={Fixture reference}}\r\n";
 
 function zipFixture(entries: Record<string, Uint8Array>): Uint8Array {
   return zipSync(entries, { level: 0, mtime: new Date(1980, 0, 1, 0, 0, 0) });
@@ -643,11 +663,18 @@ export function createProseBlocksConformanceFixtureV2(): ProseBlocksConformanceF
     schemaVersion: paperImportConformanceCorpusVersion,
     id: "latex-prose-blocks-v1",
     archive: zipFixture({
+      "hidden.tex": strToU8(proseBlocksHiddenSource),
       "main.tex": strToU8(proseBlocksMainSource),
       "part.tex": strToU8(proseBlocksPartSource),
       "plot.png": new Uint8Array([0x89, 0x50, 0x4e, 0x47]),
+      "refs.bib": strToU8(proseBlocksBibliographySource),
     }),
-    sourceByPath: { "main.tex": proseBlocksMainSource, "part.tex": proseBlocksPartSource },
+    sourceByPath: {
+      "hidden.tex": proseBlocksHiddenSource,
+      "main.tex": proseBlocksMainSource,
+      "part.tex": proseBlocksPartSource,
+      "refs.bib": proseBlocksBibliographySource,
+    },
     selection: { rootPath: "main.tex" },
     expected: proseBlocksExpected,
   };
