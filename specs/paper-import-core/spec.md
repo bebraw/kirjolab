@@ -42,6 +42,15 @@ LaTeX as semantic structure and PDF as page and visual authority.
   whole authored item and each excluded construct remains available through its
   dedicated inventory. Nested `itemize` and `enumerate` structures retain every
   visible item in both the inventory and the rendered Scholarmark projection.
+  Section commands and section-bearing includes inside prose-excluded
+  environments are classified against the same complete-source ranges before
+  section inventory or prose traversal, so hidden structure cannot consume
+  section ids, mutate hierarchy, or split a list envelope. A visible include
+  inside a list is intentionally not traversed for neutral prose or sections:
+  its command is omitted from the parent item's normalized text, the complete
+  parent source/range is retained, and an exact-range
+  `prose-provenance-unavailable` warning records the omitted cross-file edge.
+  A later ordinary include of the same child remains eligible for traversal.
 - Figure provenance retains the original archive asset path, resolved consumer
   asset path, content hash, caption, label, every source reference range, and
   resolution diagnostics. Asset bytes remain separate from generated output.
@@ -77,6 +86,14 @@ LaTeX as semantic structure and PDF as page and visual authority.
   runtime, keeps `fflate` as its only mandatory parser dependency, and leaves
   PDF.js runtime-injected. The candidate is a reviewed private tarball, not
   permission for registry publication.
+- Each candidate has an append-only JSON release manifest outside the tarball
+  that pins package name and version, filename, byte count, exact Node.js and
+  npm versions, and SHA-256. The canonical pack command resolves the Node and
+  npm executables that launched its npm lifecycle, rejects any toolchain drift,
+  and compares the resulting bytes to that manifest without rewriting it.
+  Reviewed binaries are handed to maintained consumers through a namespaced
+  immutable GitHub Release whose locked asset digest matches the checked
+  manifest; this transport does not authorize npm registry publication.
 
 ### API Contracts
 
@@ -186,11 +203,18 @@ LaTeX as semantic structure and PDF as page and visual authority.
 - [x] An isolated Node 24 consumer can install the deterministic private `0.x`
       tarball and exercise archive inspection, neutral conversion, preview
       identity, prose round trips, and injected PDF extraction.
-- [x] The corrected private release is recorded as
-      `@kirjolab/paper-import@0.1.1`, filename
-      `kirjolab-paper-import-0.1.1.tgz`, SHA-256
-      `c5bc97627d511b5db8380d2412013cc0b25c02de80c1ddfd14950c0d26aa1f07`,
-      packed with Node.js 24.15.0 and npm 11.12.1 without registry publication.
+- [x] The superseded `0.1.1` record now states its actual provenance: the
+      51,907-byte artifact with SHA-256
+      `c5bc97627d511b5db8380d2412013cc0b25c02de80c1ddfd14950c0d26aa1f07`
+      was packed with Node.js 26.7.0 and npm 11.19.0, not its previously claimed
+      Node.js 24.15.0 and npm 11.12.1 toolchain.
+- [x] The corrected `@kirjolab/paper-import@0.1.2` candidate is governed by a
+      checked release manifest, reproduced as the 53,599-byte
+      `kirjolab-paper-import-0.1.2.tgz` with Node.js 24.15.0 and npm 11.12.1,
+      SHA-256
+      `c1f6ce3a57214f770f0342c9d76ce73efffcacaa24a60690f931011819c77864`,
+      and attached to the immutable [`paper-import-v0.1.2` GitHub Release](https://github.com/bebraw/kirjolab/releases/tag/paper-import-v0.1.2)
+      without npm registry publication.
 - [x] Focused unit, coverage, Workers-runtime, and browser tests cover the public
       contracts and reviewed Kirjolab workflow.
 - [x] The full native quality gate completes without a repository dependency-
@@ -210,6 +234,13 @@ LaTeX as semantic structure and PDF as page and visual authority.
   or item markers from files included inside excluded environments never enter
   normalized list-item text or create phantom prose blocks, while the list
   item's exact original source and UTF-16 range remain unchanged.
+- Hidden section commands and includes cannot enter the section inventory,
+  consume visible section ids, mutate the active hierarchy, or split prose.
+  Includes inside outer or nested list items cannot expose raw `\\item` syntax
+  as paragraph text: the child edge is omitted with an exact provenance warning
+  and the parent item's normalized text, complete source, and range remain
+  deterministic. Filtering occurs before visited-path bookkeeping so a later
+  ordinary include can still contribute source-local prose and sections.
 - A backslash introduces a command or environment only when its immediately
   preceding backslash run has even length. Escaped commands remain inert in
   ordinary text, comments, and literal-code environments without shifting
@@ -231,6 +262,10 @@ LaTeX as semantic structure and PDF as page and visual authority.
 - The package-ready `index.ts` remains a Fallow entry point so intentional
   public contracts are not confused with dead internal exports; internal
   modules do not retain unused compatibility re-exports.
+- The canonical pack command never invokes a nested bare `node` or `npm` from
+  ambient `PATH`; it fails unless the lifecycle executables match the release
+  manifest and unless npm's filename, size, and emitted bytes reproduce every
+  checked artifact field.
 
 ### Scenarios
 

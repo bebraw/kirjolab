@@ -1,6 +1,6 @@
 {
   "name": "@kirjolab/paper-import",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "description": "Product-neutral, bounded paper import core for maintained private consumers",
   "license": "MIT",

@@ -36,8 +36,11 @@ source ranges provide the product-neutral integration boundary.
 
 Build the deterministic staging directory with
 `npm run build:paper-import-package`. Create the reviewed tarball with
-`npm run paper-import:pack`. The package remains private and is not intended for
-registry publication.
+`npm run paper-import:pack`. Packing requires the exact Node.js and npm versions
+recorded by the checked release manifest and fails unless the filename, byte
+count, and SHA-256 reproduce that manifest. Reviewed candidates are distributed
+as immutable GitHub Release assets for maintained consumers; the package remains
+private and is not intended for npm registry publication.
 
 ## `0.x` compatibility policy
 

@@ -9,6 +9,8 @@ const paperImportPackageInputs = new Set([
   "LICENSE",
   "tsconfig.paper-import-package.json",
   "scripts/build-paper-import-package.mjs",
+  "scripts/pack-paper-import-package.mjs",
+  "scripts/paper-import-release-manifest.mjs",
   "scripts/paper-import-converter-version.test.mjs",
   "scripts/paper-import-package.test.mjs",
   "scripts/run-typescript-7.mjs",

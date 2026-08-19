@@ -90,6 +90,15 @@ not translate cleanly.
   environment contributes no prose or hidden list markers and does not split
   the parent item's exact envelope. Normalized list-item text likewise omits
   `\\bibliography`, `\\addbibresource`, and `\\bibliographystyle` commands.
+  Section commands and section-bearing includes inside excluded environments
+  are filtered against the same complete-source ranges before inventory and
+  prose traversal, so they cannot change hierarchy or active section context.
+  A visible include inside an outer or nested list item is conservatively
+  omitted at that edge: the include command is removed from normalized parent
+  text, the complete parent source/range remains exact, and a source-ranged
+  `prose-provenance-unavailable` warning explains why child prose and sections
+  were not traversed. The same child may still be traversed at a later ordinary
+  include occurrence.
 - Converted files declare `renderedFormat: "scholarmark-v1"`; consumers must not
   mistake Kirjolab directives for neutral Markdown.
 - Import is explicit and one-way. Reimport creates another project; it does not
@@ -200,6 +209,9 @@ not translate cleanly.
 - Nested non-prose environments, excluded bibliography commands, and prose or
   item markers from files included inside those environments never leak into
   normalized list-item retrieval text or create phantom prose blocks.
+- Section events inside excluded environments never enter the neutral section
+  inventory or alter following prose context. Active orphan `\\item` commands
+  and includes inside lists never become ordinary paragraph retrieval text.
 - Figure provenance retains archive and resolved asset paths, content hash,
   caption, label, source-reference ranges, and resolution diagnostics.
 - Every accepted path is normalized and archive-relative; no include, image,

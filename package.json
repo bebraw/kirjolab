@@ -109,7 +109,7 @@
     "mutation:ci": "node ./scripts/run-ci-mutation.mjs",
     "mutation:incremental": "NODE_OPTIONS=--max-old-space-size=8192 stryker run --incremental --ignoreStatic",
     "mutation:incremental:refresh": "NODE_OPTIONS=--max-old-space-size=8192 node ./scripts/run-mutation-refresh.mjs",
-    "paper-import:pack": "npm run build:paper-import-package && npm pack ./.generated/paper-import-package --pack-destination ./.generated/paper-import-package",
+    "paper-import:pack": "\"$npm_node_execpath\" ./scripts/pack-paper-import-package.mjs",
     "playwright:install": "playwright install chromium",
     "prepare": "node ./scripts/setup-git-hooks.mjs",
     "quality:affected": "node ./scripts/run-affected-guardrails.mjs",

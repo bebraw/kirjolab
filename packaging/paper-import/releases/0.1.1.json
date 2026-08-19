@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "name": "@kirjolab/paper-import",
+  "version": "0.1.1",
+  "filename": "kirjolab-paper-import-0.1.1.tgz",
+  "bytes": 51907,
+  "toolchain": {
+    "node": "26.7.0",
+    "npm": "11.19.0"
+  },
+  "sha256": "c5bc97627d511b5db8380d2412013cc0b25c02de80c1ddfd14950c0d26aa1f07"
+}

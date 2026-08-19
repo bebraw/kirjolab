@@ -196,8 +196,10 @@ failures quickly during normal development.
 - [ ] Native local CI preserves full-gate live output and periodic phase heartbeats.
 - [ ] Optional container parity preserves Agent CI job progress, failure, and retry semantics.
 - [ ] Tooling tests rebuild and pack the private paper-import candidate
-      reproducibly, enforce the reviewed tarball allowlist, and exercise both
-      public exports from an isolated exact-Node-24 consumer.
+      reproducibly, enforce the reviewed tarball allowlist and checked release
+      manifest, reject Node/npm drift without resolving nested tools through
+      ambient `PATH`, and exercise both public exports from an isolated
+      exact-Node-24 consumer.
 - [ ] The isolated paper-import consumer round-trips prose ranges, constructs
       canonical preview identity, and extracts the PDF conformance fixture
       through a consumer-owned injected PDF.js runtime.
@@ -220,6 +222,11 @@ failures quickly during normal development.
   or tarballs, undeclared pack contents, non-ESM output, missing declarations,
   extra exports, parser dependencies beyond `fflate@0.8.3`, or imports outside
   `src/lib/paper-import/`.
+- `npm run paper-import:pack` must launch build and pack operations through the
+  npm lifecycle's explicit Node and npm executables, require the exact versions
+  declared by the current append-only release manifest, and fail when package
+  identity, filename, byte count, toolchain, or SHA-256 differs from that
+  checked manifest.
 - The package gate must verify PDF conformance using an injected consumer-owned
   PDF.js installation; `pdfjs-dist` must not become a package dependency.
 - Affected guardrails must run the isolated package gate when paper-import

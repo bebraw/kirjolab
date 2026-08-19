@@ -1,13 +1,14 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
-import { access, mkdir, mkdtemp, readFile, readdir, realpath, rm, writeFile } from "node:fs/promises";
+import { access, chmod, mkdir, mkdtemp, readFile, readdir, realpath, rm, writeFile } from "node:fs/promises";
 import { constants } from "node:fs";
 import { homedir, tmpdir } from "node:os";
-import { dirname, join, relative, resolve } from "node:path";
+import { delimiter, dirname, join, relative, resolve } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
+import { loadCurrentPaperImportRelease } from "./paper-import-release-manifest.mjs";
 
 const execute = promisify(execFile);
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -55,6 +56,11 @@ const expectedPackedPaths = [
   "package.json",
 ];
 
+test("routes paper-import packing through the canonical release script", async () => {
+  const rootManifest = JSON.parse(await readFile(join(repositoryRoot, "package.json"), "utf8"));
+  assert.equal(rootManifest.scripts?.["paper-import:pack"], '"$npm_node_execpath" ./scripts/pack-paper-import-package.mjs');
+});
+
 test("resolves libc-qualified native canvas package names", () => {
   assert.equal(
     canvasNativePackageName(["canvas", "canvas-linux-x64-gnu", "wasm-runtime"], "linux", "x64"),
@@ -71,23 +77,40 @@ test("resolves libc-qualified native canvas package names", () => {
 test("packs a reproducible private paper-import package for an isolated Node 24 consumer", async () => {
   const temporaryRoot = await mkdtemp(join(tmpdir(), "kirjolab-paper-import-package-"));
   try {
-    const rootManifest = JSON.parse(await readFile(join(repositoryRoot, "package.json"), "utf8"));
-    const nodeExecutable = await findExactNode(rootManifest.engines.node);
+    const { releaseManifest } = await loadCurrentPaperImportRelease();
+    const nodeExecutable = await findExactNode(releaseManifest.toolchain.node);
     const npmEntrypoint = await realpath(join(dirname(nodeExecutable), "npm"));
+    const npmVersion = (await execute(nodeExecutable, [npmEntrypoint, "--version"])).stdout.trim();
+    assert.equal(npmVersion, releaseManifest.toolchain.npm);
     const npmCache = join(temporaryRoot, "npm-cache");
     const firstPackDirectory = join(temporaryRoot, "pack-one");
     const secondPackDirectory = join(temporaryRoot, "pack-two");
     await Promise.all([mkdir(firstPackDirectory), mkdir(secondPackDirectory), mkdir(npmCache)]);
+    const poisonedPath = await createPoisonedToolPath(temporaryRoot);
 
-    await runBuild(nodeExecutable);
+    await runNpm(
+      nodeExecutable,
+      npmEntrypoint,
+      npmCache,
+      ["run", "paper-import:pack", "--", "--pack-destination", firstPackDirectory],
+      repositoryRoot,
+      { PATH: `${poisonedPath}${delimiter}${process.env.PATH ?? ""}` },
+    );
     const firstBuild = await contentSnapshot(stagingRoot);
-    await runBuild(nodeExecutable);
+    await runNpm(
+      nodeExecutable,
+      npmEntrypoint,
+      npmCache,
+      ["run", "paper-import:pack", "--", "--pack-destination", secondPackDirectory],
+      repositoryRoot,
+      { PATH: `${poisonedPath}${delimiter}${process.env.PATH ?? ""}` },
+    );
     const secondBuild = await contentSnapshot(stagingRoot);
     assert.deepEqual(secondBuild, firstBuild, "repeated package builds must emit byte-identical staged contents");
 
     const dryRun = await runNpm(nodeExecutable, npmEntrypoint, npmCache, ["pack", "--ignore-scripts", "--dry-run", "--json", stagingRoot]);
     const dryRunResult = parsePackResult(dryRun.stdout);
-    assert.equal(dryRunResult.id, "@kirjolab/paper-import@0.1.1");
+    assert.equal(dryRunResult.id, `${releaseManifest.name}@${releaseManifest.version}`);
     assert.equal(dryRunResult.entryCount, expectedPackedPaths.length);
     assert.deepEqual(
       dryRunResult.files.map((file) => file.path),
@@ -96,33 +119,12 @@ test("packs a reproducible private paper-import package for an isolated Node 24 
     );
     assert.deepEqual(dryRunResult.bundled, []);
 
-    const firstPack = parsePackResult(
-      (
-        await runNpm(nodeExecutable, npmEntrypoint, npmCache, [
-          "pack",
-          "--ignore-scripts",
-          "--json",
-          "--pack-destination",
-          firstPackDirectory,
-          stagingRoot,
-        ])
-      ).stdout,
-    );
-    const secondPack = parsePackResult(
-      (
-        await runNpm(nodeExecutable, npmEntrypoint, npmCache, [
-          "pack",
-          "--ignore-scripts",
-          "--json",
-          "--pack-destination",
-          secondPackDirectory,
-          stagingRoot,
-        ])
-      ).stdout,
-    );
-    const firstTarball = join(firstPackDirectory, firstPack.filename);
-    const secondTarball = join(secondPackDirectory, secondPack.filename);
-    assert.deepEqual(await readFile(secondTarball), await readFile(firstTarball), "repeated npm packs must be byte-identical");
+    const firstTarball = join(firstPackDirectory, releaseManifest.filename);
+    const secondTarball = join(secondPackDirectory, releaseManifest.filename);
+    const firstTarballBytes = await readFile(firstTarball);
+    assert.equal(firstTarballBytes.byteLength, releaseManifest.bytes);
+    assert.equal(createHash("sha256").update(firstTarballBytes).digest("hex"), releaseManifest.sha256);
+    assert.deepEqual(await readFile(secondTarball), firstTarballBytes, "repeated npm packs must be byte-identical");
 
     await verifyIsolatedConsumer({
       nodeExecutable,
@@ -249,13 +251,19 @@ async function findExactNode(version) {
   throw new Error(`Node ${version} is required for the isolated paper-import consumer test`);
 }
 
-async function runBuild(nodeExecutable) {
-  await execute(nodeExecutable, ["./scripts/build-paper-import-package.mjs"], { cwd: repositoryRoot });
+async function createPoisonedToolPath(root) {
+  const path = join(root, "poisoned-path");
+  await mkdir(path);
+  const shim = "#!/bin/sh\necho 'bare PATH tool resolution is forbidden during paper-import packing' >&2\nexit 97\n";
+  await Promise.all([writeFile(join(path, "node"), shim), writeFile(join(path, "npm"), shim)]);
+  await Promise.all([chmod(join(path, "node"), 0o755), chmod(join(path, "npm"), 0o755)]);
+  return path;
 }
 
-async function runNpm(nodeExecutable, npmEntrypoint, npmCache, arguments_, cwd = repositoryRoot) {
-  return execute(nodeExecutable, [npmEntrypoint, ...arguments_, "--cache", npmCache], {
+async function runNpm(nodeExecutable, npmEntrypoint, npmCache, arguments_, cwd = repositoryRoot, environment = {}) {
+  return execute(nodeExecutable, [npmEntrypoint, ...arguments_], {
     cwd,
+    env: { ...process.env, ...environment, npm_config_cache: npmCache },
     maxBuffer: 20 * 1024 * 1024,
   });
 }
@@ -327,7 +335,15 @@ assert.equal(paperImport.digestLatexPreviewIdentity(identity), fixture.expected.
 const proseFixture = createProseBlocksConformanceFixtureV2();
 const proseInspection = await paperImport.inspectLatexArchive(proseFixture.archive);
 const proseConversion = paperImport.convertLatexProject(proseInspection, proseFixture.selection);
+assert.deepEqual(
+  proseConversion.sections.map(({ id, parentId, level, title, source, range }) => ({ id, parentId, level, title, source, range })),
+  proseFixture.expected.sections,
+);
 assert.deepEqual(proseConversion.proseBlocks, proseFixture.expected.blocks);
+assert.deepEqual(
+  proseConversion.diagnostics.filter(({ code }) => code === "prose-provenance-unavailable"),
+  proseFixture.expected.provenanceDiagnostics,
+);
 assert.deepEqual(
   {
     figures: proseConversion.figures.map(({ requestedPath, archivePath, caption }) => ({
@@ -341,10 +357,10 @@ assert.deepEqual(
   },
   proseFixture.expected.excludedEnvironmentInventories,
 );
-for (const block of proseConversion.proseBlocks) {
-  const original = proseFixture.sourceByPath[block.range.path];
+for (const item of [...proseConversion.sections, ...proseConversion.proseBlocks]) {
+  const original = proseFixture.sourceByPath[item.range.path];
   assert.equal(typeof original, "string");
-  assert.equal(original.slice(block.range.start, block.range.end), block.source);
+  assert.equal(original.slice(item.range.start, item.range.end), item.source);
 }
 
 const pdfFixture = corpus.pdf.twoPageNativeText;
