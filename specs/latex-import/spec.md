@@ -85,7 +85,11 @@ not translate cleanly.
   preserve every visible outer and inner item in rendered order. Nested figure,
   table, code, and math environments are omitted from list-item retrieval text
   without changing the item's exact source or range or its dedicated semantic
-  inventories.
+  inventories. Include commands are classified against complete-source
+  excluded ranges before prose traversal, so a file included inside an excluded
+  environment contributes no prose or hidden list markers and does not split
+  the parent item's exact envelope. Normalized list-item text likewise omits
+  `\\bibliography`, `\\addbibresource`, and `\\bibliographystyle` commands.
 - Converted files declare `renderedFormat: "scholarmark-v1"`; consumers must not
   mistake Kirjolab directives for neutral Markdown.
 - Import is explicit and one-way. Reimport creates another project; it does not
@@ -193,8 +197,9 @@ not translate cleanly.
 - Every retained prose block and figure source range round-trips through the
   original decoded file; prose ids, ordering, and section relationships are
   deterministic and locale-independent.
-- Nested non-prose environments and their internal item markers never leak into
-  normalized list-item retrieval text.
+- Nested non-prose environments, excluded bibliography commands, and prose or
+  item markers from files included inside those environments never leak into
+  normalized list-item retrieval text or create phantom prose blocks.
 - Figure provenance retains archive and resolved asset paths, content hash,
   caption, label, source-reference ranges, and resolution diagnostics.
 - Every accepted path is normalized and archive-relative; no include, image,

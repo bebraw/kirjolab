@@ -25,8 +25,8 @@ await validateEmittedPackage();
 
 async function validatePackageMetadata() {
   const manifest = JSON.parse(await readFile(join(metadataRoot, "package.json"), "utf8"));
-  if (manifest.name !== "@kirjolab/paper-import" || manifest.version !== "0.1.0" || manifest.private !== true) {
-    throw new Error("Paper-import package identity must remain private @kirjolab/paper-import@0.1.0");
+  if (manifest.name !== "@kirjolab/paper-import" || manifest.version !== "0.1.1" || manifest.private !== true) {
+    throw new Error("Paper-import package identity must remain private @kirjolab/paper-import@0.1.1");
   }
   if (manifest.type !== "module" || manifest.engines?.node !== "24.15.0") {
     throw new Error("Paper-import package must remain ESM on the pinned Node 24.15.0 runtime");

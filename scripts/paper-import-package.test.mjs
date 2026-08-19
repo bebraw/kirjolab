@@ -87,7 +87,7 @@ test("packs a reproducible private paper-import package for an isolated Node 24 
 
     const dryRun = await runNpm(nodeExecutable, npmEntrypoint, npmCache, ["pack", "--ignore-scripts", "--dry-run", "--json", stagingRoot]);
     const dryRunResult = parsePackResult(dryRun.stdout);
-    assert.equal(dryRunResult.id, "@kirjolab/paper-import@0.1.0");
+    assert.equal(dryRunResult.id, "@kirjolab/paper-import@0.1.1");
     assert.equal(dryRunResult.entryCount, expectedPackedPaths.length);
     assert.deepEqual(
       dryRunResult.files.map((file) => file.path),
@@ -298,6 +298,7 @@ const runtimeConsumerSource = `import assert from "node:assert/strict";
 import * as paperImport from "@kirjolab/paper-import";
 import {
   createPaperImportConformanceCorpusV2,
+  createProseBlocksConformanceFixtureV2,
   createReviewedLatexConformanceFixtureV2,
 } from "@kirjolab/paper-import/conformance";
 import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";
@@ -322,6 +323,29 @@ const identity = paperImport.createLatexPreviewIdentity({
 });
 assert.deepEqual(identity.options, conversion.options);
 assert.equal(paperImport.digestLatexPreviewIdentity(identity), fixture.expected.identity.previewDigest);
+
+const proseFixture = createProseBlocksConformanceFixtureV2();
+const proseInspection = await paperImport.inspectLatexArchive(proseFixture.archive);
+const proseConversion = paperImport.convertLatexProject(proseInspection, proseFixture.selection);
+assert.deepEqual(proseConversion.proseBlocks, proseFixture.expected.blocks);
+assert.deepEqual(
+  {
+    figures: proseConversion.figures.map(({ requestedPath, archivePath, caption }) => ({
+      requestedPath,
+      archivePath,
+      caption: caption?.value,
+    })),
+    tables: proseConversion.tables.map(({ environment }) => environment),
+    codeBlocks: proseConversion.codeBlocks.map(({ environment, value }) => ({ environment, value })),
+    equations: proseConversion.equations.map(({ value }) => value),
+  },
+  proseFixture.expected.excludedEnvironmentInventories,
+);
+for (const block of proseConversion.proseBlocks) {
+  const original = proseFixture.sourceByPath[block.range.path];
+  assert.equal(typeof original, "string");
+  assert.equal(original.slice(block.range.start, block.range.end), block.source);
+}
 
 const pdfFixture = corpus.pdf.twoPageNativeText;
 const standardFontDataUrl = new URL("./node_modules/pdfjs-dist/standard_fonts/", import.meta.url).href;
