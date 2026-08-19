@@ -90,12 +90,16 @@ not translate cleanly.
   environment contributes no prose or hidden list markers and does not split
   the parent item's exact envelope. Normalized list-item text likewise omits
   `\\bibliography`, `\\addbibresource`, and `\\bibliographystyle` commands.
-  Section commands and section-bearing includes inside excluded environments
-  are filtered against the same complete-source ranges before inventory and
-  prose traversal, so they cannot change hierarchy or active section context.
-  A visible include inside an outer or nested list item is conservatively
-  omitted at that edge: the include command is removed from normalized parent
-  text, the complete parent source/range remains exact, and a source-ranged
+  Section commands and section-bearing includes are filtered against complete-
+  source excluded-environment, recognized-list, and authored-command-argument
+  ranges before inventory and prose traversal, so contained structure cannot
+  change hierarchy or active section context. Every supported section level and
+  starred form inside an outer or nested list is omitted from normalized item
+  text with an exact warning while the complete item source/range remains
+  unchanged. Includes inside a list or another command's required or optional
+  argument are conservatively omitted at that edge and masked before paragraph
+  splitting. Parent prose stays one coherent source-local block, dedicated
+  footnote and caption inventories remain intact, and a source-ranged
   `prose-provenance-unavailable` warning explains why child prose and sections
   were not traversed. The same child may still be traversed at a later ordinary
   include occurrence.
@@ -212,6 +216,11 @@ not translate cleanly.
 - Section events inside excluded environments never enter the neutral section
   inventory or alter following prose context. Active orphan `\\item` commands
   and includes inside lists never become ordinary paragraph retrieval text.
+- Section commands inside outer or nested lists never split a retained item or
+  enter the global hierarchy. Includes inside required or optional command
+  arguments never fragment parent prose, expose child sections or list markers,
+  or consume a later ordinary include; every unsupported contained command has
+  an exact original-file warning range.
 - Figure provenance retains archive and resolved asset paths, content hash,
   caption, label, source-reference ranges, and resolution diagnostics.
 - Every accepted path is normalized and archive-relative; no include, image,

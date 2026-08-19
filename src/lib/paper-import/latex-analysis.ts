@@ -236,6 +236,19 @@ function visitProseSource(state: ProseInventoryState, path: string): void {
   const window = sourceWindow(path, state.rootPath, source, semantic);
   const excludedEnvironments = proseExcludedEnvironmentOccurrences(source, semantic, window);
   const listEnvironments = proseListEnvironmentOccurrences(source, semantic, window);
+  const commandArguments = authoredCommandArgumentOccurrences(semantic, window);
+  const sectionCommands = commandOccurrences(source, semantic, window, sectionNames);
+  const listSections = sectionCommands.filter(
+    (command) =>
+      !occurrenceContainsAny(excludedEnvironments, command.start, command.end) &&
+      occurrenceContainsAny(listEnvironments, command.start, command.end),
+  );
+  const commandSections = sectionCommands.filter(
+    (command) =>
+      !occurrenceContainsAny(excludedEnvironments, command.start, command.end) &&
+      !occurrenceContainsAny(listEnvironments, command.start, command.end) &&
+      indexedOccurrenceContains(commandArguments, command.start, command.end),
+  );
   const reachableIncludes = (state.includesBySource.get(path) ?? []).filter((reference) =>
     isReachableInclude(reference, path, window, state.reachable),
   );
@@ -245,28 +258,63 @@ function visitProseSource(state: ProseInventoryState, path: string): void {
   const listIncludes = visibleIncludes
     .filter((reference) => occurrenceContainsAny(listEnvironments, reference.from, reference.to))
     .sort((left, right) => left.from - right.from || left.to - right.to);
-  const listIncludeOccurrences = listIncludes.map(({ from: start, to: end }) => ({ start, end }));
-  for (const reference of listIncludes) {
+  const commandIncludes = visibleIncludes
+    .filter((reference) => !occurrenceContainsAny(listEnvironments, reference.from, reference.to))
+    .filter((reference) => indexedOccurrenceContains(commandArguments, reference.from, reference.to))
+    .sort((left, right) => left.from - right.from || left.to - right.to);
+  const listOmissions = [
+    ...listIncludes.map(({ from: start, to: end }) => ({ start, end })),
+    ...listSections.map(({ start, end }) => ({ start, end })),
+  ].sort((left, right) => left.start - right.start || left.end - right.end);
+  const inlineOmissions = [
+    ...commandIncludes.map(({ from: start, to: end }) => ({ start, end })),
+    ...commandSections.map(({ start, end }) => ({ start, end })),
+  ].sort((left, right) => left.start - right.start || left.end - right.end);
+  const unsupportedStructures = [
+    ...listSections.map((command) => ({
+      start: command.start,
+      end: command.end,
+      message: "Section heading was omitted because structural sections inside list items are not supported",
+    })),
+    ...commandSections.map((command) => ({
+      start: command.start,
+      end: command.end,
+      message: "Section heading was omitted because structural sections inside command arguments are not supported",
+    })),
+    ...listIncludes.map((reference) => ({
+      start: reference.from,
+      end: reference.to,
+      message: "Included prose was omitted because a cross-file list-item relationship cannot retain exact provenance",
+    })),
+    ...commandIncludes.map((reference) => ({
+      start: reference.from,
+      end: reference.to,
+      message: "Included prose was omitted because includes inside command arguments do not have source-local provenance",
+    })),
+  ].sort((left, right) => left.start - right.start || left.end - right.end);
+  for (const omission of unsupportedStructures) {
     state.diagnostics.push({
       code: "prose-provenance-unavailable",
       severity: "warning",
-      message: "Included prose was omitted because a cross-file list-item relationship cannot retain exact provenance",
+      message: omission.message,
       sourcePath: path,
-      range: range(path, reference.from, reference.to),
+      range: range(path, omission.start, omission.end),
     });
   }
+  const proseSemantic = maskSourceOccurrences(semantic, outermostOccurrences([...listOmissions, ...inlineOmissions]));
   const events: ProseStructureEvent[] = [
     ...(state.sectionsByPath.get(path) ?? [])
       .filter((section) => !occurrenceContainsAny(excludedEnvironments, section.range.start, section.range.end))
       .map((section) => ({ kind: "section" as const, position: section.range.start, section })),
     ...visibleIncludes
       .filter((reference) => !occurrenceContainsAny(listEnvironments, reference.from, reference.to))
+      .filter((reference) => !indexedOccurrenceContains(commandArguments, reference.from, reference.to))
       .map((reference) => ({ kind: "include" as const, position: reference.from, reference })),
   ].sort((left, right) => left.position - right.position || (left.kind === "section" ? -1 : 1));
 
   let cursor = window.start;
   for (const event of events) {
-    appendProseBlocks(state, path, source, semantic, cursor, event.position, listIncludeOccurrences);
+    appendProseBlocks(state, path, source, proseSemantic, cursor, event.position, listOmissions);
     if (event.kind === "section") {
       state.sectionId = event.section.id;
       cursor = event.section.range.end;
@@ -276,7 +324,7 @@ function visitProseSource(state: ProseInventoryState, path: string): void {
       cursor = event.reference.to;
     }
   }
-  appendProseBlocks(state, path, source, semantic, cursor, window.end, listIncludeOccurrences);
+  appendProseBlocks(state, path, source, proseSemantic, cursor, window.end, listOmissions);
 }
 
 const proseListEnvironments = ["itemize", "enumerate"] as const;
@@ -324,7 +372,7 @@ function appendProseBlocks(
   semantic: string,
   start: number,
   end: number,
-  listIncludeOccurrences: readonly SourceOccurrence[],
+  listOmissions: readonly SourceOccurrence[],
 ): void {
   const windowSource = source.slice(start, end);
   const windowSemantic = semantic.slice(start, end);
@@ -342,7 +390,7 @@ function appendProseBlocks(
   const excludedOccurrences = [
     ...excludedEnvironments,
     ...excludedCommands,
-    ...listIncludeOccurrences.filter((occurrence) => occurrenceOverlaps(occurrence, start, end)),
+    ...listOmissions.filter((occurrence) => occurrenceOverlaps(occurrence, start, end)),
   ];
   const events: ProseContentEvent[] = [
     ...lists.map((occurrence) => ({ kind: "list" as const, position: occurrence.start, occurrence })),
@@ -542,6 +590,31 @@ function occurrenceContainsAny(occurrences: readonly SourceOccurrence[], start: 
   return occurrences.some((occurrence) => occurrenceContains(occurrence, start, end));
 }
 
+function indexedOccurrenceContains(occurrences: readonly SourceOccurrence[], start: number, end: number): boolean {
+  const candidate = lastOccurrenceStartingAtOrBefore(occurrences, start);
+  return candidate !== undefined && occurrenceContains(candidate, start, end);
+}
+
+function lastOccurrenceStartingAtOrBefore<Occurrence extends SourceOccurrence>(
+  occurrences: readonly Occurrence[],
+  start: number,
+): Occurrence | undefined {
+  let low = 0;
+  let high = occurrences.length - 1;
+  let candidate: Occurrence | undefined;
+  while (low <= high) {
+    const middle = Math.floor((low + high) / 2);
+    const occurrence = occurrences[middle]!;
+    if (occurrence.start <= start) {
+      candidate = occurrence;
+      low = middle + 1;
+    } else {
+      high = middle - 1;
+    }
+  }
+  return candidate;
+}
+
 function sourceWithoutOccurrences(source: string, start: number, end: number, occurrences: readonly SourceOccurrence[]): string {
   const parts: string[] = [];
   let cursor = start;
@@ -555,6 +628,17 @@ function sourceWithoutOccurrences(source: string, start: number, end: number, oc
     cursor = Math.min(occurrence.end, end);
   }
   parts.push(source.slice(cursor, end));
+  return parts.join("");
+}
+
+function maskSourceOccurrences(source: string, occurrences: readonly SourceOccurrence[]): string {
+  const parts: string[] = [];
+  let cursor = 0;
+  for (const occurrence of occurrences) {
+    parts.push(source.slice(cursor, occurrence.start), " ".repeat(occurrence.end - occurrence.start));
+    cursor = occurrence.end;
+  }
+  parts.push(source.slice(cursor));
   return parts.join("");
 }
 
@@ -753,19 +837,7 @@ function figureResolutionDiagnostics(
 }
 
 function enclosingOccurrence(occurrences: readonly EnvironmentOccurrence[], start: number, end: number): EnvironmentOccurrence | undefined {
-  let low = 0;
-  let high = occurrences.length - 1;
-  let candidate: EnvironmentOccurrence | undefined;
-  while (low <= high) {
-    const middle = Math.floor((low + high) / 2);
-    const occurrence = occurrences[middle]!;
-    if (occurrence.start <= start) {
-      candidate = occurrence;
-      low = middle + 1;
-    } else {
-      high = middle - 1;
-    }
-  }
+  const candidate = lastOccurrenceStartingAtOrBefore(occurrences, start);
   return candidate && candidate.end >= end ? candidate : undefined;
 }
 
@@ -916,8 +988,11 @@ function visitSectionSource(state: SectionInventoryState, path: string): void {
 function sectionEvents(state: SectionInventoryState, context: SectionSourceContext): SectionEvent[] {
   const excludedEnvironments = proseExcludedEnvironmentOccurrences(context.source, context.semantic, context.window);
   const listEnvironments = proseListEnvironmentOccurrences(context.source, context.semantic, context.window);
+  const commandArguments = authoredCommandArgumentOccurrences(context.semantic, context.window);
   const sections: SectionEvent[] = commandOccurrences(context.source, context.semantic, context.window, sectionNames)
     .filter((command) => !occurrenceContainsAny(excludedEnvironments, command.start, command.end))
+    .filter((command) => !occurrenceContainsAny(listEnvironments, command.start, command.end))
+    .filter((command) => !indexedOccurrenceContains(commandArguments, command.start, command.end))
     .map((command, localIndex) => ({
       kind: "section",
       position: command.start,
@@ -928,6 +1003,7 @@ function sectionEvents(state: SectionInventoryState, context: SectionSourceConte
     .filter((reference) => isReachableInclude(reference, context.path, context.window, state.reachable))
     .filter((reference) => !occurrenceContainsAny(excludedEnvironments, reference.from, reference.to))
     .filter((reference) => !occurrenceContainsAny(listEnvironments, reference.from, reference.to))
+    .filter((reference) => !indexedOccurrenceContains(commandArguments, reference.from, reference.to))
     .map((reference) => ({ kind: "include", position: reference.from, reference }));
   return [...sections, ...includes].sort((left, right) => left.position - right.position || (left.kind === "section" ? -1 : 1));
 }
@@ -1188,15 +1264,88 @@ function environmentValues(source: string, semantic: string, path: string, windo
   }));
 }
 
+function authoredCommandArgumentOccurrences(source: string, window: SourceWindow): readonly SourceOccurrence[] {
+  const pattern = /\\[A-Za-z@]+/gu;
+  pattern.lastIndex = window.start;
+  const groupEnds = authoredDelimiterEnds(source, window);
+  const occurrences: SourceOccurrence[] = [];
+  while (true) {
+    const match = nextActiveLatexMatch(pattern, source);
+    if (!match || match.index >= window.end) break;
+    let cursor = match.index + match[0].length;
+    if (source[cursor] === "*") cursor += 1;
+    cursor = skipWhitespace(source, cursor, window.end);
+    while (source[cursor] === "[" || source[cursor] === "{") {
+      const close = groupEnds.get(cursor);
+      if (close === undefined) {
+        occurrences.push({ start: cursor + 1, end: window.end });
+        break;
+      }
+      occurrences.push({ start: cursor + 1, end: close });
+      cursor = skipWhitespace(source, close + 1, window.end);
+    }
+  }
+  return outermostOccurrences(occurrences);
+}
+
+function authoredDelimiterEnds(source: string, window: SourceWindow): ReadonlyMap<number, number> {
+  const state: AuthoredDelimiterState = {
+    groupEnds: new Map<number, number>(),
+    braceOpens: [],
+    bracketOpensByBraceDepth: [],
+  };
+  for (let index = window.start; index < window.end; index += 1) {
+    if (source[index] === "\\") {
+      index += 1;
+      continue;
+    }
+    recordAuthoredDelimiter(state, source[index], index);
+  }
+  return state.groupEnds;
+}
+
+interface AuthoredDelimiterState {
+  readonly groupEnds: Map<number, number>;
+  readonly braceOpens: number[];
+  readonly bracketOpensByBraceDepth: number[][];
+}
+
+function recordAuthoredDelimiter(state: AuthoredDelimiterState, character: string | undefined, index: number): void {
+  const depth = state.braceOpens.length;
+  switch (character) {
+    case "{":
+      state.braceOpens.push(index);
+      break;
+    case "}": {
+      const matchedOpen = state.braceOpens.pop();
+      if (matchedOpen !== undefined) state.groupEnds.set(matchedOpen, index);
+      state.bracketOpensByBraceDepth.length = state.braceOpens.length + 1;
+      break;
+    }
+    case "[": {
+      const openings = state.bracketOpensByBraceDepth[depth];
+      if (openings) openings.push(index);
+      else state.bracketOpensByBraceDepth[depth] = [index];
+      break;
+    }
+    case "]": {
+      for (const open of state.bracketOpensByBraceDepth[depth] ?? []) state.groupEnds.set(open, index);
+      state.bracketOpensByBraceDepth[depth] = [];
+      break;
+    }
+  }
+}
+
 function commandOccurrences(source: string, active: string, window: SourceWindow, names: readonly string[]): CommandOccurrence[] {
   const escaped = names.map((name) => name.replaceAll(/[.*+?^${}()|[\]\\]/gu, "\\$&")).join("|");
   const pattern = new RegExp(`\\\\(${escaped})(?![A-Za-z])`, "gu");
   pattern.lastIndex = window.start;
+  const groupEnds = authoredDelimiterEnds(active, window);
   const occurrences: CommandOccurrence[] = [];
   while (true) {
     const match = nextActiveLatexMatch(pattern, active);
     if (!match || match.index >= window.end) break;
-    const result = commandOccurrenceAt(source, active, match, window.end);
+    const result = commandOccurrenceAt(source, active, match, window.end, groupEnds);
     if (result.kind === "stop") break;
     if (result.kind === "skip") {
       pattern.lastIndex = Math.max(pattern.lastIndex, result.next);
@@ -1213,13 +1362,19 @@ type CommandOccurrenceResult =
   | { readonly kind: "skip"; readonly next: number }
   | { readonly kind: "stop" };
 
-function commandOccurrenceAt(source: string, active: string, match: RegExpExecArray, windowEnd: number): CommandOccurrenceResult {
+function commandOccurrenceAt(
+  source: string,
+  active: string,
+  match: RegExpExecArray,
+  windowEnd: number,
+  groupEnds: ReadonlyMap<number, number>,
+): CommandOccurrenceResult {
   const matchEnd = match.index + match[0].length;
-  const argument = commandArgument(active, matchEnd + (active[matchEnd] === "*" ? 1 : 0), windowEnd);
+  const argument = commandArgument(active, matchEnd + (active[matchEnd] === "*" ? 1 : 0), windowEnd, groupEnds);
   if (argument.kind === "malformed") return { kind: "stop" };
   if (argument.kind === "absent") return { kind: "skip", next: argument.next };
-  const close = matchingDelimiter(active, argument.open, "{", "}");
-  if (close < 0 || close >= windowEnd) return { kind: "stop" };
+  const close = groupEnds.get(argument.open);
+  if (close === undefined || close >= windowEnd) return { kind: "stop" };
   return {
     kind: "found",
     occurrence: {
@@ -1282,11 +1437,11 @@ function matchingEnvironmentEnd(source: string, escapedEnvironment: string, star
 type CommandArgument =
   { readonly kind: "open"; readonly open: number } | { readonly kind: "absent"; readonly next: number } | { readonly kind: "malformed" };
 
-function commandArgument(source: string, from: number, end: number): CommandArgument {
+function commandArgument(source: string, from: number, end: number, groupEnds: ReadonlyMap<number, number>): CommandArgument {
   let cursor = skipWhitespace(source, from, end);
   while (source[cursor] === "[") {
-    const close = source.indexOf("]", cursor + 1);
-    if (close < 0 || close >= end) return { kind: "malformed" };
+    const close = groupEnds.get(cursor);
+    if (close === undefined || close >= end) return { kind: "malformed" };
     cursor = skipWhitespace(source, close + 1, end);
   }
   return source[cursor] === "{" ? { kind: "open", open: cursor } : { kind: "absent", next: cursor };
@@ -1300,20 +1455,6 @@ function skipWhitespace(source: string, from: number, end: number): number {
 
 function sourceWindow(path: string, rootPath: string, source: string, semantic: string): SourceWindow {
   return path === rootPath ? latexDocumentWindow(source, semantic) : { start: 0, end: source.length };
-}
-
-function matchingDelimiter(source: string, open: number, opening: string, closing: string): number {
-  let depth = 0;
-  for (let index = open; index < source.length; index += 1) {
-    if (source[index] === "\\") {
-      index += 1;
-      continue;
-    }
-    if (source[index] === opening) depth += 1;
-    else if (source[index] === closing) depth -= 1;
-    if (depth === 0) return index;
-  }
-  return -1;
 }
 
 function range(path: string, start: number, end: number): PaperSourceRange {

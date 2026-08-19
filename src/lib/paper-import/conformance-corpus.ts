@@ -13,7 +13,7 @@ const reviewedExpected = {
     selectedRoot: null,
     convertedFilePaths: ["main.md", "sections/results.md"],
     schemaVersion: 2,
-    converterVersion: "latex-converter-v5",
+    converterVersion: "latex-converter-v6",
     rootPath: "main.tex",
     bibliographyPath: "refs.bib",
     assets: [{ path: "figures/plot.png", mediaType: "image/png" }],
@@ -69,8 +69,8 @@ const reviewedExpected = {
   },
   identity: {
     archiveManifestSha256: "3133fface09acacdbf72e57227870b6827c128d111a9a6494f0eb5b42e499014",
-    conversionManifestSha256: "59db79525d26efedd4fee16ccad1e9567ec2e6ac1d958a03098d1da0956491fe",
-    previewDigest: "e14ddf47ba339082d72c843bd22684b4294a5527ebd950ccb876fe6584f2be84",
+    conversionManifestSha256: "9c2ee8549d31d8eaed2ba0b3d2ab30f0579d105a054142c68f2998c5dbd14675",
+    previewDigest: "33e6a07bb5b519375646aece00c6ebe7124a6afffc99c1647d0bed6dfc448434",
   },
   ranges: [
     { path: "main.tex", start: 25, end: 50, source: "\\title{Ångström 😀 study}" },
@@ -438,6 +438,172 @@ export interface ProseBlocksConformanceFixtureV2 {
   readonly expected: typeof proseBlocksExpected;
 }
 
+const structuralContainmentExpected = {
+  archiveSha256: "f704fc5025b9c1e74e2495db677de0528ae349222d805ffd65cdcfabc53595a1",
+  sections: [
+    {
+      id: "main.tex#section-1",
+      parentId: null,
+      level: 1,
+      title: "Visible",
+      source: "\\section{Visible}",
+      range: { path: "main.tex", start: 43, end: 60, unit: "utf16-code-unit" },
+    },
+    {
+      id: "main.tex#section-2",
+      parentId: null,
+      level: 1,
+      title: "Ordinary child",
+      source: "\\section[Short {😀 \\include{child}}]{Ordinary child}",
+      range: { path: "main.tex", start: 374, end: 426, unit: "utf16-code-unit" },
+    },
+    {
+      id: "child.tex#section-1",
+      parentId: "main.tex#section-2",
+      level: 2,
+      title: "Child section",
+      source: "\\subsection{Child section}",
+      range: { path: "child.tex", start: 15, end: 41, unit: "utf16-code-unit" },
+    },
+    {
+      id: "main.tex#section-3",
+      parentId: null,
+      level: 1,
+      title: "Tail",
+      source: "\\section{Tail}",
+      range: { path: "main.tex", start: 472, end: 486, unit: "utf16-code-unit" },
+    },
+  ],
+  blocks: [
+    {
+      id: "main.tex#prose-1",
+      kind: "list-item",
+      sectionId: "main.tex#section-1",
+      text: "Outer 😀 before. Outer after. Outer tail.",
+      source:
+        "\\item Outer 😀 before.\r\n" +
+        "\\paragraph*{Outer heading Ω}\r\n" +
+        "Outer after.\r\n" +
+        "\\begin{enumerate}\r\n" +
+        "\\item Nested before.\r\n" +
+        "\\subsection[Nested short {brace}]{Nested heading}\r\n" +
+        "Nested after.\r\n" +
+        "\\end{enumerate}\r\n" +
+        "Outer tail.",
+      range: { path: "main.tex", start: 79, end: 282, unit: "utf16-code-unit" },
+    },
+    {
+      id: "main.tex#prose-2",
+      kind: "list-item",
+      sectionId: "main.tex#section-1",
+      text: "Nested before. Nested after.",
+      source: "\\item Nested before.\r\n" + "\\subsection[Nested short {brace}]{Nested heading}\r\n" + "Nested after.",
+      range: { path: "main.tex", start: 166, end: 252, unit: "utf16-code-unit" },
+    },
+    {
+      id: "main.tex#prose-3",
+      kind: "paragraph",
+      sectionId: "main.tex#section-1",
+      text: "Lead note. \\footnote{Before {nested Ω} after.} Tail note.",
+      source: "Lead note.\r\n\\footnote{Before {nested Ω} \\input{child} after.}\r\nTail note.",
+      range: { path: "main.tex", start: 299, end: 372, unit: "utf16-code-unit" },
+    },
+    {
+      id: "main.tex#prose-4",
+      kind: "paragraph",
+      sectionId: "main.tex#section-2",
+      text: "Before top-level include.",
+      source: "Before top-level include.",
+      range: { path: "main.tex", start: 428, end: 453, unit: "utf16-code-unit" },
+    },
+    {
+      id: "child.tex#prose-1",
+      kind: "paragraph",
+      sectionId: "main.tex#section-2",
+      text: "Child lead.",
+      source: "Child lead.",
+      range: { path: "child.tex", start: 0, end: 11, unit: "utf16-code-unit" },
+    },
+    {
+      id: "child.tex#prose-2",
+      kind: "paragraph",
+      sectionId: "child.tex#section-1",
+      text: "Child prose.",
+      source: "Child prose.",
+      range: { path: "child.tex", start: 43, end: 55, unit: "utf16-code-unit" },
+    },
+    {
+      id: "child.tex#prose-3",
+      kind: "list-item",
+      sectionId: "child.tex#section-1",
+      text: "Child item.",
+      source: "\\item Child item.",
+      range: { path: "child.tex", start: 99, end: 116, unit: "utf16-code-unit" },
+    },
+    {
+      id: "main.tex#prose-5",
+      kind: "paragraph",
+      sectionId: "main.tex#section-3",
+      text: "Tail prose.",
+      source: "Tail prose.",
+      range: { path: "main.tex", start: 488, end: 499, unit: "utf16-code-unit" },
+    },
+  ],
+  footnotes: [
+    {
+      value: "Before {nested Ω} \\input{child} after.",
+      source: "\\footnote{Before {nested Ω} \\input{child} after.}",
+      range: { path: "main.tex", start: 311, end: 360, unit: "utf16-code-unit" },
+    },
+  ],
+  provenanceDiagnostics: [
+    {
+      code: "prose-provenance-unavailable",
+      severity: "warning",
+      message: "Section heading was omitted because structural sections inside list items are not supported",
+      sourcePath: "main.tex",
+      range: { path: "main.tex", start: 103, end: 131, unit: "utf16-code-unit" },
+    },
+    {
+      code: "prose-provenance-unavailable",
+      severity: "warning",
+      message: "Section heading was omitted because structural sections inside list items are not supported",
+      sourcePath: "main.tex",
+      range: { path: "main.tex", start: 188, end: 237, unit: "utf16-code-unit" },
+    },
+    {
+      code: "prose-provenance-unavailable",
+      severity: "warning",
+      message: "Included prose was omitted because includes inside command arguments do not have source-local provenance",
+      sourcePath: "main.tex",
+      range: { path: "main.tex", start: 339, end: 352, unit: "utf16-code-unit" },
+    },
+    {
+      code: "prose-provenance-unavailable",
+      severity: "warning",
+      message: "Included prose was omitted because includes inside command arguments do not have source-local provenance",
+      sourcePath: "main.tex",
+      range: { path: "main.tex", start: 393, end: 408, unit: "utf16-code-unit" },
+    },
+    {
+      code: "prose-provenance-unavailable",
+      severity: "warning",
+      message: "Ordinary prose was omitted because an item command occurred outside a recognized list",
+      sourcePath: "child.tex",
+      range: { path: "child.tex", start: 59, end: 64, unit: "utf16-code-unit" },
+    },
+  ],
+} as const;
+
+export interface StructuralContainmentConformanceFixtureV2 {
+  readonly schemaVersion: typeof paperImportConformanceCorpusVersion;
+  readonly id: "latex-structural-containment-v1";
+  readonly archive: Uint8Array;
+  readonly sourceByPath: Readonly<Record<"child.tex" | "main.tex", string>>;
+  readonly selection: { readonly rootPath: "main.tex" };
+  readonly expected: typeof structuralContainmentExpected;
+}
+
 export type LatexArchiveFailureConformanceIdV2 =
   | "empty-archive"
   | "malformed-archive"
@@ -500,6 +666,7 @@ export interface PaperImportConformanceCorpusV2 {
     readonly ambiguousFigure: AmbiguousFigureConformanceFixtureV2;
     readonly escapedCommands: EscapedCommandsConformanceFixtureV2;
     readonly proseBlocks: ProseBlocksConformanceFixtureV2;
+    readonly structuralContainment: StructuralContainmentConformanceFixtureV2;
     readonly archiveFailures: readonly LatexArchiveFailureConformanceFixtureV2[];
   };
   readonly pdf: { readonly twoPageNativeText: TwoPagePdfConformanceFixtureV2 };
@@ -603,6 +770,38 @@ const proseBlocksHiddenSource =
   "\\item Visible child list item.\r\n" +
   "\\end{itemize}\r\n";
 const proseBlocksBibliographySource = "@misc{refs, title={Fixture reference}}\r\n";
+const structuralContainmentMainSource =
+  "\\documentclass{article}\r\n" +
+  "\\begin{document}\r\n" +
+  "\\section{Visible}\r\n" +
+  "\\begin{itemize}\r\n" +
+  "\\item Outer 😀 before.\r\n" +
+  "\\paragraph*{Outer heading Ω}\r\n" +
+  "Outer after.\r\n" +
+  "\\begin{enumerate}\r\n" +
+  "\\item Nested before.\r\n" +
+  "\\subsection[Nested short {brace}]{Nested heading}\r\n" +
+  "Nested after.\r\n" +
+  "\\end{enumerate}\r\n" +
+  "Outer tail.\r\n" +
+  "\\end{itemize}\r\n" +
+  "Lead note.\r\n" +
+  "\\footnote{Before {nested Ω} \\input{child} after.}\r\n" +
+  "Tail note.\r\n" +
+  "\\section[Short {😀 \\include{child}}]{Ordinary child}\r\n" +
+  "Before top-level include.\r\n\r\n" +
+  "\\input{child}\r\n" +
+  "\\section{Tail}\r\n" +
+  "Tail prose.\r\n" +
+  "\\end{document}\r\n";
+const structuralContainmentChildSource =
+  "Child lead.\r\n\r\n" +
+  "\\subsection{Child section}\r\n" +
+  "Child prose.\r\n\r\n" +
+  "\\item Orphan child.\r\n\r\n" +
+  "\\begin{itemize}\r\n" +
+  "\\item Child item.\r\n" +
+  "\\end{itemize}\r\n";
 
 function zipFixture(entries: Record<string, Uint8Array>): Uint8Array {
   return zipSync(entries, { level: 0, mtime: new Date(1980, 0, 1, 0, 0, 0) });
@@ -759,6 +958,23 @@ export function createProseBlocksConformanceFixtureV2(): ProseBlocksConformanceF
   };
 }
 
+export function createStructuralContainmentConformanceFixtureV2(): StructuralContainmentConformanceFixtureV2 {
+  return {
+    schemaVersion: paperImportConformanceCorpusVersion,
+    id: "latex-structural-containment-v1",
+    archive: zipFixture({
+      "child.tex": strToU8(structuralContainmentChildSource),
+      "main.tex": strToU8(structuralContainmentMainSource),
+    }),
+    sourceByPath: {
+      "child.tex": structuralContainmentChildSource,
+      "main.tex": structuralContainmentMainSource,
+    },
+    selection: { rootPath: "main.tex" },
+    expected: structuralContainmentExpected,
+  };
+}
+
 export function createLatexArchiveFailureConformanceFixturesV2(): readonly LatexArchiveFailureConformanceFixtureV2[] {
   const fixture = (
     id: LatexArchiveFailureConformanceIdV2,
@@ -865,6 +1081,7 @@ export function createPaperImportConformanceCorpusV2(): PaperImportConformanceCo
       ambiguousFigure: createAmbiguousFigureConformanceFixtureV2(),
       escapedCommands: createEscapedCommandsConformanceFixtureV2(),
       proseBlocks: createProseBlocksConformanceFixtureV2(),
+      structuralContainment: createStructuralContainmentConformanceFixtureV2(),
       archiveFailures: createLatexArchiveFailureConformanceFixturesV2(),
     },
     pdf: { twoPageNativeText: createTwoPagePdfConformanceFixtureV2() },

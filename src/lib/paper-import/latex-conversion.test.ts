@@ -43,7 +43,7 @@ describe("product-neutral LaTeX conversion", () => {
 
     expect(Object.isFrozen(options)).toBe(true);
     expect(options).toEqual({ maximumSemanticRecords: 50_000 });
-    expect(convertLatexProject(inspection, { rootPath: "paper.tex" }, options).converterVersion).toBe("latex-converter-v5");
+    expect(convertLatexProject(inspection, { rootPath: "paper.tex" }, options).converterVersion).toBe("latex-converter-v6");
   });
 
   it("enforces a typed aggregate semantic-record ceiling at and above the consumer boundary", () => {
@@ -719,6 +719,185 @@ Second paragraph.\end{document}`;
     });
   });
 
+  it("omits an input inside a footnote without splitting its parent paragraph", () => {
+    const includeSource = "\\input{child}";
+    const paragraphSource = `Lead text.\r\n\\footnote{Before ${includeSource} after.}\r\nTail text.`;
+    const footnoteSource = `\\footnote{Before ${includeSource} after.}`;
+    const source = `\\documentclass{article}\r\n\\begin{document}\r\n${paragraphSource}\r\n\\end{document}\r\n`;
+    const child = "\\section{Hidden child}\r\nChild note prose.\r\n";
+    const conversion = convertLatexProject(analyzeLatexArchiveFiles([tex("paper.tex", source), tex("child.tex", child)]), {
+      rootPath: "paper.tex",
+    });
+
+    expect(conversion.sections).toEqual([]);
+    expect(conversion.proseBlocks.map(({ kind, sectionId, text }) => ({ kind, sectionId, text }))).toEqual([
+      { kind: "paragraph", sectionId: null, text: "Lead text. \\footnote{Before after.} Tail text." },
+    ]);
+    expectOriginalRange(conversion.proseBlocks[0]!, "paper.tex", source, paragraphSource);
+    expect(conversion.footnotes).toHaveLength(1);
+    expect(conversion.footnotes[0]).toMatchObject({ value: `Before ${includeSource} after.` });
+    expectOriginalRange(conversion.footnotes[0]!, "paper.tex", source, footnoteSource);
+    expect(conversion.diagnostics).toContainEqual({
+      code: "prose-provenance-unavailable",
+      severity: "warning",
+      message: "Included prose was omitted because includes inside command arguments do not have source-local provenance",
+      sourcePath: "paper.tex",
+      range: {
+        path: "paper.tex",
+        start: source.indexOf(includeSource),
+        end: source.indexOf(includeSource) + includeSource.length,
+        unit: "utf16-code-unit",
+      },
+    });
+  });
+
+  it("masks multiline command-contained includes before paragraph splitting", () => {
+    const includeSource = "\\input{\r\n\r\nchild\r\n}";
+    const paragraphSource = `Before 😀 \\footnote{Note ${includeSource} tail.} after.`;
+    const source = `\\documentclass{article}\r\n\\begin{document}\r\n${paragraphSource}\r\n\\end{document}\r\n`;
+    const conversion = convertLatexProject(analyzeLatexArchiveFiles([tex("paper.tex", source), tex("child.tex", "Child prose.")]), {
+      rootPath: "paper.tex",
+    });
+
+    expect(conversion.proseBlocks.map(({ kind, text }) => ({ kind, text }))).toEqual([
+      { kind: "paragraph", text: "Before 😀 \\footnote{Note tail.} after." },
+    ]);
+    expectOriginalRange(conversion.proseBlocks[0]!, "paper.tex", source, paragraphSource);
+    expect(conversion.diagnostics).toContainEqual(
+      expect.objectContaining({
+        code: "prose-provenance-unavailable",
+        sourcePath: "paper.tex",
+        range: {
+          path: "paper.tex",
+          start: source.indexOf(includeSource),
+          end: source.indexOf(includeSource) + includeSource.length,
+          unit: "utf16-code-unit",
+        },
+      }),
+    );
+  });
+
+  it("omits a section command inside another command argument", () => {
+    const hiddenSection = "\\subsection[Short {literal ] bracket}]{Hidden}";
+    const footnoteSource = `\\footnote{Before ${hiddenSection} after.}`;
+    const paragraphSource = `Lead 😀 ${footnoteSource} tail.`;
+    const source =
+      "\\documentclass{article}\r\n\\begin{document}\r\n" +
+      "\\section{Visible}\r\n" +
+      `${paragraphSource}\r\n` +
+      "\\subsection{Tail}\r\nTail prose.\r\n" +
+      "\\end{document}\r\n";
+    const conversion = convertLatexProject(analyzeLatexArchiveFiles([tex("paper.tex", source)]), { rootPath: "paper.tex" });
+
+    expect(conversion.sections.map(({ id, parentId, title }) => ({ id, parentId, title }))).toEqual([
+      { id: "paper.tex#section-1", parentId: null, title: "Visible" },
+      { id: "paper.tex#section-2", parentId: "paper.tex#section-1", title: "Tail" },
+    ]);
+    expect(conversion.proseBlocks.map(({ kind, sectionId, text }) => ({ kind, sectionId, text }))).toEqual([
+      {
+        kind: "paragraph",
+        sectionId: "paper.tex#section-1",
+        text: "Lead 😀 \\footnote{Before after.} tail.",
+      },
+      { kind: "paragraph", sectionId: "paper.tex#section-2", text: "Tail prose." },
+    ]);
+    expectOriginalRange(conversion.proseBlocks[0]!, "paper.tex", source, paragraphSource);
+    expectOriginalRange(conversion.footnotes[0]!, "paper.tex", source, footnoteSource);
+    expect(conversion.diagnostics).toContainEqual({
+      code: "prose-provenance-unavailable",
+      severity: "warning",
+      message: "Section heading was omitted because structural sections inside command arguments are not supported",
+      sourcePath: "paper.tex",
+      range: {
+        path: "paper.tex",
+        start: source.indexOf(hiddenSection),
+        end: source.indexOf(hiddenSection) + hiddenSection.length,
+        unit: "utf16-code-unit",
+      },
+    });
+  });
+
+  it("defers repeated command-contained includes until an ordinary include", () => {
+    const footnoteInclude = "\\input{shared}";
+    const linkInclude = "\\include{shared}";
+    const optionalInclude = "\\input{shared.tex}";
+    const footnoteSource = `\\footnote{Before {nested Ω} ${footnoteInclude} after.}`;
+    const paragraphSource =
+      `Lead 😀.\r\n${footnoteSource}\r\n` + `\\href{https://example.test/{nested}}{\\textbf{Earlier} Link before ${linkInclude} after.}`;
+    const optionalSectionSource = `\\section[Short {nested 😀 ${optionalInclude}}]{Visible}`;
+    const source =
+      "\\documentclass{article}\r\n\\begin{document}\r\n" +
+      "\\section{Before}\r\n" +
+      `${paragraphSource}\r\n` +
+      `${optionalSectionSource}\r\n` +
+      "Before ordinary include.\r\n\r\n" +
+      "\\input{shared}\r\n" +
+      "\\section{Tail}\r\nTail prose.\r\n" +
+      "\\end{document}\r\n";
+    const childSectionSource = "\\subsection{Child section}";
+    const childItemSource = "\\item Child list item.";
+    const child =
+      `Child lead.\r\n\r\n${childSectionSource}\r\nChild prose.\r\n\r\n` +
+      "\\item Orphan child item.\r\n\r\n" +
+      `\\begin{itemize}\r\n${childItemSource}\r\n\\end{itemize}\r\n`;
+    const conversion = convertLatexProject(analyzeLatexArchiveFiles([tex("paper.tex", source), tex("shared.tex", child)]), {
+      rootPath: "paper.tex",
+    });
+
+    expect(conversion.sections.map(({ id, parentId, title }) => ({ id, parentId, title }))).toEqual([
+      { id: "paper.tex#section-1", parentId: null, title: "Before" },
+      { id: "paper.tex#section-2", parentId: null, title: "Visible" },
+      { id: "shared.tex#section-1", parentId: "paper.tex#section-2", title: "Child section" },
+      { id: "paper.tex#section-3", parentId: null, title: "Tail" },
+    ]);
+    expect(conversion.proseBlocks.map(({ kind, sectionId, text }) => ({ kind, sectionId, text }))).toEqual([
+      {
+        kind: "paragraph",
+        sectionId: "paper.tex#section-1",
+        text:
+          "Lead 😀. \\footnote{Before {nested Ω} after.} " + "\\href{https://example.test/{nested}}{\\textbf{Earlier} Link before after.}",
+      },
+      { kind: "paragraph", sectionId: "paper.tex#section-2", text: "Before ordinary include." },
+      { kind: "paragraph", sectionId: "paper.tex#section-2", text: "Child lead." },
+      { kind: "paragraph", sectionId: "shared.tex#section-1", text: "Child prose." },
+      { kind: "list-item", sectionId: "shared.tex#section-1", text: "Child list item." },
+      { kind: "paragraph", sectionId: "paper.tex#section-3", text: "Tail prose." },
+    ]);
+    expectOriginalRange(conversion.proseBlocks[0]!, "paper.tex", source, paragraphSource);
+    expectOriginalRange(conversion.sections[1]!, "paper.tex", source, optionalSectionSource);
+    expectOriginalRange(conversion.sections[2]!, "shared.tex", child, childSectionSource);
+    expectOriginalRange(conversion.proseBlocks[4]!, "shared.tex", child, childItemSource);
+    expectOriginalRange(conversion.footnotes[0]!, "paper.tex", source, footnoteSource);
+
+    const firstInput = source.indexOf(footnoteInclude);
+    const include = source.indexOf(linkInclude);
+    const optionalInput = source.indexOf(optionalInclude);
+    expect(
+      conversion.diagnostics
+        .filter(
+          ({ message }) =>
+            message === "Included prose was omitted because includes inside command arguments do not have source-local provenance",
+        )
+        .map(({ code, sourcePath, range }) => ({ code, sourcePath, range })),
+    ).toEqual([
+      {
+        code: "prose-provenance-unavailable",
+        sourcePath: "paper.tex",
+        range: { path: "paper.tex", start: firstInput, end: firstInput + footnoteInclude.length, unit: "utf16-code-unit" },
+      },
+      {
+        code: "prose-provenance-unavailable",
+        sourcePath: "paper.tex",
+        range: { path: "paper.tex", start: include, end: include + linkInclude.length, unit: "utf16-code-unit" },
+      },
+      {
+        code: "prose-provenance-unavailable",
+        sourcePath: "paper.tex",
+        range: { path: "paper.tex", start: optionalInput, end: optionalInput + optionalInclude.length, unit: "utf16-code-unit" },
+      },
+    ]);
+  });
+
   it("omits visible includes from outer and nested list items without exposing raw item commands", () => {
     const outerInclude = "\\input{child}";
     const nestedInclude = "\\include{child.tex}";
@@ -843,6 +1022,90 @@ Second paragraph.\end{document}`;
     expect(conversion.proseBlocks.map(({ kind, sectionId, text }) => ({ kind, sectionId, text }))).toEqual([
       { kind: "paragraph", sectionId: "paper.tex#section-2", text: "Tail prose." },
     ]);
+  });
+
+  it("omits a paragraph command inside a list item without splitting the list", () => {
+    const sectionSource = "\\paragraph{Heading}";
+    const itemSource = `\\item Before.\r\n    ${sectionSource}\r\n    After.`;
+    const source =
+      "\\documentclass{article}\r\n\\begin{document}\r\n" +
+      `\\begin{itemize}\r\n  ${itemSource}\r\n\\end{itemize}\r\n` +
+      "\\end{document}\r\n";
+    const conversion = convertLatexProject(analyzeLatexArchiveFiles([tex("paper.tex", source)]), { rootPath: "paper.tex" });
+
+    expect(conversion.sections).toEqual([]);
+    expect(conversion.proseBlocks.map(({ kind, sectionId, text }) => ({ kind, sectionId, text }))).toEqual([
+      { kind: "list-item", sectionId: null, text: "Before. After." },
+    ]);
+    expectOriginalRange(conversion.proseBlocks[0]!, "paper.tex", source, itemSource);
+    expect(conversion.diagnostics).toContainEqual({
+      code: "prose-provenance-unavailable",
+      severity: "warning",
+      message: "Section heading was omitted because structural sections inside list items are not supported",
+      sourcePath: "paper.tex",
+      range: {
+        path: "paper.tex",
+        start: source.indexOf(sectionSource),
+        end: source.indexOf(sectionSource) + sectionSource.length,
+        unit: "utf16-code-unit",
+      },
+    });
+  });
+
+  it("omits every section level and starred form from outer and nested list items", () => {
+    const sectionNames = ["section", "subsection", "subsubsection", "paragraph"] as const;
+    const sectionForms = (prefix: string) =>
+      sectionNames.flatMap((name) => [
+        `\\${name}[${prefix} short [draft {literal ] bracket 😀}]{${prefix} ${name}}`,
+        `\\${name}*{${prefix} starred ${name} Ω}`,
+      ]);
+    const outerSections = sectionForms("Outer");
+    const nestedSections = sectionForms("Nested");
+    const nestedItemSource = `\\item Nested before.\r\n${nestedSections.join("\r\n")}\r\nNested after.`;
+    const outerItemSource =
+      `\\item Outer before.\r\n${outerSections.join("\r\n")}\r\nOuter after.\r\n` +
+      `\\begin{enumerate}\r\n${nestedItemSource}\r\n\\end{enumerate}\r\nOuter tail.`;
+    const source =
+      "\\documentclass{article}\r\n\\begin{document}\r\n" +
+      "\\section{Visible parent}\r\n" +
+      `\\begin{itemize}\r\n${outerItemSource}\r\n\\end{itemize}\r\n` +
+      "\\subsection{Visible tail}\r\nTail prose.\r\n" +
+      "\\end{document}\r\n";
+    const conversion = convertLatexProject(analyzeLatexArchiveFiles([tex("paper.tex", source)]), { rootPath: "paper.tex" });
+
+    expect(conversion.sections.map(({ id, parentId, level, title }) => ({ id, parentId, level, title }))).toEqual([
+      { id: "paper.tex#section-1", parentId: null, level: 1, title: "Visible parent" },
+      { id: "paper.tex#section-2", parentId: "paper.tex#section-1", level: 2, title: "Visible tail" },
+    ]);
+    expect(conversion.proseBlocks.map(({ kind, sectionId, text }) => ({ kind, sectionId, text }))).toEqual([
+      {
+        kind: "list-item",
+        sectionId: "paper.tex#section-1",
+        text: "Outer before. Outer after. Outer tail.",
+      },
+      { kind: "list-item", sectionId: "paper.tex#section-1", text: "Nested before. Nested after." },
+      { kind: "paragraph", sectionId: "paper.tex#section-2", text: "Tail prose." },
+    ]);
+    expectOriginalRange(conversion.proseBlocks[0]!, "paper.tex", source, outerItemSource);
+    expectOriginalRange(conversion.proseBlocks[1]!, "paper.tex", source, nestedItemSource);
+    expect(conversion.proseBlocks.every(({ kind, text }) => kind !== "paragraph" || !text.includes("\\item"))).toBe(true);
+    const expectedSections = [...outerSections, ...nestedSections]
+      .map((sectionSource) => ({ sectionSource, start: source.indexOf(sectionSource) }))
+      .sort((left, right) => left.start - right.start);
+    expect(
+      conversion.diagnostics
+        .filter(({ message }) => message === "Section heading was omitted because structural sections inside list items are not supported")
+        .map(({ code, sourcePath, range }) => ({ code, sourcePath, range })),
+    ).toEqual(
+      expectedSections.map(({ sectionSource, start }) => ({
+        code: "prose-provenance-unavailable",
+        sourcePath: "paper.tex",
+        range: { path: "paper.tex", start, end: start + sectionSource.length, unit: "utf16-code-unit" },
+      })),
+    );
+    for (const item of [...conversion.sections, ...conversion.proseBlocks]) {
+      expect(source.slice(item.range.start, item.range.end)).toBe(item.source);
+    }
   });
 
   it("omits paragraph prose containing an orphan item command", () => {
