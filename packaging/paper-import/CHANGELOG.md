@@ -2,6 +2,17 @@
 
 All notable changes to the private package candidate are documented here.
 
+## 0.1.3 - 2026-08-19
+
+- Omit every supported section level and starred form inside outer or nested
+  lists without splitting item traversal or changing exact item provenance.
+- Omit includes inside required or optional command arguments from top-level
+  prose and section traversal with exact source-ranged diagnostics while
+  preserving coherent parent prose and dedicated semantic inventories.
+- Keep later ordinary includes traversable after repeated contained occurrences
+  and publish the behavior as `latex-converter-v6` with public conformance and
+  isolated packaged-consumer coverage.
+
 ## 0.1.2 - 2026-08-19
 
 - Exclude section commands and section-bearing includes inside prose-excluded

@@ -42,15 +42,19 @@ LaTeX as semantic structure and PDF as page and visual authority.
   whole authored item and each excluded construct remains available through its
   dedicated inventory. Nested `itemize` and `enumerate` structures retain every
   visible item in both the inventory and the rendered Scholarmark projection.
-  Section commands and section-bearing includes inside prose-excluded
-  environments are classified against the same complete-source ranges before
-  section inventory or prose traversal, so hidden structure cannot consume
-  section ids, mutate hierarchy, or split a list envelope. A visible include
-  inside a list is intentionally not traversed for neutral prose or sections:
-  its command is omitted from the parent item's normalized text, the complete
-  parent source/range is retained, and an exact-range
-  `prose-provenance-unavailable` warning records the omitted cross-file edge.
-  A later ordinary include of the same child remains eligible for traversal.
+  Section commands and section-bearing includes are classified against the
+  complete source's prose-excluded environments, recognized lists, and authored
+  command arguments before section inventory or prose traversal. Hidden or
+  contained structure cannot consume section ids, mutate hierarchy, split a
+  list envelope, or fragment an enclosing command's parent prose. Section
+  commands inside outer or nested lists are omitted from normalized item text
+  while the complete item source/range remains exact. Includes inside lists or
+  another command's required or optional argument are not traversed for neutral
+  prose or sections, and their command ranges are masked before paragraph
+  splitting. Each unsupported list or command containment produces an exact-
+  range `prose-provenance-unavailable` warning. A later ordinary include of the
+  same child remains eligible for traversal, while dedicated inventories such
+  as footnotes retain their complete authored values and ranges.
 - Figure provenance retains the original archive asset path, resolved consumer
   asset path, content hash, caption, label, every source reference range, and
   resolution diagnostics. Asset bytes remain separate from generated output.
@@ -215,6 +219,13 @@ LaTeX as semantic structure and PDF as page and visual authority.
       `c1f6ce3a57214f770f0342c9d76ce73efffcacaa24a60690f931011819c77864`,
       and attached to the immutable [`paper-import-v0.1.2` GitHub Release](https://github.com/bebraw/kirjolab/releases/tag/paper-import-v0.1.2)
       without npm registry publication.
+- [x] The structural-containment correction is distributed as
+      `@kirjolab/paper-import@0.1.3` through a checked release manifest,
+      reproduced as the 56,290-byte `kirjolab-paper-import-0.1.3.tgz` with
+      Node.js 24.15.0 and npm 11.12.1, SHA-256
+      `87ade7ecc1411bb1019c54b7f728f4b0c5382fd4dc5510eb411a2a503e56566a`,
+      and attached to the immutable [`paper-import-v0.1.3` GitHub Release](https://github.com/bebraw/kirjolab/releases/tag/paper-import-v0.1.3)
+      without npm registry publication.
 - [x] Focused unit, coverage, Workers-runtime, and browser tests cover the public
       contracts and reviewed Kirjolab workflow.
 - [x] The full native quality gate completes without a repository dependency-
@@ -241,6 +252,13 @@ LaTeX as semantic structure and PDF as page and visual authority.
   and the parent item's normalized text, complete source, and range remain
   deterministic. Filtering occurs before visited-path bookkeeping so a later
   ordinary include can still contribute source-local prose and sections.
+- Section commands inside outer or nested lists, including every supported
+  level and starred form, cannot split list traversal or enter the global
+  hierarchy. Command-contained includes cannot fragment parent prose, expose
+  child prose or structure as top-level events, or consume a later ordinary
+  include of the same child. Unsupported structural containment is omitted from
+  normalized text with an exact command-range warning; original block, section,
+  footnote, and other dedicated-inventory ranges remain source-local.
 - A backslash introduces a command or environment only when its immediately
   preceding backslash run has even length. Escaped commands remain inert in
   ordinary text, comments, and literal-code environments without shifting
@@ -311,6 +329,16 @@ LaTeX as semantic structure and PDF as page and visual authority.
   retrieval text keeps only surrounding prose while dedicated inventories keep
   the excluded figures, tables, code blocks, and equations; includes inside
   those excluded environments and bibliography commands contribute no prose
+
+**Scenario: Contain structural commands within their authored parent**
+
+- Given: list items contain section commands and a footnote or other command
+  argument contains an archive-local include before a later ordinary include
+- When: neutral conversion classifies structural occurrences
+- Then: list items and parent prose remain coherent source-local blocks, each
+  unsupported contained command has an exact warning, child prose and sections
+  appear only at the ordinary include, and dedicated command inventories retain
+  their complete authored source
 
 **Scenario: Install the private package candidate**
 

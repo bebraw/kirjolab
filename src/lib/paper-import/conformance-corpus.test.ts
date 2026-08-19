@@ -13,6 +13,7 @@ import {
   createPaperImportConformanceCorpusV2,
   createProseBlocksConformanceFixtureV2,
   createReviewedLatexConformanceFixtureV2,
+  createStructuralContainmentConformanceFixtureV2,
   createTwoPagePdfConformanceFixtureV2,
   paperImportConformanceCorpusVersion,
   type LatexArchiveFailureConformanceFixtureV2,
@@ -72,6 +73,7 @@ describe("paper-import conformance corpus", () => {
     expect(corpus.latex.ambiguousFigure.id).toBe("latex-ambiguous-figure-v1");
     expect(corpus.latex.escapedCommands.id).toBe("latex-escaped-commands-v1");
     expect(corpus.latex.proseBlocks.id).toBe("latex-prose-blocks-v1");
+    expect(corpus.latex.structuralContainment.id).toBe("latex-structural-containment-v1");
     expect(corpus.latex.archiveFailures).toHaveLength(14);
     expect(corpus.pdf.twoPageNativeText.id).toBe("two-page-native-text-pdf-v1");
   });
@@ -319,6 +321,34 @@ describe("paper-import conformance corpus", () => {
     }
     expect(blocks[0]?.source).toContain("\\cite{lead}");
     expect(blocks[0]?.source).toContain("\\(x + y\\)");
+  });
+
+  it("pins structural containment across lists and command arguments", async () => {
+    const fixture = createStructuralContainmentConformanceFixtureV2();
+    const inspection = await inspectLatexArchive(fixture.archive);
+    const conversion = convertLatexProject(inspection, fixture.selection);
+    const actual = {
+      archiveSha256: sha256Hex(fixture.archive),
+      sections: conversion.sections.map(({ id, parentId, level, title, source, range }) => ({
+        id,
+        parentId,
+        level,
+        title,
+        source,
+        range,
+      })),
+      blocks: conversion.proseBlocks,
+      footnotes: conversion.footnotes,
+      provenanceDiagnostics: conversion.diagnostics.filter(({ code }) => code === "prose-provenance-unavailable"),
+    };
+
+    expect(actual).toEqual(fixture.expected);
+    for (const item of [...conversion.sections, ...conversion.proseBlocks, ...conversion.footnotes]) {
+      expect(fixture.sourceByPath[item.range.path as keyof typeof fixture.sourceByPath].slice(item.range.start, item.range.end)).toBe(
+        item.source,
+      );
+    }
+    expect(conversion.proseBlocks.every(({ kind, text }) => kind !== "paragraph" || !text.includes("\\item"))).toBe(true);
   });
 
   it("pins and rejects every compact archive-security fixture with its literal stable failure", async () => {

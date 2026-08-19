@@ -308,6 +308,7 @@ import {
   createPaperImportConformanceCorpusV2,
   createProseBlocksConformanceFixtureV2,
   createReviewedLatexConformanceFixtureV2,
+  createStructuralContainmentConformanceFixtureV2,
 } from "@kirjolab/paper-import/conformance";
 import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";
 
@@ -359,6 +360,37 @@ assert.deepEqual(
 );
 for (const item of [...proseConversion.sections, ...proseConversion.proseBlocks]) {
   const original = proseFixture.sourceByPath[item.range.path];
+  assert.equal(typeof original, "string");
+  assert.equal(original.slice(item.range.start, item.range.end), item.source);
+}
+
+const containmentFixture = createStructuralContainmentConformanceFixtureV2();
+const containmentInspection = await paperImport.inspectLatexArchive(containmentFixture.archive);
+const containmentConversion = paperImport.convertLatexProject(containmentInspection, containmentFixture.selection);
+assert.equal(containmentConversion.converterVersion, "latex-converter-v6");
+assert.deepEqual(
+  containmentConversion.sections.map(({ id, parentId, level, title, source, range }) => ({
+    id,
+    parentId,
+    level,
+    title,
+    source,
+    range,
+  })),
+  containmentFixture.expected.sections,
+);
+assert.deepEqual(containmentConversion.proseBlocks, containmentFixture.expected.blocks);
+assert.deepEqual(containmentConversion.footnotes, containmentFixture.expected.footnotes);
+assert.deepEqual(
+  containmentConversion.diagnostics.filter(({ code }) => code === "prose-provenance-unavailable"),
+  containmentFixture.expected.provenanceDiagnostics,
+);
+for (const item of [
+  ...containmentConversion.sections,
+  ...containmentConversion.proseBlocks,
+  ...containmentConversion.footnotes,
+]) {
+  const original = containmentFixture.sourceByPath[item.range.path];
   assert.equal(typeof original, "string");
   assert.equal(original.slice(item.range.start, item.range.end), item.source);
 }
