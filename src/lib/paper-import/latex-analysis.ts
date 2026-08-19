@@ -289,21 +289,15 @@ function appendProseBlocks(state: ProseInventoryState, path: string, source: str
   const windowSemantic = semantic.slice(start, end);
   if (!/\S/u.test(windowSemantic)) return;
   const window = { start: 0, end: windowSemantic.length };
+  const lists = proseListEnvironments.flatMap((environment) =>
+    environmentOccurrences(windowSource, windowSemantic, window, environment).map((occurrence) => offsetOccurrence(occurrence, start)),
+  );
+  const excludedEnvironments = proseExcludedEnvironments.flatMap((environment) =>
+    environmentOccurrences(windowSource, windowSemantic, window, environment).map((occurrence) => offsetOccurrence(occurrence, start)),
+  );
   const events: ProseContentEvent[] = [
-    ...proseListEnvironments.flatMap((environment) =>
-      environmentOccurrences(windowSource, windowSemantic, window, environment).map((occurrence) => ({
-        kind: "list" as const,
-        position: occurrence.start + start,
-        occurrence: offsetOccurrence(occurrence, start),
-      })),
-    ),
-    ...proseExcludedEnvironments.flatMap((environment) =>
-      environmentOccurrences(windowSource, windowSemantic, window, environment).map((occurrence) => ({
-        kind: "exclude" as const,
-        position: occurrence.start + start,
-        occurrence: offsetOccurrence(occurrence, start),
-      })),
-    ),
+    ...lists.map((occurrence) => ({ kind: "list" as const, position: occurrence.start, occurrence })),
+    ...excludedEnvironments.map((occurrence) => ({ kind: "exclude" as const, position: occurrence.start, occurrence })),
     ...commandOccurrences(windowSource, windowSemantic, window, proseExcludedCommands).map((occurrence) => ({
       kind: "exclude" as const,
       position: occurrence.start + start,
@@ -314,7 +308,7 @@ function appendProseBlocks(state: ProseInventoryState, path: string, source: str
   for (const event of events) {
     if (event.occurrence.start < cursor) continue;
     appendParagraphBlocks(state, path, source, semantic, cursor, event.occurrence.start);
-    if (event.kind === "list") appendListItemBlocks(state, path, source, semantic, event.occurrence);
+    if (event.kind === "list") appendListItemBlocks(state, path, source, semantic, event.occurrence, excludedEnvironments);
     cursor = event.occurrence.end;
   }
   appendParagraphBlocks(state, path, source, semantic, cursor, end);
@@ -390,20 +384,32 @@ function appendListItemBlocks(
   source: string,
   semantic: string,
   list: EnvironmentOccurrence,
+  excludedEnvironments: readonly EnvironmentOccurrence[],
   nestingDepth = 1,
 ): void {
   if (nestingDepth > latexMaximumListNestingDepth) {
     throw new LatexConversionError("provenance-limit", `LaTeX list nesting exceeds ${latexMaximumListNestingDepth} environments`);
   }
   const nestedLists = immediateNestedListOccurrences(source, semantic, list);
-  const items = listItemOccurrences(semantic, list, nestedLists);
+  const nestedExcludedEnvironments = excludedEnvironments.filter((excluded) =>
+    occurrenceOverlaps(excluded, list.valueStart, list.valueEnd),
+  );
+  const omittedOccurrences = outermostEnvironmentOccurrences([...nestedLists, ...nestedExcludedEnvironments]);
+  const items = listItemOccurrences(semantic, list, omittedOccurrences);
   for (const [index, item] of items.entries()) {
     let end = items[index + 1]?.start ?? list.valueEnd;
     while (end > item.bodyStart && /\s/u.test(semantic[end - 1]!)) end -= 1;
     const itemNestedLists = nestedLists.filter((nested) => nested.start >= item.bodyStart && nested.end <= end);
-    const text = normalizeProseText(sourceWithoutOccurrences(semantic, item.bodyStart, end, itemNestedLists));
+    const itemOmittedOccurrences = omittedOccurrences.filter((omitted) => occurrenceOverlaps(omitted, item.bodyStart, end));
+    const text = normalizeProseText(sourceWithoutOccurrences(semantic, item.bodyStart, end, itemOmittedOccurrences));
     if (text) appendProseBlock(state, path, "list-item", text, source, item.start, end);
-    for (const nested of itemNestedLists) appendListItemBlocks(state, path, source, semantic, nested, nestingDepth + 1);
+    for (const nested of itemNestedLists) {
+      if (!itemOmittedOccurrences.includes(nested)) continue;
+      const childExcludedEnvironments = nestedExcludedEnvironments.filter((excluded) =>
+        occurrenceOverlaps(excluded, nested.valueStart, nested.valueEnd),
+      );
+      appendListItemBlocks(state, path, source, semantic, nested, childExcludedEnvironments, nestingDepth + 1);
+    }
   }
 }
 
@@ -415,13 +421,13 @@ interface ProseListItemOccurrence {
 function listItemOccurrences(
   semantic: string,
   list: EnvironmentOccurrence,
-  nestedLists: readonly EnvironmentOccurrence[],
+  omittedOccurrences: readonly EnvironmentOccurrence[],
 ): ProseListItemOccurrence[] {
   const pattern = /\\item(?![A-Za-z])/gu;
   pattern.lastIndex = list.valueStart;
   const items: ProseListItemOccurrence[] = [];
   while (true) {
-    const match = nextTopLevelListItem(pattern, semantic, list.valueEnd, nestedLists);
+    const match = nextTopLevelListItem(pattern, semantic, list.valueEnd, omittedOccurrences);
     if (!match) break;
     const bodyStart = listItemBodyStart(semantic, match.index + match[0].length, list.valueEnd);
     if (bodyStart === null) break;
@@ -435,12 +441,12 @@ function nextTopLevelListItem(
   pattern: RegExp,
   semantic: string,
   end: number,
-  nestedLists: readonly EnvironmentOccurrence[],
+  omittedOccurrences: readonly EnvironmentOccurrence[],
 ): RegExpExecArray | null {
   while (true) {
     const match = nextActiveLatexMatch(pattern, semantic);
     if (!match || match.index >= end) return null;
-    if (!nestedLists.some((nested) => match.index >= nested.start && match.index < nested.end)) return match;
+    if (!omittedOccurrences.some((omitted) => match.index >= omitted.start && match.index < omitted.end)) return match;
   }
 }
 
@@ -455,16 +461,22 @@ function immediateNestedListOccurrences(source: string, semantic: string, list: 
   const nested = proseListEnvironments
     .flatMap((environment) => environmentOccurrences(source, semantic, window, environment))
     .sort((left, right) => left.start - right.start || right.end - left.end);
-  return nested.filter(
-    (candidate, index) =>
-      !nested.some(
-        (possibleParent, parentIndex) =>
-          parentIndex !== index &&
-          possibleParent.start <= candidate.start &&
-          possibleParent.end >= candidate.end &&
-          (possibleParent.start < candidate.start || possibleParent.end > candidate.end),
-      ),
-  );
+  return outermostEnvironmentOccurrences(nested);
+}
+
+function outermostEnvironmentOccurrences(occurrences: readonly EnvironmentOccurrence[]): readonly EnvironmentOccurrence[] {
+  const outermost: EnvironmentOccurrence[] = [];
+  let coveredUntil = -1;
+  for (const occurrence of [...occurrences].sort((left, right) => left.start - right.start || right.end - left.end)) {
+    if (occurrence.end <= coveredUntil) continue;
+    outermost.push(occurrence);
+    coveredUntil = occurrence.end;
+  }
+  return outermost;
+}
+
+function occurrenceOverlaps(occurrence: Pick<EnvironmentOccurrence, "start" | "end">, start: number, end: number): boolean {
+  return occurrence.end > start && occurrence.start < end;
 }
 
 function sourceWithoutOccurrences(
@@ -476,8 +488,13 @@ function sourceWithoutOccurrences(
   const parts: string[] = [];
   let cursor = start;
   for (const occurrence of occurrences) {
+    if (occurrence.end <= cursor) continue;
+    if (occurrence.start < cursor) {
+      cursor = Math.min(occurrence.end, end);
+      continue;
+    }
     parts.push(source.slice(cursor, occurrence.start), " ");
-    cursor = occurrence.end;
+    cursor = Math.min(occurrence.end, end);
   }
   parts.push(source.slice(cursor, end));
   return parts.join("");
