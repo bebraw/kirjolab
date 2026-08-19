@@ -43,7 +43,7 @@ describe("product-neutral LaTeX conversion", () => {
 
     expect(Object.isFrozen(options)).toBe(true);
     expect(options).toEqual({ maximumSemanticRecords: 50_000 });
-    expect(convertLatexProject(inspection, { rootPath: "paper.tex" }, options).converterVersion).toBe("latex-converter-v4");
+    expect(convertLatexProject(inspection, { rootPath: "paper.tex" }, options).converterVersion).toBe("latex-converter-v5");
   });
 
   it("enforces a typed aggregate semantic-record ceiling at and above the consumer boundary", () => {
@@ -583,6 +583,36 @@ Second paragraph.\end{document}`;
     expectOriginalRange(conversion.proseBlocks[0]!, "paper.tex", source, itemSource);
   });
 
+  it("excludes sections inside figures before section and prose traversal", () => {
+    const itemSource =
+      "\\item Before 😀.\r\n" +
+      "\\begin{figure}\r\n" +
+      "Hidden figure text.\r\n" +
+      "\\section{Hidden}\r\n" +
+      "More hidden text.\r\n" +
+      "\\end{figure}\r\n" +
+      "After Å.";
+    const source =
+      "\\documentclass{article}\r\n\\begin{document}\r\n" +
+      "\\section{Visible}\r\n" +
+      `\\begin{itemize}\r\n${itemSource}\r\n\\end{itemize}\r\n` +
+      "\\subsection{Tail}\r\nTail prose.\r\n" +
+      "\\end{document}\r\n";
+    const conversion = convertLatexProject(analyzeLatexArchiveFiles([tex("paper.tex", source)]), { rootPath: "paper.tex" });
+
+    expect(conversion.sections.map(({ id, parentId, title }) => ({ id, parentId, title }))).toEqual([
+      { id: "paper.tex#section-1", parentId: null, title: "Visible" },
+      { id: "paper.tex#section-2", parentId: "paper.tex#section-1", title: "Tail" },
+    ]);
+    expect(conversion.proseBlocks.map(({ kind, sectionId, text }) => ({ kind, sectionId, text }))).toEqual([
+      { kind: "list-item", sectionId: "paper.tex#section-1", text: "Before 😀. After Å." },
+      { kind: "paragraph", sectionId: "paper.tex#section-2", text: "Tail prose." },
+    ]);
+    expectOriginalRange(conversion.proseBlocks[0]!, "paper.tex", source, itemSource);
+    expectOriginalRange(conversion.sections[0]!, "paper.tex", source, "\\section{Visible}");
+    expectOriginalRange(conversion.sections[1]!, "paper.tex", source, "\\subsection{Tail}");
+  });
+
   it.each([
     ["abstract", ""],
     ["figure", ""],
@@ -599,27 +629,43 @@ Second paragraph.\end{document}`;
     ["equation*", ""],
     ["align", ""],
     ["align*", ""],
-  ])("does not traverse an include inside the excluded %s environment family", (environment, arguments_) => {
+  ])("does not traverse prose or section events inside the excluded %s environment family", (environment, arguments_) => {
     const itemSource =
       "\\item Before 😀.\r\n" +
       `\\begin{${environment}}${arguments_}\r\n` +
+      "\\section{Hidden direct section}\r\n" +
       "\\input{child}\r\n" +
       `\\end{${environment}}\r\n` +
       "After Å.";
     const source =
       "\\documentclass{article}\r\n\\begin{document}\r\n" +
+      "\\section{Visible parent}\r\n" +
       `\\begin{itemize}\r\n${itemSource}\r\n\\end{itemize}\r\n` +
+      "\\subsection{Visible tail}\r\nTail prose.\r\n" +
       "\\end{document}\r\n";
     const child =
-      "Hidden child prose.\r\n" + "\\item Bare phantom item.\r\n" + "\\begin{itemize}\r\n\\item Nested phantom item.\r\n\\end{itemize}\r\n";
-    const conversion = convertLatexProject(analyzeLatexArchiveFiles([tex("paper.tex", source), tex("child.tex", child)]), {
-      rootPath: "paper.tex",
-    });
+      "\\subsection{Hidden child section}\r\n" +
+      "Hidden child prose.\r\n" +
+      "\\item Bare phantom item.\r\n" +
+      "\\begin{itemize}\r\n\\item Nested phantom item.\r\n\\end{itemize}\r\n" +
+      "\\input{grandchild}\r\n";
+    const grandchild = "\\subsubsection{Hidden grandchild section}\r\nHidden grandchild prose.\r\n";
+    const conversion = convertLatexProject(
+      analyzeLatexArchiveFiles([tex("paper.tex", source), tex("child.tex", child), tex("grandchild.tex", grandchild)]),
+      { rootPath: "paper.tex" },
+    );
 
-    expect(conversion.proseBlocks).toEqual([
-      expect.objectContaining({ id: "paper.tex#prose-1", kind: "list-item", text: "Before 😀. After Å." }),
+    expect(conversion.sections.map(({ id, parentId, title }) => ({ id, parentId, title }))).toEqual([
+      { id: "paper.tex#section-1", parentId: null, title: "Visible parent" },
+      { id: "paper.tex#section-2", parentId: "paper.tex#section-1", title: "Visible tail" },
+    ]);
+    expect(conversion.proseBlocks.map(({ kind, sectionId, text }) => ({ kind, sectionId, text }))).toEqual([
+      { kind: "list-item", sectionId: "paper.tex#section-1", text: "Before 😀. After Å." },
+      { kind: "paragraph", sectionId: "paper.tex#section-2", text: "Tail prose." },
     ]);
     expectOriginalRange(conversion.proseBlocks[0]!, "paper.tex", source, itemSource);
+    expectOriginalRange(conversion.sections[0]!, "paper.tex", source, "\\section{Visible parent}");
+    expectOriginalRange(conversion.sections[1]!, "paper.tex", source, "\\subsection{Visible tail}");
   });
 
   it("still visits a child as prose when a visible include follows an excluded include", () => {
@@ -643,6 +689,181 @@ Second paragraph.\end{document}`;
     expectOriginalRange(conversion.proseBlocks[0]!, "paper.tex", source, itemSource);
     expectOriginalRange(conversion.proseBlocks[1]!, "child.tex", child, "Visible child prose.");
     expectOriginalRange(conversion.proseBlocks[2]!, "child.tex", child, childItemSource);
+  });
+
+  it("omits a cross-file include inside a list item with an exact provenance diagnostic", () => {
+    const includeSource = "\\input{child}";
+    const itemSource = `\\item Before 😀.${includeSource}After Å.`;
+    const source =
+      "\\documentclass{article}\r\n\\begin{document}\r\n" +
+      `\\begin{itemize}\r\n${itemSource}\r\n\\end{itemize}\r\n` +
+      "\\end{document}\r\n";
+    const child = "Visible child prose.\r\n";
+    const conversion = convertLatexProject(analyzeLatexArchiveFiles([tex("paper.tex", source), tex("child.tex", child)]), {
+      rootPath: "paper.tex",
+    });
+
+    expect(conversion.proseBlocks.map(({ kind, text }) => ({ kind, text }))).toEqual([{ kind: "list-item", text: "Before 😀. After Å." }]);
+    expectOriginalRange(conversion.proseBlocks[0]!, "paper.tex", source, itemSource);
+    expect(conversion.diagnostics).toContainEqual({
+      code: "prose-provenance-unavailable",
+      severity: "warning",
+      message: "Included prose was omitted because a cross-file list-item relationship cannot retain exact provenance",
+      sourcePath: "paper.tex",
+      range: {
+        path: "paper.tex",
+        start: source.indexOf(includeSource),
+        end: source.indexOf(includeSource) + includeSource.length,
+        unit: "utf16-code-unit",
+      },
+    });
+  });
+
+  it("omits visible includes from outer and nested list items without exposing raw item commands", () => {
+    const outerInclude = "\\input{child}";
+    const nestedInclude = "\\include{child.tex}";
+    const nestedItemSource = `\\item[Named] Nested before.${nestedInclude}Nested after.`;
+    const outerItemSource =
+      `\\item Before 😀.${outerInclude}After Å.\r\n` + `\\begin{enumerate}\r\n${nestedItemSource}\r\n\\end{enumerate}\r\n` + "Outer tail.";
+    const source =
+      "\\documentclass{article}\r\n\\begin{document}\r\n" +
+      "\\section{Visible}\r\n" +
+      `\\begin{itemize}\r\n${outerItemSource}\r\n\\end{itemize}\r\n` +
+      "\\subsection{Tail}\r\nTail prose.\r\n" +
+      "\\end{document}\r\n";
+    const child =
+      "\\section{Suppressed child section}\r\n" +
+      "Visible child prose.\r\n" +
+      "\\item Bare child item.\r\n" +
+      "\\begin{itemize}\r\n\\item Child list item.\r\n\\end{itemize}\r\n";
+    const conversion = convertLatexProject(analyzeLatexArchiveFiles([tex("paper.tex", source), tex("child.tex", child)]), {
+      rootPath: "paper.tex",
+    });
+
+    expect(conversion.sections.map(({ id, parentId, title }) => ({ id, parentId, title }))).toEqual([
+      { id: "paper.tex#section-1", parentId: null, title: "Visible" },
+      { id: "paper.tex#section-2", parentId: "paper.tex#section-1", title: "Tail" },
+    ]);
+    expect(conversion.proseBlocks.map(({ kind, sectionId, text }) => ({ kind, sectionId, text }))).toEqual([
+      { kind: "list-item", sectionId: "paper.tex#section-1", text: "Before 😀. After Å. Outer tail." },
+      { kind: "list-item", sectionId: "paper.tex#section-1", text: "Nested before. Nested after." },
+      { kind: "paragraph", sectionId: "paper.tex#section-2", text: "Tail prose." },
+    ]);
+    expect(conversion.proseBlocks.every(({ kind, text }) => kind !== "paragraph" || !text.includes("\\item"))).toBe(true);
+    expectOriginalRange(conversion.proseBlocks[0]!, "paper.tex", source, outerItemSource);
+    expectOriginalRange(conversion.proseBlocks[1]!, "paper.tex", source, nestedItemSource);
+    const expectedDiagnostic = (includeSource: string) => ({
+      code: "prose-provenance-unavailable",
+      severity: "warning",
+      message: "Included prose was omitted because a cross-file list-item relationship cannot retain exact provenance",
+      sourcePath: "paper.tex",
+      range: {
+        path: "paper.tex",
+        start: source.indexOf(includeSource),
+        end: source.indexOf(includeSource) + includeSource.length,
+        unit: "utf16-code-unit",
+      },
+    });
+    expect(conversion.diagnostics).toEqual(expect.arrayContaining([expectedDiagnostic(outerInclude), expectedDiagnostic(nestedInclude)]));
+    for (const item of [...conversion.sections, ...conversion.proseBlocks]) {
+      expect(source.slice(item.range.start, item.range.end)).toBe(item.source);
+    }
+  });
+
+  it("defers repeated hidden and list-contained includes until an ordinary visible occurrence", () => {
+    const listInclude = "\\input{shared}";
+    const itemSource = `\\item Before.${listInclude}After.`;
+    const source =
+      "\\documentclass{article}\r\n\\begin{document}\r\n" +
+      "\\section{Before}\r\n" +
+      "\\begin{figure}\\input{shared}\\end{figure}\r\n" +
+      `\\begin{itemize}\r\n${itemSource}\r\n\\end{itemize}\r\n` +
+      "\\section{Visible}\r\n" +
+      "\\input{shared}\r\n" +
+      "\\begin{table}\\input{shared}\\end{table}\r\n" +
+      "\\end{document}\r\n";
+    const childSectionSource = "\\subsection{Child section}";
+    const childItemSource = "\\item Child item.";
+    const child =
+      `Child lead 😀.\r\n\r\n${childSectionSource}\r\nChild section prose.\r\n` +
+      `\\begin{itemize}\r\n${childItemSource}\r\n\\end{itemize}\r\n`;
+    const conversion = convertLatexProject(analyzeLatexArchiveFiles([tex("paper.tex", source), tex("shared.tex", child)]), {
+      rootPath: "paper.tex",
+    });
+
+    expect(conversion.sections.map(({ id, parentId, title }) => ({ id, parentId, title }))).toEqual([
+      { id: "paper.tex#section-1", parentId: null, title: "Before" },
+      { id: "paper.tex#section-2", parentId: null, title: "Visible" },
+      { id: "shared.tex#section-1", parentId: "paper.tex#section-2", title: "Child section" },
+    ]);
+    expect(conversion.proseBlocks.map(({ kind, sectionId, text }) => ({ kind, sectionId, text }))).toEqual([
+      { kind: "list-item", sectionId: "paper.tex#section-1", text: "Before. After." },
+      { kind: "paragraph", sectionId: "paper.tex#section-2", text: "Child lead 😀." },
+      { kind: "paragraph", sectionId: "shared.tex#section-1", text: "Child section prose." },
+      { kind: "list-item", sectionId: "shared.tex#section-1", text: "Child item." },
+    ]);
+    expectOriginalRange(conversion.proseBlocks[0]!, "paper.tex", source, itemSource);
+    expectOriginalRange(conversion.sections[2]!, "shared.tex", child, childSectionSource);
+    expectOriginalRange(conversion.proseBlocks[3]!, "shared.tex", child, childItemSource);
+    const originals = new Map([
+      ["paper.tex", source],
+      ["shared.tex", child],
+    ]);
+    for (const item of [...conversion.sections, ...conversion.proseBlocks]) {
+      expect(originals.get(item.range.path)?.slice(item.range.start, item.range.end)).toBe(item.source);
+    }
+    const listIncludeStart = source.indexOf(listInclude, source.indexOf("\\begin{itemize}"));
+    expect(conversion.diagnostics.filter(({ code }) => code === "prose-provenance-unavailable")).toEqual([
+      expect.objectContaining({
+        sourcePath: "paper.tex",
+        range: expect.objectContaining({ start: listIncludeStart, end: listIncludeStart + listInclude.length }),
+      }),
+    ]);
+  });
+
+  it("filters every section command level inside an excluded environment", () => {
+    const source =
+      "\\documentclass{article}\\begin{document}" +
+      "\\section{Visible}" +
+      "\\begin{figure}" +
+      "\\section{Hidden section}" +
+      "\\subsection*{Hidden subsection}" +
+      "\\subsubsection{Hidden subsubsection}" +
+      "\\paragraph*{Hidden paragraph}" +
+      "\\end{figure}" +
+      "\\subsection{Tail}" +
+      "Tail prose." +
+      "\\end{document}";
+    const conversion = convertLatexProject(analyzeLatexArchiveFiles([tex("paper.tex", source)]), { rootPath: "paper.tex" });
+
+    expect(conversion.sections.map(({ id, parentId, level, title }) => ({ id, parentId, level, title }))).toEqual([
+      { id: "paper.tex#section-1", parentId: null, level: 1, title: "Visible" },
+      { id: "paper.tex#section-2", parentId: "paper.tex#section-1", level: 2, title: "Tail" },
+    ]);
+    expect(conversion.proseBlocks.map(({ kind, sectionId, text }) => ({ kind, sectionId, text }))).toEqual([
+      { kind: "paragraph", sectionId: "paper.tex#section-2", text: "Tail prose." },
+    ]);
+  });
+
+  it("omits paragraph prose containing an orphan item command", () => {
+    const itemMarker = "\\item";
+    const source =
+      "\\documentclass{article}\\begin{document}" + "Lead paragraph.\r\n\r\n" + `${itemMarker} Orphan item text.` + "\\end{document}";
+    const conversion = convertLatexProject(analyzeLatexArchiveFiles([tex("paper.tex", source)]), { rootPath: "paper.tex" });
+
+    expect(conversion.proseBlocks.map(({ kind, text }) => ({ kind, text }))).toEqual([{ kind: "paragraph", text: "Lead paragraph." }]);
+    expect(conversion.diagnostics).toContainEqual({
+      code: "prose-provenance-unavailable",
+      severity: "warning",
+      message: "Ordinary prose was omitted because an item command occurred outside a recognized list",
+      sourcePath: "paper.tex",
+      range: {
+        path: "paper.tex",
+        start: source.indexOf(itemMarker),
+        end: source.indexOf(itemMarker) + itemMarker.length,
+        unit: "utf16-code-unit",
+      },
+    });
   });
 
   it("excludes bibliography commands from nested list-item text without changing exact provenance", () => {

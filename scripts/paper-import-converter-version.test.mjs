@@ -23,6 +23,7 @@ const sourceFingerprintsByConverterVersion = {
   "latex-converter-v2": "a25b3309a8655d6f97922f5fab60786ce875927a7e408519d6c8285041a156a2",
   "latex-converter-v3": "c65cacd78d52aaccdc43e9964cb42219f3b572fb0b07d358eddafc274ff4d622",
   "latex-converter-v4": "a13924e989db01069a9181471d590030882c6ac304324071d9af1686b62e612d",
+  "latex-converter-v5": "5e1529518021efda82b1ee1cc80c4a9499bfe686637d5ecc537164232ee94d0b",
 };
 
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);

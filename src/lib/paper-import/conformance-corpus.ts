@@ -13,7 +13,7 @@ const reviewedExpected = {
     selectedRoot: null,
     convertedFilePaths: ["main.md", "sections/results.md"],
     schemaVersion: 2,
-    converterVersion: "latex-converter-v4",
+    converterVersion: "latex-converter-v5",
     rootPath: "main.tex",
     bibliographyPath: "refs.bib",
     assets: [{ path: "figures/plot.png", mediaType: "image/png" }],
@@ -69,8 +69,8 @@ const reviewedExpected = {
   },
   identity: {
     archiveManifestSha256: "3133fface09acacdbf72e57227870b6827c128d111a9a6494f0eb5b42e499014",
-    conversionManifestSha256: "09e36495acd11ab6219ab45048d68f89f15e5c6b29f67276d687ef7759447c47",
-    previewDigest: "e30580f91ed6c17ddbfdab3875069529453021af2979c244660586c1b89e4e61",
+    conversionManifestSha256: "59db79525d26efedd4fee16ccad1e9567ec2e6ac1d958a03098d1da0956491fe",
+    previewDigest: "e14ddf47ba339082d72c843bd22684b4294a5527ebd950ccb876fe6584f2be84",
   },
   ranges: [
     { path: "main.tex", start: 25, end: 50, source: "\\title{Ångström 😀 study}" },
@@ -285,7 +285,33 @@ export interface EscapedCommandsConformanceFixtureV2 {
 }
 
 const proseBlocksExpected = {
-  archiveSha256: "6ee70efa80ead6b74a78fa73d3967d0ccc150a00ac48054db1aabdc9ad9208d2",
+  archiveSha256: "046d1dd465610a1b46d1f8d238b55b5ea3fe152d1e63d721119eeacd29698ba5",
+  sections: [
+    {
+      id: "main.tex#section-1",
+      parentId: null,
+      level: 1,
+      title: "Methods",
+      source: "\\section{Methods}",
+      range: { path: "main.tex", start: 86, end: 103, unit: "utf16-code-unit" },
+    },
+    {
+      id: "main.tex#section-2",
+      parentId: null,
+      level: 1,
+      title: "Visible child parent",
+      source: "\\section{Visible child parent}",
+      range: { path: "main.tex", start: 174, end: 204, unit: "utf16-code-unit" },
+    },
+    {
+      id: "hidden.tex#section-1",
+      parentId: "main.tex#section-2",
+      level: 2,
+      title: "Visible child section",
+      source: "\\subsection{Visible child section}",
+      range: { path: "hidden.tex", start: 26, end: 60, unit: "utf16-code-unit" },
+    },
+  ],
   blocks: [
     {
       id: "main.tex#prose-1",
@@ -331,18 +357,65 @@ const proseBlocksExpected = {
       id: "part.tex#prose-3",
       kind: "list-item",
       sectionId: "main.tex#section-1",
-      text: "Before 😀. After Å. Done.",
+      text: "Before 😀. Outer include before. Outer include after. After Å. Done.",
       source:
-        "\\item Before 😀.\r\n\\begin{figure}\r\n\\includegraphics{plot}\r\n\\input{hidden}\r\n\\caption{Hidden figure}\r\n\\end{figure}\r\n\\begin{table}\r\n\\begin{tabular}{c}Hidden table\\end{tabular}\r\n\\end{table}\r\n\\begin{lstlisting}\r\nhidden code\r\n\\end{lstlisting}\r\n\\begin{equation}hidden math\\end{equation}\r\n\\bibliography{refs}\r\n\\begin{enumerate}\r\n\\item Nested before.\\addbibresource[location=remote]{refs.bib}Nested after.\r\n\\end{enumerate}\r\nAfter Å.\\bibliographystyle{plain}Done.",
-      range: { path: "part.tex", start: 74, end: 526, unit: "utf16-code-unit" },
+        "\\item Before 😀.\r\n\\begin{figure}\r\n\\includegraphics{plot}\r\n\\caption{Hidden figure}\r\n\\section{Hidden figure section}\r\n\\input{hidden}\r\n\\end{figure}\r\nOuter include before.\\input{hidden}Outer include after.\r\n\\begin{table}\r\n\\begin{tabular}{c}Hidden table\\end{tabular}\r\n\\end{table}\r\n\\begin{lstlisting}\r\nhidden code\r\n\\end{lstlisting}\r\n\\begin{equation}hidden math\\end{equation}\r\n\\bibliography{refs}\r\n\\begin{enumerate}\r\n\\item Nested before.\\include{hidden.tex}Nested include after.\\addbibresource[location=remote]{refs.bib}Nested after.\r\n\\end{enumerate}\r\nAfter Å.\\bibliographystyle{plain}Done.",
+      range: { path: "part.tex", start: 74, end: 657, unit: "utf16-code-unit" },
     },
     {
       id: "part.tex#prose-4",
       kind: "list-item",
       sectionId: "main.tex#section-1",
-      text: "Nested before. Nested after.",
-      source: "\\item Nested before.\\addbibresource[location=remote]{refs.bib}Nested after.",
-      range: { path: "part.tex", start: 394, end: 469, unit: "utf16-code-unit" },
+      text: "Nested before. Nested include after. Nested after.",
+      source: "\\item Nested before.\\include{hidden.tex}Nested include after.\\addbibresource[location=remote]{refs.bib}Nested after.",
+      range: { path: "part.tex", start: 484, end: 600, unit: "utf16-code-unit" },
+    },
+    {
+      id: "hidden.tex#prose-1",
+      kind: "paragraph",
+      sectionId: "main.tex#section-2",
+      text: "Visible child lead 😀.",
+      source: "Visible child lead 😀.",
+      range: { path: "hidden.tex", start: 0, end: 22, unit: "utf16-code-unit" },
+    },
+    {
+      id: "hidden.tex#prose-2",
+      kind: "paragraph",
+      sectionId: "hidden.tex#section-1",
+      text: "Visible child section prose.",
+      source: "Visible child section prose.",
+      range: { path: "hidden.tex", start: 62, end: 90, unit: "utf16-code-unit" },
+    },
+    {
+      id: "hidden.tex#prose-3",
+      kind: "list-item",
+      sectionId: "hidden.tex#section-1",
+      text: "Visible child list item.",
+      source: "\\item Visible child list item.",
+      range: { path: "hidden.tex", start: 138, end: 168, unit: "utf16-code-unit" },
+    },
+  ],
+  provenanceDiagnostics: [
+    {
+      code: "prose-provenance-unavailable",
+      severity: "warning",
+      message: "Included prose was omitted because a cross-file list-item relationship cannot retain exact provenance",
+      sourcePath: "part.tex",
+      range: { path: "part.tex", start: 241, end: 255, unit: "utf16-code-unit" },
+    },
+    {
+      code: "prose-provenance-unavailable",
+      severity: "warning",
+      message: "Included prose was omitted because a cross-file list-item relationship cannot retain exact provenance",
+      sourcePath: "part.tex",
+      range: { path: "part.tex", start: 504, end: 524, unit: "utf16-code-unit" },
+    },
+    {
+      code: "prose-provenance-unavailable",
+      severity: "warning",
+      message: "Ordinary prose was omitted because an item command occurred outside a recognized list",
+      sourcePath: "hidden.tex",
+      range: { path: "hidden.tex", start: 94, end: 99, unit: "utf16-code-unit" },
     },
   ],
   excludedEnvironmentInventories: {
@@ -489,6 +562,8 @@ const proseBlocksMainSource =
   "First method paragraph.\r\n\r\n" +
   "Second method paragraph.\r\n\r\n" +
   "\\input{part}\r\n" +
+  "\\section{Visible child parent}\r\n" +
+  "\\input{hidden}\r\n" +
   "\\end{document}\r\n";
 const proseBlocksPartSource =
   "Inherited Å prose.\r\n\r\n" +
@@ -497,9 +572,11 @@ const proseBlocksPartSource =
   "\\item Before 😀.\r\n" +
   "\\begin{figure}\r\n" +
   "\\includegraphics{plot}\r\n" +
-  "\\input{hidden}\r\n" +
   "\\caption{Hidden figure}\r\n" +
+  "\\section{Hidden figure section}\r\n" +
+  "\\input{hidden}\r\n" +
   "\\end{figure}\r\n" +
+  "Outer include before.\\input{hidden}Outer include after.\r\n" +
   "\\begin{table}\r\n" +
   "\\begin{tabular}{c}Hidden table\\end{tabular}\r\n" +
   "\\end{table}\r\n" +
@@ -509,7 +586,7 @@ const proseBlocksPartSource =
   "\\begin{equation}hidden math\\end{equation}\r\n" +
   "\\bibliography{refs}\r\n" +
   "\\begin{enumerate}\r\n" +
-  "\\item Nested before.\\addbibresource[location=remote]{refs.bib}Nested after.\r\n" +
+  "\\item Nested before.\\include{hidden.tex}Nested include after.\\addbibresource[location=remote]{refs.bib}Nested after.\r\n" +
   "\\end{enumerate}\r\n" +
   "After Å.\\bibliographystyle{plain}Done.\r\n" +
   "\\end{itemize}\r\n\r\n" +
@@ -518,10 +595,12 @@ const proseBlocksPartSource =
   "literal hidden\r\n" +
   "\\end{verbatim}\r\n";
 const proseBlocksHiddenSource =
-  "Hidden child prose.\r\n" +
-  "\\item Bare phantom item.\r\n" +
+  "Visible child lead 😀.\r\n\r\n" +
+  "\\subsection{Visible child section}\r\n" +
+  "Visible child section prose.\r\n\r\n" +
+  "\\item Bare orphan item.\r\n\r\n" +
   "\\begin{itemize}\r\n" +
-  "\\item Nested phantom item.\r\n" +
+  "\\item Visible child list item.\r\n" +
   "\\end{itemize}\r\n";
 const proseBlocksBibliographySource = "@misc{refs, title={Fixture reference}}\r\n";
 

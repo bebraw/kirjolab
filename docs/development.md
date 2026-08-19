@@ -126,9 +126,13 @@ The current paper-import candidate remains single-sourced under
 `src/lib/paper-import/`. Run `npm run build:paper-import-package` to emit its
 ESM JavaScript, declarations, and package metadata into the ignored
 `.generated/paper-import-package/` staging directory. Run
-`npm run test:paper-import-package` for the exact-Node-24 isolated consumer gate,
-or `npm run paper-import:pack` to create a local private tarball after review.
-None of these commands publish to a registry.
+`npm run test:paper-import-package` for the exact-Node-24 isolated consumer gate.
+The canonical `npm run paper-import:pack` command uses the npm lifecycle's
+explicit Node and npm executables, requires the exact toolchain declared in
+`packaging/paper-import/releases/<version>.json`, and accepts the tarball only
+when its filename, byte count, and SHA-256 match that checked manifest. The
+reviewed candidate is attached to its namespaced immutable GitHub Release for
+downstream CI; none of these commands publish to an npm registry.
 
 ### GitHub App sync
 

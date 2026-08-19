@@ -292,7 +292,16 @@ describe("paper-import conformance corpus", () => {
 
     expect({
       archiveSha256: sha256Hex(fixture.archive),
+      sections: conversion.sections.map(({ id, parentId, level, title, source, range }) => ({
+        id,
+        parentId,
+        level,
+        title,
+        source,
+        range,
+      })),
       blocks,
+      provenanceDiagnostics: conversion.diagnostics.filter(({ code }) => code === "prose-provenance-unavailable"),
       excludedEnvironmentInventories: {
         figures: conversion.figures.map(({ requestedPath, archivePath, caption }) => ({
           requestedPath,
@@ -304,9 +313,9 @@ describe("paper-import conformance corpus", () => {
         equations: conversion.equations.map(({ value }) => value),
       },
     }).toEqual(fixture.expected);
-    for (const block of blocks) {
-      const original = fixture.sourceByPath[block.range.path as keyof typeof fixture.sourceByPath];
-      expect(original?.slice(block.range.start, block.range.end)).toBe(block.source);
+    for (const item of [...conversion.sections, ...blocks]) {
+      const original = fixture.sourceByPath[item.range.path as keyof typeof fixture.sourceByPath];
+      expect(original?.slice(item.range.start, item.range.end)).toBe(item.source);
     }
     expect(blocks[0]?.source).toContain("\\cite{lead}");
     expect(blocks[0]?.source).toContain("\\(x + y\\)");

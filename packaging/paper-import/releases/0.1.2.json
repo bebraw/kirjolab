@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "name": "@kirjolab/paper-import",
+  "version": "0.1.2",
+  "filename": "kirjolab-paper-import-0.1.2.tgz",
+  "bytes": 53599,
+  "toolchain": {
+    "node": "24.15.0",
+    "npm": "11.12.1"
+  },
+  "sha256": "c1f6ce3a57214f770f0342c9d76ce73efffcacaa24a60690f931011819c77864",
+  "artifactUrl": "https://github.com/bebraw/kirjolab/releases/download/paper-import-v0.1.2/kirjolab-paper-import-0.1.2.tgz"
+}

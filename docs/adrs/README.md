@@ -33,6 +33,7 @@ No ADRs are currently accepted and awaiting implementation.
 
 | ADR                                                                                       | Status               | Summary                                                                                                         |
 | ----------------------------------------------------------------------------------------- | -------------------- | --------------------------------------------------------------------------------------------------------------- |
+| [ADR-226](./implemented/ADR-226-publish-immutable-package-assets.md)                      | Implemented          | Pin exact package artifacts in checked manifests and immutable GitHub Release assets.                           |
 | [ADR-225](./implemented/ADR-225-use-instrumented-dry-run-for-required-mutation-ci.md)     | Implemented          | Keep required GitHub mutation CI as an instrumented compatibility smoke while scoring mutation locally.         |
 | [ADR-224](./implemented/ADR-224-override-unused-puppeteer-browser-installer.md)           | Implemented          | Replace Puppeteer's unused vulnerable browser installer while retaining the tested Browser Run adapter.         |
 | [ADR-223](./implemented/ADR-223-incubate-paper-import-core.md)                            | Implemented          | Incubate reviewed paper-import contracts, exact preview identity, provenance, and conformance before packaging. |

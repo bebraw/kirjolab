@@ -3,6 +3,7 @@ import { cp, mkdir, readFile, readdir, rm } from "node:fs/promises";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
+import { loadCurrentPaperImportRelease } from "./paper-import-release-manifest.mjs";
 
 const execute = promisify(execFile);
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -11,8 +12,9 @@ const metadataRoot = join(repositoryRoot, "packaging/paper-import");
 const stagingRoot = join(repositoryRoot, ".generated/paper-import-package");
 const metadataFiles = ["CHANGELOG.md", "README.md", "SECURITY.md", "package.json"];
 const allowedBareImports = new Set(["fflate"]);
+const release = await loadCurrentPaperImportRelease();
 
-await validatePackageMetadata();
+validatePackageMetadata(release.packageManifest, release.releaseManifest);
 await validateSourceBoundary();
 await rm(stagingRoot, { recursive: true, force: true });
 await mkdir(stagingRoot, { recursive: true });
@@ -23,21 +25,32 @@ await Promise.all(metadataFiles.map((path) => cp(join(metadataRoot, path), join(
 await cp(join(repositoryRoot, "LICENSE"), join(stagingRoot, "LICENSE"));
 await validateEmittedPackage();
 
-async function validatePackageMetadata() {
-  const manifest = JSON.parse(await readFile(join(metadataRoot, "package.json"), "utf8"));
-  if (manifest.name !== "@kirjolab/paper-import" || manifest.version !== "0.1.1" || manifest.private !== true) {
-    throw new Error("Paper-import package identity must remain private @kirjolab/paper-import@0.1.1");
-  }
-  if (manifest.type !== "module" || manifest.engines?.node !== "24.15.0") {
-    throw new Error("Paper-import package must remain ESM on the pinned Node 24.15.0 runtime");
-  }
-  if (JSON.stringify(manifest.dependencies) !== JSON.stringify({ fflate: "0.8.3" })) {
-    throw new Error("fflate@0.8.3 must remain the only paper-import runtime dependency");
-  }
+function validatePackageMetadata(manifest, releaseManifest) {
+  const identityMessage = `Paper-import package identity must remain private ${releaseManifest.name}@${releaseManifest.version}`;
+  assertPackageMetadata(manifest.name === releaseManifest.name, identityMessage);
+  assertPackageMetadata(manifest.version === releaseManifest.version, identityMessage);
+  assertPackageMetadata(manifest.private === true, identityMessage);
+  const runtimeMessage = `Paper-import package must remain ESM on the release Node ${releaseManifest.toolchain.node} runtime`;
+  assertPackageMetadata(manifest.type === "module", runtimeMessage);
+  assertPackageMetadata(manifest.engines?.node === releaseManifest.toolchain.node, runtimeMessage);
+  const currentNode = process.version.replace(/^v/u, "");
+  assertPackageMetadata(
+    currentNode === releaseManifest.toolchain.node,
+    `Paper-import package build requires Node ${releaseManifest.toolchain.node}; received ${currentNode}`,
+  );
+  assertPackageMetadata(
+    JSON.stringify(manifest.dependencies) === JSON.stringify({ fflate: "0.8.3" }),
+    "fflate@0.8.3 must remain the only paper-import runtime dependency",
+  );
   const expectedExports = { ".": "./dist/index.js", "./conformance": "./dist/conformance.js" };
-  if (JSON.stringify(manifest.exports) !== JSON.stringify(expectedExports)) {
-    throw new Error("Paper-import package exports must remain limited to . and ./conformance");
-  }
+  assertPackageMetadata(
+    JSON.stringify(manifest.exports) === JSON.stringify(expectedExports),
+    "Paper-import package exports must remain limited to . and ./conformance",
+  );
+}
+
+function assertPackageMetadata(condition, message) {
+  if (!condition) throw new Error(message);
 }
 
 async function validateSourceBoundary() {

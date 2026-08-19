@@ -235,17 +235,38 @@ function visitProseSource(state: ProseInventoryState, path: string): void {
   }
   const window = sourceWindow(path, state.rootPath, source, semantic);
   const excludedEnvironments = proseExcludedEnvironmentOccurrences(source, semantic, window);
+  const listEnvironments = proseListEnvironmentOccurrences(source, semantic, window);
+  const reachableIncludes = (state.includesBySource.get(path) ?? []).filter((reference) =>
+    isReachableInclude(reference, path, window, state.reachable),
+  );
+  const visibleIncludes = reachableIncludes.filter(
+    (reference) => !occurrenceContainsAny(excludedEnvironments, reference.from, reference.to),
+  );
+  const listIncludes = visibleIncludes
+    .filter((reference) => occurrenceContainsAny(listEnvironments, reference.from, reference.to))
+    .sort((left, right) => left.from - right.from || left.to - right.to);
+  const listIncludeOccurrences = listIncludes.map(({ from: start, to: end }) => ({ start, end }));
+  for (const reference of listIncludes) {
+    state.diagnostics.push({
+      code: "prose-provenance-unavailable",
+      severity: "warning",
+      message: "Included prose was omitted because a cross-file list-item relationship cannot retain exact provenance",
+      sourcePath: path,
+      range: range(path, reference.from, reference.to),
+    });
+  }
   const events: ProseStructureEvent[] = [
-    ...(state.sectionsByPath.get(path) ?? []).map((section) => ({ kind: "section" as const, position: section.range.start, section })),
-    ...(state.includesBySource.get(path) ?? [])
-      .filter((reference) => isReachableInclude(reference, path, window, state.reachable))
-      .filter((reference) => !excludedEnvironments.some((excluded) => occurrenceContains(excluded, reference.from, reference.to)))
+    ...(state.sectionsByPath.get(path) ?? [])
+      .filter((section) => !occurrenceContainsAny(excludedEnvironments, section.range.start, section.range.end))
+      .map((section) => ({ kind: "section" as const, position: section.range.start, section })),
+    ...visibleIncludes
+      .filter((reference) => !occurrenceContainsAny(listEnvironments, reference.from, reference.to))
       .map((reference) => ({ kind: "include" as const, position: reference.from, reference })),
   ].sort((left, right) => left.position - right.position || (left.kind === "section" ? -1 : 1));
 
   let cursor = window.start;
   for (const event of events) {
-    appendProseBlocks(state, path, source, semantic, cursor, event.position);
+    appendProseBlocks(state, path, source, semantic, cursor, event.position, listIncludeOccurrences);
     if (event.kind === "section") {
       state.sectionId = event.section.id;
       cursor = event.section.range.end;
@@ -255,7 +276,7 @@ function visitProseSource(state: ProseInventoryState, path: string): void {
       cursor = event.reference.to;
     }
   }
-  appendProseBlocks(state, path, source, semantic, cursor, window.end);
+  appendProseBlocks(state, path, source, semantic, cursor, window.end, listIncludeOccurrences);
 }
 
 const proseListEnvironments = ["itemize", "enumerate"] as const;
@@ -282,6 +303,10 @@ function proseExcludedEnvironmentOccurrences(source: string, semantic: string, w
   return proseExcludedEnvironments.flatMap((environment) => environmentOccurrences(source, semantic, window, environment));
 }
 
+function proseListEnvironmentOccurrences(source: string, semantic: string, window: SourceWindow): readonly EnvironmentOccurrence[] {
+  return proseListEnvironments.flatMap((environment) => environmentOccurrences(source, semantic, window, environment));
+}
+
 type ProseContentEvent =
   | { readonly kind: "list"; readonly position: number; readonly occurrence: EnvironmentOccurrence }
   | {
@@ -292,7 +317,15 @@ type ProseContentEvent =
 
 type SourceOccurrence = Pick<EnvironmentOccurrence, "start" | "end">;
 
-function appendProseBlocks(state: ProseInventoryState, path: string, source: string, semantic: string, start: number, end: number): void {
+function appendProseBlocks(
+  state: ProseInventoryState,
+  path: string,
+  source: string,
+  semantic: string,
+  start: number,
+  end: number,
+  listIncludeOccurrences: readonly SourceOccurrence[],
+): void {
   const windowSource = source.slice(start, end);
   const windowSemantic = semantic.slice(start, end);
   if (!/\S/u.test(windowSemantic)) return;
@@ -306,7 +339,11 @@ function appendProseBlocks(state: ProseInventoryState, path: string, source: str
   const excludedCommands = commandOccurrences(windowSource, windowSemantic, window, proseExcludedCommands).map((occurrence) =>
     offsetOccurrence(occurrence, start),
   );
-  const excludedOccurrences = [...excludedEnvironments, ...excludedCommands];
+  const excludedOccurrences = [
+    ...excludedEnvironments,
+    ...excludedCommands,
+    ...listIncludeOccurrences.filter((occurrence) => occurrenceOverlaps(occurrence, start, end)),
+  ];
   const events: ProseContentEvent[] = [
     ...lists.map((occurrence) => ({ kind: "list" as const, position: occurrence.start, occurrence })),
     ...excludedOccurrences.map((occurrence) => ({ kind: "exclude" as const, position: occurrence.start, occurrence })),
@@ -369,6 +406,19 @@ function appendParagraphBlock(
 ): void {
   while (start < end && /\s/u.test(semantic[start]!)) start += 1;
   while (end > start && /\s/u.test(semantic[end - 1]!)) end -= 1;
+  const itemPattern = /\\item(?![A-Za-z])/gu;
+  itemPattern.lastIndex = start;
+  const item = nextActiveLatexMatch(itemPattern, semantic);
+  if (item && item.index < end) {
+    state.diagnostics.push({
+      code: "prose-provenance-unavailable",
+      severity: "warning",
+      message: "Ordinary prose was omitted because an item command occurred outside a recognized list",
+      sourcePath: path,
+      range: range(path, item.index, item.index + item[0].length),
+    });
+    return;
+  }
   const paragraphSemantic = semantic.slice(start, end);
   const displayMath = displayMathOccurrences(paragraphSemantic);
   if (displayMath.length === 1 && displayMath[0]?.start === 0 && displayMath[0].end === paragraphSemantic.length) return;
@@ -486,6 +536,10 @@ function occurrenceOverlaps(occurrence: SourceOccurrence, start: number, end: nu
 
 function occurrenceContains(occurrence: SourceOccurrence, start: number, end: number): boolean {
   return occurrence.start <= start && occurrence.end >= end;
+}
+
+function occurrenceContainsAny(occurrences: readonly SourceOccurrence[], start: number, end: number): boolean {
+  return occurrences.some((occurrence) => occurrenceContains(occurrence, start, end));
 }
 
 function sourceWithoutOccurrences(source: string, start: number, end: number, occurrences: readonly SourceOccurrence[]): string {
@@ -860,16 +914,20 @@ function visitSectionSource(state: SectionInventoryState, path: string): void {
 }
 
 function sectionEvents(state: SectionInventoryState, context: SectionSourceContext): SectionEvent[] {
-  const sections: SectionEvent[] = commandOccurrences(context.source, context.semantic, context.window, sectionNames).map(
-    (command, localIndex) => ({
+  const excludedEnvironments = proseExcludedEnvironmentOccurrences(context.source, context.semantic, context.window);
+  const listEnvironments = proseListEnvironmentOccurrences(context.source, context.semantic, context.window);
+  const sections: SectionEvent[] = commandOccurrences(context.source, context.semantic, context.window, sectionNames)
+    .filter((command) => !occurrenceContainsAny(excludedEnvironments, command.start, command.end))
+    .map((command, localIndex) => ({
       kind: "section",
       position: command.start,
       command,
       localIndex,
-    }),
-  );
+    }));
   const includes: SectionEvent[] = (state.includesBySource.get(context.path) ?? [])
     .filter((reference) => isReachableInclude(reference, context.path, context.window, state.reachable))
+    .filter((reference) => !occurrenceContainsAny(excludedEnvironments, reference.from, reference.to))
+    .filter((reference) => !occurrenceContainsAny(listEnvironments, reference.from, reference.to))
     .map((reference) => ({ kind: "include", position: reference.from, reference }));
   return [...sections, ...includes].sort((left, right) => left.position - right.position || (left.kind === "section" ? -1 : 1));
 }
